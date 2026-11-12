@@ -115,7 +115,8 @@ describe('rule 7: one answer covers every row in its group', () => {
     const at = planAt(g.plan, week, cycle.weeks).toFixed(1);
     const t = { checkIns: [rec({ 'Goal ID': g.id, Week: String(week), Value: at.replace('.', ',') })] };
     expect(run('amara', t).issues.map((i) => i.kind)).toContain('decimal-comma');
-    const grid = run('amara', t, { via: 'bulk' });
+    // The one-table check-in is the owner's own (check-ins are the owner's, R1).
+    const grid = run(g.ownerId, t, { via: 'bulk' });
     expect(grid.issues.filter((i) => i.level !== 'note')).toEqual([]);
     expect(grid.commit!.checkIns!.find((c) => c.goalId === g.id)).toMatchObject({ week, value: Number(at) });
   });
@@ -199,7 +200,7 @@ describe('section 4: a case per kind, with its sentence and level', () => {
   it('raises every Must fix kind and every Check kind it owns (near-header and other-workspace come with the preview, IM3/IM5; new-team at set-up, ST4)', () => {
     const covered = new Set(cases.map(([k]) => k));
     expect(MUST_KINDS.filter((k) => !covered.has(k))).toEqual([]);
-    expect(CHECK_KINDS.filter((k) => !covered.has(k))).toEqual(['near-header', 'new-team', 'other-workspace']); // near-header: headerRow.test.ts
+    expect(CHECK_KINDS.filter((k) => !covered.has(k))).toEqual(['near-header', 'two-columns', 'new-team', 'other-workspace']); // near-header, two-columns: headerRow.test.ts
   });
 });
 

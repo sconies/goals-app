@@ -18,7 +18,7 @@ module.exports = {
   id: 'N10',
   area: 'talk-polish',
   title: 'Talk-path polish: search by key, Home counts that open their goals, teams worst first, one rule for a decision waiting, the Board’s own status, phone wrapping and targets',
-  reqs: ['READABLE-IDS', 'SAVED-VIEWS', 'HOME-DASHBOARD', 'VIEWS', 'ONBOARDING'],
+  reqs: ['READABLE-IDS', 'SAVED-VIEWS', 'HOME-OWNER', 'VIEWS', 'ONBOARDING'],
   async run({ open, url }) {
     const fails = [];
     const chk = (ok, msg) => { if (!ok) fails.push(msg); };
@@ -41,22 +41,22 @@ module.exports = {
       await c.close();
     }
 
-    // U23: each count opens its own goals, as a leader (every goal) and as an owner (her own).
-    for (const [who, mine] of [['amara', false], ['rhea', true]]) {
+    // U23: each count opens its own goals, as an owner (her own, counted once in Your goals: HM1).
+    for (const [who, mine] of [['rhea', true]]) {
       const [c, p] = await open(1280, 900, who, '/');
-      const counts = await p.evaluate(() => [...document.querySelectorAll('.dash-goals .dash-count')].map((a) => ({ href: a.getAttribute('href') || '', text: a.textContent.trim(), tag: a.tagName, shape: !!a.querySelector('svg.status-shape') })));
+      const counts = await p.evaluate(() => [...document.querySelectorAll('.home-mine .home-counts a')].map((a) => ({ href: a.getAttribute('href') || '', text: a.textContent.trim(), tag: a.tagName, shape: !!a.querySelector('svg.status-shape') })));
       chk(counts.length > 0 && counts.every((x) => x.tag === 'A' && x.shape), `U23 (${who}): Home's counts are not each a link with a shape: ${JSON.stringify(counts.slice(0, 3))}`);
       for (const x of counts.filter((k) => /off track|at risk/.test(k.text))) {
         const n = Number(x.text.match(/^\d+/)?.[0]);
-        chk(/[?&]status=(off|risk)\b/.test(x.href) && (!mine || /show=mine/.test(x.href)), `U23 (${who}): “${x.text}” links to ${x.href}`);
+        chk(/[?&]status=(off|risk)\b/.test(x.href) && (!mine || /scope=mine/.test(x.href)), `U23 (${who}): “${x.text}” links to ${x.href}`);
         // Pressed as a person would: the link keeps the demo's pinned date.
-        await p.locator('.dash-goals a.dash-count', { hasText: x.text }).first().click();
+        await p.locator('.home-mine .home-counts a', { hasText: x.text }).first().click();
         await p.waitForURL(/\/goals\?/);
         await settle(p);
         const shown = await shownOf(p);
         chk(shown === n, `U23 (${who}): “${x.text}” opens ${shown} goals`);
         await p.goBack();
-        await p.locator('.dash-goals').waitFor();
+        await p.locator('.home-mine .home-counts').waitFor();
         await settle(p, 400);
       }
       await c.close();

@@ -17,6 +17,12 @@ const toNumbers = async (p, table = true) => {
   await p.waitForTimeout(250);
   if (table) { await p.getByText('Adjust the plan week by week').click(); await p.waitForTimeout(100); }
 };
+// Each read-back row is as wide as its list: full-width rows, never laid out in columns (build review of #202, finding 1).
+const readBackFull = async (p, w, fail) => {
+  const list = await box(p.getByRole('list', { name: 'Read back' }));
+  const rows = await p.getByRole('list', { name: 'Read back' }).locator(':scope > li').evaluateAll((es) => es.map((e) => e.getBoundingClientRect().width));
+  if (rows.length < 3 || rows.some((rw) => !near(rw, list.w - 2, 1.5))) fail(`(GE3) at ${w} the read-back's rows are ${rows.map(Math.round).join('/')}px wide in a ${Math.round(list.w)}px list`);
+};
 const noSideScroll = async (p, where, fail) => {
   const [sw, iw] = await p.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
   if (sw > iw) fail(`${where}: scrolls sideways (${sw} > ${iw})`);
@@ -134,8 +140,17 @@ module.exports = {
       const rr = await p.locator('.review-rows li').evaluateAll((es) => es.map((e) => e.getBoundingClientRect().height));
       const ch = await p.locator('.review-rows .linkish').evaluateAll((es) => es.map((e) => e.getBoundingClientRect().height));
       if (rr.length < 4 || Math.min(...rr) < 44 || Math.min(...ch) < 44) f(`(3, 23) the read-back's rows are ${rr.join('/')}px, Change ${ch.join('/')}px`);
+      await readBackFull(p, 390, f);
       // (23) the plan is read back with its weeks' dates (GE9, GE3): "A number to move: from 20% in week 45 (2–8 Nov 2026) to 90% by week 53 (…)".
       if (!/by week \d+ \(\d/.test((await p.locator('.review-rows li[data-row="what"]').textContent()) || '')) f('(23) Check doesn’t say the due week with its dates');
+      await c.close();
+    }
+
+    // The read-back at 1440: one row under another, each the list's width (build review of #202, finding 1).
+    {
+      const [c, p] = await open(1440, 900, 'mateo', '/goals/new');
+      await toNumbers(p, false); await cont(p);
+      await readBackFull(p, 1440, f);
       await c.close();
     }
 

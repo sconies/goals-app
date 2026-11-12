@@ -7,14 +7,14 @@
    One convention: nothing is deleted from the database. A removed record keeps its row and says when and by whom
    (removedAt/removedBy; leftAt for a person who left, stoppedAt and a reason for a stopped goal, endedAt for an ended
    review, deletedAt for a saved view). domain/cycle's scopeToCycle is the one place they leave every list. */
-import { mayChangeGoal } from './goalRights';
+import { mayChangeGoal, mayPostCheckIn } from './goalRights';
 import type { Commit } from './commit';
 import { byRecarry } from './copies';
 import { NotAllowed, type ActionContext } from './actions';
 import { asksOf, liveNotes, openAsksFor, withdrawAsk, writtenNotes } from './asks';
 import { checkInsFor } from './status';
 import { isTableView } from './tableLayout';
-import { VIA_LABEL } from './changeset';
+import { VIA_LABEL, type Via } from './via';
 import { COMMENT_REMOVED, ENDED, LEFT, MIN_STOP_REASON, RESTORE_DAYS, STOPPED } from './vocabulary';
 import type { Ask, Change, CheckIn, Comment, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
 import { asBefore, hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsLeaving, rowsUndone, applyModuleRows, type ModuleRecords } from './records';
@@ -307,21 +307,26 @@ export function deleteGoal(x: ActionContext, goalId: string): Commit {
 
 /* ---------- check-ins ---------- */
 
-/** Whether a check-in can still be deleted: it's the goal's latest. Once a newer one is posted it can only be corrected. */
-export function canDeleteCheckIn(s: Pick<Snapshot, 'checkIns'>, goal: Goal, c: CheckIn, actor: Person) {
-  return (c.authorId === actor.id || actor.admin) && checkInsFor(goal, s.checkIns).at(-1)?.id === c.id;
+/**
+ * Whether a check-in can still be deleted: by the goal's owner, as check-ins are theirs (R1; goalRights mayPostCheckIn,
+ * the form's door), whoever posted it; and only the goal's latest. Once a newer one is posted it can only be corrected.
+ */
+export function canDeleteCheckIn(s: Pick<Snapshot, 'checkIns'>, goal: Goal, c: CheckIn, actor: Pick<Person, 'id' | 'admin'>) {
+  return mayPostCheckIn(actor, goal, 'form') && checkInsFor(goal, s.checkIns).at(-1)?.id === c.id;
 }
+/** Why a check-in can't be deleted, or an import's check-ins put back, by anyone but the goal's owner. */
+const ownersCheckIns = (x: ActionContext, g: Goal, what: 'delete' | 'change') => `Only ${x.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? 'its owner'} (its owner) can ${what} its check-ins.`;
 
 /**
- * Delete a check-in: whoever posted it, or an admin, until a newer check-in exists on the goal (then it can only be
- * corrected). The goal's status is worked out again from the one before. An open ask it raised is withdrawn.
+ * Delete a check-in: the goal's owner (R1), until a newer check-in exists on the goal (then it can only be corrected).
+ * The goal's status is worked out again from the one before. An open ask it raised is withdrawn.
  */
 export function deleteCheckIn(x: ActionContext, id: string): Commit {
   const c = x.snapshot.checkIns.find((v) => v.id === id);
   if (!c) no('There’s no check-in with that ID in this cycle.');
   const g = x.snapshot.goals.find((v) => v.id === c!.goalId);
   if (!g) no('That check-in’s goal isn’t live in this cycle.');
-  if (c!.authorId !== x.actor.id && !x.actor.admin) no('Only whoever posted a check-in, or an admin, can delete it.');
+  if (!mayPostCheckIn(x.actor, g!, 'form')) no(ownersCheckIns(x, g!, 'delete'));
   if (checkInsFor(g!, x.snapshot.checkIns).at(-1)?.id !== c!.id) no('A newer check-in has been posted since, so this one can only be corrected.');
   const requests: Ask[] = [];
   const changes: Change[] = [log(x, { entity: 'check-in', entityId: c!.id, goalId: g!.id, action: 'removed', summary: `Deleted the check-in for week ${c!.week}`, diffs: [{ field: 'Check-in', from: `Week ${c!.week}`, to: '—' }] })];
@@ -501,29 +506,80 @@ function undoPlan(x: ActionContext, importId: string): { commit: Commit; restore
     goals.push(before ? ({ ...asBefore(cur, before), ...(cur.key ? { key: cur.key } : {}) } as Goal) : { ...cur, removedAt: x.now, removedBy: x.actor.id });
     changes.push(log(x, { entity: 'goal', entityId: id, goalId: id, action: before ? 'edited' : 'removed', summary: before ? 'Put back as it was before an import' : `Deleted ${cur.title}: an import that added it was undone`, importId }));
   }
+  // Putting a check-in back is changing it, so it asks R1 through the door the import came in by: an admin may undo a
+  // workbook, but not an owner's own correction; a goal handed on since is its new owner's.
+  const via = viaOf(entry!);
+  const goingGoals = new Set(u.goals.filter((v) => !v.before).map((v) => v.id));
   for (const { id, before } of u.checkIns) {
     const cur = full.checkIns.find((c) => c.id === id);
     if (!cur || cur.removedAt) continue;
     const goal = full.goals.find((g) => g.id === cur.goalId);
     const by = touchedBy('check-in', id);
     if (by) { keep(`${goal?.title ?? 'A goal'}, week ${cur.week}`, by, 'check-in'); continue; }
+    if (goal && !goingGoals.has(goal.id) && !mayPostCheckIn(x.actor, goal, via)) { keep(`${goal.title}, week ${cur.week}`, entry!, 'check-in', ownersCheckIns(x, goal, 'change')); continue; }
     checkIns.push(before ? asBefore(cur, before) : { ...cur, removedAt: x.now, removedBy: x.actor.id });
     changes.push(log(x, { entity: 'check-in', entityId: id, goalId: cur.goalId, action: before ? 'edited' : 'removed', summary: before ? `Put the check-in for week ${cur.week} back as it was before an import` : `Deleted the check-in for week ${cur.week}: an import that added it was undone`, importId }));
   }
+  // A goal Undo deletes leaves the tree as deleteGoal's does: what fed it moves up to what it fed (past any goal Undo
+  // also deletes), other goals stop listing it, and its open asks are withdrawn. A goal fed by one changed since stays.
+  const goalsBack = goals.length;
+  const removing = new Map(goals.filter((g) => g.removedAt).map((g) => [g.id, g]));
+  const goalNow = (id: string) => goals.find((g) => g.id === id) ?? full.goals.find((g) => g.id === id);
+  for (const g of full.goals) {
+    if (g.removedAt || removing.has(g.id)) continue;
+    const cur = goalNow(g.id)!;
+    const fed = cur.parentId ? removing.get(cur.parentId) : undefined;
+    const helps = (cur.alsoHelps ?? []).filter((id) => removing.has(id));
+    if (!fed && !helps.length) continue;
+    const next: Goal = { ...cur };
+    let to: Goal | undefined;
+    if (fed) {
+      let up = fed.parentId;
+      while (up && removing.has(up)) up = removing.get(up)!.parentId;
+      to = up ? goalNow(up) : undefined;
+      if (to && (to.removedAt || to.stoppedAt)) to = undefined;
+      next.parentId = to?.id ?? null;
+      if (!to) { next.effect = null; delete next.whyHelps; }
+    }
+    if (helps.length) next.alsoHelps = cur.alsoHelps!.filter((id) => !removing.has(id));
+    if (next.alsoHelps && !next.alsoHelps.length) delete next.alsoHelps;
+    const i = goals.findIndex((v) => v.id === g.id);
+    if (i >= 0) goals[i] = next; else goals.push(next);
+    if (fed) changes.push(log(x, { entity: 'goal', entityId: g.id, goalId: g.id, action: 'edited', summary: `Now feeds ${to ? to.title : 'nothing'}, as ${fed.title} was deleted by undoing an import`, diffs: [{ field: 'Feeds into', from: fed.title, to: to?.title ?? '—' }], importId }));
+    for (const id of helps) changes.push(log(x, { entity: 'goal', entityId: g.id, goalId: g.id, action: 'edited', summary: `No longer also helps ${removing.get(id)!.title}, as it was deleted by undoing an import`, diffs: [{ field: 'Also helps', from: removing.get(id)!.title, to: '—' }], importId }));
+  }
+  const ownAsks = new Set(u.requests.map((r) => r.id));
+  for (const g of removing.values()) {
+    for (const r of openAsksFor(g.id, full)) {
+      if (ownAsks.has(r.id) || requests.some((v) => v.id === r.id)) continue;
+      const w = withdrawAsk(r, g.id, x.actor.id, x.now, x.newId, 'Withdrawn: the goal was deleted by undoing an import');
+      requests.push(w.request);
+      changes.push(...w.changes.map((c) => ({ ...c, importId })));
+    }
+  }
+  // Someone the import added goes again, unless they're in use since: they've done something, own a goal, lead a team,
+  // sit in a review, or an ask is theirs. Then they're skipped, like any row changed since.
+  const added = (gid: string) => u.goals.some((v) => v.id === gid && !v.before);
+  const addedTeams = new Set((u.teams ?? []).filter((t) => !t.before).map((t) => t.id));
+  const teamBefore = new Map((u.teams ?? []).filter((t) => t.before).map((t) => [t.id, t.before!]));
+  const going = new Map<string, Person>();
   for (const { id, before } of u.people) {
     const cur = full.people.find((p) => p.id === id);
     if (!cur || cur.removedAt) continue;
     const by = touchedBy('person', id);
     if (by) { keep(cur.name, by, 'person'); continue; }
-    // Someone the import added goes again, unless they've done something since (then they're skipped, like any change).
-    const added = (gid: string) => u.goals.some((v) => v.id === gid && !v.before);
     if (!before) {
       const acted = latest((c) => c.actorId === id);
       const owns = full.goals.some((g) => g.ownerId === id && !g.removedAt && !added(g.id));
-      if (acted || owns) { skipped.push({ name: cur.name, reason: `${cur.name} has made changes since`, at: acted?.at ?? entry!.at, by: id }); continue; }
+      const inReview = (full.reviews ?? []).some((r) => r.people.includes(id) && !r.removedAt && !(u.reviews ?? []).some((v) => v.id === r.id));
+      const asked = asksOf(full).some((r) => !ownAsks.has(r.id) && (r.askedBy === id || r.recipientId === id || r.answeredBy === id));
+      const why = acted || owns ? 'has made changes since' : inReview ? 'is in a review since' : asked ? 'has an ask since' : '';
+      if (why) { skipped.push({ name: cur.name, reason: `${cur.name} ${why}`, at: acted?.at ?? entry!.at, by: id }); continue; }
+      going.set(id, cur);
+      continue;
     }
-    people.push(before ? asBefore(cur, before) : { ...cur, removedAt: x.now, removedBy: x.actor.id });
-    changes.push(log(x, { entity: 'person', entityId: id, action: before ? 'edited' : 'removed', summary: before ? `Put ${before.name} back as they were before an import` : `Deleted ${cur.name}: an import that added them was undone`, importId }));
+    people.push(asBefore(cur, before));
+    changes.push(log(x, { entity: 'person', entityId: id, action: 'edited', summary: `Put ${before.name} back as they were before an import`, importId }));
   }
   // What marking someone as left changed besides: the reviews they left and the teams they led.
   const reviews: Review[] = [];
@@ -536,11 +592,25 @@ function undoPlan(x: ActionContext, importId: string): { commit: Commit; restore
   }
   const teams = (u.teams ?? []).flatMap(({ id, before }) => (before && full.teams.some((t) => t.id === id) ? [before] : []));
   // A team the import added goes again, once nothing left in the workspace sits in it: its goals and people go back above.
-  const goneGoals = new Set(goals.filter((g) => g.removedAt).map((g) => g.id));
-  const gonePeople = new Set(people.filter((p) => p.removedAt).map((p) => p.id));
-  const removeTeams = (u.teams ?? []).filter(({ id, before }) => !before && full.teams.some((t) => t.id === id)
-    && !full.goals.some((g) => g.teamId === id && !g.removedAt && !goneGoals.has(g.id))
-    && !full.people.some((p) => p.teamId === id && !p.removedAt && !p.leftAt && !gonePeople.has(p.id))).map(({ id }) => id);
+  // Someone the import added who leads a team that stays, stays too; that can keep their own team, so this runs until
+  // nothing more changes.
+  const goneGoals = new Set(removing.keys());
+  let removeTeams: string[] = [];
+  for (;;) {
+    removeTeams = [...addedTeams].filter((id) => full.teams.some((t) => t.id === id)
+      && !full.goals.some((g) => g.teamId === id && !g.removedAt && !goneGoals.has(g.id))
+      && !full.people.some((p) => p.teamId === id && !p.removedAt && !p.leftAt && !going.has(p.id)));
+    const leads = [...going.values()].filter((p) => full.teams.some((t) => t.leadId === p.id && !removeTeams.includes(t.id) && (teamBefore.get(t.id)?.leadId ?? p.id) === p.id));
+    if (!leads.length) break;
+    for (const p of leads) {
+      going.delete(p.id);
+      skipped.push({ name: p.name, reason: `${p.name} leads the team ${full.teams.find((t) => t.leadId === p.id)!.name}`, at: entry!.at, by: p.id });
+    }
+  }
+  for (const p of going.values()) {
+    people.push({ ...p, removedAt: x.now, removedBy: x.actor.id });
+    changes.push(log(x, { entity: 'person', entityId: p.id, action: 'removed', summary: `Deleted ${p.name}: an import that added them was undone`, importId }));
+  }
   for (const id of removeTeams) changes.push(log(x, { entity: 'workspace', entityId: id, action: 'removed', summary: `Removed the team “${full.teams.find((t) => t.id === id)!.name}”: an import that added it was undone`, diffs: [{ field: 'Team', from: full.teams.find((t) => t.id === id)!.name, to: '—' }], importId }));
   // What the import added and Undo removes keeps a team that exists, so restoring it later finds one.
   const home = full.teams.find((t) => !removeTeams.includes(t.id))?.id;
@@ -554,7 +624,9 @@ function undoPlan(x: ActionContext, importId: string): { commit: Commit; restore
     const back = before ?? (cur.status === 'open' ? { ...cur, status: 'withdrawn' as const, updatedAt: x.now } : null);
     if (back) requests.push(back);
   }
-  const restored = goals.length + checkIns.length + people.length;
+  // Every row put back, of every kind; a goal moved up because what it fed was deleted is no row of the import's.
+  const restored = goalsBack + checkIns.length + people.length + reviews.length + teams.length + removeTeams.length
+    + requests.filter((r) => ownAsks.has(r.id)).length;
   changes.unshift(log(x, {
     entity: 'workspace', entityId: importId, action: 'undone', importId,
     summary: `Undid ${entry!.summary.replace(/:.*$/, '').toLowerCase()}: ${plural(restored, 'row', 'rows')} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ''}`,
@@ -574,7 +646,10 @@ export const keptText = (k: KeptRow) => `${k.name}: ${k.reason}`;
  * anything since is left alone and listed in `skipped`, with why, when and by whom (rule 9).
  */
 export function undoImport(x: ActionContext, importId: string): { commit: Commit; restored: number; skipped: KeptRow[] } {
-  return undoPlan(x, importId);
+  const out = undoPlan(x, importId);
+  // Nothing to put back: it isn't marked undone, so it says the same tomorrow (MCP's dry run said so first).
+  if (!out.restored) no(nothingToUndo(out.skipped.length));
+  return out;
 }
 
 /** Rule 9: what Undo would do, saving nothing: how many rows go back, and which stay as they are, and why. */
@@ -583,12 +658,33 @@ export function undoPreview(x: ActionContext, importId: string): { restores: num
   return { restores: out.restored, skipped: out.skipped };
 }
 
+/** The door an import came in by, from its Via mark: a check-in corrected on its own screen carries none (CK1). */
+function viaOf(entry: Change): Via {
+  const label = entry.diffs.find((d) => d.field === 'Via')?.to;
+  const via = (Object.keys(VIA_LABEL) as Via[]).find((k) => VIA_LABEL[k] === label);
+  return via ?? (/^Corrected a check-in\b/.test(entry.summary) ? 'form' : 'spreadsheet');
+}
+
 /** An import's name, as Past imports and Activity say it (spec 2.7): the file's, or where the bulk change was made. */
 export function importName(entry: Change): string {
   const file = entry.diffs.find((d) => d.field === 'File')?.to;
   if (file) return file;
   const via = entry.diffs.find((d) => d.field === 'Via')?.to;
-  return via === VIA_LABEL.table ? 'Bulk edit on Data' : via === VIA_LABEL.bulk ? 'Bulk edit on Goals' : via === VIA_LABEL.mcp ? 'Changes through MCP' : via === VIA_LABEL.form ? 'A corrected check-in' : 'A spreadsheet';
+  // A check-in corrected on its own screen carries no Via mark (CK1): its summary says so.
+  if (via === VIA_LABEL.form || (!via && /^Corrected a check-in\b/.test(entry.summary))) return 'A corrected check-in';
+  if (via === VIA_LABEL.bulk) {
+    // Bulk edits are made on Goals, People (emails) and the quick check-in: named by what they wrote.
+    const u = entry.undo;
+    if (u && !u.goals.length && u.people.length) return 'Bulk edit on People';
+    if (u && !u.goals.length && !u.people.length && u.checkIns.length) return 'Quick check-in';
+    return 'Bulk edit on Goals';
+  }
+  return via === VIA_LABEL.table ? 'Bulk edit on Data' : via === VIA_LABEL.mcp ? 'Changes through MCP' : 'A spreadsheet';
+}
+
+/** "Nothing to undo: it changed no rows." or "Nothing left to undo: all 3 rows have changed since.": rule 9's line when Undo would put back nothing. */
+export function nothingToUndo(skipped: number): string {
+  return skipped ? `Nothing left to undo: ${skipped === 1 ? 'its one row has' : `all ${plural(skipped, 'row', 'rows')} have`} changed since.` : 'Nothing to undo: it changed no rows.';
 }
 /** What an import changed, in words: its summary after the colon ("3 goals changed, 2 check-ins added"). */
 export const importCounts = (entry: Change) => entry.summary.replace(/^[^:]*:\s*/, '');

@@ -13,7 +13,7 @@ The cells at the top of a goal’s page: against plan, since last week, what’s
 
 **Where the numbers come from.** A number to move and a range are judged by `assessPosted` in week *w* (the latest check-in up to week *w*, by week then posting, in its own week); dated stages by the status rule in week *w*. *better* is +1 when higher is better and −1 when lower is: for a number to move, +1 when the **current** plan's target ≥ its start (so the direction, the target, the due week and the likelihood floor come from the goal's current plan, while *plan*, *actual* and the projection come from `assessPosted`, with the plan as of the latest check-in's week); for a range, +1 for `atLeast`, −1 for `atMost`.
 
-**Tones.** `plan`: ahead `good`, behind `bad`, on plan or no number `flat`. `since`: better `good`, worse `bad`, otherwise `flat`. `target`: reached `good`, else `flat`. `hit`: Likely `good`, Possible `flat`, Unlikely and Very unlikely `bad`, Can’t say and Too early `flat`. `limit`: outside `bad`, near `flat`, inside `good`. `room`: over `bad`, within the margin (room ≤ margin) `flat`, else `good`. `done`: at least as many done as are due `good`, else `flat`. `late`: any behind `bad`, none `good`. `next`: expected after its due week `bad`, else `flat`; All done `good`. A margin of 0 counts as none for the likelihood floor. `likelihood` is set only on a `hit` cell that says a likelihood. Every cell that says "No value yet" is `flat`.
+**Tones.** `plan`: ahead `good`, behind `bad`, on plan or no number `flat`. `since`: better `good`, worse `bad`, otherwise `flat`. `target`: reached `good`, else `flat`. `hit`: Likely `good`, Possible `flat`, Unlikely and Very unlikely `bad`, Can’t say and Too early `flat`. `limit`: outside `bad`, near `flat`, inside `good`. `room`: over `bad`; near as [the status](status.md) says it (strictly within the margin), or at the limit, `flat`; else `good`. So `limit` and `room` always agree: a number exactly the margin inside its limit is not near, and both cells say so. `done`: at least as many done as are due `good`, else `flat`. `late`: any behind `bad`, none `good`. `next`: expected after its due week `bad`, else `flat`; All done `good`. A margin of 0 counts as none for the likelihood floor. `likelihood` is set only on a `hit` cell that says a likelihood. Every cell that says "No value yet" is `flat`.
 
 A stopped goal has no `hit` cell. (The conformance data never shows one: a goal stopped by a week's moment isn't in that week.) Nor has a done goal (`doneCheckIn`: of its check-ins with `week` ≤ *w*, the one posted most recently, by `postedAt`, is called `done`): for a number to move or keep in range, a `result` cell takes its place, at the end of the row (see the words below); dated stages get no `result` cell, only lose `hit` (they have none). Neither projects anywhere (`projects`): no likely end on the chart, no forecast in a list or an export. A quarter of a done goal that starts after the week it was done has nothing due ("done in week 37"); the quarter it was done in is judged then, on its final number.
 
@@ -56,7 +56,7 @@ The likelihood floor for a range is max(2% of |*margin*| (or of |10% of the limi
 
 The other cells stay as they are, judged as usual; `likelihood` is empty on `result`.
 
-**Since** (`since`, both kinds). The goal's check-ins up to week *w*, by week then posting; *latest* the last; *before* the last one ahead of it in that order with a number (another check-in in the same week counts).
+**Since** (`since`, both kinds). The goal's check-ins up to week *w*, by week then posting; *latest* the last; *before* the newest number among the weeks before *latest*'s week (`previousFor`, [what a check-in must say](check-in.md)): another check-in in the same week never counts, so a second check-in in week 46 is compared with week 45, not with the first one.
 
 | When | Value | Sub | Tone |
 |---|---|---|---|
@@ -79,7 +79,7 @@ For a range, better means further from the limit on its safe side.
 
 **Short or over** (`shortWord(better)` in `src/domain/vocabulary.ts`, the one place the word is chosen): an amount on the wrong side of a plan or target is "short" when higher is better and "over" when lower is better: "1 pt short" of a 46% plan, "1 min over" a 6 min plan. The scorecard's `target` cell, the chart's mark at the due week ("5 over") and a quarter's result ("Q3: 7 min against a plan of 6 min, 1 min over") all use it.
 
-**A quarter's result** (`quarterResult` in `src/domain/year.ts`) compares the number with the plan at the quarter's end as both are shown, at the goal's decimals: 0.68 against a plan shown as 0.68 is met, never "0.00 short".
+**A quarter's result** (`quarterResult` in `src/domain/year.ts`) compares the number with the plan at the quarter's end as both are shown, at the goal's decimals: 0.68 against a plan shown as 0.68 is met, never "0.00 short". **A quarter that ended before the goal was set up is never judged** (`bornWeek`: the cycle's week of the goal's `createdAt`, 0 before the cycle began): a quarter whose last week is at or before it has nothing due ("Q1: before the goal was set up in week 46"), whatever week its baseline is from and whatever numbers were loaded for those weeks, so it is in no count of Met or Not met and raises no "Last quarter not met".
 
 ## Worked examples
 
@@ -90,6 +90,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | A target of 75, higher is better, projected 80 (range 78–82, d = −2.5); 76 (72–80, d = −0.25); 72 (70–74, d = 1.5); 60 (58–62, d = 7.5). | `likely, possible, unlikely, very-unlikely` |
 | A target of 18, lower is better, projected 19 (range 18–20): d = (18 − 19) × −1 / 1 = 1. | `possible` |
 | The 30→75 goal with 36, 39, 42, 45 in weeks 1–4, seen in week 4. | `plan: 1 pt ahead of plan [good] (plan 44%); since: 3 pts better [good] (was 42% in week 3); target: 30 pts to go [flat] (target 75%); hit: Very unlikely [bad] (likely 72% by cycle end)` |
+| A goal year of 53 weeks; a range goal (at most 12.0%) and a 30→75 goal with its baseline from week 23, both set up on 12 November 2026 (week 46), with nothing reported; seen in week 46. | `range: none, none, none, open; metric: none, none, none, open` |
 | Short or over: higher is better, then lower is better. | `short, over` |
 | A 60→30 goal (lower is better) with 50, 48, 46, 45 in weeks 1–4, seen in week 4: To target. | `15 pts over [flat] (target 30%)` |
 | Values and amounts: 1 and 1.0 in hours (1 and 0 decimals), 1 in ms, 1 in pts, 1250.5 in USD (1 decimal), 0.4 and 1 in %; -0.3 in min (0 decimals). | `fmt: 1 hour, 1.0 hours, 1 ms, 1 pts, 1,250.5 USD, 0.4%, -0 min; amount: 1 hour, 1.0 hour, 1 ms, 1 pt, 1,250.5 USD, 0.4 pts, 1 pt` |
@@ -98,6 +99,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | The 30→75 goal: 36 in week 1, then week 2 with no number, seen in week 3 (the plan is week 2’s: the latest check-in’s week, though it has no number). Then 36 and 36 in weeks 1 and 2. | `plan: No value yet (plan 37%); since: No number this time (no number to compare); then since: No change (was 36% in week 1), plan: 1 pt behind plan (plan 37% in week 2)` |
 | A range, at most 12.0% with a 1-point margin, seen in week 4: 10.5, 11.0, 12.6 in weeks 1–3, then 12.4 in week 4. | `limit: Outside it [bad] (must stay at most 12.0%); since: 0.2 pts better [good] (was 12.6% in week 3); room: 0.4 pts over [bad] (warning within 1.0 pt); hit: Back within by the end? Very unlikely [bad] (likely 18.6% by cycle end)` |
 | The same range: 11.6 in week 1 (near), then 12.0 (at the limit), each seen in its week. | `Inside, near it, 0.4 pts of room [flat]; Inside, near it, None: at the limit [flat]` |
+| The same range: 11.0 in week 1, exactly the margin inside its limit (boundary: not near). | `Inside it [good], 1.0 pt of room [good]` |
+| The 30→75 goal: 36 in week 1, then 39 and 41 both in week 2, seen in week 2 (a second check-in in a week, boundary). | `since: 5 pts better (was 36% in week 1)` |
 | Stages A (due week 3) and B (due week 7), seen in week 6: no check-in; then A done in week 4, B expected week 9; then both done (week 4 and week 8), seen in week 9. | `done: 0 of 2 (1 due by week 6); late: 1 (late, up to 3 weeks); next: Week 6 (A, due week 3) \| done: 1 of 2 (1 due by week 6); late: 1 (slipping, up to 2 weeks); next: Week 9 (B, due week 7) \| done: 2 of 2 (2 due by week 9); late: None (on schedule); next: All done (last done in week 8)` |
 | The 30→75 goal with 36, 39, 42, 45 in weeks 1–4 and 76 in week 5, called done; seen in week 7, and its forecast. | `result: Done [good] (76% in week 5); no forecast` |
 | The same, but stale. | `hit: Can’t say` |
@@ -151,6 +154,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - quarters read off the owner’s plan › keeps closed quarters judged against the plan of their day when the target changes again (research round 1)
 - quarters read off the owner’s plan › counts a template’s stage weeks from now, within the year (research round 1)
 - quarters read off the owner’s plan › keeps the latest number judged against the plan of its own week after a later re-plan (research round 2)
+- a quarter that ended before the goal was set up (MCP load, 12 Nov) › is never judged, whatever week the baseline is from, and says why
+- a quarter that ended before the goal was set up (MCP load, 12 Nov) › even with numbers loaded for those weeks
+- a quarter that ended before the goal was set up (MCP load, 12 Nov) › raises no “Last quarter not met” on its story
+- a quarter that ended before the goal was set up (MCP load, 12 Nov) › a goal set up during a quarter is still judged on it
 
 ### [evals/goalPage.eval.ts](../../../evals/goalPage.eval.ts)
 

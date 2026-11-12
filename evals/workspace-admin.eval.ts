@@ -131,4 +131,19 @@ describe('Admins look after the workspace: its name and its teams', () => {
     const teams = (await amara.call('list_people')).data!.teams as { name: string; people: number }[];
     expect(teams.find((t) => t.name === 'Insights Platform')!.people).toBeGreaterThan(0);
   });
+  it(R('Start over (Lane, 12 Nov): anyone may in the shared example, which only resets this browser’s copy; in a workspace of someone’s own it removes it, so only an admin'), () => {
+    const member = { admin: false }, admin = { admin: true };
+    expect(A.mayStartOver(member, 'example')).toBe(true);
+    expect(A.mayStartOver(admin, 'example')).toBe(true);
+    expect(A.mayStartOver(member, 'own')).toBe(false);
+    expect(A.mayStartOver(admin, 'own')).toBe(true);
+  });
+  it(R('after a switch, one line says who you are there and your role, when either changed; the same person and role, nothing'), async () => {
+    const { landingLine } = await import('../src/domain/workspaceAttention');
+    expect(landingLine({ name: 'Grace Achterberg', admin: true }, { name: 'Rhea Kapoor', admin: false })).toBe('You’re Rhea Kapoor here, a member.');
+    expect(landingLine({ name: 'Grace Achterberg', admin: true }, { name: 'Grace Achterberg', admin: false })).toBe('You’re Grace Achterberg here, a member.');
+    expect(landingLine({ name: 'Rhea Kapoor', admin: false }, { name: 'Rhea Kapoor', admin: true })).toBe('You’re Rhea Kapoor here, an admin.');
+    expect(landingLine({ name: 'Grace Achterberg', admin: true }, { name: 'Grace Achterberg', admin: true })).toBeNull();
+    expect(landingLine(null, { name: 'Rhea Kapoor' })).toBe('You’re Rhea Kapoor here, a member.');
+  });
 });

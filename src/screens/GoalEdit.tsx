@@ -16,8 +16,9 @@ import { Empty } from '../ui/bits';
 import { PlanTable } from '../ui/PlanTable';
 import { FieldError, LevelField, Questions, StageFields, stageErrors } from '../ui/GoalFields';
 import { FixLine } from '../ui/Levels';
+import { focusQuestion } from '../ui/questionInView';
 import { WeekPick } from '../ui/WeekPick';
-import { lastWeekOffered } from '../domain/weeks';
+import { defaultTo } from '../domain/weeks';
 import { spanSays } from '../domain/weekChoices';
 import { parseNumber } from '../domain/checkin';
 import { FormClose } from '../ui/FormClose';
@@ -107,9 +108,9 @@ function EditSheet({ goal }: { goal: Goal }) {
       onChange={(c) => { const { [c.slot]: _gone, ...rest } = answers; set({ answers: rest }); }} alertSlot={tried ? open[0]?.slot ?? null : null} />
   );
   // From and To (rule 13), picked; and the plan from the shape (before any numbers typed by hand), for the plan table.
-  const span = planSpanOf(d, { week, cycleWeeks: cycle.weeks, existing: goal });
+  const span = planSpanOf(d, { week, cycleWeeks: cycle.weeks, existing: goal, startDate: cycle.startDate });
   const endChoice = span.to;
-  const setFrom = (n: number) => set({ fromWeek: String(n), points: {}, ...(span.to <= n ? { endWeek: String(n < cycle.weeks ? cycle.weeks : lastWeekOffered(cycle)) } : {}) });
+  const setFrom = (n: number) => set({ fromWeek: String(n), points: {}, ...(span.to <= n ? { endWeek: String(defaultTo(cycle, n)) } : {}) });
   const shapedPlan = goal.kind === 'metric' && parseNumber(d.start) != null && parseNumber(d.target) != null && parseNumber(d.start) !== parseNumber(d.target)
     ? { start: parseNumber(d.start) as number, target: parseNumber(d.target) as number, shape: d.shape, ...(span.from ? { fromWeek: span.from } : {}), ...(endChoice !== cycle.weeks ? { endWeek: endChoice } : {}) }
     : null;
@@ -124,7 +125,7 @@ function EditSheet({ goal }: { goal: Goal }) {
     setTried(true);
     // A question still open, maybe off screen: focus goes to the first, which scrolls it into view (goal entry rule 4,
     // as New goal's Continue does), and the line above Save says where it is.
-    if (built && !confirmed) { const slot = open[0]!.slot; setTimeout(() => form.current?.querySelector<HTMLElement>(`[data-check="${slot}"]`)?.focus(), 0); return; }
+    if (built && !confirmed) { focusQuestion(form.current, open[0]!.slot); return; }
     if (!built || saving || (replanning && !reasonOk) || measure?.blocks) return;
     setSaving(true);
     try {

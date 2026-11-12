@@ -49,6 +49,8 @@ describe('The inbox’s list', () => {
     expect(keys({ q: 'toolbar jun' })).toEqual(['b']);
     expect(keys({ q: 'WEEK strip' })).toEqual(['a']);
     expect(keys({ q: 'nothing like this' })).toEqual([]);
+    // Find's rule 1: a word typed is the start of a word in the row, never the middle of one (build review of #115).
+    expect(keys({ q: 'olbar' })).toEqual([]);
     expect(filterChoices(items).pages).toEqual(['/', '/check-in', '/data']);
     // Counts follow the filter.
     expect(tabCounts(items, { ...NO_FILTER, kind: 'markup' }).new).toBe(2);

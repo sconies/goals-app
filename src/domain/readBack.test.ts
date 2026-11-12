@@ -61,7 +61,9 @@ describe('the read-back (rule 5)', () => {
   });
 
   it('says every default not changed, and Change goes to the first; nothing defaulted, no row', () => {
-    expect(leftAsUsual(draft({ parentId: '' }), ctx()).map((u) => u.text).join(' ')).toBe('Whole numbers. From this week to the end of 2026. Steady. Feeds nothing. Not a guardrail. Helps no other goal.');
+    // “Feeds nothing” is said once, in Who and where (build review of #202, a low).
+    expect(leftAsUsual(draft({ parentId: '' }), ctx()).map((u) => u.text).join(' ')).toBe('Whole numbers. From this week to the end of 2026. Steady. Not a guardrail. Helps no other goal.');
+    expect(readBack(draft({ parentId: '' }), ctx({ parent: null })).rows.map((r) => r.text).join(' ').match(/feeds nothing/gi)).toHaveLength(1);
     expect(readBack(draft(), ctx()).rows.find((r) => r.id === 'usual')?.step).toBe(2);
     const changed = draft({ decimals: '1', start: '40.5', fromWeek: '45', endWeek: '50', shape: 'back', guardrail: true, alsoHelps: ['g9'] });
     expect(readBack(changed, ctx({ alsoHelps: ['Merge-to-deploy time'] })).rows.some((r) => r.id === 'usual')).toBe(false);
@@ -75,6 +77,26 @@ describe('the read-back (rule 5)', () => {
     expect(readBack(draft(), ctx()).rows.some((r) => r.id === 'said')).toBe(false);
     const said = readBack(draft(), ctx({ answers: ['You said 150% is right.'] })).rows.find((r) => r.id === 'said');
     expect(said).toEqual({ id: 'said', label: 'You said', text: 'You said 150% is right.', step: null });
+  });
+
+  it('a stage already done is a check-in: the goal can be stopped, not deleted (build review of #202, finding 4)', () => {
+    const one = draft({ kind: 'milestone', stages: [{ id: 's1', name: 'Design', dueWeek: '40', done: 'yes' }, { id: 's2', name: 'Pilot', dueWeek: '50' }] });
+    const after = readBack(one, ctx()).after;
+    expect(after.join(' ')).not.toMatch(/delete it/);
+    expect(after).toContain('Its stage already done is its first check-in, so it can be stopped, with a reason, but not deleted. A change to the plan needs a reason.');
+    expect(after[0]).toBe('Its first check-in is due by Thursday 12 Nov, then every week. It asks which stages are done.');
+    const other = readBack(one, ctx({ owner: { name: 'Amara Okafor', isViewer: false } })).after;
+    expect(other).toContain('Only Amara or an admin can change it once it is published. Its stage already done is its first check-in, so it can be stopped, with a reason, but not deleted.');
+    // Overdue stages write no check-in: it can still be deleted.
+    const late = draft({ kind: 'milestone', stages: [{ id: 's1', name: 'Design', dueWeek: '40', done: 'no' }] });
+    expect(readBack(late, ctx()).after.join(' ')).toMatch(/or delete it/);
+  });
+
+  it('with every stage done, nothing is due (build review of #202, a low)', () => {
+    const all = draft({ kind: 'milestone', stages: [{ id: 's1', name: 'Design', dueWeek: '40', done: 'yes' }, { id: 's2', name: 'Pilot', dueWeek: '44', done: 'yes' }] });
+    const after = readBack(all, ctx()).after;
+    expect(after[0]).toBe('Every stage is already done, so no check-in is due.');
+    expect(after).toContain('Its stages already done are its first check-in, so it can be stopped, with a reason, but not deleted. A change to the plan needs a reason.');
   });
 
   it('a north star feeds nothing: the top of its own tree', () => {

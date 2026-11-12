@@ -30,6 +30,7 @@ import { WarnMark } from '../ui/bits';
 import { useWidth } from '../ui/useWidth';
 import { CORE_SECTION_LABELS } from './workspaceSections';
 import { movedTo } from '../domain/directory';
+import { WORKSPACE_MEANS } from '../domain/vocabulary';
 
 /** Below this width, Workspace is About and then its other sections as a list, one section at a time (a phone). */
 const NARROW = 720;
@@ -248,6 +249,8 @@ function AboutSection() {
         <WorkspaceName />
         <dl className="facts ws-facts">
           {fact('Name', <>{ws.name}{ws.kind && <span className="hint"> · {ws.kind}</span>}</>)}
+          {/* What a workspace is, in one sentence, beside its name (outside review, 12 Nov). */}
+          {fact('What it is', <span className="ws-means">{WORKSPACE_MEANS}</span>)}
           {fact('People', <Link to="/people">{app.snapshot.people.length} {app.snapshot.people.length === 1 ? 'person' : 'people'} in {teams} {teams === 1 ? 'team' : 'teams'}</Link>)}
           {fact('Year', <>{yearLine(app.cycle, app.week, app.today, left)} <Link to="/workspace/cycles">Cycles</Link></>)}
           {fact('Admins', <>{admins}. {admin ? <Link to="/workspace/access">Access</Link> : 'Ask one of them to add someone, change a team or change a setting.'}</>)}

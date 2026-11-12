@@ -266,3 +266,32 @@ describe('People columns do what the field table says (review of #130)', () => {
     expect(near.commit).toBeNull();
   });
 });
+
+describe('From and To in a file (rule 13; GE9 review)', () => {
+  const email = person('amara').email ?? '';
+  const row = (o: Record<string, string>) => rec({ Goal: 'Faster restores', 'Owner email': email, Type: 'Move a number', Unit: 'min', Start: '40', Target: '20', ...o });
+  const errors = (cs: ReturnType<typeof planChanges>) => cs.issues.filter((i) => i.severity === 'error').map((i) => i.message);
+  it('reads a new goal’s To when Due week is left blank, as every export has both', () => {
+    const cs = planChanges(base('amara', { goals: [row({ From: '2026-W46', To: '2027-W13', 'Due week': '' })] }, { confirm: true }));
+    expect(errors(cs)).toEqual([]);
+    const g = cs.commit!.goals!.find((x) => x.title === 'Faster restores') as MetricGoal;
+    expect([g.plan.fromWeek, g.plan.endWeek]).toEqual([46, 66]);
+  });
+  it('says a To before From in its own words, with Due week blank', () => {
+    const cs = planChanges(base('amara', { goals: [row({ From: '2026-W46', To: '2026-W40', 'Due week': '' })] }, { confirm: true }));
+    expect(errors(cs)).toEqual([expect.stringMatching(/^To \(week 40, 28 Sep–4 Oct 2026\) isn’t after From/)]);
+  });
+  it('still refuses To and Due week that disagree', () => {
+    const cs = planChanges(base('amara', { goals: [row({ To: '2027-W13', 'Due week': '50' })] }, { confirm: true }));
+    expect(errors(cs)).toEqual(['To says 2027-W13 and Due week says 50. Change just one of them.']);
+  });
+  it('asks which a bare number under From is, in a file with no Start column', () => {
+    // The export with its Start heading renamed From: 52 is where the goal starts, or week 52?
+    const cs = planChanges(base('amara', { goals: [rec({ ID: 'mttr-pir', From: '52' })] }, { confirm: true }));
+    expect(errors(cs)).toEqual(['From says “52”: a starting number, or a week? Put a starting number under Start, or write the week as a year and a week, like 2026-W45.']);
+    expect(cs.commit).toBeNull();
+    // With a Start column, From is a week; and a year and a week is never in doubt.
+    expect(errors(planChanges(base('amara', { goals: [rec({ ID: 'mttr-pir', Start: '', From: '40' })] }, { confirm: true })))).toEqual([]);
+    expect(errors(planChanges(base('amara', { goals: [rec({ ID: 'mttr-pir', From: '2026-W40' })] }, { confirm: true })))).toEqual([]);
+  });
+});

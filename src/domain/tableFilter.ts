@@ -1,6 +1,7 @@
 /* Property filters for a table of records: pick a column, a condition and a value; every filter must match.
    The kind of column (number, a fixed set of values, or free text) decides which conditions make sense.
    Filters and the sort live in the link, so a filtered table can be shared. */
+import { wordsMatch, wordsOf } from './find';
 
 export type ColumnKind = 'number' | 'choice' | 'text';
 export type Op = 'is' | 'isNot' | 'contains' | 'notContains' | 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'empty' | 'notEmpty';
@@ -51,16 +52,29 @@ export function passes(cell: string, f: PropFilter): boolean {
   }
 }
 
-/** Rows (as header → value) that pass every filter and contain every search word, sorted. */
-/** Each row's cells in lower case, worked out once per row (a table of 30,000 rows is searched on every key: N12). */
-const lowerCells = new WeakMap<object, string[]>();
-const lowered = (r: { cells: string[] }) => { let l = lowerCells.get(r); if (!l) { l = r.cells.map((c) => c.toLowerCase()); lowerCells.set(r, l); } return l; };
+/**
+ * Rows (as header → value) that pass every filter and match the search, sorted. The search is find's rule 1 (each word
+ * typed starts a word in the row, or a key typed finds its goal by its Key) over the shown columns only (`searched`;
+ * every column when not given), as Goals' list bar searches (find spec, 2.1).
+ */
+/** Each row's words, split once per row and set of columns (a table of 30,000 rows is searched on every key: N12). */
+const rowWords = new WeakMap<object, { cols: string; words: string[] }>();
+const wordsFor = (r: { cells: string[] }, idx: number[], cols: string) => {
+  const kept = rowWords.get(r);
+  if (kept && kept.cols === cols) return kept.words;
+  const words = wordsOf(idx.map((i) => r.cells[i] ?? '').join(' '));
+  rowWords.set(r, { cols, words });
+  return words;
+};
 
-export function applyTable<R extends { cells: string[] }>(rows: R[], head: string[], q: string, filters: PropFilter[], sort: TableSort | null): R[] {
-  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+export function applyTable<R extends { cells: string[] }>(rows: R[], head: string[], q: string, filters: PropFilter[], sort: TableSort | null, searched?: readonly string[]): R[] {
+  const typed = q.trim();
   const idx = (c: string) => head.indexOf(c);
+  const cols = (searched ?? head).map(idx).filter((i) => i >= 0);
+  const colsKey = cols.join(',');
+  const keyAt = idx('Key');
   const live = filters.filter((f) => idx(f.col) >= 0 && (NO_VALUE.includes(f.op) || f.value.trim() !== ''));
-  const out = rows.filter((r) => (!words.length || words.every((w) => lowered(r).some((c) => c.includes(w)))) && live.every((f) => passes(r.cells[idx(f.col)] ?? '', f)));
+  const out = rows.filter((r) => (!typed || wordsMatch(wordsFor(r, cols, colsKey), typed, keyAt >= 0 ? r.cells[keyAt] : null)) && live.every((f) => passes(r.cells[idx(f.col)] ?? '', f)));
   const si = sortIndex(head, sort);
   if (sort && si >= 0) {
     out.sort((a, b) => {

@@ -2,6 +2,7 @@
    (goalEntry planGoal), the change engine (changeset planChanges: a Goals row, a bulk edit, the AI tools) and the
    removals all ask these, so every door gives the same answer. Pure. */
 import type { Goal, Person } from './types';
+import type { Via } from './via';
 
 type Actor = Pick<Person, 'id' | 'admin'>;
 
@@ -17,3 +18,23 @@ export function mayAddGoal(_actor: Actor, _ownerId: string): boolean {
 export function mayChangeGoal(actor: Actor, goal: Pick<Goal, 'ownerId'>): boolean {
   return !!actor.admin || goal.ownerId === actor.id;
 }
+
+/**
+ * Whether `actor` may post or correct a check-in on `goal` (Lane, 12 Nov: check-ins are the owner's). Only its owner
+ * at the check-in screens, the one-table check-in and through the AI tools. Two exceptions, both kept by Lane (12 Nov),
+ * both for an admin: loading a workbook (a spreadsheet import, or setting up from an export) brings in everyone's
+ * history, and Data's tables let an admin correct a past check-in. Each records the admin as author and actor, with
+ * the door as its Via (postCheckIn.test).
+ */
+export function mayPostCheckIn(actor: Actor, goal: Pick<Goal, 'ownerId'>, via: Via): boolean {
+  if (goal.ownerId === actor.id) return true;
+  return !!actor.admin && ADMIN_CHECK_IN_DOORS.includes(via);
+}
+/**
+ * The set-up check-in (stages already done when a goal is created, OB2's rule 3) is a check-in like any other: when
+ * the person creating the goal may not check in on it, the goal is published without it, and the stage question says
+ * so in these words (Lane, 12 Nov; #227's build review).
+ */
+export const MARKS_STAGES = (ownerName: string) => `${ownerName} marks done stages at the first check-in.`;
+/** The only two exceptions to owner-only check-ins (Lane, 12 Nov): where an admin may bring in or correct someone else's. */
+export const ADMIN_CHECK_IN_DOORS: readonly Via[] = ['spreadsheet', 'setup', 'table'];

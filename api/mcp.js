@@ -1939,7 +1939,26 @@ function mayAddGoal(_actor, _ownerId) {
 function mayChangeGoal(actor, goal) {
 	return !!actor.admin || goal.ownerId === actor.id;
 }
-var init_goalRights = __esmMin((() => {}));
+/**
+* Whether `actor` may post or correct a check-in on `goal` (Lane, 12 Nov: check-ins are the owner's). Only its owner
+* at the check-in screens, the one-table check-in and through the AI tools. Two exceptions, both kept by Lane (12 Nov),
+* both for an admin: loading a workbook (a spreadsheet import, or setting up from an export) brings in everyone's
+* history, and Data's tables let an admin correct a past check-in. Each records the admin as author and actor, with
+* the door as its Via (postCheckIn.test).
+*/
+function mayPostCheckIn(actor, goal, via) {
+	if (goal.ownerId === actor.id) return true;
+	return !!actor.admin && ADMIN_CHECK_IN_DOORS.includes(via);
+}
+var MARKS_STAGES, ADMIN_CHECK_IN_DOORS;
+var init_goalRights = __esmMin((() => {
+	MARKS_STAGES = (ownerName) => `${ownerName} marks done stages at the first check-in.`;
+	ADMIN_CHECK_IN_DOORS = [
+		"spreadsheet",
+		"setup",
+		"table"
+	];
+}));
 // src/domain/levels.ts
 var DEFAULT_LEVELS, all, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, isTop, levelRank, hasLevels, LEVEL_WORDS, EVERYDAY_WORD;
 var init_levels = __esmMin((() => {
@@ -3048,6 +3067,171 @@ var init_decide = __esmMin((() => {
 	ACCEPT = `${DECIDED["accept-risk"].label}: `;
 	acceptNote = (reason) => ACCEPT + reason.trim();
 }));
+// src/domain/weeks.ts
+/** The goal year a cycle week is in: its year, its length and the cycle week its week 1 is. */
+function spanOf(c, n) {
+	if (c.weeks < 48) {
+		const year = new Date(mondayOf(c, n) + 3 * DAY$3).getUTCFullYear(), gy = goalYear(year, 0);
+		return {
+			year,
+			weeks: gy.weeks,
+			first: Math.round((Date.parse(gy.startDate + "T00:00:00Z") - mondayOf(c, 0)) / (7 * DAY$3)) + 1
+		};
+	}
+	let s = {
+		year: cycleYear(c),
+		weeks: c.weeks,
+		first: 1
+	};
+	while (n >= s.first + s.weeks) {
+		const start = new Date(mondayOf(c, s.first + s.weeks - 1)).toISOString().slice(0, 10);
+		s = {
+			year: s.year + 1,
+			weeks: yearWeeks(start),
+			first: s.first + s.weeks
+		};
+	}
+	while (n < s.first) {
+		const p = goalYear(s.year - 1, startMonth(c)).weeks;
+		s = {
+			year: s.year - 1,
+			weeks: p,
+			first: s.first - p
+		};
+	}
+	return s;
+}
+/** Rule 13. A cycle week as a goal year and its week: 46 is 2026 week 46; 54 is 2027 week 1; 0 is 2025 week 52. */
+function yearWeek(c, n) {
+	const s = spanOf(c, n);
+	return {
+		year: s.year,
+		week: n - s.first + 1,
+		monday: new Date(mondayOf(c, n)).toISOString().slice(0, 10)
+	};
+}
+/** A goal year seen from this cycle: its length and the cycle week its week 1 is. */
+function spanOfYear(c, year) {
+	let s = spanOf(c, 1);
+	while (s.year < year) s = spanOf(c, s.first + s.weeks);
+	while (s.year > year) s = spanOf(c, s.first - 1);
+	return s;
+}
+/** Rule 13. The inverse of `yearWeek`: the cycle week of a goal year's week, or null when that year has no such week. */
+function cycleWeek(c, at) {
+	if (!Number.isInteger(at.year) || at.year < 1900 || at.year > 2200) return null;
+	const s = spanOfYear(c, at.year);
+	if (!Number.isInteger(at.week) || at.week < 1 || at.week > s.weeks) return null;
+	return s.first + at.week - 1;
+}
+/** Rule 13. A week as a file writes it: "2026-W46". */
+function weekCode(c, n) {
+	const y = yearWeek(c, n);
+	return `${y.year}-W${String(y.week).padStart(2, "0")}`;
+}
+/**
+* Rule 13. A week as a file or a tool may give it: "2026-W46", "2026W46", "2026-46" (a goal year and its week), or "W46"
+* and "46" (the cycle's week, as today's numbers are). A week a year doesn't have is `week-unknown` with its own words.
+*/
+function readWeekCode(c, raw) {
+	const v = raw.trim();
+	const coded = /^(\d{4})\s*-?\s*W?\s*(\d{1,2})$/i.exec(v);
+	if (coded) {
+		const year = Number(coded[1]);
+		const n = cycleWeek(c, {
+			year,
+			week: Number(coded[2])
+		});
+		return n == null ? {
+			problem: "week-unknown",
+			text: noSuchWeek(year, spanOfYear(c, year).weeks)
+		} : { n };
+	}
+	const plain = /^W?\s*(-?\d{1,3})$/i.exec(v);
+	if (plain) return { n: Number(plain[1]) };
+	return { problem: "week-unknown" };
+}
+/** "9–15 Nov 2026", "28 Sep–4 Oct 2026", "28 Dec 2026–3 Jan 2027"; without the year: "9–15 Nov", "28 Dec–3 Jan". */
+function datesOf(c, n, withYear = true) {
+	const a = new Date(mondayOf(c, n)), b = new Date(mondayOf(c, n) + 6 * DAY$3);
+	const dm = (x) => `${x.getUTCDate()} ${MONTHS$2[x.getUTCMonth()]}`;
+	if (!withYear) return a.getUTCMonth() === b.getUTCMonth() ? `${a.getUTCDate()}–${dm(b)}` : `${dm(a)}–${dm(b)}`;
+	if (a.getUTCFullYear() !== b.getUTCFullYear()) return `${dm(a)} ${a.getUTCFullYear()}–${dm(b)} ${b.getUTCFullYear()}`;
+	return (a.getUTCMonth() === b.getUTCMonth() ? `${a.getUTCDate()}–${dm(b)}` : `${dm(a)}–${dm(b)}`) + " " + b.getUTCFullYear();
+}
+/**
+* Rule 13. A week in words, never without its dates and their year:
+* - `field` "Week 46 · 9–15 Nov 2026" (another goal year's: "Week 13 · 29 Mar–4 Apr 2027");
+* - `row` "Week 46 · 9–15 Nov" (in a list under its year);
+* - `sentence` "week 46 (9–15 Nov 2026)" in the cycle's own goal year, "week 13 of 2027 (29 Mar–4 Apr 2027)" in another;
+* - `short` "week 46", "week 13 of 2027".
+*/
+function weekSays(c, n, form) {
+	const y = yearWeek(c, n);
+	const of = y.year === cycleYear(c) ? "" : ` of ${y.year}`;
+	if (form === "field") return `Week ${y.week} · ${datesOf(c, n)}`;
+	if (form === "row") return `Week ${y.week} · ${datesOf(c, n, false)}`;
+	if (form === "short") return `week ${y.week}${of}`;
+	return `week ${y.week}${of} (${datesOf(c, n)})`;
+}
+/**
+* Must fix for a plan's two weeks, as cycle weeks (section 4): `to-before-from` and `week-beyond`. Null when both are
+* fine. The picker can't make either; a file or a tool can.
+*/
+function weeksProblem(c, from, to) {
+	const end = lastWeekOffered(c), first = firstWeekOffered(c);
+	const own = cycleYear(c);
+	if (to > end) return {
+		id: "week-beyond",
+		field: "to",
+		text: `To can be as late as ${weekSays(c, end, "short")} (${datesOf(c, end)}), the end of next year.`
+	};
+	if (from > end) return {
+		id: "week-beyond",
+		field: "from",
+		text: `From can be as late as ${weekSays(c, end, "short")} (${datesOf(c, end)}), the end of next year.`
+	};
+	if (from < first) return {
+		id: "week-beyond",
+		field: "from",
+		text: `From can be as early as week 1 of ${own - 1}.`
+	};
+	if (to <= from) return {
+		id: "to-before-from",
+		field: "to",
+		text: `To (${weekSays(c, to, "short")}, ${datesOf(c, to)}) isn’t after From (${weekSays(c, from, "short")}, ${datesOf(c, from)}). The plan has to run forwards.`
+	};
+	return null;
+}
+var DAY$3, MONTHS$2, mondayOf, cycleYear, noSuchWeek, weekUnknownText, lastWeekOffered, firstWeekOffered, defaultTo;
+var init_weeks = __esmMin((() => {
+	init_year();
+	DAY$3 = 864e5;
+	MONTHS$2 = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec"
+	];
+	mondayOf = (c, n) => Date.parse(c.startDate + "T00:00:00Z") + n * 7 * DAY$3;
+	cycleYear = (c) => new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$3).getUTCFullYear();
+	noSuchWeek = (year, weeks) => `${year} has ${weeks} weeks. Use ${year}-W${weeks}, or ${year + 1}-W01.`;
+	weekUnknownText = (c, field, raw, now = 46) => `${field} says “${raw.trim()}”. Write a year and a week, like ${weekCode(c, Math.max(now, 1))}, or the week’s number.`;
+	lastWeekOffered = (c) => {
+		const own = spanOf(c, 1), next = spanOf(c, own.first + own.weeks);
+		return next.first + next.weeks - 1;
+	};
+	firstWeekOffered = (c) => spanOf(c, spanOf(c, 1).first - 1).first;
+	defaultTo = (c, from) => from < c.weeks ? c.weeks : lastWeekOffered(c);
+}));
 // src/domain/goal.ts
 function blankGoal(teamId, ownerId, parentId) {
 	return {
@@ -3191,13 +3375,14 @@ function buildGoal(d, cycle, base, existing, checkInsStarted, week) {
 	};
 	const num = (s) => parseNumber(s);
 	if (d.kind === "metric") {
-		const end = parseNumber(d.endWeek);
+		const from = d.fromWeek != null && d.fromWeek.trim() !== "" ? num(d.fromWeek) ? { fromWeek: num(d.fromWeek) } : {} : existing?.kind === "metric" ? existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {} : week > 0 ? { fromWeek: week } : {};
+		const end = parseNumber(d.endWeek) ?? defaultTo(cycle, from.fromWeek ?? 0);
 		const plan = withPoints({
 			start: num(d.start),
 			target: num(d.target),
 			shape: d.shape,
-			...d.fromWeek != null && d.fromWeek.trim() !== "" ? num(d.fromWeek) ? { fromWeek: num(d.fromWeek) } : {} : existing?.kind === "metric" ? existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {} : week > 0 ? { fromWeek: week } : {},
-			...end != null && end !== cycle.weeks ? { endWeek: end } : {}
+			...from,
+			...end !== cycle.weeks ? { endWeek: end } : {}
 		}, d.points, cycle.weeks);
 		const history = existing?.kind === "metric" ? replanned(existing, plan, checkInsStarted, week) : {
 			originalPlan: null,
@@ -3323,13 +3508,14 @@ var init_goal = __esmMin((() => {
 	init_numbers();
 	init_plan();
 	init_status();
+	init_weeks();
 	pastStage = (dueWeek, week) => dueWeek < week;
 	DONE_AT_SET_UP = "Recorded as already done when the goal was set up";
 }));
 // src/domain/year.ts
 /** The month the year starts in: the month of week 1's Thursday. */
 function startMonth(c) {
-	return new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$3).getUTCMonth();
+	return new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$2).getUTCMonth();
 }
 function quarters(c) {
 	if (!isYear(c)) return [{
@@ -3348,7 +3534,7 @@ function quarters(c) {
 	].map((n) => ({
 		n,
 		label: `Q${n}`,
-		months: `${MONTHS$2[(m0 + 3 * (n - 1)) % 12]}–${MONTHS$2[(m0 + 3 * (n - 1) + 2) % 12]}`,
+		months: `${MONTHS$1[(m0 + 3 * (n - 1)) % 12]}–${MONTHS$1[(m0 + 3 * (n - 1) + 2) % 12]}`,
 		from: (n - 1) * 13 + 1,
 		to: n === 4 ? c.weeks : n * 13
 	}));
@@ -3371,8 +3557,17 @@ function targetAt(g, c, week) {
 /**
 * How a goal did against its plan in one quarter. Open while the quarter runs; none when there was nothing due. Once the
 * owner calls it done, the quarter it closed in is judged on its final number, and any quarter after it has nothing due.
+* A quarter that ended before the goal was set up is never judged (MCP load, 12 Nov): it says so, and counts nowhere,
+* whatever week its baseline is from and whatever numbers were loaded for those weeks.
 */
 function quarterResult(g, c, checkIns, q, week) {
+	const born = bornWeek(g, c);
+	if (born >= q.to) return {
+		quarter: q,
+		kind: "none",
+		text: `${q.label}: before the goal was set up in week ${born}`,
+		before: true
+	};
 	const own = checkInsFor(g, checkIns).filter((x) => x.week <= q.to);
 	const last = own[own.length - 1];
 	const done = doneCheckIn(g, checkIns, week);
@@ -3418,22 +3613,22 @@ function quarterResults(g, c, checkIns, week) {
 /** The Monday of week 1 of a goal year starting in a month (0 = January): the week with that month's first Thursday. */
 function weekOneOf(year, month) {
 	const first = Date.UTC(year, month, 1);
-	return first + (10 - (new Date(first).getUTCDay() + 6) % 7) % 7 * DAY$3 - 3 * DAY$3;
+	return first + (10 - (new Date(first).getUTCDay() + 6) % 7) % 7 * DAY$2 - 3 * DAY$2;
 }
 /** A goal year: week 0 is the week before week 1, and it runs until the next year's week 1. */
 function goalYear(year, month) {
 	const a = weekOneOf(year, month), b = weekOneOf(year + 1, month);
 	return {
-		startDate: (/* @__PURE__ */ new Date(a - 7 * DAY$3)).toISOString().slice(0, 10),
-		weeks: Math.round((b - a) / (7 * DAY$3))
+		startDate: (/* @__PURE__ */ new Date(a - 7 * DAY$2)).toISOString().slice(0, 10),
+		weeks: Math.round((b - a) / (7 * DAY$2))
 	};
 }
 /** How many weeks the goal year starting on this date has: 52, or 53 in a long calendar year. */
 function yearWeeks(startDate) {
-	const thu = new Date(Date.parse(startDate + "T00:00:00Z") + 10 * DAY$3);
+	const thu = new Date(Date.parse(startDate + "T00:00:00Z") + 10 * DAY$2);
 	return goalYear(thu.getUTCFullYear(), thu.getUTCMonth()).weeks;
 }
-var isYear, DAY$3, MONTHS$2;
+var isYear, DAY$2, MONTHS$1, bornWeek;
 var init_year = __esmMin((() => {
 	init_format();
 	init_goal();
@@ -3441,8 +3636,8 @@ var init_year = __esmMin((() => {
 	init_status();
 	init_vocabulary();
 	isYear = (c) => c.weeks >= 48;
-	DAY$3 = 864e5;
-	MONTHS$2 = [
+	DAY$2 = 864e5;
+	MONTHS$1 = [
 		"Jan",
 		"Feb",
 		"Mar",
@@ -3456,6 +3651,7 @@ var init_year = __esmMin((() => {
 		"Nov",
 		"Dec"
 	];
+	bornWeek = (g, c) => g.createdAt ? currentWeek(c, new Date(g.createdAt)) : 0;
 }));
 // src/domain/chartStory.ts
 /** An amount people read at a glance: "£3.41m", "£61k", "83%", "12 days". Money units ("£k", "$m", "€") get the symbol
@@ -4045,12 +4241,12 @@ function cycleState(c, today) {
 /** "Sun 3 Jan 2027": a day with its weekday and year, as the year's end is said. */
 function dayWithYear(iso) {
 	const d = /* @__PURE__ */ new Date(iso + "T00:00:00Z");
-	return `${WEEKDAYS$1[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS$1[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+	return `${WEEKDAYS$1[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 /** "Jan–Mar 2027" for a cycle starting on a date and running some weeks. */
 function cycleName(startDate, weeks) {
 	const a = /* @__PURE__ */ new Date(startDate + "T00:00:00Z");
-	const b = new Date(Date.parse(startDate + "T00:00:00Z") + (weeks * 7 - 1) * DAY$2);
+	const b = new Date(Date.parse(startDate + "T00:00:00Z") + (weeks * 7 - 1) * DAY$1);
 	const m = (d) => d.toLocaleDateString("en-GB", {
 		month: "short",
 		timeZone: "UTC"
@@ -4099,7 +4295,7 @@ function nextCycle(old, goals, checkIns, retros, ids, now) {
 		}))
 	};
 }
-var DAY$2, addDays, laterCycle, isoDay, wrapUpOpenOn, startFromLine, WEEKDAYS$1, MONTHS$1, RESULT_LABEL;
+var DAY$1, addDays, laterCycle, isoDay, wrapUpOpenOn, startFromLine, WEEKDAYS$1, MONTHS, RESULT_LABEL;
 var init_cycle = __esmMin((() => {
 	init_vocabulary();
 	init_asks();
@@ -4110,8 +4306,8 @@ var init_cycle = __esmMin((() => {
 	init_yearName();
 	init_status();
 	init_records();
-	DAY$2 = 864e5;
-	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY$2).toISOString().slice(0, 10);
+	DAY$1 = 864e5;
+	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY$1).toISOString().slice(0, 10);
 	laterCycle = (cycles, c) => cycles.filter((v) => !v.removedAt && v.startDate > c.startDate).sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
 	isoDay = (d) => d.toISOString().slice(0, 10);
 	wrapUpOpenOn = (c, today) => ["ending", "ended"].includes(cycleState(c, today));
@@ -4125,7 +4321,7 @@ var init_cycle = __esmMin((() => {
 		"Fri",
 		"Sat"
 	];
-	MONTHS$1 = [
+	MONTHS = [
 		"Jan",
 		"Feb",
 		"Mar",
@@ -4353,159 +4549,6 @@ var init_changes = __esmMin((() => {
 		const names = d.map((x) => x.field.toLowerCase());
 		return names.length <= 3 ? names.join(", ") : names.slice(0, 2).join(", ") + ` and ${names.length - 2} more`;
 	};
-}));
-// src/domain/weeks.ts
-/** The goal year a cycle week is in: its year, its length and the cycle week its week 1 is. */
-function spanOf(c, n) {
-	let s = {
-		year: cycleYear(c),
-		weeks: c.weeks,
-		first: 1
-	};
-	while (n >= s.first + s.weeks) {
-		const start = new Date(mondayOf(c, s.first + s.weeks - 1)).toISOString().slice(0, 10);
-		s = {
-			year: s.year + 1,
-			weeks: yearWeeks(start),
-			first: s.first + s.weeks
-		};
-	}
-	while (n < s.first) {
-		const p = goalYear(s.year - 1, startMonth(c)).weeks;
-		s = {
-			year: s.year - 1,
-			weeks: p,
-			first: s.first - p
-		};
-	}
-	return s;
-}
-/** Rule 13. A cycle week as a goal year and its week: 46 is 2026 week 46; 54 is 2027 week 1; 0 is 2025 week 52. */
-function yearWeek(c, n) {
-	const s = spanOf(c, n);
-	return {
-		year: s.year,
-		week: n - s.first + 1,
-		monday: new Date(mondayOf(c, n)).toISOString().slice(0, 10)
-	};
-}
-/** A goal year seen from this cycle: its length and the cycle week its week 1 is. */
-function spanOfYear(c, year) {
-	let s = spanOf(c, 1);
-	while (s.year < year) s = spanOf(c, s.first + s.weeks);
-	while (s.year > year) s = spanOf(c, s.first - 1);
-	return s;
-}
-/** Rule 13. The inverse of `yearWeek`: the cycle week of a goal year's week, or null when that year has no such week. */
-function cycleWeek(c, at) {
-	if (!Number.isInteger(at.year) || at.year < 1900 || at.year > 2200) return null;
-	const s = spanOfYear(c, at.year);
-	if (!Number.isInteger(at.week) || at.week < 1 || at.week > s.weeks) return null;
-	return s.first + at.week - 1;
-}
-/** Rule 13. A week as a file writes it: "2026-W46". */
-function weekCode(c, n) {
-	const y = yearWeek(c, n);
-	return `${y.year}-W${String(y.week).padStart(2, "0")}`;
-}
-/**
-* Rule 13. A week as a file or a tool may give it: "2026-W46", "2026W46", "2026-46" (a goal year and its week), or "W46"
-* and "46" (the cycle's week, as today's numbers are). A week a year doesn't have is `week-unknown` with its own words.
-*/
-function readWeekCode(c, raw) {
-	const v = raw.trim();
-	const coded = /^(\d{4})\s*-?\s*W?\s*(\d{1,2})$/i.exec(v);
-	if (coded) {
-		const year = Number(coded[1]);
-		const n = cycleWeek(c, {
-			year,
-			week: Number(coded[2])
-		});
-		return n == null ? {
-			problem: "week-unknown",
-			text: noSuchWeek(year, spanOfYear(c, year).weeks)
-		} : { n };
-	}
-	const plain = /^W?\s*(-?\d{1,3})$/i.exec(v);
-	if (plain) return { n: Number(plain[1]) };
-	return { problem: "week-unknown" };
-}
-/** "9–15 Nov 2026", "28 Sep–4 Oct 2026", "28 Dec 2026–3 Jan 2027"; without the year: "9–15 Nov", "28 Dec–3 Jan". */
-function datesOf(c, n, withYear = true) {
-	const a = new Date(mondayOf(c, n)), b = new Date(mondayOf(c, n) + 6 * DAY$1);
-	const dm = (x) => `${x.getUTCDate()} ${MONTHS[x.getUTCMonth()]}`;
-	if (!withYear) return a.getUTCMonth() === b.getUTCMonth() ? `${a.getUTCDate()}–${dm(b)}` : `${dm(a)}–${dm(b)}`;
-	if (a.getUTCFullYear() !== b.getUTCFullYear()) return `${dm(a)} ${a.getUTCFullYear()}–${dm(b)} ${b.getUTCFullYear()}`;
-	return (a.getUTCMonth() === b.getUTCMonth() ? `${a.getUTCDate()}–${dm(b)}` : `${dm(a)}–${dm(b)}`) + " " + b.getUTCFullYear();
-}
-/**
-* Rule 13. A week in words, never without its dates and their year:
-* - `field` "Week 46 · 9–15 Nov 2026" (another goal year's: "Week 13 · 29 Mar–4 Apr 2027");
-* - `row` "Week 46 · 9–15 Nov" (in a list under its year);
-* - `sentence` "week 46 (9–15 Nov 2026)" in the cycle's own goal year, "week 13 of 2027 (29 Mar–4 Apr 2027)" in another;
-* - `short` "week 46", "week 13 of 2027".
-*/
-function weekSays(c, n, form) {
-	const y = yearWeek(c, n);
-	const of = y.year === cycleYear(c) ? "" : ` of ${y.year}`;
-	if (form === "field") return `Week ${y.week} · ${datesOf(c, n)}`;
-	if (form === "row") return `Week ${y.week} · ${datesOf(c, n, false)}`;
-	if (form === "short") return `week ${y.week}${of}`;
-	return `week ${y.week}${of} (${datesOf(c, n)})`;
-}
-/**
-* Must fix for a plan's two weeks, as cycle weeks (section 4): `to-before-from` and `week-beyond`. Null when both are
-* fine. The picker can't make either; a file or a tool can.
-*/
-function weeksProblem(c, from, to) {
-	const end = lastWeekOffered(c), first = firstWeekOffered(c);
-	const own = cycleYear(c);
-	if (to > end) return {
-		id: "week-beyond",
-		field: "to",
-		text: `To can be as late as ${weekSays(c, end, "short")} (${datesOf(c, end)}), the end of next year.`
-	};
-	if (from > end) return {
-		id: "week-beyond",
-		field: "from",
-		text: `From can be as late as ${weekSays(c, end, "short")} (${datesOf(c, end)}), the end of next year.`
-	};
-	if (from < first) return {
-		id: "week-beyond",
-		field: "from",
-		text: `From can be as early as week 1 of ${own - 1}.`
-	};
-	if (to <= from) return {
-		id: "to-before-from",
-		field: "to",
-		text: `To (${weekSays(c, to, "short")}, ${datesOf(c, to)}) isn’t after From (${weekSays(c, from, "short")}, ${datesOf(c, from)}). The plan has to run forwards.`
-	};
-	return null;
-}
-var DAY$1, MONTHS, mondayOf, cycleYear, noSuchWeek, weekUnknownText, lastWeekOffered, firstWeekOffered;
-var init_weeks = __esmMin((() => {
-	init_year();
-	DAY$1 = 864e5;
-	MONTHS = [
-		"Jan",
-		"Feb",
-		"Mar",
-		"Apr",
-		"May",
-		"Jun",
-		"Jul",
-		"Aug",
-		"Sep",
-		"Oct",
-		"Nov",
-		"Dec"
-	];
-	mondayOf = (c, n) => Date.parse(c.startDate + "T00:00:00Z") + n * 7 * DAY$1;
-	cycleYear = (c) => new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$1).getUTCFullYear();
-	noSuchWeek = (year, weeks) => `${year} has ${weeks} weeks. Use ${year}-W${weeks}, or ${year + 1}-W01.`;
-	weekUnknownText = (c, field, raw) => `${field} says “${raw.trim()}”. Write a year and a week, like ${weekCode(c, 46)}, or the week’s number.`;
-	lastWeekOffered = (c) => c.weeks + spanOf(c, c.weeks + 1).weeks;
-	firstWeekOffered = (c) => spanOf(c, 0).first;
 }));
 // src/domain/columns.ts
 /** A word's code; null for an empty cell; undefined for a word it doesn't know. */
@@ -5492,6 +5535,510 @@ var init_columns = __esmMin((() => {
 	isFillIn = (row) => row.required != null && row.required !== "reading";
 	GOAL_ACTION_WORDS.word.example, TYPE_WORDS.word.metric, SHAPE_WORDS.word.straight, GOAL_ACTION_WORDS.word.example, TYPE_WORDS.word.milestone, PERSON_ACTION_WORDS.word.example, YES_WORDS.word.no;
 }));
+// src/domain/query.ts
+function addColumnParams(params) {
+	for (const k of params) if (!COLUMN_PARAMS.includes(k) && !QUERY_KEYS.includes(k)) {
+		COLUMN_PARAMS.push(k);
+		QUERY_KEYS.push(k);
+	}
+}
+/** Read a query from a URL's search params (unknown or bad values are ignored, never an error). */
+function parseQuery(p) {
+	const [sortKey, dir] = (p.get("sort") ?? "").split(".");
+	const due = p.get("due");
+	const qtr = p.get("qtr");
+	return {
+		q: (p.get("q") ?? "").slice(0, 200),
+		status: list$1(p.get("status"), STATUS_OPTIONS.map(([k]) => k)),
+		level: (p.get("level") ?? "").split(",").filter((l) => isLevel(null, l)),
+		team: (p.get("team") ?? "").split(",").filter(Boolean),
+		owner: (p.get("owner") ?? "").split(",").filter(Boolean),
+		kind: list$1(p.get("kind"), KIND_OPTIONS.map(([k]) => k)),
+		...needsOf(p),
+		due: due === "quarter" ? "quarter" : int$3(due),
+		quiet: int$3(p.get("quiet")),
+		quarter: qtr === "met" || qtr === "missed" ? qtr : null,
+		result: list$1(p.get("result"), RESULT_OPTIONS.map(([k]) => k)),
+		feeds: p.get("feeds") || null,
+		helps: p.get("helps") === "1",
+		sort: SORT_OPTIONS.some(([k]) => k === sortKey) ? sortKey : null,
+		dir: dir === "desc" ? -1 : 1,
+		cols: Object.fromEntries(COLUMN_PARAMS.map((k) => [k, (p.get(k) ?? "").slice(0, 200)]).filter(([, v]) => v))
+	};
+}
+/** Needs attention from a link: attention=1, needs=… (because), or a link from before release 2 (needs=slipped, …). */
+function needsOf(p) {
+	const raw = (p.get("needs") ?? "").split(",").filter(Boolean);
+	const needs = [...new Set(raw.map((v) => v in OLD_NEEDS ? OLD_NEEDS[v] : NEED_OPTIONS.some(([k]) => k === v) ? v : void 0).filter((v) => !!v))];
+	return {
+		attention: p.get("attention") === "1" || raw.some((v) => v in OLD_NEEDS || NEED_OPTIONS.some(([k]) => k === v)),
+		needs
+	};
+}
+/** The query as search params: only what differs from no filter, in a fixed order, so equal queries make equal links. */
+function queryEntries(q) {
+	const out = [];
+	if (q.q.trim()) out.push(["q", q.q.trim()]);
+	if (q.status.length) out.push(["status", q.status.join(",")]);
+	if (q.level.length) out.push(["level", q.level.join(",")]);
+	if (q.team.length) out.push(["team", q.team.join(",")]);
+	if (q.owner.length) out.push(["owner", q.owner.join(",")]);
+	if (q.kind.length) out.push(["kind", q.kind.join(",")]);
+	if (q.attention || q.needs.length) out.push(["attention", "1"]);
+	if (q.needs.length) out.push(["needs", q.needs.join(",")]);
+	if (q.due != null) out.push(["due", String(q.due)]);
+	if (q.quiet != null) out.push(["quiet", String(q.quiet)]);
+	if (q.quarter) out.push(["qtr", q.quarter]);
+	if (q.result.length) out.push(["result", q.result.join(",")]);
+	if (q.feeds) out.push(["feeds", q.feeds]);
+	if (q.helps) out.push(["helps", "1"]);
+	for (const k of Object.keys(q.cols ?? {}).sort()) if (q.cols[k]) out.push([k, q.cols[k]]);
+	if (q.sort) out.push(["sort", q.sort + (q.dir === -1 ? ".desc" : "")]);
+	return out;
+}
+/** The goal and every goal that feeds it, all the way down. */
+function treeOf$1(id, goals) {
+	const out = /* @__PURE__ */ new Set([id]);
+	let grew = true;
+	while (grew) {
+		grew = false;
+		for (const g of goals) if (g.parentId && out.has(g.parentId) && !out.has(g.id)) {
+			out.add(g.id);
+			grew = true;
+		}
+	}
+	return out;
+}
+/** Does this goal pass every filter in the query? */
+function matches(s, q, ctx, tree) {
+	const g = s.goal;
+	if (q.q.trim() && !textMatches(goalWords(s), q.q, g.key)) return false;
+	if (q.status.length && !q.status.includes(s.status)) return false;
+	if (q.level.length && !q.level.includes(g.level)) return false;
+	if (q.team.length && !q.team.includes(g.teamId)) return false;
+	if (q.owner.length && !q.owner.includes(g.ownerId)) return false;
+	if (q.kind.length && !q.kind.includes(g.kind)) return false;
+	for (const [k, v] of Object.entries(q.cols ?? {})) {
+		const col = ctx.columns?.[k];
+		if (col && col(g) !== v) return false;
+	}
+	if (q.attention || q.needs.length) {
+		if (!onAttentionList(s.attention)) return false;
+		if (q.needs.length && !q.needs.some((n) => n === "slipped" ? s.story.flags.includes("slipped") : s.attention.flags.some((f) => f.kind === n))) return false;
+	}
+	if (q.due != null) {
+		const by = q.due === "quarter" ? quarterOf(ctx.cycle, Math.max(1, ctx.week)).to : q.due;
+		if (s.dueWeek > by) return false;
+	}
+	if (q.quiet != null && (s.status === "done" || s.quietDays < q.quiet * 7)) return false;
+	if (q.quarter) {
+		if ([...s.story.quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed")?.kind !== q.quarter) return false;
+	}
+	if (q.result.length && !q.result.includes(s.story.result?.kind ?? "open")) return false;
+	if (q.feeds && !(tree ?? treeOf$1(q.feeds, ctx.goals)).has(g.id)) return false;
+	if (q.helps && !(g.alsoHelps?.length || ctx.goals.some((x) => x.alsoHelps?.includes(g.id)))) return false;
+	return true;
+}
+/** Order summaries by the query's sort (worst first when none is set). Ties go worst first, then by name. */
+function compare(q, _week) {
+	const key = q.sort ?? "worst";
+	const worst = (a, b) => RANK[b.status] - RANK[a.status];
+	const name = (a, b) => a.goal.title.localeCompare(b.goal.title);
+	const by = {
+		worst,
+		title: name,
+		owner: (a, b) => a.owner.localeCompare(b.owner),
+		team: (a, b) => a.team.localeCompare(b.team),
+		level: (a, b) => levelRank(null, a.goal.level) - levelRank(null, b.goal.level),
+		gap: (a, b) => GAP_RANK[b.gapTone] - GAP_RANK[a.gapTone],
+		last: (a, b) => b.quietDays - a.quietDays,
+		due: (a, b) => a.dueWeek - b.dueWeek
+	};
+	return (a, b) => q.dir * by[key](a, b) || worst(a, b) || name(a, b);
+}
+/** The goals that pass the query, in its order. */
+function applyQuery(sums, q, ctx) {
+	const tree = q.feeds ? treeOf$1(q.feeds, ctx.goals) : null;
+	const out = sums.filter((s) => matches(s, q, ctx, tree));
+	return q.sort ? out.sort(compare(q, ctx.week)) : out;
+}
+var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$3, COLUMN_PARAMS, QUERY_KEYS, GAP_RANK;
+var init_query = __esmMin((() => {
+	init_levels();
+	init_attention();
+	init_status();
+	init_find();
+	init_vocabulary();
+	init_year();
+	EMPTY_QUERY = {
+		q: "",
+		status: [],
+		level: [],
+		team: [],
+		owner: [],
+		kind: [],
+		attention: false,
+		needs: [],
+		due: null,
+		quiet: null,
+		quarter: null,
+		result: [],
+		feeds: null,
+		helps: false,
+		sort: null,
+		dir: 1,
+		cols: {}
+	};
+	STATUS_OPTIONS = [
+		"off",
+		"risk",
+		"stale",
+		"on",
+		"done",
+		"none",
+		"planned"
+	].map((k) => [k, LABEL[k]]);
+	NEED_OPTIONS = [...ATTENTION_FLAGS.filter((k) => k !== "due").map((k) => [k, FLAG[k].label]), ["slipped", WARNING.slipped.label]];
+	OLD_NEEDS = {
+		"no-recovery": "no-path",
+		"missed-date": "missed-path"
+	};
+	RESULT_OPTIONS = [
+		"completed",
+		"late",
+		"missed",
+		"open"
+	].map((k) => [k, RESULT[k].label]);
+	KIND_OPTIONS = [
+		["metric", "Move a number"],
+		["range", "Keep in range"],
+		["milestone", "Dated stages"]
+	];
+	SORT_OPTIONS = [
+		["worst", "Worst first"],
+		["title", "Name"],
+		["owner", "Owner"],
+		["team", "Team"],
+		["level", "Level"],
+		["gap", "Furthest from plan"],
+		["last", "Longest since a check-in"],
+		["due", "Due soonest"]
+	];
+	list$1 = (v, ok) => v ? v.split(",").filter((x) => ok.includes(x)) : [];
+	int$3 = (v) => {
+		const n = v == null ? NaN : Number(v);
+		return Number.isInteger(n) && n > 0 ? n : null;
+	};
+	COLUMN_PARAMS = [];
+	QUERY_KEYS = [
+		"q",
+		"status",
+		"level",
+		"team",
+		"owner",
+		"kind",
+		"attention",
+		"needs",
+		"due",
+		"quiet",
+		"qtr",
+		"result",
+		"feeds",
+		"helps",
+		"sort"
+	];
+	GAP_RANK = {
+		off: 4,
+		risk: 3,
+		stale: 2,
+		on: 1,
+		ahead: 0
+	};
+}));
+// src/domain/find.ts
+/**
+* Rule 1. True when every word of `q` starts a word of `words`, ignoring case and accents (words break at spaces and at
+* / - , . : ( )). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
+* finds only that goal ("G-48" isn't G-4), while a bare number also matches as words. An empty search matches anything.
+*/
+function textMatches(words, q, key) {
+	return wordsMatch(wordsOf(words), q, key);
+}
+/** Rule 1 over words already split by `wordsOf` (a long list splits each row once, not on every key). */
+function wordsMatch(have, q, key) {
+	const asked = wordsOf(q);
+	if (!asked.length) return true;
+	const typedKey = normalKey(q.trim());
+	if (typedKey) return !!key && typedKey === key;
+	const bare = /^\d{1,9}$/.test(q.trim()) ? formatKey(Number(q.trim())) : null;
+	if (bare && key && bare === key) return true;
+	return asked.every((w) => have.some((h) => h.startsWith(w)));
+}
+/** One letter added, dropped or changed, or two next to each other swapped. */
+function oneEditApart(a, b) {
+	if (a === b) return false;
+	if (Math.abs(a.length - b.length) > 1) return false;
+	if (a.length === b.length) {
+		const diff = [];
+		for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) diff.push(i);
+		if (diff.length === 1) return true;
+		return diff.length === 2 && diff[1] === diff[0] + 1 && a[diff[0]] === b[diff[1]] && a[diff[1]] === b[diff[0]];
+	}
+	const [s, l] = a.length < b.length ? [a, b] : [b, a];
+	let i = 0;
+	while (i < s.length && s[i] === l[i]) i++;
+	return s.slice(i) === l.slice(i + 1);
+}
+/**
+* Rule 5. Only when rule 1 finds nothing: each word of `q` that starts none of the list's words, and has 4 letters
+* or more, is corrected to the commonest of the list's words one edit away (`oneEditApart`). Returns the corrected search
+* when every such word has a correction and something changed; otherwise null. Never applied to a key, nor to a search
+* with a short word that matches nothing.
+*/
+function nearMiss(q, vocabulary) {
+	if (normalKey(q.trim()) || /^\d+$/.test(q.trim())) return null;
+	const asked = wordsOf(q);
+	if (!asked.length) return null;
+	const count = /* @__PURE__ */ new Map();
+	for (const w of vocabulary.flatMap(wordsOf)) count.set(w, (count.get(w) ?? 0) + 1);
+	let changed = false;
+	const out = [];
+	for (const w of asked) {
+		if ([...count.keys()].some((v) => v.startsWith(w))) {
+			out.push(w);
+			continue;
+		}
+		if (w.length < 4) return null;
+		const best = [...count.entries()].filter(([v]) => oneEditApart(w, v)).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))[0];
+		if (!best) return null;
+		out.push(best[0]);
+		changed = true;
+	}
+	return changed ? out.join(" ") : null;
+}
+/** One page of `all`, from `after` (an offset, as Faro's adapter writes it). */
+function page(all, ask) {
+	const size = Math.min(MAX_PAGE, Math.max(1, Math.floor(ask.size ?? 50)));
+	const from = Math.max(0, Number.parseInt(ask.after ?? "0", 10) || 0);
+	const rows = all.slice(from, from + size);
+	return {
+		total: all.length,
+		rows,
+		next: from + size < all.length ? String(from + size) : null
+	};
+}
+/** Goals: the Goals link's filters and sort (query.ts), with rule 1 for the words; worst first unless sorted. */
+function searchGoals(r, ask) {
+	const query = {
+		...parseQuery(new URLSearchParams({
+			...ask.filters ?? {},
+			...ask.sort ? { sort: ask.sort } : {}
+		})),
+		q: ""
+	};
+	return applyQuery(r.summaries, {
+		...query,
+		sort: query.sort ?? "worst"
+	}, r.ctx).filter((s) => textMatches(goalWords(s), ask.q, s.goal.key)).map(goalRow);
+}
+/**
+* People: name, job title and team; nobody marked as left (Find asks for them too with the filter `left: 'too'`, and
+* names them "{name} (left)", after everyone here); those whose name the search starts first, then by name A to
+* Z (`byName`). Filters, as People's address has them: `team` keeps a team's people (its lead counts, wherever their own
+* team is) or, as `-`, people in no team (or a team that is gone); `admins` (`1`) keeps the admins.
+*/
+function searchPeople(r, ask) {
+	const team = (p) => p.teamId ? r.teamName(p.teamId) : "";
+	const named = (p) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
+	const f = ask.filters ?? {};
+	const left = f.left === "too";
+	const lead = f.team && f.team !== "-" ? r.teamLead?.(f.team) ?? null : null;
+	const inTeam = (p) => !f.team || (f.team === "-" ? !p.teamId || !r.teamName(p.teamId) : p.teamId === f.team || p.id === lead);
+	return r.people.filter((p) => (left || !p.leftAt) && !p.removedAt && inTeam(p) && (f.admins !== "1" || p.admin) && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(!!a.leftAt) - Number(!!b.leftAt) || Number(named(b)) - Number(named(a)) || byName(a, b)).map((p) => p.leftAt ? {
+		...personRow(r, p),
+		name: `${p.name} (left)`
+	} : personRow(r, p));
+}
+/** A team's row: "Led by {name} · {n} people", or "No lead · {n} people". */
+function teamRow(r, t) {
+	const here = r.people.filter((p) => !p.leftAt);
+	const lead = here.find((p) => p.id === t.leadId)?.name ?? null;
+	const n = here.filter((p) => p.teamId === t.id).length;
+	return {
+		kind: "team",
+		id: t.id,
+		name: t.name,
+		detail: `${lead ? `Led by ${lead}` : "No lead"} · ${n} ${n === 1 ? "person" : "people"}`
+	};
+}
+/** Teams: the name and its lead's name; A to Z, ignoring case and accents. */
+function searchTeams(r, ask) {
+	const here = r.people.filter((p) => !p.leftAt);
+	const lead = (t) => here.find((p) => p.id === t.leadId)?.name ?? "";
+	return r.teams.filter((t) => textMatches(`${t.name} ${lead(t)}`, ask.q)).sort((a, b) => collator.compare(a.name, b.name) || a.id.localeCompare(b.id)).map((t) => teamRow(r, t));
+}
+function searchWorkspaces(r, ask) {
+	return r.workspaces.filter((w) => textMatches(w.name, ask.q)).map((w) => ({
+		kind: "workspace",
+		id: w.id,
+		name: w.name,
+		detail: w.detail
+	}));
+}
+/** The words each kind's near miss may correct to. */
+function vocabulary(r) {
+	switch (r.kind) {
+		case "goal": return r.summaries.map(goalWords);
+		case "person": return r.people.filter((p) => !p.leftAt).map((p) => `${p.name} ${p.role}`);
+		case "team": return r.teams.map((t) => t.name);
+		case "workspace": return r.workspaces.map((w) => w.name);
+	}
+}
+/**
+* Rule 7. One search for a kind: every match in the kind's order, a page of it, and, when nothing matches, rule 5's near
+* miss with its rows. Each kind's rows come from `rows` (the core's four; a module's finder answers its own kind).
+*/
+function search(rows, ask) {
+	const run = (a) => {
+		switch (rows.kind) {
+			case "goal": return searchGoals(rows, a);
+			case "person": return searchPeople(rows, a);
+			case "team": return searchTeams(rows, a);
+			case "workspace": return searchWorkspaces(rows, a);
+		}
+	};
+	const all = run(ask);
+	if (all.length || !wordsOf(ask.q).length) return page(all, ask);
+	const near = nearMiss(ask.q, vocabulary(rows));
+	const again = near ? run({
+		...ask,
+		q: near
+	}) : [];
+	return near && again.length ? {
+		...page(again, ask),
+		near
+	} : page([], ask);
+}
+/**
+* The rows for things already chosen, by id, in the same words a search gives them and in the order asked: what a closed
+* picker shows. Unlike a search it finds someone marked as left (they may still own a goal); an id it can't find is
+* left out.
+*/
+function rowsByIds(rows, ids) {
+	const found = (id) => {
+		switch (rows.kind) {
+			case "goal": {
+				const s = rows.summaries.find((x) => x.goal.id === id);
+				return s ? goalRow(s) : null;
+			}
+			case "person": {
+				const p = rows.people.find((x) => x.id === id && !x.removedAt);
+				return p ? personRow(rows, p) : null;
+			}
+			case "team": {
+				const t = rows.teams.find((x) => x.id === id);
+				return t ? teamRow(rows, t) : null;
+			}
+			case "workspace": {
+				const w = rows.workspaces.find((x) => x.id === id);
+				return w ? {
+					kind: "workspace",
+					id: w.id,
+					name: w.name,
+					detail: w.detail
+				} : null;
+			}
+		}
+	};
+	return ids.map(found).filter((r) => !!r);
+}
+/**
+* Rule 6. Up to 6 rows before anything is typed, no repeats, in order. A person: you; your team's people, its lead first
+* (when the rows say who leads it) then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals,
+* worst first; the goals they feed; goals opened or chosen lately. Up to two places are kept for those chosen lately
+* when the rest would fill the list. Nobody marked as left; nothing it can't find.
+*/
+function suggest(rows, viewerId, recents) {
+	const recent = recents.filter((r) => r.kind === rows.kind).map((r) => r.id);
+	const pick = (ids, row) => {
+		const out = [];
+		const add = (id, limit) => {
+			if (!id || out.length >= limit || out.some((r) => r.id === id)) return;
+			const r = row(id);
+			if (r) out.push(r);
+		};
+		const lately = recent.filter((id) => !ids.includes(id) && row(id));
+		for (const id of ids) add(id, 6 - Math.min(2, lately.length));
+		for (const id of [...recent, ...ids]) add(id, 6);
+		return out;
+	};
+	switch (rows.kind) {
+		case "person": {
+			const all = searchPeople(rows, { q: "" });
+			const by = new Map(all.map((r) => [r.id, r]));
+			const me = rows.people.find((p) => p.id === viewerId);
+			const lead = me?.teamId ? rows.teamLead?.(me.teamId) ?? null : null;
+			return pick([viewerId, ...me?.teamId ? rows.people.filter((p) => p.teamId === me.teamId && !p.leftAt).sort((a, b) => Number(b.id === lead) - Number(a.id === lead) || a.name.localeCompare(b.name)).map((p) => p.id) : []], (id) => by.get(id) ?? null);
+		}
+		case "team": {
+			const all = searchTeams(rows, { q: "" });
+			const by = new Map(all.map((r) => [r.id, r]));
+			const mine = rows.people.find((p) => p.id === viewerId)?.teamId;
+			return pick([mine, ...rows.teams.filter((t) => t.leadId === viewerId).map((t) => t.id)], (id) => by.get(id) ?? null);
+		}
+		case "goal": {
+			const all = searchGoals(rows, { q: "" });
+			const by = new Map(all.map((r) => [r.id, r]));
+			const mine = all.filter((r) => rows.summaries.find((s) => s.goal.id === r.id)?.goal.ownerId === viewerId).map((r) => r.id);
+			const fed = mine.map((id) => rows.summaries.find((s) => s.goal.id === id)?.goal.parentId);
+			return pick([...mine, ...fed], (id) => by.get(id) ?? null);
+		}
+	}
+}
+var fold$2, wordsOf, MAX_PAGE, goalWords, goalRow, personRow, collator, byName;
+var init_find = __esmMin((() => {
+	init_levels();
+	init_goalKey();
+	init_query();
+	init_vocabulary();
+	fold$2 = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+	wordsOf = (s) => fold$2(s).split(/[\s/\-,.:()]+/).filter(Boolean);
+	MAX_PAGE = 200;
+	goalWords = (s) => [
+		s.goal.title,
+		s.goal.key ?? "",
+		s.owner,
+		s.team,
+		levelName(null, s.goal.level),
+		LABEL[s.status],
+		s.story.why ?? "",
+		s.story.doing ?? "",
+		s.story.needs ?? "",
+		s.goal.definition,
+		s.goal.source,
+		s.goal.kind !== "milestone" ? s.goal.unit : ""
+	].join(" ");
+	goalRow = (s) => ({
+		kind: "goal",
+		id: s.goal.id,
+		name: s.goal.title,
+		detail: [
+			s.goal.key,
+			s.owner,
+			s.team
+		].filter(Boolean).join(" · "),
+		status: s.status,
+		key: s.goal.key ?? null
+	});
+	personRow = (r, p) => ({
+		kind: "person",
+		id: p.id,
+		name: p.name,
+		detail: [p.role, p.teamId ? r.teamName(p.teamId) : ""].filter(Boolean).join(" · ")
+	});
+	collator = new Intl.Collator("en-GB", { sensitivity: "base" });
+	byName = (a, b) => collator.compare(a.name, b.name) || (a.email ?? "").localeCompare(b.email ?? "") || a.id.localeCompare(b.id);
+}));
 // src/domain/tableFilter.ts
 /** Does one cell value pass the filter? */
 function passes(cell, f) {
@@ -5511,11 +6058,14 @@ function passes(cell, f) {
 		}
 	}
 }
-function applyTable(rows, head, q, filters, sort) {
-	const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+function applyTable(rows, head, q, filters, sort, searched) {
+	const typed = q.trim();
 	const idx = (c) => head.indexOf(c);
+	const cols = (searched ?? head).map(idx).filter((i) => i >= 0);
+	const colsKey = cols.join(",");
+	const keyAt = idx("Key");
 	const live = filters.filter((f) => idx(f.col) >= 0 && (NO_VALUE.includes(f.op) || f.value.trim() !== ""));
-	const out = rows.filter((r) => (!words.length || words.every((w) => lowered(r).some((c) => c.includes(w)))) && live.every((f) => passes(r.cells[idx(f.col)] ?? "", f)));
+	const out = rows.filter((r) => (!typed || wordsMatch(wordsFor(r, cols, colsKey), typed, keyAt >= 0 ? r.cells[keyAt] : null)) && live.every((f) => passes(r.cells[idx(f.col)] ?? "", f)));
 	const si = sortIndex(head, sort);
 	if (sort && si >= 0) out.sort((a, b) => {
 		const x = a.cells[si] ?? "", y = b.cells[si] ?? "";
@@ -5560,8 +6110,9 @@ function parseSort(p) {
 function filterEntries(filters, sort) {
 	return [...filters.map((f) => ["f", `${f.col}~${f.op}~${f.value}`]), ...sort ? [["sort", `${sort.col.toLowerCase()}${sort.dir === -1 ? ".desc" : ""}`]] : []];
 }
-var OP_LABEL, NO_VALUE, isNum, lowerCells, lowered, sortIndex;
+var OP_LABEL, NO_VALUE, isNum, rowWords, wordsFor, sortIndex;
 var init_tableFilter = __esmMin((() => {
+	init_find();
 	OP_LABEL = {
 		is: "is any of",
 		isNot: "is none of",
@@ -5578,14 +6129,16 @@ var init_tableFilter = __esmMin((() => {
 	};
 	NO_VALUE = ["empty", "notEmpty"];
 	isNum = (v) => v.trim() !== "" && !isNaN(Number(v));
-	lowerCells = /* @__PURE__ */ new WeakMap();
-	lowered = (r) => {
-		let l = lowerCells.get(r);
-		if (!l) {
-			l = r.cells.map((c) => c.toLowerCase());
-			lowerCells.set(r, l);
-		}
-		return l;
+	rowWords = /* @__PURE__ */ new WeakMap();
+	wordsFor = (r, idx, cols) => {
+		const kept = rowWords.get(r);
+		if (kept && kept.cols === cols) return kept.words;
+		const words = wordsOf(idx.map((i) => r.cells[i] ?? "").join(" "));
+		rowWords.set(r, {
+			cols,
+			words
+		});
+		return words;
 	};
 	sortIndex = (head, sort) => sort ? head.findIndex((h) => h.toLowerCase() === sort.col.toLowerCase()) : -1;
 }));
@@ -5670,11 +6223,12 @@ function layoutProblems(l, head) {
 function shownTable(sheet, l, extra = []) {
 	const [head0, ...body] = sheet.rows;
 	const head = (head0 ?? []).map((c) => c == null ? "" : String(c));
-	const cols = [...visibleColumns(l.table, head, l.cols), ...extra].map((c) => head.indexOf(c));
+	const visible = visibleColumns(l.table, head, l.cols);
+	const cols = [...visible, ...extra].map((c) => head.indexOf(c));
 	const shown = applyTable(body.map((raw) => ({
 		raw,
 		cells: raw.map((c) => c == null ? "" : String(c))
-	})), head, l.q, l.filters, l.sort);
+	})), head, l.q, l.filters, l.sort, visible);
 	return [cols.map((i) => head[i]), ...shown.map((r) => cols.map((i) => r.raw[i] ?? null))];
 }
 /**
@@ -6834,507 +7388,6 @@ var init_actions = __esmMin((() => {
 	};
 	liveView = (x, id) => (x.snapshot.views ?? []).find((v) => v.id === id && !v.deletedAt);
 }));
-// src/domain/query.ts
-function addColumnParams(params) {
-	for (const k of params) if (!COLUMN_PARAMS.includes(k) && !QUERY_KEYS.includes(k)) {
-		COLUMN_PARAMS.push(k);
-		QUERY_KEYS.push(k);
-	}
-}
-/** Read a query from a URL's search params (unknown or bad values are ignored, never an error). */
-function parseQuery(p) {
-	const [sortKey, dir] = (p.get("sort") ?? "").split(".");
-	const due = p.get("due");
-	const qtr = p.get("qtr");
-	return {
-		q: (p.get("q") ?? "").slice(0, 200),
-		status: list$1(p.get("status"), STATUS_OPTIONS.map(([k]) => k)),
-		level: (p.get("level") ?? "").split(",").filter((l) => isLevel(null, l)),
-		team: (p.get("team") ?? "").split(",").filter(Boolean),
-		owner: (p.get("owner") ?? "").split(",").filter(Boolean),
-		kind: list$1(p.get("kind"), KIND_OPTIONS.map(([k]) => k)),
-		...needsOf(p),
-		due: due === "quarter" ? "quarter" : int$3(due),
-		quiet: int$3(p.get("quiet")),
-		quarter: qtr === "met" || qtr === "missed" ? qtr : null,
-		result: list$1(p.get("result"), RESULT_OPTIONS.map(([k]) => k)),
-		feeds: p.get("feeds") || null,
-		helps: p.get("helps") === "1",
-		sort: SORT_OPTIONS.some(([k]) => k === sortKey) ? sortKey : null,
-		dir: dir === "desc" ? -1 : 1,
-		cols: Object.fromEntries(COLUMN_PARAMS.map((k) => [k, (p.get(k) ?? "").slice(0, 200)]).filter(([, v]) => v))
-	};
-}
-/** Needs attention from a link: attention=1, needs=… (because), or a link from before release 2 (needs=slipped, …). */
-function needsOf(p) {
-	const raw = (p.get("needs") ?? "").split(",").filter(Boolean);
-	const needs = [...new Set(raw.map((v) => v in OLD_NEEDS ? OLD_NEEDS[v] : NEED_OPTIONS.some(([k]) => k === v) ? v : void 0).filter((v) => !!v))];
-	return {
-		attention: p.get("attention") === "1" || raw.some((v) => v in OLD_NEEDS || NEED_OPTIONS.some(([k]) => k === v)),
-		needs
-	};
-}
-/** The query as search params: only what differs from no filter, in a fixed order, so equal queries make equal links. */
-function queryEntries(q) {
-	const out = [];
-	if (q.q.trim()) out.push(["q", q.q.trim()]);
-	if (q.status.length) out.push(["status", q.status.join(",")]);
-	if (q.level.length) out.push(["level", q.level.join(",")]);
-	if (q.team.length) out.push(["team", q.team.join(",")]);
-	if (q.owner.length) out.push(["owner", q.owner.join(",")]);
-	if (q.kind.length) out.push(["kind", q.kind.join(",")]);
-	if (q.attention || q.needs.length) out.push(["attention", "1"]);
-	if (q.needs.length) out.push(["needs", q.needs.join(",")]);
-	if (q.due != null) out.push(["due", String(q.due)]);
-	if (q.quiet != null) out.push(["quiet", String(q.quiet)]);
-	if (q.quarter) out.push(["qtr", q.quarter]);
-	if (q.result.length) out.push(["result", q.result.join(",")]);
-	if (q.feeds) out.push(["feeds", q.feeds]);
-	if (q.helps) out.push(["helps", "1"]);
-	for (const k of Object.keys(q.cols ?? {}).sort()) if (q.cols[k]) out.push([k, q.cols[k]]);
-	if (q.sort) out.push(["sort", q.sort + (q.dir === -1 ? ".desc" : "")]);
-	return out;
-}
-/** The goal and every goal that feeds it, all the way down. */
-function treeOf$1(id, goals) {
-	const out = /* @__PURE__ */ new Set([id]);
-	let grew = true;
-	while (grew) {
-		grew = false;
-		for (const g of goals) if (g.parentId && out.has(g.parentId) && !out.has(g.id)) {
-			out.add(g.id);
-			grew = true;
-		}
-	}
-	return out;
-}
-/** Does this goal pass every filter in the query? */
-function matches(s, q, ctx, tree) {
-	const g = s.goal;
-	if (q.q.trim() && !textMatches(goalWords(s), q.q, g.key)) return false;
-	if (q.status.length && !q.status.includes(s.status)) return false;
-	if (q.level.length && !q.level.includes(g.level)) return false;
-	if (q.team.length && !q.team.includes(g.teamId)) return false;
-	if (q.owner.length && !q.owner.includes(g.ownerId)) return false;
-	if (q.kind.length && !q.kind.includes(g.kind)) return false;
-	for (const [k, v] of Object.entries(q.cols ?? {})) {
-		const col = ctx.columns?.[k];
-		if (col && col(g) !== v) return false;
-	}
-	if (q.attention || q.needs.length) {
-		if (!onAttentionList(s.attention)) return false;
-		if (q.needs.length && !q.needs.some((n) => n === "slipped" ? s.story.flags.includes("slipped") : s.attention.flags.some((f) => f.kind === n))) return false;
-	}
-	if (q.due != null) {
-		const by = q.due === "quarter" ? quarterOf(ctx.cycle, Math.max(1, ctx.week)).to : q.due;
-		if (s.dueWeek > by) return false;
-	}
-	if (q.quiet != null && (s.status === "done" || s.quietDays < q.quiet * 7)) return false;
-	if (q.quarter) {
-		if ([...s.story.quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed")?.kind !== q.quarter) return false;
-	}
-	if (q.result.length && !q.result.includes(s.story.result?.kind ?? "open")) return false;
-	if (q.feeds && !(tree ?? treeOf$1(q.feeds, ctx.goals)).has(g.id)) return false;
-	if (q.helps && !(g.alsoHelps?.length || ctx.goals.some((x) => x.alsoHelps?.includes(g.id)))) return false;
-	return true;
-}
-/** Order summaries by the query's sort (worst first when none is set). Ties go worst first, then by name. */
-function compare(q, _week) {
-	const key = q.sort ?? "worst";
-	const worst = (a, b) => RANK[b.status] - RANK[a.status];
-	const name = (a, b) => a.goal.title.localeCompare(b.goal.title);
-	const by = {
-		worst,
-		title: name,
-		owner: (a, b) => a.owner.localeCompare(b.owner),
-		team: (a, b) => a.team.localeCompare(b.team),
-		level: (a, b) => levelRank(null, a.goal.level) - levelRank(null, b.goal.level),
-		gap: (a, b) => GAP_RANK[b.gapTone] - GAP_RANK[a.gapTone],
-		last: (a, b) => b.quietDays - a.quietDays,
-		due: (a, b) => a.dueWeek - b.dueWeek
-	};
-	return (a, b) => q.dir * by[key](a, b) || worst(a, b) || name(a, b);
-}
-/** The goals that pass the query, in its order. */
-function applyQuery(sums, q, ctx) {
-	const tree = q.feeds ? treeOf$1(q.feeds, ctx.goals) : null;
-	const out = sums.filter((s) => matches(s, q, ctx, tree));
-	return q.sort ? out.sort(compare(q, ctx.week)) : out;
-}
-var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$3, COLUMN_PARAMS, QUERY_KEYS, GAP_RANK;
-var init_query = __esmMin((() => {
-	init_levels();
-	init_attention();
-	init_status();
-	init_find();
-	init_vocabulary();
-	init_year();
-	EMPTY_QUERY = {
-		q: "",
-		status: [],
-		level: [],
-		team: [],
-		owner: [],
-		kind: [],
-		attention: false,
-		needs: [],
-		due: null,
-		quiet: null,
-		quarter: null,
-		result: [],
-		feeds: null,
-		helps: false,
-		sort: null,
-		dir: 1,
-		cols: {}
-	};
-	STATUS_OPTIONS = [
-		"off",
-		"risk",
-		"stale",
-		"on",
-		"done",
-		"none",
-		"planned"
-	].map((k) => [k, LABEL[k]]);
-	NEED_OPTIONS = [...ATTENTION_FLAGS.filter((k) => k !== "due").map((k) => [k, FLAG[k].label]), ["slipped", WARNING.slipped.label]];
-	OLD_NEEDS = {
-		"no-recovery": "no-path",
-		"missed-date": "missed-path"
-	};
-	RESULT_OPTIONS = [
-		"completed",
-		"late",
-		"missed",
-		"open"
-	].map((k) => [k, RESULT[k].label]);
-	KIND_OPTIONS = [
-		["metric", "Move a number"],
-		["range", "Keep in range"],
-		["milestone", "Dated stages"]
-	];
-	SORT_OPTIONS = [
-		["worst", "Worst first"],
-		["title", "Name"],
-		["owner", "Owner"],
-		["team", "Team"],
-		["level", "Level"],
-		["gap", "Furthest from plan"],
-		["last", "Longest since a check-in"],
-		["due", "Due soonest"]
-	];
-	list$1 = (v, ok) => v ? v.split(",").filter((x) => ok.includes(x)) : [];
-	int$3 = (v) => {
-		const n = v == null ? NaN : Number(v);
-		return Number.isInteger(n) && n > 0 ? n : null;
-	};
-	COLUMN_PARAMS = [];
-	QUERY_KEYS = [
-		"q",
-		"status",
-		"level",
-		"team",
-		"owner",
-		"kind",
-		"attention",
-		"needs",
-		"due",
-		"quiet",
-		"qtr",
-		"result",
-		"feeds",
-		"helps",
-		"sort"
-	];
-	GAP_RANK = {
-		off: 4,
-		risk: 3,
-		stale: 2,
-		on: 1,
-		ahead: 0
-	};
-}));
-// src/domain/find.ts
-/**
-* Rule 1. True when every word of `q` starts a word of `words`, ignoring case and accents (words break at spaces and at
-* / - , . : ( )). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
-* finds only that goal ("G-48" isn't G-4), while a bare number also matches as words. An empty search matches anything.
-*/
-function textMatches(words, q, key) {
-	const asked = wordsOf(q);
-	if (!asked.length) return true;
-	const typedKey = normalKey(q.trim());
-	if (typedKey) return !!key && typedKey === key;
-	const bare = /^\d{1,9}$/.test(q.trim()) ? formatKey(Number(q.trim())) : null;
-	if (bare && key && bare === key) return true;
-	const have = wordsOf(words);
-	return asked.every((w) => have.some((h) => h.startsWith(w)));
-}
-/** One letter added, dropped or changed, or two next to each other swapped. */
-function oneEditApart(a, b) {
-	if (a === b) return false;
-	if (Math.abs(a.length - b.length) > 1) return false;
-	if (a.length === b.length) {
-		const diff = [];
-		for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) diff.push(i);
-		if (diff.length === 1) return true;
-		return diff.length === 2 && diff[1] === diff[0] + 1 && a[diff[0]] === b[diff[1]] && a[diff[1]] === b[diff[0]];
-	}
-	const [s, l] = a.length < b.length ? [a, b] : [b, a];
-	let i = 0;
-	while (i < s.length && s[i] === l[i]) i++;
-	return s.slice(i) === l.slice(i + 1);
-}
-/**
-* Rule 5. Only when rule 1 finds nothing: each word of `q` that starts none of the list's words, and has 4 letters
-* or more, is corrected to the commonest of the list's words one edit away (`oneEditApart`). Returns the corrected search
-* when every such word has a correction and something changed; otherwise null. Never applied to a key, nor to a search
-* with a short word that matches nothing.
-*/
-function nearMiss(q, vocabulary) {
-	if (normalKey(q.trim()) || /^\d+$/.test(q.trim())) return null;
-	const asked = wordsOf(q);
-	if (!asked.length) return null;
-	const count = /* @__PURE__ */ new Map();
-	for (const w of vocabulary.flatMap(wordsOf)) count.set(w, (count.get(w) ?? 0) + 1);
-	let changed = false;
-	const out = [];
-	for (const w of asked) {
-		if ([...count.keys()].some((v) => v.startsWith(w))) {
-			out.push(w);
-			continue;
-		}
-		if (w.length < 4) return null;
-		const best = [...count.entries()].filter(([v]) => oneEditApart(w, v)).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))[0];
-		if (!best) return null;
-		out.push(best[0]);
-		changed = true;
-	}
-	return changed ? out.join(" ") : null;
-}
-/** One page of `all`, from `after` (an offset, as Faro's adapter writes it). */
-function page(all, ask) {
-	const size = Math.min(MAX_PAGE, Math.max(1, Math.floor(ask.size ?? 50)));
-	const from = Math.max(0, Number.parseInt(ask.after ?? "0", 10) || 0);
-	const rows = all.slice(from, from + size);
-	return {
-		total: all.length,
-		rows,
-		next: from + size < all.length ? String(from + size) : null
-	};
-}
-/** Goals: the Goals link's filters and sort (query.ts), with rule 1 for the words; worst first unless sorted. */
-function searchGoals(r, ask) {
-	const query = {
-		...parseQuery(new URLSearchParams({
-			...ask.filters ?? {},
-			...ask.sort ? { sort: ask.sort } : {}
-		})),
-		q: ""
-	};
-	return applyQuery(r.summaries, {
-		...query,
-		sort: query.sort ?? "worst"
-	}, r.ctx).filter((s) => textMatches(goalWords(s), ask.q, s.goal.key)).map(goalRow);
-}
-/**
-* People: name, job title and team; nobody marked as left (Find asks for them too with the filter `left: 'too'`, and
-* names them "{name} (left)", after everyone here); those whose name the search starts first, then by name A to
-* Z (`byName`). Filters, as People's address has them: `team` keeps a team's people (its lead counts, wherever their own
-* team is) or, as `-`, people in no team (or a team that is gone); `admins` (`1`) keeps the admins.
-*/
-function searchPeople(r, ask) {
-	const team = (p) => p.teamId ? r.teamName(p.teamId) : "";
-	const named = (p) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
-	const f = ask.filters ?? {};
-	const left = f.left === "too";
-	const lead = f.team && f.team !== "-" ? r.teamLead?.(f.team) ?? null : null;
-	const inTeam = (p) => !f.team || (f.team === "-" ? !p.teamId || !r.teamName(p.teamId) : p.teamId === f.team || p.id === lead);
-	return r.people.filter((p) => (left || !p.leftAt) && !p.removedAt && inTeam(p) && (f.admins !== "1" || p.admin) && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(!!a.leftAt) - Number(!!b.leftAt) || Number(named(b)) - Number(named(a)) || byName(a, b)).map((p) => p.leftAt ? {
-		...personRow(r, p),
-		name: `${p.name} (left)`
-	} : personRow(r, p));
-}
-/** A team's row: "Led by {name} · {n} people", or "No lead · {n} people". */
-function teamRow(r, t) {
-	const here = r.people.filter((p) => !p.leftAt);
-	const lead = here.find((p) => p.id === t.leadId)?.name ?? null;
-	const n = here.filter((p) => p.teamId === t.id).length;
-	return {
-		kind: "team",
-		id: t.id,
-		name: t.name,
-		detail: `${lead ? `Led by ${lead}` : "No lead"} · ${n} ${n === 1 ? "person" : "people"}`
-	};
-}
-/** Teams: the name and its lead's name; A to Z, ignoring case and accents. */
-function searchTeams(r, ask) {
-	const here = r.people.filter((p) => !p.leftAt);
-	const lead = (t) => here.find((p) => p.id === t.leadId)?.name ?? "";
-	return r.teams.filter((t) => textMatches(`${t.name} ${lead(t)}`, ask.q)).sort((a, b) => collator.compare(a.name, b.name) || a.id.localeCompare(b.id)).map((t) => teamRow(r, t));
-}
-function searchWorkspaces(r, ask) {
-	return r.workspaces.filter((w) => textMatches(w.name, ask.q)).map((w) => ({
-		kind: "workspace",
-		id: w.id,
-		name: w.name,
-		detail: w.detail
-	}));
-}
-/** The words each kind's near miss may correct to. */
-function vocabulary(r) {
-	switch (r.kind) {
-		case "goal": return r.summaries.map(goalWords);
-		case "person": return r.people.filter((p) => !p.leftAt).map((p) => `${p.name} ${p.role}`);
-		case "team": return r.teams.map((t) => t.name);
-		case "workspace": return r.workspaces.map((w) => w.name);
-	}
-}
-/**
-* Rule 7. One search for a kind: every match in the kind's order, a page of it, and, when nothing matches, rule 5's near
-* miss with its rows. Each kind's rows come from `rows` (the core's four; a module's finder answers its own kind).
-*/
-function search(rows, ask) {
-	const run = (a) => {
-		switch (rows.kind) {
-			case "goal": return searchGoals(rows, a);
-			case "person": return searchPeople(rows, a);
-			case "team": return searchTeams(rows, a);
-			case "workspace": return searchWorkspaces(rows, a);
-		}
-	};
-	const all = run(ask);
-	if (all.length || !wordsOf(ask.q).length) return page(all, ask);
-	const near = nearMiss(ask.q, vocabulary(rows));
-	const again = near ? run({
-		...ask,
-		q: near
-	}) : [];
-	return near && again.length ? {
-		...page(again, ask),
-		near
-	} : page([], ask);
-}
-/**
-* The rows for things already chosen, by id, in the same words a search gives them and in the order asked: what a closed
-* picker shows. Unlike a search it finds someone marked as left (they may still own a goal); an id it can't find is
-* left out.
-*/
-function rowsByIds(rows, ids) {
-	const found = (id) => {
-		switch (rows.kind) {
-			case "goal": {
-				const s = rows.summaries.find((x) => x.goal.id === id);
-				return s ? goalRow(s) : null;
-			}
-			case "person": {
-				const p = rows.people.find((x) => x.id === id && !x.removedAt);
-				return p ? personRow(rows, p) : null;
-			}
-			case "team": {
-				const t = rows.teams.find((x) => x.id === id);
-				return t ? teamRow(rows, t) : null;
-			}
-			case "workspace": {
-				const w = rows.workspaces.find((x) => x.id === id);
-				return w ? {
-					kind: "workspace",
-					id: w.id,
-					name: w.name,
-					detail: w.detail
-				} : null;
-			}
-		}
-	};
-	return ids.map(found).filter((r) => !!r);
-}
-/**
-* Rule 6. Up to 6 rows before anything is typed, no repeats, in order. A person: you; your team's people, its lead first
-* (when the rows say who leads it) then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals,
-* worst first; the goals they feed; goals opened or chosen lately. Up to two places are kept for those chosen lately
-* when the rest would fill the list. Nobody marked as left; nothing it can't find.
-*/
-function suggest(rows, viewerId, recents) {
-	const recent = recents.filter((r) => r.kind === rows.kind).map((r) => r.id);
-	const pick = (ids, row) => {
-		const out = [];
-		const add = (id, limit) => {
-			if (!id || out.length >= limit || out.some((r) => r.id === id)) return;
-			const r = row(id);
-			if (r) out.push(r);
-		};
-		const lately = recent.filter((id) => !ids.includes(id) && row(id));
-		for (const id of ids) add(id, 6 - Math.min(2, lately.length));
-		for (const id of [...recent, ...ids]) add(id, 6);
-		return out;
-	};
-	switch (rows.kind) {
-		case "person": {
-			const all = searchPeople(rows, { q: "" });
-			const by = new Map(all.map((r) => [r.id, r]));
-			const me = rows.people.find((p) => p.id === viewerId);
-			const lead = me?.teamId ? rows.teamLead?.(me.teamId) ?? null : null;
-			return pick([viewerId, ...me?.teamId ? rows.people.filter((p) => p.teamId === me.teamId && !p.leftAt).sort((a, b) => Number(b.id === lead) - Number(a.id === lead) || a.name.localeCompare(b.name)).map((p) => p.id) : []], (id) => by.get(id) ?? null);
-		}
-		case "team": {
-			const all = searchTeams(rows, { q: "" });
-			const by = new Map(all.map((r) => [r.id, r]));
-			const mine = rows.people.find((p) => p.id === viewerId)?.teamId;
-			return pick([mine, ...rows.teams.filter((t) => t.leadId === viewerId).map((t) => t.id)], (id) => by.get(id) ?? null);
-		}
-		case "goal": {
-			const all = searchGoals(rows, { q: "" });
-			const by = new Map(all.map((r) => [r.id, r]));
-			const mine = all.filter((r) => rows.summaries.find((s) => s.goal.id === r.id)?.goal.ownerId === viewerId).map((r) => r.id);
-			const fed = mine.map((id) => rows.summaries.find((s) => s.goal.id === id)?.goal.parentId);
-			return pick([...mine, ...fed], (id) => by.get(id) ?? null);
-		}
-	}
-}
-var fold$2, wordsOf, MAX_PAGE, goalWords, goalRow, personRow, collator, byName;
-var init_find = __esmMin((() => {
-	init_levels();
-	init_goalKey();
-	init_query();
-	init_vocabulary();
-	fold$2 = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-	wordsOf = (s) => fold$2(s).split(/[\s/\-,.:()]+/).filter(Boolean);
-	MAX_PAGE = 200;
-	goalWords = (s) => [
-		s.goal.title,
-		s.goal.key ?? "",
-		s.owner,
-		s.team,
-		levelName(null, s.goal.level),
-		LABEL[s.status],
-		s.story.why ?? "",
-		s.story.doing ?? "",
-		s.story.needs ?? "",
-		s.goal.definition,
-		s.goal.source,
-		s.goal.kind !== "milestone" ? s.goal.unit : ""
-	].join(" ");
-	goalRow = (s) => ({
-		kind: "goal",
-		id: s.goal.id,
-		name: s.goal.title,
-		detail: [
-			s.goal.key,
-			s.owner,
-			s.team
-		].filter(Boolean).join(" · "),
-		status: s.status,
-		key: s.goal.key ?? null
-	});
-	personRow = (r, p) => ({
-		kind: "person",
-		id: p.id,
-		name: p.name,
-		detail: [p.role, p.teamId ? r.teamName(p.teamId) : ""].filter(Boolean).join(" · ")
-	});
-	collator = new Intl.Collator("en-GB", { sensitivity: "base" });
-	byName = (a, b) => collator.compare(a.name, b.name) || (a.email ?? "").localeCompare(b.email ?? "") || a.id.localeCompare(b.id);
-}));
 // src/domain/goalEntry.ts
 /**
 * A number draft's From and To as cycle weeks (rule 13): what it says, else what the goal has, else this week and the
@@ -7348,10 +7401,14 @@ function planSpanOf(d, ctx) {
 	};
 	const fromSet = d.fromWeek != null && d.fromWeek.trim() !== "", toSet = d.endWeek.trim() !== "";
 	const from = fromSet ? whole(d.fromWeek) : was ? was.fromWeek ?? 0 : Math.max(0, ctx.week);
-	const to = toSet ? whole(d.endWeek) : ctx.cycleWeeks;
+	const end = ctx.startDate && from != null ? defaultTo({
+		startDate: ctx.startDate,
+		weeks: ctx.cycleWeeks
+	}, from) : ctx.cycleWeeks;
+	const to = toSet ? whole(d.endWeek) : end;
 	return {
 		from: from ?? 0,
-		to: to ?? ctx.cycleWeeks,
+		to: to ?? end,
 		...from == null ? { bad: "fromWeek" } : to == null ? { bad: "endWeek" } : {}
 	};
 }
@@ -7428,7 +7485,10 @@ function goalMustFix(d, ctx) {
 				}
 			}
 			const span = planSpanOf(d, ctx);
-			if (span.bad) add(span.bad, "week-unknown", `${span.bad === "fromWeek" ? "From" : "To"} says “${(span.bad === "fromWeek" ? d.fromWeek : d.endWeek) ?? ""}”. Write a year and a week, like 2026-W46, or the week’s number.`);
+			if (span.bad) add(span.bad, "week-unknown", ctx.startDate ? weekUnknownText({
+				startDate: ctx.startDate,
+				weeks: ctx.cycleWeeks
+			}, span.bad === "fromWeek" ? "From" : "To", (span.bad === "fromWeek" ? d.fromWeek : d.endWeek) ?? "", ctx.week) : `${span.bad === "fromWeek" ? "From" : "To"} says “${((span.bad === "fromWeek" ? d.fromWeek : d.endWeek) ?? "").trim()}”. Write a year and a week, or the week’s number.`);
 			else if (ctx.startDate) {
 				const p = weeksProblem({
 					startDate: ctx.startDate,
@@ -7525,11 +7585,11 @@ function checksOf(d, ctx) {
 			field: "stages",
 			row: i,
 			key: String(w),
-			question: `Week ${w} was ${ago} week${ago === 1 ? "" : "s"} ago. Is this stage already done?`,
+			question: `Week ${w} was ${ago} week${ago === 1 ? "" : "s"} ago. Is this stage already done?${ctx.marksStages ? " " + MARKS_STAGES(ctx.marksStages) : ""}`,
 			yes: `Yes, done in week ${w}`,
 			no: "No, it’s overdue",
 			noAnswers: true,
-			readBack: st.done === "no" ? `“${st.name.trim()}” isn’t done: it’s overdue since week ${w}.` : `Done in week ${w}.`
+			readBack: st.done === "no" ? `“${st.name.trim()}” isn’t done: it’s overdue since week ${w}.` : ctx.marksStages ? MARKS_STAGES(ctx.marksStages) : `Done in week ${w}.`
 		});
 	});
 	if (d.kind !== "milestone") {
@@ -7780,6 +7840,7 @@ var init_goalEntry = __esmMin((() => {
 	init_checkin();
 	init_columns();
 	init_goal();
+	init_goalRights();
 	init_find();
 	init_numbers();
 	init_levels();
@@ -7834,6 +7895,21 @@ var init_goalEntry = __esmMin((() => {
 		"far-from-plan"
 	];
 	capital = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+})), VIA_LABEL, VIA_MCP;
+var init_via = __esmMin((() => {
+	VIA_LABEL = {
+		spreadsheet: "Spreadsheet",
+		bulk: "Bulk edit",
+		mcp: "MCP",
+		table: "Data tables",
+		setup: "Set-up",
+		form: "Check-in"
+	};
+	VIA_MCP = {
+		field: "Via",
+		from: "—",
+		to: VIA_LABEL.mcp
+	};
 }));
 // src/domain/removal.ts
 /**
@@ -8237,15 +8313,15 @@ function deleteGoal(x, goalId) {
 	};
 }
 /**
-* Delete a check-in: whoever posted it, or an admin, until a newer check-in exists on the goal (then it can only be
-* corrected). The goal's status is worked out again from the one before. An open ask it raised is withdrawn.
+* Delete a check-in: the goal's owner (R1), until a newer check-in exists on the goal (then it can only be corrected).
+* The goal's status is worked out again from the one before. An open ask it raised is withdrawn.
 */
 function deleteCheckIn(x, id) {
 	const c = x.snapshot.checkIns.find((v) => v.id === id);
 	if (!c) no$1("There’s no check-in with that ID in this cycle.");
 	const g = x.snapshot.goals.find((v) => v.id === c.goalId);
 	if (!g) no$1("That check-in’s goal isn’t live in this cycle.");
-	if (c.authorId !== x.actor.id && !x.actor.admin) no$1("Only whoever posted a check-in, or an admin, can delete it.");
+	if (!mayPostCheckIn(x.actor, g, "form")) no$1(ownersCheckIns(x, g, "delete"));
 	if (checkInsFor(g, x.snapshot.checkIns).at(-1)?.id !== c.id) no$1("A newer check-in has been posted since, so this one can only be corrected.");
 	const requests = [];
 	const changes = [log$1(x, {
@@ -8546,6 +8622,8 @@ function undoPlan(x, importId) {
 			importId
 		}));
 	}
+	const via = viaOf(entry);
+	const goingGoals = new Set(u.goals.filter((v) => !v.before).map((v) => v.id));
 	for (const { id, before } of u.checkIns) {
 		const cur = full.checkIns.find((c) => c.id === id);
 		if (!cur || cur.removedAt) continue;
@@ -8553,6 +8631,10 @@ function undoPlan(x, importId) {
 		const by = touchedBy("check-in", id);
 		if (by) {
 			keep(`${goal?.title ?? "A goal"}, week ${cur.week}`, by, "check-in");
+			continue;
+		}
+		if (goal && !goingGoals.has(goal.id) && !mayPostCheckIn(x.actor, goal, via)) {
+			keep(`${goal.title}, week ${cur.week}`, entry, "check-in", ownersCheckIns(x, goal, "change"));
 			continue;
 		}
 		checkIns.push(before ? asBefore(cur, before) : {
@@ -8569,6 +8651,74 @@ function undoPlan(x, importId) {
 			importId
 		}));
 	}
+	const goalsBack = goals.length;
+	const removing = new Map(goals.filter((g) => g.removedAt).map((g) => [g.id, g]));
+	const goalNow = (id) => goals.find((g) => g.id === id) ?? full.goals.find((g) => g.id === id);
+	for (const g of full.goals) {
+		if (g.removedAt || removing.has(g.id)) continue;
+		const cur = goalNow(g.id);
+		const fed = cur.parentId ? removing.get(cur.parentId) : void 0;
+		const helps = (cur.alsoHelps ?? []).filter((id) => removing.has(id));
+		if (!fed && !helps.length) continue;
+		const next = { ...cur };
+		let to;
+		if (fed) {
+			let up = fed.parentId;
+			while (up && removing.has(up)) up = removing.get(up).parentId;
+			to = up ? goalNow(up) : void 0;
+			if (to && (to.removedAt || to.stoppedAt)) to = void 0;
+			next.parentId = to?.id ?? null;
+			if (!to) {
+				next.effect = null;
+				delete next.whyHelps;
+			}
+		}
+		if (helps.length) next.alsoHelps = cur.alsoHelps.filter((id) => !removing.has(id));
+		if (next.alsoHelps && !next.alsoHelps.length) delete next.alsoHelps;
+		const i = goals.findIndex((v) => v.id === g.id);
+		if (i >= 0) goals[i] = next;
+		else goals.push(next);
+		if (fed) changes.push(log$1(x, {
+			entity: "goal",
+			entityId: g.id,
+			goalId: g.id,
+			action: "edited",
+			summary: `Now feeds ${to ? to.title : "nothing"}, as ${fed.title} was deleted by undoing an import`,
+			diffs: [{
+				field: "Feeds into",
+				from: fed.title,
+				to: to?.title ?? "—"
+			}],
+			importId
+		}));
+		for (const id of helps) changes.push(log$1(x, {
+			entity: "goal",
+			entityId: g.id,
+			goalId: g.id,
+			action: "edited",
+			summary: `No longer also helps ${removing.get(id).title}, as it was deleted by undoing an import`,
+			diffs: [{
+				field: "Also helps",
+				from: removing.get(id).title,
+				to: "—"
+			}],
+			importId
+		}));
+	}
+	const ownAsks = new Set(u.requests.map((r) => r.id));
+	for (const g of removing.values()) for (const r of openAsksFor(g.id, full)) {
+		if (ownAsks.has(r.id) || requests.some((v) => v.id === r.id)) continue;
+		const w = withdrawAsk(r, g.id, x.actor.id, x.now, x.newId, "Withdrawn: the goal was deleted by undoing an import");
+		requests.push(w.request);
+		changes.push(...w.changes.map((c) => ({
+			...c,
+			importId
+		})));
+	}
+	const added = (gid) => u.goals.some((v) => v.id === gid && !v.before);
+	const addedTeams = new Set((u.teams ?? []).filter((t) => !t.before).map((t) => t.id));
+	const teamBefore = new Map((u.teams ?? []).filter((t) => t.before).map((t) => [t.id, t.before]));
+	const going = /* @__PURE__ */ new Map();
 	for (const { id, before } of u.people) {
 		const cur = full.people.find((p) => p.id === id);
 		if (!cur || cur.removedAt) continue;
@@ -8577,30 +8727,30 @@ function undoPlan(x, importId) {
 			keep(cur.name, by, "person");
 			continue;
 		}
-		const added = (gid) => u.goals.some((v) => v.id === gid && !v.before);
 		if (!before) {
 			const acted = latest((c) => c.actorId === id);
 			const owns = full.goals.some((g) => g.ownerId === id && !g.removedAt && !added(g.id));
-			if (acted || owns) {
+			const inReview = (full.reviews ?? []).some((r) => r.people.includes(id) && !r.removedAt && !(u.reviews ?? []).some((v) => v.id === r.id));
+			const asked = asksOf(full).some((r) => !ownAsks.has(r.id) && (r.askedBy === id || r.recipientId === id || r.answeredBy === id));
+			const why = acted || owns ? "has made changes since" : inReview ? "is in a review since" : asked ? "has an ask since" : "";
+			if (why) {
 				skipped.push({
 					name: cur.name,
-					reason: `${cur.name} has made changes since`,
+					reason: `${cur.name} ${why}`,
 					at: acted?.at ?? entry.at,
 					by: id
 				});
 				continue;
 			}
+			going.set(id, cur);
+			continue;
 		}
-		people.push(before ? asBefore(cur, before) : {
-			...cur,
-			removedAt: x.now,
-			removedBy: x.actor.id
-		});
+		people.push(asBefore(cur, before));
 		changes.push(log$1(x, {
 			entity: "person",
 			entityId: id,
-			action: before ? "edited" : "removed",
-			summary: before ? `Put ${before.name} back as they were before an import` : `Deleted ${cur.name}: an import that added them was undone`,
+			action: "edited",
+			summary: `Put ${before.name} back as they were before an import`,
 			importId
 		}));
 	}
@@ -8619,9 +8769,36 @@ function undoPlan(x, importId) {
 		});
 	}
 	const teams = (u.teams ?? []).flatMap(({ id, before }) => before && full.teams.some((t) => t.id === id) ? [before] : []);
-	const goneGoals = new Set(goals.filter((g) => g.removedAt).map((g) => g.id));
-	const gonePeople = new Set(people.filter((p) => p.removedAt).map((p) => p.id));
-	const removeTeams = (u.teams ?? []).filter(({ id, before }) => !before && full.teams.some((t) => t.id === id) && !full.goals.some((g) => g.teamId === id && !g.removedAt && !goneGoals.has(g.id)) && !full.people.some((p) => p.teamId === id && !p.removedAt && !p.leftAt && !gonePeople.has(p.id))).map(({ id }) => id);
+	const goneGoals = new Set(removing.keys());
+	let removeTeams = [];
+	for (;;) {
+		removeTeams = [...addedTeams].filter((id) => full.teams.some((t) => t.id === id) && !full.goals.some((g) => g.teamId === id && !g.removedAt && !goneGoals.has(g.id)) && !full.people.some((p) => p.teamId === id && !p.removedAt && !p.leftAt && !going.has(p.id)));
+		const leads = [...going.values()].filter((p) => full.teams.some((t) => t.leadId === p.id && !removeTeams.includes(t.id) && (teamBefore.get(t.id)?.leadId ?? p.id) === p.id));
+		if (!leads.length) break;
+		for (const p of leads) {
+			going.delete(p.id);
+			skipped.push({
+				name: p.name,
+				reason: `${p.name} leads the team ${full.teams.find((t) => t.leadId === p.id).name}`,
+				at: entry.at,
+				by: p.id
+			});
+		}
+	}
+	for (const p of going.values()) {
+		people.push({
+			...p,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		});
+		changes.push(log$1(x, {
+			entity: "person",
+			entityId: p.id,
+			action: "removed",
+			summary: `Deleted ${p.name}: an import that added them was undone`,
+			importId
+		}));
+	}
 	for (const id of removeTeams) changes.push(log$1(x, {
 		entity: "workspace",
 		entityId: id,
@@ -8659,7 +8836,7 @@ function undoPlan(x, importId) {
 		} : null);
 		if (back) requests.push(back);
 	}
-	const restored = goals.length + checkIns.length + people.length;
+	const restored = goalsBack + checkIns.length + people.length + reviews.length + teams.length + removeTeams.length + requests.filter((r) => ownAsks.has(r.id)).length;
 	changes.unshift(log$1(x, {
 		entity: "workspace",
 		entityId: importId,
@@ -8697,7 +8874,9 @@ function undoPlan(x, importId) {
 * anything since is left alone and listed in `skipped`, with why, when and by whom (rule 9).
 */
 function undoImport(x, importId) {
-	return undoPlan(x, importId);
+	const out = undoPlan(x, importId);
+	if (!out.restored) no$1(nothingToUndo(out.skipped.length));
+	return out;
 }
 /** Rule 9: what Undo would do, saving nothing: how many rows go back, and which stay as they are, and why. */
 function undoPreview(x, importId) {
@@ -8706,6 +8885,15 @@ function undoPreview(x, importId) {
 		restores: out.restored,
 		skipped: out.skipped
 	};
+}
+/** The door an import came in by, from its Via mark: a check-in corrected on its own screen carries none (CK1). */
+function viaOf(entry) {
+	const label = entry.diffs.find((d) => d.field === "Via")?.to;
+	return Object.keys(VIA_LABEL).find((k) => VIA_LABEL[k] === label) ?? (/^Corrected a check-in\b/.test(entry.summary) ? "form" : "spreadsheet");
+}
+/** "Nothing to undo: it changed no rows." or "Nothing left to undo: all 3 rows have changed since.": rule 9's line when Undo would put back nothing. */
+function nothingToUndo(skipped) {
+	return skipped ? `Nothing left to undo: ${skipped === 1 ? "its one row has" : `all ${plural$2(skipped, "row", "rows")} have`} changed since.` : "Nothing to undo: it changed no rows.";
 }
 /** Everything removed, stopped, ended or marked as left in the last 30 days, newest first. After that it drops off this list; the row stays. */
 function recentlyRemoved(full, now, days = 30, records = []) {
@@ -8877,7 +9065,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 	}
 }
-var no$1, fullOf, plural$2, ownsOrAdmin$1, log$1, nameIn, commentOf, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
+var no$1, fullOf, plural$2, ownsOrAdmin$1, log$1, nameIn, commentOf, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
 	init_goalRights();
 	init_copies();
@@ -8885,7 +9073,7 @@ var init_removal = __esmMin((() => {
 	init_asks();
 	init_status();
 	init_tableLayout();
-	init_changeset();
+	init_via();
 	init_vocabulary();
 	init_records();
 	no$1 = (msg) => {
@@ -8924,6 +9112,7 @@ var init_removal = __esmMin((() => {
 		return g;
 	};
 	goalHasCheckIns = (s, goalId) => s.checkIns.some((c) => c.goalId === goalId && !c.removedAt);
+	ownersCheckIns = (x, g, what) => `Only ${x.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? "its owner"} (its owner) can ${what} its check-ins.`;
 	liveReview = (x, id) => {
 		const r = x.snapshot.reviews.find((v) => v.id === id);
 		if (!r) no$1("There’s no review with that ID.");
@@ -9075,6 +9264,7 @@ function groupTitle(kind, sheet, count, first) {
 		case "near-ref": return `${n$1(count, "row")} name${count === 1 ? "s" : ""} a ${THING[col] ?? "record"} that isn’t here: “${v}”. Did you mean ${first.suggest}?`;
 		case "near-word": return `${col} says “${v}” on ${n$1(count, "row")}. Read it as ${first.suggest}?`;
 		case "near-header": return first.message;
+		case "two-columns": return first.message;
 		case "same-person": return first.message;
 		case "same-goal": return `${n$1(count, "new goal")} ${count === 1 ? "has a name its team already uses" : "have names their teams already use"}: “${v}”. Are they new?`;
 		case "other-goal": return first.message;
@@ -9150,6 +9340,7 @@ var init_problemLevels = __esmMin((() => {
 		"near-ref",
 		"near-word",
 		"near-header",
+		"two-columns",
 		"new-team",
 		"same-person",
 		"same-goal",
@@ -9460,21 +9651,38 @@ function fileDiffs(file, changed, unchanged, left) {
 	}];
 }
 /** The tables with each column under another name, or one letter out and answered, renamed to the column it is (rule 3). */
-function namedHeaders(t, nearOk) {
+function namedHeaders(t, nearOk, whichOf) {
 	const out = { ...t };
 	for (const [key, kind, sheet] of TABLE_SHEETS) {
 		const recs = t[key];
 		if (!recs?.length) continue;
 		const keys = [...new Set(recs.flatMap((r) => Object.keys(r)))].filter((k) => k !== "__row");
-		const rename = /* @__PURE__ */ new Map();
+		const by = /* @__PURE__ */ new Map();
 		for (const k of keys) {
 			const m = headerMatch(kind, k);
-			if (!m.as || m.how === "exact" || m.how === "unknown") continue;
+			if (!m.as || m.how === "unknown") continue;
 			const to = m.as.toLowerCase();
-			if (keys.includes(to)) continue;
-			if (m.how === "also" || nearOk(sheet, k, m.as)) rename.set(k, to);
+			const at = by.get(to) ?? {
+				as: m.as,
+				keys: [],
+				near: []
+			};
+			at.keys.push(k);
+			if (m.how === "near" && k !== to) at.near.push(k);
+			by.set(to, at);
 		}
-		if (rename.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [rename.get(k) ?? k, v])));
+		const rename = /* @__PURE__ */ new Map();
+		const drop = /* @__PURE__ */ new Set();
+		for (const [to, { as, keys: from, near: nearKeys }] of by) {
+			let use = from[0];
+			if (from.length > 1) {
+				use = whichOf(sheet, as, from);
+				for (const k of from) if (k !== use) drop.add(k);
+				if (!use) continue;
+			} else if (nearKeys.includes(use) && !nearOk(sheet, use, as)) continue;
+			if (use && use !== to) rename.set(use, to);
+		}
+		if (rename.size || drop.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !drop.has(k)).map(([k, v]) => [rename.get(k) ?? k, v])));
 	}
 	return out;
 }
@@ -9500,7 +9708,10 @@ function planChanges(input) {
 	let examples = 0;
 	const changes = [];
 	/** A problem, a question or a note on one row: its level comes from its kind (domain/problemLevels). */
+	/** Columns a header one letter out may be, while that question is open: their Must fix waits for the answer (#199 review). */
+	const held = /* @__PURE__ */ new Set();
 	const raise = (kind, sheet, row, name, message, x = {}) => {
+		if (x.column && held.has(`${sheet}|${x.column.toLowerCase()}`) && levelOf(kind) === "must") return;
 		issues.push(issueOf(kind, sheet, row, name, message, x));
 	};
 	const note = (kind, sheet, row, name, message, x = {}) => raise(kind, sheet, row, name, message, x);
@@ -9517,19 +9728,36 @@ function planChanges(input) {
 		tables: namedHeaders(input.tables, (sheet, header, as) => {
 			const a = answerOf("near-header", sheet, "Header", header);
 			if (a?.choice === "use") return true;
-			if (!a) raise("near-header", sheet, 1, header, `A column on ${sheet} is called “${header}”. Read it as ${as}?`, {
-				column: "Header",
-				found: header,
-				suggest: as,
-				answers: [{
-					choice: "use",
-					label: `Read it as ${as}`
-				}, {
-					choice: "ignore",
-					label: "Don’t read it"
-				}]
-			});
+			if (!a) {
+				raise("near-header", sheet, 1, header, `A column on ${sheet} is called “${header}”. Read it as ${as}?`, {
+					column: "Header",
+					found: header,
+					suggest: as,
+					answers: [{
+						choice: "use",
+						label: `Read it as ${as}`
+					}, {
+						choice: "ignore",
+						label: "Don’t read it"
+					}]
+				});
+				held.add(`${sheet}|${as.toLowerCase()}`);
+			}
 			return false;
+		}, (sheet, as, headers) => {
+			const a = answerOf("two-columns", sheet, "Header", as);
+			const pick = a?.choice.startsWith("use:") ? a.choice.slice(4) : null;
+			if (pick && headers.includes(pick)) return pick;
+			raise("two-columns", sheet, 1, as, `Two columns on ${sheet} are read as ${as}: ${headers.map((h) => `“${h}”`).join(" and ")}. Which should be read?`, {
+				column: "Header",
+				found: as,
+				answers: headers.map((h) => ({
+					choice: `use:${h}`,
+					label: `Read “${h}”`
+				}))
+			});
+			held.add(`${sheet}|${as.toLowerCase()}`);
+			return null;
 		})
 	};
 	/**
@@ -10123,6 +10351,7 @@ function planChanges(input) {
 		}
 		return skip;
 	}
+	const fromInDoubt = via !== "mcp" && !(input.tables.goals ?? []).some((r) => has(r, "start"));
 	const goalRows = (input.tables.goals ?? []).map((r, i) => ({
 		r,
 		row: rowOf(r, i),
@@ -10335,7 +10564,11 @@ function planChanges(input) {
 				const said = [];
 				for (const [c, h] of [[col, head], [old, oldHead]]) {
 					const raw = has(r, c) ? val(r, c) : "";
-					if (!raw && !(c === "due week" && has(r, c))) continue;
+					if (!raw && !(c === "due week" && has(r, c) && !val(r, "to"))) continue;
+					if (c === "from" && fromInDoubt && /^-?\d+(?:[.,]\d+)?$/.test(raw)) {
+						raise("week-wrong", "Goals", row, d.title, `From says “${raw}”: a starting number, or a week? Put a starting number under Start, or write the week as a year and a week, like ${weekCode(cycle, Math.max(week, 1))}.`, { column: head });
+						return false;
+					}
 					let n, msg;
 					if (c === col) {
 						const x = readWeekCode(cycle, raw);
@@ -10347,7 +10580,7 @@ function planChanges(input) {
 						msg = x.problem;
 					} else n = raw ? parseNumber(raw) : cycle.weeks;
 					if (n == null || !Number.isInteger(n)) {
-						raise("week-wrong", "Goals", row, d.title, msg ?? weekUnknownText(cycle, h, raw), { column: h });
+						raise("week-wrong", "Goals", row, d.title, msg ?? weekUnknownText(cycle, h, raw, week), { column: h });
 						return false;
 					}
 					if (n !== cur) said.push([
@@ -10416,12 +10649,16 @@ function planChanges(input) {
 				return w != null && w < week;
 			});
 			if (past.length) {
-				const a = ask("past-stage", "Goals", row, d.title, `${plural$1(past.length, "stage")} of “${d.title}” ${past.length === 1 ? "is" : "are"} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(", ")}. ${past.length === 1 ? "Is it" : "Are they"} done?`, {
+				const marks = mayPostCheckIn({
+					id: actor.id,
+					admin: admin()
+				}, { ownerId: d.ownerId }, via) ? "" : " " + MARKS_STAGES(people.get(d.ownerId)?.name ?? "Its owner");
+				const a = ask("past-stage", "Goals", row, d.title, `${plural$1(past.length, "stage")} of “${d.title}” ${past.length === 1 ? "is" : "are"} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(", ")}. ${past.length === 1 ? "Is it" : "Are they"} done?${marks}`, {
 					column: "Stages",
 					answers: ANSWERS.pastStage
 				});
 				if (a === "leave") return;
-				if (a?.choice === "done") doneIds = past.map((st) => st.id);
+				if (a?.choice === "done" && !marks) doneIds = past.map((st) => st.id);
 				if (a?.choice === "from-now") {
 					const moved = stagesFromNow(d.stages.map((st) => `${st.name}@${st.dueWeek}`).join("; "), week, cycle.weeks).split(";").map((x) => x.trim());
 					d.stages = d.stages.map((st, k) => ({
@@ -10848,7 +11085,10 @@ function planChanges(input) {
 	const ciBefore = /* @__PURE__ */ new Map();
 	for (const x of doneAtSetUp) {
 		const g = goalOut.get(x.goalId);
-		if (!g) continue;
+		if (!g || !mayPostCheckIn({
+			id: actor.id,
+			admin: admin()
+		}, g, via)) continue;
 		const c = stagesDoneAtSetUp(g, x.stageIds, actor.id, now, newId("ci"));
 		if (!c) continue;
 		const ch = checkInChange(null, c, g, actor.id, newId("chg"));
@@ -10907,12 +11147,16 @@ function planChanges(input) {
 			raise("cant-change", "Check-ins", row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`);
 			return;
 		}
-		if (!create && !canChange(g)) {
+		const owned = s.goals.find((x) => x.id === g.id) ?? g;
+		if (!create && !mayPostCheckIn({
+			id: actor.id,
+			admin: admin()
+		}, owned, via)) {
 			if (!post && answerOf("not-allowed", "Check-ins")?.choice === "leave") {
 				leave("Check-ins", row);
 				return;
 			}
-			raise("not-allowed", "Check-ins", row, g.title, notYours(g), post ? {} : { answers: ANSWERS.leaveOnly });
+			raise("not-allowed", "Check-ins", row, g.title, `Only ${people.get(owned.ownerId)?.name ?? "its owner"} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
 			return;
 		}
 		const asked = post ? checkInLevels(g, w, draft, ctx).checks : [];
@@ -11573,7 +11817,7 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var VIA_LABEL, VIA_MCP, ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, initialsOf;
+var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, initialsOf;
 var init_changeset = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -11597,19 +11841,7 @@ var init_changeset = __esmMin((() => {
 	init_records();
 	init_problemLevels();
 	init_vocabulary();
-	VIA_LABEL = {
-		spreadsheet: "Spreadsheet",
-		bulk: "Bulk edit",
-		mcp: "MCP",
-		table: "Data tables",
-		setup: "Set-up",
-		form: "Check-in"
-	};
-	VIA_MCP = {
-		field: "Via",
-		from: "—",
-		to: VIA_LABEL.mcp
-	};
+	init_via();
 	ASKS_NUMBERS = [
 		"spreadsheet",
 		"mcp",
@@ -12098,6 +12330,15 @@ var EXAMPLE = {
 	kind: "example",
 	createdAt: "2026-01-01T00:00:00.000Z"
 };
+// src/ports/store.ts
+/** A save refused because someone else changed the same thing first. */
+var StaleError = class extends Error {
+	constructor(what) {
+		super("stale: " + what);
+		this.name = "StaleError";
+	}
+};
+var isStale = (e) => e instanceof StaleError || e instanceof Error && /\bstale: /.test(e.message);
 // src/data/store.ts
 init_asks();
 init_goalKey();
@@ -12125,14 +12366,6 @@ function withExpectations(c, s) {
 		}
 	};
 }
-/** A save refused because someone else changed the same thing first. */
-var StaleError = class extends Error {
-	constructor(what) {
-		super("stale: " + what);
-		this.name = "StaleError";
-	}
-};
-var isStale = (e) => e instanceof StaleError || e instanceof Error && /\bstale: /.test(e.message);
 /** Applies a commit to a snapshot. Shared by the browser store and the app's optimistic update. */
 function applyCommit(s, c) {
 	const upsert = (list, items = []) => {
@@ -12663,6 +12896,8 @@ function summariseAll(goals, s, cycle, today, week) {
 init_cycle();
 init_plan();
 init_review();
+init_progress();
+init_asks();
 var live = (xs) => xs.filter((x) => !x.removedAt);
 /** Every goal's summary row, with what the Goals filters need beyond it. */
 function goalRows(s, cycle, today, week, columns) {
@@ -12826,6 +13061,7 @@ function localSearch(rows, finders = {}) {
 	};
 }
 // src/domain/export.ts
+init_changeset();
 init_goal();
 init_asks();
 init_levels();
@@ -14025,7 +14261,7 @@ function rangeCard(goal, cycle, checkIns, week, stale) {
 			label: "Room to the limit",
 			value: room > 0 ? `${amount(room, goal)} of room` : room === 0 ? "None: at the limit" : `${amount(room, goal)} ${over}`,
 			sub: `warning within ${amount(margin, goal)}`,
-			tone: room < 0 ? "bad" : room <= margin ? "flat" : "good"
+			tone: room < 0 ? "bad" : a.near || a.out ? "flat" : "good"
 		});
 		gap = room >= 0 ? `${amount(room, goal)} inside the limit` : `${amount(room, goal)} ${over} the limit`;
 	}
@@ -14138,7 +14374,7 @@ function goalScorecard(goal, cycle, checkIns, week, stale) {
 init_levels();
 init_plan();
 init_year();
-init_changeset();
+init_via();
 init_find();
 var ACTIVITY_KINDS = [
 	["checkins", "Check-ins"],
@@ -14498,7 +14734,7 @@ var help$2 = [
 					"Drop a file or choose one (up to 5,000 rows a file is comfortable; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.",
 					`What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine("goals")} A check-in, ${requiredLine("checkIns")} A person, ${requiredLine("people")}`,
 					"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.",
-					"A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once.",
+					"A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once, and so are two columns that mean the same one (Goal and Goal name): you choose which is read.",
 					"Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.",
 					"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
 					"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.",
@@ -14507,7 +14743,7 @@ var help$2 = [
 					"Plan changes after check-ins need a reason. A plan change that flips which way is better, or puts a number far outside the old plan, is a question, and saves only once you say yes.",
 					"A file that changes nothing says Nothing would change. If it edits worked-out cells, such as Status, it says so: Faro never reads them, so to change where a goal stands, post a check-in.",
 					"A file exported from another workspace is asked about first: its keys and IDs belong there, so its rows can be added as new goals, or not at all.",
-					"A number goal’s weeks are From and To, written as a year and a week (2026-W46, 2027-W13). Plan from week and Due week, counted from the cycle’s start, are still written and still load: where a row has both, the one you changed counts, and two that disagree are Must fix. A week a year doesn’t have says so (“2027 has 52 weeks. Use 2027-W52, or 2028-W01.”). A stage may be written Design@48 or Design@2026-W48.",
+					"A number goal’s weeks are From and To, written as a year and a week (2026-W46, 2027-W13). Plan from week and Due week, counted from the cycle’s start, are still written and still load: where a row has both, the one you changed counts, and two that disagree are Must fix; a Due week left empty beside a To says nothing. In a file with no Start column, a bare number under From (“52”) is Must fix: it may be the starting number, so put that under Start, or write the week as 2026-W46. A week a year doesn’t have says so (“2027 has 52 weeks. Use 2027-W52, or 2028-W01.”). A stage may be written Design@48 or Design@2026-W48.",
 					"Past weeks are marked as loaded later, so history never looks like a fresh update. Rows that change nothing are left alone, and so are a stopped goal’s rows.",
 					"Saving ends on Imported: how many changes were saved from which file, what they were, and the rows left out to download. See the goals, or Undo this import.",
 					"Loaded the wrong file? Undo this import, on Imported, on Data under Past imports, or on its entry in Activity, puts every row back as it was, stopped goals and people who left included. It says first which rows have changed since and will stay."
@@ -14611,7 +14847,8 @@ var help$2 = [
 			{
 				heading: "What Undo puts back",
 				list: [
-					"Undo puts every row the import wrote back as it was: a goal or check-in it added is deleted, one it changed gets its earlier version back, a goal it stopped is live again and someone it marked as left comes back.",
+					"Undo puts every row the import wrote back as it was: a goal or check-in it added is deleted, one it changed gets its earlier version back, a goal it stopped is live again, someone it marked as left comes back, and a team it added or changed goes back too.",
+					"A goal that fed one Undo deletes moves up to what that goal fed. Someone the import added stays while they lead a team, sit in a review or have an ask.",
 					"Before anything is undone, it says how many rows go back and which stay as they are because they changed after the import, each with why: “Rhea Kapoor posted a check-in for week 45 on 12 Nov”, “Its target was changed on 10 Nov”.",
 					"When every row has changed since, there is nothing left to undo, and it says so.",
 					"Once undone, the line says when and by whom, and Undo is gone."
@@ -14788,19 +15025,28 @@ var CORE_ARTICLES = [
 		sections: [
 			{
 				heading: "What it’s for",
-				text: ["Home is where you start each week. It leads with the one thing most worth doing now, so you don’t have to hunt for it."]
+				text: ["Home is where you start each day. It answers one question first: what is asked of you today. If something is, it is the one big button on the page; if nothing is, Home says so in one line and has no big button at all."]
 			},
 			{
 				heading: "How to use it",
 				list: [
-					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. A review session that has passed its date without being held shows there instead, saying how many days past, so it isn’t hidden by the next one. Each part opens the page behind it, and each count of your goals opens just those goals (“11 off track” lists the 11). The streak counts weeks with every check-in in by the day they’re due; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
-					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in. It says when check-ins are due (“Check-ins are due by Thursday”), the workspace’s deadline; a review is named only when it’s one you’re in, and a question raised in a review is due before that review’s next session. Its ring says what it counts inside it: check-ins, or reviewed.",
+					"The lead, under the greeting, is the first of these that is true: your check-ins once their deadline has passed; your check-ins the day before they are due, or on the day of a review you’re in that reads them, or when you left one half done (Pick up where you left off); the wrap-up at the end of the year, once your check-ins are in; and a review you’re in, on its day or after it while it isn’t held (then it says Not held yet). Its ring says what it counts: check-ins, reviewed or wrapped.",
+					"With two or more number goals to check in on, a quiet link under the button opens the table, to type all your numbers at once.",
+					"This week, above the lead, shows a review you’re in, or one that has passed its day without being held, as one cell. It is left out when the lead is that review.",
 					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.",
-					"Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.",
-					"While a goal you own or watch has never been checked in on, a note after your own goals says how many goals have had one and who hasn’t reported yet, since until then “nothing needs attention” may only mean nobody has. When every goal you own and watch has reported, Home leaves the note to Goals, so someone who owns none sees the goals they watch on the first screen.",
+					"Your goals come next, counted once: how many there are by status, each count opening exactly those goals in Goals (“1 at risk” lists the one). Then the ones that need attention, worst first, each with Check in when that is what it needs; what is being handled, folded away; and the rest, five at a time. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Each row opens its goal. Goals you watch follow.",
 					"On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.",
-					"Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it for good; it also goes by itself after two weeks, or once everything is done. The example in the demo never shows it.",
-					"After a release you haven’t seen, a quiet line says what’s new: under the greeting, or on a phone just after your goals that need attention. Open it, or dismiss it with the cross."
+					"Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it.",
+					"After a release you haven’t seen, a quiet line at the foot of Home says what’s new in Faro. Open it, or dismiss it with the cross."
+				]
+			},
+			{
+				heading: "When Home has no button",
+				list: [
+					"Before the day your check-ins are due, Home says “Nothing is asked of you today.” and when they are due, with Check in early if you want to get ahead.",
+					"Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in on time it adds how many weeks in a row you have been on time, from two weeks.",
+					"If you own and watch nothing, it says so, with a way to see the goals and to set one up.",
+					"It never tells you about a deadline you met."
 				]
 			},
 			{
@@ -14811,7 +15057,7 @@ var CORE_ARTICLES = [
 		routes: ["/"],
 		screens: ["Home"],
 		reqs: [
-			"HOME-DASHBOARD",
+			"HOME-OWNER",
 			"PROFILES",
 			"SHAPE-MATCHES-WORD",
 			"DAY-ONE"
@@ -14868,7 +15114,7 @@ var CORE_ARTICLES = [
 						"late",
 						"missed"
 					].map((k) => define(RESULT[k])),
-					`Each quarter of a goal year is ${QUARTER.met.label} or ${QUARTER.missed.label} against the owner’s own plan, in the same words; ${lower(QUARTER.open)} while it runs.`,
+					`Each quarter of a goal year is ${QUARTER.met.label} or ${QUARTER.missed.label} against the owner’s own plan, in the same words; ${lower(QUARTER.open)} while it runs. A quarter that ended before the goal was set up is not applicable: it is never judged and counts nowhere.`,
 					`At the wrap-up the owner says how it landed in their own words, shown as “${OWNER_VIEW_LABEL}”. It never changes the result.`
 				]
 			},
@@ -15026,7 +15272,7 @@ var CORE_ARTICLES = [
 				"Open Demo (in the sidebar, or the header on a phone) to see the app as someone else: the VP, a director, goal owners, the admin or someone who only watches. Anyone else is found by typing a name, a job title or a team under Everyone else.",
 				"Walkthroughs take you through the main journeys as the right person. A card says what to do and points at it; do the step and it moves on, or press Next to move on without doing it, and Back to go back. From a workspace you set up in the demo, they open the example, whose people and goals they follow.",
 				"Start over resets the example: every change, drafts you didn’t post, what you’ve marked as seen in What’s new and on goal pages, a walkthrough you were in, and moved map cards and table layouts. Who you’re viewing as and your appearance settings stay. You can also present without the controls, or leave.",
-				"In a workspace you set up in the demo, Start over removes it from this browser, drafts and all, and goes back to the example.",
+				"In a workspace you set up in the demo, Start over removes it from this browser, drafts and all, and goes back to the example. Only an admin of that workspace sees it; in the example anyone may start over.",
 				"Research opens a hub for people and AI agents testing the app: tasks, a protocol and a report. Feedback sent from the demo reaches the people building the app.",
 				"Your changes are kept in this browser, on top of the example as it was built. If the browser won’t keep them (it’s full, or a private window blocks storage), a note at the top of the page says so: they last until you reload."
 			]
@@ -15098,7 +15344,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status. A second check-in in a week is compared with last week, not with your first one, and so is the goal’s “vs last week”.",
 					"Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.",
-					"Got something wrong? The receipt after posting links to correcting it. An admin can also correct a past check-in in Data.",
+					"Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back. An admin can also correct a past check-in in Data.",
 					"Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.",
 					"Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.",
 					"The first check-in sets where a goal stands today. If the goal was set up in the last four weeks and the number isn’t where its plan starts, you’re asked: start the plan from this number (same target, due week and shape; no reason needed, with Undo), or keep the plan and say why."
@@ -15106,7 +15352,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Only a goal’s owner checks in on it. Anyone can ask the owner for an update from the goal’s page."]
+				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet. Anyone can ask the owner for an update from the goal’s page."]
 			}
 		],
 		routes: ["/check-in", "/check-in/:goalId"],
@@ -15224,7 +15470,7 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Whoever must respond sees each ask once on Home under Needs your response, grouped by kind, however many goals it covers. Its button opens the goal with the ask open in Next steps and asks, under For you, in the Respond panel, the box ready.",
-					"The Respond panel is the same for every kind: answer it, check in (an update), or mark it done (an action). Answering closes it for every goal it covers. For a decision, Ask the owner first asks them a question of your own and leaves theirs open.",
+					"The Respond panel is the same for every kind: answer it, check in (an update; the goal’s owner only, as check-ins are theirs), or mark it done (an action). Answering closes it for every goal it covers. For a decision, Ask the owner first asks them a question of your own and leaves theirs open.",
 					"On a goal’s page, Next steps and asks lists every ask and next step on it once: the kind and its words, who and when, and whether it’s open, overdue (with by how much), answered or done. Each row has at most one button for you: Respond, Answer, Mark done, Check in or Withdraw.",
 					"Waiting on a decision already asked for another goal? Say so in the check-in: link to that request instead of asking again, and one answer covers both goals.",
 					"Still true in the next check-in carries an open request forward; dropping the ask withdraws it."
@@ -15330,7 +15576,7 @@ var CORE_ARTICLES = [
 					"Group arranges them: As trees (each top goal with what feeds it; All’s own), By team, By level, or None (one list, worst first; every other tab’s own). Needs attention · {n} is a switch beside it: on, any tab lists the goals that need attention first and those being handled below, and the line under it says why.",
 					"One line counts what’s shown and their statuses, worst first (“17 goals, worst first. 2 off track · 4 at risk …”); with Needs attention on it says how many need attention and why.",
 					"By team lists the teams worst first: the most goals off track, then the most at risk, then no recent update and no check-in yet. Each team says how many of its goals have each status, with its shape and word.",
-					"Layout chooses how they are drawn: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status, each goal’s number now at the end of its row) and Map. Layout is a menu at the end of the bar that says the open layout (“Layout: List”) and what each one shows. Your last layout is remembered and is in the link.",
+					"Layout chooses how they are drawn: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status, each goal’s number now at the end of its row) and Map. Layout is a menu at the end of the bar that says the open layout (“Layout: List”) and what each one shows. Your last layout is remembered and is in the link. A new layout is drawn in place; rows slide only when the order changes within one, after a sort or a filter.",
 					"Views, at the right of the tabs, holds your saved views (pinned ones first, the open one marked Current), then Save this view…, Copy link and Export these goals; with a saved view open, also Rename…, Pin for everyone (admins) and Delete this view…. It means the same on every screen.",
 					"The title, the tabs and the bar stay exactly where they are whichever layout you choose; only the goals under the count line widen for Table, Board, History and the Map. On the Map, Group and Sort can’t be changed: the Map is always the trees.",
 					"On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole.",
@@ -15530,6 +15776,7 @@ var CORE_ARTICLES = [
 				"Select a square to read it in words beside the grid: the week and its dates, the goal, the call, the number and that week’s plan. The arrow keys move between squares.",
 				"Once a goal is done it needs no more check-ins, so the weeks after say “Done since week 37” (its week), not that a check-in is missing.",
 				"On a goal on track or done now, a quarter it didn’t meet is shown quietly, as history, rather than as a warning.",
+				"A quarter that ended before a goal was set up says Not applicable, with the week it was set up. It is never judged, and is in no count of met or not met.",
 				"A goal year is about 52 weeks from the month the workspace picked, in four quarters. Quarter targets are read off the owner’s plan."
 			]
 		}],
@@ -15565,6 +15812,7 @@ var CORE_ARTICLES = [
 			heading: "How to use it",
 			list: [
 				"Choose Map from Layout on Goals (in View on a phone). North stars are at the top; solid lines mean feeds into, dotted lines mean also helps.",
+				"Choose Map and the goals appear as soon as it is drawn; only a wait you would notice (over about a third of a second) says “Drawing the map…”.",
 				"It opens on every top goal, with only the critical path, the inputs most likely to make a top goal miss, drawn bold beneath them. The number on a goal’s fold button says how many goals feeding it are hidden: press it to show them, or the minus to hide them. Unfold all shows every goal; Fold to the top goes back.",
 				"Each goal shows its status, its number, its target and how far it is from plan. A goal others feed also says what’s under it: the worst status of everything feeding it, at any depth, and how many are behind, counted the way the List’s tree cards count.",
 				"On the Map, the search at the top of Goals finds a goal and takes you to it: type its name or its key (G-48), then choose it from the list under the field. Its tree opens, the goal is outlined and the map moves to it, without hiding any other goal; press Enter on the goal to read its story. Press Enter in the field without choosing, and the map shows only the goals that match, as the other layouts do.",
@@ -15624,7 +15872,7 @@ var CORE_ARTICLES = [
 				list: [
 					"One main button, for what you’d most likely do next, in this order: answer a question or a decision asked of you here; post the first check-in, or check in for this week when it’s due (the owner); mark your next step done; Add a next step, when the goal is behind and its owner has no next step open; ask a quiet goal’s owner for an update.",
 					"Beside it, a plain button: the owner always has Check in again (unless the main button is the check-in); anyone else has Watch, or Watching once they do.",
-					"The “…” menu has Share image, Copy link, Print or save as PDF, and for the owner or an admin Change this goal and Stop this goal (with check-ins, asking why) or Delete this goal (with none). An admin checks in for the owner from there."
+					"The “…” menu has Share image, Copy link, Print or save as PDF, and for the owner or an admin Change this goal and Stop this goal (with check-ins, asking why) or Delete this goal (with none). Only the owner checks in, from the bar."
 				]
 			},
 			{
@@ -15633,7 +15881,7 @@ var CORE_ARTICLES = [
 					"Under the scorecard, links to each section: Now, Next steps and asks (with how many are open), Why, Chart, What feeds it, History and About. A goal with no check-in yet says “The scorecard starts with the first check-in.” instead of empty cells.",
 					"Next steps and asks: everything asked and agreed on the goal, in one list, shown once. What waits on you comes first, under For you; then the rest that is open, overdue steps first; then the last three answered or done, with Show all for the others. Respond, Answer and Mark done open the Respond panel right in the row.",
 					"If the goal is behind and nobody has said what happens next, the list says so, with the warning mark: “No next step yet.” Add a next step asks what, who (find them by name or team; it starts with you, and the owner) and the week it’s due by. Anyone but the owner can Ask the owner a question; the owner’s Ask for a decision or help opens this week’s check-in, where a decision or help is raised.",
-					"Why: the owner’s reason from their latest check-in, its cause and since when, anything else that flags it, and the owner’s path to green with its date. When it waits on a decision, Why says whose and links to Next steps and asks; the ask’s words are said only there.",
+					"Why: the owner’s reason from their latest check-in (one an admin loaded is said as theirs, by name), its cause and since when, anything else that flags it, and the owner’s path to green with its date. When it waits on a decision, Why says whose and links to Next steps and asks; the ask’s words are said only there.",
 					"The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are. Drag along it to read any week.",
 					"Last time we talked: the last review that discussed it and what was noted (what was agreed is in Next steps and asks), and when it’s next due.",
 					"What feeds it: what it feeds into, and how the goals directly feeding it stand, the one most likely to make it miss first.",
@@ -15649,7 +15897,7 @@ var CORE_ARTICLES = [
 				heading: "Changing it",
 				list: [
 					"Change this goal (in About, or the “…” menu) opens the goal’s form. Each change asks why once check-ins have started, and the reason goes in the activity for everyone watching.",
-					"Your own comments have Edit (they then say edited) and Remove; an admin can remove anyone’s, leaving “Comment removed” in its place. The latest check-in has Delete this check-in, for whoever posted it or an admin; after a newer one it can only be corrected.",
+					"Your own comments have Edit (they then say edited) and Remove; an admin can remove anyone’s, leaving “Comment removed” in its place. The latest check-in has Delete this check-in, for the goal’s owner (check-ins are theirs, whoever posted it); after a newer one it can only be corrected.",
 					"Whoever agreed a next step, or an admin, can change its words, who or when with Change on its row; the log keeps the before and after."
 				]
 			},
@@ -15859,20 +16107,20 @@ var CORE_ARTICLES = [
 				"Choose New goal. Step 1, what: name it the way your team would say it, and pick a type. Move a number: from where it is to where it should be. Keep a number in range: a limit it mustn’t cross, with a margin that warns you. Hit dated stages: work that is done or not, by a week.",
 				"Each step says what it needs: “Everything here is needed unless it says optional”, and an optional field says “· optional” after its name. A problem shows under its own field once you have changed it and moved on, never while you type. Continue is never greyed out: pressed with something to fix, every problem on the step shows, the first field is chosen, and one line above the button counts them (“2 things to fix above: Unit and Target”).",
 				"Step 2, who and where: the owner starts as you and the team follows the owner until you change it. Type to find a person, a team or a goal: nothing is chosen from a list of everything. The level starts one below the goal it feeds, else Team; if you lead a team that already has SVP or north-star goals, you’re asked. “Feeds into” suggests the goals one level up in the team first, worst first. “Also helps” can be set here too.",
-				"Step 3, how it’s measured: for a number, its unit (optional, and empty to start: type %, days, incidents or whatever it counts), then two rows: Baseline with From (the number, and the week it was true, when the plan starts) and Target with To (the number, and the week it is due). From starts as this week and To as the end of the year; the line under them says how many weeks that is. Then how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. “Adjust the plan week by week” opens the plan table, where any week can be typed over. Say how it’s measured and where the number comes from, so everyone reads it the same way.",
-				"Step 4, check: “Does this read right?” Nothing is saved until you publish. The goal is read back in sentences, each with Change to its step: What (the type, the numbers with their weeks and dates, how progress comes, and whether higher or lower is better), Who and where (owner, team, level, what it feeds, what else it helps, a guardrail), Measured by (the metric, or how it’s measured in words), Left as usual (every default you didn’t change, such as “Whole numbers.” or “Feeds nothing.”) and You said (each question you answered). After Change, Continue brings you straight back; a change that leaves a later step needing something (another type, say) opens that step first.",
-				"Under the rows, After you publish says what happens next: when the first check-in is due (“Its first check-in is due by Thursday 12 Nov, then every week”, with what the plan expects the week after), who sees it (for someone else: they see it on their Home next time they open Faro; Faro doesn’t send email), the reviews that will walk it, and how long it can still be changed freely or deleted (until its first check-in). Publish it: the goal’s page opens with “Published”, and nothing on the form asks again once you have pressed it; the owner is then offered the first check-in.",
+				"Step 3, how it’s measured: for a number, its unit (optional, and empty to start: type %, days, incidents or whatever it counts), then two rows: Baseline with From (the number, and the week it was true, when the plan starts) and Target with To (the number, and the week it is due). From starts as this week and To as the end of the year (in the year’s last week, the end of next year); the line under them says how many weeks that is. Then how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. “Adjust the plan week by week” opens the plan table, where any week can be typed over. Say how it’s measured and where the number comes from, so everyone reads it the same way.",
+				"Step 4, check: “Does this read right?” Nothing is saved until you publish. The goal is read back in sentences, each with Change to its step: What (the type, the numbers with their weeks and dates, how progress comes, and whether higher or lower is better), Who and where (owner, team, level, what it feeds, what else it helps, a guardrail), Measured by (the metric, or how it’s measured in words), Left as usual (every default you didn’t change, such as “Whole numbers.” or “Not a guardrail.”) and You said (each question you answered). After Change, Continue brings you straight back; a change that leaves a later step needing something (another type, say) opens that step first. The metric you chose stays chosen through a reload or a kept draft, and it is for the goal’s team as it is now: choose another team and Check says the new one.",
+				"Under the rows, After you publish says what happens next: when the first check-in is due (“Its first check-in is due by Thursday 12 Nov, then every week”, with what the plan expects the week after), who sees it (for someone else: they see it on their Home next time they open Faro; Faro doesn’t send email), the reviews that will walk it, and how long it can still be changed freely or deleted (until its first check-in; stages you said are already done count as its first check-in, so it can then be stopped, with a reason, but not deleted). With every stage already done, no check-in is due. Publish it: the goal’s page opens with “Published”, and nothing on the form asks again once you have pressed it; the owner is then offered the first check-in.",
 				"On a phone the steps take the whole screen, as every form does: the tab bar steps aside, so Back and Continue are always in reach.",
 				"Each step has its own address, so your browser’s Back steps back a step and a reload stays where you were. “Close and keep the draft” keeps it; New goal later picks it up where it stopped, with “Start a new one” if you’d rather not. Changing an answer from Check and pressing Continue goes to the first step that no longer holds, with what it needs said there.",
-				"A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen. Change the stage’s week and it asks again.",
-				"Each week is chosen, never typed as a bare number: From, To and a stage’s Due open a short list of weeks, each with its dates and year (“Week 46 · 9–15 Nov 2026”). Up to three named weeks come first (for To: the end of this quarter, the end of the year, the end of Q1 next year); then the years, and that year’s weeks, with this week and each quarter’s end marked. Type in it to jump: “50” is week 50 of the year shown, “14 Dec” the week holding that day, “2027 5” week 5 of 2027. Up and Down move a week, Page Up and Page Down four, Left and Right change the year, Enter chooses, Escape closes.",
+				"A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen. Change the stage’s week and it asks again. Setting up a goal for someone else, the question adds that they mark done stages at the first check-in (“Mateo marks done stages at the first check-in.”): a check-in is the owner’s, so the goal is published without it.",
+				"Each week is chosen, never typed as a bare number: From, To and a stage’s Due open a short list of weeks, each with its dates and year (“Week 46 · 9–15 Nov 2026”). Up to three named weeks come first (for To: the end of this quarter, the end of the year, the end of Q1 next year); then the years, and that year’s weeks, with this week and each quarter’s end marked. Type in it to jump: “50” is week 50 of the year shown, “14 Dec” the week holding that day, “2027 5” week 5 of 2027. Up and Down move a week, Page Up and Page Down four, Left and Right change the year, Enter chooses (with nothing typed, the week highlighted), Escape or Tab away closes.",
 				"To can run into next year: the line under the numbers says “It runs past the end of 2026 and carries into 2027 with this plan.” A From still to come is fine too: until that week nothing is due, and the goal reads “No check-in yet · starts week 50”. A From in the past is asked about (“Week 40 was 6 weeks ago. Has this been running since then?”); “No, start from this week” puts it back. A To already past, and a plan longer than a year, are asked about too. A stage is due within this goal year; a range applies from the week it is published to the end of the year.",
 				"An unfinished goal is kept as a draft.",
 				"Decimals follow what you type: 12.5 is kept to 1 decimal place, and the line under the numbers says so, with Change to choose whole numbers or 1, 2 or 3 places. Once chosen, a start, target, limit or plan number typed with more is refused, not rounded (with “Keep 1 decimal place” to keep them), so what you see is what was saved.",
 				"A number has only the number in it: “12 days” in a goal that counts % is a problem to fix (“the unit goes in Unit”); in a goal that counts days it’s 12. A target the same as the start offers to make it a number to keep in range instead. Each stage needs its own name and a week; two stages with one name, or one with no week, are each said under their own row.",
 				"A warning margin for a range is optional: left empty, it warns only once the limit is crossed.",
 				"Some things are possible but unlikely, so they are asked about, never refused. A question sits under the field it is about, marked Check, with two answers: the first keeps what you typed, the second changes it. Asked: a number with no unit (is it a plain count?), a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), a billion or more, a target on the worse side of the start for the metric that measures it, a warning margin as wide as the limit, weeks set by hand that leave most of the change to the end, a goal with the same name in the same team, an owner in another team than the goal’s (“Move it to …” moves it), and a goal feeding one at a lower level (“No, it feeds nothing” removes the link).",
-				"Continue waits for the questions on its step: focus goes to the first, and the line above the button says “Answer the question above, under Target.” Answered, a question folds to one line, “You said 150% is right.”, with Change. Your answer holds for the values it was about: change the number and it asks again. Each answer is kept in the goal’s History, as Checked.",
+				"A question asked while you type is brought into view, on a phone too, and the cursor stays in the field. Continue waits for the questions on its step: focus goes to the first, and the line above the button says “Answer the question above, under Target.” Answered, a question folds to one line, “You said 150% is right.”, with Change. Your answer holds for the values it was about: change the number and it asks again. Each answer is kept in the goal’s History, as Checked.",
 				"Two goals can have the same name (two teams can both “Reduce latency”). You’re told which other goal has it, with its key, team and owner, and wherever both could be on screen each shows its key beside the title."
 			]
 		}, {
@@ -15940,7 +16188,7 @@ var CORE_ARTICLES = [
 					"Plan by week shows the numbers week by week; type over any week.",
 					"After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s history.",
 					"Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about. A target on the worse side of the start for the metric that measures the goal is asked about too (“Lead time for changes is better lower, but the target is above today”), here, in a spreadsheet and through the AI assistant, and your answer is kept in the goal’s History as Checked.",
-					"Save changes waits for the questions: pressed with one still open, it takes you to the first, wherever it is on the page, and the line above the button says where (“Answer the question above, under Target.”). The second answer, such as “No, I’ll change the numbers”, takes you back to the field.",
+					"A question asked while you type is brought into view, and the cursor stays in the field. Save changes waits for the questions: pressed with one still open, it takes you to the first, wherever it is on the page, and the line above the button says where (“Answer the question above, under Target.”). The second answer, such as “No, I’ll change the numbers”, takes you back to the field.",
 					"A target on the other side of the start flips which way is better, so it is never saved quietly: the form says so (“This makes higher better”) and saves once you tick the yes beneath it. A start, target or week’s number far outside the plan it replaces is asked about the same way. The import, Data and the AI assistant ask the same questions.",
 					"The original plan stays on the chart, dotted, and earlier weeks and closed quarters stay judged against the plan of their day. There is no approval step.",
 					"A goal’s type can’t change once check-ins have started."
@@ -16188,7 +16436,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Pick a table. Search it, sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.",
+					"Pick a table. Search it (each word you type starts a word in a shown column, as on Goals; a key like G-48 finds its goal), sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.",
 					"Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.",
 					"Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.",
 					"Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.",
@@ -16291,7 +16539,7 @@ var CORE_ARTICLES = [
 				list: [
 					"A person who has left: an admin opens them on Workspace, under People, and chooses Mark as left. The dialog first asks who takes over their goals and their open asks (the ones they raised and the ones waiting on them). They then disappear from pickers, counts, reviews and Home, and their MCP token stops working. Everything they did keeps their name, as “Maya Patel (left)”. Someone with no goals, check-ins, notes or asks is deleted instead.",
 					"A goal with check-ins is stopped, with a reason (“…” menu → Stop this goal). It leaves the numbers, reviews, Home, Watching and the lists of what needs attention, but its page stays, marked Stopped with its reason, and so do its history, its place in exports and Activity. The goals feeding it now feed what it fed; its open asks are withdrawn with a note. A goal with no check-ins is deleted instead.",
-					"A check-in: Delete this check-in, under the latest one on the goal’s page, by whoever posted it or an admin. Once a newer one is posted it can only be corrected. The status goes back to the one before.",
+					"A check-in: Delete this check-in, under the latest one on the goal’s page, by the goal’s owner. Undoing an import puts a check-in back only for someone who may check in on that goal: an admin can undo a workbook they loaded, but not an owner’s own correction. Once a newer one is posted it can only be corrected. The status goes back to the one before.",
 					"A review: End this review, at the foot of its page, by whoever set it up or an admin. It keeps its notes and actions and stops showing as due. One that was never held is deleted.",
 					"A comment: its author can edit it (it then says edited), and its author or an admin can remove it; its place in the thread says “Comment removed”, so the conversation still reads. A note said in a review works the same way, leaving “Note removed”.",
 					"A saved view: Delete, from its menu. An admin can delete anyone’s. Stopping watching works the same way.",
@@ -16370,7 +16618,9 @@ var CORE_ARTICLES = [
 			{
 				heading: "Switching, and setting one up",
 				list: [
-					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: About, which opens Workspace, and Set up a new workspace.",
+					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow.",
+					"Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.” A workspace you can’t open yet still lists the others, to open one of them.",
+					"A workspace is one organisation’s goals and the people who share them: its own people and teams, its own goal year and check-in day, and its own admins. About says so, under its name.",
 					"Switching is a page move: Back takes you to the workspace you came from. You land on the same page in the other workspace when it has one (Home, Goals, Reviews, People, a Workspace section), otherwise on Home; from a person’s or a team’s page, on People or Teams. While it opens, the page says so.",
 					"Part-way through a check-in, a new goal or a review, switching asks first: what you’ve typed stays as a draft in its own workspace, in this browser, for when you switch back.",
 					"Switch person (your name at the foot of the sidebar) is only about people. Where you’re an admin, it says Admin."
@@ -16877,6 +17127,8 @@ var CORE_ARTICLES = [
 					"Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.",
 					"Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.",
 					"It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses. A goal that raises a question (over 100%, no unit, a link to a lower level, a plan that flips which way is better) comes back as “Not saved. Check with the person first:” with every question; it saves once you have said yes to each and it calls again with “confirm”.",
+					"Adding goals, one at a time or many at once, it is told each new goal’s key (G-12) and ID straight away, so it can link, check in on or change them without searching first.",
+					"Lists (goals it finds, asks, reviews, people, activity, views, metrics and the rest) always come back in one shape, filtered or not, so it reads them the same way every time.",
 					"Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.",
 					"Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you."
 				]
@@ -16984,7 +17236,7 @@ var CORE_ARTICLES = [
 				heading: "Who can read it",
 				list: [
 					"The inbox is its own page, Feedback, beside Help in the sidebar (in More on a phone), in the app and the demo. It was a section of Workspace; it moved because it belongs to no one workspace. Old links to Workspace’s inbox open it.",
-					"It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and change a status, on any device, and every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.",
+					"It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and send feedback, on any device. Only an admin changes a status (In hand, Fixed, Won’t fix, New again); everyone else sees a line saying so, and no buttons. Every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.",
 					"It names people, never their email. The New tab says how many are new; The New tab counts them across every workspace.",
 					"Send feedback, at the top, opens the feedback sheet; it says which page you came from, and Mark up the last screen goes back to it."
 				]
@@ -17029,7 +17281,11 @@ var CORE_ARTICLES = [
 				text: ["When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them, and this workspace’s feedback. Statuses you give feedback there stay in that browser."]
 			}
 		],
-		routes: ["/feedback", "/workspace/inbox"],
+		routes: [
+			"/feedback",
+			"/workspace/inbox",
+			"/inbox"
+		],
 		screens: ["Feedback"],
 		reqs: [
 			"MARKUP-INBOX",
@@ -17249,6 +17505,209 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "forms-close-in-words",
+		date: "2026-11-12",
+		title: "Every form closes in words, and Back finds your list",
+		points: [
+			"Editing a goal, New goal and the one-table check-in now close with “Close and keep the draft”, top right, as the other forms do.",
+			"A goal opened from a saved view says “Back to” the view’s name.",
+			"From Check-in’s list, Back comes back to the list. “Start with…” walks only what is still due, and its count is the list’s.",
+			"Page not found has a Find field, so you can look for what you meant."
+		],
+		articles: ["getting-around", "check-in"]
+	},
+	{
+		id: "data-feedback-search-words",
+		date: "2026-11-12",
+		title: "Data and Feedback search the way Goals does",
+		points: ["Each word you type finds the rows with a word that starts with it: “back” no longer finds “fallback”.", "On Data, a key like G-48 (or g48) finds its goal, and only the columns you can see are searched."],
+		articles: ["data", "feedback"]
+	},
+	{
+		id: "check-ins-owners-words",
+		date: "2026-11-12",
+		title: "Check-ins are the owner’s, said everywhere",
+		points: [
+			"Answering an update ask, only the goal’s owner is offered Check in for the week; anyone else answers in a sentence.",
+			"A check-in an admin loaded is headed with the admin’s name, not as what the owner said.",
+			"One change can’t take a goal and check in on it at once: a check-in is judged against the owner before the change.",
+			"An AI assistant is told only the owner can check in, and changing feedback’s GitHub issue is for admins, saving nothing when refused."
+		],
+		articles: [
+			"requests",
+			"goal-page",
+			"inbox"
+		]
+	},
+	{
+		id: "mcp-lists-one-shape",
+		date: "2026-11-12",
+		title: "AI tools get every list in one shape",
+		points: ["Finding goals through MCP gave a table of data when you filtered by words and plain lines for the whole list. Every list now comes back the same way, filtered or not.", "The same goes for asks, reviews, people, activity, views, tokens, metrics, what you watch, what was removed and feedback."],
+		articles: ["ai-assistants"]
+	},
+	{
+		id: "quarters-before-set-up",
+		date: "2026-11-12",
+		title: "Quarters before a goal existed are not judged",
+		points: ["A goal set up part way through the year no longer shows the quarters that ended before it as Not met. They say Not applicable, with the week it was set up.", "Those quarters are in no count of met or not met, and no longer raise “Last quarter not met” on the goal or in the overview."],
+		articles: ["history", "status"]
+	},
+	{
+		id: "set-up-check-in-owners",
+		date: "2026-11-12",
+		title: "Stages already done are the owner’s to mark",
+		points: [
+			"Setting up a goal for someone else, a stage already past is still asked about, and the question says they mark done stages at their first check-in. The goal is published without a check-in on it.",
+			"Delete this check-in is for the goal’s owner, whoever posted it.",
+			"Undoing an import puts a check-in back only for someone who may check in on that goal: an admin can undo a workbook they loaded, but not an owner’s own correction."
+		],
+		articles: ["new-goal", "removing"]
+	},
+	{
+		id: "mcp-new-goal-keys",
+		date: "2026-11-12",
+		title: "AI tools hear each new goal’s key",
+		points: ["When an AI tool adds a goal through MCP, alone or in a batch, it is told the new goal’s key (G-12) and ID at once, so it can link or check in on it without searching for it first.", "A dry run says the key each new goal would get."],
+		articles: ["ai-assistants"]
+	},
+	{
+		id: "question-in-view",
+		date: "2026-11-12",
+		title: "A question about a number is where you can see it",
+		points: ["In New goal and Change a goal, a question raised as you type, such as a target over 100%, now scrolls into view, on a phone too. The cursor stays where you are typing.", "Continue or Save changes with a question open takes you straight to it."],
+		articles: ["new-goal", "edit-goal"]
+	},
+	{
+		id: "import-headers-steadier",
+		date: "2026-11-12",
+		title: "Import reads your headers more carefully",
+		points: [
+			"A People sheet with a Title or Objective column is read as People, not refused.",
+			"Two columns that mean the same thing, like Goal and Goal name, are asked about: you choose which is read.",
+			"While a header one letter out is asked about, its column’s Must fix waits for your answer.",
+			"Download the rows to fix keeps a column whose header is one letter out."
+		],
+		articles: ["import"]
+	},
+	{
+		id: "undo-import-every-kind",
+		date: "2026-11-12",
+		title: "Undoing an import puts back teams too",
+		points: [
+			"An import that only changed a team can be undone, and Undo counts the team.",
+			"A goal that fed one Undo deletes moves up, as it does when a goal is deleted by hand.",
+			"Someone an import added stays while they lead a team, sit in a review or have an ask.",
+			"A corrected check-in and a bulk edit on People are named as such on Past imports."
+		],
+		articles: ["past-imports"]
+	},
+	{
+		id: "read-back-holds",
+		date: "2026-11-12",
+		title: "Check keeps your metric",
+		points: [
+			"On New goal’s Check, the metric you chose stays chosen after a reload or when you come back to a kept draft, and it is published with the goal.",
+			"Choose another team from Check and the metric is for the new team.",
+			"Check reads as one row under another at every width, and says truly when a goal with stages already done can only be stopped, not deleted."
+		],
+		articles: ["new-goal"]
+	},
+	{
+		id: "weeks-picked-steadier",
+		date: "2026-11-12",
+		title: "Weeks in files and the week list: fewer surprises",
+		points: [
+			"A file with To filled in and Due week left empty now loads; a To before From says so in its own words.",
+			"In a file with no Start column, a bare number under From is asked about: it may be where the goal starts, not a week.",
+			"In the year’s last week, a new goal runs to the end of next year unless you choose otherwise.",
+			"In the week list, the highlight follows the pointer only when it moves, and Escape or Tab away closes the list."
+		],
+		articles: ["import", "new-goal"]
+	},
+	{
+		id: "correct-check-in",
+		date: "2026-11-12",
+		title: "Correct this check-in corrects it",
+		points: [
+			"The link under a posted check-in now replaces it, instead of adding a second check-in for the week.",
+			"It asks why you are changing it, in a sentence, and History keeps what the check-in said before and why it changed.",
+			"Undo on the message after saving puts the first check-in back."
+		],
+		articles: ["check-in"]
+	},
+	{
+		id: "check-ins-owner-only",
+		date: "2026-11-12",
+		title: "Check-ins are the owner’s",
+		points: ["Only a goal’s owner checks in on it, also through the AI assistant and the one-table check-in. An admin’s token can no longer post one for someone else.", "An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet."],
+		articles: ["check-in"]
+	},
+	{
+		id: "room-agrees-with-limit",
+		date: "2026-11-12",
+		title: "A number kept in range: two cells that agree",
+		points: ["On a goal kept within a limit, “Room to the limit” now turns muted only when the number is near the limit, exactly as “Vs the limit” says it.", "A number exactly the warning margin inside its limit is not near: both cells now say so."],
+		articles: ["goal-page"]
+	},
+	{
+		id: "home-asks-first",
+		date: "2026-11-12",
+		title: "Home starts with what is asked of you today, and is quiet when nothing is",
+		points: [
+			"Home leads with one thing: your check-ins the day before they are due or once late, the wrap-up, or a review you’re in on its day. It is the page’s one big button.",
+			"When nothing is asked of you, Home says so in one line, with when your next check-ins are due, and has no big button.",
+			"Your goals are counted once, in Your goals, and each count opens exactly those goals.",
+			"What’s new in Faro is now a line at the foot of Home."
+		],
+		articles: ["home"]
+	},
+	{
+		id: "admins-triage-and-start-over",
+		date: "2026-11-12",
+		title: "Where one workspace ends, and who you are there",
+		points: [
+			"The switcher at the top of the sidebar says Switch. A workspace you can’t open yet lists the others.",
+			"Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.”",
+			"About says what a workspace is, in one sentence, under its name.",
+			"Anyone can read Feedback and send their own; only an admin changes its status. Its address /inbox now opens it.",
+			"In a workspace of your own, only an admin sees Start over in the Demo panel. In the example, anyone still may."
+		],
+		articles: [
+			"inbox",
+			"demo",
+			"workspace"
+		]
+	},
+	{
+		id: "polish-layout-switch",
+		date: "2026-11-12",
+		title: "Board and Table line up straight away",
+		points: ["Switching between List, Table and Board draws the new layout in place. Before, every row slid in from where the old layout had it, so the page looked out of line for a moment.", "Rows still slide when a sort or a filter changes their order within a layout."],
+		articles: ["goals"]
+	},
+	{
+		id: "polish-map-wait",
+		date: "2026-11-12",
+		title: "The map opens without a flash",
+		points: ["Choosing Map no longer flashes “Drawing the map…” for a moment before the goals appear.", "It says so only when drawing takes long enough to notice."],
+		articles: ["goal-map"]
+	},
+	{
+		id: "your-goals-worst-first",
+		date: "2026-11-12",
+		title: "Your goals, worst first",
+		points: ["On Home, the goals you own that have nothing flagged are listed worst first, then by name, as Goals lists them.", "Home and Goals now read their lists and counts the same way, so the numbers on each agree."],
+		articles: ["home"]
+	},
+	{
+		id: "polish-no-check-in-for",
+		date: "2026-11-12",
+		title: "No check-in offered that can’t be posted",
+		points: ["A goal’s “…” menu no longer offers an admin “Check in for” its owner: it led to a page saying only the owner checks in.", "The owner checks in from the button on the goal’s bar, as before."],
+		articles: ["goal-page", "check-in"]
+	},
 	{
 		id: "import-preview-steadier",
 		date: "2026-11-12",
@@ -19052,6 +19511,11 @@ function startPageText(p) {
 		p.whyNot ?? ""
 	].filter(Boolean).join("\n");
 }
+// src/mcp/listed.ts
+var listed = (data) => ({
+	data,
+	text: JSON.stringify(data, null, 2)
+});
 // \0virtual:faro-modules
 var _virtual_faro_modules_default = [{
 	id: "metrics",
@@ -19114,6 +19578,7 @@ var _virtual_faro_modules_default = [{
 		"U81",
 		"U82",
 		"U83",
+		"U145",
 		"F15",
 		"N16"
 	],
@@ -19250,7 +19715,7 @@ var _virtual_faro_modules_default = [{
 			"Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists \"import\" under \"also\").",
 			"An import of 5 goals and 10 check-ins, with one check-in posted on an imported goal since, previews Undo as 14 rows going back and 1 staying, naming who posted the check-in and when; Undo then does exactly that, and Past imports says when and by whom it was undone."
 		],
-		"gaps": ["The field table is in the kit (the core rule page, the field table); the rest of the format (how each column is read) is in docs/export-format.md, which is not in the kit yet.", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
+		"gaps": ["The format is in the kit: the field table (a core rule page), how each column is read (spec/core/export-format.md), and every kind of issue with its trigger, sentence and answers and every column’s other spellings (spec/core/import-issues.md).", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
 	}
 }];
 // src/core/module.ts
@@ -19349,6 +19814,34 @@ var RULE_PAGES = [
 		"spreadsheets, bulk edits and changes through MCP, checked by the same rules"
 	]
 ];
+/** Every other core rule page, after the ten above: [file, title]. With RULE_PAGES, every page under spec/core/rules/
+(src/spec/spec.test.ts checks the two lists against src/spec/rules.ts, titles included). */
+var MORE_RULE_PAGES = [
+	["field-table", "The field table"],
+	["import-levels", "Kinds, levels and near misses"],
+	["import-preview", "What an import read, and leaving rows out"],
+	["import-header", "The header row, and headers that are nearly right"],
+	["import-undo", "Undoing an import, and past imports"],
+	["review-decide", "Deciding in a review"],
+	["start-next-year", "Starting the next year"],
+	["carry", "The carry rule, and what comes with a goal"],
+	["workspace", "The workspace: cycles, teams, names, leaving and what needs attention"],
+	["directory", "The directory: who People lists, what a search finds, and where old addresses lead"],
+	["day-one", "Day one: set-up’s steps and “Getting started”"],
+	["map", "The goal map"],
+	["goal-act", "Acting on a goal: its buttons, and next steps and asks"],
+	["goal-history", "A goal’s history"],
+	["comment-reach", "Who a comment reaches"],
+	["goal-entry", "Goal entry"],
+	["years-and-weeks", "Years and weeks"],
+	["new-goal", "New goal"],
+	["read-back", "The read-back"],
+	["not-born-late", "A goal not born late"],
+	["finding", "Finding things"],
+	["navigation", "Navigation: the menu, the lit item and a page’s name"],
+	["goals-page", "The Goals page: whose goals, how they are grouped, and the switch"],
+	["home", "Home: what is asked of you today"]
+];
 /** The requirements under spec/requirements/internal/ (backlog 8r): what the internal rebuild must do that Faro doesn't
 build, because the company's platform provides the machinery. [file, title, what it says]. */
 var INTERNAL_PAGES = [
@@ -19406,7 +19899,7 @@ function systemOverview() {
 		"- Each week the owner checks in: the number (or each stage), their call on the status, and the words the numbers ask for (why it is behind or ahead, and a path back to green when behind).",
 		`- The status is the owner’s call, beside what the numbers say. A number goal is on track at ${pct(RULES.onTrack)} of the planned progress or more, at risk from ${pct(RULES.atRisk)}, off track below; a range goal is at risk near or once over its limit and off track after two weeks over; a stage up to ${RULES.lateWeeksOff} weeks late is at risk, later is off track. With no check-in for ${RULES.staleDays} days a goal has no recent update.`,
 		`- Statuses, worst first: ${STATUS_ORDER.map((k) => LABEL[k]).join(", ")}. Always shown as a shape and a word.`,
-		"- Flags say why a goal needs attention (off track, a missed recovery date, no recent update, a decision waiting, no path to green, at risk, getting worse, a call greener than calculated). A goal someone has looked at since its latest check-in is being handled until something new happens.",
+		"- Flags say why a goal needs attention (off track, a missed recovery date, no recent update, a decision waiting, no path to green, at risk, getting worse, a call greener than calculated). An off-track or at-risk goal is being handled, and leaves the list that needs attention, when since its latest check-in an action with an owner and a due week was agreed (or, at risk only, its request was answered), until something new happens. Someone marking it reviewed or noting it is not enough: that is a quiet line only.",
 		"- One change engine takes many changes at once (spreadsheets, bulk edits, MCP) and checks every row with the same rules as the app’s forms.",
 		"",
 		"## The spec",
@@ -19415,9 +19908,12 @@ function systemOverview() {
 		"- [The data model](spec/core/data-model.md): every record and field, and the database tables",
 		"- [The vocabulary](spec/core/vocabulary.md): every status word, its code, its meaning and the rule that decides it",
 		...RULE_PAGES.map(([id, title, what]) => `- [${title}](spec/core/rules/${id}.md): ${what}`),
+		`- [Every core rule](spec/core/rules/README.md), the ten above and ${MORE_RULE_PAGES.length} more: ${MORE_RULE_PAGES.map(([id, title]) => `[${title}](spec/core/rules/${id}.md)`).join(", ")}`,
 		"- [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action",
 		"- [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them",
 		"- [The requirements](spec/core/requirements.md): each one, linked to its code and tests",
+		"- [The export format](spec/core/export-format.md): every spreadsheet sheet and column, and how each is read back",
+		"- [Every issue a spreadsheet can raise](spec/core/import-issues.md): each kind’s level, trigger, sentence and answers, and every column’s other spellings",
 		"",
 		"## Conformance data",
 		"",
@@ -19460,11 +19956,9 @@ init_progress();
 init_tableLayout();
 init_goalKey();
 init_removal();
-init_changeset();
+init_via();
 /** A status as the assistant reads it: the words people see, with the code beside them. */
 var said = (k) => withCode(STATUS[k]);
-/** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
-var askState = (r) => withCode(ASK_STATUS[r.status]) + (r.overdue ? `, ${withCode(ASK_STATUS.overdue)}` : "");
 var str$6 = (description, extra = {}) => ({
 	type: "string",
 	description,
@@ -19778,11 +20272,7 @@ var WORK_TOOLS = [
 				"done",
 				"withdrawn"
 			])}, or all.`);
-			const list = asksOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.kind || r.kind === a.kind).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(goalOf$2(ctx, a.goal_id).id)).map((r) => requestData(ctx, r));
-			return {
-				data: { requests: list },
-				text: lines(list.map((r) => `${r.id} · ${ASK_KIND_LABEL[r.kind]} · ${askState(r)} · ${r.ask} · asked by ${r.askedBy} of ${r.askedOf} · ${r.goals.map((g) => g.title).join(", ")}${r.answer ? ` · answer: ${r.answer}` : ""}`), "No asks match.")
-			};
+			return listed({ requests: asksOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.kind || r.kind === a.kind).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(goalOf$2(ctx, a.goal_id).id)).map((r) => requestData(ctx, r)) });
 		}
 	},
 	{
@@ -19796,7 +20286,7 @@ var WORK_TOOLS = [
 		},
 		annotations: READ$4,
 		async run(_a, ctx) {
-			const list = ctx.snapshot.reviews.map((r) => {
+			return listed({ reviews: ctx.snapshot.reviews.map((r) => {
 				const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
 				const held = lastHeld(r, ctx.snapshot, x.week);
 				return {
@@ -19815,11 +20305,7 @@ var WORK_TOOLS = [
 					openActions: openActions(r, ctx.snapshot).length,
 					youreIn: r.people.includes(ctx.actor.id)
 				};
-			});
-			return {
-				data: { reviews: list },
-				text: lines(list.map((r) => `${r.id} · ${r.name} · every ${r.everyWeeks} wk · ${r.state} (session ${r.sessionDate}) · last held ${r.lastHeld ?? "never"} · ${r.openActions} open actions`), "No reviews yet.")
-			};
+			}) });
 		}
 	},
 	{
@@ -19890,23 +20376,18 @@ var WORK_TOOLS = [
 		},
 		annotations: READ$4,
 		async run(_a, ctx) {
-			const watches = ctx.snapshot.watches.filter((w) => w.personId === ctx.actor.id).map((w) => ({
-				id: w.id,
-				kind: w.kind,
-				ref: w.ref,
-				what: w.kind === "level" ? `every ${w.ref} goal` : ctx.snapshot.goals.find((g) => g.id === w.ref)?.title ?? w.ref
-			}));
-			const goals = watchedGoals(ctx.actor.id, ctx.snapshot).map((g) => ({
-				id: g.id,
-				title: g.title
-			}));
-			return {
-				data: {
-					watches,
-					goals
-				},
-				text: watches.length ? `${watches.map((w) => `${w.id} · ${w.kind} · ${w.what}`).join("\n")}\n${goals.length} goals watched.` : "You’re not watching anything yet."
-			};
+			return listed({
+				watches: ctx.snapshot.watches.filter((w) => w.personId === ctx.actor.id).map((w) => ({
+					id: w.id,
+					kind: w.kind,
+					ref: w.ref,
+					what: w.kind === "level" ? `every ${w.ref} goal` : ctx.snapshot.goals.find((g) => g.id === w.ref)?.title ?? w.ref
+				})),
+				goals: watchedGoals(ctx.actor.id, ctx.snapshot).map((g) => ({
+					id: g.id,
+					title: g.title
+				}))
+			});
 		}
 	},
 	{
@@ -19921,31 +20402,27 @@ var WORK_TOOLS = [
 		annotations: READ$4,
 		async run(_a, ctx) {
 			const team = (id) => ctx.snapshot.teams.find((t) => t.id === id)?.name ?? null;
-			const people = ctx.snapshot.people.map((p) => ({
-				id: p.id,
-				name: p.name,
-				email: p.email ?? null,
-				jobTitle: p.role,
-				team: team(p.teamId),
-				admin: p.admin,
-				goals: ctx.snapshot.goals.filter((g) => g.ownerId === p.id).length
-			}));
-			return {
-				data: {
-					people,
-					teams: ctx.snapshot.teams.map((t) => {
-						const m = teamMembers(ax$2(ctx), t.id);
-						return {
-							id: t.id,
-							name: t.name,
-							lead: name$1(ctx, t.leadId),
-							people: m.people.length,
-							goals: m.current.length
-						};
-					})
-				},
-				text: people.map((p) => `${p.id} · ${p.name}${p.email ? ` <${p.email}>` : ""}${p.jobTitle ? `, ${p.jobTitle}` : ""} · ${p.team ?? "no team"}${p.admin ? " · admin" : ""}`).join("\n")
-			};
+			return listed({
+				people: ctx.snapshot.people.map((p) => ({
+					id: p.id,
+					name: p.name,
+					email: p.email ?? null,
+					jobTitle: p.role,
+					team: team(p.teamId),
+					admin: p.admin,
+					goals: ctx.snapshot.goals.filter((g) => g.ownerId === p.id).length
+				})),
+				teams: ctx.snapshot.teams.map((t) => {
+					const m = teamMembers(ax$2(ctx), t.id);
+					return {
+						id: t.id,
+						name: t.name,
+						lead: name$1(ctx, t.leadId),
+						people: m.people.length,
+						goals: m.current.length
+					};
+				})
+			});
 		}
 	},
 	{
@@ -19971,7 +20448,7 @@ var WORK_TOOLS = [
 				watched: null
 			});
 			const n = Math.min(500, Math.max(1, Number(a.limit ?? 50)));
-			const list = ctx.snapshot.changes.filter(keep).sort((x, y) => x.at < y.at ? 1 : -1).slice(0, n).map((c) => ({
+			return listed({ changes: ctx.snapshot.changes.filter(keep).sort((x, y) => x.at < y.at ? 1 : -1).slice(0, n).map((c) => ({
 				at: c.at,
 				by: name$1(ctx, c.actorId),
 				goal: c.goalId ? ctx.snapshot.goals.find((g) => g.id === c.goalId)?.title ?? c.goalId : null,
@@ -19986,11 +20463,7 @@ var WORK_TOOLS = [
 					canUndo: canUndoImport(ctx.snapshot, c, ctx.actor),
 					undone: importUndone(ctx.snapshot, c.entityId)
 				} : {}
-			}));
-			return {
-				data: { changes: list },
-				text: lines(list.map((c) => `${c.at.slice(0, 16).replace("T", " ")} · ${c.by} · ${c.goal ? c.goal + ": " : ""}${c.summary}${"importId" in c ? ` · import ${c.importId}${c.undone ? " (undone)" : c.canUndo ? " (can be undone)" : ""}` : ""}`), "No changes match.")
-			};
+			})) });
 		}
 	},
 	{
@@ -20004,7 +20477,7 @@ var WORK_TOOLS = [
 		},
 		annotations: READ$4,
 		async run(_a, ctx) {
-			const list = (ctx.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === ctx.actor.id)).map((v) => {
+			return listed({ views: (ctx.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === ctx.actor.id)).map((v) => {
 				const l = isTableView(v) ? parseLayout(v.params) : null;
 				return {
 					id: v.id,
@@ -20019,11 +20492,7 @@ var WORK_TOOLS = [
 					pinned: v.pinned,
 					owner: name$1(ctx, v.personId)
 				};
-			});
-			return {
-				data: { views: list },
-				text: lines(list.map((v) => `${v.id} · ${v.name}${v.pinned ? " (pinned)" : ""} · of ${v.of} · ${v.query}`), "No saved views.")
-			};
+			}) });
 		}
 	},
 	{
@@ -20037,17 +20506,13 @@ var WORK_TOOLS = [
 		},
 		annotations: READ$4,
 		async run(_a, ctx) {
-			const list = (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({
+			return listed({ tokens: (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({
 				id: t.id,
 				name: t.name,
 				person: name$1(ctx, t.personId),
 				createdAt: t.createdAt,
 				lastUsedAt: t.lastUsedAt
-			}));
-			return {
-				data: { tokens: list },
-				text: lines(list.map((t) => `${t.id} · ${t.name} · acts as ${t.person}`), "No live tokens.")
-			};
+			})) });
 		}
 	},
 	{
@@ -21082,8 +21547,12 @@ var markupFromRow = (r) => ({
 	statusAt: r.status_at,
 	createdAt: new Date(r.created_at).toISOString()
 });
+/** Who may change an item's status in the inbox (Lane, 12 Nov): admins. Everyone may send feedback and read the inbox. */
+var mayTriage = (who) => !!who.admin;
+var ADMINS_TRIAGE = "Only an admin can change the status of feedback. You can still read it and send your own.";
 /** Checks a status change and gives the fields it sets. Fixed names the What's new entry; Won't fix needs a reason. */
 function statusPatch(c, now, entries) {
+	if (!mayTriage(c)) throw new MarkupError(ADMINS_TRIAGE);
 	if (!STATUSES$1.includes(c.status)) throw new MarkupError("A status is new, in-hand, fixed or wont-fix.");
 	const fixedIn = c.status === "fixed" ? (c.fixedIn ?? "").trim() : "";
 	if (c.status === "fixed" && !fixedIn) throw new MarkupError("Say which What’s new entry has the fix.");
@@ -21181,6 +21650,13 @@ function newIssueLink(repo, m, o = {}) {
 	return url;
 }
 // src/markup/ops.ts
+/** Where markups are kept, and their pictures. */
+/** A GitHub issue's address as kept: trimmed, without a query or fragment; anything else is refused in these words. */
+function issueUrlOf(url) {
+	const u = url.trim().replace(/[?#].*$/, "");
+	if (!ISSUE_URL.test(u)) throw new MarkupError("Paste the issue’s address: https://github.com/owner/repo/issues/123.");
+	return u;
+}
 /** What to say, plainly, when markups' pictures can't be read here: what to do, and where. */
 var PICTURES_UNREADABLE = "Markup pictures can’t be read here yet: the “markups” bucket isn’t open to read. Migration 0031 opens it (CI applies it when the open inbox merges); or, in Supabase, Storage, make the markups bucket public.";
 /** The pictures a markup can have (src/markup/ink.ts makePictures). */
@@ -21265,10 +21741,10 @@ function markupOps(o) {
 			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
 			return m;
 		},
-		/** Keeps the address of the issue the builder opened. */
-		async setIssueUrl(id, url) {
-			const u = url.trim().replace(/[?#].*$/, "");
-			if (!ISSUE_URL.test(u)) throw new MarkupError("Paste the issue’s address: https://github.com/owner/repo/issues/123.");
+		/** Keeps the address of the issue the builder opened: triage, so admins only (mayTriage, as statusPatch asks). */
+		async setIssueUrl(id, url, admin) {
+			const u = issueUrlOf(url);
+			if (!mayTriage({ admin })) throw new MarkupError(ADMINS_TRIAGE);
 			await must(id);
 			const m = await o.store.update(id, { issueUrl: u });
 			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
@@ -21358,7 +21834,7 @@ var MARKUP_TOOLS = [
 		},
 		annotations: READ$3,
 		async run(a, ctx) {
-			const rows = (await inbox(ctx).list({
+			return listed({ markups: (await inbox(ctx).list({
 				...a.workspace ? { workspaceId: String(a.workspace) } : {},
 				...a.status ? { status: a.status } : {},
 				limit: Number(a.limit ?? 50)
@@ -21373,11 +21849,7 @@ var MARKUP_TOOLS = [
 				at: m.createdAt,
 				issueUrl: m.issueUrl,
 				fixedIn: m.fixedIn
-			}));
-			return {
-				data: { markups: rows },
-				text: rows.length ? rows.map((r) => `${r.id} · ${STATUS_WORD[r.status]} · “${r.line}” · ${r.place} · ${r.by}, ${r.from}, ${r.at.slice(0, 10)}`).join("\n") : "No markups."
-			};
+			})) });
 		}
 	},
 	{
@@ -21531,7 +22003,7 @@ var MARKUP_TOOLS = [
 	{
 		name: "update_markup",
 		title: "Change a markup",
-		description: "Set a markup’s status (new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.",
+		description: "Set a markup’s status (admins only: new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -21557,13 +22029,16 @@ var MARKUP_TOOLS = [
 				isError: true,
 				text: "Give a status, an issue_url, or both."
 			};
-			let m = a.issue_url ? await ops.setIssueUrl(id, String(a.issue_url)) : null;
-			if (a.status) m = await ops.setStatus(id, {
+			if (a.issue_url) issueUrlOf(String(a.issue_url));
+			if (a.issue_url && !mayTriage(ctx.actor)) throw new MarkupError(ADMINS_TRIAGE);
+			let m = a.status ? await ops.setStatus(id, {
 				status: a.status,
 				fixedIn: a.fixed_in,
 				reason: a.reason,
-				by: `${ctx.actor.name} via MCP`
-			});
+				by: `${ctx.actor.name} via MCP`,
+				admin: !!ctx.actor.admin
+			}) : null;
+			if (a.issue_url) m = await ops.setIssueUrl(id, String(a.issue_url), !!ctx.actor.admin);
 			return {
 				data: { markup: m },
 				text: `${id} is ${STATUS_WORD[m.status]}${m.fixedIn ? `, fixed in ${m.fixedIn}` : ""}${m.issueUrl ? `, issue ${m.issueUrl}` : ""}.`
@@ -21587,8 +22062,6 @@ function triage(ctx) {
 	if (!ctx.feedback) throw new Error(NO_INBOX);
 	return ctx.feedback;
 }
-/** One line: "fb_1 · In hand · It gets in the way · “The reason box is too small” · /check-in · Mateo, Acme, 2026-11-06". */
-var line = (f) => `${f.id} · ${STATUS_WORD[f.status]} · ${MOOD_WORD[f.mood]} · “${f.text || "(no words)"}” · ${f.path || "/"} · ${f.personName || f.personId}, ${f.workspaceName || f.workspaceId}, ${f.at.slice(0, 10)}`;
 var outcome = (f) => `${STATUS_WORD[f.status]}${f.fixedIn ? `, fixed in ${f.fixedIn}` : ""}${f.wontFixReason ? `: ${f.wontFixReason}` : ""}`;
 var FEEDBACK_TOOLS = [
 	{
@@ -21609,27 +22082,21 @@ var FEEDBACK_TOOLS = [
 		},
 		annotations: READ$2,
 		async run(a, ctx) {
-			if (ctx.feedback) {
-				const list = await ctx.feedback.list(Number(a.limit ?? 50), {
-					...a.workspace ? { workspaceId: String(a.workspace) } : {},
-					...a.status ? { status: a.status } : {}
-				});
-				return {
-					data: { feedback: list.map((f) => ({
-						id: f.id,
-						status: f.status,
-						mood: f.mood,
-						text: f.text,
-						screen: f.path,
-						by: f.personName,
-						from: f.workspaceName,
-						at: f.at,
-						fixedIn: f.fixedIn,
-						wontFixReason: f.wontFixReason
-					})) },
-					text: list.length ? list.map(line).join("\n") : "No feedback."
-				};
-			}
+			if (ctx.feedback) return listed({ feedback: (await ctx.feedback.list(Number(a.limit ?? 50), {
+				...a.workspace ? { workspaceId: String(a.workspace) } : {},
+				...a.status ? { status: a.status } : {}
+			})).map((f) => ({
+				id: f.id,
+				status: f.status,
+				mood: f.mood,
+				text: f.text,
+				screen: f.path,
+				by: f.personName,
+				from: f.workspaceName,
+				at: f.at,
+				fixedIn: f.fixedIn,
+				wontFixReason: f.wontFixReason
+			})) });
 			if (a.status || a.workspace) return {
 				isError: true,
 				text: `${NO_INBOX} An admin’s token lists this workspace’s feedback, without statuses.`
@@ -21639,18 +22106,14 @@ var FEEDBACK_TOOLS = [
 				text: "Only admins can read the feedback."
 			};
 			const who = (id) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? "—";
-			const list = [...ctx.snapshot.feedback ?? []].sort((x, y) => x.at < y.at ? 1 : -1).slice(0, a.limit ? Number(a.limit) : void 0).map((f) => ({
+			return listed({ feedback: [...ctx.snapshot.feedback ?? []].sort((x, y) => x.at < y.at ? 1 : -1).slice(0, a.limit ? Number(a.limit) : void 0).map((f) => ({
 				id: f.id,
 				at: f.at,
 				by: who(f.personId),
 				mood: f.mood,
 				screen: f.path,
 				text: f.text
-			}));
-			return {
-				data: { feedback: list },
-				text: list.length ? list.map((f) => `${f.at.slice(0, 10)} · ${f.by} · ${f.mood} · ${f.screen} · ${f.text}`).join("\n") : "No feedback yet."
-			};
+			})) });
 		}
 	},
 	{
@@ -21681,7 +22144,7 @@ var FEEDBACK_TOOLS = [
 	{
 		name: "update_feedback",
 		title: "Change a piece of feedback",
-		description: "Set a piece of feedback’s status, with the inbox’s rules: new, in-hand, fixed (with fixed_in, the What’s new entry id that has the fix; its sender then sees “You raised this” there) or wont-fix (with a reason).",
+		description: "Set a piece of feedback’s status (admins only), with the inbox’s rules: new, in-hand, fixed (with fixed_in, the What’s new entry id that has the fix; its sender then sees “You raised this” there) or wont-fix (with a reason).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -21706,7 +22169,8 @@ var FEEDBACK_TOOLS = [
 				status: a.status,
 				fixedIn: a.fixed_in,
 				reason: a.reason,
-				by: `${ctx.actor.name} via MCP`
+				by: `${ctx.actor.name} via MCP`,
+				admin: !!ctx.actor.admin
 			});
 			return {
 				data: { feedback: {
@@ -21724,7 +22188,7 @@ init_goalKey();
 init_removal();
 init_status();
 init_vocabulary();
-init_changeset();
+init_via();
 var str$3 = (description, extra = {}) => ({
 	type: "string",
 	description,
@@ -21800,18 +22264,14 @@ var REMOVE_TOOLS = [
 		async run(_a, ctx) {
 			const all = recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, void 0, recordsOn(ctx.ws)).filter((r) => canRestore(ctx.actor, r));
 			const who = (id) => (ctx.full ?? ctx.snapshot).people.find((p) => p.id === id)?.name ?? "—";
-			const list = all.map((r) => ({
+			return listed({ removed: all.map((r) => ({
 				kind: r.kind,
 				label: r.label,
 				id: r.id,
 				name: r.name,
 				removedBy: who(r.by),
 				at: r.at
-			}));
-			return {
-				data: { removed: list },
-				text: list.length ? list.map((r) => `${r.kind} · ${r.id} · ${r.label}: ${r.name} · by ${r.removedBy}, ${r.at.slice(0, 10)}`).join("\n") : "Nothing removed in the last 30 days."
-			};
+			})) });
 		}
 	},
 	{
@@ -22095,7 +22555,7 @@ var REMOVE_TOOLS = [
 						skipped: p.skipped.map(kept),
 						saved: false
 					},
-					text: `Nothing saved. Undo would put back ${p.restores} ${p.restores === 1 ? "row" : "rows"}.${p.skipped.length ? ` ${p.skipped.length} would stay as they are, because they changed after the import: ${p.skipped.map(keptText).join("; ")}.` : ""}`
+					text: !p.restores ? `Nothing saved. ${nothingToUndo(p.skipped.length)}${p.skipped.length ? ` ${p.skipped.map(keptText).join("; ")}.` : ""}` : `Nothing saved. Undo would put back ${p.restores} ${p.restores === 1 ? "row" : "rows"}.${p.skipped.length ? ` ${p.skipped.length} would stay as they are, because they changed after the import: ${p.skipped.map(keptText).join("; ")}.` : ""}`
 				};
 			}
 			const out = undoImport(ax$1(ctx), String(a.import_id ?? ""));
@@ -22290,7 +22750,7 @@ init_goalKey();
 init_rules();
 init_status();
 init_vocabulary();
-init_changeset();
+init_via();
 var str$2 = (description, extra = {}) => ({
 	type: "string",
 	description,
@@ -22485,17 +22945,12 @@ var tools$1 = [
 						})) : []
 					};
 				});
-				const words = (r) => `${r.id} · ${r.name} (${r.unit}, ${directionWords(r.direction)}) · ${r.owner ? `owner ${r.owner}` : "no owner"} · ${r.goalsByStatus.length ? r.goalsByStatus.map((c) => `${c.count} ${c.label.toLowerCase()}`).join(", ") : "no goals yet"}${r.needs.length ? ` · to sort out: ${r.needs.map((x) => x.sentence).join("; ")}` : ""}`;
-				const head = found.total > found.rows.length ? `${found.from} to ${found.to} of ${found.total} metrics.\n` : "";
-				return {
-					data: {
-						total: found.total,
-						page: found.page,
-						pages: found.pages,
-						metrics: rows
-					},
-					text: rows.length ? head + rows.map(words).join("\n") : liveMetrics(ctx.snapshot).length ? "No metric matches." : "The metric library is empty. Add one with save_metric."
-				};
+				return listed({
+					total: found.total,
+					page: found.page,
+					pages: found.pages,
+					metrics: rows
+				});
 			});
 		}
 	},
@@ -22811,7 +23266,6 @@ var tools_default = [{
 init_levels();
 init_actions();
 init_query();
-init_changeset();
 init_columns();
 init_status();
 init_attention();
@@ -22902,6 +23356,7 @@ var answersOf = (a) => Object.fromEntries(Object.entries(a ?? {}).map(([k, v]) =
 	...v.value != null ? { value: String(v.value) } : {}
 }]));
 async function change(ctx, tables, opts) {
+	const keyOf = (id) => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
 	const cs = planChanges({
 		tables,
 		snapshot: ctx.snapshot,
@@ -22941,6 +23396,7 @@ async function change(ctx, tables, opts) {
 		summary: describe(cs),
 		changes: cs.items.map((x) => ({
 			goalId: x.goalId,
+			...x.goalId ? { key: keyOf(x.goalId) } : {},
 			goal: x.goal,
 			kind: x.kind,
 			summary: x.summary,
@@ -22975,8 +23431,15 @@ async function change(ctx, tables, opts) {
 			field: q.field,
 			question: q.text
 		}))),
-		needsConfirm: cs.needsConfirm
+		needsConfirm: cs.needsConfirm,
+		/** The goals the change adds: each one's ID and key, to use straight away (feeds_into_id, post_check_in, Goal key). */
+		created: cs.items.filter((x) => x.kind === "new goal").map((x) => ({
+			id: x.goalId,
+			key: keyOf(x.goalId),
+			title: x.goal
+		}))
 	};
+	const createdLine = () => data.created.length ? `\nNew ${data.created.length === 1 ? "goal" : "goals"}: ${data.created.map((x) => `${x.key ?? "—"} · ${x.id} · ${x.title}`).join("; ")}.` : "";
 	const lines = (l) => l.map((x) => `- ${x.goal ? x.goal + ": " : ""}${x.message}`).join("\n");
 	if (errors.length) return {
 		isError: true,
@@ -23016,15 +23479,23 @@ async function change(ctx, tables, opts) {
 	})))}` : ""}${cs.leftOut.length ? `\nLeft out at the person's answer: ${cs.leftOut.length} row(s).` : ""}${examples ? `\n${examples.trim()}` : ""}`;
 	if (opts.dry || !cs.commit) return {
 		data,
-		text: `Checked, not saved (dry run). Would save: ${what}`
+		text: `Checked, not saved (dry run). Would save: ${what}${createdLine()}`
 	};
 	await ctx.save(cs.commit);
+	data.created = data.created.map((x) => ({
+		...x,
+		key: keyOf(x.id)
+	}));
+	data.changes = data.changes.map((x) => x.goalId ? {
+		...x,
+		key: keyOf(x.goalId)
+	} : x);
 	return {
 		data: {
 			...data,
 			saved: true
 		},
-		text: `Saved as ${ctx.actor.name}: ${what}`
+		text: `Saved as ${ctx.actor.name}: ${what}${createdLine()}`
 	};
 }
 /** A goal by its ID or its key (G-12). */
@@ -23174,25 +23645,20 @@ var CORE_TOOLS = [
 				owner: owners ? owners.length ? owners : ["nobody"] : [],
 				attention: query.attention || !!a.needs_attention
 			};
-			if (status && !asked.status.length || a.level && !asked.level.length) return {
-				data: {
-					week: ctx.week,
-					weeks: ctx.cycle.weeks,
-					goals: []
-				},
-				text: "No goals match."
-			};
+			if (status && !asked.status.length || a.level && !asked.level.length) return listed({
+				week: ctx.week,
+				weeks: ctx.cycle.weeks,
+				goals: []
+			});
 			const scope = a.scope ? String(a.scope) : null;
 			if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
 			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).tabs.find((t) => t.id === scope) : null;
-			if (scope && scope !== "all" && !scoped) return {
-				data: {
-					week: ctx.week,
-					weeks: ctx.cycle.weeks,
-					goals: []
-				},
-				text: scope === "team" ? "No goals match: you’re in no team and lead none." : "No goals match: you own no goals this year."
-			};
+			if (scope && scope !== "all" && !scoped) return listed({
+				week: ctx.week,
+				weeks: ctx.cycle.weeks,
+				goals: [],
+				why: scope === "team" ? "You’re in no team and lead none." : "You own no goals this year."
+			});
 			const inScope = scoped ? new Set(scoped.ids) : null;
 			const words = [String(a.text ?? ""), query.q].filter((x) => x.trim()).join(" ");
 			const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -23239,14 +23705,11 @@ var CORE_TOOLS = [
 				feedsInto: s.feedsInto,
 				youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id
 			}));
-			return {
-				data: {
-					week: ctx.week,
-					weeks: ctx.cycle.weeks,
-					goals: data
-				},
-				text: data.length ? data.map((g) => `${g.key ? g.key + " · " : ""}${g.id} · ${g.title} · ${g.owner} · ${statusWords(g.status)} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ""} · ${g.gap}${g.needsAttention ? ` · ${ATTENTION.needs.label.toLowerCase()}: ${g.because.join(", ")}` : g.beingHandled ? ` · ${ATTENTION.handled.label.toLowerCase()}: ${g.beingHandled}` : ""}`).join("\n") : "No goals match."
-			};
+			return listed({
+				week: ctx.week,
+				weeks: ctx.cycle.weeks,
+				goals: data
+			});
 		}
 	},
 	{
@@ -23303,7 +23766,7 @@ var CORE_TOOLS = [
 	{
 		name: "post_check_in",
 		title: "Post a check-in",
-		description: "Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Posting again for the same week corrects that week’s check-in (the log keeps both).",
+		description: "Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner can post: not an admin, and not anyone else (an admin brings others’ check-ins in only by loading a workbook, or corrects a past one in Data’s tables). Posting again for the same week corrects that week’s check-in (the log keeps both).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -46382,8 +46845,6 @@ var timedFetch = (input, init) => {
 var SupabaseStore = class {
 	records;
 	kind = "supabase";
-	/** The real app's data. The example lives in the demo, in each visitor's browser. */
-	hasExample = false;
 	db;
 	/** `records`: the feature modules' records it keeps (domain/records), the build's unless given (the contract test gives a test module's). */
 	constructor(url, key, client, records = MODULE_RECORDS) {
@@ -46515,9 +46976,6 @@ var SupabaseStore = class {
 			w: workspaceToRow(w),
 			payload
 		}, "Creating the workspace");
-	}
-	async resetExample() {
-		throw new Error("Only the demo has an example to reset.");
 	}
 	/** Removes a workspace and everything in it, in one transaction (okr_delete_workspace). */
 	async deleteWorkspace(ws) {
