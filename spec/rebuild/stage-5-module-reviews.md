@@ -20,13 +20,18 @@ What it adds to the core (routes, places on core screens, AI tools, Help) is in 
 
 ## Exit criteria
 
-1. Its requirements hold: `REVIEW`, `REVIEW-SETUP`, `REVIEW-RUN`, `REVIEW-SPEAK`, `REVIEW-DECIDE`, `REVIEW-LIST-STATE`, `REVIEW-AGENDA`, `REVIEWS-OPTIONAL` (words in [its section](../modules/reviews/README.md#requirements)).
-2. Its journeys and checks can be done: U3, U13, U30, U36, U47, U49, U63, U67, U79, U80, U103, U104, N1, N21 ([its section](../modules/reviews/README.md#journeys-and-checks)).
+1. Its requirements hold: `REVIEW`, `REVIEW-SETUP`, `REVIEW-RUN`, `REVIEW-SPEAK`, `REVIEW-DECIDE`, `REVIEW-LIST-STATE`, `REVIEW-AGENDA`, `REVIEWS-OPTIONAL`, `REVIEWS-SWITCH-CLOCK` (words in [its section](../modules/reviews/README.md#requirements)).
+2. Its journeys and checks can be done: U3, U13, U30, U36, U47, U49, U63, U67, U79, U80, U103, U104, U148, U149, N1, N21 ([its section](../modules/reviews/README.md#journeys-and-checks)).
 3. Switched off, the menu has no Reviews row and the phone's tabs are Home, Check-in, Goals and People for someone with a goal to check in on, and Home, Goals, People and Activity for anyone else (the two rows of navigation.csv at the address “/ (Reviews off)”).
 4. Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and the six review actions and tools refuse with “Reviews is off in {workspace}.” or the switched-off module's sentence (check N21).
 5. Switched off, Home has no Next review cell and no review lead: someone who owns no goal is led to the goals they watch that need attention (“Goals you watch · {n} need attention · See them”), or to nothing; a question waits by its own age and names no session; the due flag says “Due by Thu 12 Nov.”, on or off.
 6. Switching off first reads back what stays (the reviews, what was said in them, the open next steps and questions raised in one) from the rule switchOffReadBack, and Undo brings Reviews back (journey U103).
 7. Back on, every review, its people, its cadence and what was said are as they were (journey U104).
+8. The clock's words come from one rule, dueWords (rule RS1), and match every row of spec/conformance/reviews.csv: “before Thursday’s review” only with Reviews on and a review held on the due day, otherwise “by Thursday”; switched off, no page names a review in its own words outside Workspace, Features, History's unlinked names and the closed page's sentence, and the check-in's receipt says “…checked in for week 45, by Thursday.” (journey U148).
+9. A closed page says “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and every review tool, and edit_call on a note said in a review, answers “Reviews is switched off in {workspace}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features.”, the one sentence every switched-off module's tools use (check N29).
+10. The read-back before switching off adds, after the questions line, “{n} accepted risks stay on their goals, as they were said. No new one can be accepted while Reviews is off.” (left out at nought) and “Check-ins are still due by Thursday. “Before the review” becomes “by Thursday” on Home, in the check-in and in the count of goals checked in on time.” (rule RS2; the readback row of reviews.csv).
+11. Switched off, the workbook has no Notes sheet and no Review column on Asks; a workbook that has them loads as usual, and the preview says once “Reviews is off in {workspace}: the Notes sheet and the Review column were not read.”.
+12. Switched back on after a week off, every session whose date passed while it was off moves to its next date: neither Reviews nor Home says “Not held yet” (journey U149).
 
 ## Gaps in the kit
 
