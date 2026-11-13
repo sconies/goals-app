@@ -4769,6 +4769,7 @@ journey('U103', ['REVIEWS-OPTIONAL', 'MODULES', 'HOME-OWNER'], 'Amara switches R
 journey('U104', ['REVIEWS-OPTIONAL', 'MODULES'], 'Reviews off, then back on: off, Home is Home without reviews; back on, every review is as it was, and none whose date passed while it was off says Not held yet', 10, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/reviews'));
+  await p.locator('.reviews-list').first().waitFor();
   const before = (await p.locator('main').innerText()).match(/Platform leadership weekly|Quarterly business review/g)?.length ?? 0;
   await p.goto(url('/workspace/features'));
   const box = p.getByRole('checkbox', { name: /^Reviews/ });
@@ -4787,7 +4788,7 @@ journey('U104', ['REVIEWS-OPTIONAL', 'MODULES'], 'Reviews off, then back on: off
   await see(p, 'Reviews is on in');
   h.set('one-action', true);
   await p.goto(url('/reviews'));
-  await p.locator('main').waitFor();
+  await p.locator('.reviews-list').first().waitFor();
   const after = (await p.locator('main').innerText()).match(/Platform leadership weekly|Quarterly business review/g)?.length ?? 0;
   await p.goto(url('/'));
   await p.locator('.page.home').waitFor();

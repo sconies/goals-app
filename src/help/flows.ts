@@ -67,7 +67,7 @@ const ALL_FLOWS: Flow[] = [
     ],
   },
   {
-    id: 'review', title: 'Run a review', article: 'reviews',
+    id: 'review', title: 'Run a review', article: 'reviews', module: 'reviews',
     steps: [
       { id: 'agenda', title: 'Open the review', routes: ['/reviews/:reviewId'] },
       { id: 'walk', title: 'Go through the goals', routes: ['/goals/:goalId?review=*'], actions: ['reviewCall'], entry: true },
