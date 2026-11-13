@@ -72,6 +72,9 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | [removeMetric](#removemetric) (metrics) | Change or remove a metric | Its owner, or an admin | [`remove_metric`](tools.md#remove_metric), [`restore_removed`](tools.md#restore_removed) |
 | [linkGoalMetric](#linkgoalmetric) (metrics) | Say which metric measures a goal, or stop | The goal’s owner, or an admin | [`link_goal_metric`](tools.md#link_goal_metric) |
 | [unlinkGoalMetric](#unlinkgoalmetric) (metrics) | Say which metric measures a goal, or stop | The goal’s owner, or an admin | [`link_goal_metric`](tools.md#link_goal_metric) |
+| [retireMetric](#retiremetric) (metrics) | Retire a metric, or bring one back (MT3) | Its owner, or an admin | [`retire_metric`](tools.md#retire_metric) |
+| [unretireMetric](#unretiremetric) (metrics) | Retire a metric, or bring one back (MT3) | Its owner, or an admin | [`retire_metric`](tools.md#retire_metric) |
+| [mergeMetrics](#mergemetrics) (metrics) | Merge one metric into another in the same unit (MT3) | Admins | [`merge_metrics`](tools.md#merge_metrics) |
 
 ## planChanges
 
@@ -1482,6 +1485,9 @@ From the [metrics](../modules/metrics/README.md) module.
 | `id` | `string` | no |  |
 | `confirm` | `boolean` | no |  |
 | `answers` | `Partial<Record<CheckField, string>>` | no |  |
+| `comparable` | `boolean` | no |  |
+| `reason` | `string` | no |  |
+| `relabel` | `boolean` | no |  |
 
 **Result:** `{ commit: Commit \| null; metric: Metric; }`
 
@@ -1494,7 +1500,13 @@ From the [metrics](../modules/metrics/README.md) module.
 - “Nothing saved: use that metric instead.”
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
 - “Only … or an admin can change this metric.”
+- ““…” is retired. Bring it back before changing it.”
 - “Answer … first: …”
+- “… … measured by … in …. A metric in … is a different number: add it as a new metric and move goals to it, or retire this one. If “…” is only a new label for the same numbers, say so (relabel).”
+- “Say whether it is still the same number.”
+- “Say why the direction changes, in a line. Every goal measured by it will show this.”
+- “Say why, in a line. Every goal measured by it will show this.”
+- “Keep the reason to 300 characters or fewer.”
 
 **AI tools that do the same:** [`save_metric`](tools.md#save_metric)
 
@@ -1520,6 +1532,7 @@ From the [metrics](../modules/metrics/README.md) module.
 
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
 - “Only … or an admin can remove this metric.”
+- “… has measured goals, so it can’t be deleted. Retire it instead.”
 
 **AI tools that do the same:** [`remove_metric`](tools.md#remove_metric), [`restore_removed`](tools.md#restore_removed)
 
@@ -1577,9 +1590,99 @@ From the [metrics](../modules/metrics/README.md) module.
 
 **AI tools that do the same:** [`link_goal_metric`](tools.md#link_goal_metric)
 
+## retireMetric
+
+From the [metrics](../modules/metrics/README.md) module.
+
+**Does:** Retire a metric, or bring one back (MT3).
+
+**Input**:
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `metricId` | `string` | yes |  |
+| `why` | `string` | yes |  |
+| `replacedBy` | `string \| null` | no |  |
+
+**Result:** `Commit`
+
+**Who may:** Its owner, or an admin.
+
+**The rule:** `retireMetric`, in `src/modules/metrics/rulesChange.ts`.
+
+**Refuses with:**
+
+- “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
+- “Only … or an admin can retire or bring back this metric.”
+- ““…” is already retired.”
+- “Say why it is retired, in a line. Its goals will show this.”
+- “Keep the reason to 300 characters or fewer.”
+- “The metric it is replaced by must be one in use.”
+- “… is in … and … is in …. It can only be replaced by a metric in the same unit.”
+
+**AI tools that do the same:** [`retire_metric`](tools.md#retire_metric)
+
+## unretireMetric
+
+From the [metrics](../modules/metrics/README.md) module.
+
+**Does:** Retire a metric, or bring one back (MT3).
+
+**Input**:
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `metricId` | `string` | yes |  |
+
+**Result:** `Commit`
+
+**Who may:** Its owner, or an admin.
+
+**The rule:** `unretireMetric`, in `src/modules/metrics/rulesChange.ts`.
+
+**Refuses with:**
+
+- “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
+- “Only … or an admin can retire or bring back this metric.”
+- ““…” isn’t retired.”
+
+**AI tools that do the same:** [`retire_metric`](tools.md#retire_metric)
+
+## mergeMetrics
+
+From the [metrics](../modules/metrics/README.md) module.
+
+**Does:** Merge one metric into another in the same unit (MT3).
+
+**Input**:
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `fromId` | `string` | yes |  |
+| `intoId` | `string` | yes |  |
+| `why` | `string` | no |  |
+
+**Result:** `Commit`
+
+**Who may:** Admins.
+
+**The rule:** `mergeMetrics`, in `src/modules/metrics/rulesChange.ts`.
+
+**Refuses with:**
+
+- “Only admins can merge metrics: it changes what other people’s goals are measured by.”
+- “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
+- “Choose another metric to merge it into.”
+- ““…” is retired. Bring it back first, or merge into another.”
+- ““…” is already retired.”
+- “… is in … and … is in …. Only metrics in the same unit can be merged.”
+- “Keep the reason to 300 characters or fewer.”
+
+**AI tools that do the same:** [`merge_metrics`](tools.md#merge_metrics)
+
 ## The types the actions name
 
-Each type an action’s input or result names that isn’t a record in [the data model](data-model.md), as the code declares it (with its comments), in A to Z order. 39 types.
+Each type an action’s input or result names that isn’t a record in [the data model](data-model.md), as the code declares it (with its comments), in A to Z order. 40 types.
 
 ### Answers
 
@@ -1961,6 +2064,15 @@ export interface Metric {
   /** Removed: kept, out of every list, restorable (domain/removal). */
   removedAt?: string | null;
   removedBy?: Id | null;
+  /** Retired (MT3): out of the pickers and the library's list, its links kept and its goals still measured by it; brought
+      back by clearing these. Absent on a metric never retired; null and '' once brought back. */
+  retiredAt?: string | null;
+  retiredBy?: Id | null;
+  retiredWhy?: string;
+  /** The metric its goals' owners are offered in its place (same unit), when the person retiring it named one. */
+  replacedBy?: Id | null;
+  /** Changes of meaning or direction its goals show on their chart and History (rule 4), oldest first. */
+  marks?: MetricMark[];
 }
 ```
 
@@ -1970,6 +2082,24 @@ In `src/modules/metrics/types.ts`.
 
 ```ts
 export type MetricDirection = 'higher' | 'lower';
+```
+
+### MetricMark
+
+In `src/modules/metrics/types.ts`.
+
+```ts
+export interface MetricMark {
+  /** The cycle week it was made in, and when. */
+  week: number;
+  at: string;
+  by: Id;
+  kind: 'definition' | 'direction';
+  why: string;
+  /** The two texts (meaning) or directions, before and after. */
+  was: string;
+  now: string;
+}
 ```
 
 ### ModuleRows
@@ -2052,7 +2182,7 @@ export interface SaveGoalInput {
 In `src/modules/metrics/rulesSave.ts`.
 
 ```ts
-export type SaveMetricInput = MetricInput & { id?: string; confirm?: boolean; answers?: Partial<Record<CheckField, string>> };
+export type SaveMetricInput = MetricInput & { id?: string; confirm?: boolean; answers?: Partial<Record<CheckField, string>>; comparable?: boolean; reason?: string; relabel?: boolean };
 ```
 
 ### Sheet

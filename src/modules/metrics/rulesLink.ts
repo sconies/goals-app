@@ -8,8 +8,10 @@ import { forWords, linkChecks, type LinkReads } from './rulesParts';
 import type { MetricLink } from './types';
 
 
-/** Saving a metric, rule 1's Checks asked first: loaded with linking, in one chunk (actions.ts). */
+/** Saving a metric, rule 1's Checks asked first, and rules 3 to 5 (MT3): loaded with linking, in one chunk (actions.ts). */
 export { saveMetricAsked } from './rulesSave';
+export { mergeMetrics, retireMetric, unretireMetric } from './rulesChange';
+import { retiredWords } from './rulesChange';
 
 /**
  * Measure a goal by a metric, for a slice: a team (teamId) or the whole company (null), and optionally one part of that
@@ -24,6 +26,8 @@ export function linkGoalMetric(x: ActionContext, goal: Goal, metricId: string, t
   const creating = !!x.full && !x.full.goals.some((g) => g.id === goal.id) && x.snapshot.goals.some((g) => g.id === goal.id);
   if (!creating && !canLinkGoal(x.actor, goal)) no('Only the goal’s owner or an admin can choose what measures it.');
   const m = live(x, metricId);
+  // A retired metric measures no new goal (rule 5); one it already measures keeps it.
+  if (m.retiredAt && linksOf(x.full ?? x.snapshot).find((l) => l.id === goal.id && !l.removedAt)?.metricId !== m.id) no(retiredWords(m));
   if (teamId != null && !x.snapshot.teams.some((t) => t.id === teamId)) no('There’s no team with that ID. Leave the slice empty for the whole company.');
   const p = part.trim();
   const checks = linkChecks(goal, m, { teamId, part: p }, linkProblems(goal, m), linkReads(x, goal, m.id), reason);

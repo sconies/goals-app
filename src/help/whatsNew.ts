@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'metric-change',
+    date: '2026-11-13',
+    title: 'A metric that changes tells its goals',
+    points: [
+      'Changing what a metric means, or which way is better, now shows its goals first and asks whether it is still the same number.',
+      'When the number itself changes, say why: each goal’s chart gets a dashed line, “Definition changed, week 46”, and its History your reason.',
+      'A new unit is either a new label, changed on every goal too, or a different scale, which is a new metric.',
+      'A metric that has measured goals is retired, not deleted: its goals keep their numbers and say so, and Bring it back undoes it. Admins can merge two metrics in the same unit.',
+    ],
+    articles: ['metric-change'],
+  },
+  {
     id: 'setup-upload-preview',
     date: '2026-11-13',
     title: 'Set-up checks a spreadsheet as Import does',

@@ -5810,6 +5810,71 @@ journey('U146', ['METRIC-PARTS'], 'Which part: as Grace, Base image build time i
   await p.context().close();
 }, []);
 
+journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Lead time for changes’ caveats save at once; its meaning reads back first, asks “Is it still the same number?”, names its goal, and with “The number itself changes” is refused without a reason; once said, the goal’s chart has the line “Definition changed, week {w}”. Flaky test rate is retired with a reason, says so on its page, and “Bring it back” restores it. As Amara, Lead time for changes merges into Time to first review (both in hours) and its goal moves. As Tunde, none of these buttons exist', 30, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/metrics/metric_lead-time/edit'));
+  await p.getByLabel(/^Caveats/).waitFor();
+  h.set('entry', true);
+  await h.fill(p.getByLabel(/^Caveats/), 'Counts only services on the paved road.');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/metrics\/metric_lead-time(\?|#|$)/);
+  h.set('progress', true);
+  // The meaning: read back, the question, the goal named, and Why a Must fix once the number itself changes.
+  await p.goto(url('/metrics/metric_lead-time/edit'));
+  await h.fill(p.getByLabel(/^What it means/), 'From merge to production, the median over 30 days.');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  const rb = p.locator('.metric-readback');
+  await see(rb, 'Is it still the same number?', 'a new meaning is not read back with the question');
+  await see(rb, /1 goal is measured by it/, 'the read-back does not name the goals');
+  await h.checkpoint('read back');
+  await h.click(rb.getByLabel(/The number itself changes/));
+  await h.click(rb.getByRole('button', { name: 'Change the meaning' }));
+  await see(rb, 'Say why, in a line. Every goal measured by it will show this.', 'the number changing is not refused without a reason');
+  h.set('attention', (await rb.locator('svg[data-status]').count()) === 0, 'the read-back uses a status shape');
+  await h.fill(rb.getByLabel(/^Why/), 'The DORA dashboard counts from merge now.');
+  await h.click(rb.getByRole('button', { name: 'Change the meaning' }));
+  await p.waitForURL(/\/demo\/metrics\/metric_lead-time(\?|#|$)/);
+  await p.goto(url('/goals/ns-lead'));
+  const note = p.locator('.c-note text').first();
+  await note.waitFor({ timeout: 8000 }).catch(() => {});
+  const said = (await note.count()) ? await note.textContent() : '';
+  h.set('finish', /^Definition changed, week \d+$/.test(said ?? ''), `the goal’s chart says “${said}”`);
+  // Retire, then bring back.
+  await p.goto(url('/metrics/metric_flaky-rate'));
+  await h.click(p.getByRole('button', { name: 'Retire this metric…' }));
+  await h.fill(p.getByLabel(/^Why/), 'The test platform reports it now.');
+  await h.click(p.getByRole('button', { name: 'Retire the metric' }));
+  await see(p.locator('.metric-retired'), /Retired on .*: “The test platform reports it now\.”/, 'the retired metric’s page does not say so');
+  h.set('errors', (await p.getByRole('link', { name: 'Change this metric' }).count()) === 0, 'a retired metric still offers Change this metric');
+  await h.click(p.getByRole('button', { name: 'Bring it back' }));
+  await p.locator('.metric-retired').waitFor({ state: 'detached' });
+  const s = await h.snapshot();
+  const flaky = ((s.modules?.metrics?.metrics) ?? []).find((m) => m.id === 'metric_flaky-rate');
+  h.set('logged', !!flaky && !flaky.retiredAt, 'Bring it back did not restore it');
+  await p.context().close();
+  // As Amara (an admin): merge; as Tunde, no buttons.
+  const a = h.use(await newPage(device, 'amara'));
+  await a.goto(url('/metrics/metric_lead-time'));
+  await h.click(a.getByRole('button', { name: 'Merge into another metric…' }));
+  const sheet = a.getByRole('dialog');
+  await h.click(sheet.getByRole('button', { name: /^Into/ }));
+  const panel = a.locator('.pick.open');
+  await h.fill(panel.getByRole('combobox'), 'first review');
+  await h.click(panel.getByRole('option', { name: /Time to first review/ }));
+  await see(sheet, /becomes “Time to first review”/, 'the merge is not read back');
+  await h.click(sheet.getByRole('button', { name: 'Merge them' }));
+  await a.waitForURL(/\/demo\/metrics\/metric_first-review(\?|#|$)/);
+  const m = await h.snapshot();
+  const moved = ((m.modules?.metrics?.metricLinks) ?? []).find((l) => l.goalId === 'ns-lead' && !l.removedAt);
+  await a.context().close();
+  const t = h.use(await newPage(device, 'tunde'));
+  await t.goto(url('/metrics/metric_cache-hit'));
+  await t.getByRole('heading', { level: 1 }).waitFor();
+  const none = (await t.getByRole('button', { name: /Retire this metric|Merge into another|Delete this metric/ }).count()) === 0;
+  h.set('parity', moved?.metricId === 'metric_first-review' && none, moved?.metricId !== 'metric_first-review' ? 'the merge did not move the goal' : 'Tunde sees a button to retire, merge or delete');
+  await t.context().close();
+}, []);
+
 journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   // The metric a letter away, added first, fully said, so the typo has something to be close to. From the library.

@@ -7,6 +7,7 @@ import type { Commit } from '../../domain/commit';
 import { findGoal, isKey } from '../../domain/goalKey';
 import * as M from './rules';
 import { linkGoalMetric, linkReads } from './rulesLink';
+import { mergeMetrics, retireMetric, unretireMetric } from './rulesChange';
 import * as L from './rulesLibrary';
 import { goalsOfMetric, libraryReads, lineOf } from './reads';
 import { answersFrom } from './rulesDefine';
@@ -66,6 +67,8 @@ function metricData(ctx: McpContext, m: Metric) {
     direction: m.direction, directionLabel: M.DIRECTION_LABEL[m.direction], source: m.source, sourceOwner: m.sourceOwner,
     refresh: m.refresh, owner: name(ctx, m.ownerId), ownerId: m.ownerId, caveats: m.caveats, updatedAt: m.updatedAt,
     youCanChange: M.canEditMetric(ctx.actor, m),
+    retired: m.retiredAt ? { at: m.retiredAt, by: name(ctx, m.retiredBy ?? ''), why: m.retiredWhy ?? '', replacedBy: m.replacedBy ?? null } : null,
+    marks: (m.marks ?? []).map((k) => ({ week: k.week, at: k.at, kind: k.kind, why: k.why, was: k.was, now: k.now, by: name(ctx, k.by) })),
     measures: M.goalsMeasuredBy(ctx.snapshot, ctx.snapshot.goals, m.id).map((g) => {
       const me = M.measureOf(ctx.snapshot, g)!;
       return { goalId: g.id, key: g.key ?? null, goal: g.title, owner: name(ctx, g.ownerId), slice: me.slice, target: me.target, targetText: me.targetText };
@@ -98,6 +101,7 @@ const tools: ToolDef[] = [
       owner: str('Only metrics this person owns, by ID, email or name.'),
       direction: str('Only metrics where this way is better.', { enum: ['higher', 'lower'] }),
       unused: { type: 'boolean', description: 'Only metrics no live goal uses.' },
+      retired: { type: 'boolean', description: 'Retired metrics only (left out otherwise).' },
       sort_out: { type: 'boolean', description: 'Only metrics with something to sort out: no owner (or one who has left), no meaning, no source, or no goal after 14 days.' },
       sort: str('A to Z (name, the default), most goals first (goals), or the latest change first (changed).', { enum: ['name', 'goals', 'changed'] }),
       page: { type: 'integer', minimum: 1, description: 'Which page of 50.' },
@@ -108,7 +112,7 @@ const tools: ToolDef[] = [
         const team = a.team == null || a.team === '' ? undefined : /^(the )?(whole )?company$/i.test(String(a.team).trim()) ? 'company' : sliceOf(ctx, a.team) ?? undefined;
         const ask: L.LibraryAsk = {
           q: String(a.search ?? ''), unit: a.unit ? String(a.unit) : undefined, teamId: team, ownerId: a.owner ? personOf(ctx, a.owner) : undefined,
-          dir: a.direction === 'higher' || a.direction === 'lower' ? a.direction : undefined, unused: a.unused === true, sortout: a.sort_out === true,
+          dir: a.direction === 'higher' || a.direction === 'lower' ? a.direction : undefined, unused: a.unused === true, sortout: a.sort_out === true, retired: a.retired === true,
           sort: a.sort === 'goals' || a.sort === 'changed' ? a.sort : 'name', page: typeof a.page === 'number' ? a.page : 1,
         };
         const found = L.findMetrics(libraryReads(ctx.snapshot, ctx.now), ask);
@@ -145,7 +149,11 @@ const tools: ToolDef[] = [
           ...(summary ? [summary] : []),
           ...(needs.length ? [`To sort out: ${needs.map((x) => x.sentence).join('; ')}`] : []),
         ];
-        return { data: { ...d, stillToSay, goals, summary, needs }, text: lines.join('\n') };
+        // History (spec 2.4): the change log's entries for this metric, newest first, 20.
+        const history = ctx.snapshot.changes.filter((c) => c.entity === 'metric' && c.entityId === m.id && !c.goalId).slice(-20).reverse().map((c) => ({ at: c.at, by: name(ctx, c.actorId), action: c.action, summary: c.summary }));
+        if (d.retired) lines.splice(1, 0, `Retired on ${d.retired.at.slice(0, 10)} by ${d.retired.by ?? '—'}: “${d.retired.why}”${d.retired.replacedBy ? ` Replaced by ${M.metricsOf(ctx.snapshot).find((x) => x.id === d.retired!.replacedBy)?.name ?? d.retired.replacedBy}.` : ''}`);
+        if (d.marks.length) lines.push(`Marks on its goals: ${d.marks.map((k) => `${k.kind === 'direction' ? 'direction' : 'definition'} changed in week ${k.week}: ${k.why}`).join('; ')}`);
+        return { data: { ...d, stillToSay, goals, summary, needs, history }, text: lines.join('\n') };
       });
     },
   },
@@ -153,11 +161,11 @@ const tools: ToolDef[] = [
     name: 'save_metric',
     title: 'Add or change a metric',
     description: 'Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing. Changing the unit or direction of a metric goals use is refused with a question: ask the person, then call again with confirm: true. A likely mistake is questioned before anything is saved (a name one letter or a word from another metric’s, or one a metric used to have; a unit spelt differently from one in use; a percentage whose meaning doesn’t say out of what): the call returns `checks`, each with its question and answers, and saves nothing. Ask the person, then call again with `answers`. The result says what the metric still needs to say (“Fully defined”, or “Still to say: …”); it is never a score.',
-    inputSchema: { type: 'object', additionalProperties: false, properties: { id: str('The metric to change, by ID or name. Leave out to add one.'), ...FIELDS, confirm: { type: 'boolean', description: 'Yes to changing the unit or direction of a metric goals use, once the person has said so.' }, answers: { type: 'object', additionalProperties: false, description: 'The person’s answers to the checks a previous call returned.', properties: { name: str('“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave.'), unit: str('“keep” the unit as typed, or “use” the one in use.', { enum: ['keep', 'use'] }), meaning: str('“as-written”: the meaning is right as written.', { enum: ['as-written'] }) } } } },
+    inputSchema: { type: 'object', additionalProperties: false, properties: { id: str('The metric to change, by ID or name. Leave out to add one.'), ...FIELDS, confirm: { type: 'boolean', description: 'Kept for older callers; the questions below replace it.' }, comparable: { type: 'boolean', description: 'When the meaning or source of a metric goals use changes: true if it is still the same number (better words; nothing is marked), false if the number itself changes from this week (its goals’ charts and History say so; give reason).' }, reason: { type: 'string', description: 'Why, in a line (up to 300 characters): required when the number itself changes (comparable false) or the direction changes. Every goal measured by it shows this.' }, relabel: { type: 'boolean', description: 'When the unit of a metric goals use changes: true if the new unit is only a new label for the same numbers (its goals’ unit changes too). A different scale is refused: add a new metric instead.' }, answers: { type: 'object', additionalProperties: false, description: 'The person’s answers to the checks a previous call returned.', properties: { name: str('“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave.'), unit: str('“keep” the unit as typed, or “use” the one in use.', { enum: ['keep', 'use'] }), meaning: str('“as-written”: the meaning is right as written.', { enum: ['as-written'] }) } } } },
     annotations: WRITE,
     async run(a, ctx) {
       return ruled(async () => {
-        const input: M.MetricInput & { id?: string; confirm?: boolean } = {
+        const input: M.MetricInput & { id?: string; confirm?: boolean; comparable?: boolean; reason?: string; relabel?: boolean } = {
           ...(a.id != null && a.id !== '' ? { id: metricOf(ctx, a.id).id } : {}),
           ...(a.name !== undefined ? { name: String(a.name) } : {}),
           ...(a.meaning !== undefined ? { meaning: String(a.meaning) } : {}),
@@ -170,6 +178,9 @@ const tools: ToolDef[] = [
           ...(a.owner !== undefined ? { ownerId: personOf(ctx, a.owner) } : {}),
           ...(a.caveats !== undefined ? { caveats: String(a.caveats) } : {}),
           ...(a.confirm === true ? { confirm: true } : {}),
+          ...(typeof a.comparable === 'boolean' ? { comparable: a.comparable } : {}),
+          ...(typeof a.reason === 'string' ? { reason: a.reason } : {}),
+          ...(a.relabel === true ? { relabel: true } : {}),
         };
         // Rule 1's questions first, after the rights: a Check left unanswered saves nothing and returns the questions.
         const answers = answersFrom(a.answers);
@@ -189,8 +200,8 @@ const tools: ToolDef[] = [
   },
   {
     name: 'remove_metric',
-    title: 'Remove a metric',
-    description: 'Remove a metric from the library: its owner or an admin. Every goal it measures is unlinked by the same save; the goals themselves don’t change. It can be restored for 30 days with restore_removed (kind metric), with the links it had.',
+    title: 'Delete a metric no goal has used',
+    description: 'Delete a metric that has never measured a goal: its owner or an admin. One that has measured a goal is refused: retire it instead (retire_metric). It can be restored for 30 days with restore_removed (kind metric).',
     inputSchema: { type: 'object', additionalProperties: false, required: ['metric'], properties: { metric: str('The metric’s ID or name.') } },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
     async run(a, ctx) {
@@ -198,6 +209,45 @@ const tools: ToolDef[] = [
         const c = M.removeMetric(ax(ctx), metricOf(ctx, a.metric).id);
         await save(ctx, c);
         return { data: { removed: true, unlinked: M.linksOf(c).map((l) => l.goalId) }, text: `${c.changes[0]!.summary} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
+      });
+    },
+  },
+  {
+    name: 'retire_metric',
+    title: 'Retire a metric, or bring one back',
+    description: 'Retire a metric (its owner or an admin), with a reason: it leaves the pickers and the library’s list, its goals keep their numbers and plans and say it was retired, and nothing is lost. Name replaced_by (a metric in the same unit) to offer its goals’ owners another. Or give bring_back true to bring a retired metric back as it was.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['metric'], properties: {
+      metric: str('The metric’s ID or name.'),
+      why: str('Why it is retired, in a line (up to 300 characters). Required unless bringing it back.'),
+      replaced_by: str('The metric its goals’ owners are offered instead, by ID or name: one in use, in the same unit.'),
+      bring_back: { type: 'boolean', description: 'Bring a retired metric back.' },
+    } },
+    annotations: WRITE,
+    async run(a, ctx) {
+      return ruled(async () => {
+        const m = metricOf(ctx, a.metric);
+        const c = a.bring_back === true ? unretireMetric(ax(ctx), m.id) : retireMetric(ax(ctx), m.id, String(a.why ?? ''), a.replaced_by ? metricOf(ctx, a.replaced_by).id : null);
+        await save(ctx, c);
+        const goals = c.changes.filter((x) => x.goalId).length;
+        return { data: { saved: true, retired: a.bring_back !== true, goals }, text: `${c.changes[0]!.summary} (as ${ctx.actor.name}).${a.bring_back === true ? '' : ` ${goals} ${goals === 1 ? 'goal stays' : 'goals stay'} measured by it and say so. Bring it back with bring_back true.`}` };
+      });
+    },
+  },
+  {
+    name: 'merge_metrics',
+    title: 'Merge one metric into another',
+    description: 'Merge a metric into another in the same unit (admins only): every goal it measures moves to the other, keeping its slice and part, and it is retired pointing to the other. One save; Undo in the app takes it all back.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['from', 'into'], properties: {
+      from: str('The metric to merge away, by ID or name.'),
+      into: str('The metric to keep, by ID or name: one in use, in the same unit.'),
+      why: str('Why, in a line. “The same number as {into}.” when left out.'),
+    } },
+    annotations: WRITE,
+    async run(a, ctx) {
+      return ruled(async () => {
+        const c = mergeMetrics(ax(ctx), metricOf(ctx, a.from).id, metricOf(ctx, a.into).id, String(a.why ?? ''));
+        await save(ctx, c);
+        return { data: { saved: true, moved: c.changes.filter((x) => x.goalId).map((x) => x.goalId) }, text: `${c.changes[0]!.summary} (as ${ctx.actor.name}).` };
       });
     },
   },

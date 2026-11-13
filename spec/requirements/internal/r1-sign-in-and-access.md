@@ -103,6 +103,8 @@ Read from Faro’s shared actions: each line names the function that enforces it
 |---|---|---|
 | Add a metric to the library | Anyone; they own it unless they name another owner | [`saveMetric`](../../../src/modules/metrics/rules.ts), [`saveMetricAsked`](../../../src/modules/metrics/rulesSave.ts) |
 | Change or remove a metric | Its owner, or an admin | [`saveMetric`](../../../src/modules/metrics/rules.ts), [`saveMetricAsked`](../../../src/modules/metrics/rulesSave.ts), [`removeMetric`](../../../src/modules/metrics/rules.ts), [`canEditMetric`](../../../src/modules/metrics/rules.ts) |
+| Retire a metric, or bring one back (MT3) | Its owner, or an admin | [`retireMetric`](../../../src/modules/metrics/rulesChange.ts), [`unretireMetric`](../../../src/modules/metrics/rulesChange.ts) |
+| Merge one metric into another in the same unit (MT3) | Admins | [`mergeMetrics`](../../../src/modules/metrics/rulesChange.ts) |
 | Say which metric measures a goal, or stop | The goal’s owner, or an admin | [`linkGoalMetric`](../../../src/modules/metrics/rulesLink.ts), [`unlinkGoalMetric`](../../../src/modules/metrics/rules.ts), [`canLinkGoal`](../../../src/modules/metrics/rules.ts) |
 
 ## What Faro does today

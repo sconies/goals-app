@@ -4705,7 +4705,7 @@ function requiredLine(kind) {
 	if (kind === "checkIns") return `${req("Goal key")} (or ${req("Goal")}), ${req("Week")}, and ${req("Value")} or ${req("Stages")}.`;
 	return `${req("Name")} and ${req("Email")}.`;
 }
-var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$1, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
+var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$2, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
 var init_columns = __esmMin((() => {
 	init_levels();
 	init_asks();
@@ -4899,7 +4899,7 @@ var init_columns = __esmMin((() => {
 	cellOr = (v) => v == null || v === "" ? null : v;
 	blank = () => null;
 	or$1 = (v) => v == null || v === "" ? null : v;
-	metricOf$1 = (g) => g.kind === "metric" ? g : null;
+	metricOf$2 = (g) => g.kind === "metric" ? g : null;
 	rangeOf = (g) => g.kind === "range" ? g : null;
 	parentOf = (r) => r.c.goal(r.g.parentId);
 	quarter = (n) => (r) => {
@@ -4939,26 +4939,26 @@ var init_columns = __esmMin((() => {
 			e("State", "active or proposed.", (r) => r.g.stoppedAt ? "stopped" : r.g.proposedAt ? "proposed" : "active"),
 			e("Unit", "Number and range goals: what the number counts (%, days, ms).", (r) => r.g.kind === "milestone" ? null : or$1(r.g.unit)),
 			e("Decimals", "Number and range goals: how many decimal places the number has (0 to 3).", (r) => r.g.kind === "milestone" ? null : r.g.decimals),
-			e("Start", "Number goals: where the plan starts.", (r) => metricOf$1(r.g)?.plan.start ?? null, "Changes the plan; needs a reason once check-ins have started"),
-			e("Target", "Number goals: where the plan ends, by its due week.", (r) => metricOf$1(r.g)?.plan.target ?? null, "Changes the plan; needs a reason once check-ins have started"),
+			e("Start", "Number goals: where the plan starts.", (r) => metricOf$2(r.g)?.plan.start ?? null, "Changes the plan; needs a reason once check-ins have started"),
+			e("Target", "Number goals: where the plan ends, by its due week.", (r) => metricOf$2(r.g)?.plan.target ?? null, "Changes the plan; needs a reason once check-ins have started"),
 			e("Plan", `Number goals: the plan’s shape, ${oneOf(Object.values(SHAPE_WORDS.word))}.`, (r) => {
-				const g = metricOf$1(r.g);
+				const g = metricOf$2(r.g);
 				return g ? SHAPE_WORDS.word[g.plan.shape] : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
 			e("From", "Number goals: the week the plan starts from (2026-W46).", (r) => {
-				const g = metricOf$1(r.g);
+				const g = metricOf$2(r.g);
 				return g ? weekCode(r.c.x.cycle, g.plan.fromWeek ?? 0) : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
 			e("Plan from week", "Number goals: the week the plan starts from (0 for the cycle’s start, later for a goal set up mid-cycle).", (r) => {
-				const g = metricOf$1(r.g);
+				const g = metricOf$2(r.g);
 				return g ? g.plan.fromWeek ?? 0 : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
 			e("To", "Number goals: the week the target is due (2027-W13).", (r) => {
-				const g = metricOf$1(r.g);
+				const g = metricOf$2(r.g);
 				return g ? weekCode(r.c.x.cycle, planEnd(g.plan, r.c.x.cycle.weeks)) : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
 			e("Due week", "Number goals: the week the target is due, counted from the cycle’s start.", (r) => {
-				const g = metricOf$1(r.g);
+				const g = metricOf$2(r.g);
 				return g ? planEnd(g.plan, r.c.x.cycle.weeks) : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
 			e("Limit", "Range goals: the number it must stay within, or both of two (99.5–99.95).", (r) => {
@@ -8813,7 +8813,7 @@ function undoStart(x, cycleId) {
 /** Why a row changed since, from the latest change that touched it (spec 2.6's sentences). */
 function keptReason(rows, c, of) {
 	const who = rows.people.find((p) => p.id === c.actorId)?.name ?? "Someone";
-	const on = onDay(c.at);
+	const on = onDay$1(c.at);
 	if (c.entity === "check-in" && (c.action === "posted" || c.action === "created")) {
 		const week = rows.checkIns.find((v) => v.id === c.entityId)?.week;
 		return `${who} posted a check-in${week != null ? ` for week ${week}` : ""} on ${on}`;
@@ -9314,7 +9314,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 	}
 }
-var no$1, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
+var no$1, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay$1, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
 	init_goalRights();
 	init_proposed();
@@ -9372,7 +9372,7 @@ var init_removal = __esmMin((() => {
 	importEntry = (s, importId) => s.changes.find((c) => c.action === "imported" && c.entityId === importId);
 	importUndone = (s, importId) => s.changes.some((c) => c.action === "undone" && c.entityId === importId);
 	canUndoImport = (s, entry, actor) => !!entry.undo && !importUndone(s, entry.entityId) && (entry.actorId === actor.id || actor.admin);
-	onDay = (iso) => new Date(iso).toLocaleDateString("en-GB", {
+	onDay$1 = (iso) => new Date(iso).toLocaleDateString("en-GB", {
 		day: "numeric",
 		month: "short",
 		timeZone: "UTC"
@@ -12542,16 +12542,21 @@ var init_changeset = __esmMin((() => {
 	};
 }));
 // src/modules/metrics/rules.ts
+/** The marks a goal shows (MT3 rule 4): its metric's marks made at or after the goal was linked to it, and since `since`
+(the cycle's start), oldest first. A goal linked after a change was never measured the old way. */
+function marksFor(metric, link, since) {
+	return (metric.marks ?? []).filter((m) => m.at >= link.linkedAt && (!since || m.at >= since));
+}
 /** A live metric by id, or by name (any case). */
 function findMetric(s, ref) {
 	const t = ref.trim().toLowerCase();
-	const live = liveMetrics(s);
+	const live = liveMetrics(s, { retired: true });
 	return live.find((m) => m.id === ref) ?? live.find((m) => m.name.trim().toLowerCase() === t);
 }
 /** A goal's link to a metric, if it has one that's in force (the metric not removed either). */
 function linkOf(s, goalId) {
 	const l = linksOf(s).find((v) => v.goalId === goalId && !v.removedAt);
-	return l && liveMetrics(s).some((m) => m.id === l.metricId) ? l : void 0;
+	return l && liveMetrics(s, { retired: true }).some((m) => m.id === l.metricId) ? l : void 0;
 }
 /** The goals a metric measures now: links in force, to the goals given (the cycle's, say). */
 function goalsMeasuredBy(s, goals, metricId) {
@@ -12578,7 +12583,7 @@ function goalTarget(g) {
 function measureOf(s, goal) {
 	const link = linkOf(s, goal.id);
 	if (!link) return null;
-	const metric = liveMetrics(s).find((m) => m.id === link.metricId);
+	const metric = liveMetrics(s, { retired: true }).find((m) => m.id === link.metricId);
 	const target = goalTarget(goal);
 	const targetText = target && goal.kind !== "milestone" ? `${target.kind === "target" ? "Target" : target.kind === "at most" ? "At most" : target.kind === "at least" ? "At least" : `Between ${fmt(target.lower, goal)} and`} ${fmt(target.value, goal)}` : null;
 	return {
@@ -12587,7 +12592,13 @@ function measureOf(s, goal) {
 		slice: sliceName(s, link.teamId),
 		part: (link.part ?? "").trim(),
 		target,
-		targetText
+		targetText,
+		retired: metric.retiredAt ? {
+			at: metric.retiredAt,
+			by: metric.retiredBy ?? null,
+			why: metric.retiredWhy ?? "",
+			replacedBy: metric.replacedBy ?? null
+		} : null
 	};
 }
 /** The metric as it would be saved: text trimmed, defaults filled in. Throws nothing; metricProblems says what's wrong. */
@@ -12611,7 +12622,14 @@ function metricFrom(input, before, x) {
 		...before?.removedAt ? {
 			removedAt: before.removedAt,
 			removedBy: before.removedBy ?? null
-		} : {}
+		} : {},
+		...before?.retiredAt !== void 0 ? {
+			retiredAt: before.retiredAt,
+			retiredBy: before.retiredBy ?? null,
+			retiredWhy: before.retiredWhy ?? "",
+			replacedBy: before.replacedBy ?? null
+		} : {},
+		...before?.marks ? { marks: before.marks } : {}
 	};
 }
 /**
@@ -12626,7 +12644,7 @@ function metricProblems(m, s) {
 	else if (m.name.length < 3) out.push("Give the metric a name of at least three characters.");
 	else if (m.name.length > METRIC_LIMITS.name) out.push(`Keep the name to ${METRIC_LIMITS.name} characters or fewer.`);
 	else {
-		const same = liveMetrics(s).find((v) => v.id !== m.id && !v.name.localeCompare(m.name, "en", { sensitivity: "base" }));
+		const same = liveMetrics(s, { retired: true }).find((v) => v.id !== m.id && !v.name.localeCompare(m.name, "en", { sensitivity: "base" }));
 		if (same) out.push(`There’s already a metric called ${same.name}. Use it, or give this one a different name.`);
 	}
 	if (!m.unit) out.push("Say its unit: %, min, hours, USD, deploys…");
@@ -12687,6 +12705,7 @@ function metricChangeQuestion(before, next, goals, links) {
 function saveMetric(x, input) {
 	const before = input.id ? live$1(x, input.id) : null;
 	if (before && !ownsOrAdmin(x, before)) no(`Only ${x.snapshot.people.find((p) => p.id === before.ownerId)?.name ?? "the metric’s owner"} or an admin can change this metric.`);
+	if (before?.retiredAt) no(`“${before.name}” is retired. Bring it back before changing it.`);
 	const m = metricFrom(input, before, x);
 	const problems = metricProblems(m, x.snapshot);
 	if (problems.length) no(problems.join(" "));
@@ -12712,12 +12731,13 @@ function saveMetric(x, input) {
 	};
 }
 /**
-* Remove a metric: its owner or an admin. It keeps its row and comes back with Undo or from Recently removed. Every goal
-* it measured is unlinked by the same save (and Undo links them again); the goals themselves don't change.
+* Delete (remove) a metric no goal has ever been measured by: its owner or an admin. One that has is retired instead
+* (rule 5, rulesChange.ts). It keeps its row and comes back with Undo or from Recently removed.
 */
 function removeMetric(x, id) {
 	const m = live$1(x, id);
 	if (!ownsOrAdmin(x, m)) no(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? "the metric’s owner"} or an admin can remove this metric.`);
+	if (everUsed(m.id, linksOf(x.full ?? x.snapshot))) no(`${m.name} has measured goals, so it can’t be deleted. Retire it instead.`);
 	const links = linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === id && !l.removedAt);
 	const n = links.length;
 	return {
@@ -12802,7 +12822,7 @@ function unlinkGoalMetric(x, goal) {
 		})]
 	};
 }
-var MODULE, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, sliceName, clean$1, log, live$1, ownsOrAdmin, canEditMetric, canLinkGoal;
+var MODULE, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, markLabel, everUsed, sliceName, clean$1, log, live$1, ownsOrAdmin, canEditMetric, canLinkGoal;
 var init_rules = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -12852,7 +12872,9 @@ var init_rules = __esmMin((() => {
 		text: 2e3,
 		decimals: 4
 	};
-	liveMetrics = (s) => metricsOf(s).filter((m) => !m.removedAt).sort((a, b) => a.name.localeCompare(b.name));
+	liveMetrics = (s, o = {}) => metricsOf(s).filter((m) => !m.removedAt && (o.retired || !m.retiredAt)).sort((a, b) => a.name.localeCompare(b.name));
+	markLabel = (m) => `${m.kind === "direction" ? "Direction" : "Definition"} changed, week ${m.week}`;
+	everUsed = (metricId, links) => links.some((l) => l.metricId === metricId);
 	sliceName = (s, teamId) => teamId == null ? COMPANY : s.teams.find((t) => t.id === teamId)?.name ?? "A removed team";
 	clean$1 = (v) => (v ?? "").trim().replace(/[ \t]+/g, " ");
 	log = (x, v) => ({
@@ -13308,6 +13330,269 @@ var init_checkReads = __esmMin((() => {
 	init_rules();
 	init_rulesDefine();
 }));
+// src/modules/metrics/rulesChange.ts
+/**
+* What kind of change a save is (rule 3): every kind that applies, in the read-back's order; ['none'] when nothing
+* differs, ['words'] when nothing a goal shows changes (or no goal is linked). A unit change on a linked metric is
+* `relabel` when the person said it is a new label (`relabel: true`), else `scale`.
+*/
+function changeKinds(before, after, linked, o = {}) {
+	if ([
+		"name",
+		"meaning",
+		"unit",
+		"decimals",
+		"direction",
+		"source",
+		"sourceOwner",
+		"refresh",
+		"ownerId",
+		"caveats"
+	].every((f) => before[f] === after[f])) return ["none"];
+	if (!linked.length) return ["words"];
+	const out = [];
+	if (!same$1(before.unit, after.unit)) out.push(o.relabel ? "relabel" : "scale");
+	if (before.direction !== after.direction) out.push("direction");
+	if (before.meaning.trim() !== after.meaning.trim() || before.source.trim() !== after.source.trim()) out.push("meaning");
+	if (after.decimals < before.decimals && linked.some((g) => g.decimals > after.decimals)) out.push("decimals");
+	return out.length ? out : ["words"];
+}
+/** The live goals a metric measures now (links in force, the goal neither removed nor stopped), as rule 3 reads them. */
+function linkedGoals(s, metricId) {
+	const ids = new Set(linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt).map((l) => l.goalId));
+	return s.goals.filter((g) => ids.has(g.id) && !g.removedAt && !g.stoppedAt).map((g) => ({
+		id: g.id,
+		title: g.title,
+		unit: g.kind === "milestone" ? "" : g.unit,
+		decimals: g.kind === "milestone" ? 0 : g.decimals,
+		ownerId: g.ownerId,
+		aimsUp: g.kind === "metric" ? g.plan.target === g.plan.start ? null : g.plan.target > g.plan.start : g.kind === "range" ? g.range.bound === "between" ? null : g.range.bound === "atLeast" : null
+	}));
+}
+/**
+* Save a metric with rule 3 asked: `scale` is refused; a change of meaning or source needs `comparable` (is it still the
+* same number?) and, when it isn't, a reason; a change of direction needs a reason. A mark (rule 4) is kept on the metric
+* for each change of meaning that changes the number and for each change of direction, and each linked goal's History
+* says so. A relabel changes every linked goal's unit in the same save, so one Undo takes it all back.
+*/
+function saveMetricChange(x, input) {
+	const { comparable, reason, relabel, ...rest } = input;
+	const before = rest.id ? metricsOf(x.snapshot).find((m) => m.id === rest.id && !m.removedAt) : void 0;
+	if (!before) return saveMetric(x, rest);
+	const dry = saveMetric(x, {
+		...rest,
+		confirm: true
+	});
+	if (!dry.commit) return dry;
+	const after = dry.metric;
+	const linked = linkedGoals(x.full ?? x.snapshot, before.id);
+	const kinds = changeKinds(before, after, linked, { relabel });
+	const why = (reason ?? "").trim();
+	const n = linked.length;
+	if (kinds.includes("scale")) no(`${goalsWord(n)} ${n === 1 ? "is" : "are"} measured by ${before.name} in ${before.unit}. A metric in ${after.unit} is a different number: add it as a new metric and move goals to it, or retire this one. If “${after.unit}” is only a new label for the same numbers, say so (relabel).`);
+	if (kinds.includes("meaning") && comparable === void 0) no("Say whether it is still the same number.");
+	const marked = [...kinds.includes("meaning") && comparable === false ? ["definition"] : [], ...kinds.includes("direction") ? ["direction"] : []];
+	if (marked.length && !why) no(marked.includes("direction") ? "Say why the direction changes, in a line. Every goal measured by it will show this." : "Say why, in a line. Every goal measured by it will show this.");
+	if (why.length > 300) no("Keep the reason to 300 characters or fewer.");
+	const marks = marked.map((kind) => ({
+		week: x.week,
+		at: x.now,
+		by: x.actor.id,
+		kind,
+		why,
+		was: kind === "direction" ? DIRECTION_LABEL[before.direction] : before.meaning || before.source,
+		now: kind === "direction" ? DIRECTION_LABEL[after.direction] : after.meaning || after.source
+	}));
+	const metric = marks.length ? {
+		...after,
+		marks: [...before.marks ?? [], ...marks]
+	} : after;
+	const goals = kinds.includes("relabel") ? (x.full ?? x.snapshot).goals.filter((g) => linked.some((l) => l.id === g.id)).map((g) => g.kind === "milestone" ? g : {
+		...g,
+		unit: after.unit
+	}) : [];
+	const head = dry.commit.changes[0];
+	const said = marks.length ? `${head.summary}${why ? `: ${why}` : ""}` : kinds.includes("relabel") ? `Changed the unit of “${after.name}” from “${before.unit}” to “${after.unit}” on it and its ${goalsWord(n)}` : head.summary;
+	const perGoal = marks.length || goals.length ? linked.map((g) => log(x, {
+		entityId: after.id,
+		goalId: g.id,
+		action: "edited",
+		summary: marks.some((m) => m.kind === "definition") ? `Definition changed: what “${after.name}” means, from week ${x.week}: ${why} Weeks before ${x.week} were measured the old way.` : marks.length ? `Direction changed: for “${after.name}” ${DIRECTION_LABEL[after.direction].toLowerCase()}, from week ${x.week}: ${why}` : `Its unit changed from “${before.unit}” to “${after.unit}”, as “${after.name}” did`,
+		diffs: goals.length ? [{
+			field: "Unit",
+			from: before.unit,
+			to: after.unit
+		}] : []
+	})) : [];
+	return {
+		metric,
+		commit: {
+			...metricRows({ metrics: [metric] }),
+			...goals.length ? { goals } : {},
+			changes: [{
+				...head,
+				summary: said
+			}, ...perGoal]
+		}
+	};
+}
+/**
+* Retire a metric (rule 5): its owner or an admin, with a reason. It leaves the pickers and the library's list; its links
+* stay, so its goals keep their numbers and say it was retired. `replacedBy` names a live metric in the same unit that
+* its goals' owners are offered.
+*/
+function retireMetric(x, id, why, replacedBy = null) {
+	const m = metricOf$1(x, id);
+	mayChange(x, m);
+	if (m.retiredAt) no(`“${m.name}” is already retired.`);
+	const w = why.trim();
+	if (!w) no("Say why it is retired, in a line. Its goals will show this.");
+	if (w.length > 300) no("Keep the reason to 300 characters or fewer.");
+	const other = replacedBy ? liveMetrics(x.snapshot).find((v) => v.id === replacedBy) : null;
+	if (replacedBy && (!other || other.id === m.id)) no("The metric it is replaced by must be one in use.");
+	if (other && !same$1(other.unit, m.unit)) no(`${m.name} is in ${m.unit} and ${other.name} is in ${other.unit}. It can only be replaced by a metric in the same unit.`);
+	const linked = linkedGoals(x.full ?? x.snapshot, m.id);
+	const next = {
+		...m,
+		retiredAt: x.now,
+		retiredBy: x.actor.id,
+		retiredWhy: w,
+		replacedBy: other?.id ?? null,
+		updatedAt: x.now
+	};
+	return {
+		...metricRows({ metrics: [next] }),
+		changes: [log(x, {
+			entityId: m.id,
+			action: "stopped",
+			summary: `Retired the metric “${m.name}”: ${w}`,
+			diffs: [{
+				field: "Retired",
+				from: "—",
+				to: w
+			}]
+		}), ...linked.map((g) => log(x, {
+			entityId: m.id,
+			goalId: g.id,
+			action: "edited",
+			summary: `Its metric “${m.name}” was retired: ${w}`,
+			diffs: []
+		}))]
+	};
+}
+/** Bring a retired metric back (rule 5): the same people. It is as it was before it was retired. */
+function unretireMetric(x, id) {
+	const m = metricOf$1(x, id);
+	mayChange(x, m);
+	if (!m.retiredAt) no(`“${m.name}” isn’t retired.`);
+	return {
+		...metricRows({ metrics: [{
+			...m,
+			retiredAt: null,
+			retiredBy: null,
+			retiredWhy: "",
+			replacedBy: null,
+			updatedAt: x.now
+		}] }),
+		changes: [log(x, {
+			entityId: m.id,
+			action: "restored",
+			summary: `Brought back the metric “${m.name}”`,
+			diffs: [{
+				field: "Retired",
+				from: m.retiredWhy || "Yes",
+				to: "—"
+			}]
+		})]
+	};
+}
+/**
+* Merge one metric into another (rule 5): admins only. The two must be in the same unit, and `into` in use. Every live
+* link of `from` moves to `into` (same slice and part), and `from` is retired pointing to it; all in one save.
+*/
+function mergeMetrics(x, fromId, intoId, why = "") {
+	if (!x.actor.admin) no("Only admins can merge metrics: it changes what other people’s goals are measured by.");
+	const from = metricOf$1(x, fromId);
+	const into = metricOf$1(x, intoId);
+	if (from.id === into.id) no("Choose another metric to merge it into.");
+	if (into.retiredAt) no(`“${into.name}” is retired. Bring it back first, or merge into another.`);
+	if (from.retiredAt) no(`“${from.name}” is already retired.`);
+	if (!same$1(from.unit, into.unit)) no(`${from.name} is in ${from.unit} and ${into.name} is in ${into.unit}. Only metrics in the same unit can be merged.`);
+	const w = why.trim() || `The same number as ${into.name}.`;
+	if (w.length > 300) no("Keep the reason to 300 characters or fewer.");
+	const moved = linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === from.id && !l.removedAt).map((l) => ({
+		...l,
+		metricId: into.id,
+		linkedBy: x.actor.id,
+		linkedAt: x.now
+	}));
+	return {
+		...metricRows({
+			metrics: [{
+				...from,
+				retiredAt: x.now,
+				retiredBy: x.actor.id,
+				retiredWhy: w,
+				replacedBy: into.id,
+				updatedAt: x.now
+			}],
+			metricLinks: moved
+		}),
+		changes: [
+			log(x, {
+				entityId: into.id,
+				action: "edited",
+				summary: `Merged “${from.name}” into “${into.name}”, moving ${goalsWord(moved.length)}: ${w}`,
+				diffs: [{
+					field: "Merged in",
+					from: "—",
+					to: from.name
+				}]
+			}),
+			log(x, {
+				entityId: from.id,
+				action: "stopped",
+				summary: `Retired the metric “${from.name}”: merged into “${into.name}”`,
+				diffs: [{
+					field: "Retired",
+					from: "—",
+					to: w
+				}]
+			}),
+			...moved.map((l) => log(x, {
+				entityId: into.id,
+				goalId: l.goalId,
+				action: "edited",
+				summary: `Measured by “${into.name}” in place of “${from.name}”, which was merged into it`,
+				diffs: [{
+					field: "Measured by",
+					from: from.name,
+					to: into.name
+				}]
+			}))
+		]
+	};
+}
+var same$1, onDay, goalsWord, metricOf$1, mayChange, retiredWords;
+var init_rulesChange = __esmMin((() => {
+	init_rules();
+	same$1 = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
+	onDay = (iso) => new Date(iso).toLocaleDateString("en-GB", {
+		day: "numeric",
+		month: "short",
+		timeZone: "UTC"
+	});
+	goalsWord = (n) => `${n} ${n === 1 ? "goal" : "goals"}`;
+	metricOf$1 = (x, id) => {
+		const m = metricsOf(x.snapshot).find((v) => v.id === id && !v.removedAt);
+		if (!m) no("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
+		return m;
+	};
+	mayChange = (x, m) => {
+		if (!canEditMetric(x.actor, m)) no(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? "the metric’s owner"} or an admin can retire or bring back this metric.`);
+	};
+	retiredWords = (m) => `“${m.name}” was retired on ${onDay(m.retiredAt)}. Choose another, or bring it back.`;
+}));
 // src/modules/metrics/rulesSave.ts
 /**
 * The Checks the metric as typed still raises once the answers are counted, after the rights (someone who may not change
@@ -13342,11 +13627,12 @@ function saveMetricAsked(x, input) {
 	const { input: next, open } = openChecks(x, input);
 	if (open.length) no(`Answer ${open.length === 1 ? "this question" : "these questions"} first: ${open.map((c) => c.words).join(" ")}`);
 	const { answers: _, ...rest } = next;
-	return saveMetric(x, rest);
+	return saveMetricChange(x, rest);
 }
 var init_rulesSave = __esmMin((() => {
 	init_checkReads();
 	init_rules();
+	init_rulesChange();
 	init_rulesDefine();
 }));
 // src/modules/metrics/rulesLink.ts
@@ -13360,6 +13646,7 @@ var init_rulesSave = __esmMin((() => {
 function linkGoalMetric(x, goal, metricId, teamId = null, part = "", reason = "") {
 	if (!(!!x.full && !x.full.goals.some((g) => g.id === goal.id) && x.snapshot.goals.some((g) => g.id === goal.id)) && !canLinkGoal(x.actor, goal)) no("Only the goal’s owner or an admin can choose what measures it.");
 	const m = live$1(x, metricId);
+	if (m.retiredAt && linksOf(x.full ?? x.snapshot).find((l) => l.id === goal.id && !l.removedAt)?.metricId !== m.id) no(retiredWords(m));
 	if (teamId != null && !x.snapshot.teams.some((t) => t.id === teamId)) no("There’s no team with that ID. Leave the slice empty for the whole company.");
 	const p = part.trim();
 	const fix = linkChecks(goal, m, {
@@ -13447,6 +13734,7 @@ var init_rulesLink = __esmMin((() => {
 	init_rules();
 	init_rulesParts();
 	init_rulesSave();
+	init_rulesChange();
 }));
 // src/data/examples.ts
 var EXAMPLE = {
@@ -13831,7 +14119,14 @@ var metricToRow = (ws, m) => ({
 	...set$1({
 		removed_at: m.removedAt,
 		removed_by: m.removedBy
-	})
+	}),
+	...m.retiredAt !== void 0 ? {
+		retired_at: m.retiredAt ?? null,
+		retired_by: m.retiredBy ?? null,
+		retired_why: m.retiredWhy ?? "",
+		replaced_by: m.replacedBy ?? null
+	} : {},
+	...m.marks !== void 0 ? { marks: m.marks ?? [] } : {}
 });
 var metricFromRow = (r) => ({
 	id: r.id,
@@ -13849,7 +14144,14 @@ var metricFromRow = (r) => ({
 	createdAt: iso$3(r.created_at),
 	updatedAt: iso$3(r.updated_at),
 	...when$2("removedAt", r.removed_at),
-	...who$1("removedBy", r.removed_by)
+	...who$1("removedBy", r.removed_by),
+	...r.retired_at ? {
+		retiredAt: iso$3(r.retired_at),
+		retiredBy: r.retired_by ? String(r.retired_by) : null,
+		retiredWhy: String(r.retired_why ?? ""),
+		replacedBy: r.replaced_by ? String(r.replaced_by) : null
+	} : {},
+	...Array.isArray(r.marks) && r.marks.length ? { marks: r.marks } : {}
 });
 var metricLinkToRow = (ws, l) => ({
 	workspace_id: ws,
@@ -13958,6 +14260,14 @@ var MODULE_RECORDS = [{
 				name: m.name,
 				direction: m.direction
 			} : null;
+		},
+		goalMarks: (s, goalId, since) => {
+			const l = linkOf(s, goalId);
+			const m = l ? metricsOf(s).find((x) => x.id === l.metricId) : void 0;
+			return m && l ? marksFor(m, l, since).map((k) => ({
+				week: k.week,
+				label: markLabel(k)
+			})) : [];
 		},
 		goalColumns: [{
 			param: "metric",
@@ -16050,6 +16360,61 @@ var help$3 = [
 			"metric-measured-by",
 			"metric-define",
 			"edit-goal"
+		]
+	},
+	{
+		id: "metric-change",
+		title: "Changing, retiring and merging a metric",
+		summary: "Which changes save at once, the ones that tell a metric’s goals first, and retiring, bringing back and merging.",
+		group: "you",
+		after: "metric-slices",
+		sections: [
+			{
+				heading: "What saves at once",
+				list: ["A new name, owner, source owner, refresh or caveats saves at once, as does any change to a metric no goal uses."]
+			},
+			{
+				heading: "What reads back first",
+				list: [
+					"Changing what a metric means, or where its number comes from, shows the goals it measures and asks “Is it still the same number?”. Same number, better words: nothing is marked. The number itself changes: say why, in a line, and each goal’s chart and History say “Definition changed, week {w}” with your reason. Their numbers and plans don’t change.",
+					"Changing which way is better needs a reason too, names the goals whose target now lies the wrong way, and marks each goal.",
+					"A new unit is either a new label for the same numbers (every goal’s unit changes with it) or a different scale. A different scale is a different metric: add it as a new metric and move goals to it, or retire this one.",
+					"Fewer decimal places names the goals that show more; they keep theirs until their owners change them.",
+					"Undo takes back the change, its marks and, for a new label, every goal’s unit, as one."
+				]
+			},
+			{
+				heading: "Retire, not delete",
+				list: [
+					"A metric that has measured a goal is retired, not deleted: its goals keep their numbers and plans and say “Measured by {metric}, retired {date}”. It leaves the pickers and the library’s list (Retired metrics are listed apart), and it can be brought back at any time with Bring it back.",
+					"Say why it is retired. Name what replaces it, in the same unit, and its goals’ owners are offered it on the goal’s page.",
+					"A metric no goal has ever used is deleted instead, and can be put back from Recently removed for 30 days."
+				]
+			},
+			{
+				heading: "Merge (admins)",
+				list: ["An admin merges a metric into another in the same unit: every goal it measures moves to the other, keeping its For and part, and it is retired pointing there. One Undo puts it all back."]
+			}
+		],
+		routes: ["/metrics/:metricId/edit"],
+		screens: [],
+		reqs: ["METRIC-CHANGE"],
+		keywords: [
+			"retire",
+			"retired",
+			"bring back",
+			"merge",
+			"delete",
+			"definition changed",
+			"same number",
+			"new label",
+			"scale",
+			"direction changed"
+		],
+		related: [
+			"metric-define",
+			"metric-slices",
+			"metrics"
 		]
 	}
 ];
@@ -19000,6 +19365,18 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "metric-change",
+		date: "2026-11-13",
+		title: "A metric that changes tells its goals",
+		points: [
+			"Changing what a metric means, or which way is better, now shows its goals first and asks whether it is still the same number.",
+			"When the number itself changes, say why: each goal’s chart gets a dashed line, “Definition changed, week 46”, and its History your reason.",
+			"A new unit is either a new label, changed on every goal too, or a different scale, which is a new metric.",
+			"A metric that has measured goals is retired, not deleted: its goals keep their numbers and say so, and Bring it back undoes it. Admins can merge two metrics in the same unit."
+		],
+		articles: ["metric-change"]
+	},
+	{
 		id: "setup-upload-preview",
 		date: "2026-11-13",
 		title: "Set-up checks a spreadsheet as Import does",
@@ -21334,20 +21711,24 @@ var _virtual_faro_modules_default = [{
 		"get_metric",
 		"save_metric",
 		"remove_metric",
+		"retire_metric",
+		"merge_metrics",
 		"link_goal_metric"
 	],
 	help: [
 		"metrics",
 		"metric-define",
 		"metric-measured-by",
-		"metric-slices"
+		"metric-slices",
+		"metric-change"
 	],
 	requirements: [
 		"METRICS-LIBRARY",
 		"METRICS-MEASURED-BY",
 		"METRICS-CARE",
 		"METRIC-DEFINED",
-		"METRIC-PARTS"
+		"METRIC-PARTS",
+		"METRIC-CHANGE"
 	],
 	journeys: [
 		"U81",
@@ -21356,6 +21737,7 @@ var _virtual_faro_modules_default = [{
 		"U145",
 		"U105",
 		"U146",
+		"U106",
 		"F15",
 		"N16"
 	],
@@ -21368,15 +21750,16 @@ var _virtual_faro_modules_default = [{
 			"A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.",
 			"Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.",
 			"A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.",
-			"Removing a metric unlinks every goal it measured in the same save; Undo straight after brings the metric and the links back; restoring it later brings the metric back with the links it had to goals still there.",
+			"A metric that has measured a goal can’t be deleted (“Retire it instead.”); one that never has is deleted, and Undo or Recently removed brings it back.",
 			"The demo workspace’s 13 metrics and 12 links load (two of them for one part: CI/CD · main branch pipelines, CI/CD · main pipelines), and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).",
 			"Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there.",
 			"The library finds what each of rule 1’s worked examples says, a metric’s goals are rule 2’s rows in its order, and what a metric needs is rule 3’s, in order: every row of spec/conformance/metrics.csv matches.",
 			"The library is in the menu after People (under More on a phone); the old addresses of Metrics under Data lead to the library, a metric or the form; a metric’s row in the library counts the same goals by status as its page’s table lists (journey U81, checks F15 and N16).",
 			"In New goal, “Measured by” comes first on the measure step: a metric found by typing shows its meaning, fills in the unit, decimals and which way is better on a goal nobody typed them for, measures it for the goal’s team or the whole company, and Check says so; one added there is chosen; a goal with dated stages has none (journey U82, rule 5’s worked examples).",
-			"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first; Remove names the goals it stops measuring and Undo brings them back; admins see on Workspace → About how many metrics have no owner (journey U83).",
+			"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first (the read-back, MT3); admins see on Workspace → About how many metrics have no owner (journey U83).",
 			"Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105).",
-			"A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146)."
+			"A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146).",
+			"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples)."
 		],
 		"gaps": [
 			"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).",
@@ -24455,7 +24838,7 @@ function metricNeeds(m, r) {
 */
 function findMetrics(r, ask = {}) {
 	const size = ask.size ?? 50;
-	const rows = r.metrics.filter((m) => !m.removedAt).map((m) => {
+	const rows = r.metrics.filter((m) => !m.removedAt && (ask.retired ? !!m.retiredAt : !m.retiredAt)).map((m) => {
 		const links = liveLinks(r, m.id);
 		return {
 			metric: m,
@@ -24572,6 +24955,7 @@ var lineOf = (s, m) => stillToSay(m, !!ownerName(s.people, m));
 init_actions();
 init_goalKey();
 init_rules();
+init_rulesChange();
 init_rulesDefine();
 init_rulesSave();
 init_rulesParts();
@@ -24667,6 +25051,21 @@ function metricData(ctx, m) {
 		caveats: m.caveats,
 		updatedAt: m.updatedAt,
 		youCanChange: canEditMetric(ctx.actor, m),
+		retired: m.retiredAt ? {
+			at: m.retiredAt,
+			by: name(ctx, m.retiredBy ?? ""),
+			why: m.retiredWhy ?? "",
+			replacedBy: m.replacedBy ?? null
+		} : null,
+		marks: (m.marks ?? []).map((k) => ({
+			week: k.week,
+			at: k.at,
+			kind: k.kind,
+			why: k.why,
+			was: k.was,
+			now: k.now,
+			by: name(ctx, k.by)
+		})),
 		measures: goalsMeasuredBy(ctx.snapshot, ctx.snapshot.goals, m.id).map((g) => {
 			const me = measureOf(ctx.snapshot, g);
 			return {
@@ -24716,6 +25115,10 @@ var tools$1 = [
 					type: "boolean",
 					description: "Only metrics no live goal uses."
 				},
+				retired: {
+					type: "boolean",
+					description: "Retired metrics only (left out otherwise)."
+				},
 				sort_out: {
 					type: "boolean",
 					description: "Only metrics with something to sort out: no owner (or one who has left), no meaning, no source, or no goal after 14 days."
@@ -24744,6 +25147,7 @@ var tools$1 = [
 					dir: a.direction === "higher" || a.direction === "lower" ? a.direction : void 0,
 					unused: a.unused === true,
 					sortout: a.sort_out === true,
+					retired: a.retired === true,
 					sort: a.sort === "goals" || a.sort === "changed" ? a.sort : "name",
 					page: typeof a.page === "number" ? a.page : 1
 				};
@@ -24833,13 +25237,22 @@ var tools$1 = [
 					...summary ? [summary] : [],
 					...needs.length ? [`To sort out: ${needs.map((x) => x.sentence).join("; ")}`] : []
 				];
+				const history = ctx.snapshot.changes.filter((c) => c.entity === "metric" && c.entityId === m.id && !c.goalId).slice(-20).reverse().map((c) => ({
+					at: c.at,
+					by: name(ctx, c.actorId),
+					action: c.action,
+					summary: c.summary
+				}));
+				if (d.retired) lines.splice(1, 0, `Retired on ${d.retired.at.slice(0, 10)} by ${d.retired.by ?? "—"}: “${d.retired.why}”${d.retired.replacedBy ? ` Replaced by ${metricsOf(ctx.snapshot).find((x) => x.id === d.retired.replacedBy)?.name ?? d.retired.replacedBy}.` : ""}`);
+				if (d.marks.length) lines.push(`Marks on its goals: ${d.marks.map((k) => `${k.kind === "direction" ? "direction" : "definition"} changed in week ${k.week}: ${k.why}`).join("; ")}`);
 				return {
 					data: {
 						...d,
 						stillToSay,
 						goals,
 						summary,
-						needs
+						needs,
+						history
 					},
 					text: lines.join("\n")
 				};
@@ -24858,7 +25271,19 @@ var tools$1 = [
 				...FIELDS,
 				confirm: {
 					type: "boolean",
-					description: "Yes to changing the unit or direction of a metric goals use, once the person has said so."
+					description: "Kept for older callers; the questions below replace it."
+				},
+				comparable: {
+					type: "boolean",
+					description: "When the meaning or source of a metric goals use changes: true if it is still the same number (better words; nothing is marked), false if the number itself changes from this week (its goals’ charts and History say so; give reason)."
+				},
+				reason: {
+					type: "string",
+					description: "Why, in a line (up to 300 characters): required when the number itself changes (comparable false) or the direction changes. Every goal measured by it shows this."
+				},
+				relabel: {
+					type: "boolean",
+					description: "When the unit of a metric goals use changes: true if the new unit is only a new label for the same numbers (its goals’ unit changes too). A different scale is refused: add a new metric instead."
 				},
 				answers: {
 					type: "object",
@@ -24887,7 +25312,10 @@ var tools$1 = [
 					...a.refresh !== void 0 ? { refresh: a.refresh ? String(a.refresh).toLowerCase() : null } : {},
 					...a.owner !== void 0 ? { ownerId: personOf(ctx, a.owner) } : {},
 					...a.caveats !== void 0 ? { caveats: String(a.caveats) } : {},
-					...a.confirm === true ? { confirm: true } : {}
+					...a.confirm === true ? { confirm: true } : {},
+					...typeof a.comparable === "boolean" ? { comparable: a.comparable } : {},
+					...typeof a.reason === "string" ? { reason: a.reason } : {},
+					...a.relabel === true ? { relabel: true } : {}
 				};
 				const answers = answersFrom(a.answers);
 				if (answers.name?.startsWith("use:")) {
@@ -24948,8 +25376,8 @@ var tools$1 = [
 	},
 	{
 		name: "remove_metric",
-		title: "Remove a metric",
-		description: "Remove a metric from the library: its owner or an admin. Every goal it measures is unlinked by the same save; the goals themselves don’t change. It can be restored for 30 days with restore_removed (kind metric), with the links it had.",
+		title: "Delete a metric no goal has used",
+		description: "Delete a metric that has never measured a goal: its owner or an admin. One that has measured a goal is refused: retire it instead (retire_metric). It can be restored for 30 days with restore_removed (kind metric).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -24972,6 +25400,71 @@ var tools$1 = [
 						unlinked: linksOf(c).map((l) => l.goalId)
 					},
 					text: `${c.changes[0].summary} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.`
+				};
+			});
+		}
+	},
+	{
+		name: "retire_metric",
+		title: "Retire a metric, or bring one back",
+		description: "Retire a metric (its owner or an admin), with a reason: it leaves the pickers and the library’s list, its goals keep their numbers and plans and say it was retired, and nothing is lost. Name replaced_by (a metric in the same unit) to offer its goals’ owners another. Or give bring_back true to bring a retired metric back as it was.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["metric"],
+			properties: {
+				metric: str$2("The metric’s ID or name."),
+				why: str$2("Why it is retired, in a line (up to 300 characters). Required unless bringing it back."),
+				replaced_by: str$2("The metric its goals’ owners are offered instead, by ID or name: one in use, in the same unit."),
+				bring_back: {
+					type: "boolean",
+					description: "Bring a retired metric back."
+				}
+			}
+		},
+		annotations: WRITE,
+		async run(a, ctx) {
+			return ruled(async () => {
+				const m = metricOf(ctx, a.metric);
+				const c = a.bring_back === true ? unretireMetric(ax(ctx), m.id) : retireMetric(ax(ctx), m.id, String(a.why ?? ""), a.replaced_by ? metricOf(ctx, a.replaced_by).id : null);
+				await save(ctx, c);
+				const goals = c.changes.filter((x) => x.goalId).length;
+				return {
+					data: {
+						saved: true,
+						retired: a.bring_back !== true,
+						goals
+					},
+					text: `${c.changes[0].summary} (as ${ctx.actor.name}).${a.bring_back === true ? "" : ` ${goals} ${goals === 1 ? "goal stays" : "goals stay"} measured by it and say so. Bring it back with bring_back true.`}`
+				};
+			});
+		}
+	},
+	{
+		name: "merge_metrics",
+		title: "Merge one metric into another",
+		description: "Merge a metric into another in the same unit (admins only): every goal it measures moves to the other, keeping its slice and part, and it is retired pointing to the other. One save; Undo in the app takes it all back.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["from", "into"],
+			properties: {
+				from: str$2("The metric to merge away, by ID or name."),
+				into: str$2("The metric to keep, by ID or name: one in use, in the same unit."),
+				why: str$2("Why, in a line. “The same number as {into}.” when left out.")
+			}
+		},
+		annotations: WRITE,
+		async run(a, ctx) {
+			return ruled(async () => {
+				const c = mergeMetrics(ax(ctx), metricOf(ctx, a.from).id, metricOf(ctx, a.into).id, String(a.why ?? ""));
+				await save(ctx, c);
+				return {
+					data: {
+						saved: true,
+						moved: c.changes.filter((x) => x.goalId).map((x) => x.goalId)
+					},
+					text: `${c.changes[0].summary} (as ${ctx.actor.name}).`
 				};
 			});
 		}

@@ -5,7 +5,7 @@
 import { currentWeek } from '../../domain/plan';
 import type { Snapshot } from '../../domain/types';
 import type { ConformanceWorkspace, ModuleConformance } from '../../spec/conformance';
-import { linksOf, metricsOf } from './rules';
+import { linksOf, metricsOf, everUsed } from './rules';
 import { partsOf } from './rulesParts';
 import { findMetrics, metricNeeds, summaryLine, type LibraryAsk } from './rulesLibrary';
 import { goalsOfMetric, libraryReads, lineOf } from './reads';
@@ -18,7 +18,7 @@ export const LIBRARY_ASKS: LibraryAsk[] = [
 /** An ask as the address writes it: "q=min lower&unit=%", in a fixed order; empty for nothing asked. */
 const askText = (a: LibraryAsk) => (['q', 'unit', 'teamId', 'ownerId', 'dir', 'unused', 'sortout', 'sort'] as const).filter((k) => a[k] !== undefined).map((k) => `${k}=${String(a[k])}`).join('&');
 
-export const HEADER = ['rule', 'ask', 'row', 'total', 'ids', 'goal', 'status', 'slice', 'now', 'target', 'vs_plan', 'owner', 'summary', 'needs', 'still', 'parts'];
+export const HEADER = ['rule', 'ask', 'row', 'total', 'ids', 'goal', 'status', 'slice', 'now', 'target', 'vs_plan', 'owner', 'summary', 'needs', 'still', 'parts', 'ends'];
 
 /** Every row: rule 1 for each ask, rule 2 for each metric (a head row, then one per goal), rule 3 for each metric. */
 export function metricRowsOf(w: ConformanceWorkspace, asOf: (w: ConformanceWorkspace, moment: Date) => Snapshot): string[][] {
@@ -45,6 +45,8 @@ export function metricRowsOf(w: ConformanceWorkspace, asOf: (w: ConformanceWorks
   // Rule 7 (MT2): the parts a metric's live links use, most used first, separated by " | ".
   const inForce = new Set(goalsOfMetricIds(s, cycle, moment, week, live));
   for (const m of live) out.push(blank('parts', m.id, 0, { parts: partsOf(linksOf(s).filter((l) => l.metricId === m.id && inForce.has(l.goalId))).join(' | ') }));
+  // Rule 10 (MT3): how each metric would end: retired, as a goal has been measured by it, or deleted, as none has.
+  for (const m of live) out.push(blank('ends', m.id, 0, { ends: everUsed(m.id, linksOf(s)) ? 'retire' : 'delete' }));
   return out;
 }
 

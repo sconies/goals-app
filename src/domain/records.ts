@@ -113,6 +113,17 @@ export interface ModuleRecords {
   /** What measures a goal, when the module keeps that (the metric library's link): its name and which way is better, for
       goal entry's wrong-side question (rule 3) at the doors that don't draw the module's own field (a file, the AI tools). */
   measures?(s: { modules?: ModuleRows }, goalId: string): GoalMeasure | null;
+  /** Marks a goal's chart and History show for the module (the metric library's “Definition changed, week 46”, MT3's
+      `goal.marks`): each a week of the cycle and its label, made since `since` (the cycle's start, yyyy-mm-dd). */
+  goalMarks?(s: { modules?: ModuleRows }, goalId: string, since: string): GoalMark[];
+}
+
+/** A module's mark on a goal's chart: a dashed hairline at a week, its label beside it. The core knows nothing more. */
+export interface GoalMark { week: number; label: string }
+
+/** Every module's marks for a goal, in week order. */
+export function goalMarksOf(records: readonly ModuleRecords[] | undefined, s: { modules?: ModuleRows }, goalId: string, since: string): GoalMark[] {
+  return (records ?? []).flatMap((m) => m.goalMarks?.(s, goalId, since) ?? []).sort((a, b) => a.week - b.week);
 }
 
 /** What measures a goal, for goal entry's questions: a name, and which way is better. */

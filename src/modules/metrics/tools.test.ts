@@ -128,14 +128,36 @@ describe('metric library tools', () => {
     expect((await call('link_goal_metric', { goal: 'ns-ci', metric: 'CI pipeline time on main (p90)' })).content[0]!.text).toMatch(/Only the goal’s owner or an admin/);
   });
 
-  it('removes a metric, unlinking its goals, and restore_removed brings it back', async () => {
+  it('removes only a metric no goal has used, and restore_removed brings it back; a used one is retired (MT3)', async () => {
     const { call, data } = await setup('grace');
-    const r = await call('remove_metric', { metric: 'metric_lead-time' });
-    expect(r.content[0]!.text).toMatch(/Removed the metric “Lead time for changes”, unlinking 1 goal/);
-    expect(linksOf(data()).find((l) => l.goalId === 'ns-lead')!.removedAt).toBeTruthy();
+    const used = await call('remove_metric', { metric: 'metric_lead-time' });
+    expect(used.isError).toBe(true);
+    expect(used.content[0]!.text).toMatch(/can’t be deleted\. Retire it instead/);
+    const r = await call('remove_metric', { metric: 'metric_ci-cost' });
+    expect(r.content[0]!.text).toMatch(/Removed the metric “CI compute cost per pipeline run”/);
     expect(((await call('list_metrics')).structuredContent!.metrics as unknown[]).length).toBe(12);
-    expect((await call('restore_removed', { kind: 'metric', id: 'metric_lead-time' })).isError).toBe(false);
+    expect((await call('restore_removed', { kind: 'metric', id: 'metric_ci-cost' })).isError).toBe(false);
     expect(((await call('list_metrics')).structuredContent!.metrics as unknown[]).length).toBe(13);
+    // Retire: the goal keeps its link and the list leaves it out; retired lists it; bring_back puts it back.
+    expect((await call('retire_metric', { metric: 'metric_lead-time' })).isError).toBe(true);
+    const ret = await call('retire_metric', { metric: 'metric_lead-time', why: 'Replaced by the DORA dashboard’s figure.' });
+    expect(ret.content[0]!.text).toMatch(/Retired the metric “Lead time for changes”: Replaced by/);
+    expect(linksOf(data()).find((l) => l.goalId === 'ns-lead')!.removedAt).toBeFalsy();
+    expect(((await call('list_metrics')).structuredContent!.metrics as unknown[]).length).toBe(12);
+    expect(((await call('list_metrics', { retired: true })).structuredContent!.metrics as { id: string }[]).map((m) => m.id)).toEqual(['metric_lead-time']);
+    expect(((await call('get_metric', { metric: 'metric_lead-time' })).structuredContent as { retired: { why: string } }).retired.why).toMatch(/DORA/);
+    expect((await call('link_goal_metric', { goal: 'ns-lead', metric: 'metric_lead-time' })).isError).toBe(false);
+    expect((await call('retire_metric', { metric: 'metric_lead-time', bring_back: true })).isError).toBe(false);
+    expect(((await call('list_metrics')).structuredContent!.metrics as unknown[]).length).toBe(13);
+  });
+  it('merges one metric into another in the same unit, for admins (MT3)', async () => {
+    const { call, data } = await setup('grace');
+    expect((await call('merge_metrics', { from: 'metric_lead-time', into: 'metric_ci-time' })).content[0]!.text).toMatch(/Only metrics in the same unit can be merged/);
+    const r = await call('merge_metrics', { from: 'metric_lead-time', into: 'metric_first-review' });
+    expect(r.isError).toBe(false);
+    expect(linksOf(data()).find((l) => l.goalId === 'ns-lead')!.metricId).toBe('metric_first-review');
+    const rhea = await setup('rhea');
+    expect((await rhea.call('merge_metrics', { from: 'metric_flaky-rate', into: 'metric_cache-hit' })).content[0]!.text).toMatch(/Only admins can merge metrics/);
   });
 
   it('asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)', async () => {
@@ -160,7 +182,8 @@ describe('metric library tools', () => {
     expect((found.structuredContent!.goals as { id: string }[]).map((g) => g.id)).toEqual(['ns-lead']);
     const asked = await call('save_metric', { id: 'metric_lead-time', unit: 'days' });
     expect(asked.isError).toBe(true);
-    expect(asked.content[0]!.text).toMatch(/1 goal is measured by this metric. .* save it again with confirm/);
-    expect((await call('save_metric', { id: 'metric_lead-time', unit: 'days', confirm: true })).isError).toBe(false);
+    expect(asked.content[0]!.text).toMatch(/1 goal is measured by Lead time for changes in hours\. A metric in days is a different number/);
+    // A new label for the same numbers (MT3 rule 3, relabel): the goal's unit changes with it.
+    expect((await call('save_metric', { id: 'metric_lead-time', unit: 'hrs', relabel: true })).isError).toBe(false);
   });
 });
