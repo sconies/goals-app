@@ -82,7 +82,7 @@ The browser may still run an action first to explain early (“Only admins can �
 
 ## How each contract test carries across
 
-`storeContract` (`src/ports/contracts/store.ts`) has 8 tests. Each becomes a test of the two ports:
+`storeContract`’s tests (`src/ports/contracts/store.ts`; its cases as data in [contracts/store.json](../conformance/contracts/store.json)) on records carry across like this:
 
 | `storeContract` test | On the query and command ports |
 |---|---|
