@@ -8297,13 +8297,21 @@ function deleteNote(x, id) {
 		})]
 	};
 }
+/** Whether a windowed load (Snapshot.history) left a cycle's check-ins out: it has some, and it ended before the window. */
+function checkInsLeftOut(s, cycleId) {
+	const h = s.history;
+	if (!h || !h.checkInCycles.includes(cycleId)) return false;
+	const c = s.cycles.find((v) => v.id === cycleId);
+	return !c || cycleDates(c).lastDay < h.from.slice(0, 10);
+}
 /** What a person has left a mark on: goals they owned (in any cycle), check-ins, notes and comments, and asks. */
 function personHistory(s, id) {
 	return {
 		goals: s.goals.filter((g) => g.ownerId === id && !g.removedAt).length,
 		checkIns: s.checkIns.filter((c) => c.authorId === id).length,
 		notes: s.decisions.filter((d) => d.byId === id).length + liveNotes(s.changes).filter((c) => c.actorId === id).length,
-		asks: asksOf(s).filter((r) => r.askedBy === id || r.recipientId === id || r.answeredBy === id).length
+		asks: asksOf(s).filter((r) => r.askedBy === id || r.recipientId === id || r.answeredBy === id).length,
+		unknown: s.cycles.some((c) => checkInsLeftOut(s, c.id))
 	};
 }
 /**
@@ -8537,7 +8545,7 @@ function detach(x, g, how) {
 function stopGoal(x, goalId, reason) {
 	const g = liveGoal(x, goalId);
 	if (!ownsOrAdmin$1(x, g)) no$1("Only the goal’s owner or an admin can stop it.");
-	if (!goalHasCheckIns(x.snapshot, g.id)) no$1("It has no check-ins yet: delete it instead.");
+	if (!goalHasCheckIns(fullOf(x), g.id)) no$1("It has no check-ins yet: delete it instead.");
 	const why = reason.trim();
 	if (why.length < 10) no$1(`Say why it’s stopping, in a sentence (10 characters or more).`);
 	const d = detach(x, g, "stopped");
@@ -8571,7 +8579,7 @@ function stopGoal(x, goalId, reason) {
 function deleteGoal(x, goalId) {
 	const g = liveGoal(x, goalId);
 	if (!ownsOrAdmin$1(x, g)) no$1("Only the goal’s owner or an admin can delete it.");
-	if (goalHasCheckIns(x.snapshot, g.id)) no$1("It has check-ins: stop it instead, with a reason, so its history stays.");
+	if (goalHasCheckIns(fullOf(x), g.id)) no$1("It has check-ins: stop it instead, with a reason, so its history stays.");
 	const d = detach(x, g, "deleted");
 	return {
 		goals: [{
@@ -8705,6 +8713,13 @@ function cycleStanding(s, cycleId) {
 	const checkIns = s.checkIns.filter((c) => ids.has(c.goalId) && !c.removedAt).length;
 	const only = !s.cycles.some((c) => c.id !== cycleId && !c.removedAt);
 	const goals = `${ids.size.toLocaleString("en-GB")} ${ids.size === 1 ? "goal" : "goals"}`;
+	if (!checkIns && checkInsLeftOut(s, cycleId)) return {
+		goals: ids.size,
+		checkIns,
+		only,
+		deletable: false,
+		says: `${goals} and check-ins: it stays`
+	};
 	const says = checkIns ? `${goals}, ${checkIns.toLocaleString("en-GB")} ${checkIns === 1 ? "check-in" : "check-ins"}: it stays` : only ? `${ids.size ? goals + ", no" : "No goals and no"} check-ins yet; it’s the only cycle, so it stays` : `${ids.size ? goals + ", no" : "No goals and no"} check-ins yet: it can be deleted`;
 	return {
 		goals: ids.size,
@@ -8862,6 +8877,7 @@ function undoPlan(x, importId) {
 	if (!entry) no$1("There’s no import with that ID.");
 	if (!entry.undo) no$1("That import was saved before imports could be undone.");
 	if (importUndone(full, importId)) no$1("That import has already been undone.");
+	if (changesLeftOut(full, entry.at)) no$1(IMPORT_TOO_OLD);
 	if (entry.actorId !== x.actor.id && !x.actor.admin) no$1("Only whoever made the import, or an admin, can undo it.");
 	const u = entry.undo;
 	const own = new Set(full.changes.filter((c) => c.importId === importId).map((c) => c.id));
@@ -9347,7 +9363,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 	}
 }
-var no$1, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
+var no$1, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, IMPORT_TOO_OLD, changesLeftOut, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
 	init_goalRights();
 	init_proposed();
@@ -9358,6 +9374,7 @@ var init_removal = __esmMin((() => {
 	init_tableLayout();
 	init_via();
 	init_vocabulary();
+	init_cycle();
 	init_records();
 	no$1 = (msg) => {
 		throw new NotAllowed(msg);
@@ -9379,7 +9396,9 @@ var init_removal = __esmMin((() => {
 		if (!k) no$1("There’s no comment with that ID.");
 		return k;
 	};
-	hasHistory = (h) => h.goals + h.checkIns + h.notes + h.asks > 0;
+	IMPORT_TOO_OLD = "That import is over a year old, so it can’t be undone: too much may have changed since.";
+	changesLeftOut = (s, at) => !!s.history && Date.parse(at) < Date.parse(s.history.from);
+	hasHistory = (h) => h.goals + h.checkIns + h.notes + h.asks > 0 || h.unknown;
 	livePerson = (x, id) => {
 		const p = x.snapshot.people.find((v) => v.id === id);
 		if (!p) no$1("There’s no one with that ID in this workspace.");
@@ -9394,7 +9413,7 @@ var init_removal = __esmMin((() => {
 		if (!g) no$1("There’s no goal with that ID in this cycle.");
 		return g;
 	};
-	goalHasCheckIns = (s, goalId) => s.checkIns.some((c) => c.goalId === goalId && !c.removedAt);
+	goalHasCheckIns = (s, goalId) => s.checkIns.some((c) => c.goalId === goalId && !c.removedAt) || checkInsLeftOut(s, s.goals.find((g) => g.id === goalId)?.cycleId ?? "");
 	ownersCheckIns = (x, g, what) => `Only ${x.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? "its owner"} (its owner) can ${what} its check-ins.`;
 	liveReview = (x, id) => {
 		const r = x.snapshot.reviews.find((v) => v.id === id);
@@ -9404,7 +9423,7 @@ var init_removal = __esmMin((() => {
 	};
 	importEntry = (s, importId) => s.changes.find((c) => c.action === "imported" && c.entityId === importId);
 	importUndone = (s, importId) => s.changes.some((c) => c.action === "undone" && c.entityId === importId);
-	canUndoImport = (s, entry, actor) => !!entry.undo && !importUndone(s, entry.entityId) && (entry.actorId === actor.id || actor.admin);
+	canUndoImport = (s, entry, actor) => !!entry.undo && !importUndone(s, entry.entityId) && (entry.actorId === actor.id || actor.admin) && !changesLeftOut(s, entry.at);
 	onDay = (iso) => new Date(iso).toLocaleDateString("en-GB", {
 		day: "numeric",
 		month: "short",
@@ -13551,6 +13570,14 @@ var windowDay = (w) => new Date(w.from).toISOString().slice(0, 10);
 In SQL: start_date + ((weeks + 1) * 7 - 1) >= the window's day. */
 var overlaps = (c, w) => cycleDates(c).lastDay >= windowDay(w);
 var historySize = (ask) => Math.max(1, Math.min(100, Math.floor(ask.size ?? 50)));
+/** Said when a workspace would be made from a windowed load: what the window left out would be lost for good. */
+var PARTIAL_SNAPSHOT = "A workspace can only be made from a whole one: this copy leaves out older check-ins and changes.";
+/** A new workspace is written from a whole snapshot only (#323's review): a windowed one would store a part as the whole,
+and call itself partial for ever. Every store's createWorkspace calls this first. */
+function wholeOnly(s) {
+	if (s.history) throw new Error(PARTIAL_SNAPSHOT);
+	return s;
+}
 // src/data/store.ts
 init_asks();
 init_goalKey();
@@ -16459,7 +16486,7 @@ var CORE_ARTICLES = [
 					"This week, above the lead, shows a review you’re in, or one that has passed its day without being held, as one cell. It is left out when the lead is that review; with two reviews on one day, the lead takes one and the cell the other. Once the year has ended, no review is said to be not held.",
 					"While someone waits for your response, Home doesn’t say nothing is asked of you: it says how many asks wait. If you’re an admin, a note says when the year is ending or has ended, with Start for the next one.",
 					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions. Each says who asked, where and on what day, and how long it has waited or when it is due; a late one says so first, with the warning mark. Five show, then Show all. Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.",
-					"When an ask is late, due this week, or has waited a week or more, and nothing comes before it, it is the lead, with its one button (Respond, Answer, Check in or Mark done); the rest are under Also needs your response.",
+					"When an ask is late, due this week, or has waited a week or more, and nothing comes before it, it is the lead, with its one button (Respond, Answer, Check in or Mark done); the rest are under Also needs your response. A goal someone proposed for you is asked of you like an ask with no date: once a week has passed and no ask comes first, it is the lead, with Open it.",
 					"Your goals come next, counted once: how many there are by status, each count opening exactly those goals in Goals (“1 at risk” lists the one). Then the ones that need attention, worst first, each with Check in when that is what it needs; what is being handled, folded away; and the rest, five at a time. Each row opens its goal. Goals you watch follow.",
 					"On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.",
 					"Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it.",
@@ -17700,8 +17727,8 @@ var CORE_ARTICLES = [
 					"Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.",
 					"Change it: the same page as any goal, with no reason ever asked. Withdraw it: it goes to Recently removed for 30 days, with Undo.",
 					"Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.",
-					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks.",
-					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. Find lists them with the word Proposed.",
+					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).",
+					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. With the filter on, the Board is one column, Proposed, and the Map draws each in its tree with a dashed outline and the word, the goals above it shown for context; opening one goes to its page. Find lists them with the word Proposed.",
 					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active. A goal with check-ins can’t go back to proposed: stop it instead."
 				]
 			},
@@ -19077,6 +19104,20 @@ var WHATS_NEW = [
 		title: "A review speaks only for the goals it walks",
 		points: ["In a review, marking a goal reviewed, a note, accepting a risk, a question or a next step is only for a goal the review covers: its goals, trees and levels. Anything else is refused, in the app and through the AI tools, with a sentence that says why.", "Anyone can still ask a question or agree a next step on the goal’s own page."],
 		articles: ["reviews"]
+	},
+	{
+		id: "proposed-on-map-and-board",
+		date: "2026-11-13",
+		title: "Proposed goals on the Map and the Board",
+		points: ["With the State filter on Proposed, the Board is one column, Proposed, and the Map draws each proposed goal in its tree with a dashed outline and the word.", "They still have no status: none is on the critical path or counted in what is under a goal."],
+		articles: ["goal-proposed", "goals"]
+	},
+	{
+		id: "proposal-leads-home",
+		date: "2026-11-13",
+		title: "A proposal for you can lead Home",
+		points: ["A goal someone proposed for you that you haven’t opened becomes Home’s main action once it has waited a week, if nothing else is asked of you first.", "Open it goes to the goal, and the proposal isn’t listed a second time under Needs your response."],
+		articles: ["home", "goal-proposed"]
 	},
 	{
 		id: "correct-means-one-thing",
@@ -49297,6 +49338,7 @@ var SupabaseStore = class {
 	}
 	/** A new workspace and everything in it, in one transaction (okr_create_workspace). */
 	async createWorkspace(w, data) {
+		wholeOnly(data);
 		const payload = {
 			...commitPayload(w.id, data, this.records),
 			teams: data.teams.map((t) => teamToRow(w.id, t)),

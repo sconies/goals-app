@@ -33,6 +33,26 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['reviews'],
   },
   {
+    id: 'proposed-on-map-and-board',
+    date: '2026-11-13',
+    title: 'Proposed goals on the Map and the Board',
+    points: [
+      'With the State filter on Proposed, the Board is one column, Proposed, and the Map draws each proposed goal in its tree with a dashed outline and the word.',
+      'They still have no status: none is on the critical path or counted in what is under a goal.',
+    ],
+    articles: ['goal-proposed', 'goals'],
+  },
+  {
+    id: 'proposal-leads-home',
+    date: '2026-11-13',
+    title: 'A proposal for you can lead Home',
+    points: [
+      'A goal someone proposed for you that you haven’t opened becomes Home’s main action once it has waited a week, if nothing else is asked of you first.',
+      'Open it goes to the goal, and the proposal isn’t listed a second time under Needs your response.',
+    ],
+    articles: ['home', 'goal-proposed'],
+  },
+  {
     id: 'correct-means-one-thing',
     date: '2026-11-13',
     title: 'Correcting a check-in means one thing everywhere',
