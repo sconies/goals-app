@@ -1961,7 +1961,8 @@ function mayChangeGoal(actor, goal) {
 * Whether `actor` may post or correct a check-in on `goal` (Lane, 12 Nov: check-ins are the owner's). Only its owner
 * at the check-in screens, the one-table check-in and through the AI tools. Two exceptions, both kept by Lane (12 Nov),
 * both for an admin: loading a workbook (a spreadsheet import, or setting up from an export) brings in everyone's
-* history, and Data's tables let an admin correct a past check-in. Each records the admin as author and actor, with
+* past weeks, and Data's tables let an admin correct a check-in that exists; neither adds this week's new one: the row
+* decides that (checkInDoors mayPostCheckInRow, which the change engine asks; Lane, 13 Nov, backlog AD). Each records the admin as author and actor, with
 * the door as its Via (postCheckIn.test).
 */
 function mayPostCheckIn(actor, goal, via) {
@@ -8037,6 +8038,21 @@ var init_goalEntry = __esmMin((() => {
 		stages: []
 	});
 }));
+// src/domain/checkInDoors.ts
+/**
+* Whether `actor` may post or correct this check-in row on `goal`. The owner always; an admin at one of the two doors
+* only for what it is for: a workbook brings in past weeks or corrects a check-in that is there, never this week's new
+* one (one pasted row on Import is no history); Data's tables correct a check-in that exists, never add one.
+*/
+function mayPostCheckInRow(actor, goal, via, row) {
+	if (goal.ownerId === actor.id) return true;
+	return mayPostCheckIn(actor, goal, via) && (row.exists || via !== "table" && row.week < row.thisWeek);
+}
+var ADMIN_DOOR_LIMIT;
+var init_checkInDoors = __esmMin((() => {
+	init_goalRights();
+	ADMIN_DOOR_LIMIT = (via) => via === "table" ? "Data’s tables correct a check-in; they don’t add one." : "A workbook brings in past weeks, not this week’s new check-in.";
+}));
 // src/domain/proposedActions.ts
 /** Rule 2's full list for the goal as it stands, as if it were made active from `fromWeek` (this week by default). */
 function readyToActivate(goal, ctx) {
@@ -11630,15 +11646,21 @@ function* planChangesInChunks(input) {
 			return;
 		}
 		const owned = s.goals.find((x) => x.id === g.id) ?? g;
-		if (!create && !mayPostCheckIn({
+		const who = {
 			id: actor.id,
 			admin: admin()
-		}, owned, via)) {
+		};
+		if (!create && !mayPostCheckInRow(who, owned, via, {
+			week: w,
+			thisWeek: week,
+			exists: !!existing
+		})) {
 			if (!post && answerOf("not-allowed", "Check-ins")?.choice === "leave") {
 				leave("Check-ins", row);
 				return;
 			}
-			raise("not-allowed", "Check-ins", row, g.title, `Only ${people.get(owned.ownerId)?.name ?? "its owner"} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
+			const limit = mayPostCheckIn(who, owned, via) ? " " + ADMIN_DOOR_LIMIT(via) : "";
+			raise("not-allowed", "Check-ins", row, g.title, `Only ${people.get(owned.ownerId)?.name ?? "its owner"} (its owner) can check in on “${g.title}”.${limit}`, post ? {} : { answers: ANSWERS.leaveOnly });
 			return;
 		}
 		const asked = post ? checkInLevels(g, w, draft, ctx).checks : [];
@@ -12337,6 +12359,7 @@ var init_changeset = __esmMin((() => {
 	init_columns();
 	init_goal();
 	init_goalEntry();
+	init_checkInDoors();
 	init_goalRights();
 	init_numbers();
 	init_goalKey();
@@ -17151,7 +17174,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet. Anyone can ask the owner for an update from the goal’s page."]
+				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. Anyone can ask the owner for an update from the goal’s page."]
 			}
 		],
 		routes: ["/check-in", "/check-in/:goalId"],
@@ -17993,6 +18016,7 @@ var CORE_ARTICLES = [
 					"Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.",
 					"Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.",
 					"Change it: the same page as any goal, with no reason ever asked. Withdraw it: it goes to Recently removed for 30 days, with Undo.",
+					"Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.",
 					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks.",
 					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. Find lists them with the word Proposed.",
 					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active. A goal with check-ins can’t go back to proposed: stop it instead."
@@ -18757,7 +18781,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Leaving a form",
-				list: ["A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.", "“Close without saving” (setting up or changing a review, wrapping up a goal) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it."]
+				list: ["A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.", "“Close without saving” (setting up or changing a review, wrapping up a goal, starting an import) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it."]
 			},
 			{
 				heading: "An address that leads nowhere",
@@ -19375,6 +19399,27 @@ var WHATS_NEW = [
 			"A metric that has measured goals is retired, not deleted: its goals keep their numbers and say so, and Bring it back undoes it. Admins can merge two metrics in the same unit."
 		],
 		articles: ["metric-change"]
+	},
+	{
+		id: "make-it-proposed-again",
+		date: "2026-11-13",
+		title: "Make a goal proposed again",
+		points: ["A goal made active too soon can go back to proposed while it has no check-ins: Make it proposed again, in the goal’s “…” menu.", "It then has no status and nothing is due until it is made active again. The message has Undo."],
+		articles: ["goal-proposed"]
+	},
+	{
+		id: "admin-check-in-doors-narrow",
+		date: "2026-11-13",
+		title: "Only owners add this week’s check-in",
+		points: ["An admin’s workbook brings in past weeks and corrections, not this week’s new check-in for someone else.", "In Data, an admin corrects a check-in; adding one is the owner’s."],
+		articles: ["check-in", "data"]
+	},
+	{
+		id: "import-way-out",
+		date: "2026-11-13",
+		title: "Import has a way out again",
+		points: ["Import has “Close without saving” at the top right, as every form does, so on a phone it no longer leaves you with no way back to Data.", "Rows you pasted are asked about first."],
+		articles: ["getting-around", "import"]
 	},
 	{
 		id: "setup-upload-preview",

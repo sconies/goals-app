@@ -109,7 +109,7 @@ as-recorded,0,amara,checkIns,,"[{""Goal"":""Cache hit rate"",""Week"":""20"",""V
 as-recorded,1,,Goals,2,,,,goal_c2,Cache hit rate,new goal,Name: — → Cache hit rate | Type: — → Move a number | Team: — → CI/CD | Owner: — → Ines Novak | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 10% | Target: — → 50% | Plan shape: — → Straight line | Plan from week: — → Week 1 | Target due: — → Week 40 | Via: — → Spreadsheet,,,no,
 as-recorded,2,,Check-ins,2,,,,goal_c2,Cache hit rate,check-in,Status call: — → On track | Value: — → 12% | Via: — → Spreadsheet,,,no,
 as-recorded,3,,People,2,,,,,Ines Novak,new person,Person: — → Ines Novak | Email: — → ines@example.com | Via: — → Spreadsheet,,,no,
-saves-check-in,0,amara,checkIns,,"[{""Goal key"":""G-22"",""Week"":""45"",""Value"":""85"",""Next step"":""Roll the runner image out to the last two teams""}]",,,,,,,checkIns=1,0,no,yes
+saves-check-in,0,rhea,checkIns,,"[{""Goal key"":""G-22"",""Week"":""45"",""Value"":""85"",""Next step"":""Roll the runner image out to the last two teams""}]",,,,,,,checkIns=1,0,no,yes
 saves-check-in,1,,Check-ins,2,,,,ci-dedupe,Superseded pipeline runs cancelled automatically,check-in,Status call: — → On track | Value: — → 85% | Next step: — → Roll the runner image out to the last two teams | Via: — → Spreadsheet,,,no,
 saves-plan-with-reason,0,amara,goals,,"[{""Key"":""G-1"",""Target"":""23"",""Reason"":""Agreed at the quarterly review""}]",,,,,,,plans=1,0,no,yes
 saves-plan-with-reason,1,,Goals,2,,,,ns-lead,Lead time for changes,plan,Target: 24 hours → 23 hours | Why: — → Agreed at the quarterly review | Via: — → Spreadsheet,,,yes,

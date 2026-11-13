@@ -35,6 +35,36 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['metric-change'],
   },
   {
+    id: 'make-it-proposed-again',
+    date: '2026-11-13',
+    title: 'Make a goal proposed again',
+    points: [
+      'A goal made active too soon can go back to proposed while it has no check-ins: Make it proposed again, in the goal’s “…” menu.',
+      'It then has no status and nothing is due until it is made active again. The message has Undo.',
+    ],
+    articles: ['goal-proposed'],
+  },
+  {
+    id: 'admin-check-in-doors-narrow',
+    date: '2026-11-13',
+    title: 'Only owners add this week’s check-in',
+    points: [
+      'An admin’s workbook brings in past weeks and corrections, not this week’s new check-in for someone else.',
+      'In Data, an admin corrects a check-in; adding one is the owner’s.',
+    ],
+    articles: ['check-in', 'data'],
+  },
+  {
+    id: 'import-way-out',
+    date: '2026-11-13',
+    title: 'Import has a way out again',
+    points: [
+      'Import has “Close without saving” at the top right, as every form does, so on a phone it no longer leaves you with no way back to Data.',
+      'Rows you pasted are asked about first.',
+    ],
+    articles: ['getting-around', 'import'],
+  },
+  {
     id: 'setup-upload-preview',
     date: '2026-11-13',
     title: 'Set-up checks a spreadsheet as Import does',
