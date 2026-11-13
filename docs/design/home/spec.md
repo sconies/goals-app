@@ -228,7 +228,7 @@ Takes the ask, today, the week's dates, and for an ask raised in a review that r
 | When | Line |
 |---|---|
 | Late, by week | Warning mark, "Was due week {w} ({dates})" |
-| Late, by session | Warning mark, "Was due before {Review}’s session on {Tue 10 Nov}" |
+| Late, by session | Warning mark, "Was due by {Tue 10 Nov}" (13 Nov: the review is named after it, so the line shows whole on a phone) |
 | Due before a session today / tomorrow | Warning mark, "Due before today’s session" / "Due before tomorrow’s session" |
 | Due this week | "Due this week ({dates})" |
 | Due later | "Due week {w} ({dates})" / "Before its next session, {Tue 24 Nov}" |
@@ -240,7 +240,7 @@ Takes the ask, today, the week's dates, and for an ask raised in a review that r
 | Given | Then |
 |---|---|
 | ◆ Daniel's question, asked on Tue 3 Nov in Developer Productivity fortnightly, whose next session is Tue 10 Nov; today Mon 9 Nov | due Tue 10 Nov, "Due before tomorrow’s session" |
-| ◆ The same, today Wed 11 Nov, unanswered | late: "Was due before Developer Productivity fortnightly’s session on Tue 10 Nov" (today it reads "Before its next session, Tue 24 Nov", H4) |
+| ◆ The same, today Wed 11 Nov, unanswered | late: "Was due by Tue 10 Nov" (today it reads "Before its next session, Tue 24 Nov", H4) |
 | ◆ Rhea's decision for Amara, asked 4 Aug, no date; today 11 Nov | not late; `waitedDays` 99; "Waiting since 4 Aug, 14 weeks" |
 | ◆ Amara's next step, due week 47; today in week 46 | "Due week 47 (16 to 22 Nov)" |
 | The same, today in week 48 | late: "Was due week 47 (16 to 22 Nov)" |
@@ -340,7 +340,7 @@ None. `home-seen` is a per-person, per-workspace value behind the `Prefs` port (
 | Number | What |
 |---|---|
 | **U122** The owner's week | As Tunde: Mon 9 Nov, Home has no primary button and says "Nothing is asked of you today."; Wed 11 Nov the lead is "1 check-in to do" with **Start check-in**; post it; Home says "Both check-ins are in for week 46." with no button; Fri 13 Nov the passed deadline is not said. "Your goals · 2" appears once; each count opens Goals with the same number |
-| **U123** The manager on review day | As Rhea, Tue 10 Nov: the lead's eyebrow names her review and the button starts the check-in; with all in, the lead is "Open the review" and the review cell is gone; Wed 11 Nov her unanswered question reads "Was due before…" with the warning mark; "Your team · CI/CD" opens `scope=team` with the same total |
+| **U123** The manager on review day | As Rhea, Tue 10 Nov: the lead's eyebrow names her review and the button starts the check-in; with all in, the lead is "Open the review" and the review cell is gone; Wed 11 Nov her unanswered question reads "Was due by Tue 10 Nov" with the warning mark; "Your team · CI/CD" opens `scope=team` with the same total |
 | **U124** The leader | As Amara, Mon 9 Nov: the one primary is **Respond** on Rhea's decision; the review is a cell; Watching is a table of teams, worst first; press a team's "{k} need attention" and Goals' count line says k; "Changed since" counts open lists of that length; on Thu 12 Nov the lead is the review. No person's name appears in the teams table |
 | **U125** Four ways, and with nothing | As Rhea with no set rhythm: no "due", no late, no streak, a check-in is never the lead; with Reviews off: no review lead or cell and no review named on an ask; with Watching off: no Watching block; as someone with nothing: one sentence and two plain buttons; as Grace: the workspace's line opens Workspace |
 | **F25** Home's numbers agree | For Tunde, Rhea, Amara and Oskar on three days: every count on Home that is a link equals the number in the count line of the page it opens; every count on Home is a link or is the length of a list on Home |

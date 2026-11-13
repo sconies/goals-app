@@ -795,6 +795,12 @@
       "use": "copy"
     },
     {
+      "id": "METRIC-CHANGE",
+      "area": "Metrics",
+      "text": "A metric that changes tells its goals (MT3). Changing a metric goals use reads back what it does to them first: a new meaning or source asks \"Is it still the same number?\"; \"The number itself changes\" and a new direction each need a reason, and leave a mark on every goal's chart (\"Definition changed, week {w}\", a dashed hairline labelled beside it) and History; a new unit is a new label (every goal's unit changes too) or a different scale, refused. A metric that has measured a goal is retired, not deleted: its goals keep their links and numbers and say \"Measured by {metric}, retired {date}\", it leaves the pickers, and Bring it back undoes it. Admins merge a metric into another in the same unit, moving its goals and retiring it pointing there. Every one of these saves with one Undo, and retire_metric, merge_metrics and save_metric's comparable, reason and relabel do the same through MCP.",
+      "use": "copy"
+    },
+    {
       "id": "METRICS-CARE",
       "area": "Metrics",
       "text": "A metric's owner and admins are shown what it is missing; removing or changing one says what happens to its goals (ML3). A metric's page lists, for its owner and admins only, what it still needs in order (no owner, no meaning, no source, no goal after 14 days), each with a button that opens the form at that field. Adding a metric whose name is close to one in use (one name's words contain the other's, or they share two words and differ by one, leaving out filler words and brackets) asks \"This looks like …\" as a Check (METRIC-DEFINED), with Use that one or Mine is different: keep it. The form keeps a draft through Close, Back and a reload; each error shows under its field once the field is left or on the first try to save, and the first field in error takes the focus. Changing the unit or direction of a metric goals use asks first, saying how many goals and how many will show a warning. Remove says which goals stop being measured (a stopped goal's too); Undo puts the metric and its links back, and Put it back later restores the links it had to goals still there. Workspace → About tells admins how many metrics have no owner, with See them.",

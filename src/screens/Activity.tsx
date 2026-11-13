@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useOlderChanges } from '../app/history';
 import { useSearchParams } from 'react-router';
 import { saveAndSay } from '../app/files';
 import { useApp } from '../app/state';
@@ -49,7 +50,10 @@ export function Activity() {
   // Arriving from Watching keeps its scope: the goals you watch (at a level, if one was picked).
   const level = a.watching && a.watching !== 'all' ? (a.watching as Level) : null;
   const watched = a.watching != null ? new Set(watchedGoals(app.viewer.id, app.snapshot).filter((g) => !level || g.level === level).map((g) => g.id)) : null;
-  const all = [...app.snapshot.changes].reverse();
+  // The load holds about a year of changes (AX5 part 2b); older ones are paged in on request, below the rest.
+  const older = useOlderChanges();
+  const loaded = [...app.snapshot.changes].reverse();
+  const all = older.older.length ? [...loaded, ...older.older].sort((x, y) => Date.parse(y.at) - Date.parse(x.at)) : loaded;
   const base = { ...a, kind: [] as ActivityQuery['kind'] };
   const ctx = { snapshot: app.snapshot, cycle: app.cycle, week: app.week, watched };
   const found = all.filter(activityFilter(base, ctx));
@@ -120,7 +124,9 @@ export function Activity() {
       )) : narrowed || a.q.trim() ? (
         <NoneFound things={CHANGES} q={a.q} filtered={parts.length > 0} onClearSearch={() => setA((cur) => ({ ...cur, q: '' }))} onClearFilters={() => setA((cur) => ({ ...EMPTY_ACTIVITY, q: cur.q, watching: cur.watching, since: cur.since }))} />
       ) : <div className="activity-none"><p className="activity-none-title">Nothing here yet</p></div>}
-      {folded.top.length > shown.length && <button className="btn" onClick={() => setLimit((n) => n + 40)}>Show more ({folded.top.length - shown.length} older)</button>}
+      {folded.top.length > shown.length
+        ? <button className="btn" onClick={() => setLimit((n) => n + 40)}>Show more ({folded.top.length - shown.length} older)</button>
+        : older.more && <button className="btn" disabled={older.loading} onClick={() => { older.next(); setLimit((n) => n + 40); }}>{older.loading ? 'Fetching older changes…' : 'Show older changes'}</button>}
       {open && <ActivityFilters onClose={() => setOpen(false)} onSave={list.length ? saveCsv : null} />}
     </div>
   );

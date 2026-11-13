@@ -117,6 +117,38 @@ const help: Article[] = [
     keywords: ['which part', 'part', 'slice', 'for', 'tier-1', 'region', 'from the metric', 'why', 'measured differently'],
     related: ['metric-measured-by', 'metric-define', 'edit-goal'],
   },
+  {
+    id: 'metric-change',
+    title: 'Changing, retiring and merging a metric',
+    summary: 'Which changes save at once, the ones that tell a metric’s goals first, and retiring, bringing back and merging.',
+    group: 'you',
+    after: 'metric-slices',
+    sections: [
+      { heading: 'What saves at once', list: [
+        'A new name, owner, source owner, refresh or caveats saves at once, as does any change to a metric no goal uses.',
+      ] },
+      { heading: 'What reads back first', list: [
+        'Changing what a metric means, or where its number comes from, shows the goals it measures and asks “Is it still the same number?”. Same number, better words: nothing is marked. The number itself changes: say why, in a line, and each goal’s chart and History say “Definition changed, week {w}” with your reason. Their numbers and plans don’t change.',
+        'Changing which way is better needs a reason too, names the goals whose target now lies the wrong way, and marks each goal.',
+        'A new unit is either a new label for the same numbers (every goal’s unit changes with it) or a different scale. A different scale is a different metric: add it as a new metric and move goals to it, or retire this one.',
+        'Fewer decimal places names the goals that show more; they keep theirs until their owners change them.',
+        'Undo takes back the change, its marks and, for a new label, every goal’s unit, as one.',
+      ] },
+      { heading: 'Retire, not delete', list: [
+        'A metric that has measured a goal is retired, not deleted: its goals keep their numbers and plans and say “Measured by {metric}, retired {date}”. It leaves the pickers and the library’s list (Retired metrics are listed apart), and it can be brought back at any time with Bring it back.',
+        'Say why it is retired. Name what replaces it, in the same unit, and its goals’ owners are offered it on the goal’s page.',
+        'A metric no goal has ever used is deleted instead, and can be put back from Recently removed for 30 days.',
+      ] },
+      { heading: 'Merge (admins)', list: [
+        'An admin merges a metric into another in the same unit: every goal it measures moves to the other, keeping its For and part, and it is retired pointing there. One Undo puts it all back.',
+      ] },
+    ],
+    routes: ['/metrics/:metricId/edit'],
+    screens: [],
+    reqs: ['METRIC-CHANGE'],
+    keywords: ['retire', 'retired', 'bring back', 'merge', 'delete', 'definition changed', 'same number', 'new label', 'scale', 'direction changed'],
+    related: ['metric-define', 'metric-slices', 'metrics'],
+  },
 ];
 
 export default help;

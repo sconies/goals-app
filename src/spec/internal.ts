@@ -105,6 +105,8 @@ export const ACCESS: Access[] = [
   { area: 'People, teams and the workspace', what: 'Change the status of a markup or of feedback (In hand, Fixed, Won’t fix, New again)', who: 'Admins (Lane, 12 Nov); anyone reads the inbox and sends feedback', code: ['src/markup/model.ts#mayTriage'] },
   { area: 'Metrics', what: 'Add a metric to the library', who: 'Anyone; they own it unless they name another owner', code: [`${MX}saveMetric`, 'src/modules/metrics/rulesSave.ts#saveMetricAsked'] },
   { area: 'Metrics', what: 'Change or remove a metric', who: 'Its owner, or an admin', code: [`${MX}saveMetric`, 'src/modules/metrics/rulesSave.ts#saveMetricAsked', `${MX}removeMetric`, `${MX}canEditMetric`] },
+  { area: 'Metrics', what: 'Retire a metric, or bring one back (MT3)', who: 'Its owner, or an admin', code: ['src/modules/metrics/rulesChange.ts#retireMetric', 'src/modules/metrics/rulesChange.ts#unretireMetric'] },
+  { area: 'Metrics', what: 'Merge one metric into another in the same unit (MT3)', who: 'Admins', code: ['src/modules/metrics/rulesChange.ts#mergeMetrics'] },
   { area: 'Metrics', what: 'Say which metric measures a goal, or stop', who: 'The goal’s owner, or an admin', code: ['src/modules/metrics/rulesLink.ts#linkGoalMetric', `${MX}unlinkGoalMetric`, `${MX}canLinkGoal`] },
 ];
 
