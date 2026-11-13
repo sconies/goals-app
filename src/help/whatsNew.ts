@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'admin-check-in-doors-narrow',
+    date: '2026-11-13',
+    title: 'Only owners add this week’s check-in',
+    points: [
+      'An admin’s workbook brings in past weeks and corrections, not this week’s new check-in for someone else.',
+      'In Data, an admin corrects a check-in; adding one is the owner’s.',
+    ],
+    articles: ['check-in', 'data'],
+  },
+  {
     id: 'import-way-out',
     date: '2026-11-13',
     title: 'Import has a way out again',
