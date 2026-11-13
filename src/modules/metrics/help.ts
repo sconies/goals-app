@@ -38,7 +38,7 @@ const help: Article[] = [
     after: 'metrics',
     sections: [
       { heading: 'What it needs', list: [
-        'In Metrics, choose Add a metric. Three things are needed: the Name (3 to 120 characters, used by one metric whatever the case), the Unit as it follows a number (hours, %, USD, deploys), and Which way is better. Decimal places is optional: 0 if left.',
+        'In Metrics, choose Add a metric. Three things are needed: the Name (3 to 120 characters, used by one metric whatever the case or accents), the Unit as it follows a number (hours, %, USD, deploys), and Which way is better. Decimal places is optional: 0 if left.',
         'Five more make it fully defined, and can be said later: what it means and how it’s calculated (what is counted, out of what or over what period, and what is left out); where the number comes from; who owns that source; how often it refreshes; and an owner here who answers for what it means.',
         'A metric’s page says “Fully defined” under its title, or what is still to say: “Still to say: where the number comes from, how often it refreshes.” Its owner and admins can open the form at each item from there. It is never a score, a percentage or a bar, and nothing is sorted by it.',
       ] },
@@ -47,13 +47,14 @@ const help: Article[] = [
         'A Check is a question to answer once. There are three: a name one letter or one word from another metric’s, or one a metric used to have (“This is one letter from “Deploy success rate” …”, with Use that one or Mine is different: keep it); a unit spelt differently from one in use (“Other metrics here use “min”.”); and a percentage whose meaning doesn’t say out of what (with It’s right as written).',
         'The foot of the form counts them (“1 to fix, 2 to check.”) above the completeness line. Saving with a Check unanswered takes you to it. An answered Check closes to one line with Change; changing the field asks again.',
         'Use that one opens the metric already in the library; what you typed is kept as a draft.',
+        'Adding a metric from a goal’s Measured by asks the same Checks, under the new metric’s fields, before Add this metric saves it.',
       ] },
       { heading: 'Changing or removing one', list: [
         'What you type is kept as a draft: Close, Back or a reload doesn’t lose it. Opened from a metric’s To sort out or its completeness line, the form opens at the field that needs filling.',
         'Changing the unit or which way is better of a metric goals use asks first, here and through the AI assistant: their numbers and plans don’t change, and the goals that now differ say so under “Measured by” on their page.',
         'Workspace → About tells admins how many metrics have no owner (someone who left owned them), with See them.',
         'On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back.',
-        'An AI assistant asks the same questions: save_metric returns them and saves nothing until it calls again with your answers.',
+        'An AI assistant asks the same questions: save_metric returns them and saves nothing until it calls again with your answers to those questions. Someone who may not change a metric is told so before being asked anything.',
       ] },
     ],
     routes: ['/metrics/new', '/metrics/:metricId/edit'],
@@ -72,7 +73,7 @@ const help: Article[] = [
       { heading: 'How to use it', list: [
         'In New goal, “Measured by” is the first field on the step about numbers; when changing a goal, it is under its name. Type part of a metric’s name, unit or owner to find it. Metrics already in the goal’s unit are offered first.',
         'Choosing one shows what it means, with Read more for its page. On a new goal whose unit nobody has typed, it fills in the unit, the decimal places and which way is better, said in one line; Use different ones shows the fields again.',
-        'For: the goal’s team, or the whole company. With no team chosen yet, only the whole company is offered.',
+        'For: the goal’s team, or the whole company. With no team chosen yet, only the whole company is offered. Which part narrows it to one part of that number; see “Measured by: for whom, and which part”.',
         'A goal in another unit can’t be measured by the metric: it says so, and the goal can’t be saved until the units agree or No metric is chosen.',
         'No metric means the goal says in its own words how it’s measured. A goal with dated stages has no number, so it has no “Measured by”.',
         'Nothing fits? Choose Add “…” as a new metric: give it a name, a unit and which way is better, and it is chosen. You own it; say more about it on its page later.',
@@ -83,7 +84,37 @@ const help: Article[] = [
     screens: ['MeasuredBy'],
     reqs: ['METRICS-MEASURED-BY'],
     keywords: ['measured by', 'metric', 'choose metric', 'link metric', 'no metric', 'for'],
-    related: ['metrics', 'metric-define', 'new-goal'],
+    related: ['metrics', 'metric-define', 'new-goal', 'metric-slices'],
+  },
+  {
+    id: 'metric-slices',
+    title: 'Measured by: for whom, and which part',
+    summary: 'What a goal takes from its metric and what stays its own, whose number it is, and one part of that number.',
+    group: 'you',
+    after: 'metric-measured-by',
+    sections: [
+      { heading: 'What a goal takes from its metric', list: [
+        'A goal measured by a metric uses the metric’s unit and which way is better, shown as “From the metric”, with where the number comes from and how often it refreshes when the metric says. To use others, choose another metric or No metric.',
+        'Its start, target, plan and due week stay the goal’s own.',
+      ] },
+      { heading: 'For, and which part', list: [
+        'For says whose number it is: the goal’s team, or the whole company.',
+        'Which part is optional: one part of that number, such as tier-1 services, a region or release builds, up to 60 characters. Leave it empty for all of it.',
+        'Parts other goals on the metric already use are listed under the field; choose one rather than typing it again, so goals on the same part line up on the metric’s page. A part spelt like one in use is asked about (“Use tier-1 services”, or keep yours).',
+        'If another goal already measures the same metric for the same team and part, you are asked, as two goals on one number is unusual; Carry on keeps it.',
+      ] },
+      { heading: 'After check-ins', list: [
+        'Once a goal has check-ins, changing its metric, For or part asks Why. It shows in the goal’s History, so anyone reading its chart knows the number was measured differently from then on.',
+      ] },
+      { heading: 'On the goal’s page', list: [
+        'About lists Measured by: For, what it means, From the metric, where the number comes from, caveats, the goal’s own target, and its own definition when that says more than the metric’s.',
+      ] },
+    ],
+    routes: [],
+    screens: [],
+    reqs: ['METRIC-PARTS'],
+    keywords: ['which part', 'part', 'slice', 'for', 'tier-1', 'region', 'from the metric', 'why', 'measured differently'],
+    related: ['metric-measured-by', 'metric-define', 'edit-goal'],
   },
 ];
 

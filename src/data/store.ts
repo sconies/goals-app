@@ -45,7 +45,7 @@ export function checkExpectations(s: Snapshot, e: Expectations | undefined) {
 export type { Mode, Store } from '../ports/store';
 export { isStale, StaleError } from '../ports/store';
 import { StaleError, type HistoryAsk, type HistoryPage, type LoadWindow, type Store } from '../ports/store';
-import { historyPage, windowed } from '../ports/window';
+import { historyPage, windowed, wholeOnly } from '../ports/window';
 
 /**
  * The demo's own plumbing (backlog AX5): a store that holds the example workspace and can start it again. Only the
@@ -296,6 +296,7 @@ export class BrowserStore implements ExampleStore {
   }
 
   async createWorkspace(ws: Workspace, data: Snapshot) {
+    wholeOnly(data);
     const own = (this.get<Workspace[]>(this.key + ':workspaces') ?? []).filter((w) => w.id !== ws.id);
     const { recording, ...kept } = ws;
     this.put(this.key + ':workspaces', [...own, kept]);

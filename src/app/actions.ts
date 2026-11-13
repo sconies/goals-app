@@ -23,7 +23,7 @@ export async function loadEngine(): Promise<Engine> { return (engine ??= await i
 export function setEngine(e: Engine) { engine ??= e; }
 /** The actions that need the change engine. */
 // Making a proposed goal active, or proposed again (GE10), comes with the engine too (domain/proposedActions).
-const NEEDS_ENGINE = new Set(['planChanges', 'postCheckIn', 'activate']);
+const NEEDS_ENGINE = new Set(['planChanges', 'postCheckIn', 'activate', 'backToProposed']);
 /*
  * Goal entry's rules (domain/goalEntry: what a goal needs, its questions, `planGoal`) load the same way: on the first
  * save, or when the browser is idle after the first screen (`loadGoalEntry`). New goal, the edit page and set-up carry
@@ -37,6 +37,7 @@ const entry = (): GoalEntry => { if (!goalEntry) throw new Error('Goal entry has
 export async function ready(name: string): Promise<void> {
   if (NEEDS_ENGINE.has(name)) await loadEngine();
   if (name === 'saveGoal') await loadGoalEntry();
+  await MODULE_ACTIONS[name]?.ready?.();
 }
 const eng = (): Engine => { if (!engine) throw new Error('The change engine hasn’t loaded yet: call ready() first.'); return engine; };
 import type { Draft } from '../domain/checkin';
@@ -86,6 +87,8 @@ export const ACTIONS = {
   saveGoal: (x: RunContext, i: SaveGoalInput) => entry().planGoal(x, i),
   /* A proposed goal (GE10, rule 14): made active by its owner or an admin. */
   activate: (x: RunContext, i: { goalId: string; fromWeek?: number }) => eng().activate(x, { goalId: goalOf(x, i.goalId).id, fromWeek: i.fromWeek }),
+  /* An active goal with no check-ins, by its owner or an admin: proposed again (GE10, rule 14). */
+  backToProposed: (x: RunContext, i: { goalId: string }) => eng().backToProposed(x, { goalId: goalOf(x, i.goalId).id }),
   stopGoal: (x: RunContext, i: { goalId: string; reason: string }) => R.stopGoal(x, goalOf(x, i.goalId).id, i.reason),
   deleteGoal: (x: RunContext, i: { goalId: string }) => R.deleteGoal(x, goalOf(x, i.goalId).id),
   deleteCheckIn: (x: RunContext, i: { checkInId: string }) => R.deleteCheckIn(x, i.checkInId),
@@ -163,6 +166,8 @@ export interface ModuleAction<I = any, O = any> {
   /** The AI tools that do the same, so an assistant can do whatever a person can (src/mcp/parity.test.ts). */
   tools: string[];
   said?(out: NonNullable<O>, input: I): string;
+  /** Loads what `run` needs, when that is too large for the first download: the dispatcher awaits it first (`ready`). */
+  ready?(): Promise<void>;
 }
 /** What a module's actions.ts default-exports: its actions, by name. */
 export type ModuleActions = Record<string, ModuleAction>;

@@ -92,8 +92,8 @@ export function WeekLabels({ f, weeks, week, X, wide }: { f: Frame; weeks: numbe
  * The target (or limit): a label 4px clear above its line, with a halo so lines don't cross it. It sits at the right end of
  * the plot, unless the plan comes down onto the target there: then the left end, which the lines are far from.
  */
-export const TargetLabel = ({ f, y, left, children }: { f: Frame; y: number; left?: boolean; children: ReactNode }) => (
-  <text className="c-target-t" x={left ? f.padL + 4 : f.W - f.padR} y={targetLabelY(y)} textAnchor={left ? 'start' : 'end'}>{children}</text>
+export const TargetLabel = ({ f, y, left, below, children }: { f: Frame; y: number; left?: boolean; below?: boolean; children: ReactNode }) => (
+  <text className="c-target-t" x={left ? f.padL + 4 : f.W - f.padR} y={below ? Math.min(f.H - f.padB - 2, y + 14) : targetLabelY(y)} textAnchor={left ? 'start' : 'end'}>{children}</text>
 );
 const targetLabelY = (y: number) => Math.max(12, y - 6);
 

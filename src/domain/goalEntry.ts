@@ -293,7 +293,7 @@ export interface ChecksContext {
   /** The owner's name when the person entering the goal may not record its set-up check-in (goalRights
       mayPostCheckIn): a stage already past is still asked, and the question says the owner marks it. */
   marksStages?: string;
-  /** The goal is being proposed (rule 14): it has no check-ins, so a stage already past is asked when it is made active. */
+  /** The goal is being proposed (rule 14): it has no check-ins, so the stage question isn't asked: making it active asks nothing about stages, and the owner marks any already done at the first check-in. */
   proposing?: boolean;
 }
 
@@ -621,7 +621,8 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   // Only a stage already past can be done at set-up: one due later would be a check-in dated ahead of this week.
   const doneIds = goal.kind === 'milestone' ? said.filter((id) => goal.stages.some((st) => st.id === id && pastStage(st.dueWeek, x.week))) : [];
   // It is a check-in, so the owner's (R1): someone creating the goal for someone else publishes it without one.
-  // A proposal has no check-ins (rule 14): its stages already done are asked about when it is made active.
+  // A proposal has no check-ins (rule 14): nothing is asked about its stages, here or when it is made active; the
+  // owner marks any already done at the first check-in.
   const done = !existing && !proposing && doneIds.length && mayPostCheckIn(x.actor, goal, 'form') ? stagesDoneAtSetUp(goal, doneIds, x.actor.id, x.now, x.newId('ci')) : null;
   const doneChange = done ? checkInChange(null, done, goal, x.actor.id, x.newId('chg')) : null;
   return { commit: { goals: [goal], changes: [change, ...(doneChange ? [doneChange] : [])], ...(done ? { checkIns: [done] } : {}) }, goal };

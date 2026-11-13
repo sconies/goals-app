@@ -21,7 +21,7 @@ export const goalRemoveLabel = (hasCheckIns: boolean) => (hasCheckIns ? 'Stop th
 export function RemoveGoalSheet({ goal, onClose }: { goal: Goal; onClose: () => void }) {
   const app = useApp();
   const nav = useNavigate();
-  const history = goalHasCheckIns(app.snapshot, goal.id);
+  const history = goalHasCheckIns(app.full, goal.id);
   const feeding = app.snapshot.goals.filter((g) => g.parentId === goal.id);
   const parent = goal.parentId ? app.goal(goal.parentId) : undefined;
   const asks = openAsksFor(goal.id, app.snapshot).length;
@@ -62,6 +62,26 @@ export function RemoveGoalSheet({ goal, onClose }: { goal: Goal; onClose: () => 
           </ul>
         )}
         <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn danger big-btn" type="submit">{busy ? (history ? 'Stopping…' : 'Deleting…') : history ? 'Stop the goal' : 'Delete the goal'}</button></div>
+      </form>
+    </Sheet>
+  );
+}
+
+/** Make an active goal with no check-ins proposed again (GE10, rule 14's `backToProposed`): its owner or an admin. */
+export function BackToProposedSheet({ goal, onClose }: { goal: Goal; onClose: () => void }) {
+  const app = useApp();
+  const [busy, setBusy] = useState(false);
+  const go = async () => {
+    if (busy) return;
+    setBusy(true);
+    try { await app.run('backToProposed', { goalId: goal.id }); onClose(); } catch { setBusy(false); }
+  };
+  return (
+    <Sheet open onClose={onClose} title="Make it proposed again">
+      <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void go(); }}>
+        <p className="strong">{goal.title}</p>
+        <p className="small">It will have no status and nothing will be due until it is made active.</p>
+        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Keep it active</button><button className="btn primary big-btn" type="submit">{busy ? 'Saving…' : 'Make it proposed'}</button></div>
       </form>
     </Sheet>
   );

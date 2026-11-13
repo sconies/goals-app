@@ -26,6 +26,7 @@ export const SAMPLES: Record<string, Sample> = {
   postCheckIn: { as: 'rhea', input: (x) => { const g = own(x); const last = checkInsFor(g, x.snapshot.checkIns).at(-1) ?? null; return { goalId: g.id, draft: { ...emptyDraft(g, last), value: g.kind === 'metric' ? String((last?.value ?? 1) + 1) : '', status: 'off', cause: 'slower', why: 'The rollout paused this week', ptgWhat: 'Restart the rollout', ptgBy: x.week + 2, ptgState: 'plan' }, mode: 'again', week: x.week }; } },
   saveGoal: { as: 'rhea', input: (x) => { const g = own(x); return { goalId: g.id, draft: { ...draftOf(g), title: `${g.title}, renamed` }, confirm: true, reason: 'Clearer name' }; } },
   activate: { as: ADMIN, input: (x) => ({ goalId: (x.snapshot.proposed ?? [])[0]?.id ?? other(x).id }) },
+  backToProposed: { as: ADMIN, input: (x) => ({ goalId: (x.snapshot.goals.find((g) => !x.snapshot.checkIns.some((c) => c.goalId === g.id && !c.removedAt)) ?? other(x)).id }) },
   stopGoal: { as: 'rhea', input: (x) => ({ goalId: own(x).id, reason: 'No longer needed' }) },
   deleteGoal: { as: ADMIN, input: (x) => ({ goalId: x.snapshot.goals.at(-1)!.id }) },
   deleteCheckIn: { as: 'rhea', input: (x) => ({ checkInId: checkInsFor(own(x), x.snapshot.checkIns).at(-1)!.id }) },

@@ -37,27 +37,44 @@ describe('rule 10: a large file is checked in about the time it takes to read', 
       const took = timed(() => { cs = planChanges(input(s0, newRows(k))); });
       expect(cs!.counts.newGoals).toBe(k / 2);
       expect(took).toBeLessThan(ms);
-    });
+      // The limit is the assertion: the test's own timeout sits above it, so a slow machine fails on the limit, never on
+      // vitest's 5 s default (a CI runner timed the 30,000-row test out at 5 s, #336).
+    }, ms * 3);
+  }
+
+  /** Five copies of the workspace, each copy's goals, people and teams with their own keys, titles, names and emails, so
+      the workbook reads as one real workspace would rather than as a file of clashes. */
+  function bigWorkspace(): Snapshot {
+    const s = scaleWorkspace(s0, 5);
+    const copy = (id: string) => Number(/_x(\d+)$/.exec(id)?.[1] ?? 0);
+    return {
+      ...s,
+      goals: s.goals.map((g) => { const c = copy(g.id); return c ? { ...g, key: g.key ? `G-${Number(g.key.slice(2)) + c * 1000}` : g.key, title: `${g.title} (copy ${c})` } : g; }),
+      people: s.people.map((p) => { const c = copy(p.id); return c ? { ...p, name: `${p.name} ${c}`, email: p.email ? p.email.replace('@', `+${c}@`) : p.email } : p; }),
+      teams: s.teams.map((t) => { const c = copy(t.id); return c ? { ...t, name: `${t.name} ${c}` } : t; }),
+    };
   }
 
   it('checks an unedited workbook of nearly 30,000 rows within 20 s, and nothing would change', () => {
-    const s = scaleWorkspace(s0, 5) as Snapshot;
+    const s = bigWorkspace();
     const wb = workbook({ ws: { id: 'ws', name: 'Big' } as never, snapshot: s, cycle, week, today });
     const tables = { goals: records(tsvOf(wb[1]!.rows)), plan: records(tsvOf(wb[2]!.rows)), checkIns: records(tsvOf(wb[3]!.rows)) };
     const rows = tables.goals.length + tables.plan.length + tables.checkIns.length;
     expect(rows).toBeGreaterThan(25_000);
     let cs: ReturnType<typeof planChanges> | null = null;
     const took = timed(() => { cs = planChanges(input(s, tables)); });
+    expect(cs!.issues).toEqual([]);
     expect(cs!.items).toEqual([]);
+    expect(Object.values(cs!.unchangedBy).reduce((a, b) => a + b, 0)).toBe(rows);
     expect(took).toBeLessThan(20_000);
-  });
+  }, 60_000);
 
   it('costs about what its rows do: five times the rows, well under twenty-five times the time', () => {
     planChanges(input(s0, newRows(200)));
     const small = Math.max(timed(() => planChanges(input(s0, newRows(1000)))), 5);
     const large = timed(() => planChanges(input(s0, newRows(5000))));
     expect(large / small).toBeLessThan(12);
-  });
+  }, 30_000);
 
   it('says fourteen rows with one typo once, as one group, among thousands', () => {
     const t = newRows(2000);

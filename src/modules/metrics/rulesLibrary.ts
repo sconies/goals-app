@@ -13,6 +13,9 @@ import { RANK } from '../../domain/status';
 import type { GoalSummary } from '../../domain/summary';
 import type { Cycle, DisplayStatus, Person, Team } from '../../domain/types';
 import { COMPANY, ownerName } from './rules';
+import { directionWords } from './names';
+/* Rule 4's names and the words for a direction live in names.ts (light enough for the first save): passed on here. */
+export { closeNames, directionWords, nameWords } from './names';
 import type { Metric, MetricDirection, MetricLink } from './types';
 
 const DAY = 86_400_000;
@@ -25,7 +28,6 @@ export const UNUSED_GRACE_DAYS = 14;
 /* ---------- words ---------- */
 
 /** "lower is better", as a row and a search read it. */
-export const directionWords = (d: MetricDirection) => (d === 'lower' ? 'lower is better' : 'higher is better');
 /** Decimals in words (spec 2.2): "whole numbers", "to 1 decimal place", "to 2 decimal places". */
 export const decimalsWords = (d: number) => (d === 0 ? 'whole numbers' : `to ${placesText(d)}`);
 
@@ -153,7 +155,7 @@ export type GoalRow = Pick<GoalSummary, 'goal' | 'status' | 'now' | 'nowValue' |
 export interface MetricGoalRow {
   goal: GoalRow['goal'];
   status: DisplayStatus;
-  /** The slice in words: the team's name, or "The whole company". */
+  /** The slice in words: the team's name, or "The whole company", then " · {part}" when the link is for one part (MT2). */
   slice: string;
   /** The latest value in the goal's format, or "No value yet". */
   now: string;
@@ -175,7 +177,8 @@ export function metricGoals(metricId: string, links: readonly MetricLink[], goal
   for (const l of links) {
     const s = l.metricId === metricId && !l.removedAt ? byGoal.get(l.goalId) : undefined;
     if (!s) continue;
-    const slice = l.teamId == null ? COMPANY : teams.find((t) => t.id === l.teamId)?.name ?? 'A removed team';
+    const team = l.teamId == null ? COMPANY : teams.find((t) => t.id === l.teamId)?.name ?? 'A removed team';
+    const slice = (l.part ?? '').trim() ? `${team} · ${(l.part ?? '').trim()}` : team;
     rows.push({ goal: s.goal, status: s.status, slice, now: s.now, nowValue: s.nowValue, target: `${s.target} ${byWeekWords(cycle as Cycle, s.dueWeek)}`, vsPlan: s.gap, owner: s.owner });
   }
   return rows.sort((a, b) => RANK[b.status] - RANK[a.status] || a.slice.localeCompare(b.slice) || a.goal.title.localeCompare(b.goal.title));
@@ -228,31 +231,7 @@ export function movedMetrics(path: string, search = ''): string | null {
 
 /* ---------- rule 4: a close name ---------- */
 
-/** Words that say little about which number a metric is: left out when names are compared (rule 4). */
-const FILLER = new Set(['the', 'of', 'per', 'for', 'in', 'a', 'rate', 'time']);
-/** A name's words for rule 4: lower case, without accents, punctuation, anything in brackets, or filler. */
-export const nameWords = (name: string) => new Set(fold(name.replace(/\([^)]*\)|\[[^\]]*\]/g, ' ')).split(/[^\p{L}\p{N}%]+/u).filter((w) => w && !FILLER.has(w)));
 
-/**
- * Rule 4. Up to two metrics in use whose names are close to `name`, closest first: one name's words contain the
- * other's, or they share at least two words and differ by at most one. An exact match (any case) is metricProblems'
- * error, not this; nor is a metric being changed (`except`).
- */
-export function closeNames(name: string, metrics: readonly Metric[], except?: string): Metric[] {
-  const mine = nameWords(name);
-  if (!mine.size) return [];
-  const scored: { m: Metric; d: number }[] = [];
-  for (const m of metrics) {
-    if (m.removedAt || m.id === except || fold(m.name.trim()) === fold(name.trim())) continue;
-    const theirs = nameWords(m.name);
-    if (!theirs.size) continue;
-    const shared = [...mine].filter((w) => theirs.has(w)).length;
-    const extra = mine.size + theirs.size - 2 * shared;
-    const contained = shared === Math.min(mine.size, theirs.size);
-    if (contained || (shared >= 2 && extra <= 1)) scored.push({ m, d: extra });
-  }
-  return scored.sort((a, b) => a.d - b.d || fold(a.m.name).localeCompare(fold(b.m.name))).slice(0, 2).map((x) => x.m);
-}
 
 /** The close-name question's words (spec 2.3): "This looks like “{other}” ({unit}, {direction}, owned by {name})." */
 export const closeNameWords = (m: Metric, people: LibraryReads['people']) => {

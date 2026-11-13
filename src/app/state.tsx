@@ -626,6 +626,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       // Withdrawing a proposal is deleting it, in its own words (domain/proposed withdrawnSummary).
       deleteGoal: (c, i) => c.changes[0]?.summary ?? `Deleted ${lookup.goal(i.goalId)?.title ?? 'the goal'}`,
       activate: (o) => `“${o.goal.title}” is active.`,
+      backToProposed: (o) => `“${o.goal.title}” is proposed again.`,
       deleteCheckIn: (_, i) => `Deleted the check-in for week ${snapshot.checkIns.find((c) => c.id === i.checkInId)?.week ?? ''}`,
       endReview: (o, i) => `${o.deleted ? 'Deleted' : ENDED} the review “${sc.reviews.find((r) => r.id === i.reviewId)?.name ?? ''}”`,
       deleteReview: (_, i) => `Deleted the review “${sc.reviews.find((r) => r.id === i.reviewId)?.name ?? ''}”`,
@@ -775,6 +776,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         if (!also) return (await run('saveGoal', input)).goal;
         if (!signedIn.current) { toast(NOBODY, 'error'); throw new Error(NOBODY); }
         await ready('saveGoal');
+        await ready(also.action);
         let out: { commit: Commit | null; goal: Goal }, extra: Commit | null;
         try {
           out = performAny(rx(), 'saveGoal', input) as { commit: Commit | null; goal: Goal };

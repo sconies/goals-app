@@ -261,7 +261,10 @@ const liveGoal = (x: ActionContext, id: string) => {
   return g!;
 };
 /** Whether a goal has history: any check-in. With none it's deleted; with some it's stopped, with a reason. */
-export const goalHasCheckIns = (s: Pick<Snapshot, 'checkIns'>, goalId: string) => s.checkIns.some((c) => c.goalId === goalId && !c.removedAt);
+/** Whether a goal has check-ins: one loaded, or its year's left out by a windowed load (Snapshot.history), which may hold
+    some. Read it on the whole load (fullOf), which has every goal and year. */
+export const goalHasCheckIns = (s: Pick<Snapshot, 'checkIns' | 'goals' | 'cycles' | 'history'>, goalId: string) =>
+  s.checkIns.some((c) => c.goalId === goalId && !c.removedAt) || checkInsLeftOut(s, s.goals.find((g) => g.id === goalId)?.cycleId ?? '');
 
 /** What leaving the tree takes: the goals feeding it move up to what it fed, other goals stop listing it, its open asks are withdrawn. */
 function detach(x: ActionContext, g: Goal, how: 'stopped' | 'deleted') {
@@ -300,7 +303,7 @@ function detach(x: ActionContext, g: Goal, how: 'stopped' | 'deleted') {
 export function stopGoal(x: ActionContext, goalId: string, reason: string): Commit {
   const g = liveGoal(x, goalId);
   if (!ownsOrAdmin(x, g)) no('Only the goal’s owner or an admin can stop it.');
-  if (!goalHasCheckIns(x.snapshot, g.id)) no('It has no check-ins yet: delete it instead.');
+  if (!goalHasCheckIns(fullOf(x), g.id)) no('It has no check-ins yet: delete it instead.');
   const why = reason.trim();
   if (why.length < MIN_STOP_REASON) no(`Say why it’s stopping, in a sentence (${MIN_STOP_REASON} characters or more).`);
   const d = detach(x, g, 'stopped');
@@ -315,7 +318,7 @@ export function stopGoal(x: ActionContext, goalId: string, reason: string): Comm
 export function deleteGoal(x: ActionContext, goalId: string): Commit {
   const g = liveGoal(x, goalId);
   if (!ownsOrAdmin(x, g)) no('Only the goal’s owner or an admin can delete it.');
-  if (goalHasCheckIns(x.snapshot, g.id)) no('It has check-ins: stop it instead, with a reason, so its history stays.');
+  if (goalHasCheckIns(fullOf(x), g.id)) no('It has check-ins: stop it instead, with a reason, so its history stays.');
   const d = detach(x, g, 'deleted');
   return {
     goals: [{ ...g, removedAt: x.now, removedBy: x.actor.id }, ...d.goals],
@@ -652,7 +655,7 @@ function undoPlan(x: ActionContext, importId: string): { commit: Commit; restore
     + requests.filter((r) => ownAsks.has(r.id)).length;
   changes.unshift(log(x, {
     entity: 'workspace', entityId: importId, action: 'undone', importId,
-    summary: `Undid ${entry!.summary.replace(/:.*$/, '').toLowerCase()}: ${plural(restored, 'row', 'rows')} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ''}`,
+    summary: `Undid ${/^Corrected a check-in\b/.test(entry!.summary) ? 'a correction' : entry!.summary.replace(/:.*$/, '').toLowerCase()}: ${plural(restored, 'row', 'rows')} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ''}`,
     diffs: [{ field: 'Import', from: entry!.summary, to: 'Undone' }, ...(skipped.length ? [{ field: 'Skipped', from: '—', to: skipped.map(keptText).join('; ') }] : [])],
   }));
   return { restored, skipped, commit: { ...(goals.length ? { goals } : {}), ...(checkIns.length ? { checkIns } : {}), ...(people.length ? { people } : {}), ...(requests.length ? { requests } : {}), ...(reviews.length ? { reviews } : {}), ...(teams.length ? { teams } : {}), ...(removeTeams.length ? { removeTeams } : {}), changes } };
@@ -694,7 +697,8 @@ export function importName(entry: Change): string {
   if (file) return file;
   const via = entry.diffs.find((d) => d.field === 'Via')?.to;
   // A check-in corrected on its own screen carries no Via mark (CK1): its summary says so.
-  if (via === VIA_LABEL.form || (!via && /^Corrected a check-in\b/.test(entry.summary))) return 'A corrected check-in';
+  // Past imports names the goal, the week and the numbers where the entry has them (review of #225, lows).
+  if (via === VIA_LABEL.form || (!via && /^Corrected a check-in\b/.test(entry.summary))) return entry.summary.includes(' · ') ? `A corrected check-in: ${entry.summary.replace(/^Corrected a check-in: /, '')}` : 'A corrected check-in';
   if (via === VIA_LABEL.bulk) {
     // Bulk edits are made on Goals, People (emails) and the quick check-in: named by what they wrote.
     const u = entry.undo;

@@ -307,7 +307,7 @@ function moduleStage(s: Stage, m: ModuleWithRebuild, all: Stage[]): string {
 
 /** The outside parts, as src/ports/index.ts lists them: the interface, its contract, and the adapters Faro has. */
 const PARTS: [string, string, string, string][] = [
-  ['The goals store (demo scale: see [the ports at company scale](ports-at-scale.md))', '`Store` (`src/ports/store.ts`)', '`storeContract` (`src/ports/contracts/store.ts`)', 'browser (`src/data/store.ts`), Supabase (`src/adapters/supabase/goalsStore.ts`), plain Postgres (`src/adapters/postgres/goalsStore.ts`)'],
+  ['The goals store (demo scale: see [the ports at company scale](ports-at-scale.md))', '`Store` (`src/ports/store.ts`)', '`storeContract` (`src/ports/contracts/store.ts`), its cases as data in [`contracts/store.json`](../conformance/contracts/store.json), with the contract module’s table as SQL', 'browser (`src/data/store.ts`), Supabase (`src/adapters/supabase/goalsStore.ts`), plain Postgres (`src/adapters/postgres/goalsStore.ts`)'],
   ['Goal lists and counts (the query port’s first cut)', '`Goals` (`src/ports/goals.ts`)', '`goalsContract` (`src/ports/contracts/goals.ts`), its cases as data in [contracts/goals.json](../conformance/contracts/goals.json), made from `goals.csv`, `status.csv` and `flags.csv`', 'over the loaded workspace (`src/adapters/localGoals.ts`)'],
   ['Markups', '`MarkupStore` (`src/markup/ops.ts`)', '`markupContract`', 'Supabase (`src/adapters/supabase/markups.ts`), this browser (`src/markup/backend.ts`)'],
   ['Feedback', '`FeedbackStore` (`src/markup/feedback.ts`)', '`feedbackContract`', 'Supabase (`src/adapters/supabase/feedback.ts`), this browser (`localFeedback`)'],
@@ -368,7 +368,7 @@ const adapters = (browser: Record<string, BrowserState>) => GENERATED + [
   '## Gaps in the kit',
   '',
   '- The plain-Postgres adapter covers the goals store; markups, feedback, files and telemetry still go to Supabase in Faro itself (telemetry sends to Supabase’s REST address, `src/telemetry/exporter.ts`).',
-  '- Search’s and Prefs’ contracts are in this folder as data ([the port contracts](../conformance/contracts/README.md)), and the drill harness runs them on any build through a shim. The others still live only in Faro’s code (`src/ports/contracts/`), so a rewrite from the spec alone can read what they check here but can’t run them; the goals and store contracts move next.',
+  '- The goals store’s, goal lists’, Search’s and Prefs’ contracts are in this folder as data ([the port contracts](../conformance/contracts/README.md)), and the drill harness runs them on any build through a shim. The small parts’ contracts (markups, feedback, identity, the picker, the clock, files, number sources and the dependency checks) still live only in Faro’s code (`src/ports/contracts/`): a rewrite from the spec alone can read what they check here but can’t run them.',
   '',
 ].join('\n');
 
@@ -377,8 +377,9 @@ const adapters = (browser: Record<string, BrowserState>) => GENERATED + [
 /** The actions the command port runs: every shared action R1's access table names, less the `can…` checks they call. */
 export function commandNames(): string[] {
   const helper = (fn: string) => /^(can|may)[A-Z]/.test(fn) || fn === 'reviewHeld' || fn === 'leaving';
-  // A rule whose action has another name: `planGoal` works out a goal's save, and the `saveGoal` action runs it.
-  const action: Record<string, string> = { planGoal: 'saveGoal' };
+  // A rule whose action has another name: `planGoal` works out a goal's save, and the `saveGoal` action runs it;
+  // `saveMetricAsked` asks rule 1's Checks before `saveMetric` saves, and the `saveMetric` action runs it.
+  const action: Record<string, string> = { planGoal: 'saveGoal', saveMetricAsked: 'saveMetric' };
   return [...new Set(ACCESS.flatMap((a) => a.code).map((r) => r.split('#')[1]!).filter((fn) => !helper(fn)).map((fn) => action[fn] ?? fn))];
 }
 
@@ -503,7 +504,7 @@ const portsAtScale = () => GENERATED + [
   '',
   '## How each contract test carries across',
   '',
-  `\`storeContract\` (\`src/ports/contracts/store.ts\`) has ${CONTRACT_MAP.length} tests. Each becomes a test of the two ports:`,
+  `\`storeContract\`’s tests (\`src/ports/contracts/store.ts\`; its cases as data in [contracts/store.json](../conformance/contracts/store.json)) on records carry across like this:`,
   '',
   table(['`storeContract` test', 'On the query and command ports'], CONTRACT_MAP.map(([a, b]) => [cell(a), cell(b)])),
   '',

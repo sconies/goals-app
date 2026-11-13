@@ -3,7 +3,7 @@ import { buildPlatformOrg } from '../data/platformOrg';
 import { cycleDates } from '../domain/cycle';
 import * as R from '../domain/removal';
 import type { Change, Snapshot } from '../domain/types';
-import { appWindow, isAnchor, LOAD_DAYS, windowed } from './window';
+import { appWindow, isAnchor, LOAD_DAYS, PARTIAL_SNAPSHOT, wholeOnly, windowed } from './window';
 
 const today = new Date('2026-11-05T12:00:00Z');
 const whole: Snapshot = buildPlatformOrg(today);
@@ -36,6 +36,18 @@ describe('rules on a windowed load', () => {
     const st = R.cycleStanding(s, ended.id);
     expect(st.deletable).toBe(false);
     expect(st.says).toMatch(/check-ins: it stays$/);
+  });
+
+  it('a goal in that year has check-ins: stopped, never deleted', () => {
+    const g = whole.goals.find((x) => x.cycleId === ended.id && whole.checkIns.some((k) => k.goalId === x.id))!;
+    expect(s.checkIns.some((k) => k.goalId === g.id)).toBe(false);
+    expect(R.goalHasCheckIns(s, g.id)).toBe(true);
+    expect(R.cycleDeletable(s, ended.id)).toBe(false);
+  });
+
+  it('a windowed load never becomes a new workspace (it would store a part as the whole)', () => {
+    expect(() => wholeOnly(s)).toThrow(PARTIAL_SNAPSHOT);
+    expect(wholeOnly(whole)).toBe(whole);
   });
 
   it('someone with no mark in what was loaded is still marked as left, not deleted', () => {

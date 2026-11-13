@@ -652,6 +652,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `back_on_plan_by_week` | integer | no | With a plan: the week it is back on plan by. |
 | `needs` | string | no | A decision or help needed, and from whom. |
 | `next_step` | string | no | The next step. |
+| `reason` | string | no | If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”. |
 | `answers` | object | no | Answers to the questions (Check) a dry run asked, by the group id it gave: {"<id>": "<choice>"} or {"<id>": {"choice": "choose", "value": "Platform"}}. One answer covers every row in its group. Ask the person; never answer for them. |
 | `dry_run` | boolean | no | Check the change without saving it. Use it to see what would change, or what is missing. |
 
@@ -733,6 +734,10 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
       "type": "string",
       "description": "The next step."
     },
+    "reason": {
+      "type": "string",
+      "description": "If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”."
+    },
     "answers": {
       "type": "object",
       "additionalProperties": {
@@ -780,7 +785,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - ““…” isn’t a status here. Use one of: ….”
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 
@@ -1007,7 +1012,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 - “A range between two numbers needs limit, the upper number, as well as lower.”
@@ -1297,7 +1302,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 - “A range between two numbers needs limit, the upper number, as well as lower.”
@@ -1387,7 +1392,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 
@@ -1546,7 +1551,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 - “… should be a list of rows.”
@@ -5167,7 +5172,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `caveats` | string | no | What to watch out for when reading it. |
 | `confirm` | boolean | no | Yes to changing the unit or direction of a metric goals use, once the person has said so. |
 | `answers` | object | no | The person’s answers to the checks a previous call returned. |
-| `answers.name` | string | no | “keep” (mine is different), or “use:<id>” to use that metric instead (nothing is saved). |
+| `answers.name` | string | no | “keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave. |
 | `answers.unit` | one of `keep`, `use` | no | “keep” the unit as typed, or “use” the one in use. |
 | `answers.meaning` | one of `as-written` | no | “as-written”: the meaning is right as written. |
 
@@ -5248,7 +5253,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
       "properties": {
         "name": {
           "type": "string",
-          "description": "“keep” (mine is different), or “use:<id>” to use that metric instead (nothing is saved)."
+          "description": "“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave."
         },
         "unit": {
           "type": "string",
@@ -5283,8 +5288,13 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 - “There’s no metric called or with the ID …. Use list_metrics.”
 - “There’s no one called … in this workspace. Use list_people.”
+- “Answers are words for name, unit or meaning, from the questions you were asked.”
+- “There’s no question about “…”: answers are for name, unit or meaning.”
+- “The answer for … is one of the words the question offered, such as “keep:<id>”, “use” or “as-written”.”
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
 - “Only … or an admin can change this metric.”
+- “Nothing saved: use that metric instead.”
+- “Answer … first: …”
 
 **Does the same as:** [saveMetric](actions.md#savemetric), so it refuses with their words too.
 
@@ -5338,7 +5348,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 ## link_goal_metric
 
-**Say which metric measures a goal.** Measure a goal by a metric, for a slice: a team’s number (team) or the whole company’s (team left out). Or give unlink true to stop measuring it by one. The goal’s owner or an admin. The goal must have a number (not dated stages) in the metric’s unit; its own target is the target in that metric. A goal aiming the other way from the metric’s better direction is allowed, with a warning. Linking again the same way changes nothing.
+**Say which metric measures a goal.** Measure a goal by a metric, for a slice: a team’s number (team) or the whole company’s (team left out), and optionally one part of it (part). A first call that raises a question saves nothing and returns `checks`; call again with `answers`. Or give unlink true to stop measuring it by one. The goal’s owner or an admin. The goal must have a number (not dated stages) in the metric’s unit; its own target is the target in that metric. A goal aiming the other way from the metric’s better direction is allowed, with a warning. Linking again the same way changes nothing.
 
 From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
@@ -5351,6 +5361,11 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `goal` | string | yes | The goal’s ID or key (G-12). |
 | `metric` | string | no | The metric’s ID or name. Required unless unlinking. |
 | `team` | string | no | The slice: a team by ID or name. Leave out for the whole company. |
+| `part` | string | no | Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them. |
+| `reason` | string | no | Why the goal is measured differently now. Required when a goal with check-ins changes its metric, team or part; it shows in the goal’s History. |
+| `answers` | object | no | Answers to the checks a first call returned: part ("keep" or "use:<part>"), others ("carry-on": another goal already measures the same number). |
+| `answers.part` | string | no |  |
+| `answers.others` | string | no |  |
 | `unlink` | boolean | no | Stop measuring the goal by its metric. |
 
 <details><summary>The input schema, as JSON</summary>
@@ -5374,6 +5389,27 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
     "team": {
       "type": "string",
       "description": "The slice: a team by ID or name. Leave out for the whole company."
+    },
+    "part": {
+      "type": "string",
+      "description": "Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them."
+    },
+    "reason": {
+      "type": "string",
+      "description": "Why the goal is measured differently now. Required when a goal with check-ins changes its metric, team or part; it shows in the goal’s History."
+    },
+    "answers": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Answers to the checks a first call returned: part (\"keep\" or \"use:<part>\"), others (\"carry-on\": another goal already measures the same number).",
+      "properties": {
+        "part": {
+          "type": "string"
+        },
+        "others": {
+          "type": "string"
+        }
+      }
     },
     "unlink": {
       "type": "boolean",

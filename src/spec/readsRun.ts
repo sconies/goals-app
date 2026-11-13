@@ -1,7 +1,7 @@
 /* Runs every action's sample (src/spec/readsSamples.ts) on the demo workspace and notes what it reads (src/spec/reads.ts),
    and the same for one goal's summary row: its summary, flags, needs attention and being handled. For
    spec/rebuild/reads.md and its test. No database, screens or network. */
-import { actionNames, loadEngine, loadGoalEntry, performAny, type RunContext } from '../app/actions';
+import { actionNames, loadEngine, loadGoalEntry, performAny, ready, type RunContext } from '../app/actions';
 import { MODULE_RECORDS } from '../core/records';
 import { MODULES } from '../core/registry';
 import { buildPlatformOrg } from '../data/platformOrg';
@@ -36,6 +36,7 @@ function context(who: string): { x: RunContext; full: Snapshot } {
 export async function actionReads(): Promise<ActionReads[]> {
   await loadEngine();
   await loadGoalEntry();
+  for (const a of actionNames()) await ready(a);
   return actionNames().map((action) => {
     const sample = SAMPLES[action];
     if (!sample) throw new Error(`No sample for ${action}: add one to src/spec/readsSamples.ts.`);

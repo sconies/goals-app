@@ -10,7 +10,7 @@ import {
   type RetroRow, type ReviewRow, type StageRow, type TeamRow, type TokenRow, type ViewRow, type WatchRow, type WorkspaceRow } from '../../data/rows';
 import { EXAMPLE, StaleError, type Commit, type Store } from '../../data/store';
 import type { HistoryAsk, HistoryPage, LoadWindow } from '../../ports/store';
-import { ANCHOR_ACTIONS, ANCHOR_ENTITIES, historySize, overlaps } from '../../ports/window';
+import { ANCHOR_ACTIONS, ANCHOR_ENTITIES, historySize, overlaps, wholeOnly } from '../../ports/window';
 import { hasModuleRows, type DbRow, type ModuleRecords } from '../../domain/records';
 import { MODULE_RECORDS } from '../../core/records';
 
@@ -205,6 +205,7 @@ export class SupabaseStore implements Store {
 
   /** A new workspace and everything in it, in one transaction (okr_create_workspace). */
   async createWorkspace(w: Workspace, data: Snapshot) {
+    wholeOnly(data);
     const payload = { ...commitPayload(w.id, data, this.records), teams: data.teams.map((t) => teamToRow(w.id, t)), expect: null };
     await this.rpc('okr_create_workspace', { w: workspaceToRow(w), payload }, 'Creating the workspace');
   }
