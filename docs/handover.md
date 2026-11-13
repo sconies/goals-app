@@ -366,7 +366,7 @@ Session: session_012kbr8yiXGwtRjT4Wf4vu8n. Planning is session_012kbr939zneZWtAo
 | `ge10-home-lead` | A goal proposed for you, unopened a week, is Home's lead after any ask (`proposalLead`); **migration 0045** adds `okr_goals.proposed_in`, unused, one merge ahead of "in {review}" | #344 merged |
 | `ge10-back-to-proposed` | "Make it proposed again" in the goal's "…" menu (`backToProposed` as an action); the Change page says why not once there are check-ins | #349 merged |
 | `ge10-map-board` | With `state=proposed`: the Board is one "Proposed" column, the Map draws proposed goals dashed with the word, never judged | #355 merged |
-| `ge10-metric-proposed` | The metric page's "Proposed · n" under its goals table; `get_metric` gives `proposed` | see below |
+| `ge10-metric-proposed` | The metric page's "Proposed · n" under its goals table; `get_metric` gives `proposed` | #356, auto-merge on |
 
 **Next, in order** (the rest of GE10 (F), one PR each where they're big):
 1. Reviews' "Propose a new goal" (decision 15: name, who would own it, what it would feed) **writes `proposed_in`** (0045, now applied), then Home's for-you row and lead say "{Name} proposed a goal for you in {review}", and the next session's "Last time" reads "Proposed: {goal} ({key}). {Owner} hasn’t made it active yet." or "… made it active on {date}." Map `proposedIn` in the adapter and the Goal type with it (it is in no TS type yet).
