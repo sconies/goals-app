@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { localGoals } from '../adapters/localGoals';
 import { allGoals, allGoalsNow, type GoalAsk, type GoalCounts, type GoalPage, type Goals } from '../ports/goals';
 import { goalColumns, useModules } from '../core/app';
-import { goalRows, scopeFacts } from './reads';
+import { goalRows, reviewsOn, scopeFacts } from './reads';
 import type { ScopeFacts } from '../domain/goalsPage';
 import { useApp } from './state';
 
@@ -26,18 +26,19 @@ export function useGoals(): Goals {
   // Keyed on which modules are off (the workspace's own list, one object for every hook), not on columns or module lists
   // each hook builds afresh (#229's review: a key that changed per hook made a port per hook). The columns are filled
   // inside the shared port, once.
-  const { screens } = useModules();
+  const { screens, on } = useModules();
   const off = app.ws.modulesOff;
+  const reviews = reviewsOn(on);
   const { snapshot, cycle, today, week } = app;
   const viewerId = app.viewer.id, teamId = app.viewer.teamId;
   return useMemo(() => portFor([snapshot, cycle, today, week, off, viewerId, teamId], () => {
     let rows: ReturnType<typeof goalRows> | undefined;
     let facts: ScopeFacts | undefined;
     return localGoals(
-      () => (rows ??= goalRows(snapshot, cycle, today, week, goalColumns(screens, snapshot))),
+      () => (rows ??= goalRows(snapshot, cycle, today, week, goalColumns(screens, snapshot), reviews)),
       () => (facts ??= scopeFacts(snapshot, { id: viewerId, teamId })),
     );
-  }), [snapshot, cycle, today, week, off, screens, viewerId, teamId]);
+  }), [snapshot, cycle, today, week, off, screens, viewerId, teamId, reviews]);
 }
 
 /**
