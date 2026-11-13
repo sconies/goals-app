@@ -53,6 +53,6 @@ From `src/domain/thresholds.ts`:
 | `RULES.onTrack` | 0.95 | Share of the planned change for on track |
 | `RULES.atRisk` | 0.8 | Share of the planned change for at risk (below it is off track) |
 | `RULES.wellAhead` | 1.2 | Share of the planned change for well ahead (still on track; asks why) |
-| `RULES.staleDays` | 14 | Days without a check-in before a goal has no recent update |
+| `RULES.staleCheckIns` | 2 | Missed check-ins before a goal has no recent update: × 7 × the cycle’s check-in weeks (14 days every week); never with no set rhythm |
 | `RULES.lateWeeksOff` | 2 | Weeks late beyond which a stage is off track |
 | `TREND_SPAN` | 3 | Check-ins the trend looks back over |

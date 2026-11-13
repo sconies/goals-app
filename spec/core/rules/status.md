@@ -7,7 +7,7 @@ What the numbers say (the calculated status), and the official status everyone s
 
 ## The rule
 
-There are seven statuses (codes in brackets): Off track (`off`), At risk (`risk`), No recent update (`stale`), No check-in yet (`none`), On track (`on`), Not started (`planned`), Done (`done`), listed worst first. Their meanings are in [the vocabulary](../vocabulary.md). The numbers below come from `RULES` in `src/domain/thresholds.ts`: on track at 95%, at risk from 80%, well ahead at 120%, stale after 14 days, a stage off track when more than 2 weeks late.
+There are seven statuses (codes in brackets): Off track (`off`), At risk (`risk`), No recent update (`stale`), No check-in yet (`none`), On track (`on`), Not started (`planned`), Done (`done`), listed worst first. Their meanings are in [the vocabulary](../vocabulary.md). The numbers below come from `RULES` in `src/domain/thresholds.ts`: on track at 95%, at risk from 80%, well ahead at 120%, stale after 2 missed check-ins (2 × 7 × the cycle's check-in weeks: 14 days every week; never with no set rhythm), a stage off track when more than 2 weeks late.
 
 ### What the numbers say: the calculation
 
@@ -65,10 +65,12 @@ The calculation gives one of `on`, `risk`, `off`, `done`, `planned` (week 0) or 
 2. If *latest*'s call is `done`: **Done**.
 3. Else if *week* is 0: **Not started**.
 4. Else if the cycle's last day is past ([a year's end](year-end.md)): *latest*'s call, or **No check-in yet** if there is none. After the last day no goal becomes No recent update for want of a check-in.
-5. Else if the days without an update are under 14: *latest*'s call (the owner's), or **No check-in yet** if there is none.
+5. Else if the cycle has no set check-in rhythm (`checkInWeeks` 0), or the days without an update are under `staleAfterDays` (2 × 7 × `checkInWeeks`, 14 when check-ins are every week, the default): *latest*'s call (the owner's), or **No check-in yet** if there is none.
 6. Else: **No recent update** (`stale`).
 
 *Days without an update* are the days since *latest* was posted; with no check-in, since the goal began: the latest of the cycle's start, the day it was added, and, for a number goal whose plan starts later (`fromWeek` > 0), that week's day (the cycle's start + 7 × `fromWeek` days; [years and weeks](years-and-weeks.md): a plan not yet started is not due).
+
+**The check-in rhythm** is a field of the cycle (`checkInWeeks`: 1, every week, when absent; 0, no set rhythm; 2 and 4 are kept for later) with `rhythmFrom`, the day the present rhythm began (the cycle's start when absent). Days without an update never count from before `rhythmFrom`, so a rhythm switched on today makes nothing late today. `asOfWeek` is the week of *latest* when it isn't this week, else none; with no set rhythm a screen says it beside the status ("On track · as of week 44").
 
 The owner's call is official, even where the numbers disagree. A call is *greener* when it ranks better than what the rules calculated when it was posted: the check-in's stored `calculated`, never a recalculation (the two can differ, for example when a stage becomes late after posting). Ranks: `done` 0, `planned` 0, `none` 0, `on` 1, `risk` 2, `stale` 2, `off` 3; lower is better.
 
@@ -97,6 +99,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | The 30→75 goal, checked in for week 4 with 40, called at risk where the rules said off track, posted 8 October; status on 10 October. | `risk, greener` |
 | Its only check-in posted 23 September: status on 6 October (13 days) and 7 October (14 days). | `on, stale` |
 | No check-ins at all: status on 8, 15 and 21 September. | `planned, none, stale` |
+| No set rhythm (checkInWeeks 0): the 30→75 goal on track in week 1, posted Mon 14 Sept; today Thu 8 Oct (week 4, 24 days). Every week, then with none. | `stale; on, as of week 1` |
+| No check-in at all; today Thu 8 Oct. Every week, then with no set rhythm. | `stale, none` |
+| The first example, every week, with the rhythm switched on on Mon 5 Oct (rhythmFrom): on Thu 8 Oct (3 days from the 5th), and on Mon 19 Oct (14 days). | `on, stale` |
 | Groups of goals: [on, stale], [on, stale, risk], [none, planned], [on, risk, off], [done, done], [on, done]. | `stale, risk, none, off, done, on` |
 
 ## Not self-explanatory

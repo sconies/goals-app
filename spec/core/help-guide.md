@@ -62,7 +62,7 @@ Requirements: `PROJECTION-RANGE`, `STATUS-BANDS`, `STATUS-DIRECTION`, `RANGE`, `
 - On track: At least 95% of the progress planned by now, inside its limit, or every stage on schedule. If the recent trend says it will still finish short, it is flagged as getting worse.
 - At risk: 80%–95% of the progress planned by now, inside a limit’s warning margin or over it for one week, or a stage up to 2 weeks late. The owner says how it gets back: its path to green.
 - Off track: Under 80% of the progress planned by now, a stage more than 2 weeks late, or over a limit two weeks running. It needs a decision, help or a new plan.
-- No recent update: The latest check-in was posted 14 days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in.
+- No recent update: The latest check-in was posted 14 days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in. Never used when there is no set check-in rhythm.
 - No check-in yet: The goal has begun and nobody has checked in on it yet. 14 days after it began with still none, it has no recent update.
 - Not started: Week 0: the goal is set up and its first check-in is due in week 1.
 - Done: The owner called it done in a check-in. Done means finished wherever it is said: a goal, a stage or an action.
@@ -267,6 +267,12 @@ Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, qua
 - Letters in a number get the same message on every screen, sheet and AI tool: type digits only, with an example at the goal’s decimal places (like 29 for a goal of whole numbers). Every number Faro shows has its thousands grouped: 1,250.
 - The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned.
 - A number that looks wrong (ten times last week’s, say) is a question you answer before posting: “Yes, it’s right” or change it. The same number as last week asks whether you measured it again. Your answer is kept in the goal’s History. A number that can’t be used says what to fix.
+
+#### With no set rhythm
+
+- An admin can choose no set rhythm for a workspace (Workspace, Features). Then Check-in is “Check in on a goal”: your goals with no check-in this week first, those you have never checked in on at the top, then those checked in this week. Each row has its own button; nothing is due, late or counted against you, and there is no streak.
+- A goal is judged by what it last said. Where that isn’t this week’s, its status says which week it is from: “On track · as of week 44”, on Goals, Home, Watching and the goal’s page. No goal reads No recent update, and History has no “No check-in” rows.
+- Home and Goals say what has a check-in this week, not what is due. Goals’ Last check-in filter still finds the goals that have gone quiet.
 
 #### Ad hoc check-ins and corrections
 
@@ -1318,12 +1324,14 @@ On a phone’s home screen and in the browser tab, the F sits on a deep-teal til
 
 `features`. Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace: how you work (Reviews) and tools such as the Metric library and Spreadsheets.
 
-Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`.
+Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`, `RHYTHM-OPTIONAL`.
 
 #### How to use it
 
 - On Workspace, Features says how this workspace works and lists the optional parts of Faro, each with what it does; About says which are on, from the same list. Goals, check-ins and people are the core and always on.
-- How you work holds Reviews: walking a set of goals together on a cadence. While it is on, it says how many reviews are set up. Tools holds the rest, such as the Metric library and Spreadsheets. Each has a switch with On or Off beside it.
+- How you work starts with the check-in rhythm: “Every week, due by Thursday” (a goal with no check-in for 14 days reads No recent update) or “No set rhythm” (owners check in when there’s news; nothing is due or late for want of a check-in). Change opens a sheet with the two choices and, with Every week, the day check-ins are due by.
+- Before you save, the sheet says what changes for everyone here, counted: how many goals have nothing due, how many stop reading No recent update and what each would show instead, and that dates people chose and every check-in already posted stay as they are. Switched back on, nothing is late that day: the rhythm counts from today, and the sheet says when the first check-ins are due. Save says what it did, with Undo.
+- Then Reviews: walking a set of goals together on a cadence. While it is on, it says how many reviews are set up. Tools holds the rest, such as the Metric library and Spreadsheets. Each has a switch with On or Off beside it.
 - Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching a tool off, or anything on, acts at once.
 - Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.
 - With Reviews off, asks and next steps stay on their goals and on Home, each goal’s History and Activity keep what was said in reviews, and check-ins are still due by the same day.
@@ -1333,7 +1341,7 @@ Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`.
 
 #### Who can
 
-Admins switch features. Everyone sees what is on.
+Admins switch features and choose the check-in rhythm. Everyone sees what is on, and Cycles says the rhythm to everyone (“Check-ins: every week, due by Thursday.” or “Check-ins: no set rhythm.”).
 
 #### For the people building Faro
 

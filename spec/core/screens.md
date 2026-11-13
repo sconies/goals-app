@@ -371,6 +371,7 @@ None: nothing to type or choose here.
 | “New goal” | link | always |
 | “Wrap up” | link | `wrapUpOpenOn(app.cycle, app.today)` |
 | “… (worked out when it shows)” | button | `app.snapshot.goals.length > 0` |
+| “Clear” | button | `app.snapshot.goals.length > 0` and `query.status.includes('stale') && !rhythmOf(app.cycle)` |
 | “Set up the first goal” | primary | `!app.snapshot.goals.length` |
 | “Save this view…” | button | `canSave` |
 | “Copy link” | button | always |
@@ -689,10 +690,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/workspace/privacy` (`WorkspaceHome`): The app records how it is used, never what you type, so the people building it can see what is slow, broken or hard to use. Help: “What the app records” (`recording`).
 - `/workspace/removed` (`WorkspaceHome`): Anything you make can be taken away again: people leave, goals stop, check-ins, reviews, comments and views go, an import can be undone, and nothing is ever lost. Help: “Removing, stopping and undoing” (`removing`).
 
-- **Named parts:** “More in Workspace”, “About this workspace”, “How you work”, “Tools”, “Delete”, “Workspace sections (region)”, “Cycles (region)”, “What the app records (region)”, “Features (region)”
+- **Named parts:** “More in Workspace”, “About this workspace”, “How you work”, “Tools”, “What changes for everyone here”, “Delete”, “Workspace sections (region)”, “Cycles (region)”, “What the app records (region)”, “Features (region)”
 - **Main action:** For an admin, sort out what About lists; for anyone, read the facts and open the section each leads to.
 - **Primary buttons in its markup:** “Switch off Reviews”
-- **AI tools:** `list_people`, `list_tokens`, `create_token`, `revoke_token`, `delete_workspace`, `rename_workspace`, `set_recording`, `set_feature`, `list_removed`, `restore_removed`, `delete_cycle`, `undo_start_cycle`, `start_next_cycle`
+- **AI tools:** `list_people`, `list_tokens`, `create_token`, `revoke_token`, `delete_workspace`, `rename_workspace`, `set_recording`, `set_feature`, `set_rhythm`, `list_removed`, `restore_removed`, `delete_cycle`, `undo_start_cycle`, `start_next_cycle`
 
 **Pictures** (`/workspace` as amara): [390 wide](screens/workspace-390.jpg), [1440 wide](screens/workspace-1440.jpg)
 
@@ -706,6 +707,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Workspace name” | text | always |
 | “Record how the app is used here” | checkbox | an admin |
 | “… review is / reviews are set up. Off until … is on. On / Off” | checkbox | always |
+| “Due by …” | select | `to.weeks === 1` |
 | “Type … to confirm” | text | `open` |
 
 **States**
@@ -738,6 +740,8 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Rename” | button | an admin |
 | “Yes, turn it on” | button | an admin and `asking` |
 | “Cancel” | button | an admin and `asking` |
+| “Change” | button | always |
+| “Save” | primary | always |
 | “Switch off Reviews” | primary | always |
 | “Delete this workspace…” | button | `!open` |
 | “Cancel” | button | `open` |
@@ -1500,7 +1504,7 @@ None.
 | “Only goals that need attention, with those … below them” | checkbox | always |
 | “Find an owner” | search | always |
 | “Due” | select | always |
-| “No update for” | select | always |
+| “Last check-in” | select | always |
 | “Last quarter” | select | always |
 | “In the tree of” | PickOne | always |
 | “With “also helps” links” | checkbox | always |
@@ -1545,6 +1549,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Check in on … / Start with …” | primary | `first` |
 | “Carry on / Check in” | link | `p.due.length > 0` |
 | “Correct it” | link | `p.done.length > 0` |
+| “(…: …)” | link | always |
 
 ### Check-in: the status sheet
 
