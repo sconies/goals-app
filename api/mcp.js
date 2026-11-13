@@ -2059,6 +2059,30 @@ function weekProgress(personId, s, cycle, week, today) {
 		due: week < 1 || hasEnded(cycle, today) ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g))
 	};
 }
+/**
+* Rule RS1 (docs/design/round-4/reviews-switch/spec.md 4): one phrase for the clock. The day check-ins are due
+* (`Cycle.reviewDay`) never needed a review, so a screen never writes "review" in a deadline itself: it asks here.
+* With Reviews on and a review held on the due day (`held`, from review.ts heldOnDueDay) the deadline is "before
+* Thursday’s review"; with no review set up on that day, or Reviews off, it is "by Thursday". The `due` flag says
+* "Due by Thu 12 Nov." either way.
+*/
+function dueWords$1(reviewsOn, cycle, week, held = false) {
+	return dueWordsOn(reviewsOn, reviewDate(cycle, Math.max(1, week)), held);
+}
+/** dueWords for a due date already worked out (yyyy-mm-dd), as Home's facts carry it. */
+function dueWordsOn(reviewsOn, iso, held = false) {
+	const d = /* @__PURE__ */ new Date(iso.slice(0, 10) + "T00:00:00Z");
+	const day = WEEKDAY[(d.getUTCDay() + 6) % 7] ?? "";
+	const review = reviewsOn && held;
+	return {
+		by: review ? `before ${day}’s review` : `by ${day}`,
+		after: review ? `after ${day}’s review` : `after ${day}`,
+		onTime: review ? "before the review" : "on time",
+		day,
+		date: `${day} ${d.getUTCDate()} ${SHORT_MONTH[d.getUTCMonth()]}`,
+		flag: `Due by ${day.slice(0, 3)} ${d.getUTCDate()} ${SHORT_MONTH[d.getUTCMonth()]}.`
+	};
+}
 /** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
 function reviewDate(cycle, week) {
 	const d = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
@@ -2086,11 +2110,25 @@ function onTimeStreak(personId, s, cycle, week) {
 	for (let w = onTime(week) ? week : week - 1; w >= 1 && onTime(w); w--) streak++;
 	return streak;
 }
-var firstDueWeek, WEEKDAY;
+var firstDueWeek, SHORT_MONTH, WEEKDAY;
 var init_progress = __esmMin((() => {
 	init_plan();
 	init_status();
 	firstDueWeek = (g, cycle) => Math.max(firstWeekFrom(cycle, g.createdAt, cycle.reviewDay), g.kind === "metric" ? g.plan?.fromWeek ?? 0 : 0);
+	SHORT_MONTH = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec"
+	];
 	WEEKDAY = [
 		"Monday",
 		"Tuesday",
@@ -2769,7 +2807,7 @@ function flagsFor(goal, s, cycle, today) {
 	const trend = status.status === "done" ? null : worseningTrend(goal, cycle, s.checkIns);
 	if (trend) add("trend", trend, "risk");
 	if (status.greener && latest && status.status !== "stale" && status.status !== "done") add("greener", `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, "risk");
-	if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== "done" && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", `Due by ${dayText(reviewDate(cycle, week))}.`, "info");
+	if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== "done" && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", dueWords$1(false, cycle, week).flag, "info");
 	flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
 	return {
 		status,
@@ -2907,7 +2945,6 @@ var WEIGHT, HANDLED_ORDER, LOOKS, byGoal, needsAttention, onAttentionList, atten
 var init_attention = __esmMin((() => {
 	init_status();
 	init_progress();
-	init_format();
 	init_plan();
 	init_trend();
 	init_vocabulary();
@@ -4730,7 +4767,7 @@ function requiredLine(kind) {
 	if (kind === "checkIns") return `${req("Goal key")} (or ${req("Goal")}), ${req("Week")}, and ${req("Value")} or ${req("Stages")}.`;
 	return `${req("Name")} and ${req("Email")}.`;
 }
-var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$2, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
+var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$2, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, REVIEWS_COLUMN, sheetsFor, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
 var init_columns = __esmMin((() => {
 	init_levels();
 	init_asks();
@@ -5179,6 +5216,12 @@ var init_columns = __esmMin((() => {
 		ASKS,
 		NOTES
 	];
+	NOTES.name;
+	REVIEWS_COLUMN = "Review";
+	sheetsFor = (reviews) => reviews ? [...SHEETS] : SHEETS.filter((v) => v !== NOTES).map((v) => v === ASKS ? {
+		...ASKS,
+		columns: ASKS.columns.filter((c) => c.header !== REVIEWS_COLUMN)
+	} : v);
 	START_HERE = "Start here";
 	[...SHEETS.map((x) => x.name)];
 	sheetNamesWith = (sheets = []) => [
@@ -14554,6 +14597,9 @@ var MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
 /** The records of the modules switched on in a workspace: what Recently removed lists and restores. A module that's off
 keeps its rows untouched, and none of them is offered back until it is on again. */
 var recordsOn = (ws) => MODULE_RECORDS.filter((m) => !(ws?.modulesOff ?? []).includes(m.module));
+// src/mcp/moduleOff.ts
+/** "Reviews is switched off in {ws}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features." */
+var moduleOffSentence = (module, workspace, tool) => `${module} is switched off in ${workspace}, so ${tool} can’t be used there. An admin can switch it on in Workspace, under Features.`;
 // src/domain/summary.ts
 init_checkin();
 init_format();
@@ -15244,7 +15290,7 @@ function startHere(x, opts = {}) {
 		]);
 	}
 	if (opts.template) return rows;
-	for (const sheet of [...SHEETS, ...(x.sheets ?? []).map((m) => m.spec)].filter((v) => !v.loaded)) {
+	for (const sheet of [...sheetsFor(x.reviews !== false), ...(x.sheets ?? []).map((m) => m.spec)].filter((v) => !v.loaded)) {
 		rows.push([], [`The ${sheet.name} sheet`, `One row per ${sheet.rowIs}. ${sheet.about} For reading only: not loaded back.`], [
 			"Column",
 			"Kind",
@@ -15290,7 +15336,7 @@ function planRows(x, sums, c) {
 	}, w))])];
 }
 /** Every sheet of the one format, in order: Start here, Goals, Plan, Check-ins, People, Results, Asks, Notes, each module's (the
-metric library’s Metrics). */
+metric library’s Metrics). With Reviews off (`reviews` false) there is no Notes sheet and Asks has no Review column. */
 function workbook(x) {
 	const { goals, sums, s, c } = prepare(x, true);
 	const ids = new Set(goals.map((g) => g.id));
@@ -15304,6 +15350,8 @@ function workbook(x) {
 		g: v.goal,
 		ci
 	}))).sort((a, b) => a.g.title.localeCompare(b.g.title) || a.ci.week - b.ci.week || a.ci.postedAt.localeCompare(b.ci.postedAt));
+	const reviews = x.reviews !== false;
+	const asks = sheetsFor(reviews).find((v) => v.kind === "asks");
 	const book = [
 		["goals", rowsOf(GOALS, goalRows)],
 		["plan", planRows(x, sums, c)],
@@ -15313,14 +15361,14 @@ function workbook(x) {
 			p
 		})))],
 		["results", rowsOf(RESULTS, goalRows)],
-		["asks", rowsOf(ASKS, asksFor(x.snapshot, ids).map((a) => ({
+		["asks", rowsOf(asks, asksFor(x.snapshot, ids).map((a) => ({
 			c,
 			a
 		})))],
-		["notes", rowsOf(NOTES, notesFor(s, ids).map((d) => ({
+		...reviews ? [["notes", rowsOf(NOTES, notesFor(s, ids).map((d) => ({
 			c,
 			d
-		})))]
+		})))]] : []
 	];
 	return [
 		{
@@ -17658,6 +17706,7 @@ var CORE_ARTICLES = [
 					"Start with walks through every goal due this week, one after another, as Start check-in on Home does. Or pick any goal on the list: Check in does just that one, and so does Check in on a goal’s page.",
 					"Close a check-in you opened from the list and you’re back on it; what you typed is kept, and that goal’s row says Draft kept, with Carry on.",
 					"With nothing left to do it says you’re all set for the week. Before the first check-ins are due it says when they are; if you own no goal it says so, with the goals you watch one click away.",
+					"Once all your goals are in, the receipt says when against the deadline: “All 3 of your goals are checked in for week 46, by Thursday.”, or “after Thursday” once the day has passed. When Reviews is on and a review is held on that day it says “before Thursday’s review” instead; with Reviews off, or no review that day, it never names a review.",
 					"The top of the check-in says which week it is for and where you are in the week’s goals (“Week 46 check-in · 1 of 2”). A reload keeps your place.",
 					"Type the number. The app shows it against this week’s plan, the gap and the status the numbers suggest, as you type. The plan written to the goal’s decimals is always on plan, even when the exact plan has more decimals than you can type.",
 					`On plan, that’s it: post. Behind (under ${pct$1(RULES.onTrack)} of the planned progress) it asks for a cause and a sentence; well ahead (${pct$1(RULES.wellAhead)} or more) it asks why, and whether the target should change.`,
@@ -19333,9 +19382,10 @@ var CORE_ARTICLES = [
 				list: [
 					"On Workspace, Features says how this workspace works and lists the optional parts of Faro, each with what it does; About says which are on, from the same list. Goals, check-ins and people are the core and always on.",
 					"How you work holds Reviews: walking a set of goals together on a cadence. While it is on, it says how many reviews are set up. Tools holds the rest, such as the Metric library and Spreadsheets. Each has a switch with On or Off beside it.",
-					"Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching a tool off, or anything on, acts at once.",
+					"Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, how many accepted risks stay on their goals (no new one can be accepted while it is off), that check-ins are still due by the same day, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching a tool off, or anything on, acts at once.",
 					"Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.",
-					"With Reviews off, asks and next steps stay on their goals and on Home, each goal’s History and Activity keep what was said in reviews, and check-ins are still due by the same day.",
+					"With Reviews off, asks and next steps stay on their goals and on Home, each goal’s History and Activity keep what was said in reviews, and check-ins are still due by the same day. “Before the review” becomes “by Thursday” (or whichever day it is) on Home, in the check-in and in the count of goals checked in on time.",
+					"With Reviews off, a spreadsheet you export has no Notes sheet and no Review column on Asks. A workbook that has them still loads; the preview says once that they were not read. An AI assistant’s review tools answer that Reviews is switched off here, in the same words as any switched-off tool.",
 					"Nothing a feature saved is deleted. Switch it back on and everything is as it was: every review, its people, its cadence and what was said. A session whose date passed while Reviews was off isn’t said to be not held.",
 					"Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.",
 					"Spreadsheets is one of the tools: Export and Import on Data, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says."
@@ -19352,7 +19402,11 @@ var CORE_ARTICLES = [
 		],
 		routes: ["/workspace/features"],
 		screens: [],
-		reqs: ["MODULES", "REVIEWS-OPTIONAL"],
+		reqs: [
+			"MODULES",
+			"REVIEWS-OPTIONAL",
+			"REVIEWS-SWITCH-CLOCK"
+		],
 		keywords: [
 			"features",
 			"modules",
@@ -19365,7 +19419,9 @@ var CORE_ARTICLES = [
 			"how you work",
 			"tools",
 			"optional",
-			"workspace settings"
+			"workspace settings",
+			"due day",
+			"accepted risk"
 		],
 		related: [
 			"workspace",
@@ -19840,6 +19896,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "reviews-switch-clock",
+		date: "2026-11-13",
+		title: "Check-ins are due by a day, with or without reviews",
+		points: [
+			"Once all your goals are in, the check-in says when against the deadline: “by Thursday”, or “before Thursday’s review” when a review is held that day. With Reviews off it never names a review.",
+			"Switching Reviews off now also says how many accepted risks stay on their goals, and that check-ins are still due by the same day.",
+			"With Reviews off, an exported spreadsheet has no Notes sheet and no Review column on Asks, and an import that has them says once that they were not read."
+		],
+		articles: ["check-in", "features"]
+	},
 	{
 		id: "reviews-switch",
 		date: "2026-11-13",
@@ -22457,7 +22524,8 @@ var _virtual_faro_modules_default = [
 			"REVIEW-DECIDE",
 			"REVIEW-LIST-STATE",
 			"REVIEW-AGENDA",
-			"REVIEWS-OPTIONAL"
+			"REVIEWS-OPTIONAL",
+			"REVIEWS-SWITCH-CLOCK"
 		],
 		journeys: [
 			"U3",
@@ -22472,6 +22540,8 @@ var _virtual_faro_modules_default = [
 			"U80",
 			"U103",
 			"U104",
+			"U148",
+			"U149",
 			"N1",
 			"N21"
 		],
@@ -22485,7 +22555,12 @@ var _virtual_faro_modules_default = [
 				"Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and the six review actions and tools refuse with “Reviews is off in {workspace}.” or the switched-off module's sentence (check N21).",
 				"Switched off, Home has no Next review cell and no review lead: someone who owns no goal is led to the goals they watch that need attention (“Goals you watch · {n} need attention · See them”), or to nothing; a question waits by its own age and names no session; the due flag says “Due by Thu 12 Nov.”, on or off.",
 				"Switching off first reads back what stays (the reviews, what was said in them, the open next steps and questions raised in one) from the rule switchOffReadBack, and Undo brings Reviews back (journey U103).",
-				"Back on, every review, its people, its cadence and what was said are as they were (journey U104)."
+				"Back on, every review, its people, its cadence and what was said are as they were (journey U104).",
+				"The clock's words come from one rule, dueWords (rule RS1), and match every row of spec/conformance/reviews.csv: “before Thursday’s review” only with Reviews on and a review held on the due day, otherwise “by Thursday”; switched off, no page names a review in its own words outside Workspace, Features, History's unlinked names and the closed page's sentence, and the check-in's receipt says “…checked in for week 45, by Thursday.” (journey U148).",
+				"A closed page says “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and every review tool, and edit_call on a note said in a review, answers “Reviews is switched off in {workspace}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features.”, the one sentence every switched-off module's tools use (check N29).",
+				"The read-back before switching off adds, after the questions line, “{n} accepted risks stay on their goals, as they were said. No new one can be accepted while Reviews is off.” (left out at nought) and “Check-ins are still due by Thursday. “Before the review” becomes “by Thursday” on Home, in the check-in and in the count of goals checked in on time.” (rule RS2; the readback row of reviews.csv).",
+				"Switched off, the workbook has no Notes sheet and no Review column on Asks; a workbook that has them loads as usual, and the preview says once “Reviews is off in {workspace}: the Notes sheet and the Review column were not read.”.",
+				"Switched back on after a week off, every session whose date passed while it was off moves to its next date: neither Reviews nor Home says “Not held yet” (journey U149)."
 			],
 			"gaps": [
 				"Reviews is a switch, not yet a folder of its own (FT3 moves it): its screens (src/screens/Review.tsx, src/screens/Inspect.tsx, ReviewPrint in src/screens/Print.tsx), its rules (src/domain/review.ts, with offSpell for a session passed while it was off; src/domain/reviewsOff.ts, the read-back's switchOffReadBack; src/domain/decide.ts, the review half of src/domain/onePager.ts, lastTalked in src/domain/goalPage.ts), its actions (saveReview, reviewCall, acceptRisk, markReviewed, unmarkReviewed, endReview and deleteReview in src/domain/actions.ts and src/domain/removal.ts), its menu row (src/domain/navigation.ts) and its table (okr_reviews, migration 0006, with review_id on okr_decisions and okr_requests) are still the core's. Its review actions refuse while it is off in src/app/actions.ts (performAny), and the read-back sheet is drawn by src/screens/Workspace.tsx. This folder holds its routes, its Help article and its AI tools; src/app/reads.ts reviewsOn is the one place that asks whether it is on.",
@@ -22971,7 +23046,8 @@ var sheetOf = (ctx, t) => workbook({
 	snapshot: ctx.snapshot,
 	cycle: ctx.cycle,
 	week: ctx.week,
-	today: ctx.today
+	today: ctx.today,
+	reviews: reviewsOn(modulesOn(ctx.ws).on)
 }).find((x) => x.name === TABLES[t].sheet);
 var headOf = (ctx, t) => (sheetOf(ctx, t).rows[0] ?? []).map((c) => String(c ?? ""));
 /** A table layout from a tool's arguments: a saved table view by name, or a table with columns, widths and a query. */
@@ -22995,7 +23071,7 @@ function layoutFrom(ctx, a) {
 	return layout;
 }
 /** What a switched-off module's tool answers (callTool's sentence), for a core tool that is partly Reviews' (FT2). */
-var offSentence = (ctx, tool) => `Reviews is switched off in ${ctx.ws.name}, so ${tool} can't be used there. An admin can switch it on in Workspace, under Features.`;
+var offSentence = (ctx, tool) => moduleOffSentence("Reviews", ctx.ws.name, tool);
 /** A sentence as part of a longer line: without its closing full stop, so the line never ends in two. */
 var clause = (t) => t.trim().replace(/\.+$/, "");
 /** The newest n changes that pass `keep`. With the store's history (AX5 part 2b) it pages back through the log, 100 at
@@ -26378,7 +26454,8 @@ var tools = [{
 			cycle: ctx.cycle,
 			week: ctx.week,
 			today: ctx.today,
-			sheets: MODULE_SHEETS
+			sheets: MODULE_SHEETS,
+			reviews: reviewsOn(modulesOn(ctx.ws).on)
 		};
 		if (a.format === "json") {
 			const j = toJson$1(x);
@@ -27489,7 +27566,7 @@ async function callTool(name, args, ctx) {
 	const from = TOOL_MODULE.get(name);
 	if (from && !isModuleOn(ctx.ws, from)) return {
 		isError: true,
-		text: `${moduleById(from)?.name ?? from} is switched off in ${ctx.ws.name}, so ${name} can't be used there. An admin can switch it on in Workspace, under Features.`
+		text: moduleOffSentence(moduleById(from)?.name ?? from, ctx.ws.name, name)
 	};
 	try {
 		return await t.run(args ?? {}, ctx);
