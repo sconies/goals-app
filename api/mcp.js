@@ -10752,6 +10752,7 @@ function* planChangesInChunks(input) {
 				column: "ID",
 				found: id
 			});
+			if (action && !existing) return raise("removal-refused", "Goals", row, title, `${GOAL_ACTION_WORDS.word[action]} needs the goal’s Key, to say which goal. To add “${title}” instead, leave Action empty.`, { column: "Action" });
 			if (existing && touched.has(existing.id)) return raise("duplicate", "Goals", row, existing.title, `“${existing.title}” has another row in this file. Give each goal one row.`, {
 				column: "Key",
 				answers: ANSWERS.duplicate
@@ -13991,22 +13992,23 @@ var EXPORT_FORMAT = "goals-app.export";
 GOALS.columns.filter((c) => c.role !== "worked").map((c) => c.header);
 GOALS.columns.filter((c) => c.role === "worked").map((c) => c.header);
 CHECK_INS.columns.map((c) => c.header);
-/**
-* The goals an export carries and their summaries. A whole-cycle export (the workbook, CSV, JSON) keeps stopped goals,
-* with their check-ins, marked Stopped (domain/removal); the brief, like every list, leaves them out.
-*/
-function prepare(x, withStopped = false) {
-	const a = withStopped && !x.goals ? x.snapshot.archive : void 0;
-	const base = withStopped && !x.goals && x.snapshot.proposed?.length ? {
-		...x.snapshot,
-		goals: [...x.snapshot.goals, ...x.snapshot.proposed]
-	} : x.snapshot;
-	const s = a?.goals.length ? {
+/** What a whole-cycle workbook holds: the live goals, the proposed ones (State proposed, no worked-out numbers; GE10)
+and the stopped ones from the archive, with their check-ins. Export's "Everything" counts read this too. */
+function everything(lists) {
+	const a = lists.archive;
+	const base = lists.proposed?.length ? {
+		...lists,
+		goals: [...lists.goals, ...lists.proposed]
+	} : lists;
+	return a?.goals.length ? {
 		...base,
 		goals: [...base.goals, ...a.goals],
 		checkIns: [...base.checkIns, ...a.checkIns],
 		decisions: [...base.decisions, ...a.decisions]
 	} : base;
+}
+function prepare(x, withStopped = false) {
+	const s = withStopped && !x.goals ? everything(x.snapshot) : x.snapshot;
 	const goals = x.goals ?? s.goals;
 	const sums = goals.map((g) => isProposed(g) ? proposedSummary(g, s, x.cycle, x.week) : summarise(g, s, x.cycle, x.today, x.week));
 	const c = contextOf(x, s);
@@ -15818,7 +15820,7 @@ var help$2 = [
 		sections: [{
 			heading: "How to use it",
 			list: [
-				"On Goals, choose Export these goals. When the goals are filtered, it starts from the ones shown now; Everything in the cycle is one click away, with how many goals, check-ins and people that is.",
+				"On Goals, choose Export these goals. When the goals are filtered, it starts from the ones shown now; Everything in the cycle is one click away, with how many goals, check-ins and people that is: stopped and proposed goals count, as the workbook holds them.",
 				"Export .xlsx is the one button. The file’s name is at the foot of the sheet before you press it, and the message after says it again: Exported platform-goals-all-2026-11-05.xlsx.",
 				"On Data, Export saves the open table exactly as laid out, as .xlsx or .csv, with the columns that say which record each row is added so it loads back; the menu says how many rows and columns that is. Everything… opens the same Export as Goals. Import is beside it.",
 				"Excel workbook, the usual choice: a first sheet, Start here, that says for every column what it means, whether a new row must have it, its format and an example; then Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks, Notes and Metrics. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.",
@@ -15827,7 +15829,7 @@ var help$2 = [
 				"One format: whatever you export can be edited and loaded back on Data’s Import, or used to set up a new workspace. Loaded back unedited, it changes nothing. Each person is written with their name and email.",
 				"JSON: everything, with each goal’s plan and check-ins inside it, in a stated format.",
 				"Brief for an AI chat: Markdown that leads with decisions waiting on people, then each goal’s story, then results. Copy it or save it.",
-				"Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date. Which goals is all, the view’s name, or as-shown for a table from Data: platform-goals-all-2026-11-05.xlsx, platform-goals-off-track-2026-11-05.xlsx, platform-check-ins-as-shown-2026-11-05.csv.",
+				"Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date. Which goals is all (only ever for everything), the view’s name, or as-shown for a table from Data or a filtered All tab: platform-goals-all-2026-11-05.xlsx, platform-goals-off-track-2026-11-05.xlsx, platform-check-ins-as-shown-2026-11-05.csv.",
 				"Exports hold names and the owners’ reasons. Share them as you would the app."
 			]
 		}],
@@ -18591,6 +18593,18 @@ var WHATS_NEW = [
 			"A goal’s About lists what its metric says: for whom, what it means, where the number comes from and the goal’s own target."
 		],
 		articles: ["metric-slices", "metric-measured-by"]
+	},
+	{
+		id: "import-export-fixes",
+		date: "2026-11-13",
+		title: "Import and Export, four fixes",
+		points: [
+			"A Goals row with no key that says Stop or Delete is now a Must fix on that row, asking for the goal’s Key, instead of stopping the page.",
+			"A filtered All tab exports as as-shown, never as all: all is only ever everything.",
+			"Export’s Everything line counts what the workbook holds, stopped and proposed goals and their check-ins too.",
+			"On a phone, Export opened from the View sheet now shows on its own, with one button to press; the View sheet is back when it closes."
+		],
+		articles: ["import", "export"]
 	},
 	{
 		id: "review-who-speaks",
