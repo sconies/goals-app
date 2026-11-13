@@ -7,6 +7,7 @@ Faro is an internal goals (OKR) tool for team leads, built slice by slice from t
 - **Four profiles:** team lead, sponsor, goals coach and contributor. Each has its own home and its own next thing to do.
 - **Ten user journeys:** the top five score 10/10 on the ease test, on both phone and desktop. See [docs/journeys.md](docs/journeys.md).
 - **Change log:** every save (goal, plan, check-in, note, decision, workspace) records who, when, and each field's before and after. Drafts are kept as you type but never logged.
+- **The habit (core, no switch):** the on-time run, which forgives one late or missed week after four on time; the check-in's receipt; a target reached or back on track, said once. The rules are in `src/domain/progress.ts` and `habit.ts`; `get_my_work` and `post_check_in` give the same words.
 - **Workspaces:** the example data and your own, loaded from a spreadsheet, kept apart, with a switcher between them.
 
 ## Run it

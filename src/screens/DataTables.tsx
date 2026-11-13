@@ -11,6 +11,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { Place } from '../core/app';
+import { exportOn } from '../core/records';
 import { examplesLine, type Answers, type Rec, type Tables } from '../domain/changeset';
 import { workbook, type Cell } from '../domain/export';
 import { BOUND_WORDS, CAUSE_WORDS, isEditable, LEVEL_WORDS, RECOVERY_WORDS, SHAPE_WORDS } from '../domain/columns';
@@ -93,7 +94,9 @@ export function DataTables() {
   // An older link's sort (s=Team~asc) is read, and the address rewritten in the new form (sort=team), replacing.
   useEffect(() => { if (params.has('s')) setView({}, 'remembered'); });
   const canEdit = app.viewer.admin;
-  const book = useMemo(() => workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today }), [app.ws, app.snapshot, app.cycle, app.week, app.today]);
+  // With Reviews off (RS) Asks has no Review column to choose.
+  const reviews = exportOn(app.ws).reviews;
+  const book = useMemo(() => workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, reviews }), [app.ws, app.snapshot, app.cycle, app.week, app.today, reviews]);
   const tables = useMemo(() => {
     const out = {} as Record<Tab, { head: string[]; rows: { key: string; cells: string[]; locked?: string }[] }>;
     for (const [t] of TABS) {

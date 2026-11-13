@@ -29,13 +29,16 @@ const url = (p) => BASE + '/demo' + p + (p.includes('?') ? '&' : '?') + 'today='
 /** The real app, with its data kept in this browser (the eval build has no Supabase). */
 const live = (p) => BASE + p + (p.includes('?') ? '&' : '?') + 'store=browser&today=' + TODAY;
 const consoleErrors = [];
-/** Whether this build has a feature module: FARO_WITHOUT leaves modules out, and those that need them (vite.modules.ts).
+/** Whether this build has a feature module on: FARO_WITHOUT leaves modules out, and those that need them (vite.modules.ts);
+    FARO_MODULES_OFF switches them off in the example at runtime.
     A core journey that reads a module's part of a screen expects the core's own words without it. */
 const LEFT_OUT = (() => {
-  const left = new Set((process.env.FARO_WITHOUT || '').split(',').map((x) => x.trim()).filter(Boolean));
-  if (!left.size) return left;
   const dir = path.join(__dirname, '..', 'src', 'modules');
   const all = fs.readdirSync(dir).filter((d) => fs.existsSync(path.join(dir, d, 'module.json'))).map((d) => JSON.parse(fs.readFileSync(path.join(dir, d, 'module.json'), 'utf8')));
+  // FARO_MODULES_OFF (all, or ids): built whole, but the example has them switched off, so the core's words are expected.
+  const off = (process.env.FARO_MODULES_OFF || '').trim();
+  const left = new Set([...(process.env.FARO_WITHOUT || '').split(','), ...(off === 'all' ? all.map((m) => m.id) : off.split(','))].map((x) => x.trim()).filter(Boolean));
+  if (!left.size) return left;
   for (let changed = true; changed;) { changed = false; for (const m of all) if (!left.has(m.id) && (m.needs || []).some((n) => left.has(n))) { left.add(m.id); changed = true; } }
   return left;
 })();
@@ -404,7 +407,7 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   if (built('reviews')) {
     // Rhea is in no review this week (hers is on Tuesday), so Home says the week is done in one sentence (HM1).
     // On the day it is completed, Home says the check-in's receipt (habit spec 2.1); on a later day, the week.
-    await see(p, /(Your check-in is|Both (of your )?check-ins are|All \d+ (of your )?check-ins are) in( for week| before|\.)/, 'posted check-ins survive a reload, and home says the week is done');
+    await see(p, /(Your check-in is|Both (of your )?check-ins are|All \d+ (of your )?check-ins are) in( for week| before| by|\.)/, 'posted check-ins survive a reload, and home says the week is done');
   } else {
     // Without Reviews, Daniel's question waits by its own age, not for Tuesday's session: nine days, so it leads Home
     // (rule 3), and nothing is left to check in on.
@@ -1681,7 +1684,7 @@ journey('U122', ['HOME-OWNER'], 'The owner’s week on Home: on Monday nothing i
   await p.goto(day('2026-11-11'));
   await hero.waitFor();
   const done = await hero.innerText();
-  h.set('finish', /Both (of your )?check-ins are in (for week 46|before Thursday’s review)/.test(done) && /The next are due by Thursday 19 Nov\./.test(done) && await p.locator('.page.home .btn.primary').count() === 0, `Wednesday’s Home said “${done.replace(/\s+/g, ' ')}”`);
+  h.set('finish', /Both (of your )?check-ins are in (for week 46|before Thursday’s review|by Thursday)/.test(done) && /The next are due by Thursday 19 Nov\./.test(done) && await p.locator('.page.home .btn.primary').count() === 0, `Wednesday’s Home said “${done.replace(/\s+/g, ' ')}”`);
   // Friday 13 Nov: the deadline he met is not said.
   await p.goto(day('2026-11-13'));
   await hero.waitFor();
@@ -4892,6 +4895,106 @@ journey('U104', ['REVIEWS-OPTIONAL', 'MODULES'], 'Reviews off, then back on: off
   await p.context().close();
 }, ['entry', 'parity']);
 
+/* REVIEWS-OFF-WORDS (RS1, docs/design/round-4/reviews-switch/spec.md 2 and 7): with Reviews off, the app's own words name
+   no review outside Workspace, Features, History's unlinked names and the closed page's sentence. What people wrote
+   (goal titles such as "Time to first review", asks, notes) is data, not the app's words, so it is taken out first. */
+const ownWords = (text, s) => {
+  const theirs = [...s.goals.map((g) => g.title), ...(s.requests || []).flatMap((r) => [r.ask, r.answer]), ...s.decisions.map((d) => d.note), ...s.reviews.map((r) => r.name), ...(s.checkIns || []).flatMap((c) => [c.note, c.why, c.pathToGreen && c.pathToGreen.needs, c.pathToGreen && c.pathToGreen.plan])]
+    .filter((x) => typeof x === 'string' && x.length > 2).sort((a, b) => b.length - a.length);
+  let t = text.replace(/“[^”]*”/g, '');
+  for (const x of theirs) t = t.split(x).join('');
+  return t;
+};
+
+journey('U154', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews off, the clock without a review: the read-back says check-ins are still due by Thursday; then no page Rhea opens calls the deadline a review, and her check-in’s receipt says the week is in “by Thursday”', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/workspace/features'));
+  const box = p.getByRole('checkbox', { name: /^Reviews/ });
+  await box.scrollIntoViewIfNeeded();
+  await h.click(box);
+  const sheet = p.getByRole('dialog', { name: /Switch off Reviews in/ });
+  await sheet.waitFor();
+  const says = (await sheet.innerText()).replace(/\s+/g, ' ');
+  const s0 = await h.snapshot();
+  const risks = s0.decisions.filter((d) => d.kind === 'note' && !d.removedAt && /^We accept the risk: /.test(d.note) && s0.goals.some((g) => g.id === d.goalId && !g.removedAt)).length;
+  h.set('attention', says.includes('Check-ins are still due by Thursday. “Before the review” becomes “by Thursday” on Home, in the check-in and in the count of goals checked in on time.')
+    && (risks ? says.includes(`${risks} accepted risk`) : !/accepted risk/.test(says)), `the read-back does not say when check-ins are due, or miscounts the ${risks} accepted risks: ${says.slice(0, 500)}`);
+  await h.checkpoint('read-back');
+  await h.click(sheet.getByRole('button', { name: 'Switch off Reviews' }));
+  await see(p, 'Reviews is off in');
+  h.set('one-action', true);
+  // Rhea, who owns goals, on the pages she uses: none names a review in the app's own words.
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+  const s = await h.snapshot();
+  const named = [];
+  for (const route of ['/', '/check-in', '/goals', '/goals?scope=mine', '/goals/ci-docker', '/watching', '/people/rhea', '/teams/cicd', '/data']) {
+    await p.goto(url(route));
+    await p.locator('main').first().waitFor();
+    await p.waitForTimeout(300);
+    // History's names of past reviews are words, not links, and stay (spec 2.3): History is left out.
+    const text = await p.locator('main').evaluate((m) => { const c = m.cloneNode(true); c.querySelectorAll('#history, [data-part="History"]').forEach((e) => e.remove()); return c.innerText; });
+    const hit = ownWords(text, s).match(/[^\n]{0,40}\breview(s|ed|ing)?\b[^\n]{0,40}/i);
+    if (hit) named.push(`${route}: “${hit[0].trim()}”`);
+  }
+  h.set('finish', !named.length, `with Reviews off a page names a review: ${named.join('; ')}`);
+  // Her check-in: both due goals, as in U1; HB1's receipt says the week is in by Thursday (Reviews switch spec 2.1).
+  await p.goto(url('/check-in?start=1'));
+  const before = await h.snapshot();
+  const plan = (id) => before.goals.find((g) => g.id === id).plan;
+  await h.fill(p.getByLabel('This week’s value'), String(Math.round(planAt(plan('ci-docker'), NOW)) - 2));
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Check-in saved');
+  await h.click(p.getByRole('button', { name: /Next: / }));
+  await h.fill(p.getByLabel('This week’s value'), '0.40');
+  await h.click(p.getByRole('button', { name: /^Keep .* and say why$/ }));
+  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await h.click(p.getByRole('button', { name: 'Change landed early' }));
+  await h.fill(p.getByLabel('What happened'), 'The runner budget came through a week early.');
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, /(Your check-in is|of your check-ins are) in/);
+  const receipt = (await p.locator('.ci-receipt').innerText()).trim();
+  h.set('progress', /(Your check-in is|of your check-ins are) in by Thursday\./.test(receipt) && !/review/i.test(receipt), `the receipt says “${receipt}”, not “…are in by Thursday.”`);
+  await h.checkpoint('receipt');
+  const after = await h.snapshot();
+  h.set('logged', after.changes.some((c) => c.entity === 'workspace' && c.summary === 'Switched off Reviews') && after.changes.filter((c) => c.actorId === 'rhea' && c.action === 'posted' && new RegExp(`week ${NOW}:`).test(c.summary)).length >= 2, 'switching off or the two check-ins were not logged');
+  h.set('errors', true);
+  h.set('entry', true);
+  await p.context().close();
+}, ['parity', 'budget']);
+
+journey('U155', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews back on after a week off: switched off on Monday 2 Nov and on again on Friday 6 Nov, every session whose date passed while it was off moves to its next date, so neither Reviews nor Home says Not held yet', 8, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  const on = (day, path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  await p.goto(on('2026-11-02', '/workspace/features'));
+  const box = p.getByRole('checkbox', { name: /^Reviews/ });
+  await box.scrollIntoViewIfNeeded();
+  await h.click(box);
+  await h.click(p.getByRole('dialog', { name: /Switch off Reviews in/ }).getByRole('button', { name: 'Switch off Reviews' }));
+  await see(p, 'Reviews is off in');
+  // Friday: Monday's to Thursday's sessions all passed while it was off.
+  await p.goto(on('2026-11-06', '/workspace/features'));
+  await box.scrollIntoViewIfNeeded();
+  if (await box.isChecked()) fail('Reviews came back on by itself on Friday (the switch was not kept)');
+  h.set('entry', true);
+  await h.click(box);
+  await see(p, 'Reviews is on in');
+  h.set('one-action', true);
+  await p.goto(on('2026-11-06', '/reviews'));
+  await p.locator('.reviews-list').first().waitFor();
+  const list = await p.locator('main').innerText();
+  await h.checkpoint('reviews back on');
+  await p.goto(on('2026-11-06', '/'));
+  await p.locator('.page.home').waitFor();
+  const home = await p.locator('[data-part="Home"]').innerText();
+  h.set('finish', /Platform leadership weekly/.test(list) && !/Not held yet/.test(list) && !/Not held yet/.test(home), `back on Friday: ${/Not held yet/.test(list) ? 'Reviews says a session is Not held yet' : ''}${/Not held yet/.test(home) ? ' Home says Not held yet' : ''}${/Platform leadership weekly/.test(list) ? '' : ' the weekly is missing'}`);
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.summary === 'Switched off Reviews') && s.changes.some((c) => c.summary === 'Switched on Reviews'), 'switching off and on was not logged');
+  h.set('attention', true);
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['parity', 'budget']);
+
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals?scope=all'));
@@ -5799,7 +5902,7 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
 }, []);
 
 /* Check reads the metric from the draft (build review of #202, findings 2 and 3): a reload keeps it, a new team re-slices it. */
-journey('U151', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the receipt: as Valentina on Thursday 5 Nov, her one check-in at 80 (Commitment coverage’s target) shows one panel “… reached its target” with “Copy the share image” and “See the goal”, and the receipt “Your check-in is in for week 45, before Thursday’s deadline.”; the goal’s History marks that week “Reached its target”; as Jonah on Friday 6 Nov (nothing posted for week 45), his check-in says “It came in after Thursday’s deadline.” and no run', 12, async (h, device) => {
+journey('U151', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the receipt: as Valentina on Thursday 5 Nov, her one check-in at 80 (Commitment coverage’s target) shows one panel “… reached its target” with “Copy the share image” and the check-in’s own status (View the goal is the page’s), and the receipt “Your check-in is in by Thursday.”; the goal’s History marks that week “Reached its target”; as Jonah on Friday 6 Nov (nothing posted for week 45), his check-in says “It came in after Thursday’s deadline.” and no run', 12, async (h, device) => {
   const on = (path, day) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
   const p = h.use(await newPage(device, 'valentina'));
   await p.goto(on('/check-in/cost-commit', '2026-11-05'));
@@ -5809,13 +5912,16 @@ journey('U151', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the rece
   const panel = p.locator('.ci-moment');
   await see(panel, 'reached its target', 'no panel says the goal reached its target');
   await see(panel, 'against a target of', 'the panel does not say the target');
-  h.set('finish', await panel.getByRole('button', { name: 'Copy the share image' }).isVisible() && await panel.getByRole('link', { name: 'See the goal' }).isVisible() && await p.locator('.ci-moment').count() === 1, 'the panel has not one share button and one link to the goal');
+  // #410 review: one share button and no second link to the goal (the page's View the goal is the one), and the panel's
+  // status is the check-in's own, the same word the line above says.
+  const status = (await p.locator('.celebrate .nobr').first().innerText()).replace(/^is\s*/, '').trim();
+  h.set('finish', await panel.getByRole('button', { name: 'Copy the share image' }).isVisible() && await panel.getByRole('link').count() === 0 && await p.locator('.ci-moment').count() === 1 && (await panel.innerText()).includes(status), `the panel has not one share button, no link and the check-in’s status (${status})`);
   // The due day is a review only for someone in a review held that day (deep review T4); otherwise it is the deadline.
-  await see(p, /Your check-in is in (before Thursday’s review|for week 45, before Thursday’s deadline)\./, 'the receipt does not say it was in before the due day');
+  await see(p, /Your check-in is in (before Thursday’s review|by Thursday)\./, 'the receipt does not say it was in before the due day');
   const said = await p.locator('.celebrate').innerText();
   h.set('errors', !/lost|broken|!/i.test(said), `the receipt said “${said.replace(/\s+/g, ' ')}”`);
   await h.checkpoint('reached');
-  await h.click(panel.getByRole('link', { name: 'See the goal' }));
+  await h.click(p.getByRole('link', { name: 'View the goal' }));
   await p.waitForURL(/\/goals\//);
   const result = p.locator('.ci-result').first();
   await result.waitFor({ timeout: 5000 }).catch(() => undefined);
@@ -5827,7 +5933,7 @@ journey('U151', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the rece
   await q.goto(on('/check-in/cost-storage', '2026-11-06'));
   await h.fill(q.getByLabel('This week’s value'), '72');
   await h.click(q.getByRole('button', { name: 'Post check-in' }));
-  await see(q, /It came (after Thursday’s review|in after Thursday’s deadline)\./, 'a check-in after the due day does not say it came after');
+  await see(q, /It came after Thursday(’s review)?\./, 'a check-in after the due day does not say it came after');
   const late = await q.locator('.celebrate').innerText();
   h.set('progress', !/in a row|lost|broken/i.test(late), `the late receipt said “${late.replace(/\s+/g, ' ')}”`);
   await h.checkpoint('late');

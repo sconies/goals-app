@@ -5,6 +5,7 @@
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { beforeReview, weekWords, type HabitWeek } from '../domain/habit';
+import { dueWords } from '../domain/progress';
 import type { Goal } from '../domain/types';
 
 /** A square mark for a week (never a circle: a circle is a goal's status). */
@@ -52,7 +53,7 @@ export function BeforeReview({ goals, week, link, heading, reviews = true }: { g
               </li>
             ))}
           </ol>
-          <p className="tiny muted">“All in” means every goal due that week was checked in {reviews ? 'before the review' : 'by its due day'}. Weeks, not people: nobody is named here.</p>
+          <p className="tiny muted">“All in” means every goal due that week was checked in {reviews ? 'before the review' : `by its ${dueWords(false, app.cycle, week).day}`}. Weeks, not people: nobody is named here.</p>
         </>
       )}
     </section>
