@@ -470,6 +470,39 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
   - the unbuilt "cycle ended", "Add one" and gone-parent states from the onboarding spec.
 - **U23 (entry)** scored 8.6 locally and is track 2's to lift.
 
+## Track 4, Friday 13 November, 02:15 UTC (handing over)
+
+Session: session_012kbr8xdoEbLiMQaBAxLeuJ. Read this, then the 12 Nov 18:00 section below, which it updates.
+
+- **Merged:**
+  - #229, #193's four mediums (17d9495).
+  - #323, AX5 part 2a: `load(ws, window?)`, `history(...)` and `Snapshot.history`, with the rules in `src/ports/window.ts` and three store contract cases (0d2e4a9).
+  - No caller passes a window yet.
+- **The build reviewer's batch on #323 and #229** (13 Nov 02:11; full text in the build-reviews log on branch `build-reviews`, PR #134). No high findings. **Fix mediums 1 and 2 of #323 before part 2b wires a window:**
+  1. **#323, the rules read a narrow snapshot as whole.** This is high the day a window is wired. `goalHasCheckIns` (`removal.ts` ~246), `cycleStanding`/`deleteCycle` (~383–403), `personHistory` (~112) and others read `s.checkIns` as though it held every check-in. `history.checkInCycles` is written but nothing reads it.
+     - Repro: a 2025 cycle with one goal and one check-in, then `load(ws, { from: 2026-06-01 })`. Deleting the goal and deleting the cycle are both allowed, and stopping the goal is wrongly refused.
+     - Fix: those rules read `checkInCycles`, or refuse on a partial snapshot. Add a rule test.
+  2. **#323, a partial snapshot can pass as whole.** `createWorkspace(copy, narrow)` stores `history`, so the copy calls itself partial for ever (`src/data/store.ts` ~298). The app keeps whichever load lands last.
+     - Fix: strip `history` on write, and refuse or merge a partial snapshot.
+  3. **#229, "one port per workspace" doesn't hold.** `portFor`'s key includes `columns`, and `useGoalColumns` builds a new object in each hook's own `useMemo`. One render with six goal hooks ran `goalRows` three times.
+     - Fix: key the cache on inputs that don't change between hooks, or build `columns` inside the shared port. Add a test.
+  - **Lows:**
+    - The store contract has no case for saving from a partial snapshot, and none for the boundary.
+    - Two comments in #323 ask for a (workspace_id, at) index, which has existed since migration 0003, so **part 2b needs no migration**.
+    - Anchors are never trimmed, so the narrow log still grows.
+    - The cycle-end formula is restated in SQL.
+    - It hasn't been run against real PostgREST.
+    - `saveGoal` with a module's `also` still fails silently when the engine can't load (`state.tsx` ~768).
+    - There are no unit tests for the port sharing or for the toast's branches.
+- **Next, in order:**
+  1. One PR for the three mediums above.
+  2. The two shell faults (below).
+  3. AX5 part 2b: Activity, a goal's History and MCP `get_activity` page with `history`, and the app loads with a window.
+  4. FT2, FT1, SW1, SW2.
+  5. AX2.
+  6. AX6.
+- **Track 6** was told `storeContract` can be converted (via planning, session_012kbr939zneZWtAo7UQEHRP).
+
 ## Track 4, Thursday 12 November, 18:00 UTC (session past half full, handing over)
 
 Session: session_012kbr8xdoEbLiMQaBAxLeuJ.
