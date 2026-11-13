@@ -15105,7 +15105,7 @@ var _virtual_faro_modules_default = [
 			"U152",
 			"F15",
 			"N16",
-			"U153"
+			"U160"
 		],
 		elsewhere: [],
 		rebuild: {
