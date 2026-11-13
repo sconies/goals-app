@@ -13,7 +13,7 @@
 import { NotAllowed, type ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import type { DbRow, ModuleRecords, RecordDef } from '../../domain/records';
-import { LINKS_KEY, linkOf, linksOf, metricRows, metricsOf, METRICS_KEY } from './rules';
+import { LINKS_KEY, linkOf, linksOf, markLabel, marksFor, metricRows, metricsOf, METRICS_KEY } from './rules';
 import { METRICS_SHEET } from './sheet';
 import type { Metric, MetricLink } from './types';
 
@@ -28,13 +28,18 @@ const who = (k: string, v: unknown) => (v ? { [k]: String(v) } : {});
 export const metricToRow = (ws: string, m: Metric): DbRow => ({
   workspace_id: ws, id: m.id, name: m.name, meaning: m.meaning, unit: m.unit, decimals: m.decimals, direction: m.direction, source: m.source, source_owner: m.sourceOwner,
   refresh: m.refresh, owner_id: m.ownerId, caveats: m.caveats, created_by: m.createdBy, created_at: m.createdAt, updated_at: m.updatedAt, ...set({ removed_at: m.removedAt, removed_by: m.removedBy }),
+  // MT3 (migration 0043): always written, so a batch mixing retired and live metrics never leaves a key out (okr_upsert
+  // takes the union of a batch's keys, and a key left out is written null). The NOT NULL columns get '' and [].
+  retired_at: m.retiredAt ?? null, retired_by: m.retiredBy ?? null, retired_why: m.retiredWhy ?? '', replaced_by: m.replacedBy ?? null, marks: m.marks ?? [],
 });
 export const metricFromRow = (r: DbRow): Metric => ({
   id: r.id, name: String(r.name), meaning: String(r.meaning ?? ''), unit: String(r.unit), decimals: Number(r.decimals ?? 0), direction: r.direction as Metric['direction'],
   source: String(r.source ?? ''), sourceOwner: String(r.source_owner ?? ''), refresh: (r.refresh ?? null) as Metric['refresh'], ownerId: String(r.owner_id), caveats: String(r.caveats ?? ''),
   createdBy: String(r.created_by), createdAt: iso(r.created_at), updatedAt: iso(r.updated_at), ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by),
+  ...(r.retired_at ? { retiredAt: iso(r.retired_at), retiredBy: r.retired_by ? String(r.retired_by) : null, retiredWhy: String(r.retired_why ?? ''), replacedBy: r.replaced_by ? String(r.replaced_by) : null } : {}),
+  ...(Array.isArray(r.marks) && r.marks.length ? { marks: r.marks as Metric['marks'] } : {}),
 });
-export const metricLinkToRow = (ws: string, l: MetricLink): DbRow => ({ workspace_id: ws, id: l.id, goal_id: l.goalId, metric_id: l.metricId, team_id: l.teamId, ...(l.part != null ? { part: String(l.part).trim() } : {}), linked_by: l.linkedBy, linked_at: l.linkedAt, ...set({ removed_at: l.removedAt, removed_by: l.removedBy }) });
+export const metricLinkToRow = (ws: string, l: MetricLink): DbRow => ({ workspace_id: ws, id: l.id, goal_id: l.goalId, metric_id: l.metricId, team_id: l.teamId, part: String(l.part ?? '').trim(), linked_by: l.linkedBy, linked_at: l.linkedAt, ...set({ removed_at: l.removedAt, removed_by: l.removedBy }) });
 export const metricLinkFromRow = (r: DbRow): MetricLink => ({
   id: r.id, goalId: String(r.goal_id), metricId: String(r.metric_id), teamId: (r.team_id ?? null) as string | null, ...(r.part ? { part: String(r.part) } : {}), linkedBy: String(r.linked_by), linkedAt: iso(r.linked_at),
   ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by),
@@ -100,6 +105,12 @@ const records: Omit<ModuleRecords, 'module'> = {
   },
   // Goals' "Measured by" (?metric=): a goal's column is the metric its live link names. The app's filter (finder.ts)
   // and find_goals both read it.
+  // MT3's `goal.marks`: a change of meaning or direction since the goal was linked, on its chart (rule 4).
+  goalMarks: (s, goalId, since) => {
+    const l = linkOf(s, goalId);
+    const m = l ? metricsOf(s).find((x) => x.id === l.metricId) : undefined;
+    return m && l ? marksFor(m, l, since).map((k) => ({ week: k.week, label: markLabel(k) })) : [];
+  },
   goalColumns: [{ param: 'metric', fill: (s) => { const by = new Map(linksOf(s).filter((l) => !l.removedAt).map((l) => [l.goalId, l.metricId])); return (g) => by.get(g.id) ?? null; } }],
 };
 export default records;

@@ -288,7 +288,11 @@ export function DataTables() {
       </div>
       {/* The count line and the filter line (find spec, rules 2 and 3): the same words as every list. */}
       <CountLine things={ROWS} n={shown.length} narrowed={narrowed} order={sort ? `sorted by ${sort.col}, ${kinds[sort.col] === 'number' ? (sort.dir === 1 ? 'lowest first' : 'highest first') : sort.dir === 1 ? 'A to Z' : 'Z to A'}` : tab === 'goals' ? 'in key order' : null}
-        after={sort ? <> <button type="button" className="linkish" onClick={() => setView({ sort: null })}>Remove the sort</button></> : null} />
+        after={<>
+          {sort && <> <button type="button" className="linkish" onClick={() => setView({ sort: null })}>Remove the sort</button></>}
+          {/* The search reads only the columns shown (find spec, 2.1), so say so while some are hidden (build review of #234). */}
+          {q.trim() && cols.length < all.length + 1 && <> <span className="data-searched">Search looks only in the {cols.length} columns shown.</span> <button type="button" className="linkish" onClick={() => setChoosing(true)}>Choose columns</button></>}
+        </>} />
       <FilterLine parts={filters.map((f, k) => ({ key: String(k), label: f.col, values: [describeFilter(f).slice(f.col.length + 1)] }))} onRemove={(k) => setView({ filters: filters.filter((_, j) => String(j) !== k) })} onClear={() => setView({ filters: [] })} />
       {choosing && <ColumnsSheet tab={tab} order={order} always={always} all={all} onCols={(c) => setLay({ cols: c })} onClose={() => setChoosing(false)} />}
       {savingView && <SaveLayoutSheet tab={tab} layout={current} head={head} views={views} active={activeView} onClose={() => setSavingView(false)} />}

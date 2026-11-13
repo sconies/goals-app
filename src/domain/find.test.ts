@@ -18,6 +18,7 @@ describe('rule 1: does text match (textMatches)', () => {
 
   it('breaks words at spaces and / - , . : ( )', () => {
     expect(wordsOf('CI/CD (p90): queue-wait, Lucía.')).toEqual(['ci', 'cd', 'p90', 'queue', 'wait', 'lucia']);
+    expect(wordsOf('Down to 12.5, from 1,200. Then 3.')).toEqual(['down', 'to', '12.5', 'from', '1,200', 'then', '3']);
   });
 });
 

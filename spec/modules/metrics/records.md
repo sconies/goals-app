@@ -49,6 +49,25 @@ A metric in the library (backlog 0b): one definition of a number, shared by ever
 | `updatedAt` | `string` | yes |  |
 | `removedAt` | `string \| null` | no | Removed: kept, out of every list, restorable (domain/removal). |
 | `removedBy` | `Id \| null` | no |  |
+| `retiredAt` | `string \| null` | no | Retired (MT3): out of the pickers and the library's list, its links kept and its goals still measured by it; brought back by clearing these. Absent on a metric never retired; null and '' once brought back. |
+| `retiredBy` | `Id \| null` | no |  |
+| `retiredWhy` | `string` | no |  |
+| `replacedBy` | `Id \| null` | no | The metric its goals' owners are offered in its place (same unit), when the person retiring it named one. |
+| `marks` | `MetricMark[]` | no | Changes of meaning or direction its goals show on their chart and History (rule 4), oldest first. |
+
+## MetricMark
+
+A change to a metric its goals must show (MT3 rule 4): what it meant, or which way was better, from a week on.
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `week` | `number` | yes | The cycle week it was made in, and when. |
+| `at` | `string` | yes |  |
+| `by` | `Id` | yes |  |
+| `kind` | `'definition' \| 'direction'` | yes |  |
+| `why` | `string` | yes |  |
+| `was` | `string` | yes | The two texts (meaning) or directions, before and after. |
+| `now` | `string` | yes |  |
 
 ## MetricLink
 

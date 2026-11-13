@@ -7,7 +7,7 @@ What a search matches, the near miss offered when nothing does, and the one sear
 
 ## The rule
 
-**What a search matches.** A row is found by its words, as one text; a search matches when every word typed starts a word of the row, ignoring case and accents. Words break at spaces and at `/ - , . : ( )`, so "CI/CD" is two words and "ci" finds it, "Lucía" is found by "lucia", and "back" doesn't find "Rollback". An empty search matches everything.
+**What a search matches.** A row is found by its words, as one text; a search matches when every word typed starts a word of the row, ignoring case and accents. Words break at spaces and at `/ - , . : ( )`, except a point or comma between two digits, which stays in its number ("12.5" is one word, so it doesn't find a row with a 12 and a 5); so "CI/CD" is two words and "ci" finds it, "Lucía" is found by "lucia", and "back" doesn't find "Rollback". An empty search matches everything.
 
 **A goal's key** finds it however it is typed: "G-48", "g48", "g-48" or a bare "48". A whole search that is one key finds only that goal ("G-48" isn't G-4); a bare number also matches as words.
 
@@ -39,6 +39,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 |---|---|
 | The row “Rollback in under five minutes G-48 Tunde Bakare Build & Release Team Off track”, searched for “rollback”, “roll min”, “back”, “off track”. | `yes, yes, no, yes` |
 | The same row (key G-48), searched for “g-48”, “G48”, “48”; and “Canary halt G-4” (key G-4) for “G-48”. | `yes, yes, yes; no` |
+| The words of “Down to 12.5, from 1,200. Then 3.” | `down to 12.5 from 1,200 then 3` |
 | “Lucía Romero Staff Engineer CI/CD” searched for “lucia ci”; anything searched for “”. | `yes; yes` |
 | Near misses: “rolback”, “kafak”, “piplin”, “rolbak” (list has rollback, kafka, pipeline); “qeue wait” (queue, wait); “cost” (costs); “G-480”. | `rollback; kafka; none; none; queue wait; none; none` |
 | In the demo workspace: goals for “G-48”, “tunde”, “rolback” and “zzzz”. | `1: On-call engineers across all twelve rotations who had fewer than two out-of-hours pages in the week, not counting planned maintenance windows / 2: Contract tests between the top 40 service pairs, One-click rollback for every deployable service / 2 (near: rollback): Change failure rate, One-click rollback for every deployable service / 0:` |

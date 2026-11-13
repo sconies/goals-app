@@ -7,7 +7,7 @@ import { fold } from '../../domain/problemLevels';
 import { canUndoImport, importCounts, importName, pastImports } from '../../domain/removal';
 import type { Change } from '../../domain/types';
 import { whenText } from '../../ui/ChangeItem';
-import { CountLine, ListBar, ListSearch } from '../../ui/ListBar';
+import { CountLine, ListBar, ListSearch, NoneFound } from '../../ui/ListBar';
 import { UndoImport, UndoneLine } from '../../ui/UndoImport';
 import './import.css';
 
@@ -34,6 +34,8 @@ export function PastImports() {
         <>
           <ListBar search={<ListSearch value={q} onSearch={(t) => set(t)} label="Find an import" placeholder="Find by file, person or what changed" />} />
           <CountLine things={IMPORTS} n={list.length} narrowed={!!q.trim()} order="newest first" />
+          {/* A search that finds nothing says so (rule 5), never a blank page (IM4 review). */}
+          {!list.length && <NoneFound things={IMPORTS} q={q} filtered={false} onClearSearch={() => set('')} onClearFilters={() => set('')} />}
           <ul className="removed-list past-imports-list">
             {list.map(({ entry, undone }) => <PastImport key={entry.id} entry={entry} undone={!!undone} />)}
           </ul>

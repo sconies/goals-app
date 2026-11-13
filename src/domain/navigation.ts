@@ -213,10 +213,16 @@ export const FIRST_PAGES = ['/', '/check-in', '/goals', '/watching', '/reviews',
  */
 export const FORM = /^\/(check-in\/[^/]+|quick-check-in|data\/import|workspace\/new)(\/|$)|^\/goals\/new(\/|$)|^\/goals\/[^/]+\/edit$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/;
 
-/** Is this address a form? `path` may carry its query, or the query may be given apart. */
-export function isForm(path: string, search = ''): boolean {
+/** Does a route's pattern (`/metrics/:metricId/edit`) match this path? */
+const matches = (pattern: string, path: string) => new RegExp(`^${pattern.replace(/:[^/]+/g, '[^/]+')}/?$`).test(path);
+
+/**
+ * Is this address a form? `path` may carry its query, or the query may be given apart. `forms` are the patterns of the
+ * modules' pages drawn in focus mode (`focus: true`): a form as much as the core's (build review of #282).
+ */
+export function isForm(path: string, search = '', forms: readonly string[] = []): boolean {
   const [p = '', q = ''] = path.split('?');
-  if (FORM.test(p)) return true;
+  if (FORM.test(p) || forms.some((f) => matches(f, p))) return true;
   return p === '/check-in' && new URLSearchParams(search || q).get('start') === '1';
 }
 
@@ -233,9 +239,9 @@ export type Trail = { path: string }[];
  * a goal, the goal for its print page, the review for a goal in its walk and for its summary, Reviews for a
  * review, People or Teams, Help for an article and What's new, Workspace for a section.
  */
-export function backTo(path: string, search: string, trail: Trail, names: PlaceNames, firsts: string[] = []): BackTo | null {
+export function backTo(path: string, search: string, trail: Trail, names: PlaceNames, firsts: string[] = [], forms: readonly string[] = []): BackTo | null {
   // A form has its one closing control instead (navigation spec 2.5: goal edit's second exit is removed).
-  if (isForm(path, search) || FIRST_PAGES.includes(path) || firsts.includes(path)) return null;
+  if (isForm(path, search, forms) || FIRST_PAGES.includes(path) || firsts.includes(path)) return null;
   const review = new URLSearchParams(search).get('review');
   const goal = /^\/goals\/([^/]+)$/.exec(path)?.[1];
   const same = (p: string) => {
@@ -245,7 +251,7 @@ export function backTo(path: string, search: string, trail: Trail, names: PlaceN
   };
   const now = trail.length - 1;
   let j = now - 1;
-  while (j >= 0 && (isForm(trail[j]!.path) || same(trail[j]!.path))) j--;
+  while (j >= 0 && (isForm(trail[j]!.path, '', forms) || same(trail[j]!.path))) j--;
   if (j >= 0) return { label: placeName(trail[j]!.path, names), to: trail[j]!.path, steps: now - j };
   const up = (to: string, label: string | null, fallback: string): BackTo => ({ label: label ?? fallback, to, steps: 0 });
   if (goal && review) return up(`/reviews/${review}`, names.review(review), 'the review');

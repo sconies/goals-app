@@ -50,3 +50,5 @@
 @media (pointer: coarse), (max-width: 1023px) {
   .comment-tools .linkish, .ci-remove .linkish { min-height: 44px; display: inline-flex; align-items: center; }
 }
+/* An import's Undo and Show the changes in Activity: 44 px to hit on a phone (IM4 review: Undo was 32 px at 390). */
+@media (pointer: coarse), (max-width: 1023px) { .import-entry-tools .linkish.tap { min-height: 44px; display: inline-flex; align-items: center; } }

@@ -1937,6 +1937,18 @@ journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, boa
   await h.click(await exportButton(h, p));
   const [part] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Export .xlsx' }))]);
   h.set('finish', /-goals-as-shown-\d{4}-\d\d-\d\d\.xlsx$/.test(part.suggestedFilename()), `a filtered All tab was not saved as …-goals-as-shown-{date}.xlsx: ${part.suggestedFilename()}`);
+  // Data's Export → Everything… opens the same sheet, for everything; closed, the focus goes back to Export (#248 review).
+  await p.goto(url('/data'));
+  await h.click(p.locator('.data-export > summary'));
+  await h.click(p.getByRole('button', { name: 'Everything…' }));
+  const sheet = p.getByRole('dialog', { name: 'Export' });
+  await sheet.getByRole('button', { name: 'Export .xlsx' }).waitFor();
+  const note = await sheet.locator('.export-note').innerText();
+  h.set('finish', /-goals-all-\d{4}-\d\d-\d\d\.xlsx: \d+ goals, as of week \d+\./.test(note), `Everything… on Data does not name an …-all-{date}.xlsx of n goals as of this week: ${note}`);
+  await p.keyboard.press('Escape');
+  await sheet.waitFor({ state: 'detached' });
+  await p.waitForTimeout(100);
+  h.set('a11y', await p.evaluate(() => !!document.activeElement?.matches('.data-export > summary')), 'closing Export opened from Data left the focus on the page, not on Export');
   await p.context().close();
 }, ['errors']);
 
@@ -1959,7 +1971,7 @@ journey('U20', ['BULK-IMPORT', 'SPREADSHEETS-ON-DATA'], 'Load a spreadsheet from
   await see(p, '1 new goal');
   await h.checkpoint('preview');
   await h.click(p.getByRole('button', { name: 'Save 1 change' }));
-  await see(p, 'Saved 1 change from goals.csv.');
+  await see(p, 'Saved 1 row from goals.csv.');
   // Its past weeks, by the old address (it leads to Data's Import): a week in the future is refused, and nothing saves
   // until it's fixed.
   await p.goto(url('/import'));
@@ -3424,7 +3436,7 @@ journey('U72', ['NAV-FORMS'], 'One way out of a form: each focus-mode page has o
   const p = h.use(await newPage(device, 'rhea'));
   const wrong = [];
   const closers = () => p.locator('.focus-top').first().locator('button, a').filter({ hasText: /^Close|^Cancel/ }).or(p.locator('.focus-top').first().locator('.iconbtn[aria-label^="Close"]'));
-  for (const [addr, want] of [['/check-in/ci-docker', 'Close and keep the draft'], ['/reviews/new', 'Close without saving'], ['/reviews/weekly/edit', 'Close without saving'], ['/workspace/new', 'Close and keep the draft'], ['/goals/new', 'Close and keep the draft'], ['/goals/ci-docker/edit', 'Close and keep the draft'], ['/quick-check-in', 'Close and keep the draft'], ['/data/import', 'Close without saving']]) {
+  for (const [addr, want] of [['/check-in/ci-docker', 'Close and keep the draft'], ['/reviews/new', 'Close without saving'], ['/reviews/weekly/edit', 'Close without saving'], ['/workspace/new', 'Close and keep the draft'], ['/goals/new', 'Close and keep the draft'], ['/goals/ci-docker/edit', 'Close and keep the draft'], ['/quick-check-in', 'Close and keep the draft'], ['/data/import', 'Close without saving'], ['/metrics/new', 'Close and keep the draft']]) {
     await p.goto(url(addr));
     await p.locator('.focus-top').first().waitFor({ timeout: 8000 }).catch(() => {});
     const n = await closers().count();
@@ -3433,6 +3445,8 @@ journey('U72', ['NAV-FORMS'], 'One way out of a form: each focus-mode page has o
     else if (want && words !== want) wrong.push(`${addr}: “${words}”, want “${want}”`);
     // Goal edit's second exit, back to the goal, is gone (navigation spec 2.5).
     if (/\/edit$/.test(addr) && addr.startsWith('/goals/') && await p.locator('.focus-top').first().locator('a').count()) wrong.push(`${addr}: a second way out`);
+    // A form draws no back link either, a module's focus page included (build review of #282).
+    if (await p.locator('.backlink').count()) wrong.push(`${addr}: a back link as well`);
   }
   h.set('entry', !wrong.length, wrong.join('; '));
   h.set('one-action', true);
@@ -5759,7 +5773,7 @@ journey('U109', ['GOAL-DATES'], 'Dates are picked: as Tunde on the measure step,
   await p.context().close();
 }, []);
 
-journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI cost per pipeline run” asks about CI compute cost per pipeline run and still saves; its To sort out lists what is missing and Say what it means opens the form at that field; changing a unit goals use asks first; Remove says which goals stop being measured, and Undo puts the metric and its links back. As Tunde the page has none of these and says who can change it. As Amara, About says 1 metric has no owner once its owner is marked as left', 20, async (h, device) => {
+journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI cost per pipeline run” asks about CI compute cost per pipeline run and still saves; its To sort out lists what is missing and Say what it means opens the form at that field; changing a unit goals use asks first; a metric goals use offers Retire, not Delete, and deleting one no goal used says so and Undo puts it back. As Tunde the page has none of these and says who can change it. As Amara, About says 1 metric has no owner once its owner is marked as left', 20, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/metrics/new'));
   await h.fill(p.getByLabel('Name', { exact: true }), 'CI cost per pipeline run');
@@ -5787,27 +5801,31 @@ journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI 
   await h.fill(p.getByLabel('Unit', { exact: true }), 's');
   await h.click(p.getByRole('button', { name: 'Save changes' }));
   const confirm = p.getByRole('alertdialog');
-  await see(confirm, /1 goal is measured by this metric\. Changing its unit doesn’t change their numbers or plans; 1 of them will show a warning that they differ\. Change it\?/, 'changing a unit goals use is not asked first');
+  await see(confirm, /1 goal is measured by Pipeline queue wait \(p90\) in min\. Is “s” a new label for the same numbers, or a different scale\?/, 'changing a unit goals use is not asked first');
   await h.click(confirm.getByRole('button', { name: 'Keep it as it was' }));
   h.set('finish', (await p.getByLabel('Unit', { exact: true }).inputValue()) === 'min', 'Keep it as it was did not put the unit back');
-  // Remove says which goals stop being measured by it; Undo brings the metric and its link back.
+  // A metric goals use is retired, not deleted (MT3); one no goal has used is deleted, and Undo brings it back.
   await p.goto(url('/metrics/queue-wait'));
-  await h.click(p.getByRole('button', { name: 'Remove this metric…' }));
-  const sheet = p.getByRole('dialog', { name: /Remove “Pipeline queue wait \(p90\)”\?/ });
-  await see(sheet, '1 goal stops being measured by it: Pipeline queue wait (p90). They keep their numbers and plans.', 'Remove does not say which goals stop being measured');
-  await h.click(sheet.getByRole('button', { name: 'Remove the metric' }));
+  await p.getByRole('button', { name: 'Retire this metric…' }).waitFor();
+  const usedDelete = await p.getByRole('button', { name: /^Delete this metric/ }).count();
+  const s0 = await h.snapshot();
+  const added = (s0.modules?.metrics?.metrics ?? []).find((m) => m.name === 'CI cost per pipeline run');
+  await p.goto(url(`/metrics/${encodeURIComponent(String(added?.id ?? '').replace(/^metric_/, ''))}`));
+  await h.click(p.getByRole('button', { name: 'Delete this metric…' }));
+  const sheet = p.getByRole('dialog', { name: /Delete “CI cost per pipeline run”\?/ });
+  await see(sheet, 'No goal has been measured by it.', 'Delete does not say no goal used it');
+  await h.click(sheet.getByRole('button', { name: 'Delete the metric' }));
   await h.click(p.locator('.toast-action').filter({ hasText: 'Undo' }));
   await p.waitForTimeout(400);
   const s1 = await h.snapshot();
-  const link = (s1.modules?.metrics?.metricLinks ?? []).find((l) => l.goalId === 'lead-ci-time');
-  const met = (s1.modules?.metrics?.metrics ?? []).find((m) => m.id === 'metric_queue-wait');
-  h.set('logged', !!met && !met.removedAt && !!link && !link.removedAt, 'Undo did not put the metric and its link back');
+  const met = (s1.modules?.metrics?.metrics ?? []).find((m) => m.id === added?.id);
+  h.set('logged', usedDelete === 0 && !!met && !met.removedAt, usedDelete ? 'a metric goals use offers Delete' : 'Undo did not put the metric back');
   await p.context().close();
   // Someone else: none of these, and who can change it.
   const t = h.use(await newPage(device, 'tunde'));
   await t.goto(url('/metrics/queue-wait'));
   await t.getByRole('heading', { level: 1, name: 'Pipeline queue wait (p90)' }).waitFor();
-  const offered = (await t.locator('.metric-need-list').count()) + (await t.getByRole('button', { name: /^Remove this metric/ }).count()) + (await t.getByRole('link', { name: 'Change this metric' }).count());
+  const offered = (await t.locator('.metric-need-list').count()) + (await t.getByRole('button', { name: /^(Retire|Delete) this metric/ }).count()) + (await t.getByRole('link', { name: 'Change this metric' }).count());
   await see(t, 'Rhea Kapoor or an admin can change this.', 'the page does not say who can change it');
   h.set('errors', offered === 0, `Tunde was offered ${offered} ways to change a metric he doesn’t own`);
   await t.context().close();
@@ -5873,6 +5891,71 @@ journey('U146', ['METRIC-PARTS'], 'Which part: as Grace, Base image build time i
   const said = (s.changes ?? []).filter((c) => c.entity === 'metric' && c.goalId === 'lead-ci-time').map((c) => c.summary).pop() ?? '';
   h.set('logged', held && said === 'Measured by “Pipeline queue wait (p90)” for CI/CD · release builds: Release builds queue apart from main now', held ? `the History entry says “${said}”` : 'it saved without a reason');
   await p.context().close();
+}, []);
+
+journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Lead time for changes’ caveats save at once; its meaning reads back first, asks “Is it still the same number?”, names its goal, and with “The number itself changes” is refused without a reason; once said, the goal’s chart has the line “Definition changed, week {w}”. Flaky test rate is retired with a reason, says so on its page, and “Bring it back” restores it. As Amara, Lead time for changes merges into Time to first review (both in hours) and its goal moves. As Tunde, none of these buttons exist', 30, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/metrics/metric_lead-time/edit'));
+  await p.getByLabel(/^Caveats/).waitFor();
+  h.set('entry', true);
+  await h.fill(p.getByLabel(/^Caveats/), 'Counts only services on the paved road.');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/metrics\/lead-time(\?|#|$)/);
+  h.set('progress', true);
+  // The meaning: read back, the question, the goal named, and Why a Must fix once the number itself changes.
+  await p.goto(url('/metrics/metric_lead-time/edit'));
+  await h.fill(p.getByLabel(/^What it means/), 'From merge to production, the median over 30 days.');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  const rb = p.locator('.metric-readback');
+  await see(rb, 'Is it still the same number?', 'a new meaning is not read back with the question');
+  await see(rb, /1 goal is measured by it/, 'the read-back does not name the goals');
+  await h.checkpoint('read back');
+  await h.click(rb.getByLabel(/The number itself changes/));
+  await h.click(rb.getByRole('button', { name: 'Change the meaning' }));
+  await see(rb, 'Say why, in a line. Every goal measured by it will show this.', 'the number changing is not refused without a reason');
+  h.set('attention', (await rb.locator('svg[data-status]').count()) === 0, 'the read-back uses a status shape');
+  await h.fill(rb.getByLabel(/^Why/), 'The DORA dashboard counts from merge now.');
+  await h.click(rb.getByRole('button', { name: 'Change the meaning' }));
+  await p.waitForURL(/\/demo\/metrics\/lead-time(\?|#|$)/);
+  await p.goto(url('/goals/ns-lead'));
+  const note = p.locator('.c-note text').first();
+  await note.waitFor({ timeout: 8000 }).catch(() => {});
+  const said = (await note.count()) ? await note.textContent() : '';
+  h.set('finish', /^Definition changed, week \d+$/.test(said ?? ''), `the goal’s chart says “${said}”`);
+  // Retire, then bring back.
+  await p.goto(url('/metrics/metric_flaky-rate'));
+  await h.click(p.getByRole('button', { name: 'Retire this metric…' }));
+  await h.fill(p.getByLabel(/^Why/), 'The test platform reports it now.');
+  await h.click(p.getByRole('button', { name: 'Retire the metric' }));
+  await see(p.locator('.metric-retired'), /Retired on .*: “The test platform reports it now\.”/, 'the retired metric’s page does not say so');
+  h.set('errors', (await p.getByRole('link', { name: 'Change this metric' }).count()) === 0, 'a retired metric still offers Change this metric');
+  await h.click(p.getByRole('button', { name: 'Bring it back' }));
+  await p.locator('.metric-retired').waitFor({ state: 'detached' });
+  const s = await h.snapshot();
+  const flaky = ((s.modules?.metrics?.metrics) ?? []).find((m) => m.id === 'metric_flaky-rate');
+  h.set('logged', !!flaky && !flaky.retiredAt, 'Bring it back did not restore it');
+  await p.context().close();
+  // As Amara (an admin): merge; as Tunde, no buttons.
+  const a = h.use(await newPage(device, 'amara'));
+  await a.goto(url('/metrics/metric_lead-time'));
+  await h.click(a.getByRole('button', { name: 'Merge into another metric…' }));
+  const sheet = a.getByRole('dialog');
+  await h.click(sheet.getByRole('button', { name: /^Into/ }));
+  const panel = a.locator('.pick.open');
+  await h.fill(panel.getByRole('combobox'), 'first review');
+  await h.click(panel.getByRole('option', { name: /Time to first review/ }));
+  await see(sheet, /becomes “Time to first review”/, 'the merge is not read back');
+  await h.click(sheet.getByRole('button', { name: 'Merge them' }));
+  await a.waitForURL(/\/demo\/metrics\/first-review(\?|#|$)/);
+  const m = await h.snapshot();
+  const moved = ((m.modules?.metrics?.metricLinks) ?? []).find((l) => l.goalId === 'ns-lead' && !l.removedAt);
+  await a.context().close();
+  const t = h.use(await newPage(device, 'tunde'));
+  await t.goto(url('/metrics/metric_cache-hit'));
+  await t.getByRole('heading', { level: 1 }).waitFor();
+  const none = (await t.getByRole('button', { name: /Retire this metric|Merge into another|Delete this metric/ }).count()) === 0;
+  h.set('parity', moved?.metricId === 'metric_first-review' && none, moved?.metricId !== 'metric_first-review' ? 'the merge did not move the goal' : 'Tunde sees a button to retire, merge or delete');
+  await t.context().close();
 }, []);
 
 journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {
@@ -6197,7 +6280,7 @@ journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals show
 journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/data/import'));
-  await see(p, 'Up to 5,000 rows a file', 'Import does not say how many rows a file may have');
+  await see(p, 'Up to 30,000 rows a file, and 5,000 changes at a time.', 'Import does not say how many rows a file may have');
   await h.inView(p.getByRole('button', { name: 'or paste rows from a spreadsheet' }), 'entry', 'Paste rows, beside Choose a file');
   await h.click(p.getByRole('button', { name: 'or paste rows from a spreadsheet' }));
   const box = p.getByRole('textbox', { name: 'Paste rows from a spreadsheet' });
@@ -6274,7 +6357,7 @@ journey('U90', ['IMPORT-UNDO'], 'Undo and past imports: as Amara, save an import
   await p.waitForURL(/\/data\/import\/check$/);
   await h.click(p.getByRole('button', { name: 'Save 15 changes' }));
   await p.waitForURL(/\/data\/import\/done\/imp_/);
-  await see(p, `Saved 15 changes from u90-${device}.xlsx.`, 'Imported does not say what was saved from which file');
+  await see(p, `Saved 15 rows from u90-${device}.xlsx.`, 'Imported does not say what was saved from which file');
   h.set('entry', await p.getByRole('button', { name: 'Undo this import' }).isVisible(), 'Imported does not offer Undo');
   await h.checkpoint('imported');
   // Data → Import → All {n} past imports: the import by its file's name.

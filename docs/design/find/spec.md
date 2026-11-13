@@ -183,7 +183,7 @@ All in `src/domain/find.ts`, pure, each with tests from its worked examples, a s
 
 ### Rule 1. Does text match: `textMatches(words, q)`
 
-`words` is the row's words as one string; `q` is what was typed. True when every word of `q` starts a word of `words`, ignoring case and accents; words break at spaces and at `/ - , . : ( )`. A goal's key matches as `searchKey` already says: a whole search that is one key finds only that goal.
+`words` is the row's words as one string; `q` is what was typed. True when every word of `q` starts a word of `words`, ignoring case and accents; words break at spaces and at `/ - , . : ( )`, except a point or comma between two digits (`12.5` is one word). A goal's key matches as `searchKey` already says: a whole search that is one key finds only that goal.
 
 | Row's words | q | Matches |
 |---|---|---|

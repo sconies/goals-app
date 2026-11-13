@@ -3,6 +3,68 @@
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
 
+
+## Track 1, Friday 13 November, 05:45 UTC (session past half, handing over; supersedes the 02:00 entry)
+
+Session: session_012kbr91FiHKpcgaoQxfHX4a. **Merged:** #328 (Import's way out; F8's stale locator was fixed on main by #342 the same way), #326 (#225's review, with Lane's budget raise: first download 275 KB, the real app's 334 KB, `MARGIN_KB` still 3), #352 (`rv7-scope`: a review speaks only for the goals it walks, `maySpeak` in `actions.ts`, `scopeRefusal`; MCP `review_call` says the rule), #366 (`data-search-mediums`: #234's three mediums, F7's [S1]–[S3]).
+
+**In flight:** #369 (`review-mediums`, auto-merge on): asks follow a goal's new owner (Lane, 13 Nov: `src/domain/askHandover.ts`, used by `planGoal` and `planChanges`; Home's "Asked of Tunde, now yours" via `handedFrom`, read from the ask's log, no migration), #310's mediums (waiting line first; a late question says "Was due by Tue 10 Nov"; the asked day on the viewer's clock; `get_my_work` uses `homeAsks`), #305's (`missedReviews` empty after the cycle ends; N26 checks the first goal needing attention is above a phone's fold for five people every day), #282's (a module's focus page is a form: `isForm(path, search, forms)`, `useForms`; the metric form has one FormClose). Full suite green before the PR. If CI fails, fix it there.
+
+**Next, in order:**
+1. **The build reviewer's two new mediums** (from session_012kbr8y4Bh3MudNC1bdo3RN, 04:49; full text on `build-reviews`):
+   - #328: once a file or paste is read, `/data/import/check` and its changes list are forms with no way out on a phone. Give both the same FormClose ("Close without saving", to Import or Data) and add both to U72; U72 should also press one closer, not only read it.
+   - #326: "a cycle that has ended can't be corrected" holds only in the form (`p.mode === 'correct'` in `changeset.ts`): MCP, Data's tables and a workbook loaded later still replace a check-in of an ended cycle. Refuse every replacement once the cycle has ended (`cycleState` ended or closed), in the engine, with tests for each door; or Lane says only the form closes.
+2. **The habit moment**, as Lane decided it (13 Nov): `docs/design/round-4/habit/spec.md` (PR #333). HB1 needs nothing, HB2 follows, HB3 needs HM7. The Home cell loads its rule after paint (first download).
+3. N12's Find timing; #110's lows; HM1's lows.
+4. **The lows batch:** the 21:40 entry's list (#261, #234, #255); RV7's six (planning, 02:22: a removed member can turn an old note into a risk acceptance through `editCall`; the join line can name the viewer; `reviewCall` accepts any week 1–99; `list_reviews` gives only `youreIn` and no MCP test covers the rule; N25 checks only that a line is absent; `Inspect.tsx` ~102 cuts the join line by string replace, and at 390 the non-member's bar is four lines of names); #326's (after a hand-over `canUndoImport` is true but `undoImport` says "Nothing left to undo", `removal.ts` 467/689; the correction form still offers "No new number this week"; Past imports says its sentence twice and Undo says "2 rows" for one correction); #328's (two links on Import are 17 and 20 px high on touch); #310's (the meta is two or three lines at 1440; a late question sits under three decisions because the screen regroups by kind; "A next step you agreed is due" when someone else set it, and two full stops; `ASK_BUTTON` repeats `ASK_ACTION`); #305's (two reviews on one day counted but one named; "Sept" in the cell, "Sep" in the lead); #282's (Close goes to a fixed place; "Save and skip" then reload returns to the skipped goal; U70's budget 7→9).
+
+**Habits, learned this session:**
+- The merge helpers, rebuilt (scratchpad, gone with the container): `wn.cjs <branch>` writes What's new as main's file with the branch's own entries on top, dated no earlier than main's newest; `fin.sh` stops on any conflict other than `api/mcp.js`, What's new, `spec/`, `llms.txt` or `evals/report.md`, then takes main's of those, runs `build:mcp` (checks `home/user` is 0), `npm run spec`, commits "Merge main [no news]" and typechecks. Chain everything after it with `&&`: a `;` let a push run after a stopped merge.
+- Main moves every few minutes: merge it in, rebuild and push just before marking a PR ready, and again when it goes dirty (a dirty PR gets no CI at all, only Vercel's check).
+- Never run unit tests beside an eval: fence.test and proposed.test time out under the load (they pass alone).
+- A Home change for the phone: measure with N26 (`FINISH=N26`), which now walks five people over two weeks at 390 and 1440; a local Playwright script reads about 12 px higher than N26 does.
+- U3 and U38 read the ask kinds' headings ("Questions for you", "Updates asked for"): keep them.
+- N12's Data timing is close to its budget beside a full run; keep per-row work in `applyTable` off the common path.
+
+## Track 7b (metrics and the register rows), Friday 13 November, 04:40 UTC (session at half, handing over)
+
+**Merged:** #281 MT1 (defining a metric well: "Fully defined" / "Still to say", Must fix and Check under each field, `save_metric`'s `checks` and `answers`, U105, `METRIC-DEFINED`); #294 (track 7's review mediums: MCP returns stored keys; `find_goals` pages 50 at a time through `listed()`); #299 migration 0043 (a link's `part`, a metric's retirement and `marks`); #308 MT2 (Which part, unit and direction from the metric, a why when what measures a goal with check-ins changes, `link_goal_metric`, U146, `METRIC-PARTS`); #340 (MT1's review: the save itself asks the Checks, accent-folded names, five lows).
+
+**In flight:** #351 **MT3** (change read-back, retire, bring back, merge, marks; `retire_metric`, `merge_metrics`; auto-merge on), built by this session's last fork, which was told to write `retired_why` '' and `marks` [] always (see below). #360, the reviewer's **HIGH on #308** (a batch of links with and without a part failed on the database: `metricLinkToRow` omitted `part`, `okr_upsert` filled the union's missing key with NULL, 0043 made it NOT NULL); fixed by always writing `part: ''`, with a PGlite mixed-batch case in `src/data/schema.test.ts`; auto-merge on. **Tell the build reviewer (session_012kbr8y4Bh3MudNC1bdo3RN) when #360 merges.**
+
+**Next, in Lane's order:**
+1. Check #351 and #360 merged (and #351 always writes `retired_why` and `marks`, with a mixed-batch case like #360's).
+2. **#308's review mediums** (docs/reviews/2026-11-11-build-reviews.md on build-reviews): (2) "a goal with check-ins must say why" is got round by unlinking first (`rulesParts.ts` 75-76, 107): compare with the goal's last link, removed or not, or ask why on unlink; (3) the goal form saves past an unanswered Check (`MeasuredBy.tsx:91` blocks only on Must fix) while the tool holds it; (4) the "another goal already measures this" Check reads the whole workspace at the tool (`rulesLink.ts:50`) and the cycle at the form: keep `others` to the goal's own cycle at both doors. Lows: `partKey`/`closePart` over-match ("US" = "U"; "Region 2" vs "Region 1"); `link_goal_metric` says `get_metric` lists parts but it doesn't; a failed lazy load in the goal form's save says nothing (`state.tsx` 768-769); "Why" has no "Required"; "It shows in its History." said twice; focus stays on Save after a refusal; public's old names don't read back a part.
+3. **MS, MI (round 2's MT6), GR, MQ**, one PR each (backlog rows after SM; specs in `docs/design/metrics-2/spec.md` for MI).
+4. **BL and GB** once track 2 has merged GE10's code (ask track 2, session_012kbr8zF82vbVLvoqfYaQad); **TG** after them.
+5. **WM**: Lane answered (12 Nov, 20:35) all four as recommended: anyone may make a set-up token for themselves in Settings; it lives 24 hours or 3 workspaces, whichever first; the admin token it issues is revoked with it by default; set-up through it stops when the new workspace's first week starts. Build it last, with R1 rule 5b, citing "Lane, 12 Nov". The rules as sent: made only in the app, never by another token or MCP; reaches only `create_workspace`, ST1–ST5 in workspaces it created, and one ordinary admin token for its holder there; hash only, shown once; Access labels "Made by a set-up token", Activity "Set up via AI assistant (MCP)"; dies when its holder leaves; the provisioning half is a platform requirement in the rebuild kit.
+
+**Gotchas learned:**
+- The first download sits at the budget's edge; load heavy module rules through module actions' optional `ready` (`src/app/actions.ts`; see `rulesLink.ts`, `rulesSave.ts`). Never raise budgets.
+- A NOT NULL column must always be written by its row mapper, never left out: `okr_upsert` fills a batch's missing keys with NULL. The browser store never shows it.
+- What's new entries newest first **by date** (`guide.test.ts` fails otherwise); keep both on merges.
+- `spec/core/tools.md` and `spec/rebuild/reads.md` are generated: rerun `npm run spec` after tool or read changes and after each merge of main.
+- Both module-less builds (without metrics, without spreadsheets) run in CI.
+- `src/app/undoElsewhere.test.tsx` is flaky under CI load (seen on several branches): one rerun.
+- Auto-merge works now (branch rule: smoke green and up to date). Forks can't spawn subagents and don't get GitHub events: the parent relays CI failures.
+- Run the whole smoke job locally, in CI order, against a fresh merge of main before pushing; one push then fixes everything.
+- A migration that adds a check constraint adds a line to `LIMITS` (or `NOT_LIMITS`) in `src/spec/limits.ts`.
+
+## Track 3 (import), Friday 13 November, 03:30 UTC: IM8 and the review lows done (supersedes the 01:10 entry's list)
+
+**Done**
+- **#336, IM8** (merged). Set-up's upload goes through the import preview: create mode takes answers (`buildWorkspace`), the group block is shared from `src/ui/IssueGroup.tsx`, and the set-up preview (`src/ui/SetupFilePreview.tsx`) loads lazily. An owner the People sheet lacks offers "Add {name}" (`ownerToAdd`) or "Give it to someone here". `past-stage` is asked in create mode, answered "Count them from this week" by default (`setupDefaults`); `keepFileWeeks` and `stagesFromJoining` are gone. Journey **U147** (U146 was taken), `SETUP-UPLOAD`. The PR also:
+  - fixed F8 on main: the hidden View sheet holds a copy of the toast;
+  - gave the speed tests timeouts above their own limits;
+  - removed Export's dead standalone button.
+- **#347, the review lows** (auto-merge on; check it merged): IM3's two engine findings and the shared count helper, every IM4 and IM5 low, the #257 and #248 lows, and U29 on a phone (the walkthrough now lazy-loads). Two lows were left as they are: the year is already in the file name, and the zipped CSVs stay three clicks away. The full suite passed except U12 (8.8) and U31 (9), which are not import's.
+
+**Next for track 3:** nothing open from the reviews. U99 (the set-up design's whole SETUP-UPLOAD journey: People paste, a team typo at set-up) belongs to the set-up track's ST6.
+
+**Gotchas (new)**
+- Don't run `npm test` and `evals:changed` at once: the container restarted.
+- The newest What's new entry and a lazy route's dependency list both sit in the first download. A new shared chunk adds its name to the list, and so does a hash change. Near the budget, measure to two decimals: `sed 's/toFixed(0)/toFixed(2)/' scripts/check-bundle.mjs`.
+
 ## Track 3 (import), Friday 13 November, 01:10 UTC: handover after item 0 (supersedes the 12 Nov 21:20 entry's list)
 
 The track 3 session that built item 0 is at half its context. A fresh track 3 session picks up here. The 12 Nov 19:40 section below still holds the open findings word for word.
@@ -30,6 +92,37 @@ The track 3 session that built item 0 is at half its context. A fresh track 3 se
 - A container restart kills a background eval run without a result: rerun it, with its log in the scratchpad.
 - Item 0's changes touch `changeset.ts` and `export.ts`, so `evals:changed` runs the full suite (about 17 minutes in four shards).
 
+## Planning state, Friday 13 November, 12:35 UTC (planning session handing over)
+
+Planning was session_012kbr939zneZWtAo7UQEHRP. Read this section, then the 12 Nov 21:55 section below for the standing context.
+
+- **Open sessions:**
+
+  | Track | Session | Doing |
+  |---|---|---|
+  | 1 (Home, reviews, check-in) | session_012kbr8xrSzicJV6Yybqqzng | #369 (asks follow the new owner); two review mediums; the habit moment (round 4, HB1, HB2); N12; lows |
+  | 2 (goal entry, set-up) | session_012kbr92MfjHTHVBgQp2nL52 | the review mediums on #349, #355, #319; #356; "Propose a new goal" in reviews; the rest of GE10 (F) |
+  | 3 (import) | session_012kbr8xq9rFhq98QkAVM4hp | #336's review fixes (Import focus regression first) |
+  | 4 (architecture, switches) | session_012kbr931R7QEqBrfxbNv2QV | #354, #358; FT2 then RS1 (reviews as a switch); FT1, SW1, SW2, AX2, AX6 |
+  | 7c (metrics, register rows) | session_012kbr932dXk7emNz7HTfoU1 | #308's mediums; MS, MI, GR, MQ; BL, GB, TG; WM last |
+  | Main fixer | session_012kbr8zm5LkH575XFmikwtq | main's full evals (U98, U109, F8/#342, N12), close ~64 duplicate issues, one rolling issue, a PR-CI proposal |
+  | Reviewer (Fable) | session_012kbr8y4Bh3MudNC1bdo3RN | reviews every merge |
+
+  Finished: track 5b (AD, #334), track 6 (every kit gap, last #337), the round 4 design session.
+- **Decided by Lane, 13 Nov:**
+  - Open asks follow a goal to its new owner.
+  - AD is built.
+  - The budgets went up once: 275 KB for the first download and 334 KB live. Never again without asking.
+  - Round 4 design: all recommended answers (1a–17a). The order is habit, then NR, then SM in four parts, then the leader's week view.
+  - Reviews as a feature switch: FT2 plus RS1, with 18a–22a.
+  - Branch protection is on main and auto-merge works.
+- **Next to assign when an area frees up:**
+  - NR1–NR3: check-in readings, after the habit moment, in the check-in area.
+  - SM4, SM2, SM3, SM1.
+  - PF1–PF2, after HM3 and HM4.
+- **Waiting for Lane:** nothing.
+- **Prompt for the next planning session:** "You are Faro's planning session. Check out main, read CLAUDE.md, the top section of docs/handover.md ('Planning state, Friday 13 November, 12:35 UTC') and docs/backlog.md. Get your session ID with get_session and send_message every open session in its table: 'Planning has moved to session <ID>. Report there from now on, and send only finished results and blockers.' Then read reports with ReadNotifications; when a track hands over, start a fresh session from its handover prompt; relay the reviewer's findings to the owning track; fix anything that breaks main at once; put Lane's ideas in the backlog; build only what he picks. Stay quiet otherwise. Hand over at about 70% full, as CLAUDE.md says."
+
 ## Planning state, Thursday 12 November, 21:55 UTC (planning session handing over)
 
 **Update, Friday 13 November, 02:10 UTC.** Current sessions (these replace the IDs below): track 1 session_012kbr8zenZxEHT6rv4yLzHG; track 2 session_012kbr8zJcP8xenTkLS4rV4P; track 3 session_012kbr8yuAExZc7Qwjdwi7Ew; track 4 session_012kbr8y3UGvoeUMdAQ8yaJ8; track 6 session_012kbr91nEq272Y9HvKNhm98 (the store contract, the kit's last gap); track 7b session_012kbr92c7taPQJmK4jDJU9E; reviewer session_012kbr8y4Bh3MudNC1bdo3RN. Main has a branch protection rule since 02:05 (a PR, the smoke check, up to date with main; no approvals), so auto-merge works: enable_pr_auto_merge (MERGE) once the gate passes. Lane decided (13 Nov): when a goal's owner changes, its open asks move to the new owner and the asker is told (track 1 builds it). The first download is about 264 of 265 KB.
@@ -53,7 +146,7 @@ The planning session session_012kbr939zneZWtAo7UQEHRP is about half full and han
   2. **A Fable design session:** Lane asked for one; what it should design is still to come.
   3. Backlog AD (#227 medium 3, admin import doors keyed on `via`) waits for a pick.
   4. Optional: build api/mcp.js in CI. Recommended: leave it.
-- **Prompt for the next planning session:** "You are Faro's planning session. Check out main, read CLAUDE.md, the top section of docs/handover.md ('Planning state, Thursday 12 November, 21:55 UTC') and docs/backlog.md. Get your session ID with get_session and send_message every open session listed there: 'Planning has moved to session <ID>. Report there from now on, and send only finished results and blockers.' Then read reports with ReadNotifications; when a track hands over, start a fresh session from its handover prompt; relay the reviewer's findings to the owning track; fix anything that breaks main at once; put Lane's ideas in the backlog; ask Lane the 'Waiting for Lane' items still open, in one batch of multiple-choice questions, recommended answer first. Stay quiet otherwise. Hand over at about half full."
+- **Prompt for the next planning session:** "You are Faro's planning session. Check out main, read CLAUDE.md, the top section of docs/handover.md ('Planning state, Thursday 12 November, 21:55 UTC') and docs/backlog.md. Get your session ID with get_session and send_message every open session listed there: 'Planning has moved to session <ID>. Report there from now on, and send only finished results and blockers.' Then read reports with ReadNotifications; when a track hands over, start a fresh session from its handover prompt; relay the reviewer's findings to the owning track; fix anything that breaks main at once; put Lane's ideas in the backlog; ask Lane the 'Waiting for Lane' items still open, in one batch of multiple-choice questions, recommended answer first. Stay quiet otherwise. Hand over at about 70% full, as CLAUDE.md says."
 
 ## Track 1, Friday 13 November, 02:00 UTC (session past half, handing over; supersedes the 00:30 entry)
 
@@ -357,6 +450,59 @@ Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this sessi
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
 
+## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~12:40 UTC (session past half, handing over; supersedes the 04:30 entry)
+
+Session: session_012kbr92MfjHTHVBgQp2nL52. Planning is session_012kbr939zneZWtAo7UQEHRP. #356 and #363 have merged. Track 4 is now session_012kbr931R7QEqBrfxbNv2QV; it has been told about #376's touches to the review screens and that `reviewName` should give null with Reviews off.
+
+This session built items 1 to 3 of the GE10 list, before planning moved the review's mediums ahead of them. All three are **draft PRs with the gate not finished**: typecheck, spec and build:mcp passed on each, and `npm test` passed on #376 only. An `evals:changed` run on #376 hung for hours after a worker restart and was killed, so there is no scorecard yet.
+
+| Branch | What | PR |
+|---|---|---|
+| `ge10-proposed-in` | Reviews' "Propose a new goal" (walk link, lazy `ui/ProposeInReview.tsx`), `proposedIn` ↔ `proposed_in`, Home's " in {review}", "Last time"'s "Proposed: …" lines (`lastTime` returns `proposed`); journey U148 | #376, draft |
+| `ge10-proposed-type` | Type on a proposed goal's edit page; `TYPE_FIXED` refuses an active goal's type change in `planGoal`; `GOAL_KINDS` in domain/goal.ts; journey U149 | #377, draft |
+| `ge10-state-stopped` | State: Active · Proposed · Stopped; `state=stopped` lists `archive.goals` (lazy `screens/StoppedList.tsx`); journey U150 | #378, draft |
+
+**Next, in order:**
+1. The build reviewer's mediums (and lows) on #349, #355 and #319, as listed in the 04:30 entry below, in one PR.
+2. Then take #376, #377 and #378 one at a time: merge main (keep both What's new entries, ours first; take main's `api/mcp.js`, then `build:mcp` and `npm run spec`), run `npm test`, then `evals:changed` (as a background job writing to a log, or a subagent; if it runs past about 40 minutes, kill it and rerun the failing shard's checks with `ONLY=`/`FINISH=`). Then mark the PR ready and enable auto-merge (MERGE). The three touch the same help files, so merge them in order.
+3. Then the 04:30 list's items 4 to 6: `for-someone-else` for files and tools; "Proposed · {n}" in what feeds a goal; the start page's carry count.
+
+**Habits:** a worker restart kills background eval runs and subagents silently. Check `ps` for a stuck `evals/run.mjs` before starting another run.
+
+**Prompt for the next track 2 session:** "You are track 2 of Faro's build (goal entry and set-up). Read CLAUDE.md, then the track 2 section of docs/handover.md ('Track 2 … Friday 13 November, ~12:40 UTC') and do its 'Next' list in order: the review's mediums first (listed in the 04:30 entry), then gate and merge the three drafts #376, #377 and #378, then the remaining GE10 items. The first download is about 262 of 275 KB: keep anything new lazy; never raise budgets. Track 4 (session_012kbr931R7QEqBrfxbNv2QV) is building the reviews switch: coordinate with it on Inspect.tsx and Review.tsx. Track 7c will ask when GE10's code is in. A migration that adds a check constraint adds its line to src/spec/limits.ts. Follow CLAUDE.md's gate (typecheck, npm test, npm run spec, evals:changed, build:mcp from a real node_modules via cp -al, never ln -s), one heavy run at a time. Build in a worktree, send eval runs to a subagent that returns only the scorecard, check mergeable_state, then enable auto-merge (MERGE) once the gate passes. Report to the planning session (session_012kbr939zneZWtAo7UQEHRP, or whichever session tells you planning has moved) once, when done or blocked. At half context, write a handover entry in a PR and send the planning session the next prompt."
+
+## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~04:30 UTC (session at half, handing over; supersedes the 02:50 entry)
+
+Session: session_012kbr8yiXGwtRjT4Wf4vu8n. Planning is session_012kbr939zneZWtAo7UQEHRP. #319 merged before this session began.
+
+| Branch | State | PR |
+|---|---|---|
+| `ge10-home-lead` | A goal proposed for you, unopened a week, is Home's lead after any ask (`proposalLead`); **migration 0045** adds `okr_goals.proposed_in`, unused, one merge ahead of "in {review}" | #344 merged |
+| `ge10-back-to-proposed` | "Make it proposed again" in the goal's "…" menu (`backToProposed` as an action); the Change page says why not once there are check-ins | #349 merged |
+| `ge10-map-board` | With `state=proposed`: the Board is one "Proposed" column, the Map draws proposed goals dashed with the word, never judged | #355 merged |
+| `ge10-metric-proposed` | The metric page's "Proposed · n" under its goals table; `get_metric` gives `proposed` | #356, auto-merge on |
+
+**Next, in order.** First, the build reviewer's mediums on this session's PRs (13 Nov ~04:50; full text in docs/reviews/2026-11-11-build-reviews.md on `build-reviews`, PR #134), one PR:
+- #349: `backToProposed` finds the goal in any year but checks this year's check-ins only (proposedActions.ts:81): refuse a goal outside `x.cycle` and test check-ins on `x.full`. Asks on a goal sent back to proposed (or asked while proposed) vanish from Home: `homeAsks` (reads.ts:139) and `get_my_work` should resolve through `withProposed`.
+- #355: with "Troubled trees" on, the filtered Map draws no proposed goal (GoalMap.tsx:121-127): ignore the switch when the State filter is on.
+- #319: `get_my_work` says nothing of a goal proposed for you (workTools.ts:128-158); Home says "Nothing is asked of you today." beside "Proposed goals · 2" (`quietLine`, home.ts:239).
+- Lows to carry: the Change page's "It has check-ins…" line shows on every goal with check-ins (GoalEdit.tsx:281); no layout switch with the State filter on, "newest first" on the Map, "Proposed" typed as a literal (ProposedList.tsx:50, 54); no journey for the proposal lead or the for-you row; supabase/README.md omits 0045; "Opened"/"Not yet" are per browser; the phone row's sentence is cut to one line.
+
+Then the rest of GE10 (F), one PR each where they're big:
+1. Reviews' "Propose a new goal" (decision 15: name, who would own it, what it would feed) **writes `proposed_in`** (0045, now applied), then Home's for-you row and lead say "{Name} proposed a goal for you in {review}", and the next session's "Last time" reads "Proposed: {goal} ({key}). {Owner} hasn’t made it active yet." or "… made it active on {date}." Map `proposedIn` in the adapter and the Goal type with it (it is in no TS type yet).
+2. Changing the type while proposed ("It’s proposed, so its type can still change.").
+3. "Stopped" in the State filter (Active · Proposed · Stopped).
+4. `for-someone-else` for files and tools (goal entry section 3's State row).
+5. What feeds it: "Proposed · {n}" under the active feeders; "Feeds into {goal} · Proposed".
+6. The start page's count: "{n} goals carry on · {k} proposed goals carry as proposed".
+
+**Habits, learned this session:**
+- Two eval runs at once (or `npm test` beside one) time out: vitest's 5 s tests (fence, layers, scale, spec examples) and P9/N12 fail under load and pass alone. Run one heavy job at a time; rerun a lone platform check with `ONLY=PLATFORM CHECKS=P9` (a P check) or `FINISH=N12`. `CHECKS=` without `ONLY=PLATFORM` runs nothing.
+- Main moves every few minutes: every PR conflicts on `src/help/whatsNew.ts` and `api/mcp.js`. Keep both news entries (ours first), take main's `api/mcp.js`, then `build:mcp` and `npm run spec`. Restore `evals/report.md` before merging main (an eval run leaves it changed).
+- The first-download budget is now 275 KB (real app 334); we're at 262 / 321.
+
+**Prompt for the next track 2 session:** "You are track 2 of Faro's build (goal entry and set-up). Read CLAUDE.md, then the track 2 section of docs/handover.md ('Track 2 … Friday 13 November, ~04:30 UTC') and do its 'Next' list in order (the review's mediums first), one PR each. Check #356 first: if either hasn't merged, fix what blocks it. The first download is about 262 of 275 KB: keep anything new lazy; never raise budgets. Track 3 is building IM8 in Onboarding.tsx's upload step: stay out of it. A migration that adds a check constraint adds its line to src/spec/limits.ts. Follow CLAUDE.md's gate (typecheck, npm test, npm run spec, evals:changed, build:mcp from a real node_modules via cp -al, never ln -s), one heavy run at a time. Build in a worktree, send eval runs to a subagent that returns only the scorecard, check mergeable_state, then enable auto-merge (MERGE) once the gate passes. Report to the planning session (session_012kbr939zneZWtAo7UQEHRP, or whichever session tells you planning has moved) once, when done or blocked. At half context, write a handover entry in a PR and send the planning session the next prompt."
+
 ## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~02:50 UTC (session at half, handing over; supersedes the 01:10 entry)
 
 Session: session_012kbr8zJcP8xenTkLS4rV4P. Planning is session_012kbr939zneZWtAo7UQEHRP.
@@ -511,6 +657,79 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
   - the feeds-lower rule lives only in the form;
   - the unbuilt "cycle ended", "Add one" and gone-parent states from the onboarding spec.
 - **U23 (entry)** scored 8.6 locally and is track 2's to lift.
+
+## Track 4, Friday 13 November, 06:00 UTC (session past half, handing over; supersedes the 04:35 entry)
+
+Session: session_012kbr931R7QEqBrfxbNv2QV.
+
+- **Track 2** is adding GE10's "Propose a new goal" to the review walk on `ge10-proposed-in`, with Home naming the review through `reviewName` in the app's reads. They asked that, with Reviews off, `reviewName` and the `reviewOf` lookup return null, so Home says nothing about a review. Whichever of their PR and RS1 lands second does it.
+
+- **#354** (U12) has merged.
+- **#358** (AX5 part 2b) has merged. Track 6 needs no word: the `Store` contract is unchanged, and only the anchor list grew.
+- **#371** (FT2, Reviews behind its switch) is open, with auto-merge on.
+  - **Shape:** the new reviews module folder holds the routes, Help and AI tools. The core keeps the screens, rules, menu row and `okr_reviews` until FT3, and the outline stage's gaps name each file.
+  - **Why:** FT2's planned `elsewhere` list is refused by AS part 2's `recordProblems`.
+  - **The switch:** `reviewsOn` in `src/app/reads.ts` is the one place that reads it. Rules take `reviews: boolean`.
+  - **The read-back:** `switchOffReadBack` is in the domain's new `reviewsOff` file, which is lazy.
+  - **Back on:** worked out from the change log, with no migration (`offSpell` in `review.ts`).
+  - **Evals:** a full run had no hard failures. U104 was fixed and scores 10. U31 scores 9, as it does on main.
+  - **Stages:** Reviews' stage is `stage-5-module-reviews`, and spreadsheets moved to stage 6. That leaves a stale filename in `docs/reviews/2026-11-12-handoff-kit-review.md`.
+  - Main was merged in again at 12:30, after #358.
+- **Next, in order:**
+  1. RS1 (`docs/design/round-4/reviews-switch/spec.md`, section 11), on top of #371. It covers:
+     - `dueWords(reviewsOn, cycle, week)` for the clock's words;
+     - the read-back's two extra lines (accepted risks; the due day), beside `switchOffReadBack`;
+     - the habit's words (HB1 and HB2);
+     - the review tools' refusal: the one sentence built tools use, which the module's generic `callTool` refusal may already give, so check it;
+     - the import's one line;
+     - the conformance rows;
+     - REVIEWS-OFF-WORDS and REVIEWS-BACK-ON, and the requirement `REVIEWS-SWITCH-CLOCK`.
+  2. FT1, then SW1 and SW2.
+  3. AX2.
+  4. AX6.
+- **Not done in FT2, on purpose:** the Metric library has `tables` but no read-back when switched off, because none is designed for it.
+- **Budgets:** 275 KB first download and 334 KB live. FT2's first download is 261 KB.
+- **Traps:** as in the 04:35 entry.
+  - A container restart kills background agents. Their files survive, so commit work in progress locally.
+  - Hand big builds to one subagent with a full brief, and eval runs to another.
+
+## Track 4, Friday 13 November, 04:35 UTC (session past half, handing over; supersedes the 02:15 entry)
+
+Session: session_012kbr8y3UGvoeUMdAQ8yaJ8.
+
+- **Merged:**
+  - #327: migration 0044, keyset indexes `(workspace_id, at desc, id desc)` and `(goal_id, at desc, id desc)` for history paging.
+  - #335: the reviewer's three mediums on #323 and #229.
+    - Rules read `Snapshot.history`: `checkInsLeftOut` and `changesLeftOut` in `src/domain/removal.ts`; `goalHasCheckIns`, `cycleStanding` and `personHistory` (`unknown`); an import older than the window can't be undone.
+    - `wholeOnly` in `src/ports/window.ts`: every store's `createWorkspace` refuses a windowed snapshot.
+    - The goals port is keyed on `ws.modulesOff`, with `goalColumns` filled inside it (`src/app/goals.test.tsx`).
+    - Backlog row FD (trim the first download under 265 KB; Lane, 13 Nov).
+- **Open, with auto-merge on.** If either is still open, merge main in, rebuild and push:
+  - #354, U12: sidebar rows 36 px and a one-line Demo entry. The box now ends at y=860 at 1440×900.
+    - P9 "1280px rhea /: no navigation" did not reproduce in three full runs. It is timing (a 300 ms wait), not Home.
+  - #358, AX5 part 2b: the app loads a window (`appWindow`, `LOAD_DAYS` 420; every load goes through `loadWs` in `state.tsx`).
+    - Anchors gain `person` and `metric`.
+    - Activity and a goal's History page older changes (`useOlderChanges` in the new app/history module, and `AppState.olderChanges`).
+    - MCP `get_activity` pages `Store.history`.
+    - The MCP server still loads whole.
+    - Accepted for now: "since you last looked" can undercount before the window; Recently removed misses check-ins of years older than the window; an old import's saved count can read 0.
+    - When it merges, tell track 6 that the `Store` contract is unchanged; only the anchor list grew.
+- **Main's own faults seen in full runs:**
+  - U31 9 ("over the step budget"), on main as well.
+  - U46 9 once (phone export: two primary buttons in view). That belongs to track 3.
+- **Next, in order:**
+  1. FT2 (reviews as a feature switch, approved 11 Nov). Keep the shell change net nought, as the spec asks.
+  2. RS1 straight after it (`docs/design/round-4/reviews-switch/spec.md`, Lane, 13 Nov).
+  3. FT1, SW1 and SW2.
+  4. AX2.
+  5. AX6.
+- **Budgets:** 275 KB for the first download and 334 KB live (Lane, 13 Nov, raised once). Part 2b's first download is 262 KB.
+- **Traps:**
+  - Every merge of main conflicts in `src/help/whatsNew.ts` (keep yours on top) and `api/mcp.js` (take main's, then `npm run build:mcp`).
+  - After `build:mcp` from a worktree, the path-fixing sed must match any prefix: `sed -i 's#^// \(\.\./\)*[^ ]*node_modules/#// node_modules/#' api/mcp.js`.
+  - Run evals one at a time: two runs at once share ports 4318 to 4328.
+  - A worker restart kills a background eval run; start it again.
+  - `enable_pr_auto_merge` refuses a PR whose checks have already all passed ("clean"): merge it by hand then.
 
 ## Track 4, Friday 13 November, 02:15 UTC (handing over)
 

@@ -42,6 +42,7 @@ import { readWeekCode, weekCode, weekUnknownText } from './weeks';
 import { checkInsFor } from './status';
 import { makesLoop } from './tree';
 import { asksOf, requestsAfterCheckIn } from './asks';
+import { asksFollowOwner, openAsksDiff } from './askHandover';
 import { deleteGoal, markPersonLeft, stopGoal } from './removal';
 import { reportedIn, stagesFromNow } from './templates';
 import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
@@ -270,6 +271,21 @@ export interface PlanProgress { done: number; total: number; added: number; chan
 
 /** What a row's change counts as on the Reading panel ("So far: {a} would be added, {c} changed"). */
 const ADDS: ReadonlySet<ItemKind> = new Set<ItemKind>(['new goal', 'new person', 'check-in']);
+const STOPS: ReadonlySet<ItemKind> = new Set<ItemKind>(['stop goal', 'delete goal', 'person left']);
+/** What a change does, as the preview groups it (spec 2.3's counts by sheet, 2.4's Show): adds, changes, or stops (or
+    marks someone as left). Said once: the counts, the changes list and the progress all read it. */
+export type ChangeShow = 'added' | 'changed' | 'stopped';
+export const showOf = (kind: ItemKind): ChangeShow => (ADDS.has(kind) ? 'added' : STOPS.has(kind) ? 'stopped' : 'changed');
+
+/** Counts by sheet (spec 2.3, item 2): what each sheet's rows add, change and stop, what they leave as it is, and the
+    rows that must be fixed or are asked about. A row that must be fixed is counted there only: nothing it says is saved. */
+export function sheetCounts(cs: Pick<ChangeSet, 'items' | 'issues' | 'unchangedBy'>, sheet: Sheet): Record<ChangeShow | 'unchanged' | 'must' | 'check', number> {
+  const rows = (level: 'must' | 'check') => new Set(cs.issues.filter((i) => i.sheet === sheet && i.level === level).map((i) => i.row));
+  const must = rows('must');
+  const out = { added: 0, changed: 0, stopped: 0, unchanged: cs.unchangedBy[sheet], must: must.size, check: rows('check').size };
+  for (const x of cs.items) if (x.sheet === sheet && !must.has(x.row)) out[showOf(x.kind)]++;
+  return out;
+}
 
 /** The engine, in one go: `planChangesInChunks` run to the end. Results are the same either way. */
 
@@ -285,6 +301,9 @@ export function planChanges(input: ChangeInput): ChangeSet {
 export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress, ChangeSet, void> {
   const { snapshot: s, cycle, week, now, newId, via } = input;
   const create = input.mode === 'create';
+  // Once a cycle has ended its check-ins are what the wrap-up read: none of them is replaced (check-in design 2.7).
+  const cycleEnded = !create && ['ended', 'closed'].includes(cycleState(cycle, new Date(now)));
+  const endedRefusal = `${cycle.name} has ended, so its check-ins can’t be corrected.`;
   const answers: Answers = input.answers ?? {};
   const issues: Issue[] = [];
   const items: Item[] = [];
@@ -320,7 +339,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
   /** Goals read but not yet made into changes (they are, once every row is read): added, and changed. */
   let goalsSoFar = (): [number, number] => [0, 0];
   const progress = (): PlanProgress => {
-    for (; seenItems < items.length; seenItems++) if (ADDS.has(items[seenItems]!.kind)) so.added++; else so.changed++;
+    for (; seenItems < items.length; seenItems++) if (showOf(items[seenItems]!.kind) === 'added') so.added++; else so.changed++;
     for (; seenIssues < issues.length; seenIssues++) if (issues[seenIssues]!.level === 'must') so.mustFix++;
     const [a, c] = goalsSoFar();
     return { done, total, added: so.added + a, changed: so.changed + c, mustFix: so.mustFix };
@@ -844,8 +863,14 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
         const a = ask('same-goal', 'Goals', row, title, `A goal called “${same.title}” is already here (${[k, teams.get(same.teamId)?.name].filter(Boolean).join(', ')}). Is this a new goal, or the same one?`, { column: 'Goal', found: title, answers: ANSWERS.sameGoal(k) });
         if (a === 'leave') return;
         if (a && a.choice === 'same') {
-          // Two rows answered "the same" for one goal: both are named, as any goal on two rows is (IM2 review).
-          if (touched.has(same.id)) return raise('duplicate', 'Goals', row, same.title, `“${same.title}” has another row in this file. Give each goal one row.`, { column: 'Key', answers: ANSWERS.duplicate });
+          // Two rows answered "the same" for one goal: both are named, as any goal on two rows is (IM2 review), and neither
+          // saves (a Must fix holds the whole file) until one goes from the file or is left out.
+          const first = touched.get(same.id);
+          if (first) {
+            const say = `“${same.title}” is on rows ${first.row} and ${row}. Give each goal one row.`;
+            if (!(issuesAt.get(`Goals|${first.row}`) ?? []).some((x) => x.kind === 'duplicate')) raise('duplicate', 'Goals', first.row, same.title, say, { column: 'Goal', found: title });
+            return raise('duplicate', 'Goals', row, same.title, say, { column: 'Goal', found: title });
+          }
           existing = same;
         }
       } else if (same && create) return raise('duplicate', 'Goals', row, title, `“${title}” is on two rows. Give each goal one row.`, { column: 'Goal' });
@@ -1333,6 +1358,9 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
       if (post) { raise('cant-change', 'Check-ins', row, g.title, `Nothing is different from what week ${w} already says.`); return; }
       same('Check-ins'); imported.set(g.id, [...(imported.get(g.id) ?? []), existing]); return;
     }
+    // A cycle that has ended can't be corrected through any door (check-in design 2.7; review of #326): its numbers are
+    // what the wrap-up read. The form, Data's tables, MCP and a workbook loaded later all meet this one refusal.
+    if (existing && cycleEnded) { raise('cant-change', 'Check-ins', row, g.title, endedRefusal); return; }
     // A goal this file stops or deletes keeps its check-ins as they are: a whole workbook carries them unchanged.
     const removing = removals.find((x) => x.g.id === g.id);
     if (removing) { raise('cant-change', 'Check-ins', row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`); return; }
@@ -1524,8 +1552,8 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     if (w > week) { raise('week-wrong', 'Check-ins', row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`); continue; }
     const own = checkInsFor(g, s.checkIns);
     const newest = own.filter((c) => c.week === w).pop() ?? null;
-    // A cycle that has ended can't be corrected from the form (check-in design 2.7): its numbers are what the wrap-up read.
-    if (p.mode === 'correct' && ['ended', 'closed'].includes(cycleState(cycle, new Date(now)))) { raise('cant-change', 'Check-ins', row, g.title, `${cycle.name} has ended, so its check-ins can’t be corrected here.`); continue; }
+    // The form meets the same refusal before it asks for a reason (check-in design 2.7).
+    if (p.mode === 'correct' && cycleEnded) { raise('cant-change', 'Check-ins', row, g.title, endedRefusal); continue; }
     if (p.mode !== 'correct' && w < week) { raise('week-wrong', 'Check-ins', row, g.title, `Week ${w} has passed. Correct it, or add it, with a reason.`); continue; }
     if (p.mode === 'new' && newest) { raise('cant-change', 'Check-ins', row, g.title, `Week ${w} already has a check-in. Check in again, or correct it.`); continue; }
     const reason = (p.reason ?? '').trim();
@@ -1627,6 +1655,18 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
         raise('removal-refused', 'People', l.row, l.person.name, e.message.replace(/choose who takes (them|it) over/, 'say who takes them over in Takes over'), { column: 'Takes over' });
       }
     }
+  }
+
+  // A goal that changes owner takes its open asks of the old owner with it (Lane, 13 Nov; domain/askHandover). An ask a
+  // row already changed (someone leaving hands theirs over) is left as that row says.
+  const handed = asksFollowOwner({ goals: s.goals, people: s.people, asks: asksOf(s) }, [...goalOut.values()], { actorId: actor.id, now, newId });
+  for (const r of handed.requests) {
+    if (reqOut.has(r.id)) continue;
+    reqOut.set(r.id, r);
+    const ch = handed.changes.find((c) => c.entityId === r.id)!;
+    changes.push(ch);
+    const item = items.find((x) => x.goalId === ch.goalId && (x.kind === 'goal' || x.kind === 'plan'));
+    if (item && !item.diffs.some((d) => d.field.startsWith('Open asks'))) item.diffs.push(openAsksDiff(handed.moved.get(ch.goalId!) ?? 1, ch));
   }
 
   // A check-in posted from its own screen is no import: no Via mark, and no import to undo unless it corrects a week (rule 8).
@@ -1790,7 +1830,7 @@ export const CALL_CHOICES = oneOf(Object.values(CALL_WORDS.word));
  * a scan in the set's order would: by id, then by key; goals with a name in the order they were first set; a name one
  * letter out worked out once per name until a goal changes.
  */
-class GoalSet extends Map<string, Goal> {
+export class GoalSet extends Map<string, Goal> {
   private readonly byKey = new Map<string, string>();
   private readonly titles = new Map<string, Set<string>>();
   private readonly folded = new Map<string, string>();
@@ -1805,7 +1845,9 @@ class GoalSet extends Map<string, Goal> {
     if (old) this.unindex(id, old);
     if (!this.order.has(id)) this.order.set(id, this.order.size);
     super.set(id, g);
-    if (g.key && !this.byKey.has(g.key)) this.byKey.set(g.key, id);
+    // Two goals with one key (never in a sound workspace): the first in the list holds it, as a scan would find it, even
+    // when the later one was set (or the first changed) since (#257 review).
+    if (g.key) { const holder = this.byKey.get(g.key); if (holder === undefined || this.order.get(id)! < this.order.get(holder)!) this.byKey.set(g.key, id); }
     const f = fold(g.title);
     this.folded.set(id, f);
     const list = this.titles.get(f);

@@ -96,6 +96,8 @@ p { margin: 0; }
 .side { position: sticky; top: 0; flex: 0 0 236px; height: 100vh; display: flex; flex-direction: column; gap: 2px; padding: 12px 12px; border-right: 1px solid var(--line); background: var(--surface-2); overflow-y: auto; }
 .work { flex: 1; min-width: 0; min-height: 100vh; }
 .nav { display: flex; align-items: center; gap: 12px; min-height: 38px; padding: 0 12px; border-radius: 8px; color: var(--fg-2); font-weight: 500; text-decoration: none; }
+/* Sidebar rows are a little tighter than elsewhere: sixteen of them, the switcher and the Demo entry fit a 900 px screen. */
+.side .nav { min-height: 36px; }
 .nav:hover { background: var(--surface-3); }
 .nav[aria-current="page"] { background: var(--surface); color: var(--fg); font-weight: 600; box-shadow: 0 1px 2px rgba(16, 24, 40, .08); }
 .nav svg { flex: none; }
@@ -433,6 +435,8 @@ svg.chart { display: block; overflow: visible; }
 .c-target { stroke: var(--on-mark); stroke-width: 1.5; stroke-dasharray: 2 3; }
 .c-target-t { fill: var(--on-fg); font-size: 0.75rem; font-weight: 600; }
 .c-today { stroke: var(--line-strong); stroke-dasharray: 2 2; }
+.c-note line { stroke: var(--muted); stroke-dasharray: 4 3; stroke-width: 1; }
+.c-note text { font-size: 11px; fill: var(--muted); }
 .c-area { fill: var(--risk-bg); }
 .spark { display: block; }
 .legend { display: flex; flex-wrap: wrap; gap: 16px; padding-top: 8px; font-size: 0.75rem; color: var(--fg-2); }
@@ -952,6 +956,8 @@ main:has(> .page-wait) > .page-help { display: none; }
 .demo-word { font-size: 0.6875rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--risk-fg); }
 .demo-as { font-size: 0.8125rem; color: var(--fg-2); }
 .demo-entry.compact { width: auto; padding: 4px 8px; flex-direction: row; }
+/* In the full sidebar the entry is one line, so it stays above the fold at 1440×900 beside every nav row (U12). */
+.side .demo-entry:not(.compact) { flex-direction: row; align-items: baseline; gap: 8px; padding: 6px 10px; }
 .menuitem.persona .strong { font-size: 0.9375rem; }
 .coach { position: fixed; z-index: 60; width: min(360px, calc(100vw - 32px)); transition: top .2s, left .2s; display: flex; flex-direction: column; gap: var(--s2); padding: var(--s4); border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); box-shadow: 0 8px 28px rgba(16, 24, 40, .18); }
 .coach-head { display: flex; justify-content: space-between; align-items: center; }
