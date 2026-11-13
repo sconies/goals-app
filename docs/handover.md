@@ -92,6 +92,37 @@ The track 3 session that built item 0 is at half its context. A fresh track 3 se
 - A container restart kills a background eval run without a result: rerun it, with its log in the scratchpad.
 - Item 0's changes touch `changeset.ts` and `export.ts`, so `evals:changed` runs the full suite (about 17 minutes in four shards).
 
+## Planning state, Friday 13 November, 12:35 UTC (planning session handing over)
+
+Planning was session_012kbr939zneZWtAo7UQEHRP. Read this section, then the 12 Nov 21:55 section below for the standing context.
+
+- **Open sessions:**
+
+  | Track | Session | Doing |
+  |---|---|---|
+  | 1 (Home, reviews, check-in) | session_012kbr8xrSzicJV6Yybqqzng | #369 (asks follow the new owner); two review mediums; the habit moment (round 4, HB1, HB2); N12; lows |
+  | 2 (goal entry, set-up) | session_012kbr92MfjHTHVBgQp2nL52 | the review mediums on #349, #355, #319; #356; "Propose a new goal" in reviews; the rest of GE10 (F) |
+  | 3 (import) | session_012kbr8xq9rFhq98QkAVM4hp | #336's review fixes (Import focus regression first) |
+  | 4 (architecture, switches) | session_012kbr931R7QEqBrfxbNv2QV | #354, #358; FT2 then RS1 (reviews as a switch); FT1, SW1, SW2, AX2, AX6 |
+  | 7c (metrics, register rows) | session_012kbr932dXk7emNz7HTfoU1 | #308's mediums; MS, MI, GR, MQ; BL, GB, TG; WM last |
+  | Main fixer | session_012kbr8zm5LkH575XFmikwtq | main's full evals (U98, U109, F8/#342, N12), close ~64 duplicate issues, one rolling issue, a PR-CI proposal |
+  | Reviewer (Fable) | session_012kbr8y4Bh3MudNC1bdo3RN | reviews every merge |
+
+  Finished: track 5b (AD, #334), track 6 (every kit gap, last #337), the round 4 design session.
+- **Decided by Lane, 13 Nov:**
+  - Open asks follow a goal to its new owner.
+  - AD is built.
+  - The budgets went up once: 275 KB for the first download and 334 KB live. Never again without asking.
+  - Round 4 design: all recommended answers (1a–17a). The order is habit, then NR, then SM in four parts, then the leader's week view.
+  - Reviews as a feature switch: FT2 plus RS1, with 18a–22a.
+  - Branch protection is on main and auto-merge works.
+- **Next to assign when an area frees up:**
+  - NR1–NR3: check-in readings, after the habit moment, in the check-in area.
+  - SM4, SM2, SM3, SM1.
+  - PF1–PF2, after HM3 and HM4.
+- **Waiting for Lane:** nothing.
+- **Prompt for the next planning session:** "You are Faro's planning session. Check out main, read CLAUDE.md, the top section of docs/handover.md ('Planning state, Friday 13 November, 12:35 UTC') and docs/backlog.md. Get your session ID with get_session and send_message every open session in its table: 'Planning has moved to session <ID>. Report there from now on, and send only finished results and blockers.' Then read reports with ReadNotifications; when a track hands over, start a fresh session from its handover prompt; relay the reviewer's findings to the owning track; fix anything that breaks main at once; put Lane's ideas in the backlog; build only what he picks. Stay quiet otherwise. Hand over at about 70% full, as CLAUDE.md says."
+
 ## Planning state, Thursday 12 November, 21:55 UTC (planning session handing over)
 
 **Update, Friday 13 November, 02:10 UTC.** Current sessions (these replace the IDs below): track 1 session_012kbr8zenZxEHT6rv4yLzHG; track 2 session_012kbr8zJcP8xenTkLS4rV4P; track 3 session_012kbr8yuAExZc7Qwjdwi7Ew; track 4 session_012kbr8y3UGvoeUMdAQ8yaJ8; track 6 session_012kbr91nEq272Y9HvKNhm98 (the store contract, the kit's last gap); track 7b session_012kbr92c7taPQJmK4jDJU9E; reviewer session_012kbr8y4Bh3MudNC1bdo3RN. Main has a branch protection rule since 02:05 (a PR, the smoke check, up to date with main; no approvals), so auto-merge works: enable_pr_auto_merge (MERGE) once the gate passes. Lane decided (13 Nov): when a goal's owner changes, its open asks move to the new owner and the asker is told (track 1 builds it). The first download is about 264 of 265 KB.
@@ -115,7 +146,7 @@ The planning session session_012kbr939zneZWtAo7UQEHRP is about half full and han
   2. **A Fable design session:** Lane asked for one; what it should design is still to come.
   3. Backlog AD (#227 medium 3, admin import doors keyed on `via`) waits for a pick.
   4. Optional: build api/mcp.js in CI. Recommended: leave it.
-- **Prompt for the next planning session:** "You are Faro's planning session. Check out main, read CLAUDE.md, the top section of docs/handover.md ('Planning state, Thursday 12 November, 21:55 UTC') and docs/backlog.md. Get your session ID with get_session and send_message every open session listed there: 'Planning has moved to session <ID>. Report there from now on, and send only finished results and blockers.' Then read reports with ReadNotifications; when a track hands over, start a fresh session from its handover prompt; relay the reviewer's findings to the owning track; fix anything that breaks main at once; put Lane's ideas in the backlog; ask Lane the 'Waiting for Lane' items still open, in one batch of multiple-choice questions, recommended answer first. Stay quiet otherwise. Hand over at about half full."
+- **Prompt for the next planning session:** "You are Faro's planning session. Check out main, read CLAUDE.md, the top section of docs/handover.md ('Planning state, Thursday 12 November, 21:55 UTC') and docs/backlog.md. Get your session ID with get_session and send_message every open session listed there: 'Planning has moved to session <ID>. Report there from now on, and send only finished results and blockers.' Then read reports with ReadNotifications; when a track hands over, start a fresh session from its handover prompt; relay the reviewer's findings to the owning track; fix anything that breaks main at once; put Lane's ideas in the backlog; ask Lane the 'Waiting for Lane' items still open, in one batch of multiple-choice questions, recommended answer first. Stay quiet otherwise. Hand over at about 70% full, as CLAUDE.md says."
 
 ## Track 1, Friday 13 November, 02:00 UTC (session past half, handing over; supersedes the 00:30 entry)
 
@@ -418,6 +449,27 @@ Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this sessi
 - **Fence check (#125):** Supabase's own tables in extensions, cron and net, open to every role by default, are a warning; a direct grant to `faro_owner` still fails. 0038 is live.
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
+
+## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~12:40 UTC (session past half, handing over; supersedes the 04:30 entry)
+
+Session: session_012kbr92MfjHTHVBgQp2nL52. Planning is session_012kbr939zneZWtAo7UQEHRP. #356 and #363 have merged. Track 4 is now session_012kbr931R7QEqBrfxbNv2QV; it has been told about #376's touches to the review screens and that `reviewName` should give null with Reviews off.
+
+This session built items 1 to 3 of the GE10 list, before planning moved the review's mediums ahead of them. All three are **draft PRs with the gate not finished**: typecheck, spec and build:mcp passed on each, and `npm test` passed on #376 only. An `evals:changed` run on #376 hung for hours after a worker restart and was killed, so there is no scorecard yet.
+
+| Branch | What | PR |
+|---|---|---|
+| `ge10-proposed-in` | Reviews' "Propose a new goal" (walk link, lazy `ui/ProposeInReview.tsx`), `proposedIn` ↔ `proposed_in`, Home's " in {review}", "Last time"'s "Proposed: …" lines (`lastTime` returns `proposed`); journey U148 | #376, draft |
+| `ge10-proposed-type` | Type on a proposed goal's edit page; `TYPE_FIXED` refuses an active goal's type change in `planGoal`; `GOAL_KINDS` in domain/goal.ts; journey U149 | #377, draft |
+| `ge10-state-stopped` | State: Active · Proposed · Stopped; `state=stopped` lists `archive.goals` (lazy `screens/StoppedList.tsx`); journey U150 | #378, draft |
+
+**Next, in order:**
+1. The build reviewer's mediums (and lows) on #349, #355 and #319, as listed in the 04:30 entry below, in one PR.
+2. Then take #376, #377 and #378 one at a time: merge main (keep both What's new entries, ours first; take main's `api/mcp.js`, then `build:mcp` and `npm run spec`), run `npm test`, then `evals:changed` (as a background job writing to a log, or a subagent; if it runs past about 40 minutes, kill it and rerun the failing shard's checks with `ONLY=`/`FINISH=`). Then mark the PR ready and enable auto-merge (MERGE). The three touch the same help files, so merge them in order.
+3. Then the 04:30 list's items 4 to 6: `for-someone-else` for files and tools; "Proposed · {n}" in what feeds a goal; the start page's carry count.
+
+**Habits:** a worker restart kills background eval runs and subagents silently. Check `ps` for a stuck `evals/run.mjs` before starting another run.
+
+**Prompt for the next track 2 session:** "You are track 2 of Faro's build (goal entry and set-up). Read CLAUDE.md, then the track 2 section of docs/handover.md ('Track 2 … Friday 13 November, ~12:40 UTC') and do its 'Next' list in order: the review's mediums first (listed in the 04:30 entry), then gate and merge the three drafts #376, #377 and #378, then the remaining GE10 items. The first download is about 262 of 275 KB: keep anything new lazy; never raise budgets. Track 4 (session_012kbr931R7QEqBrfxbNv2QV) is building the reviews switch: coordinate with it on Inspect.tsx and Review.tsx. Track 7c will ask when GE10's code is in. A migration that adds a check constraint adds its line to src/spec/limits.ts. Follow CLAUDE.md's gate (typecheck, npm test, npm run spec, evals:changed, build:mcp from a real node_modules via cp -al, never ln -s), one heavy run at a time. Build in a worktree, send eval runs to a subagent that returns only the scorecard, check mergeable_state, then enable auto-merge (MERGE) once the gate passes. Report to the planning session (session_012kbr939zneZWtAo7UQEHRP, or whichever session tells you planning has moved) once, when done or blocked. At half context, write a handover entry in a PR and send the planning session the next prompt."
 
 ## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~04:30 UTC (session at half, handing over; supersedes the 02:50 entry)
 
