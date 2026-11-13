@@ -24,7 +24,8 @@ import {
 } from './columns';
 import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planQuestion, replanned, stagesDoneAtSetUp, type GoalDraft } from './goal';
 import { goalChecks, type GoalCheckId, type GoalField, goalMustFix, type MustFixId } from './goalEntry';
-import { ADMIN_DOOR_LIMIT, MARKS_STAGES, mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
+import { ADMIN_DOOR_LIMIT, mayPostCheckInRow } from './checkInDoors';
+import { MARKS_STAGES, mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { notNumberText, precisionProblem, sameAsWritten, typedDecimals } from './numbers';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
 import { isProposed, measureEmpty, withProposed } from './proposed';
@@ -269,6 +270,7 @@ export interface PlanProgress { done: number; total: number; added: number; chan
 const ADDS: ReadonlySet<ItemKind> = new Set<ItemKind>(['new goal', 'new person', 'check-in']);
 
 /** The engine, in one go: `planChangesInChunks` run to the end. Results are the same either way. */
+
 export function planChanges(input: ChangeInput): ChangeSet {
   const run = planChangesInChunks(input);
   for (;;) { const step = run.next(); if (step.done) return step.value; }
@@ -1325,7 +1327,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     // Asked of the owner before this file's own changes, so one change can't take a goal and check in on it at once.
     const owned = s.goals.find((x) => x.id === g.id) ?? g;
     const who = { id: actor.id, admin: admin() };
-    if (!create && !mayPostCheckIn(who, owned, via, { week: w, thisWeek: week, exists: !!existing })) {
+    if (!create && !mayPostCheckInRow(who, owned, via, { week: w, thisWeek: week, exists: !!existing })) {
       if (!post && answerOf('not-allowed', 'Check-ins')?.choice === 'leave') { leave('Check-ins', row); return; }
       // An admin at one of the two doors is told what that door is for.
       const limit = mayPostCheckIn(who, owned, via) ? ' ' + ADMIN_DOOR_LIMIT(via) : '';

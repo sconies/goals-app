@@ -28,22 +28,14 @@ export function mayChangeGoal(actor: Actor, goal: Pick<Goal, 'ownerId'> & Partia
  * Whether `actor` may post or correct a check-in on `goal` (Lane, 12 Nov: check-ins are the owner's). Only its owner
  * at the check-in screens, the one-table check-in and through the AI tools. Two exceptions, both kept by Lane (12 Nov),
  * both for an admin: loading a workbook (a spreadsheet import, or setting up from an export) brings in everyone's
- * past weeks, and Data's tables let an admin correct a check-in that exists; neither adds this week's new one. Each records the admin as author and actor, with
+ * past weeks, and Data's tables let an admin correct a check-in that exists; neither adds this week's new one: the row
+ * decides that (checkInDoors mayPostCheckInRow, which the change engine asks; Lane, 13 Nov, backlog AD). Each records the admin as author and actor, with
  * the door as its Via (postCheckIn.test).
  */
-export function mayPostCheckIn(actor: Actor, goal: Pick<Goal, 'ownerId'>, via: Via, row?: CheckInRow): boolean {
+export function mayPostCheckIn(actor: Actor, goal: Pick<Goal, 'ownerId'>, via: Via): boolean {
   if (goal.ownerId === actor.id) return true;
-  if (!actor.admin || !ADMIN_CHECK_IN_DOORS.includes(via)) return false;
-  // Each exception is for what it is, not only its door (Lane, 13 Nov; backlog AD): a workbook brings in past weeks or
-  // corrects a check-in that is there, never this week's new one (one pasted row on Import is no history); Data's
-  // tables correct a check-in that exists, never add one. Without the row (an undo), the door decides.
-  if (!row) return true;
-  return row.exists || (via !== 'table' && row.week < row.thisWeek);
+  return !!actor.admin && ADMIN_CHECK_IN_DOORS.includes(via);
 }
-/** What a check-in row is, for the admin exceptions: its week, this week, and whether a check-in is already there. */
-export interface CheckInRow { week: number; thisWeek: number; exists: boolean }
-/** Why an admin's row is refused at an exception's door, in the words the import and the tools say. */
-export const ADMIN_DOOR_LIMIT = (via: Via) => (via === 'table' ? 'Data’s tables correct a check-in; they don’t add one.' : 'A workbook brings in past weeks, not this week’s new check-in.');
 /**
  * The set-up check-in (stages already done when a goal is created, OB2's rule 3) is a check-in like any other: when
  * the person creating the goal may not check in on it, the goal is published without it, and the stage question says

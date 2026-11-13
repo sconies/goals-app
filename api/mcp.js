@@ -1961,18 +1961,16 @@ function mayChangeGoal(actor, goal) {
 * Whether `actor` may post or correct a check-in on `goal` (Lane, 12 Nov: check-ins are the owner's). Only its owner
 * at the check-in screens, the one-table check-in and through the AI tools. Two exceptions, both kept by Lane (12 Nov),
 * both for an admin: loading a workbook (a spreadsheet import, or setting up from an export) brings in everyone's
-* past weeks, and Data's tables let an admin correct a check-in that exists; neither adds this week's new one. Each records the admin as author and actor, with
+* past weeks, and Data's tables let an admin correct a check-in that exists; neither adds this week's new one: the row
+* decides that (checkInDoors mayPostCheckInRow, which the change engine asks; Lane, 13 Nov, backlog AD). Each records the admin as author and actor, with
 * the door as its Via (postCheckIn.test).
 */
-function mayPostCheckIn(actor, goal, via, row) {
+function mayPostCheckIn(actor, goal, via) {
 	if (goal.ownerId === actor.id) return true;
-	if (!actor.admin || !ADMIN_CHECK_IN_DOORS.includes(via)) return false;
-	if (!row) return true;
-	return row.exists || via !== "table" && row.week < row.thisWeek;
+	return !!actor.admin && ADMIN_CHECK_IN_DOORS.includes(via);
 }
-var ADMIN_DOOR_LIMIT, MARKS_STAGES, ADMIN_CHECK_IN_DOORS;
+var MARKS_STAGES, ADMIN_CHECK_IN_DOORS;
 var init_goalRights = __esmMin((() => {
-	ADMIN_DOOR_LIMIT = (via) => via === "table" ? "Data’s tables correct a check-in; they don’t add one." : "A workbook brings in past weeks, not this week’s new check-in.";
 	MARKS_STAGES = (ownerName) => `${ownerName} marks done stages at the first check-in.`;
 	ADMIN_CHECK_IN_DOORS = [
 		"spreadsheet",
@@ -8040,6 +8038,21 @@ var init_goalEntry = __esmMin((() => {
 		stages: []
 	});
 }));
+// src/domain/checkInDoors.ts
+/**
+* Whether `actor` may post or correct this check-in row on `goal`. The owner always; an admin at one of the two doors
+* only for what it is for: a workbook brings in past weeks or corrects a check-in that is there, never this week's new
+* one (one pasted row on Import is no history); Data's tables correct a check-in that exists, never add one.
+*/
+function mayPostCheckInRow(actor, goal, via, row) {
+	if (goal.ownerId === actor.id) return true;
+	return mayPostCheckIn(actor, goal, via) && (row.exists || via !== "table" && row.week < row.thisWeek);
+}
+var ADMIN_DOOR_LIMIT;
+var init_checkInDoors = __esmMin((() => {
+	init_goalRights();
+	ADMIN_DOOR_LIMIT = (via) => via === "table" ? "Data’s tables correct a check-in; they don’t add one." : "A workbook brings in past weeks, not this week’s new check-in.";
+}));
 // src/domain/proposedActions.ts
 /** Rule 2's full list for the goal as it stands, as if it were made active from `fromWeek` (this week by default). */
 function readyToActivate(goal, ctx) {
@@ -11591,7 +11604,7 @@ function* planChangesInChunks(input) {
 			id: actor.id,
 			admin: admin()
 		};
-		if (!create && !mayPostCheckIn(who, owned, via, {
+		if (!create && !mayPostCheckInRow(who, owned, via, {
 			week: w,
 			thisWeek: week,
 			exists: !!existing
@@ -12300,6 +12313,7 @@ var init_changeset = __esmMin((() => {
 	init_columns();
 	init_goal();
 	init_goalEntry();
+	init_checkInDoors();
 	init_goalRights();
 	init_numbers();
 	init_goalKey();
@@ -18619,8 +18633,8 @@ var WHATS_NEW = [
 	{
 		id: "admin-check-in-doors-narrow",
 		date: "2026-11-13",
-		title: "An admin’s two check-in exceptions, only for what they’re for",
-		points: ["An admin loading a workbook brings in past weeks and corrects check-ins that are there, but can’t add this week’s new check-in on someone else’s goal: one pasted row is refused, saying why.", "In Data’s tables, an admin corrects a check-in that exists; adding one is the owner’s."],
+		title: "Only owners add this week’s check-in",
+		points: ["An admin’s workbook brings in past weeks and corrections, not this week’s new check-in for someone else.", "In Data, an admin corrects a check-in; adding one is the owner’s."],
 		articles: ["check-in", "data"]
 	},
 	{
