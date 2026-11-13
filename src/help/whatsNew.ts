@@ -24,7 +24,7 @@ export interface NewsEntry {
 export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'metric-part',
-    date: '2026-11-12',
+    date: '2026-11-13',
     title: 'Measure a goal by one part of a number',
     points: [
       '“Measured by” now has “Which part”: tier-1 services, a region, release builds. Parts other goals on the metric already use are offered under it.',
