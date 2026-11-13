@@ -27117,7 +27117,7 @@ var CORE_TOOLS = [
 			const scope = a.scope ? String(a.scope) : linkScope ? linkScope : null;
 			if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
 			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).every.find((t) => t.id === scope) : null;
-			if (scope && scope !== "all" && !scoped) return listed(goalPage([], a, scope === "team" ? "You’re in no team and lead none." : "You own no goals this year."));
+			if (scope && scope !== "all" && (!scoped || scope === "mine" && !scoped.ids.length)) return listed(goalPage([], a, scope === "team" ? "You’re in no team and lead none." : "You own no goals this year."));
 			const inScope = scoped ? new Set(scoped.ids) : null;
 			const words = [String(a.text ?? ""), query.q].filter((x) => x.trim()).join(" ");
 			const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
