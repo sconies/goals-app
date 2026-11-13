@@ -8452,9 +8452,36 @@ function fromPastQuestion(g, from, x) {
 		startDate: x.cycle.startDate
 	}).find((c) => c.id === "from-past")?.question ?? null;
 }
-var NOTHING_TO_CHECK_IN, mayActivate, no$2, goalIn, nameOf, change$1;
+/** Make an active goal with no check-ins proposed again: its owner or an admin. */
+function backToProposed(x, i) {
+	const g = goalIn(x, i.goalId) ?? no$2("That goal no longer exists. Reload to see the latest.");
+	if (isProposed(g)) no$2(`“${g.title}” is already proposed.`);
+	if (g.stoppedAt) no$2(`“${g.title}” is stopped.`);
+	if (!mayChangeGoal(x.actor, g)) no$2(`Only ${nameOf(x, g.ownerId) ?? "its owner"} (its owner) or an admin can make it proposed again.`);
+	if (g.cycleId !== x.cycle.id) no$2(`“${g.title}” is in another year, so it can’t go back to proposed.`);
+	if ((x.full ?? x.snapshot).checkIns.some((c) => c.goalId === g.id && !c.removedAt)) no$2(HAS_CHECK_INS);
+	const goal = {
+		...g,
+		proposedAt: x.now,
+		proposedBy: x.actor.id,
+		...g.proposedIn ? { proposedIn: null } : {}
+	};
+	return {
+		commit: {
+			goals: [goal],
+			changes: [change$1(x, goal, "Made it proposed again", [{
+				field: "State",
+				from: "Active",
+				to: PROPOSED
+			}])]
+		},
+		goal
+	};
+}
+var NOTHING_TO_CHECK_IN, mayActivate, no$2, goalIn, nameOf, change$1, HAS_CHECK_INS;
 var init_proposedActions = __esmMin((() => {
 	init_actions();
+	init_goalRights();
 	init_proposed();
 	init_goal();
 	init_plan();
@@ -8477,6 +8504,7 @@ var init_proposedActions = __esmMin((() => {
 		summary,
 		diffs
 	});
+	HAS_CHECK_INS = "It has check-ins, so it can’t go back to proposed. Stop it instead.";
 })), VIA_LABEL, VIA_MCP;
 var init_via = __esmMin((() => {
 	VIA_LABEL = {
@@ -19220,7 +19248,7 @@ var CORE_ARTICLES = [
 					"In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet. Only people in the review, or an admin, can propose one there.",
 					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).",
 					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. With the filter on, the Board is one column, Proposed, and the Map draws each in its tree with a dashed outline and the word, the goals above it shown for context; opening one goes to its page. Find lists them with the word Proposed.",
-					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active. A goal with check-ins can’t go back to proposed: stop it instead."
+					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active, and make_goal_proposed makes an active one proposed again. A goal with check-ins can’t go back to proposed: stop it instead."
 				]
 			},
 			{
@@ -26795,6 +26823,54 @@ var CORE_TOOLS = [
 					readBack: says
 				},
 				text: `“${g.title}” is active (as ${ctx.actor.name}). ${says}`
+			};
+		}
+	},
+	{
+		name: "make_goal_proposed",
+		title: "Make an active goal proposed again",
+		description: "Its owner or an admin: make an active goal with no check-ins proposed again (GE10). It then has no status and nothing due until it is made active (make_goal_active). A goal with check-ins can’t go back: stop it instead (stop_goal). Use dry_run first and say the change to the person.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["goal_id"],
+			properties: {
+				goal_id: str("The goal’s ID or its key, e.g. G-12."),
+				dry_run: DRY
+			}
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: false,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			const g = goalRef(ctx, a.goal_id);
+			let out;
+			try {
+				out = backToProposed(ctx, { goalId: g.id });
+			} catch (e) {
+				if (e instanceof NotAllowed) return {
+					isError: true,
+					text: e.message
+				};
+				throw e;
+			}
+			if (a.dry_run) return {
+				data: { saved: false },
+				text: `Checked, not saved (dry run). “${g.title}” would be proposed again: no status and nothing due until it is made active.`
+			};
+			await ctx.save({
+				...out.commit,
+				changes: out.commit.changes.map((x) => ({
+					...x,
+					diffs: [...x.diffs, VIA_MCP]
+				}))
+			});
+			return {
+				data: { saved: true },
+				text: `“${g.title}” is proposed again (as ${ctx.actor.name}). It has no status and nothing due until it is made active.`
 			};
 		}
 	},

@@ -399,6 +399,19 @@ describe('MCP server', () => {
     expect(asksOf(oskar.data()).find((r) => r.id === q.id)!.status).toBe('withdrawn');
   });
 
+  it('make_goal_proposed makes an active goal with no check-ins proposed again, as the app does; one with check-ins is refused (GE10 parity)', async () => {
+    const grace = await setup('grace');
+    const s = grace.data();
+    const fresh = s.goals.find((g) => !g.stoppedAt && !g.removedAt && !isProposed(g) && !s.checkIns.some((c) => c.goalId === g.id && !c.removedAt))!;
+    const busy = s.goals.find((g) => !g.stoppedAt && !g.removedAt && !isProposed(g) && s.checkIns.some((c) => c.goalId === g.id && !c.removedAt))!;
+    expect((await grace.call('make_goal_proposed', { goal_id: busy.id })).content[0]!.text).toMatch(/check-ins/);
+    expect((await grace.call('make_goal_proposed', { goal_id: fresh.id, dry_run: true })).structuredContent).toMatchObject({ saved: false });
+    expect(isProposed(grace.data().goals.find((g) => g.id === fresh.id)!)).toBe(false);
+    expect((await grace.call('make_goal_proposed', { goal_id: fresh.id })).isError).toBe(false);
+    expect(grace.data().goals.find((g) => g.id === fresh.id)).toMatchObject({ proposedBy: 'grace' });
+    expect((await grace.call('make_goal_proposed', { goal_id: fresh.id })).content[0]!.text).toMatch(/already proposed/);
+  });
+
   it('removes, archives and undoes with the app’s own rules: stop a goal, edit and remove a comment, mark someone as left, undo an import, restore', async () => {
     const rhea = await setup('rhea');
     // Not Rhea's goal: refused, as in the app.

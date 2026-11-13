@@ -11,7 +11,7 @@ export const ACTIONS: Record<string, Entry> = {
   // The change engine itself, which the goal, check-in, people and bulk tools all run (src/mcp/tools.ts planChanges).
   planChanges: ['bulk_change', 'create_goal', 'update_goal', 'set_plan_numbers', 'post_check_in', 'save_person'],
   activate: ['make_goal_active'],
-  backToProposed: { notForAssistants: 'Making an active goal proposed again is an app step (GE10): an assistant brings a goal in already proposed (create_goal, state proposed) or makes one active (make_goal_active), and a goal with check-ins can’t go back.' },
+  backToProposed: ['make_goal_proposed'],
   recordStagesDone: { notForAssistants: 'Marking which stages were already done at set-up is the owner’s own first step in the app; an assistant brings a goal in with create_goal or a workbook (bulk_change), and the owner records done stages at the first check-in (post_check_in).' },
   undoRemoval: { notForAssistants: 'Undoing a removal straight after it is the Undo on the app’s toast; an assistant that removed something brings it back with restore_removed (within 30 days).' },
   olderChanges: ['get_activity'],
@@ -87,7 +87,7 @@ export const SCREENS: Record<string, Entry> = {
   GoalHistory: ['find_goals', 'get_goal'],
   BulkEdit: ['bulk_change', 'watch', 'export'],
   GoalMap: ['find_goals', 'get_overview'],
-  GoalScreen: ['get_goal', 'add_comment', 'ask_question', 'ask_for_update', 'undo_update_ask', 'withdraw_request', 'mark_action_done', 'watch', 'unwatch', 'stop_goal', 'delete_goal', 'delete_check_in', 'edit_comment', 'delete_comment'],
+  GoalScreen: ['get_goal', 'add_comment', 'ask_question', 'ask_for_update', 'undo_update_ask', 'withdraw_request', 'mark_action_done', 'watch', 'unwatch', 'stop_goal', 'make_goal_proposed', 'delete_goal', 'delete_check_in', 'edit_comment', 'delete_comment'],
   GoalWizard: ['create_goal'],
   ProposedGoal: ['get_goal', 'make_goal_active', 'update_goal', 'delete_goal', 'add_comment', 'ask_question', 'watch'],
   ProposedList: ['find_goals'],

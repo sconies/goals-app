@@ -22,6 +22,7 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`post_check_in`](#post_check_in) | Post a check-in | changes | [planChanges](actions.md#planchanges), [postCheckIn](actions.md#postcheckin) |
 | [`update_goal`](#update_goal) | Change a goal | changes | [planChanges](actions.md#planchanges), [saveGoal](actions.md#savegoal) |
 | [`make_goal_active`](#make_goal_active) | Make a proposed goal active | changes | [activate](actions.md#activate) |
+| [`make_goal_proposed`](#make_goal_proposed) | Make an active goal proposed again | changes | [backToProposed](actions.md#backtoproposed) |
 | [`create_goal`](#create_goal) | Add a goal | changes | [planChanges](actions.md#planchanges), [saveGoal](actions.md#savegoal) |
 | [`set_plan_numbers`](#set_plan_numbers) | Set plan numbers by hand | changes | [planChanges](actions.md#planchanges), [saveGoal](actions.md#savegoal) |
 | [`add_comment`](#add_comment) | Comment on a goal | changes | [addNote](actions.md#addnote) |
@@ -1088,6 +1089,57 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
 
 **Does the same as:** [activate](actions.md#activate), so it refuses with their words too.
+
+## make_goal_proposed
+
+**Make an active goal proposed again.** Its owner or an admin: make an active goal with no check-ins proposed again (GE10). It then has no status and nothing due until it is made active (make_goal_active). A goal with check-ins can’t go back: stop it instead (stop_goal). Use dry_run first and say the change to the person.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `goal_id` | string | yes | The goal’s ID or its key, e.g. G-12. |
+| `dry_run` | boolean | no | Check the change without saving it. Use it to see what would change, or what is missing. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "goal_id"
+  ],
+  "properties": {
+    "goal_id": {
+      "type": "string",
+      "description": "The goal’s ID or its key, e.g. G-12."
+    },
+    "dry_run": {
+      "type": "boolean",
+      "description": "Check the change without saving it. Use it to see what would change, or what is missing."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{
+    saved: boolean;
+}
+```
+
+**Refuses with:**
+
+- “There's no goal with … … in …. Use find_goals to get IDs and keys.”
+
+**Does the same as:** [backToProposed](actions.md#backtoproposed), so it refuses with their words too.
 
 ## create_goal
 
