@@ -1124,14 +1124,16 @@ journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first imp
   // A goals sheet only: its second goal's owner is on no one's list, and its stages began in week 2.
   const csv = ['Goal,Team,Owner email,Owner,Type,Unit,Start,Target,Stages',
     'Parcels on time,Depots,ben.carter@example.com,Ben Carter,metric,%,91,97,',
-    'Night shift rota,Depots,nia.okoro@example.com,Nia Okoro,milestone,,,,Draft@2; Agreed@6; Live@50'].join('\n');
+    'Night shift rota,Depots,nia.okoro@example.com,Nia Okoro,milestone,,,,Draft@2; Agreed@6; Live@50',
+    // A team one letter from Depots: asked, not made a second team (#336 review).
+    'Sort times,Depot,ben.carter@example.com,Ben Carter,metric,min,40,30,'].join('\n');
   await p.locator('input[type=file]').first().setInputFiles({ name: 'depots.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
   await see(p, 'Read depots.csv', 'the upload is not said');
   await h.click(p.getByRole('button', { name: 'Next' }));
   await h.click(p.getByRole('radio', { name: /Goals from your spreadsheet/ }));
   await h.click(p.getByRole('button', { name: 'Next' }));
   await see(p, 'From depots.csv', 'Check does not show the spreadsheet’s preview');
-  await see(p, '2 goals and 2 people would be added, once the goal below is settled', 'the preview’s count leaves the goal to fix out');
+  await see(p, '3 goals and 2 people would be added, once the 2 goals below are settled', 'the preview’s count leaves the goals to fix out');
   await h.checkpoint('preview');
   // The preview's Must fix: Nia isn't here; two answers, "Add Nia Okoro" first.
   const fix = p.locator('.import-group.level-fix').filter({ hasText: 'nia.okoro@example.com' });
@@ -1142,7 +1144,15 @@ journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first imp
   h.set('one-action', await p.getByRole('alert').filter({ hasText: 'depots.csv' }).isVisible(), 'Create with a question open does not say why it waits');
   if (await p.evaluate(() => localStorage.getItem('goals-live-workspace'))) fail('a workspace was saved before Create workspace');
   await h.click(fix.getByRole('radio', { name: 'Add Nia Okoro' }));
-  await see(p, '2 goals and 3 people would be added', 'adding Nia does not count her');
+  await see(p, '3 goals and 3 people would be added', 'adding Nia does not count her');
+  // After an answer the focus goes on, never to the page (#336 review): here to the team's question.
+  await p.waitForTimeout(100);
+  const onAfterAdd = await p.evaluate(() => !!document.activeElement && document.activeElement !== document.body);
+  const team = p.locator('.import-group').filter({ hasText: 'Depot' }).filter({ hasText: 'Did you mean' });
+  await h.click(team.getByRole('radio', { name: 'Use Depots' }));
+  await p.waitForTimeout(100);
+  const onAfterTeam = await p.evaluate(() => !!document.activeElement && document.activeElement !== document.body);
+  h.set('a11y', onAfterAdd && onAfterTeam, `after an answer the focus fell to the page (after Add: ${onAfterAdd}, after the team: ${onAfterTeam})`);
   // Her goal's stages, asked once its owner is settled: answered for you, "Count them from this week", with Change.
   const stages = p.locator('.import-answered').filter({ hasText: 'would start late: Count them from this week' });
   h.set('attention', await stages.waitFor({ timeout: 5000 }).then(() => true, () => false), 'the stage question is not answered “Count them from this week”');
@@ -1154,7 +1164,9 @@ journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first imp
   const s = await h.snapshot(wsId);
   const rota = s && s.goals.find((g) => g.title === 'Night shift rota');
   const nia = s && s.people.find((x) => x.email === 'nia.okoro@example.com');
-  h.set('finish', !!rota && !!nia && rota.ownerId === nia.id && nia.teamId === s.teams.find((t) => t.name === 'Depots')?.id, 'Nia does not own the rota in Depots');
+  const depots = s && s.teams.find((t) => t.name === 'Depots');
+  const sort = s && s.goals.find((g) => g.title === 'Sort times');
+  h.set('finish', !!rota && !!nia && rota.ownerId === nia.id && nia.teamId === depots?.id && sort?.teamId === depots?.id && !s.teams.some((t) => t.name === 'Depot'), 'Nia does not own the rota in Depots, or Sort times is not in Depots (or a second team “Depot” was made)');
   h.set('logged', !!rota && rota.stages.every((x) => x.dueWeek > NOW), 'a stage starts already due: ' + JSON.stringify(rota?.stages.map((x) => x.dueWeek)));
   await p.context().close();
 });
@@ -5616,6 +5628,90 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
 }, []);
 
 /* Check reads the metric from the draft (build review of #202, findings 2 and 3): a reload keeps it, a new team re-slices it. */
+journey('U149', ['GOAL-PROPOSED', 'GOAL-EDIT-PAGE'], 'A proposed goal’s type: as Tunde, a goal proposed from New goal opens its edit page with Type under “It’s proposed, so its type can still change.”; choosing “Keep a number in range” shows the limit, and with one typed Save changes keeps it proposed as a range goal; his active “Contract tests between the top 40 service pairs” has no Type on its edit page', 25, async (h, device) => {
+  const p = h.use(await newPage(device, 'tunde'));
+  const on = (path, day = '2026-11-11') => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  await p.goto(on('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await h.fill(p.getByLabel(/Name it the way/), 'Change failure rate on the new runners');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await h.fill(p.getByLabel(/^Unit/), '%');
+  await h.fill(p.getByLabel(/^Baseline$/), '20');
+  await h.fill(p.getByLabel(/^Target$/), '10');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await h.click(p.getByRole('group', { name: 'Is it under way?' }).getByRole('radio', { name: /Not yet: propose it/ }));
+  await h.click(p.getByRole('button', { name: 'Propose goal' }));
+  await p.waitForURL(/\/goals\/[^/?]+\?.*published=1/);
+  const id = new URL(p.url()).pathname.split('/').pop();
+  await p.goto(on('/goals/' + id + '/edit'));
+  await see(p, 'It’s proposed, so its type can still change.', 'a proposed goal’s edit page doesn’t say its type can change');
+  const type = p.getByRole('group', { name: 'Type' });
+  await h.click(type.getByRole('button', { name: 'Keep a number in range' }));
+  await see(p, 'Warn this close', 'choosing a range doesn’t show the limit');
+  await h.checkpoint('type');
+  await h.fill(p.getByRole('textbox', { name: /^Limit/ }).first(), '12');
+  await h.fill(p.getByRole('textbox', { name: /^Warn this close/ }).first(), '1');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(new RegExp('/goals/' + id + '(\\?|$)'));
+  const snap = await h.snapshot();
+  const g = snap.goals.find((x) => x.id === id);
+  h.set('logged', !!g && g.kind === 'range' && !!g.proposedAt && g.range?.limit === 12, `the proposed goal was saved as ${g?.kind}, ${g?.proposedAt ? 'proposed' : 'active'}, not a proposed range goal with a limit of 12`);
+  await p.goto(on('/goals/cfr-contract/edit'));
+  await p.locator('.goal-edit').waitFor({ timeout: 8000 }).catch(() => {});
+  h.set('finish', (await p.getByRole('group', { name: 'Type' }).count()) === 0, 'an active goal’s edit page offers Type');
+});
+
+journey('U148', ['GOAL-PROPOSED'], 'Proposed in a review: as Rhea walking Developer Productivity fortnightly, “Propose a new goal” (on a phone, “Propose a new goal instead” in the next-step sheet) on Lead time for changes opens a sheet that starts with Rhea (the goal’s owner) and Lead time for changes; a name and Camille as owner saves a proposed goal for Camille in that review, not on the agenda; Camille’s Home says “Rhea proposed a goal for you in Developer Productivity fortnightly”; the review’s next session’s Last time reads “Proposed: … Camille hasn’t made it active yet.”', 30, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  const on = (path, day = '2026-11-11') => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  const title = 'Data-backed environments ready in under an hour';
+  await p.goto(on('/goals/ns-lead?review=devprod'));
+  // On a phone the decide bar keeps to its height (RV 4), so the link lives in the next-step sheet instead.
+  if (device === 'phone') {
+    // A goal behind asks for its next step first; one that isn't offers "Add an action". Either opens the same sheet.
+    await p.locator('.decide').waitFor();
+    const step = p.getByRole('button', { name: 'Add the next step' });
+    await h.click((await step.isVisible().catch(() => false)) ? step : p.getByRole('button', { name: 'Add an action' }));
+    await h.click(p.getByRole('button', { name: 'Propose a new goal instead' }));
+  } else {
+    await h.click(p.getByRole('button', { name: 'Propose a new goal' }));
+  }
+  const sheet = p.getByRole('dialog', { name: 'Propose a new goal' });
+  await sheet.waitFor();
+  h.set('finish', await sheet.getByRole('button', { name: /^Who will own it\?: Rhea Kapoor/ }).isVisible() && await sheet.getByRole('button', { name: /^It will feed: Lead time for changes/ }).isVisible(), 'the sheet doesn’t start with the goal on screen’s owner and the goal itself');
+  await h.checkpoint('propose');
+  await h.click(sheet.getByRole('button', { name: 'Propose it' }));
+  await see(sheet, 'Give the goal a name.', 'Propose it with no name doesn’t say what to fix');
+  await h.fill(sheet.getByLabel('What should the goal be called?'), title);
+  await pickIn(sheet, /^Who will own it\?/, 'camille', /Camille/);
+  await h.click(sheet.getByRole('button', { name: 'Propose it' }));
+  await see(p, `Proposed “${title}”`, 'proposing in the review says nothing');
+  const snap = await h.snapshot();
+  const made = snap.goals.find((g) => g.title === title);
+  h.set('logged', !!made && made.proposedIn === 'devprod' && made.ownerId === 'camille' && !!made.proposedAt && made.parentId === 'ns-lead', 'the goal wasn’t saved proposed, for Camille, in Developer Productivity fortnightly, feeding Lead time for changes');
+  // Something said in the session, so it is held this week.
+  await h.click(p.getByRole('button', { name: 'Add a note' }).first());
+  await h.fill(p.getByLabel('Your note'), 'Agreed to propose a goal for data-backed environments.');
+  await h.click(p.getByRole('button', { name: 'Save note' }));
+  await see(p, 'Note saved', 'the note wasn’t saved');
+  await p.goto(on('/reviews/devprod'));
+  h.set('attention', !(await p.locator('[data-part="Still to review"]').innerText().catch(() => '')).includes(title), 'the proposed goal is on the review’s agenda');
+  // Camille's Home says where it came from.
+  await p.goto(on('/'));
+  await viewAs(p, 'Camille', h);
+  await see(p, 'Rhea proposed a goal for you in Developer Productivity fortnightly', 'Camille’s Home doesn’t say the goal was proposed in the review');
+  // The next session's Last time names it.
+  await viewAs(p, 'Rhea', h);
+  await p.goto(on('/reviews/devprod', '2026-11-25'));
+  const last = p.locator('[data-part="Last time"]');
+  await last.waitFor({ timeout: 8000 }).catch(() => {});
+  await see(last, `Proposed: ${title} (${made?.key}). Camille hasn’t made it active yet.`, 'the next session’s Last time doesn’t name the goal proposed in it');
+});
+
 journey('U145', ['METRICS-MEASURED-BY', 'NEW-GOAL-STEPS'], 'The metric chosen survives Check: as Rhea, a goal measured by Pipeline queue wait (p90) for CI/CD; a reload on Check still reads “Pipeline queue wait (p90), for CI/CD.”; “Change” on Who and where puts focus on its first field, and choosing Build & Release then Continue reads “for Build & Release.”; Publish saves the goal measured by it for Build & Release', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals/new'));

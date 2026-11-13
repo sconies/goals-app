@@ -42,6 +42,13 @@ export interface GoalDraft {
   stages: { id: string; name: string; dueWeek: string; done?: '' | 'yes' | 'no' }[];
 }
 
+/** The three types, as New goal offers them and a proposed goal's edit page changes them: kind, name, what it is, an example. */
+export const GOAL_KINDS: readonly (readonly [GoalKind, string, string, string])[] = [
+  ['metric', 'Move a number', 'From where it is to where it should be', 'e.g. Lead time from 4.2 to 2 days'],
+  ['range', 'Keep a number in range', 'A guardrail that mustn’t cross a line', 'e.g. Change failure rate at most 12%'],
+  ['milestone', 'Hit dated stages', 'Work that is done or not, by a week', 'e.g. Threat model, build, approval'],
+];
+
 export function blankGoal(teamId: string, ownerId: string, parentId: string): GoalDraft {
   return {
     kind: 'metric', title: '', teamId, ownerId, io: 'input', level: 'team', guardrail: false, parentId, effect: '', whyHelps: '', alsoHelps: [], endWeek: '', points: {},

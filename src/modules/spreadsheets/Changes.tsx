@@ -58,9 +58,10 @@ export function Changes() {
     setBusy(true);
     setSaving(cs);
     setProblem('');
-    const importId = final.commit.changes.find((c) => c.action === 'imported')?.entityId;
     try {
-      await app.applyChanges(final);
+      // The import's id is the saved one: the change set is worked out again when saved (AX2), with new ids.
+      const saved = await app.applyChanges(final);
+      const importId = saved.commit?.changes.find((c) => c.action === 'imported')?.entityId;
       if (importId && base) importStore.set({ done: { importId, tables: base, rows: leftRowsOf(left) } });
       else app.toast(`Saved: ${describe(cs).toLowerCase()}`);
       nav(importId ? `/data/import/done/${importId}` : '/goals');

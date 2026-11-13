@@ -93,7 +93,7 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
       const same = link && link.metricId === metric.id && link.teamId === slice && (link.part ?? '').trim() === part.trim();
       const fix = checks.find((c) => c.kind === 'fix');
       pick = same ? undefined : {
-        action: 'linkGoalMetric', input: (g) => ({ goalId: g.id, metricId: metric.id, teamId: slice, part: part.trim(), reason: reason.trim() }),
+        action: 'linkGoalMetric', input: { metricId: metric.id, teamId: slice, part: part.trim(), reason: reason.trim() },
         // Check's row is labelled "Measured by" already: its value is the rest of the sentence.
         // Quiet (New goal's Check step, after the goal is saved): the field isn't drawn and the choice is worked out
         // silently, so a Check doesn't hold the save — otherwise the new goal's own saved link reads as a second goal
@@ -101,7 +101,7 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
         says: measuredBySays(metric, slice ? team?.name ?? null : null, part).replace(/^Measured by /, ''), blocks: problems.errors[0] ?? fix?.words ?? (!quiet && openCheck ? `Answer the question about the part first: ${openCheck.words}` : undefined),
         metric: { name: metric.name, direction: metric.direction },
       };
-    } else if (link) pick = { action: 'unlinkGoalMetric', input: (g) => ({ goalId: g.id }) };
+    } else if (link) pick = { action: 'unlinkGoalMetric', input: {} };
     onChange(pick);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metric?.id, slice, part, reason, problems.errors[0], checks.find((c) => c.kind === 'fix')?.words, quiet ? '' : openCheck?.words, team?.name]);

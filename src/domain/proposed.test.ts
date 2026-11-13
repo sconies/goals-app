@@ -9,7 +9,8 @@ import { carryCopy, carryKind } from './carry';
 import { planChanges } from './changeset';
 import { currentCycle, scopeToCycle } from './cycle';
 import { countLine } from './find';
-import { blankGoal, type GoalDraft } from './goal';
+import { blankGoal, draftFor, type GoalDraft } from './goal';
+import { TYPE_FIXED } from './goalEntry';
 import { mayChangeGoal } from './goalRights';
 import { scopesFor } from './goalsPage';
 import { currentWeek } from './plan';
@@ -20,6 +21,7 @@ import { goalCounts, measureUnsaid, withProposedCount } from './proposedSummary'
 import { activeReadBack, readBack, underWay } from './readBack';
 import { markPersonLeft, undoRemoval } from './removal';
 import { agendaOf, reviewSession } from './review';
+import { lastTime, proposedLine } from './decide';
 import { workbook } from './export';
 import { proposedSummary } from './proposedSummary';
 import { readTables, type NamedGrid } from './sheets';
@@ -88,6 +90,40 @@ describe('rule 14: proposed goals', () => {
     const rhea = { id: 'rhea', admin: false }, camille = { id: 'camille', admin: false }, oskar = { id: 'oskar', admin: false };
     expect([mayActivate(camille, g), mayActivate(rhea, g), mayActivate(oskar, g)]).toEqual([true, false, false]);
     expect([mayChangeGoal(camille, g), mayChangeGoal(rhea, g), mayChangeGoal(oskar, g)]).toEqual([true, true, false]);
+  });
+
+  it('Proposed, its type can still change: Tunde turns G-132 into stages; an active goal’s type is refused', () => {
+    const { w, goal } = proposed();
+    const stages = { ...draftFor(goal), kind: 'milestone' as const, stages: [{ id: 's1', name: 'Signing in CI', dueWeek: '50' }] };
+    const out = perform(x('tunde', w), 'saveGoal', { draft: stages, goalId: goal.id }) as { goal: Goal };
+    expect([out.goal.kind, isProposed(out.goal)]).toEqual(['milestone', true]);
+    const lead = w.full.goals.find((g) => g.id === 'ns-lead')!;
+    expect(() => perform(x('rhea', w), 'saveGoal', { draft: { ...draftFor(lead), kind: 'range', limit: '3' }, goalId: lead.id })).toThrow(TYPE_FIXED);
+  });
+
+  it('Rhea proposes a goal for Camille in Developer Productivity fortnightly: Camille’s Home says where; the next session’s Last time names it, then says when Camille made it active', () => {
+    const w = at('2026-11-11');
+    const draft = { ...blankGoal('portal', 'camille', ''), title: 'Data-backed environments ready in under an hour' };
+    expect(() => perform(x('rhea', w), 'saveGoal', { draft, proposedIn: 'devprod' })).toThrow('Only a new proposed goal is proposed in a review.');
+    expect(() => perform(x('rhea', w), 'saveGoal', { draft, state: 'proposed', proposedIn: 'gone' })).toThrow('That review isn’t here any more.');
+    const out = perform(x('rhea', w), 'saveGoal', { draft, state: 'proposed', proposedIn: 'devprod' }) as { commit: Commit; goal: Goal };
+    expect(out.goal.proposedIn).toBe('devprod');
+    const review = (id: string) => (id === 'devprod' ? 'Developer Productivity fortnightly' : null);
+    const ask = (reviewOf: (id: string) => string | null) => proposalAsks([out.goal], { id: 'camille', admin: false }, w.today, { opened: new Set(), putOff: new Map() }, () => 'Rhea Kapoor', reviewOf)[0]!.says;
+    expect(ask(review)).toBe('Rhea proposed a goal for you in Developer Productivity fortnightly: “Data-backed environments ready in under an hour”.');
+    // Reviews off, or the review ended: nothing is said about reviews.
+    expect(ask(() => null)).toBe('Rhea proposed a goal for you: “Data-backed environments ready in under an hour”.');
+    // The session it was proposed in (week 46, held that day), then the next one (week 48).
+    let full = applyCommit(w.full, out.commit);
+    const walked = full.decisions.find((d) => d.reviewId === 'devprod')!.goalId;
+    const said = (week: number, at: string) => ({ id: `d_${week}`, goalId: walked, checkInId: null, reviewId: 'devprod', week, kind: 'acknowledge' as const, byId: 'rhea', at, note: '' });
+    full = { ...full, decisions: [...full.decisions, said(46, '2026-11-11T15:00:00Z')] };
+    const review48 = full.reviews.find((r) => r.id === 'devprod')!;
+    const before = (s: Snapshot) => lastTime(review48, s, 48, 48)!.proposed.map((p) => proposedLine(p, 'Camille', (d) => d));
+    expect(before(scopeToCycle(full, w.cycle))).toEqual([`Proposed: Data-backed environments ready in under an hour (${out.goal.key}). Camille hasn’t made it active yet.`]);
+    const made = { ...out.goal, proposedAt: null, proposedBy: null } as Goal;
+    full = applyCommit(full, { goals: [made], changes: [{ id: 'chg_act', at: '2026-11-24T09:00:00Z', actorId: 'camille', goalId: made.id, entity: 'goal', entityId: made.id, action: 'edited', summary: 'Made it active', diffs: [{ field: 'State', from: 'Proposed', to: 'Active' }] }] });
+    expect(before(scopeToCycle(full, w.cycle))).toEqual([`Proposed: Data-backed environments ready in under an hour (${out.goal.key}). Camille made it active on 2026-11-24.`]);
   });
 
   it('Tunde makes it active in week 48: From becomes 48, read back with its dates; Undo makes it proposed again', () => {

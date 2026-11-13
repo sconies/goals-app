@@ -177,6 +177,7 @@ type Io = 'input' | 'output'
 | `stopReason` | `string \| null` | no |  |
 | `proposedAt` | `string \| null` | no | Proposed, not yet active (goal entry GE10, rule 14; domain/proposed): visible to everyone, never judged, nothing due. Set when proposed; cleared (null) when made active. Never set with stoppedAt. |
 | `proposedBy` | `Id \| null` | no | Who proposed it: set only with proposedAt. While it is proposed they may change or withdraw it too. |
+| `proposedIn` | `Id \| null` | no | The review (Review.id) it was proposed in, from "Propose a new goal" in the walk (GE10, decision 15); kept once it is made active, so the next session's "Last time" can say so. Left out when it was proposed anywhere else. |
 
 ### PendingChange
 

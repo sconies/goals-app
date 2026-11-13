@@ -20,6 +20,7 @@ import {
 import { EXAMPLE, StaleError, type Commit, type Store } from '../../data/store';
 import type { HistoryAsk, HistoryPage, LoadWindow } from '../../ports/store';
 import { ANCHOR_ACTIONS, ANCHOR_ENTITIES, historySize, wholeOnly } from '../../ports/window';
+import { NEWEST_KEPT } from '../../domain/leftOut';
 import { MODULE_RECORDS } from '../../core/records';
 
 /** What the adapter needs from a Postgres driver: node-postgres (Pool, Client) and PGlite both have it. */
@@ -39,11 +40,13 @@ const TABLES = {
 const words = (xs: readonly string[]) => xs.map((x) => `'${x.replace(/'/g, "''")}'`).join(', ');
 
 /* The narrower load's queries (AX5 part 2). The rules are ports/window.ts's, put into SQL: a cycle overlaps the window
-   when its last day (domain/cycle cycleDates) is on or after the window's first day (UTC); an entry is kept from the
+   when its last day (domain/cycle cycleDates) is on or after the window's first day (UTC), and the newest
+   NEWEST_KEPT cycles not removed are kept whatever their age (domain/leftOut keptCycles); an entry is kept from the
    window's start on, or as an anchor (ANCHOR_ENTITIES, ANCHOR_ACTIONS, or carrying an import's undo). Ids compare in
    the "C" collation, as JavaScript compares them. At company scale okr_changes wants an index on (workspace_id, at),
    which a migration can add, shipped one merge ahead (AX10). */
-const OPEN_CYCLES = `select c.id from okr_cycles c where c.workspace_id = $1 and c.start_date + ((c.weeks + 1) * 7 - 1) >= ($2::timestamptz at time zone 'UTC')::date`;
+const OPEN_CYCLES = `select c.id from okr_cycles c where c.workspace_id = $1 and (c.start_date + ((c.weeks + 1) * 7 - 1) >= ($2::timestamptz at time zone 'UTC')::date
+  or c.id in (select n.id from okr_cycles n where n.workspace_id = $1 and n.removed_at is null order by n.start_date desc limit ${NEWEST_KEPT}))`;
 const WINDOW_CHECK_INS = `select ci.* from okr_check_ins ci join okr_goals g on g.id = ci.goal_id
   where ci.workspace_id = $1 and g.cycle_id in (${OPEN_CYCLES}) order by ci.id`;
 const CHECK_IN_CYCLES = `select distinct g.cycle_id as id from okr_check_ins ci join okr_goals g on g.id = ci.goal_id where ci.workspace_id = $1 order by 1`;

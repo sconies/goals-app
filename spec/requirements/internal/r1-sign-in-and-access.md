@@ -91,6 +91,7 @@ Read from Faro’s shared actions: each line names the function that enforces it
 | Add, rename, lead or remove a team | Admins | [`saveTeam`](../../../src/domain/actions.ts), [`removeTeam`](../../../src/domain/actions.ts) |
 | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`startNextCycle`](../../../src/domain/actions.ts), [`undoStart`](../../../src/domain/removal.ts), [`deleteCycle`](../../../src/domain/removal.ts) |
 | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`renameWorkspace`](../../../src/domain/actions.ts), [`setRecording`](../../../src/domain/actions.ts), [`setModule`](../../../src/domain/actions.ts), [`canDeleteWorkspace`](../../../src/domain/actions.ts) |
+| Undo a removal straight after it (the Undo on its message): every record it changed goes back as it was | Whoever removed it, or an admin | [`undoRemoval`](../../../src/domain/removal.ts) |
 | Restore something removed, stopped or marked as left (within 30 days), and see it on Recently removed | An admin (everything), or whoever removed it (their own) | [`restoreRemoved`](../../../src/domain/removal.ts), [`canRestore`](../../../src/domain/removal.ts) |
 | Make an MCP token for someone | Admins | [`createToken`](../../../src/domain/actions.ts) |
 | Revoke an MCP token | An admin, or the token’s person | [`revokeToken`](../../../src/domain/actions.ts) |
