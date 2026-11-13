@@ -18,7 +18,6 @@ import { isTableView } from './tableLayout';
 import { VIA_LABEL, type Via } from './via';
 import { COMMENT_REMOVED, ENDED, LEFT, MIN_STOP_REASON, RESTORE_DAYS, STOPPED } from './vocabulary';
 import type { Ask, Change, CheckIn, Comment, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
-import { cycleDates } from './cycle';
 import { asBefore, hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsLeaving, rowsUndone, applyModuleRows, type ModuleRecords } from './records';
 
 const no = (msg: string): never => { throw new NotAllowed(msg); };
@@ -111,15 +110,8 @@ export function unmarkReviewed(x: ActionContext, made: Decision[]): Commit {
 
 const IMPORT_TOO_OLD = 'That import is over a year old, so it can’t be undone: too much may have changed since.';
 
-/** Whether a windowed load (Snapshot.history) left a cycle's check-ins out: it has some, and it ended before the window. */
-export function checkInsLeftOut(s: Pick<Snapshot, 'cycles' | 'history'>, cycleId: string): boolean {
-  const h = s.history;
-  if (!h || !h.checkInCycles.includes(cycleId)) return false;
-  const c = s.cycles.find((v) => v.id === cycleId);
-  return !c || cycleDates(c).lastDay < h.from.slice(0, 10);
-}
-/** Whether a windowed load left change-log entries from before this time out (anchors stay whatever their age). */
-export const changesLeftOut = (s: Pick<Snapshot, 'history'>, at: string) => !!s.history && Date.parse(at) < Date.parse(s.history.from);
+export { changesLeftOut, checkInsLeftOut } from './leftOut';
+import { changesLeftOut, checkInsLeftOut } from './leftOut';
 
 /* ---------- people ---------- */
 

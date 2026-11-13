@@ -8,7 +8,8 @@ import { asksOf, isOverdue } from './asks';
 import { lastHeld, saidIn, type ReviewSession, type Said } from './review';
 import { goalStatus } from './status';
 import { DECIDED } from './vocabulary';
-import type { Ask, Cycle, Goal, Review, Snapshot } from './types';
+import type { Ask, Change, Cycle, Goal, Review, Snapshot } from './types';
+import { isProposed, withProposed } from './proposed';
 
 /** A goal that has to leave a review with a decision: it is off track or at risk. */
 export const needsDecision = (status: string) => status === 'off' || status === 'risk';
@@ -47,17 +48,39 @@ export function decisionFor(goal: Goal, session: Pick<ReviewSession, 'said'>, s:
 /** A next step agreed in an earlier session, as it stands now. */
 export interface CarriedAction { ask: Ask; goalId: string; who: string; dueWeek: number | null; state: 'open' | 'done' | 'overdue' }
 
+/** A goal proposed in an earlier session of a review (GE10, decision 15), and the day it was made active, if it was. */
+export interface CarriedProposal { goal: Goal; activeOn: string | null }
+
 /**
  * "Last time": the actions the previous session of a review agreed (the latest earlier week anything was said in it),
- * and how each stands now, open ones first. Null when there was no earlier session or it agreed no action.
+ * and how each stands now, open ones first; and the goals proposed in it ("Propose a new goal" in the walk: proposed in
+ * this review on a day after the session before it and no later than its last word), each with the day its owner made
+ * it active, if they have. Null when there was no earlier session or it agreed and proposed nothing.
  */
-export function lastTime(r: Review, s: Snapshot, sessionWeek: number, week: number): { week: number; on: string; actions: CarriedAction[] } | null {
+export function lastTime(r: Review, s: Snapshot, sessionWeek: number, week: number): { week: number; on: string; actions: CarriedAction[]; proposed: CarriedProposal[] } | null {
   const held = lastHeld(r, s, sessionWeek);
   if (!held) return null;
   const actions = saidIn(s).filter((d): d is Said & { ask: Ask } => d.reviewId === r.id && d.week === held.week && d.kind === 'action' && !!d.ask)
     .map((d): CarriedAction => ({ ask: d.ask, goalId: d.goalId, who: d.ask.recipientId ?? d.assigneeId ?? '', dueWeek: d.ask.dueWeek, state: d.ask.status === 'done' ? 'done' : isOverdue(d.ask, week) ? 'overdue' : 'open' }))
     .sort((a, b) => Number(a.state === 'done') - Number(b.state === 'done') || (a.dueWeek ?? 99) - (b.dueWeek ?? 99));
-  return actions.length ? { week: held.week, on: held.on, actions } : null;
+  const proposed = proposedInSession(r.id, withProposed(s), s.changes, lastHeld(r, s, held.week)?.on ?? '', held.on);
+  return actions.length || proposed.length ? { week: held.week, on: held.on, actions, proposed } : null;
+}
+
+/** The goals proposed in a review on a day after `after` and no later than `upTo`, oldest first, each with the day it was made active (History's "State: Proposed → Active"). */
+function proposedInSession(reviewId: string, goals: readonly Goal[], changes: readonly Change[], after: string, upTo: string): CarriedProposal[] {
+  return goals.filter((g) => g.proposedIn === reviewId && !g.removedAt && g.createdAt.slice(0, 10) > after && g.createdAt.slice(0, 10) <= upTo)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .map((goal) => {
+      const made = isProposed(goal) ? undefined : changes.filter((c) => c.goalId === goal.id && c.diffs.some((d) => d.field === 'State' && d.to === 'Active')).map((c) => c.at).sort().at(-1);
+      return { goal, activeOn: made ? made.slice(0, 10) : null };
+    });
+}
+
+/** "Last time"'s words for a goal proposed then: "Proposed: {goal} ({key}). {Owner} hasn’t made it active yet." or "… {Owner} made it active on {date}." */
+export function proposedLine(p: CarriedProposal, owner: string, day: (iso: string) => string): string {
+  const what = `Proposed: ${p.goal.title}${p.goal.key ? ` (${p.goal.key})` : ''}.`;
+  return p.activeOn ? `${what} ${owner} made it active on ${day(p.activeOn)}.` : `${what} ${owner} hasn’t made it active yet.`;
 }
 
 /** What a session decided, for its Finish summary: the next steps by who owns them, the risks accepted, and the questions asked. */

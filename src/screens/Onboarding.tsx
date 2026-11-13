@@ -1,7 +1,7 @@
 /* Setting up a workspace: from nothing to an outcome, the goals feeding it and the people who own them,
    one question per screen, in about three minutes. A template fills it in so it's never blank. */
 import { isTop, levelName } from '../domain/levels';
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useMaybeApp, useSetup } from '../app/state';
 import { useDraft } from '../app/drafts';
@@ -13,6 +13,7 @@ import { tooLarge } from '../domain/importLimits';
 import { saveAndSay } from '../app/files';
 import { buildWorkspace, ownerToAdd, parseTable, setupDefaults, type ImportIssue } from '../domain/importer';
 import type { Answer } from '../domain/problemLevels';
+import { codeOf, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS } from '../domain/columns';
 import type { Rec, Tables } from '../domain/sheets';
 import { isEmail, mergePeople, normalEmail } from '../domain/people';
 import type { Cycle } from '../domain/types';
@@ -33,7 +34,9 @@ import { Icon } from '../ui/Icon';
 import { FormClose } from '../ui/FormClose';
 import { focusQuestion } from '../ui/questionInView';
 import type { Mark } from '../help/flows';
+import { telemetry } from '../telemetry';
 import { useMark } from '../telemetry/react';
+import { isOffline, isStaleCodeError, recoverFromStaleCode } from '../telemetry/staleCode';
 import { Questions, StageFields } from '../ui/GoalFields';
 import { PickOne, type PickSource } from '../ui/Pick';
 
@@ -66,6 +69,9 @@ interface SetupDraft {
   fileAnswers?: Record<string, Answer>;
   fileSaid?: Record<string, { title: string; label: string; level: 'must' | 'check' }>;
   fileDefaults?: string[];
+  /** The people "Add {person}" added from the file's answers (by email, else name): gone again when another file
+      replaces it (#336 review). */
+  fileAdded?: string[];
   /** When it was last changed, for Welcome's "Stopped at step 3 of 7, … on 9 Nov." */
   savedAt?: string;
 }
@@ -81,8 +87,56 @@ const STEP_MARKS: Mark[] = ['setUp.step-1', 'setUp.step-2', 'setUp.step-3', 'set
 
 /** Most goal cards set-up takes: the step asks for two to four (UX report, 8 Nov). */
 const MAX_GOALS = 4;
-/** Set-up's preview of a spreadsheet, loaded only when one is read (IM8). */
-const SetupFilePreview = lazy(() => import('../ui/SetupFilePreview').then((m) => ({ default: m.SetupFilePreview })));
+/** How a person added by "Add {person}" is known again: their email, else their name. */
+const addedKey = (p: { name: string; email?: string }) => normalEmail(p.email ?? '') || p.name.trim().toLowerCase();
+
+/** What stands in the way of Create at set-up's last step, in the preview's words: problems to fix, questions to
+    answer, or both (#336 review: "Settle the 5 questions" when all five were Must fix). */
+export function settleLine(groups: readonly { level: string }[], file: string): string {
+  const must = groups.filter((g) => g.level === 'must').length, checks = groups.length - must;
+  const k = (n: number, one: string, many: string) => (n === 1 ? `the ${one}` : `the ${n} ${many}`);
+  if (!checks) return `Fix ${k(must, 'problem', 'problems')} with ${file} above.`;
+  if (!must) return `Answer ${k(checks, 'question', 'questions')} about ${file} above.`;
+  return `Fix ${k(must, 'problem', 'problems')} and answer ${k(checks, 'question', 'questions')} about ${file} above.`;
+}
+
+/** Set-up's preview of a spreadsheet, loaded only when one is read (IM8). Made again on "Try again": a lazy piece that
+    failed to load keeps its failure. */
+const loadPreview = () => lazy(() => import('../ui/SetupFilePreview').then((m) => ({ default: m.SetupFilePreview })));
+
+/** If the preview's piece can't be loaded, set-up says so and offers to try again, instead of going blank (#336 review).
+    The draft and its answers are kept. */
+class PreviewBoundary extends Component<{ name: string; onRetry: () => void; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(error: unknown) {
+    try { telemetry.exception(error, 'react'); } catch { /* never in the way */ }
+    // A piece of an older build gone since a deploy reloads the page once, as everywhere else (staleCode.ts).
+    if (isStaleCodeError(error) && !isOffline()) recoverFromStaleCode(error);
+  }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <section className="stack setup-file" role="alert">
+        <p>Couldn’t show what {this.props.name} would add: part of Faro didn’t load. Check your connection and try again. Nothing is lost.</p>
+        <div className="row"><button type="button" className="btn" onClick={() => { this.setState({ failed: false }); this.props.onRetry(); }}>Try again</button></div>
+      </section>
+    );
+  }
+}
+
+/** After an answer at set-up, the focus goes on as on Import (#336 review): to the next open question, else to the line
+    just answered, else to Create workspace; never to the page itself. */
+const focusAfterAnswer = (id: string | null, tries = 4) => requestAnimationFrame(() => {
+  // An answer can re-render set-up more than once ("Add {person}" adds them, then a default answer follows), so a focus
+  // that fell to the page is tried again for a few frames.
+  const fell = !document.activeElement || document.activeElement === document.body || !document.activeElement.isConnected;
+  if (fell || document.activeElement?.closest('.setup-file')) {
+    const next = document.querySelector<HTMLElement>('.setup-file .import-group input[type=radio]');
+    (next ?? (id ? document.getElementById(`answered-${id}`) : null) ?? document.querySelector<HTMLElement>('form button[type=submit]'))?.focus();
+  }
+  if (tries > 1) requestAnimationFrame(() => { if (!document.activeElement || document.activeElement === document.body) focusAfterAnswer(id, tries - 1); });
+});
 
 /** Rows of a pasted or uploaded people table, matched to our columns by header when there is one. */
 export function peopleFromTable(tsv: string): { rows: PersonRow[]; objectives: Record<string, string> } {
@@ -98,15 +152,20 @@ export function peopleFromTable(tsv: string): { rows: PersonRow[]; objectives: R
   return peopleFromRecords(recs);
 }
 
-/** A People sheet's rows (the one format's columns) as the set-up step's rows. */
-export function peopleFromRecords(recs: Rec[]): { rows: PersonRow[]; objectives: Record<string, string> } {
+/** A People sheet's rows (the one format's columns) as the set-up step's rows. Its Action column is read as Import
+    reads it (#336 review): an Example row is the template's and is skipped, and someone marked Left isn't added (a goal
+    they own then asks who has it). `skipped` counts each, for the upload's note. */
+export function peopleFromRecords(recs: Rec[]): { rows: PersonRow[]; objectives: Record<string, string>; skipped: { example: number; left: number } } {
   const objectives: Record<string, string> = {};
-  const rows = recs.map((r) => {
+  const skipped = { example: 0, left: 0 };
+  const rows = recs.flatMap((r) => {
     const get = (k: string) => (r[k] ?? '').trim();
+    const action = codeOf(PERSON_ACTION_WORDS, get('action'));
+    if (action === 'example' || action === 'left') { if (get('name') || get('email')) skipped[action]++; return []; }
     if (get('team objective') && get('team')) objectives[get('team')] = get('team objective');
-    return { name: get('name'), email: normalEmail(get('email')), team: get('team'), title: get('job title'), admin: YES.test(get('admin') || get('profile')) };
+    return [{ name: get('name'), email: normalEmail(get('email')), team: get('team'), title: get('job title'), admin: YES.test(get('admin') || get('profile')) }];
   }).filter((r) => r.name || r.team || r.email);
-  return { rows, objectives };
+  return { rows, objectives, skipped };
 }
 
 /** The people as the one format's People sheet: you first, then everyone else (a row with no team takes yours). */
@@ -154,6 +213,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   // The people as they were before the last upload, for its Undo.
   const [undoUpload, setUndoUpload] = useState<Pick<SetupDraft, 'people' | 'objectives'> | null>(null);
   const [cycleOpen, setCycleOpen] = useState(false);
+  const [Preview, setPreview] = useState(() => loadPreview());
 
   // A draft kept from before people had emails still opens.
   const me = { ...d.me, email: d.me.email ?? '' };
@@ -161,7 +221,12 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   // Goals from a spreadsheet go through the import's preview in create mode (IM8): its questions are answered on Check,
   // and a goal's stages already due are counted from this week unless that answer is changed.
   const fromFile = d.template === 'file' && !!d.fileTables;
-  const result = buildWorkspace({ name: d.name, startDate: d.startDate, reviewDay: d.reviewDay, people: peopleTsv(me, rowsOf, d.objectives), goals: goalsTsv(d), ...(fromFile ? { tables: d.fileTables!, answers: d.fileAnswers ?? {} } : {}), now: setup.today, idSuffix: suffix });
+  // Worked out again only when what it reads changes, not on every render (#336 review: 1.3 s a render at 6,000 rows).
+  const result = useMemo(
+    () => buildWorkspace({ name: d.name, startDate: d.startDate, reviewDay: d.reviewDay, people: peopleTsv(me, rowsOf, d.objectives), goals: goalsTsv(d), ...(fromFile ? { tables: d.fileTables!, answers: d.fileAnswers ?? {} } : {}), now: setup.today, idSuffix: suffix }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [d.name, d.startDate, d.reviewDay, d.me, d.people, d.objectives, d.template, d.outcome, d.goals, d.fileTables, d.fileAnswers, setup.today, suffix],
+  );
   const fileGroups = fromFile ? result.groups.filter((g) => g.level !== 'note') : [];
   // Set-up's default answers, given once per question so "Change" leaves it open (setupDefaults).
   const defaults = fromFile ? setupDefaults(result.groups, d.fileDefaults ?? []) : [];
@@ -186,9 +251,11 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   // Owners are found and picked from the people typed or uploaded so far (find spec 2.3, move 15's set-up), by name: the
   // workspace doesn't exist yet, so the picker asks a search over the draft's people.
   const draftPeople = result.snapshot.people;
-  const peopleKey = draftPeople.map((p) => `${p.id}\t${p.name}\t${p.role}\t${p.teamId}`).join('\n');
+  const peopleKey = draftPeople.map((p) => `${p.id}\t${p.name}\t${p.role}\t${p.teamId}`).join('\n') + '\n' + result.snapshot.goals.map((g) => `${g.id}\t${g.key ?? ''}\t${g.title}`).join('\n');
+  // The file's goals too, for a check-in row's "Choose a goal" (#336 review).
+  const draftCycle = result.snapshot.cycles[0]!;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const ownerSearch = useMemo(() => searchOver(result.snapshot), [peopleKey]);
+  const ownerSearch = useMemo(() => searchOver(result.snapshot, { cycle: draftCycle, today: setup.today, week: Math.max(0, currentWeek(draftCycle, setup.today)) }), [peopleKey]);
   const owners: OwnerPick = {
     source: { search: ownerSearch, viewerId: draftPeople.find((p) => normalEmail(p.email ?? '') === meEmail)?.id ?? draftPeople[0]?.id ?? '', ws: 'setup' },
     // By email first: with two people of one name, the one picked is the one kept.
@@ -235,7 +302,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     'Pick a starting point.',
     goalIssue(2) ?? (unanswered(cardChecks(d.outcome), d.outcome.answers).length ? 'Answer the question above.' : ''),
     d.goals.some((g) => g.title.trim() && clean(goalErr(g)) && unanswered(cardChecks(g), g.answers).length) && d.goals.every((g) => !g.title.trim() || clean(goalErr(g))) ? 'Answer the questions above.' : 'Fix the goals marked in red, or remove them.',
-    fileGroups.length ? `Settle the ${fileGroups.length === 1 ? 'question' : `${fileGroups.length} questions`} about ${d.fileName ?? 'your spreadsheet'} above.` : result.issues[0]?.message ?? '',
+    fileGroups.length ? settleLine(fileGroups, d.fileName ?? 'your spreadsheet') : result.issues[0]?.message ?? '',
   ];
   const fieldErr = (text: string | null | undefined) => (tried && text ? <span className="hint tone-off field-error" role="alert">{text}</span> : null);
   // When the first check-ins are due: the first review on or after today (domain/progress firstReview).
@@ -286,19 +353,23 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
       const others = r ? r.rows.filter((x) => !(meEmail && x.email === meEmail) && x.name.trim().toLowerCase() !== d.me.name.trim().toLowerCase()) : [];
       // The people already typed stay: the file's are added after them, and anyone already there isn't added twice
       // (deep review U5: an upload once replaced them without a word).
-      const typed = rowsOf.filter((x) => x.name.trim() || x.email.trim() || x.team.trim());
+      // A new goals file drops the people the last one's answers added (they were its owners, not the step's).
+      const replacing = !!t.goals?.length && !!d.fileAdded?.length;
+      const typed = rowsOf.filter((x) => (x.name.trim() || x.email.trim() || x.team.trim()) && !(replacing && d.fileAdded!.includes(addedKey(x))));
       const merged = mergePeople(typed, others);
       const added = merged.slice(typed.length);
-      if (r?.rows.length) {
+      if (r?.rows.length || replacing) {
         setUndoUpload({ people: d.people, objectives: d.objectives });
         patch.people = merged.length ? merged : [blankPerson()];
-        patch.objectives = { ...d.objectives, ...r.objectives };
+        patch.objectives = { ...d.objectives, ...(r?.objectives ?? {}) };
       }
       // The goals with their plans and past check-ins, for "Goals from your spreadsheet".
       // A new file's questions are its own: answers given to the last one are dropped.
-      patch.fileName = file.name; patch.fileAnswers = {}; patch.fileSaid = {}; patch.fileDefaults = [];
+      // A file with no goals sheet keeps the goals of the one before it, and says so (#336 review).
+      const kept = !t.goals?.length && d.fileTables?.goals?.length ? d.fileName ?? 'your last spreadsheet' : null;
+      if (!kept) { patch.fileName = file.name; patch.fileAnswers = {}; patch.fileSaid = {}; patch.fileDefaults = []; patch.fileAdded = []; }
       if (t.goals?.length) patch.fileTables = { goals: t.goals, ...(t.plan ? { plan: t.plan } : {}), ...(t.checkIns ? { checkIns: t.checkIns } : {}) };
-      else patch.fileTables = undefined;
+      else if (!kept) patch.fileTables = undefined;
       set(patch);
       const n = r?.rows.length ?? 0;
       const extra = [t.plan?.length ? 'plan numbers' : '', t.checkIns?.length ? `${t.checkIns.length} check-ins` : ''].filter(Boolean).join(' and ');
@@ -306,7 +377,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
       const plural = (k: number) => `${k} ${k === 1 ? 'person' : 'people'}`;
       const people = !n ? 'no people sheet'
         : `${added.length ? `added ${plural(added.length)}` : 'no one new to add'}${typed.length ? ` after the ${typed.length} you’d typed` : ''}${there ? `; ${there} in the file ${there === 1 ? 'was' : 'were'} already there` : ''}`;
-      setFileNote(`Read ${file.name}: ${people}.${t.goals?.length ? ` It also has a goals sheet${extra ? ` with ${extra}` : ''} you can use in the next step.` : ''}`);
+      const skips = r ? [r.skipped.example ? `${plural(r.skipped.example)} marked Example` : '', r.skipped.left ? `${plural(r.skipped.left)} marked Left` : ''].filter(Boolean).join(' and ') : '';
+      setFileNote(`Read ${file.name}: ${people}${skips ? `; ${skips} ${r!.skipped.example + r!.skipped.left === 1 ? 'wasn’t' : 'weren’t'} added` : ''}.${t.goals?.length ? ` It also has a goals sheet${extra ? ` with ${extra}` : ''} you can use in the next step.` : kept ? ` The goals from ${kept} stay.` : ''}`);
     } catch (e) {
       setFileNote(`Couldn’t read ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -516,17 +588,25 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
           <section className="qsection">
             <h1 className="qtitle big">Ready to create {d.name.trim() || 'your workspace'}?</h1>
             {fromFile && (
+              <PreviewBoundary name={d.fileName ?? 'your spreadsheet'} onRetry={() => setPreview(() => loadPreview())}>
               <Suspense fallback={<p className="hint">Reading {d.fileName ?? 'your spreadsheet'}…</p>}>
-                <SetupFilePreview name={d.fileName ?? 'your spreadsheet'} goals={result.snapshot.goals.length} people={result.snapshot.people.length} groups={fileGroups} issues={result.found}
+                <Preview name={d.fileName ?? 'your spreadsheet'} goals={result.snapshot.goals.length} people={result.snapshot.people.length} held={new Set(result.issues.filter((i) => i.table === 'Goals').map((i) => i.row)).size}
+                  examples={(d.fileTables?.goals ?? []).filter((r) => codeOf(GOAL_ACTION_WORDS, (r['action'] ?? '').trim()) === 'example').length} groups={fileGroups} issues={result.found}
                   answers={d.fileAnswers ?? {}} said={d.fileSaid ?? {}} source={owners.source}
-                  valueOf={(kind, id) => { const p = kind === 'person' ? draftPeople.find((x) => x.id === id) : undefined; return p?.email || p?.name || ''; }}
+                  valueOf={(kind, id) => {
+                    if (kind === 'goal') { const g = result.snapshot.goals.find((x) => x.id === id); return g?.key ?? ''; }
+                    if (kind === 'team') return result.snapshot.teams.find((t) => t.id === id)?.name ?? '';
+                    const p = draftPeople.find((x) => x.id === id); return p?.email || p?.name || '';
+                  }}
                   onAnswer={(g, x) => {
                     // "Add {person}": they join the people step's rows, so the file's people and those typed are one list.
-                    if (x.answer.choice === 'add') { const o = ownerToAdd(d.fileTables?.goals ?? [], g, d.me.team.trim()); set({ people: [...rowsOf.filter((r) => r.name.trim() || r.email.trim() || r.team.trim()), { ...blankPerson(), ...o }] }); return; }
+                    if (x.answer.choice === 'add') { const o = ownerToAdd(d.fileTables?.goals ?? [], g, d.me.team.trim()); set({ people: [...rowsOf.filter((r) => r.name.trim() || r.email.trim() || r.team.trim()), { ...blankPerson(), ...o }], fileAdded: [...(d.fileAdded ?? []), addedKey(o)] }); focusAfterAnswer(null); return; }
                     set({ fileAnswers: { ...d.fileAnswers, [g.id]: x.answer }, fileSaid: { ...d.fileSaid, [g.id]: { title: x.title, label: x.label, level: x.level } } });
+                    focusAfterAnswer(g.id);
                   }}
-                  onClear={(id) => { const { [id]: _a, ...answers } = d.fileAnswers ?? {}; const { [id]: _s, ...said } = d.fileSaid ?? {}; set({ fileAnswers: answers, fileSaid: said }); }} />
+                  onClear={(id) => { const { [id]: _a, ...answers } = d.fileAnswers ?? {}; const { [id]: _s, ...said } = d.fileSaid ?? {}; set({ fileAnswers: answers, fileSaid: said }); focusAfterAnswer(null); }} />
               </Suspense>
+              </PreviewBoundary>
             )}
             {err()}
             <dl className="details">
@@ -536,7 +616,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <dt>Weekly review</dt><dd>Everyone, every goal, on {DAYS[d.reviewDay]}s. The first is on {firstText}; the first check-ins are due before it.</dd>
               <dt>You</dt><dd>{d.me.name} ({meEmail}), admin</dd>
               <dt>Recording</dt><dd>{d.recording ? 'On: how the app is used here is recorded' : 'Off: nothing about how the app is used here is recorded'}</dd>
-              {(d.fileTables?.checkIns?.length ?? 0) > 0 && d.template === 'file' && <><dt>History</dt><dd>{result.snapshot.checkIns.length} past check-ins, from your spreadsheet</dd></>}
+              {(d.fileTables?.checkIns?.length ?? 0) > 0 && d.template === 'file' && <><dt>History</dt><dd>{result.snapshot.checkIns.length} past {result.snapshot.checkIns.length === 1 ? 'check-in' : 'check-ins'}, from your spreadsheet</dd></>}
             </dl>
             <div className="row" style={{ gap: 'var(--s3)' }}>
               <button type="button" className="linkish small tap-44" onClick={() => go(0)}>Change name or year</button>

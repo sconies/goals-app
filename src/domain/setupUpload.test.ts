@@ -59,4 +59,51 @@ describe('set-up’s upload through the preview (IM8)', () => {
     const r = build([{ goal: 'X', team: 'Platform', owner: 'Nobody Here', type: 'metric', start: '1', target: '2' }]);
     expect(r.groups.find((x) => x.kind === 'unknown-ref')!.answers[0]!.label).toBe('Add Nobody Here');
   });
+
+  it('asks about a Goals row’s team one letter from a team already named, instead of making a second team (#336 review)', () => {
+    const goals = [{ goal: 'Deploys per day', team: 'Platfrom', 'owner email': 'ben.ortiz@example.com', type: 'metric', start: '2', target: '6' }];
+    const r = build(goals);
+    const g = r.groups.find((x) => x.kind === 'near-ref' && x.column === 'Team')!;
+    expect(g.answers.map((c) => c.label)).toEqual(['Use Platform', 'Add Platfrom as a new team', 'Choose another']);
+    expect(r.snapshot.teams.some((t) => t.name === 'Platfrom')).toBe(false);
+    expect(r.issues.length).toBe(1);
+    const used = build(goals, { [g.id]: { choice: 'use' } });
+    expect(used.issues).toEqual([]);
+    expect(used.snapshot.teams.find((t) => t.id === used.snapshot.goals[0]!.teamId)?.name).toBe('Platform');
+    const added = build(goals, { [g.id]: { choice: 'new' } });
+    expect(added.snapshot.teams.find((t) => t.id === added.snapshot.goals[0]!.teamId)?.name).toBe('Platfrom');
+    // A team no one named before is added without a question, as set-up always did.
+    expect(build([{ ...goals[0]!, team: 'Payments' }]).groups.some((x) => x.column === 'Team')).toBe(false);
+  });
+
+  it('a person chosen for one owner cell stands for the row’s unknown ones, never over one naming someone else or a bad ID (#336 review)', () => {
+    const row = { goal: 'Deploys per day', team: 'Platform', 'owner email': 'nia.okoro@example.com', owner: 'Nia Okoro', type: 'metric', start: '2', target: '6' };
+    const g = build([row]).groups.find((x) => x.kind === 'unknown-ref')!;
+    const ben = { [g.id]: { choice: 'choose', value: 'ben.ortiz@example.com' } };
+    // The name beside the unknown email names no one either: one answer covers both.
+    expect(build([row], ben).issues).toEqual([]);
+    // The name names someone else here (Chloe): still Must fix, as two people.
+    const other = build([{ ...row, owner: 'Chloe Wu' }], ben);
+    expect(other.groups.find((x) => x.kind === 'conflicting-refs')?.level).toBe('must');
+    expect(other.snapshot.goals).toEqual([]);
+    // An Owner ID that names no one: still Must fix, whoever is chosen for the email.
+    const badId = build([{ ...row, owner: '', 'owner id': 'p-404' }]);
+    const e = badId.groups.find((x) => x.kind === 'unknown-ref')!;
+    const stillBad = build([{ ...row, owner: '', 'owner id': 'p-404' }], { [e.id]: { choice: 'choose', value: 'ben.ortiz@example.com' } });
+    expect(stillBad.groups.some((x) => x.kind === 'bad-key' && x.level === 'must')).toBe(true);
+    expect(stillBad.snapshot.goals).toEqual([]);
+  });
+
+  it('“Choose a goal” for a check-in row finds the file’s goals (#336 review)', () => {
+    const goals = [{ goal: 'Canary releases live', team: 'Platform', 'owner email': 'ben.ortiz@example.com', type: 'metric', start: '0', target: '10' }];
+    const checkIns = [{ goal: 'Nothing like it', week: '3', value: '2' }];
+    const r = build(goals, undefined, checkIns);
+    const g = r.groups.find((x) => x.kind === 'unknown-ref' && x.column === 'Goal')!;
+    expect(g.answers.map((c) => c.label)).toEqual(['Choose a goal']);
+    // The finder gives the goal's key (Onboarding's valueOf), which the answer reads back.
+    const key = r.snapshot.goals[0]!.key!;
+    const chosen = build(goals, { [g.id]: { choice: 'choose', value: key } }, checkIns);
+    expect(chosen.issues).toEqual([]);
+    expect(chosen.snapshot.checkIns.map((c) => c.goalId)).toEqual([chosen.snapshot.goals[0]!.id]);
+  });
 });

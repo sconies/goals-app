@@ -7,8 +7,8 @@ import { localSearch } from '../adapters/localSearch';
 import { withRecent, type Recent } from '../domain/find';
 import type { Prefs } from '../ports/prefs';
 import type { Search, SearchAnswer, SearchAsk, SearchKind } from '../ports/search';
-import { personRows, searchRows, teamRows } from './reads';
-import type { Snapshot } from '../domain/types';
+import { goalRows, personRows, searchRows, teamRows } from './reads';
+import type { Cycle, Snapshot } from '../domain/types';
 import { useApp } from './state';
 import { useGoalColumns, useModules } from '../core/app';
 
@@ -34,8 +34,11 @@ export function recentsOf(p: Prefs, ws: string, person: string): Recent[] { retu
 /** Remembers a choice or a visit, for the suggestions in every picker and Find. */
 export function remember(p: Prefs, ws: string, person: string, r: Recent) { p.set(ws, person, 'recents', withRecent(recentsOf(p, ws, person), r)); }
 
-/** A search over a workspace that isn't open yet (set-up's draft people): people and teams only. */
-export function searchOver(s: Snapshot): Search { return localSearch({ person: () => personRows(s), team: () => teamRows(s) }); }
+/** A search over a workspace that isn't open yet (set-up's draft): its people and teams, and its goals when given the
+    draft's year, so a spreadsheet's "Choose a goal" at set-up finds the file's goals (#336 review). */
+export function searchOver(s: Snapshot, at?: { cycle: Cycle; today: Date; week: number }): Search {
+  return localSearch({ person: () => personRows(s), team: () => teamRows(s), ...(at ? { goal: () => goalRows(s, at.cycle, at.today, at.week) } : {}) });
+}
 
 /** A search over names alone (the inbox's senders, from every workspace): each name is its own id. */
 export function searchNames(names: string[]): Search {

@@ -1990,14 +1990,14 @@ function measureEmpty(d) {
 * goal proposed PROPOSED_ASK_WEEKS weeks ago or more that the viewer may make active (an admin only for their own), not
 * put off. `seen` is what the viewer has opened, and until when each stale ask is put off (the Prefs port).
 */
-function proposalAsks(goals, viewer, today, seen, nameOf = (id) => id) {
+function proposalAsks(goals, viewer, today, seen, nameOf = (id) => id, reviewOf = () => null) {
 	const out = [];
 	for (const g of goals.filter(isProposed)) {
 		if (g.ownerId === viewer.id && g.proposedBy && g.proposedBy !== viewer.id && !seen.opened.has(g.id)) {
 			out.push({
 				kind: "for-you",
 				goal: g,
-				says: `${nameOf(g.proposedBy).split(" ")[0]} proposed a goal for you: “${g.title}”.`
+				says: `${nameOf(g.proposedBy).split(" ")[0]} proposed a goal for you${proposedInWords(g, reviewOf)}: “${g.title}”.`
 			});
 			continue;
 		}
@@ -2011,7 +2011,7 @@ function proposalAsks(goals, viewer, today, seen, nameOf = (id) => id) {
 	}
 	return out;
 }
-var PROPOSED, isProposed, judged, withProposed, withdrawnSummary, weeksProposed;
+var PROPOSED, isProposed, judged, withProposed, withdrawnSummary, weeksProposed, proposedInWords;
 var init_proposed = __esmMin((() => {
 	PROPOSED = "Proposed";
 	isProposed = (g) => !!g.proposedAt && !g.removedAt && !g.stoppedAt;
@@ -2019,6 +2019,10 @@ var init_proposed = __esmMin((() => {
 	withProposed = (s) => s.proposed?.length ? [...s.goals, ...s.proposed] : s.goals;
 	withdrawnSummary = (title) => `Withdrew the proposal “${title}”`;
 	weeksProposed = (g, today) => g.proposedAt ? Math.floor((today.getTime() - new Date(g.proposedAt).getTime()) / 6048e5) : 0;
+	proposedInWords = (g, reviewOf) => {
+		const name = g.proposedIn ? reviewOf(g.proposedIn) : null;
+		return name ? ` in ${name}` : "";
+	};
 }));
 // src/domain/levels.ts
 var DEFAULT_LEVELS, all, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, isTop, levelRank, hasLevels, LEVEL_WORDS, EVERYDAY_WORD;
@@ -4437,14 +4441,38 @@ var init_cycle = __esmMin((() => {
 	];
 	RESULT_LABEL = labels(OWNER_VIEW);
 }));
+// src/domain/leftOut.ts
+/**
+* The cycles whose check-ins a windowed load keeps (AX5 part 2b; ports/window.ts and every store use this rule): each
+* whose last day (domain/cycle cycleDates) is on or after the window's first day (yyyy-mm-dd, UTC), and the
+* NEWEST_KEPT newest cycles not removed, by start date, however old.
+*/
+function keptCycles(cycles, fromDay) {
+	const newest = cycles.filter((c) => !c.removedAt).sort((a, b) => a.startDate < b.startDate ? 1 : a.startDate > b.startDate ? -1 : 0).slice(0, 2);
+	return new Set([...cycles.filter((c) => cycleDates(c).lastDay >= fromDay), ...newest].map((c) => c.id));
+}
+/** Whether a windowed load (Snapshot.history) left a cycle's check-ins out: it has some, and the window didn't keep it. */
+function checkInsLeftOut(s, cycleId) {
+	const h = s.history;
+	if (!h || !h.checkInCycles.includes(cycleId)) return false;
+	return !keptCycles(s.cycles, h.from.slice(0, 10)).has(cycleId);
+}
+var changesLeftOut;
+var init_leftOut = __esmMin((() => {
+	init_cycle();
+	changesLeftOut = (s, at) => !!s.history && Date.parse(at) < Date.parse(s.history.from);
+}));
 // src/domain/copies.ts
-/** Whether a carried copy is as the start made it: no check-in in it and no change to it by a person since. */
+/** Whether a carried copy is as the start made it: no check-in in it and no change to it by a person since. A copy made
+before a windowed load's start counts as used: a person's change to it may be among the entries left out. */
 function copyUntouched(copy, full) {
+	if (changesLeftOut(full, copy.createdAt)) return false;
 	if (full.checkIns.some((c) => c.goalId === copy.id && !c.removedAt)) return false;
 	return !full.changes.some((c) => c.goalId === copy.id && c.at > copy.createdAt && !byRecarry(c.summary));
 }
 var byRecarry;
 var init_copies = __esmMin((() => {
+	init_leftOut();
 	byRecarry = (summary) => /now starts from where it ended in |now starts from .*’s final number$|carries on into |, so it left /.test(summary);
 }));
 // src/domain/people.ts
@@ -8403,13 +8431,6 @@ function deleteNote(x, id) {
 		})]
 	};
 }
-/** Whether a windowed load (Snapshot.history) left a cycle's check-ins out: it has some, and it ended before the window. */
-function checkInsLeftOut(s, cycleId) {
-	const h = s.history;
-	if (!h || !h.checkInCycles.includes(cycleId)) return false;
-	const c = s.cycles.find((v) => v.id === cycleId);
-	return !c || cycleDates(c).lastDay < h.from.slice(0, 10);
-}
 /** What a person has left a mark on: goals they owned (in any cycle), check-ins, notes and comments, and asks. */
 function personHistory(s, id) {
 	return {
@@ -9490,7 +9511,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 	}
 }
-var no$1, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, IMPORT_TOO_OLD, changesLeftOut, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay$1, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
+var no$1, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, IMPORT_TOO_OLD, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay$1, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
 	init_goalRights();
 	init_proposed();
@@ -9501,8 +9522,8 @@ var init_removal = __esmMin((() => {
 	init_tableLayout();
 	init_via();
 	init_vocabulary();
-	init_cycle();
 	init_records();
+	init_leftOut();
 	no$1 = (msg) => {
 		throw new NotAllowed(msg);
 	};
@@ -9524,7 +9545,6 @@ var init_removal = __esmMin((() => {
 		return k;
 	};
 	IMPORT_TOO_OLD = "That import is over a year old, so it can’t be undone: too much may have changed since.";
-	changesLeftOut = (s, at) => !!s.history && Date.parse(at) < Date.parse(s.history.from);
 	hasHistory = (h) => h.goals + h.checkIns + h.notes + h.asks > 0 || h.unknown;
 	livePerson = (x, id) => {
 		const p = x.snapshot.people.find((v) => v.id === id);
@@ -10175,7 +10195,6 @@ function namedHeaders(t, nearOk, whichOf) {
 	}
 	return out;
 }
-/** The engine, in one go: `planChangesInChunks` run to the end. Results are the same either way. */
 function planChanges(input) {
 	const run = planChangesInChunks(input);
 	for (;;) {
@@ -10476,8 +10495,33 @@ function* planChangesInChunks(input) {
 			v,
 			...personFrom(sheet, header(k), k, v)
 		}));
+		const conflict = (said) => {
+			const order = [
+				"name",
+				"email",
+				"id"
+			];
+			const sorted = [...said].sort((x, y) => order.indexOf(x.k) - order.indexOf(y.k));
+			return {
+				kind: "conflicting-refs",
+				problem: `${[...new Set(sorted.map((x) => header(x.k)))].join(" and ")} name different people (${sorted.map((x) => x.p.name).join(" and ")}). Change just one of them.`,
+				extra: { column: what }
+			};
+		};
 		const picked = read.find((x) => x.chosen && x.p);
-		if (picked) return { person: picked.p };
+		if (picked) {
+			const rest = read.filter((x) => x !== picked);
+			if (rest.some((x) => x.left)) return { left: true };
+			const unread = rest.find((x) => x.problem && !COVERED_BY_PICK.includes(x.kind));
+			if (unread) return {
+				kind: unread.kind,
+				problem: unread.problem,
+				extra: unread.extra
+			};
+			const other = rest.filter((x) => x.p && x.p.id !== picked.p.id && !(x.k === "name" && fold$1(x.v) === fold$1(picked.p.name)));
+			if (other.length) return conflict([picked, ...other]);
+			return { person: picked.p };
+		}
 		const exact = read.find((x) => x.k !== "name" && x.p)?.p;
 		const found = exact ? read.filter((x) => x.k !== "name" || fold$1(x.v) !== fold$1(exact.name)) : read;
 		if (found.some((x) => x.left)) return { left: true };
@@ -10499,19 +10543,7 @@ function* planChangesInChunks(input) {
 			problem: bad.problem,
 			extra: bad.extra
 		};
-		if (new Set(found.map((x) => x.p.id)).size > 1) {
-			const order = [
-				"name",
-				"email",
-				"id"
-			];
-			const said = [...found].sort((x, y) => order.indexOf(x.k) - order.indexOf(y.k));
-			return {
-				kind: "conflicting-refs",
-				problem: `${[...new Set(said.map((x) => header(x.k)))].join(" and ")} name different people (${said.map((x) => x.p.name).join(" and ")}). Change just one of them.`,
-				extra: { column: what }
-			};
-		}
+		if (new Set(found.map((x) => x.p.id)).size > 1) return conflict(found);
 		const byName = found.every((x) => x.byName) ? found[0].v : void 0;
 		return {
 			person: found[0].p,
@@ -10546,9 +10578,9 @@ function* planChangesInChunks(input) {
 	const teamFrom = (sheet, row, name, v) => {
 		const tm = teamNamed(v);
 		if (tm) return tm;
-		if (create) return addTeam(v, row);
 		const m = near(v, [...teams.values()].map((t) => t.name));
 		const nearOne = "near" in m ? [...teams.values()].find((t) => t.name === m.near) : void 0;
+		if (create && (sheet === "People" || !nearOne)) return addTeam(v, row);
 		const a = answerOf(nearOne ? "near-ref" : "unknown-ref", sheet, "Team", v);
 		if (a?.choice === "leave") {
 			leave(sheet, row);
@@ -12588,7 +12620,7 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, STOPS, showOf, CORRECTS_VIA, initialsOf, GoalSet;
+var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, STOPS, showOf, COVERED_BY_PICK, CORRECTS_VIA, initialsOf, GoalSet;
 var init_changeset = __esmMin((() => {
 	init_correctReason();
 	init_actions();
@@ -12741,6 +12773,11 @@ var init_changeset = __esmMin((() => {
 		"person left"
 	]);
 	showOf = (kind) => ADDS.has(kind) ? "added" : STOPS.has(kind) ? "stopped" : "changed";
+	COVERED_BY_PICK = [
+		"unknown-ref",
+		"near-ref",
+		"ambiguous-ref"
+	];
 	CORRECTS_VIA = ["table", "mcp"];
 	initialsOf = (name) => name.split(/\s+/).filter(Boolean).map((w) => w[0].toUpperCase()).slice(0, 2).join("") || "?";
 	oneOf(Object.values(CALL_WORDS.word));
@@ -14027,6 +14064,7 @@ var StaleError = class extends Error {
 var isStale = (e) => e instanceof StaleError || e instanceof Error && /\bstale: /.test(e.message);
 // src/ports/window.ts
 init_cycle();
+init_leftOut();
 /** Entries of these kinds are anchors: kept at any age, because rules read them whatever their age (comments, asks, a
 cycle's "created" entry, a person's arrival (domain/dayOne arrived), a metric's last change and former names). */
 var ANCHOR_ENTITIES = [
@@ -14040,9 +14078,10 @@ var ANCHOR_ENTITIES = [
 var ANCHOR_ACTIONS = ["imported", "undone"];
 /** The day (yyyy-mm-dd, UTC) a window starts on. */
 var windowDay = (w) => new Date(w.from).toISOString().slice(0, 10);
-/** A cycle overlaps the window when its last day (domain/cycle cycleDates) is on or after the window's first day.
-In SQL: start_date + ((weeks + 1) * 7 - 1) >= the window's day. */
-var overlaps = (c, w) => cycleDates(c).lastDay >= windowDay(w);
+/** The cycles whose check-ins a windowed load keeps: those that overlap it, and always the newest two not removed (the
+year on screen and the one in its wrap-up), however old (domain/leftOut keptCycles, the one statement of the rule).
+In SQL: the overlap test, or the id is among the two newest by start_date where removed_at is null. */
+var openCycles = (cycles, w) => keptCycles(cycles, windowDay(w));
 var historySize = (ask) => Math.max(1, Math.min(100, Math.floor(ask.size ?? 50)));
 /** Said when a workspace would be made from a windowed load: what the window left out would be lost for good. */
 var PARTIAL_SNAPSHOT = "A workspace can only be made from a whole one: this copy leaves out older check-ins and changes.";
@@ -14128,6 +14167,7 @@ init_carry();
 init_cycle();
 init_records();
 init_copies();
+init_leftOut();
 init_actions();
 /**
 * Keeps a carried copy true after the start (cycle-end rule 6): when a goal of a year that has a later cycle changes
@@ -14135,13 +14175,15 @@ init_actions();
 * is untouched** (no check-in in it, no change to it by a person since the start), the copy's plan or stages are
 * replaced, the copy and what came with it leave (it now finishes or stops; its children's copies lose it as parent),
 * or the copy comes back (the one taken out, same ID and key) or is added, with what comes with it and its children's
-* copies under it again. Nothing when the copy has been used, a person removed it, or there is no later cycle. `extra`
+* copies under it again. Nothing when the copy has been used, a person removed it, there is no later cycle, or a windowed load left the
+* year's check-ins out. `extra`
 * is what the change is about to save.
 */
 function recarry(goal, full, extra, x) {
 	const cycle = full.cycles.find((c) => c.id === goal.cycleId);
 	const later = cycle && laterCycle(full.cycles, cycle);
 	if (!cycle || !later || !goal.key) return null;
+	if (checkInsLeftOut(full, cycle.id)) return null;
 	const copies = full.goals.filter((g) => g.cycleId === later.id && g.key === goal.key);
 	const live = copies.find((g) => !g.removedAt);
 	const left = live ? void 0 : copies.filter((g) => g.removedAt && leftByRecarry(g, full)).sort((a, b) => (b.removedAt ?? "").localeCompare(a.removedAt ?? ""))[0];
@@ -16919,7 +16961,8 @@ var help$2 = [
 					"Some answers leave rows out (“Leave these rows out”): those rows aren’t saved, and the rest are.",
 					"Fix the rows in the file: Download the rows to fix gives just those rows, each with a Problem column saying what is wrong. Choose the corrected file and your answers still apply.",
 					"Or leave them out and save the rest: the sheet says which rows go, and the rows that go with them (a new goal’s check-ins, goals that feed into it). Put them back changes your mind.",
-					"An answered question closes to what was asked and your answer, with Change.",
+					"An answered question closes to what was asked and your answer, with Change. The focus moves to the next open question, or to the answer just given.",
+					"A person chosen for one owner cell (Choose a person) also stands for the row’s other owner cells that name no one here; a cell that names someone else here, or an Owner ID that can’t be read, is still Must fix.",
 					"An admin answering a team that isn’t here may add it as a new team. A new goal with no Type is read from the columns it fills in: Start and Target a number goal, Limit a range, Stages a stages goal."
 				]
 			},
@@ -17392,7 +17435,9 @@ var CORE_ARTICLES = [
 				"Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.",
 				"Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.",
 				"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.",
-				"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and Check shows the same preview Import does before anything is created: how many goals and people the file adds (a goal still to fix counted too), what must be fixed, and its questions, each with its answers. A goal owned by someone nobody typed offers “Add {name}” (they join your people, with the row’s team) or “Give it to someone here”. Create workspace waits until every question is answered.",
+				"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and Check shows the same preview Import does before anything is created: how many goals and people the file adds (a goal still to fix counted too), what must be fixed, and its questions, each with its answers. A goal owned by someone nobody typed offers “Add {name}” (they join your people, with the row’s team) or “Give it to someone here”; the person you give it to stands for the row’s other owner cells that name no one here, but never for one that names someone else here, which is still Must fix. A goal’s team one letter from a team already named (“Depot” beside “Depots”) is asked about, as a person’s is. A check-in’s “Choose a goal” finds the spreadsheet’s goals. After each answer the next question takes the focus. Create workspace waits until every question is answered.",
+				"On the People sheet, a row whose Action says Example (the template’s) is skipped, and someone marked Left isn’t added: a goal they own then asks who has it. The upload says how many were skipped, and the preview how many Example goal rows. A file with no goals sheet, uploaded after one with goals, keeps those goals; a new goals file drops anyone its predecessor’s answers added.",
+				"If the preview can’t load (a lost connection), Check says so and offers Try again; nothing you typed or answered is lost.",
 				"Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.",
 				"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, is asked about on Check, already answered “Count them from this week” as a template’s are, so it isn’t late on day one. Change, then Keep the weeks as typed, puts them back.",
 				"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
@@ -18457,7 +18502,8 @@ var CORE_ARTICLES = [
 					"Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.",
 					"Change it: the same page as any goal, with no reason ever asked. Withdraw it: it goes to Recently removed for 30 days, with Undo.",
 					"Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.",
-					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).",
+					"In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet.",
+					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).",
 					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. With the filter on, the Board is one column, Proposed, and the Map draws each in its tree with a dashed outline and the word, the goals above it shown for context; opening one goes to its page. Find lists them with the word Proposed.",
 					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active. A goal with check-ins can’t go back to proposed: stop it instead."
 				]
@@ -18568,7 +18614,8 @@ var CORE_ARTICLES = [
 					"Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead. Marking them asks first, and the message after it has Undo. While goals to discuss are left, the review carries on; when they’re all that’s left, Finish review marks them and records the session as held.",
 					"The walk opens each goal’s page in turn, under a bar with the review’s name (in full, on two lines if it needs them) and how far through you are. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.",
 					"A goal off track or at risk asks first: “What happens next, who, by when?” Add the next step (what, who and the week it’s due by; type to find the person: you and your team are suggested first), or choose We accept the risk and say why. Only then can it be marked reviewed. Skip for now leaves it for later in the session.",
-					"A session opens with Last time: what the previous session agreed, who agreed to do it, by when, and whether it’s done. Whoever does it, whoever agreed it, or an admin can mark it done there. Each goal in the walk shows its own.",
+					"A session opens with Last time: what the previous session agreed, who agreed to do it, by when, and whether it’s done. Whoever does it, whoever agreed it, or an admin can mark it done there. Each goal in the walk shows its own. Goals proposed in it are listed after: “Proposed: … Tunde hasn’t made it active yet.”, or the day they did.",
+					"A new goal the room agrees on: choose Propose a new goal in the walk. Give it a name, who will own it and what it will feed. It is saved as proposed, and its owner sets it up and makes it active.",
 					"Finish review says what was decided (each person’s next steps, the risks accepted, the questions still open) before it records the session as held, and its message has Undo. The walk’s last goal finishes the same way.",
 					"Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session."
 				]
@@ -19829,6 +19876,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "propose-in-review",
+		date: "2026-11-13",
+		title: "Propose a new goal in a review",
+		points: [
+			"Walking a review, Propose a new goal saves one with only a name, who will own it and what it will feed. It is proposed: nothing is due on it until its owner sets it up and makes it active.",
+			"Its owner’s Home says where it came from: “Rhea proposed a goal for you in Developer Productivity fortnightly”.",
+			"The review’s next session lists it under Last time, with whether its owner has made it active yet."
+		],
+		articles: ["goal-proposed", "reviews"]
+	},
 	{
 		id: "goal-proposed",
 		date: "2026-11-13",
@@ -21740,10 +21798,11 @@ function layoutFrom(ctx, a) {
 }
 /** A sentence as part of a longer line: without its closing full stop, so the line never ends in two. */
 var clause = (t) => t.trim().replace(/\.+$/, "");
-/** The newest n changes that pass `keep`. With the store's history (AX5 part 2b) it pages back through the log, 100 at
-a time, rather than filtering every change ever made; without it, it reads the snapshot. */
+/** The newest n changes that pass `keep`. A whole snapshot (the server loads whole today) already holds every entry, so
+they are read from it; only a windowed one (Snapshot.history) pages back through the store's history, 100 at a time
+(AX5 part 2b). */
 async function activityPages(ctx, keep, n) {
-	if (!ctx.history) return ctx.snapshot.changes.filter(keep).sort((x, y) => x.at < y.at ? 1 : -1).slice(0, n);
+	if (!ctx.history || !ctx.snapshot.history) return ctx.snapshot.changes.filter(keep).sort((x, y) => x.at < y.at ? 1 : -1).slice(0, n);
 	const out = [];
 	let before;
 	do {
@@ -48516,7 +48575,8 @@ function goalToRows(ws, g) {
 				stopped_by: g.stoppedBy,
 				stop_reason: g.stopReason,
 				proposed_at: g.proposedAt,
-				proposed_by: g.proposedBy
+				proposed_by: g.proposedBy,
+				proposed_in: g.proposedIn
 			})
 		},
 		stages: g.kind === "milestone" ? g.stages.map((s) => ({
@@ -48565,7 +48625,8 @@ function goalFromRows(r, stageRows) {
 		...who("stoppedBy", r.stopped_by),
 		...who("stopReason", r.stop_reason),
 		...when("proposedAt", r.proposed_at),
-		...who("proposedBy", r.proposed_by)
+		...who("proposedBy", r.proposed_by),
+		...who("proposedIn", r.proposed_in)
 	};
 	if (r.kind === "metric") {
 		const op = r.original_plan;
@@ -49037,10 +49098,12 @@ var SupabaseStore = class {
 	}
 	async windowCheckIns(ws, w, cycles, goals) {
 		const goalsOf = (cycleIds) => goals.filter((g) => cycleIds.has(g.cycle_id)).map((g) => g.id);
-		const open = new Set(cycles.filter((c) => overlaps({
+		const open = openCycles(cycles.map((c) => ({
+			id: c.id,
 			startDate: c.start_date,
-			weeks: c.weeks
-		}, w)).map((c) => c.id));
+			weeks: c.weeks,
+			removedAt: c.removed_at ?? null
+		})), w);
 		const rows = (await Promise.all(chunks(goalsOf(open), IDS).map((ids) => this.all("okr_check_ins", ws, (q) => q.in("goal_id", ids))))).flat();
 		const cycleOf = new Map(goals.map((g) => [g.id, g.cycle_id]));
 		const found = new Set(rows.flatMap((r) => cycleOf.has(r.goal_id) ? [cycleOf.get(r.goal_id)] : []));

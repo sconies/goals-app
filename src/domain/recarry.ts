@@ -6,10 +6,11 @@ import { laterCycle } from './cycle';
 import type { Ask, Change, CheckIn, Cycle, Goal, Retro, Review, Watch } from './types';
 import { applyModuleRows, hasModuleRows, rowsLeaving, type ModuleRecords, type ModuleRows } from './records';
 import { copyUntouched } from './copies';
+import { checkInsLeftOut, type LoadHistory } from './leftOut';
 import { mergeCommits } from './actions';
 
 /** The rows recarry reads: the cycles, goals, check-ins, change log and wrap-ups, and what comes with a goal. */
-export interface CarryRows { cycles: Cycle[]; goals: Goal[]; checkIns: CheckIn[]; changes: Change[]; retros?: Retro[]; watches?: Watch[]; requests?: Ask[]; reviews?: Review[]; modules?: ModuleRows }
+export interface CarryRows { cycles: Cycle[]; goals: Goal[]; checkIns: CheckIn[]; changes: Change[]; retros?: Retro[]; watches?: Watch[]; requests?: Ask[]; reviews?: Review[]; modules?: ModuleRows; history?: LoadHistory }
 
 /**
  * Keeps a carried copy true after the start (cycle-end rule 6): when a goal of a year that has a later cycle changes
@@ -17,13 +18,16 @@ export interface CarryRows { cycles: Cycle[]; goals: Goal[]; checkIns: CheckIn[]
  * is untouched** (no check-in in it, no change to it by a person since the start), the copy's plan or stages are
  * replaced, the copy and what came with it leave (it now finishes or stops; its children's copies lose it as parent),
  * or the copy comes back (the one taken out, same ID and key) or is added, with what comes with it and its children's
- * copies under it again. Nothing when the copy has been used, a person removed it, or there is no later cycle. `extra`
+ * copies under it again. Nothing when the copy has been used, a person removed it, there is no later cycle, or a windowed load left the
+ * year's check-ins out. `extra`
  * is what the change is about to save.
  */
 export function recarry(goal: Goal, full: CarryRows, extra: { checkIns?: CheckIn[]; retro?: Retro | null }, x: { now: string; actorId: string; newId: (p: string) => string; records?: readonly ModuleRecords[] }): Commit | null {
   const cycle = full.cycles.find((c) => c.id === goal.cycleId);
   const later = cycle && laterCycle(full.cycles, cycle);
   if (!cycle || !later || !goal.key) return null;
+  // A year whose check-ins a windowed load left out can't be judged again from what is loaded: its copy stays as it is.
+  if (checkInsLeftOut(full, cycle.id)) return null;
   const copies = full.goals.filter((g) => g.cycleId === later.id && g.key === goal.key);
   const live = copies.find((g) => !g.removedAt);
   // A copy recarry took out comes back as it was; one a person removed stays removed.

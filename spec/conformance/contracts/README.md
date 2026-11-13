@@ -99,7 +99,7 @@ create or replace view public.okr_contract_marks with (security_invoker = on) as
 - `deleteWorkspace`: (workspaceId) Remove the workspace and everything in it. Answers null.
 - `history`: (workspaceId, { before?, goalId?, size? }) Change-log entries a page at a time, newest first (by `at`, then `id`, both descending): `{ changes, next }`, those strictly older than `before` (`{ at, id }`), only one goal’s when `goalId` is given, 50 unless `size` says otherwise and never more than 100; `next` is the last entry’s `{ at, id }` when there are more, else null.
 
-Its 12 cases:
+Its 13 cases:
 
 1. keeps a new workspace whole, and lists it
 1. saves a change-log entry and gives it back
@@ -111,6 +111,7 @@ Its 12 cases:
 1. issues an AI assistant token once, never keeps its secret, and revokes it
 1. deletes a workspace and everything in it
 1. narrows a load to a window: check-ins of cycles that overlap it, and entries from its start plus the anchors of any age
+1. keeps the newest two cycles’ check-ins however far back the window starts (the year in use never falls out)
 1. pages back through the change log newest first, with no skips or repeats, and narrows it to a goal
 1. loads the whole workspace when no window is asked for, and says nothing was left out
 
