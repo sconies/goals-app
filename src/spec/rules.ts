@@ -1303,7 +1303,7 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
     body: `
 Every way a goal comes in asks the same rule, in the same words: New goal, the edit page, set-up's goal cards, a Goals row of a spreadsheet, Data or a bulk edit (the change engine, \`planChanges\`), and the AI tools (which use the change engine). The form saves through \`planGoal\`, run by the \`saveGoal\` action, so it can't save what the engine would refuse.
 
-**Who may (rule 7).** Anyone may add a goal for anyone, at any level, at every door (Lane, 11 Nov: \`mayAddGoal\` is always yes, and is the one place that is said). Changing a goal stays with its owner and admins (\`mayChangeGoal\`), whoever made it; New goal says so as soon as someone else is chosen as owner: “Amara will own it. After it is published, only Amara or an admin can change it.”
+**Who may (rule 7).** Anyone may add a goal for anyone, at any level, at every door (Lane, 11 Nov: \`mayAddGoal\` is always yes, and is the one place that is said). A goal for someone else starts proposed unless said otherwise (GE10, decision 16): the form's last step starts on "Not yet: propose it", and a file or a tool with new goals for other people and no State asks once (\`for-someone-else\`): "{n} of these goals are for other people and would start as active. Is that what you mean?", answered "Yes, active" or "No, start them as proposed". Set-up and an admin's file aren't asked; a tool's \`confirm\` answers active. Changing a goal stays with its owner and admins (\`mayChangeGoal\`), whoever made it; New goal says so as soon as someone else is chosen as owner: “Amara will own it. After it is published, only Amara or an admin can change it.”
 
 **What a field needs (rule 1).** Read from the spreadsheet's field table (\`fieldNeed\`): required, optional, worked out, or not asked for this type. In the form, a field that always shows a value (the type, the team, the level, which side a range keeps to) is required. Optional fields say “· optional” after their label; a step with two or more required fields and at least one optional says “${'Everything here is needed unless it says optional.'}” under its heading. The unit is optional and starts empty: a number has no unit by default, never “%”.
 
@@ -1362,7 +1362,7 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
           return [ask('40', '66')[0]?.question, ask('30', '93').find((c) => c.id === 'long-plan')?.question].join(' / ');
         } },
         { given: 'A file’s From 2026-W46 and To 2026-W40, read as weeks 46 and 40.', then: 'to-before-from: To (week 40, 28 Sep–4 Oct 2026) isn’t after From (week 46, 9–15 Nov 2026). The plan has to run forwards.', run: () => fixes(blank({ unit: 'min', start: '42', target: '30', fromWeek: '46', endWeek: '40' }), { week: 46, startDate: '2025-12-22' }) },
-        { given: 'Tunde (not an admin) saves a new north star owned by Amara through the saveGoal action; then a spreadsheet row of the same; then Tunde changes a goal Amara owns.', then: 'saved, G-127 owned by amara / no problems / refused: Only Rhea Kapoor (its owner) or an admin can change', run: () => {
+        { given: 'Tunde (not an admin) saves a new north star owned by Amara through the saveGoal action; then a spreadsheet row of the same, which asks once whether it starts active (GE10, decision 16); then Tunde changes a goal Amara owns.', then: 'saved, G-127 owned by amara / warning: “A north star for Amara” is for Amara Nwosu and would start as active. Is that what you mean? / refused: Only Rhea Kapoor (its owner) or an admin can change', run: () => {
           const tables = { goals: [rec({ Goal: 'A north star for Amara', Owner: 'Amara Nwosu', Level: 'North star', Unit: '%', Start: '10', Target: '20' })] };
           const made = asPerson('tunde', (x) => { const o = planGoal(x, { draft: { ...blankGoal('cicd', 'amara', ''), title: 'A north star for Amara', level: 'north', unit: '%', start: '10', target: '20' }, confirm: true }); return `saved, ${o.goal.key} owned by ${o.goal.ownerId}`; });
           const theirs = demo!.goals.find((g) => g.ownerId !== 'tunde')!;
@@ -1446,7 +1446,7 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
         { given: 'The plan’s note in week 10 of 2026.', then: 'Each week’s number is checked in during that week, so the one that closes Q1 is week 13, checked in 23–29 Mar.', run: () => planNote(org.cycles[0]!, 10) ?? '' },
       ];
     })(),
-    unclear: ['Whether a goal for someone else should start as proposed (round 2, GE10) is a later item; today anyone may add a goal for anyone, at any level (Lane, 11 Nov, decision 11).'],
+    unclear: ['An admin loading a file of goals for other people is not asked whether they start active, though the form starts an admin’s goal for someone else on “Not yet” too: a judgement made in GE10’s follow-up, since an admin’s file is usually the organisation’s own register.'],
   },
 
   /* ---------- the read-back (goal entry, rule 5; GE3) ---------- */

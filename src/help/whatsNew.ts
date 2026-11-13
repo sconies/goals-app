@@ -27,6 +27,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goals-for-others-asked-in-files',
+    date: '2026-11-13',
+    title: 'A file of goals for other people asks how they start',
+    points: [
+      'A spreadsheet or an AI assistant that adds goals for other people, with no State, now asks once whether they start active or proposed.',
+      'Proposed is how to put a goal in front of someone without holding them to it yet, as New goal already does.',
+      'An admin’s file and set-up aren’t asked.',
+    ],
+    articles: ['goal-proposed', 'data'],
+  },
+  {
     id: 'habit-receipt-and-moment',
     date: '2026-11-13',
     title: 'Your run forgives one missed week, and reaching a target is said, quietly',

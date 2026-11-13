@@ -9934,6 +9934,7 @@ function groupTitle(kind, sheet, count, first) {
 		case "same-goal": return `${n$1(count, "new goal")} ${count === 1 ? "has a name its team already uses" : "have names their teams already use"}: “${v}”. Are they new?`;
 		case "other-goal": return first.message;
 		case "past-stage": return first.answers?.[0]?.choice === "from-now" ? `${n$1(count, "new goal")} ${count === 1 ? "has" : "have"} stages due before this week, so ${count === 1 ? "it" : "they"} would start late` : `${n$1(count, "new goal")} ${count === 1 ? "has" : "have"} stages due before this week. Are they done?`;
+		case "for-someone-else": return `${count === 1 ? "One of these goals is" : `${count} of these goals are`} for other people and would start as active. Is that what you mean?`;
 		case "past-plan": return `${n$1(count, "new goal")} ${count === 1 ? "has a plan" : "have plans"} that ${count === 1 ? "has" : "have"} already ended`;
 		case "odd-number": return count === 1 ? first.message : `${n$1(count, "number")} look${count === 1 ? "s" : ""} unlikely: ${first.message}`;
 		case "plan-question": return count === 1 ? first.message : `${n$1(count, "plan change")} to check: ${first.message}`;
@@ -10025,7 +10026,8 @@ var init_problemLevels = __esmMin((() => {
 		"many-admins",
 		"totals-row",
 		"big-removal",
-		"feeds-lower"
+		"feeds-lower",
+		"for-someone-else"
 	];
 	levelOf = (kind) => MUST_KINDS.includes(kind) ? "must" : CHECK_KINDS.includes(kind) ? "check" : "note";
 	SEVERITY = {
@@ -10206,7 +10208,15 @@ var init_problemLevels = __esmMin((() => {
 			choice: "right",
 			label: "Yes, it feeds that goal"
 		}, LEAVE],
-		leaveOnly: [LEAVE]
+		leaveOnly: [LEAVE],
+		/** GE10, decision 16: new goals for other people with no State, asked once per file. */
+		forSomeoneElse: [{
+			choice: "active",
+			label: "Yes, active"
+		}, {
+			choice: "proposed",
+			label: "No, start them as proposed"
+		}]
 	};
 	n$1 = (k, one, many = one + "s") => `${k} ${k === 1 ? one : many}`;
 	THING = {
@@ -10527,7 +10537,7 @@ function* planChangesInChunks(input) {
 	*/
 	const ask = (kind, sheet, row, name, message, x) => {
 		const given = answerOf(kind, sheet, x.column, x.found);
-		const a = (given && (!x.answers?.length || x.answers.some((c) => c.choice === given.choice)) && (!given.covers || x.value == null || given.covers.includes(x.value)) ? given : void 0) ?? (input.confirm && CONFIRMED.includes(kind) ? { choice: "right" } : input.confirm && kind === "other-goal" ? { choice: "change" } : void 0);
+		const a = (given && (!x.answers?.length || x.answers.some((c) => c.choice === given.choice)) && (!given.covers || x.value == null || given.covers.includes(x.value)) ? given : void 0) ?? (input.confirm && CONFIRMED.includes(kind) ? { choice: "right" } : input.confirm && kind === "other-goal" ? { choice: "change" } : input.confirm && kind === "for-someone-else" ? { choice: "active" } : void 0);
 		if (a?.choice === "leave") {
 			leave(sheet, row);
 			return "leave";
@@ -11540,6 +11550,15 @@ function* planChangesInChunks(input) {
 				column: "State",
 				found: val(r, "state")
 			});
+		}
+		if (!existing && !create && !admin() && !proposing && !(has(r, "state") && val(r, "state")) && d.ownerId && d.ownerId !== actor.id) {
+			const a = ask("for-someone-else", "Goals", row, d.title, `“${d.title}” is for ${people.get(d.ownerId)?.name ?? "someone else"} and would start as active. Is that what you mean?`, {
+				column: "State",
+				found: "for-someone-else",
+				answers: ANSWERS.forSomeoneElse
+			});
+			if (a === "leave") return;
+			if (a?.choice === "proposed") proposing = true;
 		}
 		if (existing && proposing && !wasProposed && started(existing.id)) return raise("cant-change", "Goals", row, existing.title, `“${existing.title}” has check-ins, so it can’t go back to proposed. Stop it instead.`, {
 			column: "State",
@@ -12939,7 +12958,8 @@ var init_changeset = __esmMin((() => {
 		"odd-number",
 		"feeds-lower",
 		"no-unit",
-		"plan-question"
+		"plan-question",
+		"for-someone-else"
 	];
 	CONFIRMED = [
 		"odd-number",
@@ -18845,7 +18865,7 @@ var CORE_ARTICLES = [
 					"In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet. Only people in the review, or an admin, can propose one there.",
 					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).",
 					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. With the filter on, the Board is one column, Proposed, and the Map draws each in its tree with a dashed outline and the word, the goals above it shown for context; opening one goes to its page. Find lists them with the word Proposed.",
-					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active, and make_goal_proposed makes an active one proposed again. A goal with check-ins can’t go back to proposed: stop it instead."
+					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active, and make_goal_proposed makes an active one proposed again. A file or an assistant adding goals for other people with no State is asked once whether they start active or proposed (an admin’s file and set-up aren’t asked). A goal with check-ins can’t go back to proposed: stop it instead."
 				]
 			},
 			{
@@ -26689,7 +26709,7 @@ var CORE_TOOLS = [
 	{
 		name: "create_goal",
 		title: "Add a goal",
-		description: "Add a goal to the current cycle. Type \"metric\" moves a number from start to target; \"range\" keeps a number inside a limit; \"milestone\" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with \"confirm\": true (a name another goal in its team has is asked through \"answers\").",
+		description: "Add a goal to the current cycle. Type \"metric\" moves a number from start to target; \"range\" keeps a number inside a limit; \"milestone\" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. A goal for someone else with no state is asked about once (start it active, or proposed): ask the person, or give state. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with \"confirm\": true (a name another goal in its team has is asked through \"answers\").",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
