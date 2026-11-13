@@ -2176,15 +2176,40 @@ function firstReview(cycle, today) {
 function onTimeStreak(personId, s, cycle, week) {
 	return onTimeRun(personId, s.goals, s.checkIns, cycle, week).weeks;
 }
-function onTimeRun(personId, all, checkIns, cycle, week) {
-	const goals = all.filter((g) => g.ownerId === personId);
-	const s = { checkIns };
+/** Whether a check-in came in by its week's due day (`postedDay` on or before it), and was posted in its week rather than
+added later: a backfilled week is never on time (#410 review, medium 3). */
+function inByDueDay(c, cycle, week) {
+	return !c.backfilled && postedDay(c.postedAt) <= reviewDate(cycle, week);
+}
+/** The first week a goal counts for its present owner in the run: its first due week, or, when someone else checked it in
+later (it was theirs, or handed over), the week after the last of those, so taking over a goal never costs the new
+owner the weeks before it was theirs (#410 review, medium 4). */
+function ownedFrom(g, personId, checkIns, cycle) {
+	const others = checkIns.filter((c) => c.goalId === g.id && c.authorId !== personId).map((c) => c.week);
+	return Math.max(firstDueWeek(g, cycle), others.length ? Math.max(...others) + 1 : 0);
+}
+/** The week a goal was closed as Done, if it was (its first check-in with the status Done): it isn't due after that week,
+as weekProgress leaves Done goals out (#410 review, medium 2). */
+function doneWeek(g, checkIns) {
+	const w = checkIns.filter((c) => c.goalId === g.id && c.status === "done").map((c) => c.week);
+	return w.length ? Math.min(...w) : Infinity;
+}
+/** The run's walk, and the weeks inside it that were forgiven, each as late (checked in after the due day) or missed. */
+function onTimeRun(personId, all, allCheckIns, cycle, week) {
+	const checkIns = allCheckIns.filter((c) => !c.removedAt);
+	const goals = all.filter((g) => g.ownerId === personId).map((g) => ({
+		g,
+		from: ownedFrom(g, personId, checkIns, cycle),
+		to: doneWeek(g, checkIns)
+	}));
 	if (!goals.length) return {
 		weeks: 0,
 		forgiven: []
 	};
-	const due = (w) => goals.some((g) => firstDueWeek(g, cycle) <= w);
-	const onTime = (w) => due(w) && goals.every((g) => firstDueWeek(g, cycle) > w || s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
+	const dueIn = (w) => goals.filter((x) => x.from <= w && w <= x.to);
+	const due = (w) => dueIn(w).length > 0;
+	const mine = (gid, w) => checkIns.filter((c) => c.goalId === gid && c.week === w && c.authorId === personId);
+	const onTime = (w) => due(w) && dueIn(w).every((x) => mine(x.g.id, w).some((c) => inByDueDay(c, cycle, w)));
 	const forgiven = (w) => {
 		let seen = 0;
 		for (let v = w - 1; v >= 1 && seen < 4; v--) {
@@ -2194,13 +2219,16 @@ function onTimeRun(personId, all, checkIns, cycle, week) {
 		}
 		return seen === 4;
 	};
-	const complete = goals.every((g) => firstDueWeek(g, cycle) > week || s.checkIns.some((c) => c.goalId === g.id && c.week === week));
+	const complete = dueIn(week).every((x) => checkIns.some((c) => c.goalId === x.g.id && c.week === week));
 	const out = {
 		weeks: 0,
 		forgiven: []
 	};
 	for (let w = complete && due(week) ? week : week - 1; w >= 1 && due(w); w--) if (onTime(w)) out.weeks++;
-	else if (forgiven(w)) out.forgiven.push(w);
+	else if (forgiven(w)) out.forgiven.push({
+		week: w,
+		missed: dueIn(w).some((x) => !mine(x.g.id, w).some((c) => !c.backfilled))
+	});
 	else break;
 	return out;
 }
@@ -2212,10 +2240,9 @@ function onTimeRun(personId, all, checkIns, cycle, week) {
 * `nextDue` is the next due day as an ISO date: the caller says it in words before `receiptText`.
 */
 function receiptFacts(p, personId, s, cycle, week, words) {
-	const due = reviewDate(cycle, week);
 	const after = p.goals.filter((g) => {
 		const first = s.checkIns.filter((c) => c.goalId === g.id && c.week === week && !c.removedAt).map((c) => c.postedAt).sort()[0];
-		return first != null && first.slice(0, 10) > due;
+		return first != null && !inByDueDay({ postedAt: first }, cycle, week);
 	}).length;
 	const run = onTimeRun(personId, s.goals, s.checkIns, cycle, week);
 	return {
@@ -2227,7 +2254,8 @@ function receiptFacts(p, personId, s, cycle, week, words) {
 			after: words.after
 		},
 		run: run.weeks,
-		forgiven: run.forgiven[0] ?? null,
+		forgiven: run.forgiven[0]?.week ?? null,
+		forgivenMissed: run.forgiven[0]?.missed ?? false,
 		nextDue: week < cycle.weeks ? reviewDate(cycle, week + 1) : null
 	};
 }
@@ -2246,10 +2274,10 @@ function receiptText(r) {
 	};
 	return {
 		first: `${yours} in ${r.words.by}.`,
-		second: [r.run >= 2 ? `That is ${r.run} weeks in a row.` : null, r.forgiven != null && r.forgiven === r.week - 1 && r.run >= 2 ? `Week ${r.forgiven} came in late; one late week doesn’t break a run.` : null].filter(Boolean).join(" ") || null
+		second: [r.run >= 2 ? `That is ${r.run} weeks in a row.` : null, r.forgiven != null && r.forgiven === r.week - 1 && r.run >= 2 ? r.forgivenMissed ? `Week ${r.forgiven} was missed; one missed week doesn’t break a run.` : `Week ${r.forgiven} came in late; one late week doesn’t break a run.` : null].filter(Boolean).join(" ") || null
 	};
 }
-var firstDueWeek, SHORT_MONTH, WEEKDAY;
+var firstDueWeek, SHORT_MONTH, postedDay, WEEKDAY;
 var init_progress = __esmMin((() => {
 	init_plan();
 	init_status();
@@ -2268,6 +2296,10 @@ var init_progress = __esmMin((() => {
 		"Nov",
 		"Dec"
 	];
+	postedDay = (iso) => {
+		const n = new Date(iso);
+		return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10);
+	};
 	WEEKDAY = [
 		"Monday",
 		"Tuesday",
@@ -15876,10 +15908,7 @@ function scopeFacts(s, viewer) {
 * read on the same clock, not in UTC (build review of #310: "Asked yesterday" for an ask made half an hour ago at UTC+10).
 * On a server, whose zone is UTC, it is the stamp's UTC day.
 */
-var localDay = (iso) => {
-	const n = new Date(iso);
-	return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10);
-};
+var localDay = postedDay;
 function homeAsks(viewerId, s, cycle, week, today, reviews = true) {
 	return openForPerson(viewerId, s).flatMap((r) => {
 		const w = askWaiting(r, viewerId, s, cycle, week, today, reviews);
@@ -18660,7 +18689,7 @@ var CORE_ARTICLES = [
 				heading: "When the week’s are all in",
 				text: [
 					"The last screen says whether your check-ins were in before the deadline (“All 4 of your check-ins are in by Thursday.”; if you are in a review held that day, “… before Thursday’s review.”) and, from two weeks, how many weeks in a row you have been on time. If some came after it, it says how many, and when the next are due.",
-					"One late week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. Only you see your run.",
+					"One late or missed week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. On time means by the deadline day on your own clock. A week added later never counts as on time, a goal called Done leaves your run, and a goal you take over counts only from when it became yours. Only you see your run.",
 					"When a check-in takes a goal to its target, the last screen says so quietly, with a way to copy the goal’s share image; when it brings a goal back on track after two weeks or more behind, it says that. The goal’s History marks the week “Reached its target” or “Back on track”. A correction never does."
 				]
 			},
@@ -19931,7 +19960,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "Switching, and setting one up",
 				list: [
-					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow.",
+					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: Look around the demo (outside the demo: it opens the example workspace, which you can change freely without touching yours), About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow.",
 					"Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.” A workspace you can’t open yet still lists the others, to open one of them.",
 					"A workspace is one organisation’s goals and the people who share them: its own people and teams, its own goal year and check-in day, and its own admins. About says so, under its name.",
 					"Switching is a page move: Back takes you to the workspace you came from. You land on the same page in the other workspace when it has one (Home, Goals, Reviews, People, a Workspace section), otherwise on Home; from a person’s or a team’s page, on People or Teams. While it opens, the page says so.",
@@ -20853,6 +20882,13 @@ var WHATS_NEW = [
 		articles: ["metric-measurement"]
 	},
 	{
+		id: "look-around-the-demo",
+		date: "2026-11-13",
+		title: "Look around the demo from any workspace",
+		points: ["The workspace switcher has Look around the demo: the example workspace, which you can change freely without touching yours.", "On a phone, Home’s review cell uses a shorter label, so the review’s name fits."],
+		articles: ["workspace"]
+	},
+	{
 		id: "reviews-switch-clock",
 		date: "2026-11-13",
 		title: "Check-ins say plainly which day they’re due",
@@ -20896,7 +20932,7 @@ var WHATS_NEW = [
 		title: "Your run forgives one missed week, and reaching a target is said, quietly",
 		points: [
 			"When your week’s check-ins are all in, the last screen says whether they were in before the deadline (or the review, if you are in one that day), and how many weeks in a row you have been on time.",
-			"One late week no longer ends your run: if the four weeks before it were on time, it is forgiven, and the next check-in says so once.",
+			"One late or missed week no longer ends your run: if the four weeks before it were on time, it is forgiven, and the next check-in says so once. A goal called Done leaves your run, and a goal you take over counts only from when it became yours.",
 			"A check-in that takes a goal to its target says so in one quiet panel, with a way to copy the goal’s share image. One that brings a goal back on track after two weeks or more behind says that too.",
 			"The goal’s History marks those weeks “Reached its target” or “Back on track”."
 		],
@@ -22752,7 +22788,8 @@ var WORK_TOOLS = [
 					...rf,
 					nextDue: rf.nextDue ? longDay(rf.nextDue) : null
 				}),
-				forgivenWeek: rf.forgiven
+				forgivenWeek: rf.forgiven,
+				forgivenWeekWas: rf.forgiven == null ? null : rf.forgivenMissed ? "missed" : "late"
 			} : null;
 			const glance = {
 				goals: {
@@ -22799,7 +22836,7 @@ var WORK_TOOLS = [
 				},
 				text: [
 					`Week ${ctx.week} for ${ctx.actor.name}.`,
-					`${d.scope === "mine" ? "Your goals" : "All goals"}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(", ") || "none"}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? "week" : "weeks"}.` : ""}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ""}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ""}`,
+					`${d.scope === "mine" ? "Your goals" : "All goals"}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(", ") || "none"}.${d.streak ? ` On-time streak: ${d.streak} ${d.streak === 1 ? "week" : "weeks"}.` : ""}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ""}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ""}`,
 					...weekReceipt ? [[weekReceipt.first, weekReceipt.second].filter(Boolean).join(" ")] : [],
 					`Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.`,
 					`Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask}${when(r)} (${r.id})`).join("; ") : "none"}.`,
@@ -25761,6 +25798,7 @@ function meets(goal, v) {
 */
 function moment(earlier, after, goal, fresh = true) {
 	if (!fresh || after.backfilled || after.removedAt) return null;
+	if (earlier.some((c) => c.id !== after.id && c.goalId === after.goalId && c.week === after.week && !c.removedAt)) return null;
 	const byWeek = /* @__PURE__ */ new Map();
 	for (const c of [...earlier].sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt))) if (c.week < after.week && !c.removedAt) byWeek.set(c.week, c);
 	const prior = [...byWeek.values()].sort((a, b) => b.week - a.week);
@@ -25770,11 +25808,12 @@ function moment(earlier, after, goal, fresh = true) {
 		behind: 0
 	};
 	if (after.status !== "on" || !before || before.status !== "risk" && before.status !== "off") return null;
-	let behind = 0;
+	let from = after.week;
 	for (const c of prior) {
 		if (c.status !== "risk" && c.status !== "off") break;
-		behind++;
+		from = c.week;
 	}
+	const behind = after.week - from;
 	return behind >= 2 ? {
 		kind: "back",
 		behind

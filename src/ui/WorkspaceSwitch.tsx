@@ -177,6 +177,8 @@ export function WorkspaceSwitcher({ variant }: { variant: 'side' | 'top' }) {
               })}
             </div>
             <div className="stack" style={{ gap: 4 }}>
+              {/* Look around the demo (Lane): one calm line, a whole page away from the live workspace. */}
+              {app.mode !== 'demo' && <a className="menuitem ws-demo" href="/demo"><span className="stack" style={{ gap: 0 }}><span className="strong">Look around the demo</span><span className="tiny muted">Example data you can change freely. Your workspace isn’t touched.</span></span></a>}
               <button type="button" className="menuitem ws-about-link" onClick={() => go('/workspace')}>
                 <span className="strong">About {name}</span>
               </button>

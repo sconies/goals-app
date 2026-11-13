@@ -121,19 +121,52 @@ export function onTimeStreak(personId: string, s: Snapshot, cycle: Cycle, week: 
 
 /** The forgiven week inside the current run, so the receipt can say it once (habit spec, rule 5); null when none. */
 export function forgivenIn(personId: string, goals: readonly Goal[], checkIns: readonly CheckIn[], cycle: Cycle, week: number): number | null {
+  return onTimeRun(personId, goals, checkIns, cycle, week).forgiven[0]?.week ?? null;
+}
+
+/** The forgiven week inside the current run, and whether it was missed (nothing of theirs posted in it) or late. */
+export function forgivenWeek(personId: string, goals: readonly Goal[], checkIns: readonly CheckIn[], cycle: Cycle, week: number): { week: number; missed: boolean } | null {
   return onTimeRun(personId, goals, checkIns, cycle, week).forgiven[0] ?? null;
 }
 
 /** How many weeks before a late one must be on time for it to be forgiven (CF4). */
 export const FORGIVE_AFTER = 4;
 
-function onTimeRun(personId: string, all: readonly Goal[], checkIns: readonly CheckIn[], cycle: Cycle, week: number): { weeks: number; forgiven: number[] } {
-  const goals = all.filter((g) => g.ownerId === personId);
-  const s = { checkIns };
+/** The day a check-in was posted, on the clock of whoever reads it: the same clock Home's "today" is read on (the app's
+    `today` is the device's own date and time), so Home's "due today", the receipt and the run name one due day for the
+    same person (#410 review, medium 1). On the server, whose clock is UTC, it is the UTC day. */
+export const postedDay = (iso: string): string => { const n = new Date(iso); return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10); };
+
+/** Whether a check-in came in by its week's due day (`postedDay` on or before it), and was posted in its week rather than
+    added later: a backfilled week is never on time (#410 review, medium 3). */
+export function inByDueDay(c: Pick<CheckIn, 'postedAt' | 'backfilled'>, cycle: Cycle, week: number): boolean {
+  return !c.backfilled && postedDay(c.postedAt) <= reviewDate(cycle, week);
+}
+
+/** The first week a goal counts for its present owner in the run: its first due week, or, when someone else checked it in
+    later (it was theirs, or handed over), the week after the last of those, so taking over a goal never costs the new
+    owner the weeks before it was theirs (#410 review, medium 4). */
+function ownedFrom(g: Goal, personId: string, checkIns: readonly CheckIn[], cycle: Cycle): number {
+  const others = checkIns.filter((c) => c.goalId === g.id && c.authorId !== personId).map((c) => c.week);
+  return Math.max(firstDueWeek(g, cycle), others.length ? Math.max(...others) + 1 : 0);
+}
+
+/** The week a goal was closed as Done, if it was (its first check-in with the status Done): it isn't due after that week,
+    as weekProgress leaves Done goals out (#410 review, medium 2). */
+function doneWeek(g: Goal, checkIns: readonly CheckIn[]): number {
+  const w = checkIns.filter((c) => c.goalId === g.id && c.status === 'done').map((c) => c.week);
+  return w.length ? Math.min(...w) : Infinity;
+}
+
+/** The run's walk, and the weeks inside it that were forgiven, each as late (checked in after the due day) or missed. */
+function onTimeRun(personId: string, all: readonly Goal[], allCheckIns: readonly CheckIn[], cycle: Cycle, week: number): { weeks: number; forgiven: { week: number; missed: boolean }[] } {
+  const checkIns = allCheckIns.filter((c) => !c.removedAt);
+  const goals = all.filter((g) => g.ownerId === personId).map((g) => ({ g, from: ownedFrom(g, personId, checkIns, cycle), to: doneWeek(g, checkIns) }));
   if (!goals.length) return { weeks: 0, forgiven: [] };
-  const due = (w: number) => goals.some((g) => firstDueWeek(g, cycle) <= w);
-  const onTime = (w: number) =>
-    due(w) && goals.every((g) => firstDueWeek(g, cycle) > w || s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
+  const dueIn = (w: number) => goals.filter((x) => x.from <= w && w <= x.to);
+  const due = (w: number) => dueIn(w).length > 0;
+  const mine = (gid: string, w: number) => checkIns.filter((c) => c.goalId === gid && c.week === w && c.authorId === personId);
+  const onTime = (w: number) => due(w) && dueIn(w).every((x) => mine(x.g.id, w).some((c) => inByDueDay(c, cycle, w)));
   const forgiven = (w: number) => {
     let seen = 0;
     for (let v = w - 1; v >= 1 && seen < FORGIVE_AFTER; v--) {
@@ -144,11 +177,12 @@ function onTimeRun(personId: string, all: readonly Goal[], checkIns: readonly Ch
     return seen === FORGIVE_AFTER;
   };
   // This week counts once every goal is checked in; otherwise start from last week.
-  const complete = goals.every((g) => firstDueWeek(g, cycle) > week || s.checkIns.some((c) => c.goalId === g.id && c.week === week));
-  const out = { weeks: 0, forgiven: [] as number[] };
+  const complete = dueIn(week).every((x) => checkIns.some((c) => c.goalId === x.g.id && c.week === week));
+  const out = { weeks: 0, forgiven: [] as { week: number; missed: boolean }[] };
   for (let w = complete && due(week) ? week : week - 1; w >= 1 && due(w); w--) {
     if (onTime(w)) out.weeks++;
-    else if (forgiven(w)) out.forgiven.push(w);
+    // Missed: some goal due that week has no check-in of theirs posted in its week at all.
+    else if (forgiven(w)) out.forgiven.push({ week: w, missed: dueIn(w).some((x) => !mine(x.g.id, w).some((c) => !c.backfilled)) });
     else break;
   }
   return out;
@@ -165,6 +199,8 @@ export interface ReceiptFacts {
   words: Pick<DueWords, 'by' | 'after'>;
   run: number;
   forgiven: number | null;
+  /** The forgiven week had no check-in of theirs in it at all (missed), rather than one after the due day (late). */
+  forgivenMissed?: boolean;
   nextDue: string | null;
 }
 
@@ -176,13 +212,12 @@ export interface ReceiptFacts {
  * `nextDue` is the next due day as an ISO date: the caller says it in words before `receiptText`.
  */
 export function receiptFacts(p: WeekProgress, personId: string, s: { goals: readonly Goal[]; checkIns: readonly CheckIn[] }, cycle: Cycle, week: number, words: Pick<DueWords, 'by' | 'after'>): ReceiptFacts {
-  const due = reviewDate(cycle, week);
   const after = p.goals.filter((g) => {
     const first = s.checkIns.filter((c) => c.goalId === g.id && c.week === week && !c.removedAt).map((c) => c.postedAt).sort()[0];
-    return first != null && first.slice(0, 10) > due;
+    return first != null && !inByDueDay({ postedAt: first }, cycle, week);
   }).length;
   const run = onTimeRun(personId, s.goals, s.checkIns, cycle, week);
-  return { total: p.goals.length, after, week, words: { by: words.by, after: words.after }, run: run.weeks, forgiven: run.forgiven[0] ?? null, nextDue: week < cycle.weeks ? reviewDate(cycle, week + 1) : null };
+  return { total: p.goals.length, after, week, words: { by: words.by, after: words.after }, run: run.weeks, forgiven: run.forgiven[0]?.week ?? null, forgivenMissed: run.forgiven[0]?.missed ?? false, nextDue: week < cycle.weeks ? reviewDate(cycle, week + 1) : null };
 }
 
 /**
@@ -201,7 +236,7 @@ export function receiptText(r: ReceiptFacts): { first: string; second: string | 
   const first = `${yours} in ${r.words.by}.`;
   const run = r.run >= 2 ? `That is ${r.run} weeks in a row.` : null;
   // Said once: on the first receipt after the forgiven week.
-  const kept = r.forgiven != null && r.forgiven === r.week - 1 && r.run >= 2 ? `Week ${r.forgiven} came in late; one late week doesn’t break a run.` : null;
+  const kept = r.forgiven != null && r.forgiven === r.week - 1 && r.run >= 2 ? (r.forgivenMissed ? `Week ${r.forgiven} was missed; one missed week doesn’t break a run.` : `Week ${r.forgiven} came in late; one late week doesn’t break a run.`) : null;
   return { first, second: [run, kept].filter(Boolean).join(' ') || null };
 }
 
