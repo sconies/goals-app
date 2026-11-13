@@ -3,7 +3,7 @@
    yours. */
 import type { Feedback } from '../../domain/types';
 import type { Markup, MarkupStatus } from '../../markup/model';
-import type { Clock, FeedbackStore, Files, Identity, MarkupStore, NumberSource, Picker, SourcedMetric } from '../index';
+import type { Clock, FeedbackStore, Files, Identity, MarkupStore, Picker } from '../index';
 
 const at = (minute: number) => new Date(Date.UTC(2026, 10, 2, 9, minute)).toISOString();
 
@@ -140,28 +140,6 @@ export function filesContract(name: string, make: () => Promise<Files>) {
       await expect(files.put('markups/mk_1/screen.png', new Blob([new Uint8Array([0])]), 'image/png')).rejects.toThrow();
       expect([...(await files.bytes('markups/mk_1/screen.png'))!]).toEqual([...data]);
       expect(await files.bytes('markups/mk_1/none.png')).toBeNull();
-    });
-  });
-}
-
-/** `metric` is one the source reads; `before` a moment before its first reading. */
-export function numberSourceContract(name: string, make: () => Promise<{ source: NumberSource; metric: SourcedMetric; before: Date; after: Date }>) {
-  describe(`the number source contract: ${name}`, () => {
-    it('reads its own metrics: a number measured at or before the moment asked, and none before its first', async () => {
-      const { source, metric, before, after } = await make();
-      expect(source.reads(metric)).toBe(true);
-      const r = await source.read(metric, after);
-      expect(r).not.toBeNull();
-      expect(Number.isFinite(r!.value)).toBe(true);
-      expect(Date.parse(r!.at)).toBeLessThanOrEqual(after.getTime());
-      expect(await source.read(metric, before)).toBeNull();
-    });
-
-    it('doesn’t read a metric from somewhere else', async () => {
-      const { source, metric, after } = await make();
-      const other = { ...metric, id: 'm_elsewhere', source: 'Somewhere else' };
-      expect(source.reads(other)).toBe(false);
-      expect(await source.read(other, after)).toBeNull();
     });
   });
 }

@@ -19,12 +19,12 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | [postCheckIn](#postcheckin) | Post or correct a check-in (at the check-in screens, the one-table check-in or through the AI) | The goal’s owner only (Lane, 12 Nov), with exactly two exceptions, both for an admin: bringing check-ins in from a workbook (an import, or setting up from an export: past weeks, or a correction of one already there; never this week’s new check-in, so one pasted row is not a workbook), and correcting one that exists in Data’s tables (never adding one). Each records the admin as author, with the route as its Via | [`post_check_in`](tools.md#post_check_in), [`bulk_change`](tools.md#bulk_change) |
 | [saveGoal](#savegoal) | Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI); Add a goal, at any level, owned by anyone | The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it; Anyone, for anyone (Lane, 11 Nov) | [`create_goal`](tools.md#create_goal), [`update_goal`](tools.md#update_goal), [`set_plan_numbers`](tools.md#set_plan_numbers), [`bulk_change`](tools.md#bulk_change) |
 | [activate](#activate) | Make a proposed goal active (GE10) | The goal’s owner, or an admin (not whoever proposed it, unless they are one) | [`make_goal_active`](tools.md#make_goal_active) |
-| [backToProposed](#backtoproposed) | Make an active goal with no check-ins proposed again (GE10) | The goal’s owner, or an admin | none |
+| [backToProposed](#backtoproposed) | Make an active goal with no check-ins proposed again (GE10) | The goal’s owner, or an admin | [`make_goal_proposed`](tools.md#make_goal_proposed) |
 | [stopGoal](#stopgoal) | Stop a goal that has check-ins (with a reason); delete one that has none (withdraw it, while it is proposed) | The goal’s owner, or an admin; a proposal also whoever proposed it | [`stop_goal`](tools.md#stop_goal) |
 | [deleteGoal](#deletegoal) | Stop a goal that has check-ins (with a reason); delete one that has none (withdraw it, while it is proposed) | The goal’s owner, or an admin; a proposal also whoever proposed it | [`delete_goal`](tools.md#delete_goal) |
 | [deleteCheckIn](#deletecheckin) | Delete a goal’s latest check-in (after a newer one it can only be corrected) | The goal’s owner only, whoever posted it (check-ins are the owner’s, Lane, 12 Nov) | [`delete_check_in`](tools.md#delete_check_in) |
 | [saveRetro](#saveretro) | Wrap up a goal at the end of the cycle | The goal’s owner, or an admin | [`wrap_up_goal`](tools.md#wrap_up_goal) |
-| [recordStagesDone](#recordstagesdone) | Say which stages were already done when a goal was set up (before its first check-in) | The goal’s owner only: someone setting it up for them publishes it without, and the owner marks them at the first check-in (an admin loading a workbook is the exception) | none |
+| [recordStagesDone](#recordstagesdone) | Say which stages were already done when a goal was set up (before its first check-in) | The goal’s owner only: someone setting it up for them publishes it without, and the owner marks them at the first check-in (an admin loading a workbook is the exception) | none, on purpose ([why](#recordstagesdone)) |
 | [undoImport](#undoimport) | Undo an import or bulk edit | Whoever made it, or an admin; a check-in it wrote goes back only for someone who may check in on that goal by the same door (an owner’s own correction, only the owner) | [`undo_import`](tools.md#undo_import) |
 | [addNote](#addnote) | Comment on a goal; agree an action on it | Anyone in the workspace | [`add_comment`](tools.md#add_comment) |
 | [addAction](#addaction) | Comment on a goal; agree an action on it | Anyone in the workspace | [`add_action`](tools.md#add_action) |
@@ -55,18 +55,17 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | [savePerson](#saveperson) | Add someone; change their name, job title, team or admin rights | Admins | [`save_person`](tools.md#save_person) |
 | [markPersonLeft](#markpersonleft) | Mark someone as left (handing over their goals and asks); delete someone with no history | Admins; not themselves, and never the only admin | [`mark_person_left`](tools.md#mark_person_left) |
 | [deletePerson](#deleteperson) | Mark someone as left (handing over their goals and asks); delete someone with no history | Admins; not themselves, and never the only admin | [`delete_person`](tools.md#delete_person) |
-| [leaveWorkspace](#leaveworkspace) | Leave the workspace yourself (handing over your goals and asks) | Anyone; never the only admin | none |
+| [leaveWorkspace](#leaveworkspace) | Leave the workspace yourself (handing over your goals and asks) | Anyone; never the only admin | none, on purpose ([why](#leaveworkspace)) |
 | [saveTeam](#saveteam) | Add, rename, lead or remove a team | Admins | [`save_team`](tools.md#save_team) |
 | [removeTeam](#removeteam) | Add, rename, lead or remove a team | Admins | [`remove_team`](tools.md#remove_team) |
 | [startNextCycle](#startnextcycle) | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`start_next_cycle`](tools.md#start_next_cycle) |
 | [deleteCycle](#deletecycle) | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`delete_cycle`](tools.md#delete_cycle) |
 | [undoStart](#undostart) | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`undo_start_cycle`](tools.md#undo_start_cycle) |
-| [arrive](#arrive) | Arrive: the first time you choose your name in a workspace (its arrival screen), the log says so, once | Anyone, as themselves (in the internal app the first sign-in records it: SR3) | none |
-| [renameWorkspace](#renameworkspace) | Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace | Admins | [`rename_workspace`](tools.md#rename_workspace) |
-| [setRecording](#setrecording) | Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace | Admins | [`set_recording`](tools.md#set_recording) |
-| [setModule](#setmodule) | Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace | Admins | [`set_feature`](tools.md#set_feature) |
-| [setRhythm](#setrhythm) | Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace | Admins | [`set_rhythm`](tools.md#set_rhythm) |
-| [undoRemoval](#undoremoval) | Undo a removal straight after it (the Undo on its message): every record it changed goes back as it was | Whoever removed it, or an admin | none |
+| [arrive](#arrive) | Arrive: the first time you choose your name in a workspace (its arrival screen), the log says so, once | Anyone, as themselves (in the internal app the first sign-in records it: SR3) | none, on purpose ([why](#arrive)) |
+| [renameWorkspace](#renameworkspace) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`rename_workspace`](tools.md#rename_workspace) |
+| [setRecording](#setrecording) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`set_recording`](tools.md#set_recording) |
+| [setModule](#setmodule) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`set_feature`](tools.md#set_feature) |
+| [undoRemoval](#undoremoval) | Undo a removal straight after it (the Undo on its message): every record it changed goes back as it was | Whoever removed it, or an admin | none, on purpose ([why](#undoremoval)) |
 | [restoreRemoved](#restoreremoved) | Restore something removed, stopped or marked as left (within 30 days), and see it on Recently removed | An admin (everything), or whoever removed it (their own) | [`restore_removed`](tools.md#restore_removed), [`list_removed`](tools.md#list_removed) |
 | [createToken](#createtoken) | Make an MCP token for someone | Admins | [`create_token`](tools.md#create_token) |
 | [revokeToken](#revoketoken) | Revoke an MCP token | An admin, or the token’s person | [`revoke_token`](tools.md#revoke_token) |
@@ -250,7 +249,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 - “Only … (its owner) or an admin can make it proposed again.”
 - ““…” is in another year, so it can’t go back to proposed.”
 
-**AI tools that do the same:** none. Making an active goal proposed again is an app step (GE10): an assistant brings a goal in already proposed (create_goal, state proposed) or makes one active (make_goal_active), and a goal with check-ins can’t go back.
+**AI tools that do the same:** [`make_goal_proposed`](tools.md#make_goal_proposed)
 
 ## stopGoal
 
@@ -1328,7 +1327,7 @@ Nothing.
 
 ## renameWorkspace
 
-**Does:** Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace.
+**Does:** Rename the workspace; turn recording on or off; switch features on or off; delete the workspace.
 
 **Input**:
 
@@ -1350,7 +1349,7 @@ Nothing.
 
 ## setRecording
 
-**Does:** Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace.
+**Does:** Rename the workspace; turn recording on or off; switch features on or off; delete the workspace.
 
 **Input**:
 
@@ -1373,7 +1372,7 @@ Nothing.
 
 ## setModule
 
-**Does:** Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace.
+**Does:** Rename the workspace; turn recording on or off; switch features on or off; delete the workspace.
 
 **Input**:
 
@@ -1394,33 +1393,6 @@ Nothing.
 - “There’s no feature called ….”
 
 **AI tools that do the same:** [`set_feature`](tools.md#set_feature)
-
-## setRhythm
-
-**Does:** Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace.
-
-**Input**:
-
-| Field | Type | Needed | What it is |
-|---|---|---|---|
-| `weeks` | `number` | yes |  |
-| `dueDay` | `number` | no |  |
-| `from` | `string \| null` | no |  |
-
-**Result:** `Commit \| null`
-
-**Who may:** Admins.
-
-**The rule:** `setRhythm`, in `src/domain/rhythm.ts`.
-
-**Refuses with:**
-
-- “Only admins can change the check-in rhythm.”
-- “Faro checks in every week, or on no set rhythm.”
-- “Choose a day of the week.”
-- “That year is over; its rhythm can’t change.”
-
-**AI tools that do the same:** [`set_rhythm`](tools.md#set_rhythm)
 
 ## undoRemoval
 

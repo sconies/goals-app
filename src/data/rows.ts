@@ -16,7 +16,7 @@ export interface TeamRow extends W { id: string; name: string; lead_id: string |
 export interface PersonRow extends W, Removal { id: string; name: string; role: string; initials: string; team_id: string | null; is_admin: boolean; left_at?: string | null; left_by?: string | null; email?: string | null }
 export interface CycleRow extends W, Removal {
   id: string; name: string; start_date: string; weeks: number; review_day: number;
-  /** FT1 (migration 0046): written only when the cycle carries its rhythm, with rhythm_from beside it (null clears it). */
+  /** FT1 (migration 0048): written only when the cycle carries its rhythm, with rhythm_from beside it (null clears it). */
   check_in_weeks?: number | null; rhythm_from?: string | null;
 }
 export interface StageRow extends W { id: string; goal_id: string; name: string; due_week: number }

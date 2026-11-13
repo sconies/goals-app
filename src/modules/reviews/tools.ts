@@ -6,6 +6,7 @@ import * as A from '../../domain/actions';
 import * as R from '../../domain/removal';
 import { agendaOf, answerOf, lastHeld, openActions, reviewSession, sessionState, sessionStateText, sessionWeek } from '../../domain/review';
 import { ASK_STATUS, ATTENTION, ENDED, LABEL } from '../../domain/vocabulary';
+import { beforeReview, weekWords } from '../../domain/habit';
 import type { Review } from '../../domain/types';
 import type { ToolDef } from '../../mcp/tools';
 import { listed } from '../../mcp/listed';
@@ -44,8 +45,11 @@ const tools: ToolDef[] = [
       const ag = agendaOf(x);
       const item = (g: (typeof ag.discuss)[number]) => ({ id: g.goal.id, title: g.goal.title, owner: name(ctx, g.goal.ownerId), status: g.status.status, statusLabel: LABEL[g.status.status], why: g.flags.map((f) => f.detail), beingHandled: g.handled?.text ?? null });
       const saidHere = x.said.map((d) => ({ id: d.id, goalId: d.goalId, kind: d.kind, note: d.note, by: name(ctx, d.byId), ...(d.kind === 'action' ? { who: name(ctx, d.assigneeId ?? null), dueWeek: d.dueWeek ?? null } : {}), ...(d.ask ? { status: d.ask.status, statusLabel: ASK_STATUS[d.ask.status].label, answer: answerOf(d)?.text ?? null } : {}) }));
-      const data = { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total, toDiscuss: ag.discuss.map(item), healthy: ag.healthy.map(item), said: saidHere };
-      return { data, text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${said(g.status)}.${g.beingHandled ? ` ${ATTENTION.handled.label}: ${g.beingHandled}.` : ''} ${g.why.join(' ')}`), '- nothing')}\nNothing flagged: ${data.healthy.map((g) => g.title).join(', ') || 'none'}.` };
+      // Before this review (habit spec 2.3): weeks, not people; absent for a set with fewer than three owners (rule 4).
+      const b = beforeReview(x.items.map((i) => i.goal), Math.min(x.week, ctx.week), { checkIns: ctx.snapshot.checkIns, asks: ctx.snapshot.requests ?? [] }, ctx.cycle, ctx.today, ctx.actor.id);
+      const before = b ? { says: b.says, due: b.counts.due, inTime: b.counts.inTime, withoutAsking: b.counts.unasked, afterAnAsk: b.counts.asked, after: b.counts.after, noCheckIn: b.counts.none, lastWeeks: b.weeks.map((w) => ({ week: w.week, mark: w.mark, says: weekWords(w) })) } : null;
+      const data = { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total, beforeThisReview: before, toDiscuss: ag.discuss.map(item), healthy: ag.healthy.map(item), said: saidHere };
+      return { data, text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.${before ? ` Before this review: ${before.says} Last ${before.lastWeeks.length} weeks: ${before.lastWeeks.map((w) => `week ${w.week} ${w.says.toLowerCase()}`).join(', ')}.` : ''}\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${said(g.status)}.${g.beingHandled ? ` ${ATTENTION.handled.label}: ${g.beingHandled}.` : ''} ${g.why.join(' ')}`), '- nothing')}\nNothing flagged: ${data.healthy.map((g) => g.title).join(', ') || 'none'}.` };
     },
   },
   {

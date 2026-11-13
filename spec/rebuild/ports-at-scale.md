@@ -70,7 +70,7 @@ On the server, for each command:
 2. **What it reads:** only the records the action needs (the goal, its check-ins, its asks, the people named), not the workspace.
 3. **The context:** `now` from the server’s `Clock`, as a real instant ([R3](../requirements/internal/r3-time-zones.md)); ids made by the server.
 4. **The rule:** the same function from `src/domain`, unchanged. A refusal goes back with its words, the same words the app shows.
-5. **The save:** the `Commit` it returns, rows and change-log entries together in one transaction, refused as stale when a record has moved on from the version the person saw.
+5. **The save:** the `Commit` it returns, rows and change-log entries together in one transaction, refused as stale when a record has moved on from the version the person saw. A stale refusal isn’t the end: load what the command reads again, run the same rule with the same input on it, and save that, at most twice more (Faro’s dispatcher and AI tools do, AX6). Only a rule that now says no is shown, in its own words. A command whose input is a whole record as the person last saw it (a goal’s form, a review’s settings, a table of values) isn’t run again, since that would put back what the other person changed: the person is shown the latest and asked to try again.
 6. **The summaries** of every goal the save touched are worked out again in the same transaction (R4, rule 2).
 7. **The answer:** what the action gives back (a new id, a token’s secret once, a change set’s preview) and the refreshed summaries, so the screen updates without loading anything else.
 

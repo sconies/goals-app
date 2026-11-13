@@ -100,13 +100,13 @@ describe('database schema', () => {
     await db.exec(readFileSync(join(dir, '0043_metric_parts_and_retirement.sql'), 'utf8'));
     expect((await db.query<{ n: number }>(`select count(*)::int as n from pg_constraint where conname in ('okr_goal_metrics_part_len', 'okr_metrics_retired_why_len', 'okr_metrics_marks_array')`)).rows[0]!.n).toBe(3);
   });
-  it('keeps a year’s check-in rhythm: every week by default, 0 or 1 (2 and 4 for later), and runs twice (0046)', async () => {
+  it('keeps a year’s check-in rhythm: every week by default, 0 or 1 (2 and 4 for later), and runs twice (0048)', async () => {
     const c = await db.query<{ check_in_weeks: number; rhythm_from: string | null }>(`select check_in_weeks, rhythm_from from faro.okr_cycles limit 1`);
     expect(c.rows[0]).toMatchObject({ check_in_weeks: 1, rhythm_from: null });
     await db.query(`update faro.okr_cycles set check_in_weeks = 0, rhythm_from = '2026-10-05' where id = (select id from faro.okr_cycles limit 1)`);
     await expect(db.query(`update faro.okr_cycles set check_in_weeks = 3`)).rejects.toThrow(/okr_cycles_check_in_weeks_ok/);
     await db.query(`update faro.okr_cycles set check_in_weeks = 1, rhythm_from = null`);
-    await db.exec(readFileSync(join(dir, '0046_check_in_rhythm.sql'), 'utf8'));
+    await db.exec(readFileSync(join(dir, '0048_check_in_rhythm.sql'), 'utf8'));
     expect((await db.query<{ n: number }>(`select count(*)::int as n from pg_constraint where conname = 'okr_cycles_check_in_weeks_ok'`)).rows[0]!.n).toBe(1);
     const rows = [{ id: 'cycle-rhythm', workspace_id: 'example', name: 'Rhythm', start_date: '2026-09-07', weeks: 13, check_in_weeks: 0, rhythm_from: '2026-10-05' }];
     await db.query(`select okr_upsert('okr_cycles', $1::jsonb, 'id')`, [JSON.stringify(rows)]);

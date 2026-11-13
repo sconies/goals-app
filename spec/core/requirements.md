@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (158): build it as Faro does.
+- **Copy** (159): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -122,7 +122,7 @@ Every save (goal, plan, check-in, comment, decision, workspace) is logged with w
 
 - **Copy:** build it as Faro does.
 - **Help:** “The activity log” (`activity`), screens `Activity`
-- **Journeys and checks:** U1, U3, U4, U5, U6, U7, U10, U11, U13, U14, U35, U37, U60, U101, U142
+- **Journeys and checks:** U1, U3, U4, U5, U6, U7, U10, U11, U13, U14, U35, U37, U60, U142
 
 ## Status rules
 
@@ -227,7 +227,7 @@ A check-in says which week it is for and where it is in the week's queue, even a
 Once a person's check-ins for the week are all in, the receipt says whether they were in before the deadline ("All 4 of your check-ins are in for week 46, before Thursday’s deadline."; the due day is called a review only for someone in a review held that day) and the run of weeks in a row on time, from two; or how many came in after it and when the next are due, with no run. One late week is forgiven when the four weeks before it were on time, and said once ("Week 45 came in late; one late week doesn’t break a run."). Never "lost", "broken", a nought or an exclamation mark. Home's quiet line says the same two sentences on the day the week is completed.
 
 - **Copy:** build it as Faro does.
-- **Rule:** [The habit: the run, the receipt and a moment](rules/habit.md)
+- **Rule:** [The habit: the run, the receipt, a moment and the measure](rules/habit.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U151
 
@@ -236,7 +236,7 @@ Once a person's check-ins for the week are all in, the receipt says whether they
 A check-in that reaches a goal's target, or brings it back on track after two weeks or more behind, shows one quiet panel on its receipt (the status's shape and word, what happened in one line, "Copy the share image" for a target reached) and its row in the goal's History says "Reached its target" or "Back on track" in small capitals. Never on a correction, a backfilled week or an import; no animation, confetti or banner on anyone else's screen.
 
 - **Copy:** build it as Faro does.
-- **Rule:** [The habit: the run, the receipt and a moment](rules/habit.md)
+- **Rule:** [The habit: the run, the receipt, a moment and the measure](rules/habit.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U151
 
@@ -285,7 +285,7 @@ The owner can post an update at any time from the goal page. It is the same chec
 
 - **Copy:** build it as Faro does.
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
-- **Journeys and checks:** U1, U102
+- **Journeys and checks:** U1
 
 ### OWNER-ONLY
 
@@ -294,6 +294,33 @@ Only the goal's owner checks in on the check-in screen: the owner's call is the 
 - **Copy:** build it as Faro does.
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U9, U141
+
+## Reviews
+
+### HABIT-MEASURE
+
+A review's page says how many of its goals were checked in before it, and how many without being asked (Faro's only nudge is an ask for an update), with links that open exactly the goals that came in after an ask and those with no check-in yet, and a row of the last 8 weeks (All in, {k} after, None in, Nothing due) drawn as squares with words. A team's page shows the same for its goals.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [The habit: the run, the receipt, a moment and the measure](rules/habit.md)
+- **Help:** “Teams” (`teams`)
+- **Journeys and checks:** U153
+
+### HABIT-NEVER-A-PERSON
+
+The measure is about weeks and goals, never people: no person is named, listed, counted or sorted in it, no team is ranked by it, and a set whose goals have fewer than three owners shows none of it, unless the viewer owns them all.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [The habit: the run, the receipt, a moment and the measure](rules/habit.md)
+- **Help:** “Teams” (`teams`)
+- **Journeys and checks:** U153
+
+### INSPECT-ACT
+
+On each goal in a review, a participant can mark it seen, add a note, ask the owner a question or add an action; saying anything covers the goal and moves on.
+
+- **Copy:** build it as Faro does.
+- **Journeys and checks:** U3
 
 ## Goals
 
@@ -610,7 +637,7 @@ The fit-and-finish review's rules hold: text follows the browser's text size; co
 
 - **Copy:** build it as Faro does.
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
-- **Journeys and checks:** F10, F15, F17, F20, P10
+- **Journeys and checks:** F10, F15, F17, P10
 
 ### FIT-AND-FINISH-AREAS
 
@@ -662,7 +689,7 @@ Whoever sets up a workspace is its admin. Admins add people and change their det
 
 - **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Workspace: Access” (`workspace-access`)
-- **Journeys and checks:** N22, U5, U10, U14, U60, U141
+- **Journeys and checks:** U5, U10, U14, U60, U141
 
 ### PEOPLE-DIRECTORY
 
@@ -751,7 +778,7 @@ Pressing Post again, pressing Enter then clicking, or a double tap never posts a
 
 ### NO-LOST-UPDATES
 
-A save says what it was based on. If someone else has changed the same goal, review or week since, the save is refused whole, the person is told plainly and shown the latest; nothing is half-saved and the change log never records a save that didn’t land. Open screens pick up other people’s changes when the tab comes back into view.
+A save says what it was based on. If someone else has changed the same goal, review or week since, the save is refused whole and runs again on the latest with the same input, so the person’s change lands beside the other one unless the rule now says no, which is said in its own words; a form that holds a whole record as last seen (a goal’s or a review’s) isn’t run again, and a save refused three times stops: the person is told plainly and shown the latest; nothing is half-saved and the change log never records a save that didn’t land. Open screens pick up other people’s changes when the tab comes back into view.
 
 - **Copy:** build it as Faro does.
 - **Help:** “The activity log” (`activity`), screens `Activity`; “On a phone, a tablet or a big screen” (`any-device`)
@@ -803,15 +830,6 @@ Whatever is exported loads straight back as no change: every demo workspace as a
 - **Help:** “Data” (`data`), screens `DataTables`, `DataFilters`, `DataLayout`
 - **Tests:** `evals/format.eval.ts` (5)
 - **Journeys and checks:** U46, U89
-
-## Reviews
-
-### INSPECT-ACT
-
-On each goal in a review, a participant can mark it seen, add a note, ask the owner a question or add an action; saying anything covers the goal and moves on.
-
-- **Copy:** build it as Faro does.
-- **Journeys and checks:** U3
 
 ## Demo
 
@@ -1110,7 +1128,7 @@ Home opens on what is asked of you today, with one primary action, or says that 
 - **Rule:** [Home: what is asked of you today](rules/home.md)
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Tests:** `evals/attention.eval.ts` (5)
-- **Journeys and checks:** N3, N10, N26, U101, U103, U122
+- **Journeys and checks:** N3, N10, N26, U103, U122
 
 ## Interface
 
@@ -1497,14 +1515,6 @@ Faro is a small core with named extension points (routes, navigation, Home block
 - **Help:** “Features: switching parts of Faro on or off” (`features`)
 - **Tests:** `evals/modules.eval.ts` (4)
 - **Journeys and checks:** N21, U48, U103, U104
-
-### RHYTHM-OPTIONAL
-
-An admin chooses the check-in rhythm for a workspace: every week, or none. With none, nothing is due or late for want of a check-in, no goal reads No recent update, and a status that isn’t this week’s says which week it is from. Dates people set still count. The change says what it will do first, is logged, and can be undone.
-
-- **Copy:** build it as Faro does.
-- **Help:** “Features: switching parts of Faro on or off” (`features`)
-- **Journeys and checks:** F20, N22, U101, U102
 
 ## Numbers
 
