@@ -6,6 +6,7 @@ import type { Snapshot } from '../domain/types';
 import { emptyDraft } from '../domain/checkin';
 import { draftOf } from '../domain/goal';
 import { checkInsFor } from '../domain/status';
+import { deleteComment } from '../domain/removal';
 
 /** A sample: who acts, and the input, made from the context. */
 export interface Sample { as: string | ((s: Snapshot) => string); input: (x: RunContext) => unknown }
@@ -49,6 +50,8 @@ export const SAMPLES: Record<string, Sample> = {
   acceptRisk: { as: ADMIN, input: (x) => ({ goalId: other(x).id, reviewId: review(x).id, reason: 'Worth the risk this quarter', week: x.week }) },
   markReviewed: { as: ADMIN, input: (x) => ({ goalIds: [other(x).id], reviewId: review(x).id, week: x.week }) },
   editCall: { as: ADMIN, input: (x) => ({ callId: (x.snapshot.decisions.find((d) => d.byId === ADMIN && d.kind === 'note') ?? x.snapshot.decisions[0]!).id, note: 'Edited' }) },
+  // A comment the admin wrote, removed, then its Undo: the removal as saved and the workspace before it.
+  undoRemoval: { as: ADMIN, input: (x) => ({ removal: deleteComment(x, notes(x)[0]?.entityId ?? 'note_none'), before: x.full ?? x.snapshot }) },
   unmarkReviewed: { as: ADMIN, input: (x) => ({ decisionIds: [(x.snapshot.decisions.find((d) => d.byId === ADMIN && d.kind === 'acknowledge') ?? x.snapshot.decisions[0]!).id] }) },
   deleteNote: { as: ADMIN, input: (x) => ({ noteId: (x.snapshot.decisions.find((d) => d.byId === ADMIN && d.kind === 'note') ?? x.snapshot.decisions[0]!).id }) },
   endReview: { as: ADMIN, input: (x) => ({ reviewId: review(x).id }) },

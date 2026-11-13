@@ -37,6 +37,16 @@ describe('next steps and asks (rule 2)', () => {
     expect(x.gap).toBe(false);
   });
 
+  it('with Reviews switched off (FT2): a question names no review; a next step still says in words where it was agreed', () => {
+    const g = goal(lead);
+    const asks: Ask[] = [...asksOf(s), { ...asksOf(s).find((a) => a.kind === 'action' && a.reviewId && a.goalIds.includes(lead))!, id: 'q-in-review', kind: 'question', ask: 'Is the budget agreed?', recipientId: g.ownerId, status: 'open', dueWeek: null }];
+    const at = (reviewsOn: boolean) => stepsAndAsks({ goal: g, viewer: person('amara'), week, cycle, status: statusOf(g), asks, people: s.people, reviews: s.reviews, reviewsOn });
+    const q = (reviewsOn: boolean) => [...at(reviewsOn).forYou, ...at(reviewsOn).open].find((r) => r.id === 'q-in-review')!.line;
+    expect(q(true)).toMatch(/ in Quarterly business review · /);
+    expect(q(false)).toBe('Asked of Rhea by Amara · 6 weeks ago');
+    expect(at(false).forYou.find((r) => r.kind === 'action')!.line).toBe('Amara · by week 47 (Thu 19 Nov) · agreed in Platform leadership weekly');
+  });
+
   it('as Rhea: nothing for her; she may withdraw her decision; Amara’s step has no button for her', () => {
     const x = steps(lead, 'rhea');
     expect(x.forYou).toEqual([]);

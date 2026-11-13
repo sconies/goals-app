@@ -139,7 +139,7 @@ export const FLAG: Record<FlagKind, Term<FlagKind>> = {
   due: term('due', {
     label: 'Check-in due', short: 'none yet this week',
     meaning: 'No check-in yet this week. It doesn’t, on its own, make a goal need attention.',
-    long: 'The goal has no check-in for this week yet, before the review. It is listed for the owner, but on its own it doesn’t make the goal need attention.',
+    long: 'The goal has no check-in for this week yet, and one is due by the workspace’s check-in day. It is listed for the owner, but on its own it doesn’t make the goal need attention.',
     rule: 'attention#attentionFor',
     where: ['screens', 'help', 'ai'],
   }),

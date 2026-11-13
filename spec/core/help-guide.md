@@ -30,6 +30,11 @@ Home is where you start each day. It answers one question first: what is asked o
 - Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it.
 - After a release you haven’t seen, a quiet line at the foot of Home says what’s new in Faro. Open it, or dismiss it with the cross.
 
+#### In a workspace that doesn’t hold reviews
+
+- When an admin has switched Reviews off, Home leads with your check-ins, the wrap-up and what is asked of you, as above. Someone who owns no goals and watches some is led to the goals they watch that need attention, with See them; watching nothing, Home starts with what needs your response.
+- A question waits by its own age (“Waiting since 4 Aug, 14 weeks”), and a next step says when you agreed it and the week it’s due.
+
 #### Why an ask says how long it has waited
 
 - An ask with a week it is due by is due that week’s Sunday. A question raised in a review is due before the review’s next session after the one it was raised in, and stays due then: it doesn’t move on to a later session when that one passes.
@@ -120,7 +125,9 @@ Start your own workspace from a template, your own spreadsheet, or nothing at al
 - Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.
 - Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.
 - A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.
-- Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and Check shows the same preview Import does before anything is created: how many goals and people the file adds (a goal still to fix counted too), what must be fixed, and its questions, each with its answers. A goal owned by someone nobody typed offers “Add {name}” (they join your people, with the row’s team) or “Give it to someone here”. Create workspace waits until every question is answered.
+- Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and Check shows the same preview Import does before anything is created: how many goals and people the file adds (a goal still to fix counted too), what must be fixed, and its questions, each with its answers. A goal owned by someone nobody typed offers “Add {name}” (they join your people, with the row’s team) or “Give it to someone here”; the person you give it to stands for the row’s other owner cells that name no one here, but never for one that names someone else here, which is still Must fix. A goal’s team one letter from a team already named (“Depot” beside “Depots”) is asked about, as a person’s is. A check-in’s “Choose a goal” finds the spreadsheet’s goals. After each answer the next question takes the focus. Create workspace waits until every question is answered.
+- On the People sheet, a row whose Action says Example (the template’s) is skipped, and someone marked Left isn’t added: a goal they own then asks who has it. The upload says how many were skipped, and the preview how many Example goal rows. A file with no goals sheet, uploaded after one with goals, keeps those goals; a new goals file drops anyone its predecessor’s answers added.
+- If the preview can’t load (a lost connection), Check says so and offers Try again; nothing you typed or answered is lost.
 - Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.
 - A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, is asked about on Check, already answered “Count them from this week” as a template’s are, so it isn’t late on day one. Change, then Keep the weeks as typed, puts them back.
 - Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.
@@ -203,7 +210,7 @@ The example is one division of about 100 people in 14 teams, with 12 north stars
 
 `getting-around`. Every page names itself and lights its place in the menu; one back link above the title agrees with your browser’s Back; and a form has one way out.
 
-Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`.
+Screens: `NotFound`. Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`.
 
 #### Where you are
 
@@ -225,6 +232,7 @@ Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`.
 #### An address that leads nowhere
 
 - An old or mistyped link says “Page not found”, with Go to Home and Help. A goal, review or person that isn’t there says so in its own words.
+- A link to a part of Faro an admin has switched off in this workspace, such as Reviews, says so under it: “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.” For an admin, Workspace, Features is a link.
 
 ## Your week
 
@@ -386,6 +394,7 @@ Scanning the whole set of goals, or a slice of it, in whatever shape suits the q
 - In the sidebar, Goals has your saved views under it.
 - The status key sits under the goals. New goal is a quiet link at the top right; the sidebar’s New goal opens it from anywhere.
 - Proposed goals are never among these and never counted with them: the count line adds “· 1 proposed”, a link that lists them. The Filters sheet has State: Active (the default) or Proposed.
+- Goals is the same whether or not a workspace holds reviews: every list, filter and view works without them, and a link that opened Goals for a review’s goals opens Goals without the review.
 
 #### Who can
 
@@ -439,7 +448,7 @@ These have an action with an owner and a date, or an answer to their request, ag
 - Missed its own date: The path to green named a week to be back on plan by, that week has passed, and the goal is still off track or at risk.
 - Getting worse: A number further behind its plan (in the goal’s own units) at each of the last two of 3 check-ins, and visibly so: behind now as shown, and further behind than at the first of them; a number moving towards its limit two check-ins running; a stage expected later than it was at the check-in before; or on track today with the whole projected range falling short of the target. The goal’s trend, its chart and its scorecard use the same rule.
 - Greener than calculated: The owner called it greener than the app calculates from the numbers. A greener call needs a reason, which is shown beside it.
-- Check-in due: The goal has no check-in for this week yet, before the review. It is listed for the owner, but on its own it doesn’t make the goal need attention.
+- Check-in due: The goal has no check-in for this week yet, and one is due by the workspace’s check-in day. It is listed for the owner, but on its own it doesn’t make the goal need attention.
 
 #### How to use it
 
@@ -534,6 +543,11 @@ A proposed goal’s page is simpler: Proposed above the title, what it would mea
 - History’s filters, each with its count: All, Check-ins, Comments, Reviews (what was said in a review, and asks raised in one, even after the review is renamed) and Changes (edits to the goal, its plan, owner and the rest). The filter is in the address (?history=changes), so a link or a reload shows the same list; Show all is ?all=1. With more than 30 entries, find in the goal’s history, or go to a week. An old link to #activity opens History.
 - About this goal: what it measures (or Describe it, for the owner, when it isn’t described yet), its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change, and one link: Change this goal. It’s open the first time you visit, and folded after.
 - On a computer from about 1,100 px wide, Next steps and asks and Last time we talked sit in a side column; on a phone everything is in one column, in this order.
+
+#### In a workspace that doesn’t hold reviews
+
+- When an admin has switched Reviews off, the page has Next steps and asks, Why, the chart, What feeds it, History and About, and nothing else in their place. Questions say who asked and when; a next step agreed in a review still says, in words, where it was agreed.
+- History keeps everything said in reviews, and its Reviews filter is there while it has entries. An address that opened a goal in a review’s walk opens the goal’s own page.
 
 #### Changing it
 
@@ -664,9 +678,10 @@ Putting a goal in front of its would-be owner, or a leader, without committing t
 - Propose one from New goal: on Check, answer “Is it under way?” with “Not yet: propose it”, then Propose goal. It gets a key and a page at once. How it’s measured may wait.
 - Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.
 - Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.
-- Change it: the same page as any goal, with no reason ever asked. Withdraw it: it goes to Recently removed for 30 days, with Undo.
+- Change it: the same page as any goal, with no reason ever asked, and its type can still change. Withdraw it: it goes to Recently removed for 30 days, with Undo.
 - Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.
-- On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).
+- In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet.
+- On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).
 - Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. With the filter on, the Board is one column, Proposed, and the Map draws each in its tree with a dashed outline and the word, the goals above it shown for context; opening one goes to its page. Find lists them with the word Proposed.
 - A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active. A goal with check-ins can’t go back to proposed: stop it instead.
 
@@ -694,7 +709,7 @@ Routes: `/goals/:goalId/edit`. Screens: `GoalEdit`. Requirements: `PLAN-CHANGE`,
 - A target on the other side of the start flips which way is better, so it is never saved quietly: the form says so (“This makes higher better”) and saves once you tick the yes beneath it. A start, target or week’s number far outside the plan it replaces is asked about the same way. The import, Data and the AI assistant ask the same questions.
 - The original plan stays on the chart, dotted, and earlier weeks and closed quarters stay judged against the plan of their day. There is no approval step.
 - A range can change between At most, At least and Between under Plan and target, as its limit can; Between asks for the lower limit too.
-- A goal’s type can’t change once check-ins have started.
+- A goal’s type can’t change once it is active. While it is proposed, Type, under Plan and target, changes it: “It’s proposed, so its type can still change.”
 
 #### One way out
 
@@ -709,9 +724,9 @@ The goal’s owner, or an admin.
 
 ### Reviews
 
-`reviews`. A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said.
+`reviews`, from the reviews module. A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said.
 
-Routes: `/reviews`, `/reviews/new`, `/reviews/:reviewId`, `/reviews/:reviewId/edit`, `/reviews/:reviewId/summary`, `/review`, `/goals/:goalId?review=*`. Screens: `Review`, `Inspect`. Requirements: `REVIEW`, `REVIEW-SETUP`, `REVIEW-RUN`, `REVIEW-DECIDE`, `INSPECT-ACT`, `REVIEW-LIST-STATE`, `REVIEW-AGENDA`, `EXCEPTIONS-FIRST`, `REVIEW-SPEAK`.
+Routes: `/reviews`, `/reviews/new`, `/reviews/:reviewId`, `/reviews/:reviewId/edit`, `/reviews/:reviewId/summary`, `/reviews/:reviewId/print`, `/review`, `/goals/:goalId?review=*`. Screens: `Review`, `Inspect`. Requirements: `REVIEW`, `REVIEW-SETUP`, `REVIEW-RUN`, `REVIEW-DECIDE`, `INSPECT-ACT`, `REVIEW-LIST-STATE`, `REVIEW-AGENDA`, `EXCEPTIONS-FIRST`, `REVIEW-SPEAK`.
 
 #### What it’s for
 
@@ -729,7 +744,8 @@ A regular look at the goals that need it, with notes, questions and actions that
 - Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead. Marking them asks first, and the message after it has Undo. While goals to discuss are left, the review carries on; when they’re all that’s left, Finish review marks them and records the session as held.
 - The walk opens each goal’s page in turn, under a bar with the review’s name (in full, on two lines if it needs them) and how far through you are. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.
 - A goal off track or at risk asks first: “What happens next, who, by when?” Add the next step (what, who and the week it’s due by; type to find the person: you and your team are suggested first), or choose We accept the risk and say why. Only then can it be marked reviewed. Skip for now leaves it for later in the session.
-- A session opens with Last time: what the previous session agreed, who agreed to do it, by when, and whether it’s done. Whoever does it, whoever agreed it, or an admin can mark it done there. Each goal in the walk shows its own.
+- A session opens with Last time: what the previous session agreed, who agreed to do it, by when, and whether it’s done. Whoever does it, whoever agreed it, or an admin can mark it done there. Each goal in the walk shows its own. Goals proposed in it are listed after: “Proposed: … Tunde hasn’t made it active yet.”, or the day they did.
+- A new goal the room agrees on: choose Propose a new goal in the walk. Give it a name, who will own it and what it will feed. It is saved as proposed, and its owner sets it up and makes it active.
 - Finish review says what was decided (each person’s next steps, the risks accepted, the questions still open) before it records the session as held, and its message has Undo. The walk’s last goal finishes the same way.
 - Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session.
 
@@ -867,7 +883,8 @@ Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/cha
 - Some answers leave rows out (“Leave these rows out”): those rows aren’t saved, and the rest are.
 - Fix the rows in the file: Download the rows to fix gives just those rows, each with a Problem column saying what is wrong. Choose the corrected file and your answers still apply.
 - Or leave them out and save the rest: the sheet says which rows go, and the rows that go with them (a new goal’s check-ins, goals that feed into it). Put them back changes your mind.
-- An answered question closes to what was asked and your answer, with Change.
+- An answered question closes to what was asked and your answer, with Change. The focus moves to the next open question, or to the answer just given.
+- A person chosen for one owner cell (Choose a person) also stands for the row’s other owner cells that name no one here; a cell that names someone else here, or an Owner ID that can’t be read, is still Must fix.
 - An admin answering a team that isn’t here may add it as a new team. A new goal with no Type is read from the columns it fills in: Start and Target a number goal, Limit a range, Stages a stages goal.
 
 #### Large files
@@ -950,7 +967,7 @@ Whoever made the import, or an admin. Everyone else sees the list without Undo.
 
 `print`. A goal or a review session on one clean page, ready to print or save as a PDF.
 
-Routes: `/goals/:goalId/print`, `/reviews/:reviewId/print`. Screens: `Print`. Requirements: `PRINT-EXPORT`.
+Routes: `/goals/:goalId/print`. Screens: `Print`. Requirements: `PRINT-EXPORT`.
 
 #### How to use it
 
@@ -1291,17 +1308,20 @@ On a phone’s home screen and in the browser tab, the F sits on a deep-teal til
 
 ### Features: switching parts of Faro on or off
 
-`features`. Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus features an admin can switch on or off for a workspace, such as Spreadsheets.
+`features`. Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace: how you work (Reviews) and tools such as the Metric library and Spreadsheets.
 
-Routes: `/workspace/features`. Requirements: `MODULES`.
+Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`.
 
 #### How to use it
 
-- On Workspace, Features lists the optional parts of Faro this workspace can use, each with what it does; About says which are on, from the same list. Goals, check-ins, reviews and people are the core and always on. Each has a switch with On or Off beside it; switch one off for everyone here; tick it to switch it back on.
-- Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.
-- Nothing a feature saved is deleted. Switch it back on and everything is as it was.
+- On Workspace, Features says how this workspace works and lists the optional parts of Faro, each with what it does; About says which are on, from the same list. Goals, check-ins and people are the core and always on.
+- How you work holds Reviews: walking a set of goals together on a cadence. While it is on, it says how many reviews are set up. Tools holds the rest, such as the Metric library and Spreadsheets. Each has a switch with On or Off beside it.
+- Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching a tool off, or anything on, acts at once.
+- Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.
+- With Reviews off, asks and next steps stay on their goals and on Home, each goal’s History and Activity keep what was said in reviews, and check-ins are still due by the same day.
+- Nothing a feature saved is deleted. Switch it back on and everything is as it was: every review, its people, its cadence and what was said. A session whose date passed while Reviews was off isn’t said to be not held.
 - Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.
-- Spreadsheets is the first feature: Export and Import on Data, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says.
+- Spreadsheets is one of the tools: Export and Import on Data, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says.
 
 #### Who can
 

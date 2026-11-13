@@ -3,6 +3,8 @@
    What it says comes from domain/onePager, which gathers what the app already works out. */
 import { Link, useParams } from 'react-router';
 import { ArchivedGoalScope, useApp } from '../app/state';
+import { useModules } from '../core/app';
+import { reviewsOn } from '../app/reads';
 import { goalSheet, reviewSheet, type Fact, type Said } from '../domain/onePager';
 import { kindWords } from '../domain/format';
 import { valueSeries } from '../domain/plan';
@@ -69,6 +71,7 @@ export function GoalPrint() {
 
 function GoalPrintView() {
   const app = useApp();
+  const modules = useModules();
   const { goalId } = useParams();
   const goal = goalId ? app.goal(goalId) : undefined;
   if (!goal) return <div className="page narrow"><Empty title="This goal doesn’t exist"><Link className="btn sm" to="/goals">All goals</Link></Empty></div>;
@@ -83,6 +86,7 @@ function GoalPrintView() {
   const whyShown = sh.facts.some((f) => f.label === 'Why');
   // The latest few things said in reviews; the rest are in the app.
   const said = sh.said.slice(0, SAID_ON_PAPER);
+  const reviewsHere = reviewsOn(modules.on);
   return (
     <div className="page narrow print-page">
       <PrintBar back={`/goals/${goal.id}`} label="Back to the goal" />
@@ -144,11 +148,12 @@ function GoalPrintView() {
           </section>
         </div>
 
-        <section className="ps-block" aria-label="From reviews">
+        {/* With Reviews switched off (FT2) the block is there only while it has something said in a review to print. */}
+        {(reviewsHere || said.length > 0) && <section className="ps-block" aria-label="From reviews">
           <h2 className="ps-h">From reviews</h2>
           {said.length ? <SaidList said={said} showReview /> : <span className="hint">No actions, questions or notes yet.</span>}
           {sh.said.length > said.length && <span className="hint">And {sh.said.length - said.length} earlier, on the goal’s page.</span>}
-        </section>
+        </section>}
 
         {sh.quarters.length > 0 && (
           <section className="ps-block" aria-label="This year by quarter">

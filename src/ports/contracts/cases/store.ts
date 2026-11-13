@@ -251,6 +251,9 @@ export function makeStoreContract(): Contract {
   const s = start;
   const actor = s.people[0]!.id;
   const earlier: Cycle = { id: ids('cycle'), name: 'Jan–Mar 2025', startDate: '2025-01-06', weeks: 13, reviewDay: 3 };
+  // A next year with nothing in it yet: a window always keeps the newest two cycles (domain/leftOut keptCycles), so with
+  // it the earlier quarter is outside the window.
+  const next: Cycle = { id: ids('cycle'), name: '2027', startDate: '2027-01-04', weeks: 52, reviewDay: 3 };
   const like = s.goals.find((g) => g.kind !== 'milestone')!;
   const oldGoal = { ...like, id: ids('goal'), cycleId: earlier.id, parentId: null, alsoHelps: [], version: undefined } as Goal;
   const checkIn = (goalId: string, week: number, postedAt: string): CheckIn => ({
@@ -270,7 +273,7 @@ export function makeStoreContract(): Contract {
   const thisYear = checkIn(like.id, 2, '2026-01-12T09:00:00.000Z');
   const recent = note(s, 'A recent comment');
   const setup: Commit[] = [
-    { cycles: [earlier], changes: [old.cycle] },
+    { cycles: [earlier, next], changes: [old.cycle] },
     { goals: [oldGoal], changes: [old.imported] },
     { checkIns: [oldCheckIn, thisYear], changes: [old.plain, old.note, ...old.tie] },
     { changes: recent },
@@ -287,10 +290,17 @@ export function makeStoreContract(): Contract {
       { select: `changes[id=${old.imported.id}].undo`, equals: old.imported.undo },
       // Entries from the window's start on are all there.
       { select: 'changes[].id', includes: withHistory.changes.filter((c) => c.at >= FROM).map((c) => c.id) },
-      // Everything else is whole: both cycles, and the earlier cycle's goal.
-      sameSet('cycles[].id', [s.cycles[0]!.id, earlier.id]),
+      // Everything else is whole: every cycle, and the earlier cycle's goal.
+      sameSet('cycles[].id', [s.cycles[0]!.id, earlier.id, next.id]),
       { select: 'goals[].id', includes: [oldGoal.id] },
       { select: 'history', equals: { from: FROM, checkInCycles: [s.cycles[0]!.id, earlier.id].sort() } },
+    ))],
+  });
+
+  cases.push({
+    name: 'keeps the newest two cycles’ check-ins however far back the window starts (the year in use never falls out)',
+    steps: [...history, step(load({ from: '2031-01-01T00:00:00.000Z' }), all(
+      { select: 'checkIns[].id', includes: [thisYear.id], excludes: [oldCheckIn.id] },
     ))],
   });
 

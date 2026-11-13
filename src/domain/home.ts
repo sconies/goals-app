@@ -80,7 +80,8 @@ export interface Dashboard {
   missed: MissedReview[];
 }
 
-export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): Dashboard {
+/** With Reviews switched off (`reviews` false, FT2) there is no next review and none missed. */
+export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { reviews: boolean } = { reviews: true }): Dashboard {
   const mine = s.goals.filter((g) => g.ownerId === personId);
   const goals: Goal[] = mine.length ? mine : s.goals;
   const watched = watchedGoals(personId, s);
@@ -90,8 +91,8 @@ export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: num
     total: goals.length,
     streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
     watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
-    ...(() => { const upcoming = nextReviews(personId, s, cycle, week, today); return { next: upcoming[0] ?? null, upcoming }; })(),
-    missed: missedReviews(personId, s, cycle, week, today),
+    ...(() => { const upcoming = opts.reviews ? nextReviews(personId, s, cycle, week, today) : []; return { next: upcoming[0] ?? null, upcoming }; })(),
+    missed: opts.reviews ? missedReviews(personId, s, cycle, week, today) : [],
   };
 }
 
@@ -119,6 +120,8 @@ export interface HomeFacts {
   sessions: HomeSession[];
   owns: number;
   watches: number;
+  /** With Reviews off (FT2), for someone who owns no goal: how many goals they watch need attention. Absent otherwise. */
+  watchNeeds?: number;
   /** Rule 3: the open asks waiting on the viewer, in rule 3's order. */
   asks: Waiting[];
   /** Goals proposed for the viewer by someone else, not yet opened (goal entry rule 14, `proposalAsks`'s `for-you`). */
@@ -128,9 +131,9 @@ export interface HomeFacts {
 }
 
 /** A goal proposed for the viewer by someone else that they haven't opened, as the lead reads it. */
-export interface ProposedForYou { id: string; title: string; by: string; proposedOn: string }
+export interface ProposedForYou { id: string; title: string; by: string; proposedOn: string; /** The review it was proposed in, by name: said as " in {review}". */ in?: string | null }
 
-export type LeadKind = 'check-in-late' | 'check-in' | 'wrap-up' | 'review' | 'ask';
+export type LeadKind = 'check-in-late' | 'check-in' | 'wrap-up' | 'review' | 'watching' | 'ask';
 export interface Lead {
   kind: LeadKind;
   eyebrow: string;
@@ -219,6 +222,8 @@ export function homeLead(f: HomeFacts): Lead | null {
   // 50: a review the viewer is in, on or past its day this week, not held.
   const session = f.sessions.filter((x) => x.date <= f.today && !x.held && x.done < x.total).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name))[0];
   if (session) return reviewLead(f, session);
+  // 50 with Reviews off (FT2): someone who owns no goal is led to the goals they watch that need attention.
+  if (f.watchNeeds) return { kind: 'watching', eyebrow: 'Goals you watch', warn: false, title: `${f.watchNeeds} need${f.watchNeeds === 1 ? 's' : ''} attention`, line: '', action: { label: 'See them', to: '/goals?scope=watching&attention=1' }, also: null, ring: null, about: null };
   // 60: the oldest or most pressing thing waiting on the viewer (rule 3's order puts it first); then a goal proposed for
   // them, which is an ask with no date, asked on the day it was proposed, and so after any ask that leads.
   return askLead(f.asks[0]) ?? proposalLead(f.proposals ?? [], f.today);
@@ -233,7 +238,7 @@ export function proposalLead(list: readonly ProposedForYou[], today: string): Le
   if (!p) return null;
   const days = dayDiff(p.proposedOn, today);
   return { kind: 'ask', eyebrow: `Needs your response · waiting since ${dayMonth(p.proposedOn)}, ${days < 14 ? `${days} days` : `${Math.floor(days / 7)} weeks`}`, warn: false,
-    title: `${p.by} proposed a goal for you`, line: `“${p.title}”. Nothing is due on it until you make it active.`,
+    title: `${p.by} proposed a goal for you${p.in ? ` in ${p.in}` : ''}`, line: `“${p.title}”. Nothing is due on it until you make it active.`,
     action: { label: 'Open it', to: `/goals/${p.id}` }, also: null, ring: null, about: p.id };
 }
 
@@ -329,7 +334,7 @@ export function waiting(a: AskFacts, today: string): Waiting {
   else if (due?.why === 'session' && dayDiff(today, due.date) <= 1) { line = dayDiff(today, due.date) === 0 ? 'Due before today’s session' : 'Due before tomorrow’s session'; warn = true; }
   else if (due?.why === 'week' && dueThisWeek) line = `Due this week (${a.dueWeek!.dates})`;
   else if (due?.why === 'week') line = `Due week ${a.dueWeek!.week} (${a.dueWeek!.dates})`;
-  else if (due) line = `Before its next session, ${shortDay(due.date)}`;
+  else if (due) line = `Due by ${shortDay(due.date)}`;
   else if (waitedDays >= 7) line = `Waiting since ${dayMonth(a.askedOn)}, ${waitedDays < 14 ? `${waitedDays} days` : `${Math.floor(waitedDays / 7)} weeks`}`;
   else line = waitedDays === 0 ? 'Asked today' : waitedDays === 1 ? 'Asked yesterday' : `Asked on ${LONG_DAYS[new Date(a.askedOn + 'T00:00:00Z').getUTCDay()]}`;
   const to = a.kind === 'update' ? `/check-in/${a.goals[0]!.id}` : `/goals/${a.goals[0]!.id}?respond=${a.id}`;
@@ -355,6 +360,8 @@ export function askLead(w: Waiting | undefined): Lead | null {
   if (!w || !(w.late || w.dueThisWeek || (!w.due && w.waitedDays >= 7))) return null;
   const others = w.goals.length - 1;
   const about = w.goals.length > 1 ? `${w.goals.length} goals are waiting on it: ${w.goals[0]!.title}, and ${others} more.` : `About ${w.goals[0]?.title ?? 'a goal'}.`;
+  // It came to you with a goal you now own (Lane, 13 Nov; review of #369, medium 1): say so where you first meet it.
+  const handed = w.was ? ` Asked of ${w.was.split(' ')[0]}, now yours.` : '';
   return { kind: 'ask', eyebrow: `Needs your response · ${w.line.charAt(0).toLowerCase()}${w.line.slice(1)}`, warn: w.warn, title: ASK_TITLE[w.kind](w.by ?? 'Someone'),
-    line: `“${w.said}”. ${about}`, action: { label: ASK_ACTION[w.kind], to: w.to }, also: null, ring: null, about: w.askId };
+    line: `“${w.said}”. ${about}${handed}`, action: { label: ASK_ACTION[w.kind], to: w.to }, also: null, ring: null, about: w.askId };
 }

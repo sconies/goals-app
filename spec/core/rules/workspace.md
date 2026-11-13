@@ -45,6 +45,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Lee, the only admin, leaves. | `refused: You’re the only admin here: make someone else an admin before you leave.` |
 | What Lee, the admin, has to sort out: two people, neither with an email, one goal, no review. | `No review is set up; 2 people have no email` |
 | The same, for Pat, who isn’t an admin. | `nothing` |
+| The same for Lee, with Reviews switched off in the workspace. | `2 people have no email` |
 | The example’s name in the demo, and a workspace called “Growth” in the real app. | `Platform Engineering (example data) / Growth` |
 | Admins Hamid Rezaei, Amara Nwosu and Grace Achterberg; then 40 admins whose first two A to Z are Aiko Suzuki and Akosua Owusu. | `Amara Nwosu, Grace Achterberg and Hamid Rezaei / Aiko Suzuki, Akosua Owusu and 38 others` |
 | Cycles’ row for that year in week 46, with 126 goals and 3,200 check-ins; for a 2027 cycle (week 0 from Monday 28 December 2026) with nothing in it yet; and for 2026 on Monday 11 January 2027. | `2026 · running / Week 46 of 53 · 29 Dec 2025 to 3 Jan 2027 / 126 goals · 3,200 check-ins; 2027 · starts 4 Jan 2027 / 0 goals · no check-ins yet; 2026 · ended 3 Jan 2027 / 29 Dec 2025 to 3 Jan 2027 · 53 weeks` |
@@ -111,3 +112,6 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - set-up’s upload through the preview (IM8) › keeps the weeks of a goal with check-ins in the file, unasked: its history happened
 - set-up’s upload through the preview (IM8) › offers “Add {person}” and “Give it to someone here” for an owner the People sheet lacks, and blocks set-up until answered
 - set-up’s upload through the preview (IM8) › names an owner given by name only as typed
+- set-up’s upload through the preview (IM8) › asks about a Goals row’s team one letter from a team already named, instead of making a second team (#336 review)
+- set-up’s upload through the preview (IM8) › a person chosen for one owner cell stands for the row’s unknown ones, never over one naming someone else or a bad ID (#336 review)
+- set-up’s upload through the preview (IM8) › “Choose a goal” for a check-in row finds the file’s goals (#336 review)

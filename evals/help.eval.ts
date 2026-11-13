@@ -3,7 +3,7 @@
    and an AI assistant reads both through the MCP server. */
 import fs from 'node:fs';
 import path from 'node:path';
-import { appRoutes, leftOut, screenFiles } from '../src/core/sources';
+import { appRoutes, leftOut, leftOutArticles, screenFiles } from '../src/core/sources';
 import { describe, expect, it } from 'vitest';
 import { serve, type Deps } from '../server/mcp';
 import { applyCommit } from '../src/data/store';
@@ -45,22 +45,26 @@ async function assistant(personId = 'rhea') {
 }
 
 describe('Help: what everything does', () => {
-  it(G('every screen file, every route and every requirement has an article'), () => {
-    // The core's screens and routes, and those of the modules this build has (src/core/sources.ts).
-    const screens = screenFiles(root).map((f) => f.name);
+  it(G('every screen file, every route and every requirement has an article'), async () => {
+    // The core's screens and routes, and those of the modules this build has (src/core/sources.ts). A screen that a
+    // left-out module's own article explains goes with it, even while its file still sits in src/screens (until FT3).
+    const theirs = await leftOutArticles(root);
+    const screens = screenFiles(root).map((f) => f.name).filter((s) => !theirs.some((a) => a.screens.includes(s)));
     expect(screens.filter((s) => !ARTICLES.some((a) => a.screens.includes(s)))).toEqual([]);
     const routes = appRoutes(root).filter((r) => r !== '*');
     expect(routes.filter((r) => !guideRoutes().includes(r))).toEqual([]);
     const reqs = (JSON.parse(fs.readFileSync(path.join(root, 'evals/requirements.json'), 'utf8')) as { requirements: { id: string }[] }).requirements.map((r) => r.id);
-    // A module left out of this build (FARO_WITHOUT) takes its articles with it: its requirements are excused.
-    expect(reqs.filter((r) => !gone.requirements.has(r) && !ARTICLES.some((a) => a.reqs.includes(r)))).toEqual([]);
+    // A module left out of this build (FARO_WITHOUT) takes its articles with it: its requirements, and those its
+    // articles explain, are excused.
+    expect(reqs.filter((r) => !gone.requirements.has(r) && !theirs.some((a) => a.reqs.includes(r)) && !ARTICLES.some((a) => a.reqs.includes(r)))).toEqual([]);
   });
 
   it(G('the Help link on a page opens that page’s article, the most specific one'), () => {
     expect(articleForPath('/goals', '?view=map')?.id).toBe('goal-map');
     expect(articleForPath('/goals/new')?.id).toBe('new-goal');
     expect(articleForPath('/goals/G-12')?.id).toBe('goal-page');
-    expect(articleForPath('/goals/ns-lead', '?review=weekly')?.id).toBe('reviews');
+    // A walk's address is Reviews' article; without Reviews it is the goal's page (the app drops ?review= there).
+    expect(articleForPath('/goals/ns-lead', '?review=weekly')?.id).toBe(gone.help.has('reviews') ? 'goal-page' : 'reviews');
     expect(articleForPath('/quick-check-in')?.id).toBe('check-in-table');
   });
 
@@ -80,9 +84,13 @@ describe('Help: what everything does', () => {
 
   it(G('an AI assistant reads the guide: an article by id, a search, or the list, and every screen maps to a tool'), async () => {
     const call = await assistant();
-    const one = await call('get_help', { id: 'reviews' });
+    // A module's article is there only when the build has the module; a core article always is.
+    expect((await call('get_help', { id: 'reviews' })).error).toBe(gone.help.has('reviews'));
+    // Asks lists Reviews under Related: without the module it lists the rest, and still answers.
+    const one = await call('get_help', { id: 'requests' });
     expect(one.error).toBe(false);
-    expect(one.data!.title).toBe('Reviews');
+    expect(one.data!.related.map((r: { id: string }) => r.id)).toEqual(articleById('requests')!.related.filter((r) => !gone.help.has(r)));
+    expect(one.data!.title).toBe(articleById('requests')!.title);
     expect(one.text).toMatch(/## Who can/);
     expect((await call('get_help', { search: 'dark mode' })).data!.articles[0].id).toBe('settings');
     expect((await call('get_help')).data!.articles).toHaveLength(ARTICLES.length);

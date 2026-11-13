@@ -3,7 +3,8 @@
    check-in (reviewed, noted, an action agreed, or its request answered) is being handled until something new happens. */
 import { checkInsFor, goalStatus, type GoalStatus } from './status';
 import { askText, answeredSince, isOverdue, openAsksFor, openFor } from './asks';
-import { firstDueWeek } from './progress';
+import { firstDueWeek, reviewDate } from './progress';
+import { dayText } from './format';
 import { currentWeek, hasEnded } from './plan';
 import { goalTrend } from './trend';
 import { ATTENTION_FLAGS, FLAG, LABEL, lower, type FlagKind } from './vocabulary';
@@ -81,7 +82,7 @@ export function flagsFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date): { 
   // A done goal is finished: how it was called on the way there is no longer news (re-review, 8 Nov, backlog T).
   if (status.greener && latest && status.status !== 'stale' && status.status !== 'done') add('greener', `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, 'risk');
   // Nothing is due once the cycle's last day is past (cycle-end rule 2).
-  if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== 'done' && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add('due', `Due before the review in week ${week}.`, 'info');
+  if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== 'done' && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add('due', `Due by ${dayText(reviewDate(cycle, week))}.`, 'info');
 
   flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
   return { status, flags };

@@ -28,7 +28,9 @@ describe('rules on a windowed load', () => {
     .filter((c) => whole.checkIns.some((k) => whole.goals.find((g) => g.id === k.goalId)?.cycleId === c.id))
     .sort((a, b) => (cycleDates(a).lastDay < cycleDates(b).lastDay ? -1 : 1))[0]!;
   const from = new Date(Date.parse(cycleDates(ended).lastDay) + 2 * 86_400_000).toISOString();
-  const s = windowed(whole, { from });
+  // Two later years, so the window's newest two (domain/leftOut keptCycles) don't include this one.
+  const later = (n: number) => { const last = whole.cycles[whole.cycles.length - 1]!; return { ...last, id: `c_later${n}`, startDate: `${Number(last.startDate.slice(0, 4)) + n}${last.startDate.slice(4)}`, removedAt: null }; };
+  const s = windowed({ ...whole, cycles: [...whole.cycles, later(1), later(2)] }, { from });
 
   it('a year whose check-ins were left out stays, and says so', () => {
     expect(R.checkInsLeftOut(s, ended.id)).toBe(true);

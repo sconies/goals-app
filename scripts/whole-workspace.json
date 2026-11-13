@@ -1,5 +1,5 @@
 {
-  "about": "The rules files that take the whole workspace today, and how many times: a parameter or field typed Snapshot, a Pick of Snapshot naming goals, checkIns, changes or requests (whole lists by another name), or a cast to Snapshot. The layers lint (rule 6, AR4) fails any other file that does, and any of these that does it more. The work left is to narrow them (docs/design/architecture.md, 4.4); lower a count or drop a file when you do. Count: 89 uses in 20 files on 11 Nov 2026, after AS part 2 moved the metric rules into their module, narrowed (DirectoryCtx in directory.ts and goalHistory's cast in goalPage.ts among them).",
+  "about": "The rules files that take the whole workspace today, and how many times: a parameter or field typed Snapshot, a Pick of Snapshot naming goals, checkIns, changes or requests (whole lists by another name), or a cast to Snapshot. The layers lint (rule 6, AR4) fails any other file that does, and any of these that does it more. The work left is to narrow them (docs/design/architecture.md, 4.4); lower a count or drop a file when you do. Count: 89 uses in 20 files on 11 Nov 2026, after AS part 2 moved the metric rules into their module, narrowed (DirectoryCtx in directory.ts and goalHistory's cast in goalPage.ts among them). Watching's rules left review.ts for watch.ts with the rows they read (FT2, 13 Nov): review.ts 11 to 8.",
   "files": {
     "src/domain/actions.ts": 4,
     "src/domain/activity.ts": 4,
@@ -16,7 +16,7 @@
     "src/domain/onePager.ts": 4,
     "src/domain/progress.ts": 3,
     "src/domain/removal.ts": 12,
-    "src/domain/review.ts": 11,
+    "src/domain/review.ts": 8,
     "src/domain/story.ts": 1,
     "src/domain/summary.ts": 2,
     "src/domain/workspaceAttention.ts": 1

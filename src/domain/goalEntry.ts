@@ -559,7 +559,12 @@ export interface SaveGoalInput {
   /** A new goal only: 'proposed' saves it proposed, not yet active (GE10, rule 14); left out, active. A goal being
       changed keeps its state: it is made active by domain/proposed activate, never by a save. */
   state?: 'active' | 'proposed';
+  /** A new proposed goal only: the review it is proposed in ("Propose a new goal" in the walk, GE10 decision 15). */
+  proposedIn?: string;
 }
+
+/** Why an active goal's type can't change (a proposed one's can: rule 14). */
+export const TYPE_FIXED = 'A goal’s type can’t change once it is active. Add a new goal instead.';
 
 /** The words for a plan change with no reason (section 4, `reason-empty`). */
 export const REASON_EMPTY = 'Say why, in a sentence. It goes in the goal’s History, and anyone watching it sees the change flagged.';
@@ -585,9 +590,13 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   if (i.draft.teamId && !s.teams.some((t) => t.id === i.draft.teamId)) throw new NotAllowed('That team isn’t here any more. Choose a team.');
   const parent = i.draft.parentId ? findGoal(goals, i.draft.parentId) : undefined;
   if (i.draft.parentId && !parent) throw new NotAllowed('The goal it feeds isn’t here any more. Choose another, or nothing.');
+  if (i.proposedIn && (existing || i.state !== 'proposed')) throw new NotAllowed('Only a new proposed goal is proposed in a review.');
+  if (i.proposedIn && !s.reviews.some((r) => r.id === i.proposedIn)) throw new NotAllowed('That review isn’t here any more. Reload to see the latest.');
   const checkIns = existing ? checkInsFor(existing, s.checkIns) : [];
   // Proposed (rule 14): the type's own required fields are optional, all together; no reason is ever asked.
   const proposing = existing ? isProposed(existing) : i.state === 'proposed';
+  // The type changes only while a goal is proposed (rule 14): an active goal keeps its own, at every door.
+  if (existing && !proposing && i.draft.kind !== existing.kind) throw new NotAllowed(TYPE_FIXED);
   const fix = (proposing ? proposedMustFix : goalMustFix)(i.draft, {
     cycleWeeks: x.cycle.weeks, week: x.week, existing, checkIns, door: 'form', startDate: x.cycle.startDate,
     owner: owner ? { name: owner.name, teamId: owner.teamId ?? null } : null, parent: parent ? { title: parent.title } : null,
@@ -607,7 +616,7 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   const places = decimalsFor(i.draft)!;
   const built = buildGoal({ ...draft, decimals: String(places), margin: draft.margin.trim() || '0' }, x.cycle, { id: existing?.id ?? x.newId('goal'), createdAt: existing?.createdAt ?? x.now }, existing, checkIns.length > 0, x.week);
   // A new goal takes the workspace's next key; a goal being changed keeps its own (buildGoal keeps it), and its proposal.
-  const state = proposing ? { proposedAt: existing?.proposedAt ?? x.now, proposedBy: existing?.proposedBy ?? x.actor.id } : {};
+  const state = proposing ? { proposedAt: existing?.proposedAt ?? x.now, proposedBy: existing?.proposedBy ?? x.actor.id, ...((i.proposedIn ?? existing?.proposedIn) ? { proposedIn: i.proposedIn ?? existing!.proposedIn } : {}) } : {};
   const goal: Goal = existing ? { ...built, pending: null, ...state } : { ...built, key: nextKey(s.goals, s.keysIssued), ...state };
   const needsReason = !proposing && !!existing && checkIns.length > 0 && planChanged(existing, goal);
   if (needsReason && (i.reason ?? '').trim().length < MIN_REASON) throw new NotAllowed(REASON_EMPTY);
@@ -628,7 +637,7 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   const done = !existing && !proposing && doneIds.length && mayPostCheckIn(x.actor, goal, 'form') ? stagesDoneAtSetUp(goal, doneIds, x.actor.id, x.now, x.newId('ci')) : null;
   const doneChange = done ? checkInChange(null, done, goal, x.actor.id, x.newId('chg')) : null;
   // A new owner takes the goal's open asks of the old one (Lane, 13 Nov; domain/askHandover), said on the goal's change too.
-  const handed = existing ? asksFollowOwner({ goals: s.goals, people: s.people, asks: asksOf(s) }, [goal], { actorId: x.actor.id, now: x.now, newId: x.newId }) : null;
+  const handed = existing ? asksFollowOwner({ goals: withProposed(s), people: s.people, asks: asksOf(s) }, [goal], { actorId: x.actor.id, now: x.now, newId: x.newId }) : null;
   if (handed?.requests.length) change.diffs.push(openAsksDiff(handed.requests.length, handed.changes[0]!));
   return { commit: { goals: [goal], changes: [change, ...(doneChange ? [doneChange] : []), ...(handed?.changes ?? [])], ...(done ? { checkIns: [done] } : {}), ...(handed?.requests.length ? { requests: handed.requests } : {}) }, goal };
 }

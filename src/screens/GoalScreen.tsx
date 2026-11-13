@@ -5,7 +5,8 @@
    last week, to target, will it hit); the chart marks those numbers where they are; Why opens with the owner's reason;
    What feeds it opens with how the goals feeding it stand; and every section says in one line what it answers.
    The words come from the domain (domain/goalPage and the modules it asks); this file lays them out. */
-import { Place } from '../core/app';
+import { Place, useModules } from '../core/app';
+import { reviewsOn } from '../app/reads';
 import { MODULE_RECORDS } from '../core/records';
 import { goalMarksOf } from '../domain/records';
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
@@ -104,7 +105,9 @@ function GoalView({ goal }: { goal: Goal }) {
   const isOwner = app.viewer.id === goal.ownerId;
   const canEdit = isOwner || app.viewer.admin;
   const rv = useReview(goal.id);
-  const review = rv.active;
+  // Reviews switched off (FT2): no walk, no Last time we talked, and a question names no review.
+  const reviewsHere = reviewsOn(useModules().on);
+  const review = reviewsHere && rv.active;
   const [params, setParams] = useSearchParams();
   const [page, width] = useWidth<HTMLDivElement>();
   const wide = width >= WIDE;
@@ -119,7 +122,7 @@ function GoalView({ goal }: { goal: Goal }) {
   const firstVisit = !seen;
 
   // Everything asked and agreed on the goal, one list (domain/goalPage stepsAndAsks), and what of it waits on the viewer.
-  const steps = stepsAndAsks({ goal, viewer: app.viewer, week, cycle, status, asks: asksOnGoal(goal.id, app.snapshot), people: [...app.snapshot.people, ...(app.snapshot.archive?.people ?? [])], reviews: app.snapshot.reviews });
+  const steps = stepsAndAsks({ goal, viewer: app.viewer, week, cycle, status, asks: asksOnGoal(goal.id, app.snapshot), people: [...app.snapshot.people, ...(app.snapshot.archive?.people ?? [])], reviews: app.snapshot.reviews, reviewsOn: reviewsHere });
   const asked = askedOf(goal, app.snapshot, app.viewer, respondId);
   // ?tab=comments was Home's old Answer link: an owner's open question is what it meant; otherwise the comment box.
   const alias = tabComments && !respondId ? asked.find((x) => x.kind === 'question')?.id ?? null : null;
@@ -248,7 +251,7 @@ function GoalView({ goal }: { goal: Goal }) {
       showAll={params.get('steps') === 'all'} onShowAll={() => setParams((p) => { p.set('steps', 'all'); return p; }, { replace: true })}
       onOpen={(id) => { setOpenAsk(id); setFocusAsk(true); }} onDone={done} onAdd={() => setAdding(true)} />
   );
-  const talked = <TalkedSection key="talked" goal={goal} />;
+  const talked = reviewsHere && <TalkedSection key="talked" goal={goal} />;
   const feeding = !review && (children.length > 0 || !!parent) && <FeedsSection key="feeds" feeding={children} feeds={feeds} parent={parent} />;
   const quarters = !review && isYear(cycle) && <QuarterStrip key="quarters" goal={goal} />;
   const activity = !review && <HistorySection key="history" goal={goal} focusComposer={tabComments && !alias} />;
@@ -263,7 +266,7 @@ function GoalView({ goal }: { goal: Goal }) {
 
   return (
     <div className={'page goal-page' + (review ? ' in-review' : '')} ref={page} data-part="Goal page">
-      <ReviewBar goalId={goal.id} />
+      {reviewsHere && <ReviewBar goalId={goal.id} />}
       <GoalBack />
       <GoalBar goal={goal} status={status} figures={figures} card={card} actions={actions} askedLine={askedLine} firstDue={own.length === 0}
         statusMoved={statusMoved} hit={hit} countFrom={effectOn('count') ? own.filter((c) => c.value != null).at(-2)?.value ?? null : null} />
@@ -864,6 +867,7 @@ function QuarterStrip({ goal }: { goal: Goal }) {
  */
 function HistorySection({ goal, focusComposer }: { goal: Goal; focusComposer: boolean }) {
   const app = useApp();
+  const reviewsHere = reviewsOn(useModules().on);
   const [params, setParams] = useSearchParams();
   const raw = params.get('history');
   const filter: HistoryFilter = HISTORY_FILTERS.includes(raw as HistoryFilter) ? (raw as HistoryFilter) : 'all';
@@ -896,7 +900,8 @@ function HistorySection({ goal, focusComposer }: { goal: Goal; focusComposer: bo
       <SectionHead id="g-history" title="History" purpose="Every week, what was said, and what changed, newest first." />
       <NoteComposer goal={goal} startOpen={focusComposer} />
       <nav className="history-filters" aria-label="Show">
-        {HISTORY_FILTERS.map((k) => (
+        {/* With Reviews off, its tab shows only while it has entries (FT2). */}
+        {HISTORY_FILTERS.filter((k) => k !== 'reviews' || reviewsHere || whole.counts.reviews > 0).map((k) => (
           <a key={k} className="history-filter" href={`?history=${k}`} aria-current={filter === k ? 'true' : undefined}
             onClick={(e) => { e.preventDefault(); set('history', k === 'all' ? null : k); }}>{HISTORY_LABEL[k]} <span className="history-count">{whole.counts[k]}</span></a>
         ))}
