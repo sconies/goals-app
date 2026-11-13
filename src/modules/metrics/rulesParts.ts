@@ -6,7 +6,7 @@
    Pure: each takes only what it reads. A Check is a question answered once; a Must fix stops the link. */
 import { fold } from '../../domain/find';
 import type { Goal } from '../../domain/types';
-import { editsBetween } from './rulesDefine';
+import { editsBetween } from './edits';
 import type { Metric } from './types';
 
 /** "Which part" holds at most this many characters (migration 0043's okr_goal_metrics_part_len). */

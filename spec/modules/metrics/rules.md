@@ -382,7 +382,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ### Where it lives
 
-- [src/modules/metrics/rulesDefine.ts](../../../src/modules/metrics/rulesDefine.ts): `stillToSay`, `nameChecks`, `editsBetween`, `formerNames`, `unitChecks`, `meaningChecks`, `metricChecks`, `unansweredChecks`, `countLine`
+- [src/modules/metrics/edits.ts](../../../src/modules/metrics/edits.ts): `editsBetween`
+- [src/modules/metrics/rulesDefine.ts](../../../src/modules/metrics/rulesDefine.ts): `stillToSay`, `nameChecks`, `formerNames`, `unitChecks`, `meaningChecks`, `metricChecks`, `unansweredChecks`, `countLine`
 - [src/modules/metrics/reads.ts](../../../src/modules/metrics/reads.ts): `checkReads`, `lineOf`
 
 ### Requirements

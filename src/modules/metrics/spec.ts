@@ -154,7 +154,7 @@ rules.push({
   id: 'metric-defined',
   title: 'Defining a metric well',
   summary: 'What a metric still needs to say, in words and never as a score (rule 6), and the three questions adding or changing one may ask before it is saved: a close name, a unit spelt another way, a percentage that doesn’t say out of what.',
-  code: [{ file: 'src/modules/metrics/rulesDefine.ts', names: ['stillToSay', 'nameChecks', 'editsBetween', 'formerNames', 'unitChecks', 'meaningChecks', 'metricChecks', 'unansweredChecks', 'countLine'] }, { file: 'src/modules/metrics/reads.ts', names: ['checkReads', 'lineOf'] }],
+  code: [{ file: 'src/modules/metrics/edits.ts', names: ['editsBetween'] }, { file: 'src/modules/metrics/rulesDefine.ts', names: ['stillToSay', 'nameChecks', 'formerNames', 'unitChecks', 'meaningChecks', 'metricChecks', 'unansweredChecks', 'countLine'] }, { file: 'src/modules/metrics/reads.ts', names: ['checkReads', 'lineOf'] }],
   tests: ['src/modules/metrics/rulesDefine.test.ts', 'src/modules/metrics/tools.test.ts'],
   reqs: ['METRIC-DEFINED'],
   body: `
