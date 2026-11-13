@@ -10,7 +10,6 @@
     "src/domain/cycle.ts": 3,
     "src/domain/decide.ts": 2,
     "src/domain/directory.ts": 1,
-    "src/domain/export.ts": 1,
     "src/domain/goalPage.ts": 14,
     "src/domain/home.ts": 3,
     "src/domain/importer.ts": 2,
