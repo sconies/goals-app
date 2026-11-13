@@ -27,6 +27,7 @@ Faro’s database holds these as well as the rule; a rebuild holds them wherever
 
 - A goal year has 1 to 53 weeks. (`okr_cycles_weeks_check`)
 - A year’s review day is a day of the week, 0 to 6 (Monday is 0). (`okr_cycles_review_day_check`)
+- A year’s check-in rhythm is 1 (every week) or 0 (no set rhythm); 2 and 4 are kept for later. (The app offers 1 and 0.) (`okr_cycles_check_in_weeks_ok`)
 
 ## Worked examples
 
