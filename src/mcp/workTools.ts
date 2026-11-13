@@ -11,7 +11,9 @@ import { attentionList, splitAttention } from '../domain/attention';
 import { cycleDates, cycleState, dayWithYear, wrapUpOpenOn } from '../domain/cycle';
 import { dashboard } from '../domain/home';
 import { ASK_STATUS, ATTENTION, choices, HANDLED_LINE, codeFrom, LABEL, lower, STATUS, withCode } from '../domain/vocabulary';
-import type { DisplayStatus } from '../domain/types';
+import type { Change, DisplayStatus } from '../domain/types';
+import type { HistoryKey } from '../ports/store';
+import { HISTORY_MAX } from '../ports/window';
 
 /** A status as the assistant reads it: the words people see, with the code beside them. */
 const said = (k: DisplayStatus) => withCode(STATUS[k]);
@@ -121,6 +123,20 @@ export function layoutFrom(ctx: McpContext, a: Record<string, unknown>): TableLa
 
 /** A sentence as part of a longer line: without its closing full stop, so the line never ends in two. */
 const clause = (t: string) => t.trim().replace(/\.+$/, '');
+
+/** The newest n changes that pass `keep`. With the store's history (AX5 part 2b) it pages back through the log, 100 at
+    a time, rather than filtering every change ever made; without it, it reads the snapshot. */
+async function activityPages(ctx: McpContext, keep: (c: Change) => boolean, n: number): Promise<Change[]> {
+  if (!ctx.history) return ctx.snapshot.changes.filter(keep).sort((x, y) => (x.at < y.at ? 1 : -1)).slice(0, n);
+  const out: Change[] = [];
+  let before: HistoryKey | null | undefined;
+  do {
+    const page = await ctx.history({ before, size: HISTORY_MAX });
+    for (const c of page.changes) if (keep(c) && out.push(c) >= n) return out;
+    before = page.next;
+  } while (before);
+  return out;
+}
 
 export const WORK_TOOLS: ToolDef[] = [
   /* ---------- Reading ---------- */
@@ -261,7 +277,7 @@ export const WORK_TOOLS: ToolDef[] = [
       if (q.goal) q.goal = goalOf(ctx, q.goal).id;
       const keep = activityFilter(q, { snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, watched: null });
       const n = Math.min(500, Math.max(1, Number(a.limit ?? 50)));
-      const list = ctx.snapshot.changes.filter(keep).sort((x, y) => (x.at < y.at ? 1 : -1)).slice(0, n)
+      const list = (await activityPages(ctx, keep, n))
         .map((c) => ({
           at: c.at, by: name(ctx, c.actorId), goal: c.goalId ? ctx.snapshot.goals.find((g) => g.id === c.goalId)?.title ?? c.goalId : null, summary: c.summary, changes: c.diffs.map((d) => ({ field: d.field, from: d.from, to: d.to })),
           // An import or bulk edit: its ID, for undo_import, and whether this person can undo it now.

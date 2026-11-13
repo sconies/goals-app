@@ -9,6 +9,7 @@ import { Place } from '../core/app';
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
+import { useOlderChanges } from '../app/history';
 import { useSeen } from '../app/goalSeen';
 import { useDraft } from '../app/drafts';
 import { saveFile } from '../app/files';
@@ -863,7 +864,14 @@ function HistorySection({ goal, focusComposer }: { goal: Goal; focusComposer: bo
   const all = params.get('all') === '1';
   const q = params.get('hq') ?? '';
   const weekWanted = Number(params.get('week')) || null;
-  const input = { goal, checkIns: app.checkInsOf(goal), changes: app.snapshot.changes.filter((c) => c.goalId === goal.id), cycle: app.cycle, week: app.week, asks: asksOf(app.snapshot).filter((r) => r.goalIds.includes(goal.id)) };
+  // The load holds about a year of changes (AX5 part 2b). A goal whose year began near or before that (set up up to a
+  // quarter ahead) may have older entries: they are paged in on request.
+  const older = useOlderChanges(goal.id);
+  const from = app.full.history?.from;
+  const year = app.full.cycles.find((c) => c.id === goal.cycleId);
+  const reaches = !!from && !!year && Date.parse(year.startDate) - 91 * 86_400_000 < Date.parse(from);
+  const goalChanges = app.snapshot.changes.filter((c) => c.goalId === goal.id);
+  const input = { goal, checkIns: app.checkInsOf(goal), changes: older.older.length ? [...[...older.older].reverse(), ...goalChanges].sort((x, y) => Date.parse(x.at) - Date.parse(y.at)) : goalChanges, cycle: app.cycle, week: app.week, asks: asksOf(app.snapshot).filter((r) => r.goalIds.includes(goal.id)) };
   const h = goalHistory(input, filter, q);
   const whole = goalHistory(input);
   const shown = all || q || weekWanted ? h.entries : h.entries.slice(0, 12);
@@ -903,6 +911,7 @@ function HistorySection({ goal, focusComposer }: { goal: Goal; focusComposer: bo
       ) : q ? <p className="small muted">Nothing in this goal’s history matches “{q}”. <button type="button" className="linkish" onClick={() => set('hq', null)}>Clear the search</button></p>
         : <p className="small muted">{none[filter]}</p>}
       {h.entries.length > shown.length && <a className="linkish small show-all" href="?all=1" onClick={(e) => { e.preventDefault(); setParams((p) => { p.set('all', '1'); return p; }); }}>Show all {h.entries.length}</a>}
+      {reaches && older.more && h.entries.length <= shown.length && <button type="button" className="linkish small show-all" disabled={older.loading} onClick={() => { older.next(); setParams((p) => { p.set('all', '1'); return p; }); }}>{older.loading ? 'Fetching older changes…' : 'Show older changes'}</button>}
     </section>
   );
 }

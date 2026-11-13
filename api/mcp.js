@@ -8258,13 +8258,21 @@ function deleteNote(x, id) {
 		})]
 	};
 }
+/** Whether a windowed load (Snapshot.history) left a cycle's check-ins out: it has some, and it ended before the window. */
+function checkInsLeftOut(s, cycleId) {
+	const h = s.history;
+	if (!h || !h.checkInCycles.includes(cycleId)) return false;
+	const c = s.cycles.find((v) => v.id === cycleId);
+	return !c || cycleDates(c).lastDay < h.from.slice(0, 10);
+}
 /** What a person has left a mark on: goals they owned (in any cycle), check-ins, notes and comments, and asks. */
 function personHistory(s, id) {
 	return {
 		goals: s.goals.filter((g) => g.ownerId === id && !g.removedAt).length,
 		checkIns: s.checkIns.filter((c) => c.authorId === id).length,
 		notes: s.decisions.filter((d) => d.byId === id).length + liveNotes(s.changes).filter((c) => c.actorId === id).length,
-		asks: asksOf(s).filter((r) => r.askedBy === id || r.recipientId === id || r.answeredBy === id).length
+		asks: asksOf(s).filter((r) => r.askedBy === id || r.recipientId === id || r.answeredBy === id).length,
+		unknown: s.cycles.some((c) => checkInsLeftOut(s, c.id))
 	};
 }
 /**
@@ -8666,6 +8674,13 @@ function cycleStanding(s, cycleId) {
 	const checkIns = s.checkIns.filter((c) => ids.has(c.goalId) && !c.removedAt).length;
 	const only = !s.cycles.some((c) => c.id !== cycleId && !c.removedAt);
 	const goals = `${ids.size.toLocaleString("en-GB")} ${ids.size === 1 ? "goal" : "goals"}`;
+	if (!checkIns && checkInsLeftOut(s, cycleId)) return {
+		goals: ids.size,
+		checkIns,
+		only,
+		deletable: false,
+		says: `${goals} and check-ins: it stays`
+	};
 	const says = checkIns ? `${goals}, ${checkIns.toLocaleString("en-GB")} ${checkIns === 1 ? "check-in" : "check-ins"}: it stays` : only ? `${ids.size ? goals + ", no" : "No goals and no"} check-ins yet; it’s the only cycle, so it stays` : `${ids.size ? goals + ", no" : "No goals and no"} check-ins yet: it can be deleted`;
 	return {
 		goals: ids.size,
@@ -8823,6 +8838,7 @@ function undoPlan(x, importId) {
 	if (!entry) no$1("There’s no import with that ID.");
 	if (!entry.undo) no$1("That import was saved before imports could be undone.");
 	if (importUndone(full, importId)) no$1("That import has already been undone.");
+	if (changesLeftOut(full, entry.at)) no$1(IMPORT_TOO_OLD);
 	if (entry.actorId !== x.actor.id && !x.actor.admin) no$1("Only whoever made the import, or an admin, can undo it.");
 	const u = entry.undo;
 	const own = new Set(full.changes.filter((c) => c.importId === importId).map((c) => c.id));
@@ -9308,7 +9324,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 	}
 }
-var no$1, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
+var no$1, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, IMPORT_TOO_OLD, changesLeftOut, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
 	init_goalRights();
 	init_proposed();
@@ -9319,6 +9335,7 @@ var init_removal = __esmMin((() => {
 	init_tableLayout();
 	init_via();
 	init_vocabulary();
+	init_cycle();
 	init_records();
 	no$1 = (msg) => {
 		throw new NotAllowed(msg);
@@ -9340,7 +9357,9 @@ var init_removal = __esmMin((() => {
 		if (!k) no$1("There’s no comment with that ID.");
 		return k;
 	};
-	hasHistory = (h) => h.goals + h.checkIns + h.notes + h.asks > 0;
+	IMPORT_TOO_OLD = "That import is over a year old, so it can’t be undone: too much may have changed since.";
+	changesLeftOut = (s, at) => !!s.history && Date.parse(at) < Date.parse(s.history.from);
+	hasHistory = (h) => h.goals + h.checkIns + h.notes + h.asks > 0 || h.unknown;
 	livePerson = (x, id) => {
 		const p = x.snapshot.people.find((v) => v.id === id);
 		if (!p) no$1("There’s no one with that ID in this workspace.");
@@ -9365,7 +9384,7 @@ var init_removal = __esmMin((() => {
 	};
 	importEntry = (s, importId) => s.changes.find((c) => c.action === "imported" && c.entityId === importId);
 	importUndone = (s, importId) => s.changes.some((c) => c.action === "undone" && c.entityId === importId);
-	canUndoImport = (s, entry, actor) => !!entry.undo && !importUndone(s, entry.entityId) && (entry.actorId === actor.id || actor.admin);
+	canUndoImport = (s, entry, actor) => !!entry.undo && !importUndone(s, entry.entityId) && (entry.actorId === actor.id || actor.admin) && !changesLeftOut(s, entry.at);
 	onDay = (iso) => new Date(iso).toLocaleDateString("en-GB", {
 		day: "numeric",
 		month: "short",
@@ -12873,11 +12892,13 @@ var isStale = (e) => e instanceof StaleError || e instanceof Error && /\bstale: 
 // src/ports/window.ts
 init_cycle();
 /** Entries of these kinds are anchors: kept at any age, because rules read them whatever their age (comments, asks, a
-cycle's "created" entry). */
+cycle's "created" entry, a person's arrival (domain/dayOne arrived), a metric's last change and former names). */
 var ANCHOR_ENTITIES = [
 	"note",
 	"request",
-	"cycle"
+	"cycle",
+	"person",
+	"metric"
 ];
 /** Import and bulk-edit summaries (and their undoing) are anchors too: past imports and "Undo this import" read them. */
 var ANCHOR_ACTIONS = ["imported", "undone"];
@@ -17142,7 +17163,8 @@ var CORE_ARTICLES = [
 				"Search finds the words on a change: who, the goal and its key, what was said and the numbers. A line under it says how many match; the filters on read as words with Remove (see Finding and choosing). Choose who and which goal by typing their name. Show the changes opens the before and after.",
 				"The search and filters are in the link, so a filtered log can be shared, and Back undoes the last choice. Save .csv exports what is shown.",
 				"Every removal is here too: a goal stopped, a person marked as left, a check-in or comment deleted, a view deleted, a watch stopped, and each restore.",
-				"An import or bulk edit has Undo this import on its entry, for whoever made it or an admin. It puts every row back as it was; rows changed since are skipped and listed on the entry that says it was undone."
+				"An import or bulk edit has Undo this import on its entry, for whoever made it or an admin. It puts every row back as it was; rows changed since are skipped and listed on the entry that says it was undone. An import over a year old can no longer be undone.",
+				"The app opens with about the last year of changes, plus every comment, ask and import whatever its age. Show older changes, at the end of the list, fetches older ones a page at a time; a goal’s History has the same."
 			]
 		}, {
 			heading: "Safe saves",
@@ -18335,6 +18357,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "older-changes-on-request",
+		date: "2026-11-13",
+		title: "Faro opens with the last year of changes, and fetches older ones when asked",
+		points: [
+			"A workspace opens faster: it brings the last year or so of changes, and every comment, ask and import whatever its age.",
+			"Show older changes, at the end of Activity and of a goal’s History, fetches older ones a page at a time.",
+			"An import over a year old can no longer be undone, since too much may have changed since."
+		],
+		articles: ["activity"]
+	},
 	{
 		id: "review-who-speaks",
 		date: "2026-11-13",
@@ -21187,6 +21220,22 @@ function layoutFrom(ctx, a) {
 }
 /** A sentence as part of a longer line: without its closing full stop, so the line never ends in two. */
 var clause = (t) => t.trim().replace(/\.+$/, "");
+/** The newest n changes that pass `keep`. With the store's history (AX5 part 2b) it pages back through the log, 100 at
+a time, rather than filtering every change ever made; without it, it reads the snapshot. */
+async function activityPages(ctx, keep, n) {
+	if (!ctx.history) return ctx.snapshot.changes.filter(keep).sort((x, y) => x.at < y.at ? 1 : -1).slice(0, n);
+	const out = [];
+	let before;
+	do {
+		const page = await ctx.history({
+			before,
+			size: 100
+		});
+		for (const c of page.changes) if (keep(c) && out.push(c) >= n) return out;
+		before = page.next;
+	} while (before);
+	return out;
+}
 var WORK_TOOLS = [
 	{
 		name: "get_my_work",
@@ -21520,14 +21569,12 @@ var WORK_TOOLS = [
 		async run(a, ctx) {
 			const q = parseActivity(new URLSearchParams(String(a.query ?? "").replace(/^.*\?/, "")));
 			if (q.goal) q.goal = goalOf$2(ctx, q.goal).id;
-			const keep = activityFilter(q, {
+			return listed({ changes: (await activityPages(ctx, activityFilter(q, {
 				snapshot: ctx.snapshot,
 				cycle: ctx.cycle,
 				week: ctx.week,
 				watched: null
-			});
-			const n = Math.min(500, Math.max(1, Number(a.limit ?? 50)));
-			return listed({ changes: ctx.snapshot.changes.filter(keep).sort((x, y) => x.at < y.at ? 1 : -1).slice(0, n).map((c) => ({
+			}), Math.min(500, Math.max(1, Number(a.limit ?? 50))))).map((c) => ({
 				at: c.at,
 				by: name$1(ctx, c.actorId),
 				goal: c.goalId ? ctx.snapshot.goals.find((g) => g.id === c.goalId)?.title ?? c.goalId : null,
@@ -26303,6 +26350,7 @@ async function serve(req, deps) {
 				ctx.full = all;
 				return secret;
 			},
+			...deps.history ? { history: (ask) => db("select", () => deps.history(found.workspaceId, ask)) } : {},
 			...deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace(found.workspaceId) } : {},
 			...deps.markups ? { markups: deps.markups(hash) } : {},
 			...deps.feedback ? { feedback: deps.feedback(hash) } : {}
@@ -48886,6 +48934,7 @@ function supabaseDeps(origin, env = process.env, client) {
 			return data?.name ?? "Workspace";
 		},
 		load: (ws) => store.load(ws),
+		history: (ws, ask) => store.history(ws, ask),
 		commit: (ws, c) => store.commit(ws, c),
 		async goalKeys(ws, ids) {
 			const { data, error } = await db.from("okr_goals").select("id, key").eq("workspace_id", ws).in("id", ids);

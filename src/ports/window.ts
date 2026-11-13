@@ -8,8 +8,8 @@ import type { Change, CheckIn, Cycle, Goal, Snapshot } from '../domain/types';
 import type { HistoryAsk, HistoryPage, LoadWindow } from './store';
 
 /** Entries of these kinds are anchors: kept at any age, because rules read them whatever their age (comments, asks, a
-    cycle's "created" entry). */
-export const ANCHOR_ENTITIES = ['note', 'request', 'cycle'] as const satisfies readonly Change['entity'][];
+    cycle's "created" entry, a person's arrival (domain/dayOne arrived), a metric's last change and former names). */
+export const ANCHOR_ENTITIES = ['note', 'request', 'cycle', 'person', 'metric'] as const satisfies readonly Change['entity'][];
 /** Import and bulk-edit summaries (and their undoing) are anchors too: past imports and "Undo this import" read them. */
 export const ANCHOR_ACTIONS = ['imported', 'undone'] as const satisfies readonly Change['action'][];
 
@@ -44,6 +44,16 @@ export function windowed(s: Snapshot, w: LoadWindow): Snapshot {
     changes: s.changes.filter((c) => keepsChange(c, w)),
     history: { from: w.from, checkInCycles: checkInCycles(s.goals, s.checkIns) },
   };
+}
+
+/** How far back the app's own load reaches (AX5 part 2b): a goal year of up to 53 weeks, the 4 weeks its wrap-up stays
+    open after it ends, and the weeks a next year is started and its goals copied before it begins, with room to spare.
+    So the earliest open cycle, and every entry since the next year was started, is always inside the window. */
+export const LOAD_DAYS = 420;
+/** The window the app loads with: LOAD_DAYS back from now, at the start of that day (UTC). */
+export function appWindow(now: Date): LoadWindow {
+  const d = new Date(now.getTime() - LOAD_DAYS * 86_400_000);
+  return { from: d.toISOString().slice(0, 10) + 'T00:00:00.000Z' };
 }
 
 /** A page of history is 50 entries unless asked otherwise, and never more than 100. */

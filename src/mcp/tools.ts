@@ -1,6 +1,7 @@
 /* The MCP tools: what an AI assistant can read and change, acting as one person through their personal token.
    Every write goes through the bulk-change engine, so it meets the same rules as the app (owners change their own
    goals, admins any; reasons when behind; a reason for plan changes) and is logged as that person, via MCP. */
+import type { HistoryAsk, HistoryPage } from '../ports/store';
 import { LEVEL_WORDS, levelIds } from '../domain/levels';
 import { addNote, NotAllowed } from '../domain/actions';
 import { EMPTY_QUERY, parseQuery, queryEntries, type GoalQuery } from '../domain/query';
@@ -51,6 +52,8 @@ export interface McpContext {
   now: string;
   newId: (prefix: string) => string;
   save(c: Commit): Promise<void>;
+  /** Older change-log entries a page at a time, newest first (Store.history). Without it, get_activity reads the snapshot. */
+  history?(ask: HistoryAsk): Promise<HistoryPage>;
   /** Saves a new token (createToken's commit) and returns its secret, made where it's kept; only the hash is stored. */
   issueToken(c: Commit): Promise<string>;
   /** Every goal in the workspace, in every cycle, when the server has them (removing a team reaches past this cycle). */

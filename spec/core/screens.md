@@ -553,6 +553,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Posting… / Post your reply” | primary | always |
 | “Show the other …” | button | `rest.length > shown.length` |
 | “Clear the search” | button | `!shown.length` and `q` |
+| “Fetching older changes… / Show older changes” | button | `reaches` and `older.more` and `h.entries.length <= shown.length` |
 | “Weeks … – …” | button | always |
 | “Add a comment” | button | always |
 | “Posting… / Post comment” | button | always |
@@ -690,6 +691,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Filters …” | button | always |
 | “Save.csv” | button | always |
 | “Show more (… older)” | button | `folded.top.length > shown.length` |
+| “Fetching older changes… / Show older changes” | button | `!(folded.top.length > shown.length)` and `older.more` |
 | “Clear filters” | button | always |
 | “Show the changes” | primary | always |
 
