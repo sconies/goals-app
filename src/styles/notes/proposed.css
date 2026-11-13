@@ -12,6 +12,9 @@
 .proposed-rows .proposed-row { display: grid; grid-template-columns: 7rem 1fr auto; gap: var(--s3); padding: var(--s3) 0; color: inherit; text-decoration: none; }
 .proposed-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .proposed-would { text-align: right; color: var(--muted); }
+/* What feeds it: the goals proposed to feed this one, under the active ones (GE10). */
+.proposed-feeders { margin-top: var(--s3); }
+.proposed-feeders .proposed-rows .proposed-row { grid-template-columns: 7rem 1fr; }
 .under-way { border: 0; padding: 0; margin: var(--s3) 0 0; display: flex; flex-direction: column; gap: var(--s2); }
 .under-way-choice { border: 1px solid var(--line); border-radius: 10px; padding: var(--s3); min-height: 44px; align-items: flex-start; }
 .under-way-choice:has(input:checked) { outline: 2px solid var(--fg); outline-offset: -1px; }
@@ -21,7 +24,7 @@
 .map-node.proposed { border-style: dashed; }
 .board-card.proposed { border-style: dashed; }
 @media (max-width: 600px) {
-  .proposed-rows .proposed-row { grid-template-columns: 1fr; gap: 2px; }
+  .proposed-rows .proposed-row, .proposed-feeders .proposed-rows .proposed-row { grid-template-columns: 1fr; gap: 2px; }
   .proposed-would { text-align: left; }
   .proposed-actions > .btn { width: 100%; justify-content: center; }
 }

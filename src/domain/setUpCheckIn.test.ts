@@ -31,7 +31,7 @@ const mateo = person('mateo');
 const draft = (): GoalDraft => ({ ...blankGoal(mateo.teamId!, 'mateo', ''), title: 'Move the runners', kind: 'milestone', unit: '', start: '', target: '', stages: [{ id: 'st-a', name: 'Pilot', dueWeek: String(week - 2), done: 'yes' }, { id: 'st-b', name: 'Rollout', dueWeek: String(week + 4), done: '' }] });
 const answers = { 'stage-past:st-a': String(week - 2) };
 const goalRow = (row = 2): Rec => ({ __row: String(row), goal: 'Move the runners', owner: mateo.name, team: full.teams.find((t) => t.id === mateo.teamId)!.name, type: 'milestone', stages: `Pilot@${week - 2}; Rollout@${week + 4}` });
-const sheet = (who: string, via: Via) => planChanges({ tables: { goals: [goalRow()] }, snapshot, cycle, week, actor: person(who), now: today.toISOString(), newId, via, answers: { 'past-stage:goals:stages:': { choice: 'done' } } });
+const sheet = (who: string, via: Via) => planChanges({ tables: { goals: [goalRow()] }, snapshot, cycle, week, actor: person(who), now: today.toISOString(), newId, via, answers: { 'past-stage:goals:stages:': { choice: 'done' }, 'for-someone-else:goals:state:for-someone-else': { choice: 'active' } } });
 
 describe('a set-up check-in is the owner’s too', () => {
   it('the form: Oskar creates Mateo’s goal with a stage done; it is published with no check-in on it', () => {

@@ -28,6 +28,7 @@ export const LIMITS: Limit[] = [
   // Years
   { constraint: 'okr_cycles_weeks_check', holds: ['weeks >= 1', 'weeks <= 53'], rule: 'years-and-weeks', words: 'A goal year has 1 to 53 weeks.' },
   { constraint: 'okr_cycles_review_day_check', holds: ['review_day >= 0', 'review_day <= 6'], rule: 'years-and-weeks', words: 'A year’s review day is a day of the week, 0 to 6 (Monday is 0).' },
+  { constraint: 'okr_cycles_check_in_weeks_ok', holds: ['check_in_weeks', 'ARRAY[0, 1, 2, 4]'], rule: 'years-and-weeks', words: 'A year’s check-in rhythm is 1 (every week) or 0 (no set rhythm); 2 and 4 are kept for later. (The app offers 1 and 0.)' },
   // Goals
   { constraint: 'okr_goals_title_check', holds: ['>= 3'], rule: 'goal-entry', words: 'A goal’s title has at least 3 characters (spaces at either end not counted).', code: 'src/domain/thresholds.ts#MIN_NAME' },
   { constraint: 'okr_goals_decimals_check', holds: ['decimals >= 0', 'decimals <= 3'], rule: 'goal-entry', words: 'A goal keeps 0 to 3 decimal places. (A metric may keep 4: a goal measured by it keeps fewer, and is warned.)' },

@@ -2,6 +2,7 @@
    across the turn, finishes (it met its target) or stops (its owner said so at the wrap-up). One rule, read by the
    start page's read-back, by `nextCycle` and by the AI tools, so what the read-back says is what the start makes. */
 import { assessMilestone, checkInsFor } from './status';
+import { isProposed } from './proposed';
 import { goalResult } from './story';
 import type { Ask, CheckIn, Cycle, Goal, Retro, Review, Watch } from './types';
 import { followCopies, type ModuleRecords, type ModuleRowIds, type ModuleRows } from './records';
@@ -93,8 +94,10 @@ export interface ReadBack {
   loseParent: number;
   /** Number goals that carry with plan numbers set by hand. */
   handSet: number;
-  /** The four counts always add up to this: the year's live goals. */
+  /** The four counts always add up to this: the year's live goals, proposed ones apart. */
   total: number;
+  /** Proposed goals: never wrapped up and in none of the four counts; they carry as proposed (GE10). */
+  proposed: number;
 }
 
 /**
@@ -109,7 +112,9 @@ export function startReadBack(ctx: ReadBackCtx): ReadBack {
     const retro = ctx.retros.find((r) => r.goalId === g.id && r.cycleId === ctx.cycle.id) ?? null;
     kinds.set(g.id, carryKind(g, { cycle: ctx.cycle, checkIns: ctx.checkIns, retro }).kind);
   }
-  const of = (wrapped: boolean, ...ks: CarryKind[]) => ctx.goals.filter((g) => done.has(g.id) === wrapped && ks.includes(kinds.get(g.id)!)).length;
+  // A proposed goal is counted apart (GE10): it has no wrap-up and carries as proposed.
+  const judgedGoals = ctx.goals.filter((g) => !isProposed(g));
+  const of = (wrapped: boolean, ...ks: CarryKind[]) => judgedGoals.filter((g) => done.has(g.id) === wrapped && ks.includes(kinds.get(g.id)!)).length;
   const going = ctx.goals.filter((g) => carries(kinds.get(g.id)!));
   const stageGoals = going.filter((g) => g.kind === 'milestone');
   const stagesLeft = stageGoals.reduce((n, g) => {
@@ -125,7 +130,7 @@ export function startReadBack(ctx: ReadBackCtx): ReadBack {
     keep: of(true, 'keep'),
     finish: of(true, 'finish'),
     stop: of(true, 'stop'),
-    open: ctx.goals.filter((g) => !done.has(g.id)).length,
+    open: judgedGoals.filter((g) => !done.has(g.id)).length,
     openCarry: of(false, 'carry', 'keep'),
     openFinish: of(false, 'finish'),
     carried: going.length,
@@ -133,7 +138,8 @@ export function startReadBack(ctx: ReadBackCtx): ReadBack {
     stagesLeft,
     loseParent: going.filter((g) => g.parentId && ids.has(g.parentId) && !carries(kinds.get(g.parentId)!)).length,
     handSet: going.filter((g) => g.kind === 'metric' && kinds.get(g.id) === 'carry' && !!g.plan.points?.length).length,
-    total: ctx.goals.length,
+    total: judgedGoals.length,
+    proposed: going.filter(isProposed).length,
   };
 }
 

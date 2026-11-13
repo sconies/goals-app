@@ -37,6 +37,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['workspace'],
   },
   {
+    id: 'goals-for-others-asked-in-files',
+    date: '2026-11-13',
+    title: 'Proposed goals in What feeds it, the year’s start and files',
+    points: [
+      'A goal’s What feeds it lists the goals proposed to feed it under “Proposed”, counted in nothing.',
+      'When the next year starts, proposed goals carry as proposed, counted apart on the start page.',
+      'A spreadsheet or an AI assistant that adds goals for other people, with no State, asks once whether they start active or proposed. An admin’s file and set-up aren’t asked.',
+    ],
+    articles: ['goal-proposed', 'goal-page', 'data'],
+  },
+  {
     id: 'habit-before-this-review',
     date: '2026-11-13',
     title: 'A review says how many goals were ready for it',

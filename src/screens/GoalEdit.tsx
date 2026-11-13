@@ -129,7 +129,9 @@ function EditSheet({ goal }: { goal: Goal }) {
     // A question still open, maybe off screen: focus goes to the first, which scrolls it into view (goal entry rule 4,
     // as New goal's Continue does), and the line above Save says where it is.
     if (built && !confirmed) { focusQuestion(form.current, open[0]!.slot); return; }
-    if (!built || saving || (replanning && !reasonOk) || measure?.blocks) return;
+    // What measures it holds the save (a Must fix or an open Check under "Measured by"): focus goes to it, not Save.
+    if (built && measure?.blocks) { requestAnimationFrame(() => form.current?.querySelector<HTMLElement>('#measured-by [aria-invalid="true"], #measured-by [data-check]')?.focus()); return; }
+    if (!built || saving || (replanning && !reasonOk)) return;
     setSaving(true);
     try {
       const after: Goal = { ...built, pending: null };
