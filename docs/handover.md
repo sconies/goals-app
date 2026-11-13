@@ -26,6 +26,26 @@ The planning session session_012kbr939zneZWtAo7UQEHRP is about half full and han
   4. Optional: build api/mcp.js in CI. Recommended: leave it.
 - **Prompt for the next planning session:** "You are Faro's planning session. Check out main, read CLAUDE.md, the top section of docs/handover.md ('Planning state, Thursday 12 November, 21:55 UTC') and docs/backlog.md. Get your session ID with get_session and send_message every open session listed there: 'Planning has moved to session <ID>. Report there from now on, and send only finished results and blockers.' Then read reports with ReadNotifications; when a track hands over, start a fresh session from its handover prompt; relay the reviewer's findings to the owning track; fix anything that breaks main at once; put Lane's ideas in the backlog; ask Lane the 'Waiting for Lane' items still open, in one batch of multiple-choice questions, recommended answer first. Stay quiet otherwise. Hand over at about half full."
 
+## Track 1, Friday 13 November, 00:30 UTC (session past half, handing over; supersedes the 12 Nov 21:40 entry)
+
+Session: session_012kbr91yMK3mzwj4mayoAJr. **Merged:** #310 (HM2: asks say how long they have waited). #274 (GL2's review fixes, with F6's fix: the Map's search box compared an emptied search with the address it had last seen, so emptied just after Enter it wrote nothing; `SearchBox` in `GoalFilters.tsx` now compares with what it has sent). #282 (NV2: forms close in words, Back finds your list). #305 (`hm1-review-fixes`: HM1's five mediums, plus gate fixes: `nextReviews` takes `Pick<Snapshot, 'reviews'>` for the layers lint; N26 knows "N asks wait for your response."; on a phone Home's blocks sit 16px apart and the hero's button 4px under its line, so U2's first attention card stays above the fold now the lead's line wraps; the button row's inline 8px margin moved into `home-watching.css`).
+
+| Branch | State | PR |
+|---|---|---|
+| `hm2-gated` | **Merged as #310** at 00:20 UTC. Its gate fix: F1 (Home's response items 168px, limit 152; the meta line said the asked day twice, so with a "Waiting since" line the asked part drops "on {day}"). U47 failed once in the full run and passes alone, here and on main | #310 merged |
+| `fs1-mediums`, `rv7-gated` | main merged in at 22:20 UTC, typecheck passes, pushed; not evaluated | none |
+| `ck-correct-fixes` | as the 21:40 entry: `npm run spec` again, `evals:changed`; expect the `CheckInFlow.tsx` conflict with NV2's FormClose, now on main | none |
+
+**Next, in order:** `fs1-mediums`; `rv7-gated`; `ck-correct-fixes`; #234's mediums; then the habit moment, N12's Find timing, #110's lows, HM1's lows, with the lows batch (the 21:40 entry has the details of each).
+
+**Habits, learned this session:**
+- Main moves every few minutes and nearly every merge conflicts in What's new: merge main, push, and merge the PR the moment CI is green, after `git merge-tree --write-tree HEAD origin/main` says clean and `comm -12` of the two sides' changed files shows no overlap but generated files. `enable_pr_auto_merge` refuses ("Protected branch rules not configured"): merge by hand with the full 40-character head SHA.
+- The merge helper (scratchpad, gone with the container): `wn.cjs` rebuilds What's new as main's file with the branch's own entries on top; `mm.sh` then takes main's `api/mcp.js` and `evals/report.md`, runs `build:mcp` (checks `grep -c home/user` is 0) and `npm run spec`, `git add -A`, commits "Merge main [no news]", typechecks. Keep `evals/report.md` out of commits: an eval run rewrites it.
+- One worktree per branch (`git worktree add /home/user/wt-X -B X origin/X`, `cp -al node_modules`), so merges run while an eval runs elsewhere.
+- Every eval run goes to a subagent that reports only the scorecard and failures; a full `evals:changed` takes ~18 minutes and runs the full suite whenever shared code is touched.
+- `src/app/undoElsewhere.test.tsx` is flaky (1 in 3 local runs, once in CI); it passed on a re-run. Not fixed.
+- Scores below 10 that aren't track 1's: U12 8.8 (demo controls below the fold on desktop), U29 8.3 (the import walkthrough's first step on a phone), U46 9 (export: two primaries), U31 9, U69 8.9 once.
+
 ## Track 1, Thursday 12 November, 21:40 UTC (session past half, handing over; supersedes the 20:15 entry)
 
 Session: session_012kbr92tVe7c6Re4gj42nCe. Nothing merged yet this session. Auto-merge works again (planning, 20:58): once a PR's gate passes and it is current with main, `enable_pr_auto_merge` (MERGE); if it says the PR is already clean, merge by hand.

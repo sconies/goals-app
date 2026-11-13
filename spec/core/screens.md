@@ -64,7 +64,7 @@ Words worked out when the screen shows (from the goal, the person or the week) a
 
 - `/` (`Home`): Home shows what needs you this week: one main thing to do, what people have asked of you, and the goals you own and watch. Help: “Home and your week at a glance” (`home`).
 
-- **Named parts:** “Your goals”, “Needs your response”, “Goals you watch”, “Getting started”, “This week (region)”, “For you (region)”
+- **Named parts:** “Your goals”, “Goals you watch”, “Getting started”, “This week (region)”, “For you (region)”
 - **Main action:** The lead’s, or none: what is asked of you today (late check-ins, check-ins due tomorrow or before today’s review, the wrap-up, a review on its day), or one quiet line that nothing is.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_my_work`, `get_overview`
@@ -88,6 +88,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “… (worked out when it shows)” | primary | always |
 | “… (worked out when it shows)” | link | `quiet.buttons.length > 0` |
 | “Show the … with nothing flagged” | button | `rest.length > 0` and `rest.length > shown.length` |
+| “Show all …” | button | `asks.length > shown.length` |
 | “Check in” | link | `a.goal.ownerId === app.viewer.id && a.flags.some((f) => f.kind === 'due' \|\| f.kind === 'stale' \|\| f.kind === …` |
 | “See the wrap-up” | link | `wrapUpOpenOn(app.cycle, app.today)` |
 | “See Cycles / Start …” | link | always |
