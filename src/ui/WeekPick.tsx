@@ -37,6 +37,7 @@ export function WeekPick({ cycle, week, field, label, value, onChange, from, lab
   // not from the week the last render saw (U109).
   const atNow = useRef(start);
   const setAt = (n: number) => { atNow.current = n; setAtState(n); };
+  // The shown year rides along the same way, so a key that crosses into another year reads the right one.
   const [shownYear, setShownState] = useState(yearWeek(cycle, start).year);
   const shownNow = useRef(shownYear);
   const setShownYear = (y: number) => { shownNow.current = y; setShownState(y); };
