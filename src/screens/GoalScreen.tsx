@@ -361,6 +361,8 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
           <span className="bar-now">{num}</span>
           {/* Only in the one-line bar: the gap to plan, which the scorecard says in full. */}
           {card.gap && <span className="bar-gap"><span aria-hidden="true">· </span>{card.gap}</span>}
+          {/* Before the first check-in, a baseline of its own is the number: said as one (domain/baseline rule 2). */}
+          {figures.baseline && <span className="bar-baseline">{figures.baseline}</span>}
         </div>
         {firstDue && !goal.stoppedAt ? <p className="small muted sc-none" data-part="Scorecard">The scorecard starts with the first check-in.</p> : card.cells.length > 0 && <ScoreGrid cells={card.cells} />}
         {isUnmeasured(goal) && <p className="small muted bar-unmeasured" data-part="Not measured yet">{UNMEASURED_MEANING}</p>}
@@ -625,17 +627,19 @@ function GoalChart({ goal, status, landed, hit, card }: { goal: Goal; status: Di
     : projected ? (goal.kind === 'metric' ? 'Likely end projected from the last eight weeks, not the owner’s date.' : 'Likely end projected from the last eight weeks.')
     : null;
   const caption = foot ? <span className="chart-say chart-foot">{foot}</span> : null;
+  // Modules' marks (MT3's “Definition changed, week 6”), on a number's chart and a range's alike.
+  const notes = goalMarksOf(MODULE_RECORDS, app.snapshot, goal.id, cycle);
   return (
     <section className="block goal-chart-block" id="chart" aria-label="Chart" data-part="Chart">
       {goal.kind === 'metric' && a.kind === 'metric' && (
         <figure className="card goal-chart" style={{ margin: 0 }}>
-          <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={ahead ? a.forecast : null} projection={ahead ? a.projection : null} ptgBy={ahead ? ptg?.byWeek ?? null : null} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} hit={hit} marks={stale ? null : card.marks} notes={goalMarksOf(MODULE_RECORDS, app.snapshot, goal.id, cycle.startDate)} />
+          <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={ahead ? a.forecast : null} projection={ahead ? a.projection : null} ptgBy={ahead ? ptg?.byWeek ?? null : null} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} hit={hit} marks={stale ? null : card.marks} notes={notes} />
           {(caption || goal.originalPlan) && <figcaption className="small">{caption}{goal.originalPlan ? <PlanChanges goal={goal} /> : null}</figcaption>}
         </figure>
       )}
       {goal.kind === 'range' && (
         <figure className="card goal-chart" style={{ margin: 0 }}>
-          <RangeChart goal={goal} weeks={cycle.weeks} week={week} series={series} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} />
+          <RangeChart goal={goal} weeks={cycle.weeks} week={week} series={series} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} notes={notes} />
           {caption && <figcaption className="small">{caption}</figcaption>}
         </figure>
       )}

@@ -11,7 +11,7 @@ import { canEditMetric, DIRECTION_LABEL, linksOf, liveMetrics, log, metricRows, 
 /** Rule 3's kinds, in the order the read-back shows them. `words` saves at once; `scale` is refused. */
 export type ChangeKind = 'none' | 'scale' | 'relabel' | 'direction' | 'meaning' | 'decimals' | 'words';
 /** What rule 3 reads of a goal the metric measures. */
-export type LinkedGoal = Pick<Goal, 'id' | 'title'> & { unit: string; decimals: number; aimsUp: boolean | null; ownerId: string };
+export type LinkedGoal = Pick<Goal, 'id' | 'title' | 'cycleId'> & { unit: string; decimals: number; aimsUp: boolean | null; ownerId: string; stopped: boolean };
 
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 const onDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -34,11 +34,12 @@ export function changeKinds(before: Metric, after: Metric, linked: readonly Link
   return out.length ? out : ['words'];
 }
 
-/** The live goals a metric measures now (links in force, the goal neither removed nor stopped), as rule 3 reads them. */
+/** The goals a metric measures now (links in force, the goal not removed), in every year, as rule 3 reads them. A stopped
+    goal counts: it can be restored for 30 days, and a change must not leave it in a unit or direction it never had. */
 export function linkedGoals(s: Pick<ActionContext['snapshot'], 'goals'> & { modules?: ActionContext['snapshot']['modules'] }, metricId: string): LinkedGoal[] {
   const ids = new Set(linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt).map((l) => l.goalId));
-  return s.goals.filter((g) => ids.has(g.id) && !g.removedAt && !g.stoppedAt).map((g) => ({
-    id: g.id, title: g.title, unit: g.kind === 'milestone' ? '' : g.unit, decimals: g.kind === 'milestone' ? 0 : g.decimals, ownerId: g.ownerId,
+  return s.goals.filter((g) => ids.has(g.id) && !g.removedAt).map((g) => ({
+    id: g.id, title: g.title, cycleId: g.cycleId, stopped: !!g.stoppedAt, unit: g.kind === 'milestone' ? '' : g.unit, decimals: g.kind === 'milestone' ? 0 : g.decimals, ownerId: g.ownerId,
     aimsUp: g.kind === 'metric' ? (g.plan.target === g.plan.start ? null : g.plan.target > g.plan.start) : g.kind === 'range' ? (g.range.bound === 'between' ? null : g.range.bound === 'atLeast') : null,
   }));
 }
@@ -71,18 +72,22 @@ export function saveMetricChange(x: ActionContext, input: ChangeInput): { commit
   const marked: MetricMark['kind'][] = [...(kinds.includes('meaning') && comparable === false ? ['definition' as const] : []), ...(kinds.includes('direction') ? ['direction' as const] : [])];
   if (marked.length && !why) no(marked.includes('direction') ? 'Say why the direction changes, in a line. Every goal measured by it will show this.' : 'Say why, in a line. Every goal measured by it will show this.');
   if (why.length > 300) no('Keep the reason to 300 characters or fewer.');
-  const marks: MetricMark[] = marked.map((kind) => ({ week: x.week, at: x.now, by: x.actor.id, kind, why, was: kind === 'direction' ? DIRECTION_LABEL[before.direction] : before.meaning || before.source, now: kind === 'direction' ? DIRECTION_LABEL[after.direction] : after.meaning || after.source }));
+  // A change of source alone shows the two sources, not the same meaning twice.
+  const words = (m: Metric) => (before.meaning.trim() !== after.meaning.trim() ? m.meaning : m.source) || m.meaning || m.source;
+  const marks: MetricMark[] = marked.map((kind) => ({ week: x.week, at: x.now, by: x.actor.id, kind, why, was: kind === 'direction' ? DIRECTION_LABEL[before.direction] : words(before), now: kind === 'direction' ? DIRECTION_LABEL[after.direction] : words(after) }));
   const metric: Metric = marks.length ? { ...after, marks: [...(before.marks ?? []), ...marks] } : after;
   const goals = kinds.includes('relabel') ? (x.full ?? x.snapshot).goals.filter((g) => linked.some((l) => l.id === g.id)).map((g) => (g.kind === 'milestone' ? g : { ...g, unit: after.unit })) : [];
   const head = dry.commit.changes[0]!;
   const said = marks.length ? `${head.summary}${why ? `: ${why}` : ''}` : kinds.includes('relabel') ? `Changed the unit of “${after.name}” from “${before.unit}” to “${after.unit}” on it and its ${goalsWord(n)}` : head.summary;
-  const perGoal = marks.length || goals.length ? linked.map((g) => log(x, {
+  // A mark is this year's: only this cycle's goals show it, so only theirs say so in History. A relabel is every goal's.
+  const told = marks.length ? linked.filter((g) => g.cycleId === x.cycle.id) : goals.length ? linked : [];
+  const perGoal = told.map((g) => log(x, {
     entityId: after.id, goalId: g.id, action: 'edited',
     summary: marks.some((m) => m.kind === 'definition') ? `Definition changed: what “${after.name}” means, from week ${x.week}: ${why} Weeks before ${x.week} were measured the old way.`
       : marks.length ? `Direction changed: for “${after.name}” ${DIRECTION_LABEL[after.direction].toLowerCase()}, from week ${x.week}: ${why}`
       : `Its unit changed from “${before.unit}” to “${after.unit}”, as “${after.name}” did`,
     diffs: goals.length ? [{ field: 'Unit', from: before.unit, to: after.unit }] : [],
-  })) : [];
+  }));
   // MS: a gap opened or closed holds its goals to no number, or to their plans again, in the same save (one Undo).
   const relabelled = new Map(goals.map((g) => [g.id, g]));
   const hold = heldBy(x, metric, (x.full ?? x.snapshot).goals.map((g) => relabelled.get(g.id) ?? g), linksOf(x.full ?? x.snapshot));

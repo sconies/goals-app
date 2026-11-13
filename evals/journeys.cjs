@@ -6198,6 +6198,32 @@ journey('U153', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: 
   // It reads and saves nothing: 'logged' is not this journey's.
 }, ['logged']);
 
+journey('U162', ['GOAL-BASELINE'], 'A baseline of its own (BL): as Rhea, CI cost per run (no check-ins yet) is given the period its baseline covers, “June to September 2026”, ticked Provisional, and saved; its page shows the baseline as its number with “Baseline, June to September 2026, provisional” beside it, the Goals list says “(baseline)”, and the goal keeps it', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/ci-cost/edit'));
+  const period = p.getByLabel(/^Period the baseline covers/);
+  await period.waitFor();
+  h.set('entry', true);
+  await h.fill(period, 'June to September 2026');
+  const prov = p.getByLabel(/^Provisional/);
+  h.set('errors', (await prov.count()) === 1, 'Provisional is not offered once a period is given');
+  await prov.check();
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/goals\/ci-cost(\?|#|$)/);
+  h.set('progress', true);
+  const bar = p.locator('.goal-bar');
+  await see(bar, 'Baseline, June to September 2026, provisional', 'the goal’s page does not say its number is the baseline');
+  h.set('attention', (await bar.locator('.bar-now').textContent() ?? '').trim() !== 'No value yet', 'the page still says No value yet');
+  await h.checkpoint('baseline shown');
+  const after = await h.snapshot();
+  const g = (after.goals ?? []).find((x) => x.id === 'ci-cost');
+  h.set('logged', !!g?.baseline && g.baseline.period === 'June to September 2026' && g.baseline.provisional === true && g.baseline.value === g.plan.start, 'the goal did not keep its baseline');
+  await p.goto(url('/goals?q=CI+cost'));
+  await see(p, '(baseline)', 'the Goals list does not mark the number as the baseline');
+  h.set('finish', true);
+  await p.context().close();
+}, []);
+
 journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, a goal stopped with a reason is gone from Goals and listed with the State filter on Stopped (“1 stopped goal, most recently stopped first.”), with the Stopped mark, who stopped it and when, and the reason; the Filters sheet’s State offers Active, Proposed and Stopped; Remove goes back to the active goals', 15, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   const on = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2026-11-11';
@@ -6486,7 +6512,7 @@ journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI 
   await p.goto(url('/metrics/queue-wait/edit'));
   await h.fill(p.getByLabel('Unit', { exact: true }), 's');
   await h.click(p.getByRole('button', { name: 'Save changes' }));
-  const confirm = p.getByRole('alertdialog');
+  const confirm = p.getByRole('dialog');
   await see(confirm, /1 goal is measured by Pipeline queue wait \(p90\) in min\. Is “s” a new label for the same numbers, or a different scale\?/, 'changing a unit goals use is not asked first');
   await h.click(confirm.getByRole('button', { name: 'Keep it as it was' }));
   h.set('finish', (await p.getByLabel('Unit', { exact: true }).inputValue()) === 'min', 'Keep it as it was did not put the unit back');
@@ -6599,6 +6625,8 @@ journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Le
   await h.click(p.getByRole('button', { name: 'Save changes' }));
   const rb = p.locator('.metric-readback');
   await see(rb, 'Is it still the same number?', 'a new meaning is not read back with the question');
+  // The read-back is a sheet: it takes the focus, and its own button is the one primary action (#351 review).
+  h.set('attention', await p.evaluate(() => !!document.activeElement?.closest('[role="dialog"]')), 'the read-back does not take the focus');
   await see(rb, /1 goal is measured by it/, 'the read-back does not name the goals');
   await h.checkpoint('read back');
   await h.click(rb.getByLabel(/The number itself changes/));
@@ -6608,6 +6636,8 @@ journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Le
   await h.fill(rb.getByLabel(/^Why/), 'The DORA dashboard counts from merge now.');
   await h.click(rb.getByRole('button', { name: 'Change the meaning' }));
   await p.waitForURL(/\/demo\/metrics\/lead-time(\?|#|$)/);
+  // A change offers Undo, which would take its mark back with it (#351 review).
+  h.set('progress', (await p.locator('.toast-action').filter({ hasText: 'Undo' }).count()) > 0, 'a metric change offers no Undo');
   await p.goto(url('/goals/ns-lead'));
   const note = p.locator('.c-note text').first();
   await note.waitFor({ timeout: 8000 }).catch(() => {});
@@ -6620,6 +6650,10 @@ journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Le
   await h.click(p.getByRole('button', { name: 'Retire the metric' }));
   await see(p.locator('.metric-retired'), /Retired on .*: “The test platform reports it now\.”/, 'the retired metric’s page does not say so');
   h.set('errors', (await p.getByRole('link', { name: 'Change this metric' }).count()) === 0, 'a retired metric still offers Change this metric');
+  // It can be found again: the library links to the retired ones, which lists it (#351 review).
+  await p.goto(url('/metrics'));
+  await h.click(p.getByRole('link', { name: /^See the (\d+ )?retired metrics?$/ }));
+  await h.click(p.getByRole('list', { name: 'Metrics' }).getByRole('link', { name: /Flaky test rate/ }));
   await h.click(p.getByRole('button', { name: 'Bring it back' }));
   await p.locator('.metric-retired').waitFor({ state: 'detached' });
   const s = await h.snapshot();

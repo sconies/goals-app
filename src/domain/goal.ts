@@ -5,6 +5,7 @@ import { planAt, planCheckpoints, planEnd, planHistoryOf } from './plan';
 import type { CheckIn, Cycle, Goal, GoalKind, Io, Level, MetricGoal, MetricPlan, PlanShape, Status } from './types';
 import { assessMilestone } from './status';
 import { defaultTo } from './weeks';
+import { baselineOf, startsFromProvisional } from './baseline';
 
 export interface GoalDraft {
   kind: GoalKind;
@@ -26,6 +27,10 @@ export interface GoalDraft {
   /** The week the plan starts from, when it's being set (a spreadsheet's Plan from week). Left out: as it was, or this
       week for a new goal set up mid-cycle. */
   fromWeek?: string;
+  /** The period the baseline covers (BL, domain/baseline rule 1): given, the plan's start is a baseline of its own. */
+  baselinePeriod?: string;
+  /** Whether that baseline is provisional. */
+  baselineProvisional?: boolean;
   source: string;
   definition: string;
   unit: string;
@@ -63,7 +68,7 @@ export function draftOf(g: Goal): GoalDraft {
     kind: g.kind, title: g.title, io: g.io, level: g.level, guardrail: g.guardrail,
     effect: g.effect == null ? '' : String(g.effect), whyHelps: g.whyHelps ?? '', alsoHelps: g.alsoHelps ?? [], source: g.source, definition: g.definition,
   });
-  if (g.kind === 'metric') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), start: String(g.plan.start), target: String(g.plan.target), shape: g.plan.shape, endWeek: g.plan.endWeek ? String(g.plan.endWeek) : '', points: Object.fromEntries((g.plan.points ?? []).map((p) => [String(p.week), String(p.value)])) });
+  if (g.kind === 'metric') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), start: String(g.plan.start), target: String(g.plan.target), shape: g.plan.shape, endWeek: g.plan.endWeek ? String(g.plan.endWeek) : '', points: Object.fromEntries((g.plan.points ?? []).map((p) => [String(p.week), String(p.value)])), baselinePeriod: g.baseline?.period ?? '', baselineProvisional: !!g.baseline?.provisional });
   if (g.kind === 'range') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), bound: g.range.bound, limit: String(g.range.limit), lower: g.range.lower != null ? String(g.range.lower) : '', margin: String(g.range.margin) });
   if (g.kind === 'milestone') d.stages = g.stages.map((s) => ({ id: s.id, name: s.name, dueWeek: String(s.dueWeek) }));
   return d;
@@ -139,6 +144,8 @@ export function planQuestion(before: Goal | null, after: Goal): PlanQuestion | n
 /** Whether the plan itself differs: what status is judged against (start, target, shape, limit, stages). */
 export function planChanged(a: Goal, b: Goal): boolean {
   if (a.kind !== b.kind) return true;
+  // Firming up a provisional baseline moves only the start, and is not a plan change (domain/baseline rule 3).
+  if (a.kind === 'metric' && b.kind === 'metric' && a.plan.start !== b.plan.start && startsFromProvisional(a)) return planChanged(a, { ...b, plan: { ...b.plan, start: a.plan.start } });
   if (a.kind === 'metric' && b.kind === 'metric') return a.plan.start !== b.plan.start || a.plan.target !== b.plan.target || a.plan.shape !== b.plan.shape || (a.plan.fromWeek ?? 0) !== (b.plan.fromWeek ?? 0) || (a.plan.endWeek ?? 0) !== (b.plan.endWeek ?? 0) || JSON.stringify(a.plan.points ?? []) !== JSON.stringify(b.plan.points ?? []);
   if (a.kind === 'range' && b.kind === 'range') return a.range.bound !== b.range.bound || a.range.limit !== b.range.limit || a.range.lower !== b.range.lower || a.range.margin !== b.range.margin;
   if (a.kind === 'milestone' && b.kind === 'milestone') return JSON.stringify(a.stages.map((s) => [s.name, s.dueWeek])) !== JSON.stringify(b.stages.map((s) => [s.name, s.dueWeek]));
@@ -175,7 +182,9 @@ export function buildGoal(d: GoalDraft, cycle: Cycle, base: { id: string; create
     };
     const plan = withPoints(shaped, d.points, cycle.weeks);
     const history = existing?.kind === 'metric' ? replanned(existing, plan, checkInsStarted, week) : { originalPlan: null, rebaselinedWeek: null };
-    return { ...common, kind: 'metric', unit: d.unit.trim(), decimals: decimalsFor(d) ?? 0, plan, ...history };
+    const baseline = d.baselinePeriod === undefined && existing?.kind === 'metric' && existing.baseline
+      ? baselineOf(plan.start, existing.baseline.period, existing.baseline.provisional) : baselineOf(plan.start, d.baselinePeriod, d.baselineProvisional);
+    return { ...common, kind: 'metric', unit: d.unit.trim(), decimals: decimalsFor(d) ?? 0, plan, ...history, ...(baseline ? { baseline } : {}) };
   }
   if (d.kind === 'range') {
     return { ...common, kind: 'range', unit: d.unit.trim(), decimals: decimalsFor(d) ?? 0, range: { bound: d.bound, limit: num(d.limit), ...(d.bound === 'between' ? { lower: num(d.lower) } : {}), margin: parseNumber(d.margin) ?? 0 } };

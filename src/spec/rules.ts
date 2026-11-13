@@ -18,15 +18,16 @@ import { splitTables } from '../domain/splitFile';
 import { CHECK_KINDS, MUST_KINDS, near, whereText } from '../domain/problemLevels';
 import { readHeader, readLine, readTables } from '../domain/sheets';
 import { leaveOut } from '../domain/leaveOut';
-import { planQuestion } from '../domain/goal';
+import { planChanged, planQuestion } from '../domain/goal';
+import { baselineOf, baselineShown, baselineWords } from '../domain/baseline';
 import { checkInLevels, emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, previousFor, stepState, unanswered, valueProblem, type Answers, type Draft } from '../domain/checkin';
 import { notStarted } from '../domain/plan';
 import { cycleWeek, readWeekCode, weekCode, weekSays, yearWeek } from '../domain/weeks';
 import { planSays, readWeek, spanSays, weekChoices } from '../domain/weekChoices';
 import { currentWeek, daysSince, firstWeekFrom, resultWeek, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
 import { amount, byWeekWords, goalScorecard, likelihood } from '../domain/scorecard';
-import { directionLabel, fmt, gapText } from '../domain/format';
-import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
+import { directionLabel, fmt, gapText, nowText } from '../domain/format';
+import { assessMetric, assessMilestone, assessPosted, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
 import { isUnmeasured } from '../domain/unmeasured';
 import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPAN } from '../domain/thresholds';
 import { cycleStanding, importName, leaveWorkspace, keptText, pastImports, undoPreview } from '../domain/removal';
@@ -1568,6 +1569,37 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
       ];
     })(),
     unclear: ['The goal side asks for no baseline once a goal may be saved without one (backlog GB and BL); until then a held goal keeps the plan it was given, unjudged.', 'Lists show a held goal as No check-in yet; its page shows Not measured yet.'],
+  },
+  /* ---------- a baseline as a field of its own (backlog BL; core) ---------- */
+  {
+    id: 'baseline',
+    title: 'A baseline of its own',
+    summary: 'A number goal’s baseline can be a figure already known for a period, often provisional: shown as its number until the first check-in, and firmed up without a plan change.',
+    code: [{ file: 'src/domain/baseline.ts', names: ['baselineOf', 'baselineWords', 'baselineShown', 'startsFromProvisional', 'periodProblem', 'BASELINE_PERIOD_MAX'] }, { file: 'src/domain/goal.ts', names: ['planChanged', 'buildGoal'] }, { file: 'src/domain/format.ts', names: ['nowText'] }],
+    tests: ['src/domain/baseline.test.ts'],
+    reqs: ['GOAL-BASELINE'],
+    body: `
+**Data.** A number goal (\`kind: 'metric'\`) may carry \`baseline: { value, period, provisional }\`: the figure, the period it covers in words (“June to September 2026”, at most 60 characters) and whether it may still be firmed up. Stored in three nullable columns, all null when there is none; a period or the flag never goes without the figure.
+
+**Rule 1. When a goal has one** (\`baselineOf\`). When its period is given: the figure is the plan's start (Baseline in the form, Start on the Goals sheet, \`start\` in the tools). No period, no baseline of its own; “none” on the sheet or in the tools removes it. The flag is “provisional” or “firm” (firm when not said).
+
+**Rule 2. Shown until the first check-in** (\`baselineShown\`, \`nowText\`). Before the goal's first check-in its number is the baseline: “41.5 min (baseline)” in every list, and on its page the number with “Baseline, June to September 2026, provisional” beside it, then the target. It is not a check-in: the status (No check-in yet, or Not started in week 0), the trend, the projection and what is due are worked out exactly as before. From the first check-in on, the check-in's number is shown and the baseline is not.
+
+**Rule 3. Firming it up isn't a plan change** (\`startsFromProvisional\`, \`planChanged\`). While the plan starts from a provisional baseline (its figure is the plan's start), moving that start, and nothing else in the plan, is not a plan change: no reason is asked once check-ins have started, and the plan before isn't kept. Unticking Provisional is never a plan change. A firm baseline's start moves as any start does.
+
+**Must fix.** A period over 60 characters: “The baseline’s period can be at most 60 characters.”, at the Baseline (Start) field. A word Baseline is doesn't know: an unknown word, as every word column says.`,
+    examples: (() => {
+      const today = new Date(CHECK_IN_MOMENT);
+      const base = () => { const g = goalIn('lead-merge') as Extract<Goal, { kind: 'metric' }>; return { ...g, baseline: { value: g.plan.start, period: 'June to September 2026', provisional: true } }; };
+      return [
+        { given: 'Merge-to-deploy time (lead-merge) with a provisional baseline of its plan’s start for June to September 2026, before any check-in.', then: 'Baseline, June to September 2026, provisional', run: () => baselineWords(baselineShown(base(), false)!) },
+        { given: 'The same goal, its number in a list before the first check-in.', then: 'ends “(baseline)”', run: () => { const g = base(); const c = demo!.cycles.find((x) => x.id === g.cycleId)!; return nowText(g, assessPosted(g, c, [], currentWeek(c, today))).endsWith('(baseline)') ? 'ends “(baseline)”' : 'no'; } },
+        { given: 'Its start moved by 1 while the baseline is provisional.', then: 'not a plan change', run: () => { const g = base(); return planChanged(g, { ...g, plan: { ...g.plan, start: g.plan.start + 1 } }) ? 'a plan change' : 'not a plan change'; } },
+        { given: 'The same move with a firm baseline.', then: 'a plan change', run: () => { const g = base(); const firm = { ...g, baseline: { ...g.baseline, provisional: false } }; return planChanged(firm, { ...firm, plan: { ...firm.plan, start: firm.plan.start + 1 } }) ? 'a plan change' : 'not a plan change'; } },
+        { given: 'Start 12 with no period given.', then: 'no baseline', run: () => (baselineOf(12, '', true) ? 'a baseline' : 'no baseline') },
+      ];
+    })(),
+    unclear: ['A range goal has no start, so no baseline of its own yet.', 'A goal with a baseline and no target or date (backlog GB) builds on this: there the baseline is the number and nothing is judged until a target is set; it also lets a goal measured by a metric with a gap (MS) go in without a made-up start.'],
   },
 
   /* ---------- a goal not born late (onboarding spec, rules 3 and 4; OB2) ---------- */

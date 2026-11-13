@@ -175,6 +175,13 @@ interface MetricProps { goal: MetricGoal; weeks: number; week: number; series: P
   notes?: readonly { week: number; label: string }[];
 }
 
+/** Modules' marks on a chart (MT3): a dashed hairline at each week, its label beside it; labels of marks near each other
+    step down a line so they never draw over one another. Used by the number's chart and the range's. */
+export function ChartNotes({ notes, f, X }: { notes?: readonly { week: number; label: string }[] | null; f: Frame; X: (w: number) => number }) {
+  if (!notes?.length) return null;
+  return <>{notes.map((n, i) => { const x = X(n.week), right = x > f.W * 0.6; return <g key={n.week} className="c-note"><line x1={x} x2={x} y1={f.padT - 6} y2={f.H - f.padB} /><text x={right ? x - 4 : x + 4} y={f.padT + 6 + i * 12} textAnchor={right ? 'end' : 'start'}>{n.label}</text></g>; })}</>;
+}
+
 export function MetricChart(p: MetricProps) {
   return <Sized height={p.height ?? 220}>{(w) => <MetricSvg {...p} W={w} H={p.height ?? 220} />}</Sized>;
 }
@@ -247,7 +254,7 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast:
           ? weekTicks(x0, weeks, (W - f.padL - f.padR) / (weeks - x0)).map((w) => <text key={w} className="c-axis" x={X(w)} y={H - 5} textAnchor={w === x0 ? 'start' : 'middle'}>{w === week ? 'Now' : 'Wk ' + w}</text>)
           : <WeekLabels f={f} weeks={weeks} week={week} X={X} wide={!compact} />}
         <line className="c-today" x1={X(week)} x2={X(week)} y1={f.padT - 6} y2={H - f.padB} />
-        {notes?.map((n) => <g key={n.label} className="c-note"><line x1={X(n.week)} x2={X(n.week)} y1={f.padT - 6} y2={H - f.padB} /><text x={X(n.week) > W * 0.6 ? X(n.week) - 4 : X(n.week) + 4} y={f.padT + 6} textAnchor={X(n.week) > W * 0.6 ? 'end' : 'start'}>{n.label}</text></g>)}
+        <ChartNotes notes={notes} f={f} X={X} />
         <line className="c-target" x1={f.padL} x2={W - f.padR} y1={Y(plan.target)} y2={Y(plan.target)} />
         {originalPlan && <polyline className="c-orig" points={line(planPts(originalPlan))} />}
         <polyline className="c-plan" points={line(planPts(plan))} />
