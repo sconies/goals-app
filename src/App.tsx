@@ -8,6 +8,7 @@ import { movedTo } from './domain/directory';
 import { Shell } from './ui/Shell';
 import { MotionLayer } from './ui/Count';
 import { PageWait } from './ui/bits';
+import { Find } from './ui/Find';
 import { ErrorBoundary, TelemetryRoutes } from './telemetry/react';
 import { Moved, useModules } from './core/app';
 
@@ -41,6 +42,10 @@ const WhoAreYou = lazy(() => import('./screens/Start').then((m) => ({ default: m
 const Ready = lazy(() => import('./screens/Start').then((m) => ({ default: m.Ready })));
 const Settings = lazy(() => import('./screens/Settings').then((m) => ({ default: m.Settings })));
 const MotionLab = lazy(() => import('./ui/MotionLab').then((m) => ({ default: m.MotionLab })));
+// Help and What's new carry the whole guide and every release (about 200 KB): the first download has only their index.
+const HelpHome = lazy(() => import('./screens/Help').then((m) => ({ default: m.HelpHome })));
+const HelpArticle = lazy(() => import('./screens/Help').then((m) => ({ default: m.HelpArticle })));
+const WhatsNew = lazy(() => import('./screens/Help').then((m) => ({ default: m.WhatsNew })));
 const DataTables = lazy(() => import('./screens/DataTables').then((m) => ({ default: m.DataTables })));
 const WorkspaceHome = lazy(() => import('./screens/Workspace').then((m) => ({ default: m.WorkspaceHome })));
 const Feedback = lazy(() => import('./screens/Feedback').then((m) => ({ default: m.Feedback })));
@@ -52,10 +57,6 @@ const ReviewPrint = lazy(() => import('./screens/Print').then((m) => ({ default:
 const WrapUp = lazy(() => import('./screens/Retro').then((m) => ({ default: m.WrapUp })));
 const StartNext = lazy(() => import('./screens/StartNext').then((m) => ({ default: m.StartNext })));
 const RetroGoal = lazy(() => import('./screens/Retro').then((m) => ({ default: m.RetroGoal })));
-// Help and What's new carry the whole guide and every release (about 200 KB): the first download has only their index.
-const HelpHome = lazy(() => import('./screens/Help').then((m) => ({ default: m.HelpHome })));
-const HelpArticle = lazy(() => import('./screens/Help').then((m) => ({ default: m.HelpArticle })));
-const WhatsNew = lazy(() => import('./screens/Help').then((m) => ({ default: m.WhatsNew })));
 
 export function Routed() {
   const app = useApp();
@@ -210,7 +211,13 @@ function NotFound() {
     <div className="page narrow not-found">
       <h1 className="title-xl">Page not found</h1>
       <p className="muted">There’s nothing at this address. The link may be old, or mistyped.</p>
-      <div className="row"><Link className="btn primary" to="/">Go to Home</Link><Link className="btn ghost" to="/help">Help</Link></div>
+      <div className="row"><Link className="btn primary" to="/">Go to Home</Link></div>
+      {/* Then Find, inline, and Help (navigation spec, 2.6). */}
+      <section className="stack not-found-find" aria-label="Find">
+        <h2 className="field-label">Or find what you were looking for</h2>
+        <Find inline onClose={() => {}} />
+      </section>
+      <div className="row"><Link className="btn ghost" to="/help">Help</Link></div>
     </div>
   );
 }

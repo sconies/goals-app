@@ -228,15 +228,17 @@
   /* The ask itself is the one thing to read: it wraps to two lines at word breaks rather than being cut mid-word (U27). */
   .needs-you .need-quote { white-space: normal; text-overflow: clip; overflow-wrap: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.1875rem; }
 }
-/* The hero's list of what's due is one line on a phone; the check-in names each goal as you go. */
-@container app (max-width: 600px) {
-  .page.home .home-hero .hero-body > .muted { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-}
+/* The lead's line and the quiet line are sentences now (HM1), so they wrap on a phone rather than being cut. */
+/* The hero's buttons sit 8px under its words (4px on a phone, below). */
+.home-hero .hero-body > .row { margin-top: 8px; }
 /* A phone: Home's blocks sit 16px apart and the hero's second link close under its button, so the first goal that
    needs attention starts on the first screen (U2). */
 @container app (max-width: 600px) {
-  .page.home .split, .page.home .split > div { gap: var(--s4); }
+  .page.home, .page.home .split, .page.home .split > div { gap: var(--s4); }
   .page.home .home-hero .hero-body > .linkish { margin-top: 0; }
+  /* The lead's line wraps (HM1), so it sits a little closer to its button to keep that first goal on the screen. */
+  .page.home .home-hero .hero-body > .muted { line-height: 20px; }
+  .page.home .home-hero .hero-body > .row { margin-top: 4px; }
 }
 
 /* HM1 (docs/design/home/spec.md): your goals' counts, once, in "Your goals"; the quiet line; New in Faro at the foot. */

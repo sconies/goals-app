@@ -9,10 +9,10 @@ import { scopeToCycle, wrapUpCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
 import type { Cycle, Person, Snapshot } from '../domain/types';
 import type { ScopeFacts } from '../domain/goalsPage';
-import { agendaOf, nextSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
-import type { HomeFacts, HomeSession } from '../domain/home';
+import { agendaOf, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
+import { waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession, type Waiting } from '../domain/home';
 import { onTimeStreak, reviewDate, weekProgress } from '../domain/progress';
-import { hasEnded } from '../domain/plan';
+import { hasEnded, weekDate, weekDates } from '../domain/plan';
 import { beforeStart, cycleDates, wrapUpOpenOn } from '../domain/cycle';
 import { openForPerson } from '../domain/asks';
 import type { QueryContext } from '../domain/query';
@@ -82,7 +82,8 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   const thisWeek = s.checkIns.filter((c) => c.week === week && p.goals.some((g) => g.id === c.goalId));
   const allIn = p.goals.length > 0 && p.done.length >= p.goals.length;
   const dueDate = reviewDate(cycle, Math.max(1, week));
-  const sessions: HomeSession[] = s.reviews.filter((r) => r.people.includes(viewerId)).map((r) => reviewSession(r, s, cycle, today, week))
+  // Once the year has ended no session is held in it: a "Not held yet" lead would never go (HM1 review).
+  const sessions: HomeSession[] = ended ? [] : s.reviews.filter((r) => r.people.includes(viewerId)).map((r) => reviewSession(r, s, cycle, today, week))
     .filter((x) => x.week === Math.max(1, week) && x.week <= cycle.weeks).map((x) => {
       const { discuss, healthy } = agendaOf(x);
       const order = walkOrder(sessionPlan(x, s, cycle, today));
@@ -111,7 +112,7 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
     sessions,
     owns: mine.length,
     watches: watchedGoals(viewerId, s).filter((g) => g.ownerId !== viewerId).length,
-    asks: openForPerson(viewerId, s).length,
+    asks: homeAsks(viewerId, s, cycle, week, today),
   };
 }
 
@@ -121,4 +122,29 @@ export function wrapUpScope(full: Snapshot, cycle: Cycle, snapshot: Snapshot, we
   const w = wrapUpCycle(full.cycles, today);
   if (!w || w.id === cycle.id) return { cycle, snapshot, week, earlier: false };
   return { cycle: w, snapshot: scopeToCycle(full, w), week: currentWeek(w, today), earlier: true };
+}
+
+/**
+ * Rule 3's facts for each open ask waiting on the viewer, in its order. A question raised in a review is due before the
+ * first session after the one it was raised in, fixed when asked: it doesn't move on when that session passes.
+ */
+export function homeAsks(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): Waiting[] {
+  const day = today.toISOString().slice(0, 10);
+  const first = (id: string) => s.people.find((p) => p.id === id)?.name.split(' ')[0] ?? 'Someone';
+  return openForPerson(viewerId, s).flatMap((r) => {
+    const goals = r.goalIds.map((id) => s.goals.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({ id: g!.id, title: g!.title }));
+    if (!goals.length) return [];
+    const rv = r.reviewId ? s.reviews.find((v) => v.id === r.reviewId) : undefined;
+    let session: AskFacts['session'] = null;
+    if (r.dueWeek == null && r.kind === 'question' && rv) {
+      const w = r.week != null ? nextSessionWeek(rv, r.week) : upcomingSessionWeek(rv, cycle, week, today);
+      if (w <= cycle.weeks) session = { name: rv.name, date: sessionDate(rv, cycle, w) };
+    }
+    const sunday = (w: number) => new Date(Date.parse(weekDate(cycle, w) + 'T00:00:00Z') + 6 * 86_400_000).toISOString().slice(0, 10);
+    const facts: AskFacts = {
+      id: r.id, kind: r.kind, by: r.askedBy === viewerId ? null : first(r.askedBy), goals, said: r.ask, askedOn: r.createdAt.slice(0, 10),
+      dueWeek: r.dueWeek != null ? { week: r.dueWeek, sunday: sunday(r.dueWeek), dates: weekDates(cycle, r.dueWeek) } : null, session, where: rv?.name ?? null,
+    };
+    return [waiting(facts, day)];
+  }).sort(waitingOrder);
 }

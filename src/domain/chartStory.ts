@@ -6,6 +6,7 @@ import type { Cycle, MetricGoal, RangeGoal } from './types';
 
 type Numeric = Pick<MetricGoal | RangeGoal, 'unit' | 'decimals'>;
 import { planAt, weekDates } from './plan';
+import { rangeOut, rangeSide } from './range';
 import { planGapTrend } from './trend';
 import { GAP, lower, shortWord, TREND } from './vocabulary';
 
@@ -131,8 +132,10 @@ export function rangeSentence(goal: RangeGoal, points: { week: number; value: nu
     12.3% and 14.2%), over its 12% limit." */
 export function rangeHeading(goal: RangeGoal, p: { value: number; low: number; high: number }, when: string): string {
   const likely = sayAmount(p.value, goal), lo = sayAmount(p.low, goal), hi = sayAmount(p.high, goal);
-  const { bound, limit } = goal.range;
-  const outside = bound === 'atMost' ? p.value > limit : p.value < limit;
-  const side = bound === 'atMost' ? (outside ? 'over' : 'under') : (outside ? 'under' : 'over');
-  return `On its recent trend it ends at about ${likely} ${when}${lo === hi ? '' : ` (somewhere between ${lo} and ${hi})`}, ${side} its ${sayAmount(limit, goal)} limit${outside ? '' : ' as it should be'}. Projected by the app from the last eight weeks.`;
+  const { bound, limit, lower } = goal.range;
+  const outside = rangeOut(goal.range, p.value);
+  const at = rangeSide(goal.range, p.value);
+  const side = at.bound === 'atMost' ? (outside ? 'over' : 'under') : (outside ? 'under' : 'over');
+  const where = bound === 'between' && !outside ? `between its ${sayAmount(lower!, goal)} and ${sayAmount(limit, goal)} limits` : `${side} its ${sayAmount(at.limit, goal)} limit`;
+  return `On its recent trend it ends at about ${likely} ${when}${lo === hi ? '' : ` (somewhere between ${lo} and ${hi})`}, ${where}${outside ? '' : ' as it should be'}. Projected by the app from the last eight weeks.`;
 }

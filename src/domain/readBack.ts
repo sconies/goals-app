@@ -111,9 +111,9 @@ export function readBack(d: GoalDraft, c: ReadBackContext): ReadBack {
       ? `A number to move: from ${num(plan.start)} in ${weekSays(cy, plan.from, 'sentence')} to ${num(plan.target)} by ${weekSays(cy, plan.to, 'sentence')}, ${handSet(d) ? 'with the weeks’ numbers set by hand' : SHAPE_WORDS[d.shape]}. ${plan.target > plan.start ? 'Higher' : 'Lower'} is better.`
       : 'A number to move.';
   } else if (d.kind === 'range') {
-    const limit = parseNumber(d.limit), margin = parseNumber(d.margin);
-    what = limit == null ? 'A number to keep in range.'
-      : `A number to keep in range: at or ${d.bound === 'atMost' ? 'under' : 'over'} ${num(limit)}. ${margin != null && margin > 0 ? `It warns within ${num(margin)} of the limit.` : 'It warns only once the limit is crossed.'}`;
+    const limit = parseNumber(d.limit), margin = parseNumber(d.margin), lower = d.bound === 'between' ? parseNumber(d.lower) : null;
+    what = limit == null || (d.bound === 'between' && lower == null) ? 'A number to keep in range.'
+      : `A number to keep in range: ${lower != null ? `between ${num(lower)} and ${num(limit)}` : `at or ${d.bound === 'atMost' ? 'under' : 'over'} ${num(limit)}`}. ${margin != null && margin > 0 ? `It warns within ${num(margin)} of ${lower != null ? 'either' : 'the'} limit.` : `It warns only once ${lower != null ? 'a' : 'the'} limit is crossed.`}`;
   } else {
     const named = d.stages.filter((s) => s.name.trim());
     const last = Math.max(0, ...named.map((s) => parseNumber(s.dueWeek) ?? 0));
@@ -179,12 +179,10 @@ export function readBack(d: GoalDraft, c: ReadBackContext): ReadBack {
 /** "After you propose it" (2.15, item 2): what proposing does, and the quieter line under it. */
 export function afterProposing(c: Pick<ReadBackContext, 'owner'>): { after: string[]; hint: string } {
   const you = !c.owner || c.owner.isViewer;
-  const owner = c.owner ? first(c.owner.name) : 'Its owner';
   return {
     after: [
       'It is listed as Proposed, apart from the goals that are under way: it is in no count, no review’s agenda and nobody’s check-ins.',
       `Its plan is kept as you typed it. When ${you ? 'you make it' : 'it is made'} active, the plan starts from that week unless ${you ? 'you' : 'they'} say otherwise.`,
-      ...(you ? [] : [`${owner} sees it on their Home as a proposal for them. Faro doesn’t send email.`]),
     ],
     hint: 'You can change anything without giving a reason, or withdraw it.',
   };
@@ -214,7 +212,7 @@ export function activeReadBack(goal: Goal, c: Pick<ReadBackContext, 'cycle' | 'w
     const num = (v: number) => fmt(v, goal);
     parts.push(`From ${num(goal.plan.start)} in ${weekSays(cy, c.fromWeek, 'sentence')} to ${num(goal.plan.target)} by ${weekSays(cy, to, 'sentence')}: ${plural(n, 'week')}${n !== was ? `, not the ${was} you proposed` : ''}.`);
   } else if (goal.kind === 'range') {
-    parts.push(`At or ${goal.range.bound === 'atMost' ? 'under' : 'over'} ${fmt(goal.range.limit, goal)}, from ${weekSays(cy, c.fromWeek, 'sentence')}.`);
+    parts.push(`${goal.range.bound === 'between' ? `Between ${fmt(goal.range.lower!, goal)} and` : `At or ${goal.range.bound === 'atMost' ? 'under' : 'over'}`} ${fmt(goal.range.limit, goal)}, from ${weekSays(cy, c.fromWeek, 'sentence')}.`);
   } else {
     const last = Math.max(0, ...goal.stages.map((s) => s.dueWeek));
     parts.push(`${plural(goal.stages.length, 'stage')}, the last due ${weekSays(cy, last, 'sentence')}.`);

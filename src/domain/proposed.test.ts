@@ -18,7 +18,7 @@ import { activate, backToProposed, mayActivate, NOTHING_TO_CHECK_IN, proposalAsk
 import { isProposed, judged } from './proposed';
 import { goalCounts, measureUnsaid, withProposedCount } from './proposedSummary';
 import { activeReadBack, readBack, underWay } from './readBack';
-import { undoRemoval } from './removal';
+import { markPersonLeft, undoRemoval } from './removal';
 import { agendaOf, reviewSession } from './review';
 import { workbook } from './export';
 import { proposedSummary } from './proposedSummary';
@@ -107,6 +107,29 @@ describe('rule 14: proposed goals', () => {
     expect(() => activate(x('oskar', wk48), { goalId: goal.id })).toThrow('Tunde Bakare or an admin can make this active.');
   });
 
+  it('GE10 review: From before this week is asked at every door; a From outside the plan is refused', () => {
+    const { w, goal } = proposed();
+    const wk48 = at('2026-11-25', w.full);
+    expect(() => activate(x('tunde', wk48), { goalId: goal.id, fromWeek: 44 })).toThrow(/Check with the person first: .*Has this been running since then\?/);
+    expect(activate(x('tunde', wk48), { goalId: goal.id, fromWeek: 44, confirm: true }).commit.changes[0]!.summary).toBe('Made it active, from week 44');
+    for (const bad of [53, -3, 1.5]) expect(() => activate(x('tunde', wk48), { goalId: goal.id, fromWeek: bad, confirm: true })).toThrow('From must be a week of this cycle before the plan’s To: week 0 to week 52.');
+  });
+
+  it('GE10 review: a stages goal proposed with a stage already done saves no check-in', () => {
+    const w = at('2026-11-11');
+    const draft = signed({ kind: 'milestone', unit: '', start: '', target: '', fromWeek: '', stages: [{ id: 's1', name: 'Pilot', dueWeek: '44', done: 'yes' }, { id: 's2', name: 'Rollout', dueWeek: '50' }] });
+    const out = perform(x('tunde', w), 'saveGoal', { draft, state: 'proposed' }) as { commit: Commit; goal: Goal };
+    expect(isProposed(out.goal)).toBe(true);
+    expect(out.commit.checkIns ?? []).toEqual([]);
+  });
+
+  it('GE10 review: marking an owner as left hands over their proposed goals too', () => {
+    const { w, goal } = proposed();
+    const admin = w.full.people.find((p) => p.admin && p.id !== 'tunde')!;
+    const c = markPersonLeft(x(admin.id, w), 'tunde', { goalsTo: 'rhea', asksTo: 'rhea' });
+    expect(c.goals!.find((g) => g.id === goal.id)?.ownerId).toBe('rhea');
+  });
+
   it('a goal with a check-in can’t go back to proposed, by the menu or by a file', () => {
     const w = at('2026-11-11');
     const s = scopeToCycle(w.full, w.cycle);
@@ -139,7 +162,6 @@ describe('rule 14: proposed goals', () => {
     expect(rb.after).toEqual([
       'It is listed as Proposed, apart from the goals that are under way: it is in no count, no review’s agenda and nobody’s check-ins.',
       'Its plan is kept as you typed it. When it is made active, the plan starts from that week unless they say otherwise.',
-      'Amara sees it on their Home as a proposal for them. Faro doesn’t send email.',
     ]);
   });
 

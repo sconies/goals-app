@@ -197,7 +197,7 @@ export function toJson(x: ExportInput) {
             byWeek: planCheckpoints(g.plan.fromWeek ?? 0, planEnd(g.plan, x.cycle.weeks)).map((w) => ({ week: w, value: Number(planAt(g.plan, w, x.cycle.weeks).toFixed(g.decimals)) })) },
           earlierPlans: planHistoryOf(g).map((v) => ({ untilWeek: v.untilWeek, start: v.plan.start, target: v.plan.target, shape: v.plan.shape })),
         } : {}),
-        ...(g.kind === 'range' ? { unit: g.unit, decimals: g.decimals, range: { mustStay: g.range.bound === 'atMost' ? 'atMost' : 'atLeast', limit: g.range.limit, margin: g.range.margin } } : {}),
+        ...(g.kind === 'range' ? { unit: g.unit, decimals: g.decimals, range: { mustStay: g.range.bound, ...(g.range.bound === 'between' ? { lower: g.range.lower } : {}), limit: g.range.limit, margin: g.range.margin } } : {}),
         ...(g.kind === 'milestone' ? { stages: g.stages.map((st) => ({ id: st.id, name: st.name, dueWeek: st.dueWeek })) } : {}),
         ...(g.stoppedAt ? { stopped: { at: g.stoppedAt, by: name(g.stoppedBy ?? '') || null, reason: g.stopReason ?? null } } : {}),
         ...(s.state === 'proposed' ? { state: 'proposed' } : {}),

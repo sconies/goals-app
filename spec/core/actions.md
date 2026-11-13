@@ -210,6 +210,8 @@ Every change a person makes, as the command port runs it ([the ports at company 
 - “That goal no longer exists. Reload to see the latest.”
 - ““…” is already active.”
 - “… or an admin can make this active.”
+- “From must be a week of this cycle before the plan’s To: week 0 to week ….”
+- “Not saved. Check with the person first: …”
 - ““…” can’t be made active yet: …”
 
 **AI tools that do the same:** none
@@ -1782,8 +1784,10 @@ export interface GoalDraft {
   start: string;
   target: string;
   shape: PlanShape;
-  bound: 'atMost' | 'atLeast';
+  bound: 'atMost' | 'atLeast' | 'between';
   limit: string;
+  /** A range between two numbers: the lower one (the limit is then the upper one). */
+  lower: string;
   margin: string;
   /** `done`: for a stage due before this week, whether it is already done (rule 3): asked, then 'yes' or 'no'. */
   stages: { id: string; name: string; dueWeek: string; done?: '' | 'yes' | 'no' }[];

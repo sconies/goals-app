@@ -25,7 +25,7 @@ import { findGoal, isKey } from '../domain/goalKey';
 import { withProposed } from '../domain/proposed';
 import type { AskKind, Level, Retro, Review, Watch } from '../domain/types';
 import { ARTICLES, GROUPS, articleById, articleText, searchGuide, type Article } from '../help/guide';
-import { newsDate, newsSince } from '../help/whatsNew';
+import { newsSince } from '../help/whatsNew';
 import { canUndoImport, importUndone } from '../domain/removal';
 import { startPage, startPageText } from '../domain/startYear';
 import type { McpContext, ToolDef, ToolResult } from './tools';
@@ -328,8 +328,9 @@ export const WORK_TOOLS: ToolDef[] = [
         if (!x) return { isError: true, text: `There’s no help article with id ${String(a.id)}. Articles: ${ARTICLES.map((y) => y.id).join(', ')}.` };
         return { data: { ...brief(x), sections: x.sections, routes: x.routes, related: x.related.map((r) => brief(articleById(r)!)) }, text: articleText(x) };
       }
+      // A list answers as every list does (listed, #249's review): the same keys every time, and why when it's empty.
       const list = a.search ? searchGuide(String(a.search)) : ARTICLES;
-      return { data: { articles: list.map(brief) }, text: lines(list.map((x) => `${x.id} · ${x.title}: ${x.summary}`), `No help article matches “${String(a.search)}”.`) };
+      return listed({ articles: list.map(brief), why: list.length ? null : `No help article matches “${String(a.search)}”. Try fewer or plainer words.` });
     },
   },
   {
@@ -356,7 +357,7 @@ export const WORK_TOOLS: ToolDef[] = [
       if (since && !/^\d{4}-\d{2}-\d{2}$/.test(since)) return { isError: true, text: `Give the date as yyyy-mm-dd (not ${since}).` };
       const n = a.limit ? Math.max(1, Number(a.limit)) : Infinity;
       const list = newsSince(since).slice(0, n).map((e) => ({ id: e.id, date: e.date, title: e.title, points: e.points, articles: e.articles }));
-      return { data: { entries: list }, text: lines(list.map((e) => `${newsDate(e.date)}: ${e.title}\n${e.points.map((p) => `- ${p}`).join('\n')}`), since ? `Nothing new since ${since}.` : 'Nothing yet.') };
+      return listed({ entries: list, why: list.length ? null : since ? `Nothing new since ${since}.` : 'Nothing yet.' });
     },
   },
 

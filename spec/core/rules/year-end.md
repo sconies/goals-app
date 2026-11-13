@@ -15,6 +15,12 @@ A cycle’s real first and last days, where it stands on a day, and the week its
 
 **After the last day nothing in the cycle is due, late or out of date.** No check-in is due (no "due" flag, nothing on Home's check-in block), and no goal becomes "No recent update" for want of a check-in: each keeps the last status its owner gave.
 
+## Limits the records hold
+
+Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
+
+- A wrap-up says what was learned in at least 3 characters. (The app asks for at least 10.) (`okr_retros_learned_check`; the code holds it too, in `src/domain/actions.ts`)
+
 ## Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.

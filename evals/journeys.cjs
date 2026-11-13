@@ -3239,7 +3239,7 @@ journey('U69', ['NAV-WHERE'], 'A page says where it is: each address has its own
   await p.context().close();
 }, ['logged']);
 
-journey('U70', ['NAV-BACK'], 'Back agrees: the back link names where it goes and goes there; the browser’s Forward returns; after saving an edit the link and the browser’s Back both go to Goals; a goal opened in a new tab goes up the tree; no back link on a place’s first page', 7, async (h, device) => {
+journey('U70', ['NAV-BACK'], 'Back agrees: the back link names where it goes and goes there; the browser’s Forward returns; after saving an edit the link and the browser’s Back both go to Goals; a goal opened in a new tab goes up the tree; no back link on a place’s first page', 9, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   const back = p.locator('main .backlink').first();
   const says = async () => ((await back.getAttribute('aria-label', { timeout: 5000 }).catch(() => '')) || '').trim();
@@ -3297,7 +3297,26 @@ journey('U70', ['NAV-BACK'], 'Back agrees: the back link names where it goes and
     const at = await p.evaluate(() => ({ y: Math.round(window.scrollY), max: document.documentElement.scrollHeight - window.innerHeight, lit: document.querySelector('.section-links [aria-current="true"]')?.textContent?.trim() ?? '' }));
     h.set('progress', at.y >= at.max - 2 && at.lit === 'Leave', `Settings scrolled to ${at.y} of ${at.max}, with “${at.lit}” lit`);
   }
-  h.set('attention', true); h.set('one-action', true);
+  // A goal opened from a saved view names the view (rule 4.2), as the Views menu does.
+  await p.goto(url('/goals?scope=all&status=off'));
+  await p.locator('.goals-line').waitFor();
+  await viewsAction(h, p, 'Save this view…');
+  const save = p.getByRole('dialog', { name: 'Save this view' });
+  await save.getByLabel('Name').fill('Off track, all');
+  await save.getByRole('button', { name: 'Save view' }).click();
+  await save.waitFor({ state: 'detached' });
+  // A goal of the view's, not New goal (a form, which has no back link).
+  await h.click(p.locator('main a[href*="/goals/"]:not([href*="/goals/new"]):not([href$="/edit"])').filter({ hasNotText: /^$/ }).locator('visible=true').first());
+  await p.waitForURL(/\/goals\/[^/?]+(\?|$)/);
+  const fromView = await says();
+  // Page not found offers Find in the page (navigation spec 2.6): a name finds that person, as a link.
+  await p.goto(url('/no-such-page'));
+  await see(p, 'Page not found');
+  const nf = p.locator('.not-found .find-input');
+  await nf.fill('rhea');
+  const found = await p.locator('.not-found').getByRole('option', { name: /Rhea Kapoor/ }).first().waitFor({ timeout: 5000 }).then(() => true, () => false);
+  h.set('attention', fromView === 'Back to Off track, all' && found, `a goal opened from a saved view says “${fromView}”; Page not found's Find ${found ? 'found' : 'did not find'} Rhea`);
+  h.set('one-action', true);
   await p.context().close();
 }, ['logged']);
 
@@ -3305,13 +3324,15 @@ journey('U72', ['NAV-FORMS'], 'One way out of a form: each focus-mode page has o
   const p = h.use(await newPage(device, 'rhea'));
   const wrong = [];
   const closers = () => p.locator('.focus-top').first().locator('button, a').filter({ hasText: /^Close|^Cancel/ }).or(p.locator('.focus-top').first().locator('.iconbtn[aria-label^="Close"]'));
-  for (const [addr, want] of [['/check-in/ci-docker', 'Close and keep the draft'], ['/reviews/new', 'Close without saving'], ['/reviews/weekly/edit', 'Close without saving'], ['/workspace/new', 'Close and keep the draft'], ['/goals/new', null], ['/goals/ns-lead/edit', null]]) {
+  for (const [addr, want] of [['/check-in/ci-docker', 'Close and keep the draft'], ['/reviews/new', 'Close without saving'], ['/reviews/weekly/edit', 'Close without saving'], ['/workspace/new', 'Close and keep the draft'], ['/goals/new', 'Close and keep the draft'], ['/goals/ci-docker/edit', 'Close and keep the draft'], ['/quick-check-in', 'Close and keep the draft']]) {
     await p.goto(url(addr));
     await p.locator('.focus-top').first().waitFor({ timeout: 8000 }).catch(() => {});
     const n = await closers().count();
     const words = n ? (await closers().first().innerText()).trim() || (await closers().first().getAttribute('aria-label')) : '';
     if (n !== 1) wrong.push(`${addr}: ${n} closing controls`);
     else if (want && words !== want) wrong.push(`${addr}: “${words}”, want “${want}”`);
+    // Goal edit's second exit, back to the goal, is gone (navigation spec 2.5).
+    if (/\/edit$/.test(addr) && addr.startsWith('/goals/') && await p.locator('.focus-top').first().locator('a').count()) wrong.push(`${addr}: a second way out`);
   }
   h.set('entry', !wrong.length, wrong.join('; '));
   h.set('one-action', true);
@@ -3799,6 +3820,15 @@ journey('U71', ['CHECK-IN-QUEUE'], 'See your check-ins before you start: the wee
   // The sidebar stays (not focus mode); Check-in is lit.
   h.set('parity', device === 'phone' || await p.locator('.side [aria-current="page"]', { hasText: 'Check-in' }).count() === 1, 'Check-in is not lit on its list');
   await h.checkpoint('queue');
+  // Start with opens the first listed goal, and the walk counts what the list counts (build review of #114).
+  await h.click(start);
+  await p.locator('.ci-week').waitFor();
+  const walkSays = (await p.locator('.ci-week').innerText()).trim();
+  const opens = (await p.locator('.focus h1').first().innerText()).trim();
+  const walkOk = (n === 1 || walkSays.endsWith(`1 of ${n}`)) && opens.includes(first);
+  await h.click(p.getByRole('button', { name: 'Close and keep the draft' }));
+  await p.waitForURL((u) => u.pathname.endsWith('/check-in'), { timeout: 5000 }).catch(() => {});
+  await todo.waitFor();
   // Any row opens its own goal; closing keeps the draft, back on the list, which says so on that row.
   const pick = rows.nth(n - 1);
   const title = (await pick.locator('.ciq-title').innerText()).trim();
@@ -3821,7 +3851,7 @@ journey('U71', ['CHECK-IN-QUEUE'], 'See your check-ins before you start: the wee
   await h.click(p.locator('.home-hero').getByRole('link', { name: /Start check-in|Pick up where you left off/ }));
   await p.waitForURL(/check-in\?start=1/, { timeout: 5000 }).catch(() => {});
   await p.locator('.ci-week').waitFor({ timeout: 5000 }).catch(() => {});
-  h.set('logged', /of \d+$/.test((await p.locator('.ci-week').innerText().catch(() => '')).trim()), 'Home’s Start check-in does not open the first form of the week’s walk');
+  h.set('logged', walkOk && /of \d+$/.test((await p.locator('.ci-week').innerText().catch(() => '')).trim()), walkOk ? 'Home’s Start check-in does not open the first form of the week’s walk' : `Start with opened “${opens}” at “${walkSays}”, the list's first being ${first} of ${n}`);
   // Someone who owns no goal, at the address typed by hand, is told so. (The demo's controls are on Home, not in a form.)
   await p.goto(url('/'));
   await viewAs(p, 'Oskar');

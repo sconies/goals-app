@@ -33,8 +33,10 @@ export interface GoalDraft {
   start: string;
   target: string;
   shape: PlanShape;
-  bound: 'atMost' | 'atLeast';
+  bound: 'atMost' | 'atLeast' | 'between';
   limit: string;
+  /** A range between two numbers: the lower one (the limit is then the upper one). */
+  lower: string;
   margin: string;
   /** `done`: for a stage due before this week, whether it is already done (rule 3): asked, then 'yes' or 'no'. */
   stages: { id: string; name: string; dueWeek: string; done?: '' | 'yes' | 'no' }[];
@@ -44,7 +46,7 @@ export function blankGoal(teamId: string, ownerId: string, parentId: string): Go
   return {
     kind: 'metric', title: '', teamId, ownerId, io: 'input', level: 'team', guardrail: false, parentId, effect: '', whyHelps: '', alsoHelps: [], endWeek: '', points: {},
     source: '', definition: '', unit: '', decimals: '', start: '', target: '', shape: 'straight',
-    bound: 'atMost', limit: '', margin: '', stages: [{ id: 's1', name: '', dueWeek: '' }],
+    bound: 'atMost', limit: '', lower: '', margin: '', stages: [{ id: 's1', name: '', dueWeek: '' }],
   };
 }
 
@@ -55,7 +57,7 @@ export function draftOf(g: Goal): GoalDraft {
     effect: g.effect == null ? '' : String(g.effect), whyHelps: g.whyHelps ?? '', alsoHelps: g.alsoHelps ?? [], source: g.source, definition: g.definition,
   });
   if (g.kind === 'metric') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), start: String(g.plan.start), target: String(g.plan.target), shape: g.plan.shape, endWeek: g.plan.endWeek ? String(g.plan.endWeek) : '', points: Object.fromEntries((g.plan.points ?? []).map((p) => [String(p.week), String(p.value)])) });
-  if (g.kind === 'range') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), bound: g.range.bound, limit: String(g.range.limit), margin: String(g.range.margin) });
+  if (g.kind === 'range') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), bound: g.range.bound, limit: String(g.range.limit), lower: g.range.lower != null ? String(g.range.lower) : '', margin: String(g.range.margin) });
   if (g.kind === 'milestone') d.stages = g.stages.map((s) => ({ id: s.id, name: s.name, dueWeek: String(s.dueWeek) }));
   return d;
 }
@@ -73,12 +75,12 @@ export function draftFor(g: Goal): GoalDraft {
  * in its numbers (Today, Target, Limit), at most 3. Null when Decimals says something that isn't 0 to 3. A new goal
  * starts with Decimals empty, so what is typed is what is kept.
  */
-export function decimalsFor(d: Pick<GoalDraft, 'kind' | 'decimals' | 'start' | 'target' | 'limit'>): number | null {
+export function decimalsFor(d: Pick<GoalDraft, 'kind' | 'decimals' | 'start' | 'target' | 'limit'> & Partial<Pick<GoalDraft, 'bound' | 'lower'>>): number | null {
   if (d.decimals.trim()) {
     const n = parseNumber(d.decimals);
     return n != null && Number.isInteger(n) && n >= 0 && n <= 3 ? n : null;
   }
-  const typed = d.kind === 'metric' ? [d.start, d.target] : d.kind === 'range' ? [d.limit] : [];
+  const typed = d.kind === 'metric' ? [d.start, d.target] : d.kind === 'range' ? (d.bound === 'between' ? [d.limit, d.lower ?? ''] : [d.limit]) : [];
   return Math.min(3, Math.max(0, ...typed.map((t) => typedDecimals(t))));
 }
 
@@ -117,7 +119,7 @@ export function planQuestion(before: Goal | null, after: Goal): PlanQuestion | n
 export function planChanged(a: Goal, b: Goal): boolean {
   if (a.kind !== b.kind) return true;
   if (a.kind === 'metric' && b.kind === 'metric') return a.plan.start !== b.plan.start || a.plan.target !== b.plan.target || a.plan.shape !== b.plan.shape || (a.plan.fromWeek ?? 0) !== (b.plan.fromWeek ?? 0) || (a.plan.endWeek ?? 0) !== (b.plan.endWeek ?? 0) || JSON.stringify(a.plan.points ?? []) !== JSON.stringify(b.plan.points ?? []);
-  if (a.kind === 'range' && b.kind === 'range') return a.range.bound !== b.range.bound || a.range.limit !== b.range.limit || a.range.margin !== b.range.margin;
+  if (a.kind === 'range' && b.kind === 'range') return a.range.bound !== b.range.bound || a.range.limit !== b.range.limit || a.range.lower !== b.range.lower || a.range.margin !== b.range.margin;
   if (a.kind === 'milestone' && b.kind === 'milestone') return JSON.stringify(a.stages.map((s) => [s.name, s.dueWeek])) !== JSON.stringify(b.stages.map((s) => [s.name, s.dueWeek]));
   return false;
 }
@@ -155,7 +157,7 @@ export function buildGoal(d: GoalDraft, cycle: Cycle, base: { id: string; create
     return { ...common, kind: 'metric', unit: d.unit.trim(), decimals: decimalsFor(d) ?? 0, plan, ...history };
   }
   if (d.kind === 'range') {
-    return { ...common, kind: 'range', unit: d.unit.trim(), decimals: decimalsFor(d) ?? 0, range: { bound: d.bound, limit: num(d.limit), margin: parseNumber(d.margin) ?? 0 } };
+    return { ...common, kind: 'range', unit: d.unit.trim(), decimals: decimalsFor(d) ?? 0, range: { bound: d.bound, limit: num(d.limit), ...(d.bound === 'between' ? { lower: num(d.lower) } : {}), margin: parseNumber(d.margin) ?? 0 } };
   }
   const stages = d.stages
     .filter((s) => s.name.trim())
