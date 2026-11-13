@@ -27,6 +27,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'look-around-the-demo',
+    date: '2026-11-13',
+    title: 'Look around the demo from any workspace',
+    points: [
+      'The workspace switcher has Look around the demo: the example workspace, which you can change freely without touching yours.',
+      'On a phone, Home’s review cell uses a shorter label, so the review’s name fits.',
+    ],
+    articles: ['workspace'],
+  },
+  {
     id: 'reviews-switch-clock',
     date: '2026-11-13',
     title: 'Check-ins say plainly which day they’re due',
