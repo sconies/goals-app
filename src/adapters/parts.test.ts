@@ -10,14 +10,9 @@ import { clockContract, feedbackContract, filesContract, identityContract, marku
 import { signInIdentity } from './signIn';
 import { contractWorkspace } from '../ports/contracts/store';
 import { fixedClock, memoryFiles, pickerIdentity, systemClock } from './local';
-import { localGoals } from './localGoals';
 import { goalsContract } from '../ports/contracts/goals';
-import { asOf, type ConformanceWorkspace } from '../spec/conformance';
-import conformanceJson from '../../spec/conformance/workspace.json';
 import { prefsContract, searchContract } from '../ports/contracts/search';
-import { memoryPrefs, seededSearch } from './contractPorts';
-import { goalRows } from '../app/reads';
-import { currentWeek } from '../domain/plan';
+import { conformanceBase, conformanceGoals, memoryPrefs, seededSearch } from './contractPorts';
 import { freshPostgres } from './postgres/testDb';
 import { openFeedback } from './supabase/feedback';
 import { SupabaseStore } from './supabase/goalsStore';
@@ -88,10 +83,5 @@ filesContract('in memory', async () => memoryFiles());
 
 searchContract('over the workspace in this browser', seededSearch);
 // The query port over the conformance workspace as it was built for: the moment goals.csv, status.csv and flags.csv read.
-const conf = conformanceJson as unknown as ConformanceWorkspace;
-const builtFor = new Date(conf.builtFor);
-goalsContract('over the workspace in this browser', async () => asOf(conf, builtFor), async (s) => {
-  const rows = goalRows(s, conf.cycle, builtFor, currentWeek(conf.cycle, builtFor));
-  return localGoals(() => rows);
-});
+goalsContract('over the workspace in this browser', conformanceBase, conformanceGoals);
 prefsContract('in this browser', memoryPrefs);

@@ -44,12 +44,13 @@ export interface When {
 /**
  * One step. With `pages`, the operation is called again with the last answer's `next` put in as `after` (in the
  * argument at `pages.arg`), until `next` is null or `pages.max` calls; `each` is checked on every answer, and `then` on
- * `{ pages, rows }`: how many calls were made and every page's rows, in order.
+ * `{ pages, rows }`: how many calls were made and every page's rows, in order. `between`, when given, is called once
+ * after the first page and before the second: something that happens while someone pages (a goal added).
  */
 export interface Step {
   when: When;
   then: Then;
-  pages?: { arg: number; max: number; each?: Then };
+  pages?: { arg: number; max: number; each?: Then; between?: When };
 }
 
 export interface Case {

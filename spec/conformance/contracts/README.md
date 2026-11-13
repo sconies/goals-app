@@ -6,7 +6,7 @@ What any build’s ports must do, as cases a harness runs: the same cases Faro�
 
 ## A contract file
 
-Each `<port>.json` holds `port` (the name the shim is asked by), `about`, `ops` (each operation the shim answers, with its arguments and what it does), `given` (what a case starts from) and `cases`. A case is `{ "name", "given"?, "steps" }`: a sentence saying what any build must do, its own `given` when it doesn’t start from the contract’s, and its steps, each `{ "when": { "op", "args" }, "then" }`. A step with `pages` calls its operation again with the last answer’s `next` put in as `after` (in the argument at `pages.arg`), until `next` is null or `pages.max` calls; `pages.each` is checked on every answer, and `then` on `{ "pages", "rows" }`: how many calls were made, and every page’s rows in order.
+Each `<port>.json` holds `port` (the name the shim is asked by), `about`, `ops` (each operation the shim answers, with its arguments and what it does), `given` (what a case starts from) and `cases`. A case is `{ "name", "given"?, "steps" }`: a sentence saying what any build must do, its own `given` when it doesn’t start from the contract’s, and its steps, each `{ "when": { "op", "args" }, "then" }`. A step with `pages` calls its operation again with the last answer’s `next` put in as `after` (in the argument at `pages.arg`), until `next` is null or `pages.max` calls; `pages.each` is checked on every answer, and `then` on `{ "pages", "rows" }`: how many calls were made, and every page’s rows in order. `pages.between`, when given, is an operation called once after the first page and before the second: something that happens while someone pages, such as a goal added.
 
 What a `then` checks (every key given must hold; an empty `then` only asks that the operation doesn’t refuse):
 
@@ -78,4 +78,41 @@ Its 3 cases:
 1. keeps a value when the store is opened again
 1. forgets a value set to null, and a later value replaces an earlier one
 
-**Not yet as data:** the goals contract (`goalsContract`, whose cases are `goals.csv` today) and the goals store’s (`storeContract`) are still only in Faro’s code; they move here next.
+### [goals](goals.json)
+
+The query port’s goal calls (`Goals`): what Home, Goals and the AI tools read about goals, a page of summary rows at a time, each row what the stage 1 rules say about the goal now. `given` names the conformance workspace (`workspace.json`, beside this folder) as it stood at its `builtFor`, asked by `viewer` (for scopes): the shim makes a port over it. An ask is `{ query, scope?, after?, size? }`, where `query` is a Goals link’s query string (`status=off&sort=title`; the Goals screen’s filters and sort, [the Goals page](../../core/rules/goals-page.md)) and `scope` names a Goals scope, answered for the viewer. A row is the goal’s summary without its check-ins: `goal` (the record), `status`, `attention.flags` (each with its `kind`) and the rest.
+
+- `given`: Start a fresh port over this workspace, for this viewer. Answers null.
+- `goals`: (ask) One page of the goals the query matches: `{ rows, next, total, near? }`, at most 50 rows whatever `size` asks for, in the query’s sort, or worst first then by title with no sort. `next` is the key to ask the next page with (`after`), null on the last; `near` is the near miss a search found nothing for (find rule 5).
+- `counts`: (ask without paging) `{ total, status, attention }` for the same filter: how many match, how many in each status, and how many need attention with the query’s own attention filter left off.
+- `goal`: (id) One live goal’s summary with its check-ins (`checkIns`); null for a goal that isn’t live here.
+- `add`: (goal) A goal is saved to the workspace by someone else, between two of your calls: later calls see it. Answers null.
+
+Its 24 cases:
+
+1. answers the Goals query (every goal) as goals.csv says
+1. answers the Goals query “status=off” as goals.csv says
+1. answers the Goals query “status=off,risk” as goals.csv says
+1. answers the Goals query “attention=1” as goals.csv says
+1. answers the Goals query “attention=1&needs=stale” as goals.csv says
+1. answers the Goals query “team=cicd” as goals.csv says
+1. answers the Goals query “owner=rhea” as goals.csv says
+1. answers the Goals query “level=north-star” as goals.csv says
+1. answers the Goals query “kind=milestone” as goals.csv says
+1. answers the Goals query “q=tunde” as goals.csv says
+1. answers the Goals query “q=rolback” as goals.csv says
+1. answers the Goals query “q=zzzz” as goals.csv says
+1. answers the Goals query “quiet=2” as goals.csv says
+1. answers the Goals query “feeds=ns-lead” as goals.csv says
+1. answers the Goals query “sort=title” as goals.csv says
+1. answers the Goals query “sort=last” as goals.csv says
+1. answers the Goals query “sort=due.desc” as goals.csv says
+1. answers the Goals query “status=on&sort=gap” as goals.csv says
+1. gives each goal the status and flags the rules give it (status.csv and flags.csv, this week)
+1. pages by key: every goal once and none twice, and a goal added between pages doesn’t move the next page
+1. never gives more than a page, whatever size is asked for
+1. gives a goal’s check-ins only through goal()
+1. narrows to a scope by its name, for the person asking, and counts the same filter
+1. lists with no sort worst first, then by title
+
+**Not yet as data:** the goals store’s contract (`storeContract`) is still only in Faro’s code; it moves here when the store’s windowed load and history land.
