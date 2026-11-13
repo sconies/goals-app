@@ -3,6 +3,30 @@
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
 
+## Track 7b (metrics and the register rows), Friday 13 November, 04:40 UTC (session at half, handing over)
+
+**Merged:** #281 MT1 (defining a metric well: "Fully defined" / "Still to say", Must fix and Check under each field, `save_metric`'s `checks` and `answers`, U105, `METRIC-DEFINED`); #294 (track 7's review mediums: MCP returns stored keys; `find_goals` pages 50 at a time through `listed()`); #299 migration 0043 (a link's `part`, a metric's retirement and `marks`); #308 MT2 (Which part, unit and direction from the metric, a why when what measures a goal with check-ins changes, `link_goal_metric`, U146, `METRIC-PARTS`); #340 (MT1's review: the save itself asks the Checks, accent-folded names, five lows).
+
+**In flight:** #351 **MT3** (change read-back, retire, bring back, merge, marks; `retire_metric`, `merge_metrics`; auto-merge on), built by this session's last fork, which was told to write `retired_why` '' and `marks` [] always (see below). #360, the reviewer's **HIGH on #308** (a batch of links with and without a part failed on the database: `metricLinkToRow` omitted `part`, `okr_upsert` filled the union's missing key with NULL, 0043 made it NOT NULL); fixed by always writing `part: ''`, with a PGlite mixed-batch case in `src/data/schema.test.ts`; auto-merge on. **Tell the build reviewer (session_012kbr8y4Bh3MudNC1bdo3RN) when #360 merges.**
+
+**Next, in Lane's order:**
+1. Check #351 and #360 merged (and #351 always writes `retired_why` and `marks`, with a mixed-batch case like #360's).
+2. **#308's review mediums** (docs/reviews/2026-11-11-build-reviews.md on build-reviews): (2) "a goal with check-ins must say why" is got round by unlinking first (`rulesParts.ts` 75-76, 107): compare with the goal's last link, removed or not, or ask why on unlink; (3) the goal form saves past an unanswered Check (`MeasuredBy.tsx:91` blocks only on Must fix) while the tool holds it; (4) the "another goal already measures this" Check reads the whole workspace at the tool (`rulesLink.ts:50`) and the cycle at the form: keep `others` to the goal's own cycle at both doors. Lows: `partKey`/`closePart` over-match ("US" = "U"; "Region 2" vs "Region 1"); `link_goal_metric` says `get_metric` lists parts but it doesn't; a failed lazy load in the goal form's save says nothing (`state.tsx` 768-769); "Why" has no "Required"; "It shows in its History." said twice; focus stays on Save after a refusal; public's old names don't read back a part.
+3. **MS, MI (round 2's MT6), GR, MQ**, one PR each (backlog rows after SM; specs in `docs/design/metrics-2/spec.md` for MI).
+4. **BL and GB** once track 2 has merged GE10's code (ask track 2, session_012kbr8zF82vbVLvoqfYaQad); **TG** after them.
+5. **WM**: Lane answered (12 Nov, 20:35) all four as recommended: anyone may make a set-up token for themselves in Settings; it lives 24 hours or 3 workspaces, whichever first; the admin token it issues is revoked with it by default; set-up through it stops when the new workspace's first week starts. Build it last, with R1 rule 5b, citing "Lane, 12 Nov". The rules as sent: made only in the app, never by another token or MCP; reaches only `create_workspace`, ST1–ST5 in workspaces it created, and one ordinary admin token for its holder there; hash only, shown once; Access labels "Made by a set-up token", Activity "Set up via AI assistant (MCP)"; dies when its holder leaves; the provisioning half is a platform requirement in the rebuild kit.
+
+**Gotchas learned:**
+- The first download sits at the budget's edge; load heavy module rules through module actions' optional `ready` (`src/app/actions.ts`; see `rulesLink.ts`, `rulesSave.ts`). Never raise budgets.
+- A NOT NULL column must always be written by its row mapper, never left out: `okr_upsert` fills a batch's missing keys with NULL. The browser store never shows it.
+- What's new entries newest first **by date** (`guide.test.ts` fails otherwise); keep both on merges.
+- `spec/core/tools.md` and `spec/rebuild/reads.md` are generated: rerun `npm run spec` after tool or read changes and after each merge of main.
+- Both module-less builds (without metrics, without spreadsheets) run in CI.
+- `src/app/undoElsewhere.test.tsx` is flaky under CI load (seen on several branches): one rerun.
+- Auto-merge works now (branch rule: smoke green and up to date). Forks can't spawn subagents and don't get GitHub events: the parent relays CI failures.
+- Run the whole smoke job locally, in CI order, against a fresh merge of main before pushing; one push then fixes everything.
+- A migration that adds a check constraint adds a line to `LIMITS` (or `NOT_LIMITS`) in `src/spec/limits.ts`.
+
 ## Track 3 (import), Friday 13 November, 03:30 UTC: IM8 and the review lows done (supersedes the 01:10 entry's list)
 
 **Done**
