@@ -120,6 +120,9 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #285 ST1: welcome and join | 2 | 0 | 3 | 7 |
 | #287 U93: the two review findings | 2 | 0 | 0 | 0 |
 | #283, #284 KT7 and KT8: the kit; #279 journeys | 6, evals | 0 | 0 | 0 |
+| #293 GE10 review: the four findings from #270 | 2 | 0 | 0 | 1 |
+| #294 Track 7 review fixes (#242, #249, #239) | MCP load | 0 | 0 | 0 |
+| #291, #295, #296, #304, #307 KT9, KT10 and KT6: the kit | 6 | 0 | 0 | 0 |
 | #244, #246, #254, #260 Backlog and handovers | planning, 6, 7 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
@@ -1256,3 +1259,17 @@ Read first by a reviewing session on the browser store at 1440 and 390; I re-rea
 - "Ask … to add you" is 17 px high on touch.
 - The draft row says "Stopped at step 2" with no "of N" before a starting point is chosen; dates are UTC days (read); `?workspace=` on any other address still switches workspace.
 - P6 does not visit `/welcome`, `/join` or the arrival, though the spec says it does (read).
+
+### #293 GE10 review: the four findings from #270 (track 2, merged 22:54 UTC, 12 Nov)
+
+Fixes all four mediums. A proposal's save writes no set-up check-in and the form no longer asks the stage question while proposing (`src/domain/goalEntry.ts`, `proposing`); `leaving()` reads `withProposed`, so a leaver's proposals are handed over; the "sees it on their Home" line is gone from the read-back; and `activate` itself refuses a From outside week 0 to the week before the plan's To and asks the from-the-past question at every door, with `confirm` on `make_goal_active` (`src/domain/proposedActions.ts`). Read, and its tests run on main at `b753ef19`.
+
+- Low (read). The comments say a stage already past "is asked when it is made active", and `activate` asks nothing about stages: the owner marks it at the first check-in. Say that, or build the question.
+
+### #294 Track 7 review fixes: #242, #249 and #239 (MCP load, merged 23:04 UTC, 12 Nov)
+
+After a save the MCP server reads each new goal's key back from the database (`Deps.goalKeys`, `server/mcp.ts`, `src/adapters/supabase/server.ts`), a dry run gives no ID, and a refused change lists no new goal: #242's medium and both lows. `find_goals` answers 50 at a time with `total`, `offset`, `more` and `why` every time, and `listed()` drops the indent: #249's medium and two lows. One function words a quarter's result for the goal page, History and Print: #239's lows 2 and 3. Read, with its tests run; the key read-back was not run against a database. #239's low 1 (a goal created in a quarter's last week) and low 4 are not taken. No finding.
+
+### #291, #295, #296, #304 and #307 KT9, KT10 and KT6: the kit; #278, #289, #301 and #311 handovers
+
+The spec's limits, logical model, zones, scale kit and reads as data, and `evals/requirements.json` re-tagged. They change the generator, the drill and a seed script, not the app's behaviour. Skimmed, not reviewed in depth. The rest are documents. No finding.
