@@ -7112,6 +7112,9 @@ async function platformChecks() {
       await r.goto(url(route));
       await r.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
       await r.reload();
+      // Measured once the screen has loaded (its heading is there), not while the loading skeleton shows: on a slow
+      // phone the skeleton lasts about a second, and a fixed 300 ms measured it instead of the page (phone CPU, 13 Nov).
+      await r.locator('h1').first().waitFor({ timeout: 15000 }).catch(() => {});
       await r.waitForTimeout(300);
       const m = await r.evaluate(() => {
         const W = window.innerWidth;
