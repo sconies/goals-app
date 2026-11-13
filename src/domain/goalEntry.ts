@@ -559,6 +559,8 @@ export interface SaveGoalInput {
   /** A new goal only: 'proposed' saves it proposed, not yet active (GE10, rule 14); left out, active. A goal being
       changed keeps its state: it is made active by domain/proposed activate, never by a save. */
   state?: 'active' | 'proposed';
+  /** A new proposed goal only: the review it is proposed in ("Propose a new goal" in the walk, GE10 decision 15). */
+  proposedIn?: string;
 }
 
 /** The words for a plan change with no reason (section 4, `reason-empty`). */
@@ -585,6 +587,8 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   if (i.draft.teamId && !s.teams.some((t) => t.id === i.draft.teamId)) throw new NotAllowed('That team isn’t here any more. Choose a team.');
   const parent = i.draft.parentId ? findGoal(goals, i.draft.parentId) : undefined;
   if (i.draft.parentId && !parent) throw new NotAllowed('The goal it feeds isn’t here any more. Choose another, or nothing.');
+  if (i.proposedIn && (existing || i.state !== 'proposed')) throw new NotAllowed('Only a new proposed goal is proposed in a review.');
+  if (i.proposedIn && !s.reviews.some((r) => r.id === i.proposedIn)) throw new NotAllowed('That review isn’t here any more. Reload to see the latest.');
   const checkIns = existing ? checkInsFor(existing, s.checkIns) : [];
   // Proposed (rule 14): the type's own required fields are optional, all together; no reason is ever asked.
   const proposing = existing ? isProposed(existing) : i.state === 'proposed';
@@ -607,7 +611,7 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   const places = decimalsFor(i.draft)!;
   const built = buildGoal({ ...draft, decimals: String(places), margin: draft.margin.trim() || '0' }, x.cycle, { id: existing?.id ?? x.newId('goal'), createdAt: existing?.createdAt ?? x.now }, existing, checkIns.length > 0, x.week);
   // A new goal takes the workspace's next key; a goal being changed keeps its own (buildGoal keeps it), and its proposal.
-  const state = proposing ? { proposedAt: existing?.proposedAt ?? x.now, proposedBy: existing?.proposedBy ?? x.actor.id } : {};
+  const state = proposing ? { proposedAt: existing?.proposedAt ?? x.now, proposedBy: existing?.proposedBy ?? x.actor.id, ...((i.proposedIn ?? existing?.proposedIn) ? { proposedIn: i.proposedIn ?? existing!.proposedIn } : {}) } : {};
   const goal: Goal = existing ? { ...built, pending: null, ...state } : { ...built, key: nextKey(s.goals, s.keysIssued), ...state };
   const needsReason = !proposing && !!existing && checkIns.length > 0 && planChanged(existing, goal);
   if (needsReason && (i.reason ?? '').trim().length < MIN_REASON) throw new NotAllowed(REASON_EMPTY);

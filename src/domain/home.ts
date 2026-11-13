@@ -128,7 +128,7 @@ export interface HomeFacts {
 }
 
 /** A goal proposed for the viewer by someone else that they haven't opened, as the lead reads it. */
-export interface ProposedForYou { id: string; title: string; by: string; proposedOn: string }
+export interface ProposedForYou { id: string; title: string; by: string; proposedOn: string; /** The review it was proposed in, by name: said as " in {review}". */ in?: string | null }
 
 export type LeadKind = 'check-in-late' | 'check-in' | 'wrap-up' | 'review' | 'ask';
 export interface Lead {
@@ -233,7 +233,7 @@ export function proposalLead(list: readonly ProposedForYou[], today: string): Le
   if (!p) return null;
   const days = dayDiff(p.proposedOn, today);
   return { kind: 'ask', eyebrow: `Needs your response · waiting since ${dayMonth(p.proposedOn)}, ${days < 14 ? `${days} days` : `${Math.floor(days / 7)} weeks`}`, warn: false,
-    title: `${p.by} proposed a goal for you`, line: `“${p.title}”. Nothing is due on it until you make it active.`,
+    title: `${p.by} proposed a goal for you${p.in ? ` in ${p.in}` : ''}`, line: `“${p.title}”. Nothing is due on it until you make it active.`,
     action: { label: 'Open it', to: `/goals/${p.id}` }, also: null, ring: null, about: p.id };
 }
 

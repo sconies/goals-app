@@ -172,6 +172,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | `metric` | `GoalMeasure \| null` | no | What measures it, as the form chose (the goal.measure place): its name and which way is better, for the wrong-side question; null for nothing. Left out, what measures it now (domain/records goalMeasureOf), for a goal being changed. |
 | `stagesDone` | `string[]` | no | A new goal's stages already done when it was set up (OB2's rule 3), recorded in the same save. When left out, the stages the draft says are done (answered yes to stage-past). |
 | `state` | `'active' \| 'proposed'` | no | A new goal only: 'proposed' saves it proposed, not yet active (GE10, rule 14); left out, active. A goal being changed keeps its state: it is made active by domain/proposed activate, never by a save. |
+| `proposedIn` | `string` | no | A new proposed goal only: the review it is proposed in ("Propose a new goal" in the walk, GE10 decision 15). |
 
 **Result:** `{ commit: Commit \| null; goal: Goal; }` ([Goal](data-model.md#goal))
 
@@ -187,6 +188,8 @@ Every change a person makes, as the command port runs it ([the ports at company 
 - “That person isn’t in this workspace any more. Choose who owns it.”
 - “That team isn’t here any more. Choose a team.”
 - “The goal it feeds isn’t here any more. Choose another, or nothing.”
+- “Only a new proposed goal is proposed in a review.”
+- “That review isn’t here any more. Reload to see the latest.”
 - “Not saved. Must fix: …”
 - “Not saved. Check with the person first: …”
 
@@ -2201,6 +2204,8 @@ export interface SaveGoalInput {
   /** A new goal only: 'proposed' saves it proposed, not yet active (GE10, rule 14); left out, active. A goal being
       changed keeps its state: it is made active by domain/proposed activate, never by a save. */
   state?: 'active' | 'proposed';
+  /** A new proposed goal only: the review it is proposed in ("Propose a new goal" in the walk, GE10 decision 15). */
+  proposedIn?: string;
 }
 ```
 

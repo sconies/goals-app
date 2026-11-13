@@ -27,6 +27,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'propose-in-review',
+    date: '2026-11-13',
+    title: 'Propose a new goal in a review',
+    points: [
+      'Walking a review, Propose a new goal saves one with only a name, who will own it and what it will feed. It is proposed: nothing is due on it until its owner sets it up and makes it active.',
+      'Its owner’s Home says where it came from: “Rhea proposed a goal for you in Developer Productivity fortnightly”.',
+      'The review’s next session lists it under Last time, with whether its owner has made it active yet.',
+    ],
+    articles: ['goal-proposed', 'reviews'],
+  },
+  {
     id: 'goal-proposed',
     date: '2026-11-13',
     title: 'Propose a goal before it starts',
