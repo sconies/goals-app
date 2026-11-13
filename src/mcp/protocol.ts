@@ -2,6 +2,12 @@
    Implements initialize, ping, tools/list and tools/call, and one prompt (prompts/list, prompts/get): review_inbox,
    which an assistant such as Claude Code offers as a command, for anyone to triage the inbox in one step. */
 import { callTool, TOOLS, type McpContext, type ToolResult } from './tools';
+import { isStale, STALE_RERUNS } from '../ports/store';
+
+/** The context a tool runs in. `fresh` loads the workspace again, as it is now: after a save refused as stale (AX6). */
+export type McpContextOf = (fresh?: boolean) => Promise<McpContext>;
+/** A tool whose save is refused as stale every time it runs again: said plainly, not as the store's error. */
+export const STALE_TOOL = 'Someone else changed this a moment ago, so it wasn’t saved. Read it again (get_goal or get_review) and try again.';
 
 /** Wraps each tool call, for the server's own telemetry: the context loading and the tool itself, in one span. */
 export type TraceTool = (tool: string, run: () => Promise<ToolResult>) => Promise<ToolResult>;
@@ -26,7 +32,7 @@ const ok = (id: Rpc['id'], result: unknown): Reply => ({ jsonrpc: '2.0', id: id 
 const fail = (id: Rpc['id'], code: number, message: string): Reply => ({ jsonrpc: '2.0', id: id ?? null, error: { code, message } });
 
 /** Handles one JSON-RPC message. Notifications (no id) get no reply. The context loads only when a tool runs. */
-export async function handle(msg: unknown, context: () => Promise<McpContext>, trace?: TraceTool): Promise<Reply | null> {
+export async function handle(msg: unknown, context: McpContextOf, trace?: TraceTool): Promise<Reply | null> {
   const m = msg as Rpc;
   if (!m || m.jsonrpc !== '2.0' || typeof m.method !== 'string') return fail((m as Rpc)?.id ?? null, -32600, 'Invalid request');
   const isNote = m.id === undefined;
@@ -54,7 +60,15 @@ export async function handle(msg: unknown, context: () => Promise<McpContext>, t
     case 'tools/call': {
       const name = String(m.params?.name ?? '');
       if (!TOOLS.some((t) => t.name === name)) return fail(m.id, -32602, `Unknown tool: ${name}`);
-      const run = async () => callTool(name, (m.params?.arguments ?? {}) as Record<string, unknown>, await context());
+      const args = (m.params?.arguments ?? {}) as Record<string, unknown>;
+      // A save refused as stale (someone else changed the same goal or review since this request loaded it) runs the tool
+      // again on the workspace as it is now, as the app's dispatcher does (AX6): each tool is one action and one save,
+      // and a refused save saved nothing. Only if every run is refused is the assistant told.
+      const run = async () => {
+        let r = await callTool(name, args, await context());
+        for (let n = 0; n < STALE_RERUNS && r.isError && isStale(r.cause); n++) r = await callTool(name, args, await context(true));
+        return r.isError && isStale(r.cause) ? { ...r, text: STALE_TOOL } : r;
+      };
       const r = trace ? await trace(name, run) : await run();
       return ok(m.id, {
         content: [{ type: 'text', text: r.text }, ...(r.images ?? []).map((i) => ({ type: 'image', data: i.data, mimeType: i.mimeType }))],
@@ -69,7 +83,7 @@ export async function handle(msg: unknown, context: () => Promise<McpContext>, t
 }
 
 /** A POST body: one message or a batch. Returns the replies to send (null when there are none: answer 202). */
-export async function handleBody(body: unknown, context: () => Promise<McpContext>, trace?: TraceTool): Promise<Reply | Reply[] | null> {
+export async function handleBody(body: unknown, context: McpContextOf, trace?: TraceTool): Promise<Reply | Reply[] | null> {
   if (Array.isArray(body)) {
     // One at a time, in order: a later call in the batch sees what an earlier one saved.
     const out: Reply[] = [];
