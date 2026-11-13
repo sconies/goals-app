@@ -43,8 +43,19 @@ export function measureFormProblems(m: Pick<Metric, 'name' | 'unit' | 'decimals'
   return { errors, warnings };
 }
 
-/** Check's row and the save's words: "Measured by Lead time for changes, for CI/CD." */
-export const measuredBySays = (m: Pick<Metric, 'name'>, slice: string | null) => `Measured by ${m.name}, for ${slice ?? 'the whole company'}.`;
+/** Check's row and the save's words: "Measured by Lead time for changes, for CI/CD." / "…, for CI/CD · release builds." */
+export const measuredBySays = (m: Pick<Metric, 'name'>, slice: string | null, part = '') => `Measured by ${m.name}, for ${slice ?? 'the whole company'}${part.trim() ? ` · ${part.trim()}` : ''}.`;
+
+/**
+ * What a goal takes from its metric (MT2, spec 2.6): "min, whole numbers, lower is better." and, when the metric says
+ * them, " From CI runner metrics, refreshed hourly." The goal's own start, target and dates are not the metric's.
+ */
+export function fromMetricWords(m: Pick<Metric, 'unit' | 'decimals' | 'direction' | 'source' | 'refresh'>): string {
+  const where = m.source.trim() ? ` From ${m.source.trim()}${m.refresh ? `, refreshed ${m.refresh}` : ''}.` : '';
+  return `${m.unit}, ${decimalsWords(m.decimals)}, ${directionWords(m.direction)}.${where}`;
+}
+/** Said under it: why the unit and direction aren't the goal's to choose while it is measured by a metric. */
+export const FROM_METRIC_NOTE = 'A goal measured by a metric uses its unit and its direction. To use others, choose another metric or “No metric”.';
 
 /* ---------- the metric finder ---------- */
 

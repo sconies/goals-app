@@ -44,7 +44,7 @@ import { reportedIn, stagesFromNow } from './templates';
 import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
 import { goalMeasureOf, type ModuleRecords } from './records';
 import { CHUNK } from './importLimits';
-import { ANSWERS, fold, groupId, groupIssues, issueOf, levelOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
+import { ANSWERS, fold, LEAVE, groupId, groupIssues, issueOf, levelOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
 import type { Ask, Change, CheckIn, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, Review, Snapshot, StageUpdate, Status, Team } from './types';
 import { FLAG, LEFT, lower, STOPPED } from './vocabulary';
 
@@ -958,6 +958,12 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     else if (val(r, 'limit')) d.limit = val(r, 'limit');
     const bound = readWord(BOUND_WORDS, val(r, 'must stay'), 'Goals', row, d.title);
     if (bound === undefined) return;
+    // Two numbers with Must stay saying one side (an "at most" left from the export): asked, not overridden quietly.
+    if (two && bound && bound !== 'between') {
+      const found = val(r, 'must stay').trim();
+      const a = ask('near-word', 'Goals', row, d.title, `Limit has two numbers and Must stay says “${found}”. Read it as between?`, { column: BOUND_WORDS.what, found, suggest: 'between', answers: [ANSWERS.nearWord('between', [])[0]!, LEAVE] });
+      if (a === null || a === 'leave' || a.choice !== 'use') return;
+    }
     if (two) d.bound = 'between';
     else if (bound) d.bound = bound;
     if (val(r, 'margin')) d.margin = val(r, 'margin');

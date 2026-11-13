@@ -636,7 +636,7 @@ Routes: `/goals/new`, `/goals/new/:step`. Screens: `GoalWizard`. Requirements: `
 - Decimals follow what you type: 12.5 is kept to 1 decimal place, and the line under the numbers says so, with Change to choose whole numbers or 1, 2 or 3 places. Once chosen, a start, target, limit or plan number typed with more is refused, not rounded (with “Keep 1 decimal place” to keep them), so what you see is what was saved.
 - A number has only the number in it: “12 days” in a goal that counts % is a problem to fix (“the unit goes in Unit”); in a goal that counts days it’s 12. A target the same as the start offers to make it a number to keep in range instead. Each stage needs its own name and a week; two stages with one name, or one with no week, are each said under their own row.
 - A warning margin for a range is optional: left empty, it warns only once the limit is crossed.
-- A range keeps a number at most a limit, at least it, or between two numbers: Must stay has At most, At least and Between. Between asks for a lower and an upper limit (“between 99.5% and 99.95%”); the lower must be below the upper. The number is out of range above the upper or below the lower, and at risk within the warning margin of either; the chart shows both limits.
+- A range keeps a number at most a limit, at least it, or between two numbers: Must stay has At most, At least and Between. Between asks for a lower and an upper limit (“between 99.5% and 99.95%”); the lower must be below the upper. The number is out of range above the upper or below the lower, and at risk within the warning margin of either; the chart shows both limits, Upper above its line and Lower below it. Its trend, “Vs last week” and “Will it stay within?” weigh both limits: a number moving back towards the middle is getting better from either side, and “Will it stay within?” answers for whichever limit it is likelier to cross. In a spreadsheet, two numbers in Limit (99.5–99.95) make a range between them; if Must stay says At most or At least, you’re asked whether to read it as Between.
 - Some things are possible but unlikely, so they are asked about, never refused. A question sits under the field it is about, marked Check, with two answers: the first keeps what you typed, the second changes it. Asked: a number with no unit (is it a plain count?), a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), a billion or more, a target on the worse side of the start for the metric that measures it, a warning margin as wide as the limit, weeks set by hand that leave most of the change to the end, a goal with the same name in the same team, an owner in another team than the goal’s (“Move it to …” moves it), and a goal feeding one at a lower level (“No, it feeds nothing” removes the link).
 - A question asked while you type is brought into view, on a phone too, and the cursor stays in the field. Continue waits for the questions on its step: focus goes to the first, and the line above the button says “Answer the question above, under Target.” Answered, a question folds to one line, “You said 150% is right.”, with Change. Your answer holds for the values it was about: change the number and it asks again. Each answer is kept in the goal’s History, as Checked.
 - Two goals can have the same name (two teams can both “Reduce latency”). You’re told which other goal has it, with its key, team and owner, and wherever both could be on screen each shows its key beside the title.
@@ -1127,11 +1127,37 @@ Screens: `MeasuredBy`. Requirements: `METRICS-MEASURED-BY`.
 
 - In New goal, “Measured by” is the first field on the step about numbers; when changing a goal, it is under its name. Type part of a metric’s name, unit or owner to find it. Metrics already in the goal’s unit are offered first.
 - Choosing one shows what it means, with Read more for its page. On a new goal whose unit nobody has typed, it fills in the unit, the decimal places and which way is better, said in one line; Use different ones shows the fields again.
-- For: the goal’s team, or the whole company. With no team chosen yet, only the whole company is offered.
+- For: the goal’s team, or the whole company. With no team chosen yet, only the whole company is offered. Which part narrows it to one part of that number; see “Measured by: for whom, and which part”.
 - A goal in another unit can’t be measured by the metric: it says so, and the goal can’t be saved until the units agree or No metric is chosen.
 - No metric means the goal says in its own words how it’s measured. A goal with dated stages has no number, so it has no “Measured by”.
 - Nothing fits? Choose Add “…” as a new metric: give it a name, a unit and which way is better, and it is chosen. You own it; say more about it on its page later.
 - Check reads it back (“Measured by …, for …”). On Goals, Filters has Measured by, and a metric’s page has See its goals.
+
+### Measured by: for whom, and which part
+
+`metric-slices`, from the metrics module. What a goal takes from its metric and what stays its own, whose number it is, and one part of that number.
+
+Requirements: `METRIC-PARTS`.
+
+#### What a goal takes from its metric
+
+- A goal measured by a metric uses the metric’s unit and which way is better, shown as “From the metric”, with where the number comes from and how often it refreshes when the metric says. To use others, choose another metric or No metric.
+- Its start, target, plan and due week stay the goal’s own.
+
+#### For, and which part
+
+- For says whose number it is: the goal’s team, or the whole company.
+- Which part is optional: one part of that number, such as tier-1 services, a region or release builds, up to 60 characters. Leave it empty for all of it.
+- Parts other goals on the metric already use are listed under the field; choose one rather than typing it again, so goals on the same part line up on the metric’s page. A part spelt like one in use is asked about (“Use tier-1 services”, or keep yours).
+- If another goal already measures the same metric for the same team and part, you are asked, as two goals on one number is unusual; Carry on keeps it.
+
+#### After check-ins
+
+- Once a goal has check-ins, changing its metric, For or part asks Why. It shows in the goal’s History, so anyone reading its chart knows the number was measured differently from then on.
+
+#### On the goal’s page
+
+- About lists Measured by: For, what it means, From the metric, where the number comes from, caveats, the goal’s own target, and its own definition when that says more than the metric’s.
 
 ### Teams
 
@@ -1294,7 +1320,7 @@ Requirements: `MCP-TOKENS`, `MCP-PARITY`, `TOKENS-SERVER-ONLY`.
 
 - Read every screen: what needs you, goals, a goal in full, requests, reviews, watching, people, activity, views, the wrap-up, this guide and what’s new.
 - Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.
-- Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.
+- Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company and optionally one part of it (it asks before two goals share one number, and asks why when a goal with check-ins is measured differently).
 - It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses. A goal that raises a question (over 100%, no unit, a link to a lower level, a plan that flips which way is better) comes back as “Not saved. Check with the person first:” with every question; it saves once you have said yes to each and it calls again with “confirm”.
 - In one bulk change it can add a whole tree of goals and their first numbers: each new goal’s row has a Ref, and the rows below name it in Feeds into ref or Goal ref. One dry run checks it all.
 - Adding goals, one at a time or many at once, it is told each new goal’s key (G-12) and ID straight away, so it can link, check in on or change them without searching first. The key is the one the goal holds once saved, even when someone else adds a goal at the same moment. A dry run says the keys the goals would get, and no IDs yet.

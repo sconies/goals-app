@@ -79,6 +79,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the scorecard on made-up goals › a goal gone quiet says nothing about where it lands
 - the scorecard on made-up goals › a stopped goal says how it stood and makes no forecast: no “will it hit?”, no likely end on the chart
 - the scorecard on made-up goals › a range: vs the limit, vs last week, room to the limit, and will it stay within
+- a range between two numbers: both bounds where both matter (#300 review) › will it stay within judges the worse of the two bounds
+- a range between two numbers: both bounds where both matter (#300 review) › a move back towards the middle is better, from either side
+- a range between two numbers: both bounds where both matter (#300 review) › a quarter ended inside the range names both bounds
 - the scorecard on the example › lead time for changes: behind plan and very unlikely to reach 24 hours
 - the scorecard on the example › dated stages: done, late, and the next one due
 - the scorecard on the example › every goal gets a card that never says a percentage chance
