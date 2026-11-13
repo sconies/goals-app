@@ -118,13 +118,16 @@ export function GoalMap({ goals, matches, goTo, proposed }: { goals: Goal[]; mat
   // Only the trees in trouble: their top goal or anything under it off track, at risk or gone quiet.
   const [onlyTroubled, setOnlyTroubled] = useState(() => readTrouble(app.ws.id));
   useEffect(() => { try { localStorage.setItem(troubleKey(app.ws.id), onlyTroubled ? '1' : '0'); } catch { /* storage blocked */ } }, [onlyTroubled, app.ws.id]);
+  // With the State filter on Proposed (`proposed` given), the switch doesn't apply: proposed goals are never in trouble,
+  // so it would hide every one (build review of #355).
+  const troubledOnly = onlyTroubled && !proposed?.size;
   const scope = useMemo(() => {
-    if (!onlyTroubled) return goals;
+    if (!troubledOnly) return goals;
     const ids = new Set(goals.map((g) => g.id));
     const keep = new Set(goals.filter((g) => !g.parentId || !ids.has(g.parentId)).filter((r) => troubled(r, goals, statusOf)).map((r) => r.id));
     const rootOf = (g: Goal) => { const up = above(g, goals).filter((id) => ids.has(id)); return up.length ? up[up.length - 1]! : g.id; };
     return goals.filter((g) => keep.has(rootOf(g)));
-  }, [goals, onlyTroubled, statusOf]);
+  }, [goals, troubledOnly, statusOf]);
   const critical = useMemo(() => criticalPath(scope, statusOf), [scope, statusOf]);
   const parents = useMemo(() => new Set(scope.filter((g) => g.parentId).map((g) => g.parentId!)), [scope]);
   // Folding: opened goals show all their inputs, shut ones none; the rest only their next step on the critical path.
@@ -334,7 +337,7 @@ export function GoalMap({ goals, matches, goTo, proposed }: { goals: Goal[]; mat
           <KeyMore />
         </div>
         <div className="map-tools">
-          <label className="check small map-troubled" title="Trees whose top goal or anything under it is off track, at risk or has no recent update"><input type="checkbox" checked={onlyTroubled} onChange={(e) => setOnlyTroubled(e.target.checked)} /> <span className="map-long">Troubled trees only</span><span className="map-short">Troubled trees</span></label>
+          {!proposed?.size && <label className="check small map-troubled" title="Trees whose top goal or anything under it is off track, at risk or has no recent update"><input type="checkbox" checked={onlyTroubled} onChange={(e) => setOnlyTroubled(e.target.checked)} /> <span className="map-long">Troubled trees only</span><span className="map-short">Troubled trees</span></label>}
           <button type="button" className="btn sm map-fold" onClick={fold}>{hiddenAny ? 'Unfold all' : 'Fold to the top'}</button>
           {Object.keys(moved).length > 0 && <button type="button" className="btn ghost sm" onClick={() => setMoved({})}>Tidy up</button>}
           {/* Two framings, one at a time: every goal, or the north stars and the critical path at a readable size. */}
@@ -345,7 +348,7 @@ export function GoalMap({ goals, matches, goTo, proposed }: { goals: Goal[]; mat
           </div>
         </div>
       </div>
-      {onlyTroubled && !scope.length && <p className="calm"><Icon name="check-circle" size={15} /> No tree is in trouble: nothing in it is off track, at risk or without a recent update.</p>}
+      {troubledOnly && !scope.length && <p className="calm"><Icon name="check-circle" size={15} /> No tree is in trouble: nothing in it is off track, at risk or without a recent update.</p>}
       <div className="map-body">
         <div className="map-canvas" ref={canvas} style={{ height }} role="region" aria-label="Goal map. Drag to move around, scroll or pinch to zoom, Tab to move between goals, Enter to open one."
           onKeyDown={(e) => {

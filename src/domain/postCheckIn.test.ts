@@ -69,7 +69,7 @@ describe('one way to save a check-in (rule 13)', () => {
     for (const bad of ['..........', 'x'.repeat(501)]) expect(() => postCheckIn(x(), post({ week: pw, mode: 'correct', reason: bad, draft: changed }))).toThrow(/Say why, in a sentence of at least 10/);
     // A cycle that has ended can't be corrected from the form (check-in design 2.7).
     const late = { ...x(), now: new Date(Date.parse(cycleDates(cycle).wrapUpCloses) + 86_400_000 * 2).toISOString() };
-    expect(() => postCheckIn(late, post({ week: pw, mode: 'correct', reason: 'The export was a day late', draft: changed }))).toThrow(`${cycle.name} has ended, so its check-ins can’t be corrected here.`);
+    expect(() => postCheckIn(late, post({ week: pw, mode: 'correct', reason: 'The export was a day late', draft: changed }))).toThrow(`${cycle.name} has ended, so its check-ins can’t be corrected.`);
     expect(entry.importId).toBeTruthy();
     expect(ok.commit.changes.find((c) => c.action === 'imported')!.undo!.checkIns).toEqual([{ id: past.id, before: past }]);
   });

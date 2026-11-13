@@ -1985,13 +1985,40 @@ function measureEmpty(d) {
 	if (d.kind === "range") return !d.limit.trim() && !d.lower?.trim();
 	return !d.stages.some((s) => s.name.trim() || s.dueWeek.trim());
 }
-var PROPOSED, isProposed, judged, withProposed, withdrawnSummary;
+/**
+* Home's rows (rule 14): `for-you`, a goal proposed for the viewer by someone else that they haven't opened; `stale`, a
+* goal proposed PROPOSED_ASK_WEEKS weeks ago or more that the viewer may make active (an admin only for their own), not
+* put off. `seen` is what the viewer has opened, and until when each stale ask is put off (the Prefs port).
+*/
+function proposalAsks(goals, viewer, today, seen, nameOf = (id) => id) {
+	const out = [];
+	for (const g of goals.filter(isProposed)) {
+		if (g.ownerId === viewer.id && g.proposedBy && g.proposedBy !== viewer.id && !seen.opened.has(g.id)) {
+			out.push({
+				kind: "for-you",
+				goal: g,
+				says: `${nameOf(g.proposedBy).split(" ")[0]} proposed a goal for you: “${g.title}”.`
+			});
+			continue;
+		}
+		const n = weeksProposed(g, today);
+		const until = seen.putOff.get(g.id);
+		if (g.ownerId === viewer.id && n >= 8 && !(until && until > today.toISOString().slice(0, 10))) out.push({
+			kind: "stale",
+			goal: g,
+			says: `“${g.title}” has been proposed for ${n} weeks. Make it active, or withdraw it.`
+		});
+	}
+	return out;
+}
+var PROPOSED, isProposed, judged, withProposed, withdrawnSummary, weeksProposed;
 var init_proposed = __esmMin((() => {
 	PROPOSED = "Proposed";
 	isProposed = (g) => !!g.proposedAt && !g.removedAt && !g.stoppedAt;
 	judged = (goals) => goals.filter((g) => !g.stoppedAt && !g.proposedAt);
 	withProposed = (s) => s.proposed?.length ? [...s.goals, ...s.proposed] : s.goals;
 	withdrawnSummary = (title) => `Withdrew the proposal “${title}”`;
+	weeksProposed = (g, today) => g.proposedAt ? Math.floor((today.getTime() - new Date(g.proposedAt).getTime()) / 6048e5) : 0;
 }));
 // src/domain/levels.ts
 var DEFAULT_LEVELS, all, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, isTop, levelRank, hasLevels, LEVEL_WORDS, EVERYDAY_WORD;
@@ -5878,13 +5905,16 @@ function textMatches(words, q, key) {
 }
 /** Rule 1 over words already split by `wordsOf` (a long list splits each row once, not on every key). */
 function wordsMatch(have, q, key) {
+	return wordsMatcher(q)(have, key);
+}
+/** `wordsMatch` with `q` read once: for a long list, where the same search is tried against every row (N12). */
+function wordsMatcher(q) {
 	const asked = wordsOf(q);
-	if (!asked.length) return true;
+	if (!asked.length) return () => true;
 	const typedKey = normalKey(q.trim());
-	if (typedKey) return !!key && typedKey === key;
+	if (typedKey) return (_, key) => !!key && typedKey === key;
 	const bare = /^\d{1,9}$/.test(q.trim()) ? formatKey(Number(q.trim())) : null;
-	if (bare && key && bare === key) return true;
-	return asked.every((w) => have.some((h) => h.startsWith(w)));
+	return (have, key) => !!bare && !!key && bare === key || asked.every((w) => have.some((h) => h.startsWith(w)));
 }
 /** One letter added, dropped or changed, or two next to each other swapped. */
 function oneEditApart(a, b) {
@@ -6181,10 +6211,11 @@ function applyTable(rows, head, q, filters, sort, searched) {
 	].map(idx).find((i) => i >= 0) ?? -1;
 	const keyTyped = keyAt >= 0 && (!!normalKey(typed) || /^\d{1,9}$/.test(typed));
 	const keysOf = (r) => keyTyped ? (r.cells[keyAt] ?? "").split(";").map((k) => k.trim()).filter(Boolean) : [];
+	const matches = wordsMatcher(typed);
 	const found = (r) => {
 		const ks = keysOf(r);
 		const w = wordsFor(r, cols, colsKey);
-		return ks.length ? ks.some((k) => wordsMatch(w, typed, k)) : wordsMatch(w, typed, null);
+		return ks.length ? ks.some((k) => matches(w, k)) : matches(w, null);
 	};
 	const live = filters.filter((f) => idx(f.col) >= 0 && (NO_VALUE.includes(f.op) || f.value.trim() !== ""));
 	const out = rows.filter((r) => (!typed || found(r)) && live.every((f) => passes(r.cells[idx(f.col)] ?? "", f)));
@@ -10159,6 +10190,8 @@ function planChanges(input) {
 function* planChangesInChunks(input) {
 	const { snapshot: s, cycle, week, now, newId, via } = input;
 	const create = input.mode === "create";
+	const cycleEnded = !create && ["ended", "closed"].includes(cycleState(cycle, new Date(now)));
+	const endedRefusal = `${cycle.name} has ended, so its check-ins can’t be corrected.`;
 	const answers = input.answers ?? {};
 	const issues = [];
 	const items = [];
@@ -11796,6 +11829,10 @@ function* planChangesInChunks(input) {
 			imported.set(g.id, [...imported.get(g.id) ?? [], existing]);
 			return;
 		}
+		if (existing && cycleEnded) {
+			raise("cant-change", "Check-ins", row, g.title, endedRefusal);
+			return;
+		}
 		const removing = removals.find((x) => x.g.id === g.id);
 		if (removing) {
 			raise("cant-change", "Check-ins", row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`);
@@ -12123,8 +12160,8 @@ function* planChangesInChunks(input) {
 		}
 		const own = checkInsFor(g, s.checkIns);
 		const newest = own.filter((c) => c.week === w).pop() ?? null;
-		if (p.mode === "correct" && ["ended", "closed"].includes(cycleState(cycle, new Date(now)))) {
-			raise("cant-change", "Check-ins", row, g.title, `${cycle.name} has ended, so its check-ins can’t be corrected here.`);
+		if (p.mode === "correct" && cycleEnded) {
+			raise("cant-change", "Check-ins", row, g.title, endedRefusal);
 			continue;
 		}
 		if (p.mode !== "correct" && w < week) {
@@ -13175,8 +13212,7 @@ function partsOf(links) {
 }
 /**
 * A part in use that the typed one probably means: the same `partKey` spelt differently, or one edit away from one
-* (never for parts of two characters or fewer: "EU" is not "US"; never when their numbers differ: "Region 2" is not
-* "Region 1"). Null when it is a part in use as typed, or new.
+* (never for parts of two characters or fewer: "EU" is not "US"). Null when it is a part in use as typed, or new.
 */
 function closePart(part, parts) {
 	const p = part.trim();
@@ -13185,7 +13221,7 @@ function closePart(part, parts) {
 	const same = parts.find((x) => partKey(x) === k);
 	if (same) return same;
 	if (k.length <= 2) return null;
-	return parts.find((x) => partKey(x).length > 2 && numbersIn(partKey(x)) === numbersIn(k) && editsBetween(partKey(x), k, 1) === 1) ?? null;
+	return parts.find((x) => partKey(x).length > 2 && editsBetween(partKey(x), k, 1) === 1) ?? null;
 }
 /**
 * Rule 2. What measuring `goal` by `metric`, for `teamId` and `part`, asks. `problems` are linkProblems' (rules.ts:
@@ -13247,7 +13283,7 @@ function linkChecks(goal, metric, slice, problems, r, reason) {
 	if (!problems.errors.length && r.hasCheckIns && linkChanges(r.present, metric.id, slice.teamId, part) && !reason.trim()) out.push({
 		field: "why",
 		kind: "fix",
-		words: "Say why this goal is measured differently now.",
+		words: "Say why this goal is measured differently now. It shows in its History.",
 		answers: []
 	});
 	if (reason.trim().length > 300) out.push({
@@ -13258,12 +13294,11 @@ function linkChecks(goal, metric, slice, problems, r, reason) {
 	});
 	return out;
 }
-var partKey, numbersIn, linkChanges, forWords;
+var partKey, linkChanges, forWords;
 var init_rulesParts = __esmMin((() => {
 	init_fold();
 	init_edits();
-	partKey = (part) => fold$2(part).replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(" ").filter(Boolean).map((w) => w.length > 3 && w.endsWith("s") ? w.slice(0, -1) : w).join(" ");
-	numbersIn = (key) => (key.match(/\p{N}+/gu) ?? []).join(" ");
+	partKey = (part) => fold$2(part).replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(" ").filter(Boolean).map((w) => w.length > 1 && w.endsWith("s") ? w.slice(0, -1) : w).join(" ");
 	linkChanges = (present, metricId, teamId, part) => !!present && (present.metricId !== metricId || present.teamId !== teamId || partKey(present.part ?? "") !== partKey(part));
 	forWords = (sliceName, part) => `${sliceName === "The whole company" ? "the whole company" : sliceName}${(part ?? "").trim() ? ` · ${(part ?? "").trim()}` : ""}`;
 }));
@@ -13939,16 +13974,15 @@ function linkGoalMetric(x, goal, metricId, teamId = null, part = "", reason = ""
 		})]
 	};
 }
-/** What rule 2 reads for a goal and a metric: its last link (removed or not), the metric's other live links on goals
-of the same cycle (with each goal's title, key and owner), whether the goal has check-ins, and slices in words. */
+/** What rule 2 reads for a goal and a metric: its present link, the metric's other live links (with each goal's title,
+key and owner), whether the goal has check-ins, and slices in words. */
 function linkReads(x, goal, metricId) {
 	const s = x.full ?? x.snapshot;
-	const present = linksOf(s).find((l) => l.id === goal.id);
+	const present = linksOf(s).find((l) => l.id === goal.id && !l.removedAt);
 	const goals = new Map(s.goals.map((g) => [g.id, g]));
-	const cycle = goal.cycleId ?? goals.get(goal.id)?.cycleId ?? x.cycle?.id;
 	const others = linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt && l.goalId !== goal.id).flatMap((l) => {
 		const g = goals.get(l.goalId);
-		if (!g || g.removedAt || g.stoppedAt || cycle && g.cycleId !== cycle) return [];
+		if (!g || g.removedAt || g.stoppedAt) return [];
 		return [{
 			goalId: l.goalId,
 			teamId: l.teamId,
@@ -14867,6 +14901,7 @@ function waitingOrder(a, b) {
 	return tier(a) === 2 ? a.askedOn.localeCompare(b.askedOn) : b.askedOn.localeCompare(a.askedOn);
 }
 // src/app/reads.ts
+init_proposed();
 init_cycle();
 init_plan();
 init_review();
@@ -14958,8 +14993,9 @@ function homeAsks(viewerId, s, cycle, week, today) {
 	const day = today.toISOString().slice(0, 10);
 	const me = s.people.find((p) => p.id === viewerId)?.name ?? "";
 	const first = (id) => s.people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
+	const all = withProposed(s);
 	return openForPerson(viewerId, s).flatMap((r) => {
-		const goals = r.goalIds.map((id) => s.goals.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({
+		const goals = r.goalIds.map((id) => all.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({
 			id: g.id,
 			title: g.title
 		}));
@@ -16747,13 +16783,12 @@ var help$3 = [
 					"For says whose number it is: the goal’s team, or the whole company.",
 					"Which part is optional: one part of that number, such as tier-1 services, a region or release builds, up to 60 characters. Leave it empty for all of it.",
 					"Parts other goals on the metric already use are listed under the field; choose one rather than typing it again, so goals on the same part line up on the metric’s page. A part spelt like one in use is asked about (“Use tier-1 services”, or keep yours).",
-					"If another goal this year already measures the same metric for the same team and part, you are asked, as two goals on one number is unusual; Carry on keeps it.",
-					"A question here is answered before the goal saves: Save takes you to it."
+					"If another goal already measures the same metric for the same team and part, you are asked, as two goals on one number is unusual; Carry on keeps it."
 				]
 			},
 			{
 				heading: "After check-ins",
-				list: ["Once a goal has check-ins, changing its metric, For or part asks Why, even if it stopped being measured by a metric in between. It shows in the goal’s History, so anyone reading its chart knows the number was measured differently from then on."]
+				list: ["Once a goal has check-ins, changing its metric, For or part asks Why. It shows in the goal’s History, so anyone reading its chart knows the number was measured differently from then on."]
 			},
 			{
 				heading: "On the goal’s page",
@@ -16862,6 +16897,7 @@ var help$2 = [
 					"The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over: an email, or a name only one person has). The same rules as the app apply, and the preview shows what each does.",
 					"Every row is checked with the app’s own rules, and Check this import shows the result before anything is saved: the file and what was read (sheets and columns it didn’t read are named), counts by sheet, then what must be fixed, then questions, then what will be saved. Show the changes lists every change in the file’s order, 50 at a time, with each field before and after and how a value Faro supplied was worked out (“the owner’s team; the row gave none”).",
 					"Plan changes after check-ins need a reason. A plan change that flips which way is better, or puts a number far outside the old plan, is a question, and saves only once you say yes.",
+					"To leave without saving, use Close without saving at the top of Check this import or its list of changes: the file is forgotten and you are back on Import. If you answered a question or gave a reason, it asks first.",
 					"A file that changes nothing says Nothing would change. If it edits worked-out cells, such as Status, it says so: Faro never reads them, so to change where a goal stands, post a check-in.",
 					"A file exported from another workspace is asked about first: its keys and IDs belong there, so its rows can be added as new goals, or not at all.",
 					"A number goal’s weeks are From and To, written as a year and a week (2026-W46, 2027-W13). Plan from week and Due week, counted from the cycle’s start, are still written and still load: where a row has both, the one you changed counts, and two that disagree are Must fix; a Due week left empty beside a To says nothing. In a file with no Start column, a bare number under From (“52”) is Must fix: it may be the starting number, so put that under Start, or write the week as 2026-W46. A week a year doesn’t have says so (“2027 has 52 weeks. Use 2027-W52, or 2028-W01.”). A stage may be written Design@48 or Design@2026-W48.",
@@ -16907,6 +16943,7 @@ var help$2 = [
 		screens: [
 			"Import",
 			"Check",
+			"CheckClose",
 			"Large",
 			"Changes",
 			"Imported"
@@ -17189,7 +17226,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "When Home has no button",
 				list: [
-					"Before the day your check-ins are due, Home says “Nothing is asked of you today.” and when they are due, with Check in early if you want to get ahead.",
+					"Before the day your check-ins are due, Home says “Nothing is asked of you today.” and when they are due, with Check in early if you want to get ahead. When asks or proposed goals wait for you, it says so instead (“A proposed goal waits for your response.”).",
 					"Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in on time it adds how many weeks in a row you have been on time, from two weeks.",
 					"If you own and watch nothing, it says so, with a way to see the goals and to set one up.",
 					"It never tells you about a deadline you met."
@@ -17564,7 +17601,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status. A second check-in in a week is compared with last week, not with your first one, and so is the goal’s “vs last week”.",
 					"Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.",
-					"Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back, and History no longer says it was corrected. The form starts from what the check-in said, so you change only what was wrong. A cycle that has ended can’t be corrected here.",
+					"Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back, and History no longer says it was corrected. The form starts from what the check-in said, so you change only what was wrong. A cycle that has ended can’t be corrected here, or anywhere else: Data’s tables, the AI assistant and a spreadsheet refuse it too.",
 					"Changing a week’s check-in in Data’s tables, or through the AI assistant, corrects it the same way: it asks why first, and History says “Corrected week 45” with your reason. An admin can correct a past check-in in Data.",
 					"Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.",
 					"Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.",
@@ -19790,16 +19827,30 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
-		id: "which-part-holds",
+		id: "import-check-close",
 		date: "2026-11-13",
-		title: "Which part: questions are answered before a goal saves",
+		title: "Checking an import has a way out on a phone",
+		points: ["Check this import and its list of changes have Close without saving at the top: the file is forgotten and you are back on Import.", "If you answered a question or gave a reason, it asks first."],
+		articles: ["import"]
+	},
+	{
+		id: "proposed-fixes-review",
+		date: "2026-11-13",
+		title: "Proposed goals: Home, the Map and the AI assistant",
 		points: [
-			"A question under Which part (another goal on the same number, or a part spelt like one in use) now holds Save until it is answered, as the AI tools do, and Save takes you to it.",
-			"A goal with check-ins that stops being measured by a metric and is then measured another way is asked Why, as any other change is.",
-			"Another goal on the same number means one this year: last year’s copy of a goal is no longer asked about.",
-			"“US” is no longer taken for “U”, nor “Region 2” for “Region 1”."
+			"Home no longer says “Nothing is asked of you today.” beside proposed goals waiting for you: it says they wait for your response.",
+			"An ask on a goal that went back to proposed stays on Home.",
+			"With the State filter on Proposed, the Map shows every proposed goal, whatever Troubled trees says.",
+			"The AI assistant’s summary of your work lists the proposed goals waiting for you."
 		],
-		articles: ["metric-slices"]
+		articles: ["goal-proposed", "home"]
+	},
+	{
+		id: "ended-cycle-stays-as-read",
+		date: "2026-11-13",
+		title: "A year that has ended keeps its check-ins as the wrap-up read them",
+		points: ["Once a cycle has ended, none of its check-ins can be corrected: not from the form, Data’s tables, the AI assistant or a spreadsheet.", "A spreadsheet that carries those check-ins unchanged still loads."],
+		articles: ["check-in"]
 	},
 	{
 		id: "older-changes-on-request",
@@ -22819,7 +22870,7 @@ var requestData = (ctx, r) => ({
 	askedBy: name$1(ctx, r.askedBy),
 	askedOf: r.recipientId ? name$1(ctx, r.recipientId) : "anyone",
 	goals: r.goalIds.map((g) => {
-		const x = ctx.snapshot.goals.find((y) => y.id === g);
+		const x = withProposed(ctx.snapshot).find((y) => y.id === g);
 		return {
 			id: g,
 			key: x?.key ?? null,
@@ -22968,6 +23019,16 @@ var WORK_TOOLS = [
 				handedFrom: r.handedFrom
 			}));
 			const when = (x) => ` · ${x.waiting}${x.handedFrom ? ` · asked of ${x.handedFrom}, now yours` : ""}`;
+			const proposedForYou = proposalAsks(s.proposed ?? [], ctx.actor, ctx.today, {
+				opened: /* @__PURE__ */ new Set(),
+				putOff: /* @__PURE__ */ new Map()
+			}, (id) => s.people.find((p) => p.id === id)?.name ?? "Someone").map((a) => ({
+				id: a.goal.id,
+				key: a.goal.key ?? null,
+				title: a.goal.title,
+				kind: a.kind,
+				says: a.says
+			}));
 			const reviews = s.reviews.filter((r) => r.people.includes(me)).map((r) => {
 				const x = reviewSession(r, s, ctx.cycle, ctx.today, ctx.week);
 				return {
@@ -23018,6 +23079,7 @@ var WORK_TOOLS = [
 					questionsOnYourGoals: questions,
 					asksForAnUpdate: asks,
 					yourActions: actions,
+					proposedGoals: proposedForYou,
 					yourReviews: reviews,
 					wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today)
 				},
@@ -23027,7 +23089,8 @@ var WORK_TOOLS = [
 					`Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.`,
 					`Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask}${when(r)} (${r.id})`).join("; ") : "none"}.`,
 					`Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question}${when(q)} (${q.id})`).join("; ") : "none"}.`,
-					`Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by}${when(x)} (${x.id})`).join("; ") : "none"}.`,
+					`Asked for an update: ${asks.length ? asks.map((x) => `${withProposed(s).find((g) => g.id === x.goalId)?.title} by ${x.by}${when(x)} (${x.id})`).join("; ") : "none"}.`,
+					`Proposed goals for you: ${proposedForYou.length ? proposedForYou.map((x) => `${x.says} (${x.key ?? x.id})`).join(" ") : "none"}.`,
 					`Your actions: ${actions.length ? actions.map((x) => `${x.action}${x.dueWeek ? ` by week ${x.dueWeek}` : ""}${when(x)} (${x.id})`).join("; ") : "none"}.`,
 					`Your goals that need attention: ${attention.length ? attention.map((g) => `${g.title}, ${said(g.status)}: ${g.why.map(clause).join(". ")}`).join("; ") : "none"}.`,
 					`${ATTENTION.handled.label} (${HANDLED_LINE.replace(/\.$/, "")}): ${handled.length ? handled.map((g) => `${g.title} (${said(g.status)}): ${clause(g.inHand)}`).join("; ") : "none"}.`
@@ -25787,7 +25850,7 @@ var tools$1 = [
 	{
 		name: "get_metric",
 		title: "Read a metric",
-		description: "One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the parts its goals use (`parts`, most used first); the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).",
+		description: "One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -25819,7 +25882,6 @@ var tools$1 = [
 					goal: g.title,
 					owner: ctx.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? null
 				}));
-				const parts = partsOf(linksOf(ctx.snapshot).filter((l) => l.metricId === m.id));
 				const needs = canEditMetric(ctx.actor, m) ? metricNeeds(m, libraryReads(ctx.snapshot, ctx.now)).map((x) => ({
 					id: x.id,
 					sentence: x.sentence
@@ -25841,7 +25903,6 @@ var tools$1 = [
 					`Caveats: ${d.caveats || "—"}`,
 					goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}`).join("\n")}` : "Measures no goal yet.",
 					...summary ? [summary] : [],
-					...parts.length ? [`Parts in use: ${parts.join(", ")}`] : [],
 					...proposed.length ? [`Proposed (${proposed.length}), not judged: ${proposed.map((x) => `${x.key ?? x.goalId} ${x.goal}${x.owner ? ` (${x.owner})` : ""}`).join("; ")}`] : [],
 					...needs.length ? [`To sort out: ${needs.map((x) => x.sentence).join("; ")}`] : []
 				];
@@ -25858,7 +25919,6 @@ var tools$1 = [
 						...d,
 						stillToSay,
 						goals,
-						parts,
 						proposed,
 						summary,
 						needs,
@@ -26091,8 +26151,8 @@ var tools$1 = [
 				goal: str$2("The goal’s ID or key (G-12)."),
 				metric: str$2("The metric’s ID or name. Required unless unlinking."),
 				team: str$2("The slice: a team by ID or name. Leave out for the whole company."),
-				part: str$2("Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them under parts."),
-				reason: str$2("Why the goal is measured differently now. Required when a goal with check-ins is measured differently from its last link (another metric, team or part, even after unlinking); it shows in the goal’s History."),
+				part: str$2("Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them."),
+				reason: str$2("Why the goal is measured differently now. Required when a goal with check-ins changes its metric, team or part; it shows in the goal’s History."),
 				answers: {
 					type: "object",
 					additionalProperties: false,
