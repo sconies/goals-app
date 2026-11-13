@@ -4868,7 +4868,7 @@ const ownWords = (text, s) => {
   return t;
 };
 
-journey('U148', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews off, the clock without a review: the read-back says check-ins are still due by Thursday; then no page Rhea opens calls the deadline a review, and her check-in’s receipt says the week is in “by Thursday”', 14, async (h, device) => {
+journey('U150', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews off, the clock without a review: the read-back says check-ins are still due by Thursday; then no page Rhea opens calls the deadline a review, and her check-in’s receipt says the week is in “by Thursday”', 14, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/workspace/features'));
   const box = p.getByRole('checkbox', { name: /^Reviews/ });
@@ -4924,7 +4924,7 @@ journey('U148', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews off, the 
   await p.context().close();
 }, ['parity', 'budget']);
 
-journey('U149', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews back on after a week off: switched off on Monday 2 Nov and on again on Friday 6 Nov, every session whose date passed while it was off moves to its next date, so neither Reviews nor Home says Not held yet', 8, async (h, device) => {
+journey('U151', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews back on after a week off: switched off on Monday 2 Nov and on again on Friday 6 Nov, every session whose date passed while it was off moves to its next date, so neither Reviews nor Home says Not held yet', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   const on = (day, path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
   await p.goto(on('2026-11-02', '/workspace/features'));
