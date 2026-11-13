@@ -80,6 +80,11 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › a parent copy that leaves takes its children’s copies’ parent and effect; brought back, they’re under it again (high 2)
 - the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › a parent and its child leaving or coming back in one save: each row once, the child under its parent (build review of #179)
 - the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › stopping a goal in the old year takes its copy out; a stored copy written in another order is the same copy (high 3, medium 4)
+- Keeping a copy true on a windowed load (AX5 part 2b, build review of #358) › the window leaves 2026’s check-ins out
+- Keeping a copy true on a windowed load (AX5 part 2b, build review of #358) › adds no copy that the whole data wouldn’t
+- Keeping a copy true on a windowed load (AX5 part 2b, build review of #358) › counts a copy made before the window as used, so recarry never rewrites it
+- The year in use never falls out of the window (build review of #358, medium 2) › keeps its check-ins, and says none are left out
+- The year in use never falls out of the window (build review of #358, medium 2) › keeps both years, so undoing the start still sees a check-in in 2027
 
 ### [src/domain/journeys.test.ts](../../../src/domain/journeys.test.ts)
 
