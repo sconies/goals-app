@@ -6005,6 +6005,9 @@ journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, 
   await h.click(p.getByRole('button', { name: 'Remove' }).first());
   await p.waitForURL((u) => !u.search.includes('state=stopped'));
   await p.locator('.goals-line').first().waitFor();
+  // The address changes before the list is drawn again, and the count line is on both, so wait for the stopped list to
+  // go; reading at once counted the old list's row (U150 at 9/10, 13 Nov).
+  await p.locator('[data-part="Stopped goals"]').waitFor({ state: 'detached', timeout: 10000 }).catch(() => {});
   // The goal's rows, not the page's text: the toast that it stopped may still be showing.
   h.set('finish', (await p.locator('main a[href$="/goals/ci-docker"]').count()) === 0, 'the stopped goal is listed among the active goals');
 });
