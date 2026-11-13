@@ -44,7 +44,7 @@ Stage 3’s drill scores the parts of the screens that are rules of the viewer, 
 
 | File | Rows expected | Columns, in this order |
 |---|---|---|
-| `navigation.csv` | 56 | `viewer`, `owns_goals`, `address`, `menu`, `tabs`, `lit`, `page` |
+| `navigation.csv` | 60 | `viewer`, `owns_goals`, `address`, `menu`, `tabs`, `lit`, `page` |
 | `readback.csv` | 6 | `case`, `viewer`, `draft`, `rows`, `after` |
 | `find.csv` | 23 | `kind`, `q`, `total`, `near`, `ids` |
 | `home.csv` | 56 | `viewer`, `day`, `lead`, `title`, `quiet` |
