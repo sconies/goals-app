@@ -168,6 +168,8 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #396 IM8 review fixes (#336) | 3 | 0 | 0 | 0 |
 | #400 Asks follow a goal's new owner: Lane's rule, #369's mediums; unmark_reviewed | 1 | 0 | 0 | 2 |
 | #376 GE10: a goal proposed in a review; Propose in the action sheet on a phone | 2 | 0 | 5 | 4 |
+| #377 GE10: a proposed goal's type can still change | 2 | 0 | 0 | 0 |
+| #402 F2: a switched-off module adds no sheet to any export | 3 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -1717,3 +1719,13 @@ Read first by a reviewing session with probes, PGlite with every migration, and 
 **Lows.** A same-name question is a dead end in the sheet (the toast asks, nothing can answer); a goal proposed the day after a session shows one session late; the goal's page, the proposed list and the review's own page don't name the review, and MCP `create_goal` can't propose in one; migration 0045's column comment says "null when … active" though the code keeps it, and the guide says "beside Add an action" where a phone has it inside the action sheet.
 
 **Fine.** An unknown or ended review, an existing goal and an active goal are refused; the proposed goal joins no agenda or count; on PGlite an edit while proposed, a workbook owner change and Make it active keep `proposed_in`; an unchanged export loads back as no change; on a phone the decide bar is under 130px with one primary action, 44px targets, no sideways scroll, and every earlier action still reachable; U148's wait for the decide bar is a real fix; domain pure; no design-rule breach. Not run: Reviews switched off, a removed review, the full evals.
+
+### #377 and #402 (merged about 14:40 UTC, 13 Nov)
+
+Read by me; no finding.
+
+**#377 (track 2).** A proposed goal's edit page offers Type, and the page draws from the draft's type; an active goal's type change is refused in `planGoal` itself (`TYPE_FIXED`, `src/domain/goalEntry.ts:599`), not only by hiding the control. The three types' names live once (`GOAL_KINDS`). Not run: what happens to a proposed goal's metric link or stages when its type changes away from them.
+
+**#402 (track 3).** Every export door (the Export sheet, Import's export, the "Nothing would change" comparison and the MCP export tool) takes `sheetsOn(ws)`, so a module that is off adds no sheet, and the tool says the sheet's module is off. Test added.
+
+#401 is a handover page.
