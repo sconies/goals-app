@@ -195,6 +195,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #442 SM2: no noughts, and the quiet empty pages | 2 | 0 | 0 | 0 |
 | #435 SM4: the rail's Faro mark is the workspace switcher | 2 | 0 | 0 | 0 |
 | #437 NR2: readings in the check-in | readings | 0 | 6 | 5 |
+| #404 MT3 review: #351's mediums | 7c | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -1900,3 +1901,9 @@ A caller cannot supply a reading: `post_check_in` takes two flags and the server
 **For Lane.** Opening the one-table check-in and pressing "Post 1 check-in" without touching anything posted a filled-in number as confirmed. The readings note's 2.3 says posting the table confirms them; an earlier answer of his says never post a week nobody updated.
 
 **Fine.** Undo of an import, delete then restore, "check in again" and a table post of two goals agree after a reload; rows already checked in are not filled; same-as-last is answered only when the number equals the reading; the wipe-to-NULL half of #434's finding has no door that produces it; no stripes, pills or emoji; U156 to U160 assert stored readings. Not run: start-next-year, the full evals.
+
+### The 23:39 UTC check, 13 Nov: #404, and what is with first-pass reviewers
+
+**#404 (track 7c): #351's mediums on MT3. Holds as read.** A change to a metric offers Undo, which takes its marks and a relabel's goal units back with it; a goal's marks are bounded by its own cycle (`cycleUntil`, `src/domain/records.ts`), so a change made next year never marks this year's goals; at most the latest three weeks of marks are drawn, two in one week as one line; a retired metric of the same name is named with the day it was retired; marks show on range charts; stopped goals are counted. Tests added.
+
+#448 (phone pages run with the CPU slowed), #450 (a check renumbered) and #454 (a journey's expectation) change evals only; #453 is a handover page. #444 (four more switches), #428, #449 and #452 with migration 0050 (measurement status, baseline, a proposed goal with no target) and #446 (readings shown, NR2's mediums) are with first-pass reviewers.
