@@ -514,7 +514,8 @@ journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows wha
     return { y: el.getBoundingClientRect().top, title: t ? t.bottom : null, fold: bar ? bar.getBoundingClientRect().top : innerHeight };
   });
   h.set('entry', top.y >= 0 && top.title != null && top.title <= top.fold - 8, `the first attention card's title ends at ${Math.round(top.title ?? -1)}px, fold ${Math.round(top.fold)}px`);
-  await see(p, 'late', 'an overdue check-in is called late');
+  // The word comes from a goal Rhea watches, so it is Watching's (SW1): with Watching off, Home has nothing late.
+  if (built('watching')) await see(p, 'late', 'an overdue check-in is called late');
   // The north star is being handled (Amara looked at it in last week's review), so the first card is a goal already
   // checked in; the week's check-in is the hero's one action.
   await h.click(p.locator('.home-hero').getByRole('link', { name: /Start check-in|Pick up where you left off/ }));
