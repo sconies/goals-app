@@ -157,8 +157,9 @@ export function Check() {
     setBusy(true);
     setSaving(cs);
     try {
-      const importId = final.commit.changes.find((c) => c.action === 'imported')?.entityId;
-      await app.applyChanges(final);
+      // The import's id is the saved one: the change set is worked out again when saved (AX2), with new ids.
+      const saved = await app.applyChanges(final);
+      const importId = saved.commit?.changes.find((c) => c.action === 'imported')?.entityId;
       // The file is forgotten when Import next opens: emptied here, the open preview would send the person back to Import.
       // Imported reads the import from the change log; the rows left out stay in memory for its download.
       if (importId) importStore.set({ done: { importId, tables: base, rows: leftRows } });
