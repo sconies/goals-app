@@ -1688,6 +1688,7 @@ No arguments.
         onTimeStreakWeeks: number | null;
         weekReceipt: {
             forgivenWeek: number | null;
+            forgivenWeekWas: string | null;
             first: string;
             second: string | null;
         } | null;

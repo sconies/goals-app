@@ -82,6 +82,10 @@ export interface ModuleFacts {
   requirements: string[];
   /** The eval journeys (evals/journeys.cjs) and checks (F…, N…) that exercise it: left out when it is. */
   journeys: string[];
+  /** Its screens, by file name, and the AI tools that read or do what each shows, or why an assistant has no need of it
+      (src/mcp/parity.ts merges them with the core's). A core screen named here gains the module's tools beside its own
+      (Print shows a review). Optional; module map F8. */
+  parity?: Record<string, string[] | { notForAssistants: string }>;
   /** The source files that belong to it outside its folder, if any (there should be none once it's fully moved). */
   elsewhere?: string[];
   /** What it deliberately leaves out, why, and how it could grow: written into the spec as spec/modules/<id>/growth.md,

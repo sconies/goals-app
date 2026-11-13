@@ -287,7 +287,8 @@ function ShellBody({ children }: { children: ReactNode }) {
           {/* The product's name, quietly, above the workspace's: the wordmark in the full sidebar, the F alone on the rail. */}
           <div className="side-brand">
             <FaroLogo size={22} />
-            <FaroMark size={28} label={null} />
+            {/* On the rail the F opens the workspace switcher (small workspaces SM4). */}
+            <WorkspaceSwitcher variant="rail" />
             <button type="button" className="iconbtn collapse-nav" aria-label={icons ? 'Show the full sidebar' : 'Collapse the sidebar'} {...label(icons ? 'Show the full sidebar' : 'Collapse the sidebar')} aria-pressed={icons} onClick={() => setAppearance({ sidebar: icons ? 'full' : 'icons' })}>
               <Icon name={icons ? 'sidebar-expand' : 'sidebar-collapse'} size={18} />
             </button>

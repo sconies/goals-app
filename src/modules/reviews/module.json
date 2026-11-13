@@ -83,5 +83,10 @@
       "A review's own records (reviews and what was said in them) are not yet declared as the module's (AS part 2's records extension point is FT3's), so a build without the module still loads and saves them as the core's.",
       "The walk on a goal's page, Home's review lead and its Next review cell are drawn by core screens, not through places; FT3 adds the places (home.lead, home.glance) and a count for a module's menu item."
     ]
+  },
+  "parity": {
+    "Review": ["list_reviews", "get_review", "save_review", "end_review", "delete_review"],
+    "Inspect": ["get_review", "review_call", "edit_call", "delete_comment"],
+    "Print": ["get_review"]
   }
 }
