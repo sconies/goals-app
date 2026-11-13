@@ -309,6 +309,28 @@ Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this sessi
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
 
+## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~01:10 UTC (session at half, handing over; supersedes the 12 Nov 23:10 entry)
+
+Session: session_012kbr8z3ACYiinbB3TbXmPk. Planning is session_012kbr939zneZWtAo7UQEHRP.
+
+| Branch | State | PR |
+|---|---|---|
+| `st1-mediums` | **Merged as #318** at 01:15 UTC. U82, N1 and N12 passed alone on the branch and on main; P9 failed once more in a loaded run at another route and passed twice alone (the shell check with track 4) | #318 merged |
+| `ge10-home-proposals` | GE10 (F), Home's two proposal rows. Typecheck, unit tests and spec pass; main merged in at 01:05; **`evals:changed` not run** (U134 has new checks) | #319 (draft) |
+
+**Next, in order:**
+1. **#300's review fixes** (planning, 00:37): full text on the `build-reviews` branch (the 11 Nov build reviews file), section "#300". Mediums, all from `rangeSide` (the nearer bound) used where both bounds matter: (1) "Will it stay within?" judges only the nearer bound (`scorecard.ts` ~171): judge the worse of the two; (2) a number moving back towards the middle reads "Getting worse" (`trend.ts` ~101, scorecard's since cell, `attention.ts` ~79): room = min(v − lower, upper − v), no floating-point midpoint; (3) on a narrow band the chart's two limit labels overlap (`rangeChart.tsx`: pad by a share of the band, Lower label under its line). Lows: two numbers in Limit override Must stay "at most" without a question; wording names only the nearer bound (`year.ts` ~123, "Inside the 99.50% limit"); add a journey or finish check for the between form, page and chart; a between row read through the public fallback becomes "at most". Fold in #293's low: comments say a past stage "is asked when it is made active", but `activate` asks nothing.
+2. #319: `evals:changed`, then merge. Then the rest of GE10 (F), as the 12 Nov 23:10 entry lists it, plus Home's lead for a for-you proposal (the Home spec's `ask` rule) and "in {review}" in its line.
+
+**Habits, learned this session:**
+- The first download on main is **263.4 KB** of 265, not 259.4: other tracks have grown it. #319 adds 0.5 KB. Measure by building and summing gzip of what `dist/index.html` preloads; keep new markup lazy.
+- The main checkout had no `node_modules`: `npm ci` there once, then `cp -al` into each worktree.
+- Don't merge main into a worktree while an eval subagent runs in it.
+- `evals:changed` on anything touching `App.tsx`, `ChangeItem` or `Home.tsx` runs the full suite (~18 minutes).
+- U97 now calls `designProblems(page)`, P6's test lifted into a function in `evals/journeys.cjs`, for pages P6 can't reach (the arrival needs the browser store).
+
+**Prompt for the next track 2 session:** "You are track 2 of Faro's build (goal entry and set-up). Read CLAUDE.md, then the track 2 section of docs/handover.md ('Track 2 … Friday 13 November, ~01:10 UTC') and do its 'Next' list in order, one PR each. The first download is about 264 of 265 KB: keep anything new lazy; never raise budgets. Track 3 is building IM8 in Onboarding.tsx's upload step: stay out of it. Follow CLAUDE.md's gate (typecheck, npm test, npm run spec, evals:changed, build:mcp from a real node_modules via cp -al, never ln -s). Build in a worktree, send eval runs to a subagent that returns only the scorecard, check mergeable_state before waiting on CI, and merge by hand on green with merge commits. Report to the planning session (session_012kbr939zneZWtAo7UQEHRP, or whichever session tells you planning has moved) once, when done or blocked. At half context, write a handover entry in a PR and send the planning session the next prompt."
+
 ## Track 2 (one goal, goal entry, set-up), Thursday 12 November, ~23:10 UTC (session past half full, handing over)
 
 Session: session_012kbr8yX1yx6BkMYiJ6F5Dr. Each build ran in a subagent in its own worktree (`git worktree add`, then `cp -al node_modules`), and each eval run went to a subagent that returned only the scorecard. Merges used **merge commits**. Planning is session_012kbr939zneZWtAo7UQEHRP.

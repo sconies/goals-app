@@ -708,7 +708,7 @@ The goal’s owner, or an admin.
 
 `reviews`. A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said.
 
-Routes: `/reviews`, `/reviews/new`, `/reviews/:reviewId`, `/reviews/:reviewId/edit`, `/reviews/:reviewId/summary`, `/review`, `/goals/:goalId?review=*`. Screens: `Review`, `Inspect`. Requirements: `REVIEW`, `REVIEW-SETUP`, `REVIEW-RUN`, `REVIEW-DECIDE`, `INSPECT-ACT`, `REVIEW-LIST-STATE`, `REVIEW-AGENDA`, `EXCEPTIONS-FIRST`.
+Routes: `/reviews`, `/reviews/new`, `/reviews/:reviewId`, `/reviews/:reviewId/edit`, `/reviews/:reviewId/summary`, `/review`, `/goals/:goalId?review=*`. Screens: `Review`, `Inspect`. Requirements: `REVIEW`, `REVIEW-SETUP`, `REVIEW-RUN`, `REVIEW-DECIDE`, `INSPECT-ACT`, `REVIEW-LIST-STATE`, `REVIEW-AGENDA`, `EXCEPTIONS-FIRST`, `REVIEW-SPEAK`.
 
 #### What it’s for
 
@@ -737,7 +737,7 @@ A regular look at the goals that need it, with notes, questions and actions that
 
 #### Who can
 
-Anyone can set up a review or join one. Someone in the review, whoever set it up, or an admin can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it.
+Anyone can set up a review, and everyone can read every review. Only people in a review, or an admin, speak for it: mark goals reviewed, add a note, accept a risk, and ask a question or agree a next step in it. Anyone can still ask a question or agree a next step on a goal’s own page. Someone not in a review is told who can add them: someone in it, whoever set it up, or an admin, who can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it.
 
 ### The activity log
 
