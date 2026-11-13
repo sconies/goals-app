@@ -1,10 +1,10 @@
-/* N29: small workspaces, rows and tabs that wait (SM1, rule 1). [SMALL-MENU] In the demo the menu is unchanged (it has a
+/* N30: small workspaces, rows and tabs that wait (SM1, rule 1). [SMALL-MENU] In the demo the menu is unchanged (it has a
    metric, so Metrics is a row). On Goals no tab but All is the same list as All, a tab is drawn only with goals in it,
    and every hidden scope's address still opens: ?scope=team (to All when My team waits) and ?scope=watching. */
 const PEOPLE = ['rhea', 'tunde', 'oskar', 'hamid', 'grace'];
 
 module.exports = {
-  id: 'N29',
+  id: 'N30',
   area: 'shell',
   title: 'Small workspaces: a tab or a module’s row waits until it has something in it, and every address still opens',
   reqs: ['SMALL-MENU'],

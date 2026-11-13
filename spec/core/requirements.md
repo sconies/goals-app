@@ -1245,7 +1245,7 @@ A module's menu row, a Goals tab and a Home section wait until they have somethi
 
 - **Copy:** build it as Faro does.
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
-- **Journeys and checks:** N29
+- **Journeys and checks:** N30
 
 ### SMALL-QUIET
 
