@@ -6222,7 +6222,7 @@ journey('U96', ['IMPORT-PREVIEW'], 'Leave a row out and save the rest: as Amara,
   h.set('progress', true);
   await p.context().close();
 }, ['parity', 'entry', 'logged']);
-journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals shows “Reading” with how far the check has got and what it has found so far; checked, it is not saved but offered as 2 files of 5,000 rows, which download with the file’s name; chosen again, Stop says nothing was saved and nothing is; a file of 1,200 goals is checked off the page’s thread, its changes drawn 50 at a time, and saves', 16, async (h, device) => {
+journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals shows “Reading” with how far the check has got and what it has found so far; checked, it is not saved but offered as 2 files of 5,000 rows, which download with the file’s name; a file of 30,000 stopped while it is checked says nothing was saved, and nothing is; a file of 1,200 goals is checked off the page’s thread, its changes drawn 50 at a time, and saves', 16, async (h, device) => {
   const rows = (k, word) => 'Goal,Owner,Team,Unit,Start,Target\n' + Array.from({ length: k }, (_, i) => `${word} queue ${i + 1},Rhea Kapoor,CI/CD,min,10,5\n`).join('');
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/data/import'));
@@ -6241,8 +6241,11 @@ journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals show
   h.set('finish', names.length === 2 && /^u97-part-1-of-2/.test(names[0] ?? '') && /^u97-part-2-of-2/.test(names[1] ?? ''), `the parts are named ${names.join(', ')}`);
   await h.checkpoint('too many');
   await h.click(p.getByRole('button', { name: 'Choose another file' }));
-  await p.getByLabel('Choose a spreadsheet').setInputFiles(big);
-  await see(p, 'Reading u97.csv', 'a large file chosen again shows no Reading panel', 10000);
+  // Stop is on the Reading panel only while the check runs. 6,000 rows are checked about a second after the panel shows,
+  // so Stop could be gone before the click (U98 failed this way on main, both devices: a 30 s click timeout). A file of
+  // 30,000 rows, the most Import takes, keeps it checking for seconds, and longer on a slower machine, not shorter.
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('u97-most.csv', rows(30000, 'Sized')));
+  await see(p, 'Reading u97-most.csv', 'a file of the most rows Import takes shows no Reading panel', 10000);
   await h.click(p.getByRole('button', { name: 'Stop' }));
   await p.waitForURL(/\/data\/import$/);
   await see(p, 'Stopped. Nothing was saved.', 'Stop does not say nothing was saved');
