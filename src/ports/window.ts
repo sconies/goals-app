@@ -4,6 +4,7 @@
    built from the constants here where they can be, and point back to this file. Change a rule here and there together;
    the store contract (src/ports/contracts/store.ts) checks all three agree. */
 import { cycleDates } from '../domain/cycle';
+import { keptCycles } from '../domain/leftOut';
 import type { Change, CheckIn, Cycle, Goal, Snapshot } from '../domain/types';
 import type { HistoryAsk, HistoryPage, LoadWindow } from './store';
 
@@ -25,6 +26,11 @@ export const windowDay = (w: LoadWindow) => new Date(w.from).toISOString().slice
     In SQL: start_date + ((weeks + 1) * 7 - 1) >= the window's day. */
 export const overlaps = (c: Pick<Cycle, 'startDate' | 'weeks'>, w: LoadWindow) => cycleDates(c).lastDay >= windowDay(w);
 
+/** The cycles whose check-ins a windowed load keeps: those that overlap it, and always the newest two not removed (the
+    year on screen and the one in its wrap-up), however old (domain/leftOut keptCycles, the one statement of the rule).
+    In SQL: the overlap test, or the id is among the two newest by start_date where removed_at is null. */
+export const openCycles = (cycles: Pick<Cycle, 'id' | 'startDate' | 'weeks' | 'removedAt'>[], w: LoadWindow) => keptCycles(cycles, windowDay(w));
+
 /** An entry a windowed load keeps: one from `from` on, or an anchor. */
 export const keepsChange = (c: Change, w: LoadWindow) => Date.parse(c.at) >= Date.parse(w.from) || isAnchor(c);
 
@@ -36,7 +42,7 @@ export function checkInCycles(goals: Pick<Goal, 'id' | 'cycleId'>[], checkIns: P
 
 /** A whole workspace narrowed to a window, as every store's windowed load gives it. */
 export function windowed(s: Snapshot, w: LoadWindow): Snapshot {
-  const open = new Set(s.cycles.filter((c) => overlaps(c, w)).map((c) => c.id));
+  const open = openCycles(s.cycles, w);
   const kept = new Set(s.goals.filter((g) => open.has(g.cycleId)).map((g) => g.id));
   return {
     ...s,

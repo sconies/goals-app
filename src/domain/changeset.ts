@@ -289,6 +289,10 @@ export function sheetCounts(cs: Pick<ChangeSet, 'items' | 'issues' | 'unchangedB
 
 /** The engine, in one go: `planChangesInChunks` run to the end. Results are the same either way. */
 
+/** The cells a person chosen for another cell of the row stands for (#336 review): ones that name no one here, someone one
+    letter out, or several people. A cell naming someone else, or an ID or email that can't be read, is still Must fix. */
+const COVERED_BY_PICK: IssueKind[] = ['unknown-ref', 'near-ref', 'ambiguous-ref'];
+
 export function planChanges(input: ChangeInput): ChangeSet {
   const run = planChangesInChunks(input);
   for (;;) { const step = run.next(); if (step.done) return step.value; }
@@ -301,6 +305,9 @@ export function planChanges(input: ChangeInput): ChangeSet {
 export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress, ChangeSet, void> {
   const { snapshot: s, cycle, week, now, newId, via } = input;
   const create = input.mode === 'create';
+  // Once a cycle has ended its check-ins are what the wrap-up read: none of them is replaced (check-in design 2.7).
+  const cycleEnded = !create && ['ended', 'closed'].includes(cycleState(cycle, new Date(now)));
+  const endedRefusal = `${cycle.name} has ended, so its check-ins can’t be corrected.`;
   const answers: Answers = input.answers ?? {};
   const issues: Issue[] = [];
   const items: Item[] = [];
@@ -473,11 +480,22 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     const changed = given.filter(([k, v]) => !says(k, v));
     if (!changed.length) return {};
     // An email or ID is exact: a name beside it that's theirs agrees with it, even when others share that name.
-    // Each cell read once (rule 10). A person chosen in answer to one cell ("Give it to someone here") is the row's
-    // person, whatever the others say.
+    // Each cell read once (rule 10). A person chosen in answer to one cell ("Give it to someone here") stands for the
+    // row's other person cells that name no one here (or someone one letter out, or several), so one owner is asked once.
+    // It never overrides a cell that names someone else, or an ID or email that can't be read: those stay Must fix
+    // (#336 review).
     const read = changed.map(([k, v]) => ({ k, v, ...personFrom(sheet, header(k), k, v) }));
+    const conflict = (said: typeof read) => { const order = ['name', 'email', 'id']; const sorted = [...said].sort((x, y) => order.indexOf(x.k) - order.indexOf(y.k)); return { kind: 'conflicting-refs' as IssueKind, problem: `${[...new Set(sorted.map((x) => header(x.k)))].join(' and ')} name different people (${sorted.map((x) => x.p!.name).join(' and ')}). Change just one of them.`, extra: { column: what } }; };
     const picked = read.find((x) => x.chosen && x.p);
-    if (picked) return { person: picked.p! };
+    if (picked) {
+      const rest = read.filter((x) => x !== picked);
+      if (rest.some((x) => x.left)) return { left: true };
+      const unread = rest.find((x) => x.problem && !COVERED_BY_PICK.includes(x.kind!));
+      if (unread) return { kind: unread.kind, problem: unread.problem, extra: unread.extra };
+      const other = rest.filter((x) => x.p && x.p.id !== picked.p!.id && !(x.k === 'name' && fold(x.v) === fold(picked.p!.name)));
+      if (other.length) return conflict([picked, ...other]);
+      return { person: picked.p! };
+    }
     const exact = read.find((x) => x.k !== 'name' && x.p)?.p;
     const found = exact ? read.filter((x) => x.k !== 'name' || fold(x.v) !== fold(exact.name)) : read;
     if (found.some((x) => x.left)) return { left: true };
@@ -487,7 +505,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     if (bad && create && nameCell && !nameCell.includes('@') && bad.extra?.answers?.[0]?.choice === 'add') return { kind: bad.kind, problem: bad.problem, extra: { ...bad.extra, answers: [{ ...bad.extra.answers[0], label: `Add ${nameCell}` }, ...bad.extra.answers.slice(1)] } };
     if (bad) return { kind: bad.kind, problem: bad.problem, extra: bad.extra };
     const ids = new Set(found.map((x) => x.p!.id));
-    if (ids.size > 1) { const order = ['name', 'email', 'id']; const said = [...found].sort((x, y) => order.indexOf(x.k) - order.indexOf(y.k)); return { kind: 'conflicting-refs', problem: `${[...new Set(said.map((x) => header(x.k)))].join(' and ')} name different people (${said.map((x) => x.p!.name).join(' and ')}). Change just one of them.`, extra: { column: what } }; }
+    if (ids.size > 1) return conflict(found);
     const byName = found.every((x) => x.byName) ? found[0]!.v : undefined;
     return { person: found[0]!.p!, byName };
   };
@@ -512,9 +530,11 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
   const teamFrom = (sheet: Sheet, row: number, name: string, v: string): Team | undefined => {
     const tm = teamNamed(v);
     if (tm) return tm;
-    if (create) return addTeam(v, row);
     const m = near(v, [...teams.values()].map((t) => t.name));
     const nearOne = 'near' in m ? [...teams.values()].find((t) => t.name === m.near) : undefined;
+    // Set-up adds every team its file names, but a Goals row's team one letter from one already named ("Depot" beside
+    // "Depots") is asked first, as an owner is (#336 review). The People sheet's are asked on set-up's people step.
+    if (create && (sheet === 'People' || !nearOne)) return addTeam(v, row);
     const kind: IssueKind = nearOne ? 'near-ref' : 'unknown-ref';
     const a = answerOf(kind, sheet, 'Team', v);
     if (a?.choice === 'leave') { leave(sheet, row); return undefined; }
@@ -1355,6 +1375,9 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
       if (post) { raise('cant-change', 'Check-ins', row, g.title, `Nothing is different from what week ${w} already says.`); return; }
       same('Check-ins'); imported.set(g.id, [...(imported.get(g.id) ?? []), existing]); return;
     }
+    // A cycle that has ended can't be corrected through any door (check-in design 2.7; review of #326): its numbers are
+    // what the wrap-up read. The form, Data's tables, MCP and a workbook loaded later all meet this one refusal.
+    if (existing && cycleEnded) { raise('cant-change', 'Check-ins', row, g.title, endedRefusal); return; }
     // A goal this file stops or deletes keeps its check-ins as they are: a whole workbook carries them unchanged.
     const removing = removals.find((x) => x.g.id === g.id);
     if (removing) { raise('cant-change', 'Check-ins', row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`); return; }
@@ -1546,8 +1569,8 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     if (w > week) { raise('week-wrong', 'Check-ins', row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`); continue; }
     const own = checkInsFor(g, s.checkIns);
     const newest = own.filter((c) => c.week === w).pop() ?? null;
-    // A cycle that has ended can't be corrected from the form (check-in design 2.7): its numbers are what the wrap-up read.
-    if (p.mode === 'correct' && ['ended', 'closed'].includes(cycleState(cycle, new Date(now)))) { raise('cant-change', 'Check-ins', row, g.title, `${cycle.name} has ended, so its check-ins can’t be corrected here.`); continue; }
+    // The form meets the same refusal before it asks for a reason (check-in design 2.7).
+    if (p.mode === 'correct' && cycleEnded) { raise('cant-change', 'Check-ins', row, g.title, endedRefusal); continue; }
     if (p.mode !== 'correct' && w < week) { raise('week-wrong', 'Check-ins', row, g.title, `Week ${w} has passed. Correct it, or add it, with a reason.`); continue; }
     if (p.mode === 'new' && newest) { raise('cant-change', 'Check-ins', row, g.title, `Week ${w} already has a check-in. Check in again, or correct it.`); continue; }
     const reason = (p.reason ?? '').trim();
@@ -1653,7 +1676,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
 
   // A goal that changes owner takes its open asks of the old owner with it (Lane, 13 Nov; domain/askHandover). An ask a
   // row already changed (someone leaving hands theirs over) is left as that row says.
-  const handed = asksFollowOwner({ goals: s.goals, people: s.people, asks: asksOf(s) }, [...goalOut.values()], { actorId: actor.id, now, newId });
+  const handed = asksFollowOwner({ goals: withProposed(s), people: s.people, asks: asksOf(s) }, [...goalOut.values()], { actorId: actor.id, now, newId });
   for (const r of handed.requests) {
     if (reqOut.has(r.id)) continue;
     reqOut.set(r.id, r);

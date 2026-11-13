@@ -10,7 +10,7 @@ import { activityFilter, parseActivity } from '../domain/activity';
 import { attentionList, splitAttention } from '../domain/attention';
 import { cycleDates, cycleState, dayWithYear, wrapUpOpenOn } from '../domain/cycle';
 import { dashboard } from '../domain/home';
-import { homeAsks } from '../app/reads';
+import { askWaiting, homeAsks } from '../app/reads';
 import { ASK_STATUS, ATTENTION, choices, HANDLED_LINE, codeFrom, LABEL, lower, STATUS, withCode } from '../domain/vocabulary';
 import type { Change, DisplayStatus } from '../domain/types';
 import type { HistoryKey } from '../ports/store';
@@ -25,11 +25,11 @@ import { weekProgress } from '../domain/progress';
 import { workbook } from '../domain/export';
 import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { findGoal, isKey } from '../domain/goalKey';
-import { withProposed } from '../domain/proposed';
-import type { AskKind, Level, Retro, Review, Watch } from '../domain/types';
+import { proposalAsks, withProposed } from '../domain/proposed';
+import type { Ask, AskKind, Level, Retro, Review, Watch } from '../domain/types';
 import { ARTICLES, GROUPS, articleById, articleText, searchGuide, type Article } from '../help/guide';
 import { newsSince } from '../help/whatsNew';
-import { canUndoImport, importUndone } from '../domain/removal';
+import { canUndoImport, importUndone, unmarkReviewed } from '../domain/removal';
 import { startPage, startPageText } from '../domain/startYear';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 import { listed } from './listed';
@@ -94,9 +94,12 @@ const levelsOf = (v: unknown): Level[] => {
   if (bad.length) throw new Error(`Levels are ${LEVELS.join(', ')} (not ${bad.join(', ')}).`);
   return list as Level[];
 };
+// The one lateness rule (review of #369, medium 5): list_requests reads `late` as get_my_work and Home do (app/reads
+// askWaiting), where a question past its session is late, not only one past its due week. Only an open ask can be late.
+const askLate = (ctx: McpContext, r: Ask): boolean => (r.status === 'open' ? (askWaiting(r, r.recipientId ?? ctx.actor.id, ctx.snapshot, ctx.cycle, ctx.week, ctx.today)?.late ?? isOverdue(r, ctx.week)) : false);
 const requestData = (ctx: McpContext, r: ReturnType<typeof requestOf>) => ({
-  id: r.id, kind: r.kind, ask: r.kind === 'decision' ? askText(r, ctx.snapshot.people) : r.ask, status: r.status, statusLabel: ASK_STATUS[r.status].label, dueWeek: r.dueWeek, overdue: isOverdue(r, ctx.week), review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null, askedBy: name(ctx, r.askedBy), askedOf: r.recipientId ? name(ctx, r.recipientId) : 'anyone',
-  goals: r.goalIds.map((g) => { const x = ctx.snapshot.goals.find((y) => y.id === g); return { id: g, key: x?.key ?? null, title: x?.title ?? g }; }), raisedAt: r.createdAt,
+  id: r.id, kind: r.kind, ask: r.kind === 'decision' ? askText(r, ctx.snapshot.people) : r.ask, status: r.status, statusLabel: ASK_STATUS[r.status].label, dueWeek: r.dueWeek, overdue: askLate(ctx, r), review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null, askedBy: name(ctx, r.askedBy), askedOf: r.recipientId ? name(ctx, r.recipientId) : 'anyone',
+  goals: r.goalIds.map((g) => { const x = withProposed(ctx.snapshot).find((y) => y.id === g); return { id: g, key: x?.key ?? null, title: x?.title ?? g }; }), raisedAt: r.createdAt,
   answer: r.answer, answeredBy: r.answeredBy ? name(ctx, r.answeredBy) : null, youCanAnswer: r.status === 'open' && canAnswer(r, ctx.actor), youCanMarkDone: r.status === 'open' && canMarkDone(r, ctx.actor),
 });
 const lines = (l: string[], none: string) => (l.length ? l.join('\n') : none);
@@ -125,10 +128,11 @@ export function layoutFrom(ctx: McpContext, a: Record<string, unknown>): TableLa
 /** A sentence as part of a longer line: without its closing full stop, so the line never ends in two. */
 const clause = (t: string) => t.trim().replace(/\.+$/, '');
 
-/** The newest n changes that pass `keep`. With the store's history (AX5 part 2b) it pages back through the log, 100 at
-    a time, rather than filtering every change ever made; without it, it reads the snapshot. */
-async function activityPages(ctx: McpContext, keep: (c: Change) => boolean, n: number): Promise<Change[]> {
-  if (!ctx.history) return ctx.snapshot.changes.filter(keep).sort((x, y) => (x.at < y.at ? 1 : -1)).slice(0, n);
+/** The newest n changes that pass `keep`. A whole snapshot (the server loads whole today) already holds every entry, so
+    they are read from it; only a windowed one (Snapshot.history) pages back through the store's history, 100 at a time
+    (AX5 part 2b). */
+export async function activityPages(ctx: McpContext, keep: (c: Change) => boolean, n: number): Promise<Change[]> {
+  if (!ctx.history || !ctx.snapshot.history) return ctx.snapshot.changes.filter(keep).sort((x, y) => (x.at < y.at ? 1 : -1)).slice(0, n);
   const out: Change[] = [];
   let before: HistoryKey | null | undefined;
   do {
@@ -168,6 +172,11 @@ export const WORK_TOOLS: ToolDef[] = [
       const asks = ofKind('update').map((r) => ({ id: r.id, goalId: r.goals[0]?.id, by: r.askedBy, at: r.raisedAt, waiting: r.waiting, late: r.late, handedFrom: r.handedFrom }));
       const actions = ofKind('action').map((r) => ({ id: r.id, goalId: r.goals[0]?.id, action: r.ask, dueWeek: r.dueWeek, waiting: r.waiting, late: r.late, agreedBy: r.askedBy, handedFrom: r.handedFrom }));
       const when = (x: { waiting: string; handedFrom: string | null }) => ` · ${x.waiting}${x.handedFrom ? ` · asked of ${x.handedFrom}, now yours` : ''}`;
+      // Proposed goals asked of them, as Home's "Proposed goals" lists them (goal entry rule 14; build review of #319):
+      // one proposed for them by someone else, and one of theirs proposed 8 weeks ago or more. What they opened is kept
+      // per browser, so the tools list every one proposed for them.
+      const proposedForYou = proposalAsks(s.proposed ?? [], ctx.actor, ctx.today, { opened: new Set(), putOff: new Map() }, (id) => s.people.find((p) => p.id === id)?.name ?? 'Someone')
+        .map((a) => ({ id: a.goal.id, key: a.goal.key ?? null, title: a.goal.title, kind: a.kind, says: a.says }));
       const reviews = s.reviews.filter((r) => r.people.includes(me)).map((r) => { const x = reviewSession(r, s, ctx.cycle, ctx.today, ctx.week); return { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total }; });
       // The strip at the top of Home: their goals by status, their on-time streak, what they watch, their next review.
       const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today);
@@ -177,14 +186,15 @@ export const WORK_TOOLS: ToolDef[] = [
         watching: d.watching ? { goals: d.watching.all.length, needAttention: d.watching.needs.map((a) => a.goal.title), beingHandled: d.watching.handled.map((a) => ({ title: a.goal.title, inHand: a.handled!.text })), noRecentUpdate: d.watching.quiet.length } : null,
         nextReview: d.next ? { id: d.next.id, name: d.next.name, date: d.next.date, day: d.next.weekday } : null,
       };
-      const data = { week: ctx.week, atAGlance: glance, checkInsDue: due, needsAttention: attention, beingHandled: handled, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, yourReviews: reviews, wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today) };
+      const data = { week: ctx.week, atAGlance: glance, checkInsDue: due, needsAttention: attention, beingHandled: handled, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, proposedGoals: proposedForYou, yourReviews: reviews, wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today) };
       const text = [
         `Week ${ctx.week} for ${ctx.actor.name}.`,
         `${d.scope === 'mine' ? 'Your goals' : 'All goals'}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(', ') || 'none'}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? 'week' : 'weeks'}.` : ''}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ''}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ''}`,
         `Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(', ') : 'none'}.`,
         `Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask}${when(r)} (${r.id})`).join('; ') : 'none'}.`,
         `Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question}${when(q)} (${q.id})`).join('; ') : 'none'}.`,
-        `Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by}${when(x)} (${x.id})`).join('; ') : 'none'}.`,
+        `Asked for an update: ${asks.length ? asks.map((x) => `${withProposed(s).find((g) => g.id === x.goalId)?.title} by ${x.by}${when(x)} (${x.id})`).join('; ') : 'none'}.`,
+        `Proposed goals for you: ${proposedForYou.length ? proposedForYou.map((x) => `${x.says} (${x.key ?? x.id})`).join(' ') : 'none'}.`,
         `Your actions: ${actions.length ? actions.map((x) => `${x.action}${x.dueWeek ? ` by week ${x.dueWeek}` : ''}${when(x)} (${x.id})`).join('; ') : 'none'}.`,
         // Each reason is a sentence with its own full stop: joined into one line, only the line's last one stays.
         `Your goals that need attention: ${attention.length ? attention.map((g) => `${g.title}, ${said(g.status)}: ${g.why.map(clause).join('. ')}`).join('; ') : 'none'}.`,
@@ -487,6 +497,19 @@ export const WORK_TOOLS: ToolDef[] = [
       const was = 'goalIds' in d ? { who: d.recipientId, due: d.dueWeek } : { who: d.assigneeId ?? null, due: d.dueWeek ?? null };
       const extra = action ? { assigneeId: a.who ? personOf(ctx, a.who).id : was.who, dueWeek: a.due_week === undefined ? was.due : Number(a.due_week) || null } : undefined;
       return save(ctx, A.editCall(ax(ctx), d, String(a.text ?? ''), extra), 'Corrected it', 'Nothing to change: it already says that.');
+    },
+  },
+  {
+    name: 'unmark_reviewed',
+    title: 'Undo marking goals reviewed',
+    description: 'Undo marking one or more goals reviewed in a review (review_call with acknowledge): they go back on the agenda. Whoever marked them, or an admin. The log keeps both.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['call_ids'], properties: { call_ids: { type: 'array', items: { type: 'string' }, description: 'The marks’ IDs (kind acknowledge), from get_review.' } } },
+    annotations: WRITE,
+    async run(a, ctx) {
+      const ids = ((a.call_ids as unknown[] | undefined) ?? []).map(String);
+      const marks = ctx.snapshot.decisions.filter((d) => ids.includes(d.id));
+      if (!marks.length) throw new Error('There’s no mark with those IDs. Use get_review.');
+      return save(ctx, unmarkReviewed(ax(ctx), marks), `Undone: ${marks.length === 1 ? 'back' : `${marks.length} goals back`} on the agenda`, '');
     },
   },
   {

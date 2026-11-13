@@ -59,7 +59,8 @@ describe('the port contracts as data (spec/conformance/contracts)', () => {
   it('fails a store that ignores the window it is asked for, naming the case', async () => {
     const whole = storeStart(async () => { const s = await memoryStore(); return Object.assign(s, { load: (id: string) => BrowserStore.prototype.load.call(s, id) }); });
     const failed = (await runContract(STORE_CONTRACT, caller({ store: whole }))).filter((r) => !r.pass);
-    expect(failed.map((r) => r.name)).toEqual([STORE_CONTRACT.cases.find((c) => c.name.startsWith('narrows a load'))!.name]);
+    // Both window cases: the one that narrows, and the one that keeps the newest two cycles however far back it starts.
+    expect(failed.map((r) => r.name)).toEqual(STORE_CONTRACT.cases.filter((c) => c.name.startsWith('narrows a load') || c.name.startsWith('keeps the newest two')).map((c) => c.name));
   }, 60_000);
 
   it('pages by another option and list when a step names them (the store’s history: before, changes)', async () => {

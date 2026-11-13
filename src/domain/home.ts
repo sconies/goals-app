@@ -123,10 +123,12 @@ export interface HomeFacts {
   asks: Waiting[];
   /** Goals proposed for the viewer by someone else, not yet opened (goal entry rule 14, `proposalAsks`'s `for-you`). */
   proposals?: ProposedForYou[];
+  /** How many rows Home lists under "Proposed goals" (for you, and waiting 8 weeks or more): asked of the viewer, so the quiet line counts them. */
+  proposalRows?: number;
 }
 
 /** A goal proposed for the viewer by someone else that they haven't opened, as the lead reads it. */
-export interface ProposedForYou { id: string; title: string; by: string; proposedOn: string }
+export interface ProposedForYou { id: string; title: string; by: string; proposedOn: string; /** The review it was proposed in, by name: said as " in {review}". */ in?: string | null }
 
 export type LeadKind = 'check-in-late' | 'check-in' | 'wrap-up' | 'review' | 'ask';
 export interface Lead {
@@ -231,14 +233,19 @@ export function proposalLead(list: readonly ProposedForYou[], today: string): Le
   if (!p) return null;
   const days = dayDiff(p.proposedOn, today);
   return { kind: 'ask', eyebrow: `Needs your response · waiting since ${dayMonth(p.proposedOn)}, ${days < 14 ? `${days} days` : `${Math.floor(days / 7)} weeks`}`, warn: false,
-    title: `${p.by} proposed a goal for you`, line: `“${p.title}”. Nothing is due on it until you make it active.`,
+    title: `${p.by} proposed a goal for you${p.in ? ` in ${p.in}` : ''}`, line: `“${p.title}”. Nothing is due on it until you make it active.`,
     action: { label: 'Open it', to: `/goals/${p.id}` }, also: null, ring: null, about: p.id };
 }
 
 /** Section 2.1's quiet line: what Home says when nothing is asked of the viewer today. Never "You’re all set". */
 export function quietLine(f: HomeFacts): Quiet {
   // While asks wait on the viewer ("Needs your response"), Home doesn't say nothing is asked (HM1 review).
-  const sentence = f.asks.length ? `${f.asks.length === 1 ? 'One ask waits' : `${f.asks.length} asks wait`} for your response.` : 'Nothing is asked of you today.';
+  // Proposed goals listed under it are asked of the viewer too (goal entry rule 14; build review of #319).
+  const n = f.asks.length, k = f.proposalRows ?? 0;
+  const goalsN = `${k} proposed ${k === 1 ? 'goal' : 'goals'}`;
+  const sentence = n && k ? `${n === 1 ? 'One ask' : `${n} asks`} and ${goalsN} wait for your response.`
+    : n ? `${n === 1 ? 'One ask waits' : `${n} asks wait`} for your response.`
+    : k ? `${k === 1 ? 'A proposed goal waits' : `${goalsN} wait`} for your response.` : 'Nothing is asked of you today.';
   if (f.starts) return { sentence, line: `${f.cycleName} starts on ${longDay(f.starts.on)}. The first check-ins are due by ${longDay(f.starts.firstDue)}.`, buttons: [] };
   if (f.ended) return { sentence, line: `${f.cycleName} has ended.`, buttons: [] };
   const c = f.checkIns;
@@ -322,7 +329,7 @@ export function waiting(a: AskFacts, today: string): Waiting {
   else if (due?.why === 'session' && dayDiff(today, due.date) <= 1) { line = dayDiff(today, due.date) === 0 ? 'Due before today’s session' : 'Due before tomorrow’s session'; warn = true; }
   else if (due?.why === 'week' && dueThisWeek) line = `Due this week (${a.dueWeek!.dates})`;
   else if (due?.why === 'week') line = `Due week ${a.dueWeek!.week} (${a.dueWeek!.dates})`;
-  else if (due) line = `Before its next session, ${shortDay(due.date)}`;
+  else if (due) line = `Due by ${shortDay(due.date)}`;
   else if (waitedDays >= 7) line = `Waiting since ${dayMonth(a.askedOn)}, ${waitedDays < 14 ? `${waitedDays} days` : `${Math.floor(waitedDays / 7)} weeks`}`;
   else line = waitedDays === 0 ? 'Asked today' : waitedDays === 1 ? 'Asked yesterday' : `Asked on ${LONG_DAYS[new Date(a.askedOn + 'T00:00:00Z').getUTCDay()]}`;
   const to = a.kind === 'update' ? `/check-in/${a.goals[0]!.id}` : `/goals/${a.goals[0]!.id}?respond=${a.id}`;
@@ -348,6 +355,8 @@ export function askLead(w: Waiting | undefined): Lead | null {
   if (!w || !(w.late || w.dueThisWeek || (!w.due && w.waitedDays >= 7))) return null;
   const others = w.goals.length - 1;
   const about = w.goals.length > 1 ? `${w.goals.length} goals are waiting on it: ${w.goals[0]!.title}, and ${others} more.` : `About ${w.goals[0]?.title ?? 'a goal'}.`;
+  // It came to you with a goal you now own (Lane, 13 Nov; review of #369, medium 1): say so where you first meet it.
+  const handed = w.was ? ` Asked of ${w.was.split(' ')[0]}, now yours.` : '';
   return { kind: 'ask', eyebrow: `Needs your response · ${w.line.charAt(0).toLowerCase()}${w.line.slice(1)}`, warn: w.warn, title: ASK_TITLE[w.kind](w.by ?? 'Someone'),
-    line: `“${w.said}”. ${about}`, action: { label: ASK_ACTION[w.kind], to: w.to }, also: null, ring: null, about: w.askId };
+    line: `“${w.said}”. ${about}${handed}`, action: { label: ASK_ACTION[w.kind], to: w.to }, also: null, ring: null, about: w.askId };
 }
