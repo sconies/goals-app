@@ -5981,9 +5981,15 @@ journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, 
   await p.locator('.goal-bar').first().waitFor();
   await goalMenu(h, p, 'Stop this goal');
   const dlg = p.getByRole('dialog', { name: 'Stop this goal' });
+  h.set('entry', await dlg.isVisible(), 'Stop this goal, in the goal’s menu, opens no dialog');
+  // Without a reason it doesn't stop: it says why it needs one, and the goal is as it was.
+  await h.click(dlg.getByRole('button', { name: 'Stop the goal' }));
+  const refused = await dlg.getByRole('alert').filter({ hasText: 'Say why, in a sentence' }).isVisible().catch(() => false);
+  h.set('errors', refused && !(await h.snapshot()).goals.find((x) => x.id === 'ci-docker')?.stoppedAt, 'stopping without a reason isn’t refused in words, or stops the goal anyway');
   await h.fill(dlg.getByLabel('Why is it stopping?'), 'The platform team took base images over in October.');
   await h.click(dlg.getByRole('button', { name: 'Stop the goal' }));
   await see(p, 'Stopped Base image build time', 'no message that it stopped');
+  h.set('progress', true);
   const snap = await h.snapshot();
   const g = snap.goals.find((x) => x.id === 'ci-docker');
   h.set('logged', !!g?.stoppedAt && g.stoppedBy === 'rhea' && g.stopReason === 'The platform team took base images over in October.', 'the stop wasn’t saved with who and why');
@@ -5991,6 +5997,7 @@ journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, 
   await see(p, 'Filtered by: Stopped', 'the stopped list doesn’t say its filter');
   await see(p, '1 stopped goal, most recently stopped first.', 'the stopped list doesn’t count the stopped goal');
   const row = p.locator('[data-part="Stopped goals"] li').first();
+  await h.inView(row, 'attention', 'the stopped goal’s row');
   const says = (await row.innerText().catch(() => '')).replace(/\s+/g, ' ');
   h.set('finish', says.includes('Base image build time') && says.includes('stopped 11 Nov by Rhea') && says.includes('The platform team took base images over in October.'), `the stopped row reads “${says}”`);
   h.set('a11y', (await row.locator('.life-mark').count()) === 1 && (await row.locator('.status-shape').count()) === 0, 'a stopped row doesn’t draw the Stopped mark, or draws a status shape');
