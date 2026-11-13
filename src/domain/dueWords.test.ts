@@ -47,6 +47,12 @@ describe('dueWords (RS1)', () => {
   it('Help’s Check in article quotes the receipt the check-in shows (build review of #424)', () => {
     const words = articleWords(articleById('check-in')!);
     expect(words).toContain(`“${receiptText({ total: 3, after: 0, week: 46, words: dueWords(false, cycle, 46), run: 0, forgiven: null, nextDue: null }).first}”`.toLowerCase());
-    expect(words).not.toContain('checked in for week 46, by Thursday');
+    expect(words).not.toContain('checked in for week 46, by thursday');
+  });
+
+  it('Help’s Teams article names the panel’s headings the page has (build review of #424)', () => {
+    const words = articleWords(articleById('teams')!);
+    expect(words).toContain(`“week 46, due by ${dueWords(false, cycle, 46).date.toLowerCase()}”`);
+    expect(words).not.toContain('“on time this week”');
   });
 });
