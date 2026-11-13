@@ -349,15 +349,19 @@ export const WORK_TOOLS: ToolDef[] = [
       search: str('Words to look for, e.g. "plan change reason". Every word must appear.'),
     } },
     annotations: READ,
-    async run(a) {
+    async run(a, ctx) {
       const brief = (x: Article) => ({ id: x.id, title: x.title, summary: x.summary, group: GROUPS.find((g) => g.id === x.group)?.title ?? x.group, path: `/help/${x.id}` });
+      // As Help does (screens/Help.tsx): a switched-off module's articles aren't offered (module map F3).
+      const on = modulesOn(ctx.ws).on;
+      const shown = (x: Article | undefined): x is Article => !!x && (!x.module || on.has(x.module));
       if (a.id) {
         const x = articleById(String(a.id));
-        if (!x) return { isError: true, text: `There’s no help article with id ${String(a.id)}. Articles: ${ARTICLES.map((y) => y.id).join(', ')}.` };
-        return { data: { ...brief(x), sections: x.sections, routes: x.routes, related: x.related.map((r) => brief(articleById(r)!)) }, text: articleText(x) };
+        if (x?.module && !on.has(x.module)) return { isError: true, text: `${MODULES.find((m) => m.id === x.module)?.name ?? x.module} is switched off in ${ctx.ws.name}, so its Help isn’t shown there. An admin can switch it on in Workspace, under Features.` };
+        if (!x) return { isError: true, text: `There’s no help article with id ${String(a.id)}. Articles: ${ARTICLES.filter(shown).map((y) => y.id).join(', ')}.` };
+        return { data: { ...brief(x), sections: x.sections, routes: x.routes, related: x.related.map(articleById).filter(shown).map(brief) }, text: articleText(x) };
       }
       // A list answers as every list does (listed, #249's review): the same keys every time, and why when it's empty.
-      const list = a.search ? searchGuide(String(a.search)) : ARTICLES;
+      const list = (a.search ? searchGuide(String(a.search)) : ARTICLES).filter(shown);
       return listed({ articles: list.map(brief), why: list.length ? null : `No help article matches “${String(a.search)}”. Try fewer or plainer words.` });
     },
   },

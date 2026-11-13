@@ -14562,8 +14562,12 @@ var MODULE_RECORDS = [{
 	...p.part,
 	module: p.id
 }));
-/** The columns the modules add to Goals' rows (?metric=): the app's filters (core/app) and the AI's find_goals read them. */
-var MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => m.goalColumns ?? []);
+/** The columns the modules add to Goals' rows (?metric=), each with its module: the app's filters (core/app) and the AI's
+find_goals read them, and both leave out a switched-off module's column. */
+var MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => (m.goalColumns ?? []).map((c) => ({
+	...c,
+	module: m.module
+})));
 /** The workbook's sheets the modules add (domain/export), in module id order. */
 var MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
 /** The records of the modules switched on in a workspace: what Recently removed lists and restores. A module that's off
@@ -22246,7 +22250,7 @@ var WORK_TOOLS = [
 			}
 		},
 		annotations: READ$4,
-		async run(a) {
+		async run(a, ctx) {
 			const brief = (x) => ({
 				id: x.id,
 				title: x.title,
@@ -22254,23 +22258,29 @@ var WORK_TOOLS = [
 				group: GROUPS.find((g) => g.id === x.group)?.title ?? x.group,
 				path: `/help/${x.id}`
 			});
+			const on = modulesOn(ctx.ws).on;
+			const shown = (x) => !!x && (!x.module || on.has(x.module));
 			if (a.id) {
 				const x = articleById(String(a.id));
+				if (x?.module && !on.has(x.module)) return {
+					isError: true,
+					text: `${MODULES.find((m) => m.id === x.module)?.name ?? x.module} is switched off in ${ctx.ws.name}, so its Help isn’t shown there. An admin can switch it on in Workspace, under Features.`
+				};
 				if (!x) return {
 					isError: true,
-					text: `There’s no help article with id ${String(a.id)}. Articles: ${ARTICLES.map((y) => y.id).join(", ")}.`
+					text: `There’s no help article with id ${String(a.id)}. Articles: ${ARTICLES.filter(shown).map((y) => y.id).join(", ")}.`
 				};
 				return {
 					data: {
 						...brief(x),
 						sections: x.sections,
 						routes: x.routes,
-						related: x.related.map((r) => brief(articleById(r)))
+						related: x.related.map(articleById).filter(shown).map(brief)
 					},
 					text: articleText(x)
 				};
 			}
-			const list = a.search ? searchGuide(String(a.search)) : ARTICLES;
+			const list = (a.search ? searchGuide(String(a.search)) : ARTICLES).filter(shown);
 			return listed({
 				articles: list.map(brief),
 				why: list.length ? null : `No help article matches “${String(a.search)}”. Try fewer or plainer words.`
@@ -25707,7 +25717,7 @@ var CORE_TOOLS = [
 			});
 			const byId = new Map(rows.goal().summaries.map((s) => [s.goal.id, s]));
 			const cols = Object.entries(asked.cols ?? {}).flatMap(([k, v]) => {
-				const c = MODULE_GOAL_COLUMNS.find((x) => x.param === k);
+				const c = MODULE_GOAL_COLUMNS.find((x) => x.param === k && isModuleOn(ctx.ws, x.module));
 				return c && v ? [{
 					fill: c.fill(ctx.full ?? ctx.snapshot),
 					v
