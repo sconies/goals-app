@@ -10272,17 +10272,17 @@ function* planChangesInChunks(input) {
 		const header = (k) => k === "email" ? cols.name ? `${what} email` : what : k === "id" ? `${what} ID` : what;
 		const given = Object.entries(cols).filter(([, c]) => has(r, c) && ref(r, c)).map(([k, c]) => [k, ref(r, c)]);
 		const says = (k, v) => !!current && (k === "email" ? normalEmail(current.email) === normalEmail(v) : k === "id" ? current.id === v : fold$1(current.name) === fold$1(v) || current.id === v || v.includes("@") && normalEmail(current.email) === normalEmail(v));
-		let changed = given.filter(([k, v]) => !says(k, v));
+		const changed = given.filter(([k, v]) => !says(k, v));
 		if (!changed.length) return {};
-		const picked = changed.map(([k, v]) => personFrom(sheet, header(k), k, v)).find((x) => x.chosen && x.p);
-		if (picked) return { person: picked.p };
-		const exact = changed.filter(([k]) => k !== "name").map(([k, v]) => personFrom(sheet, header(k), k, v).p).find(Boolean);
-		if (exact) changed = changed.filter(([k, v]) => k !== "name" || fold$1(v) !== fold$1(exact.name));
-		const found = changed.map(([k, v]) => ({
+		const read = changed.map(([k, v]) => ({
 			k,
 			v,
 			...personFrom(sheet, header(k), k, v)
 		}));
+		const picked = read.find((x) => x.chosen && x.p);
+		if (picked) return { person: picked.p };
+		const exact = read.find((x) => x.k !== "name" && x.p)?.p;
+		const found = exact ? read.filter((x) => x.k !== "name" || fold$1(x.v) !== fold$1(exact.name)) : read;
 		if (found.some((x) => x.left)) return { left: true };
 		const bad = found.find((x) => x.problem);
 		const nameCell = given.find(([k]) => k === "name")?.[1];

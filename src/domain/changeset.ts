@@ -450,15 +450,16 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     const header = (k: 'email' | 'id' | 'name') => (k === 'email' ? (cols.name ? `${what} email` : what) : k === 'id' ? `${what} ID` : what);
     const given = (Object.entries(cols) as ['email' | 'id' | 'name', string][]).filter(([, c]) => has(r, c) && ref(r, c)).map(([k, c]) => [k, ref(r, c)] as const);
     const says = (k: 'email' | 'id' | 'name', v: string) => !!current && (k === 'email' ? normalEmail(current.email) === normalEmail(v) : k === 'id' ? current.id === v : fold(current.name) === fold(v) || current.id === v || (v.includes('@') && normalEmail(current.email) === normalEmail(v)));
-    let changed = given.filter(([k, v]) => !says(k, v));
+    const changed = given.filter(([k, v]) => !says(k, v));
     if (!changed.length) return {};
     // An email or ID is exact: a name beside it that's theirs agrees with it, even when others share that name.
-    // A person chosen in answer to one cell ("Give it to someone here") is the row's person, whatever the others say.
-    const picked = changed.map(([k, v]) => personFrom(sheet, header(k), k, v)).find((x) => x.chosen && x.p);
+    // Each cell read once (rule 10). A person chosen in answer to one cell ("Give it to someone here") is the row's
+    // person, whatever the others say.
+    const read = changed.map(([k, v]) => ({ k, v, ...personFrom(sheet, header(k), k, v) }));
+    const picked = read.find((x) => x.chosen && x.p);
     if (picked) return { person: picked.p! };
-    const exact = changed.filter(([k]) => k !== 'name').map(([k, v]) => personFrom(sheet, header(k), k, v).p).find(Boolean);
-    if (exact) changed = changed.filter(([k, v]) => k !== 'name' || fold(v) !== fold(exact.name));
-    const found = changed.map(([k, v]) => ({ k, v, ...personFrom(sheet, header(k), k, v) }));
+    const exact = read.find((x) => x.k !== 'name' && x.p)?.p;
+    const found = exact ? read.filter((x) => x.k !== 'name' || fold(x.v) !== fold(exact.name)) : read;
     if (found.some((x) => x.left)) return { left: true };
     const bad = found.find((x) => x.problem);
     // At set-up, "Add {person}" says the name the row gives beside their email.
