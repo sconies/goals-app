@@ -11,18 +11,18 @@ import { dayOneRows, homeFacts, wrapUpScope } from '../app/reads';
 import { useApp } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
-import { dashboard, groupWatched, homeFor, type Dashboard, type HomePlan } from '../domain/home';
+import { dashboard, groupWatched, homeFor, type Dashboard, type HomePlan, type Waiting } from '../domain/home';
 import { weekProgress, WEEKDAY } from '../domain/progress';
-import { dayText, nextSessionWeek, pastText, sessionDate, upcomingSessionWeek, watchedGoals } from '../domain/review';
-import { hasEnded, weekDates } from '../domain/plan';
-import { placeLine } from '../domain/cycle';
-import { isOverdue, openForPerson } from '../domain/asks';
+import { dayText, pastText, watchedGoals } from '../domain/review';
+import { cycleDates, dayWithYear, laterCycle, nextCycleShape, placeLine, wrapUpOpenOn } from '../domain/cycle';
+import { hasEnded } from '../domain/plan';
+import { periodWord } from '../domain/year';
 import { ATTENTION, LABEL } from '../domain/vocabulary';
 import { statusChange } from '../domain/tree';
 import { statusCounts } from '../domain/order';
 import { goalStatus } from '../domain/status';
-import type { AskKind, Review } from '../domain/types';
-import { AttentionCard, Avatar, ProgressRing, StatusShape, timeAgo, WarnMark } from '../ui/bits';
+import type { AskKind } from '../domain/types';
+import { AttentionCard, Avatar, ProgressRing, StatusShape, WarnMark } from '../ui/bits';
 import { GoalRow } from '../ui/goalRows';
 import { HandledGroup } from '../ui/HandledGroup';
 import { HomeNews } from '../ui/HelpLinks';
@@ -46,7 +46,7 @@ function LeadOrQuiet({ plan }: { plan: HomePlan }) {
           <span className="eyebrow">{lead.warn && <WarnMark />}{lead.eyebrow}</span>
           <h2 className="hero-title">{lead.title}</h2>
           <span className="muted">{lead.line}</span>
-          <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to={lead.action.to}>{lead.action.label}</Link></div>
+          <div className="row"><Link className="btn primary big-btn" to={lead.action.to}>{lead.action.label}</Link></div>
           {lead.also && <Link className="linkish small" to={lead.also.to}>{lead.also.label}</Link>}
         </div>
       </section>
@@ -58,7 +58,7 @@ function LeadOrQuiet({ plan }: { plan: HomePlan }) {
       <div className="hero-body">
         <h2 className="hero-title">{quiet.sentence}</h2>
         {quiet.line && <span className="muted">{quiet.line}</span>}
-        {quiet.buttons.length > 0 && <div className="row" style={{ marginTop: 8 }}>{quiet.buttons.map((b) => <Link key={b.to} className="btn" to={b.to}>{b.label}</Link>)}</div>}
+        {quiet.buttons.length > 0 && <div className="row">{quiet.buttons.map((b) => <Link key={b.to} className="btn" to={b.to}>{b.label}</Link>)}</div>}
       </div>
     </section>
   );
@@ -118,65 +118,51 @@ const ASK_BUTTON: Record<AskKind, string> = { question: 'Answer', decision: 'Res
 const GROUP_ORDER: AskKind[] = ['decision', 'question', 'update', 'action'];
 
 /**
- * Needs your response: every open ask waiting on you (one way to ask), once each however many goals it covers, grouped
- * by kind. Each says what it's about, what was asked, who asked and by when, and has one action that opens it in the
- * goal's Respond panel. Asks stay until they're answered, done or withdrawn; comments ask nothing, so they aren't here.
+ * Needs your response (part 3): every open ask waiting on you but the one the lead says, in rule 3's order, grouped by
+ * kind. Each says what it's about, what was asked, who asked, where and when, and how long it has waited or when it is
+ * due (rule 3's line; a late one with the warning mark, first). Five, then "Show all {n}". One button each.
  */
-function NeedsYou() {
+function NeedsYou({ asks, also }: { asks: Waiting[]; also: boolean }) {
   const app = useApp();
-  const me = app.viewer;
-  const first = (id: string) => app.person(id)?.name.split(' ')[0] ?? 'Someone';
-  // A question raised in a review is due before that review's next session, not "the review" (deep review T4).
-  const questionDue = (rv: Review, raisedWeek: number | null) => {
-    const w = Math.max(upcomingSessionWeek(rv, app.cycle, app.week, app.today), raisedWeek != null ? nextSessionWeek(rv, raisedWeek) : 0);
-    return w <= app.cycle.weeks ? `Before its next session, ${dayText(sessionDate(rv, app.cycle, w))}` : 'Open until you answer';
+  const [all, setAll] = useState(false);
+  if (!asks.length) return null;
+  const shown = all ? asks : asks.slice(0, 5);
+  const groups = GROUP_ORDER.map((k) => [k, shown.filter((x) => x.kind === k)] as const).filter(([, l]) => l.length);
+  const said = (w: Waiting) => {
+    const who = w.by ? `${w.by} ${w.kind === 'action' ? 'agreed it' : 'asked'}` : 'You agreed it';
+    // "Waiting since 28 Jul, 14 weeks" already says the day it was asked: it isn't said twice (F1, one line in the side column).
+    const since = w.line.startsWith('Waiting since');
+    const asked = `${who}${w.where ? ` in ${w.where}` : ''}${since ? '' : ` on ${dayText(w.askedOn).replace(/^\w+ /, '')}`}`;
+    return w.late ? `${w.line} · ${asked}.` : `${asked} · ${w.line}.`;
   };
-  const items = openForPerson(me.id, app.snapshot).flatMap((r) => {
-    const goals = r.goalIds.map((id) => app.goal(id)).filter((g) => !!g);
-    if (!goals.length) return [];
-    const askedIn = app.snapshot.reviews.find((v) => v.id === r.reviewId);
-    const where = askedIn?.name;
-    const due = r.dueWeek != null
-      ? isOverdue(r, app.week) ? `Was due week ${r.dueWeek} (${weekDates(app.cycle, r.dueWeek)})` : r.dueWeek === app.week ? `Due this week (${weekDates(app.cycle, r.dueWeek)})` : `Due week ${r.dueWeek} (${weekDates(app.cycle, r.dueWeek)})`
-      : r.kind === 'question' && askedIn ? questionDue(askedIn, r.week) : r.kind === 'action' ? 'No date set' : 'Open until you answer';
-    const who = r.askedBy === me.id ? 'You agreed it' : `${first(r.askedBy)} ${r.kind === 'action' ? 'agreed it' : 'asked'}`;
-    const goal = r.kind === 'update' ? goals[0]!.id : null;
-    return [{
-      key: r.id, kind: r.kind, who: r.askedBy, overdue: isOverdue(r, app.week),
-      what: goals.length > 1 ? `${goals[0]!.title}, and ${goals.length - 1} more ${goals.length === 2 ? 'goal' : 'goals'} waiting on it` : goals[0]!.title,
-      quote: r.ask, meta: `${who}${where ? ` in ${where}` : ''} ${timeAgo(r.createdAt, app.today)}. ${due}.`,
-      // An ask for an update is answered by checking in; everything else opens in the goal's Respond panel.
-      to: goal ? `/check-in/${goal}` : `/goals/${goals[0]!.id}?respond=${r.id}`, at: r.createdAt,
-    }];
-  });
-  if (!items.length) return null;
-  // Overdue first, then newest first, within each kind.
-  items.sort((a, b) => Number(b.overdue) - Number(a.overdue) || b.at.localeCompare(a.at));
-  const groups = GROUP_ORDER.map((k) => [k, items.filter((x) => x.kind === k)] as const).filter(([, l]) => l.length);
   return (
     <section className="block needs-you" data-part="Needs your response">
-      <h2 className="block-title">Needs your response <span className="count-pill">{items.length}</span></h2>
+      <h2 className="block-title">{also ? 'Also needs your response' : 'Needs your response'} <span className="count-pill">· {asks.length}</span></h2>
       {groups.map(([k, list]) => (
         <div key={k} className="need-group">
           <h3 className="need-group-title">{ASK_GROUP[k]} <span className="count-pill">· {list.length}</span></h3>
           <ul className="needs-list">
-            {list.map((x) => (
-              <li key={x.key} className="need">
-                <Avatar p={app.person(x.who) ?? { name: '?', initials: '?' }} size="sm" />
-                <span className="need-body">
-                  <span className="need-what">{x.what}</span>
-                  {x.quote && <span className="need-quote">“{x.quote}”</span>}
-                  <span className="need-meta">{x.overdue && <WarnMark />}{x.meta}</span>
-                  <span className="need-action">
-                    {/* Each opens the goal with this ask open and its box ready (the flagship goal page, 5 Nov). */}
-                    <Link className="btn sm" to={x.to}>{ASK_BUTTON[x.kind]}</Link>
+            {list.map((w) => {
+              const askedBy = app.snapshot.requests?.find((r) => r.id === w.askId)?.askedBy ?? '';
+              return (
+                <li key={w.askId} className="need">
+                  <Avatar p={app.person(askedBy) ?? { name: '?', initials: '?' }} size="sm" />
+                  <span className="need-body">
+                    <span className="need-what">{w.goals.length > 1 ? `${w.goals[0]!.title}, and ${w.goals.length - 1} more ${w.goals.length === 2 ? 'goal' : 'goals'} waiting on it` : w.goals[0]!.title}</span>
+                    {w.said && <span className="need-quote">“{w.said}”</span>}
+                    <span className="need-meta">{w.warn && <WarnMark />}{said(w)}</span>
+                    <span className="need-action">
+                      {/* Each opens the goal with this ask open and its box ready (the flagship goal page, 5 Nov). */}
+                      <Link className="btn sm" to={w.to}>{ASK_BUTTON[w.kind]}</Link>
+                    </span>
                   </span>
-                </span>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         </div>
       ))}
+      {asks.length > shown.length && <button type="button" className="linkish small" onClick={() => setAll(true)}>Show all {asks.length}</button>}
     </section>
   );
 }
@@ -239,7 +225,10 @@ function AttentionList({ list }: { list: ReturnType<typeof attentionList> }) {
  */
 function ThisWeek({ d, leadAbout }: { d: Dashboard; leadAbout: string | null }) {
   const missed = d.missed.filter((m) => m.id !== leadAbout);
-  const next = d.next && d.next.id !== leadAbout && !d.missed.some((m) => m.id === d.next!.id) ? d.next : null;
+  // The first review not already in the lead or missed: with two on one day, the lead takes one and the cell the other.
+  const left = d.upcoming.filter((r) => r.id !== leadAbout && !d.missed.some((m) => m.id === r.id));
+  const next = left[0] ?? null;
+  const sameDay = next ? left.filter((r) => r.date === next.date).length : 0;
   if (!missed[0] && !next) return null;
   const when = next ? (next.days === 0 ? 'today' : next.days === 1 ? 'tomorrow' : `in ${next.days} days`) : '';
   return (
@@ -253,7 +242,7 @@ function ThisWeek({ d, leadAbout }: { d: Dashboard; leadAbout: string | null }) 
         </Link>
       ) : next && (
         <Link className="dash-cell dash-review" to={`/reviews/${next.id}`}>
-          <span className="dash-label">{next.days === 0 ? 'Review today' : next.days === 1 ? `Review tomorrow, ${dayText(next.date)}` : `Review on ${dayText(next.date)}`}</span>
+          <span className="dash-label">{next.days === 0 ? 'Review today' : next.days === 1 ? `Review tomorrow, ${dayText(next.date)}` : `Review on ${dayText(next.date)}`}{sameDay > 1 ? ` · ${sameDay} reviews` : ''}</span>
           <span className="dash-value" title={`${next.name}, ${next.weekday} ${when}`}>{next.name}</span>
           <span className="dash-sub">{next.weekday} · {when}</span>
         </Link>
@@ -262,8 +251,39 @@ function ThisWeek({ d, leadAbout }: { d: Dashboard; leadAbout: string | null }) 
   );
 }
 
+/** For admins: the year is ending or has ended, and the next one to start (HM1 review: HM1 had dropped it before HM7). */
+function AdminCard() {
+  const app = useApp();
+  if (!app.viewer.admin) return null;
+  const later = laterCycle(app.full.cycles, app.cycle);
+  const over = hasEnded(app.cycle, app.today);
+  if (wrapUpOpenOn(app.cycle, app.today) || (over && !later)) {
+    const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
+    const next = later?.name ?? nextCycleShape(app.cycle).name;
+    const lastDay = dayWithYear(cycleDates(app.cycle).lastDay);
+    // The next year is prepared, not moved into: it opens for everyone on its week 1's Monday (cycle-end 2.9).
+    const nextLine = later ? `${next} is ready. It opens for everyone on ${dayWithYear(cycleDates(later).firstDay)}.`
+      : over ? `Start ${next}: it opens for everyone as soon as you start it.`
+      : `${next} isn’t set up yet. It can be started now; everyone stays in ${app.cycle.name} until ${lastDay}.`;
+    return (
+      <section className="block note-card">
+        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>{over ? `${app.cycle.name} ended on ${lastDay}` : `The ${periodWord(app.cycle)} is ending`}</strong><span className="hint">{wrapUpOpenOn(app.cycle, app.today) ? (left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up. ` : 'Every goal is wrapped up. ') : ''}{nextLine}</span></span>
+        <span className="row" style={{ gap: 'var(--s2)' }}>
+          {wrapUpOpenOn(app.cycle, app.today) && <Link className="btn" to="/retro">See the wrap-up</Link>}
+          <Link className="btn" to={later ? '/workspace/cycles' : '/workspace/cycles/next'}>{later ? 'See Cycles' : `Start ${next}`}</Link>
+        </span>
+      </section>
+    );
+  }
+  // Adding people is Getting started's row now, said only while it's true (OB3).
+  return null;
+}
+
+/** Your goals that need attention, each with its one action: check in when that's what it needs, otherwise open it. */
+
 /** Your goals, as the query port is asked for them: every goal you own. */
-function useMineAsk(viewerId: string) { return useMemo(() => ({ query: { ...EMPTY_QUERY, owner: [viewerId] } }), [viewerId]); }
+/** Your goals, worst first (as What's new and Help say), then by title. */
+function useMineAsk(viewerId: string) { return useMemo(() => ({ query: { ...EMPTY_QUERY, owner: [viewerId], sort: 'worst' as const } }), [viewerId]); }
 
 /** The week at a glance, its goal counts from the query port (AX5): yours, or every goal when you own none. */
 function useDashboard(): Dashboard {
@@ -290,7 +310,7 @@ export function Home() {
       <ThisWeek d={useDashboard()} leadAbout={plan.lead?.about ?? null} />
       <div className="home-grid split">
         <LeadOrQuiet plan={plan} />
-        <aside className="home-side split-side" aria-label="For you"><NeedsYou /></aside>
+        <aside className="home-side split-side" aria-label="For you"><NeedsYou asks={plan.asks} also={plan.lead?.kind === 'ask'} /><AdminCard /></aside>
         <div className="home-main split-b">
           <YourGoals />
           <WatchedGoals />

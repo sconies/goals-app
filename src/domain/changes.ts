@@ -1,6 +1,6 @@
 /* The change log: what changed, field by field, in words a reader understands. */
 import { causeLabel } from './checkin';
-import { fmt, kindLabel } from './format';
+import { fmt, kindLabel, staysText } from './format';
 import { levelName } from './levels';
 import { LABEL, assessMilestone } from './status';
 import type { Change, CheckIn, Diff, Goal, Person } from './types';
@@ -45,7 +45,8 @@ function goalFields(g: Goal, l: Lookup): Record<string, string> {
     f['Plan numbers'] = g.plan.points?.length ? g.plan.points.map((p) => `wk ${p.week}: ${fmt(p.value, g)}`).join(', ') : '—';
   }
   if (g.kind === 'range') {
-    f.Limit = (g.range.bound === 'atMost' ? 'At most ' : 'At least ') + fmt(g.range.limit, g);
+    const says = staysText(g);
+    f.Limit = says[0]!.toUpperCase() + says.slice(1);
     f['Warning margin'] = fmt(g.range.margin, g);
   }
   // By due week, the order a saved goal keeps them in (goal.buildGoal), so a stage moved later isn't read as a change of order.

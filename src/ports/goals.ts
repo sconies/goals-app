@@ -10,12 +10,16 @@
      a goal now, never its history.
    - It is asynchronous: a server answers later. Faro's adapter can also answer at once (`now`), which the app uses so a
      screen doesn't draw empty first; a server's adapter leaves it out and the screen waits.
+   - Both of its asks are server-shaped (#193's review): a scope is named ("mine", "team", "watching", "all", or
+     "team:<id>") and answered for the person asking, never sent as a list of ids; and a list with no sort has a rule
+     order, worst first and then by title, never the order goals happen to be stored in.
    Its contract: src/ports/contracts/goals.ts, whose cases are spec/conformance/goals.csv. */
 import type { GoalQuery } from '../domain/query';
 import type { GoalSummary } from '../domain/summary';
 import type { DisplayStatus } from '../domain/types';
+import type { ScopeName } from '../domain/goalsPage';
 
-export type { GoalQuery, GoalSummary };
+export type { GoalQuery, GoalSummary, ScopeName };
 
 /** One live goal's summary row, as a list gives it: the rules' reading now, without its check-ins or its series. */
 export type GoalRow = Omit<GoalSummary, 'checkIns' | 'series'>;
@@ -24,10 +28,12 @@ export type GoalRow = Omit<GoalSummary, 'checkIns' | 'series'>;
 export const PAGE_MAX = 50;
 
 export interface GoalAsk {
-  /** The Goals screen's filter and sort (src/domain/query.ts); EMPTY_QUERY for every goal, worst first. */
+  /** The Goals screen's filter and sort (src/domain/query.ts); EMPTY_QUERY for every goal. With no sort, worst first,
+      then by title. */
   query: GoalQuery;
-  /** Only these goals: a Goals scope's (yours, a team's, the ones you watch). Leave it out for every live goal. */
-  among?: string[] | null;
+  /** Only a scope's goals, for the person asking: "mine", "team" (their team and the teams they lead), "watching",
+      "team:<id>", or "all" (the same as leaving it out). */
+  scope?: ScopeName | null;
   /** The next page starts after this key: the last page's `next`. */
   after?: string | null;
   /** Rows on a page, at most PAGE_MAX (the default). */
@@ -55,11 +61,11 @@ export interface GoalCounts {
 
 export interface Goals {
   goals(ask: GoalAsk): Promise<GoalPage>;
-  counts(ask: Pick<GoalAsk, 'query' | 'among'>): Promise<GoalCounts>;
+  counts(ask: Pick<GoalAsk, 'query' | 'scope'>): Promise<GoalCounts>;
   /** One goal's summary with its check-ins; null for a goal that isn't live here. */
   goal(id: string): Promise<GoalSummary | null>;
   /** Faro's adapter answers at once as well; a server's doesn't. */
-  readonly now?: { goals(ask: GoalAsk): GoalPage; counts(ask: Pick<GoalAsk, 'query' | 'among'>): GoalCounts };
+  readonly now?: { goals(ask: GoalAsk): GoalPage; counts(ask: Pick<GoalAsk, 'query' | 'scope'>): GoalCounts };
 }
 
 /** Every row a query matches, page by page: for a screen that lists them all, as Goals does today. */

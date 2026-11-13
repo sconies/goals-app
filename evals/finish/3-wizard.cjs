@@ -47,7 +47,7 @@ module.exports = {
       if ((await p.evaluate(() => getComputedStyle(document.body).fontVariantNumeric)) !== 'normal') f('(11) the body still has tabular figures');
       await toNumbers(p);
       // (9) progress bar
-      const bar = await box(p.locator('.steps-bar')); const close = await box(p.locator('.focus-top .iconbtn')); const c1 = await col(p);
+      const bar = await box(p.locator('.steps-bar')); const close = await box(p.locator('.focus-top .form-close')); const c1 = await col(p);
       if (!near(bar.x, c1.x)) f(`(9) the step bar starts at ${bar.x}, not the column's ${c1.x}`);
       if (!near(close.x - bar.r, 16, 2)) f(`(9) the step bar ends ${close.x - bar.r}px from Close, not 16`);
       const segs = await p.locator('.steps-bar i').evaluateAll((es) => es.map((e) => [e.getBoundingClientRect().width, getComputedStyle(e).backgroundColor]));

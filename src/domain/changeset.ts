@@ -185,15 +185,24 @@ export function describe(cs: Pick<ChangeSet, 'counts'>): string {
 /** Rows whose Action says Example (the template's, C15), in a sentence: left out, never imported. Empty for none. */
 export const examplesLine = (n: number): string => (n ? `${plural(n, 'example row')} left out.` : '');
 
+/** A Limit cell holding two numbers, a range between them: "99.5–99.95", "99.5 - 99.95", "99.5 to 99.95" (each may
+    carry the goal's unit). The lower and upper as typed, or null for anything else. Here, not in columns.ts, so it loads
+    with the import (the first download is at its budget). */
+export function twoNumbers(raw: string): { lower: string; upper: string } | null {
+  const m = /^\s*(-?[^\s–—-][^–—]*?)\s*(?:–|—|-|\bto\b)\s*(-?[^\s–—-].*?)\s*$/i.exec(String(raw));
+  if (!m || !/\d/.test(m[1]!) || !/\d/.test(m[2]!)) return null;
+  return { lower: m[1]!, upper: m[2]! };
+}
+
 /** The columns a goal form's field is, for its problem on the Goals sheet. */
 /** A goal field's column on the Goals sheet, where a Must fix from goal entry's rule 2 (domain/goalEntry) is said. */
-const FIELD_COLUMN: Partial<Record<GoalField, string>> = { title: 'Goal', teamId: 'Team', ownerId: 'Owner', level: 'Level', parentId: 'Feeds into', start: 'Start', target: 'Target', limit: 'Limit', margin: 'Margin', decimals: 'Decimals', effect: 'Effect', stages: 'Stages', points: 'Plan', unit: 'Unit', fromWeek: 'Plan from week', endWeek: 'Due week' };
+const FIELD_COLUMN: Partial<Record<GoalField, string>> = { title: 'Goal', teamId: 'Team', ownerId: 'Owner', level: 'Level', parentId: 'Feeds into', start: 'Start', target: 'Target', lower: 'Limit', limit: 'Limit', margin: 'Margin', decimals: 'Decimals', effect: 'Effect', stages: 'Stages', points: 'Plan', unit: 'Unit', fromWeek: 'Plan from week', endWeek: 'Due week' };
 /** Each Must fix's kind among the engine's (domain/problemLevels): every one is a Must fix; the kind says which sort. */
 const MUST_KIND: Record<MustFixId, IssueKind> = {
   'name-empty': 'required-empty', 'name-short': 'required-empty', 'owner-empty': 'required-empty', 'team-empty': 'required-empty', 'level-empty': 'required-empty',
-  'start-empty': 'required-empty', 'target-empty': 'required-empty', 'limit-empty': 'required-empty', 'stage-none': 'required-empty',
+  'start-empty': 'required-empty', 'target-empty': 'required-empty', 'limit-empty': 'required-empty', 'lower-empty': 'required-empty', 'stage-none': 'required-empty',
   'feeds-loop': 'loop', 'not-number': 'not-a-number', 'has-words': 'not-a-number', 'too-precise': 'precision', 'plan-point': 'not-a-number', 'decimals-lose': 'precision',
-  'decimals-range': 'unknown-word', 'same-as-start': 'impossible-number', 'margin-negative': 'impossible-number',
+  'decimals-range': 'unknown-word', 'same-as-start': 'impossible-number', 'margin-negative': 'impossible-number', 'lower-not-below': 'impossible-number',
   'stage-name': 'stage-format', 'stage-week': 'stage-format', 'stage-twice': 'stage-format', 'stage-done-removed': 'cant-change',
   'to-before-from': 'plan-order', 'week-unknown': 'week-wrong', 'week-beyond': 'week-wrong',
 };
@@ -934,10 +943,15 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
       // A new goal whose whole plan is already past: a finished goal added for the record, or a mistake (past-plan).
       if (from < end && !existing && !create && end < week && ask('past-plan', 'Goals', row, d.title, `“${d.title}” has a plan that ended in week ${end}; it’s week ${week}.`, { column: 'Due week', answers: ANSWERS.pastPlan }) === 'leave') return;
     }
-    if (val(r, 'limit')) d.limit = val(r, 'limit');
+    // Two numbers in Limit are a range between them (99.5–99.95), whatever Must stay says; one is the limit, and the
+    // upper bound of a range already between two.
+    const two = twoNumbers(val(r, 'limit'));
+    if (two) Object.assign(d, { lower: two.lower, limit: two.upper });
+    else if (val(r, 'limit')) d.limit = val(r, 'limit');
     const bound = readWord(BOUND_WORDS, val(r, 'must stay'), 'Goals', row, d.title);
     if (bound === undefined) return;
-    if (bound) d.bound = bound;
+    if (two) d.bound = 'between';
+    else if (bound) d.bound = bound;
     if (val(r, 'margin')) d.margin = val(r, 'margin');
     // A new range has no warning margin unless the row gives one (round 2: none by default).
     else if (!existing && d.kind === 'range') d.margin = '0';

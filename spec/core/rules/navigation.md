@@ -50,3 +50,4 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the menu, the lit item and a page’s name (AR2, NV1) › gives six goals six names
 - the menu, the lit item and a page’s name (AR2, NV1) › says where a Back link leads, in the navigation’s words
 - the menu, the lit item and a page’s name (AR2, NV1) › gives the back link (rule 4)
+- the menu, the lit item and a page’s name (AR2, NV1) › one rule says what a form is, for focus mode and for Back (build review of #113, #114)

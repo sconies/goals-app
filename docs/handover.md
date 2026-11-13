@@ -26,6 +26,26 @@ The planning session session_012kbr939zneZWtAo7UQEHRP is about half full and han
   4. Optional: build api/mcp.js in CI. Recommended: leave it.
 - **Prompt for the next planning session:** "You are Faro's planning session. Check out main, read CLAUDE.md, the top section of docs/handover.md ('Planning state, Thursday 12 November, 21:55 UTC') and docs/backlog.md. Get your session ID with get_session and send_message every open session listed there: 'Planning has moved to session <ID>. Report there from now on, and send only finished results and blockers.' Then read reports with ReadNotifications; when a track hands over, start a fresh session from its handover prompt; relay the reviewer's findings to the owning track; fix anything that breaks main at once; put Lane's ideas in the backlog; ask Lane the 'Waiting for Lane' items still open, in one batch of multiple-choice questions, recommended answer first. Stay quiet otherwise. Hand over at about half full."
 
+## Track 1, Friday 13 November, 00:30 UTC (session past half, handing over; supersedes the 12 Nov 21:40 entry)
+
+Session: session_012kbr91yMK3mzwj4mayoAJr. **Merged:** #310 (HM2: asks say how long they have waited). #274 (GL2's review fixes, with F6's fix: the Map's search box compared an emptied search with the address it had last seen, so emptied just after Enter it wrote nothing; `SearchBox` in `GoalFilters.tsx` now compares with what it has sent). #282 (NV2: forms close in words, Back finds your list). #305 (`hm1-review-fixes`: HM1's five mediums, plus gate fixes: `nextReviews` takes `Pick<Snapshot, 'reviews'>` for the layers lint; N26 knows "N asks wait for your response."; on a phone Home's blocks sit 16px apart and the hero's button 4px under its line, so U2's first attention card stays above the fold now the lead's line wraps; the button row's inline 8px margin moved into `home-watching.css`).
+
+| Branch | State | PR |
+|---|---|---|
+| `hm2-gated` | **Merged as #310** at 00:20 UTC. Its gate fix: F1 (Home's response items 168px, limit 152; the meta line said the asked day twice, so with a "Waiting since" line the asked part drops "on {day}"). U47 failed once in the full run and passes alone, here and on main | #310 merged |
+| `fs1-mediums`, `rv7-gated` | main merged in at 22:20 UTC, typecheck passes, pushed; not evaluated | none |
+| `ck-correct-fixes` | as the 21:40 entry: `npm run spec` again, `evals:changed`; expect the `CheckInFlow.tsx` conflict with NV2's FormClose, now on main | none |
+
+**Next, in order:** `fs1-mediums`; `rv7-gated`; `ck-correct-fixes`; #234's mediums; then the habit moment, N12's Find timing, #110's lows, HM1's lows, with the lows batch (the 21:40 entry has the details of each).
+
+**Habits, learned this session:**
+- Main moves every few minutes and nearly every merge conflicts in What's new: merge main, push, and merge the PR the moment CI is green, after `git merge-tree --write-tree HEAD origin/main` says clean and `comm -12` of the two sides' changed files shows no overlap but generated files. `enable_pr_auto_merge` refuses ("Protected branch rules not configured"): merge by hand with the full 40-character head SHA.
+- The merge helper (scratchpad, gone with the container): `wn.cjs` rebuilds What's new as main's file with the branch's own entries on top; `mm.sh` then takes main's `api/mcp.js` and `evals/report.md`, runs `build:mcp` (checks `grep -c home/user` is 0) and `npm run spec`, `git add -A`, commits "Merge main [no news]", typechecks. Keep `evals/report.md` out of commits: an eval run rewrites it.
+- One worktree per branch (`git worktree add /home/user/wt-X -B X origin/X`, `cp -al node_modules`), so merges run while an eval runs elsewhere.
+- Every eval run goes to a subagent that reports only the scorecard and failures; a full `evals:changed` takes ~18 minutes and runs the full suite whenever shared code is touched.
+- `src/app/undoElsewhere.test.tsx` is flaky (1 in 3 local runs, once in CI); it passed on a re-run. Not fixed.
+- Scores below 10 that aren't track 1's: U12 8.8 (demo controls below the fold on desktop), U29 8.3 (the import walkthrough's first step on a phone), U46 9 (export: two primaries), U31 9, U69 8.9 once.
+
 ## Track 1, Thursday 12 November, 21:40 UTC (session past half, handing over; supersedes the 20:15 entry)
 
 Session: session_012kbr92tVe7c6Re4gj42nCe. Nothing merged yet this session. Auto-merge works again (planning, 20:58): once a PR's gate passes and it is current with main, `enable_pr_auto_merge` (MERGE); if it says the PR is already clean, merge by hand.
@@ -289,6 +309,40 @@ Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this sessi
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
 
+## Track 2 (one goal, goal entry, set-up), Thursday 12 November, ~23:10 UTC (session past half full, handing over)
+
+Session: session_012kbr8yX1yx6BkMYiJ6F5Dr. Each build ran in a subagent in its own worktree (`git worktree add`, then `cp -al node_modules`), and each eval run went to a subagent that returned only the scorecard. Merges used **merge commits**. Planning is session_012kbr939zneZWtAo7UQEHRP.
+
+- **Merged:**
+  - #293, GE10's four review mediums:
+    - no set-up check-in, and no stage question, when proposing (`ChecksContext.proposing`);
+    - `leaving()` reads `withProposed`;
+    - the Home line was dropped from `afterProposing`;
+    - `activate` asks `from-past` itself (`make_goal_active` takes `confirm`) and refuses a From outside week 0 to the plan's To.
+  - #292, migration 0042: `range_bound` may be `between`, with `range_lower` below `range_limit`; applied by CI. Its limits row was added by #295 from another session.
+  - #300, the two-sided range code: `range.ts`, `staysText`, between in goal entry, import/export, the MCP tools and the docs. The first download is 259.4 of 265 KB.
+- **U31 (20 steps against a budget of 19):** settled by planning (23:15): goal entry stays as it is. It was 18 before OB1 (#129), whose "who and where" step and rule 1's level choice for a lead (Mateo) add Level: Team and Continue, by design. U31 still scores 9 for its budget.
+- **Next:** GE10's follow-up (F), from #270's body:
+  - Home's two proposal rows (`proposalAsks`; needs seen and put-off state). Once built, restore the read-back line "{Owner} sees it on their Home as a proposal for them".
+  - "Make it proposed again" (`backToProposed` is built; it has no action).
+  - Map and Board with the filter.
+  - The metric page's "Proposed · n".
+  - Reviews' "Propose a new goal" and "Last time".
+  - Changing the type while proposed.
+  - "Stopped" in the State filter.
+  - `for-someone-else` for files and tools.
+  - What feeds it.
+  - The start-year count.
+  - The `stoppedAt` lint (about 25 reads).
+  - New from #293: "Make it active" could ask which past stages are done and save them as the first check-in; today they are marked at the first check-in.
+  - The review's lows: `ask_for_update` on a proposed goal; two primary buttons with "Make it active" open; 22 px buttons; "Rhea see"; the scope rule written twice; no MCP test of `make_goal_active` beyond #293's.
+- **Habits:**
+  - The first download is 259.4 of 265 KB (#300 moved `RangeChart` out): keep new code lazy.
+  - `evals/touches.cjs` has no rule for `src/domain/proposedActions.ts` or `src/domain/range.ts`, so `evals:changed` runs the full suite (about 17 minutes).
+  - A finish check runs alone with `FINISH=N12`, not `ONLY=`.
+  - `enable_pr_auto_merge` still refuses (no branch protection), so merge by hand.
+  - CI's vitest sometimes fails one timing test under load (`importSpeed`, `undoElsewhere`); they pass alone. One re-run each.
+
 ## Track 2 (one goal, goal entry, set-up), Thursday 12 November, ~20:30 UTC (session past half full, handing over)
 
 Session: session_012kbr8zF82vbVLvoqfYaQad. It ran each item through one subagent at a time in the main checkout from a common brief, merged main into its PRs in worktrees, and merged with **merge commits**. Planning is now session_012kbr939zneZWtAo7UQEHRP: report there once, finished results and blockers only.
@@ -366,6 +420,48 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
   - the feeds-lower rule lives only in the form;
   - the unbuilt "cycle ended", "Add one" and gone-parent states from the onboarding spec.
 - **U23 (entry)** scored 8.6 locally and is track 2's to lift.
+
+## Track 4, Thursday 12 November, 16:40 UTC (session past half full, handing over)
+
+- **Merged:** #193, which is AX5 part 1 plus the fix for the first download.
+  - **The query port:** `Goals` in `src/ports/goals.ts`, with `goals()`, `counts()` and `goal()`. Paging is by key, at most 50 rows a page. List rows carry no check-ins.
+  - **Its adapter:** `src/adapters/localGoals.ts`, which can also answer at once (`now`) so no screen draws empty first. The app reads it through `src/app/goals.ts` (`useGoalList`, `useGoalCounts`).
+  - **Its contract:** `goalsContract` in `src/ports/contracts/goals.ts`. Its cases are `spec/conformance/goals.csv`, which the drill scores when asked (`"also": ["goals"]`).
+  - **Who reads it:** Home (your goals, now worst first, and the week-at-a-glance counts) and Goals (the filtered list, the near miss and the switch count).
+  - **`Store`:** now in `src/ports/store.ts`. The example plumbing is `ExampleStore` and `examplesOf` in `src/data/store.ts`, and only the browser store has it.
+  - **The first download:** 293 to 263 KB, and the real app's 350 to 321. The budgets are 262 + `MARGIN_KB` and 321 + `MARGIN_KB`, where `MARGIN_KB` is 3 (Lane, 12 Nov: the size measured that day plus 3 KB).
+    - The change engine (`domain/changeset`) loads on its own: `loadEngine` and `ready` in `src/app/actions.ts`.
+    - Screens that preview changes while they render import `src/app/engineReady.ts`. U45 caught Quick check-in previewing before the engine was there.
+    - Small names that pulled the engine in live in `src/domain/via.ts`. `src/app/engine.test.ts` lists who may import the engine at run time.
+    - Help's index in the first download holds only the newest What's new release. Every release's title is in `virtual:faro-news-index` (`src/help/newsIndex.ts`), and `lookup.test.ts` guards this.
+- **First, #193's build review** (reviewer session, 12 Nov 17:17; full text in draft PR #134 (the build-reviews log on branch `build-reviews`), section "#193"). No high findings: the port matches the old code across 1,742 viewer, scope and query combinations. Fix the mediums in one PR before anything else:
+  1. **A failed engine load is silent.** When the change engine's chunk fails to load, Post check-in does nothing and says nothing, and the tab can't post until it is reloaded.
+     - `run` awaits `ready(name)` with no toast (`src/app/state.tsx`, about line 593).
+     - `CheckInFlow.tsx`'s catch (about lines 352–355) only re-enables the button.
+     - Chromium keeps the failed module, so a second `import()` in `loadEngine` never fetches it again.
+     - Fix: toast the failure, in the offline words when offline; reset `engine` so the next try fetches afresh, or reload once via `staleCode`; add a journey.
+  2. **Home's order isn't what we told people.** What's new (`your-goals-worst-first`), the Home guide article and two comments say Home lists your goals worst first. `applyQuery` sorts only when `q.sort` is set (`src/domain/query.ts`, about line 212), and Home asks with none: 13 of 29 owners with several goals don't see worst first. Fix: ask with `sort: 'worst'` in `useMineAsk` (`src/screens/Home.tsx`), so the words become true.
+  3. **The port's default order and its scope aren't server-shaped.** With no sort, rows come in the workspace array's order, and `goals.csv` pins that order. Scope travels as `among`, a list of every goal's id. A server could answer neither. Give the default order a rule (worst first, then by title), and name scopes in the ask (`scope: 'mine' | 'team:<id>' | 'watching'`) instead of sending ids.
+  4. **Summaries are worked out two or three times per change.** Each hook makes its own port (`src/app/goals.ts`, lines 12–19), so Home and Goals run `summariseAll` two or three times: about 550 ms on Home at ten times the demo's size, against 20 ms before. Make one port per snapshot (a context, or a memo keyed on the snapshot).
+  - **Lows:**
+    - Keyset paging restarts from the top when the `after` goal has gone (`localGoals.ts`, about line 33).
+    - `engine.test.ts`'s pattern misses `import * as`, re-exports, double quotes and imports split over several lines. The bundle budget is the real guard.
+    - On a near miss, `counts().attention` disagrees with its own list.
+    - `attentionCount` (`goalsPage.ts`) has no caller now.
+    - No journey came with the change, and `goals.csv` is written by the adapter it tests.
+- **Next, in order:**
+  1. **AX5 part 2, the narrower load.** The load takes only the current cycle's check-ins and the last few weeks of changes; Activity and a goal's History fetch older pages.
+     - Watch what reads the change log beyond Activity and History: `creatorOf` (Getting started), undo, the wrap-up of last year while it stays open, and `statusChange`.
+     - Tell track 6 (session_012kbr8xR9jB8yU52qz82Gah) before `storeContract` changes. Track 6 is turning the port contracts into data (given, when, then) in a new `cases` folder beside the contracts, and will convert `goalsContract` to that format too.
+  2. FT2, then FT1, SW1 and SW2 (`docs/design/feature-toggles/`, `docs/design/feature-switches/`).
+  3. AX2: a test that nothing on `AppState` reaches `commit` except through `run`, and `applyChanges` sending its input again with `apply`. Check that `postCheckIn` is in the action table (it is, and it now waits for the change engine to load).
+  4. AX6.
+- **Still left from the reviews:** the workspace switcher on the "can't open … yet" page (`CantOpenYet` in `src/screens/Start.tsx`).
+- **Traps:**
+  - Main moves fast, and a conflicted PR gets no CI at all. Merge main in, then rerun `build:mcp` and `spec`. Take What's new from main and add your entry back.
+  - `docs/glossary.md` names the file that keeps each word on purpose. Moving such a word between files fails CONSISTENT-WORDS.
+  - `evals/report.md` is rewritten by every local run. Discard it rather than commit it.
+  - Under local load, N6 and `src/data/fence.test.ts` failed once; each passes when run alone.
 
 ## Track 4, Thursday 12 November, midday (session past half full, handing over)
 

@@ -2,6 +2,7 @@
 import { daysSince, currentWeek, weekDate, goalAsOf, hasEnded, planAt, projectionFor, type Point, type Projection, planEnd } from './plan';
 import type { CheckIn, Cycle, DisplayStatus, Goal, MetricGoal, MilestoneGoal, RangeGoal, StageUpdate, Status } from './types';
 import { RULES } from './thresholds';
+import { rangeNear, rangeOut } from './range';
 import { LABEL, STATUS_ORDER } from './vocabulary';
 
 /* What each status is called and means lives in the vocabulary (domain/vocabulary.ts); the thresholds in thresholds.ts. */
@@ -114,9 +115,8 @@ function onTrackTypeable(start: number, planned: number, decimals: number, ratio
 }
 
 export function assessRange(goal: RangeGoal, week: number, actual: number | null, previous: number | null): RangeAssessment {
-  const { bound, limit, margin } = goal.range;
-  const isOut = (v: number | null) => v != null && (bound === 'atMost' ? v > limit : v < limit);
-  const isNear = (v: number | null) => v != null && (bound === 'atMost' ? v > limit - margin : v < limit + margin);
+  const isOut = (v: number | null) => v != null && rangeOut(goal.range, v);
+  const isNear = (v: number | null) => v != null && rangeNear(goal.range, v);
   const out = isOut(actual), previousOut = isOut(previous), near = isNear(actual);
   let calc: Calc;
   if (week === 0) calc = 'planned';

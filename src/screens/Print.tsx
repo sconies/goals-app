@@ -11,7 +11,8 @@ import { assessPosted } from '../domain/status';
 import { quarterLabel, quarterOf } from '../domain/year';
 import { periodNow } from '../domain/cycle';
 import { Chip, Empty, LevelTag } from '../ui/bits';
-import { MetricChart, QuarterMark, quarterWords, RangeChart, StageList } from '../ui/charts';
+import { MetricChart, QuarterMark, quarterWords, StageList } from '../ui/charts';
+import { RangeChart } from '../ui/rangeChart';
 import { Icon } from '../ui/Icon';
 import { FLAG } from '../domain/vocabulary';
 

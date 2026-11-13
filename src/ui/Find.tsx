@@ -30,7 +30,8 @@ export const isFindKey = (e: globalThis.KeyboardEvent) => (e.ctrlKey || e.metaKe
 /** One row Find offers: a thing, or "See all" for its kind. */
 type Option = { key: string; to: string; row?: FoundRow; all?: string; kind: string };
 
-export function Find({ onClose }: { onClose: () => void }) {
+/** `inline`: drawn in the page (Page not found, navigation spec 2.6), not as a sheet; it then traps no focus and takes no Escape. */
+export function Find({ onClose, inline = false }: { onClose: () => void; inline?: boolean }) {
   const app = useApp();
   const search = useSearch();
   const prefs = usePrefs();
@@ -88,6 +89,7 @@ export function Find({ onClose }: { onClose: () => void }) {
 
   // Focus stays in the sheet; Escape closes and gives focus back to what opened it.
   useEffect(() => {
+    if (inline) return;
     const prev = document.activeElement as HTMLElement | null;
     const key = (e: globalThis.KeyboardEvent) => {
       if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
@@ -100,7 +102,7 @@ export function Find({ onClose }: { onClose: () => void }) {
     };
     document.addEventListener('keydown', key);
     return () => { document.removeEventListener('keydown', key); prev?.focus?.(); };
-  }, [onClose]);
+  }, [onClose, inline]);
 
   const open = (o: Option) => {
     if (o.row) remember(prefs, app.ws.id, app.viewer.id, { kind: o.row.kind, id: o.row.id });
@@ -133,18 +135,17 @@ export function Find({ onClose }: { onClose: () => void }) {
     );
   };
 
-  return createPortal(
-    <div className="sheet-wrap find-wrap" onClick={onClose}>
-      <div className="sheet find-sheet" role="dialog" aria-modal="true" aria-label="Find" ref={ref} onClick={(e) => e.stopPropagation()}>
+  const inner = (
+    <>
         <div className="find-head">
           <Icon name="search" size={18} />
           <input
-            autoFocus className="find-input" type="search" value={q} maxLength={200} placeholder={placeholder}
+            autoFocus={!inline} className="find-input" type="search" value={q} maxLength={200} placeholder={placeholder}
             role="combobox" aria-expanded={options.length > 0} aria-controls={`${id}-list`} aria-autocomplete="list" aria-label={placeholder}
             aria-activedescendant={options.length ? optId(at) : undefined}
             onChange={(e) => setQ(e.target.value)} onKeyDown={key}
           />
-          <button type="button" className="linkish find-close" onClick={onClose}>Close</button>
+          {!inline && <button type="button" className="linkish find-close" onClick={onClose}>Close</button>}
         </div>
         <div className="find-body">
           {failed ? (
@@ -174,6 +175,13 @@ export function Find({ onClose }: { onClose: () => void }) {
             </ul>
           )}
         </div>
+    </>
+  );
+  if (inline) return <div className="find-inline" ref={ref}>{inner}</div>;
+  return createPortal(
+    <div className="sheet-wrap find-wrap" onClick={onClose}>
+      <div className="sheet find-sheet" role="dialog" aria-modal="true" aria-label="Find" ref={ref} onClick={(e) => e.stopPropagation()}>
+        {inner}
       </div>
     </div>,
     document.body,

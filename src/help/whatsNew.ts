@@ -24,7 +24,7 @@ export interface NewsEntry {
 export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'import-export-fixes',
-    date: '2026-11-12',
+    date: '2026-11-13',
     title: 'Import and Export, four fixes',
     points: [
       'A Goals row with no key that says Stop or Delete is now a Must fix on that row, asking for the goal’s Key, instead of stopping the page.',
@@ -33,6 +33,63 @@ export const WHATS_NEW: NewsEntry[] = [
       'On a phone, Export opened from the View sheet now shows on its own, with one button to press; the View sheet is back when it closes.',
     ],
     articles: ['import', 'export'],
+  },
+  {
+    id: 'save-part-not-loaded',
+    date: '2026-11-12',
+    title: 'Saving says when it can’t',
+    points: [
+      'If the part of Faro that saves a check-in hasn’t loaded (you went offline before it arrived, say), Post check-in now says so instead of doing nothing until you reload.',
+      'Offline, it asks you to try again once you’re back online. Online, it reloads the page or offers Reload, and what you typed is kept.',
+      'Home now really lists your goals worst first, then by name, as the last release said.',
+    ],
+    articles: ['any-device', 'home'],
+  },
+  {
+    id: 'asks-say-how-long',
+    date: '2026-11-12',
+    title: 'Asks say how long they have waited',
+    points: [
+      'Each ask on Home says how long it has waited, or when it is due, and a late one says so first with the warning mark.',
+      'A question raised in a review is due before the next session after the one it was raised in, and stays due then.',
+      'The oldest or most pressing ask can be Home’s one main action when nothing comes before it.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'home-after-review',
+    date: '2026-11-12',
+    title: 'Home says what waits, and keeps every review',
+    points: [
+      'While an ask waits for your response, Home no longer says nothing is asked of you.',
+      'On a phone, the lead’s line and the quiet line wrap instead of being cut short.',
+      'Two reviews on one day both show on Home, and once the year has ended no review is said to be not held.',
+      'Admins see again when the year is ending, with Start for the next one.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'forms-close-in-words',
+    date: '2026-11-12',
+    title: 'Every form closes in words, and Back finds your list',
+    points: [
+      'Editing a goal, New goal and the one-table check-in now close with “Close and keep the draft”, top right, as the other forms do.',
+      'A goal opened from a saved view says “Back to” the view’s name.',
+      'From Check-in’s list, Back comes back to the list. “Start with…” walks only what is still due, and its count is the list’s.',
+      'Page not found has a Find field, so you can look for what you meant.',
+    ],
+    articles: ['getting-around', 'check-in'],
+  },
+  {
+    id: 'range-between',
+    date: '2026-11-12',
+    title: 'Keep a number between two others',
+    points: [
+      'A range can now keep a number between two others: “keep it between 99.5% and 99.95%”. Must stay has Between beside At most and At least, in New goal and Change this goal.',
+      'It is out of range above the upper limit or below the lower one, and at risk within the warning margin of either. The chart draws both limits.',
+      'In a spreadsheet, write both numbers in Limit (99.5–99.95, or 99.5 to 99.95); an export writes them the same way.',
+    ],
+    articles: ['new-goal', 'edit-goal'],
   },
   {
     id: 'mcp-keys-pages',
