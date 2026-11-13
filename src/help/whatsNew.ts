@@ -25,11 +25,12 @@ export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'import-export-fixes',
     date: '2026-11-12',
-    title: 'Import and Export, three fixes',
+    title: 'Import and Export, four fixes',
     points: [
       'A Goals row with no key that says Stop or Delete is now a Must fix on that row, asking for the goal’s Key, instead of stopping the page.',
       'A filtered All tab exports as as-shown, never as all: all is only ever everything.',
       'Export’s Everything line counts what the workbook holds, stopped and proposed goals and their check-ins too.',
+      'On a phone, Export opened from the View sheet now shows on its own, with one button to press; the View sheet is back when it closes.',
     ],
     articles: ['import', 'export'],
   },

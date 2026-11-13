@@ -1794,7 +1794,7 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
 }, ['errors']);
 
 // 16 steps: on a phone each layout is two taps, the Layout menu then the layout (backlog G's trade-off, 9 Nov; it was 14).
-journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, board or history grid, and export them', 16, async (h, device) => {
+journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, board or history grid, and export them, and a filtered All tab as shown', 19, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals?scope=all'));
   await h.inView(p.locator('.layout-menu > summary, .goals-phone-switch .view-open').filter({ visible: true }), 'entry', 'the Layout menu');
@@ -1841,7 +1841,6 @@ journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, boa
   h.set('logged', data.format === 'goals-app.export' && data.goals.length === s.goals.length && data.goals.some((g) => g.checkIns.length) && brief.includes('## How to read the status') && brief.includes('**Recovery plan:**'), 'the JSON or brief is incomplete');
   // A filtered All tab exports what's shown, and its file never says `all`, which means everything (IM7 review).
   await p.goto(url('/goals?scope=all&attention=1'));
-  await p.locator('main h1').first().waitFor();
   await h.click(await exportButton(h, p));
   const [part] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Export .xlsx' }))]);
   h.set('finish', /-goals-as-shown-\d{4}-\d\d-\d\d\.xlsx$/.test(part.suggestedFilename()), `a filtered All tab was not saved as …-goals-as-shown-{date}.xlsx: ${part.suggestedFilename()}`);
