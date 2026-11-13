@@ -283,7 +283,7 @@ Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, qua
 
 The last screen says whether your check-ins were in before the deadline (“All 4 of your check-ins are in by Thursday.”; if you are in a review held that day, “… before Thursday’s review.”) and, from two weeks, how many weeks in a row you have been on time. If some came after it, it says how many, and when the next are due.
 
-One late week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. Only you see your run.
+One late or missed week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. On time means by the deadline day on your own clock. A week added later never counts as on time, a goal called Done leaves your run, and a goal you take over counts only from when it became yours. Only you see your run.
 
 When a check-in takes a goal to its target, the last screen says so quietly, with a way to copy the goal’s share image; when it brings a goal back on track after two weeks or more behind, it says that. The goal’s History marks the week “Reached its target” or “Back on track”. A correction never does.
 
