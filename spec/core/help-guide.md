@@ -1191,11 +1191,12 @@ Requirements: `METRIC-PARTS`.
 - For says whose number it is: the goal’s team, or the whole company.
 - Which part is optional: one part of that number, such as tier-1 services, a region or release builds, up to 60 characters. Leave it empty for all of it.
 - Parts other goals on the metric already use are listed under the field; choose one rather than typing it again, so goals on the same part line up on the metric’s page. A part spelt like one in use is asked about (“Use tier-1 services”, or keep yours).
-- If another goal already measures the same metric for the same team and part, you are asked, as two goals on one number is unusual; Carry on keeps it.
+- If another goal this year already measures the same metric for the same team and part, you are asked, as two goals on one number is unusual; Carry on keeps it.
+- A question here is answered before the goal saves: Save takes you to it.
 
 #### After check-ins
 
-- Once a goal has check-ins, changing its metric, For or part asks Why. It shows in the goal’s History, so anyone reading its chart knows the number was measured differently from then on.
+- Once a goal has check-ins, changing its metric, For or part asks Why, even if it stopped being measured by a metric in between. It shows in the goal’s History, so anyone reading its chart knows the number was measured differently from then on.
 
 #### On the goal’s page
 
