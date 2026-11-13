@@ -587,21 +587,23 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
 
 Session: session_012kbr931R7QEqBrfxbNv2QV.
 
+- **Track 2** is adding GE10's "Propose a new goal" to the review walk on `ge10-proposed-in`, with Home naming the review through `reviewName` in the app's reads. They asked that, with Reviews off, `reviewName` and the `reviewOf` lookup return null, so Home says nothing about a review. Whichever of their PR and RS1 lands second does it.
+
 - **#354** (U12) has merged.
-- **#358** (AX5 part 2b) is open, with auto-merge on. Main was merged in twice, most recently at 05:55. If it is still open, merge main in again and push. Track 6 needs no word: the `Store` contract is unchanged, and only the anchor list grew.
+- **#358** (AX5 part 2b) has merged. Track 6 needs no word: the `Store` contract is unchanged, and only the anchor list grew.
 - **#371** (FT2, Reviews behind its switch) is open, with auto-merge on.
-  - **Shape:** `src/modules/reviews/` holds the routes, Help and AI tools. The core keeps the screens, rules, menu row and `okr_reviews` until FT3, and the outline stage's gaps name each file.
+  - **Shape:** the new reviews module folder holds the routes, Help and AI tools. The core keeps the screens, rules, menu row and `okr_reviews` until FT3, and the outline stage's gaps name each file.
   - **Why:** FT2's planned `elsewhere` list is refused by AS part 2's `recordProblems`.
   - **The switch:** `reviewsOn` in `src/app/reads.ts` is the one place that reads it. Rules take `reviews: boolean`.
-  - **The read-back:** `switchOffReadBack` is in `src/domain/reviewsOff.ts`, which is lazy.
+  - **The read-back:** `switchOffReadBack` is in the domain's new `reviewsOff` file, which is lazy.
   - **Back on:** worked out from the change log, with no migration (`offSpell` in `review.ts`).
   - **Evals:** a full run had no hard failures. U104 was fixed and scores 10. U31 scores 9, as it does on main.
   - **Stages:** Reviews' stage is `stage-5-module-reviews`, and spreadsheets moved to stage 6. That leaves a stale filename in `docs/reviews/2026-11-12-handoff-kit-review.md`.
-  - #358 and #371 each touch `src/help/whatsNew.ts` and `api/mcp.js`. Whichever merges second needs main merged in.
+  - Main was merged in again at 12:30, after #358.
 - **Next, in order:**
   1. RS1 (`docs/design/round-4/reviews-switch/spec.md`, section 11), on top of #371. It covers:
      - `dueWords(reviewsOn, cycle, week)` for the clock's words;
-     - the read-back's two extra lines (accepted risks; the due day), in `reviewsOff.ts`;
+     - the read-back's two extra lines (accepted risks; the due day), beside `switchOffReadBack`;
      - the habit's words (HB1 and HB2);
      - the review tools' refusal: the one sentence built tools use, which the module's generic `callTool` refusal may already give, so check it;
      - the import's one line;
