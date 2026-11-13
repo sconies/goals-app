@@ -27,6 +27,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'empty-pages-say-when',
+    date: '2026-11-13',
+    title: 'Empty pages say when you’d want them',
+    points: [
+      'Metrics, Watching and Activity, while empty, say what is true and when you would want them, with a plain button rather than a big one.',
+      'A tab or a menu row with nothing in it no longer shows a 0.',
+    ],
+    articles: ['watching', 'metrics', 'activity'],
+  },
+  {
     id: 'readings-fill-in-check-ins',
     date: '2026-11-13',
     title: 'Check-ins start with the number, where a source can be read',

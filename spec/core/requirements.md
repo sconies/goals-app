@@ -1263,6 +1263,14 @@ On the icon rail the Faro mark is the workspace switcher: it opens the same pane
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`
 - **Journeys and checks:** N27
 
+### SMALL-QUIET
+
+No count of nought beside a tab, a menu row or a section's name (a sentence may still say none), and an empty page says what is true, then when you'd want it, with a plain button rather than the page's primary.
+
+- **Copy:** build it as Faro does.
+- **Help:** “Watching goals” (`watching`), screens `Watching`
+- **Journeys and checks:** N28
+
 ## Finding
 
 ### LIST-BAR
