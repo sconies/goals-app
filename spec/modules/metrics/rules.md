@@ -102,6 +102,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
+- metric library tools › asks why of a goal with check-ins measured differently even after unlinking it first (#308’s review)
+- metric library tools › get_metric lists the parts its goals use
 - metric library tools › removes only a metric no goal has used, and restore_removed brings it back; a used one is retired (MT3)
 - metric library tools › merges one metric into another in the same unit, for admins (MT3)
 - metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)
@@ -197,6 +199,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
+- metric library tools › asks why of a goal with check-ins measured differently even after unlinking it first (#308’s review)
+- metric library tools › get_metric lists the parts its goals use
 - metric library tools › removes only a metric no goal has used, and restore_removed brings it back; a used one is retired (MT3)
 - metric library tools › merges one metric into another in the same unit, for admins (MT3)
 - metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)
@@ -437,6 +441,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
+- metric library tools › asks why of a goal with check-ins measured differently even after unlinking it first (#308’s review)
+- metric library tools › get_metric lists the parts its goals use
 - metric library tools › removes only a metric no goal has used, and restore_removed brings it back; a used one is retired (MT3)
 - metric library tools › merges one metric into another in the same unit, for admins (MT3)
 - metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)
@@ -452,9 +458,9 @@ Which part of a team’s or the company’s number a goal is measured by (rule 7
 
 A goal measured by a metric takes two things from it: its **unit** and **which way is better** (“From the metric”: “{unit}, {decimals in words}, {lower|higher} is better.”, then “ From {source}, refreshed {refresh}.” when the metric says them). Its start, target, plan and due week stay the goal's own. A link says whose number: **For** a team or the whole company, and optionally **Which part** of it (“tier-1 services”, a region, “release builds”; at most 60 characters; empty for all of it).
 
-**Rule 7. Parts** (`partKey`, `partsOf`, `closePart`). Two parts are one when they match lower case, without accents and punctuation, with spaces collapsed and a trailing “s” dropped from each word. `partsOf` lists the distinct parts a metric's live links use, most used first, each in its most used spelling; the form offers up to five under the field (“Parts other goals on this metric use: …”, each filling the field). `closePart` finds a part in use that a typed one probably means: the same part spelt differently, or one edit away (never for parts of two characters or fewer).
+**Rule 7. Parts** (`partKey`, `partsOf`, `closePart`). Two parts are one when they match lower case, without accents and punctuation, with spaces collapsed and a trailing “s” dropped from each word of four letters or more (“US” is not “U”). `partsOf` lists the distinct parts a metric's live links use, most used first, each in its most used spelling; the form offers up to five under the field (“Parts other goals on this metric use: …”, each filling the field). `closePart` finds a part in use that a typed one probably means: the same part spelt differently, or one edit away (never for parts of two characters or fewer, nor when their numbers differ: “Region 2” is not “Region 1”).
 
-**What linking asks** (`linkChecks`, in `linkGoalMetric` and `link_goal_metric`). Must fix, which refuses the link: what the library already refuses (dated stages; a different unit), a part over 60 characters, and, on a goal with check-ins whose metric, team or part changes, an empty **Why** (“Say why this goal is measured differently now. It shows in its History.”; at most 300 characters). Checks, each answered once: another live goal on the same metric, team and part (“Another goal already measures this for {slice}: “{goal}” ({key}, {owner}). Two goals on one number is unusual.” → Carry on), and, when there is none, a part spelt like one in use (“{metric} already has a part called “{other}”.” → Use “{other}” / Keep “{typed}”). Aim and decimals stay warnings, as before. The History entry says “Measured by “{metric}” for {slice} · {part}: {why}”, with a row for each of Measured by, Slice and Which part that changed.
+**What linking asks** (`linkChecks`, in `linkGoalMetric` and `link_goal_metric`). Must fix, which refuses the link: what the library already refuses (dated stages; a different unit), a part over 60 characters, and, on a goal with check-ins whose metric, team or part differs from its last link (removed or not, so unlinking first changes nothing), an empty **Why** (“Say why this goal is measured differently now.”, under a Why marked Required whose hint says it shows in its History; at most 300 characters). Checks, each answered once, hold the save at the form as at the tool, and focus goes to the first: another live goal of the same cycle (at every door) on the same metric, team and part (“Another goal already measures this for {slice}: “{goal}” ({key}, {owner}). Two goals on one number is unusual.” → Carry on), and, when there is none, a part spelt like one in use (“{metric} already has a part called “{other}”.” → Use “{other}” / Keep “{typed}”). Aim and decimals stay warnings, as before. The History entry says “Measured by “{metric}” for {slice} · {part}: {why}”, with a row for each of Measured by, Slice and Which part that changed.
 
 **Shown** on a goal's About as “Measured by {metric}”, a list: For ({slice}{ · part}), What it means, From the metric, Where the number comes from (“{source} ({source owner}), refreshed {refresh}”, parts left out when empty), Caveats, This goal's own (its target), and For this goal (its own definition, only when it differs from the metric's meaning). On a metric's page each goal's For reads “{slice} · {part}”. Through the AI tools, `link_goal_metric` takes `part` and `reason`, returns `checks` and saves nothing until it gets `answers` (`part`: “keep” or “use:{part}”; `others`: “carry-on”).
 
@@ -469,7 +475,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Part “release bilds” when “release builds” is in use. | `release builds` |
 | Pipeline queue wait (p90): what a goal takes from it. | `min, whole numbers, lower is better. From CI runner metrics, refreshed hourly.` |
 | Rhea measures Base image build time (ci-docker, in min, 43 check-ins) by Pipeline queue wait (p90) for CI/CD, part “main branch pipelines”, as Pipeline queue wait already is. | `Check: Another goal already measures this for CI/CD, main branch pipelines: “Pipeline queue wait (p90)” (G-14, Rhea Kapoor). Two goals on one number is unusual.` |
-| Rhea moves Pipeline queue wait (p90) (lead-ci-time, with check-ins) to the part “release builds” and gives no reason. | `refused: Say why this goal is measured differently now. It shows in its History.` |
+| Rhea moves Pipeline queue wait (p90) (lead-ci-time, with check-ins) to the part “release builds” and gives no reason. | `refused: Say why this goal is measured differently now.` |
+| Parts “Region 2” and “Region 1” in use. | `nothing` |
+| Rhea unlinks Pipeline queue wait (p90) (lead-ci-time, with check-ins) and then measures it by CI pipeline time on main (p90), with no reason. | `refused: Say why this goal is measured differently now.` |
 | The same, with the reason “Release builds queue apart from main now”. | `Measured by “Pipeline queue wait (p90)” for CI/CD · release builds: Release builds queue apart from main now` |
 
 ### Not self-explanatory
@@ -492,7 +500,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 #### [src/modules/metrics/rulesParts.test.ts](../../../src/modules/metrics/rulesParts.test.ts)
 
 - partKey: the same part however it is spelt › folds case, accents, punctuation, spaces and a trailing s per word
+- partKey: the same part however it is spelt › keeps the s of a short word: “US” is not “U”, “gas” is not “ga” (#308’s review)
 - partsOf: the parts a metric’s live links use › lists distinct parts, most used first, each in its most used spelling, leaving out all-of-it and removed links
+- closePart: a part in use the typed one probably means › never asks about a part whose numbers differ: “Region 2” is not “Region 1” (#308’s review)
 - closePart: a part in use the typed one probably means › finds the same part spelt differently
 - closePart: a part in use the typed one probably means › finds one a single edit away
 - closePart: a part in use the typed one probably means › never matches parts of two characters: “EU” is not “US”
@@ -506,6 +516,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - linkChecks: what measuring a goal by a metric asks › leaves out the goal’s own link and removed links when looking for another goal
 - the words around it › says a slice and its part
 - the words around it › a part spelt differently is no change; another part is
+- linkReads: what linking reads, the same at every door › reads other goals in the goal’s own cycle only, and the goal’s last link even once removed (#308’s review)
 
 #### [src/modules/metrics/rules.test.ts](../../../src/modules/metrics/rules.test.ts)
 
@@ -543,6 +554,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
+- metric library tools › asks why of a goal with check-ins measured differently even after unlinking it first (#308’s review)
+- metric library tools › get_metric lists the parts its goals use
 - metric library tools › removes only a metric no goal has used, and restore_removed brings it back; a used one is retired (MT3)
 - metric library tools › merges one metric into another in the same unit, for admins (MT3)
 - metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)
@@ -638,6 +651,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
+- metric library tools › asks why of a goal with check-ins measured differently even after unlinking it first (#308’s review)
+- metric library tools › get_metric lists the parts its goals use
 - metric library tools › removes only a metric no goal has used, and restore_removed brings it back; a used one is retired (MT3)
 - metric library tools › merges one metric into another in the same unit, for admins (MT3)
 - metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)

@@ -636,17 +636,21 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     };
 
     undoNow.current = (importId) => { void run('undoImport', { importId }).then(() => toast('Undone')).catch(() => undefined); };
-    /** The dispatcher (app/actions.ts): one way to run an action. Who, when and ids are set here. */
-    async function run<N extends ActionName>(name: N, input: ActionInput<N>, opts: { said?: string } = {}): Promise<RunResult<N>> {
-      const before = snapshot;
-      // Outside the demo, nobody signed in can't act: there is no stand-in to act as (AX3).
-      if (!signedIn.current) { toast(NOBODY, 'error'); throw new Error(NOBODY); }
+    /** An action's rules, loaded when first needed; a failed load says so (and offers a reload), never nothing. */
+    async function loadRules(name: Parameters<typeof ready>[0]) {
       try { await ready(name); } catch (e) {
         if (isOffline()) toast(ENGINE_OFFLINE, 'error');
         // Online, it is stale code or a failed fetch: reload once (staleCode.ts), or offer the reload when it just did.
         else if (!recoverFromStaleCode(e)) toast(ENGINE_FAILED, 'error', { label: 'Reload', run: () => location.reload() });
         throw e;
       }
+    }
+    /** The dispatcher (app/actions.ts): one way to run an action. Who, when and ids are set here. */
+    async function run<N extends ActionName>(name: N, input: ActionInput<N>, opts: { said?: string } = {}): Promise<RunResult<N>> {
+      const before = snapshot;
+      // Outside the demo, nobody signed in can't act: there is no stand-in to act as (AX3).
+      if (!signedIn.current) { toast(NOBODY, 'error'); throw new Error(NOBODY); }
+      await loadRules(name);
       let out: ReturnType<typeof perform<N>>;
       try { out = performAny(rx(), name, input) as ReturnType<typeof perform<N>>; } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
       // A token's secret is made where it's kept (the shared database makes its own) and shown once; only its hash is stored.
@@ -775,8 +779,9 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         const input = { draft, ...(goal ? { goalId: goal.id } : {}), ...rest };
         if (!also) return (await run('saveGoal', input)).goal;
         if (!signedIn.current) { toast(NOBODY, 'error'); throw new Error(NOBODY); }
-        await ready('saveGoal');
-        await ready(also.action);
+        // The goal form's save with what measures it loads both rules, and says so if either fails (#308's review).
+        await loadRules('saveGoal');
+        await loadRules(also.action);
         let out: { commit: Commit | null; goal: Goal }, extra: Commit | null;
         try {
           out = performAny(rx(), 'saveGoal', input) as { commit: Commit | null; goal: Goal };

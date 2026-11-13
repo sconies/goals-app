@@ -5828,8 +5828,12 @@ journey('U146', ['METRIC-PARTS'], 'Which part: as Grace, Base image build time i
   await see(twin, /Another goal already measures this for CI\/CD, main branch pipelines: “Pipeline queue wait \(p90\)” \(G-\d+, .+\)\. Two goals on one number is unusual\./, 'another goal on the same number is not asked about');
   h.set('attention', (await twin.locator('svg[data-status]').count()) === 0 && /Check/.test(await twin.innerText()), 'the question is not a Check, or uses a status shape');
   await h.checkpoint('asked');
+  // An open Check holds the save, as link_goal_metric does, and focus goes to it, not Save (#308's review).
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForTimeout(300);
+  const heldAtCheck = /\/edit/.test(p.url()) && await twin.evaluate((el) => el === document.activeElement || el.contains(document.activeElement));
   await h.click(twin.getByRole('button', { name: 'Carry on' }));
-  h.set('errors', (await field.locator('[data-check="part"]').count()) === 0 && (await p.getByLabel(/^Why$/).count()) === 0, 'Carry on did not close the question, or a goal with no metric yet is asked why');
+  h.set('errors', heldAtCheck && (await field.locator('[data-check="part"]').count()) === 0 && (await p.getByLabel(/^Why/).count()) === 0, heldAtCheck ? 'Carry on did not close the question, or a goal with no metric yet is asked why' : 'Save went past an open Check, or focus stayed on Save');
   await h.click(p.getByRole('button', { name: 'Save changes' }));
   await p.waitForURL(/\/demo\/goals\/(ci-docker|G-\d+)(\?|$)/);
   const about = p.locator('.metric-block');
@@ -5842,11 +5846,12 @@ journey('U146', ['METRIC-PARTS'], 'Which part: as Grace, Base image build time i
   h.set('parity', (await p.getByLabel(/^Which part/).inputValue()) === 'main branch pipelines', 'the form does not show the goal’s part');
   await h.fill(p.getByLabel(/^Which part/), 'release builds');
   const why = field.locator('[data-check="why"]');
-  await see(why, 'Say why this goal is measured differently now. It shows in its History.', 'a goal with check-ins is not asked why');
+  await see(why, 'Say why this goal is measured differently now.', 'a goal with check-ins is not asked why');
+  h.set('errors', /^Why Required$/.test((await field.locator('label[for="measured-why"]').innerText()).replace(/\s+/g, ' ').trim()) && ((await field.innerText()).match(/It shows in its History\./g) ?? []).length === 1, 'Why is not marked Required, or “It shows in its History.” is said twice');
   await see(why, 'Must fix', 'Why is not a Must fix');
   await h.click(p.getByRole('button', { name: 'Save changes' }));
   const held = /\/edit/.test(p.url());
-  await h.fill(p.getByLabel(/^Why$/), 'Release builds queue apart from main now');
+  await h.fill(p.getByLabel(/^Why/), 'Release builds queue apart from main now');
   await h.click(p.getByRole('button', { name: 'Save changes' }));
   await p.waitForURL(/\/demo\/goals\/(lead-ci-time|G-\d+)(\?|$)/);
   const s = await h.snapshot();

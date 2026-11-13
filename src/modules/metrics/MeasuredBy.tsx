@@ -42,8 +42,9 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
   // "Which part" (MT2): one part of that number, empty for all of it; and, on a goal with check-ins, why it changes.
   const [part, setPart] = useState(was ? was.part : link?.part ?? '');
   const [reason, setReason] = useState(was ? was.reason : '');
-  // Questions show a moment after a field is left, so a click on the button under them isn't moved (as MT1's form).
-  const [shown, setShown] = useState(false);
+  // Questions show a moment after "Which part" is left, so a click on the button under them isn't moved (as MT1's
+  // form); at once when it is left for Save, and from the start when nothing is being typed there.
+  const [shown, setShown] = useState(true);
   const [adding, setAdding] = useState<Adding | null>(null);
   const [addErr, setAddErr] = useState('');
   // Rule 1's answers for the metric being added here: the same Checks as Add a metric asks (#281's review).
@@ -63,6 +64,8 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
   const checks = metric && reads ? linkChecks(goal ?? { id: '' }, metric, { teamId: slice, part }, { errors: [], warnings: [] }, reads, reason) : [];
   const [answered, setAnswered] = useState<string[]>([]);
   const partChecks = checks.filter((c) => c.field === 'part' && (c.kind === 'fix' || !answered.includes(c.words)));
+  // A Check still open holds the save as a Must fix does, as link_goal_metric holds it (#308's review).
+  const openCheck = partChecks.find((c) => c.kind === 'check');
   const whyFix = checks.find((c) => c.field === 'why');
   const changing = !!goal && !!metric && !!reads && reads.hasCheckIns && linkChanges(reads.present, metric.id, slice, part);
   const inUse = metric && reads ? partsOf(reads.others).filter((x) => x !== part.trim()).slice(0, 5) : [];
@@ -92,13 +95,13 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
       pick = same ? undefined : {
         action: 'linkGoalMetric', input: (g) => ({ goalId: g.id, metricId: metric.id, teamId: slice, part: part.trim(), reason: reason.trim() }),
         // Check's row is labelled "Measured by" already: its value is the rest of the sentence.
-        says: measuredBySays(metric, slice ? team?.name ?? null : null, part).replace(/^Measured by /, ''), blocks: problems.errors[0] ?? fix?.words,
+        says: measuredBySays(metric, slice ? team?.name ?? null : null, part).replace(/^Measured by /, ''), blocks: problems.errors[0] ?? fix?.words ?? (openCheck ? `Answer the question about the part first: ${openCheck.words}` : undefined),
         metric: { name: metric.name, direction: metric.direction },
       };
     } else if (link) pick = { action: 'unlinkGoalMetric', input: (g) => ({ goalId: g.id }) };
     onChange(pick);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [metric?.id, slice, part, reason, problems.errors[0], checks.find((c) => c.kind === 'fix')?.words, team?.name]);
+  }, [metric?.id, slice, part, reason, problems.errors[0], checks.find((c) => c.kind === 'fix')?.words, openCheck?.words, team?.name]);
 
   // Quiet (New goal's Check): the choice is worked out from the draft for the goal's team now, and nothing is drawn.
   if (quiet || kind === 'milestone' || (goal && !canLinkGoal(app.viewer, goal))) return null;
@@ -196,12 +199,13 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
           </div>
           <label className="field" htmlFor="measured-part"><span className="field-label">Which part <span className="hint">optional: leave empty for all of it</span></span>
             <input id="measured-part" className="input" value={part} maxLength={PART_MAX + 20} aria-invalid={partChecks.some((c) => c.kind === 'fix') || undefined}
-              placeholder="Tier-1 services, a region, release builds" onChange={(e) => setPart(e.target.value)} onBlur={() => setTimeout(() => setShown(true), 250)} />
+              placeholder="Tier-1 services, a region, release builds" onChange={(e) => { setPart(e.target.value); setShown(false); }}
+              onBlur={(e) => { if ((e.relatedTarget as HTMLElement | null)?.getAttribute('type') === 'submit') setShown(true); else setTimeout(() => setShown(true), 250); }} />
           </label>
           {inUse.length > 0 && <p className="small">Parts other goals on this metric use: {inUse.map((x, i) => <span key={x}>{i ? ', ' : ''}<button type="button" className="linkish" onClick={() => { setPart(x); setShown(true); }}>{x}</button></span>)}</p>}
           {(shown || part.trim().length > PART_MAX) && partChecks.map((c) => <LinkQuestion key={c.words} c={c} onAnswer={(choice) => { if (choice.startsWith('use:')) setPart(choice.slice(4)); setAnswered([...answered, c.words]); }} />)}
           {changing && (
-            <div className="field"><label className="field-label" htmlFor="measured-why">Why</label>
+            <div className="field"><label className="field-label" htmlFor="measured-why">Why <span className="hint">Required</span></label>
               <textarea id="measured-why" className="input" rows={2} maxLength={LINK_REASON_MAX} value={reason} aria-invalid={!!whyFix || undefined} aria-describedby="measured-why-hint" onChange={(e) => setReason(e.target.value)} />
               <span className="hint" id="measured-why-hint">It shows in its History.</span>
             </div>
@@ -218,7 +222,7 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
 /** One of rule 2's questions under "Which part" (or rule 1's, for a metric added here): a Must fix outlined and washed, a Check with its answers as plain buttons. */
 function LinkQuestion({ c, onAnswer }: { c: Pick<LinkCheck, 'kind' | 'words' | 'answers'> & { field: string }; onAnswer: (choice: string) => void }) {
   return (
-    <div className={`level-block ${c.kind === 'fix' ? 'level-fix' : 'level-check'}`} role={c.kind === 'fix' ? 'alert' : 'group'} data-check={c.field}>
+    <div className={`level-block ${c.kind === 'fix' ? 'level-fix' : 'level-check'}`} role={c.kind === 'fix' ? 'alert' : 'group'} data-check={c.field} tabIndex={-1}>
       <span className="level-head"><WarnMark /><span className="level-word">{c.kind === 'fix' ? 'Must fix' : 'Check'}</span></span>
       {c.kind === 'fix' ? <span>{c.words}</span> : <strong className="level-q">{c.words}</strong>}
       {c.answers.length > 0 && <span className="level-actions">{c.answers.map((a) => <button key={a.choice} type="button" className="btn" onClick={() => onAnswer(a.choice)}>{a.label}</button>)}</span>}
