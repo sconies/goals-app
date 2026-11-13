@@ -754,7 +754,7 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'When someone else saved first', list: [
         'If someone else changed the same goal or review since you opened it, nothing is half-saved, and nothing of theirs is lost.',
-        'A simple change, such as a comment, an ask or a restore, is made again on the latest and saved. If it no longer applies, you’re told why; if it was already done, you’re told that.',
+        'A simple change, such as restoring something or ending a review, is made again on the latest and saved. If it no longer applies, you’re told why; if it was already done, you’re told that.',
         'A goal’s form, a review’s settings, a table of changes, and anything you confirmed against what you were shown (making a goal active, stopping or deleting it, marking someone as left, removing a team, undoing an import) is not saved: you’re told, and shown the latest to check and save again. On a goal’s form, the fields you changed stay as you typed them and the rest show the latest.',
       ] },
     ],

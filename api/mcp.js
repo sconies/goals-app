@@ -19464,8 +19464,12 @@ var CORE_ARTICLES = [
 				"The app opens with about the last year of changes, plus every comment, ask and import whatever its age. Show older changes, at the end of the list, fetches older ones a page at a time; a goal’s History has the same."
 			]
 		}, {
-			heading: "Safe saves",
-			text: ["If someone else changed the same goal, review or week since you opened it, your save is refused whole, you’re told, and shown the latest. Nothing is half-saved."]
+			heading: "When someone else saved first",
+			list: [
+				"If someone else changed the same goal or review since you opened it, nothing is half-saved, and nothing of theirs is lost.",
+				"A simple change, such as restoring something or ending a review, is made again on the latest and saved. If it no longer applies, you’re told why; if it was already done, you’re told that.",
+				"A goal’s form, a review’s settings, a table of changes, and anything you confirmed against what you were shown (making a goal active, stopping or deleting it, marking someone as left, removing a team, undoing an import) is not saved: you’re told, and shown the latest to check and save again. On a goal’s form, the fields you changed stay as you typed them and the rest show the latest."
+			]
 		}],
 		routes: ["/activity"],
 		screens: ["Activity"],
@@ -27252,6 +27256,9 @@ var actingAs = (p) => `This token acts as ${p.name}, who ${p.admin ? "is an admi
 // src/mcp/protocol.ts
 /** A tool whose save is refused as stale every time it runs again: said plainly, not as the store's error. */
 var STALE_TOOL = "Someone else changed this a moment ago, so it wasn’t saved. Read it again (get_goal or get_review) and try again.";
+/** Said before a tool's reply when it ran again on the latest after a stale refusal and was saved: never silent, so the
+assistant can tell the person, who may have confirmed a dry run of what has since changed. */
+var RAN_AGAIN = "Someone else changed this a moment ago, so it ran again on the latest and was saved as follows. If you checked it first with a dry run, check what it says now.";
 /** The name stays 'goals' (assistants already have it saved); the title is the product's. */
 var SERVER_INFO = {
 	name: "goals",
@@ -27339,10 +27346,15 @@ async function handle(msg, context, trace) {
 			const args = m.params?.arguments ?? {};
 			const run = async () => {
 				let r = await callTool(name, args, await context());
-				for (let n = 0; n < 2 && r.isError && isStale(r.cause); n++) r = await callTool(name, args, await context(true));
-				return r.isError && isStale(r.cause) ? {
+				let reran = 0;
+				for (; reran < 2 && r.isError && isStale(r.cause); reran++) r = await callTool(name, args, await context(true));
+				if (r.isError && isStale(r.cause)) return {
 					...r,
 					text: STALE_TOOL
+				};
+				return reran && !r.isError ? {
+					...r,
+					text: `${RAN_AGAIN}\n\n${r.text}`
 				} : r;
 			};
 			const r = trace ? await trace(name, run) : await run();
