@@ -1830,7 +1830,7 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
 }, ['errors']);
 
 // 16 steps: on a phone each layout is two taps, the Layout menu then the layout (backlog G's trade-off, 9 Nov; it was 14).
-journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, board or history grid, and export them', 16, async (h, device) => {
+journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, board or history grid, and export them, and a filtered All tab as shown', 19, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals?scope=all'));
   await h.inView(p.locator('.layout-menu > summary, .goals-phone-switch .view-open').filter({ visible: true }), 'entry', 'the Layout menu');
@@ -1875,6 +1875,11 @@ journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, boa
   const s = await h.snapshot();
   h.set('finish', /-goals-all-\d{4}-\d\d-\d\d\.xlsx$/.test(xlsx.suggestedFilename()) && fs.statSync(await xlsx.path()).size > 4000, `the workbook was not saved as …-goals-all-{date}.xlsx: ${xlsx.suggestedFilename()}`);
   h.set('logged', data.format === 'goals-app.export' && data.goals.length === s.goals.length && data.goals.some((g) => g.checkIns.length) && brief.includes('## How to read the status') && brief.includes('**Recovery plan:**'), 'the JSON or brief is incomplete');
+  // A filtered All tab exports what's shown, and its file never says `all`, which means everything (IM7 review).
+  await p.goto(url('/goals?scope=all&attention=1'));
+  await h.click(await exportButton(h, p));
+  const [part] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Export .xlsx' }))]);
+  h.set('finish', /-goals-as-shown-\d{4}-\d\d-\d\d\.xlsx$/.test(part.suggestedFilename()), `a filtered All tab was not saved as …-goals-as-shown-{date}.xlsx: ${part.suggestedFilename()}`);
   await p.context().close();
 }, ['errors']);
 
@@ -5694,6 +5699,52 @@ journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI 
   await h.click(row.getByRole('link', { name: 'See them' }));
   await a.waitForURL(/\/metrics\?sortout=1/);
   await a.context().close();
+}, []);
+
+/* For, which part, and what a goal takes from its metric (MT2, docs/design/metrics-2/spec.md 2.6, 2.7, rule 2). */
+journey('U146', ['METRIC-PARTS'], 'Which part: as Grace, Base image build time is measured by Pipeline queue wait (p90): the form says what the goal takes “From the metric” and offers “main branch pipelines”, the part another goal uses; choosing it asks “Another goal already measures this for CI/CD, main branch pipelines…”, answered Carry on; the goal’s About lists For “CI/CD · main branch pipelines”, What it means, From the metric and where the number comes from. Then Pipeline queue wait, with check-ins, moved to “release builds” asks Why as a Must fix, and once said, its History gives it', 24, async (h, device) => {
+  const p = h.use(await newPage(device, 'grace'));
+  await p.goto(url('/goals/ci-docker/edit'));
+  const field = p.locator('.measured-by');
+  await field.waitFor();
+  h.set('entry', true);
+  await h.click(field.getByRole('button', { name: /^Measured by/ }));
+  const panel = p.locator('.pick.open');
+  await h.fill(panel.getByRole('combobox'), 'queue');
+  await h.click(panel.getByRole('option', { name: /Pipeline queue wait \(p90\)/ }));
+  await see(field.locator('.from-metric'), 'min, whole numbers, lower is better. From CI runner metrics, refreshed hourly.', 'the form does not say what the goal takes from its metric');
+  await see(field, 'Parts other goals on this metric use: main branch pipelines', 'the parts in use are not offered');
+  await h.click(field.getByRole('button', { name: 'main branch pipelines' }));
+  h.set('progress', (await p.getByLabel(/^Which part/).inputValue()) === 'main branch pipelines', 'choosing a part in use does not fill the field');
+  const twin = field.locator('[data-check="part"]');
+  await see(twin, /Another goal already measures this for CI\/CD, main branch pipelines: “Pipeline queue wait \(p90\)” \(G-\d+, .+\)\. Two goals on one number is unusual\./, 'another goal on the same number is not asked about');
+  h.set('attention', (await twin.locator('svg[data-status]').count()) === 0 && /Check/.test(await twin.innerText()), 'the question is not a Check, or uses a status shape');
+  await h.checkpoint('asked');
+  await h.click(twin.getByRole('button', { name: 'Carry on' }));
+  h.set('errors', (await field.locator('[data-check="part"]').count()) === 0 && (await p.getByLabel(/^Why$/).count()) === 0, 'Carry on did not close the question, or a goal with no metric yet is asked why');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/goals\/(ci-docker|G-\d+)(\?|$)/);
+  const about = p.locator('.metric-block');
+  await about.waitFor();
+  const facts = (await about.innerText()).replace(/\s+/g, ' ');
+  h.set('finish', /For CI\/CD · main branch pipelines/.test(facts) && /What it means/.test(facts) && /From the metric min, whole numbers, lower is better/.test(facts) && /Where the number comes from CI runner metrics \(CI\/CD team\), refreshed hourly/.test(facts), `About says “${facts}”`);
+  // The goal that had the part, with check-ins, moved to another part: Why is a Must fix until said.
+  await p.goto(url('/goals/lead-ci-time/edit'));
+  await field.waitFor();
+  h.set('parity', (await p.getByLabel(/^Which part/).inputValue()) === 'main branch pipelines', 'the form does not show the goal’s part');
+  await h.fill(p.getByLabel(/^Which part/), 'release builds');
+  const why = field.locator('[data-check="why"]');
+  await see(why, 'Say why this goal is measured differently now. It shows in its History.', 'a goal with check-ins is not asked why');
+  await see(why, 'Must fix', 'Why is not a Must fix');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  const held = /\/edit/.test(p.url());
+  await h.fill(p.getByLabel(/^Why$/), 'Release builds queue apart from main now');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/goals\/(lead-ci-time|G-\d+)(\?|$)/);
+  const s = await h.snapshot();
+  const said = (s.changes ?? []).filter((c) => c.entity === 'metric' && c.goalId === 'lead-ci-time').map((c) => c.summary).pop() ?? '';
+  h.set('logged', held && said === 'Measured by “Pipeline queue wait (p90)” for CI/CD · release builds: Release builds queue apart from main now', held ? `the History entry says “${said}”` : 'it saved without a reason');
+  await p.context().close();
 }, []);
 
 journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {

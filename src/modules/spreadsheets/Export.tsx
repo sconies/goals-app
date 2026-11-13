@@ -2,12 +2,12 @@
    format) is the primary; the other formats (zipped CSVs, one sheet as a CSV, JSON, a brief for an AI chat) are behind
    "Other formats". Everything in the cycle, or just what's shown. It opens from Goals' "Export these goals" (the
    goals.tools place, ExportButton.tsx) and from Data's Export menu, "Everything…" (DataMenu.tsx). */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useApp } from '../../app/state';
 import { fileName, saveFile, saveFailed, type FileContent } from '../../app/files';
 import { sheetNamesWith } from '../../domain/columns';
 import { MODULE_SHEETS } from '../../core/records';
-import { aiBrief, csvFiles, sheetNamed, toCsv, toJson, workbook, type ExportInput } from '../../domain/export';
+import { aiBrief, csvFiles, everythingCounts, sheetNamed, toCsv, toJson, workbook, type ExportInput } from '../../domain/export';
 import type { Goal } from '../../domain/types';
 import { Sheet } from '../../ui/bits';
 
@@ -28,16 +28,17 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
   const [one, setOne] = useState<string>('Goals');
   const input: ExportInput = { ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, goals: scope === 'view' ? goals : undefined, sheets: MODULE_SHEETS };
   // Every file is named the same way (spec 2.9): workspace, what it holds, which goals (`all` or the view's name), the day.
-  const name = (what: string) => ({ workspace: app.ws.name, what, scope: scope === 'view' ? viewName || 'as-shown' : 'all', date: app.today });
+  // `all` means everything: a filtered All tab is `as-shown`, never `all`.
+  const which = viewName && viewName.trim().toLowerCase() !== 'all' ? viewName : 'as-shown';
+  const name = (what: string) => ({ workspace: app.ws.name, what, scope: scope === 'view' ? which : 'all', date: app.today });
   const save = (what: string, content: FileContent) => saveFile(name(what), content);
   const run = async (key: string, f: () => Promise<string | void> | void, done?: string) => {
     setBusy(key);
     try { const file = await f(); app.toast(done ?? `Exported ${file}`); } catch (e) { app.toast(key === 'md-copy' ? 'Couldn’t copy: ' + (e instanceof Error ? e.message : String(e)) : saveFailed(e), 'error'); }
     setBusy(null);
   };
-  // What "Everything" holds: the cycle's goals, their check-ins, and the people.
-  const ids = new Set(all.map((g) => g.id));
-  const checkIns = app.snapshot.checkIns.filter((c) => ids.has(c.goalId)).length;
+  // What "Everything" holds, row for row as the workbook writes it: stopped and proposed goals too.
+  const whole = useMemo(() => everythingCounts(app.snapshot), [app.snapshot]);
   const xlsx = fileName(name('goals'), 'xlsx');
   return (
     <Sheet open onClose={onClose} title="Export">
@@ -47,7 +48,7 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
             <legend className="field-label">Which goals</legend>
             <div className="optlist">
               <label className="opt"><span className="row" style={{ gap: 'var(--s2)' }}><input type="radio" name="scope" checked={scope === 'view'} onChange={() => setScope('view')} />The {goals.length.toLocaleString('en-GB')} shown now: {viewName}</span></label>
-              <label className="opt"><span className="stack" style={{ gap: 2 }}><span className="row" style={{ gap: 'var(--s2)' }}><input type="radio" name="scope" checked={scope === 'all'} onChange={() => setScope('all')} />Everything in {app.cycle.name}</span><span className="hint export-counts">{count(all.length, 'goal', 'goals')}, {count(checkIns, 'check-in', 'check-ins')}, {count(app.snapshot.people.length, 'person', 'people')}</span></span></label>
+              <label className="opt"><span className="stack" style={{ gap: 2 }}><span className="row" style={{ gap: 'var(--s2)' }}><input type="radio" name="scope" checked={scope === 'all'} onChange={() => setScope('all')} />Everything in {app.cycle.name}</span><span className="hint export-counts">{count(whole.goals, 'goal', 'goals')}, {count(whole.checkIns, 'check-in', 'check-ins')}, {count(whole.people, 'person', 'people')}</span></span></label>
             </div>
           </fieldset>
         )}

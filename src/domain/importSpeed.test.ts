@@ -40,15 +40,30 @@ describe('rule 10: a large file is checked in about the time it takes to read', 
     });
   }
 
+  /** Five copies of the workspace, each copy's goals, people and teams with their own keys, titles, names and emails, so
+      the workbook reads as one real workspace would rather than as a file of clashes. */
+  function bigWorkspace(): Snapshot {
+    const s = scaleWorkspace(s0, 5);
+    const copy = (id: string) => Number(/_x(\d+)$/.exec(id)?.[1] ?? 0);
+    return {
+      ...s,
+      goals: s.goals.map((g) => { const c = copy(g.id); return c ? { ...g, key: g.key ? `G-${Number(g.key.slice(2)) + c * 1000}` : g.key, title: `${g.title} (copy ${c})` } : g; }),
+      people: s.people.map((p) => { const c = copy(p.id); return c ? { ...p, name: `${p.name} ${c}`, email: p.email ? p.email.replace('@', `+${c}@`) : p.email } : p; }),
+      teams: s.teams.map((t) => { const c = copy(t.id); return c ? { ...t, name: `${t.name} ${c}` } : t; }),
+    };
+  }
+
   it('checks an unedited workbook of nearly 30,000 rows within 20 s, and nothing would change', () => {
-    const s = scaleWorkspace(s0, 5) as Snapshot;
+    const s = bigWorkspace();
     const wb = workbook({ ws: { id: 'ws', name: 'Big' } as never, snapshot: s, cycle, week, today });
     const tables = { goals: records(tsvOf(wb[1]!.rows)), plan: records(tsvOf(wb[2]!.rows)), checkIns: records(tsvOf(wb[3]!.rows)) };
     const rows = tables.goals.length + tables.plan.length + tables.checkIns.length;
     expect(rows).toBeGreaterThan(25_000);
     let cs: ReturnType<typeof planChanges> | null = null;
     const took = timed(() => { cs = planChanges(input(s, tables)); });
+    expect(cs!.issues).toEqual([]);
     expect(cs!.items).toEqual([]);
+    expect(Object.values(cs!.unchangedBy).reduce((a, b) => a + b, 0)).toBe(rows);
     expect(took).toBeLessThan(20_000);
   });
 

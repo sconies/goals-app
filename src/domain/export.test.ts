@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { aiBrief, CHECKIN_EXPORT_COLUMNS, EXPORT_FORMAT, GOAL_EXPORT_COLUMNS, toCsv, toJson, workbook } from './export';
+import { aiBrief, CHECKIN_EXPORT_COLUMNS, everythingCounts, EXPORT_FORMAT, GOAL_EXPORT_COLUMNS, toCsv, toJson, workbook } from './export';
 import { currentWeek, planAsOf, planAt } from './plan';
 import { summarise } from './summary';
 import { buildPlatformOrg } from '../data/platformOrg';
@@ -131,6 +131,15 @@ describe('a stopped goal in an export (backlog 7)', () => {
   const own = s.checkIns.filter((c) => c.goalId === live.id);
   const snap = { ...s, goals: s.goals.filter((g) => g.id !== live.id), checkIns: s.checkIns.filter((c) => c.goalId !== live.id), archive: { goals: [stopped], checkIns: own, decisions: [], people: [], reviews: [] } };
   const x = { ...input, snapshot: snap };
+
+  it('Export’s Everything line counts what the workbook holds, the stopped goal and its check-ins too', () => {
+    const wb = workbook(x);
+    const n = everythingCounts(snap);
+    expect(n.goals).toBe(wb[1]!.rows.length - 1);
+    expect(n.checkIns).toBe(wb[3]!.rows.length - 1);
+    expect(n.people).toBe(wb[4]!.rows.length - 1);
+    expect(n.goals).toBe(snap.goals.length + 1);
+  });
 
   it('the live goal has a forecast to drop', () => {
     expect(summarise(live, s, cycle, today, week).forecast).toBeTruthy();

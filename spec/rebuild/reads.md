@@ -81,5 +81,5 @@ Each action of [the command port](../core/actions.md), run once as the person na
 | `sendFeedback` | rhea | saved | nothing in the workspace’s lists | — |
 | `saveMetric` | amara | saved | `modules.metrics.metrics` 13 of 13; `people` 1 of 97 | `modules.metrics.metrics` |
 | `removeMetric` | amara | saved | `modules.metrics.metricLinks` 1 of 12, past the rest by `metricId`; `modules.metrics.metrics` 1 of 13 | — |
-| `linkGoalMetric` | amara | nothing to save | `goals` 1 of 126; `modules.metrics.metricLinks` 1 of 12; `modules.metrics.metrics` 1 of 13 | — |
+| `linkGoalMetric` | amara | nothing to save | `checkIns` 0 of 5,249, past the rest by `goalId`; `goals` 1 of 126, past the rest by `id`; `modules.metrics.metricLinks` 1 of 12, past the rest by `metricId`; `modules.metrics.metrics` 1 of 13 | — |
 | `unlinkGoalMetric` | amara | saved | `goals` 0 of 126, past the rest by `id`; `modules.metrics.metricLinks` 1 of 12; `modules.metrics.metrics` 1 of 13 | — |
