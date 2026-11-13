@@ -1168,6 +1168,12 @@
       "area": "Names",
       "text": "Two goals may share a title and two people a name (the email is who someone is). Creating one warns; wherever both could be on screen, a goal shows its key and a person their team or job title beside the name, and people with the same initials get different avatar colours.",
       "use": "copy"
+    },
+    {
+      "id": "RAIL-SWITCH",
+      "area": "Navigation",
+      "text": "On the icon rail the Faro mark is the workspace switcher: it opens the same panel as the sidebar's Switch, adds no row (the Demo box keeps its room at 1024 × 768), and Escape returns focus to it.",
+      "use": "copy"
     }
   ],
   "notYetBuilt": [
