@@ -108,7 +108,8 @@ module.exports = {
         await sheet.waitFor();
         await sheet.getByRole('button', { name: 'Other formats' }).click();
         await Promise.all([p.waitForEvent('download').catch(() => null), sheet.getByRole('button', { name: 'Save .json' }).click()]);
-        await p.locator('.sheet-toast').first().waitFor({ timeout: 3000 });
+        // Not the first: on a phone the View sheet under Export is hidden (visibility), and holds a copy of the message too.
+        await p.locator('.sheet-wrap:not(.under-sheet) .sheet-toast').first().waitFor({ timeout: 3000 });
         await p.waitForTimeout(350); // its slide-in has finished
         const r = await p.evaluate(() => {
           const top = [...document.querySelectorAll('.sheet')].pop();
