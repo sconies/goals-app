@@ -6486,7 +6486,7 @@ journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI 
   await p.goto(url('/metrics/queue-wait/edit'));
   await h.fill(p.getByLabel('Unit', { exact: true }), 's');
   await h.click(p.getByRole('button', { name: 'Save changes' }));
-  const confirm = p.getByRole('alertdialog');
+  const confirm = p.getByRole('dialog');
   await see(confirm, /1 goal is measured by Pipeline queue wait \(p90\) in min\. Is “s” a new label for the same numbers, or a different scale\?/, 'changing a unit goals use is not asked first');
   await h.click(confirm.getByRole('button', { name: 'Keep it as it was' }));
   h.set('finish', (await p.getByLabel('Unit', { exact: true }).inputValue()) === 'min', 'Keep it as it was did not put the unit back');
@@ -6599,6 +6599,8 @@ journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Le
   await h.click(p.getByRole('button', { name: 'Save changes' }));
   const rb = p.locator('.metric-readback');
   await see(rb, 'Is it still the same number?', 'a new meaning is not read back with the question');
+  // The read-back is a sheet: it takes the focus, and its own button is the one primary action (#351 review).
+  h.set('attention', await p.evaluate(() => !!document.activeElement?.closest('[role="dialog"]')), 'the read-back does not take the focus');
   await see(rb, /1 goal is measured by it/, 'the read-back does not name the goals');
   await h.checkpoint('read back');
   await h.click(rb.getByLabel(/The number itself changes/));
@@ -6608,6 +6610,8 @@ journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Le
   await h.fill(rb.getByLabel(/^Why/), 'The DORA dashboard counts from merge now.');
   await h.click(rb.getByRole('button', { name: 'Change the meaning' }));
   await p.waitForURL(/\/demo\/metrics\/lead-time(\?|#|$)/);
+  // A change offers Undo, which would take its mark back with it (#351 review).
+  h.set('progress', (await p.locator('.toast-action').filter({ hasText: 'Undo' }).count()) > 0, 'a metric change offers no Undo');
   await p.goto(url('/goals/ns-lead'));
   const note = p.locator('.c-note text').first();
   await note.waitFor({ timeout: 8000 }).catch(() => {});
@@ -6620,6 +6624,10 @@ journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Le
   await h.click(p.getByRole('button', { name: 'Retire the metric' }));
   await see(p.locator('.metric-retired'), /Retired on .*: “The test platform reports it now\.”/, 'the retired metric’s page does not say so');
   h.set('errors', (await p.getByRole('link', { name: 'Change this metric' }).count()) === 0, 'a retired metric still offers Change this metric');
+  // It can be found again: the library links to the retired ones, which lists it (#351 review).
+  await p.goto(url('/metrics'));
+  await h.click(p.getByRole('link', { name: /^See the (\d+ )?retired metrics?$/ }));
+  await h.click(p.getByRole('list', { name: 'Metrics' }).getByRole('link', { name: /Flaky test rate/ }));
   await h.click(p.getByRole('button', { name: 'Bring it back' }));
   await p.locator('.metric-retired').waitFor({ state: 'detached' });
   const s = await h.snapshot();

@@ -106,10 +106,10 @@ const records: Omit<ModuleRecords, 'module'> = {
   // Goals' "Measured by" (?metric=): a goal's column is the metric its live link names. The app's filter (finder.ts)
   // and find_goals both read it.
   // MT3's `goal.marks`: a change of meaning or direction since the goal was linked, on its chart (rule 4).
-  goalMarks: (s, goalId, since) => {
+  goalMarks: (s, goalId, since, until) => {
     const l = linkOf(s, goalId);
     const m = l ? metricsOf(s).find((x) => x.id === l.metricId) : undefined;
-    return m && l ? marksFor(m, l, since).map((k) => ({ week: k.week, label: markLabel(k) })) : [];
+    return m && l ? marksFor(m, l, since, until).map((k) => ({ week: k.week, label: markLabel(k) })) : [];
   },
   goalColumns: [{ param: 'metric', fill: (s) => { const by = new Map(linksOf(s).filter((l) => !l.removedAt).map((l) => [l.goalId, l.metricId])); return (g) => by.get(g.id) ?? null; } }],
 };

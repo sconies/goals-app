@@ -13321,10 +13321,11 @@ var init_changeset = __esmMin((() => {
 	};
 }));
 // src/modules/metrics/rules.ts
-/** The marks a goal shows (MT3 rule 4): its metric's marks made at or after the goal was linked to it, and since `since`
-(the cycle's start), oldest first. A goal linked after a change was never measured the old way. */
-function marksFor(metric, link, since) {
-	return (metric.marks ?? []).filter((m) => m.at >= link.linkedAt && (!since || m.at >= since));
+/** The marks a goal shows (MT3 rule 4): its metric's marks made at or after the goal was linked to it, in the goal's own
+cycle (since `since`, its start, and before `until`, the day after its last week), oldest first. A goal linked after a
+change was never measured the old way, and a change made next year leaves this year's goals as they were. */
+function marksFor(metric, link, since, until) {
+	return (metric.marks ?? []).filter((m) => m.at >= link.linkedAt && (!since || m.at >= since) && (!until || m.at < until));
 }
 /** A live metric by id, or by name (any case). */
 function findMetric(s, ref) {
@@ -13424,7 +13425,13 @@ function metricProblems(m, s) {
 	else if (m.name.length > METRIC_LIMITS.name) out.push(`Keep the name to ${METRIC_LIMITS.name} characters or fewer.`);
 	else {
 		const same = liveMetrics(s, { retired: true }).find((v) => v.id !== m.id && !v.name.localeCompare(m.name, "en", { sensitivity: "base" }));
-		if (same) out.push(`There’s already a metric called ${same.name}. Use it, or give this one a different name.`);
+		if (same?.retiredAt) out.push(`There’s already a metric called ${same.name}, retired on ${new Date(same.retiredAt).toLocaleDateString("en-GB", {
+			day: "numeric",
+			month: "short",
+			year: "numeric",
+			timeZone: "UTC"
+		})}. Bring it back from its page, or give this one a different name.`);
+		else if (same) out.push(`There’s already a metric called ${same.name}. Use it, or give this one a different name.`);
 	}
 	if (!m.unit) out.push("Say its unit: %, min, hours, USD, deploys…");
 	else if (m.unit.length > METRIC_LIMITS.unit) out.push(`Keep the unit to ${METRIC_LIMITS.unit} characters or fewer.`);
@@ -14138,12 +14145,15 @@ function changeKinds(before, after, linked, o = {}) {
 	if (after.decimals < before.decimals && linked.some((g) => g.decimals > after.decimals)) out.push("decimals");
 	return out.length ? out : ["words"];
 }
-/** The live goals a metric measures now (links in force, the goal neither removed nor stopped), as rule 3 reads them. */
+/** The goals a metric measures now (links in force, the goal not removed), in every year, as rule 3 reads them. A stopped
+goal counts: it can be restored for 30 days, and a change must not leave it in a unit or direction it never had. */
 function linkedGoals(s, metricId) {
 	const ids = new Set(linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt).map((l) => l.goalId));
-	return s.goals.filter((g) => ids.has(g.id) && !g.removedAt && !g.stoppedAt).map((g) => ({
+	return s.goals.filter((g) => ids.has(g.id) && !g.removedAt).map((g) => ({
 		id: g.id,
 		title: g.title,
+		cycleId: g.cycleId,
+		stopped: !!g.stoppedAt,
 		unit: g.kind === "milestone" ? "" : g.unit,
 		decimals: g.kind === "milestone" ? 0 : g.decimals,
 		ownerId: g.ownerId,
@@ -14175,14 +14185,15 @@ function saveMetricChange(x, input) {
 	const marked = [...kinds.includes("meaning") && comparable === false ? ["definition"] : [], ...kinds.includes("direction") ? ["direction"] : []];
 	if (marked.length && !why) no(marked.includes("direction") ? "Say why the direction changes, in a line. Every goal measured by it will show this." : "Say why, in a line. Every goal measured by it will show this.");
 	if (why.length > 300) no("Keep the reason to 300 characters or fewer.");
+	const words = (m) => (before.meaning.trim() !== after.meaning.trim() ? m.meaning : m.source) || m.meaning || m.source;
 	const marks = marked.map((kind) => ({
 		week: x.week,
 		at: x.now,
 		by: x.actor.id,
 		kind,
 		why,
-		was: kind === "direction" ? DIRECTION_LABEL[before.direction] : before.meaning || before.source,
-		now: kind === "direction" ? DIRECTION_LABEL[after.direction] : after.meaning || after.source
+		was: kind === "direction" ? DIRECTION_LABEL[before.direction] : words(before),
+		now: kind === "direction" ? DIRECTION_LABEL[after.direction] : words(after)
 	}));
 	const metric = marks.length ? {
 		...after,
@@ -14194,7 +14205,7 @@ function saveMetricChange(x, input) {
 	}) : [];
 	const head = dry.commit.changes[0];
 	const said = marks.length ? `${head.summary}${why ? `: ${why}` : ""}` : kinds.includes("relabel") ? `Changed the unit of “${after.name}” from “${before.unit}” to “${after.unit}” on it and its ${goalsWord(n)}` : head.summary;
-	const perGoal = marks.length || goals.length ? linked.map((g) => log(x, {
+	const perGoal = (marks.length ? linked.filter((g) => g.cycleId === x.cycle.id) : goals.length ? linked : []).map((g) => log(x, {
 		entityId: after.id,
 		goalId: g.id,
 		action: "edited",
@@ -14204,7 +14215,7 @@ function saveMetricChange(x, input) {
 			from: before.unit,
 			to: after.unit
 		}] : []
-	})) : [];
+	}));
 	return {
 		metric,
 		commit: {
@@ -15059,10 +15070,10 @@ var records_default = [{
 				direction: m.direction
 			} : null;
 		},
-		goalMarks: (s, goalId, since) => {
+		goalMarks: (s, goalId, since, until) => {
 			const l = linkOf(s, goalId);
 			const m = l ? metricsOf(s).find((x) => x.id === l.metricId) : void 0;
-			return m && l ? marksFor(m, l, since).map((k) => ({
+			return m && l ? marksFor(m, l, since, until).map((k) => ({
 				week: k.week,
 				label: markLabel(k)
 			})) : [];
@@ -17742,7 +17753,7 @@ var help$2 = [
 					"What you type is kept as a draft: Close, Back or a reload doesn’t lose it. Opened from a metric’s To sort out or its completeness line, the form opens at the field that needs filling.",
 					"Changing the unit or which way is better of a metric goals use asks first, here and through the AI assistant: their numbers and plans don’t change, and the goals that now differ say so under “Measured by” on their page.",
 					"Workspace → About tells admins how many metrics have no owner (someone who left owned them), with See them.",
-					"On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back.",
+					"On a metric’s page, its owner and admins choose Change this metric, Retire this metric… (one a goal has used) or Delete this metric… (one no goal has used). Retiring keeps its goals’ numbers and plans; Undo, Bring it back, or Recently removed for 30 days for a deleted one, puts it back.",
 					"An AI assistant asks the same questions: save_metric returns them and saves nothing until it calls again with your answers to those questions. Someone who may not change a metric is told so before being asked anything."
 				]
 			}
@@ -17892,16 +17903,17 @@ var help$2 = [
 				heading: "What reads back first",
 				list: [
 					"Changing what a metric means, or where its number comes from, shows the goals it measures and asks “Is it still the same number?”. Same number, better words: nothing is marked. The number itself changes: say why, in a line, and each goal’s chart and History say “Definition changed, week {w}” with your reason. Their numbers and plans don’t change.",
-					"Changing which way is better needs a reason too, names the goals whose target now lies the wrong way, and marks each goal.",
+					"Changing which way is better needs a reason too, names the goals whose target now lies the wrong way, and marks each goal. Goals that are stopped count too, as they can be restored.",
 					"A new unit is either a new label for the same numbers (every goal’s unit changes with it) or a different scale. A different scale is a different metric: add it as a new metric and move goals to it, or retire this one.",
 					"Fewer decimal places names the goals that show more; they keep theirs until their owners change them.",
-					"Undo takes back the change, its marks and, for a new label, every goal’s unit, as one."
+					"The toast after a change has Undo: it takes back the change, its marks and, for a new label, every goal’s unit, as one.",
+					"A mark belongs to the year it was made in: a change made next year leaves this year’s goals as they were. A chart shows the latest three, and two in one week as one line."
 				]
 			},
 			{
 				heading: "Retire, not delete",
 				list: [
-					"A metric that has measured a goal is retired, not deleted: its goals keep their numbers and plans and say “Measured by {metric}, retired {date}”. It leaves the pickers and the library’s list (Retired metrics are listed apart), and it can be brought back at any time with Bring it back.",
+					"A metric that has measured a goal is retired, not deleted: its goals keep their numbers and plans and say “Measured by {metric}, retired {date}”. It leaves the pickers and the library’s list; See the retired metrics, under the list (or Filters, Retired metrics only), lists them, and any can be brought back with Bring it back. Adding a metric with its name says it is retired and links to it.",
 					"Say why it is retired. Name what replaces it, in the same unit, and its goals’ owners are offered it on the goal’s page.",
 					"A metric no goal has ever used is deleted instead, and can be put back from Recently removed for 30 days."
 				]
@@ -26024,7 +26036,9 @@ var tools$2 = [
 						text: `Nothing saved yet. Ask the person, then call again with answers:\n${checks.map((c) => `- ${c.field}: ${c.question} (${c.answers.map((x) => `${x.answer}: ${x.label}`).join("; ")})`).join("\n")}`
 					};
 				}
-				const { commit, metric } = saveMetricAsked(ax(ctx), {
+				const x = ax(ctx);
+				const was = input.id ? metricsOf(x.snapshot).find((m) => m.id === input.id) : void 0;
+				const { commit, metric } = saveMetricAsked(x, {
 					...input,
 					answers
 				});
@@ -26037,14 +26051,17 @@ var tools$2 = [
 				};
 				await save(ctx, commit);
 				const still = lineOf(ctx.snapshot, metric).line;
+				const more = was && metric.decimals < was.decimals ? linkedGoals(x.full ?? x.snapshot, metric.id).filter((g) => g.decimals > metric.decimals) : [];
+				const places = more.length ? ` ${more.length === 1 ? "1 goal shows" : `${more.length} goals show`} more decimal places than ${metric.name} now does: ${more.map((g) => g.title).join(", ")}. They keep theirs until their owners change them.` : "";
 				return {
 					data: {
 						saved: true,
 						id: metric.id,
 						changes: commit.changes[0].diffs,
-						stillToSay: still
+						stillToSay: still,
+						...more.length ? { moreDecimals: more.map((g) => g.id) } : {}
 					},
-					text: `${commit.changes[0].summary} (as ${ctx.actor.name}). Its ID is ${metric.id}. ${still}`
+					text: `${commit.changes[0].summary} (as ${ctx.actor.name}). Its ID is ${metric.id}. ${still}${places}`
 				};
 			});
 		}
