@@ -3,6 +3,29 @@
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
 
+
+## Track 1, Friday 13 November, 05:45 UTC (session past half, handing over; supersedes the 02:00 entry)
+
+Session: session_012kbr91FiHKpcgaoQxfHX4a. **Merged:** #328 (Import's way out; F8's stale locator was fixed on main by #342 the same way), #326 (#225's review, with Lane's budget raise: first download 275 KB, the real app's 334 KB, `MARGIN_KB` still 3), #352 (`rv7-scope`: a review speaks only for the goals it walks, `maySpeak` in `actions.ts`, `scopeRefusal`; MCP `review_call` says the rule), #366 (`data-search-mediums`: #234's three mediums, F7's [S1]–[S3]).
+
+**In flight:** #369 (`review-mediums`, auto-merge on): asks follow a goal's new owner (Lane, 13 Nov: `src/domain/askHandover.ts`, used by `planGoal` and `planChanges`; Home's "Asked of Tunde, now yours" via `handedFrom`, read from the ask's log, no migration), #310's mediums (waiting line first; a late question says "Was due by Tue 10 Nov"; the asked day on the viewer's clock; `get_my_work` uses `homeAsks`), #305's (`missedReviews` empty after the cycle ends; N26 checks the first goal needing attention is above a phone's fold for five people every day), #282's (a module's focus page is a form: `isForm(path, search, forms)`, `useForms`; the metric form has one FormClose). Full suite green before the PR. If CI fails, fix it there.
+
+**Next, in order:**
+1. **The build reviewer's two new mediums** (from session_012kbr8y4Bh3MudNC1bdo3RN, 04:49; full text on `build-reviews`):
+   - #328: once a file or paste is read, `/data/import/check` and its changes list are forms with no way out on a phone. Give both the same FormClose ("Close without saving", to Import or Data) and add both to U72; U72 should also press one closer, not only read it.
+   - #326: "a cycle that has ended can't be corrected" holds only in the form (`p.mode === 'correct'` in `changeset.ts`): MCP, Data's tables and a workbook loaded later still replace a check-in of an ended cycle. Refuse every replacement once the cycle has ended (`cycleState` ended or closed), in the engine, with tests for each door; or Lane says only the form closes.
+2. **The habit moment**, as Lane decided it (13 Nov): `docs/design/round-4/habit/spec.md` (PR #333). HB1 needs nothing, HB2 follows, HB3 needs HM7. The Home cell loads its rule after paint (first download).
+3. N12's Find timing; #110's lows; HM1's lows.
+4. **The lows batch:** the 21:40 entry's list (#261, #234, #255); RV7's six (planning, 02:22: a removed member can turn an old note into a risk acceptance through `editCall`; the join line can name the viewer; `reviewCall` accepts any week 1–99; `list_reviews` gives only `youreIn` and no MCP test covers the rule; N25 checks only that a line is absent; `Inspect.tsx` ~102 cuts the join line by string replace, and at 390 the non-member's bar is four lines of names); #326's (after a hand-over `canUndoImport` is true but `undoImport` says "Nothing left to undo", `removal.ts` 467/689; the correction form still offers "No new number this week"; Past imports says its sentence twice and Undo says "2 rows" for one correction); #328's (two links on Import are 17 and 20 px high on touch); #310's (the meta is two or three lines at 1440; a late question sits under three decisions because the screen regroups by kind; "A next step you agreed is due" when someone else set it, and two full stops; `ASK_BUTTON` repeats `ASK_ACTION`); #305's (two reviews on one day counted but one named; "Sept" in the cell, "Sep" in the lead); #282's (Close goes to a fixed place; "Save and skip" then reload returns to the skipped goal; U70's budget 7→9).
+
+**Habits, learned this session:**
+- The merge helpers, rebuilt (scratchpad, gone with the container): `wn.cjs <branch>` writes What's new as main's file with the branch's own entries on top, dated no earlier than main's newest; `fin.sh` stops on any conflict other than `api/mcp.js`, What's new, `spec/`, `llms.txt` or `evals/report.md`, then takes main's of those, runs `build:mcp` (checks `home/user` is 0), `npm run spec`, commits "Merge main [no news]" and typechecks. Chain everything after it with `&&`: a `;` let a push run after a stopped merge.
+- Main moves every few minutes: merge it in, rebuild and push just before marking a PR ready, and again when it goes dirty (a dirty PR gets no CI at all, only Vercel's check).
+- Never run unit tests beside an eval: fence.test and proposed.test time out under the load (they pass alone).
+- A Home change for the phone: measure with N26 (`FINISH=N26`), which now walks five people over two weeks at 390 and 1440; a local Playwright script reads about 12 px higher than N26 does.
+- U3 and U38 read the ask kinds' headings ("Questions for you", "Updates asked for"): keep them.
+- N12's Data timing is close to its budget beside a full run; keep per-row work in `applyTable` off the common path.
+
 ## Track 7b (metrics and the register rows), Friday 13 November, 04:40 UTC (session at half, handing over)
 
 **Merged:** #281 MT1 (defining a metric well: "Fully defined" / "Still to say", Must fix and Check under each field, `save_metric`'s `checks` and `answers`, U105, `METRIC-DEFINED`); #294 (track 7's review mediums: MCP returns stored keys; `find_goals` pages 50 at a time through `listed()`); #299 migration 0043 (a link's `part`, a metric's retirement and `marks`); #308 MT2 (Which part, unit and direction from the metric, a why when what measures a goal with check-ins changes, `link_goal_metric`, U146, `METRIC-PARTS`); #340 (MT1's review: the save itself asks the Checks, accent-folded names, five lows).
