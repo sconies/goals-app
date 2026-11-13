@@ -23,6 +23,15 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'sidebar-fits-a-laptop',
+    date: '2026-11-13',
+    title: 'The whole sidebar fits on a laptop screen',
+    points: [
+      'The sidebar’s rows are a little tighter, and the demo’s Demo button is one line, so everything down to your name shows on a 900-pixel-high screen without scrolling.',
+    ],
+    articles: ['getting-around', 'demo'],
+  },
+  {
     id: 'range-between-both-limits',
     date: '2026-11-13',
     title: 'A range between two numbers weighs both its limits',
