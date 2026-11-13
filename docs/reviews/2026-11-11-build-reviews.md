@@ -134,6 +134,9 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #323 AX5: narrow load | 4 | 0 | 2 | 5 |
 | #229 Track 4: #193's mediums | 4 | 0 | 1 | 2 |
 | #318 ST1 review: the three mediums from #285 | 2 | 0 | 0 | 0 |
+| #317 Import and Export: the four mediums on #257 and #248 | 3 | 0 | 0 | 0 |
+| #331 #300 review: a range between weighs both limits | 2 | 0 | 0 | 0 |
+| #327 Migration 0044: history paging indexes | 4 | 0 | 0 | 0 |
 | #313 FS1 review: three mediums from #111 | 1 | 0 | 0 | 0 |
 | #291, #295, #296, #304, #307 KT9, KT10 and KT6: the kit | 6 | 0 | 0 | 0 |
 | #244, #246, #254, #260 Backlog and handovers | planning, 6, 7 | 0 | 0 | 0 |
@@ -1426,3 +1429,19 @@ Three of the four hold (same reviewing session): a failed engine load now says s
 **1. Medium (ran). "One port per workspace" does not hold: there is still one port per hook.** `portFor`'s key includes `columns` (`src/app/goals.ts:16-29`), and `useGoalColumns` builds a new object in each hook's own `useMemo`, so no two hooks share a key and the one-slot cache is overwritten each time. One render with six goal hooks summarised the workspace three times. Fix: key on stable inputs, or build the columns inside the shared port, with a test.
 
 **Lows.** `saveGoal` with a module's `also` still fails without a word when the engine can't load (`src/app/state.tsx:768`; read). No unit test for the port's sharing or the toast's branches.
+
+### #317 Import and Export: the four mediums on #257 and #248 (track 3, merged 01:55 UTC, 13 Nov)
+
+Fixes all four. A new goal row with Action Stop or Delete is a Must fix ("Stop needs the goal's Key, to say which goal"), not a crash. The speed test's big workspace now has its own keys, titles, names and emails per copy, and asserts no issue and every row unchanged. A filtered All tab exports as `as-shown`, never `all`. "Everything in {cycle}" counts what the workbook writes, stopped and proposed goals included (`everythingCounts`, `src/domain/export.ts`, which the workbook's own preparation now shares). Read, with the export and speed tests run on main at `88c35883`. No finding.
+
+### #331 #300 review: a range between two numbers weighs both its limits (track 2, merged 02:27 UTC, 13 Nov)
+
+Fixes all three of #300's mediums and #293's low. Trend, "Vs last week" and the since fact read a range goal's movement through one new function, `rangeRoom` (between: the smaller distance to the two bounds), so a move back to the middle is better from either side; "Will it stay within?" is judged against the bound nearer the projected number, not today's; the nearer side is chosen by distances with floating-point noise set aside; the chart pads a between band by a share of the band and puts the Lower label under its line; and the wording inside a between range names the range. The comments on a proposal's stages now say what happens. Read, with its tests run; the chart was not seen on screen. No finding.
+
+### #327 Migration 0044: indexes for history paging (track 4, merged 02:10 UTC, 13 Nov)
+
+Two `create index if not exists` on `faro.okr_changes`, by `(workspace_id, at desc, id desc)` and by goal. Nothing else is created, so no grant is needed; nothing outside `faro`; safe to run twice; one merge ahead of the code that pages with it. Read; not run. No finding.
+
+### #325 and #329 handovers
+
+Documents. Not reviewed.
