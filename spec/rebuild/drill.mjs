@@ -190,13 +190,16 @@ function hasJson(want, got) {
   return sameJson(want, got);
 }
 
-/** A path into an answer: `total`, `rows[0].name`, `rows[].id` (each row's id), `[].id` when the answer is a list. */
+/** A path into an answer: `total`, `rows[0].name`, `rows[].id` (each row's id), `[].id` when the answer is a list,
+    `goals[id=g1].title` (the item whose id is g1). */
 export function selectPath(path, value) {
-  const parts = path.match(/[^.[\]]+|\[\d*\]/g) ?? [];
+  const parts = path.match(/[^.[\]]+|\[[^\]]*\]/g) ?? [];
   const walk = (v, i) => {
     if (i === parts.length) return v;
     const p = parts[i];
     if (p === '[]') return Array.isArray(v) ? v.map((x) => walk(x, i + 1)) : undefined;
+    const by = /^\[([^=\]]+)=(.*)\]$/.exec(p);
+    if (by) return Array.isArray(v) ? walk(v.find((x) => x && typeof x === 'object' && String(x[by[1]]) === by[2]), i + 1) : undefined;
     if (p.startsWith('[')) return Array.isArray(v) ? walk(v[Number(p.slice(1, -1))], i + 1) : undefined;
     return v && typeof v === 'object' ? walk(v[p], i + 1) : undefined;
   };
@@ -209,7 +212,8 @@ const show = (v) => (v === undefined ? 'nothing' : JSON.stringify(v));
 export function checkThen(t, outcome) {
   const out = [];
   if (t.throws) return 'error' in outcome ? [] : [`expected a refusal, got ${show(outcome.ok)}`];
-  if ('error' in outcome) return [`refused: ${outcome.error}`];
+  if ('error' in outcome && !t.anyOf) return [`refused: ${outcome.error}`];
+  if ('error' in outcome) return t.anyOf.some((sub) => checkThen(sub, outcome).length === 0) ? [] : [`refused: ${outcome.error}`];
   const v = t.select ? selectPath(t.select, outcome.ok) : outcome.ok;
   const at = t.select ? `${t.select}: ` : '';
   if ('equals' in t && !sameJson(t.equals, v)) out.push(`${at}expected ${show(t.equals)}, got ${show(v)}`);
@@ -219,6 +223,7 @@ export function checkThen(t, outcome) {
   for (const x of t.excludes ?? []) if (!list || list.some((y) => sameJson(x, y))) out.push(`${at}expected no ${show(x)} in ${show(v)}`);
   if (t.length != null && (v == null || v.length !== t.length)) out.push(`${at}expected ${t.length} long, got ${v == null ? 'nothing' : v.length}`);
   if (t.maxLength != null && (v == null || v.length > t.maxLength)) out.push(`${at}expected at most ${t.maxLength} long, got ${v == null ? 'nothing' : v.length}`);
+  if (t.matches != null && (typeof v !== 'string' || !new RegExp(t.matches).test(v))) out.push(`${at}expected text matching /${t.matches}/, got ${show(v)}`);
   if (t.distinct && (!list || new Set(list.map((x) => JSON.stringify(x))).size !== list.length)) out.push(`${at}expected no item twice in ${show(v)}`);
   if (t.ordered) {
     const bad = !list ? -1 : list.findIndex((x, i) => i > 0 && (t.ordered === 'text' ? String(list[i - 1]).localeCompare(String(x)) > 0 : (t.ordered.rank[list[i - 1]] ?? 0) < (t.ordered.rank[x] ?? 0)));
@@ -255,13 +260,13 @@ export async function runContract(contract, call, only = null) {
           pages++;
           if ('error' in o) { problems.push(`${where}page ${pages}: refused: ${o.error}`); failed = true; break; }
           if (s.pages.each) for (const p of checkThen(s.pages.each, o)) problems.push(`${where}page ${pages}: ${p}`);
-          rows.push(...(o.ok?.rows ?? []));
+          rows.push(...(o.ok?.[s.pages.rows ?? 'rows'] ?? []));
           if (!o.ok?.next) break;
           if (pages === 1 && s.pages.between) {
             const b = await call({ port: contract.port, op: s.pages.between.op, args: s.pages.between.args ?? [] });
             if ('error' in b) { problems.push(`${where}between pages (${s.pages.between.op}): refused: ${b.error}`); failed = true; break; }
           }
-          args[s.pages.arg] = { ...(args[s.pages.arg] ?? {}), after: o.ok.next };
+          args[s.pages.arg] = { ...(args[s.pages.arg] ?? {}), [s.pages.key ?? 'after']: o.ok.next };
         }
         if (!failed) for (const p of checkThen(s.then, { ok: { pages, rows } })) problems.push(where + p);
       }

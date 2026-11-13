@@ -4,6 +4,7 @@
    problems as the Import screen, with every row new. Nothing is saved until every row is right. */
 import { levelIds } from './levels';
 import { planChanges, type Tables } from './changeset';
+import type { Answer, Answers, Issue, IssueGroup } from './problemLevels';
 import { WEEKLY_REVIEW } from './via';
 export { initials, WEEKLY_REVIEW } from './via';
 import { GOALS, PEOPLE } from './columns';
@@ -25,6 +26,10 @@ export interface ImportResult {
   issues: ImportIssue[];
   /** Said on the row, never blocking: a shared name, a number worth checking (backlog N). */
   notes?: ImportIssue[];
+  /** The engine's groups (rule 6), with their answers: set-up's preview of a spreadsheet (IM8). */
+  groups: IssueGroup[];
+  /** Every problem, a row each, for a group's "Show the {n} rows". */
+  found: Issue[];
 }
 
 /** The set-up template's columns: the one format's, the ones a new workspace needs (domain/columns). */
@@ -76,7 +81,7 @@ export const DEFAULT_VIEWS: [string, string][] = [
   ['No update for 2 weeks or more', 'quiet=2&sort=last'],
 ];
 
-export function buildWorkspace(input: { name: string; startDate: string; people: string; goals: string; tables?: Tables; now: Date; idSuffix: string; reviewDay?: number; weeks?: number }): ImportResult {
+export function buildWorkspace(input: { name: string; startDate: string; people: string; goals: string; tables?: Tables; now: Date; idSuffix: string; reviewDay?: number; weeks?: number; /** Answers to the preview's groups, by group id (rule 7). */ answers?: Answers }): ImportResult {
   const weeks = input.weeks ?? yearWeeks(input.startDate);
   const cycle: Cycle = { id: 'cycle-' + input.idSuffix, name: weeks >= 48 ? yearName(input.startDate, weeks) : input.name.trim() || 'My cycle', startDate: input.startDate, weeks, reviewDay: input.reviewDay ?? 3 };
   const people = recordsOf(parseDelimited(input.people));
@@ -101,7 +106,7 @@ export function buildWorkspace(input: { name: string; startDate: string; people:
   const setter: Person = { id: 'setting-up', name: '', role: '', initials: '', teamId: null, admin: true };
   const cs = planChanges({
     tables: { people, goals, ...(input.tables?.plan ? { plan: input.tables.plan } : {}), ...(input.tables?.checkIns ? { checkIns: input.tables.checkIns } : {}) },
-    snapshot: empty, cycle, week: Math.max(0, currentWeek(cycle, input.now)), actor: setter, now: input.now.toISOString(), newId, via: 'setup', mode: 'create',
+    snapshot: empty, cycle, week: Math.max(0, currentWeek(cycle, input.now)), actor: setter, now: input.now.toISOString(), newId, via: 'setup', mode: 'create', ...(input.answers ? { answers: input.answers } : {}),
   });
   const notes: ImportIssue[] = [];
   // Must fix blocks set-up. A Check is a question set-up's own steps don't ask yet (IM8 brings it the import's preview):
@@ -120,7 +125,35 @@ export function buildWorkspace(input: { name: string; startDate: string; people:
   const review: Review = { id: newId('rev', 'weekly'), name: WEEKLY_REVIEW, everyWeeks: 1, weekday: cycle.reviewDay, scope: { goals: [], trees: [], levels: levelIds(cycle) }, people: c.people.map((p) => p.id), createdBy: by, createdAt: at };
   const views: SavedView[] = DEFAULT_VIEWS.map(([name, params]) => ({ id: newId('view', name), personId: by, name, params, pinned: true, createdAt: at, updatedAt: at, deletedAt: null }));
   const logged: Change = { id: newId('chg', 'weekly review'), at, actorId: by, goalId: null, entity: 'review', entityId: review.id, action: 'created', summary: `Set up a review: “${review.name}”`, diffs: [{ field: 'Review', from: '—', to: review.name }] };
-  return { snapshot: { ...empty, people: c.people, teams: c.teams, goals: c.goals, checkIns: c.checkIns, requests: c.requests, reviews: [review], views, changes: [logged], ...(c.keysIssued ? { keysIssued: c.keysIssued } : {}) }, issues, ...(notes.length ? { notes } : {}) };
+  return { snapshot: { ...empty, people: c.people, teams: c.teams, goals: c.goals, checkIns: c.checkIns, requests: c.requests, reviews: [review], views, changes: [logged], ...(c.keysIssued ? { keysIssued: c.keysIssued } : {}) }, issues, ...(notes.length ? { notes } : {}), groups: cs.groups, found: cs.issues };
+}
+
+/**
+ * The answers set-up gives a spreadsheet's questions unless the person changes them (IM8): a new goal's stages already
+ * due are counted from this week, as a template's are. Each group is given its default once (`given` holds the ids), so
+ * "Change" leaves it open.
+ */
+export const SETUP_DEFAULTS: Partial<Record<IssueGroup['kind'], string>> = { 'past-stage': 'from-now' };
+export function setupDefaults(groups: readonly IssueGroup[], given: readonly string[]): { id: string; answer: Answer; title: string; label: string }[] {
+  return groups.flatMap((g) => {
+    const choice = SETUP_DEFAULTS[g.kind];
+    const c = choice ? g.answers.find((x) => x.choice === choice) : undefined;
+    return c && !given.includes(g.id) ? [{ id: g.id, answer: { choice: c.choice }, title: g.title, label: c.label }] : [];
+  });
+}
+
+/**
+ * "Add {person}" at set-up (IM8): the person a Goals row's owner cells name, for the people step. Their name is the
+ * Owner cell (else the email's first part), their email the Owner email cell, their team the row's (else `team`).
+ */
+export function ownerToAdd(goals: readonly Record<string, string>[], g: Pick<IssueGroup, 'column' | 'found'>, team: string): { name: string; email: string; team: string } {
+  const f = (g.found ?? '').trim().toLowerCase();
+  const col = g.column === 'Owner email' || (g.column === 'Owner' && f.includes('@')) ? 'owner email' : 'owner';
+  const row = goals.find((r) => (r[col] ?? '').trim().toLowerCase() === f) ?? {};
+  const email = (row['owner email'] ?? (f.includes('@') ? f : '')).trim();
+  const fromEmail = email.split('@')[0]!.split(/[._-]+/).filter(Boolean).map((w) => w[0]!.toUpperCase() + w.slice(1)).join(' ');
+  const name = (row['owner'] ?? '').trim() && !(row['owner'] ?? '').includes('@') ? row['owner']!.trim() : fromEmail || (g.found ?? '').trim();
+  return { name, email: email.toLowerCase(), team: (row['team'] ?? '').trim() || team };
 }
 
 /** Today's Monday, as an ISO date: the default start of a new cycle. */

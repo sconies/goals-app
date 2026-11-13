@@ -1961,7 +1961,8 @@ function mayChangeGoal(actor, goal) {
 * Whether `actor` may post or correct a check-in on `goal` (Lane, 12 Nov: check-ins are the owner's). Only its owner
 * at the check-in screens, the one-table check-in and through the AI tools. Two exceptions, both kept by Lane (12 Nov),
 * both for an admin: loading a workbook (a spreadsheet import, or setting up from an export) brings in everyone's
-* history, and Data's tables let an admin correct a past check-in. Each records the admin as author and actor, with
+* past weeks, and Data's tables let an admin correct a check-in that exists; neither adds this week's new one: the row
+* decides that (checkInDoors mayPostCheckInRow, which the change engine asks; Lane, 13 Nov, backlog AD). Each records the admin as author and actor, with
 * the door as its Via (postCheckIn.test).
 */
 function mayPostCheckIn(actor, goal, via) {
@@ -8037,6 +8038,21 @@ var init_goalEntry = __esmMin((() => {
 		stages: []
 	});
 }));
+// src/domain/checkInDoors.ts
+/**
+* Whether `actor` may post or correct this check-in row on `goal`. The owner always; an admin at one of the two doors
+* only for what it is for: a workbook brings in past weeks or corrects a check-in that is there, never this week's new
+* one (one pasted row on Import is no history); Data's tables correct a check-in that exists, never add one.
+*/
+function mayPostCheckInRow(actor, goal, via, row) {
+	if (goal.ownerId === actor.id) return true;
+	return mayPostCheckIn(actor, goal, via) && (row.exists || via !== "table" && row.week < row.thisWeek);
+}
+var ADMIN_DOOR_LIMIT;
+var init_checkInDoors = __esmMin((() => {
+	init_goalRights();
+	ADMIN_DOOR_LIMIT = (via) => via === "table" ? "Data’s tables correct a check-in; they don’t add one." : "A workbook brings in past weeks, not this week’s new check-in.";
+}));
 // src/domain/proposedActions.ts
 /** Rule 2's full list for the goal as it stands, as if it were made active from `fromWeek` (this week by default). */
 function readyToActivate(goal, ctx) {
@@ -9417,6 +9433,17 @@ function stagesFromNow(stages, week, weeks = 52) {
 	const scale = Math.min(1, room / last);
 	return parts.map((p) => p.at == null ? p.name : `${p.name}@${Math.min(weeks, Math.max(0, week) + Math.max(1, Math.round(p.at * scale)))}`).join("; ");
 }
+/** Whether a file's Check-ins sheet has a row for a Goals row (by key, ID or title): a goal with history keeps its weeks. */
+function reportedIn(checkIns) {
+	const low = (v) => (v ?? "").trim().toLowerCase();
+	const keys = /* @__PURE__ */ new Set();
+	for (const c of checkIns ?? []) for (const [col, as] of [
+		["goal key", "k"],
+		["goal id", "i"],
+		["goal", "t"]
+	]) if (low(c[col])) keys.add(as + low(c[col]));
+	return (g) => !!low(g["key"]) && keys.has("k" + low(g["key"])) || !!low(g["id"]) && keys.has("i" + low(g["id"])) || !!low(g["goal"]) && keys.has("t" + low(g["goal"]));
+}
 var init_templates = __esmMin((() => {}));
 // src/domain/problemLevels.ts
 /** Edits between two strings, a swap of two letters counting as one (Damerau, optimal string alignment). */
@@ -9518,7 +9545,7 @@ function groupTitle(kind, sheet, count, first) {
 		case "same-person": return first.message;
 		case "same-goal": return `${n$1(count, "new goal")} ${count === 1 ? "has a name its team already uses" : "have names their teams already use"}: “${v}”. Are they new?`;
 		case "other-goal": return first.message;
-		case "past-stage": return `${n$1(count, "new goal")} ${count === 1 ? "has" : "have"} stages due before this week. Are they done?`;
+		case "past-stage": return first.answers?.[0]?.choice === "from-now" ? `${n$1(count, "new goal")} ${count === 1 ? "has" : "have"} stages due before this week, so ${count === 1 ? "it" : "they"} would start late` : `${n$1(count, "new goal")} ${count === 1 ? "has" : "have"} stages due before this week. Are they done?`;
 		case "past-plan": return `${n$1(count, "new goal")} ${count === 1 ? "has a plan" : "have plans"} that ${count === 1 ? "has" : "have"} already ended`;
 		case "odd-number": return count === 1 ? first.message : `${n$1(count, "number")} look${count === 1 ? "s" : ""} unlikely: ${first.message}`;
 		case "plan-question": return count === 1 ? first.message : `${n$1(count, "plan change")} to check: ${first.message}`;
@@ -9654,7 +9681,15 @@ var init_problemLevels = __esmMin((() => {
 				needsValue: true
 			}
 		],
-		unknownRef: (thing, found, team, admin) => [{
+		/** At set-up (`create`), a person the People sheet lacks: "Add {found}" (set-up adds them to its people) first. */
+		unknownRef: (thing, found, team, admin, create = false) => create && thing === "person" ? [{
+			choice: "add",
+			label: `Add ${found}`
+		}, {
+			choice: "choose",
+			label: "Give it to someone here",
+			needsValue: true
+		}] : [{
 			choice: "choose",
 			label: `Choose a ${thing}`,
 			needsValue: true
@@ -9733,6 +9768,14 @@ var init_problemLevels = __esmMin((() => {
 				label: "Count them from this week"
 			}
 		],
+		/** At set-up, the first chosen unless changed (IM8): stages counted from this week, or kept as typed (and late). */
+		pastStageSetUp: [{
+			choice: "from-now",
+			label: "Count them from this week"
+		}, {
+			choice: "keep",
+			label: "Keep the weeks as typed"
+		}],
 		pastPlan: [{
 			choice: "add",
 			label: "They’re finished goals: add them"
@@ -10150,7 +10193,10 @@ function* planChangesInChunks(input) {
 			if (a?.choice === "use" && nearOne) return { p: nearOne };
 			if (a?.choice === "choose" && a.value) {
 				const again = personFrom(sheet, column, a.value.includes("@") ? "email" : "name", a.value);
-				if (again.p) return again;
+				if (again.p) return {
+					...again,
+					chosen: true
+				};
 			}
 			return {
 				kind: k,
@@ -10185,7 +10231,7 @@ function* planChangesInChunks(input) {
 			return settle("unknown-ref", `No one here has the email ${e}. Add them on the People sheet, or check it.`, {
 				column,
 				found: e,
-				answers: ANSWERS.unknownRef("person", e, false, false)
+				answers: ANSWERS.unknownRef("person", e, false, false, create)
 			});
 		}
 		if (kind === "id") {
@@ -10230,7 +10276,7 @@ function* planChangesInChunks(input) {
 		return settle("unknown-ref", `“${v}” isn’t in this workspace. Add them on the People sheet, or check the spelling.`, {
 			column,
 			found: v,
-			answers: ANSWERS.unknownRef("person", v, false, false)
+			answers: ANSWERS.unknownRef("person", v, false, false, create)
 		});
 	};
 	/**
@@ -10242,17 +10288,31 @@ function* planChangesInChunks(input) {
 		const header = (k) => k === "email" ? cols.name ? `${what} email` : what : k === "id" ? `${what} ID` : what;
 		const given = Object.entries(cols).filter(([, c]) => has(r, c) && ref(r, c)).map(([k, c]) => [k, ref(r, c)]);
 		const says = (k, v) => !!current && (k === "email" ? normalEmail(current.email) === normalEmail(v) : k === "id" ? current.id === v : fold$1(current.name) === fold$1(v) || current.id === v || v.includes("@") && normalEmail(current.email) === normalEmail(v));
-		let changed = given.filter(([k, v]) => !says(k, v));
+		const changed = given.filter(([k, v]) => !says(k, v));
 		if (!changed.length) return {};
-		const exact = changed.filter(([k]) => k !== "name").map(([k, v]) => personFrom(sheet, header(k), k, v).p).find(Boolean);
-		if (exact) changed = changed.filter(([k, v]) => k !== "name" || fold$1(v) !== fold$1(exact.name));
-		const found = changed.map(([k, v]) => ({
+		const read = changed.map(([k, v]) => ({
 			k,
 			v,
 			...personFrom(sheet, header(k), k, v)
 		}));
+		const picked = read.find((x) => x.chosen && x.p);
+		if (picked) return { person: picked.p };
+		const exact = read.find((x) => x.k !== "name" && x.p)?.p;
+		const found = exact ? read.filter((x) => x.k !== "name" || fold$1(x.v) !== fold$1(exact.name)) : read;
 		if (found.some((x) => x.left)) return { left: true };
 		const bad = found.find((x) => x.problem);
+		const nameCell = given.find(([k]) => k === "name")?.[1];
+		if (bad && create && nameCell && !nameCell.includes("@") && bad.extra?.answers?.[0]?.choice === "add") return {
+			kind: bad.kind,
+			problem: bad.problem,
+			extra: {
+				...bad.extra,
+				answers: [{
+					...bad.extra.answers[0],
+					label: `Add ${nameCell}`
+				}, ...bad.extra.answers.slice(1)]
+			}
+		};
 		if (bad) return {
 			kind: bad.kind,
 			problem: bad.problem,
@@ -10679,6 +10739,8 @@ function* planChangesInChunks(input) {
 		return skip;
 	}
 	const fromInDoubt = via !== "mcp" && !(input.tables.goals ?? []).some((r) => has(r, "start"));
+	/** A Goals row the file's Check-ins sheet reports on (create mode's stage question skips it). */
+	const reported = reportedIn(create ? input.tables.checkIns : void 0);
 	const goalRows = (input.tables.goals ?? []).map((r, i) => ({
 		r,
 		row: rowOf(r, i),
@@ -11009,19 +11071,19 @@ function* planChangesInChunks(input) {
 			d.stages = stages;
 		}
 		let doneIds = [];
-		if (!existing && !create && d.kind === "milestone") {
+		if (!existing && d.kind === "milestone" && !(create && reported(r))) {
 			const past = d.stages.filter((st) => {
 				const w = parseNumber(st.dueWeek);
 				return w != null && w < week;
 			});
 			if (past.length) {
-				const marks = mayPostCheckIn({
+				const marks = create || mayPostCheckIn({
 					id: actor.id,
 					admin: admin()
 				}, { ownerId: d.ownerId }, via) ? "" : " " + MARKS_STAGES(people.get(d.ownerId)?.name ?? "Its owner");
-				const a = ask("past-stage", "Goals", row, d.title, `${plural$2(past.length, "stage")} of “${d.title}” ${past.length === 1 ? "is" : "are"} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(", ")}. ${past.length === 1 ? "Is it" : "Are they"} done?${marks}`, {
+				const a = ask("past-stage", "Goals", row, d.title, `${plural$2(past.length, "stage")} of “${d.title}” ${past.length === 1 ? "is" : "are"} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(", ")}${create ? ", so it would start late." : `. ${past.length === 1 ? "Is it" : "Are they"} done?${marks}`}`, {
 					column: "Stages",
-					answers: ANSWERS.pastStage
+					answers: create ? ANSWERS.pastStageSetUp : ANSWERS.pastStage
 				});
 				if (a === "leave") return;
 				if (a?.choice === "done" && !marks) doneIds = past.map((st) => st.id);
@@ -11584,15 +11646,21 @@ function* planChangesInChunks(input) {
 			return;
 		}
 		const owned = s.goals.find((x) => x.id === g.id) ?? g;
-		if (!create && !mayPostCheckIn({
+		const who = {
 			id: actor.id,
 			admin: admin()
-		}, owned, via)) {
+		};
+		if (!create && !mayPostCheckInRow(who, owned, via, {
+			week: w,
+			thisWeek: week,
+			exists: !!existing
+		})) {
 			if (!post && answerOf("not-allowed", "Check-ins")?.choice === "leave") {
 				leave("Check-ins", row);
 				return;
 			}
-			raise("not-allowed", "Check-ins", row, g.title, `Only ${people.get(owned.ownerId)?.name ?? "its owner"} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
+			const limit = mayPostCheckIn(who, owned, via) ? " " + ADMIN_DOOR_LIMIT(via) : "";
+			raise("not-allowed", "Check-ins", row, g.title, `Only ${people.get(owned.ownerId)?.name ?? "its owner"} (its owner) can check in on “${g.title}”.${limit}`, post ? {} : { answers: ANSWERS.leaveOnly });
 			return;
 		}
 		const asked = post ? checkInLevels(g, w, draft, ctx).checks : [];
@@ -12291,6 +12359,7 @@ var init_changeset = __esmMin((() => {
 	init_columns();
 	init_goal();
 	init_goalEntry();
+	init_checkInDoors();
 	init_goalRights();
 	init_numbers();
 	init_goalKey();
@@ -12570,7 +12639,7 @@ function metricFrom(input, before, x) {
 }
 /**
 * What's wrong with a metric, in words someone can act on; empty when it can be saved. Required: a name (3 to 120
-* characters, not one another metric here uses), a unit (up to 20 characters) and a direction (higher or lower is
+* characters, not one another metric here uses, accents and case aside), a unit (up to 20 characters) and a direction (higher or lower is
 * better). Optional: the meaning, decimals (0 to 4), source and its owner, refresh (one of REFRESHES), owner (someone in
 * the workspace) and caveats, each text up to 2,000 characters.
 */
@@ -12580,7 +12649,7 @@ function metricProblems(m, s) {
 	else if (m.name.length < 3) out.push("Give the metric a name of at least three characters.");
 	else if (m.name.length > METRIC_LIMITS.name) out.push(`Keep the name to ${METRIC_LIMITS.name} characters or fewer.`);
 	else {
-		const same = liveMetrics(s).find((v) => v.id !== m.id && v.name.toLowerCase() === m.name.toLowerCase());
+		const same = liveMetrics(s).find((v) => v.id !== m.id && !v.name.localeCompare(m.name, "en", { sensitivity: "base" }));
 		if (same) out.push(`There’s already a metric called ${same.name}. Use it, or give this one a different name.`);
 	}
 	if (!m.unit) out.push("Say its unit: %, min, hours, USD, deploys…");
@@ -12961,6 +13030,348 @@ var init_rulesParts = __esmMin((() => {
 	linkChanges = (present, metricId, teamId, part) => !!present && (present.metricId !== metricId || present.teamId !== teamId || partKey(present.part ?? "") !== partKey(part));
 	forWords = (sliceName, part) => `${sliceName === "The whole company" ? "the whole company" : sliceName}${(part ?? "").trim() ? ` · ${(part ?? "").trim()}` : ""}`;
 }));
+// src/modules/metrics/names.ts
+/**
+* Rule 4. Up to two metrics in use whose names are close to `name`, closest first: one name's words contain the
+* other's, or they share at least two words and differ by at most one. An exact match (any case) is metricProblems'
+* error, not this; nor is a metric being changed (`except`).
+*/
+function closeNames(name, metrics, except) {
+	const mine = nameWords(name);
+	if (!mine.size) return [];
+	const scored = [];
+	for (const m of metrics) {
+		if (m.removedAt || m.id === except || fold$2(m.name.trim()) === fold$2(name.trim())) continue;
+		const theirs = nameWords(m.name);
+		if (!theirs.size) continue;
+		const shared = [...mine].filter((w) => theirs.has(w)).length;
+		const extra = mine.size + theirs.size - 2 * shared;
+		if (shared === Math.min(mine.size, theirs.size) || shared >= 2 && extra <= 1) scored.push({
+			m,
+			d: extra
+		});
+	}
+	return scored.sort((a, b) => a.d - b.d || fold$2(a.m.name).localeCompare(fold$2(b.m.name))).slice(0, 2).map((x) => x.m);
+}
+var directionWords, FILLER, nameWords;
+var init_names = __esmMin((() => {
+	init_fold();
+	directionWords = (d) => d === "lower" ? "lower is better" : "higher is better";
+	FILLER = /* @__PURE__ */ new Set([
+		"the",
+		"of",
+		"per",
+		"for",
+		"in",
+		"a",
+		"rate",
+		"time"
+	]);
+	nameWords = (name) => new Set(fold$2(name.replace(/\([^)]*\)|\[[^\]]*\]/g, " ")).split(/[^\p{L}\p{N}%]+/u).filter((w) => w && !FILLER.has(w)));
+}));
+// src/modules/metrics/rulesDefine.ts
+/**
+* Rule 1. What a metric still needs to say. A metric with a name, a unit and a direction is usable; `missing` lists, in
+* order, what it means (meaning empty), where the number comes from (source empty), who owns that source (empty) and how
+* often it refreshes (not said). The line is “Fully defined” when nothing is missing and its owner is here; “Its owner
+* has left.” alone when only that; otherwise “Still to say: {missing, commas}.”, with “ Its owner has left.” after it.
+*/
+function stillToSay(m, ownerIsHere) {
+	const empty = (k) => k === "refresh" ? m.refresh == null : !(m[k] ?? "").trim();
+	const missing = STILL_TO_SAY.filter(([, k]) => empty(k)).map(([w]) => w);
+	const left = !ownerIsHere;
+	const said = missing.length ? `Still to say: ${missing.join(", ")}.` : "";
+	const line = !missing.length && !left ? FULLY_DEFINED : [said, left ? OWNER_LEFT : ""].filter(Boolean).join(" ");
+	return {
+		usable: true,
+		full: !missing.length && !left,
+		missing,
+		ownerLeft: left,
+		line
+	};
+}
+/**
+* Rule 1. Up to two names close to `name`, closest first. **former**: `name` is a name a metric in use used to have
+* (its rename in the change log). **letters**: the two names, bared, differ by one edit for names up to 12 characters and
+* two for longer, and are not equal; names of 4 characters or fewer are never `letters` (too many false alarms).
+* **words**: the library's rule 4 (`closeNames`). An exact match (any case) is a Must fix, not this.
+*/
+function nameChecks(name, others, former = []) {
+	const mine = bare$1(name);
+	if (!mine) return [];
+	const out = [];
+	const seen = /* @__PURE__ */ new Set();
+	const add = (c) => {
+		if (!seen.has(c.other.id)) {
+			seen.add(c.other.id);
+			out.push(c);
+		}
+	};
+	for (const f of former) {
+		const now = others.find((o) => o.id === f.id);
+		if (now && bare$1(f.name) === mine && bare$1(now.name) !== mine) add({
+			kind: "former",
+			other: now
+		});
+	}
+	const letters = [];
+	for (const o of others) {
+		const theirs = bare$1(o.name);
+		if (theirs === mine || mine.length <= 4 || theirs.length <= 4) continue;
+		const max = Math.max(mine.length, theirs.length) > 12 ? 2 : 1;
+		const d = editsBetween(mine, theirs, max);
+		if (d <= max) letters.push({
+			kind: "letters",
+			other: o,
+			edits: d
+		});
+	}
+	letters.sort((a, b) => a.edits - b.edits || fold$2(a.other.name).localeCompare(fold$2(b.other.name))).forEach(add);
+	const asMetrics = others.map((o) => ({
+		...o,
+		removedAt: void 0
+	}));
+	for (const m of closeNames(name, asMetrics)) add({
+		kind: "words",
+		other: {
+			id: m.id,
+			name: m.name
+		}
+	});
+	return out.slice(0, 2);
+}
+/** The names metrics in use used to have, from the change log's renames: `{ id: the metric, name: its old name }`. */
+function formerNames(changes, live) {
+	const out = [];
+	for (const c of changes) {
+		if (c.entity !== "metric") continue;
+		const now = live.find((m) => m.id === c.entityId);
+		const d = c.diffs.find((x) => x.field === "Name");
+		if (now && d && d.from && d.from !== "—" && fold$2(d.from) !== fold$2(now.name)) out.push({
+			id: now.id,
+			name: d.from
+		});
+	}
+	return out;
+}
+/**
+* Rule 1. A unit written differently from one in use: lower case and without a trailing “s” or “.”, it equals one in
+* use, or it is a known spelling of one in use (percent → %, mins → min, hrs → hours, secs → s, dollars → USD). Nothing
+* when it is already identical to one in use.
+*/
+function unitChecks(unit, unitsInUse) {
+	const typed = unit.trim();
+	if (!typed || unitsInUse.includes(typed)) return null;
+	const raw = typed.toLowerCase().replace(/\.$/, "");
+	const known = UNIT_SPELLINGS[raw];
+	if (known && unitsInUse.includes(known)) return { use: known };
+	const same = unitsInUse.find((u) => unitBare(u) === unitBare(typed));
+	return same ? { use: same } : null;
+}
+/**
+* Rule 1. A share whose meaning doesn't say out of what: the unit is %, or the name has “rate”, “share” or “ratio” and the
+* unit isn't a time or a count per time; the meaning is said; and it has none of “out of”, “share of”, “of all”, “of
+* every”, “divided by”, “per ”, “÷”, “/”, “percentage of”, “proportion of”, “fraction of”. An empty meaning is never this
+* (it is “Still to say”).
+*/
+function meaningChecks(m) {
+	const meaning = (m.meaning ?? "").trim().toLowerCase();
+	if (!meaning) return null;
+	const unit = m.unit.trim();
+	if (!(unit === "%" || /\b(rate|share|ratio)\b/i.test(m.name) && !TIME_UNIT.test(unit) && !PER_TIME.test(unit))) return null;
+	return OUT_OF.some((w) => meaning.includes(w)) ? null : "out-of-what";
+}
+/**
+* The Checks a metric as typed raises (rule 1), one per field at most, each with its answers. Adding: all three. Changing:
+* only for a field that changed. An answer's `choice` is what save_metric's `answers` takes: name `keep:<id>` or `use:<id>`
+* (the id of the metric the question names, so an answer covers only the question it was given to), unit `keep` or `use`,
+* meaning `as-written`.
+*/
+function metricChecks(next, before, r) {
+	const out = [];
+	const others = r.metrics.filter((m) => m.id !== next.id);
+	if (!before || fold$2(before.name.trim()) !== fold$2(next.name.trim())) {
+		const c = nameChecks(next.name, others, r.former)[0];
+		if (c) {
+			const m = r.metrics.find((x) => x.id === c.other.id);
+			const owner = r.people.find((p) => p.id === m.ownerId && !p.leftAt)?.name;
+			const n = r.goalsOf(m.id);
+			const about = `${m.unit}, ${directionWords(m.direction)}${owner ? `, owned by ${owner}` : ""}, ${n} ${n === 1 ? "goal" : "goals"}`;
+			const words = c.kind === "former" ? `“${next.name.trim()}” is now called “${m.name}”.` : c.kind === "letters" ? `This is ${c.edits === 1 ? "one letter" : "two letters"} from “${m.name}” (${about}).` : `This looks like “${m.name}” (${about}).`;
+			const answers = c.kind === "former" ? [{
+				choice: `use:${m.id}`,
+				label: `Use ${m.name}`
+			}, {
+				choice: `keep:${m.id}`,
+				label: `Add “${next.name.trim()}” as a new metric`
+			}] : [{
+				choice: `use:${m.id}`,
+				label: "Use that one"
+			}, {
+				choice: `keep:${m.id}`,
+				label: "Mine is different: keep it"
+			}];
+			out.push({
+				field: "name",
+				level: "check",
+				words,
+				answers
+			});
+		}
+	}
+	if (!before || before.unit.trim() !== next.unit.trim()) {
+		const u = unitChecks(next.unit, [...new Set(others.map((m) => m.unit))]);
+		if (u) out.push({
+			field: "unit",
+			level: "check",
+			words: `Other metrics here use “${u.use}”. Use “${u.use}”, or keep “${next.unit.trim()}”?`,
+			answers: [{
+				choice: "use",
+				label: `Use “${u.use}”`
+			}, {
+				choice: "keep",
+				label: `Keep “${next.unit.trim()}”`
+			}]
+		});
+	}
+	if (!before || before.meaning.trim() !== next.meaning.trim() || before.unit.trim() !== next.unit.trim() || before.name.trim() !== next.name.trim()) {
+		if (meaningChecks(next)) out.push({
+			field: "meaning",
+			level: "check",
+			words: OUT_OF_WHAT,
+			answers: [{
+				choice: "as-written",
+				label: "It’s right as written"
+			}]
+		});
+	}
+	return out;
+}
+/**
+* The answers as given, checked: an object of words for name, unit and meaning only. Anything else is refused in plain
+* words rather than read wrongly (an answer of 5 is not a choice).
+*/
+function answersFrom(raw) {
+	if (raw == null) return {};
+	if (typeof raw !== "object" || Array.isArray(raw)) throw new NotAllowed("Answers are words for name, unit or meaning, from the questions you were asked.");
+	const out = {};
+	for (const [k, v] of Object.entries(raw)) {
+		if (k !== "name" && k !== "unit" && k !== "meaning") throw new NotAllowed(`There’s no question about “${k}”: answers are for name, unit or meaning.`);
+		if (typeof v !== "string") throw new NotAllowed(`The answer for ${k} is one of the words the question offered, such as “keep:<id>”, “use” or “as-written”.`);
+		out[k] = v;
+	}
+	return out;
+}
+var STILL_TO_SAY, FULLY_DEFINED, OWNER_LEFT, bare$1, UNIT_SPELLINGS, unitBare, TIME_UNIT, PER_TIME, OUT_OF, OUT_OF_WHAT, unansweredChecks;
+var init_rulesDefine = __esmMin((() => {
+	init_actions();
+	init_fold();
+	init_edits();
+	init_names();
+	STILL_TO_SAY = [
+		["what it means", "meaning"],
+		["where the number comes from", "source"],
+		["who owns that source", "sourceOwner"],
+		["how often it refreshes", "refresh"]
+	];
+	Object.fromEntries(STILL_TO_SAY);
+	FULLY_DEFINED = "Fully defined";
+	OWNER_LEFT = "Its owner has left.";
+	bare$1 = (s) => fold$2(s).replace(/[^\p{L}\p{N}%]+/gu, " ").trim();
+	UNIT_SPELLINGS = {
+		percent: "%",
+		pct: "%",
+		"per cent": "%",
+		mins: "min",
+		minutes: "min",
+		minute: "min",
+		hrs: "hours",
+		hr: "hours",
+		hour: "hours",
+		secs: "s",
+		seconds: "s",
+		sec: "s",
+		dollars: "USD",
+		$: "USD"
+	};
+	unitBare = (u) => u.trim().toLowerCase().replace(/\.$/, "").replace(/s$/, "");
+	TIME_UNIT = /^(ms|s|secs?|seconds?|min|mins|minutes?|h|hrs?|hours?|days?|weeks?|months?)$/i;
+	PER_TIME = /\bper\b|\//i;
+	OUT_OF = [
+		"out of",
+		"share of",
+		"of all",
+		"of every",
+		"divided by",
+		"per ",
+		"÷",
+		"/",
+		"percentage of",
+		"proportion of",
+		"fraction of"
+	];
+	OUT_OF_WHAT = "This is a percentage, and the words don’t say out of what. For example: “production deploys with no rollback or hotfix, out of all production deploys, over 28 days”.";
+	unansweredChecks = (checks, answers) => checks.filter((c) => !c.answers.some((a) => a.choice === answers[c.field]));
+}));
+// src/modules/metrics/checkReads.ts
+/** What rule 1's questions read (rulesDefine.ts `metricChecks`): metrics in use, the people, each metric's goals in force,
+and the names metrics used to have (the change log's renames). */
+function checkReads(s) {
+	const metrics = metricsOf(s).filter((m) => !m.removedAt);
+	const goalIds = new Set(s.goals.filter((g) => !g.removedAt && !g.stoppedAt).map((g) => g.id));
+	const links = linksOf(s).filter((l) => !l.removedAt && goalIds.has(l.goalId));
+	return {
+		metrics,
+		people: s.people,
+		goalsOf: (id) => links.filter((l) => l.metricId === id).length,
+		former: formerNames(s.changes, metrics)
+	};
+}
+var init_checkReads = __esmMin((() => {
+	init_rules();
+	init_rulesDefine();
+}));
+// src/modules/metrics/rulesSave.ts
+/**
+* The Checks the metric as typed still raises once the answers are counted, after the rights (someone who may not change
+* the metric is refused before being asked anything). A unit answered “use” takes the spelling in use.
+*/
+function openChecks(x, input) {
+	const before = input.id ? live$1(x, input.id) : null;
+	if (before && !canEditMetric(x.actor, before)) saveMetric(x, input);
+	const answers = input.answers ?? {};
+	const r = checkReads(x.snapshot);
+	let next = input;
+	if (answers.unit === "use" && input.unit !== void 0) {
+		const u = unitChecks(input.unit, [...new Set(r.metrics.filter((m) => m.id !== before?.id).map((m) => m.unit))]);
+		if (u) next = {
+			...input,
+			unit: u.use
+		};
+	}
+	const typed = metricFrom(next, before, x);
+	if (metricProblems(typed, x.snapshot).length) return {
+		input: next,
+		open: []
+	};
+	return {
+		input: next,
+		open: unansweredChecks(metricChecks(typed, before, r), answers)
+	};
+}
+/** Add or change a metric once every Check is answered; refused, with the questions in words, while one is open. */
+function saveMetricAsked(x, input) {
+	if (input.answers?.name?.startsWith("use:")) no("Nothing saved: use that metric instead.");
+	const { input: next, open } = openChecks(x, input);
+	if (open.length) no(`Answer ${open.length === 1 ? "this question" : "these questions"} first: ${open.map((c) => c.words).join(" ")}`);
+	const { answers: _, ...rest } = next;
+	return saveMetric(x, rest);
+}
+var init_rulesSave = __esmMin((() => {
+	init_checkReads();
+	init_rules();
+	init_rulesDefine();
+}));
 // src/modules/metrics/rulesLink.ts
 /**
 * Measure a goal by a metric, for a slice: a team (teamId) or the whole company (null), and optionally one part of that
@@ -13058,6 +13469,7 @@ function linkReads(x, goal, metricId) {
 var init_rulesLink = __esmMin((() => {
 	init_rules();
 	init_rulesParts();
+	init_rulesSave();
 }));
 // src/data/examples.ts
 var EXAMPLE = {
@@ -15006,7 +15418,7 @@ function amount(v, g) {
 	return `${n} ${Number(n) === 1 && /^[a-z][a-z-]*[^s]s$/i.test(g.unit) ? g.unit.slice(0, -1) : g.unit}`;
 }
 /** The same, as short as the chart needs: "9", "0.4", "3 pts". */
-var bare$1 = (v, g) => g.unit === "%" ? amount(v, g) : fixed(Math.abs(v), g.decimals);
+var bare = (v, g) => g.unit === "%" ? amount(v, g) : fixed(Math.abs(v), g.decimals);
 /** A value as short as the chart needs: "37", "83%". */
 var bareValue = (v, g) => fixed(v, g.decimals) + (g.unit === "%" ? "%" : "");
 /** The target or limit as the question says it: "24", "80%", "0.10%". */
@@ -15154,7 +15566,7 @@ function metricCard(goal, cycle, checkIns, week, stale) {
 			likely: p.value,
 			target,
 			likelyText: `likely ${bareValue(p.value, goal)}`,
-			gapText: short > 0 ? `${bare$1(short, goal)} ${shortWord(better)}` : "on course",
+			gapText: short > 0 ? `${bare(short, goal)} ${shortWord(better)}` : "on course",
 			tone: short > 0 ? "bad" : "good"
 		};
 	}
@@ -15531,7 +15943,7 @@ var help$3 = [
 			{
 				heading: "What it needs",
 				list: [
-					"In Metrics, choose Add a metric. Three things are needed: the Name (3 to 120 characters, used by one metric whatever the case), the Unit as it follows a number (hours, %, USD, deploys), and Which way is better. Decimal places is optional: 0 if left.",
+					"In Metrics, choose Add a metric. Three things are needed: the Name (3 to 120 characters, used by one metric whatever the case or accents), the Unit as it follows a number (hours, %, USD, deploys), and Which way is better. Decimal places is optional: 0 if left.",
 					"Five more make it fully defined, and can be said later: what it means and how it’s calculated (what is counted, out of what or over what period, and what is left out); where the number comes from; who owns that source; how often it refreshes; and an owner here who answers for what it means.",
 					"A metric’s page says “Fully defined” under its title, or what is still to say: “Still to say: where the number comes from, how often it refreshes.” Its owner and admins can open the form at each item from there. It is never a score, a percentage or a bar, and nothing is sorted by it."
 				]
@@ -15542,7 +15954,8 @@ var help$3 = [
 					"A Must fix stops the save until it is fixed: a name missing, too short or already used, no unit, or no direction. It shows under its field, outlined, once you leave the field or try to save.",
 					"A Check is a question to answer once. There are three: a name one letter or one word from another metric’s, or one a metric used to have (“This is one letter from “Deploy success rate” …”, with Use that one or Mine is different: keep it); a unit spelt differently from one in use (“Other metrics here use “min”.”); and a percentage whose meaning doesn’t say out of what (with It’s right as written).",
 					"The foot of the form counts them (“1 to fix, 2 to check.”) above the completeness line. Saving with a Check unanswered takes you to it. An answered Check closes to one line with Change; changing the field asks again.",
-					"Use that one opens the metric already in the library; what you typed is kept as a draft."
+					"Use that one opens the metric already in the library; what you typed is kept as a draft.",
+					"Adding a metric from a goal’s Measured by asks the same Checks, under the new metric’s fields, before Add this metric saves it."
 				]
 			},
 			{
@@ -15552,7 +15965,7 @@ var help$3 = [
 					"Changing the unit or which way is better of a metric goals use asks first, here and through the AI assistant: their numbers and plans don’t change, and the goals that now differ say so under “Measured by” on their page.",
 					"Workspace → About tells admins how many metrics have no owner (someone who left owned them), with See them.",
 					"On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back.",
-					"An AI assistant asks the same questions: save_metric returns them and saves nothing until it calls again with your answers."
+					"An AI assistant asks the same questions: save_metric returns them and saves nothing until it calls again with your answers to those questions. Someone who may not change a metric is told so before being asked anything."
 				]
 			}
 		],
@@ -16176,9 +16589,9 @@ var CORE_ARTICLES = [
 				"Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.",
 				"Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.",
 				"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.",
-				"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and a problem is shown on its row before anything is created. A name or word one letter out (an owner typed “Ben Ortz”, a Type of “Numbr”) is a problem to fix here too: set-up doesn’t ask “Did you mean…?” yet, and never leaves a goal out without saying so.",
+				"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and Check shows the same preview Import does before anything is created: how many goals and people the file adds (a goal still to fix counted too), what must be fixed, and its questions, each with its answers. A goal owned by someone nobody typed offers “Add {name}” (they join your people, with the row’s team) or “Give it to someone here”. Create workspace waits until every question is answered.",
 				"Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.",
-				"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, has its stages counted from this week, as a template’s are, so it isn’t late on day one. Check says which goals moved; Keep the weeks as typed puts them back.",
+				"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, is asked about on Check, already answered “Count them from this week” as a template’s are, so it isn’t late on day one. Change, then Keep the weeks as typed, puts them back.",
 				"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
 				"The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.",
 				"Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.",
@@ -16198,7 +16611,8 @@ var CORE_ARTICLES = [
 			"ONBOARDING",
 			"IDENTITY",
 			"WORKSPACES",
-			"CALENDAR-WEEKS"
+			"CALENDAR-WEEKS",
+			"SETUP-UPLOAD"
 		],
 		keywords: [
 			"onboarding",
@@ -16395,7 +16809,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet. Anyone can ask the owner for an update from the goal’s page."]
+				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. Anyone can ask the owner for an update from the goal’s page."]
 			}
 		],
 		routes: ["/check-in", "/check-in/:goalId"],
@@ -17237,6 +17651,8 @@ var CORE_ARTICLES = [
 					"Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.",
 					"Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.",
 					"Change it: the same page as any goal, with no reason ever asked. Withdraw it: it goes to Recently removed for 30 days, with Undo.",
+					"Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.",
+					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks.",
 					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. Find lists them with the word Proposed.",
 					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active. A goal with check-ins can’t go back to proposed: stop it instead."
 				]
@@ -18000,7 +18416,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Leaving a form",
-				list: ["A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.", "“Close without saving” (setting up or changing a review, wrapping up a goal) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it."]
+				list: ["A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.", "“Close without saving” (setting up or changing a review, wrapping up a goal, starting an import) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it."]
 			},
 			{
 				heading: "An address that leads nowhere",
@@ -18607,6 +19023,61 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "make-it-proposed-again",
+		date: "2026-11-13",
+		title: "Make a goal proposed again",
+		points: ["A goal made active too soon can go back to proposed while it has no check-ins: Make it proposed again, in the goal’s “…” menu.", "It then has no status and nothing is due until it is made active again. The message has Undo."],
+		articles: ["goal-proposed"]
+	},
+	{
+		id: "admin-check-in-doors-narrow",
+		date: "2026-11-13",
+		title: "Only owners add this week’s check-in",
+		points: ["An admin’s workbook brings in past weeks and corrections, not this week’s new check-in for someone else.", "In Data, an admin corrects a check-in; adding one is the owner’s."],
+		articles: ["check-in", "data"]
+	},
+	{
+		id: "import-way-out",
+		date: "2026-11-13",
+		title: "Import has a way out again",
+		points: ["Import has “Close without saving” at the top right, as every form does, so on a phone it no longer leaves you with no way back to Data.", "Rows you pasted are asked about first."],
+		articles: ["getting-around", "import"]
+	},
+	{
+		id: "setup-upload-preview",
+		date: "2026-11-13",
+		title: "Set-up checks a spreadsheet as Import does",
+		points: [
+			"A spreadsheet given at set-up ends on Import’s preview: what it adds, what must be fixed, and its questions.",
+			"An owner nobody typed: “Add {name}”, or “Give it to someone here”.",
+			"Stages already due count from this week unless you change it."
+		],
+		articles: ["set-up", "import"]
+	},
+	{
+		id: "proposals-on-home",
+		date: "2026-11-13",
+		title: "Proposals for you show on Home",
+		points: [
+			"A goal someone proposes for you shows on your Home, under Needs your response, until you open it.",
+			"A proposal that has waited 8 weeks or more asks once whether to make it active or withdraw it; Not yet puts it off for 8 more weeks.",
+			"Proposing a goal for someone else now says they will see it on their Home."
+		],
+		articles: ["goal-proposed", "home"]
+	},
+	{
+		id: "metric-checks-everywhere",
+		date: "2026-11-13",
+		title: "New metrics checked everywhere",
+		points: [
+			"Adding a metric from a goal’s “Measured by” now asks the same questions as Add a metric: a name close to another’s, a unit spelt another way, a percentage that doesn’t say out of what.",
+			"A name that differs from another metric’s only by an accent, such as “Fláky test rate”, must be changed, as one differing only by case already did.",
+			"Answering a question on the form keeps your place: Change on the answered line takes the focus.",
+			"“Lower is better” and “Higher is better” are bigger to tap on a phone."
+		],
+		articles: ["metric-define", "metric-measured-by"]
+	},
 	{
 		id: "range-between-both-limits",
 		date: "2026-11-13",
@@ -23974,9 +24445,9 @@ init_find();
 init_numbers();
 init_status();
 init_rules();
+init_names();
 var DAY = 864e5;
 /** "lower is better", as a row and a search read it. */
-var directionWords = (d) => d === "lower" ? "lower is better" : "higher is better";
 /** Decimals in words (spec 2.2): "whole numbers", "to 1 decimal place", "to 2 decimal places". */
 var decimalsWords = (d) => d === 0 ? "whole numbers" : `to ${placesText(d)}`;
 /** A metric's part of an address: its id without "metric_" (the demo's are slugs, "lead-time"); any other id as it is. */
@@ -24118,269 +24589,10 @@ function goalsByStatus(statuses) {
 		n: k
 	})).sort((a, b) => RANK[b.status] - RANK[a.status] || a.status.localeCompare(b.status));
 }
-/** Words that say little about which number a metric is: left out when names are compared (rule 4). */
-var FILLER = /* @__PURE__ */ new Set([
-	"the",
-	"of",
-	"per",
-	"for",
-	"in",
-	"a",
-	"rate",
-	"time"
-]);
-/** A name's words for rule 4: lower case, without accents, punctuation, anything in brackets, or filler. */
-var nameWords = (name) => new Set(fold$2(name.replace(/\([^)]*\)|\[[^\]]*\]/g, " ")).split(/[^\p{L}\p{N}%]+/u).filter((w) => w && !FILLER.has(w)));
-/**
-* Rule 4. Up to two metrics in use whose names are close to `name`, closest first: one name's words contain the
-* other's, or they share at least two words and differ by at most one. An exact match (any case) is metricProblems'
-* error, not this; nor is a metric being changed (`except`).
-*/
-function closeNames(name, metrics, except) {
-	const mine = nameWords(name);
-	if (!mine.size) return [];
-	const scored = [];
-	for (const m of metrics) {
-		if (m.removedAt || m.id === except || fold$2(m.name.trim()) === fold$2(name.trim())) continue;
-		const theirs = nameWords(m.name);
-		if (!theirs.size) continue;
-		const shared = [...mine].filter((w) => theirs.has(w)).length;
-		const extra = mine.size + theirs.size - 2 * shared;
-		if (shared === Math.min(mine.size, theirs.size) || shared >= 2 && extra <= 1) scored.push({
-			m,
-			d: extra
-		});
-	}
-	return scored.sort((a, b) => a.d - b.d || fold$2(a.m.name).localeCompare(fold$2(b.m.name))).slice(0, 2).map((x) => x.m);
-}
-// src/modules/metrics/rulesDefine.ts
-init_find();
-init_edits();
-/** The four things that make a metric fully defined beyond its name, unit and direction, in the order they are said. */
-var STILL_TO_SAY = [
-	["what it means", "meaning"],
-	["where the number comes from", "source"],
-	["who owns that source", "sourceOwner"],
-	["how often it refreshes", "refresh"]
-];
-Object.fromEntries(STILL_TO_SAY);
-var FULLY_DEFINED = "Fully defined";
-var OWNER_LEFT = "Its owner has left.";
-/**
-* Rule 1. What a metric still needs to say. A metric with a name, a unit and a direction is usable; `missing` lists, in
-* order, what it means (meaning empty), where the number comes from (source empty), who owns that source (empty) and how
-* often it refreshes (not said). The line is “Fully defined” when nothing is missing and its owner is here; “Its owner
-* has left.” alone when only that; otherwise “Still to say: {missing, commas}.”, with “ Its owner has left.” after it.
-*/
-function stillToSay(m, ownerIsHere) {
-	const empty = (k) => k === "refresh" ? m.refresh == null : !(m[k] ?? "").trim();
-	const missing = STILL_TO_SAY.filter(([, k]) => empty(k)).map(([w]) => w);
-	const left = !ownerIsHere;
-	const said = missing.length ? `Still to say: ${missing.join(", ")}.` : "";
-	const line = !missing.length && !left ? FULLY_DEFINED : [said, left ? OWNER_LEFT : ""].filter(Boolean).join(" ");
-	return {
-		usable: true,
-		full: !missing.length && !left,
-		missing,
-		ownerLeft: left,
-		line
-	};
-}
-/** A name as `letters` compares it: lower case, no accents, no punctuation, single spaces. */
-var bare = (s) => fold$2(s).replace(/[^\p{L}\p{N}%]+/gu, " ").trim();
-/**
-* Rule 1. Up to two names close to `name`, closest first. **former**: `name` is a name a metric in use used to have
-* (its rename in the change log). **letters**: the two names, bared, differ by one edit for names up to 12 characters and
-* two for longer, and are not equal; names of 4 characters or fewer are never `letters` (too many false alarms).
-* **words**: the library's rule 4 (`closeNames`). An exact match (any case) is a Must fix, not this.
-*/
-function nameChecks(name, others, former = []) {
-	const mine = bare(name);
-	if (!mine) return [];
-	const out = [];
-	const seen = /* @__PURE__ */ new Set();
-	const add = (c) => {
-		if (!seen.has(c.other.id)) {
-			seen.add(c.other.id);
-			out.push(c);
-		}
-	};
-	for (const f of former) {
-		const now = others.find((o) => o.id === f.id);
-		if (now && bare(f.name) === mine && bare(now.name) !== mine) add({
-			kind: "former",
-			other: now
-		});
-	}
-	const letters = [];
-	for (const o of others) {
-		const theirs = bare(o.name);
-		if (theirs === mine || mine.length <= 4 || theirs.length <= 4) continue;
-		const max = Math.max(mine.length, theirs.length) > 12 ? 2 : 1;
-		const d = editsBetween(mine, theirs, max);
-		if (d <= max) letters.push({
-			kind: "letters",
-			other: o,
-			edits: d
-		});
-	}
-	letters.sort((a, b) => a.edits - b.edits || fold$2(a.other.name).localeCompare(fold$2(b.other.name))).forEach(add);
-	const asMetrics = others.map((o) => ({
-		...o,
-		removedAt: void 0
-	}));
-	for (const m of closeNames(name, asMetrics)) add({
-		kind: "words",
-		other: {
-			id: m.id,
-			name: m.name
-		}
-	});
-	return out.slice(0, 2);
-}
-/** The names metrics in use used to have, from the change log's renames: `{ id: the metric, name: its old name }`. */
-function formerNames(changes, live) {
-	const out = [];
-	for (const c of changes) {
-		if (c.entity !== "metric") continue;
-		const now = live.find((m) => m.id === c.entityId);
-		const d = c.diffs.find((x) => x.field === "Name");
-		if (now && d && d.from && d.from !== "—" && fold$2(d.from) !== fold$2(now.name)) out.push({
-			id: now.id,
-			name: d.from
-		});
-	}
-	return out;
-}
-/** Spellings of a unit that mean one already written another way. `s` only when `s` is in use (as every one is). */
-var UNIT_SPELLINGS = {
-	percent: "%",
-	pct: "%",
-	"per cent": "%",
-	mins: "min",
-	minutes: "min",
-	minute: "min",
-	hrs: "hours",
-	hr: "hours",
-	hour: "hours",
-	secs: "s",
-	seconds: "s",
-	sec: "s",
-	dollars: "USD",
-	$: "USD"
-};
-var unitBare = (u) => u.trim().toLowerCase().replace(/\.$/, "").replace(/s$/, "");
-/**
-* Rule 1. A unit written differently from one in use: lower case and without a trailing “s” or “.”, it equals one in
-* use, or it is a known spelling of one in use (percent → %, mins → min, hrs → hours, secs → s, dollars → USD). Nothing
-* when it is already identical to one in use.
-*/
-function unitChecks(unit, unitsInUse) {
-	const typed = unit.trim();
-	if (!typed || unitsInUse.includes(typed)) return null;
-	const known = UNIT_SPELLINGS[typed.toLowerCase().replace(/\.$/, "")];
-	if (known && unitsInUse.includes(known)) return { use: known };
-	const same = unitsInUse.find((u) => unitBare(u) === unitBare(typed));
-	return same ? { use: same } : null;
-}
-var TIME_UNIT = /^(ms|s|secs?|seconds?|min|mins|minutes?|h|hrs?|hours?|days?|weeks?|months?)$/i;
-var PER_TIME = /\bper\b|\//i;
-var OUT_OF = [
-	"out of",
-	"share of",
-	"of all",
-	"of every",
-	"divided by",
-	"per ",
-	"÷",
-	"/",
-	"percentage of",
-	"proportion of",
-	"fraction of"
-];
-/**
-* Rule 1. A share whose meaning doesn't say out of what: the unit is %, or the name has “rate”, “share” or “ratio” and the
-* unit isn't a time or a count per time; the meaning is said; and it has none of “out of”, “share of”, “of all”, “of
-* every”, “divided by”, “per ”, “÷”, “/”, “percentage of”, “proportion of”, “fraction of”. An empty meaning is never this
-* (it is “Still to say”).
-*/
-function meaningChecks(m) {
-	const meaning = (m.meaning ?? "").trim().toLowerCase();
-	if (!meaning) return null;
-	const unit = m.unit.trim();
-	if (!(unit === "%" || /\b(rate|share|ratio)\b/i.test(m.name) && !TIME_UNIT.test(unit) && !PER_TIME.test(unit))) return null;
-	return OUT_OF.some((w) => meaning.includes(w)) ? null : "out-of-what";
-}
-var OUT_OF_WHAT = "This is a percentage, and the words don’t say out of what. For example: “production deploys with no rollback or hotfix, out of all production deploys, over 28 days”.";
-/**
-* The Checks a metric as typed raises (rule 1), one per field at most, each with its answers. Adding: all three. Changing:
-* only for a field that changed. An answer's `choice` is what save_metric's `answers` takes: name `keep` or `use:<id>`,
-* unit `keep` or `use`, meaning `as-written`.
-*/
-function metricChecks(next, before, r) {
-	const out = [];
-	const others = r.metrics.filter((m) => m.id !== next.id);
-	if (!before || fold$2(before.name.trim()) !== fold$2(next.name.trim())) {
-		const c = nameChecks(next.name, others, r.former)[0];
-		if (c) {
-			const m = r.metrics.find((x) => x.id === c.other.id);
-			const owner = r.people.find((p) => p.id === m.ownerId && !p.leftAt)?.name;
-			const n = r.goalsOf(m.id);
-			const about = `${m.unit}, ${directionWords(m.direction)}${owner ? `, owned by ${owner}` : ""}, ${n} ${n === 1 ? "goal" : "goals"}`;
-			const words = c.kind === "former" ? `“${next.name.trim()}” is now called “${m.name}”.` : c.kind === "letters" ? `This is ${c.edits === 1 ? "one letter" : "two letters"} from “${m.name}” (${about}).` : `This looks like “${m.name}” (${about}).`;
-			const answers = c.kind === "former" ? [{
-				choice: `use:${m.id}`,
-				label: `Use ${m.name}`
-			}, {
-				choice: "keep",
-				label: `Add “${next.name.trim()}” as a new metric`
-			}] : [{
-				choice: `use:${m.id}`,
-				label: "Use that one"
-			}, {
-				choice: "keep",
-				label: "Mine is different: keep it"
-			}];
-			out.push({
-				field: "name",
-				level: "check",
-				words,
-				answers
-			});
-		}
-	}
-	if (!before || before.unit.trim() !== next.unit.trim()) {
-		const u = unitChecks(next.unit, [...new Set(others.map((m) => m.unit))]);
-		if (u) out.push({
-			field: "unit",
-			level: "check",
-			words: `Other metrics here use “${u.use}”. Use “${u.use}”, or keep “${next.unit.trim()}”?`,
-			answers: [{
-				choice: "use",
-				label: `Use “${u.use}”`
-			}, {
-				choice: "keep",
-				label: `Keep “${next.unit.trim()}”`
-			}]
-		});
-	}
-	if (!before || before.meaning.trim() !== next.meaning.trim() || before.unit.trim() !== next.unit.trim() || before.name.trim() !== next.name.trim()) {
-		if (meaningChecks(next)) out.push({
-			field: "meaning",
-			level: "check",
-			words: OUT_OF_WHAT,
-			answers: [{
-				choice: "as-written",
-				label: "It’s right as written"
-			}]
-		});
-	}
-	return out;
-}
-/** The checks an answer doesn't cover yet. An answer must be one of its check's choices. */
-var unansweredChecks = (checks, answers) => checks.filter((c) => !c.answers.some((a) => a.choice === answers[c.field]));
 // src/modules/metrics/reads.ts
 init_rules();
+init_rulesDefine();
+init_checkReads();
 /** The running cycle's live goals: not removed, not stopped. */
 var liveGoals = (s) => s.goals.filter((g) => !g.removedAt && !g.stoppedAt);
 /** Rule 1's and rule 3's rows: every metric and link, the cycle's live goal ids, the people, and now. */
@@ -24399,24 +24611,14 @@ function goalsOfMetric(s, cycle, today, week, metricId) {
 	const ids = new Set(links.map((l) => l.goalId));
 	return metricGoals(metricId, links, summariseAll(liveGoals(s).filter((g) => ids.has(g.id)), s, cycle, today, week), s.teams, cycle);
 }
-/** What rule 1's questions read (rulesDefine.ts `metricChecks`): metrics in use, the people, each metric's goals in force,
-and the names metrics used to have (the change log's renames). */
-function checkReads(s) {
-	const r = libraryReads(s, "");
-	const metrics = r.metrics.filter((m) => !m.removedAt);
-	return {
-		metrics,
-		people: s.people,
-		goalsOf: (id) => liveLinks(r, id).length,
-		former: formerNames(s.changes, metrics)
-	};
-}
 /** Rule 1's line for a metric, its owner being someone here who hasn't left. */
 var lineOf = (s, m) => stillToSay(m, !!ownerName(s.people, m));
 // src/modules/metrics/tools.ts
 init_actions();
 init_goalKey();
 init_rules();
+init_rulesDefine();
+init_rulesSave();
 init_rulesParts();
 init_status();
 init_vocabulary();
@@ -24708,7 +24910,7 @@ var tools$1 = [
 					additionalProperties: false,
 					description: "The person’s answers to the checks a previous call returned.",
 					properties: {
-						name: str$2("“keep” (mine is different), or “use:<id>” to use that metric instead (nothing is saved)."),
+						name: str$2("“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave."),
 						unit: str$2("“keep” the unit as typed, or “use” the one in use.", { enum: ["keep", "use"] }),
 						meaning: str$2("“as-written”: the meaning is right as written.", { enum: ["as-written"] })
 					}
@@ -24732,7 +24934,7 @@ var tools$1 = [
 					...a.caveats !== void 0 ? { caveats: String(a.caveats) } : {},
 					...a.confirm === true ? { confirm: true } : {}
 				};
-				const answers = a.answers && typeof a.answers === "object" ? a.answers : {};
+				const answers = answersFrom(a.answers);
 				if (answers.name?.startsWith("use:")) {
 					const use = metricOf(ctx, answers.name.slice(4));
 					return {
@@ -24743,15 +24945,11 @@ var tools$1 = [
 						text: `Nothing saved: use ${use.name} (${use.id}) instead.`
 					};
 				}
-				const before = input.id ? metricsOf(ctx.snapshot).find((x) => x.id === input.id) ?? null : null;
-				const r = checkReads(ctx.snapshot);
-				if (answers.unit === "use" && input.unit !== void 0) {
-					const u = unitChecks(input.unit, [...new Set(r.metrics.filter((x) => x.id !== before?.id).map((x) => x.unit))]);
-					if (u) input.unit = u.use;
-				}
-				const typed = metricFrom(input, before, ax(ctx));
-				const open = unansweredChecks(metricChecks(typed, before, r), answers);
-				if (open.length && !metricProblems(typed, ctx.snapshot).length) {
+				const { open } = openChecks(ax(ctx), {
+					...input,
+					answers
+				});
+				if (open.length) {
 					const checks = open.map((c) => ({
 						field: c.field,
 						question: c.words,
@@ -24768,7 +24966,10 @@ var tools$1 = [
 						text: `Nothing saved yet. Ask the person, then call again with answers:\n${checks.map((c) => `- ${c.field}: ${c.question} (${c.answers.map((x) => `${x.answer}: ${x.label}`).join("; ")})`).join("\n")}`
 					};
 				}
-				const { commit, metric } = saveMetric(ax(ctx), input);
+				const { commit, metric } = saveMetricAsked(ax(ctx), {
+					...input,
+					answers
+				});
 				if (!commit) return {
 					data: {
 						saved: false,

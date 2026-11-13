@@ -95,7 +95,15 @@ describe('one way to save a check-in (rule 13)', () => {
     for (const via of ['bulk', 'mcp', 'form'] as const) expect(refused(as('amara', via)), via).toBe(true);
     expect(refused(as('rhea', 'table')), 'a member in Data').toBe(true);
     // The two exceptions (Lane, 12 Nov), named in mayPostCheckIn: an admin's import and setting up, and an admin's correction in Data.
-    for (const via of ADMIN_CHECK_IN_DOORS) expect(refused(as('amara', via)), via).toBe(false);
+    // Each only for what it is (Lane, 13 Nov; backlog AD): this week's new check-in is neither, so one pasted row from an
+    // admin is refused for someone else's goal, at every door, with what that door is for.
+    for (const via of ADMIN_CHECK_IN_DOORS) expect(refused(as('amara', via)), via).toBe(true);
+    expect(as('amara', 'spreadsheet').issues.find((i) => i.kind === 'not-allowed')!.message).toMatch(/A workbook brings in past weeks, not this week’s new check-in\.$/);
+    expect(as('amara', 'table').issues.find((i) => i.kind === 'not-allowed')!.message).toMatch(/Data’s tables correct a check-in; they don’t add one\.$/);
+    // A past week from a workbook is brought in; Data's tables correct a check-in that exists, and add none.
+    const pastWeek = (via: Via) => planChanges({ tables: { checkIns: [{ ...row, week: String(week - 1) }] }, snapshot: { ...fresh, checkIns: fresh.checkIns.filter((c) => !(c.goalId === goal.id && c.week === week - 1)) }, cycle, week, actor: person('amara'), now: today.toISOString(), newId: (p) => `${p}_d${++n}`, via, reason: 'Loaded' });
+    for (const via of ['spreadsheet', 'setup'] as const) expect(refused(pastWeek(via)), via).toBe(false);
+    expect(refused(pastWeek('table')), 'Data adds a past week').toBe(true);
     expect(refused(as('mateo', 'mcp')), 'the owner').toBe(false);
   });
 

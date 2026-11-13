@@ -6,6 +6,7 @@ import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
 import { buildGoal, draftFor, planChanged, type GoalDraft } from '../domain/goal';
 import { isProposed } from '../domain/proposed';
+import { HAS_CHECK_INS } from '../domain/proposedActions';
 import { checksContext, goalChecks, goalMustFix, proposedMustFix, openLine, planSpanOf, REASON_EMPTY, sameNamedIn, unanswered, type GoalAnswers, type GoalCheck, type GoalField } from '../domain/goalEntry';
 import { mayChangeGoal } from '../domain/goalRights';
 import { makesLoop } from '../domain/tree';
@@ -276,6 +277,8 @@ function EditSheet({ goal }: { goal: Goal }) {
         <div className="focus-foot">
           <button className="btn primary big-btn" type="submit" aria-disabled={saving || (tried && (!valid || (replanning && !reasonOk) || !confirmed))}>{label}</button>
         </div>
+        {/* GE10: only an active goal with no check-ins can go back to proposed (the goal's "…" menu). */}
+        {started && !isProposed(goal) && <p className="hint small">{HAS_CHECK_INS}</p>}
       </form>
     </div>
   );

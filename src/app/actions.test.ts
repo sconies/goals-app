@@ -7,7 +7,7 @@ import { NotAllowed } from '../domain/actions';
 import { currentCycle, scopeToCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
 import { commandNames } from '../spec/rebuild';
-import { actionNames, commitOf, loadEngine, MODULE_ACTIONS, perform, performAny, type RunContext } from './actions';
+import { actionNames, commitOf, loadEngine, MODULE_ACTIONS, perform, performAny, ready, type RunContext } from './actions';
 
 const today = new Date('2026-11-05T12:00:00Z');
 let n = 0;
@@ -37,10 +37,13 @@ describe('one way to run an action', () => {
     }
   });
 
-  it('runs a module’s action from the same table, as its module says, and refuses it while the module is off', () => {
+  it('runs a module’s action from the same table, as its module says, and refuses it while the module is off', async () => {
     expect(MODULE_ACTIONS.saveMetric?.module).toBe('metrics');
+    await ready('saveMetric');
     const x = as('oskar');
-    const out = performAny(x, 'saveMetric', { name: 'Build time', unit: 'min', direction: 'lower' }) as { commit: unknown; metric: { name: string } };
+    // Rule 1's Checks are asked by the action itself (#281): a name close to another's is refused until it is answered.
+    expect(() => performAny(x, 'saveMetric', { name: 'Build time', unit: 'min', direction: 'lower' })).toThrow(/Answer this question first/);
+    const out = performAny(x, 'saveMetric', { name: 'Build time', unit: 'min', direction: 'lower', answers: { name: 'keep:metric_cache-hit' } }) as { commit: unknown; metric: { name: string } };
     expect(out.metric.name).toBe('Build time');
     expect(commitOf('saveMetric', out, {})).toBe(out.commit);
     expect(() => performAny({ ...x, workspace: { ...x.workspace, modulesOff: ['metrics'] } }, 'saveMetric', { name: 'Build time', unit: 'min', direction: 'lower' })).toThrow(/switched off/);

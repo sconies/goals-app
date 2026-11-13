@@ -8,7 +8,7 @@ import { Link, matchPath, useLocation, useNavigate, useNavigationType } from 're
 import { useApp } from '../app/state';
 import { useModules } from '../core/app';
 import { Icon } from './Icon';
-import { useViews, viewParams } from '../screens/GoalFilters';
+import { useViews, viewParams } from '../screens/savedViews';
 import { articleRef } from '../help/lookup';
 import { backTo, isForm, type PlaceNames } from '../domain/navigation';
 import { useSectionNames } from '../screens/workspaceSections';
