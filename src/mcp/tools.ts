@@ -11,6 +11,7 @@ import { localSearch } from '../adapters/localSearch';
 import type { FoundRow, Search, SearchAsk } from '../ports/search';
 import type { Commit } from '../data/store';
 import { describe, examplesLine, GOAL_QUESTION, MIN_CORRECT_REASON, planChanges, VIA_MCP, type Answers, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
+import { tooLarge, tooManyChanges } from '../domain/importLimits';
 import { aiBrief, toJson } from '../domain/export';
 import { GOAL_ACTION_WORDS, PERSON_ACTION_WORDS } from '../domain/columns';
 import { goalScorecard } from '../domain/scorecard';
@@ -143,6 +144,9 @@ const answersOf = (a: unknown): Answers => Object.fromEntries(Object.entries((a 
 const FIND_PAGE = 50, FIND_MAX = 200;
 
 async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown }): Promise<ToolResult> {
+  // The size limits every door keeps (domain/importLimits): rows read in one call, then changes saved at once.
+  const big = tooLarge('This call', { rows: (tables.goals?.length ?? 0) + (tables.plan?.length ?? 0) + (tables.checkIns?.length ?? 0) + (tables.people?.length ?? 0) }, 'call');
+  if (big) return { isError: true, text: `Not checked. ${big}` };
   // A goal's key: as saved once it is, as the change gives it before (a dry run's key is the one it would get).
   const keyOf = (id: string): string | null => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
   const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason, confirm: opts.confirm, answers: answersOf(opts.answers), records: recordsOn(ctx.ws) });
@@ -189,6 +193,8 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
   const examples = cs.examples ? ` ${examplesLine(cs.examples)}` : '';
   if (!cs.items.length) return { data, text: `Nothing to change: it already says that.${examples}` };
   const what = `${describe(cs)}.${notes.length ? `\nRead as:\n${lines(notes.map((x) => ({ goal: x.name, message: x.message })))}` : ''}${cs.leftOut.length ? `\nLeft out at the person's answer: ${cs.leftOut.length} row(s).` : ''}${examples ? `\n${examples.trim()}` : ''}`;
+  const tooMany = tooManyChanges(cs.items.length);
+  if (tooMany && !opts.dry) return { isError: true, data, text: `Not saved. ${tooMany} Send the rows in parts, a goal's plan and check-ins with it.` };
   if (opts.dry || !cs.commit) {
     data.created = added.map((x) => ({ id: null, key: keyOf(x.goalId), title: x.goal }));
     // A dry run's IDs are not the ones a save makes, so no new goal's ID is given before it exists (#242's review).

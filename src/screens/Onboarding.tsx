@@ -9,6 +9,7 @@ import { searchOver, usePrefs } from '../app/search';
 import { setupSteps, type SetupStep } from '../domain/dayOne';
 import { SETUP_STEP_NAMES } from '../domain/arrival';
 import { readChanges, templateSheets } from '../app/spreadsheet';
+import { tooLarge } from '../domain/importLimits';
 import { saveAndSay } from '../app/files';
 import { buildWorkspace, ownerToAdd, parseTable, setupDefaults, type ImportIssue } from '../domain/importer';
 import type { Answer } from '../domain/problemLevels';
@@ -272,8 +273,14 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
 
   const upload = async (file: File) => {
     try {
+      // The size limits Import keeps (domain/importLimits), kept here too: the file's bytes first, then its rows.
+      const big = tooLarge(file.name, { bytes: file.size });
+      if (big) { setFileNote(big); return; }
+      const got = await readChanges(file);
+      const tooMany = tooLarge(file.name, { rows: got.rowCount });
+      if (tooMany) { setFileNote(tooMany); return; }
       const patch: Partial<SetupDraft> = {};
-      const t = (await readChanges(file)).tables;
+      const t = got.tables;
       const r = t.people ? peopleFromRecords(t.people) : null;
       // You're already on the first row: the file's row for you (by email, or name) isn't added twice.
       const others = r ? r.rows.filter((x) => !(meEmail && x.email === meEmail) && x.name.trim().toLowerCase() !== d.me.name.trim().toLowerCase()) : [];
