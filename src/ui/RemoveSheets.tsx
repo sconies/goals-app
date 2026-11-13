@@ -21,7 +21,7 @@ export const goalRemoveLabel = (hasCheckIns: boolean) => (hasCheckIns ? 'Stop th
 export function RemoveGoalSheet({ goal, onClose }: { goal: Goal; onClose: () => void }) {
   const app = useApp();
   const nav = useNavigate();
-  const history = goalHasCheckIns(app.snapshot, goal.id);
+  const history = goalHasCheckIns(app.full, goal.id);
   const feeding = app.snapshot.goals.filter((g) => g.parentId === goal.id);
   const parent = goal.parentId ? app.goal(goal.parentId) : undefined;
   const asks = openAsksFor(goal.id, app.snapshot).length;

@@ -17,6 +17,9 @@
 .under-way-choice:has(input:checked) { outline: 2px solid var(--fg); outline-offset: -1px; }
 .under-way-choice input { height: 44px; margin: 0; flex: none; }
 .under-way-choice .menu-text { display: flex; flex-direction: column; gap: 2px; }
+/* On the Map and the Board with the State filter on: a dashed outline on every side, and the word (GE10). */
+.map-node.proposed { border-style: dashed; }
+.board-card.proposed { border-style: dashed; }
 @media (max-width: 600px) {
   .proposed-rows .proposed-row { grid-template-columns: 1fr; gap: 2px; }
   .proposed-would { text-align: left; }
