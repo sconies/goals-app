@@ -6,7 +6,7 @@
    how those actions are going; where it is heading; what has happened, and what was said the last time it was discussed.
    Each fact has one home on it (the plan's "one home for each fact" table). */
 import type { GoalAttention } from './attention';
-import { fmt, NO_VALUE } from './format';
+import { fmt, NO_VALUE, staysText } from './format';
 import { currentWeek, daysSince, weekDate, goalAsOf, planAt, planEnd, projectionFor, valueSeries } from './plan';
 import { onTimeStreak, reviewDate, WEEKDAY } from './progress';
 import { asksOf, canAnswer, canMarkDone, canWithdraw, isOverdue, isResolved, liveNotes, openAsksFor, writtenNotes } from './asks';
@@ -52,7 +52,7 @@ export function barFigures(goal: Goal, s: Snapshot, cycle: Cycle, week: number, 
     return { now: fmt(a.actual, goal), nowValue: a.actual, against: [`plan ${fmt(a.plan, goal)}`, target], ...dir };
   }
   if (goal.kind === 'range' && a.kind === 'range') {
-    const limit = `${goal.range.bound === 'atMost' ? 'at most' : 'at least'} ${fmt(goal.range.limit, goal)}`;
+    const limit = staysText(goal);
     if (a.actual == null) return { now: NO_VALUE, nowValue: null, against: [limit], direction: null, directionText: null };
     const where = a.out ? 'outside the limit' : a.near ? 'inside the limit, near it' : 'inside the limit';
     return { now: fmt(a.actual, goal), nowValue: a.actual, against: stale ? [`in week ${a.week}`, limit] : [limit, where], ...(stale ? { direction: null, directionText: null } : dir) };

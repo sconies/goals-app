@@ -47,6 +47,8 @@ The core in a few lines:
 - [Stage 1: the core rules](spec/rebuild/stage-1-core-rules.md): the contract a rebuild meets, scored by `spec/rebuild/drill.mjs` against the conformance data
 - [Swap the outside parts](spec/rebuild/adapters.md): copy the code and write an adapter per outside part until its contract passes
 - [The ports at company scale](spec/rebuild/ports-at-scale.md): why the goals store is the demo-scale port, and the query and command ports that replace it (the rules stay the same)
+- [Accepting scale](spec/rebuild/scale.md): a generator for a company-size workspace, the week’s turn with its budget and what people see while it runs, and being handled from one goal’s records
+- [What each action and summary reads](spec/rebuild/reads.md): the records each action uses and the lists it reads whole today, and the proof that a goal’s summary row needs only its own records
 
 ## Requirements for the internal app (spec only)
 
@@ -63,6 +65,7 @@ The core in a few lines:
 - [R8. Audit](spec/requirements/internal/r8-audit.md): a record of who did what that no one can change, with exports and token use, kept 7 years
 - [R9. Observability and service levels](spec/requirements/internal/r9-observability.md): the signals sent to the company’s tools, the service levels promised, and what pages the on-call person
 - [R10. Accessibility](spec/requirements/internal/r10-accessibility.md): WCAG 2.2 AA on every screen: shape and word, the keyboard, screen readers, zoom and reflow
+- [R11. Large imports, a server-side job](spec/requirements/internal/r11-large-imports.md): an import of tens of thousands of rows as a job on the server: the rules run there, one state at the end, Undo kept per import (R-L1 to R-L6)
 
 ## Feature modules
 

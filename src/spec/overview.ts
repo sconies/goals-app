@@ -67,6 +67,7 @@ export const INTERNAL_PAGES: [string, string, string][] = [
   ['r8-audit', 'R8. Audit', 'a record of who did what that no one can change, with exports and token use, kept 7 years'],
   ['r9-observability', 'R9. Observability and service levels', 'the signals sent to the company’s tools, the service levels promised, and what pages the on-call person'],
   ['r10-accessibility', 'R10. Accessibility', 'WCAG 2.2 AA on every screen: shape and word, the keyboard, screen readers, zoom and reflow'],
+  ['r11-large-imports', 'R11. Large imports, a server-side job', 'an import of tens of thousands of rows as a job on the server: the rules run there, one state at the end, Undo kept per import (R-L1 to R-L6)'],
 ];
 
 export function systemOverview(): string {
@@ -112,6 +113,8 @@ export function systemOverview(): string {
     '- [Stage 1: the core rules](spec/rebuild/stage-1-core-rules.md): the contract a rebuild meets, scored by `spec/rebuild/drill.mjs` against the conformance data',
     '- [Swap the outside parts](spec/rebuild/adapters.md): copy the code and write an adapter per outside part until its contract passes',
     '- [The ports at company scale](spec/rebuild/ports-at-scale.md): why the goals store is the demo-scale port, and the query and command ports that replace it (the rules stay the same)',
+    '- [Accepting scale](spec/rebuild/scale.md): a generator for a company-size workspace, the week’s turn with its budget and what people see while it runs, and being handled from one goal’s records',
+    '- [What each action and summary reads](spec/rebuild/reads.md): the records each action uses and the lists it reads whole today, and the proof that a goal’s summary row needs only its own records',
     '',
     '## Requirements for the internal app (spec only)',
     '',

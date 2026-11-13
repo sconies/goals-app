@@ -26,6 +26,10 @@ export interface Deps {
   workspaceName(id: string): Promise<string>;
   load(workspaceId: string): Promise<Snapshot>;
   commit(workspaceId: string, c: Commit): Promise<void>;
+  /** The keys the database settled for these goals (migration 0021 gives a new goal the next free key when the one the
+      save asked for was taken at the same moment). Read after a save, so an answer names the key the goal holds (#242's
+      review). Without it, the key the save asked for stands. */
+  goalKeys?(workspaceId: string, goalIds: string[]): Promise<Record<string, string>>;
   touch(tokenId: string, at: string): Promise<void>;
   /** Saves a new token and returns its secret, made and hashed by the database (migration 0024). Without it, the
       secret is made here and the token saved, with its hash, like any other change. */
@@ -111,6 +115,15 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
   const db = <T,>(op: string, run: () => Promise<T>) => spans.child(op, current, { 'db.system': 'postgresql', 'db.operation': op }, run);
 
   let ctx: McpContext | null = null;
+  /** A commit with each new goal's key as the database stored it, so the context, and every answer read from it, holds
+      the stored key, not the one the request asked for. */
+  const settledKeys = async (c: Commit, before: Snapshot): Promise<Commit> => {
+    const known = new Set(before.goals.map((g) => g.id));
+    const added = (c.goals ?? []).filter((g) => !known.has(g.id)).map((g) => g.id);
+    if (!added.length || !deps.goalKeys) return c;
+    const keys = await db('select', () => deps.goalKeys!(found.workspaceId, added));
+    return { ...c, goals: c.goals!.map((g) => (keys[g.id] && keys[g.id] !== g.key ? { ...g, key: keys[g.id]! } : g)) };
+  };
   const context = async (): Promise<McpContext> => {
     if (ctx) return ctx;
     const [loaded, name, recording, modulesOff] = await Promise.all([
@@ -132,7 +145,7 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
         // Every save keeps a carried copy in the next year true while nobody has used it (cycle-end rule 6).
         const c = withRecarry(all, given, { now: given.changes[0]?.at ?? new Date().toISOString(), actorId: given.changes[0]?.actorId ?? '', newId, records: MODULE_RECORDS });
         await db('okr_commit', () => deps.commit(found.workspaceId, withExpectations(c, all)));
-        all = applyCommit(all, c);
+        all = applyCommit(all, await settledKeys(c, all));
         ctx!.snapshot = scopeToCycle(all, cycle, MODULE_RECORDS);
         ctx!.allGoals = all.goals;
         ctx!.full = all;

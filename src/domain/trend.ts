@@ -7,6 +7,7 @@ import { fmt, rangeText, weekLabel } from './format';
 import { goalAsOf, planAt } from './plan';
 import { assessMetric, assessMilestone, assessRange, checkInsFor } from './status';
 import { TREND_SPAN } from './thresholds';
+import { rangeSide } from './range';
 import type { CheckIn, Cycle, Goal, MetricGoal, MilestoneGoal } from './types';
 import { LABEL, type TrendWord } from './vocabulary';
 
@@ -96,11 +97,13 @@ export function goalTrend(goal: Goal, cycle: Cycle, checkIns: CheckIn[]): GoalTr
   }
   if (goal.kind === 'range') {
     const v = own.filter((c) => c.value != null).map((c) => c.value as number).slice(-TREND_SPAN);
-    const safe = goal.range.bound === 'atMost' ? -1 : 1;
-    const word = gapTrend(v.map((x) => (x - goal.range.limit) * safe));
+    // Between two numbers: against the bound nearer the latest number.
+    const { bound, limit } = rangeSide(goal.range, v[v.length - 1]);
+    const safe = bound === 'atMost' ? -1 : 1;
+    const word = gapTrend(v.map((x) => (x - limit) * safe));
     if (word !== 'worse') return { word, detail: null };
     const out = assessRange(goal, 1, v[v.length - 1]!, null).out;
-    return { word, detail: `${out ? 'Further past' : 'Closer to'} the limit at each of the last two check-ins: ${v.map((x) => fmt(x, goal)).join(' → ')} (limit ${fmt(goal.range.limit, goal)}).` };
+    return { word, detail: `${out ? 'Further past' : 'Closer to'} the limit at each of the last two check-ins: ${v.map((x) => fmt(x, goal)).join(' → ')} (limit ${fmt(limit, goal)}).` };
   }
   const t = stagesTrend(goal, own);
   return { word: t.word, detail: t.slipped ? `${t.slipped.name} is expected later than at the check-in before: now ${weekLabel(t.slipped.week, cycle.weeks)}.` : null };
