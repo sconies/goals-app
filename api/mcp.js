@@ -14299,7 +14299,7 @@ var metricLinkToRow = (ws, l) => ({
 	goal_id: l.goalId,
 	metric_id: l.metricId,
 	team_id: l.teamId,
-	...l.part != null ? { part: String(l.part).trim() } : {},
+	part: String(l.part ?? "").trim(),
 	linked_by: l.linkedBy,
 	linked_at: l.linkedAt,
 	...set$1({
@@ -19520,6 +19520,13 @@ var WHATS_NEW = [
 			"A metric that has measured goals is retired, not deleted: its goals keep their numbers and say so, and Bring it back undoes it. Admins can merge two metrics in the same unit."
 		],
 		articles: ["metric-change"]
+	},
+	{
+		id: "sidebar-fits-a-laptop",
+		date: "2026-11-13",
+		title: "The whole sidebar fits on a laptop screen",
+		points: ["The sidebar’s rows are a little tighter, so everything down to your name shows on a 900-pixel-high screen without scrolling.", "In the demo, the Demo button in the sidebar is one line: the word Demo, then who you’re viewing as."],
+		articles: ["getting-around", "demo"]
 	},
 	{
 		id: "import-review-lows",

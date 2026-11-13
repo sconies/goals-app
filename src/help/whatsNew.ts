@@ -35,6 +35,16 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['metric-change'],
   },
   {
+    id: 'sidebar-fits-a-laptop',
+    date: '2026-11-13',
+    title: 'The whole sidebar fits on a laptop screen',
+    points: [
+      'The sidebar’s rows are a little tighter, so everything down to your name shows on a 900-pixel-high screen without scrolling.',
+      'In the demo, the Demo button in the sidebar is one line: the word Demo, then who you’re viewing as.',
+    ],
+    articles: ['getting-around', 'demo'],
+  },
+  {
     id: 'import-review-lows',
     date: '2026-11-13',
     title: 'Import, Undo and Export, smaller fixes',

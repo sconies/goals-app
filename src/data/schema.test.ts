@@ -3,7 +3,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildPlatformOrg } from './platformOrg';
-import { metricToRow } from '../modules/metrics/records';
+import { metricLinkToRow, metricToRow } from '../modules/metrics/records';
 
 const dir = join(__dirname, '../../supabase/migrations');
 const sql = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort().map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
@@ -111,6 +111,19 @@ describe('database schema', () => {
     await db.query(`select okr_upsert('okr_metrics', $1::jsonb, 'id')`, [JSON.stringify(rows)]);
     const saved = await db.query<{ id: string; retired_why: string; marks: unknown[] }>(`select id, retired_why, marks from okr_metrics where id in ('m-retired', 'm-live') order by id`);
     expect(saved.rows.map((r) => [r.id, r.retired_why, (r.marks as unknown[]).length])).toEqual([['m-live', '', 0], ['m-retired', 'Gone', 1]]);
+  });
+  it('saves links with and without a part in one batch: a link with no part is written as empty, never null (build review of #308)', async () => {
+    await db.query(`insert into okr_metrics (id, workspace_id, name, unit, direction, owner_id, created_by) values ('m-mixed', 'example', 'Mixed batch', '%', 'lower', 'rhea', 'rhea')`);
+    const [a, b] = s.goals.slice(0, 2);
+    const at = '2026-10-30T12:00:00.000Z';
+    const rows = [
+      metricLinkToRow('example', { id: a!.id, goalId: a!.id, metricId: 'm-mixed', teamId: null, part: 'EU', linkedBy: 'rhea', linkedAt: at }),
+      metricLinkToRow('example', { id: b!.id, goalId: b!.id, metricId: 'm-mixed', teamId: null, linkedBy: 'rhea', linkedAt: at }),
+    ];
+    expect(rows[1]).toHaveProperty('part', '');
+    await db.query(`select okr_upsert('okr_goal_metrics', $1::jsonb, 'id')`, [JSON.stringify(rows)]);
+    const saved = await db.query<{ id: string; part: string }>(`select id, part from okr_goal_metrics where metric_id = 'm-mixed' order by part desc`);
+    expect(saved.rows.map((r) => r.part)).toEqual(['EU', '']);
   });
 });
 

@@ -39,7 +39,7 @@ export const metricFromRow = (r: DbRow): Metric => ({
   ...(r.retired_at ? { retiredAt: iso(r.retired_at), retiredBy: r.retired_by ? String(r.retired_by) : null, retiredWhy: String(r.retired_why ?? ''), replacedBy: r.replaced_by ? String(r.replaced_by) : null } : {}),
   ...(Array.isArray(r.marks) && r.marks.length ? { marks: r.marks as Metric['marks'] } : {}),
 });
-export const metricLinkToRow = (ws: string, l: MetricLink): DbRow => ({ workspace_id: ws, id: l.id, goal_id: l.goalId, metric_id: l.metricId, team_id: l.teamId, ...(l.part != null ? { part: String(l.part).trim() } : {}), linked_by: l.linkedBy, linked_at: l.linkedAt, ...set({ removed_at: l.removedAt, removed_by: l.removedBy }) });
+export const metricLinkToRow = (ws: string, l: MetricLink): DbRow => ({ workspace_id: ws, id: l.id, goal_id: l.goalId, metric_id: l.metricId, team_id: l.teamId, part: String(l.part ?? '').trim(), linked_by: l.linkedBy, linked_at: l.linkedAt, ...set({ removed_at: l.removedAt, removed_by: l.removedBy }) });
 export const metricLinkFromRow = (r: DbRow): MetricLink => ({
   id: r.id, goalId: String(r.goal_id), metricId: String(r.metric_id), teamId: (r.team_id ?? null) as string | null, ...(r.part ? { part: String(r.part) } : {}), linkedBy: String(r.linked_by), linkedAt: iso(r.linked_at),
   ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by),
