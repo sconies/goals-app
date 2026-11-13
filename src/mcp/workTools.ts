@@ -240,18 +240,6 @@ export const WORK_TOOLS: ToolDef[] = [
     },
   },
   {
-    name: 'list_watching',
-    title: 'What you watch',
-    description: 'Your watches (a goal, a goal and everything feeding it, or a whole level) and the goals they cover.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-    annotations: READ,
-    async run(_a, ctx) {
-      const watches = ctx.snapshot.watches.filter((w) => w.personId === ctx.actor.id).map((w) => ({ id: w.id, kind: w.kind, ref: w.ref, what: w.kind === 'level' ? `every ${w.ref} goal` : ctx.snapshot.goals.find((g) => g.id === w.ref)?.title ?? w.ref }));
-      const goals = watchedGoals(ctx.actor.id, ctx.snapshot).map((g) => ({ id: g.id, title: g.title }));
-      return listed({ watches, goals });
-    },
-  },
-  {
     name: 'list_people',
     title: 'People and teams',
     description: 'Everyone in the workspace with their email, job title, team and whether they’re an admin, and the teams.',
@@ -307,22 +295,6 @@ export const WORK_TOOLS: ToolDef[] = [
     async run(_a, ctx) {
       const list = (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({ id: t.id, name: t.name, person: name(ctx, t.personId), createdAt: t.createdAt, lastUsedAt: t.lastUsedAt }));
       return listed({ tokens: list });
-    },
-  },
-  {
-    name: 'get_wrap_up',
-    title: 'The cycle’s wrap-up',
-    description: 'At the end of a cycle: which goals are wrapped up (result, what was learned, carry on or stop) and which are still to do.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-    annotations: READ,
-    async run(_a, ctx) {
-      const retros = ctx.snapshot.retros ?? [];
-      const list = ctx.snapshot.goals.map((g) => { const r = retros.find((x) => x.goalId === g.id); return { id: g.id, title: g.title, owner: name(ctx, g.ownerId), wrappedUp: !!r, result: r?.result ?? null, learned: r?.learned ?? null, next: r?.next ?? null }; });
-      // The wrap-up's days (cycle-end rule 1): it opens two weeks before the last day and closes four weeks after it.
-      const open = wrapUpOpenOn(ctx.cycle, ctx.today);
-      const d = cycleDates(ctx.cycle), state = cycleState(ctx.cycle, ctx.today);
-      const when = state === 'closed' ? `The wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : open ? `Wrap-up is open until ${dayWithYear(d.wrapUpCloses)}.` : `Wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`;
-      return { data: { open, opensWeek: ctx.cycle.weeks - 1, opens: d.wrapUpOpens, lastDay: d.lastDay, closes: d.wrapUpCloses, goals: list }, text: `${when} ${list.filter((g) => g.wrappedUp).length} of ${list.length} goals wrapped up.` };
     },
   },
 
@@ -468,26 +440,6 @@ export const WORK_TOOLS: ToolDef[] = [
       return save(ctx, A.editCall(ax(ctx), d, String(a.text ?? ''), extra), 'Corrected it', 'Nothing to change: it already says that.');
     },
   },
-  /* ---------- Watching ---------- */
-  {
-    name: 'watch',
-    title: 'Watch goals',
-    description: 'Watch a goal, a goal and everything feeding it, or every goal at a level. Watched goals are on the Watching page and in get_my_work.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['kind', 'ref'], properties: { kind: str('What to watch.', { enum: ['goal', 'tree', 'level'] }), ref: str('A goal’s ID or key (G-12), or a level (north-star, svp, team).') } },
-    annotations: { ...WRITE, idempotentHint: true },
-    async run(a, ctx) {
-      const ref = a.kind === 'level' ? String(a.ref ?? '') : goalOf(ctx, a.ref).id;
-      return save(ctx, A.watch(ax(ctx), a.kind as Watch['kind'], ref), `Watching ${a.kind === 'level' ? `every ${ref} goal` : goalOf(ctx, ref).title}`, 'Already watching that.');
-    },
-  },
-  {
-    name: 'unwatch',
-    title: 'Stop watching',
-    description: 'Stop one of your watches: the goals it covered leave your Watching page.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['watch_id'], properties: { watch_id: str('The watch’s ID, from list_watching.') } },
-    annotations: WRITE,
-    async run(a, ctx) { return save(ctx, A.unwatch(ax(ctx), String(a.watch_id ?? '')), 'Stopped watching', ''); },
-  },
 
   /* ---------- People ---------- */
   {
@@ -510,21 +462,6 @@ export const WORK_TOOLS: ToolDef[] = [
   },
 
   /* ---------- The end of the cycle ---------- */
-  {
-    name: 'wrap_up_goal',
-    title: 'Wrap up a goal',
-    description: 'In the last two weeks of a cycle, the goal’s owner (or an admin) says how it landed, what was learned, and whether it carries on into the next cycle. Can be changed until the next cycle starts.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id', 'result', 'learned', 'next'], properties: {
-      goal_id: str('The goal’s ID or its key, e.g. G-12.'), result: str('How it landed.', { enum: ['hit', 'partly', 'missed'] }), learned: str('One thing worth knowing next time (a sentence).'), next: str('Next cycle.', { enum: ['carry', 'stop'] }),
-    } },
-    annotations: { ...WRITE, idempotentHint: true },
-    async run(a, ctx) {
-      const g = goalOf(ctx, a.goal_id);
-      if (!['hit', 'partly', 'missed'].includes(String(a.result))) throw new Error('result is hit, partly or missed.');
-      if (!['carry', 'stop'].includes(String(a.next))) throw new Error('next is carry or stop.');
-      return save(ctx, A.saveRetro(ax(ctx), g, { result: a.result as Retro['result'], learned: String(a.learned ?? ''), next: a.next as Retro['next'] }), `Wrapped up ${g.title}`, '');
-    },
-  },
   {
     name: 'start_next_cycle',
     title: 'Start the next cycle',
@@ -613,14 +550,6 @@ export const WORK_TOOLS: ToolDef[] = [
     inputSchema: { type: 'object', additionalProperties: false, required: ['token_id'], properties: { token_id: str('The token’s ID, from list_tokens.') } },
     annotations: { ...WRITE, destructiveHint: true, idempotentHint: true },
     async run(a, ctx) { return save(ctx, A.revokeToken(ax(ctx), String(a.token_id ?? '')), 'Revoked the token', 'That token is already revoked.'); },
-  },
-  {
-    name: 'send_feedback',
-    title: 'Send feedback about the app',
-    description: 'Feedback about the app itself, for the people who build it: how it felt and what happened.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['mood', 'text'], properties: { mood: str('How it felt.', { enum: ['good', 'meh', 'bad'] }), text: str('What happened, or what would help.') } },
-    annotations: WRITE,
-    async run(a, ctx) { return save(ctx, A.sendFeedback(ax(ctx), a.mood as 'good' | 'meh' | 'bad', String(a.text ?? ''), 'mcp'), 'Sent the feedback', ''); },
   },
   {
     name: 'rename_workspace',

@@ -53,7 +53,7 @@ import type { Commit } from '../domain/commit';
 import MODULE_PARTS from 'virtual:faro-modules/actions';
 import { recordsOn } from '../core/records';
 import { isModuleOn, moduleById, modulesOn } from '../core/registry';
-import { reviewsOffWords, reviewsOn } from './reads';
+import { moduleOffWords, reviewsOffWords, reviewsOn, SWITCHED_ACTIONS } from './reads';
 
 /** What the dispatcher hands each action: the rules' context, and the workspace itself for the few that change it. */
 export interface RunContext extends A.ActionContext {
@@ -214,6 +214,9 @@ export function performAny(x: RunContext, name: string, input: unknown): unknown
   // Reviews' actions are still the core's until FT3, and refuse as a module's do while Reviews is off (FT2): so does
   // correcting a note said in a review (an ask's own words can still be corrected).
   if ((REVIEW_ACTIONS.has(name) || (name === 'editCall' && !A.findAsk(x, (input as { callId: string }).callId))) && !reviewsOn(modulesOn(x.workspace).on)) throw new A.NotAllowed(reviewsOffWords(x.workspace.name));
+  // Watching, the Wrap-up and Feedback (SW1) are switches whose actions are still the core's: each refuses while off.
+  const switched = SWITCHED_ACTIONS[name];
+  if (switched && !REVIEW_ACTIONS.has(name) && !isModuleOn(x.workspace, switched)) throw new A.NotAllowed(moduleOffWords(moduleById(switched)?.name ?? switched, x.workspace.name));
   if (fn) return fn(x, input);
   const mod = MODULE_ACTIONS[name];
   if (!mod) throw new Error(`There’s no action called ${String(name)}.`);

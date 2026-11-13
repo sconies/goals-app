@@ -34,6 +34,32 @@ export const reviewsOn = (on: ReadonlySet<string>): boolean => on.has('reviews')
 /** What a review action says when Reviews is off (FT2, spec 1.2). */
 export const reviewsOffWords = (workspace: string) => `Reviews is off in ${workspace}.`;
 
+/*
+ * SW1: the four switches whose code is still the core's, each answered here and nowhere else (feature-switches spec
+ * 1.2, check N27: no other file tests a module's id as a string). Screens pass `useModules().on`, the MCP server and the
+ * dispatcher `modulesOn(ws).on`; rules in src/domain take the answer as a boolean. A build without the module answers
+ * false. Each goes when its code moves into its folder (SW4 to SW8).
+ */
+/** Whether Watching is on: the Watching tab, Home's "Goals you watch", the Watch button and the three watching tools. */
+export const watchingOn = (on: ReadonlySet<string>): boolean => on.has('watching');
+/** Whether Feedback is on: its menu row and page, Send feedback, Mark up this screen (and its key) and the inbox tools. */
+export const feedbackOn = (on: ReadonlySet<string>): boolean => on.has('feedback');
+/** Whether the Goal map is on: Goals' Map layout. */
+export const goalMapOn = (on: ReadonlySet<string>): boolean => on.has('goal-map');
+/** Whether the Wrap-up is on: its pages, Home's wrap-up lead, "Wrap up this goal" and its two tools. Results, carrying
+    on and starting the next year are the core's and never ask. */
+export const wrapUpOn = (on: ReadonlySet<string>): boolean => on.has('wrap-up');
+
+/** The core's actions that belong to a switch while its code is still the core's (FT2, SW1 spec 1.3): each refuses
+    while its module is off, with `moduleOffWords`. Revoking and starting the next year never refuse. */
+export const SWITCHED_ACTIONS: Readonly<Record<string, string>> = {
+  saveReview: 'reviews', reviewCall: 'reviews', acceptRisk: 'reviews', markReviewed: 'reviews', unmarkReviewed: 'reviews', endReview: 'reviews', deleteReview: 'reviews',
+  watch: 'watching', unwatch: 'watching', saveRetro: 'wrap-up', sendFeedback: 'feedback',
+};
+
+/** What a switched module's action says while it is off (spec 1.3): "Watching is off in {workspace}." */
+export const moduleOffWords = (name: string, workspace: string) => `${name} is off in ${workspace}.`;
+
 /**
  * This week's deadline in dueWords' words (RS1), from what the rule reads: whether Reviews is on, and whether a review is
  * held on the due day (with `personId`, one that person is in: deep review T4). The check-in's receipt, Home and the AI's

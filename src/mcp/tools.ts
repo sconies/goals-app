@@ -23,9 +23,7 @@ import { watchedGoals } from '../domain/review';
 import { NEED_OPTIONS } from '../domain/query';
 import { WORK_TOOLS } from './workTools';
 import { listed } from './listed';
-import { MARKUP_TOOLS } from './markupTools';
 import type { MarkupOps } from '../markup/ops';
-import { FEEDBACK_TOOLS } from './feedbackTools';
 import type { FeedbackOps } from '../markup/feedback';
 import { REMOVE_TOOLS } from './removeTools';
 import MODULE_TOOLS from 'virtual:faro-modules/tools';
@@ -540,7 +538,7 @@ export const toolModule = (name: string): string | undefined => TOOL_MODULE.get(
 // The modules' Goals columns are read from a link here as in the app (core/app registers them for the screens).
 addColumnParams(MODULE_GOAL_COLUMNS.map((c) => c.param));
 
-export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS, ...REMOVE_TOOLS, ...MARKUP_TOOLS, ...FEEDBACK_TOOLS, ...MODULE_TOOLS.flatMap((m) => m.part)];
+export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS, ...REMOVE_TOOLS, ...MODULE_TOOLS.flatMap((m) => m.part)];
 
 /** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. A module's
     tool in a workspace that has switched that module off says so, and does nothing. */

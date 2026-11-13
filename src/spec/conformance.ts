@@ -250,6 +250,9 @@ export const NAV_ADDRESSES = ['/', '/check-in', '/check-in/lead-mq', '/quick-che
 export const NAV_MODULE = { id: 'example', to: '/example', label: 'Example', group: 'lookup' as const };
 /** Home with Reviews switched off in the workspace (FT2): the last two rows, one per viewer. */
 export const NAV_REVIEWS_OFF = '/ (Reviews off)';
+/** Home's address with Feedback switched off (SW1), and with every optional feature off. */
+export const NAV_FEEDBACK_OFF = '/ (Feedback off)';
+export const NAV_ALL_OFF = '/ (every feature off)';
 /** Two viewers: one who owns goals, one who owns none. */
 export const NAV_VIEWERS = ['rhea', 'oskar'];
 export const NAV_HEADER = ['viewer', 'owns_goals', 'address', 'menu', 'tabs', 'lit', 'page'];
@@ -284,6 +287,11 @@ export function navigationRowsOf(w: ConformanceWorkspace): string[][] {
     const owns = s.goals.some((g) => g.ownerId === viewer && goalStatus(g, w.cycle, s.checkIns, new Date(w.builtFor)).status !== 'done');
     const g = menuGroups(owns, [], false);
     rows.push([viewer, yes(owns), NAV_REVIEWS_OFF, (['work', 'lookup', 'make', 'you'] as const).map((k) => g[k].join(' ')).join(' | '), phoneTabs(owns, false).join(' '), litItem('/', '', [...g.work, ...g.lookup, ...g.make, ...g.you]) ?? '', pageName('/', '', { goal: () => null, review: () => null, view: () => null, article: () => null, person: () => null, team: () => null })]);
+    // With Feedback off (SW1), and with every optional feature off: the menu's last group is Workspace, Settings, Help.
+    for (const [address, reviews] of [[NAV_FEEDBACK_OFF, true], [NAV_ALL_OFF, false]] as const) {
+      const f = menuGroups(owns, [], reviews, false);
+      rows.push([viewer, yes(owns), address, (['work', 'lookup', 'make', 'you'] as const).map((k) => f[k].join(' ')).join(' | '), phoneTabs(owns, reviews).join(' '), litItem('/', '', [...f.work, ...f.lookup, ...f.make, ...f.you]) ?? '', pageName('/', '', { goal: () => null, review: () => null, view: () => null, article: () => null, person: () => null, team: () => null })]);
+    }
   }
   return rows;
 }

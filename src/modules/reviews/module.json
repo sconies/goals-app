@@ -2,6 +2,7 @@
   "id": "reviews",
   "name": "Reviews",
   "summary": "Walk a set of goals together on a cadence, decide what happens next and keep what was said.",
+  "group": "together",
   "needs": [],
   "routes": [
     "/review",

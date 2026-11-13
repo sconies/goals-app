@@ -496,7 +496,9 @@ journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows wha
   // Lane's notes (5 Nov): Home shows "Your goals" (what needs attention, what's being handled) and "Goals you watch".
   await see(p, 'Your goals');
   await see(p, /\d+ needs? attention/);
-  await see(p, 'Goals you watch', 'home also shows the goals Rhea watches');
+  // Watching is a switch (SW1): with it off, Home has no “Goals you watch”.
+  if (built('watching')) await see(p, 'Goals you watch', 'home also shows the goals Rhea watches');
+  else if (await p.getByText('Goals you watch').count()) fail('Watching is off, but Home shows “Goals you watch”');
   await h.checkpoint('home');
   h.set('progress', await p.locator('.hero .ring').isVisible(), 'no weekly progress ring');
   const cards = p.locator('.arow');
@@ -4789,7 +4791,7 @@ journey('U103', ['REVIEWS-OPTIONAL', 'MODULES', 'HOME-OWNER'], 'Amara switches R
   await p.goto(url('/workspace/features'));
   const box = p.getByRole('checkbox', { name: /^Reviews/ });
   await box.scrollIntoViewIfNeeded();
-  h.set('attention', await box.isChecked() && await see(p, 'How you work').then(() => true, () => false) && await see(p, '6 reviews are set up.').then(() => true, () => false), 'Features does not show Reviews under How you work, on, with “6 reviews are set up.”');
+  h.set('attention', await box.isChecked() && await see(p, 'Working together').then(() => true, () => false) && await see(p, '6 reviews are set up.').then(() => true, () => false), 'Features does not show Reviews under Working together, on, with “6 reviews are set up.”');
   await h.checkpoint('features');
   // Switching off asks first: the read-back counts what stays.
   await h.click(box);

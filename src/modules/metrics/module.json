@@ -2,6 +2,7 @@
   "id": "metrics",
   "name": "Metric library",
   "summary": "Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.",
+  "group": "tools",
   "needs": [],
   "routes": [
     "/metrics",

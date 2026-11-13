@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, matchPath, useLocation, useNavigate } from 'react-router';
 import { useModules } from '../core/app';
-import { reviewsOn } from '../app/reads';
+import { feedbackOn, reviewsOn } from '../app/reads';
 import { useApp, useToasts } from '../app/state';
 import { weekProgress } from '../domain/progress';
 import { reviewSession, sessionToDo } from '../domain/review';
@@ -155,11 +155,16 @@ function ShellBody({ children }: { children: ReactNode }) {
     const t = window.setTimeout(() => setMarking(true), 400);
     return () => window.clearTimeout(t);
   }, [pathname, search]);
+  // Feedback switched off (SW1): no sheet, no markup and no key. The ref keeps the listener below current.
+  const { screens, on } = useModules();
+  const feedback = feedbackOn(on);
+  const feedbackRef = useRef(feedback);
+  feedbackRef.current = feedback;
   // Ctrl+Shift+M (Cmd+Shift+M on a Mac), from anywhere: mark up this screen. Any open sheet closes first, so it isn't in the picture.
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (isFindKey(e)) { e.preventDefault(); setSheet(null); setFinding((f) => !f); return; }
-      if (!isMarkupKey(e)) return; e.preventDefault(); setSheet(null); setFinding(false); setMarking(true);
+      if (!isMarkupKey(e) || !feedbackRef.current) return; e.preventDefault(); setSheet(null); setFinding(false); setMarking(true);
     };
     // The Feedback page's Send feedback opens the sheet (Feedback is the one menu item for it, WR5).
     const send = () => setSheet('feedback');
@@ -173,11 +178,10 @@ function ShellBody({ children }: { children: ReactNode }) {
   const ownsGoals = app.snapshot.goals.some((g) => g.ownerId === app.viewer.id && !g.stoppedAt && app.statusOf(g).status !== 'done');
   const views = useViews();
   const prefs = usePrefs();
-  const { screens, on } = useModules();
   const moduleNav = screens.flatMap((m) => m.navigation ?? []);
   // Reviews switched off (FT2): no row, no count and no tab.
   const reviews = reviewsOn(on);
-  const groups = menuGroups(ownsGoals, moduleNav, reviews);
+  const groups = menuGroups(ownsGoals, moduleNav, reviews, feedback);
   const tabs = phoneTabs(ownsGoals, reviews);
   const more = moreFor(groups, tabs);
   const shownViews = menuViews(views.map((v) => ({ id: v.id, name: v.name, pinned: v.pinned, mine: v.personId === app.viewer.id, createdAt: v.createdAt })), recentsOf(prefs, app.ws.id, app.viewer.id).filter((r) => r.kind === 'view').map((r) => r.id)).map((m) => views.find((v) => v.id === m.id)!);
@@ -357,11 +361,11 @@ function ShellBody({ children }: { children: ReactNode }) {
       )}
       {app.mode === 'demo' && <Suspense fallback={null}><Coach /></Suspense>}
       <ResearchBar />
-      {sheet === 'feedback' && <FeedbackSheet onClose={() => setSheet(null)} fromPage={pathname === '/feedback' && !!cameFrom.current.to}
+      {feedback && sheet === 'feedback' && <FeedbackSheet onClose={() => setSheet(null)} fromPage={pathname === '/feedback' && !!cameFrom.current.to}
         onMarkup={() => { setSheet(null); if (pathname === '/feedback' && cameFrom.current.to) { markAfter.current = true; void navigate(cameFrom.current.to); } else setMarking(true); }}
         path={pathname === '/feedback' ? cameFrom.current.path : pathname} />}
       {finding && <Find onClose={() => setFinding(false)} />}
-      {marking && <Suspense fallback={null}><MarkupFlow onClose={() => setMarking(false)} /></Suspense>}
+      {feedback && marking && <Suspense fallback={null}><MarkupFlow onClose={() => setMarking(false)} /></Suspense>}
       <div className="toasts" role="status" aria-live="polite">
         {toasts.map((t) => (
           <div key={t.id} className={'toast ' + t.kind + (t.action ? ' with-action' : '')}>

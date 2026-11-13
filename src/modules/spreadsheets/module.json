@@ -2,6 +2,7 @@
   "id": "spreadsheets",
   "name": "Spreadsheets",
   "summary": "Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.",
+  "group": "tools",
   "needs": [],
   "routes": ["/data/import", "/data/import/check", "/data/import/check/changes", "/data/import/done/:importId", "/data/imports"],
   "redirects": [["/import", "/data/import"]],
