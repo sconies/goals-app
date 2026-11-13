@@ -27,6 +27,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'reviews-switch',
+    date: '2026-11-13',
+    title: 'Reviews can be switched off, and nothing they saved is lost',
+    points: [
+      'An admin can switch Reviews off for a workspace on Workspace, Features, under How you work. Before it goes off, Faro says how many reviews, next steps and questions stay, and Undo brings it straight back.',
+      'Off, there is no Reviews in the menu or on Home, no walk or “Last time we talked” on a goal, and an old review link says Reviews is switched off. Someone who owns no goals is led to the goals they watch that need attention.',
+      'Asks and next steps stay on their goals and on Home. What was said in reviews stays in each goal’s History and in Activity. Switch Reviews back on and every review is as it was.',
+      'A check-in coming due now says the day it is due by, “Due by Thu 12 Nov”, whether or not Reviews is on.',
+    ],
+    articles: ['features', 'home', 'goal-page', 'reviews'],
+  },
+  {
     id: 'proposed-type-changes',
     date: '2026-11-13',
     title: 'A proposed goal’s type can still change',

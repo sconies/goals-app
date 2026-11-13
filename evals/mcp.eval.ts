@@ -8,7 +8,7 @@ import type { ApiToken, Ask, Snapshot } from '../src/domain/types';
 import { hashToken, newToken } from '../src/mcp/protocol';
 import { ACTIONS } from '../src/mcp/parity';
 import { TOOLS } from '../src/mcp/tools';
-import { MODULES } from '../src/core/registry';
+import { MODULES, isModuleOn } from '../src/core/registry';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -18,6 +18,8 @@ const MODS = join(__dirname, '../src/modules');
 const LEFT_OUT = new Set(readdirSync(MODS).filter((d) => !MODULES.some((m) => m.id === d)).flatMap((d) => { try { return (JSON.parse(readFileSync(join(MODS, d, 'module.json'), 'utf8')) as { aiTools: string[] }).aiTools; } catch { return []; } }));
 
 const R = (text: string) => `[MCP-PARITY] ${text}`;
+/** Built without Reviews: its tools are gone, so the core's own routes stand in and the review scenario skips. */
+const noReviews = !isModuleOn(null, 'reviews');
 const TODAY = new Date('2026-11-05T12:00:00Z'); // Thursday of week 45 of 53
 const DEC = new Date('2026-12-24T12:00:00Z'); // week 52: the wrap-up is open
 
@@ -63,7 +65,8 @@ describe('AI assistants can do what the person can', () => {
     expect(w.data!.requestsForYou.map((r: { id: string }) => r.id).sort()).toEqual(['req_po164']);
     // An action is an ask too: Amara's own, from the leadership weekly, waits on her until she marks it done.
     expect(w.data!.yourActions.map((r: { id: string }) => r.id)).toContain('ask_po986');
-    expect(w.data!.yourReviews[0].name).toBe('Platform leadership weekly');
+    if (noReviews) expect(w.data!).not.toHaveProperty('yourReviews');
+    else expect(w.data!.yourReviews[0].name).toBe('Platform leadership weekly');
   });
 
   it(R('what needs me: check-ins due are the goals still to post, as Home counts them (a goal that is done is not one)'), async () => {
@@ -134,10 +137,11 @@ describe('AI assistants can do what the person can', () => {
     expect((await (await as('oskar', TODAY, daniel.data())).call('answer_request', { request_id: ask.id, answer: 'Web monorepo.' })).text).toMatch(/Only Diego Ramírez or an admin/);
     expect((await diego.call('answer_request', { request_id: ask.id, answer: 'The web monorepo.' })).error).toBe(false);
     expect(diego.data().requests!.find((r) => r.id === ask.id)!.status).toBe('answered');
-    // An action agreed in a review stays open until it is marked done: by whoever does it, whoever asked, or an admin.
-    await daniel.call('review_call', { review_id: 'devprod', goal_id: 'lead-mq', kind: 'action', text: 'Share the batching workaround with Web', who: 'Diego', due_week: 46 });
+    // An action agreed in a review (or, without Reviews, on the goal) stays open until it is marked done: by whoever does it, whoever asked, or an admin.
+    const said = { goal_id: 'lead-mq', text: 'Share the batching workaround with Web', who: 'Diego', due_week: 46 };
+    expect((noReviews ? await daniel.call('add_action', said) : await daniel.call('review_call', { review_id: 'devprod', kind: 'action', ...said })).error).toBe(false);
     const action = daniel.data().requests!.at(-1)!;
-    expect([action.kind, action.status, action.recipientId, action.dueWeek, action.reviewId]).toEqual(['action', 'open', 'diego', 46, 'devprod']);
+    expect([action.kind, action.status, action.recipientId, action.dueWeek, action.reviewId]).toEqual(['action', 'open', 'diego', 46, noReviews ? null : 'devprod']);
     expect((await (await as('oskar', TODAY, daniel.data())).call('mark_action_done', { request_id: action.id })).error).toBe(true);
     const done = await as('diego', TODAY, daniel.data());
     expect((await done.call('mark_action_done', { request_id: action.id, note: 'Sent.' })).error).toBe(false);
@@ -146,7 +150,7 @@ describe('AI assistants can do what the person can', () => {
     expect(done.data().decisions.some((d) => d.kind === 'action' || d.kind === 'ask')).toBe(false); // none of this is a decision any more
   });
 
-  it(R('reviews: set one up, walk its agenda, say things, correct them; only people in it change it'), async () => {
+  it.skipIf(noReviews)(R('reviews: set one up, walk its agenda, say things, correct them; only people in it change it'), async () => {
     const tariq = await as('tariq');
     const agenda = await tariq.call('get_review', { review_id: 'devprod' });
     expect(agenda.data!.toDiscuss.length + agenda.data!.healthy.length).toBe(agenda.data!.of);

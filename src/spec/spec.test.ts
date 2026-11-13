@@ -76,7 +76,7 @@ describe('the spec', () => {
       expect(goal.buttons).toContainEqual(expect.objectContaining({ words: 'Post the first check-in', kind: 'primary', when: expect.arrayContaining(['isOwner']) }));
       expect(goal.states).toContainEqual(expect.objectContaining({ kind: 'empty', words: 'This goal doesn’t exist', when: '!goal' }));
       expect(goal.fields).toContainEqual(expect.objectContaining({ name: 'Your reply', kind: 'textarea' }));
-      expect(screenFacts(r, 'src/App.tsx', 'NotFound').buttons.map((b) => [b.words, b.kind])).toEqual([['Go to Home', 'primary'], ['Help', 'link']]);
+      expect(screenFacts(r, 'src/screens/NotFound.tsx', 'NotFound').buttons.map((b) => [b.words, b.kind])).toEqual([['Go to Home', 'primary'], ['Help', 'link']]);
       expect(screenFacts(r, 'src/telemetry/react.tsx', 'ErrorBoundary').states.map((x) => x.words)).toContain('Something went wrong on this page');
     });
 
