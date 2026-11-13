@@ -2,6 +2,7 @@ import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from '
 import { Icon } from '../ui/Icon';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
+import { countWords } from '../domain/format';
 import { periodNow, wrapUpOpenOn } from '../domain/cycle';
 import { attentionGroup, attentionList, splitAttention } from '../domain/attention';
 import { levelIds, levelName } from '../domain/levels';
@@ -264,7 +265,7 @@ export function GoalsScreen() {
           <div className="seg tabs one-row" role="tablist" aria-label="Whose goals" ref={tabRow}>
             {scopeTabs.map((t) => (
               <button key={t.id} role="tab" aria-selected={scope === t.id && !activeView} onClick={() => pickScope(t.id)}>
-                {t.label}<span className="tabcount">{t.ids.length}</span>
+                {t.label}{/* A nought isn't printed (small workspaces rule 2). */}{countWords(t.ids.length) && <span className="tabcount">{countWords(t.ids.length)}</span>}
               </button>
             ))}
             {/* A saved view is a tab only while it's open; the rest wait in the Views menu. */}

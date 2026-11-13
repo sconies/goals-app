@@ -152,6 +152,7 @@ Checks that Lane’s review notes stay fixed.
 | N15 | Said once: an ask’s words, this week’s reason, and what a goal measures, each in one place on its page | `GOAL-ASK-ONCE` `GOAL-HISTORY` | `evals/notes/11-said-once.cjs` |
 | N25 | Who may speak for a review: a non-member reads and is told who can add them; a member and an admin speak | `REVIEW-SPEAK` | `evals/notes/13-review-speak.cjs` |
 | N26 | Home: one primary at most, none when nothing is asked, in the first screen, and none of the words Home no longer says | `HOME-OWNER` | `evals/notes/12-home.cjs` |
+| N28 | Small workspaces, quiet: no nought beside a tab or a menu row, and the empty Watching page says when you’d want it | `SMALL-QUIET` | `evals/notes/23-small-quiet.cjs` |
 
 ## The ease test
 

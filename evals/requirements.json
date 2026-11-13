@@ -1168,6 +1168,12 @@
       "area": "Names",
       "text": "Two goals may share a title and two people a name (the email is who someone is). Creating one warns; wherever both could be on screen, a goal shows its key and a person their team or job title beside the name, and people with the same initials get different avatar colours.",
       "use": "copy"
+    },
+    {
+      "id": "SMALL-QUIET",
+      "area": "Navigation",
+      "text": "No count of nought beside a tab, a menu row or a section's name (a sentence may still say none), and an empty page says what is true, then when you'd want it, with a plain button rather than the page's primary.",
+      "use": "copy"
     }
   ],
   "notYetBuilt": [
