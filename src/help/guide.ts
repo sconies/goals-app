@@ -961,6 +961,7 @@ const CORE_ARTICLES: Article[] = [
         'Teams is the second tab of People. Find a team by its name or its lead’s.',
         'Each row shows the team’s lead, or No lead (set-up doesn’t ask who leads a team), how many people are in it (its lead counts as one of them, even when their own team is another), and its goals this year counted by status, shape and word. The counts are the same numbers Goals shows by team.',
         'Open a team to see what it is here to do, its goals by status (each count opens those goals), and its people, lead first. See its goals opens Goals for just that team; Show all lists all its people in People.',
+        'A team’s page also says how many of its goals were checked in before this week’s review, without being asked, and the last 8 weeks, as a review’s page does (with Reviews switched off, “On time this week”). Only for a team whose goals have three or more owners: nobody is named.',
       ] },
       { heading: 'For admins', list: [
         'Add a team is the main action. On a team’s page, Change its name, lead or purpose; and, apart, Remove this team. An empty team goes at once; a team with people or goals first moves them to another team, in the same save, and each goal’s history says so.',
@@ -970,7 +971,7 @@ const CORE_ARTICLES: Article[] = [
     ],
     routes: ['/teams', '/teams/:teamId', '/workspace/teams'],
     screens: [],
-    reqs: ['PEOPLE-DIRECTORY', 'WORKSPACE-ADMIN'],
+    reqs: ['PEOPLE-DIRECTORY', 'WORKSPACE-ADMIN', 'HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'],
     keywords: ['teams', 'team', 'team lead', 'add team', 'rename team', 'remove team', 'move goals', 'purpose', 'objective'],
     related: ['people', 'workspace', 'goals'],
   },

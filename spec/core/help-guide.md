@@ -757,6 +757,12 @@ A regular look at the goals that need it, with notes, questions and actions that
 - Finish review says what was decided (each person’s next steps, the risks accepted, the questions still open) before it records the session as held, and its message has Undo. The walk’s last goal finishes the same way.
 - Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session.
 
+#### Before this review
+
+- At the top of a review’s page: how many of its goals were checked in before it, and how many of those without being asked (an ask for an update is the only nudge). Before the review’s day it says how many are in so far.
+- Under it, “came in after an ask” and “have no check-in yet” each open exactly those goals on Goals, worst first. Then the last 8 weeks, one square each: All in, how many came after, None in, or Nothing due.
+- It counts weeks and goals, never people: nobody is named in it, and a set of goals with fewer than three owners doesn’t show it.
+
 #### Ending one
 
 - End this review, at the foot of its page: it stops showing as due and keeps its notes and actions on each goal and in exports. Its page says Ended, with Reopen. A review that was never held is deleted instead.
@@ -1226,13 +1232,14 @@ Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-CHANGE`.
 
 `teams`. The workspace’s teams, A to Z, each with its lead, its people and its goals by status; a team’s page says what it is here to do. Admins add, change and remove teams.
 
-Routes: `/teams`, `/teams/:teamId`, `/workspace/teams`. Requirements: `PEOPLE-DIRECTORY`, `WORKSPACE-ADMIN`.
+Routes: `/teams`, `/teams/:teamId`, `/workspace/teams`. Requirements: `PEOPLE-DIRECTORY`, `WORKSPACE-ADMIN`, `HABIT-MEASURE`, `HABIT-NEVER-A-PERSON`.
 
 #### How to use it
 
 - Teams is the second tab of People. Find a team by its name or its lead’s.
 - Each row shows the team’s lead, or No lead (set-up doesn’t ask who leads a team), how many people are in it (its lead counts as one of them, even when their own team is another), and its goals this year counted by status, shape and word. The counts are the same numbers Goals shows by team.
 - Open a team to see what it is here to do, its goals by status (each count opens those goals), and its people, lead first. See its goals opens Goals for just that team; Show all lists all its people in People.
+- A team’s page also says how many of its goals were checked in before this week’s review, without being asked, and the last 8 weeks, as a review’s page does (with Reviews switched off, “On time this week”). Only for a team whose goals have three or more owners: nobody is named.
 
 #### For admins
 
