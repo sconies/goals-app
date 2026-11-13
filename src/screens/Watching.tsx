@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
-import { isEveryday, isTop, levelIds, levelName } from '../domain/levels';
+import { isEveryday, levelIds, levelName } from '../domain/levels';
 import { groupWatched } from '../domain/home';
 import { ATTENTION, LABEL } from '../domain/vocabulary';
 import { weekDate, weekDates } from '../domain/plan';
@@ -138,23 +138,36 @@ function LevelPills() {
   );
 }
 
-/** Nothing watched yet: the quickest ways in. One primary choice (the SVP goals, where there are any), the rest beside it. */
+/**
+ * Nothing watched yet (small workspaces 2.4): says what watching is for, then the way in, as a plain button. "Watch every
+ * {level} goal ({n})" stays only for a level with ten or more goals. When every goal is the viewer's or their team's,
+ * there is nothing else to follow yet, and it says so with no button.
+ */
+/** A level is offered whole only with this many goals or more (small workspaces 2.4). */
+const WATCH_LEVEL_AT = 10;
+
 function StartWatching() {
   const app = useApp();
-  const counts = levelIds(app.cycle).map((l) => [l, app.snapshot.goals.filter((g) => g.level === l).length] as const).filter(([l, n]) => n && !isEveryday(app.cycle, l));
-  // The first level after the top that has goals; with two levels, the top.
-  const main = counts.find(([l]) => !isTop(app.cycle, l))?.[0] ?? counts[0]?.[0];
+  const counts = levelIds(app.cycle).map((l) => [l, app.snapshot.goals.filter((g) => g.level === l).length] as const).filter(([l, n]) => n >= WATCH_LEVEL_AT && !isEveryday(app.cycle, l));
   const watchLevel = async (l: Level) => { await app.watch('level', l); app.toast(`Watching every ${levelName(app.cycle, l)} goal`); };
+  const mine = (teamId: string, ownerId: string) => ownerId === app.viewer.id || (!!app.viewer.teamId && teamId === app.viewer.teamId);
+  const allMine = app.snapshot.goals.every((g) => mine(g.teamId, g.ownerId));
   return (
     <section className="card watch-empty">
-      <h2 className="h3">You’re not watching anything yet</h2>
-      <p className="muted">Watching puts the goals you care about in one place: what’s slipping, what has had no recent update, what changed.</p>
-      <div className="watch-empty-actions">
-        {counts.map(([l, n]) => (
-          <button key={l} type="button" className={'btn' + (l === main ? ' primary' : '')} onClick={() => watchLevel(l)}>Watch every {levelName(app.cycle, l)} goal ({n})</button>
-        ))}
-        <Link className={'btn' + (main ? '' : ' primary')} to="/goals">Pick goals from the list</Link>
-      </div>
+      <h2 className="h3">You’re not watching anything</h2>
+      {allMine ? (
+        <p className="muted">Everything in {app.ws.name} is already yours or your team’s. Watch is on a goal’s page when there is more to follow.</p>
+      ) : (
+        <>
+          <p className="muted">Watching puts the goals you care about in one place. Watch is on every goal’s page.</p>
+          <div className="watch-empty-actions">
+            <Link className="btn" to="/goals?scope=all">Pick goals from the list</Link>
+            {counts.map(([l, n]) => (
+              <button key={l} type="button" className="btn" onClick={() => watchLevel(l)}>Watch every {levelName(app.cycle, l)} goal ({n})</button>
+            ))}
+          </div>
+        </>
+      )}
     </section>
   );
 }

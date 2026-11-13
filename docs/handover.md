@@ -509,6 +509,29 @@ Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this sessi
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
 
+## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~20:45 UTC (context heavy, handing over mid-SM1; supersedes the 17:45 entry)
+
+Session: session_012kbr91ksyHteWqTM8Q4Yn3. Planning is session_012kbr91eefh4gwCAztBncNT (report there). Lane's answers (via planning): an admin's file isn't asked `for-someone-else` (as #422 built it, his #232 decision); the phone's shorter review label is the cell's label, as #425 built it.
+
+| PR | What | State |
+|---|---|---|
+| #425 | Look around the demo; a phone's lone review cell uses a short label | merged |
+| #426 | The 17:45 handover | merged |
+| #435 | SM4: the rail's Faro mark is the workspace switcher; `src/ui/WorkspacePanel.tsx` loads on first open (first download 268 KB before and after); N27 `RAIL-SWITCH` | merged |
+| #438 | TG's design spec, `docs/design/round-4/tags/spec.md`, with seven questions for Lane (sent to planning 20:00) | merged; **don't build TG until Lane answers** |
+| #442 | SM2: `countWords` (no nought beside a tab); the quiet empty pages (Metrics, Watching, Activity); a bug fixed: Goals' Watching tab told someone watching nothing "No goals match these filters"; N28 `SMALL-QUIET` | merged |
+| branch `sm1-waiting-rows` (no PR) | SM1's rows and tabs: `menu.waitsFor` in module.json (Metrics waits for its first metric; toast "Metrics is now in the menu."; `rowDrawn` in `src/domain/navigation.ts`); `scopesFor` returns `tabs` (drawn: non-empty and not the same list as All or an earlier tab) and `every` (every scope, so every address opens; My team goes to All when it waits); N29 `SMALL-MENU`; guide, What's new, architecture line, backlog row SM1h | **gate not passed.** typecheck, `npm test` (171 files) and N29 pass. In the full run two journeys fail on this branch, alone too, and pass on main: **U69** finish ("six goals gave 5 titles", one being "Goal not found", carried over from the previous page: a goal page's title is slow to change) and **U153** finish (HB2's "6 have no check-in for week 45 yet" link opened Goals with "1 goal matches", which looks like Mine's list rather than All; `movedGoals` should rewrite a filtered address with no scope to `scope=all`; check what `hasScope`/`opens` give it now that `every` always holds Mine). Find the root cause, fix it, rerun the gate, then open the PR |
+
+**Next, in order (planning, 20:11):**
+1. Finish SM1 (above). Its Home section is backlog row SM1h, waiting on HM3 (track 1).
+2. ST2 and SM3 as one item: set-up is still 7 steps (`src/screens/Onboarding.tsx` `SETUP_STEPS`); ST2 (`docs/design/setup/spec.md`) then SM3's four steps (`docs/design/round-4/small-workspaces/spec.md` 2.2, rule 3).
+3. TG, once Lane has answered #438's questions (planning relays them).
+4. The lows carried in the 17:45 entry below.
+
+**Habits** (as before, plus): never start a second heavy eval run while one is going (they share ports); a check that clicks the switcher must wait for the panel's rows (lazy since SM4); `scopesFor`'s `every` keeps Mine even when empty, so callers that meant "has this scope" check `ids.length` (find_goals does).
+
+**Prompt for the next track 2 session:** "You are track 2 of Faro's build (goal entry and set-up). Read CLAUDE.md, docs/architecture/module-map.md, then the track 2 section of docs/handover.md ('Track 2 … Friday 13 November, ~20:45 UTC'), and do its 'Next' list in order, one PR each, starting by finishing SM1 on branch sm1-waiting-rows (U69 and U153 fail there and pass on main). The first download is about 268 of 275 KB: keep anything new lazy; never raise budgets. Follow CLAUDE.md's gate (typecheck, npm test, npm run spec, evals:changed, build:mcp from a real node_modules via cp -al, never ln -s), one heavy run at a time. Build in a worktree, send eval runs to a subagent that returns only the scorecard, check mergeable_state, then enable auto-merge (MERGE) once the gate passes, checking the PR number first. Report to the planning session (session_012kbr91eefh4gwCAztBncNT, or whichever session tells you planning has moved) once, when the list is done or blocked. Hand over only when the list is done, past ~80% context, or when losing track."
+
 ## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~17:45 UTC (items 1–4 of the 15:25 list done; handing over before item 5, a new module; supersedes the 15:25 entry)
 
 Session: session_012kbr91ksyHteWqTM8Q4Yn3. Planning is session_012kbr939zneZWtAo7UQEHRP (or whichever session says planning has moved); track 4 is session_012kbr931R7QEqBrfxbNv2QV.
@@ -773,6 +796,38 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
   - the feeds-lower rule lives only in the form;
   - the unbuilt "cycle ended", "Add one" and gone-parent states from the onboarding spec.
 - **U23 (entry)** scored 8.6 locally and is track 2's to lift.
+
+## Track 4, Friday 13 November, 20:15 UTC (supersedes the 17:00 entry)
+
+Session: session_012kbr931R7QEqBrfxbNv2QV. Planning is session_012kbr91eefh4gwCAztBncNT.
+
+- **Merged since 17:00:**
+  - #419: AX6 part 1.
+  - #423: migration 0048, `okr_cycles.check_in_weeks` and `rhythm_from`.
+  - #424: RS1, including the CI job "Core journeys with every module switched off" (`FARO_MODULES_OFF=all`).
+  - #431: F8, a module's `module.json` `parity`.
+  - #439: the build reviewer's mediums on #371, including `writesReviews`, which refuses a write by what it touches, and switches loaded with the snapshot.
+  - #440: the build reviewer's mediums on #419. A re-run acts only as the viewer among the latest people; saves confirmed against a preview never re-run; `rebaseDraft` on the goal form.
+- **Built, not pushed (each in its own worktree under the session scratchpad; the branches are on origin only once pushed):**
+  - **`ft1-rhythm`:** FT1 complete, with main merged in at 20:10. Evals were running at 20:15. Its ids are U101, U102, F20 and N23.
+    - **Blocked:** don't turn on auto-merge until Lane has added `faro` to Supabase → Data API → Exposed schemas (Lane chose this on 13 Nov). Check it yourself first: a REST read of `okr_cycles` with `Accept-Profile: faro` and the app's public key must return `check_in_weeks`.
+    - With no set rhythm there is no receipt, no deadline phrase and no streak.
+  - **`sw1-switches`:** switches for Watching, Feedback, the goal map and the wrap-up, plus the Features groups. Evals were running at 20:15. Its ids are U156–U158 and N22.
+    - Left: `get_goal` `watchedBy`, `get_activity watching=1`, Activity's watching filter, the year line's wrap-up words, the "Watching is off here" filter line, and About's "All eight are on".
+    - FT1 adds a "How you work" group (the rhythm) to Features, and SW1 drops that group because it is empty. Whichever lands second reconciles.
+  - **`rs1-review-mediums`:** being built at 20:15. It covers the build reviewer's remaining #424 mediums:
+    - `inreview=` with Reviews off;
+    - review notes in the JSON export;
+    - `weekDoneText`'s clock branch that nothing calls;
+    - the habit panel's words coming from the switch alone.
+- **Owed:**
+  - SW2 (the AI access switch).
+  - FD (trim the first download back under 265 KB; main is 270 KB).
+  - The #358 lows: "Show older changes" with nothing older; the first older page lands at the top; `undo_import` past the window.
+  - The #403 low: a worker-checked file is planned again at Save.
+- **Traps** are as in the 17:00 entry. Two more:
+  - Journey and check ids clash across tracks. Choose ids at merge time, above main's highest.
+  - An eval agent that finishes "waiting on background work" can stop for good; send it a message to resume.
 
 ## Track 4, Friday 13 November, 17:00 UTC (supersedes the 06:00 entry)
 

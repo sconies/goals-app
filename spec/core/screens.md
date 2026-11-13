@@ -267,7 +267,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 - `/watching` (`Watching`): Watch the goals you care about but don’t own, and see what changed in them without opening each one. Help: “Watching goals” (`watching`).
 
-- **Named parts:** “What changed this week”, “What you watch”, “You’re not watching anything yet”, “What changed (region)”
+- **Named parts:** “What changed this week”, “What you watch”, “You’re not watching anything”, “What changed (region)”
 - **Main action:** Open a goal you watch that needs attention.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_watching`, `find_goals`, `watch`, `unwatch`
@@ -292,8 +292,8 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Show all …” | button | `!open` |
 | “Stop” | button | `managing` |
 | “Watch …” | button | always |
-| “Watch every … goal (…)” | primary | always |
-| “Pick goals from the list” | primary | always |
+| “Pick goals from the list” | link | `!allMine` |
+| “Watch every … goal (…)” | button | `!allMine` |
 
 ## Retro
 
