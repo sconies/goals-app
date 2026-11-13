@@ -8,12 +8,12 @@ import { useApp } from '../../app/state';
 import { saveAndSay } from '../../app/files';
 import { readChanges } from '../../app/spreadsheet';
 import { MODULE_SHEETS } from '../../core/records';
-import { describe, type ChangeSet } from '../../domain/changeset';
+import { describe, sheetCounts, type ChangeSet } from '../../domain/changeset';
 import { workbook } from '../../domain/export';
 import { leaveOut } from '../../domain/leaveOut';
 import { questionsLine, type Answer, type IssueGroup, type Sheet } from '../../domain/problemLevels';
 import { CHANGES_SAVE_MAX, tooLarge } from '../../domain/importLimits';
-import { parseDelimited, readLine, readTables, type ReadTables, type Tables } from '../../domain/sheets';
+import { headerRowsLine, parseDelimited, readLine, readTables, type ReadTables, type Tables } from '../../domain/sheets';
 import { workedOutEdits } from '../../domain/workedOut';
 import { useMark } from '../../telemetry/react';
 import { Sheet as SheetBox, WarnMark } from '../../ui/bits';
@@ -30,6 +30,9 @@ const SHEETS: Sheet[] = ['Goals', 'Plan', 'Check-ins', 'People'];
 const KEY: Record<Sheet, keyof Tables> = { Goals: 'goals', Plan: 'plan', 'Check-ins': 'checkIns', People: 'people' };
 const n = (k: number, one: string, many = one + 's') => `${k.toLocaleString('en-GB')} ${k === 1 ? one : many}`;
 const blank = (r: Record<string, string>) => Object.entries(r).every(([k, v]) => k === '__row' || !String(v).trim());
+/** While a save runs, the page that asked for it: the plan worked out again against what was just saved would flash
+    "Nothing would change" and "Nothing has been saved" before Imported opens (IM4 review). */
+const SAVING = 'Saving…';
 const rowKey = (x: { sheet: string; row: number }) => `${x.sheet}:${x.row}`;
 const uniqueRows = <T extends { sheet: Sheet; row: number }>(list: readonly T[]) => [...new Map(list.map((x) => [rowKey(x), x])).values()];
 
@@ -62,7 +65,8 @@ export async function chooseFile(f: File | undefined, onProblem: (text: string, 
 
 /** Rows pasted from a spreadsheet (tab-separated, the header row first), read as a file called “Pasted rows”. */
 export function choosePaste(text: string, onProblem: (text: string) => void): boolean {
-  const got = readTables([{ name: 'Pasted rows', rows: parseDelimited(text).filter((r) => r.some((c) => c.trim())) }]);
+  // Blank lines stay, so the rows keep the numbers they had where they were copied from (IM5 review).
+  const got = readTables([{ name: 'Pasted rows', rows: parseDelimited(text, { keepBlank: true }) }]);
   if (!got.read.length) { onProblem('The first row should be the headers (Goal, Owner, Start…). Copy them from here:'); return false; }
   return take(got, 'Pasted rows', onProblem);
 }
@@ -70,7 +74,10 @@ export function choosePaste(text: string, onProblem: (text: string) => void): bo
 export function Check() {
   const app = useApp();
   const nav = useNavigate();
-  const { st, base, left, cs, otherWorkspace, toSave, run, tables } = useImportPlan();
+  const plan = useImportPlan();
+  const { st, base, left, otherWorkspace, toSave, run, tables } = plan;
+  const [saving, setSaving] = useState<ChangeSet | null>(null);
+  const cs = saving ?? plan.cs;
   const due = useReadingDue(run?.started ?? 0, !!run?.running && !run.cs);
   const file = useRef<HTMLInputElement>(null);
   const why = useRef<HTMLTextAreaElement>(null);
@@ -81,7 +88,7 @@ export function Check() {
   useMark(cs ? 'import.read' : null);
 
   const choose = () => { if (file.current) file.current.value = ''; file.current?.click(); };
-  const picker = <input ref={file} type="file" accept=".xlsx,.zip,.csv,.tsv,.txt" className="sr" aria-label="Choose a spreadsheet" onChange={(e) => void chooseFile(e.target.files?.[0], setProblem).then((ok) => ok && setProblem(''))} />;
+  const picker = <input ref={file} type="file" accept=".xlsx,.zip,.csv,.tsv,.txt" className="sr" tabIndex={-1} aria-label="Choose a spreadsheet" onChange={(e) => void chooseFile(e.target.files?.[0], setProblem).then((ok) => ok && setProblem(''))} />;
 
   // A reload loses the file (it was only ever in memory): back to Import, which says so.
   if (!st.read || !base) return <Navigate to="/data/import" replace state={{ lost: true }} />;
@@ -141,6 +148,7 @@ export function Check() {
     const final = toSave();
     if (!final?.commit) { setTried(true); return; }
     setBusy(true);
+    setSaving(cs);
     try {
       const importId = final.commit.changes.find((c) => c.action === 'imported')?.entityId;
       await app.applyChanges(final);
@@ -152,6 +160,7 @@ export function Check() {
     } catch (e) {
       setProblem(`Nothing was saved: ${e instanceof Error ? e.message : String(e)}. Try again.`);
       setBusy(false);
+      setSaving(null);
     }
   };
   const download = (rows: RowProblem[], what: string, done: string) => saveAndSay(app.toast, { workspace: app.ws.name, what, date: app.today, as: `${baseName(st.name)}-${what}` }, { kind: 'xlsx', sheets: rowsSheets(read, base, rows) }, done);
@@ -163,10 +172,10 @@ export function Check() {
       {picker}
       <div className="page-head">
         <h1 className="title-xl">Check this import</h1>
-        <span className="hint">Nothing has been saved.</span>
+        <span className="hint">{saving ? SAVING : 'Nothing has been saved.'}</span>
       </div>
 
-      <p className="small import-file-line"><span className="strong">{st.name}</span> · {readLine(read, cs.examples)}{read.headerRows.map((h) => ` Row ${h.row} of ${h.sheet} is the header row; ${n(h.row - 1, 'row')} above it ${h.row === 2 ? 'was' : 'were'} skipped.`).join('')}</p>
+      <p className="small import-file-line"><span className="strong">{st.name}</span> · {[readLine(read, cs.examples), headerRowsLine(read)].filter(Boolean).join(' ')}</p>
       {st.carried > 0 && <p className="small">Your {n(st.carried, 'answer')} still {st.carried === 1 ? 'applies' : 'apply'}.</p>}
       {problem && <p className="hint tone-off" role="alert">{problem}</p>}
 
@@ -229,22 +238,14 @@ export function Check() {
   );
 }
 
-/** Counts by sheet (2.3, item 2): a table from 700 px; below, one sentence per sheet with the zero parts left out. */
+/** Counts by sheet (2.3, item 2; domain/changeset sheetCounts): a table from 700 px; below, one sentence per sheet with
+    the zero parts left out. */
 function Counts({ cs, base, read }: { cs: ChangeSet; base: Tables; read: { name: string; kind: string }[] }) {
-  const rows = SHEETS.filter((sh) => read.some((r) => r.kind === KEY[sh])).map((sh) => {
-    const items = cs.items.filter((x) => x.sheet === sh);
-    const issueRows = (level: 'must' | 'check') => uniqueRows(cs.issues.filter((i) => i.sheet === sh && i.level === level)).length;
-    return {
-      sheet: read.find((r) => r.kind === KEY[sh])!.name,
-      read: (base[KEY[sh]] ?? []).filter((r) => !blank(r)).length,
-      added: items.filter((x) => ['new goal', 'check-in', 'new person'].includes(x.kind)).length,
-      changed: items.filter((x) => ['goal', 'plan', 'replaces check-in', 'person', 'team'].includes(x.kind)).length,
-      stopped: items.filter((x) => ['stop goal', 'delete goal', 'person left'].includes(x.kind)).length,
-      unchanged: cs.unchangedBy[sh],
-      must: issueRows('must'),
-      check: issueRows('check'),
-    };
-  });
+  const rows = SHEETS.filter((sh) => read.some((r) => r.kind === KEY[sh])).map((sh) => ({
+    sheet: read.find((r) => r.kind === KEY[sh])!.name,
+    read: (base[KEY[sh]] ?? []).filter((r) => !blank(r)).length,
+    ...sheetCounts(cs, sh),
+  }));
   const sentence = (r: (typeof rows)[number]) => {
     const parts = [r.added && `${r.added.toLocaleString('en-GB')} added`, r.changed && `${r.changed.toLocaleString('en-GB')} changed`, r.stopped && `${r.stopped.toLocaleString('en-GB')} stopped or left`, r.unchanged && `${r.unchanged.toLocaleString('en-GB')} unchanged`, r.must && `${r.must.toLocaleString('en-GB')} must be fixed`, r.check && `${r.check.toLocaleString('en-GB')} to check`].filter(Boolean);
     return `${r.sheet}: ${n(r.read, 'row')} read${parts.length ? `; ${parts.join(', ')}` : ''}.`;

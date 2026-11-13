@@ -1935,6 +1935,18 @@ journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, boa
   await h.click(await exportButton(h, p));
   const [part] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Export .xlsx' }))]);
   h.set('finish', /-goals-as-shown-\d{4}-\d\d-\d\d\.xlsx$/.test(part.suggestedFilename()), `a filtered All tab was not saved as …-goals-as-shown-{date}.xlsx: ${part.suggestedFilename()}`);
+  // Data's Export → Everything… opens the same sheet, for everything; closed, the focus goes back to Export (#248 review).
+  await p.goto(url('/data'));
+  await h.click(p.locator('.data-export > summary'));
+  await h.click(p.getByRole('button', { name: 'Everything…' }));
+  const sheet = p.getByRole('dialog', { name: 'Export' });
+  await sheet.getByRole('button', { name: 'Export .xlsx' }).waitFor();
+  const note = await sheet.locator('.export-note').innerText();
+  h.set('finish', /-goals-all-\d{4}-\d\d-\d\d\.xlsx: \d+ goals, as of week \d+\./.test(note), `Everything… on Data does not name an …-all-{date}.xlsx of n goals as of this week: ${note}`);
+  await p.keyboard.press('Escape');
+  await sheet.waitFor({ state: 'detached' });
+  await p.waitForTimeout(100);
+  h.set('a11y', await p.evaluate(() => !!document.activeElement?.matches('.data-export > summary')), 'closing Export opened from Data left the focus on the page, not on Export');
   await p.context().close();
 }, ['errors']);
 
@@ -1957,7 +1969,7 @@ journey('U20', ['BULK-IMPORT', 'SPREADSHEETS-ON-DATA'], 'Load a spreadsheet from
   await see(p, '1 new goal');
   await h.checkpoint('preview');
   await h.click(p.getByRole('button', { name: 'Save 1 change' }));
-  await see(p, 'Saved 1 change from goals.csv.');
+  await see(p, 'Saved 1 row from goals.csv.');
   // Its past weeks, by the old address (it leads to Data's Import): a week in the future is refused, and nothing saves
   // until it's fixed.
   await p.goto(url('/import'));
@@ -6078,7 +6090,7 @@ journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals show
 journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/data/import'));
-  await see(p, 'Up to 5,000 rows a file', 'Import does not say how many rows a file may have');
+  await see(p, 'Up to 30,000 rows a file, and 5,000 changes at a time.', 'Import does not say how many rows a file may have');
   await h.inView(p.getByRole('button', { name: 'or paste rows from a spreadsheet' }), 'entry', 'Paste rows, beside Choose a file');
   await h.click(p.getByRole('button', { name: 'or paste rows from a spreadsheet' }));
   const box = p.getByRole('textbox', { name: 'Paste rows from a spreadsheet' });
@@ -6155,7 +6167,7 @@ journey('U90', ['IMPORT-UNDO'], 'Undo and past imports: as Amara, save an import
   await p.waitForURL(/\/data\/import\/check$/);
   await h.click(p.getByRole('button', { name: 'Save 15 changes' }));
   await p.waitForURL(/\/data\/import\/done\/imp_/);
-  await see(p, `Saved 15 changes from u90-${device}.xlsx.`, 'Imported does not say what was saved from which file');
+  await see(p, `Saved 15 rows from u90-${device}.xlsx.`, 'Imported does not say what was saved from which file');
   h.set('entry', await p.getByRole('button', { name: 'Undo this import' }).isVisible(), 'Imported does not offer Undo');
   await h.checkpoint('imported');
   // Data → Import → All {n} past imports: the import by its file's name.
