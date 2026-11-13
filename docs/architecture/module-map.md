@@ -48,7 +48,7 @@ The core is everything outside `src/modules`. It cannot be switched off because 
 
 **Core, and staying core** (architecture readiness review, 11 November): the goal map, markup and the scorecard were looked at and left. The map and the scorecard read core records only; markup lives mostly in one folder and may move when something needs it to.
 
-Of the features in the core today, these are **distinct but not yet switchable**, because their switch is designed and not built (FT2, SW1, SW2): reviews, Watching, AI access, Feedback, the goal map, the wrap-up's own screens. Until their switch ships, each needs the sentence in its spec saying why it cannot be switched off — see fix item F1.
+Of the features in the core today, AI access is **distinct but not yet switchable**, because its switch is designed and not built (SW2). Reviews (FT2), Watching, Feedback, the goal map and the wrap-up's own screens (SW1) are switches whose code is still in the core. Until their switch ships, each needs the sentence in its spec saying why it cannot be switched off — see fix item F1.
 
 ## 2. The modules
 
@@ -58,19 +58,19 @@ Of the features in the core today, these are **distinct but not yet switchable**
 |---|---|---|---|---|
 | Metric library (`metrics`) | `metrics` | — | The Metrics menu row and `/metrics`; the goal form's "Measured by" and a goal's "Measured by" line; the goal page's and a person's and a team's metric sections; Goals' metric filter; the `metric` finder; seven AI tools (`list_metrics`, `get_metric`, `save_metric`, `remove_metric`, `retire_metric`, `merge_metrics`, `link_goal_metric`); five Help articles; the workbook's Metrics sheet and its Goals columns; "To sort out" on About. Its rows stay as they are | Module: Metric library |
 | Spreadsheets (`spreadsheets`) | `spreadsheets` | — | Data's Spreadsheets menu, `/data/import` and the rest of import, Goals' "Export these goals", `export` and `export_table`, four Help articles, Past imports | Module: Spreadsheets |
+| Watching (`watching`; SW1, a switch with its code still the core's) | `watching` | — | `/watching`, Goals' Watching tab, Home's "Goals you watch" and Getting started's row, the Watch button, "Watched by" and the bulk bar's Watch, `list_watching`, `watch`, `unwatch`, its Help article; `get_my_work` leaves out what is watched. Someone who owns no goal is led to every goal needing attention. Its read-back counts the watches kept | Module: Watching |
+| Wrap-up (`wrap-up`; SW1, the same) | `wrap-up` | — | `/retro` and `/retro/:goalId`, Home's wrap-up lead and "See the wrap-up", Goals' Wrap up, Cycles' "Open the wrap-up", `get_wrap_up`, `wrap_up_goal`, its Help article. Results, carrying on and starting the next year stay core. Its read-back counts the wrap-ups kept | Module: Wrap-up |
+| Goal map (`goal-map`; SW1, the same) | `goal-map` | — | Goals' Map layout (a link or view asking for it opens the List and says so); its Help article; no tools | Module: Goal map |
+| Feedback (`feedback`; SW1, the same) | `feedback` | — | The Feedback menu row, `/feedback` and its old addresses, Send feedback, Mark up this screen and Ctrl+Shift+M, the seven inbox tools and `send_feedback`, its two Help articles. It acts at once: its read-back needs the builders' store counted per workspace (SW4) | Module: Feedback |
 
 ### Designed, not built
 
 | Module | Switch | Needs | Off turns off | Where |
 |---|---|---|---|---|
 | Reviews | `reviews` | — | The Reviews menu row and phone tab, `/reviews…`; Home's "Next review" cell and its lead; a goal's "in {review}" and the review walk; Find's review group; eight AI tools; the Help article; the import's Notes sheet and Review column; the decision rule (`src/domain/decide.ts`) goes with it. History and Activity keep what reviews saved | FT2 then RS1 (track 4); FT3 moves the folder into `src/modules` |
-| Watching | `watching` | — | The Watching menu row and `/watching`, Home's "Goals you watch", `list_watching`, `watch`, `unwatch` | SW1 |
 | AI access | `ai-access` | — | Every token at the server door, the token views on Access, Settings and People, `/workspace/ai`, `list_tokens`, `create_token`, `revoke_token`. Tokens are kept and named first when it comes back on | SW2 |
-| Feedback | `feedback` | — | The Feedback menu row, `/feedback`, eight inbox tools | SW1 |
-| Goal map | `goal-map` | — | Goals' map layout; no tools | SW1 |
-| Wrap-up | `wrap-up` | — | The wrap-up's own screens and `get_wrap_up`, `wrap_up_goal`. Results, carrying on and starting the next year stay core | SW1 |
 
-**Two rules for all six.** The switch's name is the module's id, every one is on by default, and none declares `needs`. A workspace that turns one off gets no menu row, no Home card, no MCP answer but the refusal, and one line in the import saying what was not read.
+**Two rules for every switch.** The switch's name is the module's id, every one is on by default, and none declares `needs`. A workspace that turns one off gets no menu row, no Home card, no MCP answer but the refusal, and one line in the import saying what was not read.
 
 ### The three sentences a new module must use
 
