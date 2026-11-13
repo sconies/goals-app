@@ -1390,7 +1390,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “Finish it” | primary | `canActivate` and `missing.length` |
+| “Set the target / Finish it” | primary | `canActivate` and `missing.length` |
 | “Make it active” | primary | `canActivate` and `!missing.length` |
 | “Change it” | link | `canActivate` |
 | “Withdraw it” | button | `canActivate` |

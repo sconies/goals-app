@@ -18,7 +18,7 @@ import { isTop, levelName } from '../domain/levels';
 import { sameTitleGoals } from '../domain/people';
 import { NEW_GOAL_STEPS, parentSuggestions, startLevel, stepIndex } from '../domain/newGoal';
 import { readBack, reviewsJoining, underWay } from '../domain/readBack';
-import { measureEmpty } from '../domain/proposed';
+import { baselineOnly, measureEmpty } from '../domain/proposed';
 
 /** The fields that say how a goal is measured: optional, all together, while it is proposed (rule 14). */
 const MEASURE_FIELDS: string[] = ['start', 'target', 'limit', 'stages'];
@@ -425,6 +425,8 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
                   <div className="field">
                     <label className="stack" style={{ gap: 4 }}><span className="small strong">Target</span><input className="input big-input" inputMode="decimal" data-field="target" value={d.target} onChange={(e) => set({ target: e.target.value })} onBlur={leave('target')} aria-invalid={invalid('target')} aria-describedby={invalid('target') ? 'target-fix' : undefined} /></label>
                     {showErr('target')}{keepOffer('target')}{holdOffer}
+                    {/* A baseline and nothing else yet (GB): with no target agreed, propose it with just the baseline. */}
+                    {!proposing && baselineOnly(d) && <button type="button" className="linkish propose-no-target small" onClick={() => set({ state: 'proposed' })}>No target agreed yet? Propose it with just the baseline</button>}
                   </div>
                   <div onBlur={leave('endWeek')}>
                     <WeekPick cycle={cycle} week={week} field="to" from={span.from} label="To" labelClass="small strong" value={endChoice} onChange={setTo} invalid={invalid('endWeek')} dataField="endWeek" />

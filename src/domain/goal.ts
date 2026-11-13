@@ -68,7 +68,7 @@ export function draftOf(g: Goal): GoalDraft {
     kind: g.kind, title: g.title, io: g.io, level: g.level, guardrail: g.guardrail,
     effect: g.effect == null ? '' : String(g.effect), whyHelps: g.whyHelps ?? '', alsoHelps: g.alsoHelps ?? [], source: g.source, definition: g.definition,
   });
-  if (g.kind === 'metric') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), start: String(g.plan.start), target: String(g.plan.target), shape: g.plan.shape, endWeek: g.plan.endWeek ? String(g.plan.endWeek) : '', points: Object.fromEntries((g.plan.points ?? []).map((p) => [String(p.week), String(p.value)])), baselinePeriod: g.baseline?.period ?? '', baselineProvisional: !!g.baseline?.provisional });
+  if (g.kind === 'metric') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), start: String(g.plan.start), target: g.targetUnset ? '' : String(g.plan.target), shape: g.plan.shape, endWeek: g.plan.endWeek ? String(g.plan.endWeek) : '', points: Object.fromEntries((g.plan.points ?? []).map((p) => [String(p.week), String(p.value)])), baselinePeriod: g.baseline?.period ?? '', baselineProvisional: !!g.baseline?.provisional });
   if (g.kind === 'range') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), bound: g.range.bound, limit: String(g.range.limit), lower: g.range.lower != null ? String(g.range.lower) : '', margin: String(g.range.margin) });
   if (g.kind === 'milestone') d.stages = g.stages.map((s) => ({ id: s.id, name: s.name, dueWeek: String(s.dueWeek) }));
   return d;
@@ -176,15 +176,17 @@ export function buildGoal(d: GoalDraft, cycle: Cycle, base: { id: string; create
       : existing?.kind === 'metric' ? (existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {}) : week > 0 ? { fromWeek: week } : {};
     // No To: the cycle's end, or the end of next year for a From at or past it (weeks.defaultTo).
     const end = parseNumber(d.endWeek) ?? defaultTo(cycle, from.fromWeek ?? 0);
+    // A proposed goal may leave its target unset (GB): the plan holds the start in its place, and the goal says so.
+    const unset = !d.target.trim();
     const shaped: MetricPlan = {
-      start: num(d.start), target: num(d.target), shape: d.shape, ...from,
+      start: num(d.start), target: unset ? num(d.start) : num(d.target), shape: d.shape, ...from,
       ...(end !== cycle.weeks ? { endWeek: end } : {}),
     };
     const plan = withPoints(shaped, d.points, cycle.weeks);
     const history = existing?.kind === 'metric' ? replanned(existing, plan, checkInsStarted, week) : { originalPlan: null, rebaselinedWeek: null };
     const baseline = d.baselinePeriod === undefined && existing?.kind === 'metric' && existing.baseline
       ? baselineOf(plan.start, existing.baseline.period, existing.baseline.provisional) : baselineOf(plan.start, d.baselinePeriod, d.baselineProvisional);
-    return { ...common, kind: 'metric', unit: d.unit.trim(), decimals: decimalsFor(d) ?? 0, plan, ...history, ...(baseline ? { baseline } : {}) };
+    return { ...common, kind: 'metric', unit: d.unit.trim(), decimals: decimalsFor(d) ?? 0, plan, ...history, ...(baseline ? { baseline } : {}), ...(unset ? { targetUnset: true as const } : {}) };
   }
   if (d.kind === 'range') {
     return { ...common, kind: 'range', unit: d.unit.trim(), decimals: decimalsFor(d) ?? 0, range: { bound: d.bound, limit: num(d.limit), ...(d.bound === 'between' ? { lower: num(d.lower) } : {}), margin: parseNumber(d.margin) ?? 0 } };

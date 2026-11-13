@@ -94,7 +94,7 @@ export function goalsMeasuredBy(s: Rows, goals: readonly Goal[], metricId: strin
 /** A goal's target in its metric: a metric goal's plan target, or a range goal's limit (between two numbers: the upper,
     with the lower beside it). Milestones have none. */
 export function goalTarget(g: Goal): { value: number; kind: 'target' | 'at most' | 'at least' | 'between'; lower?: number } | null {
-  if (g.kind === 'metric') return { value: g.plan.target, kind: 'target' };
+  if (g.kind === 'metric') return g.targetUnset ? null : { value: g.plan.target, kind: 'target' };
   if (g.kind === 'range') return g.range.bound === 'between' ? { value: g.range.limit, kind: 'between', lower: g.range.lower! } : { value: g.range.limit, kind: g.range.bound === 'atMost' ? 'at most' : 'at least' };
   return null;
 }

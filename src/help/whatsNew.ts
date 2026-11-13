@@ -27,6 +27,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'target-not-set',
+    date: '2026-11-13',
+    title: 'A goal can go in with its baseline and no target yet',
+    points: [
+      'When a number is known but nobody has agreed a target, propose the goal with its Baseline and leave Target empty.',
+      'It says “Target not set”, has no status and nothing due, and counts in nothing until it is made active.',
+      'Set the target on its page when one is agreed; it can be made active once it has one.',
+      'The Goals sheet and the AI tools take a proposed goal with a Start and no Target too.',
+    ],
+    articles: ['goal-proposed'],
+  },
+  {
     id: 'baseline-of-its-own',
     date: '2026-11-13',
     title: 'A baseline can say what period it covers, and how firm it is',
