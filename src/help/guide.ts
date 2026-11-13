@@ -599,6 +599,7 @@ const CORE_ARTICLES: Article[] = [
         'What matches comes in groups: Goals, People, Teams, and Metrics while the metric library is on. Each shows its first three with how many match in all; “See all 8 goals” opens that list with your search filled in.',
         'A goal’s key on its own (G-48, g48 or 48) puts that goal first. Enter opens the first row; Down and Up move to another; Escape closes. Each row is a link, so you can open it in a new tab.',
         'Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open.',
+        'On a computer, a picker opens under its field, or above it when the window has no room below, so a sheet or a table never cuts it off.',
       ] },
       { heading: 'Keys', list: [
         'Ctrl K (Cmd K on a Mac): Find, from any page.',

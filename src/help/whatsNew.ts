@@ -36,6 +36,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['joining', 'welcome'],
   },
   {
+    id: 'pickers-in-full',
+    date: '2026-11-12',
+    title: 'Pickers show in full, and Find finds people who have left',
+    points: [
+      'On a computer, a picker opened in a sheet or in Data’s table is no longer cut off: it opens above its field when there is no room below.',
+      'Find finds someone who has left again, marked “(left)”, as it always said it would.',
+      'Setting up a workspace with two people of one name, the owner you pick is the one the goal gets.',
+    ],
+    articles: ['finding'],
+  },
+  {
     id: 'save-part-not-loaded',
     date: '2026-11-12',
     title: 'Saving says when it can’t',
