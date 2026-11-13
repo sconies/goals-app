@@ -13497,6 +13497,83 @@ function proposedSummary(goal, s, cycle, week) {
 		story
 	};
 }
+// src/domain/order.ts
+init_status();
+init_vocabulary();
+/** How many goals have each status, worst first, only the statuses that have any: "11 off track, 23 at risk …". */
+function statusCounts(statuses) {
+	const by = /* @__PURE__ */ new Map();
+	for (const k of statuses) by.set(k, (by.get(k) ?? 0) + 1);
+	return STATUS_ORDER.filter((k) => by.get(k)).map((k) => ({
+		status: k,
+		n: by.get(k)
+	}));
+}
+// src/domain/home.ts
+init_attention();
+init_plan();
+init_progress();
+init_review();
+init_status();
+/** Splits goals' attention into the Watching groups. The order of the list is kept within each group. */
+function groupWatched(all) {
+	const needs = all.filter(needsAttention);
+	return {
+		all,
+		needs,
+		handled: all.filter((a) => !!a.handled),
+		quiet: needs.filter((a) => a.status.status === "stale"),
+		fine: all.filter((a) => !needsAttention(a) && !a.handled)
+	};
+}
+/** The next session of every review the person takes part in, soonest first: two on one day are both here (HM1 review). */
+function nextReviews(personId, s, cycle, week, today) {
+	return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
+		const w = upcomingSessionWeek(r, cycle, week, today);
+		const date = sessionDate(r, cycle, w);
+		return {
+			id: r.id,
+			name: r.name,
+			week: w,
+			date,
+			weekday: WEEKDAY[r.weekday] ?? "",
+			days: 0 - daysSince(date, today) + 0
+		};
+	}).filter((x) => x.week <= cycle.weeks).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+}
+/** This week's sessions the person is in that are past their date and not held, longest past first. */
+function missedReviews(personId, s, cycle, week, today) {
+	return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
+		const sx = reviewSession(r, s, cycle, today, week);
+		return {
+			id: r.id,
+			name: r.name,
+			week: sx.week,
+			date: sx.date,
+			daysPast: daysPast(sx, today)
+		};
+	}).filter((x) => x.daysPast > 0 && x.week <= cycle.weeks).sort((a, b) => b.daysPast - a.daysPast || a.name.localeCompare(b.name));
+}
+function dashboard(personId, s, cycle, week, today) {
+	const mine = s.goals.filter((g) => g.ownerId === personId);
+	const goals = mine.length ? mine : s.goals;
+	const watched = watchedGoals(personId, s);
+	return {
+		scope: mine.length ? "mine" : "all",
+		counts: statusCounts(goals.map((g) => goalStatus(g, cycle, s.checkIns, today).status)),
+		total: goals.length,
+		streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
+		watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
+		...(() => {
+			const upcoming = nextReviews(personId, s, cycle, week, today);
+			return {
+				next: upcoming[0] ?? null,
+				upcoming
+			};
+		})(),
+		missed: missedReviews(personId, s, cycle, week, today)
+	};
+}
 // src/app/reads.ts
 init_cycle();
 init_plan();
@@ -15138,83 +15215,6 @@ function activityFilter(a, x) {
 		return true;
 	};
 }
-// src/domain/order.ts
-init_status();
-init_vocabulary();
-/** How many goals have each status, worst first, only the statuses that have any: "11 off track, 23 at risk …". */
-function statusCounts(statuses) {
-	const by = /* @__PURE__ */ new Map();
-	for (const k of statuses) by.set(k, (by.get(k) ?? 0) + 1);
-	return STATUS_ORDER.filter((k) => by.get(k)).map((k) => ({
-		status: k,
-		n: by.get(k)
-	}));
-}
-// src/domain/home.ts
-init_attention();
-init_plan();
-init_progress();
-init_review();
-init_status();
-/** Splits goals' attention into the Watching groups. The order of the list is kept within each group. */
-function groupWatched(all) {
-	const needs = all.filter(needsAttention);
-	return {
-		all,
-		needs,
-		handled: all.filter((a) => !!a.handled),
-		quiet: needs.filter((a) => a.status.status === "stale"),
-		fine: all.filter((a) => !needsAttention(a) && !a.handled)
-	};
-}
-/** The next session of every review the person takes part in, soonest first: two on one day are both here (HM1 review). */
-function nextReviews(personId, s, cycle, week, today) {
-	return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
-		const w = upcomingSessionWeek(r, cycle, week, today);
-		const date = sessionDate(r, cycle, w);
-		return {
-			id: r.id,
-			name: r.name,
-			week: w,
-			date,
-			weekday: WEEKDAY[r.weekday] ?? "",
-			days: 0 - daysSince(date, today) + 0
-		};
-	}).filter((x) => x.week <= cycle.weeks).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
-}
-/** This week's sessions the person is in that are past their date and not held, longest past first. */
-function missedReviews(personId, s, cycle, week, today) {
-	return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
-		const sx = reviewSession(r, s, cycle, today, week);
-		return {
-			id: r.id,
-			name: r.name,
-			week: sx.week,
-			date: sx.date,
-			daysPast: daysPast(sx, today)
-		};
-	}).filter((x) => x.daysPast > 0 && x.week <= cycle.weeks).sort((a, b) => b.daysPast - a.daysPast || a.name.localeCompare(b.name));
-}
-function dashboard(personId, s, cycle, week, today) {
-	const mine = s.goals.filter((g) => g.ownerId === personId);
-	const goals = mine.length ? mine : s.goals;
-	const watched = watchedGoals(personId, s);
-	return {
-		scope: mine.length ? "mine" : "all",
-		counts: statusCounts(goals.map((g) => goalStatus(g, cycle, s.checkIns, today).status)),
-		total: goals.length,
-		streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
-		watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
-		...(() => {
-			const upcoming = nextReviews(personId, s, cycle, week, today);
-			return {
-				next: upcoming[0] ?? null,
-				upcoming
-			};
-		})(),
-		missed: missedReviews(personId, s, cycle, week, today)
-	};
-}
 // src/modules/metrics/help.ts
 var help$3 = [
 	{
@@ -15698,12 +15698,17 @@ var CORE_ARTICLES = [
 					"With two or more number goals to check in on, a quiet link under the button opens the table, to type all your numbers at once.",
 					"This week, above the lead, shows a review you’re in, or one that has passed its day without being held, as one cell. It is left out when the lead is that review; with two reviews on one day, the lead takes one and the cell the other. Once the year has ended, no review is said to be not held.",
 					"While someone waits for your response, Home doesn’t say nothing is asked of you: it says how many asks wait. If you’re an admin, a note says when the year is ending or has ended, with Start for the next one.",
-					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.",
-					"Your goals come next, counted once: how many there are by status, each count opening exactly those goals in Goals (“1 at risk” lists the one). Then the ones that need attention, worst first, each with Check in when that is what it needs; what is being handled, folded away; and the rest, five at a time. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Each row opens its goal. Goals you watch follow.",
+					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions. Each says who asked, where and on what day, and how long it has waited or when it is due; a late one says so first, with the warning mark. Five show, then Show all. Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.",
+					"When an ask is late, due this week, or has waited a week or more, and nothing comes before it, it is the lead, with its one button (Respond, Answer, Check in or Mark done); the rest are under Also needs your response.",
+					"Your goals come next, counted once: how many there are by status, each count opening exactly those goals in Goals (“1 at risk” lists the one). Then the ones that need attention, worst first, each with Check in when that is what it needs; what is being handled, folded away; and the rest, five at a time. Each row opens its goal. Goals you watch follow.",
 					"On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.",
 					"Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it.",
 					"After a release you haven’t seen, a quiet line at the foot of Home says what’s new in Faro. Open it, or dismiss it with the cross."
 				]
+			},
+			{
+				heading: "Why an ask says how long it has waited",
+				list: ["An ask with a week it is due by is due that week’s Sunday. A question raised in a review is due before the review’s next session after the one it was raised in, and stays due then: it doesn’t move on to a later session when that one passes.", "An ask with no date says how long it has waited: “Waiting since 4 Aug, 14 weeks”. The oldest come first, after anything late or due this week."]
 			},
 			{
 				heading: "When Home has no button",
@@ -18298,6 +18303,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "asks-say-how-long",
+		date: "2026-11-12",
+		title: "Asks say how long they have waited",
+		points: [
+			"Each ask on Home says how long it has waited, or when it is due, and a late one says so first with the warning mark.",
+			"A question raised in a review is due before the next session after the one it was raised in, and stays due then.",
+			"The oldest or most pressing ask can be Home’s one main action when nothing comes before it."
+		],
+		articles: ["home"]
+	},
 	{
 		id: "home-after-review",
 		date: "2026-11-12",

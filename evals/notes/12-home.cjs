@@ -48,6 +48,23 @@ module.exports = {
       }
       await c.close();
     }
+    // [HOME-OWNER] An ask that waits (HM2): Amara on Monday 9 Nov has Rhea's decision, asked in August, as her one primary;
+    // Rhea on Wednesday 11 Nov sees Daniel's question, due before Tuesday's session, as late, with the warning mark first.
+    for (const [w, h, touch] of SIZES) {
+      const [c, p] = await open(w, h, 'amara', '/?today=2026-11-09', touch);
+      await p.locator('.page.home .home-hero').first().waitFor();
+      const hero = await p.locator('.home-hero').first().innerText();
+      const primary = await p.locator('.page.home .btn.primary').allInnerTexts();
+      check(/Needs your response · waiting since \d+ Aug, \d+ weeks/.test(hero) && /Rhea needs a decision/.test(hero) && primary.length === 1 && primary[0].trim() === 'Respond', `Amara, 2026-11-09, ${w}px: the lead is “${hero.replace(/\s+/g, ' ')}” with ${primary.join(', ')}`);
+      const also = await p.locator('.needs-you h2').innerText().catch(() => '');
+      check(!also || /^Also needs your response/.test(also), `Amara, 2026-11-09, ${w}px: the list under an ask lead is headed “${also}”`);
+      await c.close();
+      const [c2, q] = await open(w, h, 'rhea', '/?today=2026-11-11', touch);
+      await q.locator('.needs-you').first().waitFor({ timeout: 8000 }).catch(() => {});
+      const metas = await q.locator('.needs-you .need-meta').evaluateAll((els) => els.map((e) => ({ text: e.innerText, warn: !!e.querySelector('svg, .warn-mark, [class*=warn]') })));
+      check(metas.some((m) => m.warn && /^Was due before .+’s session on Tue 10 Nov/.test(m.text.trim())), `Rhea, 2026-11-11, ${w}px: no late question says “Was due before…” first with the warning mark (${metas.map((m) => m.text).join(' | ')})`);
+      await c2.close();
+    }
     return fails;
   },
 };
