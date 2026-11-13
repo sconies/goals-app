@@ -273,12 +273,12 @@ describe('AI assistants can do what the person can', () => {
   });
 });
 
-/* N29 (RS, docs/design/round-4/reviews-switch/spec.md 5 and 7): a switched-off module's tools all answer with one
+/* N30 (RS, docs/design/round-4/reviews-switch/spec.md 5 and 7): a switched-off module's tools all answer with one
    sentence, the same pattern for every module; edit_call on a note said in a review says Reviews' too. */
-describe('a switched-off module’s tools say one sentence (N29)', () => {
+describe('a switched-off module’s tools say one sentence (N30)', () => {
   const off = (module: string, tool: string) => `${module} is switched off in Acme, so ${tool} can’t be used there. An admin can switch it on in Workspace, under Features.`;
   for (const m of MODULES.filter((x) => x.aiTools.length)) {
-    it(`[REVIEWS-OPTIONAL] N29: with ${m.name} off, each of its tools (${m.aiTools.join(', ')}) answers “${m.name} is switched off in Acme, so {tool} can’t be used there. …” and changes nothing`, async () => {
+    it(`[REVIEWS-OPTIONAL] N30: with ${m.name} off, each of its tools (${m.aiTools.join(', ')}) answers “${m.name} is switched off in Acme, so {tool} can’t be used there. …” and changes nothing`, async () => {
       const amara = await as('amara', TODAY, undefined, [m.id]);
       const before = amara.data().changes.length;
       for (const tool of m.aiTools) {
@@ -290,7 +290,7 @@ describe('a switched-off module’s tools say one sentence (N29)', () => {
     });
   }
 
-  it('[REVIEWS-OPTIONAL] N29: with Reviews off, edit_call on a note said in a review answers with Reviews’ sentence', async () => {
+  it('[REVIEWS-OPTIONAL] N30: with Reviews off, edit_call on a note said in a review answers with Reviews’ sentence', async () => {
     const amara = await as('amara', TODAY, undefined, ['reviews']);
     const note = amara.data().decisions.find((d) => d.kind === 'note' && d.reviewId)!;
     const r = await amara.call('edit_call', { call_id: note.id, text: 'Corrected' });
