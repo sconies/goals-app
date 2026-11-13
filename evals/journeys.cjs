@@ -29,13 +29,16 @@ const url = (p) => BASE + '/demo' + p + (p.includes('?') ? '&' : '?') + 'today='
 /** The real app, with its data kept in this browser (the eval build has no Supabase). */
 const live = (p) => BASE + p + (p.includes('?') ? '&' : '?') + 'store=browser&today=' + TODAY;
 const consoleErrors = [];
-/** Whether this build has a feature module: FARO_WITHOUT leaves modules out, and those that need them (vite.modules.ts).
+/** Whether this build has a feature module on: FARO_WITHOUT leaves modules out, and those that need them (vite.modules.ts);
+    FARO_MODULES_OFF switches them off in the example at runtime.
     A core journey that reads a module's part of a screen expects the core's own words without it. */
 const LEFT_OUT = (() => {
-  const left = new Set((process.env.FARO_WITHOUT || '').split(',').map((x) => x.trim()).filter(Boolean));
-  if (!left.size) return left;
   const dir = path.join(__dirname, '..', 'src', 'modules');
   const all = fs.readdirSync(dir).filter((d) => fs.existsSync(path.join(dir, d, 'module.json'))).map((d) => JSON.parse(fs.readFileSync(path.join(dir, d, 'module.json'), 'utf8')));
+  // FARO_MODULES_OFF (all, or ids): built whole, but the example has them switched off, so the core's words are expected.
+  const off = (process.env.FARO_MODULES_OFF || '').trim();
+  const left = new Set([...(process.env.FARO_WITHOUT || '').split(','), ...(off === 'all' ? all.map((m) => m.id) : off.split(','))].map((x) => x.trim()).filter(Boolean));
+  if (!left.size) return left;
   for (let changed = true; changed;) { changed = false; for (const m of all) if (!left.has(m.id) && (m.needs || []).some((n) => left.has(n))) { left.add(m.id); changed = true; } }
   return left;
 })();
