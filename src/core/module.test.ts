@@ -11,6 +11,7 @@ import type { Person, Snapshot } from '../domain/types';
 import { ARTICLES } from '../help/guide';
 import { TOOLS as ALL_TOOLS } from '../mcp/tools';
 import { findModules } from '../../vite.modules.ts';
+import { screenFiles } from './sources';
 import { manifestProblems, placeSections, PLACES, recordProblems, resolveModules, sectionsFor, type ModuleFacts } from './module';
 import { MODULE_RECORDS } from './records';
 import { isModuleOn, MODULES, modulesOn } from './registry';
@@ -129,6 +130,11 @@ describe('Every module’s manifest', () => {
         expect(recordProblems(m, declared.map((r) => ({ name: r.name, table: r.table, key: r.key, removable: r.removable })))).toEqual([]);
         // A record's key is where it is filed in the workspace and a commit: one per module, never two the same.
         expect(new Set(declared.map((r) => r.key)).size).toBe(declared.length);
+      });
+
+      it('maps only screen files that exist in its parity (module map F8)', () => {
+        const screens = new Set(screenFiles(root).map((f) => f.name));
+        expect(Object.keys(m.parity ?? {}).filter((x) => !screens.has(x))).toEqual([]);
       });
 
       it('names requirements, journeys, checks and migrations that exist', () => {

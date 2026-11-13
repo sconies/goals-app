@@ -21588,7 +21588,27 @@ var _virtual_faro_modules_default = [
 		],
 		finders: ["metric"],
 		filters: ["metric"],
-		toSortOut: true
+		toSortOut: true,
+		parity: {
+			"Metrics": [
+				"list_metrics",
+				"get_metric",
+				"save_metric",
+				"remove_metric",
+				"restore_removed"
+			],
+			"MetricPlaces": [
+				"get_goal",
+				"get_metric",
+				"list_metrics"
+			],
+			"MeasuredBy": [
+				"list_metrics",
+				"save_metric",
+				"link_goal_metric"
+			],
+			"GoalFilterSheet": ["list_metrics"]
+		}
 	},
 	{
 		id: "reviews",
@@ -21661,6 +21681,22 @@ var _virtual_faro_modules_default = [
 				"A review's own records (reviews and what was said in them) are not yet declared as the module's (AS part 2's records extension point is FT3's), so a build without the module still loads and saves them as the core's.",
 				"The walk on a goal's page, Home's review lead and its Next review cell are drawn by core screens, not through places; FT3 adds the places (home.lead, home.glance) and a count for a module's menu item."
 			]
+		},
+		parity: {
+			"Review": [
+				"list_reviews",
+				"get_review",
+				"save_review",
+				"end_review",
+				"delete_review"
+			],
+			"Inspect": [
+				"get_review",
+				"review_call",
+				"edit_call",
+				"delete_comment"
+			],
+			"Print": ["get_review"]
 		}
 	},
 	{
@@ -21738,6 +21774,23 @@ var _virtual_faro_modules_default = [
 				"A file of 6,000 new goals shows Reading with progress and Stop; Stop saves nothing; checked, it offers Download as 2 files of 5,000 rows instead of Save, and the parts load one after the other; while it is checked, the page never stops for more than 200 ms and the preview has fewer than 3,000 elements."
 			],
 			"gaps": ["The format is in the kit: the field table (a core rule page), how each column is read (spec/core/export-format.md), and every kind of issue with its trigger, sentence and answers and every column’s other spellings (spec/core/import-issues.md).", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
+		},
+		parity: {
+			"Import": ["bulk_change"],
+			"Check": ["bulk_change"],
+			"CheckClose": ["bulk_change"],
+			"Large": ["bulk_change"],
+			"Changes": ["bulk_change"],
+			"Imported": ["get_activity", "undo_import"],
+			"PastImports": ["get_activity", "undo_import"],
+			"Export": ["export"],
+			"ExportButton": ["export"],
+			"DataMenu": [
+				"export",
+				"export_table",
+				"bulk_change"
+			],
+			"ColumnsHelp": ["get_help", "export"]
 		}
 	}
 ];
