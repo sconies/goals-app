@@ -120,7 +120,8 @@ export function quarterResult(g: Goal, c: Cycle, checkIns: CheckIn[], q: Quarter
   const v = last?.value;
   if (v == null) return r('missed', 'no number reported');
   const out = rangeOut(g.range, v);
-  return r(out ? 'missed' : 'met', `${fmt(v, g)} at the end, ${out ? 'outside' : 'inside'} the ${fmt(rangeSide(g.range, v).limit, g)} limit`);
+  const lim = fmt(rangeSide(g.range, v).limit, g);
+  return r(out ? 'missed' : 'met', `${fmt(v, g)} at the end, ${out ? `outside the ${lim} limit` : g.range.bound === 'between' ? staysText(g) : `inside the ${lim} limit`}`);
 }
 
 export function quarterResults(g: Goal, c: Cycle, checkIns: CheckIn[], week: number): QuarterResult[] {

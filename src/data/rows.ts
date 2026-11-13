@@ -110,7 +110,9 @@ export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
   }
   if (r.kind === 'range') {
     // The lower bound is read only through faro (0035's public redirects are fixed select * views without range_lower,
-    // as with proposed_at): a between range read without it falls back to its upper bound alone.
+    // as with proposed_at): a between range read without it shows its upper bound alone. It can't be saved so: every
+    // range goal's row carries range_lower, which those views lack, so the Data API refuses the save rather than
+    // overwrite "between" with "at most". The fallback goes with the redirects (backlog 0c, step 2).
     const lower = num(r.range_lower);
     const bound = r.range_bound === 'between' && lower == null ? 'atMost' : r.range_bound ?? 'atMost';
     return { ...common, kind: 'range', unit: r.unit ?? '', decimals: Number(r.decimals ?? 0), range: { bound, limit: num(r.range_limit) as number, ...(bound === 'between' ? { lower: lower as number } : {}), margin: num(r.range_margin) as number } };
