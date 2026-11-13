@@ -25,10 +25,18 @@ describe('getting started (rule 7)', () => {
   const ws = { name: 'Field Operations', kind: 'own', createdAt: made };
   const base = (goals: Goal[], people = [person('ana', 'Ana Silva', true), person('ben', 'Ben Ortiz')]): Pick<Snapshot, 'people' | 'goals' | 'checkIns' | 'watches' | 'changes'> => ({
     people, goals, checkIns: [], watches: [],
-    changes: [{ id: 'c', at: made, actorId: 'ana', goalId: null, entity: 'workspace', entityId: 'w', action: 'created', summary: 'Created “Field Operations” with 2 people', diffs: [] }],
+    changes: [{ id: 'c', at: made, actorId: 'ana', goalId: null, entity: 'workspace', entityId: 'w', action: 'imported', summary: 'Created “Field Operations” with 2 people', diffs: [] }],
   });
   const seen: DayOneFacts = { firstSeenAt: made };
   const ids = (rows: { id: string }[]) => rows.map((r) => r.id);
+
+  it('who set it up is read from the change set-up writes, even with another admin listed first (review of #285)', () => {
+    // createWorkspace (src/app/state.tsx) logs the workspace as `imported`, "Created “…” with …".
+    const s = base([], [person('zoe', 'Zoe Admin', true), person('ana', 'Ana Silva', true), person('ben', 'Ben Ortiz')]);
+    expect(creatorOf(s.changes, s.people)).toBe('ana');
+    // An import into a workspace that was already there names no one: the first admin, as before.
+    expect(creatorOf([{ entity: 'workspace', action: 'imported', summary: 'Imported goals.csv', actorId: 'ben' }], s.people)).toBe('zoe');
+  });
 
   it('Ana set it up with Ben, gave Ben one goal and left two unowned', () => {
     const s = base([goal('g1', 'ana'), goal('g2', 'ana'), goal('g3', 'ana'), goal('g4', 'ben')]);
@@ -126,7 +134,7 @@ describe('Welcome and the arrival (set-up spec ST1: 2.1, 2.8, rules S4 and S9)',
   });
 
   it('says where a set-up left unfinished stopped (Welcome, 2.1)', () => {
-    expect(draftStopped({ step: 2, template: '', savedAt: '2026-11-09T15:00:00Z' })).toBe('Stopped at step 3, Your team, on 9 Nov. Nothing is saved yet.');
+    expect(draftStopped({ step: 2, template: '', savedAt: '2026-11-09T15:00:00Z' })).toBe('Stopped at Your team, on 9 Nov. Nothing is saved yet.');
     expect(draftStopped({ step: 6, template: 'later' })).toBe('Stopped at step 5 of 5, Check. Nothing is saved yet.');
   });
 });

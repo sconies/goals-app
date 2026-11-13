@@ -44,7 +44,8 @@ export function checkExpectations(s: Snapshot, e: Expectations | undefined) {
 
 export type { Mode, Store } from '../ports/store';
 export { isStale, StaleError } from '../ports/store';
-import { StaleError, type Store } from '../ports/store';
+import { StaleError, type HistoryAsk, type HistoryPage, type LoadWindow, type Store } from '../ports/store';
+import { historyPage, windowed } from '../ports/window';
 
 /**
  * The demo's own plumbing (backlog AX5): a store that holds the example workspace and can start it again. Only the
@@ -262,8 +263,15 @@ export class BrowserStore implements ExampleStore {
     return this.own(id);
   }
 
-  async load(id: string) {
-    return structuredClone(await this.current(id));
+  /** The whole workspace, or narrowed to a window by the rules in ports/window.ts (the browser holds it all anyway). */
+  async load(id: string, window?: LoadWindow) {
+    const s = await this.current(id);
+    return structuredClone(window ? windowed(s, window) : s);
+  }
+
+  /** Older change-log entries a page at a time, by the rules in ports/window.ts. */
+  async history(id: string, ask: HistoryAsk): Promise<HistoryPage> {
+    return structuredClone(historyPage((await this.current(id)).changes, ask));
   }
 
   async commit(id: string, c: Commit) {
