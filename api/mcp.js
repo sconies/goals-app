@@ -3091,7 +3091,7 @@ function answerOf(d) {
 		byId: a.answeredBy ?? ""
 	};
 }
-var isHealthy, tier, dayText, reviewedText, canSpeakFor, speakRefusal;
+var isHealthy, tier, dayText, reviewedText, canSpeakFor, speakRefusal, scopeRefusal;
 var init_review = __esmMin((() => {
 	init_attention();
 	init_vocabulary();
@@ -3110,6 +3110,7 @@ var init_review = __esmMin((() => {
 	ASK_KIND.action.label;
 	canSpeakFor = (r, p) => p.admin || r.people.includes(p.id);
 	speakRefusal = (r) => `Only people in ${r.name}, or an admin, can speak for it.`;
+	scopeRefusal = (r, g) => `${r.name} doesn’t cover ${g.title}, so nothing can be said about it there.`;
 }));
 // src/domain/decide.ts
 var ACCEPT, acceptNote;
@@ -6523,7 +6524,7 @@ function askQuestion(x, goal, text, opts = {}) {
 	if (t.length < 2) no$3("Write the question.");
 	if (goal.ownerId === x.actor.id) no$3("It’s your own goal: there’s no one to ask. Comment instead.");
 	const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : void 0;
-	if (review && !canSpeakFor(review, x.actor)) no$3(speakRefusal(review));
+	if (review) maySpeak(x, review, goal);
 	const { ask, change } = raiseAsk({
 		kind: "question",
 		goalIds: [goal.id],
@@ -6547,7 +6548,7 @@ function addAction(x, goal, text, opts = {}) {
 	if (!x.snapshot.people.some((p) => p.id === who)) no$3("The person for the action isn’t in this workspace.");
 	if (opts.dueWeek != null && !(opts.dueWeek >= 1 && opts.dueWeek <= x.cycle.weeks)) no$3(`The due week is between 1 and ${x.cycle.weeks}.`);
 	const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : void 0;
-	if (review && !canSpeakFor(review, x.actor)) no$3(speakRefusal(review));
+	if (review) maySpeak(x, review, goal);
 	const { ask, change } = raiseAsk({
 		kind: "action",
 		goalIds: [goal.id],
@@ -6620,12 +6621,20 @@ function withdrawRequest(x, r, goal) {
 	};
 }
 /**
+* Whether the actor may say this in the review: someone in it, or an admin (RV7), and only about a goal it walks, its
+* goals, trees and levels (build review of #322). Throws the refusal.
+*/
+function maySpeak(x, review, goal) {
+	if (!canSpeakFor(review, x.actor)) no$3(speakRefusal(review));
+	if (!goalsIn(review.scope, x.snapshot.goals).some((g) => g.id === goal.id)) no$3(scopeRefusal(review, goal));
+}
+/**
 * What someone says about a goal in a review: seen, a note, a question for the owner, or an action. Seen and a note are
 * the review's record (decisions); a question and an action are asks, raised in the review's session, so they're open
 * until answered or done like any other ask.
 */
 function reviewCall(x, goal, review, kind, note, extra = {}) {
-	if (!canSpeakFor(review, x.actor)) no$3(speakRefusal(review));
+	maySpeak(x, review, goal);
 	const text = note.trim();
 	const week = extra.week ?? sessionWeek(review, x.week, x.cycle);
 	if (kind === "ask") {
@@ -17898,7 +17907,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Anyone can set up a review, and everyone can read every review. Only people in a review, or an admin, speak for it: mark goals reviewed, add a note, accept a risk, and ask a question or agree a next step in it. Anyone can still ask a question or agree a next step on a goal’s own page. Someone not in a review is told who can add them: someone in it, whoever set it up, or an admin, who can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it."]
+				text: ["Anyone can set up a review, and everyone can read every review. Only people in a review, or an admin, speak for it: mark goals reviewed, add a note, accept a risk, and ask a question or agree a next step in it, and only about the goals it covers. Anyone can still ask a question or agree a next step on a goal’s own page. Someone not in a review is told who can add them: someone in it, whoever set it up, or an admin, who can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it."]
 			}
 		],
 		routes: [
@@ -19147,6 +19156,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "review-speaks-for-its-goals",
+		date: "2026-11-13",
+		title: "A review speaks only for the goals it walks",
+		points: ["In a review, marking a goal reviewed, a note, accepting a risk, a question or a next step is only for a goal the review covers: its goals, trees and levels. Anything else is refused, in the app and through the AI tools, with a sentence that says why.", "Anyone can still ask a question or agree a next step on the goal’s own page."],
+		articles: ["reviews"]
+	},
 	{
 		id: "metric-lists-proposed",
 		date: "2026-11-13",
@@ -22831,7 +22847,7 @@ var WORK_TOOLS = [
 	{
 		name: "review_call",
 		title: "Say something in a review",
-		description: "In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.",
+		description: "In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. Only someone in the review, or an admin, can, and only about a goal the review covers (its goals, trees and levels). A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
