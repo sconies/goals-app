@@ -139,6 +139,9 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #331 #300 review: a range between weighs both limits | 2 | 0 | 0 | 0 |
 | #327 Migration 0044: history paging indexes | 4 | 0 | 0 | 0 |
 | #336 IM8: set-up shows the import's preview | 3 | 0 | 7 | 4 |
+| #334 AD: admin doors by row | polish | 0 | 1 | 3 |
+| #326 CK: fixes to Correct this check-in | 1 | 0 | 1 | 3 |
+| #328 Import: a way to close it | 1 | 0 | 1 | 2 |
 | #335 #323 and #229 review mediums | 4 | 0 | 0 | 0 |
 | #340 MT1 review: the two mediums from #281 | metrics | 0 | 0 | 0 |
 | #313 FS1 review: three mediums from #111 | 1 | 0 | 0 | 0 |
@@ -1507,3 +1510,39 @@ Read first by a reviewing session on the browser store at 1440 and 390, with a b
 - Set-up uses none of IM6's worker or limits and rebuilds the plan on every render: 1.3 s per render at 6,000 rows, 4.7 s at 30,000.
 - A people-only file uploaded after a goals file drops the goals without a word (older).
 - Wording: "Settle the 5 questions" when all five are Must fix; "1 past check-ins"; skipped Example goal rows not mentioned; a person added by an answer stays after the file is replaced; Import's "Change" is 32 px high on a computer (44 before).
+
+### #334 AD: admin doors by row (polish, merged 03:32 UTC, 13 Nov)
+
+The rule for an admin writing someone else's check-in is now by row as well as by door (`src/domain/checkInDoors.ts`, `mayPostCheckInRow`, which calls `mayPostCheckIn`; Lane, 13 Nov). Read first by a reviewing session through `planChanges`, the actions, the MCP server and the screens; I re-read the rule on main at `241d8a06`. No high finding: across 72 combinations of actor, door and row, a lead and a member were refused everywhere in the same words, and an admin got through only as the table below says. The door cannot be chosen by the caller (MCP passes its own fixed; "Via" or "Mode" columns and extra arguments change nothing); one file that takes a goal and checks in on it is refused at all six doors; every save goes through the engine, which fails closed if it has not loaded.
+
+| Someone else's check-in row | Form, table check-in, MCP | Workbook (file or paste) | Data's tables |
+|---|---|---|---|
+| This week, none there | owner | owner | owner |
+| This week, one there | owner | owner or admin | owner or admin, with a reason |
+| A past week, none there | owner | owner or admin | owner |
+| A past week, one there | owner | owner or admin | owner or admin, with a reason |
+
+**1. Medium (ran on screen). One pasted row from an admin still rewrites the owner's check-in for this week, with no reason asked, and it then reads as the admin's.** `row.exists` passes any week, and the workbook door is not one that corrects (`src/domain/changeset.ts`, `CORRECTS_VIA` is the tables and MCP). As Grace: Import, paste G-1, week 45, value 37 and a next step; the preview says "1 check-in, 1 replaced" and saves. The stored check-in's author is Grace, Activity says "Posted an update for week 45", and Rhea's goal page says "Grace Achterberg's reason, from this week's check-in". The same row through Data's tables asks why. This is within the door Lane kept, so it is his call, but the question left open on #227 (does a pasted row count as a workbook?) is only half closed. A possible fix: treat an admin's replacement at the workbook door as a correction, with a reason and the author kept.
+
+**Lows.**
+- Two places ask the door and not the row: the set-up check-in in the engine (`changeset.ts`, engine only, since the tables cannot add a row), and undo, where an admin undoing an owner's own workbook import removes the owner's check-ins though deleting is the owner's alone (`src/domain/removal.ts:520`; read).
+- Words left behind: `post_check_in` still says an admin "corrects a past one in Data's tables"; `delete_check_in` says "Whoever posted it, or an admin" and refuses an admin; an admin's refusal is headed "1 row changes a goal you don't own".
+- No journey shows the refusal on screen (read).
+
+**Lane's call, unchanged.** An admin can still take a goal, check in at the form as its owner and hand it back: three logged steps.
+
+### #326 CK: fixes to Correct this check-in (track 1, merged 04:03 UTC, 13 Nov)
+
+Takes #225's mediums 2 to 6 and its lows (same reviewing session, on screen at both widths): the queue's "Correct it" opens the correction form from the number there; the reason's refusal says the minimum and the most, and ten full stops no longer pass; History and Past imports say "Corrected week 45: 37 hours is now 38 hours, by …"; undo puts the week back. Owner-only holds for corrections at every door.
+
+**1. Medium (ran, on 11 Jan 2027). "A cycle that has ended can't be corrected" holds at the form only.** The test is on the form's own mode (`src/domain/changeset.ts`, `p.mode === 'correct'`). The owner through MCP saved "Corrected week 45: 77% is now 78%", an admin in Data's tables the same, and a workbook saved it as an update loaded later. Fix: ask it for every replacement, or say in the rule that only the form is closed.
+
+**Lows.** After a hand-over, Undo is offered to the import's maker and an admin and then refused with "Nothing left to undo: its one row has changed since", so nobody can undo and the words mislead. The correction form still offers "No new number this week". Past imports says its sentence twice, and Undo says "2 rows" for one corrected check-in.
+
+### #328 Import: a way to close it (track 1, merged 03:19 UTC, 13 Nov)
+
+Fixes #282's medium 1 on Import itself: "Close without saving" at the top right, 44 px, to Data, asking first when rows are pasted. F8's change is a real fix (it waits for the message that shows, not the hidden sheet's copy).
+
+**1. Medium (ran at 390). The fix stops one step short: once a file or paste is read, the preview has no way out on a phone.** All of `/data/import/*` is a form (`src/domain/navigation.ts`), and `/data/import/check` and its changes list show only their own buttons; the ways out are saving or the browser's Back. Fix: the same close on Check and Changes, and add both to U72.
+
+**Lows.** U72 counts the control and reads its words but does not press it. Two links on Import are 17 and 20 px high on touch (older).
