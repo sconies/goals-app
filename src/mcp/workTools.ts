@@ -21,7 +21,10 @@ export const said = (k: DisplayStatus) => withCode(STATUS[k]);
 /** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
 import { ASK_KIND_LABEL, askText, asksOf, canAnswer, canMarkDone, isOverdue, openForPerson, openUpdateAsk } from '../domain/asks';
 import { reviewSession, watchedGoals } from '../domain/review';
-import { receiptFacts, receiptText, reviewOnDueDay, weekCompletion, weekProgress } from '../domain/progress';
+import { checkInList, receiptFacts, receiptText, reviewOnDueDay, WEEKDAY, weekCompletion, weekProgress } from '../domain/progress';
+import { rhythmOf } from '../domain/thresholds';
+import { rhythmFact, rhythmReadBackLines, rhythmToast } from '../domain/rhythm';
+import { rhythmReadBack } from '../domain/status';
 import { workbook } from '../domain/export';
 import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { findGoal, isKey } from '../domain/goalKey';
@@ -197,12 +200,17 @@ export const WORK_TOOLS: ToolDef[] = [
         watching: d.watching ? { goals: d.watching.all.length, needAttention: d.watching.needs.map((a) => a.goal.title), beingHandled: d.watching.handled.map((a) => ({ title: a.goal.title, inHand: a.handled!.text })), noRecentUpdate: d.watching.quiet.length } : null,
         ...(reviewsHere ? { nextReview: d.next ? { id: d.next.id, name: d.next.name, date: d.next.date, day: d.next.weekday } : null } : {}),
       };
-      const data = { week: ctx.week, atAGlance: glance, checkInsDue: due, needsAttention: attention, beingHandled: handled, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, proposedGoals: proposedForYou, ...(reviewsHere ? { yourReviews: reviews } : {}), wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today) };
+      // With no set rhythm (FT1) nothing is due: say so, and list the goals with no check-in this week instead.
+      const rhythm = rhythmOf(ctx.cycle);
+      const list = rhythm ? null : checkInList(ctx.actor.id, s.goals, s.checkIns, ctx.week);
+      const noCheckInThisWeek = list ? list.waiting.map((r) => ({ id: r.goalId, title: s.goals.find((g) => g.id === r.goalId)?.title ?? r.goalId, lastWeek: r.lastWeek })) : null;
+      const data = { week: ctx.week, ...(rhythm ? {} : { rhythm: 'none' as const, noCheckInThisWeek }), atAGlance: glance, checkInsDue: due, needsAttention: attention, beingHandled: handled, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, proposedGoals: proposedForYou, ...(reviewsHere ? { yourReviews: reviews } : {}), wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today) };
       const text = [
         `Week ${ctx.week} for ${ctx.actor.name}.`,
         `${d.scope === 'mine' ? 'Your goals' : 'All goals'}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(', ') || 'none'}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? 'week' : 'weeks'}.` : ''}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ''}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ''}`,
         ...(weekReceipt ? [[weekReceipt.first, weekReceipt.second].filter(Boolean).join(' ')] : []),
-        `Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(', ') : 'none'}.`,
+        rhythm ? `Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(', ') : 'none'}.`
+          : `No set check-in rhythm: nothing is due. No check-in this week: ${noCheckInThisWeek!.length ? noCheckInThisWeek!.map((g) => `${g.title} (${g.id})`).join(', ') : 'none'}.`,
         `Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask}${when(r)} (${r.id})`).join('; ') : 'none'}.`,
         `Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question}${when(q)} (${q.id})`).join('; ') : 'none'}.`,
         `Asked for an update: ${asks.length ? asks.map((x) => `${withProposed(s).find((g) => g.id === x.goalId)?.title} by ${x.by}${when(x)} (${x.id})`).join('; ') : 'none'}.`,
@@ -658,6 +666,31 @@ export const WORK_TOOLS: ToolDef[] = [
       const res = await save(ctx, A.setModule(ax(ctx), ctx.ws, MODULES, id, a.on), `${a.on ? 'Switched on' : 'Switched off'} ${m?.name ?? id} in ${ctx.ws.name}`, `Nothing to change: ${m?.name ?? id} is already ${a.on ? 'on' : 'off'}.`);
       const r = modulesOn(ctx.ws);
       return { ...res, data: { on: [...r.on], off: [...r.off.keys()] } };
+    },
+  },
+  {
+    name: 'set_rhythm',
+    title: 'Choose the check-in rhythm',
+    description: 'Admins: how often every goal is expected to have a check-in in this workspace. every: "week" (due by a weekday, due_by; a goal with none for two check-ins’ time reads No recent update) or "none" (no set rhythm: owners check in when there’s news, and nothing is due or late for want of a check-in). Without confirm: true it changes nothing and says what would change, counted. With it, the change is made and logged; switching a rhythm on counts from today, so nothing is late that day.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['every'], properties: {
+      every: str('“week” or “none”.', { enum: ['week', 'none'] }), due_by: str('With every week: the weekday check-ins are due by. Leave out to keep it.', { enum: WEEKDAY }),
+      confirm: bool('true to make the change; leave out to see what it would do first.'),
+    } },
+    annotations: { ...WRITE, idempotentHint: true },
+    async run(a, ctx) {
+      const weeks = a.every === 'none' ? 0 : a.every === 'week' ? 1 : -1;
+      if (weeks < 0) throw new Error('Say every: "week" or every: "none".');
+      const dueDay = a.due_by === undefined || a.due_by === null ? ctx.cycle.reviewDay : WEEKDAY.indexOf(String(a.due_by));
+      if (dueDay < 0) throw new Error('Choose a day of the week.');
+      const to = { weeks, dueDay };
+      if (a.confirm !== true) {
+        if (!ctx.actor.admin) throw new Error('Only admins can change the check-in rhythm.');
+        const lines = rhythmReadBackLines(ctx.cycle, to, rhythmReadBack(ctx.snapshot.goals, ctx.snapshot.checkIns, ctx.cycle, to, ctx.today), ctx.today);
+        const text = lines.length ? `Nothing is changed yet. What changes for everyone here:\n${lines.map((l) => `- ${l.strong}${l.rest}`).join('\n')}\nCall set_rhythm again with confirm: true to make the change.` : `Nothing to change: ${rhythmFact(ctx.cycle)}`;
+        return { data: { changed: false, rhythm: rhythmFact(ctx.cycle), wouldChange: lines.map((l) => l.strong + l.rest) }, text };
+      }
+      const res = await save(ctx, A.setRhythm(ax(ctx), ctx.cycle, to), rhythmToast(ctx.cycle, to), `Nothing to change: ${rhythmFact(ctx.cycle)}`);
+      return { ...res, data: { rhythm: weeks ? 'every week' : 'none', dueBy: weeks ? WEEKDAY[dueDay] : null } };
     },
   },
   {
