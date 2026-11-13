@@ -1,7 +1,7 @@
 /* Goals' "Export these goals" (the spreadsheets module's goals.tools place). The button is drawn with the page, so
    nothing above the goals moves when it arrives; the export itself (the sheet, the writers and the column rules) loads
    when it is opened (the bundle budget, scripts/check-bundle.mjs). */
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../../app/state';
 import type { Goal } from '../../domain/types';
@@ -13,6 +13,14 @@ export function ExportTheseGoals({ goals, viewName, inMenu }: { goals: Goal[]; v
   const app = useApp();
   const [open, setOpen] = useState(false);
   const item = useRef<HTMLButtonElement>(null);
+  // Opened from the phone's View sheet, Export sits over it: the View sheet is hidden meanwhile, so its Done isn't a
+  // second primary in view (one primary per screen), and it is back as it was when Export closes.
+  useEffect(() => {
+    const under = open && inMenu ? item.current?.closest<HTMLElement>('.sheet-wrap') : null;
+    if (!under) return;
+    under.classList.add('under-sheet');
+    return () => under.classList.remove('under-sheet');
+  }, [open, inMenu]);
   if (!app.snapshot.goals.length) return null;
   // It's an item in Goals' Views menu on every width (goals spec, 2.1; GL2), and in the phone's View sheet. The sheet opens in the page, outside the menu, which
   // closes as it opens: the same place as the button's sheet, so it's laid out the same.
