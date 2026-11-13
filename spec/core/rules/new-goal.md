@@ -28,7 +28,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Not self-explanatory
 
-- **Not self-explanatory:** Whether a goal for someone else should start as proposed (round 2, GE10) is a later item; today anyone may add a goal for anyone, at any level (Lane, 11 Nov, decision 11).
+- **Not self-explanatory:** An admin loading a file of goals for other people is not asked whether they start active, though the form starts an admin’s goal for someone else on “Not yet” too: a judgement made in GE10’s follow-up, since an admin’s file is usually the organisation’s own register.
 
 ## Where it lives
 

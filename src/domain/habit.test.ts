@@ -1,8 +1,8 @@
 /* The habit moment (docs/design/round-4/habit/spec.md): the forgiving run (CF4's table, workspace-settings 2.5), the
    receipt's sentences (2.1) and the moment a check-in makes (rule 3). */
 import { describe, expect, it } from 'vitest';
-import { forgivenIn, onTimeStreak, receiptFacts, receiptText, reviewDate, weekProgress, type ReceiptFacts } from './progress';
-import { moment, momentText } from './habit';
+import { dueWords, forgivenIn, inByDueDay, onTimeStreak, receiptFacts, receiptText, reviewDate, weekProgress, type ReceiptFacts } from './progress';
+import { beforeReviewText, checkInStanding, habit, type HabitRows, habitShown, habitWeeks, moment, momentText, weekWords } from './habit';
 import { weekDate } from './plan';
 import type { CheckIn, Cycle, Goal, Snapshot, Status } from './types';
 
@@ -51,7 +51,8 @@ describe('the forgiving run (CF4, built unconditionally until CF2 adds cycle.str
 });
 
 describe('the receipt (spec 2.1)', () => {
-  const r = (p: Partial<ReceiptFacts>): ReceiptFacts => ({ total: 2, after: 0, week: 46, dueDay: 'Thursday', review: true, run: 0, forgiven: null, nextDue: 'Thursday 19 Nov', ...p });
+  // The deadline is dueWords' (rule RS1): `review` true for someone in a review held on the due day with Reviews on.
+  const r = ({ review = true, ...p }: Partial<ReceiptFacts> & { review?: boolean }): ReceiptFacts => ({ total: 2, after: 0, week: 46, words: dueWords(review, cycle, 46, review), run: 0, forgiven: null, nextDue: 'Thursday 19 Nov', ...p });
   it('says every check-in is in before the review, and the run from two weeks', () => {
     expect(receiptText(r({ total: 1 }))).toEqual({ first: 'Your check-in is in before Thursday’s review.', second: null });
     expect(receiptText(r({ run: 5 }))).toEqual({ first: 'Both of your check-ins are in before Thursday’s review.', second: 'That is 5 weeks in a row.' });
@@ -66,9 +67,22 @@ describe('the receipt (spec 2.1)', () => {
     expect(receiptText(r({ total: 1, after: 1 })).first).toBe('Your check-in is in. It came after Thursday’s review.');
     expect(receiptText(r({ total: 3, after: 2 })).first).toBe('All 3 of your check-ins are in. 2 came after Thursday’s review.');
   });
-  it('says the deadline, not a review, to someone in no review that day (deep review T4)', () => {
-    expect(receiptText(r({ review: false })).first).toBe('Both of your check-ins are in for week 46, before Thursday’s deadline.');
-    expect(receiptText(r({ review: false, total: 1, after: 1 })).first).toBe('Your check-in is in. It came in after Thursday’s deadline.');
+  it('says the deadline, not a review, to someone in no review that day (deep review T4), in dueWords’ words', () => {
+    expect(receiptText(r({ review: false })).first).toBe('Both of your check-ins are in by Thursday.');
+    expect(receiptText(r({ review: false, total: 1, after: 1 })).first).toBe('Your check-in is in. It came after Thursday.');
+  });
+  it('with Reviews off, says “by Thursday” and “after Thursday” even where a review is held (Reviews switch spec 2.1)', () => {
+    const off = (p: Partial<ReceiptFacts>) => receiptText({ ...r({}), words: dueWords(false, cycle, 46, true), ...p });
+    expect(off({ total: 7, run: 3 })).toEqual({ first: 'All 7 of your check-ins are in by Thursday.', second: 'That is 3 weeks in a row.' });
+    expect(off({ total: 7, after: 2 })).toEqual({ first: 'All 7 of your check-ins are in. 2 came after Thursday.', second: 'The next are due by Thursday 19 Nov.' });
+    for (const p of [{ total: 7 }, { total: 7, after: 2 }, { total: 1, after: 1 }, { run: 5, forgiven: 45 }]) {
+      const t = off(p);
+      expect(`${t.first} ${t.second ?? ''}`).not.toMatch(/review/i);
+    }
+  });
+  it('with Reviews on, names the review as in spec 2.1', () => {
+    expect(receiptText(r({ total: 7 })).first).toBe('All 7 of your check-ins are in before Thursday’s review.');
+    expect(receiptText(r({ total: 7, after: 2 })).first).toBe('All 7 of your check-ins are in. 2 came after Thursday’s review.');
   });
   it('never says a run was lost or broken', () => {
     for (const p of [{ after: 1, run: 0 }, { after: 2, run: 9 }, { run: 0 }, { run: 7, forgiven: 45 }]) {
@@ -78,8 +92,8 @@ describe('the receipt (spec 2.1)', () => {
   });
   it('reads its facts from the week (receiptFacts)', () => {
     const s = weeks(41, 46, [46], 41);
-    const f = receiptFacts(weekProgress('tunde', s, cycle, 46, new Date('2026-11-13T12:00:00Z')), 'tunde', s, cycle, 46, true);
-    expect(f).toMatchObject({ total: 1, after: 1, week: 46, dueDay: 'Thursday', review: true, run: 5, nextDue: '2026-11-19' });
+    const f = receiptFacts(weekProgress('tunde', s, cycle, 46, new Date('2026-11-13T12:00:00Z')), 'tunde', s, cycle, 46, dueWords(true, cycle, 46, true));
+    expect(f).toMatchObject({ total: 1, after: 1, week: 46, words: { by: 'before Thursday’s review', after: 'after Thursday’s review' }, run: 5, nextDue: '2026-11-19' });
   });
 });
 
@@ -106,5 +120,122 @@ describe('the moment (rule 3)', () => {
   it('is said in the receipt’s words', () => {
     expect(momentText({ kind: 'reached', behind: 0 }, g, at(46, 20), 53)).toEqual({ heading: 'Deploy lead time reached its target', line: '20 h, against a target of 20 h, in week 46 of 53. It started the year at 40 h.' });
     expect(momentText({ kind: 'back', behind: 3 }, g, at(46, 28), 53).heading).toBe('Deploy lead time is back on track');
+  });
+});
+
+describe('a check-in’s standing (rule 1)', () => {
+  const g = goal('g1');
+  const ask = (createdAt: string, answeredAt: string | null, kind: 'update' | 'question' = 'update'): HabitRows['asks'][number] => ({ kind, goalIds: ['g1'], createdAt, answeredAt, status: answeredAt ? 'answered' : 'open', updatedAt: answeredAt ?? createdAt });
+  const at = (day: string) => ci('g1', 46, false, { postedAt: `${day}T18:00:00Z` });
+  const due = '2026-11-12';
+  const st = (checkIns: CheckIn[], asks: ReturnType<typeof ask>[] = []) => checkInStanding(g, 46, { checkIns, asks }, due);
+  it('reads the spec’s table', () => {
+    expect(st([at('2026-11-10')])).toBe('unasked');
+    expect(st([at('2026-11-11')], [ask('2026-11-11T09:00:00Z', '2026-11-11T18:00:00Z')])).toBe('asked');
+    expect(st([at('2026-11-11')], [ask('2026-11-10T09:00:00Z', '2026-11-12T09:00:00Z', 'question')])).toBe('unasked');
+    expect(st([at('2026-11-10')], [ask('2026-11-03T09:00:00Z', '2026-11-04T09:00:00Z')])).toBe('unasked');
+    expect(st([at('2026-11-13')])).toBe('after');
+    expect(st([])).toBe('none');
+    // Checked in Tuesday, corrected Friday: the first check-in's time stands.
+    expect(st([at('2026-11-10'), at('2026-11-13')])).toBe('unasked');
+  });
+});
+
+describe('the measure (rule 2) and never a person (rule 4)', () => {
+  const owners = ['a', 'b', 'c', 'd'];
+  const set = (n: number) => Array.from({ length: n }, (_, i) => goal(`g${i}`, 0, { ownerId: owners[i % 4] } as Partial<Goal>));
+  const rows = (goals: Goal[], standing: ('unasked' | 'asked' | 'after' | 'none')[]) => {
+    const checkIns: CheckIn[] = [], asks: { kind: 'update'; goalIds: string[]; createdAt: string; answeredAt: string; status: 'answered'; updatedAt: string }[] = [];
+    goals.forEach((g, i) => {
+      const s = standing[i]!;
+      if (s === 'none') return;
+      checkIns.push(ci(g.id, 46, s === 'after', { postedAt: s === 'after' ? '2026-11-13T10:00:00Z' : '2026-11-11T10:00:00Z' }));
+      if (s === 'asked') asks.push({ kind: 'update', goalIds: [g.id], createdAt: '2026-11-10T10:00:00Z', answeredAt: '2026-11-11T10:00:00Z', status: 'answered', updatedAt: '2026-11-11T10:00:00Z' });
+    });
+    return { checkIns, asks };
+  };
+  const due = () => true;
+  it('counts the spec’s 17 goals', () => {
+    const goals = set(17);
+    const h = habit(goals, 46, rows(goals, [...Array(14).fill('unasked'), 'asked', 'none', 'none']), '2026-11-12', due);
+    expect([h.due, h.inTime, h.unasked, h.asked, h.after, h.none]).toEqual([17, 15, 14, 1, 0, 2]);
+    expect(beforeReviewText(h, true)).toBe('15 of 17 goals were checked in before it, 14 without being asked.');
+    expect(beforeReviewText(h, false)).toBe('15 of 17 goals are checked in so far.');
+    const all = habit(goals, 46, rows(goals, Array(17).fill('unasked')), '2026-11-12', due);
+    expect(beforeReviewText(all, true)).toBe('All 17 goals were checked in before it, without anyone asking.');
+    const some = habit(goals, 46, rows(goals, [...Array(10).fill('unasked'), ...Array(7).fill('none')]), '2026-11-12', due);
+    expect(beforeReviewText(some, true)).toBe('10 of 17 goals were checked in before it, all without being asked.');
+    // Reviews switched off: the due day is a deadline (RS1's words).
+    expect(beforeReviewText(all, true, false)).toBe('All 17 goals were checked in on time, without anyone asking.');
+  });
+  it('gives the row of weeks with words', () => {
+    const goals = set(4);
+    const r = rows(goals, ['unasked', 'after', 'none', 'asked']);
+    const weeks = habitWeeks(goals, 46, r, () => '2026-11-12', (_g, w) => w === 46, 3);
+    expect(weeks.map((w) => `${w.week} ${weekWords(w)}`)).toEqual(['44 Nothing due', '45 Nothing due', '46 2 after']);
+    expect(habitWeeks(goals, 46, rows(goals, Array(4).fill('unasked')), () => '2026-11-12', due, 1).map(weekWords)).toEqual(['All in']);
+    expect(habitWeeks(goals, 46, rows(goals, Array(4).fill('none')), () => '2026-11-12', due, 1).map(weekWords)).toEqual(['None in']);
+  });
+  it('is never shown for fewer than three owners, unless the viewer owns them all', () => {
+    expect(habitShown(set(4), 'z')).toBe(true);
+    expect(habitShown(set(2), 'z')).toBe(false);
+    expect(habitShown([goal('g1'), goal('g2')], 'tunde')).toBe(true);
+    expect(habitShown([], 'tunde')).toBe(false);
+  });
+});
+
+describe('the run, after #410’s review', () => {
+  it('judges the due day on the reader’s own clock, as Home’s “due today” is (medium 1)', () => {
+    const was = process.env.TZ;
+    try {
+      // Thursday 12 Nov at 18:00 in Los Angeles is Friday 02:00 UTC.
+      const c = ci('g1', 46, false, { postedAt: '2026-11-13T02:00:00Z' });
+      process.env.TZ = 'America/Los_Angeles';
+      expect(inByDueDay(c, cycle, 46)).toBe(true);
+      process.env.TZ = 'UTC';
+      expect(inByDueDay(c, cycle, 46)).toBe(false);
+    } finally { process.env.TZ = was; }
+  });
+  it('leaves a goal out from the week after it was called Done (medium 2)', () => {
+    const s = weeks(41, 46, [], 41);
+    // A second goal, done in week 43 and not checked in since: it no longer ends the run.
+    s.goals.push(goal('g2', 41));
+    for (const w of [41, 42, 43]) s.checkIns.push(ci('g2', w, false, { status: w === 43 ? 'done' : 'on' }));
+    expect(onTimeStreak('tunde', s, cycle, 46)).toBe(6);
+  });
+  it('never counts a backfilled week as on time, and calls a forgiven week with nothing in it missed (medium 3)', () => {
+    const s = weeks(40, 46, [], 40);
+    s.checkIns = s.checkIns.filter((c) => c.week !== 45).concat(ci('g1', 45, false, { backfilled: true }));
+    expect(onTimeStreak('tunde', s, cycle, 46)).toBe(6);
+    expect(forgivenIn('tunde', s.goals, s.checkIns, cycle, 46)).toBe(45);
+    const f = receiptFacts(weekProgress('tunde', s, cycle, 46, new Date('2026-11-12T12:00:00Z')), 'tunde', s, cycle, 46, dueWords(false, cycle, 46));
+    expect(f.forgivenMissed).toBe(true);
+    expect(receiptText(f).second).toContain('Week 45 was missed; one missed week doesn’t break a run.');
+    const late = weeks(40, 46, [45], 40);
+    const fl = receiptFacts(weekProgress('tunde', late, cycle, 46, new Date('2026-11-12T12:00:00Z')), 'tunde', late, cycle, 46, dueWords(false, cycle, 46));
+    expect(receiptText(fl).second).toContain('Week 45 came in late; one late week doesn’t break a run.');
+  });
+  it('counts a goal taken over only from when it was the new owner’s (medium 4)', () => {
+    const s = weeks(40, 46, [], 40);
+    // Lena checked in g2 every week until 43; Tunde has owned it since 44 and checked it in on time.
+    s.goals.push(goal('g2', 40));
+    for (let w = 40; w <= 46; w++) s.checkIns.push(ci('g2', w, false, w <= 43 ? { authorId: 'lena' } : {}));
+    expect(onTimeStreak('tunde', s, cycle, 46)).toBe(7);
+  });
+  it('leaves a removed check-in out', () => {
+    const s = weeks(41, 46, [], 41);
+    s.checkIns.find((c) => c.week === 44)!.removedAt = '2026-11-01T00:00:00Z';
+    s.checkIns.find((c) => c.week === 43)!.removedAt = '2026-11-01T00:00:00Z';
+    expect(onTimeStreak('tunde', s, cycle, 46)).toBe(2);
+  });
+});
+
+describe('a moment, after #410’s review', () => {
+  it('counts weeks behind, not check-ins, and never fires on a second check-in in the same week', () => {
+    const g = goal('g1', 40);
+    const behind = [ci('g1', 42, false, { status: 'off' }), ci('g1', 45, false, { status: 'risk' })];
+    const now = ci('g1', 46, false, { status: 'on' });
+    expect(moment(behind, now, g)).toEqual({ kind: 'back', behind: 4 });
+    expect(moment([...behind, ci('g1', 46, false, { status: 'risk' })], now, g)).toBe(null);
   });
 });

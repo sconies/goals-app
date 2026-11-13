@@ -108,7 +108,7 @@ describe('one format', () => {
     const people = exportedTable(sheetNamed(bookOf(full0), 'People'), { ...usualLayout('people'), cols: ['Job title'] });
     const r = readTables([{ name: 'Sheet1.csv', rows: parseDelimited(toCsv(people.rows)) }, { name: 'Goals.csv', rows: parseDelimited(toCsv(sheetNamed(bookOf(full0), 'Asks').rows)) }]);
     expect(r.read).toEqual([{ name: 'Sheet1.csv', kind: 'people' }]);
-    expect(r.skipped).toEqual([{ name: 'Goals.csv', why: 'reading-only' }]);
+    expect(r.skipped).toEqual([{ name: 'Goals.csv', why: 'reading-only', kind: 'asks' }]);
   });
 
   it(F('ONE-FORMAT', 'worked-out columns say the vocabulary’s words and are never read: changing them changes nothing'), () => {

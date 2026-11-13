@@ -71,7 +71,7 @@ export const MUST_KINDS = [
 export const CHECK_KINDS = [
   'near-ref', 'near-word', 'near-header', 'two-columns', 'new-team', 'same-person', 'same-goal', 'other-goal', 'other-workspace', 'past-stage',
   'past-plan', 'odd-number', 'plan-question', 'no-unit', 'decimal-comma', 'replaces-others', 'many-admins', 'totals-row', 'big-removal',
-  'feeds-lower',
+  'feeds-lower', 'for-someone-else',
 ] as const;
 /** How a row was read: fine, and said on the change. */
 export const NOTE_KINDS = ['by-name', 'default', 'date-as-week', 'folded', 'same-name', 'left-alone', 'replaces', 'as-recorded', 'example'] as const;
@@ -185,6 +185,8 @@ export const ANSWERS = {
   odd: [RIGHT, LEAVE] as Choice[],
   feedsLower: [{ choice: 'right', label: 'Yes, it feeds that goal' }, LEAVE] as Choice[],
   leaveOnly: [LEAVE] as Choice[],
+  /** GE10, decision 16: new goals for other people with no State, asked once per file. */
+  forSomeoneElse: [{ choice: 'active', label: 'Yes, active' }, { choice: 'proposed', label: 'No, start them as proposed' }] as Choice[],
 };
 
 /* ---------- groups (rule 6) ---------- */
@@ -263,6 +265,7 @@ export function groupTitle(kind: IssueKind, sheet: Sheet, count: number, first: 
     case 'other-goal': return first.message;
     // At set-up its answers are "Count them from this week" or keep them (IM8): there is nothing to have done yet.
     case 'past-stage': return first.answers?.[0]?.choice === 'from-now' ? `${n(count, 'new goal')} ${count === 1 ? 'has' : 'have'} stages due before this week, so ${count === 1 ? 'it' : 'they'} would start late` : `${n(count, 'new goal')} ${count === 1 ? 'has' : 'have'} stages due before this week. Are they done?`;
+    case 'for-someone-else': return `${count === 1 ? 'One of these goals is' : `${count} of these goals are`} for other people and would start as active. Is that what you mean?`;
     case 'past-plan': return `${n(count, 'new goal')} ${count === 1 ? 'has a plan' : 'have plans'} that ${count === 1 ? 'has' : 'have'} already ended`;
     case 'odd-number': return count === 1 ? first.message : `${n(count, 'number')} look${count === 1 ? 's' : ''} unlikely: ${first.message}`;
     case 'plan-question': return count === 1 ? first.message : `${n(count, 'plan change')} to check: ${first.message}`;

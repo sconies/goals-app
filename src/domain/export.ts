@@ -18,7 +18,7 @@ import {
 } from './vocabulary';
 import {
   ASKS, asksFor, CHECK_INS, contextOf, emptyText, EXAMPLE_ROWS, fieldTable, FILL_SHEETS, GOALS, isFillIn, isRequiredHeader, isWorkedOut, NOTES, notesFor, PEOPLE, PLAN,
-  planWeekValue, requiredLine, requiredText, RESULTS, ROLE_WORD, rowsOf, SHEETS, specOf, START_HERE, WEEK_COLUMN,
+  planWeekValue, requiredLine, requiredText, RESULTS, ROLE_WORD, rowsOf, SHEETS, sheetsFor, specOf, START_HERE, WEEK_COLUMN,
   type Cell, type Ctx, type ExportInput, type FillKind, type SheetKind,
 } from './columns';
 import type { Archive, CheckIn, Decision, Goal, Person } from './types';
@@ -89,7 +89,7 @@ export const FIELD_TABLE_HEAD = ['Column', 'A new row', 'Format', 'Example', 'If
  * must have each column, its format, an example, what an empty cell does and what it means. The workbook adds the
  * sheets that are only for reading (the core's, then each module's), and the words its worked-out columns use. The template lists only the columns it has.
  */
-export function startHere(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today' | 'sheets'>, opts: { template?: boolean } = {}): Cell[][] {
+export function startHere(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today' | 'sheets' | 'reviews'>, opts: { template?: boolean } = {}): Cell[][] {
   const rows: Cell[][] = [
     [`${x.ws.name}, ${x.cycle.name}. ${opts.template ? 'Template made' : 'Exported'} ${x.today.toISOString().slice(0, 10)}, week ${x.week} of ${x.cycle.weeks}. Week 0 starts ${x.cycle.startDate}.`],
     ['File of', x.ws.id, x.cycle.id],
@@ -105,7 +105,7 @@ export function startHere(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today'
     for (const c of table.filter((v) => !opts.template || isFillIn(v))) rows.push([c.header, requiredText(c, table), c.format || null, c.example || null, emptyText(c), c.means]);
   }
   if (opts.template) return rows;
-  for (const sheet of [...SHEETS, ...(x.sheets ?? []).map((m) => m.spec)].filter((v) => !v.loaded)) {
+  for (const sheet of [...sheetsFor(x.reviews !== false), ...(x.sheets ?? []).map((m) => m.spec)].filter((v) => !v.loaded)) {
     rows.push([], [`The ${sheet.name} sheet`, `One row per ${sheet.rowIs}. ${sheet.about} For reading only: not loaded back.`], ['Column', 'Kind', null, null, null, 'What it means']);
     for (const c of sheet.columns) rows.push([c.header, ROLE_WORD[c.role], null, null, null, c.means]);
   }
@@ -124,7 +124,7 @@ function planRows(x: ExportInput, sums: GoalSummary[], c: Ctx): Cell[][] {
 }
 
 /** Every sheet of the one format, in order: Start here, Goals, Plan, Check-ins, People, Results, Asks, Notes, each module's (the
-    metric library’s Metrics). */
+    metric library’s Metrics). With Reviews off (`reviews` false) there is no Notes sheet and Asks has no Review column. */
 export function workbook(x: ExportInput): Table[] {
   const { goals, sums, s, c } = prepare(x, true);
   const ids = new Set(goals.map((g) => g.id));
@@ -132,14 +132,16 @@ export function workbook(x: ExportInput): Table[] {
   // By goal, then week, then when it was posted.
   const checkIns = sums.flatMap((v) => v.checkIns.map((ci) => ({ c, g: v.goal, ci })))
     .sort((a, b) => a.g.title.localeCompare(b.g.title) || a.ci.week - b.ci.week || a.ci.postedAt.localeCompare(b.ci.postedAt));
+  const reviews = x.reviews !== false;
+  const asks = sheetsFor(reviews).find((v) => v.kind === 'asks') as typeof ASKS;
   const book: [SheetKind, Cell[][]][] = [
     ['goals', rowsOf(GOALS, goalRows)],
     ['plan', planRows(x, sums, c)],
     ['checkIns', rowsOf(CHECK_INS, checkIns)],
     ['people', rowsOf(PEOPLE, x.snapshot.people.map((p) => ({ c, p })))],
     ['results', rowsOf(RESULTS, goalRows)],
-    ['asks', rowsOf(ASKS, asksFor(x.snapshot, ids).map((a) => ({ c, a })))],
-    ['notes', rowsOf(NOTES, notesFor(s, ids).map((d) => ({ c, d })))],
+    ['asks', rowsOf(asks, asksFor(x.snapshot, ids).map((a) => ({ c, a })))],
+    ...(reviews ? [['notes', rowsOf(NOTES, notesFor(s, ids).map((d) => ({ c, d })))] as [SheetKind, Cell[][]]] : []),
   ];
   return [
     { name: START_HERE, rows: startHere(x) },

@@ -258,13 +258,14 @@ function ThisWeek({ d, leadAbout }: { d: Dashboard; leadAbout: string | null }) 
       {missed[0] ? (
         // A session past its date and not held comes first: the next one mustn't hide it (re-review, 8 Nov, backlog T).
         <Link className="dash-cell dash-review dash-missed" to={`/reviews/${missed[0].id}`}>
-          <span className="dash-label"><WarnMark />Not held yet · {dayText(missed[0].date)}{missed.length > 1 ? ` · ${missed.length} reviews` : ''}</span>
+          {/* On a phone a lone cell puts label and name on one line: the short label leaves the name its room (Lane, 13 Nov). */}
+          <span className="dash-label"><WarnMark /><span className="dash-label-long">Not held yet · {dayText(missed[0].date)}{missed.length > 1 ? ` · ${missed.length} reviews` : ''}</span><span className="dash-label-short">Not held yet</span></span>
           <span className="dash-value" title={`${missed[0].name}, ${dayText(missed[0].date)}, ${pastText(missed[0].daysPast)}`}>{missed[0].name}</span>
           <span className="dash-sub">{pastText(missed[0].daysPast)}</span>
         </Link>
       ) : next && (
         <Link className="dash-cell dash-review" to={`/reviews/${next.id}`}>
-          <span className="dash-label">{next.days === 0 ? 'Review today' : next.days === 1 ? `Review tomorrow, ${dayText(next.date)}` : `Review on ${dayText(next.date)}`}{sameDay > 1 ? ` · ${sameDay} reviews` : ''}</span>
+          <span className="dash-label"><span className="dash-label-long">{next.days === 0 ? 'Review today' : next.days === 1 ? `Review tomorrow, ${dayText(next.date)}` : `Review on ${dayText(next.date)}`}{sameDay > 1 ? ` · ${sameDay} reviews` : ''}</span><span className="dash-label-short">{next.days === 0 ? 'Today' : next.days === 1 ? 'Tomorrow' : dayText(next.date)}</span></span>
           <span className="dash-value" title={`${next.name}, ${next.weekday} ${when}`}>{next.name}</span>
           <span className="dash-sub">{next.weekday} · {when}</span>
         </Link>

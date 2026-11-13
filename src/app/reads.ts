@@ -8,12 +8,13 @@ import { proposedSummary } from '../domain/proposedSummary';
 import { proposalAsks, withProposed } from '../domain/proposed';
 import { scopeToCycle, wrapUpCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
-import type { Ask, Cycle, Person, Snapshot } from '../domain/types';
+import type { Ask, Cycle, Goal, Person, Snapshot } from '../domain/types';
+import { checkInStanding, dueIn } from '../domain/standing';
 import type { ScopeFacts } from '../domain/goalsPage';
-import { agendaOf, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
+import { agendaOf, goalsIn, heldOnDueDay, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
 import { waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession, type Waiting } from '../domain/home';
 import { handedFrom } from '../domain/askHandover';
-import { onTimeStreak, receiptFacts, reviewDate, reviewOnDueDay, weekProgress } from '../domain/progress';
+import { dueWords, inByDueDay, onTimeStreak, postedDay, receiptFacts, reviewDate, weekProgress, type DueWords } from '../domain/progress';
 import { hasEnded, weekDate, weekDates } from '../domain/plan';
 import { beforeStart, cycleDates, wrapUpOpenOn } from '../domain/cycle';
 import { openForPerson } from '../domain/asks';
@@ -33,10 +34,23 @@ export const reviewsOn = (on: ReadonlySet<string>): boolean => on.has('reviews')
 /** What a review action says when Reviews is off (FT2, spec 1.2). */
 export const reviewsOffWords = (workspace: string) => `Reviews is off in ${workspace}.`;
 
+/**
+ * This week's deadline in dueWords' words (RS1), from what the rule reads: whether Reviews is on, and whether a review is
+ * held on the due day (with `personId`, one that person is in: deep review T4). The check-in's receipt, Home and the AI's
+ * get_my_work say it; no screen writes "review" in a deadline itself.
+ */
+export const dueWordsHere = (reviews: boolean, s: Pick<Snapshot, 'reviews'>, cycle: Cycle, week: number, personId?: string): DueWords =>
+  dueWords(reviews, cycle, week, reviews && heldOnDueDay(s.reviews, cycle, week, personId));
+
 /** Every goal's summary row, with what the Goals filters need beyond it. */
 export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns']): GoalRows {
   const goals = live(s.goals).filter((g) => !g.stoppedAt);
-  return { kind: 'goal', summaries: summariseAll(goals, s, cycle, today, week), ctx: { goals, cycle, week, ...(columns ? { columns } : {}) } };
+  // This week's standing (habit rule 1) for `checkedin=`, and a review's goals for `inreview=` (HB2).
+  const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
+  const rows = { checkIns: s.checkIns, asks: s.requests ?? [] };
+  const standing = (g: Goal) => (week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null);
+  const inReview = (id: string) => { const r = s.reviews.find((x) => x.id === id && !x.removedAt); return r ? new Set(goalsIn(r.scope, goals).map((g) => g.id)) : null; };
+  return { kind: 'goal', summaries: summariseAll(goals, s, cycle, today, week), ctx: { goals, cycle, week, standing, inReview, ...(columns ? { columns } : {}) } };
 }
 
 export function personRows(s: Snapshot): PersonRows {
@@ -99,9 +113,10 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   const start = beforeStart(cycle, today);
   const thisWeek = s.checkIns.filter((c) => c.week === week && p.goals.some((g) => g.id === c.goalId));
   const allIn = p.goals.length > 0 && p.done.length >= p.goals.length;
-  // The receipt names the due day as a review only for someone in a review held that day, while Reviews is on (T4, FT2).
-  const hasReview = reviewOnDueDay(s.reviews, viewerId, cycle, reviews);
-  const receipt = allIn ? receiptFacts(p, viewerId, s, cycle, week, hasReview) : { after: 0, forgiven: null };
+  // The receipt names the due day as a review only for someone in a review held that day, while Reviews is on (T4, FT2):
+  // dueWords' words (RS1), the same the check-in's receipt says.
+  const words = dueWordsHere(reviews, s, cycle, week, viewerId);
+  const receipt = allIn ? receiptFacts(p, viewerId, s, cycle, week, words) : { after: 0, forgiven: null, forgivenMissed: false };
   const dueDate = reviewDate(cycle, Math.max(1, week));
   // Once the year has ended no session is held in it: a "Not held yet" lead would never go (HM1 review).
   const sessions: HomeSession[] = ended || !reviews ? [] : s.reviews.filter((r) => r.people.includes(viewerId)).map((r) => reviewSession(r, s, cycle, today, week))
@@ -126,10 +141,10 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
     checkIns: {
       total: p.goals.length, done: p.done.length,
       due: p.due.map((g) => ({ id: g.id, title: g.title, number: g.kind !== 'milestone' })), draft: opts.draft,
-      allInOnTimeToday: allIn && thisWeek.some((c) => c.postedAt.slice(0, 10) === day) && thisWeek.every((c) => c.postedAt.slice(0, 10) <= dueDate),
+      allInOnTimeToday: allIn && thisWeek.some((c) => localDay(c.postedAt) === day) && thisWeek.every((c) => inByDueDay(c, cycle, Math.max(1, week))),
       streak: mine.length ? onTimeStreak(viewerId, s, cycle, week) : null,
-      completedToday: allIn && thisWeek.some((c) => c.postedAt.slice(0, 10) === day),
-      after: receipt.after, forgiven: receipt.forgiven, hasReview,
+      completedToday: allIn && thisWeek.some((c) => localDay(c.postedAt) === day),
+      after: receipt.after, forgiven: receipt.forgiven, forgivenMissed: !!receipt.forgivenMissed, words: { by: words.by, after: words.after },
     },
     wrap: wrapUpOpenOn(wc, today) ? { name: wc.name, ends: cycleDates(wc).lastDay, ended: hasEnded(wc, today), left: wrapMine.filter((g) => !ws.retros.some((r) => r.goalId === g.id)).map((g) => ({ id: g.id, title: g.title })), total: wrapMine.length } : null,
     sessions,
@@ -162,7 +177,7 @@ export function wrapUpScope(full: Snapshot, cycle: Cycle, snapshot: Snapshot, we
  * read on the same clock, not in UTC (build review of #310: "Asked yesterday" for an ask made half an hour ago at UTC+10).
  * On a server, whose zone is UTC, it is the stamp's UTC day.
  */
-const localDay = (iso: string) => { const n = new Date(iso); return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10); };
+const localDay = postedDay;
 
 export function homeAsks(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, reviews = true): Waiting[] {
   return openForPerson(viewerId, s).flatMap((r) => { const w = askWaiting(r, viewerId, s, cycle, week, today, reviews); return w ? [w] : []; }).sort(waitingOrder);

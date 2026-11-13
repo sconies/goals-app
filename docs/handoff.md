@@ -10,7 +10,7 @@ What the internal team needs to take Faro onto the company's platform, and how f
 |---|---|---|
 | What Faro does, generated from the code | `llms.txt`, `spec/` | Complete for the core and both modules; can't drift (CI) |
 | The rules, with worked examples | `spec/core/rules/`, `spec/modules/*/rules.md` | Complete |
-| Expected results for every demo goal in every week | `spec/conformance/` | Status, flags, projection, scorecard, what a check-in must say, find and navigation |
+| Expected results for every demo goal in every week | `spec/conformance/` | Status, flags, projection, scorecard, what a check-in must say (with the habit's moment), find, navigation and Home (with the habit's on-time run and its forgiven week). The habit is core and has no switch: its spec says why |
 | The rebuild kit, stage by stage | `spec/rebuild/` | Stage 1 (the rules) has a drill: 100% from the kit alone, 8 Nov. Stages 2 to 5 are outlines, checked by hand |
 | What the platform must add | `spec/requirements/internal/` | R1 sign-in and access, R2 single sign-on, R3 time zones, R4 scale and safety, R6a the organisation, R6b delegates, R6c the planning round, each with acceptance checks |
 | The ports at company scale | `spec/rebuild/ports-at-scale.md` | A sketch: the query and command ports that replace the demo-scale goals store, and how its contract tests carry across. Neither port is built |
@@ -47,7 +47,7 @@ Every outside part sits behind one interface in `src/ports/`, with a contract te
 - [ ] **The clock:** `Clock`. The system's, or a fixed one for demos and tests.
 - [ ] **The AI tools' endpoint:** everything it needs is its `Deps` (`server/mcp.ts`); Supabase's are in `src/adapters/supabase/server.ts`, picked in `server/vercel.ts`. No contract of its own yet.
 - [ ] **Research and telemetry:** `src/app/research.ts` (through `src/adapters/supabase/research.ts`), `src/telemetry/` (sends to Supabase's REST address, no client library). Keep, swap for the company's analytics, or drop (`spec/requirements/internal/r9-observability.md`).
-- [ ] **A number source** for metrics that fill themselves in: `NumberSource`, with one demo source (`src/modules/metrics/numbers.ts`, "CI analytics", the build-time metric). Real connectors are yours: one per system a metric names as its source, each passing `numberSourceContract`. Nothing on screen reads one yet.
+- [ ] **A number source** for metrics that fill themselves in: `NumberSource` (the metric library's own port, `src/modules/metrics/source.ts`), with one demo source (`src/modules/metrics/numbers.ts`, "CI analytics", the build-time metric). Real connectors are yours: one per system a metric names as its source, each passing `numberSourceContract`. Nothing on screen reads one yet.
 
 ### 4. Build what the platform must add
 

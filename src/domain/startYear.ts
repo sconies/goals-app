@@ -59,7 +59,8 @@ export function startPage(s: StartRows, cycle: Cycle, today: Date): StartPage {
     { n: rb.open, says: 'not wrapped up yet', sub: `${rb.openCarry} carry on as they are, ${rb.openFinish} finish` },
   ];
   const startsWith = [
-    ...(rb.carried ? [{ bold: n(rb.carried, 'goal', 'goals'), rest: `, each with its key, owner, team, level and metric. A number goal starts from its final number, from week 1; its target is unchanged and due at the end of ${shape.name}.` }] : []),
+    ...(rb.carried - rb.proposed ? [{ bold: n(rb.carried - rb.proposed, 'goal', 'goals'), rest: `, each with its key, owner, team, level and metric. A number goal starts from its final number, from week 1; its target is unchanged and due at the end of ${shape.name}.` }] : []),
+    ...(rb.proposed ? [{ bold: `${n(rb.proposed, 'proposed goal carries', 'proposed goals carry')} as proposed`, rest: `, with nothing due until ${rb.proposed === 1 ? 'its owner makes it' : 'their owners make them'} active.` }] : []),
     ...(rb.stageGoals ? [{ bold: n(rb.stageGoals, 'goal with stages', 'goals with stages'), rest: ` carry the ${n(rb.stagesLeft, 'stage', 'stages')} not done, spread evenly over ${shape.name}. Their owners are asked to check the dates.` }] : []),
     ...(rb.loseParent ? [{ bold: `${n(rb.loseParent, 'goal loses its', 'goals lose their')} “Feeds into”`, rest: ', because the goal above finishes or stops.' }] : []),
     ...(extras.asks ? [{ bold: `${n(extras.asks, 'open next step or ask moves', 'open next steps and asks move')} with ${extras.asks === 1 ? 'its goal' : 'their goals'}.`, rest: extras.staying ? ` ${extras.staying} stay in ${cycle.name}, on goals that finish or stop.` : '' }] : []),

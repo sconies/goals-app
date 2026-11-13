@@ -21,7 +21,8 @@ import { MODULE_RECORDS, recordsOn } from '../core/records';
 import { applyCommit, EXAMPLE, examplesOf, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import type { Answers, ChangeInput, ChangeSet, CheckInPost, PostMode, Tables, Via } from '../domain/changeset';
 import { ACTIONS } from '../mcp/parity';
-import { commitOf, loadEngine, loadGoalEntry, MODULE_ACTIONS, perform, performAny, ready, type ActionInput, type ActionName, type RunContext, type RunResult, type SaveGoalWith } from './actions';
+import { saveRerunning } from './rerun';
+import { commitOf, loadEngine, loadGoalEntry, MODULE_ACTIONS, perform, performAny, ready, rerunsWhenStale, type ActionInput, type ActionName, type RunContext, type RunResult, type SaveGoalWith } from './actions';
 
 /** What previewChanges is given, and applyChanges sends again with apply. */
 export type ChangePlan = Omit<ActionInput<'planChanges'>, 'apply'>;
@@ -339,6 +340,10 @@ export const NOBODY = 'Nobody is signed in here, so nothing can be saved.';
     browser keeps a part that failed to load, so asking again in the same page fails again). Drafts survive a reload. */
 export const ENGINE_OFFLINE = 'You’re offline, and saving needs a part of Faro that hasn’t loaded yet. What you typed is kept: try again when you’re back online.';
 export const ENGINE_FAILED = 'A part of Faro that saves changes didn’t load. Reload to try again; what you typed is kept.';
+/** A save refused as stale that couldn't be run again on the latest (AX6): a whole-record form, or refused every time. */
+export const STALE_SAVE = 'Someone else changed this a moment ago, so yours wasn’t saved. You’re now looking at the latest: check it and try again.';
+/** A save run again on the latest that then had nothing left to do: someone else had already done it (AX6). */
+export const ALREADY_DONE = 'Someone else changed this a moment ago, and it already says what you asked for, so there was nothing to save.';
 
 const ToastCtx = createContext<Toast[]>([]);
 /** The messages on screen. Kept apart from the app state so a message coming and going doesn't recompute every screen. */
@@ -488,6 +493,16 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     return snap;
   }, [store]);
 
+  /** Loads the open workspace as it is now and shows it, whatever happened since: after a save refused as stale. */
+  const reloadLatest = useCallback(async (ws: string) => {
+    const snap = await loadWs(ws);
+    const next = { ws, snap, at: loadMark() };
+    // At once in the ref too, so a save straight after says it was based on this.
+    if (loadedRef.current?.ws === ws) loadedRef.current = next;
+    setLoaded((l) => (l && l.ws === ws ? next : l));
+    return snap;
+  }, [store]);
+
   const commit = useCallback(async (given: Commit) => {
     const cur = loadedRef.current;
     saving.current++;
@@ -514,12 +529,8 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       }
       setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: applyCommit(l.snap, c), at: loadMark() } : l));
     } catch (e) {
-      if (isStale(e) && cur) {
-        await loadWs(cur.ws).then((snap) => setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap, at: loadMark() } : l))).catch(() => undefined);
-        toast('Someone else changed this a moment ago, so yours wasn’t saved. You’re now looking at the latest: check it and try again.', 'error');
-      } else {
-        toast('Couldn’t save: ' + (e instanceof Error ? e.message : String(e)) + '. Your changes are still here; try again.', 'error');
-      }
+      // A stale refusal is the dispatcher's to handle: it reloads and runs the action again (AX6, `run` below).
+      if (!isStale(e)) toast('Couldn’t save: ' + (e instanceof Error ? e.message : String(e)) + '. Your changes are still here; try again.', 'error');
       throw e;
     } finally {
       saving.current--;
@@ -606,6 +617,15 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     // The shared actions (domain/actions.ts): who may do what, and what it saves. A rule that says no is shown, not saved.
     const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals, full: snapshot, records: MODULE_RECORDS });
     const rx = (): RunContext => ({ ...ax(), workspace: workspacesNow.current.find((w) => w.id === ws.id) ?? ws, modules: MODULES });
+    /** The same, on another load of this workspace: the latest, when a stale save runs again (AX6). The viewer acts as
+        they are there; someone who has since left acts as that, and the rule says what they may still do. */
+    const rxOn = (full: Snapshot): RunContext => {
+      if (full === snapshot) return rx();
+      const cyc = currentCycle(full.cycles, now) ?? cycle;
+      const s = scopeToCycle(full, cyc, MODULE_RECORDS);
+      const actor = s.people.find((p) => p.id === viewer.id) ?? full.people.find((p) => p.id === viewer.id) ?? viewer;
+      return { ...rx(), snapshot: s, cycle: cyc, week: currentWeek(cyc, now), actor, allGoals: full.goals, full };
+    };
     // An action made in one workspace (a toast's Undo, pressed after switching) never saves into another: this render's
     // workspace must still be the one open, or nothing is saved and the person is told.
     const save = (c: Commit) => {
@@ -647,7 +667,6 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     undoNow.current = (importId) => { void run('undoImport', { importId }).then(() => toast('Undone')).catch(() => undefined); };
     /** The dispatcher (app/actions.ts): one way to run an action. Who, when and ids are set here. */
     async function run<N extends ActionName>(name: N, input: ActionInput<N>, opts: { said?: string } = {}): Promise<RunResult<N>> {
-      const before = snapshot;
       // Outside the demo, nobody signed in can't act: there is no stand-in to act as (AX3).
       if (!signedIn.current) { toast(NOBODY, 'error'); throw new Error(NOBODY); }
       try { await ready(name, input); } catch (e) {
@@ -656,14 +675,37 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         else if (!recoverFromStaleCode(e)) toast(ENGINE_FAILED, 'error', { label: 'Reload', run: () => location.reload() });
         throw e;
       }
-      let out: ReturnType<typeof perform<N>>;
-      try { out = performAny(rx(), name, input) as ReturnType<typeof perform<N>>; } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
       // A token's secret is made where it's kept (the shared database makes its own) and shown once; only its hash is stored.
-      if (name === 'createToken') return (await issueToken(out as Commit)) as RunResult<N>;
-      if (name === 'planChanges' && (input as ActionInput<'planChanges'>).apply && !(out as ChangeSet).commit) throw new Error('These changes can’t be saved yet.');
-      const c = commitOf(name, out, input);
-      if (!c) return out as RunResult<N>;
-      await save(c);
+      if (name === 'createToken') {
+        let token: Commit;
+        try { token = performAny(rx(), name, input) as Commit; } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
+        return (await issueToken(token)) as RunResult<N>;
+      }
+      // The rule runs on the workspace as loaded; if the save is refused as stale (someone else changed the same goal or
+      // review since), on the latest, with the same input, and that is saved (AX6, app/rerun.ts). The rule decides again,
+      // so a refusal then is in its own words. An input holding whole records as last seen isn't run again (actions.ts).
+      const attempt = (full: Snapshot) => {
+        const out = performAny(rxOn(full), name, input) as ReturnType<typeof perform<N>>;
+        if (name === 'planChanges' && (input as ActionInput<'planChanges'>).apply && !(out as ChangeSet).commit) throw new Error('These changes can’t be saved yet.');
+        return { out, commit: commitOf(name, out, input) };
+      };
+      let done: Awaited<ReturnType<typeof saveRerunning<ReturnType<typeof perform<N>>>>>;
+      try {
+        done = await saveRerunning(snapshot, attempt, async (c) => { await save(c); }, () => reloadLatest(ws.id), rerunsWhenStale(name) ? undefined : 0);
+      } catch (e) {
+        if (e instanceof A.NotAllowed) toast(e.message, 'error');
+        else if (isStale(e)) {
+          await reloadLatest(ws.id).catch(() => undefined);
+          toast(STALE_SAVE, 'error');
+        }
+        throw e;
+      }
+      const { out, commit: c, before, reran } = done;
+      if (!c) {
+        // Run again on the latest, it had nothing left to do: someone else did it first. Said, so it isn't silent.
+        if (reran) toast(ALREADY_DONE);
+        return out as RunResult<N>;
+      }
       if (name === 'markReviewed') {
         const n = (input as ActionInput<'markReviewed'>).goalIds.length;
         const review = sc.reviews.find((r) => r.id === (input as ActionInput<'markReviewed'>).reviewId);
@@ -672,6 +714,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         // A module's removal or change says what it did, with Undo, as the core's do (its actions.ts `said`); a `said`
         // that gives back nothing leaves the toast to the screen (adding a metric, say).
         const say = (said[name] ?? MODULE_ACTIONS[name]?.said) as ((o: unknown, i: unknown) => string) | undefined;
+        // Undo puts back the workspace the saved run was based on: the latest, when it ran again.
         const words = say ? opts.said ?? say(out, input) : '';
         if (words) toast(words, 'success', { label: 'Undo', run: undoBy(c, before) });
       }
@@ -840,7 +883,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       revokeToken: async (id) => { await run('revokeToken', { tokenId: id }); },
       startNextCycle: async () => (await run('startNextCycle', {})).name,
     });
-  }, [loaded, wanted, viewerId, noEntry, store, today, pinned, clock, workspaces, commit, issueToken, toast, createWorkspace, mode, saveNote]);
+  }, [loaded, wanted, viewerId, noEntry, store, today, pinned, clock, workspaces, commit, issueToken, reloadLatest, toast, createWorkspace, mode, saveNote]);
 
   // The arrival, logged as the person who arrived, once the app acts as them (rule S4: domain/actions arrive).
   useEffect(() => {
