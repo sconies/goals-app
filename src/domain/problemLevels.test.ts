@@ -169,6 +169,8 @@ describe('section 4: a case per kind, with its sentence and level', () => {
     ['cant-change', 'amara', { goals: [rec({ Key: 'G-1', Type: 'milestone' })] }, /A goal’s type can’t change\. Add a new goal instead\./],
     ['not-allowed', 'tunde', { goals: [rec({ Key: 'G-1', Target: String(g1.plan.target - 1) })] }, /Only Rhea Kapoor \(its owner\) or an admin can change “Lead time for changes”\./, { reason: 'x' }],
     ['removal-refused', 'amara', { goals: [rec({ Key: 'G-14', Action: 'Stop' })] }, /Say why/],
+    ['removal-refused', 'amara', { goals: [newGoal({ Action: 'Stop', Reason: 'Not needed' })] }, /^Stop needs the goal’s Key, to say which goal\. To add “.+” instead, leave Action empty\.$/],
+    ['removal-refused', 'amara', { goals: [newGoal({ Action: 'Delete' })] }, /^Delete needs the goal’s Key/],
     ['loop', 'amara', { goals: [rec({ Key: 'G-1', 'Feeds into key': 'G-1' })] }, /A goal can’t feed into itself\./],
     ['near-ref', 'amara', { goals: [newGoal({ Owner: 'Rhea Kapor' })] }, /“Rhea Kapor” isn’t here\. Did you mean Rhea Kapoor\?/],
     ['near-ref', 'amara', { goals: [newGoal({ Team: 'CI/DC' })] }, /There’s no team called “CI\/DC”\. Did you mean CI\/CD\?/],

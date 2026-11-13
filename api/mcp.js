@@ -3090,7 +3090,7 @@ function answerOf(d) {
 		byId: a.answeredBy ?? ""
 	};
 }
-var isHealthy, tier, dayText, reviewedText;
+var isHealthy, tier, dayText, reviewedText, canSpeakFor, speakRefusal;
 var init_review = __esmMin((() => {
 	init_attention();
 	init_vocabulary();
@@ -3107,6 +3107,8 @@ var init_review = __esmMin((() => {
 	});
 	reviewedText = (s) => `${s.done} of ${s.total} reviewed`;
 	ASK_KIND.action.label;
+	canSpeakFor = (r, p) => p.admin || r.people.includes(p.id);
+	speakRefusal = (r) => `Only people in ${r.name}, or an admin, can speak for it.`;
 }));
 // src/domain/decide.ts
 var ACCEPT, acceptNote;
@@ -6514,6 +6516,7 @@ function askQuestion(x, goal, text, opts = {}) {
 	if (t.length < 2) no$3("Write the question.");
 	if (goal.ownerId === x.actor.id) no$3("It’s your own goal: there’s no one to ask. Comment instead.");
 	const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : void 0;
+	if (review && !canSpeakFor(review, x.actor)) no$3(speakRefusal(review));
 	const { ask, change } = raiseAsk({
 		kind: "question",
 		goalIds: [goal.id],
@@ -6537,6 +6540,7 @@ function addAction(x, goal, text, opts = {}) {
 	if (!x.snapshot.people.some((p) => p.id === who)) no$3("The person for the action isn’t in this workspace.");
 	if (opts.dueWeek != null && !(opts.dueWeek >= 1 && opts.dueWeek <= x.cycle.weeks)) no$3(`The due week is between 1 and ${x.cycle.weeks}.`);
 	const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : void 0;
+	if (review && !canSpeakFor(review, x.actor)) no$3(speakRefusal(review));
 	const { ask, change } = raiseAsk({
 		kind: "action",
 		goalIds: [goal.id],
@@ -6614,6 +6618,7 @@ function withdrawRequest(x, r, goal) {
 * until answered or done like any other ask.
 */
 function reviewCall(x, goal, review, kind, note, extra = {}) {
+	if (!canSpeakFor(review, x.actor)) no$3(speakRefusal(review));
 	const text = note.trim();
 	const week = extra.week ?? sessionWeek(review, x.week, x.cycle);
 	if (kind === "ask") {
@@ -6662,7 +6667,7 @@ function reviewCall(x, goal, review, kind, note, extra = {}) {
 }
 /**
 * The review accepts the risk on a goal behind (deep review P2): no action for now, with a reason, said in the session
-* as a note whose words start "We accept the risk:" (decide.ts reads it back). Anyone may; only the screen keeps it to those in the review.
+* as a note whose words start "We accept the risk:" (decide.ts reads it back). Someone in the review, or an admin (RV7).
 */
 function acceptRisk(x, goal, review, reason, week) {
 	if (reason.trim().length < 5) no$3("Say why the review accepts the risk.");
@@ -10742,6 +10747,7 @@ function* planChangesInChunks(input) {
 				column: "ID",
 				found: id
 			});
+			if (action && !existing) return raise("removal-refused", "Goals", row, title, `${GOAL_ACTION_WORDS.word[action]} needs the goal’s Key, to say which goal. To add “${title}” instead, leave Action empty.`, { column: "Action" });
 			if (existing && touched.has(existing.id)) return raise("duplicate", "Goals", row, existing.title, `“${existing.title}” has another row in this file. Give each goal one row.`, {
 				column: "Key",
 				answers: ANSWERS.duplicate
@@ -12865,6 +12871,23 @@ var StaleError = class extends Error {
 	}
 };
 var isStale = (e) => e instanceof StaleError || e instanceof Error && /\bstale: /.test(e.message);
+// src/ports/window.ts
+init_cycle();
+/** Entries of these kinds are anchors: kept at any age, because rules read them whatever their age (comments, asks, a
+cycle's "created" entry). */
+var ANCHOR_ENTITIES = [
+	"note",
+	"request",
+	"cycle"
+];
+/** Import and bulk-edit summaries (and their undoing) are anchors too: past imports and "Undo this import" read them. */
+var ANCHOR_ACTIONS = ["imported", "undone"];
+/** The day (yyyy-mm-dd, UTC) a window starts on. */
+var windowDay = (w) => new Date(w.from).toISOString().slice(0, 10);
+/** A cycle overlaps the window when its last day (domain/cycle cycleDates) is on or after the window's first day.
+In SQL: start_date + ((weeks + 1) * 7 - 1) >= the window's day. */
+var overlaps = (c, w) => cycleDates(c).lastDay >= windowDay(w);
+var historySize = (ask) => Math.max(1, Math.min(100, Math.floor(ask.size ?? 50)));
 // src/data/store.ts
 init_asks();
 init_goalKey();
@@ -13597,9 +13620,10 @@ function goalRows(s, cycle, today, week, columns) {
 }
 function personRows(s) {
 	const teams = new Map(s.teams.map((t) => [t.id, t]));
+	const here = new Set(s.people.map((p) => p.id));
 	return {
 		kind: "person",
-		people: live(s.people),
+		people: live([...s.people, ...(s.archive?.people ?? []).filter((p) => !here.has(p.id))]),
 		teamName: (id) => teams.get(id)?.name ?? "",
 		teamLead: (id) => teams.get(id)?.leadId ?? null
 	};
@@ -13773,22 +13797,23 @@ var EXPORT_FORMAT = "goals-app.export";
 GOALS.columns.filter((c) => c.role !== "worked").map((c) => c.header);
 GOALS.columns.filter((c) => c.role === "worked").map((c) => c.header);
 CHECK_INS.columns.map((c) => c.header);
-/**
-* The goals an export carries and their summaries. A whole-cycle export (the workbook, CSV, JSON) keeps stopped goals,
-* with their check-ins, marked Stopped (domain/removal); the brief, like every list, leaves them out.
-*/
-function prepare(x, withStopped = false) {
-	const a = withStopped && !x.goals ? x.snapshot.archive : void 0;
-	const base = withStopped && !x.goals && x.snapshot.proposed?.length ? {
-		...x.snapshot,
-		goals: [...x.snapshot.goals, ...x.snapshot.proposed]
-	} : x.snapshot;
-	const s = a?.goals.length ? {
+/** What a whole-cycle workbook holds: the live goals, the proposed ones (State proposed, no worked-out numbers; GE10)
+and the stopped ones from the archive, with their check-ins. Export's "Everything" counts read this too. */
+function everything(lists) {
+	const a = lists.archive;
+	const base = lists.proposed?.length ? {
+		...lists,
+		goals: [...lists.goals, ...lists.proposed]
+	} : lists;
+	return a?.goals.length ? {
 		...base,
 		goals: [...base.goals, ...a.goals],
 		checkIns: [...base.checkIns, ...a.checkIns],
 		decisions: [...base.decisions, ...a.decisions]
 	} : base;
+}
+function prepare(x, withStopped = false) {
+	const s = withStopped && !x.goals ? everything(x.snapshot) : x.snapshot;
 	const goals = x.goals ?? s.goals;
 	const sums = goals.map((g) => isProposed(g) ? proposedSummary(g, s, x.cycle, x.week) : summarise(g, s, x.cycle, x.today, x.week));
 	const c = contextOf(x, s);
@@ -15550,7 +15575,7 @@ var help$2 = [
 		sections: [{
 			heading: "How to use it",
 			list: [
-				"On Goals, choose Export these goals. When the goals are filtered, it starts from the ones shown now; Everything in the cycle is one click away, with how many goals, check-ins and people that is.",
+				"On Goals, choose Export these goals. When the goals are filtered, it starts from the ones shown now; Everything in the cycle is one click away, with how many goals, check-ins and people that is: stopped and proposed goals count, as the workbook holds them.",
 				"Export .xlsx is the one button. The file’s name is at the foot of the sheet before you press it, and the message after says it again: Exported platform-goals-all-2026-11-05.xlsx.",
 				"On Data, Export saves the open table exactly as laid out, as .xlsx or .csv, with the columns that say which record each row is added so it loads back; the menu says how many rows and columns that is. Everything… opens the same Export as Goals. Import is beside it.",
 				"Excel workbook, the usual choice: a first sheet, Start here, that says for every column what it means, whether a new row must have it, its format and an example; then Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks, Notes and Metrics. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.",
@@ -15559,7 +15584,7 @@ var help$2 = [
 				"One format: whatever you export can be edited and loaded back on Data’s Import, or used to set up a new workspace. Loaded back unedited, it changes nothing. Each person is written with their name and email.",
 				"JSON: everything, with each goal’s plan and check-ins inside it, in a stated format.",
 				"Brief for an AI chat: Markdown that leads with decisions waiting on people, then each goal’s story, then results. Copy it or save it.",
-				"Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date. Which goals is all, the view’s name, or as-shown for a table from Data: platform-goals-all-2026-11-05.xlsx, platform-goals-off-track-2026-11-05.xlsx, platform-check-ins-as-shown-2026-11-05.csv.",
+				"Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date. Which goals is all (only ever for everything), the view’s name, or as-shown for a table from Data or a filtered All tab: platform-goals-all-2026-11-05.xlsx, platform-goals-off-track-2026-11-05.xlsx, platform-check-ins-as-shown-2026-11-05.csv.",
 				"Exports hold names and the owners’ reasons. Share them as you would the app."
 			]
 		}],
@@ -15974,6 +15999,7 @@ var CORE_ARTICLES = [
 					"Welcome to the workspace: who set it up and when, how many people and goals it has, then Which one are you?, with everyone listed by team and one line each (who set it up, an admin, how many goals they own, or no goals yet). With more than eight people, Find your name narrows the list.",
 					"Choose your name: that is the whole step. Home opens as you, and this device remembers your answer. The first time anyone chooses their name, Activity says they opened the workspace for the first time.",
 					"Not on the list? Ask whoever set it up to add you: the link writes them an email.",
+					"Not you, or opened the wrong link? Go to Welcome, under the list, takes you to the front door, where you can open another workspace or set up your own. The invitation stays waiting until you choose a name.",
 					"A link to a workspace that isn’t there says This invitation doesn’t open a workspace (it may have been deleted, or the link was cut short) and opens nothing else; Go to Welcome takes you to the front door."
 				]
 			},
@@ -15982,7 +16008,7 @@ var CORE_ARTICLES = [
 				text: ["Until company sign-in arrives, the app asks once on each device which one you are and remembers the answer. Choose Not you? in the person menu to change it. In the internal app, signing in with your company login replaces this step.", "Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If it can’t open you, it says you can’t open the workspace yet, and why: you aren’t signed in; no one there has that email; more than one person has it; or you’re marked as having left. Nothing of the workspace is shown. Copy a message for them writes the note to send whoever set it up, and Try again looks once more after they’ve fixed it."]
 			}
 		],
-		routes: ["/join/:workspaceId"],
+		routes: ["/join/:workspaceId/*"],
 		screens: ["Start"],
 		reqs: ["SETUP-FIRST-SCREEN", "IDENTITY"],
 		keywords: [
@@ -16795,7 +16821,8 @@ var CORE_ARTICLES = [
 					"Press Ctrl K (Cmd K on a Mac), or choose Find at the top of the sidebar (on a phone, Find in the top bar), and type a name, a few words, or a goal’s key like G-48.",
 					"What matches comes in groups: Goals, People, Teams, and Metrics while the metric library is on. Each shows its first three with how many match in all; “See all 8 goals” opens that list with your search filled in.",
 					"A goal’s key on its own (G-48, g48 or 48) puts that goal first. Enter opens the first row; Down and Up move to another; Escape closes. Each row is a link, so you can open it in a new tab.",
-					"Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open."
+					"Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open.",
+					"On a computer, a picker opens under its field, or above it when the window has no room below, so a sheet or a table never cuts it off."
 				]
 			},
 			{
@@ -17062,7 +17089,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Anyone can set up a review or join one. Someone in the review, whoever set it up, or an admin can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it."]
+				text: ["Anyone can set up a review, and everyone can read every review. Only people in a review, or an admin, speak for it: mark goals reviewed, add a note, accept a risk, and ask a question or agree a next step in it. Anyone can still ask a question or agree a next step on a goal’s own page. Someone not in a review is told who can add them: someone in it, whoever set it up, or an admin, who can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it."]
 			}
 		],
 		routes: [
@@ -17083,7 +17110,8 @@ var CORE_ARTICLES = [
 			"INSPECT-ACT",
 			"REVIEW-LIST-STATE",
 			"REVIEW-AGENDA",
-			"EXCEPTIONS-FIRST"
+			"EXCEPTIONS-FIRST",
+			"REVIEW-SPEAK"
 		],
 		keywords: [
 			"review",
@@ -18320,6 +18348,53 @@ var WHATS_NEW = [
 			"Proposing a goal for someone else now says they will see it on their Home."
 		],
 		articles: ["goal-proposed", "home"]
+	},
+	{
+		id: "import-export-fixes",
+		date: "2026-11-13",
+		title: "Import and Export, four fixes",
+		points: [
+			"A Goals row with no key that says Stop or Delete is now a Must fix on that row, asking for the goal’s Key, instead of stopping the page.",
+			"A filtered All tab exports as as-shown, never as all: all is only ever everything.",
+			"Export’s Everything line counts what the workbook holds, stopped and proposed goals and their check-ins too.",
+			"On a phone, Export opened from the View sheet now shows on its own, with one button to press; the View sheet is back when it closes."
+		],
+		articles: ["import", "export"]
+	},
+	{
+		id: "review-who-speaks",
+		date: "2026-11-13",
+		title: "Only people in a review, or an admin, decide in it",
+		points: [
+			"Marking goals reviewed, notes, accepting a risk, and questions and next steps raised in a review are for the people in it, or an admin, in the app and through AI assistants alike.",
+			"Everyone can still read every review, and ask a question or agree a next step on a goal’s own page.",
+			"A review you’re not in says who can add you, instead of offering a Join button that didn’t work."
+		],
+		articles: ["reviews"]
+	},
+	{
+		id: "invitation-way-out",
+		date: "2026-11-13",
+		title: "An invitation no longer holds you at its first screen",
+		points: [
+			"The screen an invitation opens has Go to Welcome under the list of names, so a wrong link or a shared computer is never a dead end.",
+			"Setting up a workspace of your own works from there too, before you have chosen a name.",
+			"An old invitation link to a workspace that isn’t there says so, rather than opening Welcome.",
+			"Who set a workspace up is now read from the workspace itself, so the first screen, “Set this up · admin” and “Ask … to add you” name the right person when there is more than one admin.",
+			"Activity no longer gives a name twice when someone opens a workspace for the first time."
+		],
+		articles: ["joining", "welcome"]
+	},
+	{
+		id: "pickers-in-full",
+		date: "2026-11-12",
+		title: "Pickers show in full, and Find finds people who have left",
+		points: [
+			"On a computer, a picker opened in a sheet or in Data’s table is no longer cut off: it opens above its field when there is no room below.",
+			"Find finds someone who has left again, marked “(left)”, as it always said it would.",
+			"Setting up a workspace with two people of one name, the owner you pick is the one the goal gets."
+		],
+		articles: ["finding"]
 	},
 	{
 		id: "save-part-not-loaded",
@@ -48440,6 +48515,11 @@ init_records();
 /** A database function that isn't there: the database is missing migrations. Said apart from a request that failed. */
 var missing = (error) => error.code === "PGRST202" || /Could not find the function|function .* does not exist/i.test(error.message);
 var MISSING = (fn) => `The database has no ${fn}: apply the migrations in supabase/migrations.`;
+/** A value in a PostgREST filter, quoted so commas, dots and colons in it (a time, say) read as part of it. */
+var quoted = (v) => `"${v.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
+/** How many goal ids go in one `in` filter, so a request's address stays short. */
+var IDS = 100;
+var chunks = (xs, n) => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, i * n + n));
 /** Requests give up after this long, so a dead connection shows an error instead of loading forever. */
 var TIMEOUT_MS = 12e3;
 /** Supabase returns at most 1,000 rows per request; read in pages below that. */
@@ -48463,11 +48543,11 @@ var SupabaseStore = class {
 		this.records = records;
 		this.db = client ?? faroClient(url, key, { fetch: timedFetch });
 	}
-	async all(table, ws) {
+	async all(table, ws, narrow = (q) => q) {
 		const out = [];
 		let after = null;
 		for (;;) {
-			let q = this.db.from(table).select("*").eq("workspace_id", ws).order("id").limit(PAGE);
+			let q = narrow(this.db.from(table).select("*").eq("workspace_id", ws)).order("id").limit(PAGE);
 			if (after != null) q = q.gt("id", after);
 			const { data, error } = await q;
 			if (error) throw new Error(`${table}: ${error.message}`);
@@ -48482,16 +48562,48 @@ var SupabaseStore = class {
 		if (error) throw new Error("Workspaces: " + error.message);
 		return (data ?? []).map(workspaceFromRow).filter((w) => w.kind !== "example" && w.id !== EXAMPLE.id);
 	}
-	async load(ws) {
+	async windowCheckIns(ws, w, cycles, goals) {
+		const goalsOf = (cycleIds) => goals.filter((g) => cycleIds.has(g.cycle_id)).map((g) => g.id);
+		const open = new Set(cycles.filter((c) => overlaps({
+			startDate: c.start_date,
+			weeks: c.weeks
+		}, w)).map((c) => c.id));
+		const rows = (await Promise.all(chunks(goalsOf(open), IDS).map((ids) => this.all("okr_check_ins", ws, (q) => q.in("goal_id", ids))))).flat();
+		const cycleOf = new Map(goals.map((g) => [g.id, g.cycle_id]));
+		const found = new Set(rows.flatMap((r) => cycleOf.has(r.goal_id) ? [cycleOf.get(r.goal_id)] : []));
+		const any = async (cycleId) => {
+			for (const ids of chunks(goalsOf(/* @__PURE__ */ new Set([cycleId])), IDS)) {
+				const { data, error } = await this.db.from("okr_check_ins").select("id").eq("workspace_id", ws).in("goal_id", ids).limit(1);
+				if (error) throw new Error(`okr_check_ins: ${error.message}`);
+				if ((data ?? []).length) return true;
+			}
+			return false;
+		};
+		const older = cycles.filter((c) => !open.has(c.id));
+		for (const [c, has] of await Promise.all(older.map(async (c) => [c, await any(c.id)]))) if (has) found.add(c.id);
+		return {
+			rows,
+			checkInCycles: [...found].sort()
+		};
+	}
+	windowChanges(ws, w) {
+		const anchors = `entity.in.(${ANCHOR_ENTITIES.join(",")}),action.in.(${ANCHOR_ACTIONS.join(",")}),undo.not.is.null`;
+		return this.all("okr_changes", ws, (q) => q.or(`at.gte.${quoted(new Date(w.from).toISOString())},${anchors}`));
+	}
+	async load(ws, window) {
+		const shape = window ? Promise.all([this.all("okr_cycles", ws), this.all("okr_goals", ws)]) : null;
 		const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens, views, requests, modules] = await Promise.all([
 			this.all("okr_teams", ws),
 			this.all("okr_people", ws),
-			this.all("okr_cycles", ws),
-			this.all("okr_goals", ws),
+			shape ? shape.then(([c]) => c) : this.all("okr_cycles", ws),
+			shape ? shape.then(([, g]) => g) : this.all("okr_goals", ws),
 			this.all("okr_stages", ws),
-			this.all("okr_check_ins", ws),
+			shape ? shape.then(([c, g]) => this.windowCheckIns(ws, window, c, g)) : this.all("okr_check_ins", ws).then((rows) => ({
+				rows,
+				checkInCycles: null
+			})),
 			this.all("okr_decisions", ws),
-			this.all("okr_changes", ws),
+			window ? this.windowChanges(ws, window) : this.all("okr_changes", ws),
 			this.all("okr_watches", ws),
 			this.all("okr_reviews", ws),
 			this.all("okr_retros", ws),
@@ -48507,7 +48619,7 @@ var SupabaseStore = class {
 			people: people.map(personFromRow),
 			cycles: cycles.map(cycleFromRow),
 			goals: withKeys(goals.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)).map((g) => goalFromRows(g, stages))),
-			checkIns: checkIns.map(checkInFromRow),
+			checkIns: checkIns.rows.map(checkInFromRow),
 			decisions: decisions.map(decisionFromRow),
 			changes: changes.map(changeFromRow).sort((a, b) => a.at.localeCompare(b.at)),
 			watches: watches.map(watchFromRow),
@@ -48517,8 +48629,36 @@ var SupabaseStore = class {
 			tokens: tokens.map(tokenFromRow),
 			views: views.map(viewFromRow),
 			requests: requests.map(requestFromRow),
-			...modules ? { modules } : {}
+			...modules ? { modules } : {},
+			...window && checkIns.checkInCycles ? { history: {
+				from: window.from,
+				checkInCycles: checkIns.checkInCycles
+			} } : {}
 		});
+	}
+	/** Older change-log entries, newest first, keyset by (at, id) (ports/window.ts historyPage): at <= before.at and
+	(at < before.at or id < before.id), ordered by at desc, id desc, one row more than asked to know if more remain. */
+	async history(ws, ask) {
+		const size = historySize(ask);
+		let q = this.db.from("okr_changes").select("*").eq("workspace_id", ws);
+		if (ask.goalId) q = q.eq("goal_id", ask.goalId);
+		const b = ask.before;
+		if (b) {
+			const at = new Date(b.at).toISOString();
+			q = q.lte("at", at).or(`at.lt.${quoted(at)},id.lt.${quoted(b.id)}`);
+		}
+		const { data, error } = await q.order("at", { ascending: false }).order("id", { ascending: false }).limit(size + 1);
+		if (error) throw new Error(`okr_changes: ${error.message}`);
+		const rows = data ?? [];
+		const changes = rows.slice(0, size).map(changeFromRow);
+		const last = changes.at(-1);
+		return {
+			changes,
+			next: rows.length > size && last ? {
+				at: last.at,
+				id: last.id
+			} : null
+		};
 	}
 	/** A workspace's rows from a database function that returns them. */
 	async listed(fn, ws) {

@@ -79,8 +79,10 @@ function Arrival() {
         </section>
         <p className="hint">This device remembers your answer. Signing in with your company login replaces this step in the internal app.</p>
         <p className="small">Not on the list? {admin?.email
-          ? <a href={`mailto:${admin.email}?subject=${encodeURIComponent(`Add me to ${app.ws.name} in Faro`)}`}>Ask {admin.name} to add you</a>
+          ? <a className="tap" href={`mailto:${admin.email}?subject=${encodeURIComponent(`Add me to ${app.ws.name} in Faro`)}`}>Ask {admin.name} to add you</a>
           : <>Ask whoever set up {app.ws.name} to add you.</>}</p>
+        {/* The way out, to another workspace or a new one (review of #285, medium 1). */}
+        <p className="small">Not you? <Link className="tap" to="/welcome">Go to Welcome</Link></p>
       </div>
     </div>
   );
