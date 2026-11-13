@@ -6,6 +6,7 @@ import { ZONE_CASE, ZONE_HEADER, zoneRowsOf, type ZoneCase } from './zones';
 import { attentionFor, attentionGroup, needsAttention } from '../domain/attention';
 import { draftFrom, emptyDraft, evaluate } from '../domain/checkin';
 import { currentWeek, goalAsOf, projectionFor, valueSeries, weekDate } from '../domain/plan';
+import { cycleDates } from '../domain/cycle';
 import { goalScorecard } from '../domain/scorecard';
 import { assessPosted, checkInsFor, daysWithoutUpdate, goalStatus } from '../domain/status';
 import type { Ask, CheckIn, Cycle, Decision, Goal, Person, Review, Snapshot, Team, Watch } from '../domain/types';
@@ -307,10 +308,11 @@ export function homeRowsOf(w: ConformanceWorkspace): string[][] {
 type CaseSheet = 'goals' | 'plan' | 'checkIns' | 'people';
 /**
  * What a case starts from beyond the workspace at `builtFor`: set-up from nothing (`mode: "create"`, every row new), goals
- * stopped before it (`stopped`, by key: in the archive, as a whole-cycle export carries them), and the rows of other
- * sheets loaded in the same file (`sheets`).
+ * stopped before it (`stopped`, by key: in the archive, as a whole-cycle export carries them), the rows of other
+ * sheets loaded in the same file (`sheets`), and a later moment the file is loaded at (`at`; the workspace is still as it
+ * stood at `builtFor`).
  */
-export interface CaseGiven { mode?: 'create'; stopped?: string[]; sheets?: Partial<Record<CaseSheet, Record<string, string>[]>> }
+export interface CaseGiven { mode?: 'create'; stopped?: string[]; sheets?: Partial<Record<CaseSheet, Record<string, string>[]>>; at?: string }
 export interface ImportCase { case: string; actor: string; sheet: CaseSheet; rows: Record<string, string>[]; answers?: Record<string, string>; given?: CaseGiven }
 export function importCases(w: ConformanceWorkspace): ImportCase[] {
   const s = asOf(w, new Date(w.builtFor));
@@ -320,6 +322,8 @@ export function importCases(w: ConformanceWorkspace): ImportCase[] {
   const fresh = (o: Record<string, string>) => ({ Goal: 'A new goal', Owner: 'Rhea Kapoor', Unit: '%', Start: '10', Target: '50', ...o });
   const theirs = s.checkIns.filter((c) => c.authorId === 'rhea' && c.week < week - 2).slice(-10);
   const rheas = s.goals.filter((x) => x.ownerId === 'rhea').slice(0, 5);
+  const lastOf = theirs[theirs.length - 1]!;
+  const afterWrapUp = new Date(Date.parse(cycleDates(w.cycle).wrapUpCloses) + 2 * 86_400_000).toISOString();
   return [
     { case: 'required-empty', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'No owner', Unit: '%', Start: '1', Target: '2' }] },
     { case: 'required-empty-start', actor: 'amara', sheet: 'goals', rows: [fresh({ Start: '' })] },
@@ -390,6 +394,8 @@ export function importCases(w: ConformanceWorkspace): ImportCase[] {
     { case: 'unknown-owner-setup', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'Night shift rota', 'Owner email': 'nia@example.com', Owner: 'Nia Okoro', Team: 'CI/CD', Unit: '%', Start: '10', Target: '50' }], given: { mode: 'create', sheets: { people: [{ Name: 'Ines Novak', Email: 'ines@example.com', Team: 'CI/CD' }] } } },
     { case: 'past-stage-setup', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'Rota agreed', 'Owner email': 'ines@example.com', Team: 'CI/CD', Type: 'milestone', Stages: 'Draft@2; Agreed@6; Live@50' }], given: { mode: 'create', sheets: { people: [{ Name: 'Ines Novak', Email: 'ines@example.com', Team: 'CI/CD' }] } } },
     { case: 'past-stage-setup-answered', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'Rota agreed', 'Owner email': 'ines@example.com', Team: 'CI/CD', Type: 'milestone', Stages: 'Draft@2; Agreed@6; Live@50' }], given: { mode: 'create', sheets: { people: [{ Name: 'Ines Novak', Email: 'ines@example.com', Team: 'CI/CD' }] } }, answers: { 'past-stage:goals:stages:': 'from-now' } },
+    // A cycle that has ended can't be corrected by any door (review of #326): a changed number for a past week is refused.
+    { case: 'ended-cycle', actor: 'amara', sheet: 'checkIns', rows: [{ ID: lastOf.id, 'Goal ID': lastOf.goalId, Week: String(lastOf.week), 'Next step': 'Corrected after the year closed' }], given: { at: afterWrapUp } },
     { case: 'as-recorded', actor: 'amara', sheet: 'checkIns', rows: [{ Goal: 'Cache hit rate', Week: '20', Value: '12', Call: 'On track' }], given: { mode: 'create', sheets: { goals: [{ Goal: 'Cache hit rate', 'Owner email': 'ines@example.com', Team: 'CI/CD', Unit: '%', Start: '10', Target: '50', 'Plan from week': '1', 'Due week': '40' }], people: [{ Name: 'Ines Novak', Email: 'ines@example.com', Team: 'CI/CD' }] } } },
   ];
 }
@@ -424,7 +430,7 @@ export function runCase(w: ConformanceWorkspace, c: ImportCase): ChangeSet {
   let k = 0;
   const sheet = (rows: Record<string, string>[]) => rows.map((r, i) => ({ __row: String(i + 2), ...Object.fromEntries(Object.entries(r).map(([h, v]) => [h.toLowerCase(), v])) }));
   const tables = { ...Object.fromEntries(Object.entries(c.given?.sheets ?? {}).map(([name, rows]) => [name, sheet(rows ?? [])])), [c.sheet]: sheet(c.rows) };
-  return planChanges({ tables, snapshot, cycle: w.cycle, week, actor: people.find((p) => p.id === c.actor)!, now: w.builtFor, newId: (p) => `${p}_c${++k}`, via: 'spreadsheet', ...(c.given?.mode ? { mode: c.given.mode } : {}), answers: Object.fromEntries(Object.entries(c.answers ?? {}).map(([id, choice]) => [id, { choice }])) });
+  return planChanges({ tables, snapshot, cycle: w.cycle, week, actor: people.find((p) => p.id === c.actor)!, now: c.given?.at ?? w.builtFor, newId: (p) => `${p}_c${++k}`, via: 'spreadsheet', ...(c.given?.mode ? { mode: c.given.mode } : {}), answers: Object.fromEntries(Object.entries(c.answers ?? {}).map(([id, choice]) => [id, { choice }])) });
 }
 
 /* ---------- what a change set saves (stage 2; KT gap 1) ---------- */

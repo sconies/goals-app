@@ -25,7 +25,7 @@ import { weekProgress } from '../domain/progress';
 import { workbook } from '../domain/export';
 import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { findGoal, isKey } from '../domain/goalKey';
-import { withProposed } from '../domain/proposed';
+import { proposalAsks, withProposed } from '../domain/proposed';
 import type { AskKind, Level, Retro, Review, Watch } from '../domain/types';
 import { ARTICLES, GROUPS, articleById, articleText, searchGuide, type Article } from '../help/guide';
 import { newsSince } from '../help/whatsNew';
@@ -96,7 +96,7 @@ const levelsOf = (v: unknown): Level[] => {
 };
 const requestData = (ctx: McpContext, r: ReturnType<typeof requestOf>) => ({
   id: r.id, kind: r.kind, ask: r.kind === 'decision' ? askText(r, ctx.snapshot.people) : r.ask, status: r.status, statusLabel: ASK_STATUS[r.status].label, dueWeek: r.dueWeek, overdue: isOverdue(r, ctx.week), review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null, askedBy: name(ctx, r.askedBy), askedOf: r.recipientId ? name(ctx, r.recipientId) : 'anyone',
-  goals: r.goalIds.map((g) => { const x = ctx.snapshot.goals.find((y) => y.id === g); return { id: g, key: x?.key ?? null, title: x?.title ?? g }; }), raisedAt: r.createdAt,
+  goals: r.goalIds.map((g) => { const x = withProposed(ctx.snapshot).find((y) => y.id === g); return { id: g, key: x?.key ?? null, title: x?.title ?? g }; }), raisedAt: r.createdAt,
   answer: r.answer, answeredBy: r.answeredBy ? name(ctx, r.answeredBy) : null, youCanAnswer: r.status === 'open' && canAnswer(r, ctx.actor), youCanMarkDone: r.status === 'open' && canMarkDone(r, ctx.actor),
 });
 const lines = (l: string[], none: string) => (l.length ? l.join('\n') : none);
@@ -169,6 +169,11 @@ export const WORK_TOOLS: ToolDef[] = [
       const asks = ofKind('update').map((r) => ({ id: r.id, goalId: r.goals[0]?.id, by: r.askedBy, at: r.raisedAt, waiting: r.waiting, late: r.late, handedFrom: r.handedFrom }));
       const actions = ofKind('action').map((r) => ({ id: r.id, goalId: r.goals[0]?.id, action: r.ask, dueWeek: r.dueWeek, waiting: r.waiting, late: r.late, agreedBy: r.askedBy, handedFrom: r.handedFrom }));
       const when = (x: { waiting: string; handedFrom: string | null }) => ` · ${x.waiting}${x.handedFrom ? ` · asked of ${x.handedFrom}, now yours` : ''}`;
+      // Proposed goals asked of them, as Home's "Proposed goals" lists them (goal entry rule 14; build review of #319):
+      // one proposed for them by someone else, and one of theirs proposed 8 weeks ago or more. What they opened is kept
+      // per browser, so the tools list every one proposed for them.
+      const proposedForYou = proposalAsks(s.proposed ?? [], ctx.actor, ctx.today, { opened: new Set(), putOff: new Map() }, (id) => s.people.find((p) => p.id === id)?.name ?? 'Someone')
+        .map((a) => ({ id: a.goal.id, key: a.goal.key ?? null, title: a.goal.title, kind: a.kind, says: a.says }));
       const reviews = s.reviews.filter((r) => r.people.includes(me)).map((r) => { const x = reviewSession(r, s, ctx.cycle, ctx.today, ctx.week); return { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total }; });
       // The strip at the top of Home: their goals by status, their on-time streak, what they watch, their next review.
       const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today);
@@ -178,14 +183,15 @@ export const WORK_TOOLS: ToolDef[] = [
         watching: d.watching ? { goals: d.watching.all.length, needAttention: d.watching.needs.map((a) => a.goal.title), beingHandled: d.watching.handled.map((a) => ({ title: a.goal.title, inHand: a.handled!.text })), noRecentUpdate: d.watching.quiet.length } : null,
         nextReview: d.next ? { id: d.next.id, name: d.next.name, date: d.next.date, day: d.next.weekday } : null,
       };
-      const data = { week: ctx.week, atAGlance: glance, checkInsDue: due, needsAttention: attention, beingHandled: handled, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, yourReviews: reviews, wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today) };
+      const data = { week: ctx.week, atAGlance: glance, checkInsDue: due, needsAttention: attention, beingHandled: handled, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, proposedGoals: proposedForYou, yourReviews: reviews, wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today) };
       const text = [
         `Week ${ctx.week} for ${ctx.actor.name}.`,
         `${d.scope === 'mine' ? 'Your goals' : 'All goals'}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(', ') || 'none'}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? 'week' : 'weeks'}.` : ''}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ''}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ''}`,
         `Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(', ') : 'none'}.`,
         `Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask}${when(r)} (${r.id})`).join('; ') : 'none'}.`,
         `Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question}${when(q)} (${q.id})`).join('; ') : 'none'}.`,
-        `Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by}${when(x)} (${x.id})`).join('; ') : 'none'}.`,
+        `Asked for an update: ${asks.length ? asks.map((x) => `${withProposed(s).find((g) => g.id === x.goalId)?.title} by ${x.by}${when(x)} (${x.id})`).join('; ') : 'none'}.`,
+        `Proposed goals for you: ${proposedForYou.length ? proposedForYou.map((x) => `${x.says} (${x.key ?? x.id})`).join(' ') : 'none'}.`,
         `Your actions: ${actions.length ? actions.map((x) => `${x.action}${x.dueWeek ? ` by week ${x.dueWeek}` : ''}${when(x)} (${x.id})`).join('; ') : 'none'}.`,
         // Each reason is a sentence with its own full stop: joined into one line, only the line's last one stays.
         `Your goals that need attention: ${attention.length ? attention.map((g) => `${g.title}, ${said(g.status)}: ${g.why.map(clause).join('. ')}`).join('; ') : 'none'}.`,
