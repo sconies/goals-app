@@ -27,7 +27,7 @@ let last: number | null = null;
 /** Names by id, from the open workspace, for a page's name and a Back link's words (navigation rules 2 and 4). */
 export function usePlaceNames(): PlaceNames {
   const app = useApp();
-  const { screens } = useModules();
+  const { screens, installed, on } = useModules();
   const sections = useSectionNames();
   // The views as the Views menu reads them (old-form params read in the new form), so the two never disagree.
   const views = useViews();
@@ -35,7 +35,8 @@ export function usePlaceNames(): PlaceNames {
     const routes = screens.flatMap((m) => m.routes ?? []);
     return {
       goal: (id) => app.goal(id)?.title ?? null,
-      review: (id) => app.snapshot.reviews.find((r) => r.id === id)?.name ?? null,
+      // Switched off, no review is named (build review of #371): a goal's ?review= reads as the goal alone.
+      review: (id) => (on.has('reviews') ? app.snapshot.reviews.find((r) => r.id === id)?.name ?? null : null),
       view: (sp) => { const vp = viewParams(sp); return views.find((v) => !!v.params && v.params === vp)?.name ?? null; },
       article: (id) => articleRef(id)?.title ?? null,
       person: (id) => app.person(id)?.name ?? null,
@@ -43,6 +44,8 @@ export function usePlaceNames(): PlaceNames {
       section: (id) => sections[id] ?? null,
       cycle: () => app.cycle?.name ?? null,
       parent: (id) => app.goal(id)?.parentId ?? null,
+      // A switched-off module's address is the not-found page (screens/NotFound), and named so.
+      off: (path) => installed.some((m) => !on.has(m.id) && m.routes.some((r) => !!matchPath(r, path))),
       // A module's page names itself from its thing (AR2), else by its fixed title.
       module: (path) => {
         const r = routes.find((x) => matchPath(x.path, path));
@@ -50,7 +53,7 @@ export function usePlaceNames(): PlaceNames {
         return r.name?.(matchPath(r.path, path)?.params ?? {}, { goal: app.goal, person: app.person, team: app.team }) ?? r.title ?? null;
       },
     };
-  }, [app, screens, sections, views]);
+  }, [app, screens, installed, on, sections, views]);
 }
 
 /** The modules' first pages (their menu items' addresses): no Back link there either. */

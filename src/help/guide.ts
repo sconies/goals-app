@@ -759,7 +759,11 @@ const CORE_ARTICLES: Article[] = [
         'An import or bulk edit has Undo this import on its entry, for whoever made it or an admin. It puts every row back as it was; rows changed since are skipped and listed on the entry that says it was undone. An import over a year old can no longer be undone.',
         'The app opens with about the last year of changes, plus every comment, ask and import whatever its age. Show older changes, at the end of the list, fetches older ones a page at a time; a goal’s History has the same.',
       ] },
-      { heading: 'Safe saves', text: ['If someone else changed the same goal, review or week since you opened it, your save is refused whole, you’re told, and shown the latest. Nothing is half-saved.'] },
+      { heading: 'When someone else saved first', list: [
+        'If someone else changed the same goal or review since you opened it, nothing is half-saved, and nothing of theirs is lost.',
+        'A simple change, such as restoring something or ending a review, is made again on the latest and saved. If it no longer applies, you’re told why; if it was already done, you’re told that.',
+        'A goal’s form, a review’s settings, a table of changes, and anything you confirmed against what you were shown (making a goal active, stopping or deleting it, marking someone as left, removing a team, undoing an import) is not saved: you’re told, and shown the latest to check and save again. On a goal’s form, the fields you changed stay as you typed them and the rest show the latest.',
+      ] },
     ],
     routes: ['/activity'],
     screens: ['Activity'],

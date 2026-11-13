@@ -15312,7 +15312,7 @@ var _virtual_faro_modules_default = [
 			"entry": ["The core rules (stage 1) work out each goal's status, flags and attention, and the asks (stage 1: one way to ask): a review reads them and adds nothing to them.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2)."],
 			"exit": [
 				"Switched off, the menu has no Reviews row and the phone's tabs are Home, Check-in, Goals and People for someone with a goal to check in on, and Home, Goals, People and Activity for anyone else (the two rows of navigation.csv at the address “/ (Reviews off)”).",
-				"Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and the six review actions and tools refuse with “Reviews is off in {workspace}.” or the switched-off module's sentence (check N21).",
+				"Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and whatever would save Reviews' records (a review, a note said in one, an ask raised in one, a goal proposed in one), from any action or AI tool, is refused with the switched-off module's sentence and saves nothing (check N21; src/app/reviewsOffWrites.test.ts).",
 				"Switched off, Home has no Next review cell and no review lead: someone who owns no goal is led to the goals they watch that need attention (“Goals you watch · {n} need attention · See them”), or to nothing; a question waits by its own age and names no session; the due flag says “Due by Thu 12 Nov.”, on or off.",
 				"Switching off first reads back what stays (the reviews, what was said in them, the open next steps and questions raised in one) from the rule switchOffReadBack, and Undo brings Reviews back (journey U103).",
 				"Back on, every review, its people, its cadence and what was said are as they were (journey U104).",
@@ -15887,6 +15887,12 @@ var live = (xs) => xs.filter((x) => !x.removedAt);
 * without the module (FARO_WITHOUT=reviews) answers false. FT3 moves Reviews' code into its folder and retires this.
 */
 var reviewsOn = (on) => on.has("reviews");
+/** What domain/reviewWrites reads of a workspace as loaded: its goals (proposed ones too), reviews and asks. */
+var reviewWriteRows = (s) => ({
+	goals: [...s.goals, ...s.proposed ?? []],
+	reviews: s.reviews,
+	asks: asksOf(s)
+});
 /**
 * This week's deadline in dueWords' words (RS1), from what the rule reads: whether Reviews is on, and whether a review is
 * held on the due day (with `personId`, one that person is in: deep review T4). The check-in's receipt, Home and the AI's
@@ -19750,8 +19756,12 @@ var CORE_ARTICLES = [
 				"The app opens with about the last year of changes, plus every comment, ask and import whatever its age. Show older changes, at the end of the list, fetches older ones a page at a time; a goal’s History has the same."
 			]
 		}, {
-			heading: "Safe saves",
-			text: ["If someone else changed the same goal, review or week since you opened it, your save is refused whole, you’re told, and shown the latest. Nothing is half-saved."]
+			heading: "When someone else saved first",
+			list: [
+				"If someone else changed the same goal or review since you opened it, nothing is half-saved, and nothing of theirs is lost.",
+				"A simple change, such as restoring something or ending a review, is made again on the latest and saved. If it no longer applies, you’re told why; if it was already done, you’re told that.",
+				"A goal’s form, a review’s settings, a table of changes, and anything you confirmed against what you were shown (making a goal active, stopping or deleting it, marking someone as left, removing a team, undoing an import) is not saved: you’re told, and shown the latest to check and save again. On a goal’s form, the fields you changed stay as you typed them and the rest show the latest."
+			]
 		}],
 		routes: ["/activity"],
 		screens: ["Activity"],
@@ -22709,7 +22719,7 @@ var requestData = (ctx, r) => ({
 	statusLabel: ASK_STATUS[r.status].label,
 	dueWeek: r.dueWeek,
 	overdue: askLate(ctx, r),
-	review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null,
+	...reviewsOn(modulesOn(ctx.ws).on) ? { review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null } : {},
 	askedBy: name$1(ctx, r.askedBy),
 	askedOf: r.recipientId ? name$1(ctx, r.recipientId) : "anyone",
 	goals: r.goalIds.map((g) => {
@@ -26712,6 +26722,24 @@ var tools_default = [
 		part: tools
 	}
 ];
+// src/domain/reviewWrites.ts
+/**
+* Rule (FT2). A save writes Reviews' records when it logs a change to a review or to a note said in one, writes a note
+* (a decision) or a review not stored before, raises an ask in a review (one whose review differs from the stored ask's,
+* or a new one naming a review), or proposes a goal in a review (a `proposedIn` that differs from the stored goal's).
+* What a save carries along unchanged is not: answering a question raised in a review, editing a goal once proposed in
+* one, or the reviews a person leaves when marked as left, or a carried goal joins. `stored` is what the workspace as
+* loaded holds of those.
+*/
+function writesReviews(c, stored) {
+	if ((c.changes ?? []).some((x) => x.entity === "review" || x.entity === "decision")) return true;
+	if (c.decisions?.length) return true;
+	if (c.reviews?.some((r) => !stored.reviews.some((v) => v.id === r.id))) return true;
+	const goal = (id) => stored.goals.find((g) => g.id === id);
+	if (c.goals?.some((g) => !!g.proposedIn && g.proposedIn !== (goal(g.id)?.proposedIn ?? null))) return true;
+	if (c.requests?.some((a) => !!a.reviewId && a.reviewId !== (stored.asks.find((x) => x.id === a.id)?.reviewId ?? null))) return true;
+	return false;
+}
 // src/domain/readBack.ts
 init_goalEntry();
 init_goal();
@@ -27906,8 +27934,12 @@ async function callTool(name, args, ctx) {
 		text: moduleOffSentence(moduleById(from)?.name ?? from, ctx.ws.name, name)
 	};
 	try {
-		return await t.run(args ?? {}, ctx);
+		return await t.run(args ?? {}, reviewsOn(modulesOn(ctx.ws).on) ? ctx : reviewsGuarded(ctx, name));
 	} catch (e) {
+		if (e instanceof ReviewsOff) return {
+			isError: true,
+			text: e.message
+		};
 		const text = e instanceof Error ? e.message : String(e);
 		return {
 			isError: true,
@@ -27916,11 +27948,30 @@ async function callTool(name, args, ctx) {
 		};
 	}
 }
+/** A save refused because it writes Reviews' records while Reviews is off: said as the switched-off sentence alone. */
+var ReviewsOff = class extends Error {};
+/**
+* The context a tool runs with while Reviews is off: the same, except that a save writing Reviews' records (a review, a
+* note said in one, an ask raised in one, a goal proposed in one: domain/reviewWrites) is refused and saves nothing, in
+* the switched-off sentence, whichever tool made it (build review of #371: edit_comment and delete_comment on a review
+* note, create_goal proposed in a review, restore_removed reopening an ended review). Everything else reads and writes
+* through to the context itself, which a save moves on.
+*/
+function reviewsGuarded(ctx, tool) {
+	const save = async (c) => {
+		if (writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new ReviewsOff(moduleOffSentence("Reviews", ctx.ws.name, tool));
+		return ctx.save(c);
+	};
+	return new Proxy(ctx, { get: (t, k, r) => k === "save" ? save : Reflect.get(t, k, r) });
+}
 /** Who a token acts as, in a sentence: said with every refusal. */
 var actingAs = (p) => `This token acts as ${p.name}, who ${p.admin ? "is an admin" : "isn’t an admin"}.`;
 // src/mcp/protocol.ts
 /** A tool whose save is refused as stale every time it runs again: said plainly, not as the store's error. */
 var STALE_TOOL = "Someone else changed this a moment ago, so it wasn’t saved. Read it again (get_goal or get_review) and try again.";
+/** Said before a tool's reply when it ran again on the latest after a stale refusal and was saved: never silent, so the
+assistant can tell the person, who may have confirmed a dry run of what has since changed. */
+var RAN_AGAIN = "Someone else changed this a moment ago, so it ran again on the latest and was saved as follows. If you checked it first with a dry run, check what it says now.";
 /** The name stays 'goals' (assistants already have it saved); the title is the product's. */
 var SERVER_INFO = {
 	name: "goals",
@@ -28008,10 +28059,15 @@ async function handle(msg, context, trace) {
 			const args = m.params?.arguments ?? {};
 			const run = async () => {
 				let r = await callTool(name, args, await context());
-				for (let n = 0; n < 2 && r.isError && isStale(r.cause); n++) r = await callTool(name, args, await context(true));
-				return r.isError && isStale(r.cause) ? {
+				let reran = 0;
+				for (; reran < 2 && r.isError && isStale(r.cause); reran++) r = await callTool(name, args, await context(true));
+				if (r.isError && isStale(r.cause)) return {
 					...r,
 					text: STALE_TOOL
+				};
+				return reran && !r.isError ? {
+					...r,
+					text: `${RAN_AGAIN}\n\n${r.text}`
 				} : r;
 			};
 			const r = trace ? await trace(name, run) : await run();
