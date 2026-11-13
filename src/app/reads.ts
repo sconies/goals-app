@@ -46,6 +46,13 @@ export const reviewsOffWords = (workspace: string) => switchedOffWords('Reviews'
 export const dueWordsHere = (reviews: boolean, s: Pick<Snapshot, 'reviews'>, cycle: Cycle, week: number, personId?: string): DueWords =>
   dueWords(reviews, cycle, week, reviews && heldOnDueDay(s.reviews, cycle, week, personId));
 
+/**
+ * Whether the deadline for a set of goals is a review (RS1, Reviews switch spec 2.1): Reviews is on and a review is held
+ * on the due day with one of the goals' owners in it. A team's habit panel says "review" only then; otherwise "by Thursday".
+ */
+export const heldForGoals = (reviews: boolean, s: Pick<Snapshot, 'reviews'>, cycle: Cycle, week: number, goals: readonly Pick<Goal, 'ownerId'>[]): boolean =>
+  reviews && [...new Set(goals.map((g) => g.ownerId))].some((o) => heldOnDueDay(s.reviews, cycle, week, o));
+
 /** Every goal's summary row, with what the Goals filters need beyond it. With `reviews` false (Reviews off) `inreview=`
     narrows nothing, as a switched-off module's column doesn't (module map F4; build review of #424). */
 export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns'], reviews = true): GoalRows {

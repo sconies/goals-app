@@ -50,6 +50,8 @@ export interface DueWords {
   date: string;
   /** The `due` flag's sentence: "Due by Thu 12 Nov.", with Reviews on or off. */
   flag: string;
+  /** Whether the deadline is a review (Reviews on and one held that day): the words above name it only then. */
+  review: boolean;
 }
 
 const SHORT_MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -77,6 +79,7 @@ export function dueWordsOn(reviewsOn: boolean, iso: string, held = false): DueWo
     day,
     date: `${day} ${d.getUTCDate()} ${SHORT_MONTH[d.getUTCMonth()]}`,
     flag: `Due by ${day.slice(0, 3)} ${d.getUTCDate()} ${SHORT_MONTH[d.getUTCMonth()]}.`,
+    review,
   };
 }
 

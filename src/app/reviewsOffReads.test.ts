@@ -7,7 +7,8 @@ import { currentCycle, scopeToCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
 import { EMPTY_QUERY, applyQuery, queryParts } from '../domain/query';
 import { callTool, type McpContext } from '../mcp/tools';
-import { goalRows } from './reads';
+import { beforeReview } from '../domain/habit';
+import { goalRows, heldForGoals } from './reads';
 
 const today = new Date('2026-11-05T12:00:00Z');
 const full = buildPlatformOrg(today);
@@ -64,5 +65,23 @@ describe('the JSON export with Reviews off', () => {
     const get = async (off: string[]) => JSON.parse((await callTool('get_goal', { goal_id: goalId }, mcp(off))).text);
     expect((await get([])).notes.length).toBeGreaterThan(0);
     expect((await get(['reviews'])).notes).toBeUndefined();
+  });
+});
+
+describe('a team’s habit panel names a review only when one is held that day for its people (RS1, spec 2.1)', () => {
+  const team = (id: string) => s.goals.filter((g) => g.teamId === id && !g.removedAt && !g.stoppedAt);
+  const held = (on: boolean, id: string) => heldForGoals(on, s, cycle, week, team(id));
+  const panel = (id: string, h: boolean) => beforeReview(team(id), week, { checkIns: s.checkIns, asks: s.requests ?? [] }, cycle, today, 'nobody', h)!;
+  it('is held for a team whose owners are in Thursday’s Platform leadership weekly, not for one whose aren’t, and never with Reviews off', () => {
+    expect(held(true, 'devex')).toBe(true);
+    expect(held(true, 'cicd')).toBe(false);
+    expect(held(false, 'devex')).toBe(false);
+  });
+  it('with Reviews on and no review that day, the panel says the plain deadline words', () => {
+    const p = panel('cicd', held(true, 'cicd'));
+    expect(p.words.review).toBe(false);
+    expect([p.words.onTime, p.words.day]).toEqual(['on time', 'Thursday']);
+    expect(p.says).not.toMatch(/before it/);
+    expect(panel('devex', held(true, 'devex')).words.onTime).toBe('before the review');
   });
 });
