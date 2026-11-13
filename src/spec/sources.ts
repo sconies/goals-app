@@ -245,14 +245,24 @@ export interface Route {
   file: string;
 }
 
-/** The core's routes, as src/App.tsx writes them, with the file each screen comes from. */
+/** The core's routes, as src/App.tsx writes them, with the file each screen comes from; and the routes a module's app.tsx
+    adds for a screen that is still the core's (Reviews', FT2: src/screens/Review.tsx until FT3 moves it). */
 export function coreRoutes(r: Repo): Route[] {
   const app = read(r, 'src/App.tsx');
   const from = new Map<string, string>();
   for (const m of app.matchAll(/import \{([^}]+)\} from '\.\/(screens\/\w+)'/g)) for (const n of m[1]!.split(',')) from.set(n.trim(), `src/${m[2]}.tsx`);
   // Screens loaded when first opened: const X = lazy(() => import('./screens/File').then((m) => ({ default: m.X }))).
   for (const m of app.matchAll(/const (\w+) = lazy\(\(\) => import\('\.\/(screens\/\w+)'\)/g)) from.set(m[1]!, `src/${m[2]}.tsx`);
-  return [...app.matchAll(/<Route path="([^"]+)" element=\{<(\w+)/g)].filter((m) => m[1] !== '*' && from.has(m[2]!)).map((m) => ({ path: m[1]!, component: m[2]!, file: from.get(m[2]!)! }));
+  const own = [...app.matchAll(/<Route path="([^"]+)" element=\{<(\w+)/g)].filter((m) => m[1] !== '*' && from.has(m[2]!)).map((m) => ({ path: m[1]!, component: m[2]!, file: from.get(m[2]!)! }));
+  const viaModules = moduleFacts(r).flatMap((f) => {
+    const file = `src/modules/${f.id}/app.tsx`;
+    if (!exists(r, file)) return [];
+    const t = read(r, file);
+    const core = new Map<string, string>();
+    for (const m of t.matchAll(/const (\w+) = lazy\(\(\) => import\('\.\.\/\.\.\/(screens\/\w+)'\)/g)) core.set(m[1]!, `src/${m[2]}.tsx`);
+    return [...t.matchAll(/\{ path: '([^']+)', element: <(\w+)/g)].filter((m) => core.has(m[2]!)).map((m) => ({ path: m[1]!, component: m[2]!, file: core.get(m[2]!)! }));
+  });
+  return [...own, ...viaModules];
 }
 
 export interface ScreenParts {

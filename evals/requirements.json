@@ -1122,6 +1122,12 @@
       "use": "copy"
     },
     {
+      "id": "REVIEWS-OPTIONAL",
+      "area": "Architecture",
+      "text": "An admin switches Reviews off for a workspace. Off, there is no Reviews in the menu, on Home, on a goal or in the AI’s tools; asks and next steps are unchanged; what was said in reviews stays in history. Nothing is deleted, and switching it on restores it.",
+      "use": "copy"
+    },
+    {
       "id": "NO-SILENT-ROUNDING",
       "area": "Numbers",
       "text": "A number is never rounded quietly: one typed with more decimal places than its goal keeps is refused, with what it would show as, in the check-in, New goal, goal edit, the import and the AI tools. Letters in a number get one message everywhere, every number shown has its thousands grouped, and numbers far outside the plan are questioned, never refused.",

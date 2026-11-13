@@ -3,7 +3,7 @@
 
 # The core journeys
 
-What people do with Faro end to end, and the checks that drive it (`npm run evals`; `[evals/journeys.cjs](../../evals/journeys.cjs)`). Journeys and checks a module owns are in its own section ([Metric library](../modules/metrics/README.md), [Spreadsheets](../modules/spreadsheets/README.md)). Who the journeys are for: `docs/journeys.md`.
+What people do with Faro end to end, and the checks that drive it (`npm run evals`; `[evals/journeys.cjs](../../evals/journeys.cjs)`). Journeys and checks a module owns are in its own section ([Metric library](../modules/metrics/README.md), [Reviews](../modules/reviews/README.md), [Spreadsheets](../modules/spreadsheets/README.md)). Who the journeys are for: `docs/journeys.md`.
 
 ## Journeys
 
@@ -13,7 +13,6 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 |---|---|---|---|---|---|
 | U1 | Weekly check-in, all due goals in one pass | Team lead | `UPDATE-ANYTIME` `CARRY-OVER` `CHECKIN-STATUS-VS-PLAN` `REASON-BEHIND` `PATH-TO-GREEN` `ONE-PER-WEEK` `CHANGE-LOG` `DRAFTS` `PROFILES` `PERSIST` | 17 | `evals/journeys.cjs` |
 | U2 | What needs me? Home shows what’s due, off track, stale or slipping | Team lead | `ATTENTION` `PROFILES` `STALE` | 1 | `evals/journeys.cjs` |
-| U3 | Weekly review: walk the goals worst first, decide what happens next and record what was said | Sponsor | `REVIEW` `INSPECT-ACT` `OUTCOME-TREE` `ATTENTION` `CHANGE-LOG` `REVIEW-RUN` `REVIEW-DECIDE` `ONE-ASK` | 30 | `evals/journeys.cjs` |
 | U4 | Set up a goal, step by step | Team lead | `GOAL-CREATE` `PLAN-SHAPE` `HIERARCHY` `LEVELS` `CHANGE-LOG` `DRAFTS` | 13 | `evals/journeys.cjs` |
 | U5 | Load your own data and switch between it and the example; the switcher says Switch, and landing as someone else says who you are there | Goals coach | `WORKSPACES` `ONBOARDING` `CHANGE-LOG` `ADMIN` | 15 | `evals/journeys.cjs` |
 | U6 | Understand a goal and its change history | Anyone | `NOTES` `GOAL-PAGE` `CHANGE-LOG` `ATTENTION` `REBASELINE` | 3 | `evals/journeys.cjs` |
@@ -23,7 +22,6 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U10 | Close the cycle: owners wrap up their goals, an admin starts the next cycle | Coach and leads | `RETRO` `CHANGE-LOG` `ADMIN` | 14 | `evals/journeys.cjs` |
 | U11 | Real app: from empty to a filled-in workspace with a template, then a teammate joins | Anyone starting fresh | `ONBOARDING` `IDENTITY` `DEMO-MODE` `CHANGE-LOG` | 14 | `evals/journeys.cjs` |
 | U12 | Demo: switch person, look around, start over | Anyone evaluating the tool | `DEMO-MODE` | 4 | `evals/journeys.cjs` |
-| U13 | Anyone sets up a review: name, cadence, goals, people |  | `REVIEW-SETUP` `LEVELS` `CHANGE-LOG` | 11 | `evals/journeys.cjs` |
 | U14 | An admin adds a person and makes them an admin |  | `ADMIN` `CHANGE-LOG` | 8 | `evals/journeys.cjs` |
 | U15 | Call it greener than the numbers, with a reason, in the status sheet |  | `OWNER-CALL` `GREENER` `CHECKIN-STATUS-VS-PLAN` | 8 | `evals/journeys.cjs` |
 | U16 | Home by responsibility: every ask waiting on you in one place, and one navigation |  | `ATTENTION` `WATCHING` `ONE-ASK` `ONE-WATCHING` | 4 | `evals/journeys.cjs` |
@@ -38,13 +36,11 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U27 | Take a walkthrough: the coach points the way and moves on as you do each step |  | `WALKTHROUGHS` `DEMO-MODE` | 10 | `evals/journeys.cjs` |
 | U28 | A research session: first glances, a note pinned to the screen, a task result and a report |  | `RESEARCH` | 16 | `evals/journeys.cjs` |
 | U29 | Every walkthrough starts as the right person and points at something real |  | `WALKTHROUGHS` | 14 | `evals/journeys.cjs` |
-| U30 | Numbers you can trust, a map you can use from the keyboard, and a review set-up that survives a refresh | A goal owner and a leader | `HONEST-NUMBERS` `GOAL-MAP` `DRAFTS` | 16 | `evals/journeys.cjs` |
 | U31 | After the week is done: check in again, a walkthrough that still works, and Activity that keeps Watching’s scope | A goal owner | `HONEST-NUMBERS` `WALKTHROUGHS` `WATCHING` `ONE-WATCHING` | 19 | `evals/journeys.cjs` |
 | U32 | Search, filter and sort the goals in any layout, save it as a view, come back to it, and share it as a link | A leader | `SAVED-VIEWS` | 18 | `evals/journeys.cjs` |
 | U33 | A leader acts on what needs them: what threatens the north star, respond to a request, chase a quiet goal, compare in a table | A leader | `EXCEPTIONS-FIRST` `STORY` `SAVED-VIEWS` `ONE-ASK` | 16 | `evals/journeys.cjs` |
 | U34 | What you see is what you share: the map’s attention filter, History’s range and an unposted table survive links and refreshes | A goal owner | `HONEST-NUMBERS` `SAVED-VIEWS` `DRAFTS` | 14 | `evals/journeys.cjs` |
 | U35 | An admin corrects people, goals and a past check-in in the data tables; anyone filters the activity and saves it | An admin and a goal owner | `DATA-TABLES` `CHANGE-LOG` | 26 | `evals/journeys.cjs` |
-| U36 | An owner keeps last week’s account but withdraws the request; the leader’s Home and review agree on what needs them | A goal owner and a leader | `PATH-TO-GREEN` `ATTENTION` `REVIEW-RUN` `ONE-ASK` | 12 | `evals/journeys.cjs` |
 | U37 | Several goals wait on one decision: an owner links theirs, the leader answers once, and every goal shows the answer | Two goal owners and a leader | `PATH-TO-GREEN` `ATTENTION` `CHANGE-LOG` `ONE-ASK` | 12 | `evals/journeys.cjs` |
 | U38 | A leader reads the quarters, inspects a week, asks for an update and takes it back; an owner’s double press posts once |  | `QUARTER-RESULTS` `WEEK-INSPECTOR` `NO-DOUBLE-POST` `ASK-UNDO` `STICKY-HEAD` `ONE-ASK` | 24 | `evals/journeys.cjs` |
 | U39 | Something changed: what changed, what happens next and by when on one screen; the walkthrough coach never covers what it points at |  | `ONE-ACCOUNT` `PATH-TO-GREEN` `WALKTHROUGHS` | 14 | `evals/journeys.cjs` |
@@ -54,8 +50,6 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U43 | An admin marks someone as left: first who takes over their goals and asks, then they leave every list, and history keeps their name | An admin | `PERSON-LEFT` `UNDO-REMOVE` `REMOVE-ANYTHING` | 10 | `evals/journeys.cjs` |
 | U44 | An owner stops a goal with history, then deletes a goal set up by mistake and undoes it | A goal owner | `GOAL-STOP` `UNDO-REMOVE` `REMOVE-ANYTHING` | 11 | `evals/journeys.cjs` |
 | U45 | Undo an import: every row back as it was, and a row changed since skipped and listed | A goal owner | `IMPORT-UNDO` `BULK-EDIT` | 8 | `evals/journeys.cjs` |
-| U47 | Someone else, in another browser, opens the inbox with no sign-in, sees a markup sent from the demo with its picture, says why it won’t be fixed and sees who said so |  | `CONNECT-CLAUDE` `MARKUP-INBOX` | 12 | `evals/journeys.cjs` |
-| U49 | Set up a small workspace on a Sunday, as the outside reviewer did: each field says what it needs, a team typo is caught, nothing is late, the weekly review exists, and Start over removes it all | Someone trying Faro after the demo | `ONBOARDING` `WORKSPACES` `REVIEWS` `CALENDAR-WEEKS` `DEMO-MODE` | 30 | `evals/journeys.cjs` |
 | U51 | Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees About, Cycles and Privacy read-only and their own removals, and old links still land, the inbox’s at Feedback | An admin, then a team member | `WORKSPACE-SECTIONS` | 14 | `evals/journeys.cjs` |
 | U52 | Anyone works an inbox of 75 markups and pieces of feedback down to nothing new: a folded row handled together, keys or Next, filters and search, and batches closed a page at a time | Anyone | `INBOX-TRIAGE` `MARKUP-INBOX` `FEEDBACK-INBOX` | 30 | `evals/journeys.cjs` |
 | U53 | Workspace is one place: the switcher at the top switches as a page move (Back returns, a check-in draft is warned about and kept), your role is said in one line, About names the admins, Feedback is beside Help, and a member leaves from Settings |  | `WORKSPACE-ONE-PLACE` `FEEDBACK-PAGE` `LEAVE-WORKSPACE` | 45 | `evals/journeys.cjs` |
@@ -66,11 +60,9 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U60 | An admin makes someone an admin on Access and takes it back: Add an admin, find Rhea, her row and her page say so, Undo; Remove as admin on Grace asks first; stopping being an admin yourself offers no Undo; the only admin has no button; each change is logged |  | `ADMIN` `WORKSPACE-ADMIN` `CHANGE-LOG` | 12 | `evals/journeys.cjs` |
 | U61 | Day one tells the truth: a two-person workspace just set up has nothing to sort out and its team says No lead without a warning; with 12 people and still one admin, About says “You’re the only admin” with Choose someone |  | `WORKSPACE-ABOUT` `ONBOARDING` | 6 | `evals/journeys.cjs` |
 | U62 | Settings is about you: Your page opens your person page; no Make button for tokens; one recording line that leads to Privacy; Leave at the foot asks who takes over; the only admin is told why not; Workspace has no Leave |  | `LEAVE-WORKSPACE` `SETTINGS` | 6 | `evals/journeys.cjs` |
-| U63 | One way to pick: in a review’s set-up, people and goals are found by typing, with you and your team suggested first; a key finds its goal; arrow keys and Enter choose; the choice reads as words with a way to remove it; Escape closes; nothing on the page is a list of everyone |  | `FIND-AND-PICK` | 9 | `evals/journeys.cjs` |
 | U64 | One list bar: on Activity and Help, a search that matches says how many in the same words, one that finds nothing says so with Clear the search, a filter reads as words with Remove, and the address holds the search and the filter so Back steps through them |  | `LIST-BAR` | 10 | `evals/journeys.cjs` |
 | U65 | Find from anywhere: Ctrl K (or the phone’s Find) opens one search; a key alone opens its goal with Enter; a name finds that person, their goals with See all, and their team, each a link; only Goals, People and Teams while no module adds a kind |  | `FIND-ANYWHERE` | 6 | `evals/journeys.cjs` |
 | U66 | A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back |  | `LIST-BAR` | 4 | `evals/journeys.cjs` |
-| U67 | The menu in groups: an owner has Check-in and someone who owns nothing doesn’t; four groups with one item lit; collapsed, an icon names itself on focus; a phone has four tabs and More in the same groups |  | `NAV-PLACES` `NAV-COLLAPSED` | 6 | `evals/journeys.cjs` |
 | U69 | A page says where it is: each address has its own name in the browser’s title and lights one place (Goals is “Goals” on every tab; a goal in a review lights Reviews); six goals opened in turn give six titles |  | `NAV-WHERE` | 1 | `evals/journeys.cjs` |
 | U70 | Back agrees: the back link names where it goes and goes there; the browser’s Forward returns; after saving an edit the link and the browser’s Back both go to Goals; a goal opened in a new tab goes up the tree; no back link on a place’s first page |  | `NAV-BACK` | 9 | `evals/journeys.cjs` |
 | U71 | See your check-ins before you start: the week’s list, Start with the first or pick any, a kept draft said on its row, the table one line away; someone who owns no goal is told so |  | `CHECK-IN-QUEUE` | 10 | `evals/journeys.cjs` |
@@ -78,8 +70,6 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U73 | Goals opens on yours: Rhea lands on Mine with her tabs and counts, the line counts what is shown, Group is its own choice, Needs attention is a switch on any tab, and old links open what they meant |  | `GOALS-SCOPE` `GOALS-ATTENTION` `GOALS-ADDRESS` | 8 | `evals/journeys.cjs` |
 | U77 | The owner can act on a goal: Check in again always, and Add a next step when it is behind with none |  | `GOAL-ACT` | 10 | `evals/journeys.cjs` |
 | U78 | An ask is said once on a goal, under Next steps and asks, with the one button each person may press |  | `GOAL-ASK-ONCE` `ONE-ASK` | 6 | `evals/journeys.cjs` |
-| U79 | A goal’s history shows the weeks it missed, tells reviews from changes, and can be linked to |  | `GOAL-HISTORY` | 6 | `evals/journeys.cjs` |
-| U80 | Watch and comments say what they do before you do them; an owner has no Watch, and About says why |  | `GOAL-SAYS` | 10 | `evals/journeys.cjs` |
 | U84 | New goal in the order people think: what, then who and where (Tunde as owner, his team, Team level, his team’s SVP goals suggested for “Feeds into”, one chosen by typing, “Also helps” set), then how it’s measured, then Check reads it all back; each step is an address, the browser’s Back steps back with the numbers kept, a reload stays put and says the draft was picked up, and no select lists people, teams or goals |  | `NEW-GOAL-STEPS` `FIND-AND-PICK` | 16 | `evals/journeys.cjs` |
 | U85 | A goal isn’t born late: a stage already past is asked about, and a first number can restart the plan |  | `NEW-GOAL-TRUTH` | 26 | `evals/journeys.cjs` |
 | U86 | Day one is true for both: set up a workspace from a template with a teammate, giving him one goal and leaving the rest unowned; Check says how many have no owner; Home says what is left (first check-ins, owners, the link); the teammate is told who set it up and what is his; Hide this removes the block |  | `DAY-ONE` `ONBOARDING` | 24 | `evals/journeys.cjs` |
@@ -101,6 +91,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U142 | Correct this check-in replaces it: after posting, the link asks why (under 10 characters is a Must fix), the week keeps one check-in with the new number, History says what it was and why, and Undo puts it back |  | `ONE-PER-WEEK` `CHANGE-LOG` `IMPORT-UNDO` | 9 | `evals/journeys.cjs` |
 | U147 | The first import (U92’s second half): at /?store=browser, set-up with a spreadsheet whose goals name an owner nobody typed ends on the import’s preview, not a dead end: Must fix offers “Add {name}” and “Give it to someone here”, the stage question is already answered “Count them from this week” and can be changed, Create waits for the answers, and nothing is saved before it; afterwards the person added owns their goal and no stage is due before this week |  | `SETUP-UPLOAD` `IMPORT-PREVIEW` `ONBOARDING` | 18 | `evals/journeys.cjs` |
 | U148 | Proposed in a review: as Rhea walking Developer Productivity fortnightly, “Propose a new goal” (on a phone, “Propose a new goal instead” in the next-step sheet) on Lead time for changes opens a sheet that starts with Rhea (the goal’s owner) and Lead time for changes; a name and Camille as owner saves a proposed goal for Camille in that review, not on the agenda; Camille’s Home says “Rhea proposed a goal for you in Developer Productivity fortnightly”; the review’s next session’s Last time reads “Proposed: … Camille hasn’t made it active yet.” |  | `GOAL-PROPOSED` | 30 | `evals/journeys.cjs` |
+| U149 | A proposed goal’s type: as Tunde, a goal proposed from New goal opens its edit page with Type under “It’s proposed, so its type can still change.”; choosing “Keep a number in range” shows the limit, and with one typed Save changes keeps it proposed as a range goal; his active “Contract tests between the top 40 service pairs” has no Type on its edit page |  | `GOAL-PROPOSED` `GOAL-EDIT-PAGE` | 25 | `evals/journeys.cjs` |
 
 ## Platform checks
 
@@ -147,7 +138,6 @@ Checks that Lane’s review notes stay fixed.
 
 | Id | Check | Requirements | Where |
 |---|---|---|---|
-| N1 | Review notes, reviews | `REVIEW-LIST-STATE` `REVIEW-AGENDA` `REVIEW-DECIDE` | `evals/notes/1-reviews.cjs` |
 | N2 | Review notes, goal-page (the flagship page) | `GOAL-SUMMARY` `GOAL-PAGE-BAR` `GOAL-PAGE` | `evals/notes/2-goal-page.cjs` |
 | N3 | Review notes, attention-home | `ATTENTION-HANDLED` `HOME-OWNER` | `evals/notes/3-attention-home.cjs` |
 | N4 | Review notes, shell-settings: Settings with theme, accent and sidebar; Goals as a nav section; no switcher for one workspace; Back on detail pages; workspace and team admin; Faro’s name, logo and colours | `SETTINGS` `NAV-GOALS` `WORKSPACE-ADMIN` `BRAND` `LAUNCH` | `evals/notes/4-shell-settings.cjs` |

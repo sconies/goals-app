@@ -2,6 +2,7 @@
    are, now that feature modules add their own. Node only: it reads the source files. */
 import fs from 'node:fs';
 import path from 'node:path';
+import type { Article } from '../help/guide';
 import type { ModuleFacts } from './module';
 import { MODULES } from './registry';
 
@@ -36,4 +37,11 @@ export function leftOut(root: string) {
     requirements: new Set(gone.flatMap((m) => m.requirements)),
     aiTools: new Set(gone.flatMap((m) => m.aiTools)),
   };
+}
+
+/** The Help articles of the modules this build leaves out, read from their help.ts: the screens those articles explain
+    are the module's, even where (until FT3) the files still sit in src/screens. */
+export async function leftOutArticles(root: string): Promise<Article[]> {
+  const gone = [...leftOut(root).modules].map((id) => path.join(root, 'src/modules', id, 'help.ts')).filter((f) => fs.existsSync(f));
+  return (await Promise.all(gone.map(async (f) => ((await import(/* @vite-ignore */ f)) as { default: Article[] }).default))).flat();
 }

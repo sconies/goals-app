@@ -52,7 +52,8 @@ import type { Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '..
 import type { Commit } from '../domain/commit';
 import MODULE_PARTS from 'virtual:faro-modules/actions';
 import { recordsOn } from '../core/records';
-import { isModuleOn, moduleById } from '../core/registry';
+import { isModuleOn, moduleById, modulesOn } from '../core/registry';
+import { reviewsOffWords, reviewsOn } from './reads';
 
 /** What the dispatcher hands each action: the rules' context, and the workspace itself for the few that change it. */
 export interface RunContext extends A.ActionContext {
@@ -199,6 +200,9 @@ export const MODULE_ACTIONS: Readonly<Record<string, ModuleAction & { module: st
 /** Every action's name: the core's, then the modules'. The command port lists the same (src/app/actions.test.ts). */
 export const actionNames = (): string[] => [...Object.keys(ACTIONS), ...Object.keys(MODULE_ACTIONS)];
 
+/** The core's actions that are Reviews' (FT2): refused while it is off, as a switched-off module's are. */
+export const REVIEW_ACTIONS: ReadonlySet<string> = new Set(['saveReview', 'reviewCall', 'acceptRisk', 'markReviewed', 'unmarkReviewed', 'endReview', 'deleteReview']);
+
 /** Run one action's rule: what it would save, or NotAllowed. Nothing is saved here (app/state.tsx `run` saves it). */
 export function perform<N extends ActionName>(x: RunContext, name: N, input: ActionInput<N>): ActionResult<N> {
   return performAny(x, name, input) as ActionResult<N>;
@@ -207,6 +211,9 @@ export function perform<N extends ActionName>(x: RunContext, name: N, input: Act
 /** Run any action's rule by name, the core's or a module's: what app/state.tsx `run` calls. */
 export function performAny(x: RunContext, name: string, input: unknown): unknown {
   const fn = (ACTIONS as Record<string, (x: RunContext, i: unknown) => unknown>)[name];
+  // Reviews' actions are still the core's until FT3, and refuse as a module's do while Reviews is off (FT2): so does
+  // correcting a note said in a review (an ask's own words can still be corrected).
+  if ((REVIEW_ACTIONS.has(name) || (name === 'editCall' && !A.findAsk(x, (input as { callId: string }).callId))) && !reviewsOn(modulesOn(x.workspace).on)) throw new A.NotAllowed(reviewsOffWords(x.workspace.name));
   if (fn) return fn(x, input);
   const mod = MODULE_ACTIONS[name];
   if (!mod) throw new Error(`There’s no action called ${String(name)}.`);

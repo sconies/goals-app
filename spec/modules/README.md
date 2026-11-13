@@ -7,4 +7,5 @@ Each feature module is one folder, `src/modules/<id>/`, with a `module.json` say
 | Module | What it does | Needs |
 |---|---|---|
 | [Metric library](metrics/README.md) | Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company. | nothing |
+| [Reviews](reviews/README.md) | Walk a set of goals together on a cadence, decide what happens next and keep what was said. | nothing |
 | [Spreadsheets](spreadsheets/README.md) | Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved. | nothing |
