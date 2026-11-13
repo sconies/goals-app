@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'make-it-proposed-again',
+    date: '2026-11-13',
+    title: 'Make a goal proposed again',
+    points: [
+      'A goal made active too soon can go back to proposed while it has no check-ins: Make it proposed again, in the goal’s “…” menu.',
+      'It then has no status and nothing is due until it is made active again. The message has Undo.',
+    ],
+    articles: ['goal-proposed'],
+  },
+  {
     id: 'proposals-on-home',
     date: '2026-11-13',
     title: 'Proposals for you show on Home',

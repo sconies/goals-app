@@ -1507,7 +1507,7 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
 
 A From before this week is asked at every door (rule 3's from-past, in New goal's words; a tool passes \`confirm\` once the person has said yes), and a From outside week 0 to the week before the plan's To is refused: "From must be a week of this cycle before the plan’s To: week 0 to week {n}." A proposal has no check-ins, so proposing a stages goal asks nothing about stages already past and saves no check-in for them; they are marked done at its first check-in. Marking an owner as left hands over their proposed goals with the rest (\`leaving\`).
 
-**Back to proposed** (\`backToProposed\`): an active goal with no check-ins, by its owner or an admin. One with a check-in can't: "It has check-ins, so it can’t go back to proposed. Stop it instead." (\`state-has-check-ins\` in a file).
+**Back to proposed** (\`backToProposed\`): an active goal with no check-ins, by its owner or an admin, from the goal's "…" menu, "Make it proposed again", which confirms "It will have no status and nothing will be due until it is made active." and says "“{goal}” is proposed again." with Undo. History: "Made it proposed again". One with a check-in can't: the menu item is absent, its Change page says "It has check-ins, so it can’t go back to proposed. Stop it instead.", and a file says so too (\`state-has-check-ins\`).
 
 **Withdrawing** is deleting (domain/removal): Recently removed for 30 days, with Undo; History says "Withdrew the proposal “{goal}”".
 
