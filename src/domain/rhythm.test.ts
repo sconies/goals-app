@@ -10,7 +10,13 @@ import { dueDate, firstDueWeek, firstReports, onTimeStreak, weekDoneText, weekPr
 import { goalStatus } from './status';
 import { checkInList, rhythmReadBack, setRhythm } from './rhythm';
 import { RULES, rhythmOf, staleAfterDays } from './thresholds';
-import type { Cycle, Snapshot } from './types';
+import type { Cycle, Person, Snapshot } from './types';
+import { goalScorecard } from './scorecard';
+import { canAskUpdate, standingAction } from './goalPage';
+import { gettingStarted } from './dayOne';
+import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE } from './importer';
+import { definitions, startHere } from './export';
+import { RHYTHM } from './vocabulary';
 
 const NONE: Cycle = { ...CYCLE, checkInWeeks: 0 };
 const THU_8_OCT = new Date('2026-10-08T12:00:00Z');
@@ -157,5 +163,63 @@ describe('rhythmReadBack (4.2)', () => {
     const r = rhythmReadBack(goals, checkIns, CYCLE, { weeks: 0 }, THU_8_OCT);
     expect(r).toEqual({ live: 3, unstale: 2, unstaleBy: { on: 1, none: 1 }, stale: 0 });
     expect(rhythmReadBack(goals, checkIns, NONE, { weeks: 1, dueDay: 3 }, THU_8_OCT).stale).toBe(0);
+  });
+});
+
+describe('the goal page with no set rhythm (2.5)', () => {
+  const four = [1, 2, 3, 4].map((w) => checkIn('m', w, w * 8));
+  it('the forecast is made from the numbers there are and says whose pace it is; never Can’t say for age alone', () => {
+    const none = goalScorecard(g, NONE, four, 6, false, 4).cells.find((c) => c.key === 'hit')!;
+    expect(none.value).not.toBe('Can’t say');
+    expect(none.sub).toMatch(/^likely .* · on the pace to week 4$/);
+    expect(goalScorecard(g, CYCLE, four, 6, true).cells.find((c) => c.key === 'hit')!.value).toBe('Can’t say');
+    expect(goalScorecard(g, CYCLE, four, 4, false).cells.find((c) => c.key === 'hit')!.sub).not.toMatch(/pace/);
+  });
+  const julia = { id: 'p', name: 'Julia Reyes' } as Person, amara = { id: 'amara', name: 'Amara Obi' } as Person;
+  it('anyone but the owner may ask for an update while the latest check-in isn’t this week’s and none is open', () => {
+    const o = { goal: g, viewer: amara, status: 'on' as const, latestWeek: 44, week: 46, updateAsked: false };
+    expect(canAskUpdate(o)).toBe(true);
+    expect(canAskUpdate({ ...o, latestWeek: 46 })).toBe(false);
+    expect(canAskUpdate({ ...o, updateAsked: true })).toBe(false);
+    expect(canAskUpdate({ ...o, viewer: julia })).toBe(false);
+    expect(canAskUpdate({ ...o, status: 'done' })).toBe(false);
+    expect(canAskUpdate({ ...o, goal: { ...g, stoppedAt: '2026-10-01T00:00:00Z' } })).toBe(false);
+  });
+  it('the owner’s check-in is an ordinary button, said for the week when none is in yet', () => {
+    const primary = { kind: null, label: '', targetId: null };
+    expect(standingAction({ goal: g, viewer: julia, primary, watching: false, status: 'on', week: 46, checkedInThisWeek: false }).label).toBe('Check in for week 46');
+    expect(standingAction({ goal: g, viewer: julia, primary, watching: false, status: 'on', week: 46, checkedInThisWeek: true }).label).toBe('Check in again');
+    expect(standingAction({ goal: g, viewer: julia, primary, watching: false, status: 'on' }).label).toBe('Check in again');
+  });
+});
+
+describe('set-up, Getting started and the export with no set rhythm (2.4, 2.6)', () => {
+  const now = new Date('2026-11-12T10:00:00Z');
+  it('Getting started asks for the first check-in without a due day', () => {
+    const rows = { goals: [{ ...g, ownerId: 'ana' }], checkedIn: new Set<string>(), creatorId: 'ana', ended: false, people: [{ id: 'ana', name: 'Ana' }] } as unknown as Parameters<typeof gettingStarted>[1];
+    const ws = { name: 'Field', kind: 'live', createdAt: '2026-11-12T09:00:00Z' };
+    const said = (due: string | null) => gettingStarted('ana', rows, ws, { firstSeenAt: '2026-11-12T09:00:00Z' }, now, due).find((r) => r.id === 'first-check-in')!.says;
+    expect(said(null)).toBe('Post your first check-in, so everyone can see where it starts.');
+    expect(said('Thursday')).toBe('Post your first check-in. It’s due by Thursday.');
+  });
+  it('buildWorkspace sets the rhythm, makes the weekly review only when asked, and pins no quiet view with none', () => {
+    const base = { name: 'Platform', startDate: '2026-11-02', people: PEOPLE_TEMPLATE, goals: GOALS_TEMPLATE, now, idSuffix: 'ab12' };
+    const every = buildWorkspace(base).snapshot;
+    expect(every.cycles[0]!.checkInWeeks).toBeUndefined();
+    expect([every.reviews.length, every.views!.some((v) => v.params.startsWith('quiet='))]).toEqual([1, true]);
+    const none = buildWorkspace({ ...base, checkInWeeks: 0, weeklyReview: false }).snapshot;
+    expect(none.cycles[0]!.checkInWeeks).toBe(0);
+    expect([none.reviews.length, none.views!.some((v) => v.params.startsWith('quiet='))]).toEqual([0, false]);
+  });
+  it('the Start here sheet says the rhythm, and defines No recent update only with one', () => {
+    const ws = { id: 'ws', name: 'Platform' } as Parameters<typeof startHere>[0]['ws'];
+    const text = (cy: Cycle) => startHere({ ws, cycle: cy, week: 4, today: THU_8_OCT }).map((r) => r.join(' ')).join('\n');
+    expect(text(NONE)).toContain('Check-in rhythm: none. A status is the latest check-in’s.');
+    expect(text(CYCLE)).toContain('Check-in rhythm: every week, due by Thursday.');
+    expect(definitions(false).some((r) => r[1] === 'No recent update')).toBe(false);
+    expect(definitions(true).some((r) => r[1] === 'No recent update')).toBe(true);
+  });
+  it('the vocabulary says “as of week”', () => {
+    expect(RHYTHM.asOf.label).toBe('as of week {n}');
   });
 });
