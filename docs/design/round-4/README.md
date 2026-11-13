@@ -61,6 +61,8 @@ Planning's to decide; this is the order the dependencies suggest.
 
 ## Questions for Lane
 
+**Decided by Lane, 13 Nov: all recommended (1a–17a),** as relayed by the planning session. The specs are written for those answers, so nothing in them changes.
+
 One batch. The recommended answer is first each time; each spec's "If Lane decides otherwise" says what the other answers change.
 
 **Small workspaces**
