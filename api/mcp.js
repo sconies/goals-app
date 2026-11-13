@@ -2379,19 +2379,29 @@ function gapText(g, a) {
 		tone: "stale"
 	};
 }
-var NO_VALUE$1, weekLabel, dayText;
+var NO_VALUE$1, weekLabel, DAY_TEXT, dayTexts, dayText;
 var init_format = __esmMin((() => {
 	init_numbers();
 	init_range();
 	init_vocabulary();
 	NO_VALUE$1 = "No value yet";
 	weekLabel = (w, weeks) => w >= weeks ? weeks >= 48 ? "year end" : "cycle end" : "week " + w;
-	dayText = (iso) => (/* @__PURE__ */ new Date(iso.slice(0, 10) + "T00:00:00Z")).toLocaleDateString("en-GB", {
+	DAY_TEXT = new Intl.DateTimeFormat("en-GB", {
 		weekday: "short",
 		day: "numeric",
 		month: "short",
 		timeZone: "UTC"
 	});
+	dayTexts = /* @__PURE__ */ new Map();
+	dayText = (iso) => {
+		const day = iso.slice(0, 10);
+		let t = dayTexts.get(day);
+		if (t === void 0) {
+			t = DAY_TEXT.format(/* @__PURE__ */ new Date(day + "T00:00:00Z"));
+			dayTexts.set(day, t);
+		}
+		return t;
+	};
 }));
 // src/domain/checkin.ts
 /** The parts of a carried account that are still word for word the same and still asked for: the reason, the path. */
@@ -3043,14 +3053,22 @@ function reviewSession(r, s, cycle, today, week) {
 	};
 	const items = agendaItems(r, s, cycle, today);
 	const x = at(sessionWeek(r, week, cycle));
+	if (x.done >= x.total) return x;
 	const off = offSpell(s.changes);
-	return off && x.date >= off.from && x.date < off.to && x.done < x.total ? at(sessionWeek(r, x.week + 1, cycle)) : x;
+	return off && x.date >= off.from && x.date < off.to ? at(sessionWeek(r, x.week + 1, cycle)) : x;
 }
 /**
 * The days Reviews was last switched off and back on (yyyy-mm-dd), from the change log setModule writes (its Reviews
 * field going Off, then On), or null while it hasn't come back on. Nothing is stored for it (FT2).
 */
 function offSpell(changes) {
+	const known = spells.get(changes);
+	if (known !== void 0) return known;
+	const spell = readSpell(changes);
+	spells.set(changes, spell);
+	return spell;
+}
+function readSpell(changes) {
 	const last = (to, before = "~") => changes.filter((c) => c.entity === "workspace" && c.at < before && c.diffs.some((d) => d.field === "Reviews" && d.to === to)).reduce((m, c) => !m || c.at > m ? c.at : m, null);
 	const on = last("On");
 	const off = on && last("Off", on);
@@ -3144,7 +3162,7 @@ function answerOf(d) {
 		byId: a.answeredBy ?? ""
 	};
 }
-var isHealthy, tier, reviewedText, nextSessionWeek, canSpeakFor, speakRefusal, scopeRefusal;
+var isHealthy, tier, spells, reviewedText, nextSessionWeek, canSpeakFor, speakRefusal, scopeRefusal;
 var init_review = __esmMin((() => {
 	init_attention();
 	init_vocabulary();
@@ -3155,6 +3173,7 @@ var init_review = __esmMin((() => {
 	init_format();
 	isHealthy = (a) => !needsAttention(a) && !a.handled;
 	tier = (a) => a.handled ? 1 : isHealthy(a) ? 2 : 0;
+	spells = /* @__PURE__ */ new WeakMap();
 	reviewedText = (s) => `${s.done} of ${s.total} reviewed`;
 	nextSessionWeek = (r, sessionWk) => sessionWeek(r, sessionWk + 1);
 	ASK_KIND.action.label;
@@ -23504,7 +23523,10 @@ var WORK_TOOLS = [
 						...brief(x),
 						sections: x.sections,
 						routes: x.routes,
-						related: x.related.map((r) => brief(articleById(r)))
+						related: x.related.flatMap((r) => {
+							const y = articleById(r);
+							return y ? [brief(y)] : [];
+						})
 					},
 					text: articleText(x)
 				};
