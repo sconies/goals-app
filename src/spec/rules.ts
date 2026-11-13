@@ -1483,7 +1483,7 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
     id: 'proposed',
     title: 'Proposed goals',
     summary: 'A goal can be proposed before anyone is held to it: visible to everyone, never judged, nothing due, counted apart, and made active by one deliberate act of its owner or an admin.',
-    code: [{ file: 'src/domain/proposed.ts', names: ['isProposed', 'judged', 'withProposed', 'measureEmpty', 'withdrawnSummary'] }, { file: 'src/domain/proposedSummary.ts', names: ['goalCounts', 'withProposedCount', 'measureUnsaid', 'proposedSummary'] }, { file: 'src/domain/proposedActions.ts', names: ['mayActivate', 'readyToActivate', 'activate', 'activated', 'backToProposed', 'proposalAsks'] }, { file: 'src/domain/goalEntry.ts', names: ['proposedMustFix', 'unsaidDraft'] }, { file: 'src/domain/goalRights.ts', names: ['mayChangeGoal'] }, { file: 'src/domain/cycle.ts', names: ['scopeToCycle'] }, { file: 'src/domain/readBack.ts', names: ['underWay', 'afterProposing', 'activeReadBack'] }, { file: 'src/domain/carry.ts', names: ['carryKind'] }],
+    code: [{ file: 'src/domain/proposed.ts', names: ['isProposed', 'judged', 'withProposed', 'measureEmpty', 'withdrawnSummary', 'proposalAsks'] }, { file: 'src/domain/proposedSummary.ts', names: ['goalCounts', 'withProposedCount', 'measureUnsaid', 'proposedSummary'] }, { file: 'src/domain/proposedActions.ts', names: ['mayActivate', 'readyToActivate', 'activate', 'activated', 'backToProposed'] }, { file: 'src/domain/goalEntry.ts', names: ['proposedMustFix', 'unsaidDraft'] }, { file: 'src/domain/goalRights.ts', names: ['mayChangeGoal'] }, { file: 'src/domain/cycle.ts', names: ['scopeToCycle'] }, { file: 'src/domain/readBack.ts', names: ['underWay', 'afterProposing', 'activeReadBack'] }, { file: 'src/domain/carry.ts', names: ['carryKind'] }],
     tests: ['src/domain/proposed.test.ts'],
     reqs: ['GOAL-PROPOSED'],
     body: `
@@ -1507,7 +1507,7 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
 
 **Withdrawing** is deleting (domain/removal): Recently removed for 30 days, with Undo; History says "Withdrew the proposal “{goal}”".
 
-**Home** (\`proposalAsks\`): a goal proposed for the viewer by someone else, not yet opened; and one proposed 8 weeks ago or more (\`PROPOSED_ASK_WEEKS\`) for its owner: "“{goal}” has been proposed for {n} weeks. Make it active, or withdraw it." Never a status, a count or a flag.
+**Home** (\`proposalAsks\`): under "Proposed goals" in "Needs your response", a goal proposed for the viewer by someone else, not yet opened ("{Name} proposed a goal for you: “{goal}”."), and one proposed 8 weeks ago or more (\`PROPOSED_ASK_WEEKS\`) for its owner: "“{goal}” has been proposed for {n} weeks. Make it active, or withdraw it." Each has "Open it"; the second also "Not yet", which puts it off for 8 more weeks. Opening the goal as its owner ends the first. What each person opened and put off is kept behind the Prefs port. Never a status, a count or a flag. Proposing for someone else says so after the read-back: "{Owner} sees it on their Home as a proposal for them. Faro doesn’t send email."
 
 **The carry.** A proposed goal carries into the next year as proposed.`,
     examples: (() => {

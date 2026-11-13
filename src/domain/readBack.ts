@@ -183,6 +183,8 @@ export function afterProposing(c: Pick<ReadBackContext, 'owner'>): { after: stri
     after: [
       'It is listed as Proposed, apart from the goals that are under way: it is in no count, no review’s agenda and nobody’s check-ins.',
       `Its plan is kept as you typed it. When ${you ? 'you make it' : 'it is made'} active, the plan starts from that week unless ${you ? 'you' : 'they'} say otherwise.`,
+      // Home's proposal rows are built (rule 14, `proposalAsks`), so this is true again.
+      ...(you ? [] : [`${first(c.owner!.name)} sees it on their Home as a proposal for them. Faro doesn’t send email.`]),
     ],
     hint: 'You can change anything without giving a reason, or withdraw it.',
   };

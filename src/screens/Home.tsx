@@ -1,7 +1,10 @@
 import { Place } from '../core/app';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { usePrefs } from '../app/search';
+import { proposalSeen, putOff } from '../app/proposalSeen';
+import { proposalAsks, type ProposalAsk } from '../domain/proposed';
+const ProposalRows = lazy(() => import('./HomeProposals').then((m) => ({ default: m.ProposalRows })));
 import { useGoalCounts, useGoalList } from '../app/goals';
 import { EMPTY_QUERY } from '../domain/query';
 import { countList } from '../domain/order';
@@ -124,8 +127,13 @@ const GROUP_ORDER: AskKind[] = ['decision', 'question', 'update', 'action'];
  */
 function NeedsYou({ asks, also }: { asks: Waiting[]; also: boolean }) {
   const app = useApp();
+  const prefs = usePrefs();
   const [all, setAll] = useState(false);
-  if (!asks.length) return null;
+  // Proposals (goal entry rule 14): one proposed for you by someone else, not yet opened, and one waiting 8 weeks or more.
+  const [seen, setSeen] = useState(() => proposalSeen(prefs, app.ws.id, app.viewer.id));
+  const proposals = proposalAsks(app.snapshot.proposed ?? [], app.viewer, app.today, seen, (id) => app.person(id)?.name ?? id);
+  const notYet = (p: ProposalAsk) => { putOff(prefs, app.ws.id, app.viewer.id, p.goal.id, app.today); setSeen(proposalSeen(prefs, app.ws.id, app.viewer.id)); };
+  if (!asks.length && !proposals.length) return null;
   const shown = all ? asks : asks.slice(0, 5);
   const groups = GROUP_ORDER.map((k) => [k, shown.filter((x) => x.kind === k)] as const).filter(([, l]) => l.length);
   const said = (w: Waiting) => {
@@ -137,7 +145,7 @@ function NeedsYou({ asks, also }: { asks: Waiting[]; also: boolean }) {
   };
   return (
     <section className="block needs-you" data-part="Needs your response">
-      <h2 className="block-title">{also ? 'Also needs your response' : 'Needs your response'} <span className="count-pill">· {asks.length}</span></h2>
+      <h2 className="block-title">{also ? 'Also needs your response' : 'Needs your response'} <span className="count-pill">· {asks.length + proposals.length}</span></h2>
       {groups.map(([k, list]) => (
         <div key={k} className="need-group">
           <h3 className="need-group-title">{ASK_GROUP[k]} <span className="count-pill">· {list.length}</span></h3>
@@ -163,6 +171,8 @@ function NeedsYou({ asks, also }: { asks: Waiting[]; also: boolean }) {
         </div>
       ))}
       {asks.length > shown.length && <button type="button" className="linkish small" onClick={() => setAll(true)}>Show all {asks.length}</button>}
+      {/* Loaded once there is a proposal to show (the first download stays as it was). */}
+      {proposals.length > 0 && <Suspense fallback={null}><ProposalRows proposals={proposals} notYet={notYet} /></Suspense>}
     </section>
   );
 }
