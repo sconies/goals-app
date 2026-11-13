@@ -27,6 +27,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'menu-shows-what-you-use',
+    date: '2026-11-13',
+    title: 'The menu shows what you use',
+    points: [
+      'A tab on Goals appears once it has goals in it and isn’t the same list as another, so a one-team workspace shows Mine and All.',
+      'Metrics joins the menu with the first metric, and the message after saving it says so.',
+      'Nothing is switched off: every page still opens from its address, Find and Workspace.',
+    ],
+    articles: ['goals', 'metrics'],
+  },
+  {
     id: 'readings-fill-in-check-ins',
     date: '2026-11-13',
     title: 'Check-ins start with the number, where a source can be read',

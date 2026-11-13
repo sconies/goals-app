@@ -15001,6 +15001,7 @@ var _virtual_faro_modules_default = [
 		],
 		redirects: [["/data/metrics", "/metrics"]],
 		navigation: ["Metrics"],
+		menu: { "waitsFor": "metrics" },
 		places: [
 			"goal.facts",
 			"goal.measure",
@@ -15971,36 +15972,43 @@ var SCOPES = [
 ];
 /**
 * Rule 1. The tabs someone has, in order: Mine (when they own a goal), My team or My teams (their team and the teams
-* they lead, when they have one), Watching, All. Opens on the scope last used when they still have it; otherwise Mine,
+* they lead, when they have one), Watching, All. A tab waits (small workspaces SM1, rule 1): it is drawn when its list
+* has a goal and isn't the same list as a tab drawn before it; All is always drawn. `every` keeps each scope whether
+* drawn or not, since every address still opens. Opens on the scope last used when it is still drawn; otherwise Mine,
 * else Watching when it has goals, else All.
 */
 function scopesFor(f, last) {
-	const tabs = [];
+	const every = [];
 	const mine = scopeIds(f, "mine");
-	if (mine.length) tabs.push({
+	every.push({
 		id: "mine",
 		label: "Mine",
 		ids: mine
 	});
-	if (f.teams.length) tabs.push({
+	if (f.teams.length) every.push({
 		id: "team",
 		label: f.teams.length === 1 ? "My team" : "My teams",
 		ids: scopeIds(f, "team")
 	});
-	tabs.push({
+	every.push({
 		id: "watching",
 		label: "Watching",
 		ids: scopeIds(f, "watching")
 	});
-	tabs.push({
+	every.push({
 		id: "all",
 		label: "All",
 		ids: scopeIds(f, "all")
 	});
+	const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+	const tabs = [];
+	const all = every.find((t) => t.id === "all");
+	for (const t of every) if (t === all || t.ids.length && !same(t.ids, all.ids) && !tabs.some((d) => same(d.ids, t.ids))) tabs.push(t);
 	const has = (s) => !!s && tabs.some((t) => t.id === s);
 	return {
 		tabs,
-		opens: has(last) ? last : mine.length ? "mine" : tabs.find((t) => t.id === "watching").ids.length ? "watching" : "all"
+		every,
+		opens: has(last) ? last : mine.length ? "mine" : every.find((t) => t.id === "watching").ids.length ? "watching" : "all"
 	};
 }
 /** The goals in a scope, by id, in the workspace's order. "team" is the viewer's own team and the teams they lead. */
@@ -18922,7 +18930,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Tabs say whose goals: Mine (the goals you own), My team (your team’s, and those of any team you lead), Watching (the goals you follow) and All, each with its count. Goals opens on the tab you used last, else Mine, else Watching. A tab you don’t have (Mine when you own nothing) isn’t shown.",
+					"Tabs say whose goals: Mine (the goals you own), My team (your team’s, and those of any team you lead), Watching (the goals you follow) and All, each with its count. A tab is shown once it has goals in it and isn’t the same list as one before it (in a workspace of one team, My team is All, so it isn’t shown); All is always there. The same goes for a feature’s menu row, such as Metrics, which appears with the first metric. Every address still opens. Goals opens on the tab you used last, else Mine, else Watching. A tab you don’t have (Mine when you own nothing) isn’t shown.",
 					"Group arranges them: As trees (each top goal with what feeds it; All’s own), By team, By level, or None (one list, worst first; every other tab’s own). Needs attention · {n} is a switch beside it: on, any tab lists the goals that need attention first and those being handled below, and the line under it says why.",
 					"One line counts what’s shown and their statuses, worst first (“17 goals, worst first. 2 off track · 4 at risk …”); with Needs attention on it says how many need attention and why.",
 					"By team lists the teams worst first: the most goals off track, then the most at risk, then no recent update and no check-in yet. Each team says how many of its goals have each status, with its shape and word.",
@@ -18977,7 +18985,8 @@ var CORE_ARTICLES = [
 			"NAV-GOALS",
 			"STORY",
 			"LEVELS",
-			"BULK-EDIT"
+			"BULK-EDIT",
+			"SMALL-MENU"
 		],
 		keywords: [
 			"list",
@@ -20872,6 +20881,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "menu-shows-what-you-use",
+		date: "2026-11-13",
+		title: "The menu shows what you use",
+		points: [
+			"A tab on Goals appears once it has goals in it and isn’t the same list as another, so a one-team workspace shows Mine and All.",
+			"Metrics joins the menu with the first metric, and the message after saving it says so.",
+			"Nothing is switched off: every page still opens from its address, Find and Workspace."
+		],
+		articles: ["goals", "metrics"]
+	},
 	{
 		id: "readings-fill-in-check-ins",
 		date: "2026-11-13",
@@ -27096,7 +27116,7 @@ var CORE_TOOLS = [
 			if (status && !asked.status.length || a.level && !asked.level.length) return listed(goalPage([], a, "No goal can match both the filters asked for and the link’s."));
 			const scope = a.scope ? String(a.scope) : linkScope ? linkScope : null;
 			if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
-			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).tabs.find((t) => t.id === scope) : null;
+			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).every.find((t) => t.id === scope) : null;
 			if (scope && scope !== "all" && !scoped) return listed(goalPage([], a, scope === "team" ? "You’re in no team and lead none." : "You own no goals this year."));
 			const inScope = scoped ? new Set(scoped.ids) : null;
 			const words = [String(a.text ?? ""), query.q].filter((x) => x.trim()).join(" ");

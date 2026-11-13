@@ -7,7 +7,7 @@ import { weekProgress } from '../domain/progress';
 import { reviewSession, sessionToDo } from '../domain/review';
 import type { SavedView } from '../domain/types';
 import { Avatar, Sheet } from './bits';
-import { CORE_NAV, GROUP_NAMES, isForm, litItem, litTab, menuGroups, menuViews, moreFor, pageName, phoneTabs, type NavId } from '../domain/navigation';
+import { CORE_NAV, GROUP_NAMES, isForm, litItem, litTab, menuGroups, menuViews, moreFor, pageName, phoneTabs, rowDrawn, type NavId } from '../domain/navigation';
 import { recentsOf, usePrefs } from '../app/search';
 import { DemoEntry, DemoPanel } from './Demo';
 import { ResearchBar } from './ResearchBar';
@@ -173,8 +173,15 @@ function ShellBody({ children }: { children: ReactNode }) {
   const ownsGoals = app.snapshot.goals.some((g) => g.ownerId === app.viewer.id && !g.stoppedAt && app.statusOf(g).status !== 'done');
   const views = useViews();
   const prefs = usePrefs();
-  const { screens, on } = useModules();
-  const moduleNav = screens.flatMap((m) => m.navigation ?? []);
+  const { screens, on, installed } = useModules();
+  // A module's row waits for its first record (SM1, rule 1); once drawn it stays until the next visit.
+  const drawnOnce = useRef(new Set<string>());
+  const moduleNav = screens.flatMap((m) => m.navigation ?? []).filter((n) => {
+    const facts = installed.find((f) => f.navigation.includes(n.label));
+    const key = facts?.menu?.waitsFor;
+    if (rowDrawn(key, facts && key ? app.snapshot.modules?.[facts.id]?.[key] : undefined)) drawnOnce.current.add(n.id);
+    return drawnOnce.current.has(n.id);
+  });
   // Reviews switched off (FT2): no row, no count and no tab.
   const reviews = reviewsOn(on);
   const groups = menuGroups(ownsGoals, moduleNav, reviews);

@@ -11,7 +11,21 @@ describe('rule 1: the scopes someone has (scopesFor)', () => {
     expect(scopesFor({ goals, viewerId: 'rhea', teams: [], watched: new Set() }, 'all').opens).toBe('all');
     expect(scopesFor({ goals, viewerId: 'nobody', teams: [], watched: new Set(['c']) }, 'mine').opens).toBe('watching');
     expect(scopesFor({ goals, viewerId: 'nobody', teams: [], watched: new Set() }, null).opens).toBe('all');
-    expect(scopesFor({ goals, viewerId: 'x', teams: [{ id: 'ci', name: 'CI/CD' }, { id: 'vp', name: 'VP' }], watched: new Set() }, null).tabs[0]).toMatchObject({ id: 'team', label: 'My teams', ids: ['a', 'b', 'c'] });
+    // Two teams that between them hold every goal: My teams is the same list as All, so it waits (SM1); it still opens.
+    const two = scopesFor({ goals, viewerId: 'x', teams: [{ id: 'ci', name: 'CI/CD' }, { id: 'vp', name: 'VP' }], watched: new Set() }, null);
+    expect(two.tabs.map((t) => t.id)).toEqual(['all']);
+    expect(two.every.find((t) => t.id === 'team')).toMatchObject({ label: 'My teams', ids: ['a', 'b', 'c'] });
+  });
+
+  // Small workspaces, rule 1 (SM1): a tab is drawn when its list has a goal and isn't the same list as one drawn before it.
+  const nine = Array.from({ length: 9 }, (_, i) => ({ id: `g${i}`, ownerId: i < 3 ? 'ines' : 'kim', teamId: 'studio' }));
+  it.each([
+    ['One team of five; Ines owns 3 of 9 goals', { goals: nine, viewerId: 'ines', teams: [{ id: 'studio', name: 'Studio' }], watched: new Set<string>() }, 'mine 3 · all 9'],
+    ['The viewer owns nothing, in the one team', { goals: nine, viewerId: 'lee', teams: [{ id: 'studio', name: 'Studio' }], watched: new Set<string>() }, 'all 9'],
+    ['Watching exactly the goals of Mine', { goals: nine, viewerId: 'ines', teams: [], watched: new Set(['g0', 'g1', 'g2']) }, 'mine 3 · all 9'],
+    ['Rhea in the demo-like case', { goals, viewerId: 'rhea', teams: [{ id: 'ci', name: 'CI/CD' }], watched: new Set(['c']) }, 'mine 1 · team 2 · watching 1 · all 3'],
+  ])('%s: %s', (_, f, said) => {
+    expect(scopesFor(f, null).tabs.map((t) => `${t.id} ${t.ids.length}`).join(' · ')).toBe(said);
   });
 });
 

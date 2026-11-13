@@ -335,7 +335,7 @@ const CORE_TOOLS: ToolDef[] = [
       // The scope argument wins over the link's.
       const scope = a.scope ? String(a.scope) as Scope : linkScope ? linkScope as Scope : null;
       if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
-      const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).tabs.find((t) => t.id === scope) : null;
+      const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).every.find((t) => t.id === scope) : null;
       if (scope && scope !== 'all' && !scoped) return listed(goalPage([], a, scope === 'team' ? 'You’re in no team and lead none.' : 'You own no goals this year.'));
       const inScope = scoped ? new Set(scoped.ids) : null;
       const words = [String(a.text ?? ''), query.q].filter((x) => x.trim()).join(' ');

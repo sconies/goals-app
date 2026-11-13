@@ -1192,6 +1192,12 @@
       "area": "Navigation",
       "text": "On the icon rail the Faro mark is the workspace switcher: it opens the same panel as the sidebar's Switch, adds no row (the Demo box keeps its room at 1024 × 768), and Escape returns focus to it.",
       "use": "copy"
+    },
+    {
+      "id": "SMALL-MENU",
+      "area": "Navigation",
+      "text": "A module's menu row, a Goals tab and a Home section wait until they have something in them (a tab also waits while it is the same list as one drawn before it; All is always drawn). Hiding is only drawing: every address still opens.",
+      "use": "copy"
     }
   ],
   "notYetBuilt": [

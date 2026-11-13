@@ -153,6 +153,7 @@ Checks that Lane’s review notes stay fixed.
 | N25 | Who may speak for a review: a non-member reads and is told who can add them; a member and an admin speak | `REVIEW-SPEAK` | `evals/notes/13-review-speak.cjs` |
 | N26 | Home: one primary at most, none when nothing is asked, in the first screen, and none of the words Home no longer says | `HOME-OWNER` | `evals/notes/12-home.cjs` |
 | N27 | The rail’s Faro mark opens the workspace switcher, the Demo box stays on screen, and Escape returns focus to the mark | `RAIL-SWITCH` | `evals/notes/22-rail-switch.cjs` |
+| N29 | Small workspaces: a tab or a module’s row waits until it has something in it, and every address still opens | `SMALL-MENU` | `evals/notes/24-small-menu.cjs` |
 
 ## The ease test
 

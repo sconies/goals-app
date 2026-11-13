@@ -40,6 +40,9 @@ export interface ModuleFacts {
   redirects: [string, string][];
   /** The navigation items its app.tsx adds, by label. */
   navigation: string[];
+  /** Small workspaces, rule 1 (SM1): its menu row waits until the collection of its records under this key has a live
+      row. A module that names none is always drawn. */
+  menu?: { waitsFor?: string };
   /** The places on core screens it fills. */
   places: PlaceName[];
   /** The kinds of thing its app.tsx makes findable (AR2): each answers find-and-pick and Find through the Search port. */
