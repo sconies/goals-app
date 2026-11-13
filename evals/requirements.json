@@ -86,6 +86,18 @@
       "use": "copy"
     },
     {
+      "id": "HABIT-RECEIPT",
+      "area": "Check-in",
+      "text": "Once a person's check-ins for the week are all in, the receipt says whether they were in before the deadline (\"All 4 of your check-ins are in for week 46, before Thursday’s deadline.\"; the due day is called a review only for someone in a review held that day) and the run of weeks in a row on time, from two; or how many came in after it and when the next are due, with no run. One late week is forgiven when the four weeks before it were on time, and said once (\"Week 45 came in late; one late week doesn’t break a run.\"). Never \"lost\", \"broken\", a nought or an exclamation mark. Home's quiet line says the same two sentences on the day the week is completed.",
+      "use": "copy"
+    },
+    {
+      "id": "HABIT-MOMENT",
+      "area": "Check-in",
+      "text": "A check-in that reaches a goal's target, or brings it back on track after two weeks or more behind, shows one quiet panel on its receipt (the status's shape and word, what happened in one line, \"Copy the share image\" for a target reached) and its row in the goal's History says \"Reached its target\" or \"Back on track\" in small capitals. Never on a correction, a backfilled week or an import; no animation, confetti or banner on anyone else's screen.",
+      "use": "copy"
+    },
+    {
       "id": "REASON-AHEAD",
       "area": "Check-in",
       "text": "A reason is required when 120% or more ahead, and the check-in asks whether the target should change.",

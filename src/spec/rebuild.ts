@@ -204,7 +204,8 @@ function stage1(rows: Stage1Files): string {
     '',
     `1. \`node spec/rebuild/drill.mjs rebuild\` prints **PASS**: every row and every column of all five files match (${total(rows)} rows; \`scorecard-words.csv\`, scored when asked, is not counted).`,
     '2. What a check-in must say, and Numbers and names, give what each of their worked examples ([check-in](../core/rules/check-in.md#worked-examples), [numbers and names](../core/rules/numbers-and-names.md#worked-examples)) says: the harness scores the check-in rule through `checkin.csv`, but how a typed number is read and questioned (and Numbers and names) has no conformance rows, so show it with your own tests of those examples.',
-    '3. `rebuild/GAPS.md` lists everything you had to guess.',
+    '3. [The habit](../core/rules/habit.md#worked-examples) (the run with one late week forgiven, the receipt’s sentences, a target reached or back on track) gives what each of its worked examples says. It has no conformance file of its own yet; its run and receipt are scored at stage 3 through `home.csv`’s quiet lines.',
+    '4. `rebuild/GAPS.md` lists everything you had to guess.',
     '',
   ].join('\n');
 }

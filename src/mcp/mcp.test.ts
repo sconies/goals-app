@@ -408,6 +408,9 @@ describe('MCP server', () => {
     expect((await rhea.call('stop_goal', { goal_id: 'ci-docker', reason: 'Taken over by the platform team.' })).isError).toBe(false);
     expect(rhea.data().goals.find((g) => g.id === 'ci-docker')).toMatchObject({ stopReason: 'Taken over by the platform team.', stoppedBy: 'rhea' });
     expect(((await rhea.call('find_goals', { text: 'Base image' })).structuredContent!.goals as { id: string }[]).map((g) => g.id)).not.toContain('ci-docker');
+    // The State filter's Stopped, as the tools have it (GE10): this year's stopped goals, with who, when and why.
+    const stopped = (await rhea.call('find_goals', { state: 'stopped' })).structuredContent!.goals as { id: string; state: string; stoppedBy: string; stopReason: string }[];
+    expect(stopped.map((g) => [g.id, g.state, g.stoppedBy, g.stopReason])).toEqual([['ci-docker', 'stopped', 'Rhea Kapoor', 'Taken over by the platform team.']]);
     // A comment: written, edited, removed; get_goal says so.
     await rhea.call('add_comment', { goal_id: 'lead-review', text: 'First go' });
     const goal = await rhea.call('get_goal', { goal_id: 'lead-review' });
