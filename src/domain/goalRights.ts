@@ -28,7 +28,8 @@ export function mayChangeGoal(actor: Actor, goal: Pick<Goal, 'ownerId'> & Partia
  * Whether `actor` may post or correct a check-in on `goal` (Lane, 12 Nov: check-ins are the owner's). Only its owner
  * at the check-in screens, the one-table check-in and through the AI tools. Two exceptions, both kept by Lane (12 Nov),
  * both for an admin: loading a workbook (a spreadsheet import, or setting up from an export) brings in everyone's
- * history, and Data's tables let an admin correct a past check-in. Each records the admin as author and actor, with
+ * past weeks, and Data's tables let an admin correct a check-in that exists; neither adds this week's new one: the row
+ * decides that (checkInDoors mayPostCheckInRow, which the change engine asks; Lane, 13 Nov, backlog AD). Each records the admin as author and actor, with
  * the door as its Via (postCheckIn.test).
  */
 export function mayPostCheckIn(actor: Actor, goal: Pick<Goal, 'ownerId'>, via: Via): boolean {

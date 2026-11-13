@@ -385,7 +385,7 @@ The projection fits a least-squares line through the recent numbers, not a slope
     tests: ['src/domain/rules.test.ts#check-in rules', 'src/domain/rules.test.ts#typed numbers', 'src/domain/postCheckIn.test.ts#what a new number is compared with (rule 5)', 'src/domain/postCheckIn.test.ts#the levels in a check-in (rules 2 and 3)', 'src/domain/rules.test.ts#what a check-in still needs, as stable codes', 'evals/scenarios.eval.ts'],
     reqs: ['REASON-BEHIND', 'REASON-AHEAD', 'PATH-TO-GREEN', 'GREENER', 'OWNER-CALL', 'CHECKIN-STATUS-VS-PLAN', 'OTHER-CAUSE', 'FIRST-CHECKIN', 'HONEST-CHECKIN'],
     body: `
-A check-in is one week's report on one goal, by its owner only (R1; an admin may bring others' in by loading a workbook, or correct a past one in Data's tables): the number (or each stage's state), the owner's call, and the words the numbers ask for. Every way in (the check-in screen, the bulk grid, a spreadsheet, the AI assistant) uses these rules.
+A check-in is one week's report on one goal, by its owner only (R1; an admin may bring others' past weeks in by loading a workbook, or correct one that exists in Data's tables; neither adds this week's new check-in): the number (or each stage's state), the owner's call, and the words the numbers ask for. Every way in (the check-in screen, the bulk grid, a spreadsheet, the AI assistant) uses these rules.
 
 **Reading a number** (\`parseNumber\`): spaces and a trailing unit or \`%\` are ignored; a decimal comma with one or two digits (\`29,4\`) is a decimal point; commas grouping thousands (\`1,250\`, \`1,250.5\`) are dropped. Anything else that isn't plain digits with one optional point and sign (hex, exponents, words, two points) is not a number; nor is anything 10¹² or more.
 
@@ -1509,7 +1509,7 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
 
 A From before this week is asked at every door (rule 3's from-past, in New goal's words; a tool passes \`confirm\` once the person has said yes), and a From outside week 0 to the week before the plan's To is refused: "From must be a week of this cycle before the plan’s To: week 0 to week {n}." A proposal has no check-ins, so proposing a stages goal asks nothing about stages already past and saves no check-in for them; they are marked done at its first check-in. Marking an owner as left hands over their proposed goals with the rest (\`leaving\`).
 
-**Back to proposed** (\`backToProposed\`): an active goal with no check-ins, by its owner or an admin. One with a check-in can't: "It has check-ins, so it can’t go back to proposed. Stop it instead." (\`state-has-check-ins\` in a file).
+**Back to proposed** (\`backToProposed\`): an active goal with no check-ins, by its owner or an admin, from the goal's "…" menu, "Make it proposed again", which confirms "It will have no status and nothing will be due until it is made active." and says "“{goal}” is proposed again." with Undo. History: "Made it proposed again". One with a check-in can't: the menu item is absent, its Change page says "It has check-ins, so it can’t go back to proposed. Stop it instead.", and a file says so too (\`state-has-check-ins\`).
 
 **Withdrawing** is deleting (domain/removal): Recently removed for 30 days, with Undo; History says "Withdrew the proposal “{goal}”".
 

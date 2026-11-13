@@ -5475,7 +5475,7 @@ journey('U137', ['GOAL-ENTRY-REQUIRED', 'NEW-GOAL-STEPS'], 'Read back before it�
 }, []);
 
 /* GE10: a goal that is proposed, not yet active (goal entry 2.15, rule 14). */
-journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as Tunde, New goal’s last step asks “Is it under way?”; “Not yet: propose it” turns the button to “Propose goal” and the block to “After you propose it”; the goal has a key and a page that says “Proposed” as a word with no status shape; Goals, Mine counts it apart (“· 1 proposed”) and the link lists it; its check-in says there is nothing to check in; a fortnight later it still says “Proposed”. As Oskar its page has comment, ask and watch and “Tunde Bakare or an admin can make this active.” As Tunde, “Make it active” reads back From as this week with the first check-in’s date; after it the page reads “No check-in yet”; Undo returns it to proposed; “Withdraw it” removes it', 40, async (h, device) => {
+journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as Tunde, New goal’s last step asks “Is it under way?”; “Not yet: propose it” turns the button to “Propose goal” and the block to “After you propose it”; the goal has a key and a page that says “Proposed” as a word with no status shape; Goals, Mine counts it apart (“· 1 proposed”) and the link lists it; its check-in says there is nothing to check in; a fortnight later it still says “Proposed”. As Oskar its page has comment, ask and watch and “Tunde Bakare or an admin can make this active.” As Tunde, “Make it active” reads back From as this week with the first check-in’s date; after it the page reads “No check-in yet”; Undo returns it to proposed; made active again, the “…” menu’s “Make it proposed again” asks and returns it to proposed; “Withdraw it” removes it', 40, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));
   const on = (path, day = '2026-11-11') => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
   await p.goto(on('/goals/new'));
@@ -5557,6 +5557,17 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
   await h.click(undo);
   await page.waitFor({ timeout: 8000 }).catch(() => {});
   h.set('errors', await page.isVisible(), 'Undo didn’t return it to proposed');
+  // Made active again, then back: "Make it proposed again" in the "…" menu (no check-ins yet), with its confirm.
+  await h.click(page.getByRole('button', { name: 'Make it active' }).first());
+  await h.click(p.locator('.make-active').getByRole('button', { name: 'Make it active' }));
+  await see(p, 'No check-in yet', 'made active again, the page doesn’t read as a new goal’s');
+  await h.click(p.locator('.goal-bar summary[aria-label="More about this goal"]').first());
+  await h.click(p.getByRole('group', { name: 'More about this goal' }).getByRole('button', { name: 'Make it proposed again' }));
+  await see(p, 'It will have no status and nothing will be due until it is made active.', 'Make it proposed again doesn’t say what happens');
+  await h.click(p.getByRole('button', { name: 'Make it proposed' }));
+  await see(p, 'is proposed again.', 'making it proposed again doesn’t say so');
+  await page.waitFor({ timeout: 8000 }).catch(() => {});
+  h.set('finish', await page.isVisible(), 'Make it proposed again didn’t return it to proposed');
   // Withdraw it: gone, with Undo.
   await h.click(page.getByRole('button', { name: 'Withdraw it' }).first());
   await see(p, 'It goes to Recently removed for 30 days.', 'Withdraw doesn’t say where it goes');
