@@ -2128,6 +2128,7 @@ No arguments.
 
 **Refuses with:**
 
+- “… is switched off in …, so its Help isn’t shown there. An admin can switch it on in Workspace, under Features.”
 - “There’s no help article with id …. Articles: ….”
 
 **Does the same as:** no action: it reads, or does something only an assistant needs.
