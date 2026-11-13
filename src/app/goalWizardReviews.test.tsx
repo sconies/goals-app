@@ -3,12 +3,12 @@
    review the goal joins (or none yet); switched off, it says nothing of reviews. */
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { AppProvider } from '../app/state';
+import { AppProvider } from './state';
 import { BrowserStore } from '../data/store';
 import { contractWorkspace } from '../ports/contracts/store';
 import { blankGoal } from '../domain/goal';
-import { goalDraftKey } from '../app/drafts';
-import { GoalWizard } from './GoalWizard';
+import { goalDraftKey } from './drafts';
+import { GoalWizard } from '../screens/GoalWizard';
 
 const memory = (): Storage => {
   const m = new Map<string, string>();
