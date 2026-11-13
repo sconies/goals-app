@@ -14,9 +14,5 @@ export interface AlwaysOn {
 }
 
 export const ALWAYS_ON: readonly AlwaysOn[] = [
-  { id: 'watching', name: 'Watching', until: 'SW1', why: 'Home’s “Goals you watch” and Goals’ watching scope read watches inside core screens. Its switch is designed, not built.' },
   { id: 'ai-access', name: 'AI access', until: 'SW2', why: 'Every AI call is checked against a token at the server’s door. Switching it off needs the Features screen’s groups and a way to keep tokens named for when it comes back.' },
-  { id: 'feedback', name: 'Feedback', until: 'SW1', why: 'Its menu row, its page and its inbox tools are core code. Its switch is designed, not built.' },
-  { id: 'goal-map', name: 'The goal map', until: 'SW1', why: 'It is one of Goals’ views, drawn from core records only. Its switch is designed, not built.' },
-  { id: 'wrap-up', name: 'The wrap-up', until: 'SW1', why: 'Its screens sit beside the year’s end rules (results, carrying on, starting the next year), which stay core whatever happens. Its own screens get a switch; the rules don’t.' },
 ];

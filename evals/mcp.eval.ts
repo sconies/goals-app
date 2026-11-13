@@ -174,7 +174,8 @@ describe('AI assistants can do what the person can', () => {
     expect((await tariq.call('save_review', { review_id: id, every_weeks: 4 })).error).toBe(false);
   });
 
-  it(R('watching: watch a goal, a tree or a level, list it, stop'), async () => {
+  // Built without a switch's module (FARO_WITHOUT, SW1), its tools aren't there and its scenario skips.
+  it.skipIf(!isModuleOn(null, 'watching'))(R('watching: watch a goal, a tree or a level, list it, stop'), async () => {
     const oskar = await as('oskar');
     await oskar.call('watch', { kind: 'tree', ref: 'ns-cost' });
     expect((await oskar.call('watch', { kind: 'tree', ref: 'ns-cost' })).text).toMatch(/Already watching/);
@@ -208,7 +209,7 @@ describe('AI assistants can do what the person can', () => {
     expect((await grace.call('list_people')).data!.people.length).toBe(grace.data().people.length);
   });
 
-  it(R('the end of the cycle: wrap-ups open in the last two weeks, by the day; owners wrap up; an admin starts the next cycle'), async () => {
+  it.skipIf(!isModuleOn(null, 'wrap-up'))(R('the end of the cycle: wrap-ups open in the last two weeks, by the day; owners wrap up; an admin starts the next cycle'), async () => {
     expect((await (await as('mateo')).call('wrap_up_goal', { goal_id: 'mttr-pir', result: 'hit', learned: 'Reviews caught most late actions.', next: 'carry' })).text).toMatch(/wrap-up opens on Mon 21 Dec 2026/);
     const mateo = await as('mateo', DEC);
     expect((await mateo.call('wrap_up_goal', { goal_id: 'ns-ai', result: 'hit', learned: 'Not mine to say anything about.', next: 'stop' })).text).toMatch(/Only the goal’s owner/);
@@ -259,10 +260,12 @@ describe('AI assistants can do what the person can', () => {
     await amara.call('revoke_token', { token_id: tok.id });
     expect(amara.data().tokens!.find((t) => t.id === tok.id)!.revokedAt).not.toBeNull();
 
-    await mateo.call('send_feedback', { mood: 'good', text: 'Posting from my assistant works.' });
-    expect((await mateo.call('list_feedback')).error).toBe(true);
-    const admin = await as('amara', TODAY, mateo.data());
-    expect((await admin.call('list_feedback')).data!.feedback.at(0).text).toBe('Posting from my assistant works.');
+    if (isModuleOn(null, 'feedback')) {
+      await mateo.call('send_feedback', { mood: 'good', text: 'Posting from my assistant works.' });
+      expect((await mateo.call('list_feedback')).error).toBe(true);
+      const admin = await as('amara', TODAY, mateo.data());
+      expect((await admin.call('list_feedback')).data!.feedback.at(0).text).toBe('Posting from my assistant works.');
+    }
     const log = await amara.call('get_activity', { query: 'kind=ai', limit: 5 });
     expect(log.data!.changes.length).toBeGreaterThan(0);
   });

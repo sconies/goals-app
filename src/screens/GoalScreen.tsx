@@ -6,7 +6,7 @@
    What feeds it opens with how the goals feeding it stand; and every section says in one line what it answers.
    The words come from the domain (domain/goalPage and the modules it asks); this file lays them out. */
 import { Place, useModules } from '../core/app';
-import { reviewsOn } from '../app/reads';
+import { reviewsOn, watchingOn } from '../app/reads';
 import { MODULE_RECORDS } from '../core/records';
 import { goalMarksOf } from '../domain/records';
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
@@ -146,7 +146,9 @@ function GoalView({ goal }: { goal: Goal }) {
   const parent = goal.parentId ? app.goal(goal.parentId) : undefined;
   const updateAsk = openUpdateAsk(goal.id, app.snapshot);
   const due = att.flags.some((f) => f.kind === 'due');
-  const watching = !isOwner && watchOf(app.viewer.id, goal, app.snapshot) !== null;
+  // Watching switched off (SW1): no Watch button and no “Watched by”.
+  const watchingHere = watchingOn(useModules().on);
+  const watching = !watchingHere ? null : !isOwner && watchOf(app.viewer.id, goal, app.snapshot) !== null;
   const openSteps = [...steps.forYou, ...steps.open].filter((x) => x.kind === 'action').length;
   const primary = primaryAction({ goal, viewer: app.viewer, owner, status, due, week, asked, updateAsked: !!updateAsk, openSteps, firstDue: own.length === 0 });
   const standing = standingAction({ goal, viewer: app.viewer, primary, watching, status });
@@ -948,7 +950,9 @@ export function NoteComposer({ goal, startOpen }: { goal: Goal; startOpen?: bool
   const [open, setOpen] = useState(() => !!startOpen || !!text.trim());
   const [saving, setSaving] = useState(false);
   const ownerFirst = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'The owner';
-  const watcherIds = app.snapshot.people.filter((p) => goalsIn(watchScope(p.id, app.snapshot.watches), app.snapshot.goals).some((g) => g.id === goal.id)).map((p) => p.id);
+  // With Watching off (SW1) a comment reaches the owner only: nobody is shown as watching.
+  const watchingHere = watchingOn(useModules().on);
+  const watcherIds = !watchingHere ? [] : app.snapshot.people.filter((p) => goalsIn(watchScope(p.id, app.snapshot.watches), app.snapshot.goals).some((g) => g.id === goal.id)).map((p) => p.id);
   const reach = commentReach({ goal, viewerId: app.viewer.id, ownerFirst, watcherIds, workspace: app.ws.name.replace(/^Example:\s*/, '') });
   const post = async () => {
     if (text.trim().length < 2 || saving) return;
@@ -1057,12 +1061,13 @@ function AboutSection({ goal, open, onToggle, detailsRef }: { goal: Goal; open: 
   const team = app.team(goal.teamId);
   const fed = app.snapshot.goals.filter((g) => g.parentId === goal.id).length;
   const canEdit = goal.ownerId === app.viewer.id || app.viewer.admin;
+  const watchingHere = watchingOn(useModules().on);
   const watchers = app.snapshot.people.filter((p) => p.id !== goal.ownerId && goalsIn(watchScope(p.id, app.snapshot.watches), app.snapshot.goals).some((g) => g.id === goal.id));
   const history = goal.kind === 'metric' ? planHistoryOf(goal) : [];
   const own = app.checkInsOf(goal);
   return (
     <details className="block about goal-section" id="about" data-part="About this goal" ref={detailsRef} open={open} onToggle={(e) => onToggle((e.target as HTMLDetailsElement).open)}>
-      <summary><span className="section-head"><h2 className="block-title">About this goal</h2><span className="section-purpose">Its definition, its plan week by week, and who watches it.</span></span></summary>
+      <summary><span className="section-head"><h2 className="block-title">About this goal</h2><span className="section-purpose">{watchingHere ? 'Its definition, its plan week by week, and who watches it.' : 'Its definition and its plan week by week.'}</span></span></summary>
       <dl className="details">
         {goal.kind !== 'milestone' && <><dt>What it measures</dt><dd>{goal.definition || <><span className="muted">Not described yet.</span>{canEdit && !goal.stoppedAt && <> <Link className="linkish" to={`/goals/${goal.id}/edit#definition`}>Describe it</Link></>}</>}{goal.source ? <span className="muted"> Source: {goal.source}.</span> : null}</dd></>}
         {goal.kind === 'metric' && <><dt>Measure</dt><dd>{capitalFirst(planSays(cycle, goal.plan.fromWeek ?? 0, goal.plan.endWeek ?? cycle.weeks, fmt(goal.plan.start, goal), fmt(goal.plan.target, goal)))}{(goal.plan.endWeek ?? 0) > cycle.weeks ? ', past this cycle' : ''}, {directionLabel(goal)}{notStarted(goal, app.week) ? `. It starts in ${weekSays(cycle, goal.plan.fromWeek!, 'sentence')}; nothing is due until then` : ''}</dd></>}
@@ -1072,7 +1077,7 @@ function AboutSection({ goal, open, onToggle, detailsRef }: { goal: Goal; open: 
         <dt>Team</dt><dd>{team?.name ?? '—'}</dd>
         <dt>Feeds into</dt><dd>{parent ? <><Link className="linkish" to={'/goals/' + parent.id}>{parent.title}</Link>{goal.whyHelps ? <span className="muted">. {goal.whyHelps}</span> : null}</> : fed ? 'Nothing: it sits at the top of its tree' : 'Nothing yet (not linked)'}</dd>
         {fed > 0 && <><dt>Fed by</dt><dd><Link className="linkish" to={`/goals?feeds=${goal.id}`}>{fed === 1 ? '1 goal' : `${fed} goals`}</Link></dd></>}
-        <dt>Watched by</dt><dd>{watchers.length ? watchers.map((p) => p.name).join(', ') : 'Nobody yet'}{goal.ownerId === app.viewer.id && <span className="muted block-line">You own this goal, so it is always on your Home. Owners don’t need to watch their own goals.</span>}</dd>
+        {watchingHere && <><dt>Watched by</dt><dd>{watchers.length ? watchers.map((p) => p.name).join(', ') : 'Nobody yet'}{goal.ownerId === app.viewer.id && <span className="muted block-line">You own this goal, so it is always on your Home. Owners don’t need to watch their own goals.</span>}</dd></>}
         {goal.key && <><dt>Key</dt><dd><span className="gkey-plain">{goal.key}</span> <span className="muted">· it never changes, and /goals/{goal.key} opens it</span></dd></>}
         {history.length > 0 && goal.kind === 'metric' && <><dt>Plan changes</dt><dd><ul className="plan-history">{history.map((v, i) => <li key={i}>Until week {v.untilWeek}: {fmt(v.plan.start, goal)} → {fmt(v.plan.target, goal)}</li>)}<li>Since: {fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)}</li></ul></dd></>}
       </dl>

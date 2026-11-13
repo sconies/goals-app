@@ -17,6 +17,8 @@ import { isModuleOn } from '../src/core/registry';
 const R = (id: string, text: string) => `[${id}] ${text}`;
 /** Built without Reviews (FARO_WITHOUT=reviews): the core's own routes stand in, and the review parts aren't asked for. */
 const noReviews = !isModuleOn(null, 'reviews');
+/** Built without Watching (SW1): get_my_work's glance has no `watching` at all. */
+const glanceWatch = isModuleOn(null, 'watching') ? { watching: null } : {};
 const today = new Date('2026-11-05T12:00:00Z'); // Thursday of week 45; the leadership weekly is this afternoon
 const s0 = seed(today);
 const cycle = s0.cycles[0]!;
@@ -186,13 +188,13 @@ describe('the AI assistant sees the same split', () => {
     expect(w.data!.atAGlance.onTimeStreakWeeks).toEqual(expect.any(Number));
     if (noReviews) {
       // Without Reviews the glance has no next review, in the data or the words.
-      expect(w.data!.atAGlance).toMatchObject({ goals: { whose: 'mine', total: 2 }, watching: null });
+      expect(w.data!.atAGlance).toMatchObject({ goals: { whose: 'mine', total: 2 }, ...glanceWatch });
       expect(w.data!.atAGlance).not.toHaveProperty('nextReview');
       expect(w.text).toMatch(/Your goals: 1 off track, 1 done\. On-time streak: \d+ weeks?\./);
       expect(w.text).not.toMatch(/Next review/);
       return;
     }
-    expect(w.data!.atAGlance).toMatchObject({ goals: { whose: 'mine', total: 2 }, watching: null, nextReview: { name: 'Developer Productivity fortnightly', day: 'Tuesday' } });
+    expect(w.data!.atAGlance).toMatchObject({ goals: { whose: 'mine', total: 2 }, ...glanceWatch, nextReview: { name: 'Developer Productivity fortnightly', day: 'Tuesday' } });
     expect(w.text).toMatch(/Your goals: 1 off track, 1 done\. On-time streak: \d+ weeks?\. Next review: Developer Productivity fortnightly, Tuesday/);
   });
 });

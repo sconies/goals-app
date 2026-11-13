@@ -61,5 +61,5 @@ Module id `reviews`, in [src/modules/reviews/](../../../src/modules/reviews/modu
 
 ## Rules, conformance and rebuild stage
 
-Its rebuild stage: [stage 5](../../rebuild/stage-5-module-reviews.md) (an outline, with no drill yet).
+Its rebuild stage: [stage 7](../../rebuild/stage-7-module-reviews.md) (an outline, with no drill yet).
 Its rules: [Reviews’ switch: the clock and the read-back](rules.md#reviews-switch-the-clock-and-the-read-back), in plain words with worked examples (run against the code by the spec’s own test). Its conformance rows: [reviews.csv](../../conformance/reviews.csv) ([what each column is](../../conformance/README.md#the-files)).

@@ -56,7 +56,7 @@ Module id `metrics`, in [src/modules/metrics/](../../../src/modules/metrics/modu
 | N29 | A reading is never posted for anyone: opening Home, the check-in list, the number step and the one table and leaving creates no check-in for a goal on a read metric | `evals/notes/29-readings.cjs` |
 | F15 | The metric library on a phone: the first metric near the top, rows of at most three lines, a metric’s goals as rows, nothing scrolls sideways | `evals/finish/15-metrics.cjs` |
 | N16 | One set of numbers: a metric’s row in the library counts the goals its page lists, status by status | `evals/notes/16-metrics.cjs` |
-| U165 | A gap in measurement is visible and owned (MS): as Rhea, Flaky test rate is said to be a Gap with what is missing; its page shows the square Gap mark and, under To sort out, “Not measured yet: 1 goal held to no number”; its goal says “Not measured yet” with the broken ring, nothing due on it. Said to be Measured again, the goal is held to its plan once more | `evals/journeys.cjs` |
+| U170 | A gap in measurement is visible and owned (MS): as Rhea, Flaky test rate is said to be a Gap with what is missing; its page shows the square Gap mark and, under To sort out, “Not measured yet: 1 goal held to no number”; its goal says “Not measured yet” with the broken ring, nothing due on it. Said to be Measured again, the goal is held to its plan once more | `evals/journeys.cjs` |
 
 ## Help
 
@@ -69,7 +69,7 @@ Module id `metrics`, in [src/modules/metrics/](../../../src/modules/metrics/modu
 
 ## Rules, conformance and rebuild stage
 
-Its rebuild stage: [stage 4](../../rebuild/stage-4-module-metrics.md) (an outline, with no drill yet).
+Its rebuild stage: [stage 6](../../rebuild/stage-6-module-metrics.md) (an outline, with no drill yet).
 Its rules: [The metric library](rules.md#the-metric-library), [The library as a place](rules.md#the-library-as-a-place), [“Measured by”, found by typing](rules.md#measured-by-found-by-typing), [Looking after metrics](rules.md#looking-after-metrics), [Defining a metric well](rules.md#defining-a-metric-well), [For, which part, and what a goal takes from its metric](rules.md#for-which-part-and-what-a-goal-takes-from-its-metric), [Changing, retiring and merging a metric](rules.md#changing-retiring-and-merging-a-metric), [Measured, partly measured or a gap](rules.md#measured-partly-measured-or-a-gap), [A reading in a check-in](rules.md#a-reading-in-a-check-in), in plain words with worked examples (run against the code by the spec’s own test). Its conformance rows: [metrics.csv](../../conformance/metrics.csv) ([what each column is](../../conformance/README.md#the-files)).
 
 Its own records, every field: [its records](records.md).

@@ -38,6 +38,19 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['metric-measurement'],
   },
   {
+    id: 'more-switches',
+    date: '2026-11-13',
+    title: 'Watching, the Wrap-up, the Goal map and Feedback can be switched off',
+    points: [
+      'Features is in groups, and says what each feature holds: Working together (Reviews, Watching, the Wrap-up), Tools (the Metric library, Spreadsheets, the Goal map) and Beyond this workspace (Feedback). Workspace, Features.',
+      'Watching can be switched off for a workspace. Everyone’s watches are kept for when it comes back; while it is off, someone who owns no goal is led to every goal that needs attention.',
+      'The Wrap-up can be switched off. Nobody is asked how a goal landed, the year still ends, and an admin starts the next one from Cycles.',
+      'The Goal map and Feedback can be switched off too. A saved view that opened the Map opens the List and says so; what was sent as feedback stays with the people who build Faro.',
+      'Before Watching or the Wrap-up goes off, Faro says what stays, and Undo brings it straight back.',
+    ],
+    articles: ['features'],
+  },
+  {
     id: 'target-not-set',
     date: '2026-11-13',
     title: 'A goal can go in with its baseline and no target yet',

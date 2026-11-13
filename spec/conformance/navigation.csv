@@ -54,4 +54,8 @@ oskar,no,/nowhere,home goals reviews | people activity data | new | workspace se
 oskar,no,/example,home goals reviews | people module:example activity data | new | workspace settings help feedback,home goals reviews people,module:example,Example
 oskar,no,/example/one,home goals reviews | people module:example activity data | new | workspace settings help feedback,home goals reviews people,module:example,Example
 rhea,yes,/ (Reviews off),home checkin goals | people activity data | new | workspace settings help feedback,home checkin goals people,home,Home
+rhea,yes,/ (Feedback off),home checkin goals reviews | people activity data | new | workspace settings help,home checkin goals reviews,home,Home
+rhea,yes,/ (every feature off),home checkin goals | people activity data | new | workspace settings help,home checkin goals people,home,Home
 oskar,no,/ (Reviews off),home goals | people activity data | new | workspace settings help feedback,home goals people activity,home,Home
+oskar,no,/ (Feedback off),home goals reviews | people activity data | new | workspace settings help,home goals reviews people,home,Home
+oskar,no,/ (every feature off),home goals | people activity data | new | workspace settings help,home goals people activity,home,Home

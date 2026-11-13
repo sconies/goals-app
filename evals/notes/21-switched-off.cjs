@@ -61,17 +61,20 @@ module.exports = {
     await sheet.getByRole('button', { name: 'Switch off Reviews' }).click();
     await p.getByText('Reviews is off in').first().waitFor();
 
-    // Every other installed module off too, each at once.
+    // Every other installed module off too: at once, or through its read-back when it owns something (SW1).
     for (const m of MODULES.filter((x) => x.id !== 'reviews')) {
       const b = box(m.name);
       if (!(await b.count()) || !(await b.isChecked())) continue;
       await b.click();
+      const ask = p.getByRole('dialog', { name: /^Switch off / });
+      if (await ask.waitFor({ timeout: 1500 }).then(() => true, () => false)) await ask.getByRole('button', { name: /^Switch off / }).click();
       await p.getByText(`${m.name} is off in`).first().waitFor();
     }
 
     // Each module's routes: the not-found page with the line, “Workspace, Features” a link for an admin.
     for (const m of MODULES) {
-      for (const r of m.routes) {
+      // Its routes and its old addresses (Feedback's /inbox: SW1).
+      for (const r of [...m.routes, ...(m.redirects || []).map(([from]) => from)]) {
         await p.goto(url(address(r)));
         const main = p.locator('main');
         await main.getByText('Page not found').first().waitFor({ timeout: 8000 }).catch(() => {});
