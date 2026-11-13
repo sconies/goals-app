@@ -14904,9 +14904,103 @@ var records_default = [{
 // \0virtual:faro-modules
 var _virtual_faro_modules_default = [
 	{
+		id: "feedback",
+		name: "Feedback",
+		summary: "Send feedback about Faro, or mark up a screen. It goes to the people who build Faro.",
+		group: "beyond",
+		needs: [],
+		routes: ["/feedback"],
+		redirects: [["/workspace/inbox", "/feedback"], ["/inbox", "/feedback"]],
+		navigation: [],
+		places: [],
+		tables: [],
+		aiTools: [
+			"list_markups",
+			"get_markup",
+			"review_inbox",
+			"update_markup",
+			"list_feedback",
+			"get_feedback",
+			"update_feedback",
+			"send_feedback"
+		],
+		help: ["feedback", "inbox"],
+		requirements: [
+			"MARKUP",
+			"FEEDBACK-RAISED",
+			"MARKUP-INBOX",
+			"FEEDBACK-INBOX",
+			"MCP-FEEDBACK",
+			"CONNECT-CLAUDE",
+			"MCP-PICTURES",
+			"INBOX-TRIAGE",
+			"FEEDBACK-PAGE",
+			"FEEDBACK-OPTIONAL"
+		],
+		journeys: [
+			"U40",
+			"U41",
+			"U42",
+			"U47",
+			"U51",
+			"U52",
+			"U53",
+			"U157",
+			"N22"
+		],
+		elsewhere: [],
+		rebuild: {
+			"status": "outline",
+			"builds": "Feedback, as a feature a workspace can switch off. Anyone can send feedback about Faro (a mood and a few words) or mark up the screen they are on (a still picture with marks and a line, from Send feedback or Ctrl+Shift+M), and everything sent goes to the builders' inbox, the page Feedback, which the people who build Faro work through from New to In hand to Closed, and which an AI tool can review. Off, Feedback leaves the menu, Send feedback and Mark up this screen go, Ctrl+Shift+M does nothing, /feedback says it is switched off and who can switch it on, and the inbox's tools and send_feedback refuse. What was sent stays in the builders' inbox.",
+			"entry": ["The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2).", "The menu's last group (Workspace, Settings, Help) is the core's (stage 3); Feedback's row follows Help while it is on."],
+			"exit": [
+				"Switched off, the menu's last group is Workspace, Settings, Help (desktop and More on a phone), and Ctrl+Shift+M opens nothing (journey U157).",
+				"Switched off, /feedback, /workspace/inbox and /inbox show Page not found with “Feedback is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and the eight tools answer the switched-off module's sentence (check N22).",
+				"Switched off, sending feedback refuses with “Feedback is off in {workspace}.”; what was sent before stays in the builders' inbox, and switching it back on brings the row, the page and the key back."
+			],
+			"gaps": ["Feedback is a switch, not yet a folder of its own (SW4 moves it): its screens (src/screens/Feedback.tsx, the sheet and the markup in src/ui/Shell.tsx and src/markup), its tools' code (src/mcp/markupTools.ts, src/mcp/feedbackTools.ts), its ports (src/markup/ops.ts, src/markup/feedback.ts), its action (sendFeedback in src/domain/actions.ts) and its menu row (src/domain/navigation.ts menuGroups, which takes whether Feedback is on) are still the core's, as are its tables (okr_markups, okr_feedback). The send action refuses while it is off in src/app/actions.ts. This folder holds its route and old addresses, its Help articles and its AI tools; src/app/reads.ts feedbackOn is the one place that asks whether it is on.", "Switching Feedback off acts at once: the read-back the design describes (how many things sent from here stay in the builders' inbox) needs the builders' store counted per workspace, which SW4 adds."]
+		}
+	},
+	{
+		id: "goal-map",
+		name: "Goal map",
+		summary: "See every goal and what feeds it on one canvas, with the path the risk runs along.",
+		group: "tools",
+		needs: [],
+		routes: [],
+		redirects: [],
+		navigation: [],
+		places: [],
+		tables: [],
+		aiTools: [],
+		help: ["goal-map"],
+		requirements: ["GOAL-MAP", "MAP-OPTIONAL"],
+		journeys: [
+			"U26",
+			"U30",
+			"U34",
+			"U39",
+			"U90",
+			"U134",
+			"U135",
+			"U157",
+			"F6",
+			"N22"
+		],
+		elsewhere: [],
+		rebuild: {
+			"status": "outline",
+			"builds": "The Goal map, as a feature a workspace can switch off: one of Goals' layouts, drawing every goal on a canvas, north stars at the top, solid lines for feeds into and dotted for also helps, with the critical path bold and each goal's roll-up of what feeds it. It owns no records. Off, Goals offers List, Table, Board and History, and a link or saved view that asked for the Map (view=map) opens the List and says once “The Goal map is off here, so this is the List.”",
+			"entry": ["Goals' layouts and the roll-up of what feeds a goal are the core's (stage 3); the map draws them and adds nothing to them."],
+			"exit": ["Switched off, Goals' Layout offers List, Table, Board and History, and nothing on Goals says Map (journey U157).", "Switched off, /goals?view=map opens the List with “The Goal map is off here, so this is the List.” once; switched back on, the same address opens the Map (journey U157, check N22)."],
+			"gaps": ["The Goal map is a switch, not yet a folder of its own (SW5 moves it): its screen (src/screens/GoalMap.tsx), the drawing half of src/domain/map.ts and the Map layout's control in src/screens/GoalsScreen.tsx are still the core's. src/app/reads.ts goalMapOn is the one place that asks whether it is on; the rule that opens the List instead is src/domain/query.ts layoutOn.", "It has no page of its own yet (/goals/map is SW5's), so its switched-off line is the List's sentence, not a not-found page."]
+		}
+	},
+	{
 		id: "metrics",
 		name: "Metric library",
 		summary: "Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.",
+		group: "tools",
 		needs: [],
 		routes: [
 			"/metrics",
@@ -15051,6 +15145,7 @@ var _virtual_faro_modules_default = [
 		id: "reviews",
 		name: "Reviews",
 		summary: "Walk a set of goals together on a cadence, decide what happens next and keep what was said.",
+		group: "together",
 		needs: [],
 		routes: [
 			"/review",
@@ -15132,6 +15227,7 @@ var _virtual_faro_modules_default = [
 		id: "spreadsheets",
 		name: "Spreadsheets",
 		summary: "Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.",
+		group: "tools",
 		needs: [],
 		routes: [
 			"/data/import",
@@ -15203,6 +15299,94 @@ var _virtual_faro_modules_default = [
 				"A file of 6,000 new goals shows Reading with progress and Stop; Stop saves nothing; checked, it offers Download as 2 files of 5,000 rows instead of Save, and the parts load one after the other; while it is checked, the page never stops for more than 200 ms and the preview has fewer than 3,000 elements."
 			],
 			"gaps": ["The format is in the kit: the field table (a core rule page), how each column is read (spec/core/export-format.md), and every kind of issue with its trigger, sentence and answers and every column’s other spellings (spec/core/import-issues.md).", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
+		}
+	},
+	{
+		id: "watching",
+		name: "Watching",
+		summary: "Follow goals you don’t own: they show on your Home and under Watching in Goals.",
+		group: "together",
+		needs: [],
+		routes: ["/watching"],
+		redirects: [],
+		navigation: [],
+		places: [],
+		tables: [],
+		aiTools: [
+			"list_watching",
+			"watch",
+			"unwatch"
+		],
+		help: ["watching"],
+		requirements: [
+			"WATCHING",
+			"ONE-WATCHING",
+			"WATCHING-OPTIONAL"
+		],
+		journeys: [
+			"U7",
+			"U8",
+			"U9",
+			"U16",
+			"U31",
+			"U73",
+			"U80",
+			"U90",
+			"U103",
+			"U156",
+			"F1",
+			"N22"
+		],
+		elsewhere: [],
+		rebuild: {
+			"status": "outline",
+			"builds": "Watching, as a feature a workspace can switch off. Anyone can watch a goal, a goal and everything feeding it, or every goal at a level; the goals a person's watches cover are on their Home under “Goals you watch” (what needs attention first) and under the Watching tab of Goals, a goal's page has Watch (or Watching) for anyone but its owner, and an AI tool lists, adds and stops watches. Off, there is no Watching tab, no “Goals you watch”, no Watch button and no watching tool; /watching says it is switched off and who can switch it on; someone who owns no goal is led to every goal that needs attention. Every watch is kept, and switching it back on restores each person's. An admin switches it off on Workspace, Features, after a read-back that counts what stays.",
+			"entry": ["The core rules (stage 1) work out each goal's status, flags and attention; Watching reads them and adds nothing to them.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2)."],
+			"exit": [
+				"Switched off, /watching shows Page not found with “Watching is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and list_watching, watch and unwatch answer “Watching is switched off in {workspace}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features.” (check N22).",
+				"Switched off, Goals has no Watching tab (a remembered Watching tab opens Mine, or All for someone who owns no goal), Home has no “Goals you watch”, a goal's page has no Watch or Watching and no “Watched by”, and the watch action refuses with “Watching is off in {workspace}.” (journey U156).",
+				"Switched off, someone who owns no goal is led to “{n} goals need attention · See them” (every goal that needs attention), not to the goals they watch.",
+				"Switching off first reads back what stays, from the rule watchingOffReadBack: how many people's watches are kept, and how many of them own no goal and see Home through what they watch; with no watch at all it acts at once.",
+				"Back on, every person watches what they did (journey U156)."
+			],
+			"gaps": [
+				"Watching is a switch, not yet a folder of its own (SW6 moves it): its screens (src/screens/Watching.tsx; Home's “Goals you watch” in src/screens/Home.tsx; the Watch button and its sheet in src/screens/GoalScreen.tsx; the Watching tab of src/screens/GoalsScreen.tsx), its rules (src/domain/watch.ts, src/domain/review.ts watchedGoals, src/domain/home.ts groupWatched, src/domain/goalsPage.ts scopesFor) and its actions (watch and unwatch in src/domain/actions.ts) are still the core's, and so is its table (okr_watches, migration 0006). The watch actions refuse while it is off in src/app/actions.ts (performAny, SWITCHED_ACTIONS in src/app/reads.ts), and the read-back sheet is drawn by src/screens/Workspace.tsx. This folder holds its route, its Help article and its AI tools; src/app/reads.ts watchingOn is the one place that asks whether it is on.",
+				"A watch is not yet declared as the module's record (AS part 2's records extension point is SW6's), so a build without the module still loads, carries and saves watches as the core's.",
+				"get_my_work, get_goal and get_activity are core tools: with Watching off get_my_work leaves out what you watch, but get_goal still names who watches a goal and get_activity still takes watching=1 (spec 6.2; SW3)."
+			]
+		}
+	},
+	{
+		id: "wrap-up",
+		name: "Wrap-up",
+		summary: "At the end of the year, each owner says how their goals landed and what they learned.",
+		group: "together",
+		needs: [],
+		routes: ["/retro", "/retro/:goalId"],
+		redirects: [],
+		navigation: [],
+		places: [],
+		tables: [],
+		aiTools: ["get_wrap_up", "wrap_up_goal"],
+		help: ["wrap-up"],
+		requirements: ["RETRO", "WRAP-UP-OPTIONAL"],
+		journeys: [
+			"U10",
+			"U158",
+			"N22"
+		],
+		elsewhere: [],
+		rebuild: {
+			"status": "outline",
+			"builds": "The Wrap-up, as a feature a workspace can switch off: in the last two weeks of the year (and four weeks after) each owner says how each goal landed, one thing learned, and whether it carries on or stops, from Home's wrap-up lead, a goal's “Wrap up this goal” and the page Wrap up. Results, carrying on and starting the next year are the core's and never switch off. Off, nobody is asked how a goal landed: no wrap-up lead on Home, no “See the wrap-up”, no “Wrap up this goal”, /retro says it is switched off, and get_wrap_up and wrap_up_goal refuse; wrap-ups already written stay in History, and an admin still starts the next year from Cycles.",
+			"entry": ["The year's end rules (stage 1: results, carrying on, starting the next year) are the core's; a wrap-up's carry on or stop is one of their inputs, read only while the Wrap-up is on.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2)."],
+			"exit": [
+				"Switched off, /retro and /retro/{goal} show Page not found with “Wrap-up is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and get_wrap_up and wrap_up_goal answer the switched-off module's sentence (check N22).",
+				"Switched off, in the year's last two weeks an owner's Home leads with check-ins as in any other week, never “Wrap up your goals”, and a goal's page has no “Wrap up this goal”; saving a wrap-up refuses with “Wrap-up is off in {workspace}.” (journey U158).",
+				"Switching off first reads back what stays, from the rule wrapUpOffReadBack: the wrap-ups already written (kept in History), how many said stop, and that the year still ends; with none written and the wrap-up not open it acts at once.",
+				"Off or on, an admin starts the next year from Cycles, and a goal's result is worked out as before."
+			],
+			"gaps": ["The Wrap-up is a switch, not yet a folder of its own (SW8 moves it, with the cycle-end area): its screens (src/screens/Retro.tsx, Home's wrap-up lead and card in src/screens/Home.tsx, “Wrap up this goal” in src/screens/GoalScreen.tsx), its rule and action (src/domain/cycle.ts, saveRetro in src/domain/actions.ts) and its table (okr_retros, migration 0007) are still the core's. Saving a wrap-up refuses while it is off in src/app/actions.ts; the read-back sheet is drawn by src/screens/Workspace.tsx. This folder holds its routes, its Help article and its AI tools; src/app/reads.ts wrapUpOn is the one place that asks whether it is on.", "Starting the next year still reads every wrap-up's carry on or stop, on or off (spec 2.4's `stops` is SW8's)."]
 		}
 	}
 ];
@@ -15495,7 +15679,8 @@ function missedReviews(personId, s, cycle, week, today) {
 		};
 	}).filter((x) => x.daysPast > 0 && x.week <= cycle.weeks).sort((a, b) => b.daysPast - a.daysPast || a.name.localeCompare(b.name));
 }
-/** With Reviews switched off (`reviews` false, FT2) there is no next review and none missed. */
+/** With Reviews switched off (`reviews` false, FT2) there is no next review and none missed; with Watching off
+(`watching` false, SW1) nothing is watched. */
 function dashboard(personId, s, cycle, week, today, opts = { reviews: true }) {
 	const mine = s.goals.filter((g) => g.ownerId === personId);
 	const goals = mine.length ? mine : s.goals;
@@ -15505,7 +15690,7 @@ function dashboard(personId, s, cycle, week, today, opts = { reviews: true }) {
 		counts: statusCounts(goals.map((g) => goalStatus(g, cycle, s.checkIns, today).status)),
 		total: goals.length,
 		streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
-		watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
+		watching: opts.watching !== false && s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
 		...(() => {
 			const upcoming = opts.reviews ? nextReviews(personId, s, cycle, week, today) : [];
 			return {
@@ -15653,6 +15838,11 @@ var live = (xs) => xs.filter((x) => !x.removedAt);
 * without the module (FARO_WITHOUT=reviews) answers false. FT3 moves Reviews' code into its folder and retires this.
 */
 var reviewsOn = (on) => on.has("reviews");
+/** Whether Watching is on: the Watching tab, Home's "Goals you watch", the Watch button and the three watching tools. */
+var watchingOn = (on) => on.has("watching");
+/** Whether the Wrap-up is on: its pages, Home's wrap-up lead, "Wrap up this goal" and its two tools. Results, carrying
+on and starting the next year are the core's and never ask. */
+var wrapUpOn = (on) => on.has("wrap-up");
 /**
 * This week's deadline in dueWords' words (RS1), from what the rule reads: whether Reviews is on, and whether a review is
 * held on the due day (with `personId`, one that person is in: deep review T4). The check-in's receipt, Home and the AI's
@@ -15815,7 +16005,7 @@ var SCOPES = [
 * they lead, when they have one), Watching, All. Opens on the scope last used when they still have it; otherwise Mine,
 * else Watching when it has goals, else All.
 */
-function scopesFor(f, last) {
+function scopesFor(f, last, opts = { watching: true }) {
 	const tabs = [];
 	const mine = scopeIds(f, "mine");
 	if (mine.length) tabs.push({
@@ -15828,7 +16018,7 @@ function scopesFor(f, last) {
 		label: f.teams.length === 1 ? "My team" : "My teams",
 		ids: scopeIds(f, "team")
 	});
-	tabs.push({
+	if (opts.watching) tabs.push({
 		id: "watching",
 		label: "Watching",
 		ids: scopeIds(f, "watching")
@@ -15841,7 +16031,7 @@ function scopesFor(f, last) {
 	const has = (s) => !!s && tabs.some((t) => t.id === s);
 	return {
 		tabs,
-		opens: has(last) ? last : mine.length ? "mine" : tabs.find((t) => t.id === "watching").ids.length ? "watching" : "all"
+		opens: has(last) ? last : mine.length ? "mine" : tabs.find((t) => t.id === "watching")?.ids.length ? "watching" : "all"
 	};
 }
 /** The goals in a scope, by id, in the workspace's order. "team" is the viewer's own team and the teams they lead. */
@@ -17389,8 +17579,198 @@ function activityFilter(a, x) {
 		return true;
 	};
 }
+// src/modules/feedback/help.ts
+var help$6 = [{
+	id: "feedback",
+	title: "Send feedback, and marking up a screen",
+	summary: "Tell the people building Faro what should change: mark up the screen you’re on, or say in a few words how the app is working for you.",
+	group: "you",
+	after: "ai-assistants",
+	sections: [
+		{
+			heading: "How to use it",
+			list: [
+				"Go to Feedback (in the menu’s last group, or in More on a phone) and choose Send feedback. Its first choice is Mark up the last screen: it takes you back to the page you came from and keeps a picture of it. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) marks up the screen you’re on from anywhere.",
+				"The screen you’re on is kept as a still picture, and a slim toolbar appears. Draw on the picture with the Pen, an Arrow or a Box, or put down a numbered Note with a few words. Undo takes back the last mark, Clear removes them all, and Cancel (or Escape) stops without sending anything.",
+				"Next asks one thing: what should change. You can also say how the app is working for you. It shows the exact picture that will be sent, with your marks. Go Back to change it, or Cancel.",
+				"Send. “Sent. You’ll hear when it’s fixed.” When a release fixes it, its entry in What’s new says “You raised this”.",
+				"Or skip the picture: choose how it’s working and add a few words, as before. It goes to the same inbox as markups, where the people building Faro mark it in hand, fixed or won’t fix. When a release fixes it, its entry in What’s new says “You raised this” too."
+			]
+		},
+		{
+			heading: "With the keyboard",
+			list: ["Tab to the drawing area. The arrow keys move a crosshair (with Shift, further), Enter starts and ends a mark, and P, A, B and N choose Pen, Arrow, Box and Note.", "Ctrl+Z takes back the last mark. Escape stops the mark you’re making, or else cancels."]
+		},
+		{
+			heading: "What’s sent",
+			list: [
+				"The picture of your screen, as it was. Nothing on it is hidden, so check it before you send.",
+				"Your marks, your line, your name, which parts of the screen your marks are on (for example Goal page, Scorecard, Will it hit), the page, your screen size, light or dark, your accent and the app’s version.",
+				"Your last 20 steps on this visit, unless you untick them: the pages you opened and the buttons you pressed, never what you typed. And any errors or saves that didn’t go through on this visit.",
+				"In the demo, markups are sent too, marked as from the demo. Anyone can read them in the inbox on Workspace, picture included: Faro holds no real data, so nothing on your screen should be private."
+			]
+		}
+	],
+	routes: [],
+	screens: [],
+	reqs: ["MARKUP", "FEEDBACK-RAISED"],
+	keywords: [
+		"feedback",
+		"markup",
+		"mark up",
+		"picture",
+		"draw",
+		"shortcut",
+		"ctrl shift m",
+		"report a problem",
+		"what should change",
+		"you raised this"
+	],
+	related: [
+		"inbox",
+		"recording",
+		"help"
+	]
+}, {
+	id: "inbox",
+	title: "The inbox",
+	summary: "Every markup and piece of feedback people send, from every workspace and the demo, on its own page, Feedback, beside Help. Open to anyone with no sign-in: work through it like an inbox, from New to In hand to Closed.",
+	group: "you",
+	after: "feedback",
+	sections: [
+		{
+			heading: "Who can read it",
+			list: [
+				"The inbox is its own page, Feedback, beside Help in the sidebar (in More on a phone), in the app and the demo. It was a section of Workspace; it moved because it belongs to no one workspace. Old links to Workspace’s inbox open it.",
+				"It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and send feedback, on any device. Only an admin changes a status (In hand, Fixed, Won’t fix, New again); everyone else sees a line saying so, and no buttons. Every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.",
+				"It names people, never their email. The New tab says how many are new; The New tab counts them across every workspace.",
+				"Send feedback, at the top, opens the feedback sheet; it says which page you came from, and Mark up the last screen goes back to it."
+			]
+		},
+		{
+			heading: "Working through it",
+			list: [
+				"Three tabs: New, In hand and Closed (fixed or won’t fix), each with how many it holds. When New is empty, it says Nothing new.",
+				"Each row starts with its status as a shape and a word, then what was said, the part of the page it’s about (or, for feedback, its mood and page), who sent it, from where and when.",
+				"Markups about the same part of the same page are folded into one row that says how many (“6 on this part”). Open it to see each one; whatever you do to the row happens to all of them.",
+				"Find things with the search (what was said, the part, the page or who sent it). Kind (markups or feedback) sits beside it on a computer; Filters holds the page and who sent it (type a name to find them), and on a phone the kind too. The line under the search counts what matches and says the filters in words, each with Remove; the address keeps the search and the filters, so Back and a shared link show the same list.",
+				"On a computer the list and the open item sit side by side. Keys: J and K move down and up the list, I marks the open item in hand, F opens Mark fixed, W opens Won’t fix.",
+				"On a phone you see one item at a time: Next goes on to the next, and Back to the list returns.",
+				"Once you handle an item and it leaves the tab, the next one opens. Undo, at the top, puts back what you just changed.",
+				"Tick rows (or Select this page) to change a batch at once: Mark in hand, Mark fixed in a What’s new entry, Won’t fix with one reason, or Mark new again. A page shows 25 rows."
+			]
+		},
+		{
+			heading: "A markup",
+			list: [
+				"Open one to see its picture (hide the drawing to see the screen beneath), the parts its marks are on, its notes, the steps before it as a timeline, any errors, and where it was sent from.",
+				"Mark it in hand. Open GitHub issue opens a new issue on GitHub filled in with the line, the page, the parts, the steps and a link back here: press Submit there, then paste the issue’s address back with Paste issue link.",
+				"Mark it fixed in a What’s new entry, so its sender sees “You raised this” there; or say why it won’t be fixed.",
+				"Each change says who made it (you, as you chose on this device) and when."
+			]
+		},
+		{
+			heading: "Connect Claude",
+			list: [
+				"Connect Claude opens from the top of the inbox. Any Faro token works. An admin makes one there (in the app, not the demo); anyone else asks an admin. Then copy the set-up: for a Claude cloud session, the host and where the token goes; for Claude Code, one command.",
+				"Claude then reviews the inbox in one step, with review_inbox: new markups grouped by the part of the screen they’re about, each with its picture, and new feedback by page. It sees the pictures without opening anything. Its changes say they were made by the token’s person, via the AI assistant.",
+				"Connect Claude says whether the server can send Claude the pictures, and if not, why.",
+				"Tokens are listed, and revoked, on Workspace under Access, and yours in Settings."
+			]
+		},
+		{
+			heading: "Feedback",
+			list: ["Feedback sent with a mood and a few words is in the inbox too, among the markups, newest first, with a speech mark where a markup has its picture. Each says it’s feedback, its mood, the page it was sent from, who sent it and from which workspace.", "It has the same statuses and is worked the same way. It has no picture and no GitHub issue. It always arrives as New."]
+		},
+		{
+			heading: "Without a database",
+			text: ["When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them, and this workspace’s feedback. Statuses you give feedback there stay in that browser."]
+		}
+	],
+	routes: [
+		"/feedback",
+		"/workspace/inbox",
+		"/inbox"
+	],
+	screens: ["Feedback"],
+	reqs: [
+		"MARKUP-INBOX",
+		"FEEDBACK-INBOX",
+		"MCP-FEEDBACK",
+		"CONNECT-CLAUDE",
+		"MCP-PICTURES",
+		"INBOX-TRIAGE",
+		"FEEDBACK-PAGE"
+	],
+	keywords: [
+		"inbox",
+		"markups",
+		"triage",
+		"github issue",
+		"undo",
+		"who changed it",
+		"fixed",
+		"won’t fix",
+		"in hand",
+		"feedback",
+		"mood",
+		"connect claude",
+		"token",
+		"review inbox",
+		"pictures"
+	],
+	related: [
+		"feedback",
+		"workspace",
+		"ai-assistants"
+	]
+}];
+// src/modules/goal-map/help.ts
+var help$5 = [{
+	id: "goal-map",
+	title: "The goal map",
+	summary: "The map draws every goal and how they connect, so you can see what feeds what and where the risk runs.",
+	group: "goals",
+	after: "history",
+	sections: [{
+		heading: "How to use it",
+		list: [
+			"Choose Map from Layout on Goals (in View on a phone). North stars are at the top; solid lines mean feeds into, dotted lines mean also helps.",
+			"Choose Map and the goals appear as soon as it is drawn; only a wait you would notice (over about a third of a second) says “Drawing the map…”.",
+			"It opens on every top goal, with only the critical path, the inputs most likely to make a top goal miss, drawn bold beneath them. The number on a goal’s fold button says how many goals feeding it are hidden: press it to show them, or the minus to hide them. Unfold all shows every goal; Fold to the top goes back.",
+			"Each goal shows its status, its number, its target and how far it is from plan. A goal others feed also says what’s under it: the worst status of everything feeding it, at any depth, and how many are behind, counted the way the List’s tree cards count.",
+			"On the Map, the search at the top of Goals finds a goal and takes you to it: type its name or its key (G-48), then choose it from the list under the field. Its tree opens, the goal is outlined and the map moves to it, without hiding any other goal; press Enter on the goal to read its story. Press Enter in the field without choosing, and the map shows only the goals that match, as the other layouts do.",
+			"Group and Sort can’t be changed on the Map, which is always the trees.",
+			"Fit all shows every goal on the map at once, the trees wrapped into rows; Readable shows the top goals and the critical path at a size you can read. The map fits itself again whenever what it shows changes: a search, a filter or the trees in trouble.",
+			"Troubled trees only keeps the trees whose top goal or anything under it is off track, at risk or without a recent update. The Needs attention switch in the bar above narrows the map to those goals and what they feed, every branch unfolded.",
+			"Pan, zoom and drag goals about. The map never removes a goal: Delete and Backspace do nothing on it. Goals are removed from their own page, with Undo. Tidy up puts dragged goals back.",
+			"Select a goal to read its story beside the map, then Open the goal. On a phone the map is a list, one goal per row.",
+			"The map’s walkthrough ends beside the story: on a desktop its card sits over the map, left of the story and level with its foot; on a phone, above the story."
+		]
+	}],
+	routes: ["/goals?view=map"],
+	screens: ["GoalMap"],
+	reqs: ["GOAL-MAP"],
+	keywords: [
+		"map",
+		"canvas",
+		"tree",
+		"critical path",
+		"also helps",
+		"feeds into",
+		"dependencies",
+		"graph",
+		"find",
+		"key",
+		"fit all",
+		"troubled",
+		"roll-up",
+		"worst status"
+	],
+	related: ["goals", "goal-page"]
+}];
 // src/modules/metrics/help.ts
-var help$2 = [
+var help$4 = [
 	{
 		id: "metrics",
 		title: "Metrics: what each number means",
@@ -17646,7 +18026,7 @@ var help$2 = [
 	}
 ];
 // src/modules/reviews/help.ts
-var help$1 = [{
+var help$3 = [{
 	id: "reviews",
 	title: "Reviews",
 	summary: "A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said.",
@@ -17740,7 +18120,7 @@ var help$1 = [{
 // src/modules/spreadsheets/help.ts
 init_columns();
 init_importLimits();
-var help = [
+var help$2 = [
 	{
 		id: "import",
 		title: "Importing from a spreadsheet",
@@ -18016,16 +18396,124 @@ var help = [
 // \0virtual:faro-modules/help
 var help_default = [
 	{
+		id: "feedback",
+		part: help$6
+	},
+	{
+		id: "goal-map",
+		part: help$5
+	},
+	{
 		id: "metrics",
-		part: help$2
+		part: help$4
 	},
 	{
 		id: "reviews",
-		part: help$1
+		part: help$3
 	},
 	{
 		id: "spreadsheets",
-		part: help
+		part: help$2
+	},
+	{
+		id: "watching",
+		part: [{
+			id: "watching",
+			title: "Watching goals",
+			summary: "Watch the goals you care about but don’t own, and see what changed in them without opening each one.",
+			group: "week",
+			after: "requests",
+			sections: [
+				{
+					heading: "What it’s for",
+					text: ["Following other teams’ goals, or a whole level, the way a leader or a dependent team would."]
+				},
+				{
+					heading: "How to use it",
+					list: [
+						"Watch a single goal from its page, a goal and everything feeding it, or a whole level (North star, SVP or Team). On a goal’s page, Watch first says what watching does: its check-ins, changes of status and new asks show on your Home and under Watching in Goals, your name is listed under Watched by, and Faro sends no email.",
+						"Watching is part of Goals (Goals, then the Watching tab; the sidebar’s Watching goes there too), with the same search, filters, sort, layouts and export. In the list it groups them: what needs attention (a goal with no recent update included), then what has nothing flagged, with what changed this week beside them. What is being handled is folded away. To see one level, use the Level filter.",
+						"For a goal with no recent update, ask its owner for an update. It’s an ask, open on their Home until they check in; whoever asked can withdraw it.",
+						"Stop watching from the same place you started."
+					]
+				},
+				{
+					heading: "Who can",
+					text: ["Anyone can watch any goal. A goal’s owner has no Watch: it is always on their Home."]
+				}
+			],
+			routes: ["/watching"],
+			screens: ["Watching"],
+			reqs: [
+				"WATCHING",
+				"ASK-UNDO",
+				"ONE-WATCHING",
+				"GOAL-SAYS"
+			],
+			keywords: [
+				"follow",
+				"subscribe",
+				"watch",
+				"unwatch",
+				"ask for an update",
+				"quiet",
+				"no recent update"
+			],
+			related: [
+				"needs-attention",
+				"goal-page",
+				"home"
+			]
+		}]
+	},
+	{
+		id: "wrap-up",
+		part: [{
+			id: "wrap-up",
+			title: "Wrapping up the year, and the next one",
+			summary: "In the last two weeks of the year, owners wrap up each goal; then an admin starts the next year.",
+			group: "leading",
+			after: "activity",
+			sections: [{
+				heading: "How to use it",
+				list: [
+					"A year ends on its last day, the Sunday of its last week, whether or not anyone starts the next. From the day after, nothing in it is due, late or out of date: each goal keeps the last status its owner gave, its result is worked out, and its last quarter closes on the numbers there are.",
+					"The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done. It stays open once the next year has begun: Home, Wrap up and Cycles show last year’s until it closes.",
+					"Home offers the wrap-up when it opens. For each goal: how it landed (suggested from where it ended), one thing learned, and carry on or stop. About a minute each.",
+					"Wrap up shows everyone which goals are wrapped up, and how.",
+					"An admin starts the next year from its own page, after a read-back of what carries on, finishes and stops (see Starting the next year). A goal that met its target finishes; one its owner stopped stops; the rest carry on from where they ended: number goals from their last number, milestones with what is left. Links to goals that don’t carry on are dropped. Nobody moves into next year until this one’s last day."
+				]
+			}, {
+				heading: "Who can",
+				list: ["A goal’s owner, or an admin, wraps it up.", "Only admins start the next year."]
+			}],
+			routes: ["/retro", "/retro/:goalId"],
+			screens: ["Retro"],
+			reqs: [
+				"RETRO",
+				"YEAR",
+				"RESULTS"
+			],
+			keywords: [
+				"retro",
+				"retrospective",
+				"end of year",
+				"year end",
+				"year ended",
+				"last day",
+				"cycle",
+				"next year",
+				"carry on",
+				"stop",
+				"learned",
+				"close"
+			],
+			related: [
+				"history",
+				"workspace",
+				"start-next-year"
+			]
+		}]
 	}
 ];
 // src/help/about.ts
@@ -18669,53 +19157,6 @@ var CORE_ARTICLES = [
 		]
 	},
 	{
-		id: "watching",
-		title: "Watching goals",
-		summary: "Watch the goals you care about but don’t own, and see what changed in them without opening each one.",
-		group: "week",
-		sections: [
-			{
-				heading: "What it’s for",
-				text: ["Following other teams’ goals, or a whole level, the way a leader or a dependent team would."]
-			},
-			{
-				heading: "How to use it",
-				list: [
-					"Watch a single goal from its page, a goal and everything feeding it, or a whole level (North star, SVP or Team). On a goal’s page, Watch first says what watching does: its check-ins, changes of status and new asks show on your Home and under Watching in Goals, your name is listed under Watched by, and Faro sends no email.",
-					"Watching is part of Goals (Goals, then the Watching tab; the sidebar’s Watching goes there too), with the same search, filters, sort, layouts and export. In the list it groups them: what needs attention (a goal with no recent update included), then what has nothing flagged, with what changed this week beside them. What is being handled is folded away. To see one level, use the Level filter.",
-					"For a goal with no recent update, ask its owner for an update. It’s an ask, open on their Home until they check in; whoever asked can withdraw it.",
-					"Stop watching from the same place you started."
-				]
-			},
-			{
-				heading: "Who can",
-				text: ["Anyone can watch any goal. A goal’s owner has no Watch: it is always on their Home."]
-			}
-		],
-		routes: ["/watching"],
-		screens: ["Watching"],
-		reqs: [
-			"WATCHING",
-			"ASK-UNDO",
-			"ONE-WATCHING",
-			"GOAL-SAYS"
-		],
-		keywords: [
-			"follow",
-			"subscribe",
-			"watch",
-			"unwatch",
-			"ask for an update",
-			"quiet",
-			"no recent update"
-		],
-		related: [
-			"needs-attention",
-			"goal-page",
-			"home"
-		]
-	},
-	{
 		id: "goals",
 		title: "Goals and its layouts",
 		summary: "Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look.",
@@ -18961,48 +19402,6 @@ var CORE_ARTICLES = [
 			"Q4"
 		],
 		related: ["goals", "wrap-up"]
-	},
-	{
-		id: "goal-map",
-		title: "The goal map",
-		summary: "The map draws every goal and how they connect, so you can see what feeds what and where the risk runs.",
-		group: "goals",
-		sections: [{
-			heading: "How to use it",
-			list: [
-				"Choose Map from Layout on Goals (in View on a phone). North stars are at the top; solid lines mean feeds into, dotted lines mean also helps.",
-				"Choose Map and the goals appear as soon as it is drawn; only a wait you would notice (over about a third of a second) says “Drawing the map…”.",
-				"It opens on every top goal, with only the critical path, the inputs most likely to make a top goal miss, drawn bold beneath them. The number on a goal’s fold button says how many goals feeding it are hidden: press it to show them, or the minus to hide them. Unfold all shows every goal; Fold to the top goes back.",
-				"Each goal shows its status, its number, its target and how far it is from plan. A goal others feed also says what’s under it: the worst status of everything feeding it, at any depth, and how many are behind, counted the way the List’s tree cards count.",
-				"On the Map, the search at the top of Goals finds a goal and takes you to it: type its name or its key (G-48), then choose it from the list under the field. Its tree opens, the goal is outlined and the map moves to it, without hiding any other goal; press Enter on the goal to read its story. Press Enter in the field without choosing, and the map shows only the goals that match, as the other layouts do.",
-				"Group and Sort can’t be changed on the Map, which is always the trees.",
-				"Fit all shows every goal on the map at once, the trees wrapped into rows; Readable shows the top goals and the critical path at a size you can read. The map fits itself again whenever what it shows changes: a search, a filter or the trees in trouble.",
-				"Troubled trees only keeps the trees whose top goal or anything under it is off track, at risk or without a recent update. The Needs attention switch in the bar above narrows the map to those goals and what they feed, every branch unfolded.",
-				"Pan, zoom and drag goals about. The map never removes a goal: Delete and Backspace do nothing on it. Goals are removed from their own page, with Undo. Tidy up puts dragged goals back.",
-				"Select a goal to read its story beside the map, then Open the goal. On a phone the map is a list, one goal per row.",
-				"The map’s walkthrough ends beside the story: on a desktop its card sits over the map, left of the story and level with its foot; on a phone, above the story."
-			]
-		}],
-		routes: ["/goals?view=map"],
-		screens: ["GoalMap"],
-		reqs: ["GOAL-MAP"],
-		keywords: [
-			"map",
-			"canvas",
-			"tree",
-			"critical path",
-			"also helps",
-			"feeds into",
-			"dependencies",
-			"graph",
-			"find",
-			"key",
-			"fit all",
-			"troubled",
-			"roll-up",
-			"worst status"
-		],
-		related: ["goals", "goal-page"]
 	},
 	{
 		id: "goal-page",
@@ -19489,51 +19888,6 @@ var CORE_ARTICLES = [
 			"goal-page",
 			"data",
 			"removing"
-		]
-	},
-	{
-		id: "wrap-up",
-		title: "Wrapping up the year, and the next one",
-		summary: "In the last two weeks of the year, owners wrap up each goal; then an admin starts the next year.",
-		group: "leading",
-		sections: [{
-			heading: "How to use it",
-			list: [
-				"A year ends on its last day, the Sunday of its last week, whether or not anyone starts the next. From the day after, nothing in it is due, late or out of date: each goal keeps the last status its owner gave, its result is worked out, and its last quarter closes on the numbers there are.",
-				"The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done. It stays open once the next year has begun: Home, Wrap up and Cycles show last year’s until it closes.",
-				"Home offers the wrap-up when it opens. For each goal: how it landed (suggested from where it ended), one thing learned, and carry on or stop. About a minute each.",
-				"Wrap up shows everyone which goals are wrapped up, and how.",
-				"An admin starts the next year from its own page, after a read-back of what carries on, finishes and stops (see Starting the next year). A goal that met its target finishes; one its owner stopped stops; the rest carry on from where they ended: number goals from their last number, milestones with what is left. Links to goals that don’t carry on are dropped. Nobody moves into next year until this one’s last day."
-			]
-		}, {
-			heading: "Who can",
-			list: ["A goal’s owner, or an admin, wraps it up.", "Only admins start the next year."]
-		}],
-		routes: ["/retro", "/retro/:goalId"],
-		screens: ["Retro"],
-		reqs: [
-			"RETRO",
-			"YEAR",
-			"RESULTS"
-		],
-		keywords: [
-			"retro",
-			"retrospective",
-			"end of year",
-			"year end",
-			"year ended",
-			"last day",
-			"cycle",
-			"next year",
-			"carry on",
-			"stop",
-			"learned",
-			"close"
-		],
-		related: [
-			"history",
-			"workspace",
-			"start-next-year"
 		]
 	},
 	{
@@ -20151,15 +20505,19 @@ var CORE_ARTICLES = [
 	{
 		id: "features",
 		title: "Features: switching parts of Faro on or off",
-		summary: "Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace: how you work (Reviews) and tools such as the Metric library and Spreadsheets.",
+		summary: "Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace, in three groups: working together, tools, and beyond this workspace.",
 		group: "you",
 		sections: [
 			{
 				heading: "How to use it",
 				list: [
 					"On Workspace, Features says how this workspace works and lists the optional parts of Faro, each with what it does; About says which are on, from the same list. Goals, check-ins and people are the core and always on.",
-					"How you work holds Reviews: walking a set of goals together on a cadence. While it is on, it says how many reviews are set up. Tools holds the rest, such as the Metric library and Spreadsheets. Each has a switch with On or Off beside it.",
-					"Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, how many accepted risks stay on their goals (no new one can be accepted while it is off), that check-ins are still due by the same day, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching a tool off, or anything on, acts at once.",
+					"Working together holds Reviews (walking a set of goals together on a cadence), Watching (following goals you don’t own) and the Wrap-up (each owner saying how their goals landed at the end of the year). Tools holds the Metric library, Spreadsheets and the Goal map. Beyond this workspace holds Feedback, which goes to the people who build Faro. A group this Faro has nothing in isn’t shown. Each has a switch with On or Off beside it.",
+					"While a feature is on, its row says what it holds: how many reviews are set up, how many people watch goals here, or when the wrap-up opens and, while it is open, how many goals are wrapped up.",
+					"Switching off a feature that keeps something asks first: Reviews always, Watching when anyone watches a goal, the Wrap-up once a wrap-up is written or while it is open. Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, how many accepted risks stay on their goals (no new one can be accepted while it is off), that check-ins are still due by the same day, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching anything else off that keeps nothing, or anything on, acts at once.",
+					"Switching Watching off says that the Watching tab, “Goals you watch” and the Watch button go; how many people’s watches are kept (nobody is shown as watching while it is off); how many people own no goal and see Home through what they watch, whose Home then shows every goal that needs attention; and that goals don’t change. Switch it back on and each person watches what they did.",
+					"Switching the Wrap-up off says that owners aren’t asked how their goals landed (and, while it is open, how many goals won’t be asked for), that the wrap-ups already written stay in each goal’s History, and that the year still ends: results are worked out as before, and an admin starts the next year from Cycles.",
+					"Switching Feedback off takes Feedback out of the menu, with Send feedback and Mark up this screen, and Ctrl+Shift+M does nothing. What was sent stays in the builders’ inbox. Switching the Goal map off takes Map out of Goals’ layouts: a link or saved view that asked for the Map opens the List and says so once.",
 					"Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.",
 					"With Reviews off, asks and next steps stay on their goals and on Home, each goal’s History and Activity keep what was said in reviews, and check-ins are still due by the same day. “Before the review” becomes “by Thursday” (or whichever day it is) on Home, in the check-in and in the count of goals checked in on time.",
 					"With Reviews off, a spreadsheet you export has no Notes sheet and no Review column on Asks. A workbook that has them still loads; the preview says once that they were not read. An AI assistant’s review tools answer that Reviews is switched off here, in the same words as any switched-off tool.",
@@ -20182,7 +20540,12 @@ var CORE_ARTICLES = [
 		reqs: [
 			"MODULES",
 			"REVIEWS-OPTIONAL",
-			"REVIEWS-SWITCH-CLOCK"
+			"REVIEWS-SWITCH-CLOCK",
+			"WATCHING-OPTIONAL",
+			"FEEDBACK-OPTIONAL",
+			"MAP-OPTIONAL",
+			"WRAP-UP-OPTIONAL",
+			"FEATURE-GROUPS"
 		],
 		keywords: [
 			"features",
@@ -20193,7 +20556,12 @@ var CORE_ARTICLES = [
 			"enable",
 			"spreadsheets",
 			"reviews",
-			"how you work",
+			"watching",
+			"wrap-up",
+			"goal map",
+			"feedback",
+			"working together",
+			"beyond this workspace",
 			"tools",
 			"optional",
 			"workspace settings",
@@ -20340,150 +20708,6 @@ var CORE_ARTICLES = [
 			"workspace",
 			"settings",
 			"export"
-		]
-	},
-	{
-		id: "feedback",
-		title: "Send feedback, and marking up a screen",
-		summary: "Tell the people building Faro what should change: mark up the screen you’re on, or say in a few words how the app is working for you.",
-		group: "you",
-		sections: [
-			{
-				heading: "How to use it",
-				list: [
-					"Go to Feedback (in the menu’s last group, or in More on a phone) and choose Send feedback. Its first choice is Mark up the last screen: it takes you back to the page you came from and keeps a picture of it. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) marks up the screen you’re on from anywhere.",
-					"The screen you’re on is kept as a still picture, and a slim toolbar appears. Draw on the picture with the Pen, an Arrow or a Box, or put down a numbered Note with a few words. Undo takes back the last mark, Clear removes them all, and Cancel (or Escape) stops without sending anything.",
-					"Next asks one thing: what should change. You can also say how the app is working for you. It shows the exact picture that will be sent, with your marks. Go Back to change it, or Cancel.",
-					"Send. “Sent. You’ll hear when it’s fixed.” When a release fixes it, its entry in What’s new says “You raised this”.",
-					"Or skip the picture: choose how it’s working and add a few words, as before. It goes to the same inbox as markups, where the people building Faro mark it in hand, fixed or won’t fix. When a release fixes it, its entry in What’s new says “You raised this” too."
-				]
-			},
-			{
-				heading: "With the keyboard",
-				list: ["Tab to the drawing area. The arrow keys move a crosshair (with Shift, further), Enter starts and ends a mark, and P, A, B and N choose Pen, Arrow, Box and Note.", "Ctrl+Z takes back the last mark. Escape stops the mark you’re making, or else cancels."]
-			},
-			{
-				heading: "What’s sent",
-				list: [
-					"The picture of your screen, as it was. Nothing on it is hidden, so check it before you send.",
-					"Your marks, your line, your name, which parts of the screen your marks are on (for example Goal page, Scorecard, Will it hit), the page, your screen size, light or dark, your accent and the app’s version.",
-					"Your last 20 steps on this visit, unless you untick them: the pages you opened and the buttons you pressed, never what you typed. And any errors or saves that didn’t go through on this visit.",
-					"In the demo, markups are sent too, marked as from the demo. Anyone can read them in the inbox on Workspace, picture included: Faro holds no real data, so nothing on your screen should be private."
-				]
-			}
-		],
-		routes: [],
-		screens: [],
-		reqs: ["MARKUP", "FEEDBACK-RAISED"],
-		keywords: [
-			"feedback",
-			"markup",
-			"mark up",
-			"picture",
-			"draw",
-			"shortcut",
-			"ctrl shift m",
-			"report a problem",
-			"what should change",
-			"you raised this"
-		],
-		related: [
-			"inbox",
-			"recording",
-			"help"
-		]
-	},
-	{
-		id: "inbox",
-		title: "The inbox",
-		summary: "Every markup and piece of feedback people send, from every workspace and the demo, on its own page, Feedback, beside Help. Open to anyone with no sign-in: work through it like an inbox, from New to In hand to Closed.",
-		group: "you",
-		sections: [
-			{
-				heading: "Who can read it",
-				list: [
-					"The inbox is its own page, Feedback, beside Help in the sidebar (in More on a phone), in the app and the demo. It was a section of Workspace; it moved because it belongs to no one workspace. Old links to Workspace’s inbox open it.",
-					"It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and send feedback, on any device. Only an admin changes a status (In hand, Fixed, Won’t fix, New again); everyone else sees a line saying so, and no buttons. Every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.",
-					"It names people, never their email. The New tab says how many are new; The New tab counts them across every workspace.",
-					"Send feedback, at the top, opens the feedback sheet; it says which page you came from, and Mark up the last screen goes back to it."
-				]
-			},
-			{
-				heading: "Working through it",
-				list: [
-					"Three tabs: New, In hand and Closed (fixed or won’t fix), each with how many it holds. When New is empty, it says Nothing new.",
-					"Each row starts with its status as a shape and a word, then what was said, the part of the page it’s about (or, for feedback, its mood and page), who sent it, from where and when.",
-					"Markups about the same part of the same page are folded into one row that says how many (“6 on this part”). Open it to see each one; whatever you do to the row happens to all of them.",
-					"Find things with the search (what was said, the part, the page or who sent it). Kind (markups or feedback) sits beside it on a computer; Filters holds the page and who sent it (type a name to find them), and on a phone the kind too. The line under the search counts what matches and says the filters in words, each with Remove; the address keeps the search and the filters, so Back and a shared link show the same list.",
-					"On a computer the list and the open item sit side by side. Keys: J and K move down and up the list, I marks the open item in hand, F opens Mark fixed, W opens Won’t fix.",
-					"On a phone you see one item at a time: Next goes on to the next, and Back to the list returns.",
-					"Once you handle an item and it leaves the tab, the next one opens. Undo, at the top, puts back what you just changed.",
-					"Tick rows (or Select this page) to change a batch at once: Mark in hand, Mark fixed in a What’s new entry, Won’t fix with one reason, or Mark new again. A page shows 25 rows."
-				]
-			},
-			{
-				heading: "A markup",
-				list: [
-					"Open one to see its picture (hide the drawing to see the screen beneath), the parts its marks are on, its notes, the steps before it as a timeline, any errors, and where it was sent from.",
-					"Mark it in hand. Open GitHub issue opens a new issue on GitHub filled in with the line, the page, the parts, the steps and a link back here: press Submit there, then paste the issue’s address back with Paste issue link.",
-					"Mark it fixed in a What’s new entry, so its sender sees “You raised this” there; or say why it won’t be fixed.",
-					"Each change says who made it (you, as you chose on this device) and when."
-				]
-			},
-			{
-				heading: "Connect Claude",
-				list: [
-					"Connect Claude opens from the top of the inbox. Any Faro token works. An admin makes one there (in the app, not the demo); anyone else asks an admin. Then copy the set-up: for a Claude cloud session, the host and where the token goes; for Claude Code, one command.",
-					"Claude then reviews the inbox in one step, with review_inbox: new markups grouped by the part of the screen they’re about, each with its picture, and new feedback by page. It sees the pictures without opening anything. Its changes say they were made by the token’s person, via the AI assistant.",
-					"Connect Claude says whether the server can send Claude the pictures, and if not, why.",
-					"Tokens are listed, and revoked, on Workspace under Access, and yours in Settings."
-				]
-			},
-			{
-				heading: "Feedback",
-				list: ["Feedback sent with a mood and a few words is in the inbox too, among the markups, newest first, with a speech mark where a markup has its picture. Each says it’s feedback, its mood, the page it was sent from, who sent it and from which workspace.", "It has the same statuses and is worked the same way. It has no picture and no GitHub issue. It always arrives as New."]
-			},
-			{
-				heading: "Without a database",
-				text: ["When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them, and this workspace’s feedback. Statuses you give feedback there stay in that browser."]
-			}
-		],
-		routes: [
-			"/feedback",
-			"/workspace/inbox",
-			"/inbox"
-		],
-		screens: ["Feedback"],
-		reqs: [
-			"MARKUP-INBOX",
-			"FEEDBACK-INBOX",
-			"MCP-FEEDBACK",
-			"CONNECT-CLAUDE",
-			"MCP-PICTURES",
-			"INBOX-TRIAGE",
-			"FEEDBACK-PAGE"
-		],
-		keywords: [
-			"inbox",
-			"markups",
-			"triage",
-			"github issue",
-			"undo",
-			"who changed it",
-			"fixed",
-			"won’t fix",
-			"in hand",
-			"feedback",
-			"mood",
-			"connect claude",
-			"token",
-			"review inbox",
-			"pictures"
-		],
-		related: [
-			"feedback",
-			"workspace",
-			"ai-assistants"
 		]
 	},
 	{
@@ -20673,6 +20897,19 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "more-switches",
+		date: "2026-11-13",
+		title: "Watching, the Wrap-up, the Goal map and Feedback can be switched off",
+		points: [
+			"Features is in groups, and says what each feature holds: Working together (Reviews, Watching, the Wrap-up), Tools (the Metric library, Spreadsheets, the Goal map) and Beyond this workspace (Feedback). Workspace, Features.",
+			"Watching can be switched off for a workspace. Everyone’s watches are kept for when it comes back; while it is off, someone who owns no goal is led to every goal that needs attention.",
+			"The Wrap-up can be switched off. Nobody is asked how a goal landed, the year still ends, and an admin starts the next one from Cycles.",
+			"The Goal map and Feedback can be switched off too. A saved view that opened the Map opens the List and says so; what was sent as feedback stays with the people who build Faro.",
+			"Before Watching or the Wrap-up goes off, Faro says what stays, and Undo brings it straight back."
+		],
+		articles: ["features"]
+	},
 	{
 		id: "reviews-switch-clock",
 		date: "2026-11-13",
@@ -22285,7 +22522,7 @@ init_removal();
 init_via();
 /** A status as the assistant reads it: the words people see, with the code beside them. */
 var said = (k) => withCode(STATUS[k]);
-var str$7 = (description, extra = {}) => ({
+var str$10 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -22564,7 +22801,11 @@ var WORK_TOOLS = [
 					of: x.total
 				};
 			});
-			const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today, { reviews: reviewsHere });
+			const on = modulesOn(ctx.ws).on;
+			const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today, {
+				reviews: reviewsHere,
+				watching: watchingOn(on)
+			});
 			const wp = weekProgress(me, s, ctx.cycle, ctx.week, ctx.today);
 			const rf = weekCompletion(wp).complete ? receiptFacts(wp, me, s, ctx.cycle, ctx.week, dueWordsHere(reviewsHere, s, ctx.cycle, ctx.week, me)) : null;
 			const weekReceipt = rf ? {
@@ -22586,7 +22827,7 @@ var WORK_TOOLS = [
 				},
 				onTimeStreakWeeks: d.streak,
 				weekReceipt,
-				watching: d.watching ? {
+				...watchingOn(on) ? { watching: d.watching ? {
 					goals: d.watching.all.length,
 					needAttention: d.watching.needs.map((a) => a.goal.title),
 					beingHandled: d.watching.handled.map((a) => ({
@@ -22594,7 +22835,7 @@ var WORK_TOOLS = [
 						inHand: a.handled.text
 					})),
 					noRecentUpdate: d.watching.quiet.length
-				} : null,
+				} : null } : {},
 				...reviewsHere ? { nextReview: d.next ? {
 					id: d.next.id,
 					name: d.next.name,
@@ -22615,7 +22856,7 @@ var WORK_TOOLS = [
 					yourActions: actions,
 					proposedGoals: proposedForYou,
 					...reviewsHere ? { yourReviews: reviews } : {},
-					wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today)
+					...wrapUpOn(on) ? { wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today) } : {}
 				},
 				text: [
 					`Week ${ctx.week} for ${ctx.actor.name}.`,
@@ -22641,20 +22882,20 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$7(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
+				status: str$10(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
 					"open",
 					"answered",
 					"done",
 					"withdrawn"
 				])}, or all.`),
-				kind: str$7("Only one kind.", { enum: [
+				kind: str$10("Only one kind.", { enum: [
 					"decision",
 					"update",
 					"question",
 					"action"
 				] }),
 				for_me: bool$1("Only asks waiting on you (or asked of anyone)."),
-				goal_id: str$7("Only asks on a goal (its ID or key).")
+				goal_id: str$10("Only asks on a goal (its ID or key).")
 			}
 		},
 		annotations: READ$4,
@@ -22667,31 +22908,6 @@ var WORK_TOOLS = [
 				"withdrawn"
 			])}, or all.`);
 			return listed({ requests: asksOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.kind || r.kind === a.kind).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(goalOf$2(ctx, a.goal_id).id)).map((r) => requestData(ctx, r)) });
-		}
-	},
-	{
-		name: "list_watching",
-		title: "What you watch",
-		description: "Your watches (a goal, a goal and everything feeding it, or a whole level) and the goals they cover.",
-		inputSchema: {
-			type: "object",
-			properties: {},
-			additionalProperties: false
-		},
-		annotations: READ$4,
-		async run(_a, ctx) {
-			return listed({
-				watches: ctx.snapshot.watches.filter((w) => w.personId === ctx.actor.id).map((w) => ({
-					id: w.id,
-					kind: w.kind,
-					ref: w.ref,
-					what: w.kind === "level" ? `every ${w.ref} goal` : ctx.snapshot.goals.find((g) => g.id === w.ref)?.title ?? w.ref
-				})),
-				goals: watchedGoals(ctx.actor.id, ctx.snapshot).map((g) => ({
-					id: g.id,
-					title: g.title
-				}))
-			});
 		}
 	},
 	{
@@ -22737,7 +22953,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				query: str$7("An Activity link’s query string."),
+				query: str$10("An Activity link’s query string."),
 				limit: int$3("How many changes, newest first (default 50, at most 500).")
 			}
 		},
@@ -22818,46 +23034,6 @@ var WORK_TOOLS = [
 		}
 	},
 	{
-		name: "get_wrap_up",
-		title: "The cycle’s wrap-up",
-		description: "At the end of a cycle: which goals are wrapped up (result, what was learned, carry on or stop) and which are still to do.",
-		inputSchema: {
-			type: "object",
-			properties: {},
-			additionalProperties: false
-		},
-		annotations: READ$4,
-		async run(_a, ctx) {
-			const retros = ctx.snapshot.retros ?? [];
-			const list = ctx.snapshot.goals.map((g) => {
-				const r = retros.find((x) => x.goalId === g.id);
-				return {
-					id: g.id,
-					title: g.title,
-					owner: name$1(ctx, g.ownerId),
-					wrappedUp: !!r,
-					result: r?.result ?? null,
-					learned: r?.learned ?? null,
-					next: r?.next ?? null
-				};
-			});
-			const open = wrapUpOpenOn(ctx.cycle, ctx.today);
-			const d = cycleDates(ctx.cycle);
-			const when = cycleState(ctx.cycle, ctx.today) === "closed" ? `The wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : open ? `Wrap-up is open until ${dayWithYear(d.wrapUpCloses)}.` : `Wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`;
-			return {
-				data: {
-					open,
-					opensWeek: ctx.cycle.weeks - 1,
-					opens: d.wrapUpOpens,
-					lastDay: d.lastDay,
-					closes: d.wrapUpCloses,
-					goals: list
-				},
-				text: `${when} ${list.filter((g) => g.wrappedUp).length} of ${list.length} goals wrapped up.`
-			};
-		}
-	},
-	{
 		name: "get_help",
 		title: "Help: what the app does",
 		description: "The app’s own guide, the same as its Help pages: one article per screen or feature, saying what it is for, how to use it and who can. Give an article’s id for the whole article, or a search for the articles that match; with neither, every article’s id, title and summary.",
@@ -22865,8 +23041,8 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				id: str$7("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
-				search: str$7("Words to look for, e.g. \"plan change reason\". Every word must appear.")
+				id: str$10("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
+				search: str$10("Words to look for, e.g. \"plan change reason\". Every word must appear.")
 			}
 		},
 		annotations: READ$4,
@@ -22945,7 +23121,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				since: str$7("Only entries on or after this date (yyyy-mm-dd)."),
+				since: str$10("Only entries on or after this date (yyyy-mm-dd)."),
 				limit: int$3("How many entries, newest first (default all).")
 			}
 		},
@@ -22979,8 +23155,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "answer"],
 			properties: {
-				request_id: str$7("The ask’s ID, from list_requests or get_my_work."),
-				answer: str$7("The answer, decision or help offered.")
+				request_id: str$10("The ask’s ID, from list_requests or get_my_work."),
+				answer: str$10("The answer, decision or help offered.")
 			}
 		},
 		annotations: WRITE$2,
@@ -22998,8 +23174,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$7("The action’s ID, from list_requests (kind action) or get_my_work."),
-				note: str$7("Optional: what was done.")
+				request_id: str$10("The action’s ID, from list_requests (kind action) or get_my_work."),
+				note: str$10("Optional: what was done.")
 			}
 		},
 		annotations: WRITE$2,
@@ -23016,8 +23192,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "question"],
 			properties: {
-				goal_id: str$7("The goal’s ID or its key, e.g. G-12."),
-				question: str$7("The question.")
+				goal_id: str$10("The goal’s ID or its key, e.g. G-12."),
+				question: str$10("The question.")
 			}
 		},
 		annotations: WRITE$2,
@@ -23035,8 +23211,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "goal_id"],
 			properties: {
-				request_id: str$7("The request’s ID."),
-				goal_id: str$7("The goal that waits on it (its ID or key).")
+				request_id: str$10("The request’s ID."),
+				goal_id: str$10("The goal that waits on it (its ID or key).")
 			}
 		},
 		annotations: WRITE$2,
@@ -23053,8 +23229,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$7("The ask’s ID."),
-				goal_id: str$7("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
+				request_id: str$10("The ask’s ID."),
+				goal_id: str$10("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
 			}
 		},
 		annotations: WRITE$2,
@@ -23071,7 +23247,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$7("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$10("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: {
 			...WRITE$2,
@@ -23090,7 +23266,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$7("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$10("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: WRITE$2,
 		async run(a, ctx) {
@@ -23110,9 +23286,9 @@ var WORK_TOOLS = [
 				"who"
 			],
 			properties: {
-				goal_id: str$7("The goal’s ID or its key, e.g. G-12."),
-				text: str$7("What needs doing."),
-				who: str$7("Who does it (name or ID)."),
+				goal_id: str$10("The goal’s ID or its key, e.g. G-12."),
+				text: str$10("What needs doing."),
+				who: str$10("Who does it (name or ID)."),
 				due_week: int$3("The week it’s due by.")
 			}
 		},
@@ -23134,9 +23310,9 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["call_id", "text"],
 			properties: {
-				call_id: str$7("Its ID, from get_review."),
-				text: str$7("The new wording."),
-				who: str$7("Actions: who does it."),
+				call_id: str$10("Its ID, from get_review."),
+				text: str$10("The new wording."),
+				who: str$10("Actions: who does it."),
 				due_week: int$3("Actions: the week it’s due by (0 for none).")
 			}
 		},
@@ -23164,47 +23340,6 @@ var WORK_TOOLS = [
 		}
 	},
 	{
-		name: "watch",
-		title: "Watch goals",
-		description: "Watch a goal, a goal and everything feeding it, or every goal at a level. Watched goals are on the Watching page and in get_my_work.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["kind", "ref"],
-			properties: {
-				kind: str$7("What to watch.", { enum: [
-					"goal",
-					"tree",
-					"level"
-				] }),
-				ref: str$7("A goal’s ID or key (G-12), or a level (north-star, svp, team).")
-			}
-		},
-		annotations: {
-			...WRITE$2,
-			idempotentHint: true
-		},
-		async run(a, ctx) {
-			const ref = a.kind === "level" ? String(a.ref ?? "") : goalOf$2(ctx, a.ref).id;
-			return save$2(ctx, watch(ax$2(ctx), a.kind, ref), `Watching ${a.kind === "level" ? `every ${ref} goal` : goalOf$2(ctx, ref).title}`, "Already watching that.");
-		}
-	},
-	{
-		name: "unwatch",
-		title: "Stop watching",
-		description: "Stop one of your watches: the goals it covered leave your Watching page.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["watch_id"],
-			properties: { watch_id: str$7("The watch’s ID, from list_watching.") }
-		},
-		annotations: WRITE$2,
-		async run(a, ctx) {
-			return save$2(ctx, unwatch(ax$2(ctx), String(a.watch_id ?? "")), "Stopped watching", "");
-		}
-	},
-	{
 		name: "save_person",
 		title: "Add or change a person",
 		description: "Admins: add someone to the workspace, or change their name, email, job title, team or admin rights. There’s always at least one admin. Without person_id it adds a new person, who needs an email.",
@@ -23212,11 +23347,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				person_id: str$7("The person to change (their ID or email). Leave out to add someone."),
-				name: str$7("Their full name."),
-				email: str$7("Their email: required for someone new."),
-				job_title: str$7("Their job title."),
-				team: str$7("Their team (name or ID); empty string for none."),
+				person_id: str$10("The person to change (their ID or email). Leave out to add someone."),
+				name: str$10("Their full name."),
+				email: str$10("Their email: required for someone new."),
+				job_title: str$10("Their job title."),
+				team: str$10("Their team (name or ID); empty string for none."),
 				admin: bool$1("Whether they’re an admin.")
 			}
 		},
@@ -23238,49 +23373,6 @@ var WORK_TOOLS = [
 				...await save$2(ctx, savePerson(ax$2(ctx), p, before), before ? `Changed ${p.name}` : `Added ${p.name} (ID ${p.id})`, "Nothing to change: it already says that."),
 				data: { id: p.id }
 			};
-		}
-	},
-	{
-		name: "wrap_up_goal",
-		title: "Wrap up a goal",
-		description: "In the last two weeks of a cycle, the goal’s owner (or an admin) says how it landed, what was learned, and whether it carries on into the next cycle. Can be changed until the next cycle starts.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: [
-				"goal_id",
-				"result",
-				"learned",
-				"next"
-			],
-			properties: {
-				goal_id: str$7("The goal’s ID or its key, e.g. G-12."),
-				result: str$7("How it landed.", { enum: [
-					"hit",
-					"partly",
-					"missed"
-				] }),
-				learned: str$7("One thing worth knowing next time (a sentence)."),
-				next: str$7("Next cycle.", { enum: ["carry", "stop"] })
-			}
-		},
-		annotations: {
-			...WRITE$2,
-			idempotentHint: true
-		},
-		async run(a, ctx) {
-			const g = goalOf$2(ctx, a.goal_id);
-			if (![
-				"hit",
-				"partly",
-				"missed"
-			].includes(String(a.result))) throw new Error("result is hit, partly or missed.");
-			if (!["carry", "stop"].includes(String(a.next))) throw new Error("next is carry or stop.");
-			return save$2(ctx, saveRetro(ax$2(ctx), g, {
-				result: a.result,
-				learned: String(a.learned ?? ""),
-				next: a.next
-			}), `Wrapped up ${g.title}`, "");
 		}
 	},
 	{
@@ -23333,9 +23425,9 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "query"],
 			properties: {
-				view_id: str$7("The view to change."),
-				name: str$7("Its name."),
-				query: str$7("The Goals query, e.g. \"status=off,risk&sort=gap\".")
+				view_id: str$10("The view to change."),
+				name: str$10("Its name."),
+				query: str$10("The Goals query, e.g. \"status=off,risk&sort=gap\".")
 			}
 		},
 		annotations: WRITE$2,
@@ -23360,16 +23452,16 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "table"],
 			properties: {
-				view_id: str$7("The saved layout to change."),
-				name: str$7("Its name."),
-				table: str$7("Which data table.", { enum: TABLE_ORDER }),
+				view_id: str$10("The saved layout to change."),
+				name: str$10("Its name."),
+				table: str$10("Which data table.", { enum: TABLE_ORDER }),
 				columns: ids$2("The columns to show, in order, by their names as the table heads them (e.g. \"Key\", \"Owner\", \"Status\"). Leave out for the usual columns."),
 				widths: {
 					type: "object",
 					additionalProperties: { type: "number" },
 					description: `Column widths in pixels by column name, e.g. {"Owner": 200}. Kept between each column’s least width (56 to 120) and 640.`
 				},
-				query: str$7("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
+				query: str$10("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
 			}
 		},
 		annotations: WRITE$2,
@@ -23394,7 +23486,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["view_id"],
-			properties: { view_id: str$7("The view’s ID, from list_views.") }
+			properties: { view_id: str$10("The view’s ID, from list_views.") }
 		},
 		annotations: {
 			...WRITE$2,
@@ -23414,7 +23506,7 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["view_id", "pinned"],
 			properties: {
-				view_id: str$7("The view’s ID."),
+				view_id: str$10("The view’s ID."),
 				pinned: bool$1("True to pin it for everyone, false to stop.")
 			}
 		},
@@ -23435,8 +23527,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["person", "name"],
 			properties: {
-				person: str$7("Who it acts as (name or ID)."),
-				name: str$7("What it’s for, e.g. \"Claude on Maya’s laptop\".")
+				person: str$10("Who it acts as (name or ID)."),
+				name: str$10("What it’s for, e.g. \"Claude on Maya’s laptop\".")
 			}
 		},
 		annotations: WRITE$2,
@@ -23464,7 +23556,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["token_id"],
-			properties: { token_id: str$7("The token’s ID, from list_tokens.") }
+			properties: { token_id: str$10("The token’s ID, from list_tokens.") }
 		},
 		annotations: {
 			...WRITE$2,
@@ -23476,28 +23568,6 @@ var WORK_TOOLS = [
 		}
 	},
 	{
-		name: "send_feedback",
-		title: "Send feedback about the app",
-		description: "Feedback about the app itself, for the people who build it: how it felt and what happened.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["mood", "text"],
-			properties: {
-				mood: str$7("How it felt.", { enum: [
-					"good",
-					"meh",
-					"bad"
-				] }),
-				text: str$7("What happened, or what would help.")
-			}
-		},
-		annotations: WRITE$2,
-		async run(a, ctx) {
-			return save$2(ctx, sendFeedback(ax$2(ctx), a.mood, String(a.text ?? ""), "mcp"), "Sent the feedback", "");
-		}
-	},
-	{
 		name: "rename_workspace",
 		title: "Rename the workspace",
 		description: "Admins: give the workspace a new name (up to 80 characters). Everyone sees the new name; the change is logged.",
@@ -23505,7 +23575,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["name"],
-			properties: { name: str$7("The new name.") }
+			properties: { name: str$10("The new name.") }
 		},
 		annotations: {
 			...WRITE$2,
@@ -23548,7 +23618,7 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["feature", "on"],
 			properties: {
-				feature: str$7("The feature’s id.", { enum: MODULES.map((m) => m.id) }),
+				feature: str$10("The feature’s id.", { enum: MODULES.map((m) => m.id) }),
 				on: bool$1("true to switch it on, false to switch it off.")
 			}
 		},
@@ -23580,10 +23650,10 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name"],
 			properties: {
-				team: str$7("The team to change (name or ID). Leave out to add a team."),
-				name: str$7("The team’s name."),
-				lead: str$7("The team lead (a person’s name or ID); empty string for none."),
-				purpose: str$7("What the team is here to do, in a sentence or two; empty string to clear it. Leave out to keep it.")
+				team: str$10("The team to change (name or ID). Leave out to add a team."),
+				name: str$10("The team’s name."),
+				lead: str$10("The team lead (a person’s name or ID); empty string for none."),
+				purpose: str$10("What the team is here to do, in a sentence or two; empty string to clear it. Leave out to keep it.")
 			}
 		},
 		annotations: WRITE$2,
@@ -23611,8 +23681,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["team"],
 			properties: {
-				team: str$7("The team to remove (name or ID)."),
-				move_to: str$7("Where its people and goals go (a team’s name or ID).")
+				team: str$10("The team to remove (name or ID)."),
+				move_to: str$10("Where its people and goals go (a team’s name or ID).")
 			}
 		},
 		annotations: {
@@ -23637,7 +23707,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["confirm_name"],
-			properties: { confirm_name: str$7("The workspace’s exact name.") }
+			properties: { confirm_name: str$10("The workspace’s exact name.") }
 		},
 		annotations: {
 			readOnlyHint: false,
@@ -23657,6 +23727,368 @@ var WORK_TOOLS = [
 	}
 ];
 WORK_TOOLS.filter((t) => t.annotations.readOnlyHint).map((t) => t.name);
+// src/mcp/removeTools.ts
+init_actions();
+init_goalKey();
+init_proposed();
+init_removal();
+init_status();
+init_vocabulary();
+init_via();
+var str$9 = (description, extra = {}) => ({
+	type: "string",
+	description,
+	...extra
+});
+var int$2 = (description) => ({
+	type: "integer",
+	description
+});
+var REMOVE = {
+	readOnlyHint: false,
+	destructiveHint: true,
+	idempotentHint: false,
+	openWorldHint: false
+};
+var WRITE$1 = {
+	readOnlyHint: false,
+	destructiveHint: false,
+	idempotentHint: false,
+	openWorldHint: false
+};
+var VIA$1 = VIA_MCP;
+/** The kinds restore_removed takes: the core's, and each feature module's removable records (domain/records). */
+var KINDS = removedKinds(MODULE_RECORDS);
+var ax$1 = (ctx) => ({
+	snapshot: ctx.snapshot,
+	cycle: ctx.cycle,
+	week: ctx.week,
+	actor: ctx.actor,
+	now: ctx.now,
+	newId: ctx.newId,
+	...ctx.allGoals ? { allGoals: ctx.allGoals } : {},
+	...ctx.full ? { full: ctx.full } : {},
+	records: MODULE_RECORDS
+});
+async function save$1(ctx, c, done) {
+	await ctx.save({
+		...c,
+		changes: c.changes.map((x) => ({
+			...x,
+			diffs: [...x.diffs, VIA$1]
+		}))
+	});
+	return { text: `${done} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
+}
+var goalOf$1 = (ctx, id) => {
+	const g = findGoal(withProposed(ctx.snapshot), String(id ?? ""));
+	if (!g) throw new Error(`There’s no live goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
+	return g;
+};
+/** A person here now, by ID or by name. */
+var personOf$1 = (ctx, ref) => {
+	const t = String(ref ?? "").trim().toLowerCase();
+	const p = ctx.snapshot.people.find((x) => x.id === ref) ?? ctx.snapshot.people.find((x) => x.name.toLowerCase() === t) ?? ctx.snapshot.people.filter((x) => x.name.toLowerCase().startsWith(t)).at(0);
+	if (!t || !p) throw new Error(`There’s no one called ${String(ref)} in this workspace. Use list_people.`);
+	return p;
+};
+var optPerson = (ctx, ref) => ref == null || ref === "" ? null : personOf$1(ctx, ref).id;
+var REMOVE_TOOLS = [
+	{
+		name: "list_removed",
+		title: "Recently removed",
+		description: "Everything removed in the last 30 days, newest first: people who left or were deleted, deleted and stopped goals, deleted check-ins, ended and deleted reviews, removed comments and review notes, deleted saved views, stopped watches and deleted cycles. Admins see everything; anyone else sees what they removed. Each has a kind and an ID for restore_removed.",
+		inputSchema: {
+			type: "object",
+			properties: {},
+			additionalProperties: false
+		},
+		annotations: {
+			readOnlyHint: true,
+			openWorldHint: false
+		},
+		async run(_a, ctx) {
+			const all = recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, void 0, recordsOn(ctx.ws)).filter((r) => canRestore(ctx.actor, r));
+			const who = (id) => (ctx.full ?? ctx.snapshot).people.find((p) => p.id === id)?.name ?? "—";
+			return listed({ removed: all.map((r) => ({
+				kind: r.kind,
+				label: r.label,
+				id: r.id,
+				name: r.name,
+				removedBy: who(r.by),
+				at: r.at
+			})) });
+		}
+	},
+	{
+		name: "restore_removed",
+		title: "Restore something removed",
+		description: "Bring back something from list_removed: an admin, or whoever removed it. It comes back as it was; what was handed over or moved when it went stays where it is now.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["kind", "id"],
+			properties: {
+				kind: str$9("Its kind, from list_removed.", { enum: KINDS }),
+				id: str$9("Its ID, from list_removed.")
+			}
+		},
+		annotations: WRITE$1,
+		async run(a, ctx) {
+			if (!KINDS.includes(String(a.kind))) throw new Error(`kind is one of ${KINDS.join(", ")}.`);
+			const c = restoreRemoved(ax$1(ctx), String(a.kind), String(a.id ?? ""), recordsOn(ctx.ws));
+			await ctx.save({
+				...c,
+				changes: c.changes.map((x) => ({
+					...x,
+					diffs: [...x.diffs, VIA$1]
+				}))
+			});
+			return { text: `${c.changes[0]?.summary ?? "Restored"} (as ${ctx.actor.name}).` };
+		}
+	},
+	{
+		name: "mark_person_left",
+		title: "Mark someone as left",
+		description: "Admins: mark someone as left the workspace. Their goals in this cycle go to goals_to and the open asks they raised or must answer go to asks_to (both required when they have any); they leave their reviews, and teams they led pass to goals_to. They vanish from pickers, counts, reviews and Home; history keeps their name as “Name (left)”. Someone with no history at all is deleted instead: use delete_person.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["person"],
+			properties: {
+				person: str$9("Their ID or full name."),
+				goals_to: str$9("Who takes over their goals: an ID or full name."),
+				asks_to: str$9("Who takes over their open asks: an ID or full name.")
+			}
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const p = personOf$1(ctx, a.person);
+			return save$1(ctx, markPersonLeft(ax$1(ctx), p.id, {
+				goalsTo: optPerson(ctx, a.goals_to),
+				asksTo: optPerson(ctx, a.asks_to)
+			}), `Marked ${p.name} as left`);
+		}
+	},
+	{
+		name: "delete_person",
+		title: "Delete someone with no history",
+		description: "Admins: delete someone who has no history here (no goals, check-ins, notes or asks), say someone added by mistake. Anyone with history is marked as left instead (mark_person_left).",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["person"],
+			properties: { person: str$9("Their ID or full name.") }
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const p = personOf$1(ctx, a.person);
+			return save$1(ctx, deletePerson(ax$1(ctx), p.id), `Deleted ${p.name}`);
+		}
+	},
+	{
+		name: "stop_goal",
+		title: "Stop a goal",
+		description: "The goal’s owner or an admin: stop a goal that has check-ins, mid-cycle, with a reason. It leaves stats, reviews, Home, Watching and attention lists, but stays in its history, on its page (marked Stopped), in exports and in Activity. The goals feeding it move up to what it fed; its open asks are withdrawn with a note. A goal with no check-ins is deleted instead (delete_goal).",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["goal_id", "reason"],
+			properties: {
+				goal_id: str$9("The goal’s ID or key, e.g. G-12."),
+				reason: str$9("Why it’s stopping, in a sentence (10 characters or more).")
+			}
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const g = goalOf$1(ctx, a.goal_id);
+			return save$1(ctx, stopGoal(ax$1(ctx), g.id, String(a.reason ?? "")), `Stopped ${g.title}`);
+		}
+	},
+	{
+		name: "delete_goal",
+		title: "Delete a goal with no check-ins",
+		description: "The goal’s owner or an admin: delete a goal that has no check-ins (set up by mistake). The goals feeding it move up to what it fed; its open asks are withdrawn. A goal with check-ins is stopped instead (stop_goal), so its history stays.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["goal_id"],
+			properties: { goal_id: str$9("The goal’s ID or key, e.g. G-12.") }
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const g = goalOf$1(ctx, a.goal_id);
+			return save$1(ctx, deleteGoal(ax$1(ctx), g.id), `Deleted ${g.title}`);
+		}
+	},
+	{
+		name: "delete_check_in",
+		title: "Delete a check-in",
+		description: "Whoever posted it, or an admin: delete a goal’s latest check-in. Once a newer one is posted it can only be corrected (post_check_in for that week). The status is worked out again from the one before. Give the check-in’s ID (from get_goal), or the goal and the week.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				check_in_id: str$9("The check-in’s ID, from get_goal."),
+				goal_id: str$9("Or: the goal’s ID or key…"),
+				week: int$2("…and the week of its latest check-in.")
+			}
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			let id = a.check_in_id ? String(a.check_in_id) : "";
+			if (!id) {
+				const g = goalOf$1(ctx, a.goal_id);
+				const c = checkInsFor(g, ctx.snapshot.checkIns).filter((x) => a.week == null || x.week === Number(a.week)).at(-1);
+				if (!c) throw new Error(`${g.title} has no check-in${a.week != null ? ` for week ${String(a.week)}` : ""}.`);
+				id = c.id;
+			}
+			const c = ctx.snapshot.checkIns.find((x) => x.id === id);
+			return save$1(ctx, deleteCheckIn(ax$1(ctx), id), `Deleted the check-in for week ${c?.week ?? "?"}`);
+		}
+	},
+	{
+		name: "edit_comment",
+		title: "Edit a comment or review note",
+		description: "Correct the words of a comment (only whoever wrote it) or of a note said in a review (whoever said it, or an admin). It then shows as edited. Comment IDs are in get_goal’s comments; review notes’ IDs in get_review.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["comment_id", "text"],
+			properties: {
+				comment_id: str$9("The comment’s or note’s ID."),
+				text: str$9("The corrected words.")
+			}
+		},
+		annotations: WRITE$1,
+		async run(a, ctx) {
+			const id = String(a.comment_id ?? "");
+			const note = ctx.snapshot.decisions.find((d) => d.id === id);
+			if (note) {
+				const c = editCall(ax$1(ctx), note, String(a.text ?? ""));
+				if (!c) return { text: "Nothing to change: it already says that." };
+				await ctx.save({
+					...c,
+					changes: c.changes.map((x) => ({
+						...x,
+						diffs: [...x.diffs, VIA$1]
+					}))
+				});
+				return { text: `Corrected the note (as ${ctx.actor.name}).` };
+			}
+			const c = editComment(ax$1(ctx), id, String(a.text ?? ""));
+			if (!c) return { text: "Nothing to change: it already says that." };
+			await ctx.save({
+				...c,
+				changes: c.changes.map((x) => ({
+					...x,
+					diffs: [...x.diffs, VIA$1]
+				}))
+			});
+			return { text: `Edited the comment (as ${ctx.actor.name}).` };
+		}
+	},
+	{
+		name: "delete_comment",
+		title: "Remove a comment or review note",
+		description: `Remove a comment, or a note said in a review: whoever wrote it, or an admin. Its place in the thread then says “${COMMENT_REMOVED}” (or “${NOTE_REMOVED}”), so the thread still reads.`,
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["comment_id"],
+			properties: { comment_id: str$9("The comment’s or note’s ID.") }
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const id = String(a.comment_id ?? "");
+			if (ctx.snapshot.decisions.some((d) => d.id === id)) return save$1(ctx, deleteNote(ax$1(ctx), id), "Removed the note");
+			return save$1(ctx, deleteComment(ax$1(ctx), id), "Removed the comment");
+		}
+	},
+	{
+		name: "delete_cycle",
+		title: "Delete a cycle",
+		description: "Admins: delete a cycle no one has checked in to yet (started by mistake, say), and with it its goals. Not the only cycle.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["cycle_id"],
+			properties: { cycle_id: str$9("The cycle’s ID.") }
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
+			return save$1(ctx, deleteCycle(ax$1(ctx), String(a.cycle_id ?? "")), `Deleted the cycle ${c?.name ?? ""}`);
+		}
+	},
+	{
+		name: "undo_start_cycle",
+		title: "Undo starting the next cycle",
+		description: "Admins: undo start_next_cycle while nobody has used the new cycle (no check-in in it, no goal in it changed). The cycle is removed (listed in Recently removed) and the cycle before is as it was. Ask the person first.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["cycle_id"],
+			properties: { cycle_id: str$9("The started cycle’s ID, from get_workspace.") }
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
+			return save$1(ctx, undoStart(ax$1(ctx), String(a.cycle_id ?? "")), `${c?.name ?? "The cycle"} was undone`);
+		}
+	},
+	{
+		name: "undo_import",
+		title: "Undo an import or bulk edit",
+		description: "Whoever made it, or an admin: put every row an import, bulk edit or bulk_change wrote back as it was. Goals and check-ins it added are deleted; ones it changed get their earlier version back. Rows changed since stay as they are and are listed with why. With dry_run, nothing is saved: it says how many rows would go back and which would stay, so you can tell the person first. Import IDs are in get_activity (kind=imports).",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["import_id"],
+			properties: {
+				import_id: str$9("The import’s ID (imp_…), from get_activity."),
+				dry_run: {
+					type: "boolean",
+					description: "Say what Undo would do without saving anything."
+				}
+			}
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const kept = (k) => ({
+				row: k.name,
+				reason: k.reason,
+				at: k.at
+			});
+			if (a.dry_run === true) {
+				const p = undoPreview(ax$1(ctx), String(a.import_id ?? ""));
+				return {
+					data: {
+						restores: p.restores,
+						skipped: p.skipped.map(kept),
+						saved: false
+					},
+					text: !p.restores ? `Nothing saved. ${nothingToUndo(p.skipped.length)}${p.skipped.length ? ` ${p.skipped.map(keptText).join("; ")}.` : ""}` : `Nothing saved. Undo would put back ${p.restores} ${p.restores === 1 ? "row" : "rows"}.${p.skipped.length ? ` ${p.skipped.length} would stay as they are, because they changed after the import: ${p.skipped.map(keptText).join("; ")}.` : ""}`
+				};
+			}
+			const out = undoImport(ax$1(ctx), String(a.import_id ?? ""));
+			await ctx.save({
+				...out.commit,
+				changes: out.commit.changes.map((x) => ({
+					...x,
+					diffs: [...x.diffs, VIA$1]
+				}))
+			});
+			return {
+				data: {
+					restored: out.restored,
+					skipped: out.skipped.map(kept)
+				},
+				text: `Undid the import (as ${ctx.actor.name}): ${out.restored} ${out.restored === 1 ? "row" : "rows"} put back.${out.skipped.length ? ` Skipped, as changed since: ${out.skipped.map(keptText).join("; ")}.` : ""}`
+			};
+		}
+	}
+];
 // src/markup/model.ts
 /** The words for each status. A status is always shown as its shape and this word together. */
 var STATUS_WORD = {
@@ -23957,7 +24389,7 @@ function markupOps(o) {
 	};
 }
 // src/mcp/markupTools.ts
-var str$6 = (description, extra = {}) => ({
+var str$8 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -24022,8 +24454,8 @@ var MARKUP_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$6("Only markups with this status.", { enum: STATUSES$1 }),
-				workspace: str$6("Only this workspace’s (its id)."),
+				status: str$8("Only markups with this status.", { enum: STATUSES$1 }),
+				workspace: str$8("Only this workspace’s (its id)."),
 				limit: {
 					type: "integer",
 					description: "At most this many (default 50)."
@@ -24059,8 +24491,8 @@ var MARKUP_TOOLS = [
 			additionalProperties: false,
 			required: ["id"],
 			properties: {
-				id: str$6("The markup’s id (mk_…), from list_markups or review_inbox."),
-				picture: str$6("Which picture to send: marked (the screen with the drawing, the default), screen (the screen alone) or none.", { enum: Object.keys(PICTURE_NAMES) })
+				id: str$8("The markup’s id (mk_…), from list_markups or review_inbox."),
+				picture: str$8("Which picture to send: marked (the screen with the drawing, the default), screen (the screen alone) or none.", { enum: Object.keys(PICTURE_NAMES) })
 			}
 		},
 		annotations: READ$3,
@@ -24109,8 +24541,8 @@ var MARKUP_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$6("Review markups and feedback with this status instead of new.", { enum: STATUSES$1 }),
-				workspace: str$6("Only this workspace’s (its id)."),
+				status: str$8("Review markups and feedback with this status instead of new.", { enum: STATUSES$1 }),
+				workspace: str$8("Only this workspace’s (its id)."),
 				pictures: {
 					type: "integer",
 					description: "How many groups get a picture (default 6, at most 12; 0 for none)."
@@ -24207,11 +24639,11 @@ var MARKUP_TOOLS = [
 			additionalProperties: false,
 			required: ["id"],
 			properties: {
-				id: str$6("The markup’s id (mk_…)."),
-				status: str$6("Its new status.", { enum: STATUSES$1 }),
-				fixed_in: str$6("With fixed: the What’s new entry’s id that has the fix."),
-				reason: str$6("With wont-fix: why it won’t be fixed."),
-				issue_url: str$6("The GitHub issue’s address, https://github.com/owner/repo/issues/123.")
+				id: str$8("The markup’s id (mk_…)."),
+				status: str$8("Its new status.", { enum: STATUSES$1 }),
+				fixed_in: str$8("With fixed: the What’s new entry’s id that has the fix."),
+				reason: str$8("With wont-fix: why it won’t be fixed."),
+				issue_url: str$8("The GitHub issue’s address, https://github.com/owner/repo/issues/123.")
 			}
 		},
 		annotations: {
@@ -24245,7 +24677,7 @@ var MARKUP_TOOLS = [
 	}
 ];
 // src/mcp/feedbackTools.ts
-var str$5 = (description, extra = {}) => ({
+var str$7 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -24270,8 +24702,8 @@ var FEEDBACK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$5("Only feedback with this status.", { enum: STATUSES$1 }),
-				workspace: str$5("Only this workspace’s (its id)."),
+				status: str$7("Only feedback with this status.", { enum: STATUSES$1 }),
+				workspace: str$7("Only this workspace’s (its id)."),
 				limit: {
 					type: "integer",
 					description: "At most this many (default 50)."
@@ -24322,7 +24754,7 @@ var FEEDBACK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["id"],
-			properties: { id: str$5("The feedback’s id, from list_feedback.") }
+			properties: { id: str$7("The feedback’s id, from list_feedback.") }
 		},
 		annotations: READ$2,
 		async run(a, ctx) {
@@ -24348,10 +24780,10 @@ var FEEDBACK_TOOLS = [
 			additionalProperties: false,
 			required: ["id", "status"],
 			properties: {
-				id: str$5("The feedback’s id."),
-				status: str$5("Its new status.", { enum: STATUSES$1 }),
-				fixed_in: str$5("With fixed: the What’s new entry’s id that has the fix."),
-				reason: str$5("With wont-fix: why it won’t be fixed.")
+				id: str$7("The feedback’s id."),
+				status: str$7("Its new status.", { enum: STATUSES$1 }),
+				fixed_in: str$7("With fixed: the What’s new entry’s id that has the fix."),
+				reason: str$7("With wont-fix: why it won’t be fixed.")
 			}
 		},
 		annotations: {
@@ -24380,365 +24812,36 @@ var FEEDBACK_TOOLS = [
 		}
 	}
 ];
-// src/mcp/removeTools.ts
+// src/modules/feedback/tools.ts
 init_actions();
-init_goalKey();
-init_proposed();
-init_removal();
-init_status();
-init_vocabulary();
-init_via();
-var str$4 = (description, extra = {}) => ({
+var str$6 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
 });
-var int$2 = (description) => ({
-	type: "integer",
-	description
-});
-var REMOVE = {
-	readOnlyHint: false,
-	destructiveHint: true,
-	idempotentHint: false,
-	openWorldHint: false
-};
-var WRITE$1 = {
-	readOnlyHint: false,
-	destructiveHint: false,
-	idempotentHint: false,
-	openWorldHint: false
-};
-var VIA$1 = VIA_MCP;
-/** The kinds restore_removed takes: the core's, and each feature module's removable records (domain/records). */
-var KINDS = removedKinds(MODULE_RECORDS);
-var ax$1 = (ctx) => ({
-	snapshot: ctx.snapshot,
-	cycle: ctx.cycle,
-	week: ctx.week,
-	actor: ctx.actor,
-	now: ctx.now,
-	newId: ctx.newId,
-	...ctx.allGoals ? { allGoals: ctx.allGoals } : {},
-	...ctx.full ? { full: ctx.full } : {},
-	records: MODULE_RECORDS
-});
-async function save$1(ctx, c, done) {
-	await ctx.save({
-		...c,
-		changes: c.changes.map((x) => ({
-			...x,
-			diffs: [...x.diffs, VIA$1]
-		}))
-	});
-	return { text: `${done} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
-}
-var goalOf$1 = (ctx, id) => {
-	const g = findGoal(withProposed(ctx.snapshot), String(id ?? ""));
-	if (!g) throw new Error(`There’s no live goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
-	return g;
-};
-/** A person here now, by ID or by name. */
-var personOf$1 = (ctx, ref) => {
-	const t = String(ref ?? "").trim().toLowerCase();
-	const p = ctx.snapshot.people.find((x) => x.id === ref) ?? ctx.snapshot.people.find((x) => x.name.toLowerCase() === t) ?? ctx.snapshot.people.filter((x) => x.name.toLowerCase().startsWith(t)).at(0);
-	if (!t || !p) throw new Error(`There’s no one called ${String(ref)} in this workspace. Use list_people.`);
-	return p;
-};
-var optPerson = (ctx, ref) => ref == null || ref === "" ? null : personOf$1(ctx, ref).id;
-var REMOVE_TOOLS = [
+var tools$5 = [
+	...MARKUP_TOOLS,
+	...FEEDBACK_TOOLS,
 	{
-		name: "list_removed",
-		title: "Recently removed",
-		description: "Everything removed in the last 30 days, newest first: people who left or were deleted, deleted and stopped goals, deleted check-ins, ended and deleted reviews, removed comments and review notes, deleted saved views, stopped watches and deleted cycles. Admins see everything; anyone else sees what they removed. Each has a kind and an ID for restore_removed.",
-		inputSchema: {
-			type: "object",
-			properties: {},
-			additionalProperties: false
-		},
-		annotations: {
-			readOnlyHint: true,
-			openWorldHint: false
-		},
-		async run(_a, ctx) {
-			const all = recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, void 0, recordsOn(ctx.ws)).filter((r) => canRestore(ctx.actor, r));
-			const who = (id) => (ctx.full ?? ctx.snapshot).people.find((p) => p.id === id)?.name ?? "—";
-			return listed({ removed: all.map((r) => ({
-				kind: r.kind,
-				label: r.label,
-				id: r.id,
-				name: r.name,
-				removedBy: who(r.by),
-				at: r.at
-			})) });
-		}
-	},
-	{
-		name: "restore_removed",
-		title: "Restore something removed",
-		description: "Bring back something from list_removed: an admin, or whoever removed it. It comes back as it was; what was handed over or moved when it went stays where it is now.",
+		name: "send_feedback",
+		title: "Send feedback about the app",
+		description: "Feedback about the app itself, for the people who build it: how it felt and what happened.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
-			required: ["kind", "id"],
+			required: ["mood", "text"],
 			properties: {
-				kind: str$4("Its kind, from list_removed.", { enum: KINDS }),
-				id: str$4("Its ID, from list_removed.")
+				mood: str$6("How it felt.", { enum: [
+					"good",
+					"meh",
+					"bad"
+				] }),
+				text: str$6("What happened, or what would help.")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
-			if (!KINDS.includes(String(a.kind))) throw new Error(`kind is one of ${KINDS.join(", ")}.`);
-			const c = restoreRemoved(ax$1(ctx), String(a.kind), String(a.id ?? ""), recordsOn(ctx.ws));
-			await ctx.save({
-				...c,
-				changes: c.changes.map((x) => ({
-					...x,
-					diffs: [...x.diffs, VIA$1]
-				}))
-			});
-			return { text: `${c.changes[0]?.summary ?? "Restored"} (as ${ctx.actor.name}).` };
-		}
-	},
-	{
-		name: "mark_person_left",
-		title: "Mark someone as left",
-		description: "Admins: mark someone as left the workspace. Their goals in this cycle go to goals_to and the open asks they raised or must answer go to asks_to (both required when they have any); they leave their reviews, and teams they led pass to goals_to. They vanish from pickers, counts, reviews and Home; history keeps their name as “Name (left)”. Someone with no history at all is deleted instead: use delete_person.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["person"],
-			properties: {
-				person: str$4("Their ID or full name."),
-				goals_to: str$4("Who takes over their goals: an ID or full name."),
-				asks_to: str$4("Who takes over their open asks: an ID or full name.")
-			}
-		},
-		annotations: REMOVE,
-		async run(a, ctx) {
-			const p = personOf$1(ctx, a.person);
-			return save$1(ctx, markPersonLeft(ax$1(ctx), p.id, {
-				goalsTo: optPerson(ctx, a.goals_to),
-				asksTo: optPerson(ctx, a.asks_to)
-			}), `Marked ${p.name} as left`);
-		}
-	},
-	{
-		name: "delete_person",
-		title: "Delete someone with no history",
-		description: "Admins: delete someone who has no history here (no goals, check-ins, notes or asks), say someone added by mistake. Anyone with history is marked as left instead (mark_person_left).",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["person"],
-			properties: { person: str$4("Their ID or full name.") }
-		},
-		annotations: REMOVE,
-		async run(a, ctx) {
-			const p = personOf$1(ctx, a.person);
-			return save$1(ctx, deletePerson(ax$1(ctx), p.id), `Deleted ${p.name}`);
-		}
-	},
-	{
-		name: "stop_goal",
-		title: "Stop a goal",
-		description: "The goal’s owner or an admin: stop a goal that has check-ins, mid-cycle, with a reason. It leaves stats, reviews, Home, Watching and attention lists, but stays in its history, on its page (marked Stopped), in exports and in Activity. The goals feeding it move up to what it fed; its open asks are withdrawn with a note. A goal with no check-ins is deleted instead (delete_goal).",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["goal_id", "reason"],
-			properties: {
-				goal_id: str$4("The goal’s ID or key, e.g. G-12."),
-				reason: str$4("Why it’s stopping, in a sentence (10 characters or more).")
-			}
-		},
-		annotations: REMOVE,
-		async run(a, ctx) {
-			const g = goalOf$1(ctx, a.goal_id);
-			return save$1(ctx, stopGoal(ax$1(ctx), g.id, String(a.reason ?? "")), `Stopped ${g.title}`);
-		}
-	},
-	{
-		name: "delete_goal",
-		title: "Delete a goal with no check-ins",
-		description: "The goal’s owner or an admin: delete a goal that has no check-ins (set up by mistake). The goals feeding it move up to what it fed; its open asks are withdrawn. A goal with check-ins is stopped instead (stop_goal), so its history stays.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["goal_id"],
-			properties: { goal_id: str$4("The goal’s ID or key, e.g. G-12.") }
-		},
-		annotations: REMOVE,
-		async run(a, ctx) {
-			const g = goalOf$1(ctx, a.goal_id);
-			return save$1(ctx, deleteGoal(ax$1(ctx), g.id), `Deleted ${g.title}`);
-		}
-	},
-	{
-		name: "delete_check_in",
-		title: "Delete a check-in",
-		description: "Whoever posted it, or an admin: delete a goal’s latest check-in. Once a newer one is posted it can only be corrected (post_check_in for that week). The status is worked out again from the one before. Give the check-in’s ID (from get_goal), or the goal and the week.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			properties: {
-				check_in_id: str$4("The check-in’s ID, from get_goal."),
-				goal_id: str$4("Or: the goal’s ID or key…"),
-				week: int$2("…and the week of its latest check-in.")
-			}
-		},
-		annotations: REMOVE,
-		async run(a, ctx) {
-			let id = a.check_in_id ? String(a.check_in_id) : "";
-			if (!id) {
-				const g = goalOf$1(ctx, a.goal_id);
-				const c = checkInsFor(g, ctx.snapshot.checkIns).filter((x) => a.week == null || x.week === Number(a.week)).at(-1);
-				if (!c) throw new Error(`${g.title} has no check-in${a.week != null ? ` for week ${String(a.week)}` : ""}.`);
-				id = c.id;
-			}
-			const c = ctx.snapshot.checkIns.find((x) => x.id === id);
-			return save$1(ctx, deleteCheckIn(ax$1(ctx), id), `Deleted the check-in for week ${c?.week ?? "?"}`);
-		}
-	},
-	{
-		name: "edit_comment",
-		title: "Edit a comment or review note",
-		description: "Correct the words of a comment (only whoever wrote it) or of a note said in a review (whoever said it, or an admin). It then shows as edited. Comment IDs are in get_goal’s comments; review notes’ IDs in get_review.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["comment_id", "text"],
-			properties: {
-				comment_id: str$4("The comment’s or note’s ID."),
-				text: str$4("The corrected words.")
-			}
-		},
-		annotations: WRITE$1,
-		async run(a, ctx) {
-			const id = String(a.comment_id ?? "");
-			const note = ctx.snapshot.decisions.find((d) => d.id === id);
-			if (note) {
-				const c = editCall(ax$1(ctx), note, String(a.text ?? ""));
-				if (!c) return { text: "Nothing to change: it already says that." };
-				await ctx.save({
-					...c,
-					changes: c.changes.map((x) => ({
-						...x,
-						diffs: [...x.diffs, VIA$1]
-					}))
-				});
-				return { text: `Corrected the note (as ${ctx.actor.name}).` };
-			}
-			const c = editComment(ax$1(ctx), id, String(a.text ?? ""));
-			if (!c) return { text: "Nothing to change: it already says that." };
-			await ctx.save({
-				...c,
-				changes: c.changes.map((x) => ({
-					...x,
-					diffs: [...x.diffs, VIA$1]
-				}))
-			});
-			return { text: `Edited the comment (as ${ctx.actor.name}).` };
-		}
-	},
-	{
-		name: "delete_comment",
-		title: "Remove a comment or review note",
-		description: `Remove a comment, or a note said in a review: whoever wrote it, or an admin. Its place in the thread then says “${COMMENT_REMOVED}” (or “${NOTE_REMOVED}”), so the thread still reads.`,
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["comment_id"],
-			properties: { comment_id: str$4("The comment’s or note’s ID.") }
-		},
-		annotations: REMOVE,
-		async run(a, ctx) {
-			const id = String(a.comment_id ?? "");
-			if (ctx.snapshot.decisions.some((d) => d.id === id)) return save$1(ctx, deleteNote(ax$1(ctx), id), "Removed the note");
-			return save$1(ctx, deleteComment(ax$1(ctx), id), "Removed the comment");
-		}
-	},
-	{
-		name: "delete_cycle",
-		title: "Delete a cycle",
-		description: "Admins: delete a cycle no one has checked in to yet (started by mistake, say), and with it its goals. Not the only cycle.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["cycle_id"],
-			properties: { cycle_id: str$4("The cycle’s ID.") }
-		},
-		annotations: REMOVE,
-		async run(a, ctx) {
-			const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
-			return save$1(ctx, deleteCycle(ax$1(ctx), String(a.cycle_id ?? "")), `Deleted the cycle ${c?.name ?? ""}`);
-		}
-	},
-	{
-		name: "undo_start_cycle",
-		title: "Undo starting the next cycle",
-		description: "Admins: undo start_next_cycle while nobody has used the new cycle (no check-in in it, no goal in it changed). The cycle is removed (listed in Recently removed) and the cycle before is as it was. Ask the person first.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["cycle_id"],
-			properties: { cycle_id: str$4("The started cycle’s ID, from get_workspace.") }
-		},
-		annotations: REMOVE,
-		async run(a, ctx) {
-			const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
-			return save$1(ctx, undoStart(ax$1(ctx), String(a.cycle_id ?? "")), `${c?.name ?? "The cycle"} was undone`);
-		}
-	},
-	{
-		name: "undo_import",
-		title: "Undo an import or bulk edit",
-		description: "Whoever made it, or an admin: put every row an import, bulk edit or bulk_change wrote back as it was. Goals and check-ins it added are deleted; ones it changed get their earlier version back. Rows changed since stay as they are and are listed with why. With dry_run, nothing is saved: it says how many rows would go back and which would stay, so you can tell the person first. Import IDs are in get_activity (kind=imports).",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["import_id"],
-			properties: {
-				import_id: str$4("The import’s ID (imp_…), from get_activity."),
-				dry_run: {
-					type: "boolean",
-					description: "Say what Undo would do without saving anything."
-				}
-			}
-		},
-		annotations: REMOVE,
-		async run(a, ctx) {
-			const kept = (k) => ({
-				row: k.name,
-				reason: k.reason,
-				at: k.at
-			});
-			if (a.dry_run === true) {
-				const p = undoPreview(ax$1(ctx), String(a.import_id ?? ""));
-				return {
-					data: {
-						restores: p.restores,
-						skipped: p.skipped.map(kept),
-						saved: false
-					},
-					text: !p.restores ? `Nothing saved. ${nothingToUndo(p.skipped.length)}${p.skipped.length ? ` ${p.skipped.map(keptText).join("; ")}.` : ""}` : `Nothing saved. Undo would put back ${p.restores} ${p.restores === 1 ? "row" : "rows"}.${p.skipped.length ? ` ${p.skipped.length} would stay as they are, because they changed after the import: ${p.skipped.map(keptText).join("; ")}.` : ""}`
-				};
-			}
-			const out = undoImport(ax$1(ctx), String(a.import_id ?? ""));
-			await ctx.save({
-				...out.commit,
-				changes: out.commit.changes.map((x) => ({
-					...x,
-					diffs: [...x.diffs, VIA$1]
-				}))
-			});
-			return {
-				data: {
-					restored: out.restored,
-					skipped: out.skipped.map(kept)
-				},
-				text: `Undid the import (as ${ctx.actor.name}): ${out.restored} ${out.restored === 1 ? "row" : "rows"} put back.${out.skipped.length ? ` Skipped, as changed since: ${out.skipped.map(keptText).join("; ")}.` : ""}`
-			};
+			return save$2(ctx, sendFeedback(ax$2(ctx), a.mood, String(a.text ?? ""), "mcp"), "Sent the feedback", "");
 		}
 	}
 ];
@@ -24932,7 +25035,7 @@ init_rulesParts();
 init_status();
 init_vocabulary();
 init_via();
-var str$3 = (description, extra = {}) => ({
+var str$5 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -25051,23 +25154,23 @@ function metricData(ctx, m) {
 	};
 }
 var FIELDS = {
-	name: str$3("Its name, e.g. “Build time (p90)”. Required for a new metric; no two metrics share one."),
-	meaning: str$3("What it means and how it’s calculated: what is counted, over what period, what is left out."),
-	unit: str$3("Its unit: %, min, hours, USD, deploys… Required for a new metric. A goal it measures must use the same unit."),
+	name: str$5("Its name, e.g. “Build time (p90)”. Required for a new metric; no two metrics share one."),
+	meaning: str$5("What it means and how it’s calculated: what is counted, over what period, what is left out."),
+	unit: str$5("Its unit: %, min, hours, USD, deploys… Required for a new metric. A goal it measures must use the same unit."),
 	decimals: {
 		type: "integer",
 		minimum: 0,
 		maximum: 4,
 		description: "Places after the decimal point it’s shown with (0 to 4; 0 when left out)."
 	},
-	direction: str$3("Which way is better. Required for a new metric.", { enum: ["higher", "lower"] }),
-	source: str$3("Where the number comes from: a dashboard, a tool, a query."),
-	source_owner: str$3("Who owns that source: a team or a person, as text."),
-	refresh: str$3("How often the source refreshes. Empty for not said.", { enum: [...REFRESHES, ""] }),
-	owner: str$3("Who answers for the definition, by ID, email or name. Whoever adds it, when left out."),
-	caveats: str$3("What to watch out for when reading it.")
+	direction: str$5("Which way is better. Required for a new metric.", { enum: ["higher", "lower"] }),
+	source: str$5("Where the number comes from: a dashboard, a tool, a query."),
+	source_owner: str$5("Who owns that source: a team or a person, as text."),
+	refresh: str$5("How often the source refreshes. Empty for not said.", { enum: [...REFRESHES, ""] }),
+	owner: str$5("Who answers for the definition, by ID, email or name. Whoever adds it, when left out."),
+	caveats: str$5("What to watch out for when reading it.")
 };
-var tools$2 = [
+var tools$4 = [
 	{
 		name: "list_metrics",
 		title: "List the metric library",
@@ -25076,11 +25179,11 @@ var tools$2 = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				search: str$3("Words to find, each starting a word of the name, unit, “lower is better” or “higher is better”, the owner’s name, the meaning or the source."),
-				unit: str$3("Only metrics in this unit (any case)."),
-				team: str$3("Only metrics a goal measures for this team (ID or name), or “company” for the whole company."),
-				owner: str$3("Only metrics this person owns, by ID, email or name."),
-				direction: str$3("Only metrics where this way is better.", { enum: ["higher", "lower"] }),
+				search: str$5("Words to find, each starting a word of the name, unit, “lower is better” or “higher is better”, the owner’s name, the meaning or the source."),
+				unit: str$5("Only metrics in this unit (any case)."),
+				team: str$5("Only metrics a goal measures for this team (ID or name), or “company” for the whole company."),
+				owner: str$5("Only metrics this person owns, by ID, email or name."),
+				direction: str$5("Only metrics where this way is better.", { enum: ["higher", "lower"] }),
 				unused: {
 					type: "boolean",
 					description: "Only metrics no live goal uses."
@@ -25093,7 +25196,7 @@ var tools$2 = [
 					type: "boolean",
 					description: "Only metrics with something to sort out: no owner (or one who has left), no meaning, no source, or no goal after 14 days."
 				},
-				sort: str$3("A to Z (name, the default), most goals first (goals), or the latest change first (changed).", { enum: [
+				sort: str$5("A to Z (name, the default), most goals first (goals), or the latest change first (changed).", { enum: [
 					"name",
 					"goals",
 					"changed"
@@ -25163,7 +25266,7 @@ var tools$2 = [
 			type: "object",
 			additionalProperties: false,
 			required: ["metric"],
-			properties: { metric: str$3("The metric’s ID or name.") }
+			properties: { metric: str$5("The metric’s ID or name.") }
 		},
 		annotations: READ$1,
 		async run(a, ctx) {
@@ -25248,7 +25351,7 @@ var tools$2 = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				id: str$3("The metric to change, by ID or name. Leave out to add one."),
+				id: str$5("The metric to change, by ID or name. Leave out to add one."),
 				...FIELDS,
 				confirm: {
 					type: "boolean",
@@ -25271,9 +25374,9 @@ var tools$2 = [
 					additionalProperties: false,
 					description: "The person’s answers to the checks a previous call returned.",
 					properties: {
-						name: str$3("“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave."),
-						unit: str$3("“keep” the unit as typed, or “use” the one in use.", { enum: ["keep", "use"] }),
-						meaning: str$3("“as-written”: the meaning is right as written.", { enum: ["as-written"] })
+						name: str$5("“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave."),
+						unit: str$5("“keep” the unit as typed, or “use” the one in use.", { enum: ["keep", "use"] }),
+						meaning: str$5("“as-written”: the meaning is right as written.", { enum: ["as-written"] })
 					}
 				}
 			}
@@ -25363,7 +25466,7 @@ var tools$2 = [
 			type: "object",
 			additionalProperties: false,
 			required: ["metric"],
-			properties: { metric: str$3("The metric’s ID or name.") }
+			properties: { metric: str$5("The metric’s ID or name.") }
 		},
 		annotations: {
 			readOnlyHint: false,
@@ -25394,9 +25497,9 @@ var tools$2 = [
 			additionalProperties: false,
 			required: ["metric"],
 			properties: {
-				metric: str$3("The metric’s ID or name."),
-				why: str$3("Why it is retired, in a line (up to 300 characters). Required unless bringing it back."),
-				replaced_by: str$3("The metric its goals’ owners are offered instead, by ID or name: one in use, in the same unit."),
+				metric: str$5("The metric’s ID or name."),
+				why: str$5("Why it is retired, in a line (up to 300 characters). Required unless bringing it back."),
+				replaced_by: str$5("The metric its goals’ owners are offered instead, by ID or name: one in use, in the same unit."),
 				bring_back: {
 					type: "boolean",
 					description: "Bring a retired metric back."
@@ -25430,9 +25533,9 @@ var tools$2 = [
 			additionalProperties: false,
 			required: ["from", "into"],
 			properties: {
-				from: str$3("The metric to merge away, by ID or name."),
-				into: str$3("The metric to keep, by ID or name: one in use, in the same unit."),
-				why: str$3("Why, in a line. “The same number as {into}.” when left out.")
+				from: str$5("The metric to merge away, by ID or name."),
+				into: str$5("The metric to keep, by ID or name: one in use, in the same unit."),
+				why: str$5("Why, in a line. “The same number as {into}.” when left out.")
 			}
 		},
 		annotations: WRITE,
@@ -25459,11 +25562,11 @@ var tools$2 = [
 			additionalProperties: false,
 			required: ["goal"],
 			properties: {
-				goal: str$3("The goal’s ID or key (G-12)."),
-				metric: str$3("The metric’s ID or name. Required unless unlinking."),
-				team: str$3("The slice: a team by ID or name. Leave out for the whole company."),
-				part: str$3("Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them under parts."),
-				reason: str$3("Why the goal is measured differently now. Required when a goal with check-ins is measured differently from its last link (another metric, team or part, even after unlinking); it shows in the goal’s History."),
+				goal: str$5("The goal’s ID or key (G-12)."),
+				metric: str$5("The metric’s ID or name. Required unless unlinking."),
+				team: str$5("The slice: a team by ID or name. Leave out for the whole company."),
+				part: str$5("Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them under parts."),
+				reason: str$5("Why the goal is measured differently now. Required when a goal with check-ins is measured differently from its last link (another metric, team or part, even after unlinking); it shows in the goal’s History."),
 				answers: {
 					type: "object",
 					additionalProperties: false,
@@ -25675,7 +25778,7 @@ init_actions();
 init_removal();
 init_review();
 init_vocabulary();
-var str$2 = (description, extra = {}) => ({
+var str$4 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -25689,7 +25792,7 @@ var ids$1 = (description) => ({
 	items: { type: "string" },
 	description
 });
-var tools$1 = [
+var tools$3 = [
 	{
 		name: "list_reviews",
 		title: "Reviews",
@@ -25731,7 +25834,7 @@ var tools$1 = [
 			type: "object",
 			additionalProperties: false,
 			required: ["review_id"],
-			properties: { review_id: str$2("The review’s ID, from list_reviews.") }
+			properties: { review_id: str$4("The review’s ID, from list_reviews.") }
 		},
 		annotations: READ$4,
 		async run(a, ctx) {
@@ -25812,17 +25915,17 @@ var tools$1 = [
 				"kind"
 			],
 			properties: {
-				review_id: str$2("The review’s ID."),
-				goal_id: str$2("The goal’s ID or its key, e.g. G-12."),
-				kind: str$2("What it is.", { enum: [
+				review_id: str$4("The review’s ID."),
+				goal_id: str$4("The goal’s ID or its key, e.g. G-12."),
+				kind: str$4("What it is.", { enum: [
 					"acknowledge",
 					"note",
 					"ask",
 					"action",
 					"accept"
 				] }),
-				text: str$2("The note, question or action, or (accept) why the review accepts the risk. Optional when acknowledging."),
-				who: str$2("Actions: who does it (name or ID). Defaults to the goal’s owner."),
+				text: str$4("The note, question or action, or (accept) why the review accepts the risk. Optional when acknowledging."),
+				who: str$4("Actions: who does it (name or ID). Defaults to the goal’s owner."),
 				due_week: int$1("Actions: the week it’s due by.")
 			}
 		},
@@ -25879,10 +25982,10 @@ var tools$1 = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				review_id: str$2("The review to change. Leave out to set up a new one."),
-				name: str$2("Its name, e.g. \"Platform weekly review\"."),
+				review_id: str$4("The review to change. Leave out to set up a new one."),
+				name: str$4("Its name, e.g. \"Platform weekly review\"."),
 				every_weeks: int$1("Held every 1, 2 or 4 weeks."),
-				weekday: str$2("The weekday.", { enum: [
+				weekday: str$4("The weekday.", { enum: [
 					"Monday",
 					"Tuesday",
 					"Wednesday",
@@ -25946,7 +26049,7 @@ var tools$1 = [
 			type: "object",
 			additionalProperties: false,
 			required: ["review_id"],
-			properties: { review_id: str$2("The review’s ID, from list_reviews.") }
+			properties: { review_id: str$4("The review’s ID, from list_reviews.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -25963,7 +26066,7 @@ var tools$1 = [
 			type: "object",
 			additionalProperties: false,
 			required: ["review_id"],
-			properties: { review_id: str$2("The review’s ID, from list_reviews.") }
+			properties: { review_id: str$4("The review’s ID, from list_reviews.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -25975,7 +26078,7 @@ var tools$1 = [
 // src/modules/spreadsheets/tools.ts
 init_columns();
 init_tableLayout();
-var str$1 = (description, extra = {}) => ({
+var str$3 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -25993,7 +26096,7 @@ var READ = {
 var csvFormats = (sheets, reviews = true) => sheetNamesWith(sheets, reviews).filter((n) => n !== START_HERE).map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, "_")}_csv`, n]);
 /** Every format this build has, for the tool's schema; a workspace with a module (or Reviews) switched off has fewer (F2, RS1). */
 var CSV_FORMATS = csvFormats(MODULE_SHEETS);
-var tools = [{
+var tools$2 = [{
 	name: "export",
 	title: "Export the goals",
 	description: "Every goal in the current cycle as JSON (each goal with its plan by week and check-ins), a Markdown brief, or one sheet of the spreadsheet export as CSV: goals, plan, check-ins, people, results (each goal’s result and quarters), asks, notes or metrics (the metric library). The goals, plan, check-ins and people CSVs load back with bulk_change.",
@@ -26001,7 +26104,7 @@ var tools = [{
 		type: "object",
 		additionalProperties: false,
 		required: ["format"],
-		properties: { format: str$1("Which export.", { enum: [
+		properties: { format: str$3("Which export.", { enum: [
 			"json",
 			"brief",
 			...CSV_FORMATS.map(([f]) => f)
@@ -26050,11 +26153,11 @@ var tools = [{
 		type: "object",
 		additionalProperties: false,
 		properties: {
-			view: str$1("The name of a saved layout: one of yours, or one pinned for everyone."),
-			table: str$1("Which data table, when not using a view.", { enum: TABLE_ORDER }),
+			view: str$3("The name of a saved layout: one of yours, or one pinned for everyone."),
+			table: str$3("Which data table, when not using a view.", { enum: TABLE_ORDER }),
 			columns: ids("The columns, in order. Leave out for the usual columns."),
-			query: str$1("Search, filters and sort, as for save_table_view."),
-			format: str$1("CSV text, or rows as JSON.", { enum: ["csv", "json"] })
+			query: str$3("Search, filters and sort, as for save_table_view."),
+			format: str$3("CSV text, or rows as JSON.", { enum: ["csv", "json"] })
 		}
 	},
 	annotations: READ,
@@ -26081,18 +26184,196 @@ var tools = [{
 		};
 	}
 }];
+// src/modules/watching/tools.ts
+init_actions();
+init_review();
+var str$2 = (description, extra = {}) => ({
+	type: "string",
+	description,
+	...extra
+});
+var tools$1 = [
+	{
+		name: "list_watching",
+		title: "What you watch",
+		description: "Your watches (a goal, a goal and everything feeding it, or a whole level) and the goals they cover.",
+		inputSchema: {
+			type: "object",
+			properties: {},
+			additionalProperties: false
+		},
+		annotations: READ$4,
+		async run(_a, ctx) {
+			return listed({
+				watches: ctx.snapshot.watches.filter((w) => w.personId === ctx.actor.id).map((w) => ({
+					id: w.id,
+					kind: w.kind,
+					ref: w.ref,
+					what: w.kind === "level" ? `every ${w.ref} goal` : ctx.snapshot.goals.find((g) => g.id === w.ref)?.title ?? w.ref
+				})),
+				goals: watchedGoals(ctx.actor.id, ctx.snapshot).map((g) => ({
+					id: g.id,
+					title: g.title
+				}))
+			});
+		}
+	},
+	{
+		name: "watch",
+		title: "Watch goals",
+		description: "Watch a goal, a goal and everything feeding it, or every goal at a level. Watched goals are on the Watching page and in get_my_work.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["kind", "ref"],
+			properties: {
+				kind: str$2("What to watch.", { enum: [
+					"goal",
+					"tree",
+					"level"
+				] }),
+				ref: str$2("A goal’s ID or key (G-12), or a level (north-star, svp, team).")
+			}
+		},
+		annotations: {
+			...WRITE$2,
+			idempotentHint: true
+		},
+		async run(a, ctx) {
+			const ref = a.kind === "level" ? String(a.ref ?? "") : goalOf$2(ctx, a.ref).id;
+			return save$2(ctx, watch(ax$2(ctx), a.kind, ref), `Watching ${a.kind === "level" ? `every ${ref} goal` : goalOf$2(ctx, ref).title}`, "Already watching that.");
+		}
+	},
+	{
+		name: "unwatch",
+		title: "Stop watching",
+		description: "Stop one of your watches: the goals it covered leave your Watching page.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["watch_id"],
+			properties: { watch_id: str$2("The watch’s ID, from list_watching.") }
+		},
+		annotations: WRITE$2,
+		async run(a, ctx) {
+			return save$2(ctx, unwatch(ax$2(ctx), String(a.watch_id ?? "")), "Stopped watching", "");
+		}
+	}
+];
+// src/modules/wrap-up/tools.ts
+init_actions();
+init_cycle();
+var str$1 = (description, extra = {}) => ({
+	type: "string",
+	description,
+	...extra
+});
+var tools = [{
+	name: "get_wrap_up",
+	title: "The cycle’s wrap-up",
+	description: "At the end of a cycle: which goals are wrapped up (result, what was learned, carry on or stop) and which are still to do.",
+	inputSchema: {
+		type: "object",
+		properties: {},
+		additionalProperties: false
+	},
+	annotations: READ$4,
+	async run(_a, ctx) {
+		const retros = ctx.snapshot.retros ?? [];
+		const list = ctx.snapshot.goals.map((g) => {
+			const r = retros.find((x) => x.goalId === g.id);
+			return {
+				id: g.id,
+				title: g.title,
+				owner: name$1(ctx, g.ownerId),
+				wrappedUp: !!r,
+				result: r?.result ?? null,
+				learned: r?.learned ?? null,
+				next: r?.next ?? null
+			};
+		});
+		const open = wrapUpOpenOn(ctx.cycle, ctx.today);
+		const d = cycleDates(ctx.cycle);
+		const when = cycleState(ctx.cycle, ctx.today) === "closed" ? `The wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : open ? `Wrap-up is open until ${dayWithYear(d.wrapUpCloses)}.` : `Wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`;
+		return {
+			data: {
+				open,
+				opensWeek: ctx.cycle.weeks - 1,
+				opens: d.wrapUpOpens,
+				lastDay: d.lastDay,
+				closes: d.wrapUpCloses,
+				goals: list
+			},
+			text: `${when} ${list.filter((g) => g.wrappedUp).length} of ${list.length} goals wrapped up.`
+		};
+	}
+}, {
+	name: "wrap_up_goal",
+	title: "Wrap up a goal",
+	description: "In the last two weeks of a cycle, the goal’s owner (or an admin) says how it landed, what was learned, and whether it carries on into the next cycle. Can be changed until the next cycle starts.",
+	inputSchema: {
+		type: "object",
+		additionalProperties: false,
+		required: [
+			"goal_id",
+			"result",
+			"learned",
+			"next"
+		],
+		properties: {
+			goal_id: str$1("The goal’s ID or its key, e.g. G-12."),
+			result: str$1("How it landed.", { enum: [
+				"hit",
+				"partly",
+				"missed"
+			] }),
+			learned: str$1("One thing worth knowing next time (a sentence)."),
+			next: str$1("Next cycle.", { enum: ["carry", "stop"] })
+		}
+	},
+	annotations: {
+		...WRITE$2,
+		idempotentHint: true
+	},
+	async run(a, ctx) {
+		const g = goalOf$2(ctx, a.goal_id);
+		if (![
+			"hit",
+			"partly",
+			"missed"
+		].includes(String(a.result))) throw new Error("result is hit, partly or missed.");
+		if (!["carry", "stop"].includes(String(a.next))) throw new Error("next is carry or stop.");
+		return save$2(ctx, saveRetro(ax$2(ctx), g, {
+			result: a.result,
+			learned: String(a.learned ?? ""),
+			next: a.next
+		}), `Wrapped up ${g.title}`, "");
+	}
+}];
 // \0virtual:faro-modules/tools
 var tools_default = [
 	{
+		id: "feedback",
+		part: tools$5
+	},
+	{
 		id: "metrics",
-		part: tools$2
+		part: tools$4
 	},
 	{
 		id: "reviews",
-		part: tools$1
+		part: tools$3
 	},
 	{
 		id: "spreadsheets",
+		part: tools$2
+	},
+	{
+		id: "watching",
+		part: tools$1
+	},
+	{
+		id: "wrap-up",
 		part: tools
 	}
 ];
@@ -26634,8 +26915,9 @@ var CORE_TOOLS = [
 			if (status && !asked.status.length || a.level && !asked.level.length) return listed(goalPage([], a, "No goal can match both the filters asked for and the link’s."));
 			const scope = a.scope ? String(a.scope) : linkScope ? linkScope : null;
 			if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
-			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).tabs.find((t) => t.id === scope) : null;
-			if (scope && scope !== "all" && !scoped) return listed(goalPage([], a, scope === "team" ? "You’re in no team and lead none." : "You own no goals this year."));
+			const watchingHere = watchingOn(modulesOn(ctx.ws).on);
+			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).tabs.find((t) => t.id === scope) : null;
+			if (scope && scope !== "all" && !scoped) return listed(goalPage([], a, scope === "team" ? "You’re in no team and lead none." : scope === "watching" ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : "You own no goals this year."));
 			const inScope = scoped ? new Set(scoped.ids) : null;
 			const words = [String(a.text ?? ""), query.q].filter((x) => x.trim()).join(" ");
 			const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -27219,8 +27501,6 @@ var TOOLS = [
 	...CORE_TOOLS,
 	...WORK_TOOLS,
 	...REMOVE_TOOLS,
-	...MARKUP_TOOLS,
-	...FEEDBACK_TOOLS,
 	...tools_default.flatMap((m) => m.part)
 ];
 /** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. A module's
