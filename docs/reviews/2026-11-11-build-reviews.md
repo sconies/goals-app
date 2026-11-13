@@ -122,6 +122,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #283, #284 KT7 and KT8: the kit; #279 journeys | 6, evals | 0 | 0 | 0 |
 | #281 MT1: defining a metric well | metrics | 0 | 2 | 6 |
 | #299 MT2: migration 0043 | metrics | 0 | 0 | 2 |
+| #300 A range between two numbers (with #292, migration 0042) | 2 | 0 | 3 | 4 |
 | #293 GE10 review: the four findings from #270 | 2 | 0 | 0 | 1 |
 | #294 Track 7 review fixes (#242, #249, #239) | MCP load | 0 | 0 | 0 |
 | #291, #295, #296, #304, #307 KT9, KT10 and KT6: the kit | 6 | 0 | 0 | 0 |
@@ -1297,3 +1298,23 @@ Read first by a reviewing session with probes, `save_metric` and the form on scr
 Run on PGlite after 0001 to 0042 by the same reviewing session. Six columns and three named checks, all in `faro`; a catalogue diff shows nothing added or changed anywhere else; two further runs change nothing; it runs as a non-superuser owner with `search_path` faro; 0035's redirects still select, insert and update; main's row shape still saves, and nothing on main reads the new columns yet. Not tested against Supabase. No high or medium.
 
 - Low. `part`, `retired_why` and `marks` are NOT NULL and `okr_upsert` writes whatever a row carries, so MT2's code must write `''` and `[]`, never null, when a metric is brought back. Low. The column grants repeat what the table grants already give.
+
+### #300 A range between two numbers, and #292, migration 0042 (track 2, merged 23:22 and 22:26 UTC, 12 Nov)
+
+Read first by a reviewing session with probes, the doors and the demo on screen at 1440 and 390; I re-read `src/domain/range.ts` and its callers on main at `b753ef19`. No high finding. The status rule is right at, inside and outside each bound, with any margin, negatives and a zero lower bound; one-sided ranges are unchanged; no door saves a between goal the form refuses (New goal, Change, import, `bulk_change`, `create_goal`, `update_goal`); an exported between goal reads back as "Nothing would change", and a workbook without the Limit or Must stay column leaves both bounds alone.
+
+**Migration 0042** (PGlite, after 0001 to 0041, run three times): adds `range_lower` and swaps checks, in `faro` only; safe to run twice; 0035's redirects still select; an old-shape row still saves, so main between the two merges was unharmed; before it, a between row is refused whole by the old check. The database refuses what the form refuses. Not tested against Supabase. No finding.
+
+The status rule is in one place (`rangeOut`, `rangeNear`). The three mediums come from `rangeSide`, "the bound nearer this number", used where both bounds are needed.
+
+**1. Medium (ran). "Will it stay within?" judges only the bound nearer today's number**, so it says Likely while the same page projects a breach of the other. Between 99.50 and 99.95 with check-ins rising from 99.52 to 99.72: the scorecard says "Likely (likely 100.00% by year end)" and the facts say "Projection 100.00% by week 53 | Outside the 99.95% limit" (`src/domain/scorecard.ts:171` against `summaryFacts.ts`). Fix: take the worse of the two bounds.
+
+**2. Medium (ran; the Home flag read). A number moving back to the middle reads "Getting worse".** Trend and "Vs last week" measure against one bound chosen from the latest number (`src/domain/trend.ts:101`, `scorecard.ts`), so 99.90, 99.80, 99.70 inside 99.50 to 99.95 is "worse: closer to the limit", and 1.9% back to 1.7% inside 1.6 to 1.8 is "0.2 pts worse"; `attention.ts:79` raises a trend flag from it. The midpoint is also a floating-point sum, so 1.7 counts as the lower side. Fix: measure room as the smaller of the distances to the two bounds.
+
+**3. Medium (ran). The chart's two limit labels overlap when the band is narrow against the scale** (`src/ui/rangeChart.tsx`: the scale is padded by at least 1.5 units whatever the band's width). Between 1.6% and 1.8% the lines are 8 px apart and "Upper 1.8%" sits on "Lower 1.6%". Fix: pad by a share of the band and put the Lower label under its line.
+
+**Lows.**
+- In a spreadsheet, two numbers in Limit win over Must stay without a word: a one-sided goal with Limit "1-2" and Must stay "at most" becomes between, shown as a change but with no question.
+- Wording names only the nearer bound where the range is meant: "1.2% at the end, inside the 0.5% limit" (`year.ts:123`), "Inside the 99.50% limit".
+- No journey or finish check covers the between form, page or chart (read).
+- A between row read without `range_lower` (the public fallback only) becomes "at most" and would be saved so; not live while `faro` is exposed (read).
