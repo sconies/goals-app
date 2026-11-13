@@ -130,6 +130,8 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #274 GL2 review | 1 | 0 | 0 | 2 |
 | #293 GE10 review: the four findings from #270 | 2 | 0 | 0 | 1 |
 | #294 Track 7 review fixes (#242, #249, #239) | MCP load | 0 | 0 | 0 |
+| #318 ST1 review: the three mediums from #285 | 2 | 0 | 0 | 0 |
+| #313 FS1 review: three mediums from #111 | 1 | 0 | 0 | 0 |
 | #291, #295, #296, #304, #307 KT9, KT10 and KT6: the kit | 6 | 0 | 0 | 0 |
 | #244, #246, #254, #260 Backlog and handovers | planning, 6, 7 | 0 | 0 | 0 |
 
@@ -1373,3 +1375,15 @@ Read first by a reviewing session on the merged code at `b6bed496`, with probes 
 **#274 GL2 review.** No medium. The Map narrows on Enter, un-narrows when emptied, forgets the last find on a view change, and offers no sort, at 699, 700 and 701.
 
 - Lows: only part of the Goals page moved to 700 px (`list-board.css` still has 600 and 601 px blocks and `GoalMap.tsx:99` uses 640), so at 601 to 649 the count line is cut; the new width check uses 650 and 700, not 699 and 701.
+
+### #318 ST1 review: the three mediums from #285 (track 2, merged 01:13 UTC, 13 Nov)
+
+Fixes all three and four of the lows. `/workspace/new` is drawn outside the viewer check and the arrival has "Not you? Go to Welcome", so an opened invitation no longer holds the device; the redirect to Welcome leaves `/?workspace=` to the old link's own redirect; `creatorOf` reads the `imported` change that set-up writes, with a test from that shape; Activity gives an arrival's name once; "Ask … to add you" is a tap target; `/join/<id>/anything` opens the invitation; P6 visits `/welcome` and `/join`. Read, with `dayOne`'s tests run on main at `1ab6a54e`; not re-run on screen. Two tabs logging the arrival twice and the returning leaver's line are not taken. No finding.
+
+### #313 FS1 review: three mediums from #111 (track 1, merged 00:58 UTC, 13 Nov)
+
+The open picker is fixed to the window on a computer, so a sheet or Data's table no longer cuts it off; Find's search is given the people who have left from the cycle's archive, so "(left)" rows can be found (pickers still leave them out: `find.ts` keeps them only for `left: 'too'`); and set-up keeps the email of the owner picked, so the right one of two people with one name owns the goal. Read, with its test run; the picker's placing was not seen on screen. No finding.
+
+### #315 KT6: the goals contract as data; #320 handover
+
+The goals port's contract cases moved to data for the drill. Skimmed, not reviewed in depth. No finding.
