@@ -17,10 +17,25 @@
    This file is plain TypeScript, with no screens: the server and the guide use it too. */
 
 /** Places on core screens a module can put something: Home's blocks, a goal page's sections, Data's tools, Goals'
-    tools, the goal forms' "Measured by" field, a fact in a goal's summary (goal.facts, GT1), a person's and a team's page in People (app redesign WR1), and a Help article's own block (help.article).
+    tools, the goal forms' "Measured by" field, a fact in a goal's summary (goal.facts, GT1), a person's and a team's page in People (app redesign WR1), a Help article's own block (help.article), the
+    check-in's number step and the one-table check-in (checkin.number and checkin.table, NR: where a number can be filled
+    in from its source).
     src/core/app.tsx says what each is given. (Workspace takes whole sections instead: `sections` below.) */
-export const PLACES = ['home.blocks', 'goal.facts', 'goal.sections', 'data.tools', 'goals.tools', 'goal.measure', 'people.person', 'people.team', 'help.article'] as const;
+export const PLACES = ['home.blocks', 'goal.facts', 'goal.sections', 'data.tools', 'goals.tools', 'goal.measure', 'people.person', 'people.team', 'help.article', 'checkin.number', 'checkin.table'] as const;
 export type PlaceName = (typeof PLACES)[number];
+
+/** The Features page's groups of switches, in order (SW1, feature-switches spec 4.1), after "How you work", which holds
+    settings and no switch. */
+export const FEATURE_GROUPS = [
+  { id: 'together', label: 'Working together' },
+  { id: 'tools', label: 'Tools' },
+  { id: 'beyond', label: 'Beyond this workspace' },
+] as const;
+export type FeatureGroup = (typeof FEATURE_GROUPS)[number]['id'];
+
+/** The modules in the Features page's order: by group, then as installed (id order). */
+export const byFeatureGroup = <T extends { group?: FeatureGroup }>(ms: readonly T[]): T[] =>
+  FEATURE_GROUPS.flatMap((g) => ms.filter((m) => (m.group ?? 'tools') === g.id));
 
 /** A module's module.json: what it is, what it needs and what it adds, as data. */
 export interface ModuleFacts {
@@ -28,6 +43,9 @@ export interface ModuleFacts {
   id: string;
   /** What people see on Workspace, Features. */
   name: string;
+  /** Its group on Workspace, Features (SW1): Working together, Tools (the default) or Beyond this workspace. A word for
+      that page only. */
+  group?: FeatureGroup;
   /** One sentence: what it lets people do. */
   summary: string;
   /** The modules it can't work without. It's off whenever one of them is off or left out. */
@@ -66,6 +84,10 @@ export interface ModuleFacts {
   requirements: string[];
   /** The eval journeys (evals/journeys.cjs) and checks (F…, N…) that exercise it: left out when it is. */
   journeys: string[];
+  /** Its screens, by file name, and the AI tools that read or do what each shows, or why an assistant has no need of it
+      (src/mcp/parity.ts merges them with the core's). A core screen named here gains the module's tools beside its own
+      (Print shows a review). Optional; module map F8. */
+  parity?: Record<string, string[] | { notForAssistants: string }>;
   /** The source files that belong to it outside its folder, if any (there should be none once it's fully moved). */
   elsewhere?: string[];
   /** What it deliberately leaves out, why, and how it could grow: written into the spec as spec/modules/<id>/growth.md,

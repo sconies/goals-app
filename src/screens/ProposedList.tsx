@@ -22,7 +22,7 @@ function proposedWhen(g: Goal, today: Date, by: string | null): string {
 /** At the right of a row: what it would measure, briefly ("40% to 90%"), or "Not said yet". */
 export function wouldMeasure(g: Goal): string {
   if (measureUnsaid(g)) return 'Not said yet';
-  if (g.kind === 'metric') return `${fmt(g.plan.start, g)} to ${fmt(g.plan.target, g)}`;
+  if (g.kind === 'metric') return g.targetUnset ? `${fmt(g.plan.start, g)} now, target not set` : `${fmt(g.plan.start, g)} to ${fmt(g.plan.target, g)}`;
   if (g.kind === 'range') { const s = staysText(g); return s[0]!.toUpperCase() + s.slice(1); }
   return `${g.stages.length} ${g.stages.length === 1 ? 'stage' : 'stages'}`;
 }

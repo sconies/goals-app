@@ -15,7 +15,7 @@ A goal can be proposed before anyone is held to it: visible to everyone, never j
 
 **Counted apart.** `goalCounts` gives active and proposed apart, and a count line adds "{n} proposed": "2 goals, worst first. 1 proposed". With the State filter on Proposed (`state=proposed`), Goals lists them newest first; the Board is one column, "Proposed"; the Map draws each in its tree with the goals above it for context, as a node with a dashed outline and the word, on no critical path and in no "Under it", and opening one goes to its page. Without the filter neither draws one. State's third choice, Stopped (`state=stopped`), lists the scope's goals stopped this year, most recently stopped first: Stopped (its life shape and the word), the title, "{key} · {owner} · {team} · stopped {4 Nov}{ by {name}}" and the reason; every layout lists them, as they are on no Board or Map. The tools' `find_goals` takes `state: "stopped"` for the same list, with `stoppedAt`, `stoppedBy` and `stopReason`.
 
-**Saving.** A new goal is proposed when "Is it under way?" is answered "Not yet: propose it", a file's State says proposed, or a tool's state does. While proposed, the type's own required fields (Baseline and Target, the Limit, the stages) are optional all together (`proposedMustFix`): a proposal that says none of them is stored as dated stages with no stages (`measureUnsaid`) and every screen says "How it’s measured isn’t said yet."; one that says part of it is judged as any goal is. No reason is ever asked of a change to a proposed goal. Its type can still change: the edit page has Type (Move a number · Keep a number in range · Hit dated stages) under "It’s proposed, so its type can still change."; an active goal's is refused at the save: "A goal’s type can’t change once it is active. Add a new goal instead."
+**Saving.** A new goal is proposed when "Is it under way?" is answered "Not yet: propose it", a file's State says proposed, or a tool's state does. While proposed, the type's own required fields (Baseline and Target, the Limit, the stages) are optional all together (`proposedMustFix`): a proposal that says none of them is stored as dated stages with no stages (`measureUnsaid`) and every screen says "How it’s measured isn’t said yet."; one that says part of it is judged as any goal is, with one exception. **A baseline and nothing else yet** (backlog GB, Lane 12 Nov): a number goal with a Baseline and no Target saves (`baselineOnly`) as a number goal with `targetUnset` (`targetNotSet`), its unit and baseline kept and the database's target null (migration 0050, `okr_goals_metric_plan`: only a proposed goal may have none). It says "Target not set" where its target goes (with Set the target on its page), "{baseline} now, target not set" in lists, and its read-back "A number at {baseline} now. No target is set yet: set one before it is made active."; making it active runs rule 2's full list, so it waits for a target. A target with no Baseline is still a Must fix: the baseline is what such a goal is. No reason is ever asked of a change to a proposed goal. Its type can still change: the edit page has Type (Move a number · Keep a number in range · Hit dated stages) under "It’s proposed, so its type can still change."; an active goal's is refused at the save: "A goal’s type can’t change once it is active. Add a new goal instead."
 
 **Who.** Anyone may propose a goal for anyone. Its owner or an admin makes it active (`mayActivate`); whoever proposed it may also change or withdraw it while it is proposed (`mayChangeGoal`).
 
@@ -46,7 +46,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Given | The rule gives |
 |---|---|
 | Tunde’s 40% → 90% proposed, and two active goals: judged, and counted. | `2 judged; 2 goals, worst first. 1 proposed` |
-| Proposing with nothing measured; with only a Baseline; with both numbers. | `nothing / target-empty / nothing` |
+| Proposing with nothing measured; with only a Baseline; with only a Target; with both numbers. | `nothing / nothing / start-empty / nothing` |
+| Tunde’s proposal saved with a Baseline of 40% and no Target (GB): its target, and what making it active needs. | `Target not set; target-empty` |
 | A proposal stored with nothing measured: is it unsaid, and what does making it active need? | `unsaid; stage-none` |
 | Rhea (not an admin) proposed it for Tunde: who may make it active, and who may change it (Tunde, Rhea, Oskar)? | `activate: yes, no, no; change: yes, yes, no` |
 | Tunde makes G-132 active on Wednesday 25 Nov (week 48), From this week. | `From 40% in week 48 (23–29 Nov 2026) to 90% by week 53 (28 Dec 2026–3 Jan 2027): 5 weeks, not the 7 you proposed. Its first check-in is due by Thursday 26 Nov, then every week.` |
@@ -62,7 +63,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/proposed.ts](../../../src/domain/proposed.ts): `isProposed`, `judged`, `withProposed`, `measureEmpty`, `withdrawnSummary`, `proposalAsks`, `proposedInWords`
+- [src/domain/proposed.ts](../../../src/domain/proposed.ts): `isProposed`, `judged`, `withProposed`, `measureEmpty`, `baselineOnly`, `targetNotSet`, `withdrawnSummary`, `proposalAsks`, `proposedInWords`
 - [src/domain/decide.ts](../../../src/domain/decide.ts): `lastTime`, `proposedLine`
 - [src/domain/proposedSummary.ts](../../../src/domain/proposedSummary.ts): `goalCounts`, `withProposedCount`, `measureUnsaid`, `proposedSummary`
 - [src/domain/proposedActions.ts](../../../src/domain/proposedActions.ts): `mayActivate`, `readyToActivate`, `activate`, `activated`, `backToProposed`
@@ -75,6 +76,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ## Requirements
 
 - `GOAL-PROPOSED`: A goal can be proposed before anyone is held to it: it is visible and can be discussed, has no status and nothing due, is counted apart from active goals, and becomes active only by a deliberate act of its owner or an admin.
+- `GOAL-NO-TARGET`: A goal can go in with a baseline and nothing else yet (GB). While a number goal is proposed, its target may be left out: it keeps its baseline and unit, has no status, nothing due and is in no count, says "Target not set" (on its page, with Set the target, and in lists as "{baseline} now, target not set"), and is made active only once a target is set. New goal, Change a goal, the Goals sheet and the tools all allow it; an active goal still needs a target.
 
 ## Tests that check it
 

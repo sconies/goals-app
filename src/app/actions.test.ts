@@ -55,7 +55,7 @@ describe('one way to run an action', () => {
     const off: RunContext = { ...x, workspace: { ...x.workspace, modulesOff: ['reviews'] } };
     const review = x.snapshot.reviews.find((r) => r.id === 'weekly')!;
     const goal = x.snapshot.goals.find((g) => g.id === 'ns-lead')!;
-    const said = 'Reviews is off in Platform.';
+    const said = 'Reviews is switched off in Platform. An admin can switch it on in Workspace, under Features.';
     expect(() => perform(off, 'reviewCall', { goalId: goal.id, reviewId: review.id, kind: 'note', note: 'Looked at it' })).toThrow(said);
     expect(() => perform(off, 'markReviewed', { goalIds: [goal.id], reviewId: review.id, week: x.week })).toThrow(said);
     expect(() => perform(off, 'saveReview', { review: { ...review, name: 'Renamed' } })).toThrow(said);
@@ -69,6 +69,20 @@ describe('one way to run an action', () => {
     // An ask's own words are the goal's, not the review's.
     const ask = (x.snapshot.requests ?? []).find((r) => r.askedBy === 'amara' && r.status === 'open');
     if (ask) expect(() => perform(off, 'editCall', { callId: ask.id, note: ask.ask + ' (corrected)' })).not.toThrow(said);
+  });
+
+  it('refuses Watching’s, the Wrap-up’s and Feedback’s actions while each is off, in its words (SW1, spec 1.3)', () => {
+    const x = as('amara');
+    const off = (id: string): RunContext => ({ ...x, workspace: { ...x.workspace, modulesOff: [id] } });
+    const goal = x.snapshot.goals.find((g) => g.ownerId === 'amara') ?? x.snapshot.goals[0]!;
+    const w = x.snapshot.watches.find((v) => v.personId === 'amara');
+    expect(() => perform(off('watching'), 'watch', { kind: 'goal', ref: goal.id })).toThrow('Watching is off in Platform.');
+    if (w) expect(() => perform(off('watching'), 'unwatch', { watchId: w.id })).toThrow('Watching is off in Platform.');
+    expect(() => perform(off('wrap-up'), 'saveRetro', { goalId: goal.id, result: 'hit', learned: 'x', next: 'carry' })).toThrow('Wrap-up is off in Platform.');
+    expect(() => perform(off('feedback'), 'sendFeedback', { mood: 'good', text: 'Nice', path: '/' })).toThrow('Feedback is off in Platform.');
+    // Another module off changes nothing for these.
+    expect(() => perform(off('feedback'), 'sendFeedback', { mood: 'good', text: '', path: '/' })).not.toThrow('Watching is off');
+    expect(perform(off('wrap-up'), 'watch', { kind: 'goal', ref: goal.id })).toBeDefined();
   });
 
   it('refuses what the rule refuses, in the rule’s words', () => {

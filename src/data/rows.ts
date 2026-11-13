@@ -1,7 +1,7 @@
 /* Domain records ⇄ okr_ table rows. Pure, so both directions are tested without a database.
    Every row carries the workspace it belongs to. */
 import type { DbRow, ModuleRecords, ModuleRows } from '../domain/records';
-import type { ApiToken, Ask, SavedView, Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback, RecoveryState } from '../domain/types';
+import type { ApiToken, Ask, SavedView, Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback, RecoveryState, CheckInReading } from '../domain/types';
 
 type W = { workspace_id: string };
 /** Removal columns (migration 0025): written only when the record says (a restore says null), so rows for older tables
@@ -22,6 +22,8 @@ export interface GoalRow extends W, Removal {
   proposed_at?: string | null; proposed_by?: string | null;
   /** GE10 (migration 0045): the review a goal was proposed in, written only when set. */
   proposed_in?: string | null;
+  /** MS (migration 0046): held to no number since then, written only when set; null clears it. */
+  unmeasured_since?: string | null;
   id: string; key?: string | null; cycle_id: string; team_id: string; owner_id: string; parent_id: string | null; title: string;
   kind: Goal['kind']; io: Goal['io']; headline: boolean; level: Level; guardrail: boolean; effect: number | null; why_helps?: string | null; source: string; definition: string;
   unit: string | null; decimals: number | null; plan_start: number | null; plan_target: number | null; plan_shape: MetricPlan['shape'] | null; plan_from_week?: number | null; plan_end_week?: number | null; plan_points?: MetricPlan['points'] | null;
@@ -30,11 +32,13 @@ export interface GoalRow extends W, Removal {
   range_lower?: number | null;
   range_margin: number | null; created_at: string; pending?: Goal['pending']; version?: number; also_helps?: string[] | null;
   plan_history?: { untilWeek: number; plan: MetricPlan }[] | null;
+  /** A baseline of its own (migration 0049, BL): its figure, period and flag; all null when there is none. */
+  baseline_value?: number | null; baseline_period?: string | null; baseline_provisional?: boolean | null;
 }
 export interface CheckInRow extends W, Removal {
   id: string; goal_id: string; author_id: string; week: number; posted_at: string; value: number | null; stages: CheckIn['stages'];
   status: CheckIn['status']; calculated: CheckIn['calculated']; cause: CheckIn['cause']; why: string; greener_why: string;
-  propose_target: number | null; ptg_what: string | null; ptg_by_week: number | null; ptg_needs: string; ptg_state?: RecoveryState | null; next: string; data_flagged: boolean; backfilled?: boolean;
+  propose_target: number | null; ptg_what: string | null; ptg_by_week: number | null; ptg_needs: string; ptg_state?: RecoveryState | null; next: string; data_flagged: boolean; backfilled?: boolean; reading?: CheckInReading | null;
 }
 export interface DecisionRow extends W, Removal { id: string; goal_id: string; check_in_id: string | null; review_id: string | null; week: number; kind: Decision['kind']; by_id: string; at: string; note: string; assignee_id?: string | null; due_week?: number | null; edited_at?: string | null }
 export interface ChangeRow extends W {
@@ -68,9 +72,12 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
     id: g.id, key: g.key ?? null, cycle_id: g.cycleId, team_id: g.teamId, owner_id: g.ownerId, parent_id: g.parentId, title: g.title, kind: g.kind, io: g.io,
     headline: false, level: g.level, guardrail: g.guardrail, effect: g.effect, why_helps: g.whyHelps ?? null, source: g.source, definition: g.definition,
     unit: g.kind === 'milestone' ? null : g.unit, decimals: g.kind === 'milestone' ? null : g.decimals,
-    plan_start: g.kind === 'metric' ? g.plan.start : null, plan_target: g.kind === 'metric' ? g.plan.target : null, plan_shape: g.kind === 'metric' ? g.plan.shape : null, plan_from_week: g.kind === 'metric' ? g.plan.fromWeek ?? 0 : 0, plan_end_week: g.kind === 'metric' ? g.plan.endWeek ?? null : null, plan_points: g.kind === 'metric' && g.plan.points?.length ? g.plan.points : null,
+    plan_start: g.kind === 'metric' ? g.plan.start : null, plan_target: g.kind === 'metric' && !g.targetUnset ? g.plan.target : null, plan_shape: g.kind === 'metric' ? g.plan.shape : null, plan_from_week: g.kind === 'metric' ? g.plan.fromWeek ?? 0 : 0, plan_end_week: g.kind === 'metric' ? g.plan.endWeek ?? null : null, plan_points: g.kind === 'metric' && g.plan.points?.length ? g.plan.points : null,
     original_plan: g.kind === 'metric' ? g.originalPlan : null, rebaselined_week: g.kind === 'metric' ? g.rebaselinedWeek : null,
     plan_history: g.kind === 'metric' && g.planHistory?.length ? g.planHistory : null,
+    // BL (0049): written on every row, null when there's no baseline, so a batch mixing goals with and without one
+    // never gives a goal another row's columns (okr_upsert fills a missing key with null).
+    baseline_value: g.kind === 'metric' && g.baseline ? g.baseline.value : null, baseline_period: g.kind === 'metric' && g.baseline ? g.baseline.period : null, baseline_provisional: g.kind === 'metric' && g.baseline ? g.baseline.provisional : null,
     range_bound: g.kind === 'range' ? g.range.bound : null, range_limit: g.kind === 'range' ? g.range.limit : null, range_margin: g.kind === 'range' ? g.range.margin : null,
     // Range goals only (migration 0042): the lower bound of a range between two numbers, null for a one-sided range so a
     // range changed from between to one side clears it. Metric and milestone rows look exactly as before.
@@ -78,7 +85,7 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
     created_at: g.createdAt || new Date().toISOString(),
     pending: g.pending ?? null,
     also_helps: g.alsoHelps?.length ? g.alsoHelps : null,
-    ...set({ removed_at: g.removedAt, removed_by: g.removedBy, stopped_at: g.stoppedAt, stopped_by: g.stoppedBy, stop_reason: g.stopReason, proposed_at: g.proposedAt, proposed_by: g.proposedBy, proposed_in: g.proposedIn }),
+    ...set({ removed_at: g.removedAt, removed_by: g.removedBy, stopped_at: g.stoppedAt, stopped_by: g.stoppedBy, stop_reason: g.stopReason, proposed_at: g.proposedAt, proposed_by: g.proposedBy, proposed_in: g.proposedIn, unmeasured_since: g.unmeasuredSince }),
   };
   const stages = g.kind === 'milestone' ? g.stages.map((s) => ({ workspace_id: ws, id: s.id, goal_id: g.id, name: s.name, due_week: s.dueWeek })) : [];
   return { goal, stages };
@@ -98,16 +105,19 @@ export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
     ...(r.version != null ? { version: Number(r.version) } : {}),
     ...(r.also_helps?.length ? { alsoHelps: r.also_helps } : {}),
     ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by), ...when('stoppedAt', r.stopped_at), ...who('stoppedBy', r.stopped_by), ...who('stopReason', r.stop_reason),
-    ...when('proposedAt', r.proposed_at), ...who('proposedBy', r.proposed_by), ...who('proposedIn', r.proposed_in),
+    ...when('proposedAt', r.proposed_at), ...who('proposedBy', r.proposed_by), ...who('proposedIn', r.proposed_in), ...when('unmeasuredSince', r.unmeasured_since),
   };
   if (r.kind === 'metric') {
     const op = r.original_plan;
     return {
       ...common, kind: 'metric', unit: r.unit ?? '', decimals: Number(r.decimals ?? 0),
-      plan: { start: num(r.plan_start) as number, target: num(r.plan_target) as number, shape: r.plan_shape ?? 'straight', ...(r.plan_from_week ? { fromWeek: Number(r.plan_from_week) } : {}), ...(r.plan_end_week ? { endWeek: Number(r.plan_end_week) } : {}), ...(r.plan_points?.length ? { points: r.plan_points.map((p) => ({ week: Number(p.week), value: Number(p.value) })) } : {}) },
+      plan: { start: num(r.plan_start) as number, target: (r.plan_target == null ? num(r.plan_start) : num(r.plan_target)) as number, shape: r.plan_shape ?? 'straight', ...(r.plan_from_week ? { fromWeek: Number(r.plan_from_week) } : {}), ...(r.plan_end_week ? { endWeek: Number(r.plan_end_week) } : {}), ...(r.plan_points?.length ? { points: r.plan_points.map((p) => ({ week: Number(p.week), value: Number(p.value) })) } : {}) },
       // Whole earlier plans, so weeks before a re-plan are judged against exactly what applied then.
       originalPlan: op ? planOf(op) : null, rebaselinedWeek: r.rebaselined_week,
       ...(r.plan_history?.length ? { planHistory: r.plan_history.map((v) => ({ untilWeek: Number(v.untilWeek), plan: planOf(v.plan) })) } : {}),
+      // A proposed goal with its target not set yet (GB): the plan holds the start in its place.
+      ...(r.plan_target == null ? { targetUnset: true as const } : {}),
+      ...(r.baseline_value != null ? { baseline: { value: Number(r.baseline_value), period: r.baseline_period ?? '', provisional: !!r.baseline_provisional } } : {}),
     };
   }
   if (r.kind === 'range') {
@@ -129,6 +139,10 @@ export const checkInToRow = (ws: string, c: CheckIn): CheckInRow => ({
   status: c.status, calculated: c.calculated, cause: c.cause, why: c.why, greener_why: c.greenerWhy, propose_target: c.proposeTarget,
   ptg_what: c.pathToGreen?.what ?? null, ptg_by_week: c.pathToGreen?.byWeek ?? null, ptg_needs: c.pathToGreen?.needs ?? '', ptg_state: c.pathToGreen?.state ?? null,
   next: c.next, data_flagged: c.dataFlagged, backfilled: !!c.backfilled,
+  // Written only when it holds something (NR rule 2): 0035's public views don't have the column, so a row without it saves
+  // through either; one with it needs the app to read and write through faro (0047).
+  // Always written (0047 is applied; okr_commit writes faro's table): a check-in re-saved without a reading clears it.
+  reading: c.reading ?? null,
   ...set({ removed_at: c.removedAt, removed_by: c.removedBy }),
 });
 
@@ -136,7 +150,7 @@ export const checkInFromRow = (r: CheckInRow): CheckIn => ({
   id: r.id, goalId: r.goal_id, authorId: r.author_id, week: Number(r.week), postedAt: iso(r.posted_at), value: num(r.value), stages: r.stages,
   status: r.status, calculated: r.calculated, cause: r.cause, why: r.why, greenerWhy: r.greener_why, proposeTarget: num(r.propose_target),
   pathToGreen: r.ptg_what != null && (r.ptg_by_week != null || r.ptg_state) ? { what: r.ptg_what, byWeek: r.ptg_by_week == null ? null : Number(r.ptg_by_week), ...(r.ptg_state ? { state: r.ptg_state } : {}), needs: r.ptg_needs } : null,
-  next: r.next, dataFlagged: r.data_flagged, ...(r.backfilled ? { backfilled: true } : {}),
+  next: r.next, dataFlagged: r.data_flagged, ...(r.backfilled ? { backfilled: true } : {}), ...(r.reading ? { reading: r.reading } : {}),
   ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by),
 });
 

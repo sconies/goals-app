@@ -29,15 +29,15 @@
 /* Proposed goals that name it (GE10): a plain list under the table, with no numbers. */
 .metric-proposed { margin-top: var(--s3); }
 .metric-proposed ul { list-style: none; margin: var(--s2) 0 0; padding: 0; display: grid; gap: var(--s2); }
-.metric-goals { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-.metric-goals th { text-align: left; font-size: 0.75rem; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
-.metric-goals td { padding: 10px 8px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
-.metric-goals tr.is-off td { background: var(--off-wash); }
-.metric-goals .mg-status { white-space: nowrap; }
-.metric-goals .mg-status > span { display: inline-flex; align-items: center; gap: 6px; }
-.metric-goals .mg-status svg { width: 14px; height: 14px; }
-.metric-goals .mg-goal a { font-weight: 550; }
-.metric-goals .gkey-text { display: block; }
+:is(.metric-goals, .metric-reads) { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+:is(.metric-goals, .metric-reads) th { text-align: left; font-size: 0.75rem; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+:is(.metric-goals, .metric-reads) td { padding: 10px 8px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
+:is(.metric-goals, .metric-reads) tr.is-off td { background: var(--off-wash); }
+:is(.metric-goals, .metric-reads) .mg-status { white-space: nowrap; }
+:is(.metric-goals, .metric-reads) .mg-status > span { display: inline-flex; align-items: center; gap: 6px; }
+:is(.metric-goals, .metric-reads) .mg-status svg { width: 14px; height: 14px; }
+:is(.metric-goals, .metric-reads) .mg-goal a { font-weight: 550; }
+:is(.metric-goals, .metric-reads) .gkey-text { display: block; }
 
 .metric-facts { display: grid; grid-template-columns: 200px minmax(0, 1fr); column-gap: var(--s4); row-gap: var(--s3); margin: 0; }
 .metric-facts dt { font-size: 0.75rem; line-height: 1.375rem; font-weight: 600; color: var(--muted); }
@@ -71,13 +71,13 @@
   .metric-facts { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
   .metric-facts dd { margin-bottom: var(--s2); }
   /* Each goal a block: status and title, then its numbers as "label value" lines. Nothing scrolls sideways. */
-  .metric-goals, .metric-goals tbody, .metric-goals tr, .metric-goals td { display: block; width: 100%; }
-  .metric-goals thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .metric-goals tr { padding: 10px var(--s2); border-bottom: 1px solid var(--line-2); }
-  .metric-goals tr.is-off { background: var(--off-wash); }
-  .metric-goals tr.is-off td { background: none; }
-  .metric-goals td { padding: 1px 0; border: 0; }
-  .metric-goals td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); }
+  :is(.metric-goals, .metric-reads), :is(.metric-goals, .metric-reads) tbody, :is(.metric-goals, .metric-reads) tr, :is(.metric-goals, .metric-reads) td { display: block; width: 100%; }
+  :is(.metric-goals, .metric-reads) thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  :is(.metric-goals, .metric-reads) tr { padding: 10px var(--s2); border-bottom: 1px solid var(--line-2); }
+  :is(.metric-goals, .metric-reads) tr.is-off { background: var(--off-wash); }
+  :is(.metric-goals, .metric-reads) tr.is-off td { background: none; }
+  :is(.metric-goals, .metric-reads) td { padding: 1px 0; border: 0; }
+  :is(.metric-goals, .metric-reads) td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); }
 }
 
 /* MT1: the form's unit and decimal places side by side, the "can be said later" group, the foot's two lines. */
@@ -103,9 +103,14 @@
 /* MT3: a retired metric's note, the change read-back and a metric's History. Outlined on every side, never an edge. */
 .metric-retired { border: 1px solid var(--line); border-radius: 8px; padding: var(--s3); }
 .metric-retired p { margin: 0; }
-.metric-readback { border: 1px solid var(--line); border-radius: 8px; padding: var(--s3); }
 .metric-readback fieldset { border: 0; margin: 0; padding: 0; }
 .metric-readback label.row { align-items: baseline; gap: var(--s2); flex-wrap: wrap; min-height: 44px; }
 .metric-history-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-2); }
 .metric-history-list > li { padding: 8px 0; border-bottom: 1px solid var(--line-2); display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s2); }
 .metric-marks { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); }
+
+/* MS: a metric's measurement status, a shape and a word (MeasureMark.tsx). Colour is never the only signal. */
+.measure-mark { display: inline-flex; align-items: center; gap: 5px; color: var(--fg-2); white-space: nowrap; }
+.measure-shape { width: 14px; height: 14px; flex: none; }
+.measure-gap { color: var(--fg-1, inherit); font-weight: 600; }
+.metric-measure-note { margin-top: var(--s1); }

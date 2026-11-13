@@ -20,7 +20,7 @@ import { NotAllowed } from './actions';
 import { goalChange, checkInChange, type Lookup } from './changes';
 import { answeredDiffs, checkInLevels, evaluate, MIN_CORRECT_REASON, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, unanswered, VALUE_CODES, valueProblem, type Draft, type Missing } from './checkin';
 import {
-  BOUND_WORDS, CALL_WORDS, CAUSE_WORDS, codeOf, GOAL_ACTION_WORDS, LEVEL_WORDS, oneOf, PERSON_ACTION_WORDS, RECOVERY_WORDS, SHAPE_WORDS, TYPE_WORDS, unknownWord, wordsAndAlso, YES_WORDS,
+  BOUND_WORDS, CALL_WORDS, FIRMNESS_WORDS, CAUSE_WORDS, codeOf, GOAL_ACTION_WORDS, LEVEL_WORDS, oneOf, PERSON_ACTION_WORDS, RECOVERY_WORDS, SHAPE_WORDS, TYPE_WORDS, unknownWord, wordsAndAlso, YES_WORDS,
   type Words,
 } from './columns';
 import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planQuestion, replanned, stagesDoneAtSetUp, type GoalDraft } from './goal';
@@ -49,7 +49,8 @@ import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from '.
 import { goalMeasureOf, type ModuleRecords } from './records';
 import { CHUNK } from './importLimits';
 import { ANSWERS, fold, LEAVE, groupId, groupIssues, issueOf, levelOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
-import type { Ask, Change, CheckIn, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, Review, Snapshot, StageUpdate, Status, Team } from './types';
+import type { Ask, Change, CheckIn, CheckInReading, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, Review, Snapshot, StageUpdate, Status, Team } from './types';
+import { keptReading, readingProblem, sameAtPlaces } from './reading';
 import { FLAG, LEFT, lower, STOPPED } from './vocabulary';
 
 export type { Rec, Tables } from './sheets';
@@ -63,7 +64,12 @@ export { VIA_LABEL, VIA_MCP, VIA_MCP_BEFORE, type Via } from './via';
  */
 export type PostMode = 'new' | 'again' | 'correct';
 /** One check-in as a screen posts it: the draft the form holds, not a spreadsheet row. */
-export interface CheckInPost { goalId: string; week: number; draft: Draft; mode: PostMode; reason?: string }
+export interface CheckInPost {
+  goalId: string; week: number; draft: Draft; mode: PostMode; reason?: string;
+  /** What the metric's source said, when the number step read one (NR rule 3): recorded with the check-in, once
+      `readingProblem` has nothing to say. Left out or null: the number was typed, with nothing read. */
+  reading?: CheckInReading | null;
+}
 /** Why a check-in is corrected or added later, in a sentence (rule 13). */
 export { MIN_CORRECT_REASON };
 /** The doors where a check-in's unlikely number is asked about here (C6). The bulk check-in grid asks it beside the cell. */
@@ -139,6 +145,9 @@ export interface ChangeInput {
   full?: Snapshot;
   /** Check-ins posted from a screen, judged by the same loop as a sheet's rows (rule 13). */
   posts?: CheckInPost[];
+  /** What a source said for a sheet's or a tool's check-in row, by goal id and week (NR rule 3: the MCP tool's
+      `reading_confirmed` and `different_because`): recorded with that row's check-in under the same rule as a post's. */
+  readings?: { goalId: string; week: number; reading: CheckInReading }[];
   /** The feature modules' records in this build (core/records): what measures a goal, for goal entry's wrong-side question. */
   records?: readonly ModuleRecords[];
   /** The file the rows came from, and how many of its rows the person left out before the engine saw them: the import's
@@ -208,7 +217,7 @@ const MUST_KIND: Record<MustFixId, IssueKind> = {
   'feeds-loop': 'loop', 'not-number': 'not-a-number', 'has-words': 'not-a-number', 'too-precise': 'precision', 'plan-point': 'not-a-number', 'decimals-lose': 'precision',
   'decimals-range': 'unknown-word', 'same-as-start': 'impossible-number', 'margin-negative': 'impossible-number', 'lower-not-below': 'impossible-number',
   'stage-name': 'stage-format', 'stage-week': 'stage-format', 'stage-twice': 'stage-format', 'stage-done-removed': 'cant-change',
-  'to-before-from': 'plan-order', 'week-unknown': 'week-wrong', 'week-beyond': 'week-wrong',
+  'to-before-from': 'plan-order', 'week-unknown': 'week-wrong', 'week-beyond': 'week-wrong', 'baseline-period-long': 'impossible-number',
 };
 
 /** Goal entry's questions (rule 3) as the engine's kinds: the unlikely numbers are one kind, grouped by question. */
@@ -952,6 +961,12 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     else if (!existing && d.kind !== 'milestone') d.decimals = String(Math.min(3, Math.max(0, ...['start', 'target', 'limit'].map((k) => typedDecimals(val(r, k))))));
     if (val(r, 'start')) d.start = val(r, 'start');
     if (val(r, 'target')) d.target = val(r, 'target');
+    // A baseline of its own (BL, domain/baseline): its period, "none" to remove it, and whether it is provisional.
+    const period = val(r, 'baseline period');
+    if (period) d.baselinePeriod = /^(none|-|—)$/i.test(period) ? '' : period;
+    const firm = readWord(FIRMNESS_WORDS, val(r, 'baseline is'), 'Goals', row, d.title);
+    if (firm === undefined) return;
+    if (firm) { d.baselineProvisional = firm === 'provisional'; if (d.baselinePeriod === undefined && existing?.kind === 'metric' && existing.baseline) d.baselinePeriod = existing.baseline.period; }
     const shape = readWord(SHAPE_WORDS, val(r, 'plan'), 'Goals', row, d.title);
     if (shape === undefined) return;
     if (shape && shape !== d.shape) { d.shape = shape; d.points = {}; }
@@ -1449,7 +1464,16 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     const due = new Date(Date.parse(weekDate(cycle, w) + 'T09:00:00Z') + cycle.reviewDay * 86_400_000);
     const at = keeps ? new Date(existing.postedAt) : backfilled && due.toISOString() < now ? due : new Date(now);
     const made = asRecorded ? asWritten(asOf, w, draft, e, actor.id, at.toISOString(), existing?.id ?? newId('ci')) : toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId('ci'));
-    const c: CheckIn = { ...made, ...(backfilled ? { backfilled: true } : {}) };
+    // NR rule 3: a reading is recorded only as the rule allows, at every door; the owner's number stays the check-in's.
+    const read = post ? post.reading : input.readings?.find((x) => x.goalId === g.id && x.week === w)?.reading;
+    if (read && g.kind !== 'milestone') {
+      const problem = readingProblem(read, made.value, g.decimals, now);
+      if (problem) { raise('checkin-incomplete', 'Check-ins', row, g.title, problem); return; }
+    }
+    // A re-save of a week's check-in (a correction, a file's row) that carries no reading keeps the one it had only while
+    // its number is unchanged: a new number is no longer what the source said beside it (review of NR2, medium 1).
+    const was = !read && existing && existing.id === made.id && existing.reading && g.kind !== 'milestone' && existing.value != null && made.value != null && sameAtPlaces(existing.value, made.value, g.decimals) ? existing.reading : null;
+    const c: CheckIn = { ...made, ...(backfilled ? { backfilled: true } : {}), ...(read && g.kind !== 'milestone' ? { reading: keptReading(read, made.value, g.decimals) } : was ? { reading: was } : {}) };
     const ch = checkInChange(existing, c, g, actor.id, newId('chg'));
     if (!ch) { same('Check-ins'); return; }
     if (again) ch.summary = ch.summary.replace('Checked in for week', 'Checked in again for week');

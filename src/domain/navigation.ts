@@ -34,15 +34,17 @@ export const GROUP_NAMES: Record<keyof MenuGroups, string> = { work: 'Your work'
  * Rule 1. The menu in its groups: your work (Home; Check-in for someone with a goal to check in on; Goals; Reviews),
  * things to look up (People, then the modules' items in the order they register, then Activity and Data), New goal, and
  * this workspace and you (Workspace, Settings, Help, Feedback). A module's item in the work group follows Reviews.
- * With Reviews switched off (`reviews` false, FT2) it has no row.
+ * With Reviews switched off (`reviews` false, FT2) it has no row; with Feedback off (`feedback` false, SW1), neither has
+ * Feedback.
  */
-export function menuGroups(checksIn: boolean, modules: ModuleNavItem[] = [], reviews = true): MenuGroups {
+export function menuGroups(checksIn: boolean, modules: ModuleNavItem[] = [], reviews = true, feedback = true): MenuGroups {
   const id = (m: ModuleNavItem) => `module:${m.id}`;
   return {
     work: ['home', ...(checksIn ? ['checkin'] : []), 'goals', ...(reviews ? ['reviews'] : []), ...modules.filter((m) => m.group === 'work').map(id)],
     lookup: ['people', ...modules.filter((m) => m.group !== 'work').map(id), 'activity', 'data'],
     make: ['new'],
-    you: ['workspace', 'settings', 'help', 'feedback'],
+    // With Feedback switched off (`feedback` false, SW1) the last group is Workspace, Settings, Help.
+    you: ['workspace', 'settings', 'help', ...(feedback ? ['feedback'] : [])],
   };
 }
 
@@ -141,6 +143,8 @@ export interface PlaceNames {
   module?(path: string): string | null;
   /** The goal a goal feeds, for a Back link up the tree. */
   parent?(goalId: string): string | null;
+  /** Whether the address is a switched-off module's (Reviews' included): its page is the not-found page, and so is its name. */
+  off?(path: string): boolean;
 }
 
 
@@ -157,9 +161,11 @@ const FIXED: Record<string, string> = {
  * "Opened lately": a module's page names itself; the fixed places by name (Goals is "Goals" on every tab); a goal, a
  * review, a person, a team and a Help article by their own name, with what the page does to it ("Change {goal}",
  * "Check in: {goal}", "{goal}, to print", "{goal} · {review}" in a review's walk); a Workspace section as
- * "{section} · Workspace"; something that isn't there as "Goal not found" (and so on); any other address "Page not found".
+ * "{section} · Workspace"; something that isn't there as "Goal not found" (and so on); any other address, and a
+ * switched-off module's address, "Page not found" (what its page says: no review is named while Reviews is off).
  */
 export function pageName(path: string, search: string, names: PlaceNames): string {
+  if (names.off?.(path)) return 'Page not found';
   const sp = new URLSearchParams(search);
   const mod = names.module?.(path);
   if (mod) return mod;

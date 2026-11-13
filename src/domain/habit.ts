@@ -34,6 +34,8 @@ function meets(goal: Goal, v: number): boolean {
  */
 export function moment(earlier: readonly CheckIn[], after: CheckIn, goal: Goal, fresh = true): Moment | null {
   if (!fresh || after.backfilled || after.removedAt) return null;
+  // Never on a second check-in in the same week: the rule's, not only the screen's (#410 review).
+  if (earlier.some((c) => c.id !== after.id && c.goalId === after.goalId && c.week === after.week && !c.removedAt)) return null;
   // The week before's word on the goal: each earlier week's last check-in, newest first.
   const byWeek = new Map<number, CheckIn>();
   for (const c of [...earlier].sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt))) if (c.week < after.week && !c.removedAt) byWeek.set(c.week, c);
@@ -41,8 +43,10 @@ export function moment(earlier: readonly CheckIn[], after: CheckIn, goal: Goal, 
   const before = prior[0];
   if (after.value != null && meets(goal, after.value) && !(before?.value != null && meets(goal, before.value))) return { kind: 'reached', behind: 0 };
   if (after.status !== 'on' || !before || (before.status !== 'risk' && before.status !== 'off')) return null;
-  let behind = 0;
-  for (const c of prior) { if (c.status !== 'risk' && c.status !== 'off') break; behind++; }
+  // Weeks behind, not check-ins: from the first week of the unbroken behind stretch to this one (#410 review).
+  let from = after.week;
+  for (const c of prior) { if (c.status !== 'risk' && c.status !== 'off') break; from = c.week; }
+  const behind = after.week - from;
   return behind >= BACK_AFTER ? { kind: 'back', behind } : null;
 }
 

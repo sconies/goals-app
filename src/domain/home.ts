@@ -80,8 +80,9 @@ export interface Dashboard {
   missed: MissedReview[];
 }
 
-/** With Reviews switched off (`reviews` false, FT2) there is no next review and none missed. */
-export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { reviews: boolean } = { reviews: true }): Dashboard {
+/** With Reviews switched off (`reviews` false, FT2) there is no next review and none missed; with Watching off
+    (`watching` false, SW1) nothing is watched. */
+export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { reviews: boolean; watching?: boolean } = { reviews: true }): Dashboard {
   const mine = s.goals.filter((g) => g.ownerId === personId);
   const goals: Goal[] = mine.length ? mine : s.goals;
   const watched = watchedGoals(personId, s);
@@ -90,7 +91,7 @@ export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: num
     counts: statusCounts(goals.map((g) => goalStatus(g, cycle, s.checkIns, today).status)),
     total: goals.length,
     streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
-    watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
+    watching: opts.watching !== false && s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
     ...(() => { const upcoming = opts.reviews ? nextReviews(personId, s, cycle, week, today) : []; return { next: upcoming[0] ?? null, upcoming }; })(),
     missed: opts.reviews ? missedReviews(personId, s, cycle, week, today) : [],
   };
@@ -117,7 +118,7 @@ export interface HomeFacts {
   checkIns: { total: number; done: number; due: { id: string; title: string; number: boolean }[]; draft: boolean; allInOnTimeToday: boolean; streak: number | null;
     /** The receipt's facts (habit spec 2.1), for the day the week is completed: whether its last check-in was today, how many
         came after the due day, the forgiven week inside the run, and whether the due day is a review the viewer is in (T4). */
-    completedToday?: boolean; after?: number; forgiven?: number | null;
+    completedToday?: boolean; after?: number; forgiven?: number | null; forgivenMissed?: boolean;
     /** The deadline in dueWords' words for this person and week (RS1; app/reads dueWordsHere): "by Thursday", or "before Thursday’s review". */
     words?: Pick<DueWords, 'by' | 'after'> };
   /** The wrap-up, while it is open: the cycle's last day, whether it has passed, the viewer's goals not yet wrapped up. */
@@ -127,6 +128,11 @@ export interface HomeFacts {
   watches: number;
   /** With Reviews off (FT2), for someone who owns no goal: how many goals they watch need attention. Absent otherwise. */
   watchNeeds?: number;
+  /** With Watching off (SW1), for someone who owns no goal: how many goals in the workspace need attention. Absent
+      otherwise; `watches` is then 0 and nothing names watching. */
+  allNeeds?: number;
+  /** Watching is switched off (SW1). */
+  watchingOff?: boolean;
   /** Rule 3: the open asks waiting on the viewer, in rule 3's order. */
   asks: Waiting[];
   /** Goals proposed for the viewer by someone else, not yet opened (goal entry rule 14, `proposalAsks`'s `for-you`). */
@@ -138,7 +144,7 @@ export interface HomeFacts {
 /** A goal proposed for the viewer by someone else that they haven't opened, as the lead reads it. */
 export interface ProposedForYou { id: string; title: string; by: string; proposedOn: string; /** The review it was proposed in, by name: said as " in {review}". */ in?: string | null }
 
-export type LeadKind = 'check-in-late' | 'check-in' | 'wrap-up' | 'review' | 'watching' | 'ask';
+export type LeadKind = 'check-in-late' | 'check-in' | 'wrap-up' | 'review' | 'watching' | 'attention' | 'ask';
 export interface Lead {
   kind: LeadKind;
   eyebrow: string;
@@ -231,6 +237,8 @@ export function homeLead(f: HomeFacts): Lead | null {
   if (session) return reviewLead(f, session);
   // 50 with Reviews off (FT2): someone who owns no goal is led to the goals they watch that need attention.
   if (f.watchNeeds) return { kind: 'watching', eyebrow: 'Goals you watch', warn: false, title: `${f.watchNeeds} need${f.watchNeeds === 1 ? 's' : ''} attention`, line: '', action: { label: 'See them', to: '/goals?scope=watching&attention=1' }, also: null, ring: null, about: null };
+  // 50 with Watching off (SW1, spec 2.2 step 4): someone who owns no goal is led to every goal that needs attention.
+  if (f.allNeeds) return { kind: 'attention', eyebrow: `In ${f.workspace}`, warn: false, title: `${f.allNeeds} ${plural(f.allNeeds, 'goal')} need${f.allNeeds === 1 ? 's' : ''} attention`, line: '', action: { label: 'See them', to: '/goals?scope=all&attention=1' }, also: null, ring: null, about: null };
   // 60: the oldest or most pressing thing waiting on the viewer (rule 3's order puts it first); then a goal proposed for
   // them, which is an ask with no date, asked on the day it was proposed, and so after any ask that leads.
   return askLead(f.asks[0]) ?? proposalLead(f.proposals ?? [], f.today);
@@ -267,13 +275,13 @@ export function quietLine(f: HomeFacts): Quiet {
     const next = nextDue ? `The next ${c.total === 1 ? 'is' : 'are'} due by ${nextDue}.` : '';
     // On the day the week is completed, the check-in's receipt, word for word (habit spec 2.1; HB1).
     if (c.completedToday ?? c.allInOnTimeToday) {
-      const r = receiptText({ total: c.total, after: c.after ?? 0, week: f.week, words: c.words ?? dueWordsOn(false, f.rhythm.dueDate), run: c.streak ?? 0, forgiven: c.forgiven ?? null, nextDue });
+      const r = receiptText({ total: c.total, after: c.after ?? 0, week: f.week, words: c.words ?? dueWordsOn(false, f.rhythm.dueDate), run: c.streak ?? 0, forgiven: c.forgiven ?? null, forgivenMissed: !!c.forgivenMissed, nextDue });
       return { sentence: r.first, line: (c.after ? r.second : [r.second, next].filter(Boolean).join(' ')) || null, buttons: [] };
     }
     const allIn = c.total === 1 ? 'Your check-in is' : c.total === 2 ? 'Both check-ins are' : `All ${c.total} check-ins are`;
     return { sentence: `${allIn} in for week ${f.week}.`, line: next || null, buttons: [] };
   }
-  if (!f.owns && !f.watches && !f.asks.length) return { sentence, line: `You don’t own or watch a goal in ${f.workspace} yet.`, buttons: [{ label: 'See the goals', to: '/goals?scope=all' }, { label: 'Set up a goal', to: '/goals/new' }] };
+  if (!f.owns && !f.watches && !f.asks.length) return { sentence, line: f.watchingOff ? `You don’t own a goal in ${f.workspace} yet.` : `You don’t own or watch a goal in ${f.workspace} yet.`, buttons: [{ label: 'See the goals', to: '/goals?scope=all' }, { label: 'Set up a goal', to: '/goals/new' }] };
   // Set up after this week's deadline: the first check-in is next week's, said plainly.
   if (f.rhythm && c.total > 0 && !c.done && f.rhythm.nextDueDate) return { sentence, line: `Your first ${plural(c.total, 'check-in is', 'check-ins are')} due by ${dueOn(f.rhythm.nextDueDate)}.`, buttons: [] };
   return { sentence, line: null, buttons: [] };

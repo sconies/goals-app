@@ -44,10 +44,10 @@ Stage 3’s drill scores the parts of the screens that are rules of the viewer, 
 
 | File | Rows expected | Columns, in this order |
 |---|---|---|
-| `navigation.csv` | 56 | `viewer`, `owns_goals`, `address`, `menu`, `tabs`, `lit`, `page` |
+| `navigation.csv` | 60 | `viewer`, `owns_goals`, `address`, `menu`, `tabs`, `lit`, `page` |
 | `readback.csv` | 6 | `case`, `viewer`, `draft`, `rows`, `after` |
 | `find.csv` | 23 | `kind`, `q`, `total`, `near`, `ids` |
-| `home.csv` | 56 | `viewer`, `day`, `lead`, `title`, `quiet` |
+| `home.csv` | 56 | `viewer`, `day`, `lead`, `title`, `quiet`, `run`, `forgiven` |
 
 - What each file’s rows are, and the cases or viewers to run, is in [the conformance data](../conformance/README.md#the-files): every input a row needs is in the row or in `workspace.json`. Rows are matched by their key columns, columns by name, text exactly.
 

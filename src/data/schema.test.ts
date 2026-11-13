@@ -4,6 +4,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildPlatformOrg } from './platformOrg';
 import { metricLinkToRow, metricToRow } from '../modules/metrics/records';
+import { goalToRows } from './rows';
+import type { MetricGoal } from '../domain/types';
 
 const dir = join(__dirname, '../../supabase/migrations');
 const sql = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort().map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
@@ -112,6 +114,54 @@ describe('database schema', () => {
     await db.query(`select okr_upsert('okr_cycles', $1::jsonb, 'id')`, [JSON.stringify(rows)]);
     expect((await db.query<{ check_in_weeks: number; rhythm_from: unknown }>(`select check_in_weeks, rhythm_from::text from okr_cycles where id = 'cycle-rhythm'`)).rows[0]).toEqual({ check_in_weeks: 0, rhythm_from: '2026-10-05' });
   });
+  it('keeps a goal’s baseline: a figure, its period and whether it is provisional, all optional, and runs twice (0049)', async () => {
+    const id = (await db.query<{ id: string }>(`select id from faro.okr_goals where kind = 'metric' limit 1`)).rows[0]!.id;
+    const b = await db.query<{ baseline_value: unknown; baseline_period: unknown; baseline_provisional: unknown }>(`select baseline_value, baseline_period, baseline_provisional from faro.okr_goals where id = $1`, [id]);
+    expect(b.rows[0]).toEqual({ baseline_value: null, baseline_period: null, baseline_provisional: null });
+    await db.query(`update faro.okr_goals set baseline_value = 41.5, baseline_period = 'June to September 2026', baseline_provisional = true where id = $1`, [id]);
+    await expect(db.query(`update faro.okr_goals set baseline_period = $2 where id = $1`, [id, 'x'.repeat(61)])).rejects.toThrow(/okr_goals_baseline_period_len/);
+    await expect(db.query(`update faro.okr_goals set baseline_value = null where id = $1`, [id])).rejects.toThrow(/okr_goals_baseline_whole/);
+    await db.query(`update faro.okr_goals set baseline_value = null, baseline_period = '', baseline_provisional = false where id = $1`, [id]);
+    await db.exec(readFileSync(join(dir, '0049_goal_baseline.sql'), 'utf8'));
+    expect((await db.query<{ n: number }>(`select count(*)::int as n from pg_constraint where conname in ('okr_goals_baseline_period_len', 'okr_goals_baseline_whole')`)).rows[0]!.n).toBe(2);
+  });
+  it('saves goals with and without a baseline in one batch: each keeps its own, never another row’s (BL)', async () => {
+    const [a, b] = ['ci-cost', 'lead-merge'].map((id) => s.goals.find((g) => g.id === id) as MetricGoal);
+    const rows = [goalToRows('example', { ...a!, baseline: { value: a!.plan.start, period: 'June to September 2026', provisional: true } }).goal, goalToRows('example', b!).goal];
+    expect(rows[1]).toMatchObject({ baseline_value: null, baseline_period: null, baseline_provisional: null });
+    await db.query(`select okr_upsert('okr_goals', $1::jsonb, 'id')`, [JSON.stringify(rows)]);
+    const saved = await db.query<{ id: string; baseline_value: string | null; baseline_period: string | null; baseline_provisional: boolean | null }>(`select id, baseline_value::text, baseline_period, baseline_provisional from okr_goals where id in ('ci-cost', 'lead-merge') order by id`);
+    expect(saved.rows).toEqual([
+      { id: 'ci-cost', baseline_value: String(a!.plan.start), baseline_period: 'June to September 2026', baseline_provisional: true },
+      { id: 'lead-merge', baseline_value: null, baseline_period: null, baseline_provisional: null },
+    ]);
+    // Saved again without it, in a batch with one that still has it: the column is cleared, not kept.
+    await db.query(`select okr_upsert('okr_goals', $1::jsonb, 'id')`, [JSON.stringify([goalToRows('example', a!).goal, goalToRows('example', { ...b!, baseline: { value: b!.plan.start, period: 'Q3', provisional: false } }).goal])]);
+    const again = await db.query<{ id: string; baseline_period: string | null }>(`select id, baseline_period from okr_goals where id in ('ci-cost', 'lead-merge') order by id`);
+    expect(again.rows).toEqual([{ id: 'ci-cost', baseline_period: null }, { id: 'lead-merge', baseline_period: 'Q3' }]);
+  });
+  it('keeps a target only a proposed number goal may leave unset, and runs twice (0050)', async () => {
+    const id = (await db.query<{ id: string }>(`select id from faro.okr_goals where kind = 'metric' and proposed_at is null limit 1`)).rows[0]!.id;
+    await expect(db.query(`update faro.okr_goals set plan_target = null where id = $1`, [id])).rejects.toThrow(/okr_goals_metric_plan/);
+    await db.query(`update faro.okr_goals set plan_target = null, proposed_at = now() where id = $1`, [id]);
+    await expect(db.query(`update faro.okr_goals set proposed_at = null where id = $1`, [id])).rejects.toThrow(/okr_goals_metric_plan/);
+    await expect(db.query(`update faro.okr_goals set plan_target = plan_start where id = $1`, [id])).rejects.toThrow(/okr_goals_metric_plan/);
+    await db.query(`update faro.okr_goals set plan_target = plan_start + 1, proposed_at = null where id = $1`, [id]);
+    await db.exec(readFileSync(join(dir, '0050_goal_target_unset.sql'), 'utf8'));
+    expect((await db.query<{ n: number }>(`select count(*)::int as n from pg_constraint where conrelid = 'faro.okr_goals'::regclass and pg_get_constraintdef(oid) like '%plan_start <> plan_target%'`)).rows[0]!.n).toBe(1);
+  });
+  it('saves a proposed goal with its target unset and an active one with a target in one batch: each keeps its own (GB)', async () => {
+    const [a, b] = ['ci-cost', 'lead-merge'].map((id) => s.goals.find((g) => g.id === id) as MetricGoal);
+    const unset = { ...a!, proposedAt: '2026-11-11T12:00:00.000Z', proposedBy: 'rhea', targetUnset: true as const, plan: { ...a!.plan, target: a!.plan.start } };
+    const rows = [goalToRows('example', unset).goal, goalToRows('example', b!).goal];
+    expect(rows.map((r) => r.plan_target)).toEqual([null, b!.plan.target]);
+    await db.query(`select okr_upsert('okr_goals', $1::jsonb, 'id')`, [JSON.stringify(rows)]);
+    const saved = await db.query<{ id: string; plan_target: string | null }>(`select id, plan_target::text from okr_goals where id in ('ci-cost', 'lead-merge') order by id`);
+    expect(saved.rows).toEqual([{ id: 'ci-cost', plan_target: null }, { id: 'lead-merge', plan_target: String(b!.plan.target) }]);
+    // Its target set and made active again, in a batch with the other: written, never left null.
+    await db.query(`select okr_upsert('okr_goals', $1::jsonb, 'id')`, [JSON.stringify([goalToRows('example', a!).goal, goalToRows('example', b!).goal])]);
+    expect((await db.query<{ plan_target: string | null }>(`select plan_target::text from okr_goals where id = 'ci-cost'`)).rows[0]!.plan_target).toBe(String(a!.plan.target));
+  });
   it('saves retired and live metrics in one batch: a live one is written with an empty reason and no marks, never null (MT3)', async () => {
     const at = '2026-10-30T12:00:00.000Z';
     const base = { name: '', meaning: '', unit: '%', decimals: 0, direction: 'lower' as const, source: '', sourceOwner: '', refresh: null, ownerId: 'rhea', caveats: '', createdBy: 'rhea', createdAt: at, updatedAt: at };
@@ -123,6 +173,19 @@ describe('database schema', () => {
     await db.query(`select okr_upsert('okr_metrics', $1::jsonb, 'id')`, [JSON.stringify(rows)]);
     const saved = await db.query<{ id: string; retired_why: string; marks: unknown[] }>(`select id, retired_why, marks from okr_metrics where id in ('m-retired', 'm-live') order by id`);
     expect(saved.rows.map((r) => [r.id, r.retired_why, (r.marks as unknown[]).length])).toEqual([['m-live', '', 0], ['m-retired', 'Gone', 1]]);
+  });
+  it('saves metrics with and without a measurement status in one batch: a measured one is written as measured with no note, never null (MS, 0046)', async () => {
+    const at = '2026-10-30T12:00:00.000Z';
+    const base = { name: '', meaning: '', unit: '%', decimals: 0, direction: 'lower' as const, source: '', sourceOwner: '', refresh: null, ownerId: 'rhea', caveats: '', createdBy: 'rhea', createdAt: at, updatedAt: at };
+    const rows = [
+      metricToRow('example', { ...base, id: 'm-gap', name: 'Gap one', measurement: 'gap', measurementNote: 'No feed yet' }),
+      metricToRow('example', { ...base, id: 'm-measured', name: 'Measured one' }),
+    ];
+    expect(rows[1]).toMatchObject({ measurement: 'measured', measurement_note: '' });
+    await db.query(`select okr_upsert('okr_metrics', $1::jsonb, 'id')`, [JSON.stringify(rows)]);
+    const saved = await db.query<{ id: string; measurement: string; measurement_note: string }>(`select id, measurement, measurement_note from okr_metrics where id in ('m-gap', 'm-measured') order by id`);
+    expect(saved.rows.map((r) => [r.id, r.measurement, r.measurement_note])).toEqual([['m-gap', 'gap', 'No feed yet'], ['m-measured', 'measured', '']]);
+    await expect(db.query(`update okr_metrics set measurement = 'sometimes' where id = 'm-gap'`)).rejects.toThrow(/okr_metrics_measurement_ok/);
   });
   it('saves links with and without a part in one batch: a link with no part is written as empty, never null (build review of #308)', async () => {
     await db.query(`insert into okr_metrics (id, workspace_id, name, unit, direction, owner_id, created_by) values ('m-mixed', 'example', 'Mixed batch', '%', 'lower', 'rhea', 'rhea')`);

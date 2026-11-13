@@ -14,10 +14,10 @@ import type { ScopeFacts } from '../domain/goalsPage';
 import { agendaOf, goalsIn, heldOnDueDay, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
 import { waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession, type Waiting } from '../domain/home';
 import { handedFrom } from '../domain/askHandover';
-import { dueWords, onTimeStreak, receiptFacts, reviewDate, weekProgress, type DueWords } from '../domain/progress';
+import { dueWords, inByDueDay, onTimeStreak, postedDay, receiptFacts, reviewDate, weekProgress, type DueWords } from '../domain/progress';
 import { hasEnded, weekDate, weekDates } from '../domain/plan';
 import { beforeStart, cycleDates, wrapUpOpenOn } from '../domain/cycle';
-import { openForPerson } from '../domain/asks';
+import { asksOf, openForPerson } from '../domain/asks';
 import { attentionFor, needsAttention } from '../domain/attention';
 import type { QueryContext } from '../domain/query';
 import type { LocalRows } from '../adapters/localSearch';
@@ -31,8 +31,37 @@ const live = <T extends { removedAt?: string | null }>(xs: T[]) => xs.filter((x)
  */
 export const reviewsOn = (on: ReadonlySet<string>): boolean => on.has('reviews');
 
-/** What a review action says when Reviews is off (FT2, spec 1.2). */
-export const reviewsOffWords = (workspace: string) => `Reviews is off in ${workspace}.`;
+/** What an action of a switched-off module says (docs/architecture/module-map.md, "An action, refused"): one sentence. */
+export const switchedOffWords = (module: string, workspace: string) => `${module} is switched off in ${workspace}. An admin can switch it on in Workspace, under Features.`;
+/** What domain/reviewWrites reads of a workspace as loaded: its goals (proposed ones too), reviews and asks. */
+export const reviewWriteRows = (s: Snapshot) => ({ goals: [...s.goals, ...(s.proposed ?? [])], reviews: s.reviews, asks: asksOf(s) });
+/** What a save of Reviews' records says while Reviews is off (FT2): the switched-off module's sentence (build review of #371). */
+export const reviewsOffWords = (workspace: string) => switchedOffWords('Reviews', workspace);
+
+/*
+ * SW1: the four switches whose code is still the core's, each answered here and nowhere else (feature-switches spec
+ * 1.2, check N27: no other file tests a module's id as a string). Screens pass `useModules().on`, the MCP server and the
+ * dispatcher `modulesOn(ws).on`; rules in src/domain take the answer as a boolean. A build without the module answers
+ * false. Each goes when its code moves into its folder (SW4 to SW8).
+ */
+/** Whether Watching is on: the Watching tab, Home's "Goals you watch", the Watch button and the three watching tools. */
+export const watchingOn = (on: ReadonlySet<string>): boolean => on.has('watching');
+/** Whether Feedback is on: its menu row and page, Send feedback, Mark up this screen (and its key) and the inbox tools. */
+export const feedbackOn = (on: ReadonlySet<string>): boolean => on.has('feedback');
+/** Whether the Goal map is on: Goals' Map layout. */
+export const goalMapOn = (on: ReadonlySet<string>): boolean => on.has('goal-map');
+/** Whether the Wrap-up is on: its pages, Home's wrap-up lead, "Wrap up this goal" and its two tools. Results, carrying
+    on and starting the next year are the core's and never ask. */
+export const wrapUpOn = (on: ReadonlySet<string>): boolean => on.has('wrap-up');
+
+/** The core's actions that belong to a switch while its code is still the core's (SW1 spec 1.3; Reviews' saves are refused by what they write, in actions.ts): each refuses
+    while its module is off, with `moduleOffWords`. Revoking and starting the next year never refuse. */
+export const SWITCHED_ACTIONS: Readonly<Record<string, string>> = {
+  watch: 'watching', unwatch: 'watching', saveRetro: 'wrap-up', sendFeedback: 'feedback',
+};
+
+/** What a switched module's action says while it is off (spec 1.3): "Watching is off in {workspace}." */
+export const moduleOffWords = (name: string, workspace: string) => `${name} is off in ${workspace}.`;
 
 /**
  * This week's deadline in dueWords' words (RS1), from what the rule reads: whether Reviews is on, and whether a review is
@@ -103,9 +132,12 @@ export function dayOneRows(s: Pick<Snapshot, 'people' | 'goals' | 'checkIns' | '
 /** A review's name, for " in {review}" (GE10): null when it isn't in the workspace to name. */
 export const reviewName = (s: Pick<Snapshot, 'reviews'>, id: string | null | undefined): string | null => (id ? s.reviews.find((r) => r.id === id)?.name ?? null : null);
 
-export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot }; opened?: ReadonlySet<string>; putOff?: ReadonlyMap<string, string>; reviews?: boolean }): HomeFacts {
+export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot }; opened?: ReadonlySet<string>; putOff?: ReadonlyMap<string, string>; reviews?: boolean; watching?: boolean; wrapUp?: boolean }): HomeFacts {
   // Reviews switched off (FT2): no session leads or names a day, and no ask names a review.
   const reviews = opts.reviews !== false;
+  // Watching switched off (SW1): nothing is watched, and someone who owns no goal is led to every goal needing
+  // attention; the Wrap-up switched off: nobody is asked to wrap up (the year still ends).
+  const watching = opts.watching !== false, wrapUp = opts.wrapUp !== false;
   const day = today.toISOString().slice(0, 10);
   const p = weekProgress(viewerId, s, cycle, week, today);
   const mine = s.goals.filter((g) => g.ownerId === viewerId);
@@ -116,7 +148,7 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   // The receipt names the due day as a review only for someone in a review held that day, while Reviews is on (T4, FT2):
   // dueWords' words (RS1), the same the check-in's receipt says.
   const words = dueWordsHere(reviews, s, cycle, week, viewerId);
-  const receipt = allIn ? receiptFacts(p, viewerId, s, cycle, week, words) : { after: 0, forgiven: null };
+  const receipt = allIn ? receiptFacts(p, viewerId, s, cycle, week, words) : { after: 0, forgiven: null, forgivenMissed: false };
   const dueDate = reviewDate(cycle, Math.max(1, week));
   // Once the year has ended no session is held in it: a "Not held yet" lead would never go (HM1 review).
   const sessions: HomeSession[] = ended || !reviews ? [] : s.reviews.filter((r) => r.people.includes(viewerId)).map((r) => reviewSession(r, s, cycle, today, week))
@@ -136,21 +168,23 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   const wrapMine = ws.goals.filter((g) => g.ownerId === viewerId);
   return {
     today: day, week, lastWeek: cycle.weeks, cycleName: cycle.name, workspace: opts.workspace,
-    starts: start ? { on: start.firstDay, firstDue: start.firstDue } : null, ended: ended && !(wrapOpen && mine.some((g) => !s.retros.some((r) => r.goalId === g.id))),
+    starts: start ? { on: start.firstDay, firstDue: start.firstDue } : null, ended: ended && !(wrapUp && wrapOpen && mine.some((g) => !s.retros.some((r) => r.goalId === g.id))),
     rhythm: { dueDate, nextDueDate: week < cycle.weeks ? reviewDate(cycle, Math.max(1, week) + 1) : null },
     checkIns: {
       total: p.goals.length, done: p.done.length,
       due: p.due.map((g) => ({ id: g.id, title: g.title, number: g.kind !== 'milestone' })), draft: opts.draft,
-      allInOnTimeToday: allIn && thisWeek.some((c) => c.postedAt.slice(0, 10) === day) && thisWeek.every((c) => c.postedAt.slice(0, 10) <= dueDate),
+      allInOnTimeToday: allIn && thisWeek.some((c) => localDay(c.postedAt) === day) && thisWeek.every((c) => inByDueDay(c, cycle, Math.max(1, week))),
       streak: mine.length ? onTimeStreak(viewerId, s, cycle, week) : null,
-      completedToday: allIn && thisWeek.some((c) => c.postedAt.slice(0, 10) === day),
-      after: receipt.after, forgiven: receipt.forgiven, words: { by: words.by, after: words.after },
+      completedToday: allIn && thisWeek.some((c) => localDay(c.postedAt) === day),
+      after: receipt.after, forgiven: receipt.forgiven, forgivenMissed: !!receipt.forgivenMissed, words: { by: words.by, after: words.after },
     },
-    wrap: wrapUpOpenOn(wc, today) ? { name: wc.name, ends: cycleDates(wc).lastDay, ended: hasEnded(wc, today), left: wrapMine.filter((g) => !ws.retros.some((r) => r.goalId === g.id)).map((g) => ({ id: g.id, title: g.title })), total: wrapMine.length } : null,
+    wrap: wrapUp && wrapUpOpenOn(wc, today) ? { name: wc.name, ends: cycleDates(wc).lastDay, ended: hasEnded(wc, today), left: wrapMine.filter((g) => !ws.retros.some((r) => r.goalId === g.id)).map((g) => ({ id: g.id, title: g.title })), total: wrapMine.length } : null,
     sessions,
     owns: mine.length,
-    watches: watchedGoals(viewerId, s).filter((g) => g.ownerId !== viewerId).length,
-    ...(!reviews && !mine.length ? { watchNeeds: watchedGoals(viewerId, s).filter((g) => needsAttention(attentionFor(g, s, cycle, today))).length } : {}),
+    watches: watching ? watchedGoals(viewerId, s).filter((g) => g.ownerId !== viewerId).length : 0,
+    ...(!watching ? { watchingOff: true } : {}),
+    ...(!watching && !mine.length ? { allNeeds: live(s.goals).filter((g) => !g.stoppedAt && needsAttention(attentionFor(g, s, cycle, today))).length } : {}),
+    ...(watching && !reviews && !mine.length ? { watchNeeds: watchedGoals(viewerId, s).filter((g) => needsAttention(attentionFor(g, s, cycle, today))).length } : {}),
     asks: homeAsks(viewerId, s, cycle, week, today, reviews),
     // Goal entry rule 14: proposed for the viewer by someone else and not yet opened (what was opened is the Prefs port's).
     // Every row under "Proposed goals" (both kinds), so the quiet line never says nothing is asked beside them (#319's review).
@@ -177,7 +211,7 @@ export function wrapUpScope(full: Snapshot, cycle: Cycle, snapshot: Snapshot, we
  * read on the same clock, not in UTC (build review of #310: "Asked yesterday" for an ask made half an hour ago at UTC+10).
  * On a server, whose zone is UTC, it is the stamp's UTC day.
  */
-const localDay = (iso: string) => { const n = new Date(iso); return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10); };
+const localDay = postedDay;
 
 export function homeAsks(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, reviews = true): Waiting[] {
   return openForPerson(viewerId, s).flatMap((r) => { const w = askWaiting(r, viewerId, s, cycle, week, today, reviews); return w ? [w] : []; }).sort(waitingOrder);

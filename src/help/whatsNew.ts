@@ -27,6 +27,97 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'metric-measurement',
+    date: '2026-11-13',
+    title: 'Say when a number isn’t measured yet',
+    points: [
+      'Each metric now says whether it is measured today: Measured, Partly or Gap, a shape and a word, with a line on what’s missing.',
+      'A goal measured by a metric with a gap is held to no number. It says “Not measured yet”, nothing on it is late, and it needs no made-up baseline.',
+      'Gaps and parts are listed under To sort out in the metric library, so someone owns them.',
+    ],
+    articles: ['metric-measurement'],
+  },
+  {
+    id: 'more-switches',
+    date: '2026-11-13',
+    title: 'Watching, the Wrap-up, the Goal map and Feedback can be switched off',
+    points: [
+      'Features is in groups, and says what each feature holds: Working together (Reviews, Watching, the Wrap-up), Tools (the Metric library, Spreadsheets, the Goal map) and Beyond this workspace (Feedback). Workspace, Features.',
+      'Watching can be switched off for a workspace. Everyone’s watches are kept for when it comes back; while it is off, someone who owns no goal is led to every goal that needs attention.',
+      'The Wrap-up can be switched off. Nobody is asked how a goal landed, the year still ends, and an admin starts the next one from Cycles.',
+      'The Goal map and Feedback can be switched off too. A saved view that opened the Map opens the List and says so; what was sent as feedback stays with the people who build Faro.',
+      'Before Watching or the Wrap-up goes off, Faro says what stays, and Undo brings it straight back.',
+    ],
+    articles: ['features'],
+  },
+  {
+    id: 'target-not-set',
+    date: '2026-11-13',
+    title: 'A goal can go in with its baseline and no target yet',
+    points: [
+      'When a number is known but nobody has agreed a target, propose the goal with its Baseline and leave Target empty.',
+      'It says “Target not set”, has no status and nothing due, and counts in nothing until it is made active.',
+      'Set the target on its page when one is agreed; it can be made active once it has one.',
+      'The Goals sheet and the AI tools take a proposed goal with a Start and no Target too.',
+    ],
+    articles: ['goal-proposed'],
+  },
+  {
+    id: 'baseline-of-its-own',
+    date: '2026-11-13',
+    title: 'A baseline can say what period it covers, and how firm it is',
+    points: [
+      'When a goal’s baseline is a figure you already have, say the period it covers (“June to September 2026”) under Baseline, and tick Provisional if it may still change.',
+      'Until the first check-in, the goal shows that baseline as its number, marked as the baseline, instead of “No value yet”.',
+      'Firming up a provisional baseline isn’t a plan change: it asks for no reason and keeps no earlier plan.',
+      'The Goals sheet has Baseline period and Baseline is columns, and the AI tools take baseline_period and baseline_is.',
+    ],
+    articles: ['new-goal', 'edit-goal', 'goal-page'],
+  },
+  {
+    id: 'empty-pages-say-when',
+    date: '2026-11-13',
+    title: 'Empty pages say when you’d want them',
+    points: [
+      'Metrics, Watching and Activity, while empty, say what is true and when you would want them, with a plain button rather than a big one.',
+      'A tab or a menu row with nothing in it no longer shows a 0.',
+    ],
+    articles: ['watching', 'metrics', 'activity'],
+  },
+  {
+    id: 'readings-fill-in-check-ins',
+    date: '2026-11-13',
+    title: 'Check-ins start with the number, where a source can be read',
+    points: [
+      'A goal measured by a metric whose source Faro can read opens its check-in with the latest reading filled in, and says where it came from and when: “From CI analytics, read 9:02 today.”',
+      'The button names the number (“Confirm 12 min”). Nothing is posted until you finish the check-in.',
+      'Type a different number and you’re asked why it differs. Your number counts; the reading and your reason are kept beside it, and nobody is flagged.',
+      'A reading more than a week old isn’t filled in, and a company-wide number never fills in a team’s goal.',
+      'Where a number came from also shows on the goal’s Measured by and History, on the metric’s page (with how often its source’s number was typed over), in a review’s agenda and in the Check-ins sheet.',
+    ],
+    articles: ['check-in', 'metric-slices', 'metrics', 'goal-page'],
+  },
+  {
+    id: 'switch-from-the-narrow-menu',
+    date: '2026-11-13',
+    title: 'Switch workspace from the narrow menu',
+    points: [
+      'With the narrow menu of icons, the Faro mark at its top opens the workspace switcher.',
+      'Nothing is added to the menu, so the rest of it keeps its room on a small screen.',
+    ],
+    articles: ['workspace'],
+  },
+  {
+    id: 'look-around-the-demo',
+    date: '2026-11-13',
+    title: 'Look around the demo from any workspace',
+    points: [
+      'The workspace switcher has Look around the demo: the example workspace, which you can change freely without touching yours.',
+      'On a phone, Home’s review cell uses a shorter label, so the review’s name fits.',
+    ],
+    articles: ['workspace'],
+  },
+  {
     id: 'reviews-switch-clock',
     date: '2026-11-13',
     title: 'Check-ins say plainly which day they’re due',
@@ -66,7 +157,7 @@ export const WHATS_NEW: NewsEntry[] = [
     title: 'Your run forgives one missed week, and reaching a target is said, quietly',
     points: [
       'When your week’s check-ins are all in, the last screen says whether they were in before the deadline (or the review, if you are in one that day), and how many weeks in a row you have been on time.',
-      'One late week no longer ends your run: if the four weeks before it were on time, it is forgiven, and the next check-in says so once.',
+      'One late or missed week no longer ends your run: if the four weeks before it were on time, it is forgiven, and the next check-in says so once. A goal called Done leaves your run, and a goal you take over counts only from when it became yours.',
       'A check-in that takes a goal to its target says so in one quiet panel, with a way to copy the goal’s share image. One that brings a goal back on track after two weeks or more behind says that too.',
       'The goal’s History marks those weeks “Reached its target” or “Back on track”.',
     ],

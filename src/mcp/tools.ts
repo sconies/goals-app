@@ -6,12 +6,12 @@ import type { HistoryAsk, HistoryPage } from '../ports/store';
 import { LEVEL_WORDS, levelIds } from '../domain/levels';
 import { addNote, NotAllowed } from '../domain/actions';
 import { EMPTY_QUERY, parseQuery, queryEntries, type GoalQuery } from '../domain/query';
-import { scopeFacts, searchRows } from '../app/reads';
+import { reviewsOn, reviewWriteRows, scopeFacts, searchRows, watchingOn } from '../app/reads';
 import { scopesFor, SCOPES, type Scope } from '../domain/goalsPage';
 import { localSearch } from '../adapters/localSearch';
 import type { FoundRow, Search, SearchAsk } from '../ports/search';
 import type { Commit } from '../data/store';
-import { describe, examplesLine, GOAL_QUESTION, MIN_CORRECT_REASON, planChanges, VIA_MCP, type Answers, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
+import { describe, examplesLine, GOAL_QUESTION, MIN_CORRECT_REASON, planChanges, VIA_MCP, type Answers, type ChangeInput, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
 import { tooLarge, tooManyChanges } from '../domain/importLimits';
 import { aiBrief, toJson } from '../domain/export';
 import { GOAL_ACTION_WORDS, PERSON_ACTION_WORDS } from '../domain/columns';
@@ -23,13 +23,12 @@ import { watchedGoals } from '../domain/review';
 import { NEED_OPTIONS } from '../domain/query';
 import { WORK_TOOLS } from './workTools';
 import { listed } from './listed';
-import { MARKUP_TOOLS } from './markupTools';
 import type { MarkupOps } from '../markup/ops';
-import { FEEDBACK_TOOLS } from './feedbackTools';
 import type { FeedbackOps } from '../markup/feedback';
 import { REMOVE_TOOLS } from './removeTools';
 import MODULE_TOOLS from 'virtual:faro-modules/tools';
-import { isModuleOn, moduleById } from '../core/registry';
+import { isModuleOn, moduleById, modulesOn } from '../core/registry';
+import { writesReviews } from '../domain/reviewWrites';
 import { MODULE_GOAL_COLUMNS, recordsOn } from '../core/records';
 import { addColumnParams } from '../domain/query';
 import { commentsOf } from '../domain/removal';
@@ -41,7 +40,8 @@ import { activeReadBack } from '../domain/readBack';
 import { readWeekCode } from '../domain/weeks';
 import { isTableView } from '../domain/tableLayout';
 import { moment, momentText } from '../domain/habit';
-import type { Cycle, DisplayStatus, Goal, Level, Person, Snapshot } from '../domain/types';
+import type { Cycle, DisplayStatus, Goal, Level, Person, ReadingWhyKind, Snapshot } from '../domain/types';
+import { checkInReaders } from './checkInReaders';
 
 export interface McpContext {
   /** The workspace; `recording` is its recording switch (on unless false); `modulesOff`, the feature modules an admin
@@ -146,13 +146,13 @@ const answersOf = (a: unknown): Answers => Object.fromEntries(Object.entries((a 
 /** find_goals' page: how many goals it lists unless asked, and the most it lists at once. */
 const FIND_PAGE = 50, FIND_MAX = 200;
 
-async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown; saved?: (cs: ChangeSet, before: McpContext['snapshot']) => { data: Record<string, unknown>; text: string } | null }): Promise<ToolResult> {
+async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown; readings?: ChangeInput['readings']; saved?: (cs: ChangeSet, before: McpContext['snapshot']) => { data: Record<string, unknown>; text: string } | null }): Promise<ToolResult> {
   // The size limits every door keeps (domain/importLimits): rows read in one call, then changes saved at once.
   const big = tooLarge('This call', { rows: (tables.goals?.length ?? 0) + (tables.plan?.length ?? 0) + (tables.checkIns?.length ?? 0) + (tables.people?.length ?? 0) }, 'call');
   if (big) return { isError: true, text: `Not checked. ${big}` };
   // A goal's key: as saved once it is, as the change gives it before (a dry run's key is the one it would get).
   const keyOf = (id: string): string | null => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
-  const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason, confirm: opts.confirm, answers: answersOf(opts.answers), records: recordsOn(ctx.ws) });
+  const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason, confirm: opts.confirm, answers: answersOf(opts.answers), records: recordsOn(ctx.ws), ...(opts.readings?.length ? { readings: opts.readings } : {}) });
   // Every problem has a kind and a level (domain/problemLevels): Must fix, Check (a question), or how a row was read.
   const errors = cs.issues.filter((x) => x.level === 'must');
   // Goal entry's questions (rule 3) are listed goal by goal and answered by "confirm"; the import's other questions by
@@ -239,7 +239,9 @@ const GOAL_FIELDS = {
   unit: str('Number goals: the unit, e.g. "%", "days", "USD".'),
   decimals: int('Number goals: decimal places, 0 to 3.'),
   start: num('Move-a-number goals: where it starts.'),
-  target: num('Move-a-number goals: the target.'),
+  baseline_period: str('Move-a-number goals: the period the baseline (start) covers, when it is a figure you already have, e.g. "June to September 2026" (at most 60 characters). Given, start is shown as the goal’s number, marked as the baseline, until its first check-in. "none" removes it.'),
+  baseline_is: str('Move-a-number goals with a baseline period: provisional (it may still be firmed up: changing start then isn’t a plan change and needs no reason) or firm.', { enum: ['provisional', 'firm'] }),
+  target: num('Move-a-number goals: the target. A proposed goal may leave it out and keep only its start (a baseline and nothing else yet): it says "Target not set", and needs a target before it is made active.'),
   plan_shape: str('Move-a-number goals: how the plan moves from start to target.', { enum: ['straight', 'back-loaded', 'stepped'] }),
   from: str('Move-a-number goals: the week the baseline (start) was true and the plan starts, as a year and a week, e.g. "2026-W46". Left out: this week for a new goal.'),
   to: str('Move-a-number goals: the week the target is due, as a year and a week, e.g. "2027-W13": up to the last week of next year. Left out: the end of this goal year.'),
@@ -255,7 +257,7 @@ const GOAL_FIELDS = {
   definition: str('Exactly what is counted.'),
   state: str('active (the default for a new goal) or proposed: a proposed goal is visible to everyone, has no status and nothing due, and needs no plan yet; its owner or an admin makes it active (make_goal_active). A goal with check-ins can’t go back to proposed.', { enum: ['active', 'proposed'] }),
 };
-const GOAL_COLS: Record<string, string> = { title: 'goal', owner: 'owner', owner_email: 'owner email', team: 'team', level: 'level', unit: 'unit', decimals: 'decimals', start: 'start', target: 'target', plan_shape: 'plan', from: 'from', to: 'to', due_week: 'due week', limit: 'limit', must_stay: 'must stay', margin: 'margin', stages: 'stages', feeds_into_id: 'feeds into id', why_it_helps: 'why it helps', source: 'source', definition: 'definition', state: 'state' };
+const GOAL_COLS: Record<string, string> = { title: 'goal', owner: 'owner', owner_email: 'owner email', team: 'team', level: 'level', unit: 'unit', decimals: 'decimals', start: 'start', baseline_period: 'baseline period', baseline_is: 'baseline is', target: 'target', plan_shape: 'plan', from: 'from', to: 'to', due_week: 'due week', limit: 'limit', must_stay: 'must stay', margin: 'margin', stages: 'stages', feeds_into_id: 'feeds into id', why_it_helps: 'why it helps', source: 'source', definition: 'definition', state: 'state' };
 
 
 const CORE_TOOLS: ToolDef[] = [
@@ -333,8 +335,9 @@ const CORE_TOOLS: ToolDef[] = [
       // The scope argument wins over the link's.
       const scope = a.scope ? String(a.scope) as Scope : linkScope ? linkScope as Scope : null;
       if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
-      const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).tabs.find((t) => t.id === scope) : null;
-      if (scope && scope !== 'all' && !scoped) return listed(goalPage([], a, scope === 'team' ? 'You’re in no team and lead none.' : 'You own no goals this year.'));
+      const watchingHere = watchingOn(modulesOn(ctx.ws).on);
+      const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).tabs.find((t) => t.id === scope) : null;
+      if (scope && scope !== 'all' && !scoped) return listed(goalPage([], a, scope === 'team' ? 'You’re in no team and lead none.' : scope === 'watching' ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : 'You own no goals this year.'));
       const inScope = scoped ? new Set(scoped.ids) : null;
       const words = [String(a.text ?? ''), query.q].filter((x) => x.trim()).join(' ');
       const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -406,12 +409,29 @@ const CORE_TOOLS: ToolDef[] = [
       needs: str('A decision or help needed, and from whom.'),
       next_step: str('The next step.'),
       reason: str(`If the week already has a check-in, this corrects it: why, in a sentence (${MIN_CORRECT_REASON} to 500 characters), kept as “Why corrected”.`),
+      reading_confirmed: bool('True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded.'),
+      different_because: { type: 'object', additionalProperties: false, required: ['kind'], description: `When the owner’s value differs from what the source reads now, why: the reading and the reason are recorded beside their number (never a flag). kind: behind (the source is behind: they have a newer number), other-count (it counts something else), wrong (it is wrong this week) or else (something else, with text of at least ${MIN_CORRECT_REASON} characters).`, properties: { kind: str('Why it differs.', { enum: ['behind', 'other-count', 'wrong', 'else'] }), text: str('In the owner’s words; needed for else.') } },
       answers: ANSWERS_ARG,
       dry_run: DRY,
     } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
+      // NR rule 3: the goal's source is read only when the call says the owner confirmed it or why theirs differs.
+      const diff = a.different_because as { kind: ReadingWhyKind; text?: string } | undefined;
+      const asksReading = a.reading_confirmed === true || !!diff;
+      let readings: ChangeInput['readings'];
+      let readSays = '';
+      if (asksReading) {
+        const reader = checkInReaders()[0];
+        if (reader && !isModuleOn(ctx.ws, reader.module)) return { isError: true, text: moduleOffSentence(moduleById(reader.module)?.name ?? reader.module, ctx.ws.name, 'post_check_in with reading_confirmed or different_because') };
+        const got = reader ? await reader.read(ctx, g, { value: typeof a.value === 'number' ? a.value : null, confirmed: a.reading_confirmed === true, ...(diff ? { why: diff } : {}) }) : { reading: null, says: 'No number source can be read here, so no reading was recorded.' };
+        if (got.reading) {
+          readings = [{ goalId: g.id, week: (a.week as number | undefined) ?? ctx.week, reading: got.reading }];
+          if (a.value == null && a.reading_confirmed === true) a = { ...a, value: got.reading.value };
+        }
+        readSays = got.says ?? '';
+      }
       const r = row({ ...a, goal_id: g.id, week: a.week ?? ctx.week, call: a.call == null || a.call === '' ? undefined : statusIn(a.call, CALLS) }, { goal_id: 'goal id', week: 'week', value: 'value', stages: 'stages', call: 'call', cause: 'cause', why: 'why', why_greener: 'why greener', path_to_green: 'path to green', recovery: 'recovery', back_on_plan_by_week: 'back on plan by week', needs: 'needs', next_step: 'next step' });
       // A target reached, or back on track (habit rule 3), said as the receipt says it. Never on a correction.
       const saved = (cs: ChangeSet, before: McpContext['snapshot']) => {
@@ -422,7 +442,8 @@ const CORE_TOOLS: ToolDef[] = [
         const t = momentText(m, g, c, ctx.cycle.weeks);
         return { data: { moment: { kind: m.kind, heading: t.heading, line: t.line } }, text: `${t.heading}. ${t.line}` };
       };
-      return change(ctx, { checkIns: [r] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, answers: a.answers, saved });
+      const out = await change(ctx, { checkIns: [r] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, answers: a.answers, readings, saved });
+      return readSays && !out.isError ? { ...out, text: `${out.text}\n${readSays}` } : out;
     },
   },
   {
@@ -540,7 +561,7 @@ export const toolModule = (name: string): string | undefined => TOOL_MODULE.get(
 // The modules' Goals columns are read from a link here as in the app (core/app registers them for the screens).
 addColumnParams(MODULE_GOAL_COLUMNS.map((c) => c.param));
 
-export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS, ...REMOVE_TOOLS, ...MARKUP_TOOLS, ...FEEDBACK_TOOLS, ...MODULE_TOOLS.flatMap((m) => m.part)];
+export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS, ...REMOVE_TOOLS, ...MODULE_TOOLS.flatMap((m) => m.part)];
 
 /** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. A module's
     tool in a workspace that has switched that module off says so, and does nothing. */
@@ -550,13 +571,32 @@ export async function callTool(name: string, args: Record<string, unknown>, ctx:
   const from = TOOL_MODULE.get(name);
   if (from && !isModuleOn(ctx.ws, from)) return { isError: true, text: moduleOffSentence(moduleById(from)?.name ?? from, ctx.ws.name, name) };
   try {
-    return await t.run(args ?? {}, ctx);
+    return await t.run(args ?? {}, reviewsOn(modulesOn(ctx.ws).on) ? ctx : reviewsGuarded(ctx, name));
   } catch (e) {
+    if (e instanceof ReviewsOff) return { isError: true, text: e.message };
     const text = e instanceof Error ? e.message : String(e);
     // A refusal says who the token acts as, so an assistant (and the person reading) can tell "the rule says no" from "this
     // token is someone else's" (backlog N: a token made for a non-admin was taken for an admin's).
     return { isError: true, text: e instanceof NotAllowed ? `${text} ${actingAs(ctx.actor)}` : text, cause: e };
   }
+}
+
+/** A save refused because it writes Reviews' records while Reviews is off: said as the switched-off sentence alone. */
+class ReviewsOff extends Error {}
+
+/**
+ * The context a tool runs with while Reviews is off: the same, except that a save writing Reviews' records (a review, a
+ * note said in one, an ask raised in one, a goal proposed in one: domain/reviewWrites) is refused and saves nothing, in
+ * the switched-off sentence, whichever tool made it (build review of #371: edit_comment and delete_comment on a review
+ * note, create_goal proposed in a review, restore_removed reopening an ended review). Everything else reads and writes
+ * through to the context itself, which a save moves on.
+ */
+function reviewsGuarded(ctx: McpContext, tool: string): McpContext {
+  const save = async (c: Commit) => {
+    if (writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new ReviewsOff(moduleOffSentence('Reviews', ctx.ws.name, tool));
+    return ctx.save(c);
+  };
+  return new Proxy(ctx, { get: (t, k, r) => (k === 'save' ? save : Reflect.get(t, k, r)) });
 }
 
 /** Who a token acts as, in a sentence: said with every refusal. */

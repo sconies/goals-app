@@ -13,6 +13,8 @@ import type { Ask, CheckIn, Cycle, Decision, Goal, Person, Review, Snapshot, Tea
 import { search } from '../domain/find';
 import { goalRows, homeFacts, personRows, teamRows } from '../app/reads';
 import { homeFor } from '../domain/home';
+import { moment } from '../domain/habit';
+import { forgivenWeek, onTimeStreak } from '../domain/progress';
 import { localGoals } from '../adapters/localGoals';
 import { allGoalsNow } from '../ports/goals';
 import { parseQuery } from '../domain/query';
@@ -128,7 +130,7 @@ export const HEADERS: Record<keyof ConformanceTables, string[]> = {
   // The scorecard's codes are scored; its words are a file of their own, so a rebuild in other words still scores (AS part 3; deep review A5).
   scorecard: ['week', 'goal', 'cell', 'tone', 'likelihood'],
   'scorecard-words': ['week', 'goal', 'cell', 'value', 'label', 'sub'],
-  checkin: ['checkin', 'week', 'goal', 'calculated', 'reason', 'asks_target', 'needs_path', 'missing', 'call', 'greener', 'call_missing'],
+  checkin: ['checkin', 'week', 'goal', 'calculated', 'reason', 'asks_target', 'needs_path', 'missing', 'call', 'greener', 'call_missing', 'moment'],
 };
 
 /** A number as the files write it: up to 6 decimal places, no trailing zeros. */
@@ -191,7 +193,9 @@ export function checkInRows(w: ConformanceWorkspace): string[][] {
     const bare = { ...emptyDraft(g, null), value: posted.value, stages: posted.stages };
     const e = evaluate(g, w.cycle, c.week, bare, w.checkIns);
     const called = evaluate(g, w.cycle, c.week, { ...bare, status: c.status }, w.checkIns);
-    rows.push([c.id, String(c.week), keyOf(goal), e.calc, e.reason ?? '', yes(e.asksTarget), yes(e.needsPath), e.codes.join(' '), c.status, yes(called.greener), called.codes.join(' ')]);
+    // The habit's moment (rule 3): what this check-in made, against the goal's check-ins posted before it.
+    const m = moment(w.checkIns.filter((x) => x.goalId === c.goalId && x.id !== c.id && x.postedAt < c.postedAt), c, g);
+    rows.push([c.id, String(c.week), keyOf(goal), e.calc, e.reason ?? '', yes(e.asksTarget), yes(e.needsPath), e.codes.join(' '), c.status, yes(called.greener), called.codes.join(' '), m ? `${m.kind}${m.kind === 'back' ? ` ${m.behind}` : ''}` : '']);
   }
   return rows.sort((a, b) => Number(a[1]) - Number(b[1]) || a[2]!.localeCompare(b[2]!, 'en', { numeric: true }) || a[0]!.localeCompare(b[0]!));
 }
@@ -250,6 +254,9 @@ export const NAV_ADDRESSES = ['/', '/check-in', '/check-in/lead-mq', '/quick-che
 export const NAV_MODULE = { id: 'example', to: '/example', label: 'Example', group: 'lookup' as const };
 /** Home with Reviews switched off in the workspace (FT2): the last two rows, one per viewer. */
 export const NAV_REVIEWS_OFF = '/ (Reviews off)';
+/** Home's address with Feedback switched off (SW1), and with every optional feature off. */
+export const NAV_FEEDBACK_OFF = '/ (Feedback off)';
+export const NAV_ALL_OFF = '/ (every feature off)';
 /** Two viewers: one who owns goals, one who owns none. */
 export const NAV_VIEWERS = ['rhea', 'oskar'];
 export const NAV_HEADER = ['viewer', 'owns_goals', 'address', 'menu', 'tabs', 'lit', 'page'];
@@ -284,6 +291,11 @@ export function navigationRowsOf(w: ConformanceWorkspace): string[][] {
     const owns = s.goals.some((g) => g.ownerId === viewer && goalStatus(g, w.cycle, s.checkIns, new Date(w.builtFor)).status !== 'done');
     const g = menuGroups(owns, [], false);
     rows.push([viewer, yes(owns), NAV_REVIEWS_OFF, (['work', 'lookup', 'make', 'you'] as const).map((k) => g[k].join(' ')).join(' | '), phoneTabs(owns, false).join(' '), litItem('/', '', [...g.work, ...g.lookup, ...g.make, ...g.you]) ?? '', pageName('/', '', { goal: () => null, review: () => null, view: () => null, article: () => null, person: () => null, team: () => null })]);
+    // With Feedback off (SW1), and with every optional feature off: the menu's last group is Workspace, Settings, Help.
+    for (const [address, reviews] of [[NAV_FEEDBACK_OFF, true], [NAV_ALL_OFF, false]] as const) {
+      const f = menuGroups(owns, [], reviews, false);
+      rows.push([viewer, yes(owns), address, (['work', 'lookup', 'make', 'you'] as const).map((k) => f[k].join(' ')).join(' | '), phoneTabs(owns, reviews).join(' '), litItem('/', '', [...f.work, ...f.lookup, ...f.make, ...f.you]) ?? '', pageName('/', '', { goal: () => null, review: () => null, view: () => null, article: () => null, person: () => null, team: () => null })]);
+    }
   }
   return rows;
 }
@@ -292,7 +304,7 @@ export function navigationRowsOf(w: ConformanceWorkspace): string[][] {
 
 /** Home's viewers (docs/design/home/spec.md): an owner, a manager in a review, a leader who owns none, someone who only watches. */
 export const HOME_VIEWERS = ['tunde', 'rhea', 'amara', 'oskar'];
-export const HOME_HEADER = ['viewer', 'day', 'lead', 'title', 'quiet'];
+export const HOME_HEADER = ['viewer', 'day', 'lead', 'title', 'quiet', 'run', 'forgiven'];
 /** The fourteen days up to the moment the workspace is built for, each at noon UTC. */
 export const homeDays = (w: ConformanceWorkspace) => Array.from({ length: 14 }, (_, i) => new Date(Date.parse(w.builtFor) - (13 - i) * 86_400_000));
 
@@ -302,7 +314,10 @@ export function homeRowsOf(w: ConformanceWorkspace): string[][] {
   for (const viewer of HOME_VIEWERS) for (const day of homeDays(w)) {
     const s = asOf(w, day);
     const plan = homeFor(homeFacts(viewer, s, w.cycle, currentWeek(w.cycle, day), day, { workspace: 'Platform Engineering', draft: false }));
-    rows.push([viewer, day.toISOString().slice(0, 10), plan.lead?.kind ?? '', plan.lead?.title ?? '', plan.quiet ? [plan.quiet.sentence, plan.quiet.line].filter(Boolean).join(' ') : '']);
+    // The habit's run (rule 5) on that day: its weeks, and the forgiven week inside it with whether it was late or missed.
+    const week = currentWeek(w.cycle, day);
+    const f = forgivenWeek(viewer, s.goals, s.checkIns, w.cycle, week);
+    rows.push([viewer, day.toISOString().slice(0, 10), plan.lead?.kind ?? '', plan.lead?.title ?? '', plan.quiet ? [plan.quiet.sentence, plan.quiet.line].filter(Boolean).join(' ') : '', String(onTimeStreak(viewer, s, w.cycle, week)), f ? `${f.week} ${f.missed ? 'missed' : 'late'}` : '']);
   }
   return rows;
 }
@@ -337,6 +352,14 @@ export function importCases(w: ConformanceWorkspace): ImportCase[] {
   return [
     { case: 'required-empty', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'No owner', Unit: '%', Start: '1', Target: '2' }] },
     { case: 'required-empty-start', actor: 'amara', sheet: 'goals', rows: [fresh({ Start: '' })] },
+    // BL: a baseline of its own, a period too long for it, and a word Baseline is doesn't know.
+    { case: 'baseline-provisional', actor: 'amara', sheet: 'goals', rows: [fresh({ 'Baseline period': 'June to September 2026', 'Baseline is': 'provisional' })] },
+    { case: 'baseline-period-long', actor: 'amara', sheet: 'goals', rows: [fresh({ 'Baseline period': 'The whole of the summer quarter and most of the autumn one, 2026' })] },
+    { case: 'baseline-is-unknown', actor: 'amara', sheet: 'goals', rows: [fresh({ 'Baseline period': 'Q3 2026', 'Baseline is': 'maybe' })] },
+    // GB: a proposed goal with a Baseline and no Target loads; an active one, or a Target with no Baseline, is a Must fix.
+    { case: 'proposed-target-not-set', actor: 'amara', sheet: 'goals', rows: [fresh({ Target: '', State: 'proposed' })] },
+    { case: 'active-target-empty', actor: 'amara', sheet: 'goals', rows: [fresh({ Target: '', State: 'active' })] },
+    { case: 'proposed-start-empty', actor: 'amara', sheet: 'goals', rows: [fresh({ Start: '', State: 'proposed' })] },
     { case: 'not-a-number', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-14', Week: String(week), Value: 'six' }] },
     { case: 'formula', actor: 'amara', sheet: 'goals', rows: [fresh({ Target: '=20+2' })] },
     { case: 'precision', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-14', Week: String(week), Value: '6.25' }] },

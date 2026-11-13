@@ -6,6 +6,8 @@ import '../app/engineReady';
 import { LEVEL_WORDS } from '../domain/levels';
 import { useState } from 'react';
 import { useApp } from '../app/state';
+import { watchingOn } from '../app/reads';
+import { useModules } from '../core/app';
 import { describe, type ChangeSet } from '../domain/changeset';
 import { levelIds, levelName } from '../domain/levels';
 import type { Goal, Level } from '../domain/types';
@@ -16,6 +18,8 @@ import { MenuButton } from '../ui/MenuButton';
 export function BulkBar({ ids, onClear }: { ids: string[]; onClear: () => void }) {
   const app = useApp();
   const [sheet, setSheet] = useState<'owner' | 'level' | null>(null);
+  // Watching switched off (SW1): no Watch here.
+  const watching = watchingOn(useModules().on);
   const goals = ids.map((id) => app.goal(id)).filter((g): g is Goal => !!g);
   const watch = async () => {
     for (const g of goals) await app.watch('goal', g.id);
@@ -28,12 +32,12 @@ export function BulkBar({ ids, onClear }: { ids: string[]; onClear: () => void }
       <span className="selbar-actions">
         <button type="button" className="btn sm" onClick={() => setSheet('owner')}>Change owner</button>
         <button type="button" className="btn sm" onClick={() => setSheet('level')}>Change level</button>
-        <button type="button" className="btn sm" onClick={() => void watch()}>Watch</button>
+        {watching && <button type="button" className="btn sm" onClick={() => void watch()}>Watch</button>}
       </span>
       <MenuButton className="selbar-menu" label="Actions" summary="" items={[
         { label: 'Change owner', onClick: () => setSheet('owner') },
         { label: 'Change level', onClick: () => setSheet('level') },
-        { label: 'Watch', onClick: () => void watch() },
+        ...(watching ? [{ label: 'Watch', onClick: () => void watch() }] : []),
       ]} />
       <button type="button" className="btn ghost sm" onClick={onClear}>Clear</button>
       {(sheet === 'owner' || sheet === 'level') && <BulkSheet kind={sheet} goals={goals} onClose={() => setSheet(null)} onDone={onClear} />}

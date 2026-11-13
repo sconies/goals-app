@@ -2,6 +2,7 @@
   "id": "spreadsheets",
   "name": "Spreadsheets",
   "summary": "Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.",
+  "group": "tools",
   "needs": [],
   "routes": ["/data/import", "/data/import/check", "/data/import/check/changes", "/data/import/done/:importId", "/data/imports"],
   "redirects": [["/import", "/data/import"]],
@@ -19,5 +20,18 @@
     "entry": ["The change engine (stage 2) reads every sheet of the spreadsheet format: Goals, Plan, Check-ins, People and Asks.", "The change engine reports every problem with its kind and level, groups them, and takes answers by group id (core rule: kinds, levels and near misses), so the preview only shows and answers them."],
     "exit": ["Export from Goals saves one workbook with one press, named {workspace}-goals-all-{date}.xlsx (or the view’s name when filtered); Data’s table as shown is named …-as-shown-{date}, and says first how many rows and columns it holds and which key columns it adds.", "A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged, on any day and at any number of decimal places.", "A workbook with one wrong row saves nothing, and the preview names the row and the problem.", "A file with one row to fix offers the rows to fix as a download, its first column Problem, and leaving them out saves the rest; a new goal left out takes its check-ins and the goals that feed into it with it, each saying why.", "A workbook loaded back with Status edited on two rows changes nothing and says so, and a column nothing reads is named in the file line.", "Fourteen rows with one typo (“Platfrom”) are one question; answered “Use Platform”, all fourteen save as Platform. A name or word one letter out is asked about, never guessed.", "The template loaded straight back changes nothing, and its example rows (Action says Example) are left out and counted.", "The rebuild's field table gives every column the same need, format and example as Faro's (core rule: the field table).", "A file of 5,000 new rows is checked within 8 seconds, and an unedited workbook of 30,000 rows within 20, giving the same result a row-by-row scan would (core rule: the change engine, Speed).", "Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists \"import\" under \"also\").", "An import of 5 goals and 10 check-ins, with one check-in posted on an imported goal since, previews Undo as 14 rows going back and 1 staying, naming who posted the check-in and when; Undo then does exactly that, and Past imports says when and by whom it was undone.", "A file of 6,000 new goals shows Reading with progress and Stop; Stop saves nothing; checked, it offers Download as 2 files of 5,000 rows instead of Save, and the parts load one after the other; while it is checked, the page never stops for more than 200 ms and the preview has fewer than 3,000 elements."],
     "gaps": ["The format is in the kit: the field table (a core rule page), how each column is read (spec/core/export-format.md), and every kind of issue with its trigger, sentence and answers and every column’s other spellings (spec/core/import-issues.md).", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
+  },
+  "parity": {
+    "Import": ["bulk_change"],
+    "Check": ["bulk_change"],
+    "CheckClose": ["bulk_change"],
+    "Large": ["bulk_change"],
+    "Changes": ["bulk_change"],
+    "Imported": ["get_activity", "undo_import"],
+    "PastImports": ["get_activity", "undo_import"],
+    "Export": ["export"],
+    "ExportButton": ["export"],
+    "DataMenu": ["export", "export_table", "bulk_change"],
+    "ColumnsHelp": ["get_help", "export"]
   }
 }

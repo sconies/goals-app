@@ -132,6 +132,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | `mode` | `PostMode` | yes |  |
 | `week` | `number` | no |  |
 | `reason` | `string` | no |  |
+| `reading` | `CheckInReading \| null` ([CheckInReading](data-model.md#checkinreading)) | no |  |
 
 **Result:** `{ commit: Commit; checkIn: CheckIn; }` ([CheckIn](data-model.md#checkin))
 
@@ -1537,6 +1538,8 @@ From the [metrics](../modules/metrics/README.md) module.
 | `sourceOwner` | `string` | no |  |
 | `refresh` | `MetricRefresh \| null` | no | How often the source refreshes; null when nobody has said. |
 | `caveats` | `string` | no | What to watch out for when reading it (a known gap, a change of method). |
+| `measurement` | `MetricMeasurement` | no | Whether it is measured today (MS; rulesMeasured.ts): absent on one never said otherwise, which is measured. Goals measured by a metric with a gap are held to no number (domain/unmeasured) until it is measured. |
+| `measurementNote` | `string` | no | What's missing from the measurement, and who is sorting it out ('' or absent when measured). |
 | `id` | `string` | no |  |
 | `confirm` | `boolean` | no |  |
 | `answers` | `Partial<Record<CheckField, string>>` | no |  |
@@ -1814,7 +1817,12 @@ export type CheckId = NumberCheckId | 'same-as-last';
 In `src/domain/changeset.ts`.
 
 ```ts
-export interface CheckInPost { goalId: string; week: number; draft: Draft; mode: PostMode; reason?: string }
+export interface CheckInPost {
+  goalId: string; week: number; draft: Draft; mode: PostMode; reason?: string;
+  /** What the metric's source said, when the number step read one (NR rule 3): recorded with the check-in, once
+      `readingProblem` has nothing to say. Left out or null: the number was typed, with nothing read. */
+  reading?: CheckInReading | null;
+}
 ```
 
 ### Choice
@@ -1948,6 +1956,10 @@ export interface GoalDraft {
   /** The week the plan starts from, when it's being set (a spreadsheet's Plan from week). Left out: as it was, or this
       week for a new goal set up mid-cycle. */
   fromWeek?: string;
+  /** The period the baseline covers (BL, domain/baseline rule 1): given, the plan's start is a baseline of its own. */
+  baselinePeriod?: string;
+  /** Whether that baseline is provisional. */
+  baselineProvisional?: boolean;
   source: string;
   definition: string;
   unit: string;
@@ -2113,6 +2125,11 @@ export interface Metric {
   ownerId: Id;
   /** What to watch out for when reading it (a known gap, a change of method). */
   caveats: string;
+  /** Whether it is measured today (MS; rulesMeasured.ts): absent on one never said otherwise, which is measured. Goals
+      measured by a metric with a gap are held to no number (domain/unmeasured) until it is measured. */
+  measurement?: MetricMeasurement;
+  /** What's missing from the measurement, and who is sorting it out ('' or absent when measured). */
+  measurementNote?: string;
   createdBy: Id;
   createdAt: string;
   updatedAt: string;

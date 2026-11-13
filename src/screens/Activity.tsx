@@ -123,7 +123,7 @@ export function Activity() {
         </section>
       )) : narrowed || a.q.trim() ? (
         <NoneFound things={CHANGES} q={a.q} filtered={parts.length > 0} onClearSearch={() => setA((cur) => ({ ...cur, q: '' }))} onClearFilters={() => setA((cur) => ({ ...EMPTY_ACTIVITY, q: cur.q, watching: cur.watching, since: cur.since }))} />
-      ) : <div className="activity-none"><p className="activity-none-title">Nothing here yet</p></div>}
+      ) : <div className="activity-none"><p className="activity-none-title">Nothing has changed in {app.ws.name} yet.</p></div>}
       {folded.top.length > shown.length
         ? <button className="btn" onClick={() => setLimit((n) => n + 40)}>Show more ({folded.top.length - shown.length} older)</button>
         : older.more && <button className="btn" disabled={older.loading} onClick={() => { older.next(); setLimit((n) => n + 40); }}>{older.loading ? 'Fetching older changes…' : 'Show older changes'}</button>}

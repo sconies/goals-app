@@ -18,8 +18,9 @@ import { goalChange, checkInChange, type Lookup } from './changes';
 import { answeredDiffs, MIN_REASON, stepState as fixLine, unanswered } from './checkin';
 import { fieldNeedOf, type Required } from './columns';
 import { buildGoal, decimalsFor, draftOf, pastStage, planChanged, planQuestion, stagesDoneAtSetUp, withPoints, type GoalDraft } from './goal';
+import { periodProblem } from './baseline';
 import { findGoal, nextKey } from './goalKey';
-import { isProposed, measureEmpty, withProposed } from './proposed';
+import { baselineOnly, isProposed, measureEmpty, withProposed } from './proposed';
 import { MARKS_STAGES, mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { fold } from './find';
 import { FAR_RATIO, groupDigits, notNumberText, numberAsTyped, parseNumber, placesText, typedDecimals, usuallyPositive } from './numbers';
@@ -92,7 +93,7 @@ export type MustFixId =
   | 'name-empty' | 'name-short' | 'owner-empty' | 'team-empty' | 'level-empty' | 'feeds-loop' | 'start-empty' | 'target-empty' | 'limit-empty' | 'lower-empty' | 'lower-not-below'
   | 'not-number' | 'has-words' | 'too-precise' | 'decimals-range' | 'same-as-start' | 'plan-point' | 'margin-negative'
   | 'stage-none' | 'stage-name' | 'stage-week' | 'stage-twice' | 'stage-done-removed' | 'decimals-lose'
-  | 'to-before-from' | 'week-unknown' | 'week-beyond';
+  | 'to-before-from' | 'week-unknown' | 'week-beyond' | 'baseline-period-long';
 
 /**
  * One thing to fix: the field it is under, its id (section 4), the words, and for a stage the row (an index into the
@@ -181,6 +182,9 @@ export function goalMustFix(d: GoalDraft, ctx: MustFixContext): MustFix[] {
     };
     if (d.kind === 'metric') {
       const s = number('start', d.start, ['start-empty', ctx.existing ? 'Enter where it starts.' : 'Enter where it starts today.']);
+      // The baseline's period (BL, domain/baseline): at most 60 characters, as the database holds it.
+      const long = periodProblem(d.baselinePeriod ?? '');
+      if (long) add('start', 'baseline-period-long', long);
       const t = number('target', d.target, ['target-empty', 'Enter the target.']);
       if (s != null && t != null && s === t) add('target', 'same-as-start', `The target is the same as today (${withUnit(groupDigits(String(s)), d.unit)}). To hold a number where it is, make this a number to keep in range.`, { hold: s });
       // Plan numbers typed by hand. One already stored (an existing goal's plan) is not judged again unless it changed.
@@ -661,7 +665,9 @@ const MEASURE_REQUIRED = new Set<MustFix['id']>(['start-empty', 'target-empty', 
  */
 export function proposedMustFix(d: GoalDraft, ctx: MustFixContext): MustFix[] {
   const all = goalMustFix(d, ctx);
-  return measureEmpty(d) ? all.filter((f) => !MEASURE_REQUIRED.has(f.id)) : all;
+  if (measureEmpty(d)) return all.filter((f) => !MEASURE_REQUIRED.has(f.id));
+  // A baseline and nothing else yet (GB): a number goal's target may stay empty while it is proposed.
+  return baselineOnly(d) ? all.filter((f) => f.id !== 'target-empty') : all;
 }
 
 /** The draft a proposed goal with nothing measured is stored as. */

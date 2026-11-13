@@ -17,7 +17,7 @@ import { isEveryday, levelName } from '../domain/levels';
 import { receiptFacts, receiptText, weekCompletion, weekDoneText, weekProgress } from '../domain/progress';
 import { longDay } from '../domain/home';
 import { moment, momentText, type Moment } from '../domain/habit';
-import type { CheckIn, Goal, Ask, MilestoneGoal, Status, RecoveryState } from '../domain/types';
+import type { CheckIn, CheckInReading, Goal, Ask, MilestoneGoal, Status, RecoveryState } from '../domain/types';
 import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
 import { cycleState } from '../domain/cycle';
 import { PickOne } from '../ui/Pick';
@@ -31,7 +31,8 @@ import { useMark } from '../telemetry/react';
 import { NO_REASON, resumeWalk, type KeptWalk } from '../domain/checkin';
 import { LABEL as STATUS_WORD, STAGE } from '../domain/vocabulary';
 import { RULES } from '../domain/thresholds';
-import { useModules } from '../core/app';
+import { Place, useModules, type NumberStep } from '../core/app';
+import { readingLine } from '../domain/reading';
 import { dueWordsHere, reviewsOn } from '../app/reads';
 
 /**
@@ -248,17 +249,14 @@ function MomentPanel({ m, goal, c }: { m: Moment; goal: Goal; c: CheckIn }) {
   const t = momentText(m, goal, c, app.cycle.weeks);
   const share = async () => {
     const { shareGoalImage } = await import('./goalShare');
-    await shareGoalImage(app, goal, c.value == null || goal.kind === 'milestone' ? '' : fmt(c.value, goal), goal.kind === 'metric' ? [`target ${fmt(goal.plan.target, goal)}`] : [], t.line, 'done');
+    await shareGoalImage(app, goal, c.value == null || goal.kind === 'milestone' ? '' : fmt(c.value, goal), goal.kind === 'metric' ? [`target ${fmt(goal.plan.target, goal)}`] : [], t.line, c.status);
   };
   return (
     <section className="ci-moment" aria-label={t.heading}>
-      <Chip k={m.kind === 'reached' ? 'done' : 'on'} />
+      <Chip k={c.status} />
       <h2 className="ci-moment-head">{t.heading}</h2>
       <p>{t.line}</p>
-      <div className="row">
-        {m.kind === 'reached' && <button type="button" className="btn" onClick={() => void share()}>Copy the share image</button>}
-        <Link className="linkish" to={`/goals/${goal.id}?posted=1`}>See the goal</Link>
-      </div>
+      {m.kind === 'reached' && <div className="row"><button type="button" className="btn" onClick={() => void share()}>Copy the share image</button></div>}
     </section>
   );
 }
@@ -276,6 +274,8 @@ function Posted({ goal, c, updated, fixing, left, nextTitle, onNext }: { goal: G
       <span className="tick" aria-hidden="true"><svg viewBox="0 0 48 48" width="64" height="64"><circle cx="24" cy="24" r="22" /><path d="m14 25 7 7 13-15" /></svg></span>
       <h1 className="title-xl">Check-in saved</h1>{updated && <p className="muted">Kept alongside your earlier check-in this week; this one is now the week’s status.</p>}
       <p className="muted">{goal.title}{goal.kind !== 'milestone' && c.value != null ? `: ${fmt(c.value, goal)}` : ''}. Its status <span className="nobr">is <Chip k={c.status} /></span></p>
+      {/* Where its number came from (NR 2.3): read from the source and confirmed, or typed beside what it said. */}
+      {goal.kind !== 'milestone' && (() => { const line = readingLine(c, goal, app.today); return line ? <p className="small ci-reading">{line}</p> : null; })()}
       {c.pathToGreen?.needs && <p className="small">Asked for: {c.pathToGreen.needs}. It shows on the goal and on their Home.</p>}
       {m && <MomentPanel m={m} goal={goal} c={c} />}
       {!left && p.goals.length > 0 && (weekCompletion(p).complete ? <Receipt /> : <p className="muted ci-week-done">{weekDoneText(p, app.week)}</p>)}
@@ -326,6 +326,10 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   const set = (patch: Partial<Draft>) => { setTouched(true); keep(patch); };
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
+  // A module's block in the number step (place checkin.number; NR): a number filled in from its source. While it draws,
+  // it says what the step's primary does, and hands back the reading to record with the check-in (rule 3).
+  const [numberStep, setNumberStep] = useState<NumberStep | null>(null);
+  const [reading, setReading] = useState<CheckInReading | null>(null);
   const [showNext, setShowNext] = useState(!!draft.next);
   // Opened from a goal's "Ask for a decision or help" (?need=1): the decision-or-help field starts open.
   const loc = useLocation();
@@ -358,6 +362,9 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   const team = app.team(goal.teamId);
   // The levels (rules 2 and 3): a number that looks wrong, or the same as last week, is asked about and must be answered.
   const levels = checkInLevels(goal, week, draft, own);
+  // A number read from its source and confirmed was measured again: "the same as last week?" is answered by the reading.
+  const sameAsk = reading && parseNumber(draft.value) === reading.value ? levels.checks.find((c) => c.id === 'same-as-last' && (draft.answers ?? {})[c.id] !== c.key) : undefined;
+  useEffect(() => { if (sameAsk) keep({ answers: { ...draft.answers, [sameAsk.id]: sameAsk.key } }); }, [sameAsk?.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const open = unanswered(levels.checks, draft.answers);
   const gate = stepState(levels.mustFix, open);
   const valueRef = useRef<HTMLInputElement>(null);
@@ -425,7 +432,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
       const from = d.ptgState === 'help' ? app.person(helpFrom) : undefined;
       // The app names who it's for, so a "Elena:" typed at the start isn't doubled ("Elena Ruiz: Elena: ...").
       const ask = from ? d.ptgWhat.trim().replace(new RegExp(`^(${[from.name, from.name.split(' ')[0]!].map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\s*[:,–-]\\s*`, 'i'), '') : '';
-      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '', ...(from ? { ptgWhat: ask, needs: `${from.name}: ${ask}` } : {}) }, correcting ? 'correct' : existing ? 'again' : 'new', correcting ? reason.trim() : undefined);
+      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '', ...(from ? { ptgWhat: ask, needs: `${from.name}: ${ask}` } : {}) }, correcting ? 'correct' : existing ? 'again' : 'new', correcting ? reason.trim() : undefined, numberStep ? reading : null);
       clear(); clearWhy(); forgetStep();
       // A correction goes to the goal, where History shows it; the toast says what changed, with Undo.
       if (correcting) { nav(`/goals/${goal.id}`); return; }
@@ -447,6 +454,8 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   const primary = () => {
     if (step === 'measure') {
       if (correcting && !reasonOk) { setTried(true); reasonRef.current?.focus(); return; }
+      if (numberStep?.run) { numberStep.run(); return; }
+      if (numberStep?.waits) { setTried(true); return; }
       if (!valueOk || e.codes.includes('greener-why')) { setTried(true); return; }
       if (open.length) { setTried(true); checkRef.current?.focus(); return; }
       if (offer) { setTried(true); return; }
@@ -497,7 +506,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   };
 
   // Continue until the step that posts; before a number is typed, the number's step isn't known to be the last.
-  const label = saving ? 'Posting…' : last && (step !== 'measure' || valueOk) ? 'Post check-in' : 'Continue';
+  const label = saving ? 'Posting…' : step === 'measure' && numberStep?.label ? numberStep.label : last && (step !== 'measure' || valueOk) ? 'Post check-in' : 'Continue';
   // Count every step this check-in could need, so the total never grows partway through; "Still true" just finishes early.
   const carryOffered = useRef(false);
   if (canCarry) carryOffered.current = true;
@@ -533,7 +542,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
           <div className="stack" style={{ gap: 'var(--s1)' }}>
             <h2 className="qtitle">{goal.kind === 'milestone' ? 'Where does each stage stand?' : 'What’s the number this week?'}</h2>
             {goal.kind !== 'milestone' && goal.definition && <span className="small">{goal.definition}{goal.unit ? ` (${goal.unit}, ${goal.kind === 'metric' ? (goal.plan.target < goal.plan.start ? 'lower is better' : 'higher is better') : goal.range.bound === 'atMost' ? 'stay at or under the limit' : goal.range.bound === 'atLeast' ? 'stay at or above the limit' : `stay ${staysText(goal)}`})` : ''}</span>}
-            {goal.source && <span className="hint">Where to get it: {goal.source}. Typed in by hand.</span>}
+            {goal.source && !numberStep && <span className="hint">Where to get it: {goal.source}. Typed in by hand.</span>}
           </div>
           {goal.kind === 'milestone' ? <StageEditor goal={goal} draft={draft} set={set} /> : (() => {
             // A problem with the number goes 8px under the field; last week's number and "Measured again" stay put.
@@ -560,10 +569,13 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
                 );
               })()}
               {empty && <span id="value-msg" className="hint tone-off" role="alert">Type this week’s number.</span>}
-              <span id="value-hint" className="valuehint hint">
+              {!correcting && <Place name="checkin.number" goal={goal} week={week} value={draft.value} setValue={(v) => keep({ value: v })}
+                last={lastNumber?.value != null ? { week: lastNumber.week, value: lastNumber.value } : null} lastReading={previous?.reading ?? null}
+                tried={tried} onStep={setNumberStep} onReading={setReading} onSkip={onSkip} />}
+              {!numberStep && <span id="value-hint" className="valuehint hint">
                 <span>{lastNumber?.value != null ? `Week ${lastNumber.week}: ${fmt(lastNumber.value, goal)}` : 'First check-in'}</span>
                 {lastNumber?.value != null && !draft.value && <button type="button" className="linkish tap" onClick={() => set({ value: String(lastNumber.value), answers: { ...draft.answers, 'same-as-last': String(lastNumber.value) } })}>Measured again: unchanged</button>}
-              </span>
+              </span>}
               {open[0] && (() => {
                 const c = open[0];
                 const change = () => { valueRef.current?.focus(); valueRef.current?.select(); };
@@ -583,7 +595,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
                 </div>
               )}
               {rebased === 'start' && rebasedFrom && <span className="hint" role="status">The plan now starts from {rebasedFrom}. <button type="button" className="linkish" onClick={() => void undoRebase()}>Undo</button></span>}
-              {!draft.value.trim() && onSkip && <button type="button" className="linkish tap small" style={{ alignSelf: 'flex-start' }} onClick={onSkip}>No new number this week</button>}
+              {!draft.value.trim() && onSkip && !numberStep && <button type="button" className="linkish tap small" style={{ alignSelf: 'flex-start' }} onClick={onSkip}>No new number this week</button>}
             </div>
             );
           })()}

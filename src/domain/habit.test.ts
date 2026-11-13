@@ -1,7 +1,7 @@
 /* The habit moment (docs/design/round-4/habit/spec.md): the forgiving run (CF4's table, workspace-settings 2.5), the
    receipt's sentences (2.1) and the moment a check-in makes (rule 3). */
 import { describe, expect, it } from 'vitest';
-import { dueWords, forgivenIn, onTimeStreak, receiptFacts, receiptText, reviewDate, weekProgress, type ReceiptFacts } from './progress';
+import { dueWords, forgivenIn, inByDueDay, onTimeStreak, receiptFacts, receiptText, reviewDate, weekProgress, type ReceiptFacts } from './progress';
 import { beforeReview, beforeReviewText, checkInStanding, habit, type HabitRows, habitShown, habitWeeks, moment, momentText, weekWords } from './habit';
 import { weekDate } from './plan';
 import type { CheckIn, Cycle, Goal, Snapshot, Status } from './types';
@@ -199,3 +199,58 @@ describe('before this review (build review of #416)', () => {
   });
 });
 
+describe('the run, after #410’s review', () => {
+  it('judges the due day on the reader’s own clock, as Home’s “due today” is (medium 1)', () => {
+    const was = process.env.TZ;
+    try {
+      // Thursday 12 Nov at 18:00 in Los Angeles is Friday 02:00 UTC.
+      const c = ci('g1', 46, false, { postedAt: '2026-11-13T02:00:00Z' });
+      process.env.TZ = 'America/Los_Angeles';
+      expect(inByDueDay(c, cycle, 46)).toBe(true);
+      process.env.TZ = 'UTC';
+      expect(inByDueDay(c, cycle, 46)).toBe(false);
+    } finally { process.env.TZ = was; }
+  });
+  it('leaves a goal out from the week after it was called Done (medium 2)', () => {
+    const s = weeks(41, 46, [], 41);
+    // A second goal, done in week 43 and not checked in since: it no longer ends the run.
+    s.goals.push(goal('g2', 41));
+    for (const w of [41, 42, 43]) s.checkIns.push(ci('g2', w, false, { status: w === 43 ? 'done' : 'on' }));
+    expect(onTimeStreak('tunde', s, cycle, 46)).toBe(6);
+  });
+  it('never counts a backfilled week as on time, and calls a forgiven week with nothing in it missed (medium 3)', () => {
+    const s = weeks(40, 46, [], 40);
+    s.checkIns = s.checkIns.filter((c) => c.week !== 45).concat(ci('g1', 45, false, { backfilled: true }));
+    expect(onTimeStreak('tunde', s, cycle, 46)).toBe(6);
+    expect(forgivenIn('tunde', s.goals, s.checkIns, cycle, 46)).toBe(45);
+    const f = receiptFacts(weekProgress('tunde', s, cycle, 46, new Date('2026-11-12T12:00:00Z')), 'tunde', s, cycle, 46, dueWords(false, cycle, 46));
+    expect(f.forgivenMissed).toBe(true);
+    expect(receiptText(f).second).toContain('Week 45 was missed; one missed week doesn’t break a run.');
+    const late = weeks(40, 46, [45], 40);
+    const fl = receiptFacts(weekProgress('tunde', late, cycle, 46, new Date('2026-11-12T12:00:00Z')), 'tunde', late, cycle, 46, dueWords(false, cycle, 46));
+    expect(receiptText(fl).second).toContain('Week 45 came in late; one late week doesn’t break a run.');
+  });
+  it('counts a goal taken over only from when it was the new owner’s (medium 4)', () => {
+    const s = weeks(40, 46, [], 40);
+    // Lena checked in g2 every week until 43; Tunde has owned it since 44 and checked it in on time.
+    s.goals.push(goal('g2', 40));
+    for (let w = 40; w <= 46; w++) s.checkIns.push(ci('g2', w, false, w <= 43 ? { authorId: 'lena' } : {}));
+    expect(onTimeStreak('tunde', s, cycle, 46)).toBe(7);
+  });
+  it('leaves a removed check-in out', () => {
+    const s = weeks(41, 46, [], 41);
+    s.checkIns.find((c) => c.week === 44)!.removedAt = '2026-11-01T00:00:00Z';
+    s.checkIns.find((c) => c.week === 43)!.removedAt = '2026-11-01T00:00:00Z';
+    expect(onTimeStreak('tunde', s, cycle, 46)).toBe(2);
+  });
+});
+
+describe('a moment, after #410’s review', () => {
+  it('counts weeks behind, not check-ins, and never fires on a second check-in in the same week', () => {
+    const g = goal('g1', 40);
+    const behind = [ci('g1', 42, false, { status: 'off' }), ci('g1', 45, false, { status: 'risk' })];
+    const now = ci('g1', 46, false, { status: 'on' });
+    expect(moment(behind, now, g)).toEqual({ kind: 'back', behind: 4 });
+    expect(moment([...behind, ci('g1', 46, false, { status: 'risk' })], now, g)).toBe(null);
+  });
+});

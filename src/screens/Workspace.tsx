@@ -15,7 +15,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
 import { useModules, type WorkspaceSection } from '../core/app';
-import { sectionsFor } from '../core/module';
+import { byFeatureGroup, FEATURE_GROUPS, sectionsFor } from '../core/module';
 import { Avatar, Sheet } from '../ui/bits';
 import { adminsLine, cycleLine, NEEDS_SHOWN, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
 import { canRestore, canUndoStart, cycleStanding, startOf } from '../domain/removal';
@@ -31,7 +31,8 @@ import { useWidth } from '../ui/useWidth';
 import { CORE_SECTION_LABELS } from './workspaceSections';
 import { movedTo } from '../domain/directory';
 import { WORKSPACE_MEANS } from '../domain/vocabulary';
-import { reviewsOn } from '../app/reads';
+import { reviewsOn, watchingOn, wrapUpOn } from '../app/reads';
+import { watchingAsks, watchingOffLines, watchingOffReadBack, wrapUpAsks, wrapUpOffLines, wrapUpOffReadBack } from '../domain/switchOff';
 import { switchOffLines, switchOffReadBack } from '../domain/reviewsOff';
 import { dueWords } from '../domain/progress';
 import { asksOf } from '../domain/asks';
@@ -229,8 +230,8 @@ function AboutSection() {
   const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
   const admins = adminsLine(app.snapshot.people);
   const named = (ids: string[]) => ids.map((id) => installed.find((m) => m.id === id)?.name ?? id);
-  // How you work (Reviews) first, then the tools, as Features lists them.
-  const listed = [...installed].sort((a, b) => Number(reviewsOn(new Set([b.id]))) - Number(reviewsOn(new Set([a.id]))));
+  // In the Features page's order: its groups, then id (SW1).
+  const listed = byFeatureGroup(installed);
   const modOn = named(listed.filter((m) => on.has(m.id)).map((m) => m.id));
   const modOff = named(listed.filter((m) => !on.has(m.id)).map((m) => m.id));
   const teams = app.snapshot.teams.length;
@@ -278,6 +279,8 @@ function AboutSection() {
     up, the next cycle); deleting one nobody has checked in to is an admin's, asked first. */
 function CyclesSection() {
   const app = useApp();
+  // The Wrap-up switched off (SW1): its links go; starting the next year stays.
+  const wrapUp = wrapUpOn(useModules().on);
   const admin = app.viewer.admin;
   const [asking, setAsking] = useState<string | null>(null);
   const cycles = app.full.cycles.filter((c) => !c.removedAt).sort((a, b) => b.startDate.localeCompare(a.startDate));
@@ -309,7 +312,7 @@ function CyclesSection() {
             const current = c.id === app.cycle.id;
             const line = cycleLine(c, current, app.week, app.today, st);
             // An earlier year's wrap-up stays open after the next year is current, until the day it closes (cycle-end rule 3).
-            const open = wrapUpOpenOn(c, app.today) && (current || wrapUpCycle(app.full.cycles, app.today)?.id === c.id);
+            const open = wrapUp && wrapUpOpenOn(c, app.today) && (current || wrapUpCycle(app.full.cycles, app.today)?.id === c.id);
             const start = startOf(app.full, c.id);
             const can = start ? canUndoStart(app.full, c.id) : null;
             const next = nextCycleShape(c).name;
@@ -321,7 +324,7 @@ function CyclesSection() {
             const undoHere = admin && can?.ok && c.id !== later?.id ? <button type="button" className="btn sm" disabled={undoing} onClick={() => void undoStart(c)}>Undo</button> : null;
             const action = !current ? (open ? <Link className="btn sm" to="/retro">Open the wrap-up</Link> : null)
               : open ? <><Link className="btn sm" to="/retro">Open the wrap-up</Link>{startLink}{undoHere}</>
-              : <>{anyCheckIn && <Link className="btn sm" to="/retro">See the wrap-up</Link>}{startLink}{undoHere}</>;
+              : <>{wrapUp && anyCheckIn && <Link className="btn sm" to="/retro">See the wrap-up</Link>}{startLink}{undoHere}</>;
             return (
               <li key={c.id} className="removed-row cycle-row">
                 <span className="removed-text cycle-when">
@@ -523,9 +526,12 @@ function Recording() {
 }
 
 /**
- * For admins: the feature modules this workspace uses (docs/architecture.md), each switched on or off for everyone. How
- * you work (Reviews, FT2) comes first, then the tools. Switching Reviews off first says what will change and what stays
- * (the read-back, spec 4.2); switching anything on, or a tool off, acts at once. Every switch says what it did, with Undo.
+ * For admins: the feature modules this workspace uses (docs/architecture.md), each switched on or off for everyone, in
+ * the Features page's groups (SW1, feature-switches spec 4.1): Working together, Tools, Beyond this workspace. A row
+ * says what the feature is and, while it is on and holds something, a third line. Switching off a feature that owns
+ * records (Reviews, Watching, the Wrap-up) first says what will change and what stays (the read-back, 4.2), unless it
+ * holds nothing; switching anything on, or a feature that owns nothing off, acts at once. Every switch says what it
+ * did, with Undo.
  */
 function Features() {
   const app = useApp();
@@ -534,7 +540,7 @@ function Features() {
   const [asking, setAsking] = useState<string | null>(null);
   if (!installed.length) return <p className="hint">This build has no optional features.</p>;
   const nameOf = (id: string) => installed.find((m) => m.id === id)?.name ?? id;
-  const isReviews = (id: string) => reviewsOn(new Set([id]));
+  const is = { reviews: (id: string) => reviewsOn(new Set([id])), watching: (id: string) => watchingOn(new Set([id])), wrapUp: (id: string) => wrapUpOn(new Set([id])) };
   const flip = async (id: string, next: boolean) => {
     if (busy) return;
     setBusy(id);
@@ -548,44 +554,82 @@ function Features() {
     } catch { /* the rule's message is shown */ }
     setBusy(null);
   };
-  const live = app.snapshot.reviews.filter((r) => !r.removedAt && !r.endedAt).length;
+  const s = app.snapshot;
+  const live = s.reviews.filter((r) => !r.removedAt && !r.endedAt).length;
+  const watch = watchingOffReadBack({ people: s.people, watches: s.watches ?? [], goals: s.goals });
+  const wrap = wrapUpOffReadBack({ retros: s.retros ?? [], goals: s.goals, open: wrapUpOpenOn(app.cycle, app.today), next: nextCycleShape(app.cycle).name });
+  // The third line (spec 4.1): from the core beside each switch's answer, until each module says its own.
+  const third = (id: string): string | null => {
+    if (is.reviews(id) && live > 0) return `${live} ${live === 1 ? 'review is' : 'reviews are'} set up.`;
+    if (is.watching(id) && watch.people > 0) return watch.people === 1 ? '1 person watches goals here.' : `${watch.people} people watch goals here.`;
+    if (is.wrapUp(id)) {
+      const d = cycleDates(app.cycle);
+      if (wrap.open) { const all = s.goals.filter((g) => !g.removedAt && !g.stoppedAt).length; return `Open now: ${wrap.written} of ${all} goals wrapped up.`; }
+      if (app.today.toISOString().slice(0, 10) < d.wrapUpOpens) return `Opens on ${dayWithYear(d.wrapUpOpens)}.`;
+    }
+    return null;
+  };
+  // Switching off asks first for a feature that owns something to keep (spec 4.2); otherwise it acts at once.
+  const asks = (id: string) => is.reviews(id) || (is.watching(id) && watchingAsks(watch)) || (is.wrapUp(id) && wrapUpAsks(wrap));
   const row = (m: (typeof installed)[number]) => {
     const why = off.get(m.id);
     const switched = (app.ws.modulesOff ?? []).includes(m.id);
+    const says = on.has(m.id) ? third(m.id) : null;
     return (
       <label key={m.id} className="switch-row feature-check">
         <span className="stack" style={{ gap: 0, flex: 1, minWidth: 0 }}>
           <span>{m.name}</span>
           <span className="hint">{m.summary}</span>
-          {isReviews(m.id) && on.has(m.id) && live > 0 && <span className="hint">{live} {live === 1 ? 'review is' : 'reviews are'} set up.</span>}
+          {says && <span className="hint">{says}</span>}
           {!switched && why?.kind === 'needs' && <span className="hint">Off until {why.missing.map(nameOf).join(' and ')} is on.</span>}
         </span>
         {/* The state in a word beside the switch, never only its position (WR4, P6). */}
         <span className="switch-word" aria-hidden="true">{on.has(m.id) ? 'On' : 'Off'}</span>
         <input type="checkbox" className="switch" checked={!switched} disabled={!!busy} aria-label={m.name}
-          onChange={(e) => { if (!e.target.checked && isReviews(m.id)) setAsking(m.id); else void flip(m.id, e.target.checked); }} />
+          onChange={(e) => { if (!e.target.checked && asks(m.id)) setAsking(m.id); else void flip(m.id, e.target.checked); }} />
       </label>
     );
   };
-  const how = installed.filter((m) => isReviews(m.id));
-  const tools = installed.filter((m) => !isReviews(m.id));
+  const ws = workspaceName(app.ws, app.mode).name;
+  const people = s.people.filter((p) => !p.removedAt).length;
+  const close = () => setAsking(null);
+  const go = () => { const id = asking!; setAsking(null); void flip(id, false); };
   return (
     <section className="block features-block" aria-label="Features">
-      {how.length > 0 && (
-        <div className="stack features-group" aria-labelledby="features-how">
-          <h2 className="label" id="features-how">How you work</h2>
-          {how.map(row)}
-        </div>
-      )}
-      {tools.length > 0 && (
-        <div className="stack features-group" aria-labelledby="features-tools">
-          <h2 className="label" id="features-tools">Tools</h2>
-          {tools.map(row)}
-        </div>
-      )}
-      <p className="hint">Switching one off hides it and keeps what it saved. <Link to="/help/features">About features</Link></p>
-      {asking && <ReviewsOffSheet onClose={() => setAsking(null)} onSwitch={() => { const id = asking; setAsking(null); void flip(id, false); }} />}
+      {/* A group with no installed module is not drawn (spec 4.1). "How you work" holds settings, none of them a switch. */}
+      {FEATURE_GROUPS.map((g) => {
+        const ms = installed.filter((m) => (m.group ?? 'tools') === g.id);
+        return ms.length > 0 && (
+          <div key={g.id} className="stack features-group" aria-labelledby={`features-${g.id}`}>
+            <h2 className="label" id={`features-${g.id}`}>{g.label}</h2>
+            {ms.map(row)}
+          </div>
+        );
+      })}
+      <p className="hint">Switching one off hides it and keeps what it saved. Recording how the app is used is under <Link to="/workspace/privacy">Privacy</Link>. <Link to="/help/features">About features</Link></p>
+      {asking && is.reviews(asking) && <ReviewsOffSheet onClose={close} onSwitch={go} />}
+      {asking && is.watching(asking) && <ReadBackSheet title={`Switch off Watching in ${ws}?`} people={people} lines={watchingOffLines(watch, reviewsOn(on))} primary="Switch off Watching" onClose={close} onSwitch={go} />}
+      {asking && is.wrapUp(asking) && <ReadBackSheet title={`Switch off the Wrap-up in ${ws}?`} people={people} lines={wrapUpOffLines(wrap)} primary="Switch off the Wrap-up" onClose={close} onSwitch={go} />}
     </section>
+  );
+}
+
+/** A read-back before switching a feature off (spec 4.2): for everyone here, what leaves and what stays, then Cancel and
+    the primary. Escape and Cancel change nothing. */
+function ReadBackSheet({ title, people, lines, primary, onClose, onSwitch }: { title: string; people: number; lines: { strong: string; rest: string }[]; primary: string; onClose: () => void; onSwitch: () => void }) {
+  return (
+    <Sheet open onClose={onClose} title={title}>
+      <div className="stack readback" style={{ gap: 'var(--s3)' }}>
+        <p>For all {people} {people === 1 ? 'person' : 'people'} here:</p>
+        <ul className="readback-lines">
+          {lines.map((l) => <li key={l.strong + l.rest}>{l.strong && <strong>{l.strong}</strong>}{l.rest}</li>)}
+        </ul>
+        <div className="foot-row">
+          <button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn primary big-btn" onClick={onSwitch}>{primary}</button>
+        </div>
+      </div>
+    </Sheet>
   );
 }
 

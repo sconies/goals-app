@@ -10,7 +10,7 @@ import { EMPTY_QUERY } from '../domain/query';
 import { countList } from '../domain/order';
 import { gettingStarted, inviteLink, type DayOneFacts } from '../domain/dayOne';
 import { workspaceName } from '../domain/workspaceAttention';
-import { dayOneRows, homeFacts, reviewName, reviewsOn, wrapUpScope } from '../app/reads';
+import { dayOneRows, homeFacts, reviewName, reviewsOn, watchingOn, wrapUpOn, wrapUpScope } from '../app/reads';
 import { useApp } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
@@ -258,13 +258,14 @@ function ThisWeek({ d, leadAbout }: { d: Dashboard; leadAbout: string | null }) 
       {missed[0] ? (
         // A session past its date and not held comes first: the next one mustn't hide it (re-review, 8 Nov, backlog T).
         <Link className="dash-cell dash-review dash-missed" to={`/reviews/${missed[0].id}`}>
-          <span className="dash-label"><WarnMark />Not held yet · {dayText(missed[0].date)}{missed.length > 1 ? ` · ${missed.length} reviews` : ''}</span>
+          {/* On a phone a lone cell puts label and name on one line: the short label leaves the name its room (Lane, 13 Nov). */}
+          <span className="dash-label"><WarnMark /><span className="dash-label-long">Not held yet · {dayText(missed[0].date)}{missed.length > 1 ? ` · ${missed.length} reviews` : ''}</span><span className="dash-label-short">Not held yet</span></span>
           <span className="dash-value" title={`${missed[0].name}, ${dayText(missed[0].date)}, ${pastText(missed[0].daysPast)}`}>{missed[0].name}</span>
           <span className="dash-sub">{pastText(missed[0].daysPast)}</span>
         </Link>
       ) : next && (
         <Link className="dash-cell dash-review" to={`/reviews/${next.id}`}>
-          <span className="dash-label">{next.days === 0 ? 'Review today' : next.days === 1 ? `Review tomorrow, ${dayText(next.date)}` : `Review on ${dayText(next.date)}`}{sameDay > 1 ? ` · ${sameDay} reviews` : ''}</span>
+          <span className="dash-label"><span className="dash-label-long">{next.days === 0 ? 'Review today' : next.days === 1 ? `Review tomorrow, ${dayText(next.date)}` : `Review on ${dayText(next.date)}`}{sameDay > 1 ? ` · ${sameDay} reviews` : ''}</span><span className="dash-label-short">{next.days === 0 ? 'Today' : next.days === 1 ? 'Tomorrow' : dayText(next.date)}</span></span>
           <span className="dash-value" title={`${next.name}, ${next.weekday} ${when}`}>{next.name}</span>
           <span className="dash-sub">{next.weekday} · {when}</span>
         </Link>
@@ -276,9 +277,12 @@ function ThisWeek({ d, leadAbout }: { d: Dashboard; leadAbout: string | null }) 
 /** For admins: the year is ending or has ended, and the next one to start (HM1 review: HM1 had dropped it before HM7). */
 function AdminCard() {
   const app = useApp();
+  const wrapUpHere = wrapUpOn(useModules().on);
   if (!app.viewer.admin) return null;
   const later = laterCycle(app.full.cycles, app.cycle);
   const over = hasEnded(app.cycle, app.today);
+  // With the Wrap-up off (SW1) the card still says the year is ending and offers the next, without the wrap-up's words.
+  const wrapping = wrapUpHere && wrapUpOpenOn(app.cycle, app.today);
   if (wrapUpOpenOn(app.cycle, app.today) || (over && !later)) {
     const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
     const next = later?.name ?? nextCycleShape(app.cycle).name;
@@ -289,9 +293,9 @@ function AdminCard() {
       : `${next} isn’t set up yet. It can be started now; everyone stays in ${app.cycle.name} until ${lastDay}.`;
     return (
       <section className="block note-card">
-        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>{over ? `${app.cycle.name} ended on ${lastDay}` : `The ${periodWord(app.cycle)} is ending`}</strong><span className="hint">{wrapUpOpenOn(app.cycle, app.today) ? (left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up. ` : 'Every goal is wrapped up. ') : ''}{nextLine}</span></span>
+        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>{over ? `${app.cycle.name} ended on ${lastDay}` : `The ${periodWord(app.cycle)} is ending`}</strong><span className="hint">{wrapping ? (left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up. ` : 'Every goal is wrapped up. ') : ''}{nextLine}</span></span>
         <span className="row" style={{ gap: 'var(--s2)' }}>
-          {wrapUpOpenOn(app.cycle, app.today) && <Link className="btn" to="/retro">See the wrap-up</Link>}
+          {wrapping && <Link className="btn" to="/retro">See the wrap-up</Link>}
           <Link className="btn" to={later ? '/workspace/cycles' : '/workspace/cycles/next'}>{later ? 'See Cycles' : `Start ${next}`}</Link>
         </span>
       </section>
@@ -312,7 +316,8 @@ function useDashboard(): Dashboard {
   const app = useApp();
   const mine = useGoalCounts(useMineAsk(app.viewer.id));
   const all = useGoalCounts(mine && !mine.total ? { query: EMPTY_QUERY } : null);
-  const d = dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { reviews: reviewsOn(useModules().on) });
+  const on = useModules().on;
+  const d = dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { reviews: reviewsOn(on), watching: watchingOn(on) });
   const counted = mine?.total ? mine : all;
   return counted ? { ...d, scope: mine?.total ? 'mine' : 'all', counts: countList(counted.status), total: counted.total } : d;
 }
@@ -323,7 +328,8 @@ export function Home() {
   const draft = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.some((g) => hasDraft(checkInDraftKey(app.ws.id, g.id, app.week)));
   const prefs = usePrefs();
   const { opened, putOff: later } = proposalSeen(prefs, app.ws.id, app.viewer.id);
-  const plan = homeFor(homeFacts(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { workspace: workspaceName(app.ws, app.mode).name, draft, wrap: wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today), opened, putOff: later, reviews: reviewsOn(useModules().on) }));
+  const on = useModules().on;
+  const plan = homeFor(homeFacts(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { workspace: workspaceName(app.ws, app.mode).name, draft, wrap: wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today), opened, putOff: later, reviews: reviewsOn(on), watching: watchingOn(on), wrapUp: wrapUpOn(on) }));
   return (
     <div className="page home" data-part="Home">
       <div className="page-head">
@@ -337,7 +343,8 @@ export function Home() {
         <aside className="home-side split-side" aria-label="For you"><NeedsYou asks={plan.asks} also={plan.lead?.kind === 'ask'} leadAbout={plan.lead?.about ?? null} /><AdminCard /></aside>
         <div className="home-main split-b">
           <YourGoals />
-          <WatchedGoals />
+          {/* Only while Watching is on (SW1). */}
+          {watchingOn(on) && <WatchedGoals />}
           {/* Modules' blocks (the home.blocks place). */}
           <Place name="home.blocks" />
           {/* New in Faro: one line at the foot, on every width (section 2.1, part 11). */}
@@ -366,7 +373,8 @@ function GettingStarted() {
     prefs.set(...key, next); setFacts(next);
   }, [facts, app.ws.kind, app.today]); // eslint-disable-line react-hooks/exhaustive-deps
   const save = (p: Partial<DayOneFacts>) => { const next = { ...facts, ...p }; prefs.set(...key, next); setFacts(next); };
-  const rows = gettingStarted(app.viewer.id, { ...dayOneRows(app.snapshot), ended: hasEnded(app.cycle, app.today) }, { name: workspaceName(app.ws, app.mode).name, kind: app.ws.kind, createdAt: app.ws.createdAt }, facts, app.today, WEEKDAY[app.cycle.reviewDay] ?? 'the review');
+  const watching = watchingOn(useModules().on);
+  const rows = gettingStarted(app.viewer.id, { ...dayOneRows(app.snapshot), ended: hasEnded(app.cycle, app.today), watching }, { name: workspaceName(app.ws, app.mode).name, kind: app.ws.kind, createdAt: app.ws.createdAt }, facts, app.today, WEEKDAY[app.cycle.reviewDay] ?? 'the review');
   if (!rows.length) return null;
   const invite = inviteLink(location.origin, app.mode, app.ws.id);
   return (

@@ -9,7 +9,7 @@ import type { Commit } from '../data/store';
 import * as A from '../domain/actions';
 import { activityFilter, parseActivity } from '../domain/activity';
 import { attentionList, splitAttention } from '../domain/attention';
-import { cycleDates, cycleState, dayWithYear, wrapUpOpenOn } from '../domain/cycle';
+import { wrapUpOpenOn } from '../domain/cycle';
 import { dashboard, longDay } from '../domain/home';
 import { askWaiting, homeAsks } from '../app/reads';
 import { ASK_STATUS, ATTENTION, choices, HANDLED_LINE, codeFrom, LABEL, lower, STATUS, withCode } from '../domain/vocabulary';
@@ -21,13 +21,13 @@ import { HISTORY_MAX } from '../ports/window';
 export const said = (k: DisplayStatus) => withCode(STATUS[k]);
 /** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
 import { ASK_KIND_LABEL, askText, asksOf, canAnswer, canMarkDone, isOverdue, openForPerson, openUpdateAsk } from '../domain/asks';
-import { reviewSession, watchedGoals } from '../domain/review';
+import { reviewSession } from '../domain/review';
 import { receiptFacts, receiptText, weekCompletion, weekProgress } from '../domain/progress';
 import { workbook } from '../domain/export';
 import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { findGoal, isKey } from '../domain/goalKey';
 import { proposalAsks, withProposed } from '../domain/proposed';
-import type { Ask, AskKind, Level, Retro, Watch } from '../domain/types';
+import type { Ask, AskKind, Level } from '../domain/types';
 import { ARTICLES, GROUPS, articleById, articleText, searchGuide, type Article } from '../help/guide';
 import { newsSince } from '../help/whatsNew';
 import { canUndoImport, importUndone } from '../domain/removal';
@@ -35,7 +35,7 @@ import { startPage, startPageText } from '../domain/startYear';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 import { listed } from './listed';
 import { MODULES, modulesOn } from '../core/registry';
-import { dueWordsHere, reviewsOn } from '../app/reads';
+import { dueWordsHere, reviewsOn, watchingOn, wrapUpOn } from '../app/reads';
 import { RULE_PAGES, systemOverview } from '../spec/overview';
 import { VIA_MCP } from '../domain/via';
 
@@ -100,7 +100,10 @@ export const levelsOf = (v: unknown): Level[] => {
 // askWaiting), where a question past its session is late, not only one past its due week. Only an open ask can be late.
 const askLate = (ctx: McpContext, r: Ask): boolean => (r.status === 'open' ? (askWaiting(r, r.recipientId ?? ctx.actor.id, ctx.snapshot, ctx.cycle, ctx.week, ctx.today, reviewsOn(modulesOn(ctx.ws).on))?.late ?? isOverdue(r, ctx.week)) : false);
 const requestData = (ctx: McpContext, r: ReturnType<typeof requestOf>) => ({
-  id: r.id, kind: r.kind, ask: r.kind === 'decision' ? askText(r, ctx.snapshot.people) : r.ask, status: r.status, statusLabel: ASK_STATUS[r.status].label, dueWeek: r.dueWeek, overdue: askLate(ctx, r), review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null, askedBy: name(ctx, r.askedBy), askedOf: r.recipientId ? name(ctx, r.recipientId) : 'anyone',
+  id: r.id, kind: r.kind, ask: r.kind === 'decision' ? askText(r, ctx.snapshot.people) : r.ask, status: r.status, statusLabel: ASK_STATUS[r.status].label, dueWeek: r.dueWeek, overdue: askLate(ctx, r),
+  // The review it was raised in, only while Reviews is on: switched off, no answer names a review (build review of #371).
+  ...(reviewsOn(modulesOn(ctx.ws).on) ? { review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null } : {}),
+  askedBy: name(ctx, r.askedBy), askedOf: r.recipientId ? name(ctx, r.recipientId) : 'anyone',
   goals: r.goalIds.map((g) => { const x = withProposed(ctx.snapshot).find((y) => y.id === g); return { id: g, key: x?.key ?? null, title: x?.title ?? g }; }), raisedAt: r.createdAt,
   answer: r.answer, answeredBy: r.answeredBy ? name(ctx, r.answeredBy) : null, youCanAnswer: r.status === 'open' && canAnswer(r, ctx.actor), youCanMarkDone: r.status === 'open' && canMarkDone(r, ctx.actor),
 });
@@ -186,22 +189,24 @@ export const WORK_TOOLS: ToolDef[] = [
       const reviewsHere = reviewsOn(modulesOn(ctx.ws).on);
       const reviews = !reviewsHere ? [] : s.reviews.filter((r) => r.people.includes(me)).map((r) => { const x = reviewSession(r, s, ctx.cycle, ctx.today, ctx.week); return { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total }; });
       // The strip at the top of Home: their goals by status, their on-time streak, what they watch, their next review.
-      const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today, { reviews: reviewsHere });
+      // With Watching off (SW1) nothing is watched; with the Wrap-up off, it isn't said to be open.
+      const on = modulesOn(ctx.ws).on;
+      const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today, { reviews: reviewsHere, watching: watchingOn(on) });
       const wp = weekProgress(me, s, ctx.cycle, ctx.week, ctx.today);
       const rf = weekCompletion(wp).complete ? receiptFacts(wp, me, s, ctx.cycle, ctx.week, dueWordsHere(reviewsHere, s, ctx.cycle, ctx.week, me)) : null;
-      const weekReceipt = rf ? { ...receiptText({ ...rf, nextDue: rf.nextDue ? longDay(rf.nextDue) : null }), forgivenWeek: rf.forgiven } : null;
+      const weekReceipt = rf ? { ...receiptText({ ...rf, nextDue: rf.nextDue ? longDay(rf.nextDue) : null }), forgivenWeek: rf.forgiven, forgivenWeekWas: rf.forgiven == null ? null : rf.forgivenMissed ? 'missed' : 'late' } : null;
       const glance = {
         goals: { whose: d.scope, total: d.total, byStatus: d.counts.map((c) => ({ status: c.status, statusLabel: LABEL[c.status], n: c.n })) },
         onTimeStreakWeeks: d.streak,
         // The check-in's receipt, once every check-in of the week is in (habit spec 2.1): the same two sentences.
         weekReceipt,
-        watching: d.watching ? { goals: d.watching.all.length, needAttention: d.watching.needs.map((a) => a.goal.title), beingHandled: d.watching.handled.map((a) => ({ title: a.goal.title, inHand: a.handled!.text })), noRecentUpdate: d.watching.quiet.length } : null,
+        ...(watchingOn(on) ? { watching: d.watching ? { goals: d.watching.all.length, needAttention: d.watching.needs.map((a) => a.goal.title), beingHandled: d.watching.handled.map((a) => ({ title: a.goal.title, inHand: a.handled!.text })), noRecentUpdate: d.watching.quiet.length } : null } : {}),
         ...(reviewsHere ? { nextReview: d.next ? { id: d.next.id, name: d.next.name, date: d.next.date, day: d.next.weekday } : null } : {}),
       };
-      const data = { week: ctx.week, atAGlance: glance, checkInsDue: due, needsAttention: attention, beingHandled: handled, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, proposedGoals: proposedForYou, ...(reviewsHere ? { yourReviews: reviews } : {}), wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today) };
+      const data = { week: ctx.week, atAGlance: glance, checkInsDue: due, needsAttention: attention, beingHandled: handled, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, proposedGoals: proposedForYou, ...(reviewsHere ? { yourReviews: reviews } : {}), ...(wrapUpOn(on) ? { wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today) } : {}) };
       const text = [
         `Week ${ctx.week} for ${ctx.actor.name}.`,
-        `${d.scope === 'mine' ? 'Your goals' : 'All goals'}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(', ') || 'none'}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? 'week' : 'weeks'}.` : ''}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ''}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ''}`,
+        `${d.scope === 'mine' ? 'Your goals' : 'All goals'}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(', ') || 'none'}.${d.streak ? ` On-time streak: ${d.streak} ${d.streak === 1 ? 'week' : 'weeks'}.` : ''}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ''}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ''}`,
         ...(weekReceipt ? [[weekReceipt.first, weekReceipt.second].filter(Boolean).join(' ')] : []),
         `Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(', ') : 'none'}.`,
         `Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask}${when(r)} (${r.id})`).join('; ') : 'none'}.`,
@@ -237,18 +242,6 @@ export const WORK_TOOLS: ToolDef[] = [
         .filter((r) => !a.goal_id || r.goalIds.includes(goalOf(ctx, a.goal_id).id))
         .map((r) => requestData(ctx, r));
       return listed({ requests: list });
-    },
-  },
-  {
-    name: 'list_watching',
-    title: 'What you watch',
-    description: 'Your watches (a goal, a goal and everything feeding it, or a whole level) and the goals they cover.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-    annotations: READ,
-    async run(_a, ctx) {
-      const watches = ctx.snapshot.watches.filter((w) => w.personId === ctx.actor.id).map((w) => ({ id: w.id, kind: w.kind, ref: w.ref, what: w.kind === 'level' ? `every ${w.ref} goal` : ctx.snapshot.goals.find((g) => g.id === w.ref)?.title ?? w.ref }));
-      const goals = watchedGoals(ctx.actor.id, ctx.snapshot).map((g) => ({ id: g.id, title: g.title }));
-      return listed({ watches, goals });
     },
   },
   {
@@ -307,22 +300,6 @@ export const WORK_TOOLS: ToolDef[] = [
     async run(_a, ctx) {
       const list = (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({ id: t.id, name: t.name, person: name(ctx, t.personId), createdAt: t.createdAt, lastUsedAt: t.lastUsedAt }));
       return listed({ tokens: list });
-    },
-  },
-  {
-    name: 'get_wrap_up',
-    title: 'The cycle’s wrap-up',
-    description: 'At the end of a cycle: which goals are wrapped up (result, what was learned, carry on or stop) and which are still to do.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-    annotations: READ,
-    async run(_a, ctx) {
-      const retros = ctx.snapshot.retros ?? [];
-      const list = ctx.snapshot.goals.map((g) => { const r = retros.find((x) => x.goalId === g.id); return { id: g.id, title: g.title, owner: name(ctx, g.ownerId), wrappedUp: !!r, result: r?.result ?? null, learned: r?.learned ?? null, next: r?.next ?? null }; });
-      // The wrap-up's days (cycle-end rule 1): it opens two weeks before the last day and closes four weeks after it.
-      const open = wrapUpOpenOn(ctx.cycle, ctx.today);
-      const d = cycleDates(ctx.cycle), state = cycleState(ctx.cycle, ctx.today);
-      const when = state === 'closed' ? `The wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : open ? `Wrap-up is open until ${dayWithYear(d.wrapUpCloses)}.` : `Wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`;
-      return { data: { open, opensWeek: ctx.cycle.weeks - 1, opens: d.wrapUpOpens, lastDay: d.lastDay, closes: d.wrapUpCloses, goals: list }, text: `${when} ${list.filter((g) => g.wrappedUp).length} of ${list.length} goals wrapped up.` };
     },
   },
 
@@ -468,26 +445,6 @@ export const WORK_TOOLS: ToolDef[] = [
       return save(ctx, A.editCall(ax(ctx), d, String(a.text ?? ''), extra), 'Corrected it', 'Nothing to change: it already says that.');
     },
   },
-  /* ---------- Watching ---------- */
-  {
-    name: 'watch',
-    title: 'Watch goals',
-    description: 'Watch a goal, a goal and everything feeding it, or every goal at a level. Watched goals are on the Watching page and in get_my_work.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['kind', 'ref'], properties: { kind: str('What to watch.', { enum: ['goal', 'tree', 'level'] }), ref: str('A goal’s ID or key (G-12), or a level (north-star, svp, team).') } },
-    annotations: { ...WRITE, idempotentHint: true },
-    async run(a, ctx) {
-      const ref = a.kind === 'level' ? String(a.ref ?? '') : goalOf(ctx, a.ref).id;
-      return save(ctx, A.watch(ax(ctx), a.kind as Watch['kind'], ref), `Watching ${a.kind === 'level' ? `every ${ref} goal` : goalOf(ctx, ref).title}`, 'Already watching that.');
-    },
-  },
-  {
-    name: 'unwatch',
-    title: 'Stop watching',
-    description: 'Stop one of your watches: the goals it covered leave your Watching page.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['watch_id'], properties: { watch_id: str('The watch’s ID, from list_watching.') } },
-    annotations: WRITE,
-    async run(a, ctx) { return save(ctx, A.unwatch(ax(ctx), String(a.watch_id ?? '')), 'Stopped watching', ''); },
-  },
 
   /* ---------- People ---------- */
   {
@@ -510,21 +467,6 @@ export const WORK_TOOLS: ToolDef[] = [
   },
 
   /* ---------- The end of the cycle ---------- */
-  {
-    name: 'wrap_up_goal',
-    title: 'Wrap up a goal',
-    description: 'In the last two weeks of a cycle, the goal’s owner (or an admin) says how it landed, what was learned, and whether it carries on into the next cycle. Can be changed until the next cycle starts.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id', 'result', 'learned', 'next'], properties: {
-      goal_id: str('The goal’s ID or its key, e.g. G-12.'), result: str('How it landed.', { enum: ['hit', 'partly', 'missed'] }), learned: str('One thing worth knowing next time (a sentence).'), next: str('Next cycle.', { enum: ['carry', 'stop'] }),
-    } },
-    annotations: { ...WRITE, idempotentHint: true },
-    async run(a, ctx) {
-      const g = goalOf(ctx, a.goal_id);
-      if (!['hit', 'partly', 'missed'].includes(String(a.result))) throw new Error('result is hit, partly or missed.');
-      if (!['carry', 'stop'].includes(String(a.next))) throw new Error('next is carry or stop.');
-      return save(ctx, A.saveRetro(ax(ctx), g, { result: a.result as Retro['result'], learned: String(a.learned ?? ''), next: a.next as Retro['next'] }), `Wrapped up ${g.title}`, '');
-    },
-  },
   {
     name: 'start_next_cycle',
     title: 'Start the next cycle',
@@ -613,14 +555,6 @@ export const WORK_TOOLS: ToolDef[] = [
     inputSchema: { type: 'object', additionalProperties: false, required: ['token_id'], properties: { token_id: str('The token’s ID, from list_tokens.') } },
     annotations: { ...WRITE, destructiveHint: true, idempotentHint: true },
     async run(a, ctx) { return save(ctx, A.revokeToken(ax(ctx), String(a.token_id ?? '')), 'Revoked the token', 'That token is already revoked.'); },
-  },
-  {
-    name: 'send_feedback',
-    title: 'Send feedback about the app',
-    description: 'Feedback about the app itself, for the people who build it: how it felt and what happened.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['mood', 'text'], properties: { mood: str('How it felt.', { enum: ['good', 'meh', 'bad'] }), text: str('What happened, or what would help.') } },
-    annotations: WRITE,
-    async run(a, ctx) { return save(ctx, A.sendFeedback(ax(ctx), a.mood as 'good' | 'meh' | 'bad', String(a.text ?? ''), 'mcp'), 'Sent the feedback', ''); },
   },
   {
     name: 'rename_workspace',

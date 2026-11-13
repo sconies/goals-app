@@ -14,7 +14,7 @@ The logical model: what identifies each record, what must be unique, and what ea
 - **Ids are unique within their workspace.** Faro’s are global text ids made in the browser (`newId`); a rebuild’s server makes them, of whatever kind its platform uses.
 - **References stay inside the workspace.** A goal’s owner, its team and the goal it feeds are all in its workspace.
 - **Removing is marking.** A record with `removedAt` is kept for 30 days for undo and history (REMOVE-ANYTHING); uniqueness counts only records not removed, except a goal’s key, which is never given again.
-- **Versions.** Goals and reviews carry a `version`; a save names the version it was based on and is refused if it has moved (NO-LOST-UPDATES). A refused save runs its action again on the latest, with the same input, and saves that, unless the input is a whole record as last seen (AX6). Other records are last write wins today: a rebuild extends versions to them and says how a clash is shown.
+- **Versions.** Goals and reviews carry a `version`; a save names the version it was based on and is refused if it has moved (NO-LOST-UPDATES). A refused save runs its action again on the latest, with the same input, and saves that, unless the input is a whole record as last seen or the person confirmed it against what they were shown (AX6). Other records are last write wins today: a rebuild extends versions to them and says how a clash is shown.
 
 | Record | Key | Unique | Points to | Also |
 |---|---|---|---|---|
@@ -178,6 +178,7 @@ type Io = 'input' | 'output'
 | `proposedAt` | `string \| null` | no | Proposed, not yet active (goal entry GE10, rule 14; domain/proposed): visible to everyone, never judged, nothing due. Set when proposed; cleared (null) when made active. Never set with stoppedAt. |
 | `proposedBy` | `Id \| null` | no | Who proposed it: set only with proposedAt. While it is proposed they may change or withdraw it too. |
 | `proposedIn` | `Id \| null` | no | The review (Review.id) it was proposed in, from "Propose a new goal" in the walk (GE10, decision 15); kept once it is made active, so the next session's "Last time" can say so. Left out when it was proposed anywhere else. |
+| `unmeasuredSince` | `string \| null` | no | Held to no number since then (MS; domain/unmeasured): what measures it isn't measured yet, so it has no status from its plan, nothing on it is late, and a baseline isn't asked for. Set and cleared by whatever measures it (the metric library, when it links the goal to a metric with a gap); absent or null when it is held to its plan. |
 
 ### PendingChange
 
@@ -201,7 +202,19 @@ Has every field of [GoalBase](#goalbase), and:
 | `plan` | `MetricPlan` | yes |  |
 | `originalPlan` | `MetricPlan \| null` | yes | The first plan, kept when the plan is re-baselined after check-ins started. |
 | `rebaselinedWeek` | `number \| null` | yes | The week of the latest re-plan. |
+| `baseline` | `Baseline \| null` | no | The baseline as a field of its own (BL, domain/baseline): a figure known for a period, often provisional; its value is the plan's start. Shown as the goal's number until its first check-in. Absent or null: none. |
+| `targetUnset` | `true` | no | A proposed goal with a baseline and nothing else yet (GB, domain/proposed targetNotSet): no target agreed yet, so `plan.target` only holds the start and means nothing; read this first. Never set on an active goal: making it active asks for the target (rule 2). Absent: the target is set. |
 | `planHistory` | `PlanVersion[]` | no | Every earlier plan, oldest first: each applied to the weeks before its untilWeek (and after the one before it). |
+
+### Baseline
+
+A baseline (BL): the figure, the period it covers in words, and whether it may still be firmed up.
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `value` | `number` | yes |  |
+| `period` | `string` | yes |  |
+| `provisional` | `boolean` | yes |  |
 
 ### PlanVersion
 
@@ -314,8 +327,28 @@ type RecoveryState = 'plan' | 'investigating' | 'help' | 'target'
 | `next` | `string` | yes |  |
 | `dataFlagged` | `boolean` | yes |  |
 | `backfilled` | `boolean` | no | Loaded later from a spreadsheet or another tool, not posted in its week. |
+| `reading` | `CheckInReading \| null` | no | Where its number came from (NR rule 2): what the metric's source said and when it measured it, and why the owner's number differs, when it does. Absent or null when the number was typed with nothing read. `value` above is always the owner's number; nothing that judges a goal reads this. |
 | `removedAt` | `string \| null` | no | Deleted (only while no newer check-in exists on the goal): kept, hidden, restorable. |
 | `removedBy` | `Id \| null` | no |  |
+
+### ReadingWhyKind
+
+Why an owner's number differs from what the source said (NR 2.2): the source is behind, counts something else, is wrong this week, or something else (in their words).
+
+```ts
+type ReadingWhyKind = 'behind' | 'other-count' | 'wrong' | 'else'
+```
+
+### CheckInReading
+
+What a check-in recorded of its metric's source (NR rule 2; migration 0047's `reading`).
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `source` | `string` | yes | The source's name, as the metric names it. |
+| `value` | `number` | yes |  |
+| `at` | `string` | yes | When the source measured it (an ISO time). |
+| `why` | `{ kind: ReadingWhyKind; text?: string }` | no | Set only when the check-in's number differs from `value`. |
 
 ### Diff
 

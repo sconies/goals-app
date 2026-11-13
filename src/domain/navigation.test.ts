@@ -37,6 +37,12 @@ describe('the menu, the lit item and a page’s name (AR2, NV1)', () => {
     expect(phoneTabs(false, false)).toEqual(['home', 'goals', 'people', 'activity']);
     expect(moreFor(menuGroups(false, [], false), phoneTabs(false, false))).toEqual({ lookup: ['data'], make: ['new'], you: ['workspace', 'settings', 'help', 'feedback'] });
   });
+  it('has no Feedback row with Feedback switched off (SW1): the last group is Workspace, Settings, Help, on a phone too', () => {
+    expect(menuGroups(true, [], true, false).you).toEqual(['workspace', 'settings', 'help']);
+    expect(moreFor(menuGroups(false, [], false, false), phoneTabs(false, false)).you).toEqual(['workspace', 'settings', 'help']);
+    // Every switch off: the ten rows of the smallest Faro (feature-switches spec 4.3).
+    expect(menuRows(menuGroups(true, [], false, false))).toEqual(['home', 'checkin', 'goals', 'people', 'activity', 'data', 'new', 'workspace', 'settings', 'help']);
+  });
   it('lists up to four saved views: pinned A to Z, then yours, the latest opened first', () => {
     const v = (id: string, pinned: boolean, createdAt = '2026-11-01') => ({ id, name: id, pinned, mine: !pinned, createdAt });
     expect(menuViews([v('b', true), v('a', true), v('m1', false, '2026-11-02'), v('m2', false, '2026-11-03'), v('m3', false, '2026-11-04')], ['m1']).map((x) => x.id)).toEqual(['a', 'b', 'm1', 'm3']);
