@@ -139,7 +139,9 @@ One batch. The recommended answer is first each time; each spec's "If Lane decid
     - (b) Every team, worst first.
     - (c) Leave it out; Home's "Teams, worst first" is enough.
 
-**Reviews as a feature switch** (added 13 Nov; not yet answered)
+**Reviews as a feature switch** (added 13 Nov)
+
+**Decided by Lane, 13 Nov: 18a–22a,** as relayed by the planning session.
 
 Round 2's FT2 already designs Reviews as a switch, and Lane took its answers on 11 November; it is not built. The recommendation is to build FT2 as approved, then one small part (RS1) that gives round 4's additions their words with Reviews off.
 
