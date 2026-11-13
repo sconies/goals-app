@@ -5,7 +5,7 @@ import { ASK_KIND, ASK_STATUS, SESSION } from './vocabulary';
 import { daysSince, firstWeekFrom, weekDate } from './plan';
 import { checkInsFor, RANK } from './status';
 import { asksOf, isResolved } from './asks';
-import type { Ask, Cycle, Decision, Goal, Level, Review, Snapshot, Watch } from './types';
+import type { Ask, Cycle, Decision, Goal, Level, Person, Review, Snapshot, Watch } from './types';
 
 /** A goal and every goal feeding it, at any depth. */
 export function treeOf(rootId: string, goals: Goal[]): Goal[] {
@@ -306,4 +306,27 @@ export function coveringWatches(personId: string, goal: Goal, s: Snapshot): Watc
   return s.watches.filter((w) => w.personId === personId && (
     (w.kind === 'level' && w.ref === goal.level) ||
     (w.kind === 'tree' && w.ref !== goal.id && treeOf(w.ref, s.goals).some((g) => g.id === goal.id))));
+}
+
+/* ---------- Who may speak for a review (RV7: docs/design/reviews/spec.md section 3, Lane's decision 1) ---------- */
+
+/**
+ * "Reviewed", a note, the review accepting a risk, and a next step or question raised in it speak for the group: only
+ * someone in the review, or an admin, may say them. Everyone may read a review, and anyone may still agree a next step
+ * or ask a question on a goal's own page.
+ */
+export const canSpeakFor = (r: Pick<Review, 'people'>, p: Pick<Person, 'id' | 'admin'>): boolean => p.admin || r.people.includes(p.id);
+
+/** The refusal, in words a person (or their assistant) can act on. */
+export const speakRefusal = (r: Pick<Review, 'name'>) => `Only people in ${r.name}, or an admin, can speak for it.`;
+
+/**
+ * The line a review's page shows someone not in it, who can't speak for it: who can add them (its people and whoever
+ * set it up, by name, up to six, then "and {n} more"), or an admin. "You’re not in this review. Rhea Kapoor or an admin can add you."
+ */
+export function joinLine(r: Pick<Review, 'people' | 'createdBy'>, nameOf: (id: string) => string | null): string {
+  const names = [...new Set([...r.people, r.createdBy])].map(nameOf).filter((n): n is string => !!n);
+  const shown = names.slice(0, 6);
+  const who = !shown.length ? 'An admin' : `${shown.join(', ')}${names.length > 6 ? ` and ${names.length - 6} more` : ''} or an admin`;
+  return `You’re not in this review. ${who} can add you.`;
 }
