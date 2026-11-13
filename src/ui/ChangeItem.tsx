@@ -28,7 +28,9 @@ export function ChangeItem({ c, showGoal, manage, rows }: { c: Change; showGoal?
   const [open, setOpen] = useState(false);
   const [rowsOpen, setRowsOpen] = useState(false);
   const file = c.action === 'imported' ? c.diffs.find((d) => d.field === 'File')?.to : undefined;
-  const said = file ? `imported ${file}: ${importCounts(c)}` : c.summary.charAt(0).toLowerCase() + c.summary.slice(1);
+  // A summary that starts with its actor's own name (an arrival: "Ben Carter opened …") isn't given the name twice.
+  const own = who && c.summary.startsWith(who.name + ' ') ? c.summary.slice(who.name.length + 1) : null;
+  const said = file ? `imported ${file}: ${importCounts(c)}` : own ?? c.summary.charAt(0).toLowerCase() + c.summary.slice(1);
   const goal = c.goalId ? app.goal(c.goalId) : undefined;
   const diffs = c.diffs.filter((d) => d.field !== 'Note' || c.entity === 'decision');
   // A comment reads as it is now: its latest words (marked edited), or only its place, once removed.

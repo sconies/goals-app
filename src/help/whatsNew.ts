@@ -23,6 +23,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'invitation-way-out',
+    date: '2026-11-13',
+    title: 'An invitation no longer holds you at its first screen',
+    points: [
+      'The screen an invitation opens has Go to Welcome under the list of names, so a wrong link or a shared computer is never a dead end.',
+      'Setting up a workspace of your own works from there too, before you have chosen a name.',
+      'An old invitation link to a workspace that isn’t there says so, rather than opening Welcome.',
+      'Who set a workspace up is now read from the workspace itself, so the first screen, “Set this up · admin” and “Ask … to add you” name the right person when there is more than one admin.',
+      'Activity no longer gives a name twice when someone opens a workspace for the first time.',
+    ],
+    articles: ['joining', 'welcome'],
+  },
+  {
     id: 'pickers-in-full',
     date: '2026-11-12',
     title: 'Pickers show in full, and Find finds people who have left',

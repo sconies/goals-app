@@ -15992,6 +15992,7 @@ var CORE_ARTICLES = [
 					"Welcome to the workspace: who set it up and when, how many people and goals it has, then Which one are you?, with everyone listed by team and one line each (who set it up, an admin, how many goals they own, or no goals yet). With more than eight people, Find your name narrows the list.",
 					"Choose your name: that is the whole step. Home opens as you, and this device remembers your answer. The first time anyone chooses their name, Activity says they opened the workspace for the first time.",
 					"Not on the list? Ask whoever set it up to add you: the link writes them an email.",
+					"Not you, or opened the wrong link? Go to Welcome, under the list, takes you to the front door, where you can open another workspace or set up your own. The invitation stays waiting until you choose a name.",
 					"A link to a workspace that isn’t there says This invitation doesn’t open a workspace (it may have been deleted, or the link was cut short) and opens nothing else; Go to Welcome takes you to the front door."
 				]
 			},
@@ -16000,7 +16001,7 @@ var CORE_ARTICLES = [
 				text: ["Until company sign-in arrives, the app asks once on each device which one you are and remembers the answer. Choose Not you? in the person menu to change it. In the internal app, signing in with your company login replaces this step.", "Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If it can’t open you, it says you can’t open the workspace yet, and why: you aren’t signed in; no one there has that email; more than one person has it; or you’re marked as having left. Nothing of the workspace is shown. Copy a message for them writes the note to send whoever set it up, and Try again looks once more after they’ve fixed it."]
 			}
 		],
-		routes: ["/join/:workspaceId"],
+		routes: ["/join/:workspaceId/*"],
 		screens: ["Start"],
 		reqs: ["SETUP-FIRST-SCREEN", "IDENTITY"],
 		keywords: [
@@ -18328,6 +18329,19 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "invitation-way-out",
+		date: "2026-11-13",
+		title: "An invitation no longer holds you at its first screen",
+		points: [
+			"The screen an invitation opens has Go to Welcome under the list of names, so a wrong link or a shared computer is never a dead end.",
+			"Setting up a workspace of your own works from there too, before you have chosen a name.",
+			"An old invitation link to a workspace that isn’t there says so, rather than opening Welcome.",
+			"Who set a workspace up is now read from the workspace itself, so the first screen, “Set this up · admin” and “Ask … to add you” name the right person when there is more than one admin.",
+			"Activity no longer gives a name twice when someone opens a workspace for the first time."
+		],
+		articles: ["joining", "welcome"]
+	},
 	{
 		id: "pickers-in-full",
 		date: "2026-11-12",
