@@ -1876,6 +1876,373 @@
       ]
     },
     {
+      "name": "answers the Goals query “checkedin=no” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "checkedin=no"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 18
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "ns-vuln",
+              "dep-jenkins",
+              "cost-storage",
+              "env-search",
+              "iam-groups",
+              "ci-docker",
+              "cfr-tests",
+              "cost-commit",
+              "lead-batch",
+              "mttr-aiops",
+              "ci-shard-js",
+              "env-provision",
+              "slo-edge",
+              "ai-default",
+              "ci-docker-slim",
+              "lead-review",
+              "ci-cost",
+              "env-gpu"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "checkedin=no"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 18,
+              "status": {
+                "off": 0,
+                "risk": 2,
+                "stale": 2,
+                "none": 2,
+                "on": 12,
+                "planned": 0,
+                "done": 0
+              },
+              "attention": 3
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “checkedin=asked” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "checkedin=asked"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 0
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": []
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "checkedin=asked"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 0,
+              "status": {
+                "off": 0,
+                "risk": 0,
+                "stale": 0,
+                "none": 0,
+                "on": 0,
+                "planned": 0,
+                "done": 0
+              },
+              "attention": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “inreview=devprod” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "inreview=devprod"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 35
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "lead-runners",
+              "ns-lead",
+              "lead-mq",
+              "lead-merge",
+              "lead-ci-time",
+              "lead-flaky",
+              "dep-jenkins",
+              "lead-review-rota",
+              "lead-review-bot",
+              "ci-docker",
+              "lead-arm",
+              "ns-ci",
+              "lead-batch",
+              "lead-quarantine",
+              "ci-shard-js",
+              "dep-gates",
+              "lead-rollback",
+              "dep-gates-perf",
+              "dep-templates",
+              "ns-deploy",
+              "lead-review-small",
+              "build-sign",
+              "dep-freeze",
+              "dep-flags",
+              "lead-cache",
+              "dep-gates-sec",
+              "dep-selfserve",
+              "ci-docker-slim",
+              "ci-shard",
+              "lead-testown",
+              "lead-canary",
+              "lead-review",
+              "ci-shard-java",
+              "ci-docker-registry",
+              "ci-dedupe"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "inreview=devprod"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 35,
+              "status": {
+                "off": 5,
+                "risk": 3,
+                "stale": 0,
+                "none": 0,
+                "on": 24,
+                "planned": 0,
+                "done": 3
+              },
+              "attention": 8
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “inreview=devprod&checkedin=no” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "inreview=devprod&checkedin=no"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 6
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "dep-jenkins",
+              "ci-docker",
+              "lead-batch",
+              "ci-shard-js",
+              "ci-docker-slim",
+              "lead-review"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "inreview=devprod&checkedin=no"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 6,
+              "status": {
+                "off": 0,
+                "risk": 1,
+                "stale": 0,
+                "none": 0,
+                "on": 5,
+                "planned": 0,
+                "done": 0
+              },
+              "attention": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “inreview=nope” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "inreview=nope"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 0
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": []
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "inreview=nope"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 0,
+              "status": {
+                "off": 0,
+                "risk": 0,
+                "stale": 0,
+                "none": 0,
+                "on": 0,
+                "planned": 0,
+                "done": 0
+              },
+              "attention": 0
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "gives each goal the status and flags the rules give it (status.csv and flags.csv, this week)",
       "steps": [
         {

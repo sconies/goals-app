@@ -13,7 +13,7 @@ import * as L from './rulesLibrary';
 import { goalsOfMetric, libraryReads, lineOf, proposedOfMetric } from './reads';
 import { answersFrom } from './rulesDefine';
 import { openChecks, saveMetricAsked } from './rulesSave';
-import { forWords, linkChecks, type LinkCheck } from './rulesParts';
+import { forWords, linkChecks, partsOf, type LinkCheck } from './rulesParts';
 import { goalStatus } from '../../domain/status';
 import { LABEL } from '../../domain/vocabulary';
 import type { DisplayStatus } from '../../domain/types';
@@ -133,7 +133,7 @@ const tools: ToolDef[] = [
   {
     name: 'get_metric',
     title: 'Read a metric',
-    description: 'One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).',
+    description: 'One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the parts its goals use (`parts`, most used first); the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).',
     inputSchema: { type: 'object', additionalProperties: false, required: ['metric'], properties: { metric: str('The metric’s ID or name.') } },
     annotations: READ,
     async run(a, ctx) {
@@ -145,6 +145,8 @@ const tools: ToolDef[] = [
         const summary = L.summaryLine(side);
         // Proposed goals (GE10) that name it: apart, with no numbers, in no comparison.
         const proposed = proposedOfMetric(ctx.snapshot, m.id).map((g) => ({ goalId: g.id, key: g.key ?? null, goal: g.title, owner: ctx.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? null }));
+        // The parts goals on it use (MT2), as the goal form offers them: link_goal_metric points here.
+        const parts = partsOf(M.linksOf(ctx.snapshot).filter((l) => l.metricId === m.id));
         const needs = M.canEditMetric(ctx.actor, m) ? L.metricNeeds(m, libraryReads(ctx.snapshot, ctx.now)).map((x) => ({ id: x.id, sentence: x.sentence })) : [];
         // Rule 1's line: words, never a score.
         const still = lineOf(ctx.snapshot, m);
@@ -154,6 +156,7 @@ const tools: ToolDef[] = [
           `Source: ${d.source || '—'} (owned by ${d.sourceOwner || '—'}) · refresh: ${d.refresh ?? 'not said'}`, `Owner: ${d.owner ?? '—'}`, `Caveats: ${d.caveats || '—'}`, `Measured today: ${d.measurementLabel}${d.measurement !== 'measured' && d.measurementNote ? ` (${d.measurementNote})` : ''}`,
           goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}`).join('\n')}` : 'Measures no goal yet.',
           ...(summary ? [summary] : []),
+          ...(parts.length ? [`Parts in use: ${parts.join(', ')}`] : []),
           ...(proposed.length ? [`Proposed (${proposed.length}), not judged: ${proposed.map((x) => `${x.key ?? x.goalId} ${x.goal}${x.owner ? ` (${x.owner})` : ''}`).join('; ')}`] : []),
           ...(needs.length ? [`To sort out: ${needs.map((x) => x.sentence).join('; ')}`] : []),
         ];
@@ -161,7 +164,7 @@ const tools: ToolDef[] = [
         const history = ctx.snapshot.changes.filter((c) => c.entity === 'metric' && c.entityId === m.id && !c.goalId).slice(-20).reverse().map((c) => ({ at: c.at, by: name(ctx, c.actorId), action: c.action, summary: c.summary }));
         if (d.retired) lines.splice(1, 0, `Retired on ${d.retired.at.slice(0, 10)} by ${d.retired.by ?? '—'}: “${d.retired.why}”${d.retired.replacedBy ? ` Replaced by ${M.metricsOf(ctx.snapshot).find((x) => x.id === d.retired!.replacedBy)?.name ?? d.retired.replacedBy}.` : ''}`);
         if (d.marks.length) lines.push(`Marks on its goals: ${d.marks.map((k) => `${k.kind === 'direction' ? 'direction' : 'definition'} changed in week ${k.week}: ${k.why}`).join('; ')}`);
-        return { data: { ...d, stillToSay, goals, proposed, summary, needs, history }, text: lines.join('\n') };
+        return { data: { ...d, stillToSay, goals, parts, proposed, summary, needs, history }, text: lines.join('\n') };
       });
     },
   },
@@ -269,8 +272,8 @@ const tools: ToolDef[] = [
       goal: str('The goal’s ID or key (G-12).'),
       metric: str('The metric’s ID or name. Required unless unlinking.'),
       team: str('The slice: a team by ID or name. Leave out for the whole company.'),
-      part: str('Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them.'),
-      reason: str('Why the goal is measured differently now. Required when a goal with check-ins changes its metric, team or part; it shows in the goal’s History.'),
+      part: str('Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them under parts.'),
+      reason: str('Why the goal is measured differently now. Required when a goal with check-ins is measured differently from its last link (another metric, team or part, even after unlinking); it shows in the goal’s History.'),
       answers: { type: 'object', additionalProperties: false, description: 'Answers to the checks a first call returned: part ("keep" or "use:<part>"), others ("carry-on": another goal already measures the same number).', properties: { part: { type: 'string' }, others: { type: 'string' } } },
       unlink: { type: 'boolean', description: 'Stop measuring the goal by its metric.' },
     } },

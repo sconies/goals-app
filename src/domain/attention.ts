@@ -3,8 +3,7 @@
    check-in (reviewed, noted, an action agreed, or its request answered) is being handled until something new happens. */
 import { checkInsFor, goalStatus, type GoalStatus } from './status';
 import { askText, answeredSince, isOverdue, openAsksFor, openFor } from './asks';
-import { firstDueWeek, reviewDate } from './progress';
-import { dayText } from './format';
+import { dueWords, firstDueWeek } from './progress';
 import { currentWeek, hasEnded } from './plan';
 import { goalTrend } from './trend';
 import { ATTENTION_FLAGS, FLAG, LABEL, lower, type FlagKind } from './vocabulary';
@@ -81,9 +80,10 @@ export function flagsFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date): { 
   if (trend) add('trend', trend, 'risk');
   // A done goal is finished: how it was called on the way there is no longer news (re-review, 8 Nov, backlog T).
   if (status.greener && latest && status.status !== 'stale' && status.status !== 'done') add('greener', `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, 'risk');
-  // Nothing is due once the cycle's last day is past (cycle-end rule 2).
-  // A goal held to no number (domain/unmeasured) has nothing due: it lists under its metric's "To sort out" instead.
-  if (!status.unmeasured && week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== 'done' && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add('due', `Due by ${dayText(reviewDate(cycle, week))}.`, 'info');
+  // Nothing is due once the cycle's last day is past (cycle-end rule 2). The flag's words are dueWords' (RS1), the same
+  // with Reviews on or off. A goal held to no number (domain/unmeasured) has nothing due: it lists under its metric's
+  // "To sort out" instead.
+  if (!status.unmeasured && week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== 'done' && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add('due', dueWords(false, cycle, week).flag, 'info');
 
   flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
   return { status, flags };

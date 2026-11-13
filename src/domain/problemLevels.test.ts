@@ -184,6 +184,7 @@ describe('section 4: a case per kind, with its sentence and level', () => {
     ['past-stage', 'amara', { goals: [rec({ Goal: 'P1', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Design@2; Pilot@6; All services@10' })] }, /3 stages of “P1” are due before this week \(week 46\)/],
     ['past-plan', 'amara', { goals: [newGoal({ 'Plan from week': '1', 'Due week': '10' })] }, /has a plan that ended in week 10; it’s week 46\./],
     ['odd-number', 'amara', { goals: [newGoal({ Unit: 'ms', Start: '3', Target: '3000' })] }, /^The target \(3,000 ms\) is over 100 times where it starts \(3 ms\)\. Is that right\?$/],
+    ['for-someone-else', 'tunde', { goals: [newGoal({})] }, /^“A new goal” is for Rhea Kapoor and would start as active\. Is that what you mean\?$/],
     ['feeds-lower', 'amara', { goals: [newGoal({ Level: 'north star', 'Feeds into key': 'G-14' })] }, /^A north star usually feeds nothing, and “Pipeline queue wait \(p90\)” is an? (SVP|Team) goal\. Is this link right\?$/],
     ['plan-question', 'amara', { goals: [rec({ Key: 'G-1', Target: String(2 * g1.plan.start - g1.plan.target) })] }, /This makes (higher|lower) better/, { reason: 'Measured the other way round' }],
     ['no-unit', 'amara', { goals: [newGoal({ Unit: '' })] }, /This number has no unit\. Is it a plain count\?/],

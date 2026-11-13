@@ -216,7 +216,7 @@ const ENGINE_CHECK: Partial<Record<GoalCheckId, IssueKind>> = {
   'below-zero': 'odd-number', 'over-100': 'odd-number', 'wrong-side': 'odd-number', hundredfold: 'odd-number', billion: 'odd-number', 'margin-wide': 'odd-number', 'late-plan': 'odd-number', 'long-plan': 'odd-number',
 };
 /** The kinds that are goal entry's questions: said on their item, and answered yes, all of them, by `confirm`. */
-export const GOAL_QUESTION: readonly IssueKind[] = ['odd-number', 'feeds-lower', 'no-unit', 'plan-question'];
+export const GOAL_QUESTION: readonly IssueKind[] = ['odd-number', 'feeds-lower', 'no-unit', 'plan-question', 'for-someone-else'];
 /** What `confirm` (the tools' and older screens' one switch) answers yes: every question of rule 3 the engine asks here. */
 const CONFIRMED: IssueKind[] = ['odd-number', 'feeds-lower', 'no-unit'];
 
@@ -378,7 +378,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     // Only an answer the question offers counts ("banana" answers nothing), and one given for some numbers covers only
     // those numbers: a different number, in this file or the next, is asked again (IM2 review).
     const fits = given && (!x.answers?.length || x.answers.some((c) => c.choice === given.choice)) && (!given.covers || x.value == null || given.covers.includes(x.value));
-    const a = (fits ? given : undefined) ?? (input.confirm && CONFIRMED.includes(kind) ? { choice: 'right' } : input.confirm && kind === 'other-goal' ? { choice: 'change' } : undefined);
+    const a = (fits ? given : undefined) ?? (input.confirm && CONFIRMED.includes(kind) ? { choice: 'right' } : input.confirm && kind === 'other-goal' ? { choice: 'change' } : input.confirm && kind === 'for-someone-else' ? { choice: 'active' } : undefined);
     if (a?.choice === 'leave') { leave(sheet, row); return 'leave'; }
     if (a) return a;
     raise(kind, sheet, row, name, message, x);
@@ -1065,6 +1065,13 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
       else if (['proposed', 'draft', 'proposal'].includes(w)) proposing = true;
       else if (!(w === 'stopped' && existing?.stoppedAt)) return raise('unknown-word', 'Goals', row, label, `State says “${val(r, 'state')}”. Use active or proposed.`, { column: 'State', found: val(r, 'state') });
     }
+    // A new goal for someone else, with no State, is asked about once per file (GE10, decision 16): the form starts such a
+    // goal on "Not yet: propose it". Set-up loads a new workspace's goals as they are, unasked; `confirm` answers active.
+    if (!existing && !create && !admin() && !proposing && !(has(r, 'state') && val(r, 'state')) && d.ownerId && d.ownerId !== actor.id) {
+      const a = ask('for-someone-else', 'Goals', row, d.title, `“${d.title}” is for ${people.get(d.ownerId)?.name ?? 'someone else'} and would start as active. Is that what you mean?`, { column: 'State', found: 'for-someone-else', answers: ANSWERS.forSomeoneElse });
+      if (a === 'leave') return;
+      if (a?.choice === 'proposed') proposing = true;
+    }
     if (existing && proposing && !wasProposed && started(existing.id)) return raise('cant-change', 'Goals', row, existing.title, `“${existing.title}” has check-ins, so it can’t go back to proposed. Stop it instead.`, { column: 'State', found: 'state-has-check-ins' });
     if (existing && proposing && !wasProposed && !canChange(existing)) return raise('not-allowed', 'Goals', row, existing.title, notYours(existing), { answers: ANSWERS.leaveOnly });
     if (wasProposed && !proposing && !mayActivate({ id: actor.id, admin: admin() }, existing!)) return raise('not-allowed', 'Goals', row, existing!.title, `${people.get(existing!.ownerId)?.name ?? 'Its owner'} or an admin can make this active.`, { column: 'State', answers: ANSWERS.leaveOnly });
@@ -1110,7 +1117,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     if (existing) built = { ...existing, ...built } as Goal;
     if (key) built = { ...built, key };
     // Proposed: kept as proposed, proposed now by whoever sends the row, or made active (its proposal cleared).
-    if (proposing && !wasProposed) built = { ...built, proposedAt: now, proposedBy: actor.id };
+    if (proposing && !wasProposed) built = { ...built, proposedAt: now, proposedBy: actor.id, ...(built.proposedIn ? { proposedIn: null } : {}) };
     if (wasProposed && !proposing) built = { ...built, proposedAt: null, proposedBy: null };
     if (existing && d.whyHelps === '' && 'whyHelps' in built) delete (built as { whyHelps?: string }).whyHelps;
     // A row that stops or deletes a goal says only that: its other columns must say what the goal says now.

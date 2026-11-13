@@ -11,8 +11,10 @@ import '../app/engineReady';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
+import { BeforeReview } from '../ui/BeforeReview';
 import { Place, useModules } from '../core/app';
 import { reviewsOn } from '../app/reads';
+import { dueWords } from '../domain/progress';
 import { DIRECTORY_PAGE, personLine, teamSummary } from '../domain/directory';
 import { useFound } from '../app/search';
 import { historyStep } from '../domain/find';
@@ -351,6 +353,7 @@ const TEAM_PEOPLE = 8;
 
 export function TeamPage() {
   const app = useApp();
+  const reviewsHere = reviewsOn(useModules().on);
   const { teamId = '' } = useParams();
   const [editing, setEditing] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -387,6 +390,8 @@ export function TeamPage() {
         <h2 className="label" id="team-goals">Goals</h2>
         {s.byStatus.length ? <Counts counts={s.byStatus} label={`${t.name}’s goals`} to={(k) => `/goals?team=${encodeURIComponent(t.id)}&status=${k}`} /> : <p className="hint">No goals this year.</p>}
       </section>
+      {/* Weeks, not people (habit spec 2.3): only for a team of three or more owners. */}
+      <BeforeReview goals={app.snapshot.goals.filter((g) => g.teamId === t.id && !g.removedAt && !g.stoppedAt)} week={app.week} link={`team=${encodeURIComponent(t.id)}`} heading={reviewsHere ? 'Before this week’s review' : `Week ${app.week}, due by ${dueWords(false, app.cycle, app.week).date}`} reviews={reviewsHere} />
       <section className="stack" style={{ gap: 'var(--s2)' }} aria-labelledby="team-people">
         <h2 className="label" id="team-people">People · {people.length}</h2>
         {!people.length ? <p className="hint">No one is in {t.name} yet.</p> : (

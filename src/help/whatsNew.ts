@@ -38,6 +38,40 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['metric-measurement'],
   },
   {
+    id: 'reviews-switch-clock',
+    date: '2026-11-13',
+    title: 'Check-ins say plainly which day they’re due',
+    points: [
+      'The day check-ins are due is said one way everywhere: “by Thursday”, or “before Thursday’s review” only when you are in a review held that day. With Reviews off, the week’s receipt says “All 7 of your check-ins are in by Thursday.”',
+      'Switching Reviews off now also says how many accepted risks stay on their goals, and that check-ins are still due by the same day.',
+      'With Reviews off, an exported spreadsheet has no Notes sheet and no Review column on Asks, and an import that has them says once that they were not read.',
+    ],
+    articles: ['check-in', 'features'],
+  },
+  {
+    id: 'goals-for-others-asked-in-files',
+    date: '2026-11-13',
+    title: 'Proposed goals in What feeds it, the year’s start and files',
+    points: [
+      'A goal’s What feeds it lists the goals proposed to feed it under “Proposed”, counted in nothing.',
+      'When the next year starts, proposed goals carry as proposed, counted apart on the start page.',
+      'A spreadsheet or an AI assistant that adds goals for other people, with no State, asks once whether they start active or proposed. An admin’s file and set-up aren’t asked.',
+    ],
+    articles: ['goal-proposed', 'goal-page', 'data'],
+  },
+  {
+    id: 'habit-before-this-review',
+    date: '2026-11-13',
+    title: 'A review says how many goals were ready for it',
+    points: [
+      'A review’s page now opens with how many of its goals were checked in before it, and how many without anyone asking.',
+      'Links open the goals that came in after an ask for an update, and those with no check-in yet.',
+      'The last 8 weeks show as a row of squares: All in, how many came after, or None in. A team’s page has the same.',
+      'It counts weeks and goals, never people, and isn’t shown for a set of goals with fewer than three owners.',
+    ],
+    articles: ['reviews', 'teams'],
+  },
+  {
     id: 'habit-receipt-and-moment',
     date: '2026-11-13',
     title: 'Your run forgives one missed week, and reaching a target is said, quietly',

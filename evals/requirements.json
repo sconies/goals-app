@@ -98,6 +98,18 @@
       "use": "copy"
     },
     {
+      "id": "HABIT-MEASURE",
+      "area": "Reviews",
+      "text": "A review's page says how many of its goals were checked in before it, and how many without being asked (Faro's only nudge is an ask for an update), with links that open exactly the goals that came in after an ask and those with no check-in yet, and a row of the last 8 weeks (All in, {k} after, None in, Nothing due) drawn as squares with words. A team's page shows the same for its goals.",
+      "use": "copy"
+    },
+    {
+      "id": "HABIT-NEVER-A-PERSON",
+      "area": "Reviews",
+      "text": "The measure is about weeks and goals, never people: no person is named, listed, counted or sorted in it, no team is ranked by it, and a set whose goals have fewer than three owners shows none of it, unless the viewer owns them all.",
+      "use": "copy"
+    },
+    {
       "id": "REASON-AHEAD",
       "area": "Check-in",
       "text": "A reason is required when 120% or more ahead, and the check-in asks whether the target should change.",
@@ -491,7 +503,7 @@
     {
       "id": "NO-LOST-UPDATES",
       "area": "Data",
-      "text": "A save says what it was based on. If someone else has changed the same goal, review or week since, the save is refused whole, the person is told plainly and shown the latest; nothing is half-saved and the change log never records a save that didn’t land. Open screens pick up other people’s changes when the tab comes back into view.",
+      "text": "A save says what it was based on. If someone else has changed the same goal, review or week since, the save is refused whole and runs again on the latest with the same input, so the person’s change lands beside the other one unless the rule now says no, which is said in its own words; a form that holds a whole record as last seen (a goal’s or a review’s) isn’t run again, and a save refused three times stops: the person is told plainly and shown the latest; nothing is half-saved and the change log never records a save that didn’t land. Open screens pick up other people’s changes when the tab comes back into view.",
       "use": "copy"
     },
     {
@@ -1143,6 +1155,12 @@
       "id": "REVIEWS-OPTIONAL",
       "area": "Architecture",
       "text": "An admin switches Reviews off for a workspace. Off, there is no Reviews in the menu, on Home, on a goal or in the AI’s tools; asks and next steps are unchanged; what was said in reviews stays in history. Nothing is deleted, and switching it on restores it.",
+      "use": "copy"
+    },
+    {
+      "id": "REVIEWS-SWITCH-CLOCK",
+      "area": "Architecture",
+      "text": "The day check-ins are due never needs a review. One rule names the deadline: “before Thursday’s review” only when Reviews is on and a review is held that day, otherwise “by Thursday”, so with Reviews off no screen, receipt or count calls the deadline a review. Switching Reviews off says first that check-ins are still due by that day and how many accepted risks stay on their goals; a spreadsheet leaves out what is Reviews’ and an import says once that it wasn’t read; every switched-off module’s AI tools answer with one sentence; and back on, a session whose date passed while it was off is not “Not held yet”.",
       "use": "copy"
     },
     {

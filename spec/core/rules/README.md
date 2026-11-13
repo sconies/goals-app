@@ -42,7 +42,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [Finding things](finding.md) | What a search matches, the near miss offered when nothing does, and the one search per kind of thing (goals, people, teams) that every list, picker and Find calls. |
 | [Navigation: the menu, the lit item and a page’s name](navigation.md) | Which places the menu lists for a viewer, where a module’s items go, which one is lit at an address, what a page is called, and what a Back link says. |
 | [The Goals page: whose goals, how they are grouped, and the switch](goals-page.md) | Which scope tabs someone has and which opens, each scope’s own grouping, what the Needs attention switch counts, the line that counts the goals shown, and how old addresses and saved views open. |
-| [The habit: the run, the receipt and a moment](habit.md) | How many weeks in a row a person has been on time, with one late week forgiven; what the check-in’s last screen says once the week’s are all in; and when a check-in says a goal reached its target or came back on track. |
+| [The habit: the run, the receipt, a moment and the measure](habit.md) | How many weeks in a row a person has been on time, with one late week forgiven; what the check-in’s last screen says once the week’s are all in; when a check-in says a goal reached its target or came back on track; and how many of a set’s goals were checked in before the review without being asked. |
 | [Home: what is asked of you today](home.md) | Whether Home leads with one thing asked of the viewer today, and its one primary action, or says in one quiet line that nothing is. |
 
 ## The numbers the rules turn on

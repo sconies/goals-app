@@ -38,6 +38,8 @@ module.exports = {
       said: s.changes.filter((x) => x.entity === 'review' || x.entity === 'decision').length,
       steps: asks.filter((a) => a.kind === 'action' && a.status === 'open' && a.reviewId).length,
       questions: asks.filter((a) => a.kind === 'question' && a.status === 'open' && a.reviewId).length,
+      // RS2: risks a review accepted, on goals not removed.
+      risks: s.decisions.filter((d) => d.kind === 'note' && !d.removedAt && /^We accept the risk: /.test(d.note) && s.goals.some((g) => g.id === d.goalId && !g.removedAt)).length,
     };
     await box('Reviews').click();
     const sheet = p.getByRole('dialog', { name: /^Switch off Reviews in / });
@@ -49,10 +51,13 @@ module.exports = {
       ...(want.reviews ? [`${n(want.reviews, 'review stays', 'reviews stay')} in the record${want.said ? `, with the ${n(want.said, 'thing', 'things')} said or marked in ${want.reviews === 1 ? 'it' : 'them'}` : ''}.`] : []),
       ...(want.steps ? [`${n(want.steps, 'open next step', 'open next steps')} agreed in a review ${want.steps === 1 ? 'stays' : 'stay'} open on their goals and on Home.`] : []),
       ...(want.questions ? [`${n(want.questions, 'question', 'questions')} waiting for a review ${want.questions === 1 ? 'stays' : 'stay'} open`] : []),
+      ...(want.risks ? [`${n(want.risks, 'accepted risk stays on its goal', 'accepted risks stay on their goals')}, as ${want.risks === 1 ? 'it was' : 'they were'} said. No new one can be accepted while Reviews is off.`] : []),
+      'Check-ins are still due by Thursday. “Before the review” becomes “by Thursday” on Home, in the check-in and in the count of goals checked in on time.',
       'Nothing is deleted. Switch Reviews back on and every review is as it was.',
     ];
     for (const line of expect) if (!said.includes(line)) fails.push(`the read-back does not say “${line}”: ${said.slice(0, 400)}`);
     if (!want.steps && /open next step/.test(said)) fails.push('the read-back counts open next steps there are none of');
+    if (!want.risks && /accepted risk/.test(said)) fails.push('the read-back counts accepted risks there are none of');
     await sheet.getByRole('button', { name: 'Switch off Reviews' }).click();
     await p.getByText('Reviews is off in').first().waitFor();
 

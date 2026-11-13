@@ -55,15 +55,19 @@ export function linkGoalMetric(x: ActionContext, goal: Goal, metricId: string, t
   return { ...metricRows({ metricLinks: [link] }), ...(hold ? { goals: [hold.goal] } : {}), changes: [log(x, { entityId: m.id, goalId: goal.id, action: current ? 'edited' : 'linked', summary, diffs }), ...(hold ? [hold.change] : [])] };
 }
 
-/** What rule 2 reads for a goal and a metric: its present link, the metric's other live links (with each goal's title,
-    key and owner), whether the goal has check-ins, and slices in words. */
-export function linkReads(x: Pick<ActionContext, 'snapshot' | 'full'>, goal: Pick<Goal, 'id'>, metricId: string): LinkReads {
+/** What rule 2 reads for a goal and a metric: its last link (removed or not), the metric's other live links on goals
+    of the same cycle (with each goal's title, key and owner), whether the goal has check-ins, and slices in words. */
+export function linkReads(x: Pick<ActionContext, 'snapshot' | 'full'> & Partial<Pick<ActionContext, 'cycle'>>, goal: Pick<Goal, 'id'> & Partial<Pick<Goal, 'cycleId'>>, metricId: string): LinkReads {
   const s = x.full ?? x.snapshot;
-  const present = linksOf(s).find((l) => l.id === goal.id && !l.removedAt);
+  // The goal's last link, removed or not: unlinking and then linking another way is a change too (#308's review).
+  const present = linksOf(s).find((l) => l.id === goal.id);
   const goals = new Map(s.goals.map((g) => [g.id, g]));
+  // Other goals in the goal's own cycle only, at every door: the tool reads the whole workspace, the form the cycle,
+  // and last year's copy of a goal is not another goal on its number.
+  const cycle = goal.cycleId ?? goals.get(goal.id)?.cycleId ?? x.cycle?.id;
   const others = linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt && l.goalId !== goal.id).flatMap((l) => {
     const g = goals.get(l.goalId);
-    if (!g || g.removedAt || g.stoppedAt) return [];
+    if (!g || g.removedAt || g.stoppedAt || (cycle && g.cycleId !== cycle)) return [];
     return [{ goalId: l.goalId, teamId: l.teamId, part: l.part, title: g.title, key: g.key ?? g.id, ownerName: s.people.find((p) => p.id === g.ownerId)?.name ?? 'no owner' }];
   });
   return { present: present ? { metricId: present.metricId, teamId: present.teamId, part: present.part } : null, others, hasCheckIns: s.checkIns.some((c) => c.goalId === goal.id), sliceName: (t) => sliceName(x.snapshot, t) };

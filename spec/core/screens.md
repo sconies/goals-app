@@ -447,7 +447,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Named parts:** “Chart and recent check-ins”, “For you”, “Done lately”, “About this goal”, “First check-in (region)”, “Next steps and asks (region)”, “On this page (region)”, “Respond (region)”, “Chart (region)”, “Show (region)”
 - **Main action:** The one main button for whoever is looking: answer what’s asked of you, check in when it’s due, mark your next step done, add a next step when it’s behind with none, or ask for an update; beside it the owner’s Check in again, or Watch.
 - **Primary buttons in its markup:** “Post the first check-in”
-- **AI tools:** `get_goal`, `add_comment`, `ask_question`, `ask_for_update`, `undo_update_ask`, `withdraw_request`, `mark_action_done`, `watch`, `unwatch`, `stop_goal`, `delete_goal`, `delete_check_in`, `edit_comment`, `delete_comment`
+- **AI tools:** `get_goal`, `add_comment`, `ask_question`, `ask_for_update`, `undo_update_ask`, `withdraw_request`, `mark_action_done`, `watch`, `unwatch`, `stop_goal`, `make_goal_proposed`, `delete_goal`, `delete_check_in`, `edit_comment`, `delete_comment`
 
 **Pictures** (`/goals/ns-lead` as amara): [390 wide](screens/goalscreen-390.jpg), [1440 wide](screens/goalscreen-1440.jpg)
 
@@ -1644,7 +1644,7 @@ None: nothing to type or choose here.
 | “Add an action” | button | `!mustDecide` |
 | “Propose a new goal” | button | always |
 | “Skip for now” | button | `!reviewed` |
-| “Propose a new goal instead” | button | `mode === 'action'` and `!existing` and `onPropose` |
+| “Propose a new goal instead” | button | `mode === 'action'` and `!existing` and `propose` |
 | “Cancel” | button | always |
 | “Saving… / Save the decision / Save the next step / Save …” | primary | always |
 

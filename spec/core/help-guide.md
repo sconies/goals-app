@@ -252,6 +252,7 @@ Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, qua
 - Start with walks through every goal due this week, one after another, as Start check-in on Home does. Or pick any goal on the list: Check in does just that one, and so does Check in on a goal’s page.
 - Close a check-in you opened from the list and you’re back on it; what you typed is kept, and that goal’s row says Draft kept, with Carry on.
 - With nothing left to do it says you’re all set for the week. Before the first check-ins are due it says when they are; if you own no goal it says so, with the goals you watch one click away.
+- Once all your goals are in, the receipt says when against the deadline: “All 3 of your goals are checked in for week 46, by Thursday.”, or “after Thursday” once the day has passed. When Reviews is on and a review is held on that day it says “before Thursday’s review” instead; with Reviews off, or no review that day, it never names a review.
 - The top of the check-in says which week it is for and where you are in the week’s goals (“Week 46 check-in · 1 of 2”). A reload keeps your place.
 - Type the number. The app shows it against this week’s plan, the gap and the status the numbers suggest, as you type. The plan written to the goal’s decimals is always on plan, even when the exact plan has more decimals than you can type.
 - On plan, that’s it: post. Behind (under 95% of the planned progress) it asks for a cause and a sentence; well ahead (120% or more) it asks why, and whether the target should change.
@@ -280,7 +281,7 @@ Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, qua
 
 #### When the week’s are all in
 
-The last screen says whether your check-ins were in before the deadline (“All 4 of your check-ins are in for week 46, before Thursday’s deadline.”; if you are in a review that day, “… before Thursday’s review.”) and, from two weeks, how many weeks in a row you have been on time. If some came after it, it says how many, and when the next are due.
+The last screen says whether your check-ins were in before the deadline (“All 4 of your check-ins are in by Thursday.”; if you are in a review held that day, “… before Thursday’s review.”) and, from two weeks, how many weeks in a row you have been on time. If some came after it, it says how many, and when the next are due.
 
 One late week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. Only you see your run.
 
@@ -689,10 +690,11 @@ Putting a goal in front of its would-be owner, or a leader, without committing t
 - Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.
 - Change it: the same page as any goal, with no reason ever asked, and its type can still change. Withdraw it: it goes to Recently removed for 30 days, with Undo.
 - Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.
-- In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet.
+- In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet. Only people in the review, or an admin, can propose one there.
+- On a goal’s page, What feeds it lists any goals proposed to feed it under “Proposed” with how many, with no status and counted in nothing; a goal that feeds a proposed goal says “· Proposed” after its name. When the next year starts, proposed goals carry as proposed, counted apart on the start page.
 - On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).
 - Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. With the filter on, the Board is one column, Proposed, and the Map draws each in its tree with a dashed outline and the word, the goals above it shown for context; opening one goes to its page. Find lists them with the word Proposed.
-- A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active. A goal with check-ins can’t go back to proposed: stop it instead.
+- A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active, and make_goal_proposed makes an active one proposed again. A file or an assistant adding goals for other people with no State is asked once whether they start active or proposed (an admin’s file and set-up aren’t asked). A goal with check-ins can’t go back to proposed: stop it instead.
 
 #### Who can
 
@@ -757,6 +759,12 @@ A regular look at the goals that need it, with notes, questions and actions that
 - A new goal the room agrees on: choose Propose a new goal in the walk. Give it a name, who will own it and what it will feed. It is saved as proposed, and its owner sets it up and makes it active.
 - Finish review says what was decided (each person’s next steps, the risks accepted, the questions still open) before it records the session as held, and its message has Undo. The walk’s last goal finishes the same way.
 - Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session.
+
+#### Before this review
+
+- At the top of a review’s page: how many of its goals were checked in before it, and how many of those without being asked (an ask for an update is the only nudge). Before the review’s day it says how many are in so far.
+- Under it, “came in after an ask” and “have no check-in yet” each open exactly those goals on Goals, worst first. Then the last 8 weeks, one square each: All in, how many came after, None in, or Nothing due.
+- It counts weeks and goals, never people: nobody is named in it, and a set of goals with fewer than three owners doesn’t show it.
 
 #### Ending one
 
@@ -1185,11 +1193,12 @@ Requirements: `METRIC-PARTS`.
 - For says whose number it is: the goal’s team, or the whole company.
 - Which part is optional: one part of that number, such as tier-1 services, a region or release builds, up to 60 characters. Leave it empty for all of it.
 - Parts other goals on the metric already use are listed under the field; choose one rather than typing it again, so goals on the same part line up on the metric’s page. A part spelt like one in use is asked about (“Use tier-1 services”, or keep yours).
-- If another goal already measures the same metric for the same team and part, you are asked, as two goals on one number is unusual; Carry on keeps it.
+- If another goal this year already measures the same metric for the same team and part, you are asked, as two goals on one number is unusual; Carry on keeps it.
+- A question here is answered before the goal saves: Save takes you to it.
 
 #### After check-ins
 
-- Once a goal has check-ins, changing its metric, For or part asks Why. It shows in the goal’s History, so anyone reading its chart knows the number was measured differently from then on.
+- Once a goal has check-ins, changing its metric, For or part asks Why, even if it stopped being measured by a metric in between. It shows in the goal’s History, so anyone reading its chart knows the number was measured differently from then on.
 
 #### On the goal’s page
 
@@ -1244,13 +1253,14 @@ Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-MEASUREMENT`.
 
 `teams`. The workspace’s teams, A to Z, each with its lead, its people and its goals by status; a team’s page says what it is here to do. Admins add, change and remove teams.
 
-Routes: `/teams`, `/teams/:teamId`, `/workspace/teams`. Requirements: `PEOPLE-DIRECTORY`, `WORKSPACE-ADMIN`.
+Routes: `/teams`, `/teams/:teamId`, `/workspace/teams`. Requirements: `PEOPLE-DIRECTORY`, `WORKSPACE-ADMIN`, `HABIT-MEASURE`, `HABIT-NEVER-A-PERSON`.
 
 #### How to use it
 
 - Teams is the second tab of People. Find a team by its name or its lead’s.
 - Each row shows the team’s lead, or No lead (set-up doesn’t ask who leads a team), how many people are in it (its lead counts as one of them, even when their own team is another), and its goals this year counted by status, shape and word. The counts are the same numbers Goals shows by team.
 - Open a team to see what it is here to do, its goals by status (each count opens those goals), and its people, lead first. See its goals opens Goals for just that team; Show all lists all its people in People.
+- A team’s page also says how many of its goals were checked in before this week’s review, without being asked, and the last 8 weeks, as a review’s page does (with Reviews switched off, “On time this week”). Only for a team whose goals have three or more owners: nobody is named.
 
 #### For admins
 
@@ -1336,15 +1346,16 @@ On a phone’s home screen and in the browser tab, the F sits on a deep-teal til
 
 `features`. Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace: how you work (Reviews) and tools such as the Metric library and Spreadsheets.
 
-Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`.
+Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`, `REVIEWS-SWITCH-CLOCK`.
 
 #### How to use it
 
 - On Workspace, Features says how this workspace works and lists the optional parts of Faro, each with what it does; About says which are on, from the same list. Goals, check-ins and people are the core and always on.
 - How you work holds Reviews: walking a set of goals together on a cadence. While it is on, it says how many reviews are set up. Tools holds the rest, such as the Metric library and Spreadsheets. Each has a switch with On or Off beside it.
-- Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching a tool off, or anything on, acts at once.
+- Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, how many accepted risks stay on their goals (no new one can be accepted while it is off), that check-ins are still due by the same day, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching a tool off, or anything on, acts at once.
 - Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.
-- With Reviews off, asks and next steps stay on their goals and on Home, each goal’s History and Activity keep what was said in reviews, and check-ins are still due by the same day.
+- With Reviews off, asks and next steps stay on their goals and on Home, each goal’s History and Activity keep what was said in reviews, and check-ins are still due by the same day. “Before the review” becomes “by Thursday” (or whichever day it is) on Home, in the check-in and in the count of goals checked in on time.
+- With Reviews off, a spreadsheet you export has no Notes sheet and no Review column on Asks. A workbook that has them still loads; the preview says once that they were not read. An AI assistant’s review tools answer that Reviews is switched off here, in the same words as any switched-off tool.
 - Nothing a feature saved is deleted. Switch it back on and everything is as it was: every review, its people, its cadence and what was said. A session whose date passed while Reviews was off isn’t said to be not held.
 - Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.
 - Spreadsheets is one of the tools: Export and Import on Data, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says.
