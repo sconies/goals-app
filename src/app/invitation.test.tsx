@@ -28,6 +28,10 @@ async function opened(path: string, remembered?: string) {
 }
 
 describe('which workspace opens', () => {
+  // Test files share workers (vite.config.ts, isolate: false): the address goes back to /, or the next file's app reads
+  // /join/ws_nope as an invitation to a workspace that isn't there and opens nothing (undoElsewhere's flake).
+  afterEach(() => window.history.replaceState(null, '', '/'));
+
   it('none, when this browser remembers none: never the first the store lists', async () => {
     const { view, app } = await opened('/');
     await waitFor(() => expect(view.getByText('Nothing open')).toBeTruthy());
