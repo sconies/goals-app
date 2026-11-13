@@ -14,7 +14,7 @@ import type { Goal, Review as ReviewT } from '../domain/types';
 import { newId } from '../data/store';
 import { Avatar, Empty, ProgressRing, Sheet, WarnMark } from '../ui/bits';
 import { byDay, CarriedState, saveReviewOrder } from './Inspect';
-import { lastTime, sessionDecisions } from '../domain/decide';
+import { lastTime, proposedLine, sessionDecisions } from '../domain/decide';
 import { canMarkDone } from '../domain/asks';
 import { GoalRow } from '../ui/goalRows';
 import { worstFirst } from '../domain/order';
@@ -256,6 +256,11 @@ export function ReviewHome() {
               <span className="strong">{firstName2(a.who)} agreed: {a.ask.ask}</span>
               <span className="hint">{a.dueWeek ? `${byDay(app.cycle, a.dueWeek)} · ` : ''}<Link className="linkish" to={`/goals/${a.goalId}`}>{app.goal(a.goalId)?.title}</Link></span>
               <span className="small row" style={{ gap: 'var(--s3)' }}><CarriedState state={a.state} />{a.state !== 'done' && canMarkDone(a.ask, app.viewer) && <button type="button" className="linkish small" onClick={() => void app.markActionDone(a.ask).then(() => app.toast('Marked done')).catch(() => undefined)}>Done?</button>}</span>
+            </li>
+          ))}{last.proposed.map((p) => (
+            <li key={p.goal.id} data-proposed-in>
+              <span className="strong">{proposedLine(p, firstName2(p.goal.ownerId), dayText)}</span>
+              <span className="hint"><Link className="linkish" to={`/goals/${p.goal.id}`}>Open it</Link></span>
             </li>
           ))}</ul>
         </section>

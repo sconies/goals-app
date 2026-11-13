@@ -37,6 +37,28 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['goal-proposed', 'edit-goal'],
   },
   {
+    id: 'asks-follow-owner-by-role',
+    date: '2026-11-13',
+    title: 'Asks that follow a goal’s new owner are the ones put to the owner',
+    points: [
+      'When a goal changes owner, the open asks put to its owner — an update asked for, a question — go with it, and the new owner sees “Asked of {name}, now yours”.',
+      'An ask put to a person by name — a next step they agreed, a decision asked of them — stays with that person.',
+      'If the new owner is the one who asked, the ask closes: nobody answers their own ask.',
+    ],
+    articles: ['requests', 'goal-page'],
+  },
+  {
+    id: 'propose-in-review',
+    date: '2026-11-13',
+    title: 'Propose a new goal in a review',
+    points: [
+      'Walking a review, Propose a new goal saves one with only a name, who will own it and what it will feed. It is proposed: nothing is due on it until its owner sets it up and makes it active.',
+      'Its owner’s Home says where it came from: “Rhea proposed a goal for you in Developer Productivity fortnightly”.',
+      'The review’s next session lists it under Last time, with whether its owner has made it active yet.',
+    ],
+    articles: ['goal-proposed', 'reviews'],
+  },
+  {
     id: 'goal-proposed',
     date: '2026-11-13',
     title: 'Propose a goal before it starts',

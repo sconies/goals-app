@@ -1990,14 +1990,14 @@ function measureEmpty(d) {
 * goal proposed PROPOSED_ASK_WEEKS weeks ago or more that the viewer may make active (an admin only for their own), not
 * put off. `seen` is what the viewer has opened, and until when each stale ask is put off (the Prefs port).
 */
-function proposalAsks(goals, viewer, today, seen, nameOf = (id) => id) {
+function proposalAsks(goals, viewer, today, seen, nameOf = (id) => id, reviewOf = () => null) {
 	const out = [];
 	for (const g of goals.filter(isProposed)) {
 		if (g.ownerId === viewer.id && g.proposedBy && g.proposedBy !== viewer.id && !seen.opened.has(g.id)) {
 			out.push({
 				kind: "for-you",
 				goal: g,
-				says: `${nameOf(g.proposedBy).split(" ")[0]} proposed a goal for you: “${g.title}”.`
+				says: `${nameOf(g.proposedBy).split(" ")[0]} proposed a goal for you${proposedInWords(g, reviewOf)}: “${g.title}”.`
 			});
 			continue;
 		}
@@ -2011,7 +2011,7 @@ function proposalAsks(goals, viewer, today, seen, nameOf = (id) => id) {
 	}
 	return out;
 }
-var PROPOSED, isProposed, judged, withProposed, withdrawnSummary, weeksProposed;
+var PROPOSED, isProposed, judged, withProposed, withdrawnSummary, weeksProposed, proposedInWords;
 var init_proposed = __esmMin((() => {
 	PROPOSED = "Proposed";
 	isProposed = (g) => !!g.proposedAt && !g.removedAt && !g.stoppedAt;
@@ -2019,6 +2019,10 @@ var init_proposed = __esmMin((() => {
 	withProposed = (s) => s.proposed?.length ? [...s.goals, ...s.proposed] : s.goals;
 	withdrawnSummary = (title) => `Withdrew the proposal “${title}”`;
 	weeksProposed = (g, today) => g.proposedAt ? Math.floor((today.getTime() - new Date(g.proposedAt).getTime()) / 6048e5) : 0;
+	proposedInWords = (g, reviewOf) => {
+		const name = g.proposedIn ? reviewOf(g.proposedIn) : null;
+		return name ? ` in ${name}` : "";
+	};
 }));
 // src/domain/levels.ts
 var DEFAULT_LEVELS, all, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, isTop, levelRank, hasLevels, LEVEL_WORDS, EVERYDAY_WORD;
@@ -7604,25 +7608,45 @@ function asksFollowOwner(s, after, x) {
 	for (const g of after) owner.set(g.id, g.ownerId);
 	const name = (id) => s.people.find((p) => p.id === id)?.name ?? "Someone";
 	for (const r of s.asks) {
-		if (r.status !== "open" || !r.recipientId) continue;
+		if (r.status !== "open" || !r.recipientId || !FOLLOWS_OWNER.includes(r.kind)) continue;
 		const g = changed.find((c) => r.goalIds.includes(c.id) && before.get(c.id).ownerId === r.recipientId);
 		if (!g || r.goalIds.some((id) => owner.get(id) === r.recipientId)) continue;
 		const from = r.recipientId;
-		out.requests.push({
-			...r,
-			recipientId: g.ownerId,
-			updatedAt: x.now
-		});
 		out.moved.set(g.id, (out.moved.get(g.id) ?? 0) + 1);
-		out.changes.push({
+		const base = {
 			id: x.newId("chg"),
 			at: x.now,
 			actorId: x.actorId,
 			goalId: g.id,
 			entity: "request",
 			entityId: r.id,
-			action: "edited",
-			summary: `${name(r.askedBy)}’s ask now goes to ${name(g.ownerId)}, who owns ${g.title} now`,
+			action: "edited"
+		};
+		if (r.askedBy === g.ownerId) {
+			out.requests.push({
+				...r,
+				status: "withdrawn",
+				updatedAt: x.now
+			});
+			out.changes.push({
+				...base,
+				summary: `Closed ${name(r.askedBy)}’s ask, since ${name(g.ownerId)} owns ${g.title} now`,
+				diffs: [{
+					field: "Asked of",
+					from: name(from),
+					to: "—"
+				}]
+			});
+			continue;
+		}
+		out.requests.push({
+			...r,
+			recipientId: g.ownerId,
+			updatedAt: x.now
+		});
+		out.changes.push({
+			...base,
+			summary: `Moved ${name(r.askedBy)}’s ask to ${name(g.ownerId)}, who owns ${g.title} now`,
 			diffs: [{
 				field: "Asked of",
 				from: name(from),
@@ -7639,13 +7663,17 @@ function handedFrom(askId, recipientName, changes) {
 	const d = last?.diffs.find((v) => v.field === "Asked of");
 	return d && d.to === recipientName ? d.from : null;
 }
-var openAsksDiff;
+var FOLLOWS_OWNER, openAsksDiff;
 var init_askHandover = __esmMin((() => {
-	openAsksDiff = (n, moved) => ({
-		field: `Open asks (${n})`,
-		from: moved.diffs[0].from,
-		to: moved.diffs[0].to
-	});
+	FOLLOWS_OWNER = ["update", "question"];
+	openAsksDiff = (n, moved) => {
+		const d = moved.diffs.find((v) => v.field === "Asked of");
+		return {
+			field: `Open asks (${n})`,
+			from: d.from,
+			to: d.to
+		};
+	};
 }));
 // src/domain/goalEntry.ts
 /**
@@ -8425,6 +8453,30 @@ function deleteNote(x, id) {
 				to: "—"
 			}]
 		})]
+	};
+}
+/**
+* Undo marking goals reviewed in a session (deep review T3): those "reviewed" marks are set aside, kept and logged, and
+* the goals are back on the agenda. Whoever marked them, or an admin.
+*/
+function unmarkReviewed(x, made) {
+	const marks = made.filter((d) => d.kind === "acknowledge" && !d.removedAt);
+	if (!marks.length) no$1("Those goals are no longer marked reviewed.");
+	if (marks.some((d) => d.byId !== x.actor.id) && !x.actor.admin) no$1("Only whoever marked them, or an admin, can undo it.");
+	const after = marks.map((d) => ({
+		...d,
+		removedAt: x.now,
+		removedBy: x.actor.id
+	}));
+	return {
+		decisions: after,
+		changes: after.map((d) => log$1(x, {
+			entity: "decision",
+			entityId: d.id,
+			goalId: d.goalId,
+			action: "undone",
+			summary: "Undid marking it reviewed"
+		}))
 	};
 }
 /** What a person has left a mark on: goals they owned (in any cycle), check-ins, notes and comments, and asks. */
@@ -12402,7 +12454,7 @@ function* planChangesInChunks(input) {
 		}
 	}
 	const handed = asksFollowOwner({
-		goals: s.goals,
+		goals: withProposed(s),
 		people: s.people,
 		asks: asksOf(s)
 	}, [...goalOut.values()], {
@@ -14901,7 +14953,7 @@ function waiting(a, today) {
 		warn = true;
 	} else if (due?.why === "week" && dueThisWeek) line = `Due this week (${a.dueWeek.dates})`;
 	else if (due?.why === "week") line = `Due week ${a.dueWeek.week} (${a.dueWeek.dates})`;
-	else if (due) line = `Before its next session, ${shortDay(due.date)}`;
+	else if (due) line = `Due by ${shortDay(due.date)}`;
 	else if (waitedDays >= 7) line = `Waiting since ${dayMonth(a.askedOn)}, ${waitedDays < 14 ? `${waitedDays} days` : `${Math.floor(waitedDays / 7)} weeks`}`;
 	else line = waitedDays === 0 ? "Asked today" : waitedDays === 1 ? "Asked yesterday" : `Asked on ${LONG_DAYS[(/* @__PURE__ */ new Date(a.askedOn + "T00:00:00Z")).getUTCDay()]}`;
 	const to = a.kind === "update" ? `/check-in/${a.goals[0].id}` : `/goals/${a.goals[0].id}?respond=${a.id}`;
@@ -15028,43 +15080,52 @@ var localDay = (iso) => {
 	return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10);
 };
 function homeAsks(viewerId, s, cycle, week, today) {
+	return openForPerson(viewerId, s).flatMap((r) => {
+		const w = askWaiting(r, viewerId, s, cycle, week, today);
+		return w ? [w] : [];
+	}).sort(waitingOrder);
+}
+/**
+* One ask as Home reads it for a viewer: its line, its due day and whether it is late. The one lateness rule: Home,
+* `get_my_work` and `list_requests` all read `late` from here (build review of #369, medium 5). Null when none of its
+* goals is in the workspace.
+*/
+function askWaiting(r, viewerId, s, cycle, week, today) {
 	const day = today.toISOString().slice(0, 10);
 	const me = s.people.find((p) => p.id === viewerId)?.name ?? "";
 	const first = (id) => s.people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
 	const all = withProposed(s);
-	return openForPerson(viewerId, s).flatMap((r) => {
-		const goals = r.goalIds.map((id) => all.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({
-			id: g.id,
-			title: g.title
-		}));
-		if (!goals.length) return [];
-		const rv = r.reviewId ? s.reviews.find((v) => v.id === r.reviewId) : void 0;
-		let session = null;
-		if (r.dueWeek == null && r.kind === "question" && rv) {
-			const w = r.week != null ? nextSessionWeek(rv, r.week) : upcomingSessionWeek(rv, cycle, week, today);
-			if (w <= cycle.weeks) session = {
-				name: rv.name,
-				date: sessionDate(rv, cycle, w)
-			};
-		}
-		const sunday = (w) => new Date(Date.parse(weekDate(cycle, w) + "T00:00:00Z") + 5184e5).toISOString().slice(0, 10);
-		return [waiting({
-			id: r.id,
-			kind: r.kind,
-			by: r.askedBy === viewerId ? null : first(r.askedBy),
-			goals,
-			said: r.ask,
-			askedOn: localDay(r.createdAt),
-			was: handedFrom(r.id, me, s.changes ?? []),
-			dueWeek: r.dueWeek != null ? {
-				week: r.dueWeek,
-				sunday: sunday(r.dueWeek),
-				dates: weekDates(cycle, r.dueWeek)
-			} : null,
-			session,
-			where: rv?.name ?? null
-		}, day)];
-	}).sort(waitingOrder);
+	const goals = r.goalIds.map((id) => all.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({
+		id: g.id,
+		title: g.title
+	}));
+	if (!goals.length) return null;
+	const rv = r.reviewId ? s.reviews.find((v) => v.id === r.reviewId) : void 0;
+	let session = null;
+	if (r.dueWeek == null && r.kind === "question" && rv) {
+		const w = r.week != null ? nextSessionWeek(rv, r.week) : upcomingSessionWeek(rv, cycle, week, today);
+		if (w <= cycle.weeks) session = {
+			name: rv.name,
+			date: sessionDate(rv, cycle, w)
+		};
+	}
+	const sunday = (w) => new Date(Date.parse(weekDate(cycle, w) + "T00:00:00Z") + 5184e5).toISOString().slice(0, 10);
+	return waiting({
+		id: r.id,
+		kind: r.kind,
+		by: r.askedBy === viewerId ? null : first(r.askedBy),
+		goals,
+		said: r.ask,
+		askedOn: localDay(r.createdAt),
+		was: handedFrom(r.id, me, s.changes ?? []),
+		dueWeek: r.dueWeek != null ? {
+			week: r.dueWeek,
+			sunday: sunday(r.dueWeek),
+			dates: weekDates(cycle, r.dueWeek)
+		} : null,
+		session,
+		where: rv?.name ?? null
+	}, day);
 }
 // src/domain/goalsPage.ts
 init_query();
@@ -18495,7 +18556,8 @@ var CORE_ARTICLES = [
 					"Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.",
 					"Change it: the same page as any goal, with no reason ever asked, and its type can still change. Withdraw it: it goes to Recently removed for 30 days, with Undo.",
 					"Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.",
-					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).",
+					"In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet.",
+					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).",
 					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. With the filter on, the Board is one column, Proposed, and the Map draws each in its tree with a dashed outline and the word, the goals above it shown for context; opening one goes to its page. Find lists them with the word Proposed.",
 					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active. A goal with check-ins can’t go back to proposed: stop it instead."
 				]
@@ -18606,7 +18668,8 @@ var CORE_ARTICLES = [
 					"Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead. Marking them asks first, and the message after it has Undo. While goals to discuss are left, the review carries on; when they’re all that’s left, Finish review marks them and records the session as held.",
 					"The walk opens each goal’s page in turn, under a bar with the review’s name (in full, on two lines if it needs them) and how far through you are. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.",
 					"A goal off track or at risk asks first: “What happens next, who, by when?” Add the next step (what, who and the week it’s due by; type to find the person: you and your team are suggested first), or choose We accept the risk and say why. Only then can it be marked reviewed. Skip for now leaves it for later in the session.",
-					"A session opens with Last time: what the previous session agreed, who agreed to do it, by when, and whether it’s done. Whoever does it, whoever agreed it, or an admin can mark it done there. Each goal in the walk shows its own.",
+					"A session opens with Last time: what the previous session agreed, who agreed to do it, by when, and whether it’s done. Whoever does it, whoever agreed it, or an admin can mark it done there. Each goal in the walk shows its own. Goals proposed in it are listed after: “Proposed: … Tunde hasn’t made it active yet.”, or the day they did.",
+					"A new goal the room agrees on: choose Propose a new goal in the walk. Give it a name, who will own it and what it will feed. It is saved as proposed, and its owner sets it up and makes it active.",
 					"Finish review says what was decided (each person’s next steps, the risks accepted, the questions still open) before it records the session as held, and its message has Undo. The walk’s last goal finishes the same way.",
 					"Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session."
 				]
@@ -19873,6 +19936,28 @@ var WHATS_NEW = [
 		title: "A proposed goal’s type can still change",
 		points: ["Changing a proposed goal, Type lets you turn it into a number to move, a number to keep in range, or dated stages.", "Once it is active, its type stays: add a new goal instead."],
 		articles: ["goal-proposed", "edit-goal"]
+	},
+	{
+		id: "asks-follow-owner-by-role",
+		date: "2026-11-13",
+		title: "Asks that follow a goal’s new owner are the ones put to the owner",
+		points: [
+			"When a goal changes owner, the open asks put to its owner — an update asked for, a question — go with it, and the new owner sees “Asked of {name}, now yours”.",
+			"An ask put to a person by name — a next step they agreed, a decision asked of them — stays with that person.",
+			"If the new owner is the one who asked, the ask closes: nobody answers their own ask."
+		],
+		articles: ["requests", "goal-page"]
+	},
+	{
+		id: "propose-in-review",
+		date: "2026-11-13",
+		title: "Propose a new goal in a review",
+		points: [
+			"Walking a review, Propose a new goal saves one with only a name, who will own it and what it will feed. It is proposed: nothing is due on it until its owner sets it up and makes it active.",
+			"Its owner’s Home says where it came from: “Rhea proposed a goal for you in Developer Productivity fortnightly”.",
+			"The review’s next session lists it under Last time, with whether its owner has made it active yet."
+		],
+		articles: ["goal-proposed", "reviews"]
 	},
 	{
 		id: "goal-proposed",
@@ -21727,6 +21812,7 @@ var levelsOf = (v) => {
 	if (bad.length) throw new Error(`Levels are ${LEVELS$1.join(", ")} (not ${bad.join(", ")}).`);
 	return list;
 };
+var askLate = (ctx, r) => r.status === "open" ? askWaiting(r, r.recipientId ?? ctx.actor.id, ctx.snapshot, ctx.cycle, ctx.week, ctx.today)?.late ?? isOverdue(r, ctx.week) : false;
 var requestData = (ctx, r) => ({
 	id: r.id,
 	kind: r.kind,
@@ -21734,7 +21820,7 @@ var requestData = (ctx, r) => ({
 	status: r.status,
 	statusLabel: ASK_STATUS[r.status].label,
 	dueWeek: r.dueWeek,
-	overdue: isOverdue(r, ctx.week),
+	overdue: askLate(ctx, r),
 	review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null,
 	askedBy: name$1(ctx, r.askedBy),
 	askedOf: r.recipientId ? name$1(ctx, r.recipientId) : "anyone",
@@ -22623,6 +22709,28 @@ var WORK_TOOLS = [
 				dueWeek: a.due_week === void 0 ? was.due : Number(a.due_week) || null
 			} : void 0;
 			return save$2(ctx, editCall(ax$2(ctx), d, String(a.text ?? ""), extra), "Corrected it", "Nothing to change: it already says that.");
+		}
+	},
+	{
+		name: "unmark_reviewed",
+		title: "Undo marking goals reviewed",
+		description: "Undo marking one or more goals reviewed in a review (review_call with acknowledge): they go back on the agenda. Whoever marked them, or an admin. The log keeps both.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["call_ids"],
+			properties: { call_ids: {
+				type: "array",
+				items: { type: "string" },
+				description: "The marks’ IDs (kind acknowledge), from get_review."
+			} }
+		},
+		annotations: WRITE$2,
+		async run(a, ctx) {
+			const ids = (a.call_ids ?? []).map(String);
+			const marks = ctx.snapshot.decisions.filter((d) => ids.includes(d.id));
+			if (!marks.length) throw new Error("There’s no mark with those IDs. Use get_review.");
+			return save$2(ctx, unmarkReviewed(ax$2(ctx), marks), `Undone: ${marks.length === 1 ? "back" : `${marks.length} goals back`} on the agenda`, "");
 		}
 	},
 	{
@@ -48555,7 +48663,8 @@ function goalToRows(ws, g) {
 				stopped_by: g.stoppedBy,
 				stop_reason: g.stopReason,
 				proposed_at: g.proposedAt,
-				proposed_by: g.proposedBy
+				proposed_by: g.proposedBy,
+				proposed_in: g.proposedIn
 			})
 		},
 		stages: g.kind === "milestone" ? g.stages.map((s) => ({
@@ -48604,7 +48713,8 @@ function goalFromRows(r, stageRows) {
 		...who("stoppedBy", r.stopped_by),
 		...who("stopReason", r.stop_reason),
 		...when("proposedAt", r.proposed_at),
-		...who("proposedBy", r.proposed_by)
+		...who("proposedBy", r.proposed_by),
+		...who("proposedIn", r.proposed_in)
 	};
 	if (r.kind === "metric") {
 		const op = r.original_plan;
