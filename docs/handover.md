@@ -3,6 +3,30 @@
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
 
+## Track 7b (metrics and the register rows), Friday 13 November, 04:40 UTC (session at half, handing over)
+
+**Merged:** #281 MT1 (defining a metric well: "Fully defined" / "Still to say", Must fix and Check under each field, `save_metric`'s `checks` and `answers`, U105, `METRIC-DEFINED`); #294 (track 7's review mediums: MCP returns stored keys; `find_goals` pages 50 at a time through `listed()`); #299 migration 0043 (a link's `part`, a metric's retirement and `marks`); #308 MT2 (Which part, unit and direction from the metric, a why when what measures a goal with check-ins changes, `link_goal_metric`, U146, `METRIC-PARTS`); #340 (MT1's review: the save itself asks the Checks, accent-folded names, five lows).
+
+**In flight:** #351 **MT3** (change read-back, retire, bring back, merge, marks; `retire_metric`, `merge_metrics`; auto-merge on), built by this session's last fork, which was told to write `retired_why` '' and `marks` [] always (see below). #360, the reviewer's **HIGH on #308** (a batch of links with and without a part failed on the database: `metricLinkToRow` omitted `part`, `okr_upsert` filled the union's missing key with NULL, 0043 made it NOT NULL); fixed by always writing `part: ''`, with a PGlite mixed-batch case in `src/data/schema.test.ts`; auto-merge on. **Tell the build reviewer (session_012kbr8y4Bh3MudNC1bdo3RN) when #360 merges.**
+
+**Next, in Lane's order:**
+1. Check #351 and #360 merged (and #351 always writes `retired_why` and `marks`, with a mixed-batch case like #360's).
+2. **#308's review mediums** (docs/reviews/2026-11-11-build-reviews.md on build-reviews): (2) "a goal with check-ins must say why" is got round by unlinking first (`rulesParts.ts` 75-76, 107): compare with the goal's last link, removed or not, or ask why on unlink; (3) the goal form saves past an unanswered Check (`MeasuredBy.tsx:91` blocks only on Must fix) while the tool holds it; (4) the "another goal already measures this" Check reads the whole workspace at the tool (`rulesLink.ts:50`) and the cycle at the form: keep `others` to the goal's own cycle at both doors. Lows: `partKey`/`closePart` over-match ("US" = "U"; "Region 2" vs "Region 1"); `link_goal_metric` says `get_metric` lists parts but it doesn't; a failed lazy load in the goal form's save says nothing (`state.tsx` 768-769); "Why" has no "Required"; "It shows in its History." said twice; focus stays on Save after a refusal; public's old names don't read back a part.
+3. **MS, MI (round 2's MT6), GR, MQ**, one PR each (backlog rows after SM; specs in `docs/design/metrics-2/spec.md` for MI).
+4. **BL and GB** once track 2 has merged GE10's code (ask track 2, session_012kbr8zF82vbVLvoqfYaQad); **TG** after them.
+5. **WM**: Lane answered (12 Nov, 20:35) all four as recommended: anyone may make a set-up token for themselves in Settings; it lives 24 hours or 3 workspaces, whichever first; the admin token it issues is revoked with it by default; set-up through it stops when the new workspace's first week starts. Build it last, with R1 rule 5b, citing "Lane, 12 Nov". The rules as sent: made only in the app, never by another token or MCP; reaches only `create_workspace`, ST1–ST5 in workspaces it created, and one ordinary admin token for its holder there; hash only, shown once; Access labels "Made by a set-up token", Activity "Set up via AI assistant (MCP)"; dies when its holder leaves; the provisioning half is a platform requirement in the rebuild kit.
+
+**Gotchas learned:**
+- The first download sits at the budget's edge; load heavy module rules through module actions' optional `ready` (`src/app/actions.ts`; see `rulesLink.ts`, `rulesSave.ts`). Never raise budgets.
+- A NOT NULL column must always be written by its row mapper, never left out: `okr_upsert` fills a batch's missing keys with NULL. The browser store never shows it.
+- What's new entries newest first **by date** (`guide.test.ts` fails otherwise); keep both on merges.
+- `spec/core/tools.md` and `spec/rebuild/reads.md` are generated: rerun `npm run spec` after tool or read changes and after each merge of main.
+- Both module-less builds (without metrics, without spreadsheets) run in CI.
+- `src/app/undoElsewhere.test.tsx` is flaky under CI load (seen on several branches): one rerun.
+- Auto-merge works now (branch rule: smoke green and up to date). Forks can't spawn subagents and don't get GitHub events: the parent relays CI failures.
+- Run the whole smoke job locally, in CI order, against a fresh merge of main before pushing; one push then fixes everything.
+- A migration that adds a check constraint adds a line to `LIMITS` (or `NOT_LIMITS`) in `src/spec/limits.ts`.
+
 ## Track 3 (import), Friday 13 November, 03:30 UTC: IM8 and the review lows done (supersedes the 01:10 entry's list)
 
 **Done**
@@ -372,6 +396,32 @@ Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this sessi
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
 
+## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~04:30 UTC (session at half, handing over; supersedes the 02:50 entry)
+
+Session: session_012kbr8yiXGwtRjT4Wf4vu8n. Planning is session_012kbr939zneZWtAo7UQEHRP. #319 merged before this session began.
+
+| Branch | State | PR |
+|---|---|---|
+| `ge10-home-lead` | A goal proposed for you, unopened a week, is Home's lead after any ask (`proposalLead`); **migration 0045** adds `okr_goals.proposed_in`, unused, one merge ahead of "in {review}" | #344 merged |
+| `ge10-back-to-proposed` | "Make it proposed again" in the goal's "…" menu (`backToProposed` as an action); the Change page says why not once there are check-ins | #349 merged |
+| `ge10-map-board` | With `state=proposed`: the Board is one "Proposed" column, the Map draws proposed goals dashed with the word, never judged | #355 merged |
+| `ge10-metric-proposed` | The metric page's "Proposed · n" under its goals table; `get_metric` gives `proposed` | #356, auto-merge on |
+
+**Next, in order** (the rest of GE10 (F), one PR each where they're big):
+1. Reviews' "Propose a new goal" (decision 15: name, who would own it, what it would feed) **writes `proposed_in`** (0045, now applied), then Home's for-you row and lead say "{Name} proposed a goal for you in {review}", and the next session's "Last time" reads "Proposed: {goal} ({key}). {Owner} hasn’t made it active yet." or "… made it active on {date}." Map `proposedIn` in the adapter and the Goal type with it (it is in no TS type yet).
+2. Changing the type while proposed ("It’s proposed, so its type can still change.").
+3. "Stopped" in the State filter (Active · Proposed · Stopped).
+4. `for-someone-else` for files and tools (goal entry section 3's State row).
+5. What feeds it: "Proposed · {n}" under the active feeders; "Feeds into {goal} · Proposed".
+6. The start page's count: "{n} goals carry on · {k} proposed goals carry as proposed".
+
+**Habits, learned this session:**
+- Two eval runs at once (or `npm test` beside one) time out: vitest's 5 s tests (fence, layers, scale, spec examples) and P9/N12 fail under load and pass alone. Run one heavy job at a time; rerun a lone platform check with `ONLY=PLATFORM CHECKS=P9` (a P check) or `FINISH=N12`. `CHECKS=` without `ONLY=PLATFORM` runs nothing.
+- Main moves every few minutes: every PR conflicts on `src/help/whatsNew.ts` and `api/mcp.js`. Keep both news entries (ours first), take main's `api/mcp.js`, then `build:mcp` and `npm run spec`. Restore `evals/report.md` before merging main (an eval run leaves it changed).
+- The first-download budget is now 275 KB (real app 334); we're at 262 / 321.
+
+**Prompt for the next track 2 session:** "You are track 2 of Faro's build (goal entry and set-up). Read CLAUDE.md, then the track 2 section of docs/handover.md ('Track 2 … Friday 13 November, ~04:30 UTC') and do its 'Next' list in order, one PR each. Check #356 first: if either hasn't merged, fix what blocks it. The first download is about 262 of 275 KB: keep anything new lazy; never raise budgets. Track 3 is building IM8 in Onboarding.tsx's upload step: stay out of it. A migration that adds a check constraint adds its line to src/spec/limits.ts. Follow CLAUDE.md's gate (typecheck, npm test, npm run spec, evals:changed, build:mcp from a real node_modules via cp -al, never ln -s), one heavy run at a time. Build in a worktree, send eval runs to a subagent that returns only the scorecard, check mergeable_state, then enable auto-merge (MERGE) once the gate passes. Report to the planning session (session_012kbr939zneZWtAo7UQEHRP, or whichever session tells you planning has moved) once, when done or blocked. At half context, write a handover entry in a PR and send the planning session the next prompt."
+
 ## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~02:50 UTC (session at half, handing over; supersedes the 01:10 entry)
 
 Session: session_012kbr8zJcP8xenTkLS4rV4P. Planning is session_012kbr939zneZWtAo7UQEHRP.
@@ -526,6 +576,44 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
   - the feeds-lower rule lives only in the form;
   - the unbuilt "cycle ended", "Add one" and gone-parent states from the onboarding spec.
 - **U23 (entry)** scored 8.6 locally and is track 2's to lift.
+
+## Track 4, Friday 13 November, 04:35 UTC (session past half, handing over; supersedes the 02:15 entry)
+
+Session: session_012kbr8y3UGvoeUMdAQ8yaJ8.
+
+- **Merged:**
+  - #327: migration 0044, keyset indexes `(workspace_id, at desc, id desc)` and `(goal_id, at desc, id desc)` for history paging.
+  - #335: the reviewer's three mediums on #323 and #229.
+    - Rules read `Snapshot.history`: `checkInsLeftOut` and `changesLeftOut` in `src/domain/removal.ts`; `goalHasCheckIns`, `cycleStanding` and `personHistory` (`unknown`); an import older than the window can't be undone.
+    - `wholeOnly` in `src/ports/window.ts`: every store's `createWorkspace` refuses a windowed snapshot.
+    - The goals port is keyed on `ws.modulesOff`, with `goalColumns` filled inside it (`src/app/goals.test.tsx`).
+    - Backlog row FD (trim the first download under 265 KB; Lane, 13 Nov).
+- **Open, with auto-merge on.** If either is still open, merge main in, rebuild and push:
+  - #354, U12: sidebar rows 36 px and a one-line Demo entry. The box now ends at y=860 at 1440×900.
+    - P9 "1280px rhea /: no navigation" did not reproduce in three full runs. It is timing (a 300 ms wait), not Home.
+  - #358, AX5 part 2b: the app loads a window (`appWindow`, `LOAD_DAYS` 420; every load goes through `loadWs` in `state.tsx`).
+    - Anchors gain `person` and `metric`.
+    - Activity and a goal's History page older changes (`useOlderChanges` in the new app/history module, and `AppState.olderChanges`).
+    - MCP `get_activity` pages `Store.history`.
+    - The MCP server still loads whole.
+    - Accepted for now: "since you last looked" can undercount before the window; Recently removed misses check-ins of years older than the window; an old import's saved count can read 0.
+    - When it merges, tell track 6 that the `Store` contract is unchanged; only the anchor list grew.
+- **Main's own faults seen in full runs:**
+  - U31 9 ("over the step budget"), on main as well.
+  - U46 9 once (phone export: two primary buttons in view). That belongs to track 3.
+- **Next, in order:**
+  1. FT2 (reviews as a feature switch, approved 11 Nov). Keep the shell change net nought, as the spec asks.
+  2. RS1 straight after it (`docs/design/round-4/reviews-switch/spec.md`, Lane, 13 Nov).
+  3. FT1, SW1 and SW2.
+  4. AX2.
+  5. AX6.
+- **Budgets:** 275 KB for the first download and 334 KB live (Lane, 13 Nov, raised once). Part 2b's first download is 262 KB.
+- **Traps:**
+  - Every merge of main conflicts in `src/help/whatsNew.ts` (keep yours on top) and `api/mcp.js` (take main's, then `npm run build:mcp`).
+  - After `build:mcp` from a worktree, the path-fixing sed must match any prefix: `sed -i 's#^// \(\.\./\)*[^ ]*node_modules/#// node_modules/#' api/mcp.js`.
+  - Run evals one at a time: two runs at once share ports 4318 to 4328.
+  - A worker restart kills a background eval run; start it again.
+  - `enable_pr_auto_merge` refuses a PR whose checks have already all passed ("clean"): merge it by hand then.
 
 ## Track 4, Friday 13 November, 02:15 UTC (handing over)
 
