@@ -675,7 +675,8 @@ export function importName(entry: Change): string {
   if (file) return file;
   const via = entry.diffs.find((d) => d.field === 'Via')?.to;
   // A check-in corrected on its own screen carries no Via mark (CK1): its summary says so.
-  if (via === VIA_LABEL.form || (!via && /^Corrected a check-in\b/.test(entry.summary))) return 'A corrected check-in';
+  // Past imports names the goal, the week and the numbers where the entry has them (review of #225, lows).
+  if (via === VIA_LABEL.form || (!via && /^Corrected a check-in\b/.test(entry.summary))) return entry.summary.includes(' · ') ? `A corrected check-in: ${entry.summary.replace(/^Corrected a check-in: /, '')}` : 'A corrected check-in';
   if (via === VIA_LABEL.bulk) {
     // Bulk edits are made on Goals, People (emails) and the quick check-in: named by what they wrote.
     const u = entry.undo;
@@ -688,6 +689,7 @@ export function importName(entry: Change): string {
 
 /** What Undo undid, as its log line says it: "the import of goals.xlsx", "the bulk edit on Data", "the changes through MCP". */
 function undoneWhat(entry: Change): string {
+  if (/^Corrected a check-in\b/.test(entry.summary)) return 'a correction';
   const file = entry.diffs.find((d) => d.field === 'File')?.to;
   return file ? `the import of ${file}` : `the ${importName(entry).replace(/^A /, '').replace(/^\w/, (c) => c.toLowerCase())}`;
 }

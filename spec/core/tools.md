@@ -652,6 +652,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `back_on_plan_by_week` | integer | no | With a plan: the week it is back on plan by. |
 | `needs` | string | no | A decision or help needed, and from whom. |
 | `next_step` | string | no | The next step. |
+| `reason` | string | no | If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”. |
 | `answers` | object | no | Answers to the questions (Check) a dry run asked, by the group id it gave: {"<id>": "<choice>"} or {"<id>": {"choice": "choose", "value": "Platform"}}. One answer covers every row in its group. Ask the person; never answer for them. |
 | `dry_run` | boolean | no | Check the change without saving it. Use it to see what would change, or what is missing. |
 
@@ -733,6 +734,10 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
       "type": "string",
       "description": "The next step."
     },
+    "reason": {
+      "type": "string",
+      "description": "If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”."
+    },
     "answers": {
       "type": "object",
       "additionalProperties": {
@@ -781,7 +786,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “Not checked. …”
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 - “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
@@ -1010,7 +1015,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “Not checked. …”
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 - “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
@@ -1302,7 +1307,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “Not checked. …”
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 - “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
@@ -1394,7 +1399,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “Not checked. …”
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 - “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
@@ -1555,7 +1560,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “Not checked. …”
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 - “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”

@@ -13,6 +13,7 @@
    Check is a question that blocks saving until it is answered (`answers`, by group id), and one answer covers every row
    with the same question; a note says how a row was read. A name or word one letter out is asked about ("Did you mean
    Platform?"), never guessed and never silently refused. */
+import { correctReasonAsk, correctReasonOk } from './correctReason';
 import type { Commit } from './commit';
 import type { ActionContext } from './actions';
 import { NotAllowed } from './actions';
@@ -35,6 +36,7 @@ import { proposedMustFix, unsaidDraft } from './goalEntry';
 export { activate, backToProposed } from './proposedActions';
 import { fmt } from './format';
 import { isEmail, normalEmail, personChange, personProblems, sameNameNote, sameTitleNote } from './people';
+import { cycleState } from './cycle';
 import { planAt, planEnd, weekDate } from './plan';
 import { readWeekCode, weekCode, weekUnknownText } from './weeks';
 import { checkInsFor } from './status';
@@ -1408,7 +1410,10 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     }
     // A correction from a screen keeps the time and the lateness of what it replaces: it is never an on-time check-in of
     // its own, and never takes one away (rule 12).
-    const keeps = post?.mode === 'correct' && existing;
+    // Data's tables and MCP replacing a week's check-in correct it, as the form does: one meaning for "correct", with a
+    // reason and the same words in History (review of #225, medium 6). A workbook's round trip keeps its own words.
+    const corrects = post?.mode === 'correct' || (!post && !!existing && CORRECTS_VIA.includes(via));
+    const keeps = corrects && existing;
     const backfilled = keeps ? !!existing.backfilled : w < week;
     const due = new Date(Date.parse(weekDate(cycle, w) + 'T09:00:00Z') + cycle.reviewDay * 86_400_000);
     const at = keeps ? new Date(existing.postedAt) : backfilled && due.toISOString() < now ? due : new Date(now);
@@ -1418,21 +1423,23 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     if (!ch) { same('Check-ins'); return; }
     if (again) ch.summary = ch.summary.replace('Checked in for week', 'Checked in again for week');
     ch.diffs.push(...answeredDiffs(asked, draft.answers));
-    if (post?.mode === 'correct') {
-      ch.summary = existing ? `Corrected week ${w}: ${headlineOf(existing, g)} is now ${headlineOf(c, g)}` : `Added week ${w} later: ${headlineOf(c, g)}`;
-      ch.diffs.unshift({ field: 'Why corrected', from: '—', to: reason });
+    const why = post ? reason : input.reason?.trim() ?? '';
+    if (corrects && !post && !correctReasonOk(why)) needsReason = true;
+    if (corrects) {
+      ch.summary = existing ? correctedSummary(w, existing, c, g, ch.diffs) : `Added week ${w} later: ${headlineOf(c, g)}`;
+      if (why) ch.diffs.unshift({ field: 'Why corrected', from: '—', to: why });
     }
     if (existing && existing.authorId !== actor.id && !post) {
       note('replaces', 'Check-ins', row, g.title, `Replaces ${people.get(existing.authorId)?.name ?? 'someone'}’s check-in for week ${w}.`);
       replacing.push({ row, ci: c, name: g.title });
     }
     ch.at = now;
-    if (backfilled && !post) ch.summary += ' (loaded later)';
+    if (backfilled && !post && !corrects) ch.summary += ' (loaded later)';
     ciBefore.set(c.id, existing);
     ciOut.push(c);
     imported.set(g.id, [...(imported.get(g.id) ?? []), c]);
     changes.push(ch);
-    items.push({ sheet: 'Check-ins', row, goalId: g.id, goal: g.title, kind: existing ? 'replaces check-in' : 'check-in', summary: ch.summary, diffs: ch.diffs, backfilled });
+    items.push({ sheet: 'Check-ins', row, goalId: g.id, goal: g.title, kind: existing ? 'replaces check-in' : 'check-in', summary: ch.summary, diffs: ch.diffs, backfilled, ...(corrects && !post && !correctReasonOk(why) ? { needsReason: true } : {}) });
   };
   for (const { r, row } of rows) {
     if (tick()) yield progress();
@@ -1538,10 +1545,12 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     if (w > week) { raise('week-wrong', 'Check-ins', row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`); continue; }
     const own = checkInsFor(g, s.checkIns);
     const newest = own.filter((c) => c.week === w).pop() ?? null;
+    // A cycle that has ended can't be corrected from the form (check-in design 2.7): its numbers are what the wrap-up read.
+    if (p.mode === 'correct' && ['ended', 'closed'].includes(cycleState(cycle, new Date(now)))) { raise('cant-change', 'Check-ins', row, g.title, `${cycle.name} has ended, so its check-ins can’t be corrected here.`); continue; }
     if (p.mode !== 'correct' && w < week) { raise('week-wrong', 'Check-ins', row, g.title, `Week ${w} has passed. Correct it, or add it, with a reason.`); continue; }
     if (p.mode === 'new' && newest) { raise('cant-change', 'Check-ins', row, g.title, `Week ${w} already has a check-in. Check in again, or correct it.`); continue; }
     const reason = (p.reason ?? '').trim();
-    if (p.mode === 'correct' && reason.length < MIN_CORRECT_REASON) { raise('required-empty', 'Check-ins', row, g.title, `Say why, in a sentence, so anyone reading week ${w} later knows.`); continue; }
+    if (p.mode === 'correct' && !correctReasonOk(reason)) { raise('required-empty', 'Check-ins', row, g.title, correctReasonAsk(w)); continue; }
     const ctx = [...own.filter((c) => c.week !== w), ...(imported.get(g.id) ?? [])];
     judge({ g, w, row, existing: p.mode === 'correct' ? newest : null, ctx, prev: checkInsFor(g, ctx).filter((c) => c.week < w).pop() ?? null, draft: p.draft, post: p, again: p.mode === 'again' && !!newest, reason });
   }
@@ -1689,7 +1698,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     const requestsBefore = asksOf(s);
     const summary: Change = {
       id: sumId, at: now, actorId: actor.id, goalId: null, entity: 'workspace', entityId: importId, action: 'imported', importId,
-      summary: `${via === 'spreadsheet' ? 'Loaded a spreadsheet' : via === 'mcp' ? 'Changes via MCP' : via === 'table' ? 'Edited the data tables' : via === 'form' ? 'Corrected a check-in' : 'Bulk edit'}: ${describe(result).toLowerCase()}`, diffs: via === 'form' ? [] : [{ field: 'Via', from: '—', to: VIA_LABEL[via] }, ...fileDiffs(input.file, items.length, unchanged, leftOut.length)],
+      summary: `${via === 'spreadsheet' ? 'Loaded a spreadsheet' : via === 'mcp' ? 'Changes via MCP' : via === 'table' ? 'Edited the data tables' : via === 'form' ? 'Corrected a check-in' : 'Bulk edit'}: ${via === 'form' && items.length === 1 ? `${items[0]!.goal} · ${items[0]!.summary.replace(/^Corrected /, '')}` : describe(result).toLowerCase()}`, diffs: via === 'form' ? [] : [{ field: 'Via', from: '—', to: VIA_LABEL[via] }, ...fileDiffs(input.file, items.length, unchanged, leftOut.length)],
       undo: {
         goals: ordered.map((g) => ({ id: g.id, before: touched.get(g.id)?.before ?? null })),
         checkIns: ciOut.map((c) => ({ id: c.id, before: ciBefore.get(c.id) ?? null })),
@@ -1730,6 +1739,19 @@ export function postCheckIn(x: Pick<ActionContext, 'snapshot' | 'cycle' | 'week'
   const problem = set.issues.find((i) => i.level === 'must' || i.level === 'check');
   if (problem || !set.commit) throw new NotAllowed(problem?.message ?? 'That check-in can’t be saved yet.');
   return { commit: set.commit, checkIn: set.commit.checkIns!.find((c) => c.goalId === post.goalId)! };
+}
+
+/** Where a replaced week is a correction that needs a reason: Data's tables and MCP (a workbook's round trip is not). */
+const CORRECTS_VIA: Via[] = ['table', 'mcp'];
+
+/** A correction in a sentence: the number, old and new; or, when the number stays, what did change (review of #225,
+ *  medium 4: never "37 hours is now 37 hours"). */
+export function correctedSummary(w: number, before: CheckIn, after: CheckIn, g: Goal, diffs: { field: string }[]): string {
+  const from = headlineOf(before, g), to = headlineOf(after, g);
+  if (from !== to) return `Corrected week ${w}: ${from} is now ${to}`;
+  const named: Record<string, string> = { 'Status call': 'status call', Stages: 'stage weeks', Cause: 'cause', Note: 'note', 'Why greener': 'why greener', 'Path to green': 'path to green', Needs: 'ask for help', 'Proposed target': 'proposed target', 'Next step': 'next step' };
+  const what = [...new Set(diffs.map((d) => named[d.field]).filter((f): f is string => !!f))];
+  return `Corrected week ${w}: still ${to}${what.length ? `, with a new ${what.length > 1 ? what.slice(0, -1).join(', ') + ' and ' + what[what.length - 1] : what[0]}` : ''}`;
 }
 
 /** A check-in's number in a sentence ("1.9%", "2 of 4 stages done"). */
