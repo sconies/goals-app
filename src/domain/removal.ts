@@ -850,9 +850,13 @@ export function restoreRemoved(x: ActionContext, kind: RemovedKind, id: string, 
 /**
  * Undo a removal straight after it (the Undo on its message): every record it changed goes back to how it was just
  * before, the people and asks it handed over and the goals it moved included, and a removed comment comes back. Logged
- * as restored. `before` is the whole workspace as it was just before the removal was saved.
+ * as restored. `before` is the whole workspace as it was just before the removal was saved. Whoever removed it, or an
+ * admin, may.
  */
 export function undoRemoval(x: ActionContext, removal: Commit, before: Snapshot): Commit {
+  // Whoever removed it, or an admin (R1): the Undo is on the remover's own message.
+  const by = removal.changes[0]?.actorId;
+  if (by && by !== x.actor.id && !x.actor.admin) no('Only whoever removed it, or an admin, can undo it.');
   const back = <T extends { id: string }>(list: T[] | undefined, from: T[] | undefined): T[] => (list ?? []).flatMap((r) => { const b = (from ?? []).find((v) => v.id === r.id); return b ? [asBefore(r, b)] : []; });
   const out: Commit = {
     people: back(removal.people, before.people),

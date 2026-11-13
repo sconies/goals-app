@@ -138,7 +138,7 @@ function EditSheet({ goal }: { goal: Goal }) {
       const { reason, answers: _a, ...draft } = d;
       // A changed goal and what measures it are one save, so the link is judged against the goal as changed.
       if (changed) await app.saveGoal(draft, goal, { ...(replanning ? { reason: reason.trim() } : {}), answers, metric, ...(measure ? { also: measure } : {}) });
-      else if (measure) await app.run(measure.action, measure.input(after));
+      else if (measure) await app.run(measure.action, { ...measure.input, goalId: goal.id });
       clear();
       // The goal's page, then the toast: never "Saved." beside a button still saying "Saving…".
       back();

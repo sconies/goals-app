@@ -4,7 +4,7 @@
 // The change engine, for this screen's previews (src/app/engineReady.ts).
 import '../../app/engineReady';
 import { useEffect, useMemo } from 'react';
-import { useApp } from '../../app/state';
+import { useApp, type ChangePlan, type Preview } from '../../app/state';
 import type { ChangeSet } from '../../domain/changeset';
 import { CHUNK } from '../../domain/importLimits';
 import { leaveOut, type DependentRow, type IsNew, type RowRef } from '../../domain/leaveOut';
@@ -40,9 +40,10 @@ export interface ImportPlan {
   cs: ChangeSet | null;
   /** The file came from another workspace, and that question isn't answered yet. */
   otherWorkspace: boolean;
-  /** The change set to save: `cs` with the reason typed for plan changes, worked out once, when saving (#191 review:
+  /** The change set to save, with the plan applyChanges re-runs (so a large file checked in the worker is saved through
+      the dispatcher too, AX2): `cs` with the reason typed for plan changes, worked out once, when saving (#191 review:
       the reason is kept out of the preview's inputs, so typing it doesn't re-check the whole file on every key). */
-  toSave: () => ChangeSet | null;
+  toSave: () => Preview | null;
   /** A large file, checked in the worker (backlog IM6): its progress, and whether the change set is still being made
       (or re-made after an answer). A small one is checked at once, as before, and has no run. */
   run: CheckRun | null;
@@ -74,6 +75,12 @@ export function useImportPlan(): ImportPlan {
   }, [tables, big, otherWorkspace, st.answers, st.name, left.length, app.snapshot]);
   const run = big && !otherWorkspace ? st.run : null;
   const cs = run ? run.cs : now;
-  const toSave = () => (cs && tables && cs.needsReason && st.reason.trim() ? app.previewChanges(tables, 'spreadsheet', st.reason, false, st.answers, file) : cs);
+  const toSave = (): Preview | null => {
+    if (!cs || !tables) return null;
+    if (cs.needsReason && st.reason.trim()) return app.previewChanges(tables, 'spreadsheet', st.reason, false, st.answers, file);
+    // A worker-built change set (a large file) carries no plan of its own, so attach the one applyChanges re-runs.
+    const plan: ChangePlan = { tables, via: 'spreadsheet', confirm: false, answers: st.answers, file };
+    return 'plan' in cs ? (cs as Preview) : Object.assign(cs, { plan });
+  };
   return { st, base, left, also: out?.also ?? [], cs, otherWorkspace, toSave, run, tables };
 }

@@ -11,7 +11,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { Place } from '../core/app';
-import { examplesLine, type Answers, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
+import { examplesLine, type Answers, type Rec, type Tables } from '../domain/changeset';
 import { workbook, type Cell } from '../domain/export';
 import { BOUND_WORDS, CAUSE_WORDS, isEditable, LEVEL_WORDS, RECOVERY_WORDS, SHAPE_WORDS } from '../domain/columns';
 import { Chip, Sheet } from '../ui/bits';
@@ -213,7 +213,7 @@ export function DataTables() {
     Team: { kind: 'team', idOf: (v) => ids.team.get(v) ?? null, valueOf: (id) => app.team(id)?.name ?? '', none: 'No team' },
   };
 
-  const [cs, setCs] = useState<ChangeSet | null>(null);
+  const [cs, setCs] = useState<import('../app/state').Preview | null>(null);
   const [reason, setReason] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
