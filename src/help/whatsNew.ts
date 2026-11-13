@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'import-check-close',
+    date: '2026-11-13',
+    title: 'Checking an import has a way out on a phone',
+    points: [
+      'Check this import and its list of changes have Close without saving at the top: the file is forgotten and you are back on Import.',
+      'If you answered a question or gave a reason, it asks first.',
+    ],
+    articles: ['import'],
+  },
+  {
     id: 'older-changes-on-request',
     date: '2026-11-13',
     title: 'Faro opens with the last year of changes, and fetches older ones when asked',
