@@ -6868,6 +6868,41 @@ journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Le
   await t.context().close();
 }, []);
 
+journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and owned (MS): as Rhea, Flaky test rate is said to be a Gap with what is missing; its page shows the square Gap mark and, under To sort out, “Not measured yet: 1 goal held to no number”; its goal says “Not measured yet” with the broken ring, nothing due on it. Said to be Measured again, the goal is held to its plan once more', 24, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/metrics/metric_flaky-rate/edit'));
+  const group = p.getByRole('group', { name: 'Is it measured today' });
+  await group.waitFor();
+  h.set('entry', true);
+  await h.click(group.getByRole('button', { name: 'Gap' }));
+  await h.fill(p.getByLabel(/^What’s missing/), 'The new runners send no results yet; Aiko is adding them.');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/metrics\/flaky-rate(\?|#|$)/);
+  h.set('progress', true);
+  const sortout = p.locator('.metric-sortout');
+  await see(sortout, 'Not measured yet: 1 goal held to no number', 'To sort out does not list the gap and its goal');
+  const mark = p.locator('.metric-facts .measure-gap');
+  h.set('attention', (await mark.count()) === 1 && (await mark.locator('svg.measure-shape').count()) === 1 && /Gap/.test((await mark.textContent()) ?? ''), 'the metric page does not show the Gap shape and word');
+  await h.checkpoint('gap said');
+  await p.goto(url('/goals/lead-flaky'));
+  const bar = p.locator('.goal-bar');
+  await see(bar, 'Not measured yet', 'the goal does not say it is held to no number');
+  h.set('errors', (await bar.locator('.life-shape').count()) >= 1, 'the goal’s Not measured yet has no shape');
+  const held = await h.snapshot();
+  const g = (held.goals ?? []).find((x) => x.id === 'lead-flaky');
+  // Said to be measured again: the goal is held to its plan once more.
+  await p.goto(url('/metrics/metric_flaky-rate/edit'));
+  await h.click(p.getByRole('group', { name: 'Is it measured today' }).getByRole('button', { name: 'Measured' }));
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/metrics\/flaky-rate(\?|#|$)/);
+  const after = await h.snapshot();
+  const g2 = (after.goals ?? []).find((x) => x.id === 'lead-flaky');
+  const m = ((after.modules?.metrics?.metrics) ?? []).find((x) => x.id === 'metric_flaky-rate');
+  h.set('logged', !!g?.unmeasuredSince && !g2?.unmeasuredSince && (m?.measurement ?? 'measured') === 'measured', !g?.unmeasuredSince ? 'the gap did not hold the goal to no number' : 'Measured again did not let go of the goal');
+  h.set('finish', true);
+  await p.context().close();
+}, []);
+
 journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   // The metric a letter away, added first, fully said, so the typo has something to be close to. From the library.

@@ -7,6 +7,8 @@ import type { Id } from '../../domain/types';
 export type MetricDirection = 'higher' | 'lower';
 /** How often a metric's source refreshes its number. */
 export type MetricRefresh = 'live' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'quarterly';
+/** Whether the number is measured today (MS): in full, in part (some of it, or not every period), or not yet (a gap). */
+export type MetricMeasurement = 'measured' | 'partly' | 'gap';
 
 /**
  * A metric in the library (backlog 0b): one definition of a number, shared by every goal it measures, so two goals
@@ -31,6 +33,11 @@ export interface Metric {
   ownerId: Id;
   /** What to watch out for when reading it (a known gap, a change of method). */
   caveats: string;
+  /** Whether it is measured today (MS; rulesMeasured.ts): absent on one never said otherwise, which is measured. Goals
+      measured by a metric with a gap are held to no number (domain/unmeasured) until it is measured. */
+  measurement?: MetricMeasurement;
+  /** What's missing from the measurement, and who is sorting it out ('' or absent when measured). */
+  measurementNote?: string;
   createdBy: Id;
   createdAt: string;
   updatedAt: string;

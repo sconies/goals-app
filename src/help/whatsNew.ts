@@ -27,6 +27,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'metric-measurement',
+    date: '2026-11-13',
+    title: 'Say when a number isn’t measured yet',
+    points: [
+      'Each metric now says whether it is measured today: Measured, Partly or Gap, a shape and a word, with a line on what’s missing.',
+      'A goal measured by a metric with a gap is held to no number. It says “Not measured yet”, nothing on it is late, and it needs no made-up baseline.',
+      'Gaps and parts are listed under To sort out in the metric library, so someone owns them.',
+    ],
+    articles: ['metric-measurement'],
+  },
+  {
     id: 'more-switches',
     date: '2026-11-13',
     title: 'Watching, the Wrap-up, the Goal map and Feedback can be switched off',

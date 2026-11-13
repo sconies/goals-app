@@ -861,6 +861,12 @@
       "use": "copy"
     },
     {
+      "id": "METRIC-MEASUREMENT",
+      "area": "Metrics",
+      "text": "A gap in measurement is visible and owned, not faked (MS). Each metric says whether it is measured today, Measured, Partly or Gap, always as a shape (a filled, half-filled or broken square) and its word, with an optional line on what is missing (at most 300 characters). A metric with a gap or measured only in part is listed under To sort out on its page and in the library (\"Not measured yet: {n} goals held to no number\", \"Only partly measured\") with Say how it's measured. A goal measured by a metric with a gap is held to no number: it says Not measured yet (a broken ring and the words) instead of a status, nothing on it is due, late or quiet, and it projects nothing; linking it to a measured metric, unlinking it, or its metric being measured holds it to its plan again, in the same save, with one Undo and a line in its History. save_metric takes measurement and measurement_note, and get_metric and the export say so.",
+      "use": "copy"
+    },
+    {
       "id": "METRICS-CARE",
       "area": "Metrics",
       "text": "A metric's owner and admins are shown what it is missing; removing or changing one says what happens to its goals (ML3). A metric's page lists, for its owner and admins only, what it still needs in order (no owner, no meaning, no source, no goal after 14 days), each with a button that opens the form at that field. Adding a metric whose name is close to one in use (one name's words contain the other's, or they share two words and differ by one, leaving out filler words and brackets) asks \"This looks like …\" as a Check (METRIC-DEFINED), with Use that one or Mine is different: keep it. The form keeps a draft through Close, Back and a reload; each error shows under its field once the field is left or on the first try to save, and the first field in error takes the focus. Changing the unit or direction of a metric goals use asks first, saying how many goals and how many will show a warning. Remove says which goals stop being measured (a stopped goal's too); Undo puts the metric and its links back, and Put it back later restores the links it had to goals still there. Workspace → About tells admins how many metrics have no owner, with See them.",

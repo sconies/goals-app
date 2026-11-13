@@ -313,6 +313,20 @@ var init_range = __esmMin((() => {
 	rangeOut = ({ bound, limit, lower }, v) => bound !== "atLeast" && v > limit || bound !== "atMost" && v < (bound === "between" ? lower : limit);
 	rangeNear = ({ bound, limit, lower, margin }, v) => bound !== "atLeast" && v > limit - margin || bound !== "atMost" && v < (bound === "between" ? lower : limit) + margin;
 }));
+// src/domain/unmeasured.ts
+/** The goal held to no number from `now`, or held to its plan again (`null`); unchanged when it already is. */
+function heldToNoNumber(g, held, now) {
+	if (held === !!g.unmeasuredSince) return g;
+	return {
+		...g,
+		unmeasuredSince: held ? now : null
+	};
+}
+var UNMEASURED, isUnmeasured;
+var init_unmeasured = __esmMin((() => {
+	UNMEASURED = "Not measured yet";
+	isUnmeasured = (g) => !!g.unmeasuredSince && !g.removedAt && !g.stoppedAt;
+}));
 // src/domain/vocabulary.ts
 /** Stages behind their dates, each in its word: "2 stages late", "1 stage slipping", "1 stage late, 1 slipping". */
 function stagesBehind(kinds) {
@@ -1164,8 +1178,17 @@ function goalStatus(goal, cycle, checkIns, today) {
 	const week = currentWeek(cycle, today);
 	const own = checkInsFor(goal, checkIns);
 	const latest = own.length ? own.reduce((a, b) => b.postedAt > a.postedAt ? b : a) : null;
-	const calc = assessPosted(goal, cycle, checkIns, week).calc;
 	const days = latest ? daysSince(latest.postedAt, today) : null;
+	if (isUnmeasured(goal)) return {
+		status: latest?.status === "done" ? "done" : week === 0 ? "planned" : "none",
+		calc: "none",
+		latest,
+		greener: false,
+		daysSinceCheckIn: days,
+		week,
+		unmeasured: true
+	};
+	const calc = assessPosted(goal, cycle, checkIns, week).calc;
 	const quiet = daysWithoutUpdate(goal, cycle, latest, today);
 	let status;
 	if (latest?.status === "done") status = "done";
@@ -1211,6 +1234,7 @@ var init_status = __esmMin((() => {
 	init_plan();
 	init_thresholds();
 	init_range();
+	init_unmeasured();
 	init_vocabulary();
 	RANK = {
 		done: 0,
@@ -1222,7 +1246,7 @@ var init_status = __esmMin((() => {
 		off: 3
 	};
 	byGoalCache = /* @__PURE__ */ new WeakMap();
-	projects = (goal, status) => status !== "stale" && status !== "done" && !goal.stoppedAt;
+	projects = (goal, status) => status !== "stale" && status !== "done" && !goal.stoppedAt && !isUnmeasured(goal);
 }));
 // src/domain/asks.ts
 /** "Amara Nwosu: approve the runner budget" → Amara, and the ask itself. Without a name it's for anyone. */
@@ -2967,10 +2991,10 @@ function flagsFor(goal, s, cycle, today) {
 	if (waiting.length) add("decision", `Waiting on ${waiting.map((r) => askText(r, s.people)).join("; ")}.`, behind ? "off" : "risk");
 	if (behind && !ptg) add("no-path", "It is behind and the owner has not said how it gets back.", "off");
 	if (status.status === "risk") add("risk", why ?? `The owner called it ${lower(FLAG.risk)}.`, "risk");
-	const trend = status.status === "done" ? null : worseningTrend(goal, cycle, s.checkIns);
+	const trend = status.status === "done" || status.unmeasured ? null : worseningTrend(goal, cycle, s.checkIns);
 	if (trend) add("trend", trend, "risk");
 	if (status.greener && latest && status.status !== "stale" && status.status !== "done") add("greener", `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, "risk");
-	if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== "done" && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", dueWords$1(false, cycle, week).flag, "info");
+	if (!status.unmeasured && week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== "done" && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", dueWords$1(false, cycle, week).flag, "info");
 	flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
 	return {
 		status,
@@ -13426,6 +13450,79 @@ var init_changeset = __esmMin((() => {
 		}
 	};
 }));
+// src/modules/metrics/rulesMeasured.ts
+/** What's wrong with a metric's measurement status, in words someone can act on. */
+function measurementProblems(m) {
+	const out = [];
+	if (m.measurement !== void 0 && !MEASUREMENTS.includes(m.measurement)) out.push("Say whether it is measured: measured, partly or gap.");
+	if ((m.measurementNote ?? "").length > 300) out.push(`Keep what’s missing to 300 characters or fewer.`);
+	return out;
+}
+/**
+* The goals a metric's save holds to no number, or to their plans again: those it measures now (a live link, the goal
+* neither removed nor stopped), whose hold differs from what the metric says. Each with its History line. Empty when
+* nothing changes, so a save that leaves the gap as it was writes no goal.
+*/
+function heldBy(x, m, goals, links) {
+	const ids = new Set(links.filter((l) => l.metricId === m.id && !l.removedAt).map((l) => l.goalId));
+	const held = holdsToNoNumber(m);
+	const moved = goals.filter((g) => ids.has(g.id) && !g.removedAt && !g.stoppedAt && !!g.unmeasuredSince !== held && g.kind !== "milestone");
+	return {
+		goals: moved.map((g) => heldToNoNumber(g, held, x.now)),
+		changes: moved.map((g) => heldChange(x, g, m, held))
+	};
+}
+/**
+* One goal's hold when what measures it changes: linked to `m` (null: unlinked, or measured by nothing). Null when the
+* goal is already as it should be.
+*/
+function heldByLink(x, goal, m) {
+	const held = holdsToNoNumber(m) && goal.kind !== "milestone";
+	if (held === !!goal.unmeasuredSince) return null;
+	return {
+		goal: heldToNoNumber(goal, held, x.now),
+		change: heldChange(x, goal, m, held)
+	};
+}
+function heldChange(x, g, m, held) {
+	const summary = held ? `Held to no number until “${m.name}” is measured` : m && !m.removedAt && measurementOf(m) !== "gap" ? `Held to its plan again, as “${m.name}” is measured` : "Held to its plan again";
+	return {
+		id: x.newId("chg"),
+		at: x.now,
+		actorId: x.actor.id,
+		goalId: g.id,
+		entity: "goal",
+		entityId: g.id,
+		action: "edited",
+		summary,
+		diffs: [{
+			field: "Measured",
+			from: held ? "Yes" : "Not yet",
+			to: held ? "Not yet" : "Yes"
+		}]
+	};
+}
+var MEASUREMENTS, MEASUREMENT_LABEL, measurementOf, holdsToNoNumber, measurementWords;
+var init_rulesMeasured = __esmMin((() => {
+	init_unmeasured();
+	MEASUREMENTS = [
+		"measured",
+		"partly",
+		"gap"
+	];
+	MEASUREMENT_LABEL = {
+		measured: "Measured",
+		partly: "Partly",
+		gap: "Gap"
+	};
+	measurementOf = (m) => m.measurement ?? "measured";
+	holdsToNoNumber = (m) => !!m && !m.removedAt && measurementOf(m) === "gap";
+	measurementWords = (m) => {
+		const k = measurementOf(m);
+		const note = k === "measured" ? "" : (m.measurementNote ?? "").trim();
+		return note ? `${MEASUREMENT_LABEL[k]}: ${note}` : MEASUREMENT_LABEL[k];
+	};
+}));
 // src/modules/metrics/rules.ts
 /** The marks a goal shows (MT3 rule 4): its metric's marks made at or after the goal was linked to it, in the goal's own
 cycle (since `since`, its start, and before `until`, the day after its last week), oldest first. A goal linked after a
@@ -13502,6 +13599,7 @@ function metricFrom(input, before, x) {
 		refresh: pick("refresh", null) ?? null,
 		ownerId: pick("ownerId", x.actor.id) || x.actor.id,
 		caveats: (pick("caveats", "") ?? "").trim(),
+		...measured(pick("measurement", null), pick("measurementNote", "")),
 		createdBy: before?.createdBy ?? x.actor.id,
 		createdAt: before?.createdAt ?? x.now,
 		updatedAt: x.now,
@@ -13545,6 +13643,7 @@ function metricProblems(m, s) {
 	if (!Number.isInteger(m.decimals) || m.decimals < 0 || m.decimals > METRIC_LIMITS.decimals) out.push(`Decimals is a whole number from 0 to ${METRIC_LIMITS.decimals}.`);
 	if (m.refresh != null && !REFRESHES.includes(m.refresh)) out.push(`Refresh is one of ${REFRESHES.join(", ")}, or left empty.`);
 	if (!s.people.some((p) => p.id === m.ownerId)) out.push("The metric’s owner isn’t in this workspace.");
+	out.push(...measurementProblems(m));
 	for (const [k, label] of [
 		["meaning", "meaning"],
 		["source", "source"],
@@ -13565,7 +13664,8 @@ function metricFields(m, s) {
 		"Source owner": m.sourceOwner || "—",
 		Refresh: m.refresh ? REFRESH_LABEL[m.refresh] : "—",
 		Owner: s.people.find((p) => p.id === m.ownerId)?.name ?? "—",
-		Caveats: m.caveats || "—"
+		Caveats: m.caveats || "—",
+		Measured: measurementWords(m)
 	};
 }
 /**
@@ -13695,12 +13795,14 @@ function unlinkGoalMetric(x, goal) {
 	const l = linksOf(x.snapshot).find((v) => v.goalId === goal.id && !v.removedAt);
 	if (!l) return null;
 	const name = metricsOf(x.full ?? x.snapshot).find((v) => v.id === l.metricId)?.name ?? "its metric";
+	const hold = heldByLink(x, goal, null);
 	return {
 		...metricRows({ metricLinks: [{
 			...l,
 			removedAt: x.now,
 			removedBy: x.actor.id
 		}] }),
+		...hold ? { goals: [hold.goal] } : {},
 		changes: [log(x, {
 			entityId: l.metricId,
 			goalId: goal.id,
@@ -13711,16 +13813,17 @@ function unlinkGoalMetric(x, goal) {
 				from: name,
 				to: "—"
 			}]
-		})]
+		}), ...hold ? [hold.change] : []]
 	};
 }
-var MODULE, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, markLabel, everUsed, sliceName, clean$1, log, live$1, ownsOrAdmin, canEditMetric, canLinkGoal;
+var MODULE, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, markLabel, everUsed, sliceName, measured, clean$1, log, live$1, ownsOrAdmin, canEditMetric, canLinkGoal;
 var init_rules = __esmMin((() => {
 	init_actions();
 	init_changes();
 	init_format();
 	init_numbers();
 	init_records();
+	init_rulesMeasured();
 	MODULE = "metrics";
 	METRICS_KEY = "metrics";
 	LINKS_KEY = "metricLinks";
@@ -13768,6 +13871,10 @@ var init_rules = __esmMin((() => {
 	markLabel = (m) => `${m.kind === "direction" ? "Direction" : "Definition"} changed, week ${m.week}`;
 	everUsed = (metricId, links) => links.some((l) => l.metricId === metricId);
 	sliceName = (s, teamId) => teamId == null ? COMPANY : s.teams.find((t) => t.id === teamId)?.name ?? "A removed team";
+	measured = (k, note) => k && k !== "measured" ? {
+		measurement: k,
+		measurementNote: (note ?? "").trim()
+	} : {};
 	clean$1 = (v) => (v ?? "").trim().replace(/[ \t]+/g, " ");
 	log = (x, v) => ({
 		id: x.newId("chg"),
@@ -14322,15 +14429,23 @@ function saveMetricChange(x, input) {
 			to: after.unit
 		}] : []
 	}));
+	const relabelled = new Map(goals.map((g) => [g.id, g]));
+	const hold = heldBy(x, metric, (x.full ?? x.snapshot).goals.map((g) => relabelled.get(g.id) ?? g), linksOf(x.full ?? x.snapshot));
+	for (const g of hold.goals) relabelled.set(g.id, g);
+	const written = [...relabelled.values()];
 	return {
 		metric,
 		commit: {
 			...metricRows({ metrics: [metric] }),
-			...goals.length ? { goals } : {},
-			changes: [{
-				...head,
-				summary: said
-			}, ...perGoal]
+			...written.length ? { goals: written } : {},
+			changes: [
+				{
+					...head,
+					summary: said
+				},
+				...perGoal,
+				...hold.changes
+			]
 		}
 	};
 }
@@ -14473,6 +14588,7 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 }
 var same$1, onDay, goalsWord, metricOf$1, mayChange, retiredWords;
 var init_rulesChange = __esmMin((() => {
+	init_rulesMeasured();
 	init_rules();
 	same$1 = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
 	onDay = (iso) => new Date(iso).toLocaleDateString("en-GB", {
@@ -14588,15 +14704,17 @@ function linkGoalMetric(x, goal, metricId, teamId = null, part = "", reason = ""
 	];
 	const why = reason.trim();
 	const summary = `Measured by “${m.name}” for ${forWords(slice, p)}${why ? `: ${why}` : ""}`;
+	const hold = heldByLink(x, goal, m);
 	return {
 		...metricRows({ metricLinks: [link] }),
+		...hold ? { goals: [hold.goal] } : {},
 		changes: [log(x, {
 			entityId: m.id,
 			goalId: goal.id,
 			action: current ? "edited" : "linked",
 			summary,
 			diffs
-		})]
+		}), ...hold ? [hold.change] : []]
 	};
 }
 /** What rule 2 reads for a goal and a metric: its last link (removed or not), the metric's other live links on goals
@@ -14630,6 +14748,7 @@ function linkReads(x, goal, metricId) {
 	};
 }
 var init_rulesLink = __esmMin((() => {
+	init_rulesMeasured();
 	init_rules();
 	init_rulesParts();
 	init_rulesSave();
@@ -15038,6 +15157,8 @@ var metricToRow = (ws, m) => ({
 		removed_at: m.removedAt,
 		removed_by: m.removedBy
 	}),
+	measurement: m.measurement ?? "measured",
+	measurement_note: m.measurement && m.measurement !== "measured" ? m.measurementNote ?? "" : "",
 	retired_at: m.retiredAt ?? null,
 	retired_by: m.retiredBy ?? null,
 	retired_why: m.retiredWhy ?? "",
@@ -15067,7 +15188,11 @@ var metricFromRow = (r) => ({
 		retiredWhy: String(r.retired_why ?? ""),
 		replacedBy: r.replaced_by ? String(r.replaced_by) : null
 	} : {},
-	...Array.isArray(r.marks) && r.marks.length ? { marks: r.marks } : {}
+	...Array.isArray(r.marks) && r.marks.length ? { marks: r.marks } : {},
+	...r.measurement === "partly" || r.measurement === "gap" ? {
+		measurement: r.measurement,
+		measurementNote: String(r.measurement_note ?? "")
+	} : {}
 });
 var metricLinkToRow = (ws, l) => ({
 	workspace_id: ws,
@@ -15345,7 +15470,8 @@ var _virtual_faro_modules_default = [
 			"metric-define",
 			"metric-measured-by",
 			"metric-slices",
-			"metric-change"
+			"metric-change",
+			"metric-measurement"
 		],
 		requirements: [
 			"METRICS-LIBRARY",
@@ -15354,6 +15480,7 @@ var _virtual_faro_modules_default = [
 			"METRIC-DEFINED",
 			"METRIC-PARTS",
 			"METRIC-CHANGE",
+			"METRIC-MEASUREMENT",
 			"READING-PREFILL",
 			"READING-RECORDED-ONLY",
 			"READING-SEVEN-DAYS",
@@ -15375,38 +15502,11 @@ var _virtual_faro_modules_default = [
 			"U160",
 			"N29",
 			"F15",
-			"N16"
+			"N16",
+			"U170"
 		],
 		elsewhere: [],
-		rebuild: {
-			"status": "outline",
-			"builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric. Defining one well: three things to be usable, the rest said later and named in words (“Fully defined” or “Still to say: …”, never a score), and three questions answered once before saving (a close name, a unit spelt another way, a percentage that doesn’t say out of what), with each Must fix and Check under its field. For, and which part: a link is for a team or the whole company and optionally one part of that number (“tier-1 services”), the parts in use offered under the field; the goal takes the metric’s unit and direction, its target stays its own; another goal on the same number, or a part spelt like one in use, is asked about once; and a goal with check-ins says why it is measured differently, in its History. Looking after one: what it still needs, a confirm before changing a unit or direction goals use, and on Workspace → About how many metrics have no owner.",
-			"entry": ["The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.", "Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice."],
-			"exit": [
-				"A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.",
-				"Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.",
-				"A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.",
-				"A metric that has measured a goal can’t be deleted (“Retire it instead.”); one that never has is deleted, and Undo or Recently removed brings it back.",
-				"The demo workspace’s 13 metrics and 12 links load (two of them for one part: CI/CD · main branch pipelines, CI/CD · main pipelines), and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).",
-				"Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there.",
-				"Starting the next year carries every goal’s metric link to its copy: the same metric, team and part (journey U152; the core’s carry journey, U115, checks nothing of the module’s).",
-				"The library finds what each of rule 1’s worked examples says, a metric’s goals are rule 2’s rows in its order, and what a metric needs is rule 3’s, in order: every row of spec/conformance/metrics.csv matches.",
-				"The library is in the menu after People (under More on a phone); the old addresses of Metrics under Data lead to the library, a metric or the form; a metric’s row in the library counts the same goals by status as its page’s table lists (journey U81, checks F15 and N16).",
-				"In New goal, “Measured by” comes first on the measure step: a metric found by typing shows its meaning, fills in the unit, decimals and which way is better on a goal nobody typed them for, measures it for the goal’s team or the whole company, and Check says so; one added there is chosen; a goal with dated stages has none (journey U82, rule 5’s worked examples).",
-				"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first (the read-back, MT3); admins see on Workspace → About how many metrics have no owner (journey U83).",
-				"Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105).",
-				"A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146).",
-				"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples).",
-				"A number source reads a metric for a link’s slice (a team or the whole company, and a part) or says it doesn’t, and passes the source contract; a reading’s state in a check-in is rule 1’s (no-slice, unreachable, missing, old after 7 days, same, jump, changed, fresh), and what a check-in records of it is rule 2’s, which nothing that judges a goal reads (the reading rule’s worked examples; the `reading` rows of spec/conformance/metrics.csv).",
-				"The check-in’s number step (the core’s place checkin.number) opens with a fresh reading in the field, “From {source}, read {when}.” and “Confirm {value} {unit}”; a different number asks why from four reasons before “Use {typed} {unit}”; a reading more than 7 days old is neither filled in nor shown; a company-wide source never fills in a team’s goal; the read-back says where the number came from; the one table fills fresh readings in the quiet ink and asks why in a changed row; and rule 3 (a differing number needs a reason) holds at the form, the table and post_check_in’s reading_confirmed and different_because alike (journeys U156 to U160). With the module off the step is as it was.",
-				"Where a number came from shows beyond the check-in, from what each check-in recorded: the goal’s Measured by says “This week’s number” from its latest check-in, each History row says it came from the source or was typed over it and why, the metric’s page says for each goal how its check-in gets its number and, over the last 8 weeks, how many numbers filled in from the source were typed over (goals and weeks, never people; rule 4), a review’s agenda says “· from {source}” after a confirmed number, and the Check-ins sheet has four columns for reading that load back as no change; get_goal and get_metric say the same (journey U161). Real connectors are R12’s (spec/requirements/internal/r12-number-sources.md)."
-			],
-			"gaps": [
-				"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).",
-				"The goals table is where slices side by side and numbers read from the source would grow (growth.md: dimensions an admin defines; numbers from the source).",
-				"Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md."
-			]
-		},
+		rebuild: /* @__PURE__ */ JSON.parse("{\"status\":\"outline\",\"builds\":\"The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric. Defining one well: three things to be usable, the rest said later and named in words (“Fully defined” or “Still to say: …”, never a score), and three questions answered once before saving (a close name, a unit spelt another way, a percentage that doesn’t say out of what), with each Must fix and Check under its field. For, and which part: a link is for a team or the whole company and optionally one part of that number (“tier-1 services”), the parts in use offered under the field; the goal takes the metric’s unit and direction, its target stays its own; another goal on the same number, or a part spelt like one in use, is asked about once; and a goal with check-ins says why it is measured differently, in its History. Looking after one: what it still needs, a confirm before changing a unit or direction goals use, and on Workspace → About how many metrics have no owner. Measurement status: each metric says whether it is measured today (Measured, Partly or Gap, a shape and a word, with what is missing); a gap or a part is listed under To sort out, and a goal measured by a gap is held to no number (the core’s rule over the goal’s own field, which the library fills in when it links the goal and when the metric is measured).\",\"entry\":[\"The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.\",\"Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice.\"],\"exit\":[\"A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.\",\"Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.\",\"A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.\",\"A metric that has measured a goal can’t be deleted (“Retire it instead.”); one that never has is deleted, and Undo or Recently removed brings it back.\",\"The demo workspace’s 13 metrics and 12 links load (two of them for one part: CI/CD · main branch pipelines, CI/CD · main pipelines), and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).\",\"Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there.\",\"Starting the next year carries every goal’s metric link to its copy: the same metric, team and part (journey U152; the core’s carry journey, U115, checks nothing of the module’s).\",\"The library finds what each of rule 1’s worked examples says, a metric’s goals are rule 2’s rows in its order, and what a metric needs is rule 3’s, in order: every row of spec/conformance/metrics.csv matches.\",\"The library is in the menu after People (under More on a phone); the old addresses of Metrics under Data lead to the library, a metric or the form; a metric’s row in the library counts the same goals by status as its page’s table lists (journey U81, checks F15 and N16).\",\"In New goal, “Measured by” comes first on the measure step: a metric found by typing shows its meaning, fills in the unit, decimals and which way is better on a goal nobody typed them for, measures it for the goal’s team or the whole company, and Check says so; one added there is chosen; a goal with dated stages has none (journey U82, rule 5’s worked examples).\",\"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first (the read-back, MT3); admins see on Workspace → About how many metrics have no owner (journey U83).\",\"Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105).\",\"A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146).\",\"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples).\",\"A metric said to be a Gap holds every goal it measures to no number in the same save (the goal says Not measured yet and nothing on it is due); said to be measured, partly or in full, or unlinked, the goal is held to its plan again; the library lists the gap under To sort out.\",\"A number source reads a metric for a link’s slice (a team or the whole company, and a part) or says it doesn’t, and passes the source contract; a reading’s state in a check-in is rule 1’s (no-slice, unreachable, missing, old after 7 days, same, jump, changed, fresh), and what a check-in records of it is rule 2’s, which nothing that judges a goal reads (the reading rule’s worked examples; the `reading` rows of spec/conformance/metrics.csv).\",\"The check-in’s number step (the core’s place checkin.number) opens with a fresh reading in the field, “From {source}, read {when}.” and “Confirm {value} {unit}”; a different number asks why from four reasons before “Use {typed} {unit}”; a reading more than 7 days old is neither filled in nor shown; a company-wide source never fills in a team’s goal; the read-back says where the number came from; the one table fills fresh readings in the quiet ink and asks why in a changed row; and rule 3 (a differing number needs a reason) holds at the form, the table and post_check_in’s reading_confirmed and different_because alike (journeys U156 to U160). With the module off the step is as it was.\",\"Where a number came from shows beyond the check-in, from what each check-in recorded: the goal’s Measured by says “This week’s number” from its latest check-in, each History row says it came from the source or was typed over it and why, the metric’s page says for each goal how its check-in gets its number and, over the last 8 weeks, how many numbers filled in from the source were typed over (goals and weeks, never people; rule 4), a review’s agenda says “· from {source}” after a confirmed number, and the Check-ins sheet has four columns for reading that load back as no change; get_goal and get_metric say the same (journey U161). Real connectors are R12’s (spec/requirements/internal/r12-number-sources.md).\"],\"gaps\":[\"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).\",\"The goals table is where slices side by side and numbers read from the source would grow (growth.md: dimensions an admin defines; numbers from the source).\",\"Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md.\"]}"),
 		growth: [
 			{
 				"idea": "Draft and Ready states",
@@ -16466,6 +16566,7 @@ function localSearch(rows, finders = {}) {
 }
 // src/domain/export.ts
 init_changeset();
+init_unmeasured();
 init_proposed();
 init_goal();
 init_asks();
@@ -16815,9 +16916,10 @@ function toJson$1(x) {
 					reason: g.stopReason ?? null
 				} } : {},
 				...s.state === "proposed" ? { state: "proposed" } : {},
+				...isUnmeasured(g) ? { unmeasured: { since: g.unmeasuredSince } } : {},
 				now: {
 					status: s.status,
-					statusLabel: g.stoppedAt ? STOPPED : s.statusLabel,
+					statusLabel: g.stoppedAt ? STOPPED : isUnmeasured(g) ? UNMEASURED : s.statusLabel,
 					statusMeaning: MEANING[s.status],
 					value: s.nowValue,
 					text: s.now,
@@ -18429,6 +18531,42 @@ var help$4 = [
 			"metric-slices",
 			"metrics"
 		]
+	},
+	{
+		id: "metric-measurement",
+		title: "When a number isn’t measured yet",
+		summary: "Say a metric is measured, partly measured or a gap, and what happens to the goals it measures.",
+		group: "you",
+		after: "metric-change",
+		sections: [{
+			heading: "Measured, Partly or Gap",
+			list: [
+				"Each metric says whether it is measured today, under “Is it measured today” in its form: Measured (a filled square), Partly (a half-filled square: some of it, or not every period) or Gap (a broken square: nobody measures it yet).",
+				"With Partly or Gap, say what’s missing and who is sorting it out, in a line. Its page shows it beside the mark.",
+				"A gap or a part is listed under To sort out, on the metric’s page and in the library, with “Say how it’s measured”."
+			]
+		}, {
+			heading: "Goals measured by a gap",
+			list: ["A goal measured by a metric with a gap is held to no number. It says “Not measured yet”, with a broken ring, instead of a status: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.", "Once the metric is measured, in full or in part, its goals are held to their plans again, in the same save. Linking a goal to a measured metric, or unlinking it, does the same. History says so on each goal, and Undo takes it all back."]
+		}],
+		routes: ["/metrics/:metricId/edit"],
+		screens: [],
+		reqs: ["METRIC-MEASUREMENT"],
+		keywords: [
+			"gap",
+			"partly",
+			"measured",
+			"not measured yet",
+			"no number",
+			"baseline",
+			"to sort out",
+			"measurement"
+		],
+		related: [
+			"metric-define",
+			"metric-change",
+			"metrics"
+		]
 	}
 ];
 // src/modules/reviews/help.ts
@@ -19843,6 +19981,7 @@ var CORE_ARTICLES = [
 				heading: "The summary bar",
 				list: [
 					"First line: the goal, its owner, its level and its key (G-12). Then its status as a shape and a word, and the number in the goal’s own units.",
+					"A goal whose number isn’t measured yet (the metric that measures it has a gap) says “Not measured yet”, with a broken ring, instead of a status: it is held to no number, so nothing on it is due or late and it projects nothing, until the metric is measured.",
 					"Before a goal’s first check-in, a baseline it was given with its period is shown as its number, with “Baseline, June to September 2026, provisional” beside it; lists say “41.5 min (baseline)”. Its status is No check-in yet as before, until someone checks in.",
 					"Beside the key: when it was last updated, the latest check-in’s date and its week (“Updated 6 Nov · week 45”).",
 					"Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go; when lower is better, how far over the target it still is: “5 min over”), and Will it hit the target. A gap on the wrong side of a plan says “short” when higher is better and “over” when lower is better, and a number shown equal to its plan counts as met.",
@@ -21338,6 +21477,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "metric-measurement",
+		date: "2026-11-13",
+		title: "Say when a number isn’t measured yet",
+		points: [
+			"Each metric now says whether it is measured today: Measured, Partly or Gap, a shape and a word, with a line on what’s missing.",
+			"A goal measured by a metric with a gap is held to no number. It says “Not measured yet”, nothing on it is late, and it needs no made-up baseline.",
+			"Gaps and parts are listed under To sort out in the metric library, so someone owns them."
+		],
+		articles: ["metric-measurement"]
+	},
 	{
 		id: "more-switches",
 		date: "2026-11-13",
@@ -22878,6 +23028,7 @@ var MORE_RULE_PAGES = [
 	["new-goal", "New goal"],
 	["read-back", "The read-back"],
 	["proposed", "Proposed goals"],
+	["unmeasured", "A goal held to no number"],
 	["baseline", "A baseline of its own"],
 	["not-born-late", "A goal not born late"],
 	["finding", "Finding things"],
@@ -25366,6 +25517,7 @@ var tools$5 = [
 ];
 // src/modules/metrics/rulesLibrary.ts
 init_rulesLink();
+init_rulesMeasured();
 init_find();
 init_numbers();
 init_status();
@@ -25382,13 +25534,23 @@ var metricPath = (m) => `/metrics/${encodeURIComponent(metricSlug(m.id))}`;
 /** A metric's links in force: not unlinked, to a live goal in the running cycle. */
 var liveLinks = (r, metricId) => r.links.filter((l) => l.metricId === metricId && !l.removedAt && r.goalIds.has(l.goalId));
 /**
-* Rule 3. What a metric still needs, in this order: an owner (unset, or they have left), a meaning, a source, and a goal
+* Rule 3. What a metric still needs, in this order: to be measured (a gap, or measured only in part: MS), an owner (unset, or they have left), a meaning, a source, and a goal
 * that uses it (once it was added more than 14 days ago). Each with the sentence the page and the library say, and one
 * button that opens the form at that field, or Goals in its unit.
 */
 function metricNeeds(m, r) {
 	const out = [];
 	const edit = (field) => `${metricPath(m)}/edit?field=${field}`;
+	const k = measurementOf(m);
+	if (k !== "measured") {
+		const held = k === "gap" ? liveLinks(r, m.id).length : 0;
+		out.push({
+			id: k,
+			sentence: k === "gap" ? `Not measured yet${held ? `: ${held} ${held === 1 ? "goal" : "goals"} held to no number` : ""}` : "Only partly measured",
+			button: "Say how it’s measured",
+			to: edit("measurement")
+		});
+	}
 	const owner = r.people.find((p) => p.id === m.ownerId);
 	if (!owner || owner.leftAt) out.push({
 		id: "no-owner",
@@ -25854,6 +26016,7 @@ var metricReader = {
 	read: readForTool
 };
 // src/modules/metrics/tools.ts
+init_rulesMeasured();
 init_actions();
 init_goalKey();
 init_rules();
@@ -25955,6 +26118,9 @@ function metricData(ctx, m) {
 		caveats: m.caveats,
 		updatedAt: m.updatedAt,
 		youCanChange: canEditMetric(ctx.actor, m),
+		measurement: measurementOf(m),
+		measurementLabel: MEASUREMENT_LABEL[measurementOf(m)],
+		measurementNote: m.measurementNote ?? "",
 		retired: m.retiredAt ? {
 			at: m.retiredAt,
 			by: name(ctx, m.retiredBy ?? ""),
@@ -25999,7 +26165,9 @@ var FIELDS = {
 	source_owner: str$5("Who owns that source: a team or a person, as text."),
 	refresh: str$5("How often the source refreshes. Empty for not said.", { enum: [...REFRESHES, ""] }),
 	owner: str$5("Who answers for the definition, by ID, email or name. Whoever adds it, when left out."),
-	caveats: str$5("What to watch out for when reading it.")
+	caveats: str$5("What to watch out for when reading it."),
+	measurement: str$5("Whether it is measured today: “measured” (in full), “partly” (some of it, or not every period; say what’s missing) or “gap” (nobody measures it yet). Goals measured by a metric with a gap are held to no number until it is measured, and need no made-up baseline. Measured when left out of a new metric.", { enum: [...MEASUREMENTS] }),
+	measurement_note: str$5("What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured.")
 };
 var tools$4 = [
 	{
@@ -26161,6 +26329,7 @@ var tools$4 = [
 					`Source: ${d.source || "—"} (owned by ${d.sourceOwner || "—"}) · refresh: ${d.refresh ?? "not said"}`,
 					`Owner: ${d.owner ?? "—"}`,
 					`Caveats: ${d.caveats || "—"}`,
+					`Measured today: ${d.measurementLabel}${d.measurement !== "measured" && d.measurementNote ? ` (${d.measurementNote})` : ""}`,
 					goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}${x.inItsCheckIn ? ` · in its check-in: ${x.inItsCheckIn}` : ""}`).join("\n")}` : "Measures no goal yet.",
 					...different.map((d) => `${d.line}${d.weeks.length ? ` (${d.weeks.map((w) => `${goals.find((x) => x.goalId === w.goalId)?.key ?? w.goalId} week ${w.week}`).join(", ")})` : ""}`),
 					...summary ? [summary] : [],
@@ -26246,6 +26415,8 @@ var tools$4 = [
 					...a.refresh !== void 0 ? { refresh: a.refresh ? String(a.refresh).toLowerCase() : null } : {},
 					...a.owner !== void 0 ? { ownerId: personOf(ctx, a.owner) } : {},
 					...a.caveats !== void 0 ? { caveats: String(a.caveats) } : {},
+					...a.measurement !== void 0 ? { measurement: String(a.measurement).toLowerCase() } : {},
+					...a.measurement_note !== void 0 ? { measurementNote: String(a.measurement_note) } : {},
 					...a.confirm === true ? { confirm: true } : {},
 					...typeof a.comparable === "boolean" ? { comparable: a.comparable } : {},
 					...typeof a.reason === "string" ? { reason: a.reason } : {},
@@ -50790,7 +50961,8 @@ function goalToRows(ws, g) {
 				stop_reason: g.stopReason,
 				proposed_at: g.proposedAt,
 				proposed_by: g.proposedBy,
-				proposed_in: g.proposedIn
+				proposed_in: g.proposedIn,
+				unmeasured_since: g.unmeasuredSince
 			})
 		},
 		stages: g.kind === "milestone" ? g.stages.map((s) => ({
@@ -50840,7 +51012,8 @@ function goalFromRows(r, stageRows) {
 		...who("stopReason", r.stop_reason),
 		...when("proposedAt", r.proposed_at),
 		...who("proposedBy", r.proposed_by),
-		...who("proposedIn", r.proposed_in)
+		...who("proposedIn", r.proposed_in),
+		...when("unmeasuredSince", r.unmeasured_since)
 	};
 	if (r.kind === "metric") {
 		const op = r.original_plan;
