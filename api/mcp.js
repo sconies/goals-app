@@ -17237,6 +17237,7 @@ var CORE_ARTICLES = [
 					"Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.",
 					"Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.",
 					"Change it: the same page as any goal, with no reason ever asked. Withdraw it: it goes to Recently removed for 30 days, with Undo.",
+					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks.",
 					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. Find lists them with the word Proposed.",
 					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active. A goal with check-ins can’t go back to proposed: stop it instead."
 				]
@@ -18607,6 +18608,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "proposals-on-home",
+		date: "2026-11-13",
+		title: "Proposals for you show on Home",
+		points: [
+			"A goal someone proposes for you shows on your Home, under Needs your response, until you open it.",
+			"A proposal that has waited 8 weeks or more asks once whether to make it active or withdraw it; Not yet puts it off for 8 more weeks.",
+			"Proposing a goal for someone else now says they will see it on their Home."
+		],
+		articles: ["goal-proposed", "home"]
+	},
 	{
 		id: "range-between-both-limits",
 		date: "2026-11-13",
