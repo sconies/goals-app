@@ -71,8 +71,10 @@ describe('rule 10: a large file is checked in about the time it takes to read', 
 
   it('costs about what its rows do: five times the rows, well under twenty-five times the time', () => {
     planChanges(input(s0, newRows(200)));
-    const small = Math.max(timed(() => planChanges(input(s0, newRows(1000)))), 5);
-    const large = timed(() => planChanges(input(s0, newRows(5000))));
+    // The best of three of each: one wall-clock sample is at the mercy of a busy machine (#257 review).
+    const best = (k: number) => { const t = newRows(k); return Math.min(...[0, 1, 2].map(() => timed(() => planChanges(input(s0, t))))); };
+    const small = Math.max(best(1000), 5);
+    const large = best(5000);
     expect(large / small).toBeLessThan(12);
   }, 30_000);
 
