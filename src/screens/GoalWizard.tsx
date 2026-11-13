@@ -35,7 +35,8 @@ import { rangeSays, spanSays } from '../domain/weekChoices';
 import { FormClose } from '../ui/FormClose';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
-import { Place, useFilled, type MeasurePick } from '../core/app';
+import { Place, useFilled, useModules, type MeasurePick } from '../core/app';
+import { reviewsOn } from '../app/reads';
 import { BaselineFields } from '../ui/BaselineFields';
 import { Pick, PickOne } from '../ui/Pick';
 import { recentsOf, usePrefs } from '../app/search';
@@ -288,13 +289,15 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const noMetric = !measure;
 
   // The read-back (goal entry, rule 5): the goal in sentences, each row with Change to its step, then what happens after
-  // it is published. The rhythm and Reviews switches (FT) aren't built yet: weekly, and Reviews on (spec, 11).
+  // it is published. The rhythm is weekly (FT1 not built); with Reviews switched off it names no review (build review of
+  // #371): no “It joins …” line.
+  const reviewsHere = reviewsOn(useModules().on);
   const said = checks.filter((c) => c.id !== 'stage-past' && c.readBack && answers[c.slot] === c.key).map((c) => c.readBack);
   const read = step === 3 ? readBack(goal, {
     cycle, week, today: app.today, level, owner: owner ? { name: owner.name, isViewer: owner.id === app.viewer.id } : null, teamName: teamName(d.teamId),
     parent: parent ? { title: parent.title, key: parent.key } : null, alsoHelps: alsoHelps.map((g) => g.title),
-    metric: measure && number ? measure.says ?? 'The metric chosen on step 3.' : null, answers: said, rhythm: 'weekly', reviewsOn: true,
-    reviewsJoined: level ? reviewsJoining({ id: 'new-goal', level, parentId: d.parentId || null, title: d.title }, app.snapshot.reviews, app.snapshot.goals, cycle) : [],
+    metric: measure && number ? measure.says ?? 'The metric chosen on step 3.' : null, answers: said, rhythm: 'weekly', reviewsOn: reviewsHere,
+    reviewsJoined: level && reviewsHere ? reviewsJoining({ id: 'new-goal', level, parentId: d.parentId || null, title: d.title }, app.snapshot.reviews, app.snapshot.goals, cycle) : [],
     wsName: app.ws.name, state,
   }) : null;
   const choices = underWay({ owner: owner ? { name: owner.name, isViewer: owner.id === app.viewer.id } : null, rhythm: 'weekly', week, from: d.kind === 'metric' ? span.from : undefined });

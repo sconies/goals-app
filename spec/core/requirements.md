@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (162): build it as Faro does.
+- **Copy** (165): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -78,7 +78,7 @@ The projection is steady on a noisy number and called exactly on a clean trend: 
 When a check-in still needs a reason or a path back, last week's are offered back: 'Still true' carries them over, 'It's changed' opens them for editing.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`
 - **Journeys and checks:** U1
 
 ### ONE-ACCOUNT
@@ -86,7 +86,7 @@ When a check-in still needs a reason or a path back, last week's are offered bac
 When something changed, the owner gives one short account on one screen after the number: what changed, what happens next and by when, starting from last week's words. Progress is stable, the button says Continue until the step that posts, and Still true still posts last week's account in one press.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`
 - **Journeys and checks:** U39
 
 ### OTHER-CAUSE
@@ -95,7 +95,7 @@ When none of the named causes fits, the owner can pick Something else and say it
 
 - **Copy:** build it as Faro does.
 - **Rule:** [What a check-in must say](rules/check-in.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`
 - **Journeys and checks:** U40
 
 ### CHECK-IN-QUEUE
@@ -103,7 +103,7 @@ When none of the named causes fits, the owner can pick Something else and say it
 The week's check-ins can be seen as a list and started from any of them: Check-in opens on what's due this week, in the order the walk takes them, each with its status and what it last said, a kept draft said on its row; Start with the first walks them all, as Home's Start check-in does; what's done this week can be corrected; the one-table check-in is a line away. Someone who owns no goal is told so.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`
 - **Journeys and checks:** U71
 
 ## Change log
@@ -199,7 +199,7 @@ A call greener than the calculation needs a reason and is flagged on the goal.
 
 - **Copy:** build it as Faro does.
 - **Rule:** [A goal’s status](rules/status.md), [What a check-in must say](rules/check-in.md), [Flags, the trend and needs attention](rules/flags.md)
-- **Help:** “What the statuses mean” (`status`); “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Help:** “What the statuses mean” (`status`); “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`
 - **Tests:** `evals/scenarios.eval.ts` (3)
 - **Journeys and checks:** U15
 
@@ -209,7 +209,7 @@ A reason (cause and explanation) is required when behind plan (below 95%).
 
 - **Copy:** build it as Faro does.
 - **Rule:** [What a check-in must say](rules/check-in.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`
 - **Tests:** `evals/scenarios.eval.ts` (3)
 - **Journeys and checks:** U1, U57
 
@@ -219,7 +219,7 @@ A check-in says which week it is for and where it is in the week's queue, even a
 
 - **Copy:** build it as Faro does.
 - **Rule:** [What a check-in must say](rules/check-in.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`
 - **Journeys and checks:** U57, U111
 
 ### HABIT-RECEIPT
@@ -228,7 +228,7 @@ Once a person's check-ins for the week are all in, the receipt says whether they
 
 - **Copy:** build it as Faro does.
 - **Rule:** [The habit: the run, the receipt, a moment and the measure](rules/habit.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`
 - **Journeys and checks:** U151
 
 ### HABIT-MOMENT
@@ -237,7 +237,7 @@ A check-in that reaches a goal's target, or brings it back on track after two we
 
 - **Copy:** build it as Faro does.
 - **Rule:** [The habit: the run, the receipt, a moment and the measure](rules/habit.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`
 - **Journeys and checks:** U151
 
 ### REASON-AHEAD
@@ -246,7 +246,7 @@ A reason is required when 120% or more ahead, and the check-in asks whether the 
 
 - **Copy:** build it as Faro does.
 - **Rule:** [What a check-in must say](rules/check-in.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`
 - **Tests:** `evals/scenarios.eval.ts` (3)
 - **Journeys and checks:** U7
 
@@ -256,7 +256,7 @@ At risk and Off track need a path to green: what changes and a future week it is
 
 - **Copy:** build it as Faro does.
 - **Rule:** [What a check-in must say](rules/check-in.md), [Flags, the trend and needs attention](rules/flags.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Asks: decisions, updates, questions and actions” (`requests`), screens `Respond`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`; “Asks: decisions, updates, questions and actions” (`requests`), screens `Respond`
 - **Tests:** `evals/scenarios.eval.ts` (5)
 - **Journeys and checks:** U1, U36, U37, U39
 
@@ -266,7 +266,7 @@ The check-in shows actual against plan today, the gap, the forecast and the calc
 
 - **Copy:** build it as Faro does.
 - **Rule:** [What a check-in must say](rules/check-in.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`
 - **Tests:** `evals/scenarios.eval.ts` (1)
 - **Journeys and checks:** U1, U15
 
@@ -276,7 +276,7 @@ Owners can check in as often as they like (ad hoc). Every check-in is kept with 
 
 - **Copy:** build it as Faro does.
 - **Rule:** [The change engine](rules/change-engine.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`
 - **Journeys and checks:** U1, U111, U142
 
 ### UPDATE-ANYTIME
@@ -284,7 +284,7 @@ Owners can check in as often as they like (ad hoc). Every check-in is kept with 
 The owner can post an update at any time from the goal page. It is the same check-in flow; after this week's check-in it is a second check-in for the week: the newest is that week's number and status, and the first is kept (ONE-PER-WEEK). Correcting a week is different: it replaces the week's newest, with a reason, and the change log keeps the before and after.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`
 - **Journeys and checks:** U1
 
 ### OWNER-ONLY
@@ -292,7 +292,7 @@ The owner can post an update at any time from the goal page. It is the same chec
 Only the goal's owner checks in on the check-in screen: the owner's call is the official status, so it comes from them. Through the change engine (a spreadsheet, the data tables, the AI tools) an admin may also post or correct one, as R1's access table says (mayChangeGoal).
 
 - **Copy:** build it as Faro does.
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`
 - **Journeys and checks:** U9, U141
 
 ## Reviews
@@ -436,7 +436,7 @@ Straight after a goal is published, its owner is offered the first check-in, so 
 
 - **Copy:** build it as Faro does.
 - **Rule:** [What a check-in must say](rules/check-in.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** U25
 
 ### SAVED-VIEWS
@@ -755,7 +755,7 @@ Needs attention is one rule (domain/attention.ts): off track, at risk, no recent
 Unsaved answers survive leaving a flow and are offered back when the user returns. Numbers typed in the one-table check-in are kept across a refresh until posted.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`; “On a phone, a tablet or a big screen” (`any-device`)
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`; “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** U1, U4, U30, U34, U57
 
 ## Data
@@ -782,7 +782,7 @@ An owner can type the week’s numbers for all their number goals in one table; 
 Pressing Post again, pressing Enter then clicking, or a double tap never posts a check-in twice; the same holds for the check-in table and answering a request. A check-in already being saved is waited for, not repeated.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`
 - **Journeys and checks:** U38
 
 ### NO-LOST-UPDATES
@@ -1541,7 +1541,7 @@ A number is never rounded quietly: one typed with more decimal places than its g
 
 - **Copy:** build it as Faro does.
 - **Rule:** [Numbers and names](rules/numbers-and-names.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** F9
 
 ## Names
