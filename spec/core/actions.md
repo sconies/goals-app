@@ -1405,12 +1405,13 @@ Nothing.
 |---|---|---|---|
 | `weeks` | `number` | yes |  |
 | `dueDay` | `number` | no |  |
+| `from` | `string \| null` | no |  |
 
 **Result:** `Commit \| null`
 
 **Who may:** Admins.
 
-**The rule:** `setRhythm`, in `src/domain/actions.ts`.
+**The rule:** `setRhythm`, in `src/domain/rhythm.ts`.
 
 **Refuses with:**
 
