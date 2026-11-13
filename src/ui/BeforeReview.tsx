@@ -35,9 +35,9 @@ export function BeforeReview({ goals, week, link, heading, reviews = true }: { g
       <p className="habit-sum">{b.says}</p>
       {(h.asked > 0 || h.none > 0) && (
         <p className="small habit-links">
-          {h.asked > 0 && <Link className="linkish" to={to('asked')}>{h.asked} came in after an ask</Link>}
+          {h.asked > 0 && <Link className="linkish" data-n={h.asked} to={to('asked')}>{h.asked} came in after an ask</Link>}
           {h.asked > 0 && h.none > 0 && <span className="muted" aria-hidden="true"> · </span>}
-          {h.none > 0 && <Link className="linkish" to={to('no')}>{h.none} {h.none === 1 ? 'has' : 'have'} no check-in for week {week} yet</Link>}
+          {h.none > 0 && <Link className="linkish" data-n={h.none} to={to('no')}>{h.none} {h.none === 1 ? 'has' : 'have'} no check-in for week {week} yet</Link>}
         </p>
       )}
       {row.length > 0 && (

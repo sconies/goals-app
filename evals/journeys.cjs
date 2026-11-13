@@ -5813,12 +5813,13 @@ journey('U152', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: 
   h.set('attention', !named.length, `the panel names ${named.join(', ')}`);
   await h.checkpoint('panel');
   const link = panel.getByRole('link', { name: /have no check-in for week \d+ yet|has no check-in for week \d+ yet/ });
-  const n = Number(((await link.innerText()).match(/^\d+/) ?? ['-1'])[0]);
+  const linkText = (await link.innerText()).trim();
+  const n = Number(await link.getAttribute('data-n'));
   await h.click(link);
   await p.waitForURL(/\/goals\?.*inreview=devprod.*checkedin=no/);
   await p.locator('.goals-line').first().waitFor();
   const line = await p.locator('.goals-line').first().innerText();
-  h.set('finish', new RegExp(`^${n} goals? match`).test(line), `the link said ${n}, Goals said “${line}”`);
+  h.set('finish', new RegExp(`^${n} goals? match`).test(line) && linkText.startsWith(`${n} `), `the link “${linkText}” (${n}) opened Goals saying “${line}”`);
   await h.checkpoint('goals');
   // A team's page: the same panel for its goals; a team whose goals have one owner shows none (rule 4).
   await p.goto(url('/teams/cicd'));
