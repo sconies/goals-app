@@ -39,6 +39,7 @@ import { ATTENTION, HANDLED_LINE } from '../domain/vocabulary';
 const GoalMap = lazy(() => import('./GoalMap').then((m) => ({ default: m.GoalMap })));
 // Proposed goals (GE10) are listed only with the State filter on: loaded then.
 const ProposedList = lazy(() => import('./ProposedList').then((m) => ({ default: m.ProposedList })));
+const StoppedList = lazy(() => import('./StoppedList').then((m) => ({ default: m.StoppedList })));
 
 type Show = 'outcomes' | 'attention' | 'levels' | 'teams' | 'mine' | 'watching';
 
@@ -208,9 +209,21 @@ export function GoalsScreen() {
   const viewSays = `View: ${layoutName(layout)}${!onMap && !switchOn && group !== 'none' ? `, ${groupWord.toLowerCase()}` : ''}`;
   const viewItems = views.map((v) => ({ label: v.name + (v.pinned ? ' · pinned' : ''), current: activeView?.id === v.id, onClick: () => openView(v) }));
   // Proposed goals (GE10): never among these, counted apart in the count line, and listed with the State filter on.
-  const proposedHere = (app.snapshot.proposed ?? []).filter((g) => scope === 'all' || (scope === 'mine' ? g.ownerId === app.viewer.id
-    : scope === 'team' ? facts.teams.some((t) => t.id === g.teamId) : watchedGoals(app.viewer.id, { ...app.snapshot, goals: [...app.snapshot.goals, g] }).some((w) => w.id === g.id)));
+  // Proposed and stopped goals (GE10) sit beside the list, never in it: each scope takes its own, as it takes goals.
+  const scoped = (g: Goal) => scope === 'all' || (scope === 'mine' ? g.ownerId === app.viewer.id
+    : scope === 'team' ? facts.teams.some((t) => t.id === g.teamId) : watchedGoals(app.viewer.id, { ...app.snapshot, goals: [...app.snapshot.goals, g] }).some((w) => w.id === g.id));
+  const proposedHere = (app.snapshot.proposed ?? []).filter(scoped);
   const stateOn = params.get('state') === 'proposed';
+  // "State: Stopped": this cycle's stopped goals, listed in every layout (they are on no Board or Map).
+  if (params.get('state') === 'stopped') return (
+    <div className="page goals-page" data-part="Goals">
+      <div className="page-head row between goals-head">
+        <span className="goals-title"><h1 className="title-xl">Goals</h1><span className="hint goals-period">{periodNow(app.cycle, app.today)}</span></span>
+        <span className="actions"><Link className="btn ghost sm new-goal-quiet" to="/goals/new">New goal</Link></span>
+      </div>
+      <Suspense fallback={null}><StoppedList goals={(app.snapshot.archive?.goals ?? []).filter(scoped)} onRemove={() => { const p = latest(); p.delete('state'); setParams(p); }} /></Suspense>
+    </div>
+  );
   const setState = (on: boolean) => { const p = latest(); if (on) p.set('state', 'proposed'); else p.delete('state'); setParams(p); };
   const proposedLink = proposedHere.length > 0 ? <> · <a className="linkish proposed-count" href="?state=proposed" onClick={(e) => { e.preventDefault(); setState(true); }}>{proposedHere.length} proposed</a></> : null;
   // On the Map, each proposed goal is drawn in its tree, with the goals above it for context (GE10, 2.15).
