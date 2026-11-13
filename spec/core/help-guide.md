@@ -30,6 +30,11 @@ Home is where you start each day. It answers one question first: what is asked o
 - Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it.
 - After a release you haven’t seen, a quiet line at the foot of Home says what’s new in Faro. Open it, or dismiss it with the cross.
 
+#### In a workspace that doesn’t hold reviews
+
+- When an admin has switched Reviews off, Home leads with your check-ins, the wrap-up and what is asked of you, as above. Someone who owns no goals and watches some is led to the goals they watch that need attention, with See them; watching nothing, Home starts with what needs your response.
+- A question waits by its own age (“Waiting since 4 Aug, 14 weeks”), and a next step says when you agreed it and the week it’s due.
+
 #### Why an ask says how long it has waited
 
 - An ask with a week it is due by is due that week’s Sunday. A question raised in a review is due before the review’s next session after the one it was raised in, and stays due then: it doesn’t move on to a later session when that one passes.
@@ -205,7 +210,7 @@ The example is one division of about 100 people in 14 teams, with 12 north stars
 
 `getting-around`. Every page names itself and lights its place in the menu; one back link above the title agrees with your browser’s Back; and a form has one way out.
 
-Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`.
+Screens: `NotFound`. Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`.
 
 #### Where you are
 
@@ -227,6 +232,7 @@ Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`.
 #### An address that leads nowhere
 
 - An old or mistyped link says “Page not found”, with Go to Home and Help. A goal, review or person that isn’t there says so in its own words.
+- A link to a part of Faro an admin has switched off in this workspace, such as Reviews, says so under it: “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.” For an admin, Workspace, Features is a link.
 
 ## Your week
 
@@ -388,6 +394,7 @@ Scanning the whole set of goals, or a slice of it, in whatever shape suits the q
 - In the sidebar, Goals has your saved views under it.
 - The status key sits under the goals. New goal is a quiet link at the top right; the sidebar’s New goal opens it from anywhere.
 - Proposed goals are never among these and never counted with them: the count line adds “· 1 proposed”, a link that lists them. The Filters sheet has State: Active (the default) or Proposed.
+- Goals is the same whether or not a workspace holds reviews: every list, filter and view works without them, and a link that opened Goals for a review’s goals opens Goals without the review.
 
 #### Who can
 
@@ -441,7 +448,7 @@ These have an action with an owner and a date, or an answer to their request, ag
 - Missed its own date: The path to green named a week to be back on plan by, that week has passed, and the goal is still off track or at risk.
 - Getting worse: A number further behind its plan (in the goal’s own units) at each of the last two of 3 check-ins, and visibly so: behind now as shown, and further behind than at the first of them; a number moving towards its limit two check-ins running; a stage expected later than it was at the check-in before; or on track today with the whole projected range falling short of the target. The goal’s trend, its chart and its scorecard use the same rule.
 - Greener than calculated: The owner called it greener than the app calculates from the numbers. A greener call needs a reason, which is shown beside it.
-- Check-in due: The goal has no check-in for this week yet, before the review. It is listed for the owner, but on its own it doesn’t make the goal need attention.
+- Check-in due: The goal has no check-in for this week yet, and one is due by the workspace’s check-in day. It is listed for the owner, but on its own it doesn’t make the goal need attention.
 
 #### How to use it
 
@@ -536,6 +543,11 @@ A proposed goal’s page is simpler: Proposed above the title, what it would mea
 - History’s filters, each with its count: All, Check-ins, Comments, Reviews (what was said in a review, and asks raised in one, even after the review is renamed) and Changes (edits to the goal, its plan, owner and the rest). The filter is in the address (?history=changes), so a link or a reload shows the same list; Show all is ?all=1. With more than 30 entries, find in the goal’s history, or go to a week. An old link to #activity opens History.
 - About this goal: what it measures (or Describe it, for the owner, when it isn’t described yet), its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change, and one link: Change this goal. It’s open the first time you visit, and folded after.
 - On a computer from about 1,100 px wide, Next steps and asks and Last time we talked sit in a side column; on a phone everything is in one column, in this order.
+
+#### In a workspace that doesn’t hold reviews
+
+- When an admin has switched Reviews off, the page has Next steps and asks, Why, the chart, What feeds it, History and About, and nothing else in their place. Questions say who asked and when; a next step agreed in a review still says, in words, where it was agreed.
+- History keeps everything said in reviews, and its Reviews filter is there while it has entries. An address that opened a goal in a review’s walk opens the goal’s own page.
 
 #### Changing it
 
@@ -712,9 +724,9 @@ The goal’s owner, or an admin.
 
 ### Reviews
 
-`reviews`. A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said.
+`reviews`, from the reviews module. A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said.
 
-Routes: `/reviews`, `/reviews/new`, `/reviews/:reviewId`, `/reviews/:reviewId/edit`, `/reviews/:reviewId/summary`, `/review`, `/goals/:goalId?review=*`. Screens: `Review`, `Inspect`. Requirements: `REVIEW`, `REVIEW-SETUP`, `REVIEW-RUN`, `REVIEW-DECIDE`, `INSPECT-ACT`, `REVIEW-LIST-STATE`, `REVIEW-AGENDA`, `EXCEPTIONS-FIRST`, `REVIEW-SPEAK`.
+Routes: `/reviews`, `/reviews/new`, `/reviews/:reviewId`, `/reviews/:reviewId/edit`, `/reviews/:reviewId/summary`, `/reviews/:reviewId/print`, `/review`, `/goals/:goalId?review=*`. Screens: `Review`, `Inspect`. Requirements: `REVIEW`, `REVIEW-SETUP`, `REVIEW-RUN`, `REVIEW-DECIDE`, `INSPECT-ACT`, `REVIEW-LIST-STATE`, `REVIEW-AGENDA`, `EXCEPTIONS-FIRST`, `REVIEW-SPEAK`.
 
 #### What it’s for
 
@@ -955,7 +967,7 @@ Whoever made the import, or an admin. Everyone else sees the list without Undo.
 
 `print`. A goal or a review session on one clean page, ready to print or save as a PDF.
 
-Routes: `/goals/:goalId/print`, `/reviews/:reviewId/print`. Screens: `Print`. Requirements: `PRINT-EXPORT`.
+Routes: `/goals/:goalId/print`. Screens: `Print`. Requirements: `PRINT-EXPORT`.
 
 #### How to use it
 
@@ -1296,17 +1308,20 @@ On a phone’s home screen and in the browser tab, the F sits on a deep-teal til
 
 ### Features: switching parts of Faro on or off
 
-`features`. Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus features an admin can switch on or off for a workspace, such as Spreadsheets.
+`features`. Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace: how you work (Reviews) and tools such as the Metric library and Spreadsheets.
 
-Routes: `/workspace/features`. Requirements: `MODULES`.
+Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`.
 
 #### How to use it
 
-- On Workspace, Features lists the optional parts of Faro this workspace can use, each with what it does; About says which are on, from the same list. Goals, check-ins, reviews and people are the core and always on. Each has a switch with On or Off beside it; switch one off for everyone here; tick it to switch it back on.
-- Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.
-- Nothing a feature saved is deleted. Switch it back on and everything is as it was.
+- On Workspace, Features says how this workspace works and lists the optional parts of Faro, each with what it does; About says which are on, from the same list. Goals, check-ins and people are the core and always on.
+- How you work holds Reviews: walking a set of goals together on a cadence. While it is on, it says how many reviews are set up. Tools holds the rest, such as the Metric library and Spreadsheets. Each has a switch with On or Off beside it.
+- Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching a tool off, or anything on, acts at once.
+- Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.
+- With Reviews off, asks and next steps stay on their goals and on Home, each goal’s History and Activity keep what was said in reviews, and check-ins are still due by the same day.
+- Nothing a feature saved is deleted. Switch it back on and everything is as it was: every review, its people, its cadence and what was said. A session whose date passed while Reviews was off isn’t said to be not held.
 - Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.
-- Spreadsheets is the first feature: Export and Import on Data, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says.
+- Spreadsheets is one of the tools: Export and Import on Data, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says.
 
 #### Who can
 
