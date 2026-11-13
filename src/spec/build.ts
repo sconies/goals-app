@@ -21,6 +21,7 @@ import { RULE_PAGES, systemOverview } from './overview';
 import { checks, coreRoutes, moduleFacts, read, requirements, screenParts, testIndex, type Check, type Repo, type Requirement, type TestCase } from './sources';
 import { internalFiles, wrongInternalExamples } from './internal';
 import { scaleFiles } from './scaleKit';
+import { readsPage } from './readsPage';
 import { rebuildFiles, STAGE_FILES, stages, type ModuleWithRebuild, type Stage, type Stage1Files } from './rebuild';
 import { ZONE_HEADER } from './zones';
 import { CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, FIND_HEADER, GOALS_HEADER, HEADERS, HOME_HEADER, IMPORT_HEADER, CHANGES_HEADER, MODULE_FILES, NAV_HEADER, READBACK_HEADER, type ConformanceWorkspace } from './conformance';
@@ -584,6 +585,7 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   const later = Object.fromEntries([...STAGE_FILES[2], ...STAGE_FILES[3]].map((f) => [f, { rows: files[`${f}.csv`]!.trimEnd().split('\n').length - 1, header: files[`${f}.csv`]!.split('\n')[0]!.split(',') }]));
   Object.assign(out, rebuildFiles(mods as ModuleWithRebuild[], rows, read(r, 'scripts/drill.mjs'), JSON.parse(read(r, 'scripts/browser-storage.json')).files, later));
   Object.assign(out, scaleFiles(out['spec/conformance/workspace.json']!, read(r, 'scripts/seed.mjs')));
+  out['spec/rebuild/reads.md'] = await readsPage();
   Object.assign(out, await databaseFiles(root));
   return out;
 }

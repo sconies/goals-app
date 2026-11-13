@@ -1,6 +1,6 @@
 # Track 6 handover: the handoff kit (KT)
 
-Written 12 Nov 2026 by the first track 6 session and updated by the second to seventh (the seventh did KT9 and KT10). The next session starts from here.
+Written 12 Nov 2026 by the first track 6 session and updated by the second to eighth (the seventh did KT9 and KT10; the eighth KT11). The next session starts from here.
 
 ## The brief
 
@@ -87,6 +87,11 @@ The ground rules:
   - **Rule page:** weeks-and-plans says the zone is a parameter, with a worked example (New York against UTC). R3's "Required" examples now run.
   - **zone.csv:** its input is `zone` in `workspace.json` (`ZONE_CASE`: New York, check-ins near midnight, the night the clocks go back). It is scored when asked (`ALSO` and `KEYS` in `scripts/drill.mjs`; drill-faro asks for it).
 
+- **KT11, gap 9.** Scale can be accepted (two PRs: #304, then this one):
+  - **The seed:** `scripts/seed.mjs` → `spec/rebuild/seed.mjs`. It copies `workspace.json` 239 times (30,114 goals, 1.25 million check-ins), one division per copy, and gives the same files byte for byte on every run (`seed.json` holds the SHA-256s). Tests: `src/spec/seed.test.ts`.
+  - **`spec/rebuild/scale.md`** (`src/spec/scaleKit.ts`): the seed; the week's turn (budget `TURN` in `src/spec/scale.ts`: within 15 minutes and by 06:00, with 30 s of rule time for 30,000 goals projected by `scale.test.ts`, 9.6 s today; a switch in one step; the line "Statuses are as of week n"); and being handled worked out from one goal's records. R4's rule 2, example and checks say the same.
+  - **`spec/rebuild/reads.md`** (`src/spec/reads.ts`, `readsRun.ts`, `readsSamples.ts`, `readsPage.ts`): every action is run on the demo with each list wrapped, and the page records which records it used and which lists it read whole. `goalSlice` proves that every goal's summary row, being handled included, comes out the same from its own records as from the whole workspace. A new action needs a sample in `readsSamples.ts`, or `reads.test.ts` fails.
+
 ## Next, in order
 
 1. **Gap 1, part (b), the rest: the goals and store contracts as data** (search and prefs are done: KT3). Agreed with track 4 (`session_012kbr8yGf2m8ghRQungzjo3`; also `session_012kbr8xdoEbLiMQaBAxLeuJ` for #193's follow-ups):
@@ -102,7 +107,7 @@ The ground rules:
      - Keep the names of the goals contract's four structural checks: `ports-at-scale.md` cites them.
 2. **Gap 5: done (KT7).** Requirements R5, R7, R8, R9 and R10 (accessibility).
    - **R5 (from the planning session, 12 Nov):** spec only, written as `docs/reviews/2026-11-12-muse-product-evaluation.md` describes. It covers digests (with their wording as worked examples), never shaming, streaks that forgive, the habit measure ("% of goals checked in before the review, without a nudge"), one sign-in with a role per workspace, Feedback scoped per workspace, and Slack and Teams as a platform requirement. Faro itself sends nothing.
-3. **Gap 9:** the last one (gap 6 is done: KT1 and KT8; gap 7: KT9; gap 8: KT10).
+3. **Gap 9: done (KT11).** Every gap but 1(b)'s goals and store contracts is done; those wait on track 4.
 
 ## Things to know
 
