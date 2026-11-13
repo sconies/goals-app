@@ -152,12 +152,12 @@ describe('readable goal keys', () => {
     expect(JSON.parse(found.text).goals[0]).toMatchObject({ key: 'G-6', id: 'lead-merge', title: expect.stringMatching(/^Merge-to-deploy time/) });
     const full = await mateo.call('get_goal', { goal_id: 'g-102' });
     expect(full.data!.goal).toMatchObject({ id: 'env-search', key: 'G-102' });
-    expect((await mateo.call('post_check_in', { goal_id: 'G-49', value: 61, cause: 'Change landed early', why: 'Rules tuned for the noisiest services', path_to_green: 'Add two reviewers on call', back_on_plan_by_week: 48, dry_run: true })).text).toMatch(/Checked, not saved/);
+    expect((await mateo.call('post_check_in', { goal_id: 'G-49', value: 61, cause: 'Change landed early', why: 'Rules tuned for the noisiest services', path_to_green: 'Add two reviewers on call', back_on_plan_by_week: 48, reason: 'The first number was misread', dry_run: true })).text).toMatch(/Checked, not saved/);
     expect((await mateo.call('add_comment', { goal_id: 'G-6', text: 'Looking better this week' })).error).toBe(false);
     expect(mateo.data().changes.at(-1)!.goalId).toBe('lead-merge');
     expect((await mateo.call('watch', { kind: 'goal', ref: 'G-1' })).text).toMatch(/Watching Lead time for changes/);
     expect(mateo.data().watches.at(-1)!.ref).toBe('ns-lead');
-    expect((await mateo.call('bulk_change', { check_ins: [{ 'Goal key': 'G-41', Week: week, Value: 80, Cause: 'Change landed early', Why: 'Warm caches on the new runners', 'Path to green': 'Add two reviewers on call', 'Back on plan by week': 48 }] })).text).toMatch(/Checked, not saved/);
+    expect((await mateo.call('bulk_change', { check_ins: [{ 'Goal key': 'G-41', Week: week, Value: 80, Cause: 'Change landed early', Why: 'Warm caches on the new runners', 'Path to green': 'Add two reviewers on call', 'Back on plan by week': 48 }], reason: 'The first number was misread' })).text).toMatch(/Checked, not saved/);
     const missing = await mateo.call('get_goal', { goal_id: 'G-404' });
     expect([missing.error, missing.text]).toEqual([true, expect.stringMatching(/no goal with key G-404/)]);
   });

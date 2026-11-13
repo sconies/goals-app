@@ -655,7 +655,7 @@ function undoPlan(x: ActionContext, importId: string): { commit: Commit; restore
     + requests.filter((r) => ownAsks.has(r.id)).length;
   changes.unshift(log(x, {
     entity: 'workspace', entityId: importId, action: 'undone', importId,
-    summary: `Undid ${entry!.summary.replace(/:.*$/, '').toLowerCase()}: ${plural(restored, 'row', 'rows')} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ''}`,
+    summary: `Undid ${/^Corrected a check-in\b/.test(entry!.summary) ? 'a correction' : entry!.summary.replace(/:.*$/, '').toLowerCase()}: ${plural(restored, 'row', 'rows')} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ''}`,
     diffs: [{ field: 'Import', from: entry!.summary, to: 'Undone' }, ...(skipped.length ? [{ field: 'Skipped', from: '—', to: skipped.map(keptText).join('; ') }] : [])],
   }));
   return { restored, skipped, commit: { ...(goals.length ? { goals } : {}), ...(checkIns.length ? { checkIns } : {}), ...(people.length ? { people } : {}), ...(requests.length ? { requests } : {}), ...(reviews.length ? { reviews } : {}), ...(teams.length ? { teams } : {}), ...(removeTeams.length ? { removeTeams } : {}), changes } };
@@ -697,7 +697,8 @@ export function importName(entry: Change): string {
   if (file) return file;
   const via = entry.diffs.find((d) => d.field === 'Via')?.to;
   // A check-in corrected on its own screen carries no Via mark (CK1): its summary says so.
-  if (via === VIA_LABEL.form || (!via && /^Corrected a check-in\b/.test(entry.summary))) return 'A corrected check-in';
+  // Past imports names the goal, the week and the numbers where the entry has them (review of #225, lows).
+  if (via === VIA_LABEL.form || (!via && /^Corrected a check-in\b/.test(entry.summary))) return entry.summary.includes(' · ') ? `A corrected check-in: ${entry.summary.replace(/^Corrected a check-in: /, '')}` : 'A corrected check-in';
   if (via === VIA_LABEL.bulk) {
     // Bulk edits are made on Goals, People (emails) and the quick check-in: named by what they wrote.
     const u = entry.undo;

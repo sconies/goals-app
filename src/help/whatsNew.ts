@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'correct-means-one-thing',
+    date: '2026-11-13',
+    title: 'Correcting a check-in means one thing everywhere',
+    points: [
+      'Correct it, from the week’s list or the receipt, opens the correction with what the check-in said, so you change only what was wrong.',
+      'Changing a week’s check-in in Data’s tables or through the AI assistant asks why first, as the form does, and History says “Corrected week 45” with your reason.',
+      'A correction that changes only the words says what it changed, never “37 hours is now 37 hours”. After Undo, History no longer says the week was corrected.',
+      'A half-written correction keeps its reason when you come back to it. A cycle that has ended can’t be corrected from the form.',
+    ],
+    articles: ['check-in'],
+  },
+  {
     id: 'make-it-proposed-again',
     date: '2026-11-13',
     title: 'Make a goal proposed again',
