@@ -1143,7 +1143,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 ## create_goal
 
-**Add a goal.** Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with "confirm": true (a name another goal in its team has is asked through "answers").
+**Add a goal.** Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. A goal for someone else with no state is asked about once (start it active, or proposed): ask the person, or give state. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with "confirm": true (a name another goal in its team has is asked through "answers").
 
 **Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
 

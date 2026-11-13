@@ -117,7 +117,13 @@ describe('bulk changes', () => {
     expect(mateo.issues[0]!.message).toMatch(/Only Tariq Haddad \(its owner\) or an admin/);
     expect(mateo.commit).toBeNull();
     // Lane, 11 Nov: anyone may add a goal for anyone, at any level, at every door (domain/goalRights mayAddGoal).
-    expect(real(planChanges(base('mateo', { goals: [rec({ Goal: 'Something new', Owner: 'Tariq Haddad', Unit: 'days', Start: '1', Target: '2' })] })))).toEqual([]);
+    // For someone else, with no State, it is asked once whether it starts active (GE10, decision 16); answered, it saves.
+    const forTariq = { goals: [rec({ Goal: 'Something new', Owner: 'Tariq Haddad', Unit: 'days', Start: '1', Target: '2' })] };
+    expect(real(planChanges(base('mateo', forTariq))).map((i) => i.kind)).toEqual(['for-someone-else']);
+    const proposedFor = planChanges(base('mateo', forTariq, { answers: { 'for-someone-else:goals:state:for-someone-else': { choice: 'proposed' } } }));
+    expect(real(proposedFor)).toEqual([]);
+    expect(proposedFor.commit!.goals![0]).toMatchObject({ ownerId: 'tariq', proposedBy: 'mateo' });
+    expect(real(planChanges(base('mateo', { goals: [rec({ ...forTariq.goals[0]!, state: 'active' })] })))).toEqual([]);
   });
 
   it('asks for a reason when a plan changes after check-ins started', () => {
