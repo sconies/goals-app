@@ -32,8 +32,14 @@ export function WeekPick({ cycle, week, field, label, value, onChange, from, lab
   /** What was typed and can't be chosen: 'unread' (not a week or a date) or 'outside' (a week this field doesn't offer). */
   const [unread, setUnread] = useState<'' | 'unread' | 'outside'>('');
   const start = value != null && value >= choices.min && value <= choices.max ? value : Math.max(choices.min, Math.min(choices.max, week));
-  const [at, setAt] = useState(start);
-  const [shownYear, setShownYear] = useState(yearWeek(cycle, start).year);
+  const [at, setAtState] = useState(start);
+  // The highlighted week, read by the keys: keys pressed faster than a render (a slow phone) each move on from the last,
+  // not from the week the last render saw (U109).
+  const atNow = useRef(start);
+  const setAt = (n: number) => { atNow.current = n; setAtState(n); };
+  const [shownYear, setShownState] = useState(yearWeek(cycle, start).year);
+  const shownNow = useRef(shownYear);
+  const setShownYear = (y: number) => { shownNow.current = y; setShownState(y); };
   const wrap = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLUListElement>(null);
@@ -66,6 +72,9 @@ export function WeekPick({ cycle, week, field, label, value, onChange, from, lab
     if (n != null && n >= choices.min && n <= choices.max) move(n);
   };
   const keyOnList = (e: KeyboardEvent<HTMLElement>) => {
+    const at = atNow.current;
+    const shownYear = shownNow.current;
+    const year = choices.years.find((y) => y.year === shownYear) ?? choices.years[0];
     const yearOf = (y: number) => choices.years.find((x) => x.year === y);
     const k = e.key;
     if (k === 'ArrowDown') move(at + 1);

@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'week-picker-quick-keys',
+    date: '2026-11-13',
+    title: 'The week picker keeps up with quick arrow keys',
+    points: [
+      'Pressing an arrow key several times quickly in a week list now moves one week per press, even on a slow phone.',
+      'Before, quick presses could land a few weeks short, so Enter chose a different week from the one you meant.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
     id: 'import-check-close',
     date: '2026-11-13',
     title: 'Checking an import has a way out on a phone',
