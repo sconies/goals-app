@@ -22,6 +22,7 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`post_check_in`](#post_check_in) | Post a check-in | changes | [planChanges](actions.md#planchanges), [postCheckIn](actions.md#postcheckin) |
 | [`update_goal`](#update_goal) | Change a goal | changes | [planChanges](actions.md#planchanges), [saveGoal](actions.md#savegoal) |
 | [`make_goal_active`](#make_goal_active) | Make a proposed goal active | changes | [activate](actions.md#activate) |
+| [`make_goal_proposed`](#make_goal_proposed) | Make an active goal proposed again | changes | [backToProposed](actions.md#backtoproposed) |
 | [`create_goal`](#create_goal) | Add a goal | changes | [planChanges](actions.md#planchanges), [saveGoal](actions.md#savegoal) |
 | [`set_plan_numbers`](#set_plan_numbers) | Set plan numbers by hand | changes | [planChanges](actions.md#planchanges), [saveGoal](actions.md#savegoal) |
 | [`add_comment`](#add_comment) | Comment on a goal | changes | [addNote](actions.md#addnote) |
@@ -1089,9 +1090,60 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 **Does the same as:** [activate](actions.md#activate), so it refuses with their words too.
 
+## make_goal_proposed
+
+**Make an active goal proposed again.** Its owner or an admin: make an active goal with no check-ins proposed again (GE10). It then has no status and nothing due until it is made active (make_goal_active). A goal with check-ins can’t go back: stop it instead (stop_goal). Use dry_run first and say the change to the person.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `goal_id` | string | yes | The goal’s ID or its key, e.g. G-12. |
+| `dry_run` | boolean | no | Check the change without saving it. Use it to see what would change, or what is missing. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "goal_id"
+  ],
+  "properties": {
+    "goal_id": {
+      "type": "string",
+      "description": "The goal’s ID or its key, e.g. G-12."
+    },
+    "dry_run": {
+      "type": "boolean",
+      "description": "Check the change without saving it. Use it to see what would change, or what is missing."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{
+    saved: boolean;
+}
+```
+
+**Refuses with:**
+
+- “There's no goal with … … in …. Use find_goals to get IDs and keys.”
+
+**Does the same as:** [backToProposed](actions.md#backtoproposed), so it refuses with their words too.
+
 ## create_goal
 
-**Add a goal.** Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with "confirm": true (a name another goal in its team has is asked through "answers").
+**Add a goal.** Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. A goal for someone else with no state is asked about once (start it active, or proposed): ask the person, or give state. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with "confirm": true (a name another goal in its team has is asked through "answers").
 
 **Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
 
@@ -4762,7 +4814,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 ## get_metric
 
-**Read a metric.** One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).
+**Read a metric.** One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the parts its goals use (`parts`, most used first); the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).
 
 From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
@@ -5175,8 +5227,8 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `goal` | string | yes | The goal’s ID or key (G-12). |
 | `metric` | string | no | The metric’s ID or name. Required unless unlinking. |
 | `team` | string | no | The slice: a team by ID or name. Leave out for the whole company. |
-| `part` | string | no | Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them. |
-| `reason` | string | no | Why the goal is measured differently now. Required when a goal with check-ins changes its metric, team or part; it shows in the goal’s History. |
+| `part` | string | no | Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them under parts. |
+| `reason` | string | no | Why the goal is measured differently now. Required when a goal with check-ins is measured differently from its last link (another metric, team or part, even after unlinking); it shows in the goal’s History. |
 | `answers` | object | no | Answers to the checks a first call returned: part ("keep" or "use:<part>"), others ("carry-on": another goal already measures the same number). |
 | `answers.part` | string | no |  |
 | `answers.others` | string | no |  |
@@ -5206,11 +5258,11 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
     },
     "part": {
       "type": "string",
-      "description": "Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them."
+      "description": "Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them under parts."
     },
     "reason": {
       "type": "string",
-      "description": "Why the goal is measured differently now. Required when a goal with check-ins changes its metric, team or part; it shows in the goal’s History."
+      "description": "Why the goal is measured differently now. Required when a goal with check-ins is measured differently from its last link (another metric, team or part, even after unlinking); it shows in the goal’s History."
     },
     "answers": {
       "type": "object",

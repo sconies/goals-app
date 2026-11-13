@@ -59,6 +59,7 @@ export const ISSUE_KINDS: Record<IssueKind, KindRule> = {
   'totals-row': { when: 'A row called Total, Totals or Sum with no owner.' },
   'big-removal': { when: 'Five or more rows say Stop, Delete or Left.' },
   'feeds-lower': { when: 'A goal that feeds a goal at a lower level than its own.' },
+  'for-someone-else': { when: 'New goals for other people with no State: asked once per file whether they start active or proposed (GE10, decision 16). Set-up never asks; confirm answers active.' },
   // Said
   'by-name': { when: 'An owner or person given by name alone, matched to exactly one person (an email column is exact).' },
   default: { when: 'A cell left empty on a new goal, filled with its default: the owner’s team, or the type read from the columns filled in.' },

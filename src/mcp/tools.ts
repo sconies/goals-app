@@ -35,7 +35,7 @@ import { addColumnParams } from '../domain/query';
 import { commentsOf } from '../domain/removal';
 import { findGoal, isKey } from '../domain/goalKey';
 import { isProposed, withProposed } from '../domain/proposed';
-import { activate } from '../domain/proposedActions';
+import { activate, backToProposed } from '../domain/proposedActions';
 import { proposedSummary } from '../domain/proposedSummary';
 import { activeReadBack } from '../domain/readBack';
 import { readWeekCode } from '../domain/weeks';
@@ -455,9 +455,24 @@ const CORE_TOOLS: ToolDef[] = [
     },
   },
   {
+    name: 'make_goal_proposed',
+    title: 'Make an active goal proposed again',
+    description: 'Its owner or an admin: make an active goal with no check-ins proposed again (GE10). It then has no status and nothing due until it is made active (make_goal_active). A goal with check-ins can’t go back: stop it instead (stop_goal). Use dry_run first and say the change to the person.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), dry_run: DRY } },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    async run(a, ctx) {
+      const g = goalRef(ctx, a.goal_id);
+      let out;
+      try { out = backToProposed(ctx, { goalId: g.id }); } catch (e) { if (e instanceof NotAllowed) return { isError: true, text: e.message }; throw e; }
+      if (a.dry_run) return { data: { saved: false }, text: `Checked, not saved (dry run). “${g.title}” would be proposed again: no status and nothing due until it is made active.` };
+      await ctx.save({ ...out.commit, changes: out.commit.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA_MCP] })) });
+      return { data: { saved: true }, text: `“${g.title}” is proposed again (as ${ctx.actor.name}). It has no status and nothing due until it is made active.` };
+    },
+  },
+  {
     name: 'create_goal',
     title: 'Add a goal',
-    description: 'Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with "confirm": true (a name another goal in its team has is asked through "answers").',
+    description: 'Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. A goal for someone else with no state is asked about once (start it active, or proposed): ask the person, or give state. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with "confirm": true (a name another goal in its team has is asked through "answers").',
     inputSchema: { type: 'object', additionalProperties: false, required: ['title', 'type'], properties: { type: str('What kind of goal.', { enum: ['metric', 'range', 'milestone'] }), ...GOAL_FIELDS, confirm: CONFIRM, answers: ANSWERS_ARG, dry_run: DRY } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     async run(a, ctx) {
