@@ -56,6 +56,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the IM2 review, fixed in IM3 › a rename by key through MCP is a rename, and confirm answers the other-goal question
 - the IM2 review, fixed in IM3 › “Leave these rows out” leaves out a non-admin’s Left row
 - the IM2 review, fixed in IM3 › undoing an import that added a team removes the team again
+- the IM3 and #257 reviews, fixed later › a row that must be fixed is counted as Must fix on its sheet, not as Added
+- the IM3 and #257 reviews, fixed later › one helper says what a change does, for the counts and the changes list alike
+- the IM3 and #257 reviews, fixed later › with two goals sharing a key, the key names the first in the list, as a scan does, even after either changes
 
 ### [src/domain/roundtrip.test.ts](../../../src/domain/roundtrip.test.ts)
 

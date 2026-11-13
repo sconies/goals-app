@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { goalsIn } from '../domain/review';
 import { serve, type Deps } from '../../server/mcp';
 import { applyCommit } from '../data/store';
 import { buildPlatformOrg } from '../data/platformOrg';
@@ -157,6 +158,14 @@ describe('MCP server', () => {
     expect(c.authorId).toBe('mateo');
     expect(data().changes.at(-2)!.diffs).toEqual(expect.arrayContaining([{ field: 'Via', from: '—', to: 'MCP' }]));
     expect(touched()).toBeGreaterThan(0);
+    // The week now has a check-in, so posting it again corrects it: refused without a reason, saved with one (#225's review).
+    const again = await call('post_check_in', { goal_id: 'mttr-pir', value: onPlan + 1 });
+    expect(again.isError).toBe(true);
+    expect(again.content[0]!.text).toMatch(/corrects it, which needs a reason.*call again with "reason"/);
+    const fixed = await call('post_check_in', { goal_id: 'mttr-pir', value: onPlan + 1, reason: 'The first number was misread' });
+    expect(fixed.isError).toBe(false);
+    expect(data().checkIns.filter((x) => x.goalId === 'mttr-pir' && x.week === NOW && !x.removedAt).map((x) => x.value)).toEqual([onPlan + 1]);
+    expect(data().changes.flatMap((ch) => ch.diffs ?? [])).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'Why corrected', to: 'The first number was misread' })]));
   });
 
   it('can’t change someone else’s goal, unless the person is an admin', async () => {
@@ -188,6 +197,13 @@ describe('MCP server', () => {
     const yes = await call('update_goal', { ...args, confirm: true });
     expect(yes.isError).toBe(false);
     expect((data().goals.find((x) => x.id === 'mttr-pir') as MetricGoal).plan.target).toBe(flipped);
+  });
+
+  it('keeps Import’s size limit: more rows than one file may have are refused before they are checked (#257 review)', async () => {
+    const { call } = await setup('amara');
+    const out = await call('bulk_change', { check_ins: Array.from({ length: 30_001 }, () => ({ 'Goal ID': 'mttr-pir', Week: 1, Value: 1 })) });
+    expect(out.isError).toBe(true);
+    expect(out.content[0]!.text).toBe('Not checked. This call has 30,001 rows. Faro reads up to 30,000 in one call. Send them in parts.');
   });
 
   it('checks a bulk change first and saves only with apply', async () => {
@@ -312,6 +328,13 @@ describe('MCP server', () => {
     expect(refused.isError).toBe(true);
     await call('review_call', { review_id: 'devprod', goal_id: 'lead-mq', kind: 'accept', text: 'The vendor fix lands next release; nothing we can do sooner.' });
     expect(data().decisions.at(-1)!.note).toBe('We accept the risk: The vendor fix lands next release; nothing we can do sooner.');
+    // Only about a goal the review walks (build review of #322): one outside it is refused, and nothing is saved.
+    const outside = data().goals.find((g) => !goalsIn(data().reviews.find((r) => r.id === 'devprod')!.scope, data().goals).some((v) => v.id === g.id))!;
+    const before = data().decisions.length;
+    const off = await call('review_call', { review_id: 'devprod', goal_id: outside.id, kind: 'acknowledge' });
+    expect(off.isError).toBe(true);
+    expect(off.content[0]!.text).toContain('doesn’t cover');
+    expect(data().decisions.length).toBe(before);
     await call('add_action', { goal_id: 'lead-review-rota', text: 'Audit CODEOWNERS for payments', who: 'Rhea Kapoor', due_week: 48 });
     const a = data().requests!.at(-1)!;
     expect(a).toMatchObject({ kind: 'action', recipientId: 'rhea', dueWeek: 48, ask: 'Audit CODEOWNERS for payments' });

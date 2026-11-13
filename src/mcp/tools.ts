@@ -9,7 +9,8 @@ import { scopesFor, SCOPES, type Scope } from '../domain/goalsPage';
 import { localSearch } from '../adapters/localSearch';
 import type { FoundRow, Search, SearchAsk } from '../ports/search';
 import type { Commit } from '../data/store';
-import { describe, examplesLine, GOAL_QUESTION, planChanges, VIA_MCP, type Answers, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
+import { describe, examplesLine, GOAL_QUESTION, MIN_CORRECT_REASON, planChanges, VIA_MCP, type Answers, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
+import { tooLarge, tooManyChanges } from '../domain/importLimits';
 import { aiBrief, toJson } from '../domain/export';
 import { GOAL_ACTION_WORDS, PERSON_ACTION_WORDS } from '../domain/columns';
 import { goalScorecard } from '../domain/scorecard';
@@ -140,6 +141,9 @@ const answersOf = (a: unknown): Answers => Object.fromEntries(Object.entries((a 
 const FIND_PAGE = 50, FIND_MAX = 200;
 
 async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown }): Promise<ToolResult> {
+  // The size limits every door keeps (domain/importLimits): rows read in one call, then changes saved at once.
+  const big = tooLarge('This call', { rows: (tables.goals?.length ?? 0) + (tables.plan?.length ?? 0) + (tables.checkIns?.length ?? 0) + (tables.people?.length ?? 0) }, 'call');
+  if (big) return { isError: true, text: `Not checked. ${big}` };
   // A goal's key: as saved once it is, as the change gives it before (a dry run's key is the one it would get).
   const keyOf = (id: string): string | null => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
   const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason, confirm: opts.confirm, answers: answersOf(opts.answers), records: recordsOn(ctx.ws) });
@@ -173,7 +177,11 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
   const createdLine = () => (data.created.length ? `\nNew ${data.created.length === 1 ? 'goal' : 'goals'}: ${data.created.map((x) => [x.key ?? '—', x.id, x.title].filter(Boolean).join(' · ')).join('; ')}.${data.saved ? '' : ' Each gets its ID when it is saved; a key is kept unless another goal takes it first.'}` : '');
   const lines = (l: { goal: string; message: string }[]) => l.map((x) => `- ${x.goal ? x.goal + ': ' : ''}${x.message}`).join('\n');
   if (errors.length) return { isError: true, data, text: `Not saved. Must fix:\n${lines(errors.map((x) => ({ goal: x.name, message: x.message })))}` };
-  if (cs.needsReason) return { isError: true, data, text: 'Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".' };
+  if (cs.needsReason) {
+    // A plan change once check-ins have started, or a week's check-in replaced (a correction, as on screen): each says why.
+    const why = [cs.items.some((x) => x.needsReason && x.kind !== 'replaces check-in') && 'check-ins have started, so a plan change needs a reason', cs.items.some((x) => x.needsReason && x.kind === 'replaces check-in') && `changing a week’s check-in corrects it, which needs a reason of at least ${MIN_CORRECT_REASON} characters`].filter(Boolean).join('; and ');
+    return { isError: true, data, text: `Not saved: ${why}. Ask the person why, then call again with "reason".` };
+  }
   // Questions the person must answer: goal entry's, then any of the import's, each with how to answer it.
   const asked = data.questions.length ? `Not saved. Check with the person first:\n${lines(data.questions.map((x) => ({ goal: x.goal, message: x.question })))}\nIf they say yes to each, call again with "confirm": true.` : '';
   if (asked && !checks.length) return { isError: true, data, text: asked };
@@ -182,6 +190,8 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
   const examples = cs.examples ? ` ${examplesLine(cs.examples)}` : '';
   if (!cs.items.length) return { data, text: `Nothing to change: it already says that.${examples}` };
   const what = `${describe(cs)}.${notes.length ? `\nRead as:\n${lines(notes.map((x) => ({ goal: x.name, message: x.message })))}` : ''}${cs.leftOut.length ? `\nLeft out at the person's answer: ${cs.leftOut.length} row(s).` : ''}${examples ? `\n${examples.trim()}` : ''}`;
+  const tooMany = tooManyChanges(cs.items.length);
+  if (tooMany && !opts.dry) return { isError: true, data, text: `Not saved. ${tooMany} Send the rows in parts, a goal's plan and check-ins with it.` };
   if (opts.dry || !cs.commit) {
     data.created = added.map((x) => ({ id: null, key: keyOf(x.goalId), title: x.goal }));
     // A dry run's IDs are not the ones a save makes, so no new goal's ID is given before it exists (#242's review).
@@ -377,6 +387,7 @@ const CORE_TOOLS: ToolDef[] = [
       back_on_plan_by_week: int('With a plan: the week it is back on plan by.'),
       needs: str('A decision or help needed, and from whom.'),
       next_step: str('The next step.'),
+      reason: str(`If the week already has a check-in, this corrects it: why, in a sentence (${MIN_CORRECT_REASON} to 500 characters), kept as “Why corrected”.`),
       answers: ANSWERS_ARG,
       dry_run: DRY,
     } },
@@ -384,7 +395,7 @@ const CORE_TOOLS: ToolDef[] = [
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
       const r = row({ ...a, goal_id: g.id, week: a.week ?? ctx.week, call: a.call == null || a.call === '' ? undefined : statusIn(a.call, CALLS) }, { goal_id: 'goal id', week: 'week', value: 'value', stages: 'stages', call: 'call', cause: 'cause', why: 'why', why_greener: 'why greener', path_to_green: 'path to green', recovery: 'recovery', back_on_plan_by_week: 'back on plan by week', needs: 'needs', next_step: 'next step' });
-      return change(ctx, { checkIns: [r] }, { dry: !!a.dry_run, answers: a.answers });
+      return change(ctx, { checkIns: [r] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, answers: a.answers });
     },
   },
   {

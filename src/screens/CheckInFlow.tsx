@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { correctReasonAsk, correctReasonOk, MAX_CORRECT_REASON } from '../domain/correctReason';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { CheckInQueue } from './CheckInQueue';
 import { useApp } from '../app/state';
@@ -6,7 +7,7 @@ import { isProposed } from '../domain/proposed';
 import { NOTHING_TO_CHECK_IN } from '../domain/proposedActions';
 import { periodWord, quarterOf, isYear } from '../domain/year';
 import { checkInDraftKey, checkInStepKey, useDraft } from '../app/drafts';
-import { MIN_CORRECT_REASON, CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, checkInLevels, emptyDraft, evaluate, stepState, unanswered, MIN_PATH, MIN_REASON, numberCheck, parseNumber, previousFor, rebase, rebaseOffer, rebaseWhy, REASON_CODES, saidWhen, VALUE_CODES, type Draft, type Evaluation } from '../domain/checkin';
+import { draftFrom, CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, checkInLevels, emptyDraft, evaluate, stepState, unanswered, MIN_PATH, MIN_REASON, numberCheck, parseNumber, previousFor, rebase, rebaseOffer, rebaseWhy, REASON_CODES, saidWhen, VALUE_CODES, type Draft, type Evaluation } from '../domain/checkin';
 import { placesText, placesToKeep } from '../domain/numbers';
 import { answeredSince, askText, openFor } from '../domain/asks';
 import { forecastText } from '../domain/tree';
@@ -16,6 +17,7 @@ import { isEveryday, levelName } from '../domain/levels';
 import { daysToReview, onTimeStreak, weekCompletion, weekDoneText, weekProgress } from '../domain/progress';
 import type { CheckIn, Goal, Ask, MilestoneGoal, Status, RecoveryState } from '../domain/types';
 import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
+import { cycleState } from '../domain/cycle';
 import { PickOne } from '../ui/Pick';
 import { MetricChart } from '../ui/charts';
 import { RangeChart } from '../ui/rangeChart';
@@ -103,6 +105,8 @@ function Flow({ goalId }: { goalId?: string }) {
   if (!goal) return <div className="page narrow"><Empty title="That goal doesn’t exist"><Link className="btn" to="/">Home</Link></Empty></div>;
   // A proposed goal has nothing due (GE10): never offered, and said so when opened by its address.
   if (isProposed(goal)) return <div className="page narrow"><Empty title={NOTHING_TO_CHECK_IN}><Link className="btn primary" to={'/goals/' + goal.id}>Open the goal</Link></Empty></div>;
+  // A cycle that has ended can't be corrected here (check-in design 2.7): the engine refuses it too.
+  if (correcting && ['ended', 'closed'].includes(cycleState(app.cycle, app.today))) return <div className="page narrow"><Empty title={`${app.cycle.name} has ended`}><span className="muted">Its check-ins can’t be corrected here: they are what the wrap-up read.</span><Link className="btn primary" to={'/goals/' + goal.id}>Open the goal</Link></Empty></div>;
   if (goal.ownerId !== app.viewer.id) {
     const owner = app.person(goal.ownerId);
     return (
@@ -116,6 +120,8 @@ function Flow({ goalId }: { goalId?: string }) {
   }
 
   const next = () => { setJustPosted(null); setIndex((i) => i + 1); };
+  // Correcting only where this week has a check-in of the owner's: otherwise it's an ordinary check-in, headed as one.
+  const fixing = correcting && app.snapshot.checkIns.some((c) => c.goalId === goal.id && c.week === app.week && !c.removedAt);
   return (
     <>
     {noData && <NoDataSheet goal={goal} onClose={() => setNoData(false)} onDone={() => { walked(goal.id); setNoData(false); next(); }} />}
@@ -123,7 +129,7 @@ function Flow({ goalId }: { goalId?: string }) {
       <div className="focus-top">
         {/* The goal counter is words; the dots under the title are this goal's steps, so the two never look alike. */}
         {/* Which week it's for, from the first screen: corrections and late check-ins are where weeks get mixed up (U8). */}
-        <span className="small strong ci-week">{correcting ? 'Correct a check-in · ' : ''}Week {app.week} check-in{queue.length > 1 ? ` · ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
+        <span className="small strong ci-week">{fixing ? 'Correct a check-in · ' : ''}Week {app.week} check-in{queue.length > 1 ? ` · ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
         <span className="row ci-top-actions" style={{ gap: 'var(--s2)' }}>
           {drafting && !justPosted && <button type="button" className="linkish small ci-discard" onClick={() => discardRef.current()}>Discard draft</button>}
           <FormClose keeps onClose={() => nav(closeTo)} />
@@ -132,7 +138,7 @@ function Flow({ goalId }: { goalId?: string }) {
       {justPosted ? (
         <Posted goal={goal} c={justPosted} updated={updated} left={queue.length - index - 1} nextTitle={app.goal(queue[index + 1] ?? '')?.title} onNext={next} />
       ) : (
-        <GoalCheckIn key={goal.id + ':' + fresh} goal={goal} correct={correcting} onPosted={(c, updated) => { walked(goal.id); setUpdated(updated); setJustPosted(c); }} onSkip={goal.kind !== 'milestone' ? () => setNoData(true) : undefined} onDiscarded={() => { setDrafting(false); setFresh((n) => n + 1); }} onDrafting={setDrafting} discardRef={discardRef} />
+        <GoalCheckIn key={goal.id + ':' + fresh} goal={goal} correct={correcting} onPosted={(c, updated) => { walked(goal.id); setUpdated(updated); setJustPosted(c); }} onSkip={goal.kind !== 'milestone' && !fixing ? () => setNoData(true) : undefined} onDiscarded={() => { setDrafting(false); setFresh((n) => n + 1); }} onDrafting={setDrafting} discardRef={discardRef} />
       )}
     </div>
     </>
@@ -259,14 +265,17 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   const existing = [...own].reverse().find((c) => c.week === week) ?? null;
   // A correction replaces the week's newest check-in (mode `correct`); with none this week there is nothing to correct.
   const correcting = !!correct && !!existing;
-  const [reason, setReason] = useState('');
-  const reasonOk = reason.trim().length >= MIN_CORRECT_REASON;
+  // The reason is kept with the draft, so a correction reopened later still has it (review of #225, medium 5).
+  const [why, keepWhy, clearWhy] = useDraft<{ reason: string }>(checkInDraftKey(app.ws.id, goal.id, week) + ':correct:reason', () => ({ reason: '' }));
+  const reason = correcting ? why.reason : '';
+  const setReason = (v: string) => keepWhy({ reason: v });
+  const reasonOk = correctReasonOk(reason);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
   const nav = useNavigate();
   const previous = own[own.length - 1] ?? null;
   // What the new number is compared with: last week's, never this week's earlier check-in (rule 5).
   const lastNumber = previousFor(own, week).number;
-  const [draft, keep, clear, restored] = useDraft<Draft>(checkInDraftKey(app.ws.id, goal.id, week) + (correcting ? ':correct' : ''), () => emptyDraft(goal, previous));
+  const [draft, keep, clear, restored] = useDraft<Draft>(checkInDraftKey(app.ws.id, goal.id, week) + (correcting ? ':correct' : ''), () => (correcting && existing ? draftFrom(existing) : emptyDraft(goal, previous)));
   // Once something is typed it's a draft, and can be discarded.
   const [touched, setTouched] = useState(false);
   const set = (patch: Partial<Draft>) => { setTouched(true); keep(patch); };
@@ -285,7 +294,8 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   // Who a help request goes to, when the owner says they need a decision or help.
   const [helpFrom, setHelpFrom] = useState(() => app.snapshot.people.find((p) => draft.needs.startsWith(p.name + ':'))?.id ?? '');
   // The step is saved with the draft, so "pick up where you left off" returns to it.
-  const stepKey = checkInStepKey(app.ws.id, goal.id, week);
+  // A correction keeps its own step, apart from a second check-in's (review of #225, lows).
+  const stepKey = checkInStepKey(app.ws.id, goal.id, week) + (correcting ? ':correct' : '');
   const [step, setStepState] = useState<Step>(() => {
     if (!restored) return 'measure';
     try {
@@ -354,7 +364,8 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   const before = (): Step => { const i = plan.indexOf(step); return i > 0 ? plan[i - 1]! : 'measure'; };
   const back = () => { setStep(trail[trail.length - 1] ?? before()); setTrail((t) => t.slice(0, -1)); setTried(false); };
   // Something typed (or a draft picked up) can be thrown away: the check-in starts again from empty.
-  const discard = () => { clear(); try { localStorage.removeItem(stepKey); } catch { /* private mode */ } onDiscarded(); };
+  const forgetStep = () => { try { localStorage.removeItem(stepKey); } catch { /* private mode */ } };
+  const discard = () => { clear(); clearWhy(); forgetStep(); onDiscarded(); };
   discardRef.current = discard;
   useEffect(() => { onDrafting(restored || touched); }, [restored, touched]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -370,7 +381,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
       // The app names who it's for, so a "Elena:" typed at the start isn't doubled ("Elena Ruiz: Elena: ...").
       const ask = from ? d.ptgWhat.trim().replace(new RegExp(`^(${[from.name, from.name.split(' ')[0]!].map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\s*[:,–-]\\s*`, 'i'), '') : '';
       const c = await app.postCheckIn(goal, { ...d, proposeTarget: '', ...(from ? { ptgWhat: ask, needs: `${from.name}: ${ask}` } : {}) }, correcting ? 'correct' : existing ? 'again' : 'new', correcting ? reason.trim() : undefined);
-      clear();
+      clear(); clearWhy(); forgetStep();
       // A correction goes to the goal, where History shows it; the toast says what changed, with Undo.
       if (correcting) { nav(`/goals/${goal.id}`); return; }
       onPosted(c, !!existing);
@@ -397,6 +408,8 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
       if (needsAccount) go(canCarry ? 'carry' : 'account');
       else void post();
     } else if (step === 'account') {
+      // A correction's reason is asked on the first step: one reopened here without it goes back there to say it.
+      if (correcting && !reasonOk) { setTried(true); setStep('measure'); setTimeout(() => reasonRef.current?.focus(), 0); return; }
       if (!whyOk || !targetOk || !wayOk || !storyOk) { setTried(true); return; }
       void post();
     }
@@ -466,7 +479,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
       )}
       <GoalHead goal={goal} previous={existing ?? previous} compact={step !== 'measure'} teamLine={!isEveryday(app.cycle, goal.level) ? `${levelName(app.cycle, goal.level)} · ${team?.name ?? ''}` : team?.name} steps={{ at: stepNo, of: stepsOf }} />
       {existing && step === 'measure' && (correcting
-        ? <p className="hint">This replaces your week {week} check-in{goal.kind !== 'milestone' && existing.value != null ? ` (${fmt(existing.value, goal)})` : ''}. Its History keeps what it was, and why you changed it.</p>
+        ? <p className="hint">This replaces your {own.filter((c) => c.week === week).length > 1 ? 'latest ' : ''}week {week} check-in{goal.kind !== 'milestone' && existing.value != null ? ` (${fmt(existing.value, goal)})` : ''}. Its History keeps what it was, and why you changed it.</p>
         : <p className="hint">You checked in for week {week} already. This adds another check-in: both stay in the history, and the latest is this week’s status.</p>)}
       {restored && step === 'measure' && <p className="hint">Picked up where you left off.</p>}
 
@@ -531,7 +544,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
           })()}
           {valueOk && (goal.kind !== 'milestone' || draft.stages.length > 0) && (
             <>
-              {goal.kind !== 'milestone' && <Verdict goal={goal} e={e} />}
+              {goal.kind !== 'milestone' && <Verdict goal={goal} e={e} same={correcting && !!existing && draft.value.trim() === draftFrom(existing).value} />}
               <div className="callline">
                 <span className="muted">Status</span><Chip k={e.status} />
                 <span className="muted">{e.status === e.calc ? 'from the numbers' : 'your call'}</span>
@@ -546,9 +559,9 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
           {correcting && (
             <label className="field ci-correct-why">
               <span className="field-label">Why are you changing it?</span>
-              <textarea ref={reasonRef} className={'input' + (tried && !reasonOk ? ' invalid' : '')} rows={2} value={reason} onChange={(ev) => setReason(ev.target.value)}
+              <textarea ref={reasonRef} className={'input' + (tried && !reasonOk ? ' invalid' : '')} rows={2} maxLength={MAX_CORRECT_REASON} value={reason} onChange={(ev) => setReason(ev.target.value)}
                 placeholder="e.g. I read last week’s dashboard by mistake" aria-invalid={tried && !reasonOk} aria-describedby={tried && !reasonOk ? 'reason-msg' : undefined} />
-              {tried && !reasonOk && <MustFixLine id="reason-msg">Say why, in a sentence, so anyone reading week {week} later knows.</MustFixLine>}
+              {tried && !reasonOk && <MustFixLine id="reason-msg">{correctReasonAsk(week)}</MustFixLine>}
             </label>
           )}
         </section>
@@ -753,7 +766,8 @@ function GoalHead({ goal, previous, teamLine, compact, steps }: { goal: Goal; pr
 }
 
 /** What the number means, the moment it's typed: one sentence and a chart. */
-function Verdict({ goal, e }: { goal: Goal; e: Evaluation }) {
+/** `same`: a correction still showing the number it started from (the walkthrough waits for one typed). */
+function Verdict({ goal, e, same = false }: { goal: Goal; e: Evaluation; same?: boolean }) {
   const app = useApp();
   const a = e.assessment;
   const gap = gapText(goal, a);
@@ -771,7 +785,7 @@ function Verdict({ goal, e }: { goal: Goal; e: Evaluation }) {
   } else if (a.kind === 'range' && goal.kind === 'range') line = `${gap.long}. The limit is ${targetText(goal)}.`;
   const hasChart = a.kind !== 'milestone';
   return (
-    <div className="verdict" data-tone={gap.tone} role="status">
+    <div className="verdict" data-tone={gap.tone} data-same={same || undefined} role="status">
       <div className="verdict-head">
         <span className={'tone-' + gap.tone}>{title}</span>
         {hasChart && <button type="button" className="linkish tap small" aria-expanded={chart} onClick={() => setChart(!chart)}>{chart ? 'Hide chart' : 'Show chart'}</button>}

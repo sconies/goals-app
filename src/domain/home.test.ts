@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { askLead, homeFor, homeLead, quietLine, waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession } from './home';
+import { askLead, homeFor, homeLead, proposalLead, quietLine, waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession } from './home';
 
 /* Rule 2's worked examples (docs/design/home/spec.md): weekly, due Thursday 12 Nov, week 46 of 53. */
 const due = (n: number, number = true) => Array.from({ length: n }, (_, i) => ({ id: `g${i + 1}`, title: `Goal ${i + 1}`, number }));
@@ -148,5 +148,20 @@ describe('Home rule 3: an ask that waits', () => {
     const p = homeFor(facts({ today: '2026-11-09', asks: [w] }, { due: due(2) }));
     expect([p.lead?.kind, p.asks.length]).toEqual(['ask', 0]);
     expect(homeFor(facts({ today: '2026-11-11', asks: [w] }, { done: 1, due: due(1) })).lead?.kind).toBe('check-in');
+  });
+});
+
+describe('Home rank 60 after the asks: a goal proposed for you (goal entry rule 14)', () => {
+  const prop = (o: Partial<{ id: string; title: string; by: string; proposedOn: string }> = {}) => ({ id: 'g132', title: 'Signed artifacts in staging', by: 'Rhea', proposedOn: '2026-11-04', ...o });
+  it('leads once it has waited 7 days, oldest first, with Open it', () => {
+    const l = proposalLead([prop({ id: 'new', proposedOn: '2026-11-10' }), prop({ id: 'late', proposedOn: '2026-10-20' }), prop()], '2026-11-13');
+    expect([l?.kind, l?.eyebrow, l?.title, l?.line, l?.action, l?.about]).toEqual(['ask', 'Needs your response · waiting since 20 Oct, 3 weeks', 'Rhea proposed a goal for you', '“Signed artifacts in staging”. Nothing is due on it until you make it active.', { label: 'Open it', to: '/goals/late' }, 'late']);
+    expect(proposalLead([prop({ proposedOn: '2026-11-07' })], '2026-11-13')).toBeNull();
+  });
+  it('comes after any ask that leads, and after a check-in that does', () => {
+    const w = waiting(ask({ session: DP }), '2026-11-13');
+    expect(homeLead(facts({ today: '2026-11-13', asks: [w], proposals: [prop()] }, { done: 2 }))?.about).toBe(w.askId);
+    expect(homeLead(facts({ today: '2026-11-13', proposals: [prop()] }, { done: 1, due: due(1) }))?.kind).toBe('check-in-late');
+    expect(homeLead(facts({ today: '2026-11-13', asks: [waiting(ask({ askedOn: '2026-11-12' }), '2026-11-13')], proposals: [prop()] }, { done: 2 }))?.about).toBe('g132');
   });
 });

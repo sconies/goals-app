@@ -652,6 +652,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `back_on_plan_by_week` | integer | no | With a plan: the week it is back on plan by. |
 | `needs` | string | no | A decision or help needed, and from whom. |
 | `next_step` | string | no | The next step. |
+| `reason` | string | no | If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”. |
 | `answers` | object | no | Answers to the questions (Check) a dry run asked, by the group id it gave: {"<id>": "<choice>"} or {"<id>": {"choice": "choose", "value": "Platform"}}. One answer covers every row in its group. Ask the person; never answer for them. |
 | `dry_run` | boolean | no | Check the change without saving it. Use it to see what would change, or what is missing. |
 
@@ -733,6 +734,10 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
       "type": "string",
       "description": "The next step."
     },
+    "reason": {
+      "type": "string",
+      "description": "If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”."
+    },
     "answers": {
       "type": "object",
       "additionalProperties": {
@@ -778,11 +783,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
 - ““…” isn’t a status here. Use one of: ….”
+- “Not checked. …”
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 
 **Does the same as:** [postCheckIn](actions.md#postcheckin), so it refuses with their words too.
 
@@ -1005,11 +1012,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 **Refuses with:**
 
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
+- “Not checked. …”
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 - “A range between two numbers needs limit, the upper number, as well as lower.”
 
 **Does the same as:** [saveGoal](actions.md#savegoal), so it refuses with their words too.
@@ -1295,11 +1304,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 **Refuses with:**
 
+- “Not checked. …”
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 - “A range between two numbers needs limit, the upper number, as well as lower.”
 
 **Does the same as:** [saveGoal](actions.md#savegoal), so it refuses with their words too.
@@ -1385,11 +1396,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 **Refuses with:**
 
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
+- “Not checked. …”
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 
 **Does the same as:** [saveGoal](actions.md#savegoal), so it refuses with their words too.
 
@@ -1544,11 +1557,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 **Refuses with:**
 
+- “Not checked. …”
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 - “… should be a list of rows.”
 
 **Does the same as:** [postCheckIn](actions.md#postcheckin), [saveGoal](actions.md#savegoal), so it refuses with their words too.
@@ -2582,7 +2597,7 @@ No arguments.
 
 ## review_call
 
-**Say something in a review.** In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.
+**Say something in a review.** In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. Only someone in the review, or an admin, can, and only about a goal the review covers (its goals, trees and levels). A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.
 
 **Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
 
@@ -5098,7 +5113,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 ## get_metric
 
-**Read a metric.** One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; and, for its owner and admins, what it still needs (rule 3).
+**Read a metric.** One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).
 
 From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
