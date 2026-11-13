@@ -6,9 +6,9 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 
 ## Track 1, Friday 13 November, 14:25 UTC (context near full, handing over; supersedes the 05:45 entry)
 
-Session: session_012kbr8xrSzicJV6Yybqqzng. **Merged:** #382 (an ended cycle refuses every correction in the engine, at every door; conformance case `ended-cycle` with `given.at`), #387 (Import's check and changes get `CheckClose`, "Close without saving" back to Import; U72 presses it).
+Session: session_012kbr8xrSzicJV6Yybqqzng. **Merged:** #400 (see below), #382 (an ended cycle refuses every correction in the engine, at every door; conformance case `ended-cycle` with `given.at`), #387 (Import's check and changes get `CheckClose`, "Close without saving" back to Import; U72 presses it).
 
-**In flight:** #400 (`ask-handover-mediums`, auto-merge on): Lane's rule (only `update` and `question` asks follow a new owner, `FOLLOWS_OWNER` in `askHandover.ts`; a named ask stays; one the new owner asked closes as withdrawn); #369's mediums 1, 2, 4, 5, 7 (`askWaiting` in `app/reads.ts` is the one lateness rule for Home, `get_my_work` and `list_requests`; a question before its session reads "Due by Tue 24 Nov"; N26 now checks every ask's waiting line for five people over 14 days); MCP parity: `unmark_reviewed`, and `arrive` has a reason. If CI fails, fix it there.
+**#400** (`ask-handover-mediums`, merged 14:24): Lane's rule (only `update` and `question` asks follow a new owner, `FOLLOWS_OWNER` in `askHandover.ts`; a named ask stays; one the new owner asked closes as withdrawn); #369's mediums 1, 2, 4, 5, 7 (`askWaiting` in `app/reads.ts` is the one lateness rule for Home, `get_my_work` and `list_requests`; a question before its session reads "Due by Tue 24 Nov"; N26 now checks every ask's waiting line for five people over 14 days); MCP parity: `unmark_reviewed`, and `arrive` has a reason. Nothing of track 1's is in flight.
 
 **Open for Lane:** #369's medium 6 (a lone "this week" cell cuts a long review name at 390). Wrapping the name breaks #305's fold guarantee (N26: first goal at 775 px, fold 775), so it was reverted. Lane needs to choose: a shorter label, a taller cell, or keep the cut.
 
