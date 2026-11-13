@@ -64,7 +64,7 @@ Words worked out when the screen shows (from the goal, the person or the week) a
 
 - `/` (`Home`): Home shows what needs you this week: one main thing to do, what people have asked of you, and the goals you own and watch. Help: “Home and your week at a glance” (`home`).
 
-- **Named parts:** “Your goals”, “Needs your response”, “Goals you watch”, “Getting started”, “This week (region)”, “For you (region)”
+- **Named parts:** “Your goals”, “Goals you watch”, “Getting started”, “This week (region)”, “For you (region)”
 - **Main action:** The lead’s, or none: what is asked of you today (late check-ins, check-ins due tomorrow or before today’s review, the wrap-up, a review on its day), or one quiet line that nothing is.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_my_work`, `get_overview`
@@ -88,7 +88,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “… (worked out when it shows)” | primary | always |
 | “… (worked out when it shows)” | link | `quiet.buttons.length > 0` |
 | “Show the … with nothing flagged” | button | `rest.length > 0` and `rest.length > shown.length` |
+| “Show all …” | button | `asks.length > shown.length` |
 | “Check in” | link | `a.goal.ownerId === app.viewer.id && a.flags.some((f) => f.kind === 'due' \|\| f.kind === 'stale' \|\| f.kind === …` |
+| “See the wrap-up” | link | `wrapUpOpenOn(app.cycle, app.today)` |
+| “See Cycles / Start …” | link | always |
 | “… (worked out when it shows)” | button | `r.id === 'invite'` |
 | “… (worked out when it shows)” | link | `!(r.id === 'invite')` and `r.to` |
 | “Hide this” | button | always |
@@ -459,7 +462,8 @@ None: nothing to type or choose here.
 | “From” | WeekPick | `step === 2` and `d.kind === 'metric'` |
 | “Target” | text | `step === 2` and `d.kind === 'metric'` |
 | “To” | WeekPick | `step === 2` and `d.kind === 'metric'` |
-| “Limit …” | text | `step === 2` and `d.kind === 'range'` |
+| “Lower limit …” | text | `step === 2` and `d.kind === 'range'` and `d.bound === 'between'` |
+| “Upper limit / Limit …” | text | `step === 2` and `d.kind === 'range'` |
 | “Warn this close … How near the limit counts as at risk, in …. Left empty, it warns only once the limit is cro…” | text | `step === 2` and `d.kind === 'range'` |
 | “How it’s measured · optional” | textarea | `step === 2` and `((noMetric && (!measurePlace \|\| saidNone \|\| !!d.definition.trim() \|\| !!d.source.trim())) \|\| d.kind === 'miles…` |
 | “Where the number comes from · optional” | text | `step === 2` and `((noMetric && (!measurePlace \|\| saidNone \|\| !!d.definition.trim() \|\| !!d.source.trim())) \|\| d.kind === 'miles…` |
@@ -475,12 +479,12 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Keep it at … or under” | button | `hold != null` |
 | “Keep it at … or over” | button | `hold != null` |
 | “Keep …” | button | `e?.id === 'too-precise' && e.keep != null` |
-| “(Close and keep the draft)” | button | always |
 | “Start a new one” | button | `restored` and `!asking` |
 | “Discard it” | button | `asking` |
 | “Keep it” | button | `asking` |
 | “At most” | button | `step === 2` and `d.kind === 'range'` |
 | “At least” | button | `step === 2` and `d.kind === 'range'` |
+| “Between” | button | `step === 2` and `d.kind === 'range'` |
 | “Change” | button | `step === 3` and `read` and `r.step != null` |
 | “Back” | button | `step > 0` |
 | “Skip: say how it’s measured later” | button | `step === 1` and `proposing` |
@@ -581,7 +585,8 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “From” | WeekPick | `goal.kind === 'metric'` |
 | “Target (…) …” | text | `goal.kind === 'metric'` |
 | “To” | WeekPick | `goal.kind === 'metric'` |
-| “Limit …” | text | `goal.kind === 'range'` |
+| “Lower limit …” | text | `goal.kind === 'range'` and `d.bound === 'between'` |
+| “Upper limit / Limit …” | text | `goal.kind === 'range'` |
 | “Warn this close …” | text | `goal.kind === 'range'` |
 | “Owner” | PickOne | always |
 | “Team” | PickOne | always |
@@ -608,6 +613,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Discard them” | button | `restored` |
 | “At most” | button | `goal.kind === 'range'` |
 | “At least” | button | `goal.kind === 'range'` |
+| “Between” | button | `goal.kind === 'range'` |
 | “… (worked out when it shows)” | primary | always |
 
 ## Print
@@ -1165,7 +1171,7 @@ None: nothing to type or choose here.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “Close” | button | always |
+| “Close” | button | `!inline` |
 | “Try again” | button | `failed` |
 
 ### The workspace switcher

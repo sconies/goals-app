@@ -6,7 +6,7 @@ import { onTimeStreak, WEEKDAY } from './progress';
 import { daysPast, reviewSession, sessionDate, upcomingSessionWeek, watchedGoals } from './review';
 import { goalStatus } from './status';
 import { statusCounts } from './order';
-import type { Cycle, DisplayStatus, Goal, Snapshot } from './types';
+import type { AskKind, Cycle, DisplayStatus, Goal, Snapshot } from './types';
 
 /** Watched goals by what they need: new information, in hand, and the rest. */
 export interface WatchGroups {
@@ -37,12 +37,16 @@ export interface NextReview { id: string; name: string; week: number; date: stri
 
 /** The next session of a review the person takes part in, today's included. */
 export function nextReview(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): NextReview | null {
-  const next = s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
+  return nextReviews(personId, s, cycle, week, today)[0] ?? null;
+}
+
+/** The next session of every review the person takes part in, soonest first: two on one day are both here (HM1 review). */
+export function nextReviews(personId: string, s: Pick<Snapshot, 'reviews'>, cycle: Cycle, week: number, today: Date): NextReview[] {
+  return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
     const w = upcomingSessionWeek(r, cycle, week, today);
     const date = sessionDate(r, cycle, w);
     return { id: r.id, name: r.name, week: w, date, weekday: WEEKDAY[r.weekday] ?? '', days: 0 - daysSince(date, today) + 0 };
   }).filter((x) => x.week <= cycle.weeks).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
-  return next[0] ?? null;
 }
 
 /** A session of a review the person is in, past its date this week and not held (re-review, 8 Nov, backlog T). */
@@ -68,6 +72,8 @@ export interface Dashboard {
   /** The goals they watch, grouped; null when they watch nothing. */
   watching: WatchGroups | null;
   next: NextReview | null;
+  /** Every review's next session, soonest first (`next` is the first), so a second review on the same day isn't lost. */
+  upcoming: NextReview[];
   /** Sessions past their date and not held: shown before the next review, so a missed one isn't hidden by it. */
   missed: MissedReview[];
 }
@@ -82,7 +88,7 @@ export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: num
     total: goals.length,
     streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
     watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
-    next: nextReview(personId, s, cycle, week, today),
+    ...(() => { const upcoming = nextReviews(personId, s, cycle, week, today); return { next: upcoming[0] ?? null, upcoming }; })(),
     missed: missedReviews(personId, s, cycle, week, today),
   };
 }
@@ -111,10 +117,11 @@ export interface HomeFacts {
   sessions: HomeSession[];
   owns: number;
   watches: number;
-  asks: number;
+  /** Rule 3: the open asks waiting on the viewer, in rule 3's order. */
+  asks: Waiting[];
 }
 
-export type LeadKind = 'check-in-late' | 'check-in' | 'wrap-up' | 'review';
+export type LeadKind = 'check-in-late' | 'check-in' | 'wrap-up' | 'review' | 'ask';
 export interface Lead {
   kind: LeadKind;
   eyebrow: string;
@@ -126,11 +133,11 @@ export interface Lead {
   /** A quiet link under the button ("Or type all your numbers in one table"). */
   also: { label: string; to: string } | null;
   ring: { done: number; total: number; counts: 'check-ins' | 'reviewed' | 'wrapped' } | null;
-  /** The review the lead is about, so the cell for it is left out. */
+  /** The review (or, for an ask, the ask) the lead is about, so its cell or row is left out. */
   about: string | null;
 }
 export interface Quiet { sentence: string; line: string | null; buttons: { label: string; to: string }[] }
-export interface HomePlan { lead: Lead | null; quiet: Quiet | null }
+export interface HomePlan { lead: Lead | null; quiet: Quiet | null; /** Rule 3's asks, without the one the lead says. */ asks: Waiting[] }
 
 /** A check-in becomes the lead this many days before it is due (decision 1 (a): the day before). */
 export const LEAD_DAYS = 1;
@@ -203,12 +210,14 @@ export function homeLead(f: HomeFacts): Lead | null {
   // 50: a review the viewer is in, on or past its day this week, not held.
   const session = f.sessions.filter((x) => x.date <= f.today && !x.held && x.done < x.total).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name))[0];
   if (session) return reviewLead(f, session);
-  return null;
+  // 60: the oldest or most pressing thing waiting on the viewer (rule 3's order puts it first).
+  return askLead(f.asks[0]);
 }
 
 /** Section 2.1's quiet line: what Home says when nothing is asked of the viewer today. Never "You’re all set". */
 export function quietLine(f: HomeFacts): Quiet {
-  const sentence = 'Nothing is asked of you today.';
+  // While asks wait on the viewer ("Needs your response"), Home doesn't say nothing is asked (HM1 review).
+  const sentence = f.asks.length ? `${f.asks.length === 1 ? 'One ask waits' : `${f.asks.length} asks wait`} for your response.` : 'Nothing is asked of you today.';
   if (f.starts) return { sentence, line: `${f.cycleName} starts on ${longDay(f.starts.on)}. The first check-ins are due by ${longDay(f.starts.firstDue)}.`, buttons: [] };
   if (f.ended) return { sentence, line: `${f.cycleName} has ended.`, buttons: [] };
   const c = f.checkIns;
@@ -219,7 +228,7 @@ export function quietLine(f: HomeFacts): Quiet {
     const next = f.rhythm.nextDueDate && f.week < f.lastWeek ? `The next ${c.total === 1 ? 'is' : 'are'} due by ${longDay(f.rhythm.nextDueDate)}.` : '';
     return { sentence: `${allIn} in for week ${f.week}.`, line: (streak + next).trim() || null, buttons: [] };
   }
-  if (!f.owns && !f.watches && !f.asks) return { sentence, line: `You don’t own or watch a goal in ${f.workspace} yet.`, buttons: [{ label: 'See the goals', to: '/goals?scope=all' }, { label: 'Set up a goal', to: '/goals/new' }] };
+  if (!f.owns && !f.watches && !f.asks.length) return { sentence, line: `You don’t own or watch a goal in ${f.workspace} yet.`, buttons: [{ label: 'See the goals', to: '/goals?scope=all' }, { label: 'Set up a goal', to: '/goals/new' }] };
   // Set up after this week's deadline: the first check-in is next week's, said plainly.
   if (f.rhythm && c.total > 0 && !c.done && f.rhythm.nextDueDate) return { sentence, line: `Your first ${plural(c.total, 'check-in is', 'check-ins are')} due by ${longDay(f.rhythm.nextDueDate)}.`, buttons: [] };
   return { sentence, line: null, buttons: [] };
@@ -228,5 +237,91 @@ export function quietLine(f: HomeFacts): Quiet {
 /** Rule 1: Home's plan. The lead, or the quiet line when there is none: never both, and the screen draws only these. */
 export function homeFor(f: HomeFacts): HomePlan {
   const lead = homeLead(f);
-  return { lead, quiet: lead ? null : quietLine(f) };
+  return { lead, quiet: lead ? null : quietLine(f), asks: f.asks.filter((w) => !(lead?.kind === 'ask' && lead.about === w.askId)) };
+}
+
+/* ---------- An ask that waits (HM2: docs/design/home/spec.md rule 3) ---------- */
+
+/** What rule 3 reads about one open ask waiting on the viewer. The app layer gives the dates (home's facts). */
+export interface AskFacts {
+  id: string;
+  kind: AskKind;
+  /** Who asked, by first name; null when it is the viewer's own (a next step they agreed). */
+  by: string | null;
+  goals: { id: string; title: string }[];
+  said: string;
+  /** yyyy-mm-dd. */
+  askedOn: string;
+  /** Its own due week: the week, its Sunday and its dates ("16–22 Nov"). */
+  dueWeek: { week: number; sunday: string; dates: string } | null;
+  /** A question raised in a review: the review, and the first session after the one it was raised in (fixed when asked). */
+  session: { name: string; date: string } | null;
+  /** The review it was raised in, if any (said only while Reviews is on). */
+  where: string | null;
+}
+
+export interface Waiting {
+  askId: string; kind: AskKind; by: string | null; where: string | null; goals: { id: string; title: string }[]; said: string; askedOn: string; waitedDays: number;
+  due: { date: string; why: 'week' | 'session' } | null; late: boolean; dueThisWeek: boolean;
+  /** Said after who asked and when; `warn` puts the warning mark before it. */
+  line: string; warn: boolean;
+  /** Where its one button goes. */
+  to: string;
+}
+
+const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/** "Tue 10 Nov". */
+const shortDay = (iso: string) => { const d = new Date(iso + 'T00:00:00Z'); return `${SHORT_DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${SHORT_MONTHS[d.getUTCMonth()]}`; };
+/** "4 Aug". */
+const dayMonth = (iso: string) => { const d = new Date(iso + 'T00:00:00Z'); return `${d.getUTCDate()} ${SHORT_MONTHS[d.getUTCMonth()]}`; };
+/** The week's Monday and Sunday around a day. */
+function weekAround(today: string): { monday: string; sunday: string } {
+  const d = new Date(today + 'T00:00:00Z');
+  const back = (d.getUTCDay() + 6) % 7;
+  const monday = new Date(d.getTime() - back * 86_400_000).toISOString().slice(0, 10);
+  return { monday, sunday: new Date(Date.parse(monday + 'T00:00:00Z') + 6 * 86_400_000).toISOString().slice(0, 10) };
+}
+
+/** Rule 3: how long an ask has waited, when it is due, whether it is late, and the line that says so. */
+export function waiting(a: AskFacts, today: string): Waiting {
+  const waitedDays = Math.max(0, dayDiff(a.askedOn, today));
+  const due = a.dueWeek ? { date: a.dueWeek.sunday, why: 'week' as const } : a.session ? { date: a.session.date, why: 'session' as const } : null;
+  const late = !!due && today > due.date;
+  const { monday, sunday } = weekAround(today);
+  const dueThisWeek = !!due && !late && due.date >= monday && due.date <= sunday;
+  let line: string;
+  let warn = false;
+  if (late && due!.why === 'week') { line = `Was due week ${a.dueWeek!.week} (${a.dueWeek!.dates})`; warn = true; }
+  else if (late) { line = `Was due before ${a.session!.name}’s session on ${shortDay(a.session!.date)}`; warn = true; }
+  else if (due?.why === 'session' && dayDiff(today, due.date) <= 1) { line = dayDiff(today, due.date) === 0 ? 'Due before today’s session' : 'Due before tomorrow’s session'; warn = true; }
+  else if (due?.why === 'week' && dueThisWeek) line = `Due this week (${a.dueWeek!.dates})`;
+  else if (due?.why === 'week') line = `Due week ${a.dueWeek!.week} (${a.dueWeek!.dates})`;
+  else if (due) line = `Before its next session, ${shortDay(due.date)}`;
+  else if (waitedDays >= 7) line = `Waiting since ${dayMonth(a.askedOn)}, ${waitedDays < 14 ? `${waitedDays} days` : `${Math.floor(waitedDays / 7)} weeks`}`;
+  else line = waitedDays === 0 ? 'Asked today' : waitedDays === 1 ? 'Asked yesterday' : `Asked on ${LONG_DAYS[new Date(a.askedOn + 'T00:00:00Z').getUTCDay()]}`;
+  const to = a.kind === 'update' ? `/check-in/${a.goals[0]!.id}` : `/goals/${a.goals[0]!.id}?respond=${a.id}`;
+  return { askId: a.id, kind: a.kind, by: a.by, where: a.where, goals: a.goals, said: a.said, askedOn: a.askedOn, waitedDays, due, late, dueThisWeek, line, warn, to };
+}
+
+const KIND_ORDER: AskKind[] = ['decision', 'question', 'update', 'action'];
+/** Rule 3's order (it replaces "overdue first, then newest"): late; due this week; no date and waited 7 days or more, oldest first; the rest, newest first. Within each, decisions, questions, updates, next steps. */
+export function waitingOrder(a: Waiting, b: Waiting): number {
+  const tier = (w: Waiting) => (w.late ? 0 : w.dueThisWeek ? 1 : !w.due && w.waitedDays >= 7 ? 2 : 3);
+  const t = tier(a) - tier(b);
+  if (t) return t;
+  const k = KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind);
+  if (k) return k;
+  return tier(a) === 2 ? a.askedOn.localeCompare(b.askedOn) : b.askedOn.localeCompare(a.askedOn);
+}
+
+const ASK_TITLE: Record<AskKind, (by: string) => string> = { decision: (by) => `${by} needs a decision`, question: (by) => `${by} asked a question`, update: (by) => `${by} asked for an update`, action: () => 'A next step you agreed is due' };
+const ASK_ACTION: Record<AskKind, string> = { decision: 'Respond', question: 'Answer', update: 'Check in', action: 'Mark done' };
+
+/** Rank 60: the first waiting ask, when it is late, due this week, or has waited a week or more with no date. */
+export function askLead(w: Waiting | undefined): Lead | null {
+  if (!w || !(w.late || w.dueThisWeek || (!w.due && w.waitedDays >= 7))) return null;
+  const others = w.goals.length - 1;
+  const about = w.goals.length > 1 ? `${w.goals.length} goals are waiting on it: ${w.goals[0]!.title}, and ${others} more.` : `About ${w.goals[0]?.title ?? 'a goal'}.`;
+  return { kind: 'ask', eyebrow: `Needs your response · ${w.line.charAt(0).toLowerCase()}${w.line.slice(1)}`, warn: w.warn, title: ASK_TITLE[w.kind](w.by ?? 'Someone'),
+    line: `“${w.said}”. ${about}`, action: { label: ASK_ACTION[w.kind], to: w.to }, also: null, ring: null, about: w.askId };
 }

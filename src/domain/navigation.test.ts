@@ -1,4 +1,4 @@
-import { backTo, litItem, litTab, menuGroups, menuRows, menuViews, moreFor, pageName, phoneTabs, placeName, type PlaceNames } from './navigation';
+import { backTo, isForm, litItem, litTab, menuGroups, menuRows, menuViews, moreFor, pageName, phoneTabs, placeName, type PlaceNames } from './navigation';
 
 /** The demo's names, as the rules read them. */
 const GOALS: Record<string, { title: string; parent?: string }> = { 'G-1': { title: 'Lead time for changes' }, 'G-7': { title: 'Merge-to-deploy time', parent: 'G-1' }, 'G-2': { title: 'Change failure rate' }, 'G-3': { title: 'Deploy frequency' }, 'G-4': { title: 'Pipeline queue wait (p90)' }, 'G-5': { title: 'Flaky test rate' } };
@@ -79,4 +79,14 @@ describe('the menu, the lit item and a page’s name (AR2, NV1)', () => {
       b('/workspace/access', []),
     ]).toEqual(['your goals -1', 'Goals -3', 'Lead time for changes /goals/G-1', 'Goals /goals', 'none', 'Home -1', 'People /people', 'Platform leadership weekly -2', 'Platform leadership weekly /reviews/weekly', 'none', 'Lead time for changes /goals/G-1', 'Platform leadership weekly /reviews/weekly', 'Help /help', 'none', 'Metrics /metrics', 'none', 'Workspace /workspace']);
   });
+
+  it('one rule says what a form is, for focus mode and for Back (build review of #113, #114)', () => {
+    expect(['/check-in', '/check-in?start=1', '/check-in/G-1', '/check-in/G-1/why', '/quick-check-in', '/goals/new', '/goals/new/owner', '/goals/G-1/edit', '/goals/G-1', '/workspace/new', '/reviews/new', '/reviews/weekly/edit', '/reviews/weekly', '/retro/G-1', '/data/import', '/data'].map((p) => isForm(p)))
+      .toEqual([false, true, true, true, true, true, true, true, false, true, true, true, false, true, true, false]);
+    expect(isForm('/check-in', '?start=1')).toBe(true);
+    // Check-in's list is a first page, so Back from Help comes back to it, not to Home.
+    const x = backTo('/help/goals', '', [{ path: '/' }, { path: '/check-in' }, { path: '/help/goals' }], names);
+    expect(x && `${x.label} -${x.steps}`).toBe('Check-in -1');
+  });
 });
+

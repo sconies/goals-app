@@ -6,7 +6,8 @@ import type { Commit } from './commit';
 import { mayChangeGoal } from './goalRights';
 import { isProposed, PROPOSED, withProposed } from './proposed';
 import { draftFor } from './goal';
-import { goalMustFix, type MustFix, type MustFixContext } from './goalEntry';
+import { planEnd } from './plan';
+import { goalChecks, goalMustFix, type MustFix, type MustFixContext } from './goalEntry';
 import type { Change, Goal, Person } from './types';
 
 type Actor = Pick<Person, 'id' | 'admin'>;
@@ -46,11 +47,17 @@ export function activated(goal: Goal, fromWeek: number): Goal {
  * from `fromWeek`, this week unless said. History says "Made it active, from week {n}". The app's toast has Undo,
  * which puts the goal back as it was (domain/removal undoRemoval).
  */
-export function activate(x: ActionContext, i: { goalId: string; fromWeek?: number }): { commit: Commit; goal: Goal } {
+export function activate(x: ActionContext, i: { goalId: string; fromWeek?: number; confirm?: boolean }): { commit: Commit; goal: Goal } {
   const g = goalIn(x, i.goalId) ?? no('That goal no longer exists. Reload to see the latest.');
   if (!isProposed(g)) no(`“${g.title}” is already active.`);
   if (!mayActivate(x.actor, g)) no(`${nameOf(x, g.ownerId) ?? 'Its owner'} or an admin can make this active.`);
   const from = i.fromWeek ?? Math.max(0, x.week);
+  // From is a week of this cycle's year before the plan's To (the GE10 review: 53 and -3 were saved).
+  const to = g.kind === 'metric' ? planEnd(g.plan, x.cycle.weeks) : 0;
+  if (g.kind === 'metric' && (!Number.isInteger(from) || from < 0 || from >= to)) no(`From must be a week of this cycle before the plan’s To: week 0 to week ${to - 1}.`);
+  // A From before this week is asked at every door, never assumed (rule 3's from-past): the screen asks it in place.
+  const asked = g.kind === 'metric' && from < x.week ? fromPastQuestion(g, from, x) : null;
+  if (asked && !i.confirm) no(`Not saved. Check with the person first: ${asked}`);
   const missing = readyToActivate(g, { cycleWeeks: x.cycle.weeks, week: x.week, startDate: x.cycle.startDate, fromWeek: from });
   if (missing.length) no(`“${g.title}” can’t be made active yet: ${missing.map((f) => f.text).join(' ')}`);
   const goal = activated(g, from);
@@ -58,6 +65,12 @@ export function activate(x: ActionContext, i: { goalId: string; fromWeek?: numbe
   return { commit: { goals: [goal], changes: [change(x, goal, words, [{ field: 'State', from: PROPOSED, to: 'Active' }, ...(g.kind === 'metric' && (g.plan.fromWeek ?? 0) !== from ? [{ field: 'From', from: `week ${g.plan.fromWeek ?? 0}`, to: `week ${from}` }] : [])])] }, goal };
 }
 
+
+/** Rule 3's from-past question for a number goal made active from an earlier week, in the words New goal uses. */
+function fromPastQuestion(g: Goal, from: number, x: ActionContext): string | null {
+  const d = { ...draftFor(g), fromWeek: String(from) };
+  return goalChecks(d, { week: x.week, cycleWeeks: x.cycle.weeks, existing: null, door: 'form', startDate: x.cycle.startDate }).find((c) => c.id === 'from-past')?.question ?? null;
+}
 
 /** Why an active goal can't go back to proposed: it has check-ins. */
 export const HAS_CHECK_INS = 'It has check-ins, so it can’t go back to proposed. Stop it instead.';

@@ -8,7 +8,8 @@
    how likely the target is, as a word, from where the target sits against the projected range (`likelihood`).
    Pure: the page, the chart and the AI assistant's get_goal read the same words. */
 import { fixed } from './numbers';
-import { fmt, NO_VALUE } from './format';
+import { fmt, NO_VALUE, staysText } from './format';
+import { rangeSide } from './range';
 import { planEnd, projectionFor, valueSeries } from './plan';
 import { assessMilestone, assessPosted, checkInsFor, doneCheckIn, projects } from './status';
 import { summaryFacts } from './summaryFacts';
@@ -165,9 +166,11 @@ function metricCard(goal: MetricGoal, cycle: Cycle, checkIns: CheckIn[], week: n
 function rangeCard(goal: RangeGoal, cycle: Cycle, checkIns: CheckIn[], week: number, stale: boolean): Scorecard {
   const a = assessPosted(goal, cycle, checkIns, week);
   if (a.kind !== 'range') return { cells: [], gap: null, marks: null };
-  const { bound, limit, margin } = goal.range;
+  const { margin } = goal.range;
+  // Between two numbers: against the bound nearer the number.
+  const { bound, limit } = rangeSide(goal.range, a.actual);
   const better: 1 | -1 = bound === 'atLeast' ? 1 : -1;
-  const lim = `${bound === 'atMost' ? 'at most' : 'at least'} ${fmt(limit, goal)}`;
+  const lim = staysText(goal);
   const cells: ScoreCell[] = [];
   let gap: string | null = null;
   // Vs the limit, and the room left before it.

@@ -6429,6 +6429,7 @@
     {"id":"w_po1930","personId":"joao","kind":"goal","ref":"net-mtls"},
     {"id":"w_po1931","personId":"hiroshi","kind":"goal","ref":"slo-edge"}
   ],
+  "zone": {"about":"R3, the home zone: a workspace in America/New_York, a goal year starting Monday 19 October 2026, and check-ins posted near midnight there, either side of the night its clocks go back (Sunday 1 November, 02:00 to 01:00). Every week and day is counted in the home zone. See spec/conformance/README.md, zone.csv.","homeZone":"America/New_York","cycle":{"id":"zone-year","name":"2026–27","startDate":"2026-10-19","weeks":53,"reviewDay":3},"checkIns":[{"id":"z1","goalId":"g-late","postedAt":"2026-10-26T03:30:00.000Z"},{"id":"z2","goalId":"g-late","postedAt":"2026-11-02T04:30:00.000Z"},{"id":"z3","goalId":"g-late","postedAt":"2026-11-02T05:30:00.000Z"},{"id":"z4","goalId":"g-quiet","postedAt":"2026-10-19T04:30:00.000Z"}],"moments":["2026-10-26T03:30:00.000Z","2026-10-26T04:00:00.000Z","2026-11-01T05:30:00.000Z","2026-11-01T06:30:00.000Z","2026-11-02T04:30:00.000Z","2026-11-02T04:59:00.000Z","2026-11-02T05:00:00.000Z","2026-11-02T05:30:00.000Z","2026-11-03T04:59:00.000Z","2026-11-03T05:00:00.000Z"]},
   "modules": {
     "metrics": {
       "metrics": [

@@ -7,12 +7,19 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Not self-explanatory:** a requirement with no rule, test or journey listed is checked only by the screens and Help named, or not yet by anything automatic; its words are the spec.
 
+**Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
+
+- **Copy** (150): build it as Faro does.
+- **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
+- **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
+
 ## Plans
 
 ### PLAN-SHAPE
 
 Plans can be straight, back-loaded ((w/13)^1.5) or stepped, and set the weekly checkpoint.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Weeks and plans](rules/weeks-and-plans.md)
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Tests:** `evals/scenarios.eval.ts` (3)
@@ -22,6 +29,7 @@ Plans can be straight, back-loaded ((w/13)^1.5) or stepped, and set the weekly c
 
 The projection is a least-squares line through the last eight weeks of numbers (reaching back to one three weeks earlier when they're sparse), leaning only as far as the numbers support, projected to the due week as a range, and only shown with enough data.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [The projection](rules/projection.md)
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Tests:** `evals/scenarios.eval.ts` (2)
@@ -30,6 +38,7 @@ The projection is a least-squares line through the last eight weeks of numbers (
 
 Changing a plan after check-ins start re-baselines it and keeps the original visible.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Weeks and plans](rules/weeks-and-plans.md)
 - **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
 - **Tests:** `evals/scenarios.eval.ts` (1)
@@ -39,6 +48,7 @@ Changing a plan after check-ins start re-baselines it and keeps the original vis
 
 Once check-ins have started, the owner (or an admin) can change the plan directly, with a reason. The original plan stays on the chart and the change and reason are logged and shown to watchers. No approval step.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Weeks and plans](rules/weeks-and-plans.md)
 - **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
 - **Journeys and checks:** F9, U7, U136
@@ -47,6 +57,7 @@ Once check-ins have started, the owner (or an admin) can change the plan directl
 
 On a goal's chart the plan and the actual never look alike: the plan is a broad pale band and the actual a thin solid line, different in width and colour in every theme and accent; each chart says which way is better (higher or lower) in its corner.
 
+- **Copy:** build it as Faro does.
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** N9
 
@@ -54,6 +65,7 @@ On a goal's chart the plan and the actual never look alike: the plan is a broad 
 
 The projection is steady on a noisy number and called exactly on a clean trend: one more noisy week moves it by a few points, not tens; it is a range everywhere it's shown (the chart, Home and reviews' warnings, exports and the AI assistant's get_goal).
 
+- **Copy:** build it as Faro does.
 - **Rule:** [The projection](rules/projection.md), [The scorecard](rules/scorecard.md)
 - **Help:** “What the statuses mean” (`status`); “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Tests:** `evals/goalPage.eval.ts` (2)
@@ -65,6 +77,7 @@ The projection is steady on a noisy number and called exactly on a clean trend: 
 
 When a check-in still needs a reason or a path back, last week's are offered back: 'Still true' carries them over, 'It's changed' opens them for editing.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U1
 
@@ -72,6 +85,7 @@ When a check-in still needs a reason or a path back, last week's are offered bac
 
 When something changed, the owner gives one short account on one screen after the number: what changed, what happens next and by when, starting from last week's words. Progress is stable, the button says Continue until the step that posts, and Still true still posts last week's account in one press.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U39
 
@@ -79,6 +93,7 @@ When something changed, the owner gives one short account on one screen after th
 
 When none of the named causes fits, the owner can pick Something else and say it in their own words; it is saved and shown like any other cause.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [What a check-in must say](rules/check-in.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U40
@@ -87,6 +102,7 @@ When none of the named causes fits, the owner can pick Something else and say it
 
 The week's check-ins can be seen as a list and started from any of them: Check-in opens on what's due this week, in the order the walk takes them, each with its status and what it last said, a kept draft said on its row; Start with the first walks them all, as Home's Start check-in does; what's done this week can be corrected; the one-table check-in is a line away. Someone who owns no goal is told so.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U71
 
@@ -96,6 +112,7 @@ The week's check-ins can be seen as a list and started from any of them: Check-i
 
 Anyone can comment on a goal; comments show in the goal’s activity and are logged.
 
+- **Copy:** build it as Faro does.
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`; “The activity log” (`activity`), screens `Activity`
 - **Journeys and checks:** U6
 
@@ -103,6 +120,7 @@ Anyone can comment on a goal; comments show in the goal’s activity and are log
 
 Every save (goal, plan, check-in, comment, decision, workspace) is logged with who, when and each field's before and after. Drafts are not logged. Activity filters by who, a goal or its whole tree, team, level, kind of change, dates and words; every setting is in the link, and the filtered log saves as a CSV. Runs of routine review entries fold into one line.
 
+- **Copy:** build it as Faro does.
 - **Help:** “The activity log” (`activity`), screens `Activity`
 - **Journeys and checks:** U1, U3, U4, U5, U6, U7, U10, U11, U13, U14, U35, U37, U60, U142
 
@@ -112,6 +130,7 @@ Every save (goal, plan, check-in, comment, decision, workspace) is logged with w
 
 Metric: on track at 95% of planned progress or more, at risk 80–95%, off track below 80%.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [A goal’s status](rules/status.md)
 - **Help:** “What the statuses mean” (`status`)
 - **Tests:** `evals/scenarios.eval.ts` (1)
@@ -120,6 +139,7 @@ Metric: on track at 95% of planned progress or more, at risk 80–95%, off track
 
 Lower-is-better metrics are judged the same way as higher-is-better ones.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [A goal’s status](rules/status.md)
 - **Help:** “What the statuses mean” (`status`)
 - **Tests:** `evals/scenarios.eval.ts` (3)
@@ -128,6 +148,7 @@ Lower-is-better metrics are judged the same way as higher-is-better ones.
 
 Range: at risk inside the warning margin or after one breach; off track after two weeks out of range.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [A goal’s status](rules/status.md)
 - **Help:** “What the statuses mean” (`status`)
 - **Tests:** `evals/scenarios.eval.ts` (1)
@@ -136,6 +157,7 @@ Range: at risk inside the warning margin or after one breach; off track after tw
 
 Milestone: a stage up to 2 weeks late is at risk, more is off track; an overdue stage counts as late.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [A goal’s status](rules/status.md)
 - **Help:** “What the statuses mean” (`status`)
 - **Tests:** `evals/scenarios.eval.ts` (6)
@@ -144,6 +166,7 @@ Milestone: a stage up to 2 weeks late is at risk, more is off track; an overdue 
 
 The owner's call is the official status shown everywhere, with the calculated status beside it.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [A goal’s status](rules/status.md), [What a check-in must say](rules/check-in.md)
 - **Help:** “What the statuses mean” (`status`)
 - **Tests:** `evals/scenarios.eval.ts` (1)
@@ -153,6 +176,7 @@ The owner's call is the official status shown everywhere, with the calculated st
 
 No owner check-in for 14 days shows as No recent update, never as on track.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [A goal’s status](rules/status.md), [Flags, the trend and needs attention](rules/flags.md)
 - **Help:** “What the statuses mean” (`status`)
 - **Tests:** `evals/scenarios.eval.ts` (4)
@@ -162,6 +186,7 @@ No owner check-in for 14 days shows as No recent update, never as on track.
 
 One trend rule (domain/trend.ts): a goal is getting worse when it is further behind plan in its own units at each of the last two check-ins (closer to its limit, or a stage expected later), or on track but heading short of its target. The Getting worse flag, the goal's story, the summary bar's trend and the words under the chart use it, and say Getting worse or Getting better.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Flags, the trend and needs attention](rules/flags.md)
 - **Help:** “What the statuses mean” (`status`)
 - **Tests:** `evals/vocabulary.eval.ts` (2)
@@ -172,6 +197,7 @@ One trend rule (domain/trend.ts): a goal is getting worse when it is further beh
 
 A call greener than the calculation needs a reason and is flagged on the goal.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [A goal’s status](rules/status.md), [What a check-in must say](rules/check-in.md), [Flags, the trend and needs attention](rules/flags.md)
 - **Help:** “What the statuses mean” (`status`); “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Tests:** `evals/scenarios.eval.ts` (3)
@@ -181,6 +207,7 @@ A call greener than the calculation needs a reason and is flagged on the goal.
 
 A reason (cause and explanation) is required when behind plan (below 95%).
 
+- **Copy:** build it as Faro does.
 - **Rule:** [What a check-in must say](rules/check-in.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Tests:** `evals/scenarios.eval.ts` (3)
@@ -190,6 +217,7 @@ A reason (cause and explanation) is required when behind plan (below 95%).
 
 A check-in says which week it is for and where it is in the week's queue, even after a reload; last week's reason and plan, copied in to edit, are changed or explicitly said to be still true before they post; one number check is used by the check-in, the one-table check-in and the import; the goal page never folds the newest check-in into a range; the one-table check-in shares each goal's draft, posts only the rows that are ready and ends on the check-in's confirmation. A number that looks wrong (far from last week's, far outside the plan, past a count's target, over 100%) or the same as last week's on a number still to move is asked about, can't be posted until the question is answered, and the answer is kept in History.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [What a check-in must say](rules/check-in.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`
 - **Journeys and checks:** U57, U111
@@ -198,6 +226,7 @@ A check-in says which week it is for and where it is in the week's queue, even a
 
 A reason is required when 120% or more ahead, and the check-in asks whether the target should change.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [What a check-in must say](rules/check-in.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Tests:** `evals/scenarios.eval.ts` (3)
@@ -207,6 +236,7 @@ A reason is required when 120% or more ahead, and the check-in asks whether the 
 
 At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed. Carrying last week's account forward shows the open request with it, and the owner can keep it or withdraw it. A request for a decision or help is a record: open until the person asked answers it or the owner withdraws it, shown once to the person asked however many goals wait on it, answered once for all of them, and the answer shown on each goal and in the next review.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [What a check-in must say](rules/check-in.md), [Flags, the trend and needs attention](rules/flags.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Asks: decisions, updates, questions and actions” (`requests`), screens `Respond`
 - **Tests:** `evals/scenarios.eval.ts` (5)
@@ -216,6 +246,7 @@ At risk and Off track need a path to green: what changes and a future week it is
 
 The check-in shows actual against plan today, the gap, the forecast and the calculated status as the value is typed.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [What a check-in must say](rules/check-in.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Tests:** `evals/scenarios.eval.ts` (1)
@@ -225,6 +256,7 @@ The check-in shows actual against plan today, the gap, the forecast and the calc
 
 Owners can check in as often as they like (ad hoc). Every check-in is kept with its time and reason; the latest in a week is that week’s status for reviews, quarters, charts and exports. A second check-in in a week says so, is logged as such and is compared with last week, never with the first. Checking in again and correcting a week are different: a correction replaces the week's newest and needs a reason. Every screen posts a check-in through the same engine as the table, the import and the AI tools.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U1, U111, U142
@@ -233,6 +265,7 @@ Owners can check in as often as they like (ad hoc). Every check-in is kept with 
 
 The owner can post an update at any time from the goal page. It is the same check-in flow; after this week's check-in it is a second check-in for the week: the newest is that week's number and status, and the first is kept (ONE-PER-WEEK). Correcting a week is different: it replaces the week's newest, with a reason, and the change log keeps the before and after.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U1
 
@@ -240,6 +273,7 @@ The owner can post an update at any time from the goal page. It is the same chec
 
 Only the goal's owner checks in on the check-in screen: the owner's call is the official status, so it comes from them. Through the change engine (a spreadsheet, the data tables, the AI tools) an admin may also post or correct one, as R1's access table says (mayChangeGoal).
 
+- **Copy:** build it as Faro does.
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U9, U141
 
@@ -249,6 +283,7 @@ Only the goal's owner checks in on the check-in screen: the owner's call is the 
 
 A headline goal with input goals from several teams, each with an estimated effect; the headline shows its inputs and their mix of statuses.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Tests:** `evals/scenarios.eval.ts` (1)
 - **Journeys and checks:** U4, U9
@@ -257,6 +292,7 @@ A headline goal with input goals from several teams, each with an estimated effe
 
 A lead can create a metric, range or milestone goal with a plan, and invalid input is explained.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Tests:** `evals/scenarios.eval.ts` (3)
 - **Journeys and checks:** F16, U4, U18, U25
@@ -265,6 +301,7 @@ A lead can create a metric, range or milestone goal with a plan, and invalid inp
 
 New goal asks what, who and where, how it's measured, then reads it back in sentences, with what was left as usual and what happens after it is published; each step has an address and nothing is chosen from a list of everything.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [New goal](rules/new-goal.md), [The read-back](rules/read-back.md)
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** F16, U84, U134, U137, U145
@@ -273,6 +310,7 @@ New goal asks what, who and where, how it's measured, then reads it back in sent
 
 Every way of adding a goal says what it needs before it is refused, checks it with one rule, and asks rather than assumes where a value is possible but unlikely; nothing is saved before it has been read back.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Goal entry](rules/goal-entry.md), [The read-back](rules/read-back.md)
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** U93, U137
@@ -281,6 +319,7 @@ Every way of adding a goal says what it needs before it is refused, checks it wi
 
 A goal's weeks are chosen, not typed, and are always shown with their dates and year: the baseline's week (From) and the week the target is due (To) are named the same on every screen, in the sheet and by the tools.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Years and weeks](rules/years-and-weeks.md)
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`; “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
 - **Journeys and checks:** U109
@@ -289,6 +328,7 @@ A goal's weeks are chosen, not typed, and are always shown with their dates and 
 
 A goal can be proposed before anyone is held to it: it is visible and can be discussed, has no status and nothing due, is counted apart from active goals, and becomes active only by a deliberate act of its owner or an admin.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Proposed goals](rules/proposed.md)
 - **Help:** “Proposed goals” (`goal-proposed`), screens `ProposedGoal`, `ProposedList`
 - **Journeys and checks:** U134
@@ -297,6 +337,7 @@ A goal can be proposed before anyone is held to it: it is visible and can be dis
 
 A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [A goal not born late](rules/not-born-late.md)
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Tests:** `evals/onboarding.eval.ts` (1)
@@ -306,6 +347,7 @@ A goal is never late or behind because of when it was typed in: a date already p
 
 The goal page leads with its summary bar, then the chart (plan, actual, projection range, path to green), why, what's being done, the last review, what feeds it, the year by quarter, one activity stream and About this goal.
 
+- **Copy:** build it as Faro does.
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** N2, U6
 
@@ -313,6 +355,7 @@ The goal page leads with its summary bar, then the chart (plan, actual, projecti
 
 Goals are shown as trees: each goal that feeds nothing heads a tree, with what feeds it worst first; team goals that are not linked are flagged.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
 - **Journeys and checks:** U3
 
@@ -320,6 +363,7 @@ Goals are shown as trees: each goal that feeds nothing heads a tree, with what f
 
 Every goal has a level, Team by default, or SVP or North star for goals reported at major reviews. The owner sets it; it is separate from what a goal feeds, and changes are logged.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Levels](rules/levels.md)
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** U4, U9, U13
@@ -328,6 +372,7 @@ Every goal has a level, Team by default, or SVP or North star for goals reported
 
 In the Goals table and the quarter results, the column headings stay in view while the goals scroll under them, on a phone and a desktop.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
 - **Journeys and checks:** U38
 
@@ -335,6 +380,7 @@ In the Goals table and the quarter results, the column headings stay in view whi
 
 Straight after a goal is published, its owner is offered the first check-in, so everyone can see where it stands from day one; it can be skipped. Someone publishing a goal for another person can ask them for it instead.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [What a check-in must say](rules/check-in.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** U25
@@ -343,6 +389,7 @@ Straight after a goal is published, its owner is offered the first check-in, so 
 
 Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans, and a goal's key however it is typed ("G-48", "g48", "48"). "Decision or help needed" is one rule (an open ask for a decision or help on a goal that isn't done) for the filter, the saved views built on it, the Table's story line and the Board's order. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name. History's range (this quarter or the whole year) is part of the view and the link. The search box keeps what is typed or pasted, at any speed, and the address follows once typing pauses; Back puts the box back as the address has it. Clearing the search or the filters keeps the tab, the layout and the sort.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Search, filters, sort and saved views” (`goals-filters`), screens `GoalFilters`, `GoalFilterSheet`
 - **Tests:** `evals/scenarios.eval.ts` (3)
 - **Journeys and checks:** N10, U32, U33, U34, U135
@@ -351,6 +398,7 @@ Search, filter and sort the goals in every layout and in exports. Search covers 
 
 A goal's facts are worked out once (summaryFacts): the gap to plan, the trend over the last check-ins in the goal's own units with its direction, the change since the last update, and the projection as a range. In a review, the chart and recent check-ins are open and each past check-in opens to the full check-in.
 
+- **Copy:** build it as Faro does.
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Tests:** `evals/goalSummary.eval.ts` (8)
 - **Journeys and checks:** N2
@@ -359,6 +407,7 @@ A goal's facts are worked out once (summaryFacts): the gap to plan, the trend ov
 
 A goal's summary bar reads in two seconds: title, owner, level and key; status as shape and word and the number in the goal's units; then its scorecard. The reason and the goals feeding it have their own sections, said once there. One main action by role and state, and a menu for Share image, Copy link, Print and Change this goal. On scroll it shrinks to one line at the top, a solid panel with a rule and a soft shadow under it: status, number and the gap to plan, and the menu; on a phone it is the page's header.
 
+- **Copy:** build it as Faro does.
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Tests:** `evals/goalPage.eval.ts` (3)
 - **Journeys and checks:** N2, N9
@@ -367,6 +416,7 @@ A goal's summary bar reads in two seconds: title, owner, level and key; status a
 
 Each fact on a goal's page has one home: the goal's status appears once in the first screen, the owner's reason is not repeated (a reason given several weeks running is grouped once in the activity), and the four-fact grid, Signals, What the owner says, the threats block, the separate sticky header, the breadcrumb and the tab counts are gone. What to act on (Next steps and asks) is within the first phone screen, and the reason comes before the chart.
 
+- **Copy:** build it as Faro does.
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Tests:** `evals/goalPage.eval.ts` (4)
 - **Journeys and checks:** N9, U57
@@ -375,6 +425,7 @@ Each fact on a goal's page has one home: the goal's status appears once in the f
 
 A goal's owner can always check in and say what happens next from its page, and a goal behind with no next step says so.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Acting on a goal: its buttons, and next steps and asks](rules/goal-act.md)
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** F14, U77
@@ -383,6 +434,7 @@ A goal's owner can always check in and say what happens next from its page, and 
 
 Everything asked and agreed on a goal is in one list, shown once, with the one button each person may press.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Acting on a goal: its buttons, and next steps and asks](rules/goal-act.md)
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** F14, N15, U78
@@ -391,6 +443,7 @@ Everything asked and agreed on a goal is in one list, shown once, with the one b
 
 A goal's history shows every week, checked in or not, tells reviews from changes, and can be linked to.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [A goal’s history](rules/goal-history.md)
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** N15, U79
@@ -399,6 +452,7 @@ A goal's history shows every week, checked in or not, tells reviews from changes
 
 Changing a goal is one page in four sections an address can open at (What it is #definition, Plan and target #plan, Who and where #owner, More details), with one way out, “Close and keep the draft”, and Save changes held at the foot of the window without covering a field. An old ?part= link lands on the matching section.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
 - **Journeys and checks:** U136
 
@@ -406,6 +460,7 @@ Changing a goal is one page in four sections an address can open at (What it is 
 
 Watching and commenting say who will see what before you do them.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Who a comment reaches](rules/comment-reach.md)
 - **Help:** “Watching goals” (`watching`), screens `Watching`; “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** U80
@@ -414,6 +469,7 @@ Watching and commenting say who will see what before you do them.
 
 Under a goal's status and number, a scorecard of labelled cells (two by two on a phone, in a row on a wider screen), each a value and one muted line: for a number goal vs plan, vs last week (the latest check-in against the one before, naming the week compared, worse or better by which way is good, with a drawn arrow), to target, and will it hit the target (Likely, Possible, Unlikely or Very unlikely, from where the target sits against the projected range, never a percentage); for a range vs the limit, vs last week, room to the limit and will it stay within; for dated stages stages done, stages late and when the next stage lands. The target is said once in the first screen; the chart marks the same numbers where they are (the gap to plan at now, the likely end, and what's left to the target) and nothing under it restates them, beyond one footnote on where the likely end comes from. Every section below the chart has a heading, one line on what it answers and a full-width rule above it; the owner's reason opens Why, and how the goals feeding it stand opens What feeds it.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [The scorecard](rules/scorecard.md)
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** N9
@@ -422,6 +478,7 @@ Under a goal's status and number, a scorecard of labelled cells (two by two on a
 
 A goal's page follows how you arrived: Home's Answer, Respond and Reply open it with that item expanded under Asked of you and its box focused (?respond=<id>; ?tab=comments still works); after a check-in it says what was posted and the on-time streak; a returning visitor sees what changed since they last looked; a first-time viewer sees what the number measures with About open; drilling down, Back names the goal you came from.
 
+- **Copy:** build it as Faro does.
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Tests:** `evals/goalPage.eval.ts` (2)
 - **Journeys and checks:** N9
@@ -430,6 +487,7 @@ A goal's page follows how you arrived: Home's Answer, Respond and Reply open it 
 
 A goal's page is readable the moment it opens: its chart and number show their final state at once (backlog T). With the story switched on in the Motion lab, it moves, briefly and never in the way: the chart draws itself in turn, the number counts up, a status changed since your last visit turns in once, a posted point lands on the chart, a reached target lights, and the quarter tiles fill in turn. It moves slowly enough to see and lands with an impact, both set in Settings: the pace (Quick, Steady or Slow; Steady, the default, is half the speed of Quick, the chart drawing over about two seconds and everything done within four) and how hard it lands (Gentle, Strong or Big: the number and the latest point thump, a ring spreads from the point, the bar and the chart jolt, and an off-track status shakes). None of it blocks a click, and none of it runs under reduced motion. Any week can be read by dragging along the chart or with the arrow keys.
 
+- **Copy:** build it as Faro does.
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Tests:** `evals/printMotion.eval.ts` (2)
 - **Journeys and checks:** N9
@@ -438,6 +496,7 @@ A goal's page is readable the moment it opens: its chart and number show their f
 
 Share image makes a PNG of the goal's summary bar and a small chart, with the goal's link, without a new library: copied to the clipboard where the browser allows, otherwise saved through the one file saver with the link copied.
 
+- **Copy:** build it as Faro does.
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Tests:** `evals/goalPage.eval.ts` (1)
 - **Journeys and checks:** N9
@@ -446,6 +505,7 @@ Share image makes a PNG of the goal's summary bar and a small chart, with the go
 
 Goals opens on the viewer's own goals: its tabs say whose goals (Mine when they own one, My team when they have a team, Watching, All), each with its count, and it opens on the scope last used, else Mine, else Watching when it has goals, else All. How the goals are grouped (as trees, by team, by level, none) is a separate choice, each scope with its own default; one line counts the goals shown and their statuses, worst first.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
 - **Journeys and checks:** U73
@@ -454,6 +514,7 @@ Goals opens on the viewer's own goals: its tabs say whose goals (Mine when they 
 
 Needs attention is a switch on any scope, with its count for that scope and those filters: on, it lists the goals that need attention, then those being handled, and the line says how many need attention and why.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
 - **Journeys and checks:** U73
@@ -462,6 +523,7 @@ Needs attention is a switch on any scope, with its count for that scope and thos
 
 Goals' address names the scope, the group, the layout and the switch; every old address (show=…, /watching, a filter with no scope) and every saved view made before opens what it meant.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
 - **Journeys and checks:** U73
@@ -470,6 +532,7 @@ Goals' address names the scope, the group, the layout and the switch; every old 
 
 Goals' Layout, Group and Views are menus with one meaning on every width: Layout says the open layout and what each one is; Views holds the saved views, Save this view, Copy link and Export these goals. On a phone one View sheet holds Layout, Group, Saved views and the same actions, opened from a button that says the layout and group. The head and the bar keep their place and width in every layout, and on the Map Group and Sort say the Map is always the trees.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
 - **Journeys and checks:** U135
 
@@ -479,6 +542,7 @@ Goals' Layout, Group and Views are menus with one meaning on every width: Layout
 
 Changes are saved and survive a reload; demo data can be reset.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R4. Scale and safety](../requirements/internal/r4-scale-and-safety.md).
 - **Help:** “The demo” (`demo`), screens `Research`; “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** U1
 
@@ -486,6 +550,7 @@ Changes are saved and survive a reload; demo data can be reset.
 
 Every screen works at phone width (390px) with no horizontal scrolling.
 
+- **Copy:** build it as Faro does.
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** P3, P8
 
@@ -493,6 +558,7 @@ Every screen works at phone width (390px) with no horizontal scrolling.
 
 No serious or critical accessibility violations (axe-core); status is shape plus word, never colour alone.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R10. Accessibility](../requirements/internal/r10-accessibility.md).
 - **Help:** “What the statuses mean” (`status`); “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** P3, P4
 
@@ -500,6 +566,7 @@ No serious or critical accessibility violations (axe-core); status is shape plus
 
 No console or page errors on any screen.
 
+- **Copy:** build it as Faro does.
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** P2
 
@@ -507,6 +574,7 @@ No console or page errors on any screen.
 
 Motion is subtle and never blocks; it switches off under reduced motion. The launch splash (LAUNCH) is the one longer animation, once per launch. Loading shows a skeleton, not a blank page.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Settings” (`settings`), screens `Settings`; “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** P1, P2
 
@@ -514,6 +582,7 @@ Motion is subtle and never blocks; it switches off under reduced motion. The lau
 
 Every main screen works at every width from a 360px phone, through a tablet held either way and a laptop, to a 3440px monitor: no sideways scroll, nothing cut off at the edge, navigation always there, and prose kept to a readable width.
 
+- **Copy:** build it as Faro does.
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** P9
 
@@ -521,6 +590,7 @@ Every main screen works at every width from a 360px phone, through a tablet held
 
 The fit-and-finish review's rules hold: text follows the browser's text size; controls share one height (40px, 44px on touch, 32px in rows); one focus ring; the app's own icons, never glyph characters; on phones, tables, toolbars and two-column rows stack rather than squeeze; the tablet rail names its icons and fits the Demo box; nothing scrolls sideways; every page and every Goals layout starts at the same left edge.
 
+- **Copy:** build it as Faro does.
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** F10, F15, F17, P10
 
@@ -528,6 +598,7 @@ The fit-and-finish review's rules hold: text follows the browser's text size; co
 
 The fourteen per-area fit-and-finish reports hold: every page, sheet and form measured at phone, tablet and desktop widths keeps its layout, alignment, spacing, contrast, touch targets and status shapes as the reports specify, with one check per area.
 
+- **Copy:** build it as Faro does.
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** F1, F2, F3, F4, F5, F6, F7, F8
 
@@ -535,6 +606,7 @@ The fourteen per-area fit-and-finish reports hold: every page, sheet and form me
 
 Every address that worked before still lands on the right page, without a history entry and keeping its query: /workspace/people goes to /people, /workspace/people?team=<id> to that team's page, /workspace/teams to /teams, and /workspace#people and #teams to People and Teams (domain/directory movedTo).
 
+- **Demo only:** Faro’s own, for the demo and its builders. Don’t build it.
 - **Rule:** [The directory: who People lists, what a search finds, and where old addresses lead](rules/directory.md)
 - **Help:** “People: finding someone” (`people`), screens `People`
 - **Journeys and checks:** U58, U81
@@ -543,6 +615,7 @@ Every address that worked before still lands on the right page, without a histor
 
 The app is called Faro. The page title ends “Faro”; the browser tab shows Faro’s mark (an SVG favicon at /favicon.svg, linked from index.html and served in the demo too); the welcome page shows the Faro logo, named “Faro”; the sidebar shows the logo (the mark alone on the icon rail). The default look is Faro’s warm paper, ink and teal; the logo’s amber is used nowhere else in the app, since amber means At risk. In light and dark, body text passes 7:1 on the page, links 4.5:1 and primary button text 4.5:1. The earlier accents stay in Settings, with Faro the default.
 
+- **Demo only:** Faro’s own, for the demo and its builders. Don’t build it.
 - **Help:** “Settings” (`settings`), screens `Settings`
 - **Tests:** `evals/settings.eval.ts` (1)
 - **Journeys and checks:** N4
@@ -551,6 +624,7 @@ The app is called Faro. The page title ends “Faro”; the browser tab shows Fa
 
 Faro can be put on a phone's home screen and is easy to see there: a web app manifest (/manifest.webmanifest, linked from index.html) names it Faro, with Faro's paper as its colours and 192 and 512 px PNG icons, both plain and maskable, plus a 180 px apple-touch icon. Every icon, and the favicon, is a solid deep-teal tile (#183638) with the F in paper white, the amber beam and the teal bar, the F inside the maskable safe zone. Each launch (the first load in a browser session, or opening it from the home screen) shows a splash over the app as it loads: the amber beam swings wide across the screen and half a turn round the stem in 3D like a lighthouse's light, the screen flashing once as it points at you, overshoots and settles into the F; then the teal bar and “aro” are drawn in; about 2.5 s, the finished logo holding a moment (the one exception to the 250 ms motion rule, as it plays once per launch), never on navigation, ended at once by a tap or any key, with no layout shift. Under reduced motion the logo just fades in and out. Automated browsers don't see it unless they ask.
 
+- **Demo only:** Faro’s own, for the demo and its builders. Don’t build it.
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** N4
 
@@ -560,6 +634,7 @@ Faro can be put on a phone's home screen and is easy to see there: a web app man
 
 There are no role labels: owners edit and check in on their goals; everyone else can view, watch and comment; admins manage people and settings.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`; “People: finding someone” (`people`), screens `People`
 - **Journeys and checks:** U1, U2, U9, U141
 
@@ -567,6 +642,7 @@ There are no role labels: owners edit and check in on their goals; everyone else
 
 Whoever sets up a workspace is its admin. Admins add people and change their details on People, and make someone an admin or take it back on Workspace, Access (Add an admin, Remove as admin, asked first, with Undo) or on that person's page; the last admin cannot be removed and has no button to try.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Workspace: Access” (`workspace-access`)
 - **Journeys and checks:** U5, U10, U14, U60, U141
 
@@ -574,6 +650,7 @@ Whoever sets up a workspace is its admin. Admins add people and change their det
 
 Anyone finds a person or a team, and gets from either to their goals (app redesign WR1). People (/people, in the sidebar; on a phone under More) lists everyone not marked as left, A to Z ignoring case and accents, 50 a page; a search matches when every word typed starts a word of the name, job title or team; filters for a team (its lead counts) or no team, and admins only; everything in the address. A row links to the person, with their job title, team and line (Admin; what they lead; their goals this year). A person's page: team, email, role here, goals counted by status as shape and word (each a link to those goals), reviews, and "See {name}’s goals". Teams (/teams) lists each team with its lead, people and goals by status, the same numbers as Goals' By team; a team's page says what it is here to do, its goals by status and its people, with "See its goals". Members see no control that changes anything; admins add, change and mark people as left, and add, change and remove teams there.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [The directory: who People lists, what a search finds, and where old addresses lead](rules/directory.md)
 - **Help:** “People: finding someone” (`people`), screens `People`; “Teams” (`teams`)
 - **Journeys and checks:** F10, U58
@@ -582,6 +659,7 @@ Anyone finds a person or a team, and gets from either to their goals (app redesi
 
 Every person has an email, kept lower case and unique in the workspace (migration 0027): required when someone is added, in Workspace, set-up, a spreadsheet or the AI assistant. Exports write each person’s name and email, and imports match people by email. People added before emails are listed on Workspace for an admin to fill in, together. The example’s people have example emails (firstname.lastname@example.com).
 
+- **Copy:** build it as Faro does.
 - **Help:** “People: finding someone” (`people`), screens `People`
 - **Tests:** `evals/format.eval.ts` (3)
 - **Journeys and checks:** U46
@@ -592,6 +670,7 @@ Every person has an email, kept lower case and unique in the workspace (migratio
 
 Off track, stale, a worsening trend, a missed or missing path to green, and pending proposals are flagged where the user starts, with the reason in one line.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Flags, the trend and needs attention](rules/flags.md)
 - **Help:** “Needs attention, and being handled” (`needs-attention`)
 - **Journeys and checks:** U2, U3, U6, U8, U16, U36, U37
@@ -600,6 +679,7 @@ Off track, stale, a worsening trend, a missed or missing path to green, and pend
 
 Needs attention means new since something was agreed (Lane, 10 Nov): a goal that is red or amber is being handled only when, since its latest check-in, an action with an owner and a due week was agreed (and isn't overdue), or, when it is amber, its request was answered, and nothing new has happened since. A red goal stays counted until it has an action. A goal only marked reviewed or noted still needs attention, and says who looked. It is shown as being handled everywhere (Home, Watching, reviews, the AI), with one line saying what that means, and never hidden: wherever the goals that need attention are listed (the Needs attention tab and filter in every layout, the map, Home, Watching, the AI's find_goals), those being handled are listed below them, a count of goals that need attention counts the first group and says so, and on the Board a goal being handled says so on its card.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Flags, the trend and needs attention](rules/flags.md)
 - **Help:** “Needs attention, and being handled” (`needs-attention`)
 - **Tests:** `evals/attention.eval.ts` (10)
@@ -609,6 +689,7 @@ Needs attention means new since something was agreed (Lane, 10 Nov): a goal that
 
 Needs attention is one rule (domain/attention.ts): off track, at risk, no recent update, getting worse, missed or missing path to green, a decision or help waiting, or greener than calculated, unless someone is already handling it. Home, Watching, the Goals switch and filter (the Map's included) (with an optional "because"), reviews and the AI assistant pick exactly the same goals on every day the example is checked on, and list the same goals being handled below them; an old link's needs=no-recovery still opens No path to green.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Flags, the trend and needs attention](rules/flags.md)
 - **Help:** “Needs attention, and being handled” (`needs-attention`)
 - **Tests:** `evals/vocabulary.eval.ts` (3)
@@ -619,6 +700,7 @@ Needs attention is one rule (domain/attention.ts): off track, at risk, no recent
 
 A review walks its goals worst and stalest first, one goal page at a time, with next and previous.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
 - **Journeys and checks:** U3
 
@@ -626,6 +708,7 @@ A review walks its goals worst and stalest first, one goal page at a time, with 
 
 On each goal in a review, a participant can mark it seen, add a note, ask the owner a question or add an action; saying anything covers the goal and moves on.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
 - **Journeys and checks:** U3
 
@@ -633,6 +716,7 @@ On each goal in a review, a participant can mark it seen, add a note, ask the ow
 
 Anyone can set up a review: a name, a cadence (every 1, 2 or 4 weeks on a weekday), the goals (levels, trees, single goals) and the people.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
 - **Journeys and checks:** U13
 
@@ -640,6 +724,7 @@ Anyone can set up a review: a name, a cadence (every 1, 2 or 4 weeks on a weekda
 
 What was said in a review is kept as its summary; owners see questions and actions on their goal page.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Deciding in a review](rules/review-decide.md)
 - **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
 - **Journeys and checks:** U3, U36
@@ -648,6 +733,7 @@ What was said in a review is kept as its summary; owners see questions and actio
 
 Only someone in a review, or an admin, speaks for it: marking a goal reviewed, a note, accepting a risk, and a question or next step raised in it are refused for anyone else with one sentence, through the app and the AI tools alike. Everyone can still read it. Its page tells someone not in it who can add them, and never offers a Join it refuses.
 
+- **Demo only:** undefined
 - **Rule:** [Deciding in a review](rules/review-decide.md)
 - **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
 - **Journeys and checks:** N25
@@ -656,6 +742,7 @@ Only someone in a review, or an admin, speaks for it: marking a goal reviewed, a
 
 A goal off track or at risk leaves a review's walk with a decision: a next step with an owner (chosen by searching, never from a list of everyone) and a week it's due by, or "We accept the risk" with a reason. The goal page shows next steps as dated rows with an owner, changed there, an overdue one flagged; anyone can add one. The next session opens with what the last one agreed and asks if it's done. Finish review says what was decided and who owns what, with Undo. A review isn't "to do" before anything is due.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Deciding in a review](rules/review-decide.md)
 - **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
 - **Tests:** `src/mcp/mcp.test.ts` (1)
@@ -665,6 +752,7 @@ A goal off track or at risk leaves a review's walk with a decision: a next step 
 
 The Reviews page says, for every review, where this session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held and how many of its actions are open.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
 - **Tests:** `src/domain/review.test.ts` (7), `evals/review-notes.eval.ts` (4)
 - **Journeys and checks:** N1
@@ -673,6 +761,7 @@ The Reviews page says, for every review, where this session stands (not started,
 
 A review's agenda reads at a glance: one line per goal (status, name, number, gap) with nothing cut off at any width; the end of a review shows what was said and leads back to the review.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
 - **Journeys and checks:** N1
 
@@ -682,6 +771,7 @@ A review's agenda reads at a glance: one line per goal (status, name, number, ga
 
 Unsaved answers survive leaving a flow and are offered back when the user returns. Numbers typed in the one-table check-in are kept across a refresh until posted.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`; “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** U1, U4, U30, U34, U57
 
@@ -691,6 +781,7 @@ Unsaved answers survive leaving a flow and are offered back when the user return
 
 The example and your own data live in separate workspaces; you can load your own from a spreadsheet, with every row checked, and switch back.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`; “Workspace: about this one” (`workspace`), screens `Workspace`
 - **Journeys and checks:** U5, U17, U49, U54
 
@@ -698,6 +789,7 @@ The example and your own data live in separate workspaces; you can load your own
 
 An owner can type the week’s numbers for all their number goals in one table; each row is judged as they type and asks why only when it is off plan. In the table view, several goals can be selected to change their owner or level, watch or export them, through the same checks and change log.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`; “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
 - **Journeys and checks:** U21, U45, U57
@@ -706,6 +798,7 @@ An owner can type the week’s numbers for all their number goals in one table; 
 
 Pressing Post again, pressing Enter then clicking, or a double tap never posts a check-in twice; the same holds for the check-in table and answering a request. A check-in already being saved is waited for, not repeated.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`
 - **Journeys and checks:** U38
 
@@ -713,6 +806,7 @@ Pressing Post again, pressing Enter then clicking, or a double tap never posts a
 
 A save says what it was based on. If someone else has changed the same goal, review or week since, the save is refused whole, the person is told plainly and shown the latest; nothing is half-saved and the change log never records a save that didn’t land. Open screens pick up other people’s changes when the tab comes back into view.
 
+- **Copy:** build it as Faro does.
 - **Help:** “The activity log” (`activity`), screens `Activity`; “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** U24
 
@@ -720,6 +814,7 @@ A save says what it was based on. If someone else has changed the same goal, rev
 
 Every person, goal, check-in and plan is in a table anyone can read, search, sort and filter by any column: a value from its list, a number condition, words, or empty; the filters and sort are in the link. Admins type into cells across many rows and tables, review the before and after with any problems, and save them together. Saving goes through the same rules, rights and change log as Import and the AI assistant: a person keeps a unique name and there is always an admin; a past check-in can be corrected, judged by the same rules, and the old and new values are logged. Every record shows its own ID, which never changes.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Data” (`data`), screens `DataTables`, `DataFilters`, `DataLayout`
 - **Journeys and checks:** U35, U92
@@ -728,6 +823,7 @@ Every person, goal, check-in and plan is in a table anyone can read, search, sor
 
 In the data tables, columns can be reordered and resized, the layout saved and reopened, and the table exported as shown.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Data” (`data`), screens `DataTables`, `DataFilters`, `DataLayout`
 - **Tests:** `evals/data-ids.eval.ts` (5)
 - **Journeys and checks:** N5
@@ -736,6 +832,7 @@ In the data tables, columns can be reordered and resized, the layout saved and r
 
 Every goal has a short, readable key (G-1, G-2 … per workspace) that never changes, shown on the goal, in tables, exports and links, and accepted by the AI assistant and imports.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Goal keys and record IDs” (`keys`)
 - **Tests:** `evals/data-ids.eval.ts` (11)
 - **Journeys and checks:** N5, N10
@@ -744,6 +841,7 @@ Every goal has a short, readable key (G-1, G-2 … per workspace) that never cha
 
 One spreadsheet format: every sheet and column is defined once (src/domain/columns.ts), with its header, its meaning, whether it matches the row, can be changed or is worked out, and how it is written and read. The workbook, the zipped CSVs, one CSV, the set-up template, set-up from a spreadsheet, Import, the Data tables, the AI assistant’s tools and docs/export-format.md (checked to be current) are all made from it. Sheets are known by their header rows, never their names; CSV is read in one RFC 4180 pass (quotes, line breaks in a cell, a byte-order mark) and the formula guard’s apostrophe is taken off; worked-out columns use the vocabulary’s words and are never read; a word a column doesn’t know is a problem, never a default.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [The change engine](rules/change-engine.md), [The field table](rules/field-table.md)
 - **Help:** “Data” (`data`), screens `DataTables`, `DataFilters`, `DataLayout`
 - **Tests:** `evals/format.eval.ts` (6)
@@ -753,6 +851,7 @@ One spreadsheet format: every sheet and column is defined once (src/domain/colum
 
 Whatever is exported loads straight back as no change: every demo workspace as a workbook and as zipped CSVs, on any day and at any number of decimal places (a number counts as typed only when it differs from what the export wrote), a Data table saved with columns hidden (its key columns are always written, greyed, at the end), and the AI assistant’s export_table into bulk_change. An edited copy applies exactly its edits, a line break or a leading “-” included. Goals are matched by key, then ID, so last cycle’s file still finds its goals; people by email, then a name only one person has, noted in the preview; every column that can be changed counts, and one a table leaves out keeps what the record says.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Data” (`data`), screens `DataTables`, `DataFilters`, `DataLayout`
 - **Tests:** `evals/format.eval.ts` (5)
@@ -764,6 +863,7 @@ Whatever is exported loads straight back as no change: every demo workspace as a
 
 The demo lives under /demo: the example data in each visitor's own browser, a role switcher, a way to start over and a way to leave. The real app never shows the example or the demo controls. The demo marks itself with one quiet Demo control (sidebar on desktop, header on a phone) that opens a panel to see the app as someone else, listed by role first, take a walkthrough, research the app, reset or change the example data, present without controls, or leave. No bar changes how the app looks.
 
+- **Demo only:** Faro’s own, for the demo and its builders. Don’t build it.
 - **Help:** “The demo” (`demo`), screens `Research`
 - **Journeys and checks:** U11, U12, U17, U27, U49
 
@@ -771,6 +871,7 @@ The demo lives under /demo: the example data in each visitor's own browser, a ro
 
 Walkthroughs of the main journeys (weekly check-in, a review, chasing a quiet goal, the goal map, the leader’s brief, loading a spreadsheet), each as the right person: a coach card says what to do and points at it, you do the step yourself, and it moves on when you have.
 
+- **Demo only:** Faro’s own, for the demo and its builders. Don’t build it.
 - **Help:** “The demo” (`demo`), screens `Research`
 - **Journeys and checks:** U27, U29, U31, U39
 
@@ -778,6 +879,7 @@ Walkthroughs of the main journeys (weekly check-in, a review, chasing a quiet go
 
 The demo keeps only the visitor’s own saves on top of the example rebuilt from its description, so a change survives a reload at the example’s full size. When the browser refuses to store (full, or blocked in a private window), the changes still apply for the visit and the page says plainly that they will be lost on reload; starting over clears the saves.
 
+- **Demo only:** Faro’s own, for the demo and its builders. Don’t build it.
 - **Help:** “The demo” (`demo`), screens `Research`
 - **Tests:** `evals/demo-storage.eval.ts` (5)
 - **Journeys and checks:** P15
@@ -788,6 +890,7 @@ The demo keeps only the visitor’s own saves on top of the example rebuilt from
 
 Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone. Each goal feeding the outcome starts with "No owner yet"; one left so is made the setter's and remembered for Home; Check says each owner or "No owner yet" and how many have none; the counter counts the path chosen (5 steps with goals later or from a spreadsheet).
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R6a. The organisation](../requirements/internal/r6a-organisation.md).
 - **Rule:** [Day one: set-up’s steps and “Getting started”](rules/day-one.md)
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`
 - **Journeys and checks:** N10, U5, U11, U49, U54, U61, U86, U97
@@ -796,6 +899,7 @@ Setting up takes one question per screen: the workspace, who you are, your team 
 
 In a workspace's first weeks Home tells each person, the second included, what is true and what to do first ("Getting started", app redesign OB3): whoever set it up sees their first check-ins, "Give {n} goals an owner" for the goals left without one, and the invite link (or Add people while alone); someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it for good; it goes after 14 days or when everything is done; the example never shows it. Home's old "Add your people" card is gone.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Day one: set-up’s steps and “Getting started”](rules/day-one.md)
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Journeys and checks:** U86
@@ -804,6 +908,7 @@ In a workspace's first weeks Home tells each person, the second included, what i
 
 Until sign-in comes with SSO, someone opening a workspace on a new device says who they are once, and lands on their own home.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
 - **Rule:** [Welcome and the invitation](rules/welcome.md)
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`; “Joining a workspace you were invited to” (`joining`), screens `Start`
 - **Journeys and checks:** U11, U97
@@ -812,6 +917,7 @@ Until sign-in comes with SSO, someone opening a workspace on a new device says w
 
 Someone with no workspace meets Welcome at its own address, with one main action; someone invited meets the workspace they were invited to, who set it up, and their name; nobody is dropped into a workspace they didn't choose
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
 - **Rule:** [Welcome and the invitation](rules/welcome.md)
 - **Help:** “Welcome: starting, the demo, or an invitation” (`welcome`), screens `Welcome`; “Joining a workspace you were invited to” (`joining`), screens `Start`
 - **Journeys and checks:** U97
@@ -822,6 +928,7 @@ Someone with no workspace meets Welcome at its own address, with one main action
 
 Anyone can watch a goal, a whole tree or a level. Watching shows those goals curated: needs attention, gone quiet, what changed this week, then on track, with a level filter.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Watching goals” (`watching`), screens `Watching`
 - **Journeys and checks:** U7, U8, U9, U16, U31
 
@@ -829,6 +936,7 @@ Anyone can watch a goal, a whole tree or a level. Watching shows those goals cur
 
 Asking a quiet goal's owner for an update shows next to its status as asked, and when, until they check in. Whoever asked can undo it; undoing is logged and takes it off the owner's Home. Asking twice before they check in asks once.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Watching goals” (`watching`), screens `Watching`; “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** U38
 
@@ -836,6 +944,7 @@ Asking a quiet goal's owner for an update shows next to its status as asked, and
 
 Watching is one place: a Goals scope (/goals?show=watching, with /watching going there) with the full toolbar (filters, sort, layouts, export) and the What changed side column; levels are the ordinary Level filter. There is no four-tab navigation trial, and Home has one watching block.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Watching goals” (`watching`), screens `Watching`
 - **Tests:** `evals/demo-storage.eval.ts` (2)
 - **Journeys and checks:** U8, U9, U16, U31
@@ -846,6 +955,7 @@ Watching is one place: a Goals scope (/goals?show=watching, with /watching going
 
 From the last two weeks of a cycle, each owner wraps up their goals: how it landed (suggested from where it ended), one thing learned, carry on or stop. An admin then starts the next cycle; carried goals start from where they ended, stopped goals stay in the old cycle, and both are logged.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Wrapping up the year, and the next one” (`wrap-up`), screens `Retro`
 - **Journeys and checks:** U10
 
@@ -853,6 +963,7 @@ From the last two weeks of a cycle, each owner wraps up their goals: how it land
 
 Goals are set for the year: a goal year starting in the month each workspace picks, in four quarters. Quarter targets, and any week in between, are read off the owner’s own plan; each ended quarter shows met or missed against it, a missed quarter is flagged in the goal’s story, and history can be seen for this quarter or the whole year.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Weeks and plans](rules/weeks-and-plans.md), [A year’s end](rules/year-end.md)
 - **Help:** “History: quarter results and weekly status” (`history`), screens `GoalHistory`; “Wrapping up the year, and the next one” (`wrap-up`), screens `Retro`
 - **Journeys and checks:** U18, U23, U117
@@ -861,6 +972,7 @@ Goals are set for the year: a goal year starting in the month each workspace pic
 
 A cycle ends on its last day (its last week's Sunday) whether or not the next is started: results and the last quarter close on the numbers there are, and nothing in it is due, late or out of date afterwards. Every place that says where the year stands gives its real first and last days: running, ending (the wrap-up's weeks), ended or not begun.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [A year’s end](rules/year-end.md), [Starting the next year](rules/start-next-year.md)
 - **Help:** “Wrapping up the year, and the next one” (`wrap-up`), screens `Retro`; “Starting the next year” (`start-next-year`), screens `StartNext`; “Workspace: Cycles” (`workspace-cycles`)
 - **Journeys and checks:** U117
@@ -869,6 +981,7 @@ A cycle ends on its last day (its last week's Sunday) whether or not the next is
 
 An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on from their final number, from week 1, with their key, metric, watchers, open asks and place in reviews; no carried plan changes direction, starts late or has a stage after the year's end. Until someone uses a carried goal, a later final number or wrap-up keeps it true.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Starting the next year](rules/start-next-year.md), [The carry rule, and what comes with a goal](rules/carry.md)
 - **Help:** “Starting the next year” (`start-next-year`), screens `StartNext`
 - **Journeys and checks:** U115
@@ -877,6 +990,7 @@ An admin starts the next cycle from the day the wrap-up opens, once, after a rea
 
 A goal year's weeks follow the calendar: week 1 is the week with the first Thursday of the month the year starts in, so in a January year week n is ISO week n, and the year runs to the week before the next year's week 1 (52 or 53 weeks). Week 0, the week before, is for starting numbers. Setting up in the last days of December sets up next year. Shorter cycles count from their own start. Years stored under the old numbering are moved once, keeping every check-in, stage and plan on its date. The demo is set in the real calendar year, so its week is today's.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Weeks and plans](rules/weeks-and-plans.md)
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`; “History: quarter results and weekly status” (`history`), screens `GoalHistory`
 - **Tests:** `evals/scenarios.eval.ts` (6)
@@ -888,6 +1002,7 @@ A goal year's weeks follow the calendar: week 1 is the week with the first Thurs
 
 The same goals can be seen as a list, a sortable table, a board by status, or a week-by-week history grid of owners’ calls (each with the goal’s number now). Cards went on 9 Nov: a link, saved view or remembered choice that names it opens the list and says so once. Every layout has the same one-line health summary above the goals (how many off track, at risk, on track and so on, shape and word, as Home counts them). Sorted, the Trees tab is one list across every tree. The Board shows 8 cards in a healthy lane before Show all, each card leads with its own status (shape and word) and names the goal it feeds into. By team lists the teams worst first (most off track, then at risk, no recent update, no check-in yet), each with its goals counted by status, shape and word. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address. Choosing a tab or a layout is a step in the browser's history, so Back returns to the one before. A link naming a tab, team, owner or tree the workspace doesn't have opens the default instead, with one line saying what was left out. Every tab is shown whole beside the layouts. On a phone the goals come first: which goals (the tabs and saved views, with Export) and the layout are two menus on one line, the first saying the open view and its count, so the first goal starts within about 240px of the top of a 360px screen.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
 - **Journeys and checks:** N10, U19
 
@@ -895,6 +1010,7 @@ The same goals can be seen as a list, a sortable table, a board by status, or a 
 
 A goal map shows every goal on a canvas that can be panned, zoomed and rearranged: north stars at the top, solid lines for feeds into, dotted lines for also helps, branches that fold and unfold, the list bar's Needs attention switch, and the critical path (the inputs most likely to make each top goal miss) drawn bold. It works at the size of a division (126 goals): it opens folded to the top goals with only the critical path beneath them; the trees wrap into rows so Fit all shows every goal; the list bar's search, on the Map, lists the goals it finds by name or key (G-48), and choosing one opens its tree, outlines it and moves to it without narrowing the Map (Enter with nothing chosen narrows, as on every layout); each goal shows its number, target and gap, and a goal others feed shows the worst status of everything under it (the List's roll-up, by the group-status rule); Troubled trees only keeps the trees with anything off track, at risk or without a recent update; the map refits whenever what it shows changes, and draws at once, with no staged wait. Selecting a goal shows its story beside the map. The map never removes a goal: Delete and Backspace do nothing on it. On a phone the same map is indented, one goal per row.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [The goal map](rules/map.md)
 - **Help:** “The goal map” (`goal-map`), screens `GoalMap`
 - **Journeys and checks:** U26, U30, U135
@@ -905,6 +1021,7 @@ A goal map shows every goal on a canvas that can be panned, zoomed and rearrange
 
 An admin can make a personal token for any person, named for what it is for; it is shown once, only its SHA-256 hash is stored, and it can be revoked. An AI assistant using it through the MCP server acts as that person: the same rights and rules as the app, every change logged as theirs via MCP, writes checkable with a dry run, and a revoked or wrong token refused.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
 - **Help:** “Workspace: Access” (`workspace-access`); “MCP access” (`ai-assistants`)
 - **Journeys and checks:** U22
 
@@ -912,6 +1029,7 @@ An admin can make a personal token for any person, named for what it is for; it 
 
 Everything a person can do in the app, their AI assistant can do through the MCP server, with exactly that person's rights and the app's rules, logged as them via the assistant: reading every screen (what needs them, goals, reviews, requests, watching, people, activity, views, tokens, the wrap-up) and every action (check-ins, goals, plans, comments, asks for an update, answering, linking and withdrawing requests, review calls, reviews, watching, people, wrap-ups, the next cycle, views, tokens, feedback, deleting the workspace). Only workspace set-up and switching stay in the app. A parity map is checked against the app's actions and screens.
 
+- **Copy:** build it as Faro does.
 - **Help:** “MCP access” (`ai-assistants`)
 - **Tests:** `evals/mcp.eval.ts` (12)
 
@@ -919,6 +1037,7 @@ Everything a person can do in the app, their AI assistant can do through the MCP
 
 AI assistant tokens are made and revoked only by security-definer functions (okr_token_create, okr_token_revoke) that make the secret in the database, store only its SHA-256 hash and return it once. The public key can't read, add or change okr_api_tokens; the app lists token metadata (never the hash) with okr_token_list, and the MCP server finds a token with okr_token_find. The public key can't read okr_feedback; Workspace reads a workspace's with okr_feedback_list. AI assistants and Workspace's feedback keep working.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
 - **Help:** “MCP access” (`ai-assistants`)
 
 ## Leaders
@@ -927,6 +1046,7 @@ AI assistant tokens are made and revoked only by security-definer functions (okr
 
 Every goal that is off track, at risk or gone quiet tells its story where it is listed and in exports: why it is off, what the owner will do, by when, what they need and from whom. Things the numbers would hide are flagged: no recovery plan, a missed or slipping date, the same cause week after week, a call greener than the numbers, a goal gone quiet. A legend says what each status means. Once due, a goal shows Completed, Completed late or Did not meet.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** U19, U33
 
@@ -934,6 +1054,7 @@ Every goal that is off track, at risk or gone quiet tells its story where it is 
 
 History opens on quarter results: for every goal, each quarter's actual number at its end against the owner's plan, met or missed (shape plus word), with the current quarter in progress. The owners' weekly calls are a separate, clearly named option, so weekly confidence is never mistaken for a quarter's result.
 
+- **Copy:** build it as Faro does.
 - **Help:** “History: quarter results and weekly status” (`history`), screens `GoalHistory`
 - **Journeys and checks:** U38
 
@@ -941,6 +1062,7 @@ History opens on quarter results: for every goal, each quarter's actual number a
 
 Weekly status can be seen one quarter at a time (Q1 to Q4) or for the whole year. A selected square is described in words beside the grid: the week and its dates, the goal, the owner's call, the number and the plan that week. It works by mouse, touch and keyboard (one tab stop, then the arrow keys).
 
+- **Copy:** build it as Faro does.
 - **Help:** “History: quarter results and weekly status” (`history`), screens `GoalHistory`
 - **Journeys and checks:** U38
 
@@ -950,6 +1072,7 @@ Weekly status can be seen one quarter at a time (Q1 to Q4) or for the whole year
 
 Feedback sent from the demo reaches the people building the app: it is kept with the research notes, with the screen, the person being played and how they felt, and one id per visitor. The thanks says where it went.
 
+- **Demo only:** Faro’s own, for the demo and its builders. Don’t build it.
 - **Help:** “The demo” (`demo`), screens `Research`
 - **Journeys and checks:** U40
 
@@ -957,6 +1080,7 @@ Feedback sent from the demo reaches the people building the app: it is kept with
 
 A research hub for people and AI agents: what the app is for, a note that access control is deliberately not built yet, eleven goal-framed tasks, the protocol (first glance, think aloud, every flow and screen, try to break it, evidence and severity), and a report to paste or upload. While a session runs, a research bar asks a first-glance question on each new screen, pins notes to any part of a screen, and records each task as done, stuck or gave up with confidence. Notes are kept in the browser and sent to a table that can’t be read back through the app.
 
+- **Demo only:** Faro’s own, for the demo and its builders. Don’t build it.
 - **Help:** “The demo” (`demo`), screens `Research`
 - **Journeys and checks:** U28, U40
 
@@ -966,6 +1090,7 @@ A research hub for people and AI agents: what the app is for, a note that access
 
 The app follows docs/design-rules.md on every screen: no coloured edge stripes or inset accent bars on cards, rows or tiles; no quote bars; no emoji or dingbat icons; no gradients; no capsule badges for states. Status is always a shape plus a word; off track gets a full-surface wash, never an edge.
 
+- **Copy:** build it as Faro does.
 - **Help:** “What the statuses mean” (`status`)
 - **Journeys and checks:** F11, P6, P17, P19
 
@@ -973,6 +1098,7 @@ The app follows docs/design-rules.md on every screen: no coloured edge stripes o
 
 A status shape always agrees with the word beside it, everywhere: the shape comes from the goal’s status (or a stage’s state, a result or a quarter that shares its shape, as src/domain/vocabulary.ts SHAPE_WORDS says), never from what flags it. An on-track goal flagged only for Getting worse or Greener than calculated keeps the On track shape on Home and in the Goals screen’s Needs attention, and says the flag in its own words beside the warning mark, as the goal’s page does. The design checks (P3, P4, P6) hold every status shape on every screen to its word with the app’s own rule (shapeAgrees).
 
+- **Copy:** build it as Faro does.
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Tests:** `evals/shapes.eval.ts` (2)
 - **Journeys and checks:** P3, P4, P6
@@ -983,6 +1109,7 @@ A status shape always agrees with the word beside it, everywhere: the shape come
 
 Numbers people can trust. A whole workbook loads back for a goal owner, with only the rows they changed checked against who may change them. Every earlier plan is kept with the week it stopped applying, so old weeks and closed quarters stay judged against the plan of their day. A goal that measures a share can't report over 100%, and a value has to be a number before any status is shown. A goal gone quiet has no forecast in any view or export. A table compares a number with the plan for the same week. Exports judge every past check-in against the plan of its own week, as the screens do. What the map shows, the count, the link and "what's shown now" in Export are the same goals; goals drawn only for context are greyed and say so. While goals still have no check-in, the app says how many have reported rather than showing nothing needs attention; a milestone with no check-in isn't called on schedule, and the critical path only runs through goals whose status is known.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [A goal’s status](rules/status.md), [The scorecard](rules/scorecard.md)
 - **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
 - **Tests:** `evals/scenarios.eval.ts` (5)
@@ -994,6 +1121,7 @@ Numbers people can trust. A whole workbook loads back for a goal owner, with onl
 
 Every screen size gets a layout made for it, from a 360px phone to a 3440px monitor. Focused tasks stay narrow. Home, a goal and Watching put a side column beside the main one when there's room. Tables, boards and cards use a wide frame without clipping, and the map fills the window. On a very wide monitor, pages stay near the sidebar rather than floating mid-screen. On a short laptop, a goal's chart is above the fold. Every status shape has its word beside it.
 
+- **Copy:** build it as Faro does.
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** P7, P8
 
@@ -1003,6 +1131,7 @@ Every screen size gets a layout made for it, from a 360px phone to a 3440px moni
 
 A leader's attention goes to the exceptions. A weekly review walks the goals that need a look one at a time and takes the goals on track with nothing flagged together in one acknowledgement, which can be opened or walked instead. A goal page says which contributing goals are most likely to make it miss. A request for a decision has Respond beside it. Asking for an update leaves a lasting 'Asked' in place of the button. The table keeps each goal's story to one line, with Details to open it, and the board puts the north star first and folds healthy lanes to a count. New goal asks before resuming an unpublished one. One name per idea: No recent update, Contributing goals, Decision or help needed.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Needs attention, and being handled” (`needs-attention`); “Reviews” (`reviews`), screens `Review`, `Inspect`
 - **Journeys and checks:** U33
 
@@ -1012,6 +1141,7 @@ A leader's attention goes to the exceptions. A weekly review walks the goals tha
 
 Home opens on what is asked of you today, with one primary action, or says that nothing is; a check-in becomes the primary action the day before it is due, when late, or when a review you are in will read it. Your goals are counted once, each count opens exactly those goals, and a completed week is one sentence with the next date.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Home: what is asked of you today](rules/home.md)
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Tests:** `evals/attention.eval.ts` (5)
@@ -1023,6 +1153,7 @@ Home opens on what is asked of you today, with one primary action, or says that 
 
 Settings is about you (app redesign WR3): who you are here, with "Your page" leading to your person page (a member is told which admins change their name, job title or team); your remembered choices, kept in this browser (light, dark or system, an accent colour, a collapsed or full side navigation); your own MCP tokens with Revoke, and no way to make one there (an admin makes them on Access); one line on recording leading to Privacy; the Motion lab; and Leave, last. Detail pages have a Back link to where you came from.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Settings” (`settings`), screens `Settings`
 - **Tests:** `evals/settings.eval.ts` (4)
 - **Journeys and checks:** N4, U62
@@ -1031,6 +1162,7 @@ Settings is about you (app redesign WR3): who you are here, with "Your page" lea
 
 Goals is one section of the navigation with Mine, Watching and All, and your saved views under it; a person in one workspace never sees a workspace switcher.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** N4
 
@@ -1038,6 +1170,7 @@ Goals is one section of the navigation with Mine, Watching and All, and your sav
 
 The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; every page is readable from its first frame (nothing fades it in), interface motion is under 250ms, charts show their final state at once or draw within that, the goal page's story (its chart and headline number) runs only when switched on in the Motion lab, up to 4 seconds at the default pace so it can be seen, and all of it is off when the person asks for reduced motion.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Settings” (`settings`), screens `Settings`
 - **Tests:** `evals/layoutSwitch.eval.ts` (2), `evals/printMotion.eval.ts` (3)
 - **Journeys and checks:** N6
@@ -1048,6 +1181,7 @@ The app moves with purpose: numbers and status change visibly when a check-in po
 
 Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it. In a workspace of someone’s own only an admin may Start over; in the shared example anyone may.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Teams” (`teams`)
 - **Tests:** `evals/workspace-admin.eval.ts` (8)
 - **Journeys and checks:** N4, U60
@@ -1056,6 +1190,7 @@ Admins can rename the workspace and add, rename and remove teams (a team with pe
 
 Workspace is in sections, each with its own address (/workspace/<section>) and one main action, in a side menu on a computer and, on a phone, as a list under About: About (/workspace: for admins what needs sorting out, then the facts about the workspace, and deleting it at the foot), Cycles, Access (admins and MCP tokens), Features, Privacy and Recently removed. People who aren’t admins see About, Cycles, Privacy and Recently removed; anyone else opening an admins’ section is told who the admins are and led back to Workspace. People and Teams are a place of their own (PEOPLE-DIRECTORY). Old addresses (/workspace/overview, /workspace?inbox=1&markup=…, /workspace/inbox, #people) lead to the page they meant; the inbox's go to Feedback. Sections are an extension point: a feature module adds its own (AppModule sections, module.json sections), with a fact on About (`says`) and its own things to sort out (`needs`).
 
+- **Copy:** build it as Faro does.
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`
 - **Journeys and checks:** U51, U59
 
@@ -1063,6 +1198,7 @@ Workspace is in sections, each with its own address (/workspace/<section>) and o
 
 Workspace opens on About (app redesign WR2). Under the title, one line: "{workspace} · you’re an admin here" or "… a member here". For admins only, "To sort out": no goals, no review, the only admin of five or more people, people with no email, people in no team, teams of three or more with no lead, each a sentence, why, and one button, at most three then "and {k} more"; nothing to sort out leaves it out. Then the facts, each leading to its section: name (and "example data" or "kept in this browser"), people and teams, the year and when its wrap-up opens, the admins (a member is told to ask one of them), which features are on, and recording. Nothing about another workspace: no set-up, demo or reset buttons. A member sees no control they can't use.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [The workspace: cycles, teams, names, leaving and what needs attention](rules/workspace.md)
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`
 - **Journeys and checks:** F10, U59, U61
@@ -1071,6 +1207,7 @@ Workspace opens on About (app redesign WR2). Under the title, one line: "{worksp
 
 Workspace is one place (backlog WS). The sidebar's header (and a phone's top bar) is the workspace switcher: it names the open workspace (the example without its "Example: "), lists every workspace with its kind, says your role on the open one ("Open now"), and leads to About and to setting up a new workspace (not Home). Switching is navigation with a history entry, so Back returns to the workspace you came from; you land on the same kind of page or Home, never on the old workspace's goal; while the other loads the screen says "Opening <name>…"; part-way through a task with a draft it asks first and says the draft stays in its own workspace. The person menu is only about people. Your role shows: "Admin" beside your name where you are one, and Workspace says in one line whose workspace it is and your part in it. Cycles show their dates, which is running, their goals and check-ins, and their actions; a team counts its lead; a workspace name's 80-character limit is said while typing, never cut; no button clips its label.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [The workspace: cycles, teams, names, leaving and what needs attention](rules/workspace.md)
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`
 - **Journeys and checks:** U53
@@ -1079,6 +1216,7 @@ Workspace is one place (backlog WS). The sidebar's header (and a phone's top bar
 
 The inbox of markups and feedback is its own page, Feedback (/feedback), beside Help in the sidebar and in More on a phone, labelled "From every workspace and the demo". It is open to everyone, with every status change recorded and undoable, and names people, never their email. /workspace/inbox and older inbox links lead there. The MCP inbox tools are unchanged.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R5. Notifications and the weekly habit](../requirements/internal/r5-notifications-and-habits.md).
 - **Help:** “The inbox” (`inbox`), screens `Feedback`
 - **Journeys and checks:** U53
 
@@ -1086,6 +1224,7 @@ The inbox of markups and feedback is its own page, Feedback (/feedback), beside 
 
 Anyone can leave a workspace from Settings (last, after a rule), with a confirm that first asks who takes over their goals and open asks; the only admin sees the button disabled and why. Resetting the example is the demo's Start over, for everyone, and says it only touches this browser; deleting a workspace of your own is for admins, at the foot of About. Set-up asks whether to record how the app is used (off unless ticked), its "Who are you?" step starts as the person you are, and steps skipped on the "Set goals up later" path say so.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Settings” (`settings`), screens `Settings`
 - **Journeys and checks:** U53, U62
 
@@ -1095,6 +1234,7 @@ Anyone can leave a workspace from Settings (last, after a rule), with a confirm 
 
 The menu is four groups: your work (Home; Check-in for someone with a goal to check in on; Goals with up to four saved views; Reviews), things to look up (People, a module's places, Activity, Data), New goal, and this workspace and you (Workspace, Settings, Help, Feedback); one item is lit. A phone has four tabs (Check-in or People as the second) and More, in the same groups.
 
+- **Copy:** build it as Faro does.
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** U67
 
@@ -1102,6 +1242,7 @@ The menu is four groups: your work (Home; Check-in for someone with a goal to ch
 
 Collapsed to a rail (and always between 761 and 1100 px), each icon names itself in the app's own label, after a moment on hover and at once on keyboard focus, with its full words (“Check-in, 5 to do”).
 
+- **Copy:** build it as Faro does.
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** U67
 
@@ -1109,6 +1250,7 @@ Collapsed to a rail (and always between 761 and 1100 px), each icon names itself
 
 Every page names itself in the browser's title (“{name} · {workspace} · Faro”) and lights one place: a goal, review, person, team or Help article by its own name, with what the page does to it (“Change {goal}”, “Check in: {goal}”, “{goal} · {review}” in a review's walk); Goals is “Goals” on every tab; a Workspace section is “{section} · Workspace”; an address that leads nowhere says “Page not found”. A goal in a review's walk lights Reviews, a saved view lights itself, and on a phone the tab that holds the lit place (or More) is lit.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Navigation: the menu, the lit item and a page’s name](rules/navigation.md)
 - **Help:** “Getting around” (`getting-around`)
 - **Journeys and checks:** U69
@@ -1117,6 +1259,7 @@ Every page names itself in the browser's title (“{name} · {workspace} · Faro
 
 One back link per page, “‹ {where}” above the title, never on a place's first page: back to the last page in this tab that isn't a form and isn't this page, named as the menu names it, going back in the browser's history so Forward still works; the browser's Back onto a form you left steps over it the same way. Arriving from outside it goes to the page's parent: the goal a goal feeds, else Goals; the review for a goal in its walk; People, Teams, Help, Reviews.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Navigation: the menu, the lit item and a page’s name](rules/navigation.md)
 - **Help:** “Getting around” (`getting-around`)
 - **Journeys and checks:** U70
@@ -1125,6 +1268,7 @@ One back link per page, “‹ {where}” above the title, never on a place's fi
 
 A form has one way out, top right, in words: “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Getting around” (`getting-around`)
 - **Journeys and checks:** U72, U136
 
@@ -1134,6 +1278,7 @@ A form has one way out, top right, in words: “Close and keep the draft” wher
 
 Every list is searched, filtered, sorted and counted the same way, and its address says what is shown: a search matches the words on each row (a goal's key included) by the start of each word; the count line says “{n} {things} match.”; filters read as words with Remove; a search that finds nothing says so with Clear the search, and a near miss is tried and said; a choice adds a history entry and typing replaces it until it settles.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Finding and choosing” (`finding`)
 - **Journeys and checks:** N12, U64, U66, U92
 
@@ -1141,6 +1286,7 @@ Every list is searched, filtered, sorted and counted the same way, and its addre
 
 A person, team, goal or metric is always chosen by typing to find it, never from a list of everything: one control everywhere, which suggests you, your team and what you chose lately before anything is typed, then finds by the words on each row (a goal's key included), says how many match, draws at most 50, and is worked with arrow keys, Enter and Escape. The choice reads as plain words with Change or Remove.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Finding and choosing” (`finding`)
 - **Journeys and checks:** F11, N12, P17, U63, U82, U84, U91, U136
 
@@ -1148,6 +1294,7 @@ A person, team, goal or metric is always chosen by typing to find it, never from
 
 Anything can be found from any page by name or key: the sidebar's Find (a field with its key), the phone's top bar Find and Ctrl K (Cmd K) open one search across goals, people, teams and a module's kinds (metrics), in that order, three rows a group with its count and “See all {n} {things}”; a goal's key alone puts that goal first; Enter opens the first row, rows are links and Escape closes. Before typing it lists what was opened lately; people marked as left are found as “(left)”; nothing from another workspace.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Finding things](rules/finding.md)
 - **Help:** “Finding and choosing” (`finding`)
 - **Journeys and checks:** U65
@@ -1158,6 +1305,7 @@ Anything can be found from any page by name or key: the sidebar's Find (a field 
 
 A goal and a review each have a print-ready one-page view (save as PDF) with everything critical: status, numbers against plan, chart, path to green, latest check-in, requests and actions.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Printing a goal or a review” (`print`), screens `Print`
 - **Tests:** `evals/printMotion.eval.ts` (4)
 - **Journeys and checks:** N6
@@ -1166,6 +1314,7 @@ A goal and a review each have a print-ready one-page view (save as PDF) with eve
 
 Every file the app saves (Export, Import's workbook, Data, Activity, the set-up template, research notes) goes through one saveFile(), named <workspace>-<what>-<scope>-<date>, with one way of saying it saved or what went wrong.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Data” (`data`), screens `DataTables`, `DataFilters`, `DataLayout`
 - **Tests:** `evals/consolidation.eval.ts` (3)
 
@@ -1175,6 +1324,7 @@ Every file the app saves (Export, Import's workbook, Data, Activity, the set-up 
 
 The app has its own guide: one article per screen or feature saying what it is for, how to use it and who can, reachable from the sidebar, the phone's More sheet and the icon rail, searchable, and opened for the page you are on by a Help link on every page. Every screen, route and requirement has an article (checked by a test), and an AI assistant can read it through the MCP server.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Help and what’s new” (`help`), screens `Help`
 - **Tests:** `evals/help.eval.ts` (5)
 - **Journeys and checks:** N7
@@ -1183,6 +1333,7 @@ The app has its own guide: one article per screen or feature saying what it is f
 
 What's new lists each release newest first, with a date, a title, a few plain lines for people and links to the guide. A quiet dot beside Help, and one dismissible line on Home, show a release the person hasn't seen until they open What's new, remembered across reloads. CI refuses a change to the app without an entry, and an AI assistant can read the entries.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Help and what’s new” (`help`), screens `Help`
 - **Tests:** `evals/help.eval.ts` (4)
 - **Journeys and checks:** N7
@@ -1193,6 +1344,7 @@ What's new lists each release newest first, with a date, a title, a few plain li
 
 The app records traces, logs and metrics in its own database in OpenTelemetry's shape (32-hex trace ids, 16-hex span ids, parent, kind, start and end, status, attributes and resource; logs with timestamp, severity and body), using semantic-convention names. One trace per thing a person does: the action, the save's RPC timed from the client as a CLIENT span (db.system, db.operation), and the page that shows the result. Pages, errors, failed saves (a rule saying no told apart from a network or database fault) and slow loads are recorded. The MCP server records a SERVER span per tool call and joins the caller's trace from a W3C traceparent header. When the tables are missing, the database is down or there is none, the app works exactly as before, with no console errors and no retry storm.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R9. Observability and service levels](../requirements/internal/r9-observability.md).
 - **Help:** “What the app records” (`recording`)
 - **Tests:** `evals/telemetry.eval.ts` (4)
 - **Journeys and checks:** N8
@@ -1201,6 +1353,7 @@ The app records traces, logs and metrics in its own database in OpenTelemetry's 
 
 After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop. Offline, nothing reloads (a reload would load nothing): the page says it needs a connection, with Try again and Go back.
 
+- **Demo only:** Faro’s own, for the demo and its builders. Don’t build it.
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** N8
 
@@ -1208,6 +1361,7 @@ After a deploy, a tab still running the old build that fails to load a part of i
 
 Nothing a person types is ever recorded: attributes pass an allow-list, paths lose their query, error messages lose anything quoted or numeric, and the database caps their size. Everyone is told plainly, on Workspace, Privacy (which Settings leads to) and in a guide article, what is and isn't recorded, for how long and who can see it. The public key can add rows but never read them.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R9. Observability and service levels](../requirements/internal/r9-observability.md).
 - **Help:** “What the app records” (`recording`)
 - **Tests:** `evals/telemetry.eval.ts` (2)
 - **Journeys and checks:** N8
@@ -1216,6 +1370,7 @@ Nothing a person types is ever recorded: attributes pass an allow-list, paths lo
 
 The named flows (check-in, quick check-in, review, new goal, change a goal, answer a request, import, wrap-up, set up a workspace) are defined once beside the guide, each with its article and ordered steps reached by App routes, named actions or a screen's own marks. Telemetry records when a flow starts, each step it reaches (step n of m), and whether it finishes or stops (left without finishing). The last 20 steps of a tab's session are kept in memory for a later markup.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R9. Observability and service levels](../requirements/internal/r9-observability.md).
 - **Help:** “What the app records” (`recording`)
 - **Tests:** `evals/telemetry.eval.ts` (2)
 - **Journeys and checks:** N8
@@ -1224,6 +1379,7 @@ The named flows (check-in, quick check-in, review, new goal, change a goal, answ
 
 Raw spans, logs and metrics are kept 90 days. A nightly pg_cron job rolls each day up into daily totals (counts, errors, p50 and p95 durations by name, route and flow step; flow starts, finishes and stops by step), kept indefinitely, and rolls a day up again before pruning it.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R9. Observability and service levels](../requirements/internal/r9-observability.md).
 - **Help:** “What the app records” (`recording`)
 - **Tests:** `evals/telemetry.eval.ts` (1)
 
@@ -1231,6 +1387,7 @@ Raw spans, logs and metrics are kept 90 days. A nightly pg_cron job rolls each d
 
 A workspace records only if chosen when it was set up (off unless ticked; the demo's example records). An admin (and only an admin, in the app or through the MCP set_recording tool) can turn it on (after confirming) or off for a workspace; the switch is saved with the workspace and logged. While it is off nothing is sent for that workspace, from the browser or the MCP server, and the database refuses rows for it.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R9. Observability and service levels](../requirements/internal/r9-observability.md).
 - **Help:** “What the app records” (`recording`)
 - **Tests:** `evals/telemetry.eval.ts` (2)
 - **Journeys and checks:** N8
@@ -1241,6 +1398,7 @@ A workspace records only if chosen when it was set up (off unless ticked; the de
 
 One word for each concept: docs/glossary.md names each term, says what it means and lists the words not to use, and the app's copy (screens, components, walkthroughs, the rules' own words and the guide) never uses them, apart from what the glossary keeps on purpose. Data is called Data, its named column arrangements are saved layouts, Import is called Import, the one-table check-in has one name, and a goal with no number says "No value yet" everywhere.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Help and what’s new” (`help`), screens `Help`
 - **Tests:** `evals/consolidation.eval.ts` (7)
 
@@ -1248,6 +1406,7 @@ One word for each concept: docs/glossary.md names each term, says what it means 
 
 One meaning for every status word: src/domain/vocabulary.ts defines each status, attention flag, result, quarter result, stage, ask state, gap phrase and removal word once, with its code, its label, a one-line and a longer meaning, the rule that decides it and where it may appear. The status legend, Help's status and Needs attention articles, the export's definitions (workbook README and JSON words), the AI assistant's tool descriptions and outputs ("Off track (off)"; inputs take the code or the words) and docs/glossary.md are generated from it. No word it retired is said anywhere, and no word it defines is written outside it, src/mcp included, apart from listed non-status uses. Stored codes don't change.
 
+- **Copy:** build it as Faro does.
 - **Help:** “What the statuses mean” (`status`)
 - **Tests:** `evals/vocabulary.eval.ts` (6)
 
@@ -1257,6 +1416,7 @@ One meaning for every status word: src/domain/vocabulary.ts defines each status,
 
 One ask model: a decision or help, an update, a question and an action are each one record with who asked, who must respond, an optional due week and the goals it covers. Each is open until it is explicitly answered (an action: marked done) or withdrawn; a comment never closes one. Every kind is answered in one Respond panel, appears once in Home’s Needs your response and on the goal page, and the goal page’s action list shows its real state (open, overdue, done).
 
+- **Copy:** build it as Faro does.
 - **Help:** “Asks: decisions, updates, questions and actions” (`requests`), screens `Respond`
 - **Tests:** `src/mcp/mcp.test.ts` (1), `evals/asks.eval.ts` (8), `evals/review-notes.eval.ts` (1)
 - **Journeys and checks:** U3, U8, U16, U33, U36, U37, U38, U78
@@ -1267,6 +1427,7 @@ One ask model: a decision or help, an update, a question and an action are each 
 
 Send feedback's first choice, Mark up this screen (and Ctrl+Shift+M or Cmd+Shift+M anywhere), takes the visible screen as a still picture, loaded only when a markup starts, and gives a slim toolbar: Pen, Arrow, Box, Note (a numbered pin with a few words), Undo, Clear, Cancel and Next, in one high-contrast ink, with the page frozen, by mouse, touch or the keyboard alone, and Escape cancelling. Next asks one required line (What should change?), the Send feedback moods and shows the exact picture that will be sent; Include my last 20 steps on this visit is ticked, with a link to Help. Send says “Sent. You’ll hear when it’s fixed.” A markup carries the screen and the drawing as separate pictures, the strokes and pins as vectors, the named screen parts (data-part) under each, the route, the goal or review, viewport, theme, accent, app version, the steps (if ticked) and the visit's errors and failed saves. Markups from the demo are kept too, marked demo; the public key can only add a markup, under an id the database issued, and upload its pictures to a bucket anyone can read a picture from by its address but nobody can list. A What’s new entry that lists (or was marked as fixing) a markup says “You raised this” to its sender.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
 - **Help:** “Send feedback, and marking up a screen” (`feedback`)
 - **Journeys and checks:** U41, U42
 
@@ -1274,6 +1435,7 @@ Send feedback's first choice, Mark up this screen (and Ctrl+Shift+M or Cmd+Shift
 
 Workspace has an Inbox, open to anyone with no sign-in, in the live app and the demo (backlog O, migration 0031: Faro never holds real data; the internal app keeps it restricted, spec R1 rule 6). It lists every markup, newest first, grouped by page and part with a count, each with a thumbnail, its line, its page, who sent it, when, and its status as a shape plus a word (New, In hand, Fixed, Won’t fix). A markup opens with its picture (the drawing can be hidden), the named parts, the steps as a timeline, errors and where it came from. Anyone marks it in hand, opens a pre-filled GitHub issue and pastes its address back, marks it fixed in a What’s new entry, or says why it won’t be fixed, through the one status rule; each change is recorded as the person using the app (who and when, shown on the markup) and offers Undo, which puts back the status it replaced through the same rule. The public key reads markups and changes only their triage columns. With any token, the MCP tools list_markups, get_markup and update_markup do the same through security-definer functions, with no new secret.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
 - **Help:** “The inbox” (`inbox`), screens `Feedback`
 - **Journeys and checks:** U42, U47, U52
 
@@ -1281,6 +1443,7 @@ Workspace has an Inbox, open to anyone with no sign-in, in the live app and the 
 
 Connect Claude sits at the top of the inbox (backlog -2, opened up by backlog O): any Faro token works, so an admin makes an ordinary token for themselves there (in the app, not the demo; the same action as Workspace’s AI assistants), anyone else is told who can, and the demo says tokens are made in the real app. It gives the exact set-up for a Claude cloud session (the host, and where the token goes) and for Claude Code, and says whether the server can send pictures (GET /api/mcp?check) and, if not, why. There is no email sign-in and no builder token: tokens are listed and revoked on Workspace and in Settings. A markup records the address it was sent from, so the inbox and the tools say when it came from a preview build or a laptop.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
 - **Help:** “The inbox” (`inbox`), screens `Feedback`
 - **Journeys and checks:** U47
 
@@ -1288,12 +1451,14 @@ Connect Claude sits at the top of the inbox (backlog -2, opened up by backlog O)
 
 A markup's picture comes back inside get_markup as MCP image content (the screen with the drawing, or the screen alone, or none), not as a link. review_inbox returns everything new (or with a given status) in one step: markups grouped by screen part, newest first, each group's newest with its picture, within a size budget, and feedback grouped by page; the server also offers it as the review_inbox prompt. Pictures are in a public-read bucket that nobody can list (migration 0031), so the inbox shows them by their address and the server reads them itself with either key; when the bucket isn't open, get_markup, review_inbox, the picture address and GET /api/mcp?check say so plainly, and a check after each deploy fails.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
 - **Help:** “The inbox” (`inbox`), screens `Feedback`
 
 ### FEEDBACK-INBOX
 
 Feedback sent with a mood and a few words joins the inbox (migration 0026): it is listed among the markups, newest first, each with its status as a shape plus a word (New, In hand, Fixed, Won’t fix), its words, its mood and page, who sent it, from which workspace and when. Anyone opens it and triages it with the markups’ rules: mark it in hand, fixed in a What’s new entry, won’t fix with a reason, or new again, each change recorded as the person using the app and undoable. Feedback always arrives New: the public key can only add feedback’s own columns, and reads every workspace’s feedback (okr_feedback_inbox) and changes its status (okr_feedback_triage) only through those functions (migration 0031). With no database, the inbox shows this workspace’s feedback, its statuses kept in the browser.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R5. Notifications and the weekly habit](../requirements/internal/r5-notifications-and-habits.md).
 - **Help:** “The inbox” (`inbox`), screens `Feedback`
 - **Journeys and checks:** U42, U52, U92
 
@@ -1301,6 +1466,7 @@ Feedback sent with a mood and a few words joins the inbox (migration 0026): it i
 
 The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. Only an admin changes a status, refused by the rule otherwise; everyone reads and sends feedback. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R5. Notifications and the weekly habit](../requirements/internal/r5-notifications-and-habits.md).
 - **Help:** “The inbox” (`inbox`), screens `Feedback`
 - **Journeys and checks:** U42, U52
 
@@ -1308,12 +1474,14 @@ The inbox works at hundreds of items: tabs New, In hand and Closed, each with it
 
 The AI triages feedback as it does markups (migrations 0028 and 0031). With any token, list_feedback lists every workspace’s feedback, newest first, each with its status (New, In hand, Fixed, Won’t fix), filtered by status or workspace; get_feedback opens one; update_feedback changes its status with the inbox’s rules (fixed names a What’s new entry, won’t fix needs a reason), recorded as the token’s person via the assistant. They go through security-definer functions for tokens (okr_feedback_for_token, okr_feedback_triage_for_token), which refuse a revoked or unknown token and share one change with the inbox (okr_feedback_patch, callable by no key on its own), so no new secret is needed.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
 - **Help:** “The inbox” (`inbox`), screens `Feedback`
 
 ### FEEDBACK-RAISED
 
 What’s new says “You raised this” to whoever sent feedback that an entry fixed, as it does for markups: the entry names the feedback’s id in its fixes, or a builder marked the feedback fixed in that entry. It is matched by person and feedback id, so nobody else’s feedback counts. The database tells a person which of their own feedback was fixed where (okr_feedback_raised, ids and statuses only, as okr_markups_raised does for markups); with no database, the inbox in this browser does.
 
+- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R5. Notifications and the weekly habit](../requirements/internal/r5-notifications-and-habits.md).
 - **Help:** “Send feedback, and marking up a screen” (`feedback`)
 
 ## Removing
@@ -1322,6 +1490,7 @@ What’s new says “You raised this” to whoever sent feedback that an entry f
 
 Every kind of record that can be made can be removed, archived or ended: a person (marked as left, or deleted with no history), a goal (stopped with a reason, or deleted with no check-ins), a check-in (until a newer one exists), a review (ended, or deleted if never held), a comment or review note (edited, or removed leaving its place), a saved view, a watch and a cycle with no check-ins. Who may is the same in the app, the import and the AI assistant (one set of rules, domain/removal). Nothing is erased: a removed record keeps its row with when and by whom, and leaves every list, count, picker, attention list, review and Home through one place (the scoped snapshot). Every removal is logged in Activity, unwatching and deleting a personal view included.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Removing, stopping and undoing” (`removing`)
 - **Tests:** `evals/remove.eval.ts` (2)
 - **Journeys and checks:** U43, U44
@@ -1330,6 +1499,7 @@ Every kind of record that can be made can be removed, archived or ended: a perso
 
 Every removal shows a message with an Undo button for 10 seconds, which puts back every record it changed (what it handed over or moved included). Admins restore anything removed, stopped, ended or marked as left in the last 30 days from Recently removed on Workspace, which shows the kind, the name, who removed it, when, and Restore; after 30 days it leaves the list but the row stays. The AI assistant has list_removed and restore_removed.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Removing, stopping and undoing” (`removing`); “Workspace: Cycles” (`workspace-cycles`)
 - **Tests:** `evals/remove.eval.ts` (1)
 - **Journeys and checks:** U43, U44
@@ -1338,6 +1508,7 @@ Every removal shows a message with an Undo button for 10 seconds, which puts bac
 
 An admin marks someone as left from a dialog that first asks who takes over their goals and their open asks (as asker and as responder); they vanish from pickers, counts, review people and Home, their token no longer works, and history keeps their name as “Name (left)”. Someone with no goals, check-ins, notes or asks is deleted outright instead.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Removing, stopping and undoing” (`removing`); “People: finding someone” (`people`), screens `People`
 - **Tests:** `evals/remove.eval.ts` (1)
 - **Journeys and checks:** U43
@@ -1346,6 +1517,7 @@ An admin marks someone as left from a dialog that first asks who takes over thei
 
 The owner or an admin stops a goal with check-ins, with a required reason: it leaves stats, reviews, Home, Watching and attention lists but stays on its page (marked Stopped, a shape and a word, as it stood but with no forecast: no “will it hit?” and no projection), in its history, in exports and in Activity; the goals feeding it move up to its parent and its open asks are withdrawn with a note. A goal with no check-ins is deleted instead.
 
+- **Copy:** build it as Faro does.
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`; “Removing, stopping and undoing” (`removing`)
 - **Tests:** `evals/remove.eval.ts` (1)
 - **Journeys and checks:** U44
@@ -1356,6 +1528,7 @@ The owner or an admin stops a goal with check-ins, with a required reason: it le
 
 Faro is a small core with named extension points (routes, navigation, Home blocks, goal-page sections, settings, places on core screens, database tables, AI tools, Help articles, requirements and journeys) and feature modules, one folder each with a module.json a generator can read, saying what it adds and what it needs. An admin switches each module on or off for a workspace on Workspace, Features (migration 0030): off, it leaves every screen, its AI tools refuse, and what needs it goes off too; nothing it saved is lost, and each switch is logged. CI builds Faro with each module left out and runs the core journeys, and a lint keeps src/domain free of database, screen and network code and the core from importing a module.
 
+- **Copy:** build it as Faro does.
 - **Help:** “Features: switching parts of Faro on or off” (`features`)
 - **Tests:** `evals/modules.eval.ts` (4)
 - **Journeys and checks:** U48
@@ -1366,6 +1539,7 @@ Faro is a small core with named extension points (routes, navigation, Home block
 
 A number is never rounded quietly: one typed with more decimal places than its goal keeps is refused, with what it would show as, in the check-in, New goal, goal edit, the import and the AI tools. Letters in a number get one message everywhere, every number shown has its thousands grouped, and numbers far outside the plan are questioned, never refused.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Numbers and names](rules/numbers-and-names.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** F9
@@ -1376,6 +1550,7 @@ A number is never rounded quietly: one typed with more decimal places than its g
 
 Two goals may share a title and two people a name (the email is who someone is). Creating one warns; wherever both could be on screen, a goal shows its key and a person their team or job title beside the name, and people with the same initials get different avatar colours.
 
+- **Copy:** build it as Faro does.
 - **Rule:** [Numbers and names](rules/numbers-and-names.md)
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`; “People: finding someone” (`people`), screens `People`
 - **Journeys and checks:** F9
