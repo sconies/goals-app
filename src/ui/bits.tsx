@@ -224,15 +224,22 @@ export function EmptyResult({ title, children, action }: { title: string; childr
  * it stays at the bottom of the sheet at every scroll position. Messages raised while it's open show inside it, below
  * everything, so they never cover what you're doing.
  */
-export function Sheet({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
+export function Sheet({ open, onClose, title, children, wide, returnFocus }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean; returnFocus?: () => HTMLElement | null }) {
   const ref = useRef<HTMLDivElement>(null);
+  // What had focus when it opened, read while rendering: by the time the effect runs, a field with autoFocus has taken it
+  // (build review of #376), and focus would go back to a field that's gone.
+  const opener = useRef<HTMLElement | null>(null);
+  if (!open) opener.current = null;
+  else if (!opener.current) opener.current = document.activeElement as HTMLElement | null;
+  const back = useRef(returnFocus);
+  back.current = returnFocus;
   const toasts = useToasts();
   // The latest onClose, so a parent passing a new function each render doesn't re-run the focus effect.
   const close = useRef(onClose);
   close.current = onClose;
   useEffect(() => {
     if (!open) return;
-    const prev = document.activeElement as HTMLElement | null;
+    const prev = opener.current ?? (document.activeElement as HTMLElement | null);
     const focusables = () => [...(ref.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select, textarea') ?? [])];
     // A field that asked for focus (autoFocus) keeps it. Otherwise the first control, never the close button or a link
     // inside a sentence (Enter on it would leave the sheet).
@@ -252,7 +259,8 @@ export function Sheet({ open, onClose, title, children, wide }: { open: boolean;
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
     document.addEventListener('keydown', key);
-    return () => { document.removeEventListener('keydown', key); prev?.focus?.(); };
+    // Back to whatever opened it; if that is gone (it was in a sheet that closed), to where the caller says.
+    return () => { document.removeEventListener('keydown', key); (prev?.isConnected ? prev : back.current?.() ?? prev)?.focus?.(); };
   }, [open]);
   if (!open) return null;
   // Rendered at the top of the page so a phone shows it as a bottom sheet over everything.

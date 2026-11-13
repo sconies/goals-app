@@ -66,6 +66,8 @@ export const LIMITS: Limit[] = [
   { constraint: 'okr_metrics_source_owner_check', holds: ['<= 2000'], rule: 'metric-defined', words: '', code: 'src/modules/metrics/rules.ts#METRIC_LIMITS' },
   { constraint: 'okr_metrics_caveats_check', holds: ['<= 2000'], rule: 'metric-defined', words: '', code: 'src/modules/metrics/rules.ts#METRIC_LIMITS' },
   { constraint: 'okr_goal_metrics_part_len', holds: ['<= 60'], rule: 'metric-measured-by', words: 'The part of a metric a goal is measured by (“Which part”) has at most 60 characters; empty means all of it.' },
+  { constraint: 'okr_metrics_measurement_ok', holds: ["'measured'", "'partly'", "'gap'"], rule: 'metric-defined', words: 'A metric is measured, partly measured or a gap (not measured yet); measured unless someone says otherwise.' },
+  { constraint: 'okr_metrics_measurement_note_len', holds: ['<= 300'], rule: 'metric-defined', words: 'What is missing from a metric’s measurement has at most 300 characters.' },
   { constraint: 'okr_metrics_retired_why_len', holds: ['<= 300'], rule: 'metric-care', words: 'Why a metric was retired has at most 300 characters.' },
 ];
 

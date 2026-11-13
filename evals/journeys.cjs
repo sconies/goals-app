@@ -1555,12 +1555,13 @@ journey('U115', ['CARRY-GOALS'], 'Start 2027 only prepares it: on 21 Dec 2026 th
   s = await h.snapshot('ws_turn');
   h.set('finish', /2027 · week 1 · Q1/.test(jan) && s.cycles.filter((c) => c.name === '2027' && !c.removedAt).length === 1, `on 4 Jan 2027 the frame said “${(jan.match(/20\d\d[^\n]{0,30}/) || [''])[0]}”`);
   h.set('logged', s.changes.filter((c) => c.entity === 'cycle' && c.summary.startsWith('Started 2027')).length === 2);
-  // What came with the goals (CY4): watches, metric links and open asks follow; no stage is due after week 52; no number plan starts late.
+  // What came with the goals (CY4): watches and open asks follow; no stage is due after week 52; no number plan starts late.
+  // A module's records that follow (metric links) are the module's own journey's to check (U152; fix item F6).
   const y27 = s.cycles.find((c) => c.name === '2027' && !c.removedAt);
   const ids27 = new Set(s.goals.filter((g) => g.cycleId === y27.id).map((g) => g.id));
-  const came = (s.watches || []).some((w) => !w.removedAt && ids27.has(w.ref)) && (s.requests || []).some((r) => r.status === 'open' && r.goalIds.some((id) => ids27.has(id))) && (((s.modules || {}).metrics || {}).metricLinks || []).some((l) => !l.removedAt && ids27.has(l.goalId));
+  const came = (s.watches || []).some((w) => !w.removedAt && ids27.has(w.ref)) && (s.requests || []).some((r) => r.status === 'open' && r.goalIds.some((id) => ids27.has(id)));
   const planned = s.goals.filter((g) => ids27.has(g.id)).every((g) => g.kind === 'milestone' ? g.stages.every((x) => x.dueWeek <= 52) : g.kind !== 'metric' || (g.plan.fromWeek || 0) <= 0);
-  h.set('attention', came && planned, `carried goals came without their watches, asks or metric links, or with a plan past week 52 (${came}, ${planned})`);
+  h.set('attention', came && planned, `carried goals came without their watches or asks, or with a plan past week 52 (${came}, ${planned})`);
   // A workspace whose only year is 2027, on 11 Nov 2026: it says when it starts, and nothing is due.
   await p.evaluate((snap) => {
     const c = snap.cycles[0];
@@ -1574,6 +1575,41 @@ journey('U115', ['CARRY-GOALS'], 'Start 2027 only prepares it: on 21 Dec 2026 th
   h.set('parity', /2027 starts on Mon 4 Jan 2027, in 7 weeks\. Nothing is due until then\./.test(before) && !/check-ins? to do|days late|No recent update/.test(before), `a year not begun: “${before.replace(/\s+/g, ' ').slice(0, 200)}”`);
   await p.context().close();
 }, ['budget']);
+
+journey('U152', ['METRICS-MEASURED-BY'], 'Metric links carry over: as Amara, on 21 Dec 2026 Start 2027 on Cycles; every goal carried into 2027 that was measured by a metric in 2026 is measured by the same metric, for the same team and part, in 2027', 4, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/'));
+  await p.locator('.hero').waitFor();
+  // The example copied into a workspace of Amara's own, so it keeps 2026 when the clock moves (as U115 does).
+  await p.evaluate(async () => {
+    const full = await window.__goalsStore.load('platform-org');
+    localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([{ id: 'ws_links', name: 'Links turn', kind: 'own', createdAt: '2026-10-01T00:00:00Z' }]));
+    localStorage.setItem('goals-app-v2:ws_links', JSON.stringify({ ...full }));
+    localStorage.setItem('goals-app-workspace', 'ws_links');
+    localStorage.setItem('goals-app-viewer:ws_links', 'amara');
+  });
+  const on = (day, path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  await p.goto(on('2026-12-21', '/workspace/cycles'));
+  await h.inView(p.getByRole('link', { name: 'Start 2027' }), 'entry', 'Start 2027 on Cycles');
+  await h.click(p.getByRole('link', { name: 'Start 2027' }));
+  await see(p, 'Everyone stays in 2026 until Sun 3 Jan 2027');
+  await h.checkpoint('read-back');
+  await h.click(p.getByRole('button', { name: 'Start 2027' }));
+  await see(p, '2027 is ready');
+  const s = await h.snapshot('ws_links');
+  const y27 = s.cycles.find((c) => c.name === '2027' && !c.removedAt);
+  const links = ((s.modules || {}).metrics || {}).metricLinks || [];
+  const live = (l) => !l.removedAt;
+  // A carried goal keeps its key (G-1, G-2 …): its link is the 2026 goal's with the same key, carried.
+  const was26 = new Map(s.goals.filter((g) => g.cycleId !== y27.id && g.key).map((g) => [g.key, g]));
+  const carried = s.goals.filter((g) => g.cycleId === y27.id && g.key && was26.has(g.key));
+  const from = carried.map((g) => ({ g, was: links.find((l) => live(l) && l.goalId === was26.get(g.key).id), now: links.find((l) => live(l) && l.goalId === g.id) })).filter((x) => x.was);
+  const same = from.every((x) => x.now && x.now.metricId === x.was.metricId && (x.now.teamId || '') === (x.was.teamId || '') && (x.now.part || '') === (x.was.part || ''));
+  h.set('attention', from.length > 0 && same, `of ${from.length} carried goals measured by a metric, ${from.filter((x) => !x.now).length} came without their link and ${from.filter((x) => x.now && x.now.metricId !== x.was.metricId).length} with another metric`);
+  h.set('finish', Boolean(y27), '2027 did not start');
+  h.set('logged', s.changes.some((c) => c.entity === 'cycle' && c.summary.startsWith('Started 2027')), 'starting 2027 was not logged');
+  await p.context().close();
+}, ['budget', 'progress', 'errors']);
 
 journey('U111', ['HONEST-CHECKIN', 'ONE-PER-WEEK'], 'A number that looks wrong is asked about: ten times last week’s blocks Continue until it is answered; Change the number goes back to the field, and the corrected number posts and is compared with last week', 6, async (h, device) => {
   // Rhea's image slimming (ci-docker), due this week. She types ten times last week's number by mistake.
@@ -5796,6 +5832,40 @@ journey('U151', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the rece
   h.set('progress', !/in a row|lost|broken/i.test(late), `the late receipt said “${late.replace(/\s+/g, ' ')}”`);
   await h.checkpoint('late');
 });
+
+journey('U153', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: as Rhea on Developer Productivity fortnightly, the panel says how many goals are checked in so far, its “have no check-in for week 45 yet” link opens exactly that many goals, and “The last 8 weeks” has eight cells, each a week with words; no person’s name is in the panel; a team’s page shows the same panel for its goals, and a one-owner team’s page shows none', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/reviews/devprod'));
+  const panel = p.locator('section.habit');
+  await panel.waitFor({ timeout: 8000 });
+  const says = (await panel.locator('.habit-sum').innerText()).trim();
+  h.set('entry', /^\d+ of \d+ goals are checked in so far\.$/.test(says), `the panel said “${says}”`);
+  const cells = await panel.locator('.habit-week').allInnerTexts();
+  h.set('progress', cells.length === 8 && cells.every((t) => /Week \d+/.test(t) && /(All in|\d+ after|None in|Nothing due)/.test(t)), `the row of weeks: ${cells.map((t) => t.replace(/\s+/g, ' ')).join(' | ')}`);
+  // [HABIT-NEVER-A-PERSON] Weeks, not people: nobody's name is anywhere in the panel.
+  const s0 = await h.snapshot();
+  const text = await panel.innerText();
+  const named = s0.people.filter((x) => x.name && text.includes(x.name.split(' ')[0]) && x.name.split(' ')[0].length > 2).map((x) => x.name);
+  h.set('attention', !named.length, `the panel names ${named.join(', ')}`);
+  await h.checkpoint('panel');
+  const link = panel.getByRole('link', { name: /have no check-in for week \d+ yet|has no check-in for week \d+ yet/ });
+  const linkText = (await link.innerText()).trim();
+  const n = Number(await link.getAttribute('data-n'));
+  await h.click(link);
+  await p.waitForURL(/\/goals\?.*inreview=devprod.*checkedin=no/);
+  await p.locator('.goals-line').first().waitFor();
+  const line = await p.locator('.goals-line').first().innerText();
+  h.set('finish', new RegExp(`^${n} goals? match`).test(line) && linkText.startsWith(`${n} `), `the link “${linkText}” (${n}) opened Goals saying “${line}”`);
+  await h.checkpoint('goals');
+  // A team's page: the same panel for its goals; a team whose goals have one owner shows none (rule 4).
+  await p.goto(url('/teams/cicd'));
+  await see(p, 'Before this week’s review', 'a team’s page has no panel');
+  await p.goto(url('/teams/office'));
+  await p.locator('.team-page').waitFor();
+  h.set('errors', await p.locator('section.habit').count() === 0, 'a one-owner team’s page shows the panel');
+  await h.checkpoint('teams');
+  // It reads and saves nothing: 'logged' is not this journey's.
+}, ['logged']);
 
 journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, a goal stopped with a reason is gone from Goals and listed with the State filter on Stopped (“1 stopped goal, most recently stopped first.”), with the Stopped mark, who stopped it and when, and the reason; the Filters sheet’s State offers Active, Proposed and Stopped; Remove goes back to the active goals', 15, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));

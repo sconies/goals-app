@@ -145,7 +145,7 @@ No arguments.
 | `level` | one of `north-star`, `svp`, `team` | no | Only goals at this level. |
 | `mine` | boolean | no | Only goals you own (the same as scope "mine"). |
 | `scope` | one of `mine`, `team`, `watching`, `all` | no | Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why. |
-| `query` | string | no | A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned)), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the Needs attention list, those being handled below the rest), needs (because: Off track (off), Missed its own date (missed-path), No recent update (stale), Decision or help needed (decision), No path to green (no-path), At risk (risk), Getting worse (trend), Greener than calculated (greener), Date slipped (slipped)), due (quarter or a week), quiet (no update for this many weeks), qtr (Met (met), Not met (missed)), result (Met (completed), Met late (late), Not met (missed), Not finished yet (open)), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse). |
+| `query` | string | no | A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned)), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the Needs attention list, those being handled below the rest), needs (because: Off track (off), Missed its own date (missed-path), No recent update (stale), Decision or help needed (decision), No path to green (no-path), At risk (risk), Getting worse (trend), Greener than calculated (greener), Date slipped (slipped)), due (quarter or a week), quiet (no update for this many weeks), qtr (Met (met), Not met (missed)), result (Met (completed), Met late (late), Not met (missed), Not finished yet (open)), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse). |
 | `view` | string | no | The name of a saved view: one of yours, or one pinned for everyone. |
 | `state` | one of `active`, `proposed`, `stopped` | no | active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter). |
 | `limit` | integer | no | How many goals to list, from offset: 50 unless asked, at most 200. |
@@ -199,7 +199,7 @@ No arguments.
     },
     "query": {
       "type": "string",
-      "description": "A Goals link’s query string, e.g. \"scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap\". Keys: scope (as the scope argument, which wins if both are given), q, status (Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned)), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the Needs attention list, those being handled below the rest), needs (because: Off track (off), Missed its own date (missed-path), No recent update (stale), Decision or help needed (decision), No path to green (no-path), At risk (risk), Getting worse (trend), Greener than calculated (greener), Date slipped (slipped)), due (quarter or a week), quiet (no update for this many weeks), qtr (Met (met), Not met (missed)), result (Met (completed), Met late (late), Not met (missed), Not finished yet (open)), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse)."
+      "description": "A Goals link’s query string, e.g. \"scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap\". Keys: scope (as the scope argument, which wins if both are given), q, status (Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned)), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the Needs attention list, those being handled below the rest), needs (because: Off track (off), Missed its own date (missed-path), No recent update (stale), Decision or help needed (decision), No path to green (no-path), At risk (risk), Getting worse (trend), Greener than calculated (greener), Date slipped (slipped)), due (quarter or a week), quiet (no update for this many weeks), qtr (Met (met), Not met (missed)), result (Met (completed), Met late (late), Not met (missed), Not finished yet (open)), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse)."
     },
     "view": {
       "type": "string",
@@ -2076,6 +2076,7 @@ No arguments.
 
 **Refuses with:**
 
+- “… is switched off in …, so its Help isn’t shown there. An admin can switch it on in Workspace, under Features.”
 - “There’s no help article with id …. Articles: ….”
 
 **Does the same as:** no action: it reads, or does something only an assistant needs.
@@ -5330,6 +5331,20 @@ From the [reviews](../modules/reviews/README.md) module: switched off with it.
     date: string;
     reviewed: number;
     of: number;
+    beforeThisReview: {
+        says: string;
+        due: number;
+        inTime: number;
+        withoutAsking: number;
+        afterAnAsk: number;
+        after: number;
+        noCheckIn: number;
+        lastWeeks: {
+            week: number;
+            mark: 'some' | 'none' | 'all' | 'nothing-due';
+            says: string;
+        }[];
+    } | null;
     toDiscuss: {
         id: string;
         title: string;

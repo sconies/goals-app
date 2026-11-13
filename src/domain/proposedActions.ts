@@ -82,7 +82,8 @@ export function backToProposed(x: ActionContext, i: { goalId: string }): { commi
   // scope doesn't hold. Check-ins are read across the workspace when the caller has it.
   if (g.cycleId !== x.cycle.id) no(`“${g.title}” is in another year, so it can’t go back to proposed.`);
   if ((x.full ?? x.snapshot).checkIns.some((c) => c.goalId === g.id && !c.removedAt)) no(HAS_CHECK_INS);
-  const goal = { ...g, proposedAt: x.now, proposedBy: x.actor.id } as Goal;
+  // Proposed again by whoever does it, outside any review: it no longer names the review it was first proposed in.
+  const goal = { ...g, proposedAt: x.now, proposedBy: x.actor.id, ...(g.proposedIn ? { proposedIn: null } : {}) } as Goal;
   return { commit: { goals: [goal], changes: [change(x, goal, 'Made it proposed again', [{ field: 'State', from: 'Active', to: PROPOSED }])] }, goal };
 }
 

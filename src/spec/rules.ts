@@ -67,7 +67,7 @@ import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
 import { goalResult } from '../domain/story';
 import { quarterResults } from '../domain/year';
 import { FORGIVE_AFTER, forgivenIn, onTimeStreak, receiptText, reviewDate, weekProgress, type ReceiptFacts } from '../domain/progress';
-import { BACK_AFTER, moment, momentText } from '../domain/habit';
+import { BACK_AFTER, beforeReviewText, checkInStanding, habitShown, MIN_OWNERS, moment, momentText } from '../domain/habit';
 import type { CheckIn, Cycle } from '../domain/types';
 
 export interface Example {
@@ -1500,7 +1500,7 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
     body: `
 **The words.** *Proposed*: the goal's state, visible, not judged, nothing due. *Active*: every other goal that isn't stopped, said only where the two are set side by side. *Propose*: save a new goal as proposed. *Make it active*: the act that starts it (not "approve": nobody is asked for permission; not "start", which From already means). *Withdraw*: remove a proposed goal.
 
-**Data.** A goal is proposed while \`proposedAt\` is set (with \`proposedBy\`, who proposed it) and it is neither removed nor stopped (\`isProposed\`). Making it active clears both; History has when. A goal proposed in a review's walk also keeps the review in \`proposedIn\`, and keeps it once active.
+**Data.** A goal is proposed while \`proposedAt\` is set (with \`proposedBy\`, who proposed it) and it is neither removed nor stopped (\`isProposed\`). Making it active clears both; History has when. A goal proposed in a review's walk also keeps the review in \`proposedIn\`, and keeps it once active. Proposing in a review speaks for it, so only someone in the review, or an admin, may (\`speakRefusal\`); the new goal need not be in the review's scope. Every later save keeps \`proposedIn\` and \`proposedBy\`; made proposed again, or carried to the next year, the goal no longer names the review.
 
 **Never judged.** \`judged(goals)\` is those neither proposed nor stopped, and every rule that leaves a stopped goal out leaves a proposed one out the same way: the cycle's scope (\`scopeToCycle\`) keeps proposed goals beside its goals, never among them, so no status rule is ever run on one and it is in no count, health line, Needs attention, review agenda, check-in, wrap-up, streak or metric comparison. A proposed goal may name its metric: the metric's page lists it under its goals table as "Proposed · {n}" with no numbers (the metrics module's \`proposedOfMetric\`), and \`get_metric\` gives it apart as \`proposed\`. A check-in on one is refused at every door: "${NOTHING_TO_CHECK_IN}" Its summary has the state \`proposed\` and the status word "Proposed", drawn as a word alone, with no shape.
 
@@ -1716,11 +1716,11 @@ const hbSay = (p: Partial<ReceiptFacts>) => { const r = receiptText({ total: 2, 
 
 RULE_LIST.push({
   id: 'habit',
-  title: 'The habit: the run, the receipt and a moment',
-  summary: 'How many weeks in a row a person has been on time, with one late week forgiven; what the check-in’s last screen says once the week’s are all in; and when a check-in says a goal reached its target or came back on track.',
-  code: [{ file: 'src/domain/progress.ts', names: ['onTimeStreak', 'forgivenIn', 'FORGIVE_AFTER', 'receiptFacts', 'receiptText', 'reviewOnDueDay'] }, { file: 'src/domain/habit.ts', names: ['moment', 'momentText', 'BACK_AFTER', 'MOMENT_RESULT'] }],
+  title: 'The habit: the run, the receipt, a moment and the measure',
+  summary: 'How many weeks in a row a person has been on time, with one late week forgiven; what the check-in’s last screen says once the week’s are all in; when a check-in says a goal reached its target or came back on track; and how many of a set’s goals were checked in before the review without being asked.',
+  code: [{ file: 'src/domain/progress.ts', names: ['onTimeStreak', 'forgivenIn', 'FORGIVE_AFTER', 'receiptFacts', 'receiptText', 'reviewOnDueDay'] }, { file: 'src/domain/habit.ts', names: ['moment', 'momentText', 'BACK_AFTER', 'MOMENT_RESULT', 'habit', 'habitWeeks', 'weekWords', 'habitShown', 'MIN_OWNERS', 'beforeReviewText', 'beforeReview'] }, { file: 'src/domain/standing.ts', names: ['checkInStanding', 'dueIn'] }],
   tests: ['src/domain/habit.test.ts'],
-  reqs: ['HABIT-RECEIPT', 'HABIT-MOMENT'],
+  reqs: ['HABIT-RECEIPT', 'HABIT-MOMENT', 'HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'],
   body: `
 The habit Faro most wants is checking in before the review without being asked. This page is the part a person sees about themselves; nothing here compares people, and a run is only ever shown to its owner.
 
@@ -1734,6 +1734,12 @@ The habit Faro most wants is checking in before the review without being asked. 
 Never said: "streak lost", "broken", a nought, a count of late weeks, an exclamation mark. A person is never told that an ask came before their check-in. Home's quiet line says the same two sentences on the day the week is completed ([Home](home.md)), and \`get_my_work\` gives them as \`weekReceipt\`.
 
 **A moment** (\`moment\`, for the goal's earlier check-ins and this one). *Reached*: a number goal's value meets its target in the goal's direction (at or above it when the target is above the start, at or below it otherwise) and the latest check-in of the week before did not. *Back*: the status is On track, the week before's was At risk or Off track, and the goal had been behind (At risk or Off track) for ${BACK_AFTER} weeks or more in a row. Reached wins over back; one per check-in. Neither fires on a correction, a second check-in in the same week, a backfilled week or an import. The receipt shows one panel above the week's lines: the status's shape and word (Done, or On track), "{Goal} reached its target" and "{value}, against a target of {target}, in week {w} of {weeks}. It started the year at {start}." with **Copy the share image** and **See the goal**; or "{Goal} is back on track" and "{value}, after {k} weeks behind plan." with **See the goal**. History's row for that check-in adds "Reached its target" or "Back on track" in small capitals, in the status's colour, with no capsule. \`post_check_in\` answers with the same \`moment\`. No animation beyond the receipt's own, no confetti, no banner on anyone else's screen.
+
+**The measure** is the share of goals checked in before the review without a nudge; Faro's only nudge is an ask for an update. *A check-in's standing* (\`checkInStanding\`, rule 1), for a goal due that week (\`dueIn\`: not stopped or proposed, first due by then, not done before it): \`none\` when no check-in counts for the week; \`after\` when the first was posted after the end of the due day (the week's review day); \`asked\` when it was in by then and an ask for an update on the goal was open when it was posted (asked before it, and answered at or after it, or still open); \`unasked\` otherwise. A question, a comment or a review's carried action is not a nudge, and a correction doesn't change a week's standing. *The counts* (\`habit\`, rule 2) over a set of goals: \`due\`, \`unasked\`, \`asked\`, \`after\`, \`none\`, and \`inTime\` = unasked + asked; the measure is unasked / due. *The row of weeks* (\`habitWeeks\`): the last 8 weeks up to the review's week once its due day has passed (the week before, until then), each \`all\` ("All in": every goal due was in by the due day), \`some\` ("{k} after": k came after or not at all), \`none\` ("None in") or \`nothing-due\` ("Nothing due"), drawn as a filled, half-filled or open square, or no mark: squares, because a circle is a goal's status.
+
+**Before this review** (\`beforeReview\`, \`beforeReviewText\`), at the top of a review's page for the goals it walks (for its session's week, or this week while the session's week is still to come), and on a team's page for the team's goals headed "Before this week’s review": "{a} of {n} goals were checked in before it, {u} without being asked" ("…, all without being asked" when a is u; "All {n} goals were checked in before it, without anyone asking" when every one was, unasked; "None of the {n} goals was checked in before it."); before the due day, "{a} of {n} goals are checked in so far." Under it, each only when not nought, "{k} came in after an ask" (Goals \`checkedin=asked\`) and "{m} have no check-in for week {w} yet" (\`checkedin=no\`), each with the set's own parameter (\`inreview=\` or \`team=\`) and worst first, and only for this week (what \`checkedin=\` reads); then the row of weeks and "“All in” means every goal due that week was checked in before the review. Weeks, not people: nobody is named here." With Reviews switched off there is no review's page, and a team's page heads it "On time this week" and says "checked in on time" where it says "before it" (the flag readBack.ts takes; the habit never imports reviews). \`get_review\` gives the same as \`beforeThisReview\`.
+
+**Never a person** (\`habitShown\`, rule 4): a set whose goals have fewer than ${MIN_OWNERS} owners shows no panel, row or count, unless the viewer owns all of them. No function here takes or returns a person, and nothing here sorts, compares or ranks people or teams by their share, sets a target for it, or makes a status of it.
 `,
   examples: [
     { given: 'Tunde (one goal, due Thursday) at week 46, on time: weeks 41–46 with 45 late; 41–46 with 44 and 45 late; 44–46 with 45 late (nothing due before 44); 36–46 with 40 and 45 late.', then: '5, week 45 forgiven / 1 / 1 / 9, week 45 forgiven', run: () => [hbRun(41, [45]), hbRun(41, [44, 45]), hbRun(44, [45]), hbRun(36, [40, 45])].join(' / ') },
@@ -1745,6 +1751,19 @@ Never said: "streak lost", "broken", a nought, a count of late weeks, an exclama
       const say = (earlier: CheckIn[], c: CheckIn) => { const m = moment(earlier, c, g); if (!m) return 'none'; const t = momentText(m, g, c, HB_CY.weeks); return `${t.heading}: ${t.line}`; };
       return [say([hbCi(45, { value: 22 })], hbCi(46, { value: 20 })), say([hbCi(43, { value: 30 }), hbCi(44, { value: 34, status: 'risk' }), hbCi(45, { value: 35, status: 'off' })], hbCi(46, { value: 28 }))].join(' / ');
     } },
+    { given: 'Due Thursday 12 Nov: checked in Tuesday, no ask; asked for an update Wednesday and checked in Wednesday evening; a question Tuesday, checked in Wednesday; checked in Friday; no check-in.', then: 'unasked, asked, unasked, after, none', run: () => {
+      const g = hbGoal(0);
+      const at = (day: string) => hbCi(46, { postedAt: `${day}T18:00:00Z` });
+      const ask = (kind: 'update' | 'question', on: string) => ({ kind, goalIds: ['g1'], createdAt: `${on}T09:00:00Z`, answeredAt: `${on}T18:00:00Z`, status: 'answered' as const, updatedAt: `${on}T18:00:00Z` });
+      const st = (cs: CheckIn[], asks: ReturnType<typeof ask>[] = []) => checkInStanding(g, 46, { checkIns: cs, asks }, '2026-11-12');
+      return [st([at('2026-11-10')]), st([at('2026-11-11')], [ask('update', '2026-11-11')]), st([at('2026-11-11')], [ask('question', '2026-11-10')]), st([at('2026-11-13')]), st([])].join(', ');
+    } },
+    { given: '17 goals due: 14 in unasked, 1 after an ask, 2 with none; then every one unasked; then the first, before the due day.', then: '15 of 17 goals were checked in before it, 14 without being asked. / All 17 goals were checked in before it, without anyone asking. / 15 of 17 goals are checked in so far.', run: () => {
+      const c = (unasked: number, asked: number, none: number) => ({ due: unasked + asked + none, inTime: unasked + asked, unasked, asked, after: 0, none });
+      return [beforeReviewText(c(14, 1, 2), true), beforeReviewText(c(17, 0, 0), true), beforeReviewText(c(14, 1, 2), false)].join(' / ');
+    } },
+    { given: 'The same 14 unasked and 1 asked of 17, on a team’s page with Reviews switched off.', then: '15 of 17 goals were checked in on time, 14 without being asked.', run: () => beforeReviewText({ due: 17, inTime: 15, unasked: 14, asked: 1, after: 0, none: 2 }, true, false) },
+    { given: 'A team’s goals with two owners, seen by someone else; then by their one owner; then four owners.', then: 'hidden, shown, shown', run: () => [habitShown([{ ownerId: 'a' }, { ownerId: 'b' }], 'z'), habitShown([{ ownerId: 'a' }, { ownerId: 'a' }], 'a'), habitShown([{ ownerId: 'a' }, { ownerId: 'b' }, { ownerId: 'c' }, { ownerId: 'd' }], 'z')].map((x) => (x ? 'shown' : 'hidden')).join(', ') },
     { given: 'The same 20 h, backfilled.', then: 'none', run: () => String(moment([hbCi(45, { value: 22 })], hbCi(46, { value: 20, backfilled: true }), hbGoal(0)) ?? 'none') },
   ],
 });
