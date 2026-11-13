@@ -148,11 +148,14 @@ function NeedsYou({ asks, also }: { asks: Waiting[]; also: boolean }) {
   };
   return (
     <section className="block needs-you" data-part="Needs your response">
-      <h2 className="block-title">{also ? 'Also needs your response' : 'Needs your response'} <span className="count-pill">· {asks.length + proposals.length}</span></h2>
+      {/* One kind only: its heading sits on the title's line, not above the list, so the first of your goals that needs
+          attention still starts on a phone's first screen (build review of #305). */}
+      <div className="row between need-head">
+        <h2 className="block-title">{also ? 'Also needs your response' : 'Needs your response'} <span className="count-pill">· {asks.length + proposals.length}</span></h2>
+        {groups.length === 1 && <h3 className="need-group-title">{ASK_GROUP[groups[0]![0]]}</h3>}
+      </div>
       {groups.map(([k, list]) => (
         <div key={k} className="need-group">
-          {/* One kind only: the block's title already says it, so no kind heading (build review of #305: the first goal
-              that needs attention starts on a phone's first screen). */}
           {groups.length > 1 && <h3 className="need-group-title">{ASK_GROUP[k]} <span className="count-pill">· {list.length}</span></h3>}
           <ul className="needs-list">
             {list.map((w) => {
@@ -163,7 +166,7 @@ function NeedsYou({ asks, also }: { asks: Waiting[]; also: boolean }) {
                   <span className="need-body">
                     <span className="need-what">{w.goals.length > 1 ? `${w.goals[0]!.title}, and ${w.goals.length - 1} more ${w.goals.length === 2 ? 'goal' : 'goals'} waiting on it` : w.goals[0]!.title}</span>
                     {w.said && <span className="need-quote">“{w.said}”</span>}
-                    <span className="need-meta">{w.warn && <WarnMark />}{said(w)}</span>
+                    <span className="need-meta">{w.warn && <><WarnMark />{' '}</>}{said(w)}</span>
                     <span className="need-action">
                       {/* Each opens the goal with this ask open and its box ready (the flagship goal page, 5 Nov). */}
                       <Link className="btn sm" to={w.to}>{ASK_BUTTON[w.kind]}</Link>
