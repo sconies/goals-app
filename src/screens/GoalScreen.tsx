@@ -56,7 +56,7 @@ import { isProposed } from '../domain/proposed';
 const ProposedGoal = lazy(() => import('./ProposedGoal').then((m) => ({ default: m.ProposedGoal })));
 import { canDeleteCheckIn, importUndone } from '../domain/removal';
 import { DeleteCheckIn, StoppedNote } from '../ui/RemoveControls';
-import { goalRemoveLabel, RemoveGoalSheet } from '../ui/RemoveSheets';
+import { BackToProposedSheet, goalRemoveLabel, RemoveGoalSheet } from '../ui/RemoveSheets';
 import { LifeMark } from '../ui/LifeMark';
 import { NO_REASON } from '../domain/checkin';
 import { ASK_STATUS, GAP, LABEL as WORD_OF, lower, STATUS } from '../domain/vocabulary';
@@ -177,6 +177,7 @@ function GoalView({ goal }: { goal: Goal }) {
   /* ---------- the bar's primary action, the standing button beside it, and the "…" menu ---------- */
   const stopped = !!goal.stoppedAt;
   const [removing, setRemoving] = useState(false);
+  const [unactivating, setUnactivating] = useState(false);
   const aboutWanted = params.get('about') === '1' || (typeof window !== 'undefined' && window.location.hash === '#about');
   const [aboutOpen, setAboutOpen] = useState<boolean | null>(aboutWanted ? true : null);
   const aboutRef = useRef<HTMLDetailsElement>(null);
@@ -200,6 +201,8 @@ function GoalView({ goal }: { goal: Goal }) {
         // No "Check in for …": only the owner checks in (OWNER-ONLY); their buttons are on the bar.
         ...(!stopped && canEdit ? [{ label: 'Change this goal', to: `/goals/${goal.id}/edit` }] : []),
         // Stop a goal with history (with a reason), or delete one set up by mistake: its owner or an admin.
+        // An active goal with no check-ins can go back to proposed (GE10); with one, the edit page says to stop it instead.
+        ...(!stopped && canEdit && !own.length ? [{ label: 'Make it proposed again', onClick: () => setUnactivating(true) }] : []),
         ...(!stopped && canEdit ? [{ label: goalRemoveLabel(own.length > 0), onClick: () => setRemoving(true) }] : []),
       ]} />
   );
@@ -281,6 +284,7 @@ function GoalView({ goal }: { goal: Goal }) {
         : <div className="goal-col">{phone}</div>}
       {review && <ReviewCallBar goal={goal} />}
       {removing && <RemoveGoalSheet goal={goal} onClose={() => setRemoving(false)} />}
+      {unactivating && <BackToProposedSheet goal={goal} onClose={() => setUnactivating(false)} />}
       {adding && <NextStepSheet goal={goal} onClose={() => setAdding(false)} />}
     </div>
   );

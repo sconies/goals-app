@@ -33,7 +33,7 @@ import { isProposed, measureEmpty, withProposed } from './proposed';
 import { mayActivate, NOTHING_TO_CHECK_IN } from './proposedActions';
 import { proposedMustFix, unsaidDraft } from './goalEntry';
 // Making a proposed goal active, or proposed again, loads with the engine (app/actions NEEDS_ENGINE).
-export { activate } from './proposedActions';
+export { activate, backToProposed } from './proposedActions';
 import { fmt } from './format';
 import { isEmail, normalEmail, personChange, personProblems, sameNameNote, sameTitleNote } from './people';
 import { cycleState } from './cycle';
