@@ -166,7 +166,7 @@ export function ReviewCallBar({ goal }: { goal: Goal }) {
         {/* On a phone the review bar's next arrow does this; the row keeps to what the review says. */}
         {!reviewed && <button type="button" className="linkish skip-now" onClick={rv.next}>Skip for now</button>}
       </div>
-      {proposing && <Suspense fallback={null}><ProposeInReview goal={goal} review={rv.review} onClose={() => setProposing(false)} /></Suspense>}
+      {proposing && <Suspense fallback={null}><ProposeInReview goal={goal} review={rv.review} onClose={() => setProposing(false)} returnFocus={() => document.querySelector<HTMLElement>('.decide-buttons .btn.primary')} /></Suspense>}
       {mode && <SayComposer goal={goal} mode={mode} existing={editing} needDate={needsDecision(status)} onPropose={() => { setMode(null); setEditing(null); setProposing(true); }} onClose={() => { setMode(null); setEditing(null); }} onSaved={() => { const m = mode; setMode(null); setEditing(null); app.toast(m === 'accept' ? `The review accepts the risk on ${goal.title}` : `${label[m][0]!.toUpperCase() + label[m].slice(1)} saved on ${goal.title}`); }} />}
     </div>
   );
@@ -177,13 +177,20 @@ export function CarriedState({ state }: { state: 'open' | 'done' | 'overdue' }) 
   return <span className={'action-state state-' + state}>{state === 'done' ? <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 4.8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> : state === 'overdue' ? <WarnMark /> : <span className="open-mark" aria-hidden="true" />}{ASK_STATUS[state].label}</span>;
 }
 
+/** A next step typed in the action sheet, kept when "Propose a new goal instead" closes it, so coming back finds it (build
+    review of #376). Kept per goal while the page is open; a save or Cancel clears it. */
+const actionDrafts = new Map<string, { text: string; who: string; due: number | null }>();
+
 /** A focused composer that names the goal and the review, with Save right under the field so it stays in reach with the keyboard open. */
 function SayComposer({ goal, mode, existing, needDate, onClose, onSaved, onPropose }: { goal: Goal; mode: Say; existing?: Decision | null; needDate: boolean; onClose: () => void; onSaved: () => void; onPropose?: () => void }) {
   const app = useApp();
   const rv = useReview(goal.id);
-  const [text, setText] = useState(existing ? (mode === 'accept' ? acceptedReason(existing.note) ?? '' : existing.note) : '');
-  const [who, setWho] = useState(existing?.assigneeId ?? goal.ownerId);
-  const [due, setDue] = useState<number | null>(existing?.dueWeek ?? null);
+  const kept = mode === 'action' && !existing ? actionDrafts.get(goal.id) : undefined;
+  const [text, setText] = useState(existing ? (mode === 'accept' ? acceptedReason(existing.note) ?? '' : existing.note) : kept?.text ?? '');
+  const [who, setWho] = useState(existing?.assigneeId ?? kept?.who ?? goal.ownerId);
+  const [due, setDue] = useState<number | null>(existing?.dueWeek ?? kept?.due ?? null);
+  const forget = () => { if (mode === 'action' && !existing) actionDrafts.delete(goal.id); };
+  const propose = onPropose && (() => { if (text.trim()) actionDrafts.set(goal.id, { text, who, due }); onPropose(); });
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const owner = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'the owner';
@@ -200,6 +207,7 @@ function SayComposer({ goal, mode, existing, needDate, onClose, onSaved, onPropo
         else await app.acceptRisk(goal, rv.review!, rv.session!.week, text);
       } else if (existing) await app.editCall(existing, text, mode === 'action' ? { assigneeId: who, dueWeek: due } : undefined);
       else await app.reviewCall(goal, rv.review!, rv.session!.week, mode, text, mode === 'action' ? { assigneeId: who, dueWeek: due } : undefined);
+      forget();
       onSaved();
     } catch { setBusy(false); } // the draft stays, and so do you
   };
@@ -223,8 +231,8 @@ function SayComposer({ goal, mode, existing, needDate, onClose, onSaved, onPropo
           </div>
         )}
         {/* A new goal the room agrees on is proposed, not an action (GE10, decision 15): here too, so a phone has it. */}
-        {mode === 'action' && !existing && onPropose && <button type="button" className="linkish small" onClick={onPropose}>Propose a new goal instead</button>}
-        <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : mode === 'accept' ? 'Save the decision' : mode === 'action' && needDate ? 'Save the next step' : `Save ${mode === 'ask' ? 'question' : mode}`}</button></div>
+        {mode === 'action' && !existing && propose && <button type="button" className="linkish small" onClick={propose}>Propose a new goal instead</button>}
+        <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={() => { forget(); onClose(); }}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : mode === 'accept' ? 'Save the decision' : mode === 'action' && needDate ? 'Save the next step' : `Save ${mode === 'ask' ? 'question' : mode}`}</button></div>
       </form>
     </Sheet>
   );

@@ -34,7 +34,7 @@ import { addColumnParams } from '../domain/query';
 import { commentsOf } from '../domain/removal';
 import { findGoal, isKey } from '../domain/goalKey';
 import { isProposed, withProposed } from '../domain/proposed';
-import { activate } from '../domain/proposedActions';
+import { activate, backToProposed } from '../domain/proposedActions';
 import { proposedSummary } from '../domain/proposedSummary';
 import { activeReadBack } from '../domain/readBack';
 import { readWeekCode } from '../domain/weeks';
@@ -281,7 +281,7 @@ const CORE_TOOLS: ToolDef[] = [
       level: str('Only goals at this level.', { enum: LEVELS }),
       mine: bool('Only goals you own (the same as scope "mine").'),
       scope: str('Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.', { enum: SCOPES }),
-      query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(', ')}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ['met', 'missed'])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
+      query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(', ')}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ['met', 'missed'])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
       view: str('The name of a saved view: one of yours, or one pinned for everyone.'),
       state: str('active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter).', { enum: ['active', 'proposed', 'stopped'] }),
       limit: { type: 'integer', minimum: 1, maximum: FIND_MAX, description: `How many goals to list, from offset: ${FIND_PAGE} unless asked, at most ${FIND_MAX}.` },
@@ -451,6 +451,21 @@ const CORE_TOOLS: ToolDef[] = [
       if (a.dry_run) return { data: { saved: false, readBack: says }, text: `Checked, not saved (dry run). ${says}` };
       await ctx.save({ ...out.commit, changes: out.commit.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA_MCP] })) });
       return { data: { saved: true, readBack: says }, text: `“${g.title}” is active (as ${ctx.actor.name}). ${says}` };
+    },
+  },
+  {
+    name: 'make_goal_proposed',
+    title: 'Make an active goal proposed again',
+    description: 'Its owner or an admin: make an active goal with no check-ins proposed again (GE10). It then has no status and nothing due until it is made active (make_goal_active). A goal with check-ins can’t go back: stop it instead (stop_goal). Use dry_run first and say the change to the person.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), dry_run: DRY } },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    async run(a, ctx) {
+      const g = goalRef(ctx, a.goal_id);
+      let out;
+      try { out = backToProposed(ctx, { goalId: g.id }); } catch (e) { if (e instanceof NotAllowed) return { isError: true, text: e.message }; throw e; }
+      if (a.dry_run) return { data: { saved: false }, text: `Checked, not saved (dry run). “${g.title}” would be proposed again: no status and nothing due until it is made active.` };
+      await ctx.save({ ...out.commit, changes: out.commit.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA_MCP] })) });
+      return { data: { saved: true }, text: `“${g.title}” is proposed again (as ${ctx.actor.name}). It has no status and nothing due until it is made active.` };
     },
   },
   {

@@ -13,6 +13,12 @@ export class StaleError extends Error {
   constructor(what: string) { super('stale: ' + what); this.name = 'StaleError'; }
 }
 export const isStale = (e: unknown) => e instanceof StaleError || (e instanceof Error && /\bstale: /.test(e.message));
+/**
+ * How many times a save refused as stale runs again (AX6): the caller reloads, runs the same action with the same input
+ * on the fresh data, and saves that. An action is a pure function of what it reads, so this needs no merge. The app's
+ * dispatcher (app/rerun.ts) and the MCP server (mcp/protocol.ts) both stop after this many, then say it wasn't saved.
+ */
+export const STALE_RERUNS = 2;
 
 /** The real app, or the demo: the example data, a role switcher and a reset, kept in each visitor's browser. */
 export type Mode = 'live' | 'demo';

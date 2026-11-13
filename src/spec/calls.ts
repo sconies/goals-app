@@ -356,7 +356,7 @@ export function actionsPage(r: Repo, generated: string): string {
       `[${f.name}](#${anchor(f.name)})${f.module ? ` (${f.module})` : ''}`,
       cell(f.who.map((w) => w.what).join('; ') || '—'),
       cell([...new Set(f.who.map((w) => w.who))].join('; ') || '—'),
-      Array.isArray(f.tools) ? f.tools.map((t) => `[${code(t)}](tools.md#${anchor(t)})`).join(', ') || '—' : 'none',
+      Array.isArray(f.tools) ? f.tools.map((t) => `[${code(t)}](tools.md#${anchor(t)})`).join(', ') || '—' : `none, on purpose ([why](#${anchor(f.name)}))`,
     ])),
     ''];
   for (const f of facts) {

@@ -125,7 +125,7 @@ The query port’s goal calls (`Goals`): what Home, Goals and the AI tools read 
 - `goal`: (id) One live goal’s summary with its check-ins (`checkIns`); null for a goal that isn’t live here.
 - `add`: (goal) A goal is saved to the workspace by someone else, between two of your calls: later calls see it. Answers null.
 
-Its 24 cases:
+Its 29 cases:
 
 1. answers the Goals query (every goal) as goals.csv says
 1. answers the Goals query “status=off” as goals.csv says
@@ -145,6 +145,11 @@ Its 24 cases:
 1. answers the Goals query “sort=last” as goals.csv says
 1. answers the Goals query “sort=due.desc” as goals.csv says
 1. answers the Goals query “status=on&sort=gap” as goals.csv says
+1. answers the Goals query “checkedin=no” as goals.csv says
+1. answers the Goals query “checkedin=asked” as goals.csv says
+1. answers the Goals query “inreview=devprod” as goals.csv says
+1. answers the Goals query “inreview=devprod&checkedin=no” as goals.csv says
+1. answers the Goals query “inreview=nope” as goals.csv says
 1. gives each goal the status and flags the rules give it (status.csv and flags.csv, this week)
 1. pages by key: every goal once and none twice, and a goal added between pages doesn’t move the next page
 1. never gives more than a page, whatever size is asked for

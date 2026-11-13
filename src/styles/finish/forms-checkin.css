@@ -182,3 +182,17 @@
 .ci-moment-head { font-size: 1.125rem; font-weight: 650; margin: 0; }
 .ci-moment p { margin: 0; }
 .ci-moment .row { justify-content: center; align-items: center; gap: 16px; }
+
+/* "Before this review" and the last 8 weeks (habit spec 2.3): weeks, not people. Square marks, never circles. */
+.habit { display: flex; flex-direction: column; gap: 8px; }
+.habit p { margin: 0; }
+.habit-sum { font-weight: 600; }
+.habit-row-head { margin: 8px 0 0; }
+.habit-weeks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; }
+.habit-week { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.habit-cell { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.habit-mark { flex: none; width: 12px; height: 12px; }
+.habit-mark .habit-sq { fill: none; stroke: currentColor; stroke-width: 1.5; }
+.habit-mark .habit-fill { fill: currentColor; }
+.habit-mark.is-empty { display: inline-block; }
+@media (max-width: 640px) { .habit-weeks { grid-template-columns: repeat(4, minmax(0, 1fr)); } }

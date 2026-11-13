@@ -33,6 +33,7 @@ import { checkInsFor } from './status';
 import { goalMeasureOf, type GoalMeasure } from './records';
 import { nameProblem } from './thresholds';
 import { makesLoop } from './tree';
+import { canSpeakFor, speakRefusal } from './review';
 import type { Commit } from './commit';
 import type { CheckIn, Goal, GoalKind, Level, MetricGoal, Person, Team } from './types';
 
@@ -591,7 +592,11 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   const parent = i.draft.parentId ? findGoal(goals, i.draft.parentId) : undefined;
   if (i.draft.parentId && !parent) throw new NotAllowed('The goal it feeds isn’t here any more. Choose another, or nothing.');
   if (i.proposedIn && (existing || i.state !== 'proposed')) throw new NotAllowed('Only a new proposed goal is proposed in a review.');
-  if (i.proposedIn && !s.reviews.some((r) => r.id === i.proposedIn)) throw new NotAllowed('That review isn’t here any more. Reload to see the latest.');
+  const inReview = i.proposedIn ? s.reviews.find((r) => r.id === i.proposedIn) : undefined;
+  if (i.proposedIn && !inReview) throw new NotAllowed('That review isn’t here any more. Reload to see the latest.');
+  // Proposing in a review speaks for it (RV7, build review of #376): only someone in it, or an admin. The new goal need
+  // not be in the review's scope: nothing places a goal that doesn't exist yet in a tree or level the review walks.
+  if (inReview && !canSpeakFor(inReview, x.actor)) throw new NotAllowed(speakRefusal(inReview));
   const checkIns = existing ? checkInsFor(existing, s.checkIns) : [];
   // Proposed (rule 14): the type's own required fields are optional, all together; no reason is ever asked.
   const proposing = existing ? isProposed(existing) : i.state === 'proposed';
@@ -616,7 +621,10 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   const places = decimalsFor(i.draft)!;
   const built = buildGoal({ ...draft, decimals: String(places), margin: draft.margin.trim() || '0' }, x.cycle, { id: existing?.id ?? x.newId('goal'), createdAt: existing?.createdAt ?? x.now }, existing, checkIns.length > 0, x.week);
   // A new goal takes the workspace's next key; a goal being changed keeps its own (buildGoal keeps it), and its proposal.
-  const state = proposing ? { proposedAt: existing?.proposedAt ?? x.now, proposedBy: existing?.proposedBy ?? x.actor.id, ...((i.proposedIn ?? existing?.proposedIn) ? { proposedIn: i.proposedIn ?? existing!.proposedIn } : {}) } : {};
+  // Once active, a goal still keeps the review it was proposed in, so an ordinary change never drops it (build review of
+  // #376: a batch row without it would write NULL over the stored column).
+  const kept = existing ? { ...(existing.proposedIn ? { proposedIn: existing.proposedIn } : {}), ...(existing.proposedBy ? { proposedBy: existing.proposedBy } : {}) } : {};
+  const state = proposing ? { proposedAt: existing?.proposedAt ?? x.now, proposedBy: existing?.proposedBy ?? x.actor.id, ...((i.proposedIn ?? existing?.proposedIn) ? { proposedIn: i.proposedIn ?? existing!.proposedIn } : {}) } : kept;
   const goal: Goal = existing ? { ...built, pending: null, ...state } : { ...built, key: nextKey(s.goals, s.keysIssued), ...state };
   const needsReason = !proposing && !!existing && checkIns.length > 0 && planChanged(existing, goal);
   if (needsReason && (i.reason ?? '').trim().length < MIN_REASON) throw new NotAllowed(REASON_EMPTY);
