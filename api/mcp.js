@@ -286,7 +286,9 @@ var init_thresholds = __esmMin((() => {
 		/** The wrap-up opens this many weeks before a cycle's last day (its last two weeks). */
 		wrapUpWeeksBefore: 2,
 		/** …and stays open this many weeks after it, for the last numbers and the owners' words. */
-		wrapUpWeeksAfter: 4
+		wrapUpWeeksAfter: 4,
+		/** A metric's reading older than this many days is never filled into a check-in (NR rule 1; Lane, 13 Nov). */
+		readingMaxDays: 7
 	};
 	NUMBER_WORDS = [
 		"no",
@@ -15030,7 +15032,8 @@ var _virtual_faro_modules_default = [
 				"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first (the read-back, MT3); admins see on Workspace → About how many metrics have no owner (journey U83).",
 				"Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105).",
 				"A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146).",
-				"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples)."
+				"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples).",
+				"A number source reads a metric for a link’s slice (a team or the whole company, and a part) or says it doesn’t, and passes the source contract; a reading’s state in a check-in is rule 1’s (no-slice, unreachable, missing, old after 7 days, same, jump, changed, fresh), and what a check-in records of it is rule 2’s, which nothing that judges a goal reads (the reading rule’s worked examples; the `reading` rows of spec/conformance/metrics.csv)."
 			],
 			"gaps": [
 				"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).",
@@ -15077,7 +15080,27 @@ var _virtual_faro_modules_default = [
 		],
 		finders: ["metric"],
 		filters: ["metric"],
-		toSortOut: true
+		toSortOut: true,
+		parity: {
+			"Metrics": [
+				"list_metrics",
+				"get_metric",
+				"save_metric",
+				"remove_metric",
+				"restore_removed"
+			],
+			"MetricPlaces": [
+				"get_goal",
+				"get_metric",
+				"list_metrics"
+			],
+			"MeasuredBy": [
+				"list_metrics",
+				"save_metric",
+				"link_goal_metric"
+			],
+			"GoalFilterSheet": ["list_metrics"]
+		}
 	},
 	{
 		id: "reviews",
@@ -15158,6 +15181,22 @@ var _virtual_faro_modules_default = [
 				"A review's own records (reviews and what was said in them) are not yet declared as the module's (AS part 2's records extension point is FT3's), so a build without the module still loads and saves them as the core's.",
 				"The walk on a goal's page, Home's review lead and its Next review cell are drawn by core screens, not through places; FT3 adds the places (home.lead, home.glance) and a count for a module's menu item."
 			]
+		},
+		parity: {
+			"Review": [
+				"list_reviews",
+				"get_review",
+				"save_review",
+				"end_review",
+				"delete_review"
+			],
+			"Inspect": [
+				"get_review",
+				"review_call",
+				"edit_call",
+				"delete_comment"
+			],
+			"Print": ["get_review"]
 		}
 	},
 	{
@@ -15235,6 +15274,23 @@ var _virtual_faro_modules_default = [
 				"A file of 6,000 new goals shows Reading with progress and Stop; Stop saves nothing; checked, it offers Download as 2 files of 5,000 rows instead of Save, and the parts load one after the other; while it is checked, the page never stops for more than 200 ms and the preview has fewer than 3,000 elements."
 			],
 			"gaps": ["The format is in the kit: the field table (a core rule page), how each column is read (spec/core/export-format.md), and every kind of issue with its trigger, sentence and answers and every column’s other spellings (spec/core/import-issues.md).", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
+		},
+		parity: {
+			"Import": ["bulk_change"],
+			"Check": ["bulk_change"],
+			"CheckClose": ["bulk_change"],
+			"Large": ["bulk_change"],
+			"Changes": ["bulk_change"],
+			"Imported": ["get_activity", "undo_import"],
+			"PastImports": ["get_activity", "undo_import"],
+			"Export": ["export"],
+			"ExportButton": ["export"],
+			"DataMenu": [
+				"export",
+				"export_table",
+				"bulk_change"
+			],
+			"ColumnsHelp": ["get_help", "export"]
 		}
 	}
 ];
@@ -19795,7 +19851,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "Switching, and setting one up",
 				list: [
-					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: Look around the demo (outside the demo: it opens the example workspace, which you can change freely without touching yours), About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow.",
+					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: Look around the demo (outside the demo: it opens the example workspace, which you can change freely without touching yours), About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow. With the narrow menu of icons, the Faro mark at its top is the switcher.",
 					"Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.” A workspace you can’t open yet still lists the others, to open one of them.",
 					"A workspace is one organisation’s goals and the people who share them: its own people and teams, its own goal year and check-in day, and its own admins. About says so, under its name.",
 					"Switching is a page move: Back takes you to the workspace you came from. You land on the same page in the other workspace when it has one (Home, Goals, Reviews, People, a Workspace section), otherwise on Home; from a person’s or a team’s page, on People or Teams. While it opens, the page says so.",
@@ -19837,7 +19893,8 @@ var CORE_ARTICLES = [
 			"WORKSPACES",
 			"WORKSPACE-SECTIONS",
 			"WORKSPACE-ABOUT",
-			"WORKSPACE-ONE-PLACE"
+			"WORKSPACE-ONE-PLACE",
+			"RAIL-SWITCH"
 		],
 		keywords: [
 			"admin",
@@ -20715,6 +20772,13 @@ var WHATS_NEW = [
 			"metrics",
 			"activity"
 		]
+	},
+	{
+		id: "switch-from-the-narrow-menu",
+		date: "2026-11-13",
+		title: "Switch workspace from the narrow menu",
+		points: ["With the narrow menu of icons, the Faro mark at its top opens the workspace switcher.", "Nothing is added to the menu, so the rest of it keeps its room on a small screen."],
+		articles: ["workspace"]
 	},
 	{
 		id: "look-around-the-demo",
@@ -49727,6 +49791,7 @@ var checkInToRow = (ws, c) => ({
 	next: c.next,
 	data_flagged: c.dataFlagged,
 	backfilled: !!c.backfilled,
+	...c.reading ? { reading: c.reading } : {},
 	...set({
 		removed_at: c.removedAt,
 		removed_by: c.removedBy
@@ -49755,6 +49820,7 @@ var checkInFromRow = (r) => ({
 	next: r.next,
 	dataFlagged: r.data_flagged,
 	...r.backfilled ? { backfilled: true } : {},
+	...r.reading ? { reading: r.reading } : {},
 	...when("removedAt", r.removed_at),
 	...who("removedBy", r.removed_by)
 });

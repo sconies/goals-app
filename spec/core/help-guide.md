@@ -1034,7 +1034,7 @@ Mistakes and changes of plan. A person leaves, a goal stops mattering mid-year, 
 
 `workspace`. Workspace opens on About: for admins, what needs sorting out; then the facts about this workspace, each leading to its section. Its other sections are Cycles, Privacy and Recently removed for everyone, and Access and Features for admins.
 
-Routes: `/workspace`, `/workspace/overview`. Screens: `Workspace`. Requirements: `ADMIN`, `WORKSPACE-ADMIN`, `WORKSPACES`, `WORKSPACE-SECTIONS`, `WORKSPACE-ABOUT`, `WORKSPACE-ONE-PLACE`.
+Routes: `/workspace`, `/workspace/overview`. Screens: `Workspace`. Requirements: `ADMIN`, `WORKSPACE-ADMIN`, `WORKSPACES`, `WORKSPACE-SECTIONS`, `WORKSPACE-ABOUT`, `WORKSPACE-ONE-PLACE`, `RAIL-SWITCH`.
 
 #### About
 
@@ -1046,7 +1046,7 @@ Routes: `/workspace`, `/workspace/overview`. Screens: `Workspace`. Requirements:
 
 #### Switching, and setting one up
 
-- The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: Look around the demo (outside the demo: it opens the example workspace, which you can change freely without touching yours), About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow.
+- The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: Look around the demo (outside the demo: it opens the example workspace, which you can change freely without touching yours), About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow. With the narrow menu of icons, the Faro mark at its top is the switcher.
 - Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.” A workspace you can’t open yet still lists the others, to open one of them.
 - A workspace is one organisation’s goals and the people who share them: its own people and teams, its own goal year and check-in day, and its own admins. About says so, under its name.
 - Switching is a page move: Back takes you to the workspace you came from. You land on the same page in the other workspace when it has one (Home, Goals, Reviews, People, a Workspace section), otherwise on Home; from a person’s or a team’s page, on People or Teams. While it opens, the page says so.

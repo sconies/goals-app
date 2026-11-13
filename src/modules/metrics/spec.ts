@@ -9,6 +9,8 @@ import * as MEAS from './rulesMeasure';
 import * as DEF from './rulesDefine';
 import * as PARTS from './rulesParts';
 import * as CHG from './rulesChange';
+import * as RD from './rulesReading';
+import { RULES } from '../../domain/thresholds';
 import { checkReads, lineOf } from './reads';
 import * as SAVE from './rulesSave';
 import { goalsOfMetric, libraryReads } from './reads';
@@ -258,6 +260,35 @@ rules.push({
     { given: 'Rhea, not an admin, merges Flaky test rate into Remote build cache hit rate.', then: 'refused: Only admins can merge metrics: it changes what other people’s goals are measured by.', run: () => summaryOf(asPerson('rhea', (x) => CHG.mergeMetrics(x, 'metric_flaky-rate', 'metric_cache-hit'))) },
   ],
   unclear: ['The mark’s week is the cycle week the change is saved in; a change saved between cycles marks week 0 of the next.', 'Merging two metrics in different directions is a Check on the form (“Merge anyway”), not a rule: the rule merges either way.', 'The library lists retired metrics only through list_metrics (retired: true) and a metric’s own page; a Retired filter on the page itself is left for MT5 or later.'],
+});
+
+rules.push({
+  id: 'metric-reading',
+  title: 'A reading in a check-in',
+  summary: 'Where a metric’s number comes from can fill in a goal’s check-in (NR): which state the number step is in, and what a check-in records of what the source said. A person confirms every number; nothing is ever posted for them.',
+  code: [{ file: 'src/modules/metrics/rulesReading.ts', names: ['readingState', 'askSource', 'readingRevised', 'recordReading', 'sameAt', 'isJump'] }, { file: 'src/modules/metrics/source.ts', names: ['Slice', 'NumberSource', 'sliceOf'] }, { file: 'src/modules/metrics/numbers.ts', names: ['DEMO_SERIES', 'seededSeries', 'demoSources'] }, { file: 'src/domain/thresholds.ts', names: ['RULES'] }],
+  tests: ['src/modules/metrics/rulesReading.test.ts', 'src/modules/metrics/numbers.test.ts'],
+  reqs: [],
+  body: `
+A **number source** (\`NumberSource\`, the module's port) reads a metric, optionally for a link's **slice** (\`{ teamId, part }\`: a team or the whole company, and a part or all of it). A source that reads only the whole company reads no team's slice: a company-wide number is never put in a team's goal. \`read(metric, at, slice)\` gives the latest reading measured at or before \`at\` (\`{ value, at }\`, \`at\` when the source measured it), null when it has none, and throws only when it can't be reached. The step asks once when it opens (\`askSource\`).
+
+**Rule 1. A reading's state** (\`readingState(reading, lastReading, lastValue, now, typed, decimals)\`). The first that applies: **no-slice**, the source reads the metric but not this slice; **unreachable**, it threw; **missing**, no reading; **old**, measured more than ${RULES.readingMaxDays} days before now (one limit for every metric, and an old value is never offered); **same**, the goal's latest check-in recorded a reading measured at or after this one; **jump**, the reading is ten times or a tenth of the last number (by size; from a last number of 0, a size of 10 or more); **changed**, the owner typed a number that differs from the reading at the metric's decimals; otherwise **fresh**. \`readingRevised\` says when the source, asked again for the last reading's moment, now gives another number.
+
+**Rule 2. What is recorded** (\`recordReading\`, the core's \`CheckIn.reading\`). \`{ source, value, at, why? }\`: the source's name, what it said and when it measured it; \`why\` (\`behind\`, \`other-count\`, \`wrong\` or \`else\` with words) only when the check-in's number differs. The check-in's \`value\` is always the owner's number. Nothing that judges a goal (its status, flags, attention or order) reads it. Saved only when set (migration 0047's nullable \`reading\`).
+
+**The demo's sources** (\`demoSources\`). "CI analytics" reads CI pipeline time on main (p90) for the whole company; "CI runner metrics" reads Pipeline queue wait (p90) for CI/CD · main branch pipelines and Build & Release · release pipelines. Each is a seeded series made once from the example as it was seeded, never from later check-ins: the numbers of the goal it follows by week, continued one week, measured at 09:00 UTC on the review day; release pipelines has no reading in the last week, and an eval fixture can make every series two weeks behind.`,
+  examples: [
+    { given: 'Now Thu 12 Nov 10:00: 12 min at Thu 09:02; the last check-in 13, typed.', then: 'fresh', run: () => RD.readingState({ value: 12, at: '2026-11-12T09:02:00Z' }, null, 13, new Date('2026-11-12T10:00:00Z'), null, 0) },
+    { given: 'The same, and the owner types 14.', then: 'changed', run: () => RD.readingState({ value: 12, at: '2026-11-12T09:02:00Z' }, null, 13, new Date('2026-11-12T10:00:00Z'), 14, 0) },
+    { given: 'The same, and the owner types 12.0.', then: 'fresh', run: () => RD.readingState({ value: 12, at: '2026-11-12T09:02:00Z' }, null, 13, new Date('2026-11-12T10:00:00Z'), 12.0, 0) },
+    { given: '13 min at Mon 2 Nov.', then: 'old', run: () => RD.readingState({ value: 13, at: '2026-11-02T09:00:00Z' }, null, 13, new Date('2026-11-12T10:00:00Z'), null, 0) },
+    { given: '13 min at Fri 6 Nov 09:00, which week 45’s check-in recorded.', then: 'same', run: () => RD.readingState({ value: 13, at: '2026-11-06T09:00:00Z' }, { at: '2026-11-06T09:00:00Z' }, 13, new Date('2026-11-12T10:00:00Z'), null, 0) },
+    { given: '13 min at Thu 5 Nov 09:00, which week 45’s check-in recorded (7 days and an hour).', then: 'old', run: () => RD.readingState({ value: 13, at: '2026-11-05T09:00:00Z' }, { at: '2026-11-05T09:00:00Z' }, 13, new Date('2026-11-12T10:00:00Z'), null, 0) },
+    { given: 'The link is for CI/CD; the source reads the whole company only.', then: 'no-slice', run: () => RD.readingState('no-slice', null, 13, new Date('2026-11-12T10:00:00Z'), null, 0) },
+    { given: '130 at Thu 09:02; the last number 13.', then: 'jump', run: () => RD.readingState({ value: 130, at: '2026-11-12T09:02:00Z' }, null, 13, new Date('2026-11-12T10:00:00Z'), null, 0) },
+    { given: 'Recorded: CI analytics said 12 at Thu 09:02; the owner used 14 because the source is behind.', then: '{"source":"CI analytics","value":12,"at":"2026-11-12T09:02:00Z","why":{"kind":"behind"}}', run: () => JSON.stringify(RD.recordReading('CI analytics', { value: 12, at: '2026-11-12T09:02:00Z' }, 14, 0, { kind: 'behind' })) },
+  ],
+  unclear: ['NR’s table gives 120 against a last 13 as a jump; MT4’s Check, which NR keeps, is ten times or more, and 120 is 9.2 times, so it is fresh: the example here uses 130.', 'NR2 draws the states in the number step and records the reading; until then nothing reads a source on screen and no check-in carries a reading.', 'The demo has one goal on each read slice; Build & Release · release pipelines is read but no goal is linked to it yet.'],
 });
 
 const LIB_METRIC = (id: string) => MET.metricsOf(demo()).find((m) => m.id === id)!;

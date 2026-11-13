@@ -1170,6 +1170,12 @@
       "use": "copy"
     },
     {
+      "id": "RAIL-SWITCH",
+      "area": "Navigation",
+      "text": "On the icon rail the Faro mark is the workspace switcher: it opens the same panel as the sidebar's Switch, adds no row (the Demo box keeps its room at 1024 × 768), and Escape returns focus to it.",
+      "use": "copy"
+    },
+    {
       "id": "SMALL-QUIET",
       "area": "Navigation",
       "text": "No count of nought beside a tab, a menu row or a section's name (a sentence may still say none), and an empty page says what is true, then when you'd want it, with a plain button rather than the page's primary.",
