@@ -68,7 +68,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | [createToken](#createtoken) | Make an MCP token for someone | Admins | [`create_token`](tools.md#create_token) |
 | [revokeToken](#revoketoken) | Revoke an MCP token | An admin, or the token’s person | [`revoke_token`](tools.md#revoke_token) |
 | [sendFeedback](#sendfeedback) | Send feedback about the app | Anyone | [`send_feedback`](tools.md#send_feedback) |
-| [saveMetric](#savemetric) (metrics) | — | — | [`save_metric`](tools.md#save_metric) |
+| [saveMetric](#savemetric) (metrics) | Add a metric to the library; Change or remove a metric | Anyone; they own it unless they name another owner; Its owner, or an admin | [`save_metric`](tools.md#save_metric) |
 | [removeMetric](#removemetric) (metrics) | Change or remove a metric | Its owner, or an admin | [`remove_metric`](tools.md#remove_metric), [`restore_removed`](tools.md#restore_removed) |
 | [linkGoalMetric](#linkgoalmetric) (metrics) | Say which metric measures a goal, or stop | The goal’s owner, or an admin | [`link_goal_metric`](tools.md#link_goal_metric) |
 | [unlinkGoalMetric](#unlinkgoalmetric) (metrics) | Say which metric measures a goal, or stop | The goal’s owner, or an admin | [`link_goal_metric`](tools.md#link_goal_metric) |
@@ -1463,7 +1463,7 @@ Nothing.
 
 From the [metrics](../modules/metrics/README.md) module.
 
-**Does:** —.
+**Does:** Add a metric to the library; change or remove a metric.
 
 **Input** (`SaveMetricInput`):
 
@@ -1485,9 +1485,9 @@ From the [metrics](../modules/metrics/README.md) module.
 
 **Result:** `{ commit: Commit \| null; metric: Metric; }`
 
-**Who may:** —.
+**Who may:** Anyone; they own it unless they name another owner (to add a metric to the library); Its owner, or an admin (to change or remove a metric).
 
-**The rule:** `saveMetricAsked`.
+**The rule:** `saveMetricAsked`, in `src/modules/metrics/rulesSave.ts`.
 
 **Refuses with:**
 
