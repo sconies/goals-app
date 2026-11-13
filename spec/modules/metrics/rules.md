@@ -2,7 +2,7 @@
 
 # Metric library: its rules
 
-The module’s 6 rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.
+The module’s 7 rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.
 
 | Rule | What it decides |
 |---|---|
@@ -12,6 +12,7 @@ The module’s 6 rules, in order. Each is a section of its own below, with its w
 | [Looking after metrics](#looking-after-metrics) | A name close to one already in the library (rule 4), and what an admin is told on Workspace → About. |
 | [Defining a metric well](#defining-a-metric-well) | What a metric still needs to say, in words and never as a score (rule 6), and the three questions adding or changing one may ask before it is saved: a close name, a unit spelt another way, a percentage that doesn’t say out of what. |
 | [For, which part, and what a goal takes from its metric](#for-which-part-and-what-a-goal-takes-from-its-metric) | Which part of a team’s or the company’s number a goal is measured by (rule 7), the parts other goals on the metric use, what linking asks, and why a goal with check-ins says why it is measured differently. |
+| [Changing, retiring and merging a metric](#changing-retiring-and-merging-a-metric) | What kind of change a save is (rule 8), the marks a change of meaning or direction leaves on its goals (rule 9), and retiring, bringing back and merging (rule 10): a metric that changes tells its goals. |
 
 ## The metric library
 
@@ -25,7 +26,7 @@ A **metric** is one number defined once per workspace, so every goal about it me
 
 **Measuring a goal.** A goal is measured by at most one metric, for one **slice**: a team’s number, or the whole company’s. The goal’s own target is the target in that metric (a number to move: its plan’s target; a number to keep in range: its limit); nothing is copied. A goal with dated stages has no number, so no metric measures it. The goal and the metric must have the same unit, any case. A goal aiming the other way from the metric’s better direction (planned to go up when lower is better, or kept at least a level when lower is better) is linked with a warning, since a guardrail may mean it. So is a goal that keeps more decimal places than its metric. The goal's target in the metric is shown as every number is ([numbers and names](../../core/rules/numbers-and-names.md)): at the goal's decimals, digits grouped, with its unit. Linking again with the same metric and slice changes nothing; another metric or slice is a change.
 
-**Logged, never lost.** Every change is in the change log as a metric change (adding, changing field by field, removing, restoring; linking and unlinking on the goal it measures). Removing a metric keeps its row, unlinks every goal it measured in the same save, and leaves the goals as they were. Undo straight after puts the metric and its links back; restoring it later from Recently removed brings the metric back with the links it had, to goals still there that nothing else measures since. Unlinking keeps the link’s row too, and Undo puts it back.
+**Logged, never lost.** Every change is in the change log as a metric change (adding, changing field by field, removing, restoring; linking and unlinking on the goal it measures). Only a metric no goal has ever been measured by can be removed (deleted); one that has is retired instead (MT3, rule 10). Removing keeps its row; Undo straight after puts it back, and so does restoring it later from Recently removed. Unlinking keeps the link’s row too, and Undo puts it back.
 
 ### Worked examples
 
@@ -47,7 +48,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Grace measures the merge queue goal (lead-mq, dated stages) by Lead time for changes. | `refused: A goal with dated stages has no number, so a metric can’t measure it.` |
 | Oskar measures ns-ci, which Daniel owns, by CI pipeline time on main (p90). | `refused: Only the goal’s owner or an admin can choose what measures it.` |
 | Rhea measures ns-lead by Lead time for changes for the whole company, as it already is. | `nothing to save` |
-| Rhea removes Lead time for changes, which measures one goal. | `Removed the metric “Lead time for changes”, unlinking 1 goal / No longer measured by “Lead time for changes”, as the metric was removed` |
+| Rhea removes Lead time for changes, which measures one goal. | `refused: Lead time for changes has measured goals, so it can’t be deleted. Retire it instead.` |
 
 ### Not self-explanatory
 
@@ -86,14 +87,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - linking a goal to a metric › warns, without refusing, when the goal aims the other way from the metric
 - linking a goal to a metric › warns when the goal keeps more decimal places than the metric (one number, two precisions)
 - linking a goal to a metric › unlinking keeps the row, logs it, and Undo puts it back
-- removing a metric › its owner or an admin; it unlinks its goals, and Undo brings both back
-- removing a metric › is on Recently removed, and restoring brings the metric back with the links it had (spec 2.2)
-- removing a metric › restoring leaves out a link whose goal was measured by another metric since
+- removing a metric › a metric that has measured a goal is retired, not deleted (MT3 rule 5)
+- removing a metric › one never used: its owner or an admin; Undo and Recently removed bring it back
 - removing a metric › can’t come back under a name another metric took since
 - one form, one save › mergeCommits puts a goal’s save and its link together, in order
 - the build review’s findings on ML2 and ML3 (11 Nov) › a goal being made for someone else can be measured in the same save, by whoever makes it
 - the build review’s findings on ML2 and ML3 (11 Nov) › changing a unit goals use is asked at every door: refused without confirm, saved with it
-- the build review’s findings on ML2 and ML3 (11 Nov) › removing a metric unlinks a stopped goal too, and putting it back links it again
 
 #### [src/modules/metrics/tools.test.ts](../../../src/modules/metrics/tools.test.ts)
 
@@ -103,10 +102,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
-- metric library tools › removes a metric, unlinking its goals, and restore_removed brings it back
+- metric library tools › removes only a metric no goal has used, and restore_removed brings it back; a used one is retired (MT3)
+- metric library tools › merges one metric into another in the same unit, for admins (MT3)
 - metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
+- metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
 
 ## The library as a place
 
@@ -196,10 +197,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
-- metric library tools › removes a metric, unlinking its goals, and restore_removed brings it back
+- metric library tools › removes only a metric no goal has used, and restore_removed brings it back; a used one is retired (MT3)
+- metric library tools › merges one metric into another in the same unit, for admins (MT3)
 - metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
+- metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
 
 ## “Measured by”, found by typing
 
@@ -434,10 +437,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
-- metric library tools › removes a metric, unlinking its goals, and restore_removed brings it back
+- metric library tools › removes only a metric no goal has used, and restore_removed brings it back; a used one is retired (MT3)
+- metric library tools › merges one metric into another in the same unit, for admins (MT3)
 - metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
+- metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
 
 ## For, which part, and what a goal takes from its metric
 
@@ -523,14 +528,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - linking a goal to a metric › warns, without refusing, when the goal aims the other way from the metric
 - linking a goal to a metric › warns when the goal keeps more decimal places than the metric (one number, two precisions)
 - linking a goal to a metric › unlinking keeps the row, logs it, and Undo puts it back
-- removing a metric › its owner or an admin; it unlinks its goals, and Undo brings both back
-- removing a metric › is on Recently removed, and restoring brings the metric back with the links it had (spec 2.2)
-- removing a metric › restoring leaves out a link whose goal was measured by another metric since
+- removing a metric › a metric that has measured a goal is retired, not deleted (MT3 rule 5)
+- removing a metric › one never used: its owner or an admin; Undo and Recently removed bring it back
 - removing a metric › can’t come back under a name another metric took since
 - one form, one save › mergeCommits puts a goal’s save and its link together, in order
 - the build review’s findings on ML2 and ML3 (11 Nov) › a goal being made for someone else can be measured in the same save, by whoever makes it
 - the build review’s findings on ML2 and ML3 (11 Nov) › changing a unit goals use is asked at every door: refused without confirm, saved with it
-- the build review’s findings on ML2 and ML3 (11 Nov) › removing a metric unlinks a stopped goal too, and putting it back links it again
 
 #### [src/modules/metrics/tools.test.ts](../../../src/modules/metrics/tools.test.ts)
 
@@ -540,7 +543,104 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
-- metric library tools › removes a metric, unlinking its goals, and restore_removed brings it back
+- metric library tools › removes only a metric no goal has used, and restore_removed brings it back; a used one is retired (MT3)
+- metric library tools › merges one metric into another in the same unit, for admins (MT3)
 - metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
+- metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
+
+## Changing, retiring and merging a metric
+
+What kind of change a save is (rule 8), the marks a change of meaning or direction leaves on its goals (rule 9), and retiring, bringing back and merging (rule 10): a metric that changes tells its goals.
+
+### The rule
+
+**Rule 8. What kind of change** (`changeKinds(before, after, linkedGoals, { relabel })`). Every kind that applies, in this order: `scale` (the unit differs, goals are linked, and it isn't said to be a new label: refused), `relabel` (the same, said to be a new label: every linked goal's unit changes in the same save), `direction` (needs a reason), `meaning` (the meaning or the source differs: asks whether it is still the same number, `comparable`; when it isn't, a reason), `decimals` (fewer places than a linked goal shows: named, nothing asked). Anything else, or any change to a metric no live goal uses, is `words` and saves at once; nothing different is `none`. A reason is at most 300 characters. The form reads the change back before saving (title, Was and Will be, the goals named, the six first then “and {k} more”); `save_metric` takes `comparable`, `reason` and `relabel`.
+
+**Rule 9. Marks** (`marksFor(metric, link, since)`). A save with the number changed (`comparable: false`) or a new direction keeps a mark on the metric: `{ week, at, by, kind: definition | direction, why, was, now }`, oldest first. A goal shows the marks made at or after it was linked, and since its cycle began: on its chart a dashed hairline at the week labelled beside it (“Definition changed, week {w}”, “Direction changed, week {w}”, through the core's `goal.marks` point), in its History the entry with the reason, and under About the line with “See both definitions”. Undo takes the mark back with the change.
+
+**Rule 10. Retire, bring back, merge** (`retireMetric`, `unretireMetric`, `mergeMetrics`, `everUsed`). A metric that has ever measured a goal (`everUsed`) can't be deleted: “{name} has measured goals, so it can’t be deleted. Retire it instead.” Its owner or an admin retires it with a reason (and optionally a live metric in the same unit that replaces it): its links stay, its goals keep their numbers and say “Measured by {metric}, retired {date}”, it leaves `liveMetrics` (the pickers and the library's list) but `measureOf` and `findMetric` still find it, and no new goal can be linked to it. Bring it back clears the four fields. Admins merge a live metric into another live one in the same unit: every live link moves (same slice and part), the first is retired pointing to the second, and each moved goal's History says so. Each is one save with one Undo.
+
+### Worked examples
+
+Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
+
+| Given | The rule gives |
+|---|---|
+| Lead time for changes (1 goal): its caveats reworded. | `words` |
+| Lead time for changes: its meaning changed. | `meaning` |
+| Lead time for changes: hours to min, not said to be a label. | `scale` |
+| Rhea changes what Lead time for changes means and says the number itself changes, with no reason. | `refused: Say why, in a line. Every goal measured by it will show this.` |
+| Rhea deletes Lead time for changes, which measures a goal. | `refused: Lead time for changes has measured goals, so it can’t be deleted. Retire it instead.` |
+| Rhea retires Flaky test rate: “The test platform reports it now.” | `Retired the metric “Flaky test rate”: The test platform reports it now. / Its metric “Flaky test rate” was retired: The test platform reports it now.` |
+| Rhea, not an admin, merges Flaky test rate into Remote build cache hit rate. | `refused: Only admins can merge metrics: it changes what other people’s goals are measured by.` |
+
+### Not self-explanatory
+
+- **Not self-explanatory:** The mark’s week is the cycle week the change is saved in; a change saved between cycles marks week 0 of the next.
+- **Not self-explanatory:** Merging two metrics in different directions is a Check on the form (“Merge anyway”), not a rule: the rule merges either way.
+- **Not self-explanatory:** The library lists retired metrics only through list_metrics (retired: true) and a metric’s own page; a Retired filter on the page itself is left for MT5 or later.
+
+### Where it lives
+
+- [src/modules/metrics/rulesChange.ts](../../../src/modules/metrics/rulesChange.ts): `changeKinds`, `linkedGoals`, `aimingWrong`, `saveMetricChange`, `retireMetric`, `unretireMetric`, `mergeMetrics`, `retiredWords`
+- [src/modules/metrics/rules.ts](../../../src/modules/metrics/rules.ts): `everUsed`, `marksFor`, `markLabel`, `liveMetrics`, `removeMetric`
+
+### Requirements
+
+- `METRIC-CHANGE`: A metric that changes tells its goals (MT3). Changing a metric goals use reads back what it does to them first: a new meaning or source asks "Is it still the same number?"; "The number itself changes" and a new direction each need a reason, and leave a mark on every goal's chart ("Definition changed, week {w}", a dashed hairline labelled beside it) and History; a new unit is a new label (every goal's unit changes too) or a different scale, refused. A metric that has measured a goal is retired, not deleted: its goals keep their links and numbers and say "Measured by {metric}, retired {date}", it leaves the pickers, and Bring it back undoes it. Admins merge a metric into another in the same unit, moving its goals and retiring it pointing there. Every one of these saves with one Undo, and retire_metric, merge_metrics and save_metric's comparable, reason and relabel do the same through MCP.
+
+### Tests that check it
+
+#### [src/modules/metrics/rulesChange.test.ts](../../../src/modules/metrics/rulesChange.test.ts)
+
+- rule 3: what kind of change › follows the spec’s table
+- rule 3: what kind of change › a change of meaning asks whether it is the same number, and a reason when it isn’t; it marks the goal (rule 4)
+- rule 3: what kind of change › a change of direction needs a reason; a new unit is a label or refused; a relabel changes the goals’ unit too
+- rule 5: retiring, bringing back, merging › retires a metric with a goal: the link stays, the pickers leave it out, a new goal can’t use it, and it comes back
+- rule 5: retiring, bringing back, merging › a never-used metric is deleted, a used one refused
+- rule 5: retiring, bringing back, merging › merges in the same unit, for admins: the goals move and the old one is retired pointing to the new
+
+#### [src/modules/metrics/rules.test.ts](../../../src/modules/metrics/rules.test.ts)
+
+- the demo’s library › has 13 metrics, 12 of them measuring a goal, and every link passes the rules
+- the demo’s library › says what a goal is measured by, for which slice, with the goal’s own target
+- the demo’s library › one metric can sit in the library measuring nothing yet
+- what a metric needs › a name, a unit and a direction; everything else is optional
+- what a metric needs › a name no other metric here has, any case
+- what a metric needs › decimals 0 to 4, a known refresh, an owner in the workspace, text in bounds
+- what a metric needs › trims what it keeps
+- adding and changing a metric › asks rule 1’s Checks at every door: saving refuses while one is open, and saves once it is answered (#281)
+- adding and changing a metric › treats a name that differs only by accents or case as the same name: a Must fix (#281)
+- adding and changing a metric › refuses someone who may not change the metric before asking anything (#281)
+- adding and changing a metric › anyone adds one, owns it, and it’s logged field by field
+- adding and changing a metric › its owner or an admin changes it; anyone else is told who can
+- adding and changing a metric › the owner can hand it on; saving it unchanged saves nothing
+- linking a goal to a metric › the goal’s owner or an admin, for the company or a team
+- linking a goal to a metric › the same metric and slice again changes nothing; another slice is a logged edit
+- linking a goal to a metric › refuses a milestone goal, a different unit, a team that isn’t here and a removed metric
+- linking a goal to a metric › warns, without refusing, when the goal aims the other way from the metric
+- linking a goal to a metric › warns when the goal keeps more decimal places than the metric (one number, two precisions)
+- linking a goal to a metric › unlinking keeps the row, logs it, and Undo puts it back
+- removing a metric › a metric that has measured a goal is retired, not deleted (MT3 rule 5)
+- removing a metric › one never used: its owner or an admin; Undo and Recently removed bring it back
+- removing a metric › can’t come back under a name another metric took since
+- one form, one save › mergeCommits puts a goal’s save and its link together, in order
+- the build review’s findings on ML2 and ML3 (11 Nov) › a goal being made for someone else can be measured in the same save, by whoever makes it
+- the build review’s findings on ML2 and ML3 (11 Nov) › changing a unit goals use is asked at every door: refused without confirm, saved with it
+
+#### [src/modules/metrics/tools.test.ts](../../../src/modules/metrics/tools.test.ts)
+
+- metric library tools › lists the library and reads one metric in full, with the goals it measures
+- metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
+- metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
+- metric library tools › changes a metric only for its owner or an admin
+- metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
+- metric library tools › removes only a metric no goal has used, and restore_removed brings it back; a used one is retired (MT3)
+- metric library tools › merges one metric into another in the same unit, for admins (MT3)
+- metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)
+- metric library tools › says the library is off where an admin has switched it off
+- metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
+- metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)

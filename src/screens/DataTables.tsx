@@ -22,7 +22,7 @@ import { MenuButton } from '../ui/MenuButton';
 import { ColumnsSheet, readLocal, SaveLayoutSheet, useColumnMoves, writeLocal, type Local } from './DataLayout';
 import { FilterEditor } from './DataFilters';
 import {
-  applyTable, columnKind, describeFilter, filterEntries, parseFilters, parseSort, sortIndex,
+  applyTable, columnKind, warmTableWords, describeFilter, filterEntries, parseFilters, parseSort, sortIndex,
   type ColumnKind, type PropFilter, type TableSort,
 } from '../domain/tableFilter';
 import {
@@ -159,6 +159,16 @@ export function DataTables() {
   const [choosing, setChoosing] = useState(false);
   // The search reads the columns shown, as Goals' does (find spec, 2.1); a filter may name any column.
   const shown = applyTable(rows, head, q, filters, sort, order);
+  // The words the search reads, split while nothing else is happening, so the first key on a large table is as quick
+  // as the rest (N12).
+  const orderKey = order.join('\u0001');
+  useEffect(() => {
+    let at = 0;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const slice = () => { at = warmTableWords(rows, head, order, at, 2000); if (at >= 0) t = setTimeout(slice, 0); };
+    t = setTimeout(slice, 0);
+    return () => clearTimeout(t);
+  }, [rows, head, orderKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const kinds = useMemo(() => Object.fromEntries(head.map((c, i) => [c, columnKind(rows.map((r) => r.cells[i] ?? ''))])) as Record<string, ColumnKind>, [head, rows]);
   const narrowed = !!q.trim() || filters.length > 0;
 
@@ -288,7 +298,11 @@ export function DataTables() {
       </div>
       {/* The count line and the filter line (find spec, rules 2 and 3): the same words as every list. */}
       <CountLine things={ROWS} n={shown.length} narrowed={narrowed} order={sort ? `sorted by ${sort.col}, ${kinds[sort.col] === 'number' ? (sort.dir === 1 ? 'lowest first' : 'highest first') : sort.dir === 1 ? 'A to Z' : 'Z to A'}` : tab === 'goals' ? 'in key order' : null}
-        after={sort ? <> <button type="button" className="linkish" onClick={() => setView({ sort: null })}>Remove the sort</button></> : null} />
+        after={<>
+          {sort && <> <button type="button" className="linkish" onClick={() => setView({ sort: null })}>Remove the sort</button></>}
+          {/* The search reads only the columns shown (find spec, 2.1), so say so while some are hidden (build review of #234). */}
+          {q.trim() && cols.length < all.length + 1 && <> <span className="data-searched">Search looks only in the {cols.length} columns shown.</span> <button type="button" className="linkish" onClick={() => setChoosing(true)}>Choose columns</button></>}
+        </>} />
       <FilterLine parts={filters.map((f, k) => ({ key: String(k), label: f.col, values: [describeFilter(f).slice(f.col.length + 1)] }))} onRemove={(k) => setView({ filters: filters.filter((_, j) => String(j) !== k) })} onClear={() => setView({ filters: [] })} />
       {choosing && <ColumnsSheet tab={tab} order={order} always={always} all={all} onCols={(c) => setLay({ cols: c })} onClose={() => setChoosing(false)} />}
       {savingView && <SaveLayoutSheet tab={tab} layout={current} head={head} views={views} active={activeView} onClose={() => setSavingView(false)} />}

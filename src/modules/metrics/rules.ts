@@ -20,7 +20,7 @@ import { mergeModuleRows, moduleRows, withModuleRows, type ModuleRows } from '..
 import type { Change, Goal, Person, Team } from '../../domain/types';
 import type { Metric, MetricDirection, MetricLink, MetricRefresh } from './types';
 
-export type { Metric, MetricDirection, MetricLink, MetricRefresh } from './types';
+export type { Metric, MetricDirection, MetricLink, MetricMark, MetricRefresh } from './types';
 
 /** The module's id, and the keys its records are filed under (records.ts). */
 export const MODULE = 'metrics';
@@ -63,18 +63,27 @@ export type MetricInput = Partial<Pick<Metric, 'name' | 'meaning' | 'unit' | 'de
 
 /* ---------- reading ---------- */
 
-/** The metrics in use: not removed, by name. */
-export const liveMetrics = (s: Rows): Metric[] => metricsOf(s).filter((m) => !m.removedAt).sort((a, b) => a.name.localeCompare(b.name));
+/** The metrics in use: not removed, by name. A retired one (MT3) is left out of pickers and lists unless asked for. */
+export const liveMetrics = (s: Rows, o: { retired?: boolean } = {}): Metric[] => metricsOf(s).filter((m) => !m.removedAt && (o.retired || !m.retiredAt)).sort((a, b) => a.name.localeCompare(b.name));
+/** The marks a goal shows (MT3 rule 4): its metric's marks made at or after the goal was linked to it, and since `since`
+    (the cycle's start), oldest first. A goal linked after a change was never measured the old way. */
+export function marksFor(metric: Pick<Metric, 'marks'>, link: Pick<MetricLink, 'linkedAt'>, since?: string): NonNullable<Metric['marks']> {
+  return (metric.marks ?? []).filter((m) => m.at >= link.linkedAt && (!since || m.at >= since));
+}
+/** A chart's label for a mark (spec 2.7). */
+export const markLabel = (m: { kind: 'definition' | 'direction'; week: number }) => `${m.kind === 'direction' ? 'Direction' : 'Definition'} changed, week ${m.week}`;
+/** Whether any goal has ever been measured by a metric, in force or not (rule 5): such a metric is retired, not deleted. */
+export const everUsed = (metricId: string, links: readonly Pick<MetricLink, 'metricId'>[]) => links.some((l) => l.metricId === metricId);
 /** A live metric by id, or by name (any case). */
 export function findMetric(s: Rows, ref: string): Metric | undefined {
   const t = ref.trim().toLowerCase();
-  const live = liveMetrics(s);
+  const live = liveMetrics(s, { retired: true });
   return live.find((m) => m.id === ref) ?? live.find((m) => m.name.trim().toLowerCase() === t);
 }
 /** A goal's link to a metric, if it has one that's in force (the metric not removed either). */
 export function linkOf(s: Rows, goalId: string): MetricLink | undefined {
   const l = linksOf(s).find((v) => v.goalId === goalId && !v.removedAt);
-  return l && liveMetrics(s).some((m) => m.id === l.metricId) ? l : undefined;
+  return l && liveMetrics(s, { retired: true }).some((m) => m.id === l.metricId) ? l : undefined;
 }
 /** The goals a metric measures now: links in force, to the goals given (the cycle's, say). */
 export function goalsMeasuredBy(s: Rows, goals: readonly Goal[], metricId: string): Goal[] {
@@ -92,14 +101,14 @@ export function goalTarget(g: Goal): { value: number; kind: 'target' | 'at most'
 
 /** What a goal is measured by, ready to show: the metric, the slice in words, and the goal's target in it, as a number
     and as every screen writes it (domain/numbers: at the goal's decimals, digits grouped, with its unit: "At most 2.0%"). */
-export interface Measure { link: MetricLink; metric: Metric; slice: string; part: string; target: ReturnType<typeof goalTarget>; targetText: string | null }
+export interface Measure { link: MetricLink; metric: Metric; slice: string; part: string; target: ReturnType<typeof goalTarget>; targetText: string | null; retired: { at: string; by: string | null; why: string; replacedBy: string | null } | null }
 export function measureOf(s: Rows & { teams: Team[] }, goal: Goal): Measure | null {
   const link = linkOf(s, goal.id);
   if (!link) return null;
-  const metric = liveMetrics(s).find((m) => m.id === link.metricId)!;
+  const metric = liveMetrics(s, { retired: true }).find((m) => m.id === link.metricId)!;
   const target = goalTarget(goal);
   const targetText = target && goal.kind !== 'milestone' ? `${target.kind === 'target' ? 'Target' : target.kind === 'at most' ? 'At most' : target.kind === 'at least' ? 'At least' : `Between ${fmt(target.lower!, goal)} and`} ${fmt(target.value, goal)}` : null;
-  return { link, metric, slice: sliceName(s, link.teamId), part: (link.part ?? '').trim(), target, targetText };
+  return { link, metric, slice: sliceName(s, link.teamId), part: (link.part ?? '').trim(), target, targetText, retired: metric.retiredAt ? { at: metric.retiredAt, by: metric.retiredBy ?? null, why: metric.retiredWhy ?? '', replacedBy: metric.replacedBy ?? null } : null };
 }
 /** A slice in words: the team's name (or "a removed team"), or the whole company. */
 export const sliceName = (s: { teams: Team[] }, teamId: string | null) => (teamId == null ? COMPANY : s.teams.find((t) => t.id === teamId)?.name ?? 'A removed team');
@@ -127,6 +136,8 @@ export function metricFrom(input: MetricInput, before: Metric | null, x: Pick<Ac
     createdAt: before?.createdAt ?? x.now,
     updatedAt: x.now,
     ...(before?.removedAt ? { removedAt: before.removedAt, removedBy: before.removedBy ?? null } : {}),
+    ...(before?.retiredAt !== undefined ? { retiredAt: before.retiredAt, retiredBy: before.retiredBy ?? null, retiredWhy: before.retiredWhy ?? '', replacedBy: before.replacedBy ?? null } : {}),
+    ...(before?.marks ? { marks: before.marks } : {}),
   };
 }
 
@@ -142,7 +153,7 @@ export function metricProblems(m: Metric, s: Rows & { people: Person[] }): strin
   else if (m.name.length < 3) out.push('Give the metric a name of at least three characters.');
   else if (m.name.length > METRIC_LIMITS.name) out.push(`Keep the name to ${METRIC_LIMITS.name} characters or fewer.`);
   else {
-    const same = liveMetrics(s).find((v) => v.id !== m.id && !v.name.localeCompare(m.name, 'en', { sensitivity: 'base' }));
+    const same = liveMetrics(s, { retired: true }).find((v) => v.id !== m.id && !v.name.localeCompare(m.name, 'en', { sensitivity: 'base' }));
     if (same) out.push(`There’s already a metric called ${same.name}. Use it, or give this one a different name.`);
   }
   if (!m.unit) out.push('Say its unit: %, min, hours, USD, deploys…');
@@ -211,6 +222,7 @@ export function metricChangeQuestion(before: Metric, next: Metric, goals: readon
 export function saveMetric(x: ActionContext, input: MetricInput & { id?: string; confirm?: boolean }): { commit: Commit | null; metric: Metric } {
   const before = input.id ? live(x, input.id) : null;
   if (before && !ownsOrAdmin(x, before)) no(`Only ${x.snapshot.people.find((p) => p.id === before.ownerId)?.name ?? 'the metric’s owner'} or an admin can change this metric.`);
+  if (before?.retiredAt) no(`“${before.name}” is retired. Bring it back before changing it.`);
   const m = metricFrom(input, before, x);
   const problems = metricProblems(m, x.snapshot);
   if (problems.length) no(problems.join(' '));
@@ -223,12 +235,14 @@ export function saveMetric(x: ActionContext, input: MetricInput & { id?: string;
 }
 
 /**
- * Remove a metric: its owner or an admin. It keeps its row and comes back with Undo or from Recently removed. Every goal
- * it measured is unlinked by the same save (and Undo links them again); the goals themselves don't change.
+ * Delete (remove) a metric no goal has ever been measured by: its owner or an admin. One that has is retired instead
+ * (rule 5, rulesChange.ts). It keeps its row and comes back with Undo or from Recently removed.
  */
 export function removeMetric(x: ActionContext, id: string): Commit {
   const m = live(x, id);
   if (!ownsOrAdmin(x, m)) no(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? 'the metric’s owner'} or an admin can remove this metric.`);
+  // Rule 5: a metric that has measured a goal keeps its history; it is retired, not deleted.
+  if (everUsed(m.id, linksOf(x.full ?? x.snapshot))) no(`${m.name} has measured goals, so it can’t be deleted. Retire it instead.`);
   const links = linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === id && !l.removedAt);
   const n = links.length;
   return {

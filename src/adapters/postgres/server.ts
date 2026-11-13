@@ -23,6 +23,7 @@ export function postgresDeps(db: Sql): Deps {
     },
     workspaceName: async (id) => (await one<{ name: string }>('select name from okr_workspaces where id = $1', [id]))?.name ?? 'Workspace',
     load: (ws) => store.load(ws),
+    history: (ws, ask) => store.history(ws, ask),
     commit: (ws, c) => store.commit(ws, c),
     async touch(id) { const hash = seen.get(id); if (hash) await db.query('select okr_token_touch($1)', [hash]); },
     issueToken: (ws, c) => store.issueToken(ws, c),

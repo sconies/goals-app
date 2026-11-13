@@ -42,6 +42,7 @@ import { readWeekCode, weekCode, weekUnknownText } from './weeks';
 import { checkInsFor } from './status';
 import { makesLoop } from './tree';
 import { asksOf, requestsAfterCheckIn } from './asks';
+import { asksFollowOwner, openAsksDiff } from './askHandover';
 import { deleteGoal, markPersonLeft, stopGoal } from './removal';
 import { reportedIn, stagesFromNow } from './templates';
 import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
@@ -300,6 +301,9 @@ export function planChanges(input: ChangeInput): ChangeSet {
 export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress, ChangeSet, void> {
   const { snapshot: s, cycle, week, now, newId, via } = input;
   const create = input.mode === 'create';
+  // Once a cycle has ended its check-ins are what the wrap-up read: none of them is replaced (check-in design 2.7).
+  const cycleEnded = !create && ['ended', 'closed'].includes(cycleState(cycle, new Date(now)));
+  const endedRefusal = `${cycle.name} has ended, so its check-ins can’t be corrected.`;
   const answers: Answers = input.answers ?? {};
   const issues: Issue[] = [];
   const items: Item[] = [];
@@ -1354,6 +1358,9 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
       if (post) { raise('cant-change', 'Check-ins', row, g.title, `Nothing is different from what week ${w} already says.`); return; }
       same('Check-ins'); imported.set(g.id, [...(imported.get(g.id) ?? []), existing]); return;
     }
+    // A cycle that has ended can't be corrected through any door (check-in design 2.7; review of #326): its numbers are
+    // what the wrap-up read. The form, Data's tables, MCP and a workbook loaded later all meet this one refusal.
+    if (existing && cycleEnded) { raise('cant-change', 'Check-ins', row, g.title, endedRefusal); return; }
     // A goal this file stops or deletes keeps its check-ins as they are: a whole workbook carries them unchanged.
     const removing = removals.find((x) => x.g.id === g.id);
     if (removing) { raise('cant-change', 'Check-ins', row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`); return; }
@@ -1545,8 +1552,8 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     if (w > week) { raise('week-wrong', 'Check-ins', row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`); continue; }
     const own = checkInsFor(g, s.checkIns);
     const newest = own.filter((c) => c.week === w).pop() ?? null;
-    // A cycle that has ended can't be corrected from the form (check-in design 2.7): its numbers are what the wrap-up read.
-    if (p.mode === 'correct' && ['ended', 'closed'].includes(cycleState(cycle, new Date(now)))) { raise('cant-change', 'Check-ins', row, g.title, `${cycle.name} has ended, so its check-ins can’t be corrected here.`); continue; }
+    // The form meets the same refusal before it asks for a reason (check-in design 2.7).
+    if (p.mode === 'correct' && cycleEnded) { raise('cant-change', 'Check-ins', row, g.title, endedRefusal); continue; }
     if (p.mode !== 'correct' && w < week) { raise('week-wrong', 'Check-ins', row, g.title, `Week ${w} has passed. Correct it, or add it, with a reason.`); continue; }
     if (p.mode === 'new' && newest) { raise('cant-change', 'Check-ins', row, g.title, `Week ${w} already has a check-in. Check in again, or correct it.`); continue; }
     const reason = (p.reason ?? '').trim();
@@ -1648,6 +1655,18 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
         raise('removal-refused', 'People', l.row, l.person.name, e.message.replace(/choose who takes (them|it) over/, 'say who takes them over in Takes over'), { column: 'Takes over' });
       }
     }
+  }
+
+  // A goal that changes owner takes its open asks of the old owner with it (Lane, 13 Nov; domain/askHandover). An ask a
+  // row already changed (someone leaving hands theirs over) is left as that row says.
+  const handed = asksFollowOwner({ goals: s.goals, people: s.people, asks: asksOf(s) }, [...goalOut.values()], { actorId: actor.id, now, newId });
+  for (const r of handed.requests) {
+    if (reqOut.has(r.id)) continue;
+    reqOut.set(r.id, r);
+    const ch = handed.changes.find((c) => c.entityId === r.id)!;
+    changes.push(ch);
+    const item = items.find((x) => x.goalId === ch.goalId && (x.kind === 'goal' || x.kind === 'plan'));
+    if (item && !item.diffs.some((d) => d.field.startsWith('Open asks'))) item.diffs.push(openAsksDiff(handed.moved.get(ch.goalId!) ?? 1, ch));
   }
 
   // A check-in posted from its own screen is no import: no Via mark, and no import to undo unless it corrects a week (rule 8).

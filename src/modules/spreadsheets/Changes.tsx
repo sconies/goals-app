@@ -14,6 +14,7 @@ import { useImportPlan } from './importPlan';
 import { PAGE } from '../../domain/importLimits';
 import { importStore } from './importStore';
 import { leftRowsOf } from './rowsFile';
+import { CheckClose } from './CheckClose';
 import './import.css';
 
 type Show = 'all' | ChangeShow;
@@ -71,6 +72,7 @@ export function Changes() {
   };
   return (
     <div className="page narrow import-check">
+      <CheckClose />
       <div className="page-head">
         <h1 className="title-xl">The changes</h1>
         <span className="hint">{saving ? 'Saving…' : 'Nothing has been saved.'}</span>

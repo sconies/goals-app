@@ -139,6 +139,22 @@ describe('rule 14: proposed goals', () => {
     expect(cs.issues.filter((i) => i.level === 'must').map((i) => i.message)).toEqual([`“${g.title}” has check-ins, so it can’t go back to proposed. Stop it instead.`]);
   });
 
+  it('build review of #349: a goal from another year can’t go back to proposed; an ask on a goal sent back to proposed stays on Home', () => {
+    const w = at('2026-11-11');
+    const s = scopeToCycle(w.full, w.cycle);
+    const mine = s.goals.find((v) => v.ownerId === 'tunde')!;
+    const old = { ...mine, id: 'g-old', key: 'G-900', cycleId: 'last-year' };
+    const full = { ...w.full, goals: [...w.full.goals, old] };
+    expect(() => backToProposed(x('tunde', { ...w, full }), { goalId: 'g-old' })).toThrow('is in another year, so it can’t go back to proposed.');
+    // An ask for Tunde on one of his goals, then that goal proposed: Home still lists the ask, on that goal.
+    const ask = s.requests!.find((r) => r.status === 'open' && !!r.recipientId && s.goals.some((v) => v.id === r.goalIds[0]))!;
+    const who = ask.recipientId!;
+    const sent = { ...w.full, goals: w.full.goals.map((v) => (v.id === ask.goalIds[0] ? { ...v, proposedAt: w.today.toISOString(), proposedBy: v.ownerId } : v)) };
+    const sc = scopeToCycle(sent, w.cycle);
+    expect(sc.goals.some((v) => v.id === ask.goalIds[0])).toBe(false);
+    expect(homeFacts(who, sc, w.cycle, w.week, w.today, { workspace: 'P', draft: false }).asks.some((a) => a.askId === ask.id)).toBe(true);
+  });
+
   it('a goal proposed 9 weeks ago asks its owner on Home', () => {
     const { goal } = proposed();
     const asks = proposalAsks([goal], { id: 'tunde', admin: false }, DAY('2027-01-15'), { opened: new Set(), putOff: new Map() });

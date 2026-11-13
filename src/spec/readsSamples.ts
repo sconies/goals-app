@@ -77,7 +77,11 @@ export const SAMPLES: Record<string, Sample> = {
   revokeToken: { as: ADMIN, input: (x) => ({ tokenId: (x.snapshot.tokens ?? [])[0]?.id ?? 'token_none' }) },
   sendFeedback: { as: 'rhea', input: () => ({ mood: 'good', text: 'Clear', path: '/home' }) },
   saveMetric: { as: ADMIN, input: () => ({ name: 'Build time', unit: 'min', direction: 'lower' }) },
-  removeMetric: { as: ADMIN, input: (x) => ({ metricId: ((x.snapshot.modules?.metrics?.metrics ?? []) as { id: string }[])[0]!.id }) },
+  // A metric no goal has measured: one that has is retired, not removed (MT3).
+  removeMetric: { as: ADMIN, input: (x) => { const used = new Set(((x.full?.modules?.metrics?.metricLinks ?? []) as { metricId: string }[]).map((l) => l.metricId)); const ms = (x.snapshot.modules?.metrics?.metrics ?? []) as { id: string }[]; return { metricId: (ms.find((m) => !used.has(m.id)) ?? ms[0]!).id }; } },
+  retireMetric: { as: ADMIN, input: (x) => ({ metricId: ((x.snapshot.modules?.metrics?.metrics ?? []) as { id: string }[])[0]!.id, why: 'Replaced by the DORA dashboard’s figure.' }) },
+  unretireMetric: { as: ADMIN, input: (x) => ({ metricId: ((x.snapshot.modules?.metrics?.metrics ?? []) as { id: string }[])[0]!.id }) },
+  mergeMetrics: { as: ADMIN, input: () => ({ fromId: 'metric_lead-time', intoId: 'metric_first-review' }) },
   linkGoalMetric: { as: ADMIN, input: (x) => ({ goalId: own({ ...x, actor: { ...x.actor, id: 'rhea' } }).id, metricId: ((x.snapshot.modules?.metrics?.metrics ?? []) as { id: string }[])[0]!.id, teamId: null }) },
   unlinkGoalMetric: { as: ADMIN, input: (x) => { const l = ((x.snapshot.modules?.metrics?.metricLinks ?? []) as { goalId: string }[])[0]; return { goalId: l?.goalId ?? other(x).id }; } },
 };

@@ -140,16 +140,24 @@ function NeedsYou({ asks, also, leadAbout }: { asks: Waiting[]; also: boolean; l
   const said = (w: Waiting) => {
     const who = w.by ? `${w.by} ${w.kind === 'action' ? 'agreed it' : 'asked'}` : 'You agreed it';
     // "Waiting since 28 Jul, 14 weeks" already says the day it was asked: it isn't said twice (F1, one line in the side column).
-    const since = w.line.startsWith('Waiting since');
+    // "Asked yesterday" says it too, so the day goes only with a due date's line (#310's lows).
+    const since = /^(Waiting since|Asked )/.test(w.line);
     const asked = `${who}${w.where ? ` in ${w.where}` : ''}${since ? '' : ` on ${dayText(w.askedOn).replace(/^\w+ /, '')}`}`;
-    return w.late ? `${w.line} · ${asked}.` : `${asked} · ${w.line}.`;
+    // The wait comes first, so a phone's one line, cut short, still says it (build review of #310).
+    // It came with a goal they now own (Lane, 13 Nov): who it was asked of.
+    return `${w.line} · ${asked}${w.was ? ` · Asked of ${w.was.split(' ')[0]}, now yours` : ''}.`;
   };
   return (
     <section className="block needs-you" data-part="Needs your response">
-      <h2 className="block-title">{also ? 'Also needs your response' : 'Needs your response'} <span className="count-pill">· {asks.length + proposals.length}</span></h2>
+      {/* One kind only: its heading sits on the title's line, not above the list, so the first of your goals that needs
+          attention still starts on a phone's first screen (build review of #305). */}
+      <div className="row between need-head">
+        <h2 className="block-title">{also ? 'Also needs your response' : 'Needs your response'} <span className="count-pill">· {asks.length + proposals.length}</span></h2>
+        {groups.length === 1 && <h3 className="need-group-title">{ASK_GROUP[groups[0]![0]]}</h3>}
+      </div>
       {groups.map(([k, list]) => (
         <div key={k} className="need-group">
-          <h3 className="need-group-title">{ASK_GROUP[k]} <span className="count-pill">· {list.length}</span></h3>
+          {groups.length > 1 && <h3 className="need-group-title">{ASK_GROUP[k]} <span className="count-pill">· {list.length}</span></h3>}
           <ul className="needs-list">
             {list.map((w) => {
               const askedBy = app.snapshot.requests?.find((r) => r.id === w.askId)?.askedBy ?? '';
@@ -159,7 +167,7 @@ function NeedsYou({ asks, also, leadAbout }: { asks: Waiting[]; also: boolean; l
                   <span className="need-body">
                     <span className="need-what">{w.goals.length > 1 ? `${w.goals[0]!.title}, and ${w.goals.length - 1} more ${w.goals.length === 2 ? 'goal' : 'goals'} waiting on it` : w.goals[0]!.title}</span>
                     {w.said && <span className="need-quote">“{w.said}”</span>}
-                    <span className="need-meta">{w.warn && <WarnMark />}{said(w)}</span>
+                    <span className="need-meta">{w.warn && <><WarnMark />{' '}</>}{said(w)}</span>
                     <span className="need-action">
                       {/* Each opens the goal with this ask open and its box ready (the flagship goal page, 5 Nov). */}
                       <Link className="btn sm" to={w.to}>{ASK_BUTTON[w.kind]}</Link>
@@ -311,8 +319,8 @@ export function Home() {
   const first = app.viewer.name.split(' ')[0];
   const draft = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.some((g) => hasDraft(checkInDraftKey(app.ws.id, g.id, app.week)));
   const prefs = usePrefs();
-  const opened = proposalSeen(prefs, app.ws.id, app.viewer.id).opened;
-  const plan = homeFor(homeFacts(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { workspace: workspaceName(app.ws, app.mode).name, draft, wrap: wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today), opened }));
+  const { opened, putOff: later } = proposalSeen(prefs, app.ws.id, app.viewer.id);
+  const plan = homeFor(homeFacts(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { workspace: workspaceName(app.ws, app.mode).name, draft, wrap: wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today), opened, putOff: later }));
   return (
     <div className="page home" data-part="Home">
       <div className="page-head">
