@@ -1681,7 +1681,9 @@ journey('U142', ['ONE-PER-WEEK', 'CHANGE-LOG', 'IMPORT-UNDO'], 'Correct this che
   await see(p, 'Undone');
   const s3 = await h.snapshot();
   const back = s3.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW);
-  h.set('logged', back.length === 1 && back[0].value === right, `after Undo week ${NOW} holds ${back.map((c) => c.value).join(', ') || 'nothing'}`);
+  // Undone, the week's row no longer says it was corrected (review of #225, medium 2): it reads as first posted.
+  const stale = await hist.locator('.ci-corrected').first().waitFor({ state: 'detached', timeout: 5000 }).then(() => false, () => true);
+  h.set('logged', back.length === 1 && back[0].value === right && !stale, stale ? 'after Undo, History still says the week was corrected' : `after Undo week ${NOW} holds ${back.map((c) => c.value).join(', ') || 'nothing'}`);
 });
 
 journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days; started then, 2026’s wrap-up stays open', 6, async (h, device) => {
@@ -2479,10 +2481,12 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   const dialog = p.getByRole('dialog', { name: 'Review your changes' });
   await see(dialog, 'Oskar Lindgren', 'the review does not show the person change');
   h.set('errors', !(await dialog.getByText('fixing first').isVisible().catch(() => false)), 'the review found problems with the edits');
+  // Changing a week's check-in corrects it, as the check-in screen does: the review asks why first (#225's review, medium 6).
+  await h.fill(dialog.getByLabel('Why are you correcting this check-in?'), 'The note named the wrong week');
   await h.click(dialog.getByRole('button', { name: /^Save 2 changes/ }));
   await see(p, 'Saved 2 changes', 'saving the tables did not confirm');
   const s = await h.snapshot();
-  h.set('logged', s.people.find((x) => x.id === 'oskar')?.role === 'Staff engineer, DevEx' && s.changes.some((c) => c.entity === 'check-in' && c.actorId === 'grace' && c.diffs.some((d) => d.field === 'Via' && d.to === 'Data tables')), 'the person or the check-in correction was not saved and logged');
+  h.set('logged', s.people.find((x) => x.id === 'oskar')?.role === 'Staff engineer, DevEx' && s.changes.some((c) => c.entity === 'check-in' && c.actorId === 'grace' && c.diffs.some((d) => d.field === 'Via' && d.to === 'Data tables') && c.diffs.some((d) => d.field === 'Why corrected' && d.to === 'The note named the wrong week')), 'the person or the check-in correction was not saved and logged');
   // Someone who isn't an admin can look but not change anything.
   const m = await newPage(device, 'rhea');
   await m.goto(url('/data'));
