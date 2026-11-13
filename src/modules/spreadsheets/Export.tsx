@@ -20,8 +20,10 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
   const app = useApp();
   const all = app.snapshot.goals;
   const partial = goals.length < all.length;
+  // A view that shows nothing has nothing to export: it can't be chosen, and the export starts from everything (#248 review).
+  const none = !goals.length;
   // Filtered, the export starts from what's shown; everything is one click away (round 3 review).
-  const [scope, setScope] = useState<'all' | 'view'>(partial ? 'view' : 'all');
+  const [scope, setScope] = useState<'all' | 'view'>(partial && !none ? 'view' : 'all');
   const [busy, setBusy] = useState<string | null>(null);
   const [others, setOthers] = useState(false);
   // One table on its own, as a CSV.
@@ -40,6 +42,8 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
   // What "Everything" holds, row for row as the workbook writes it: stopped and proposed goals too.
   const whole = useMemo(() => everythingCounts(app.snapshot), [app.snapshot]);
   const xlsx = fileName(name('goals'), 'xlsx');
+  // How many goals the file holds, said under its name, as of this week (#248 review: the footnote had gone).
+  const held = scope === 'view' ? goals.length : whole.goals;
   return (
     <Sheet open onClose={onClose} title="Export">
       <div className="stack" style={{ gap: 'var(--s4)' }}>
@@ -47,7 +51,7 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
           <fieldset className="field">
             <legend className="field-label">Which goals</legend>
             <div className="optlist">
-              <label className="opt"><span className="row" style={{ gap: 'var(--s2)' }}><input type="radio" name="scope" checked={scope === 'view'} onChange={() => setScope('view')} />The {goals.length.toLocaleString('en-GB')} shown now: {viewName}</span></label>
+              <label className="opt"><span className="row" style={{ gap: 'var(--s2)' }}><input type="radio" name="scope" checked={scope === 'view'} disabled={none} onChange={() => setScope('view')} />{none ? `None shown now: ${viewName}` : `The ${goals.length.toLocaleString('en-GB')} shown now: ${viewName}`}</span></label>
               <label className="opt"><span className="stack" style={{ gap: 2 }}><span className="row" style={{ gap: 'var(--s2)' }}><input type="radio" name="scope" checked={scope === 'all'} onChange={() => setScope('all')} />Everything in {app.cycle.name}</span><span className="hint export-counts">{count(whole.goals, 'goal', 'goals')}, {count(whole.checkIns, 'check-in', 'check-ins')}, {count(whole.people, 'person', 'people')}</span></span></label>
             </div>
           </fieldset>
@@ -91,7 +95,7 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
       </div>
       <div className="sheet-foot export-foot">
         <button type="button" className="btn primary" disabled={!!busy} onClick={() => void run('xlsx', () => save('goals', { kind: 'xlsx', sheets: workbook(input) }))}>{busy === 'xlsx' ? 'Exporting…' : 'Export .xlsx'}</button>
-        <p className="hint export-note"><span className="export-file">{xlsx}</span>. Exports hold names and owners’ reasons. Share them as you would the app.</p>
+        <p className="hint export-note"><span className="export-file">{xlsx}</span>: {count(held, 'goal', 'goals')}, as of week {app.week}. Exports hold names and owners’ reasons. Share them as you would the app.</p>
       </div>
     </Sheet>
   );

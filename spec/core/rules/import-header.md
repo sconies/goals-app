@@ -52,3 +52,6 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 3 in the engine (every door) › a near header’s Must fix waits for its question (#199 review)
 - rule 3 in the engine (every door) › two columns read as one are asked about, and the one chosen is read (#199 review)
 - rule 3 in the engine (every door) › reads a header that differs only by punctuation, an accent or spacing as its column (#199 review)
+- rows keep their number in the file (IM5 review) › a blank line in a CSV or a workbook stays, so the rows after it keep their numbers; blank lines at the end go
+- rows keep their number in the file (IM5 review) › the separator is the header row’s, not a title line’s
+- rows keep their number in the file (IM5 review) › says the header row only when something above it was skipped

@@ -58,8 +58,8 @@ import type { ActionContext } from '../domain/actions';
 import MODULE_SPEC from 'virtual:faro-modules/spec';
 import { backTo, litItem, menuGroups, menuRows, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
 import { movedGoals, ownGroup, scopesFor } from '../domain/goalsPage';
-import { watchedGoals } from '../domain/review';
-import { countLine, filterLine, findAll, keyOf, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
+import { goalsIn, watchedGoals } from '../domain/review';
+import { countLine, filterLine, findAll, keyOf, nearMiss, noneFound, search, suggest, textMatches, wordsOf } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
 import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
@@ -858,12 +858,12 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
     code: [
       { file: 'src/domain/decide.ts', names: ['needsDecision', 'decisionFor', 'acceptNote', 'acceptedReason', 'lastTime', 'sessionDecisions'] },
       { file: 'src/domain/actions.ts', names: ['acceptRisk', 'addAction', 'markReviewed'] },
-      { file: 'src/domain/review.ts', names: ['sessionToDo', 'canSpeakFor', 'speakRefusal', 'joinLine'] },
+      { file: 'src/domain/review.ts', names: ['sessionToDo', 'canSpeakFor', 'speakRefusal', 'scopeRefusal', 'joinLine'] },
     ],
     tests: ['src/domain/decide.test.ts', 'src/domain/review.test.ts', 'src/domain/speakFor.test.ts'],
     reqs: ['REVIEW-DECIDE', 'REVIEW-RUN', 'REVIEW-SPEAK'],
     body: `
-**Who may speak for a review** (\`canSpeakFor\`): someone in it, or an admin. Marking a goal reviewed, a note, the review accepting a risk, and a question or next step raised in the review are refused for anyone else with "Only people in {review}, or an admin, can speak for it." (\`speakRefusal\`). Everyone may read a review, and anyone may still ask a question or agree a next step on a goal's own page. A review's page tells someone not in it who can add them (\`joinLine\`): "You’re not in this review. {its people and whoever set it up, up to six, then "and {n} more"} or an admin can add you."
+**Who may speak for a review** (\`canSpeakFor\`): someone in it, or an admin. Marking a goal reviewed, a note, the review accepting a risk, and a question or next step raised in the review are refused for anyone else with "Only people in {review}, or an admin, can speak for it." (\`speakRefusal\`). Even then, only about a goal the review walks (its goals, trees and levels, \`goalsIn\`): anything said in it about another goal is refused with "{review} doesn’t cover {goal}, so nothing can be said about it there." (\`scopeRefusal\`). Everyone may read a review, and anyone may still ask a question or agree a next step on a goal's own page. A review's page tells someone not in it who can add them (\`joinLine\`): "You’re not in this review. {its people and whoever set it up, up to six, then "and {n} more"} or an admin can add you."
 
 **Who must decide.** A goal whose status is \`off\` or \`risk\` (\`needsDecision\`) is not marked reviewed in a walk until something is decided about it. Every other goal is marked reviewed as before.
 
@@ -883,6 +883,7 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
       { given: 'Which statuses need a decision: off, risk, on, stale, done.', then: 'yes, yes, no, no, no', run: () => ['off', 'risk', 'on', 'stale', 'done'].map((k) => (needsDecision(k) ? 'yes' : 'no')).join(', ') },
       { given: 'The words saved for accepting the risk because "the vendor fix lands next release", and what is read back from them and from "Talked it through".', then: 'We accept the risk: the vendor fix lands next release / the vendor fix lands next release / not a decision', run: () => { const w = acceptNote('the vendor fix lands next release'); return `${w} / ${acceptedReason(w)} / ${acceptedReason('Talked it through') ?? 'not a decision'}`; } },
       { given: 'In the demo workspace, Daniel accepts the risk on the merge queue in the Developer Productivity fortnightly with the reason "ok".', then: 'refused: Say why the review accepts the risk.', run: () => summaryOf(asPerson('daniel', (x) => acceptRisk(x, goalIn('lead-mq'), demo!.reviews.find((r) => r.id === 'devprod')!, 'ok', 46))) },
+      { given: 'In the demo workspace, Daniel, who is in the Developer Productivity fortnightly, marks a goal the fortnightly doesn’t walk reviewed in it.', then: 'refused: Developer Productivity fortnightly doesn’t cover {that goal}, so nothing can be said about it there.', run: () => { const rv = demo!.reviews.find((r) => r.id === 'devprod')!; const all = demo!.goals; const out = all.find((g) => !goalsIn(rv.scope, all).some((v) => v.id === g.id))!; return summaryOf(asPerson('daniel', (x) => reviewCall(x, out, rv, 'acknowledge', ''))).replace(out.title, '{that goal}'); } },
       { given: 'In the demo workspace, Oskar, who is not in the Developer Productivity fortnightly and is not an admin, marks the merge queue reviewed in it.', then: 'refused: Only people in Developer Productivity fortnightly, or an admin, can speak for it.', run: () => summaryOf(asPerson('oskar', (x) => reviewCall(x, goalIn('lead-mq'), demo!.reviews.find((r) => r.id === 'devprod')!, 'acknowledge', ''))) },
       { given: 'Searching the demo workspace’s people for "kap", then "rhea tunde".', then: 'Rhea Kapoor / nobody', run: () => [search(personRows(demo!), { q: 'kap' }), search(personRows(demo!), { q: 'rhea tunde' })].map((a) => a.rows.map((p) => p.name).join(', ') || 'nobody').join(' / ') },
     ],
@@ -1497,7 +1498,7 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
 
 **Data.** A goal is proposed while \`proposedAt\` is set (with \`proposedBy\`, who proposed it) and it is neither removed nor stopped (\`isProposed\`). Making it active clears both; History has when.
 
-**Never judged.** \`judged(goals)\` is those neither proposed nor stopped, and every rule that leaves a stopped goal out leaves a proposed one out the same way: the cycle's scope (\`scopeToCycle\`) keeps proposed goals beside its goals, never among them, so no status rule is ever run on one and it is in no count, health line, Needs attention, review agenda, check-in, wrap-up, streak or metric comparison. A check-in on one is refused at every door: "${NOTHING_TO_CHECK_IN}" Its summary has the state \`proposed\` and the status word "Proposed", drawn as a word alone, with no shape.
+**Never judged.** \`judged(goals)\` is those neither proposed nor stopped, and every rule that leaves a stopped goal out leaves a proposed one out the same way: the cycle's scope (\`scopeToCycle\`) keeps proposed goals beside its goals, never among them, so no status rule is ever run on one and it is in no count, health line, Needs attention, review agenda, check-in, wrap-up, streak or metric comparison. A proposed goal may name its metric: the metric's page lists it under its goals table as "Proposed · {n}" with no numbers (the metrics module's \`proposedOfMetric\`), and \`get_metric\` gives it apart as \`proposed\`. A check-in on one is refused at every door: "${NOTHING_TO_CHECK_IN}" Its summary has the state \`proposed\` and the status word "Proposed", drawn as a word alone, with no shape.
 
 **Counted apart.** \`goalCounts\` gives active and proposed apart, and a count line adds "{n} proposed": "2 goals, worst first. 1 proposed". With the State filter on Proposed (\`state=proposed\`), Goals lists them newest first; the Board is one column, "Proposed"; the Map draws each in its tree with the goals above it for context, as a node with a dashed outline and the word, on no critical path and in no "Under it", and opening one goes to its page. Without the filter neither draws one.
 
@@ -1569,7 +1570,7 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
     tests: ['src/domain/find.test.ts', 'src/adapters/parts.test.ts', 'src/adapters/findAll.test.ts'],
     reqs: ['FIND-ANYWHERE'],
     body: `
-**What a search matches.** A row is found by its words, as one text; a search matches when every word typed starts a word of the row, ignoring case and accents. Words break at spaces and at \`/ - , . : ( )\`, so "CI/CD" is two words and "ci" finds it, "Lucía" is found by "lucia", and "back" doesn't find "Rollback". An empty search matches everything.
+**What a search matches.** A row is found by its words, as one text; a search matches when every word typed starts a word of the row, ignoring case and accents. Words break at spaces and at \`/ - , . : ( )\`, except a point or comma between two digits, which stays in its number ("12.5" is one word, so it doesn't find a row with a 12 and a 5); so "CI/CD" is two words and "ci" finds it, "Lucía" is found by "lucia", and "back" doesn't find "Rollback". An empty search matches everything.
 
 **A goal's key** finds it however it is typed: "G-48", "g48", "g-48" or a bare "48". A whole search that is one key finds only that goal ("G-48" isn't G-4); a bare number also matches as words.
 
@@ -1598,6 +1599,7 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
       return [
         { given: `The row “${row}”, searched for “rollback”, “roll min”, “back”, “off track”.`, then: 'yes, yes, no, yes', run: () => ['rollback', 'roll min', 'back', 'off track'].map((q) => (textMatches(row, q, 'G-48') ? 'yes' : 'no')).join(', ') },
         { given: 'The same row (key G-48), searched for “g-48”, “G48”, “48”; and “Canary halt G-4” (key G-4) for “G-48”.', then: 'yes, yes, yes; no', run: () => `${['g-48', 'G48', '48'].map((q) => (textMatches(row, q, 'G-48') ? 'yes' : 'no')).join(', ')}; ${textMatches('Canary halt G-4', 'G-48', 'G-4') ? 'yes' : 'no'}` },
+        { given: 'The words of “Down to 12.5, from 1,200. Then 3.”', then: 'down to 12.5 from 1,200 then 3', run: () => wordsOf('Down to 12.5, from 1,200. Then 3.').join(' ') },
         { given: '“Lucía Romero Staff Engineer CI/CD” searched for “lucia ci”; anything searched for “”.', then: 'yes; yes', run: () => `${textMatches('Lucía Romero Staff Engineer CI/CD', 'lucia ci') ? 'yes' : 'no'}; ${textMatches('Anything', '') ? 'yes' : 'no'}` },
         { given: 'Near misses: “rolback”, “kafak”, “piplin”, “rolbak” (list has rollback, kafka, pipeline); “qeue wait” (queue, wait); “cost” (costs); “G-480”.', then: 'rollback; kafka; none; none; queue wait; none; none', run: () => ([['rolback', ['rollback']], ['kafak', ['kafka']], ['piplin', ['pipeline']], ['rolbak', ['rollback']], ['qeue wait', ['queue', 'wait']], ['cost', ['costs']], ['G-480', ['G-48']]] as [string, string[]][]).map(([q, v]) => nearMiss(q, v) ?? 'none').join('; ') },
         { given: 'In the demo workspace: goals for “G-48”, “tunde”, “rolback” and “zzzz”.', then: '1: On-call engineers across all twelve rotations who had fewer than two out-of-hours pages in the week, not counting planned maintenance windows / 2: Contract tests between the top 40 service pairs, One-click rollback for every deployable service / 2 (near: rollback): Change failure rate, One-click rollback for every deployable service / 0: ', run: () => ['G-48', 'tunde', 'rolback', 'zzzz'].map((q) => find('goal', q)).join(' / ') },

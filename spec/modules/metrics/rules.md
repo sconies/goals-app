@@ -107,6 +107,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
+- metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
 
 ## The library as a place
 
@@ -200,6 +201,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
+- metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
 
 ## “Measured by”, found by typing
 
@@ -438,6 +440,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
+- metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
 
 ## For, which part, and what a goal takes from its metric
 
@@ -544,3 +547,4 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
+- metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)

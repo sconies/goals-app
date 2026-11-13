@@ -51,7 +51,8 @@ export function Import() {
     setProblem(null);
     if (choosePaste(pasted, (text) => setProblem({ text, headers: true }))) nav('/data/import/check');
   };
-  const workbookFile = () => saveAndSay(app.toast, { workspace: app.ws.name, what: 'goals-to-edit', scope: app.cycle.name, date: app.today }, { kind: 'xlsx', sheets: workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, sheets: MODULE_SHEETS }) }, 'Workbook saved');
+  // The same file as Export's "Everything", by the same name and with the same toast (spec 2.9; #248 review).
+  const workbookFile = () => saveAndSay(app.toast, { workspace: app.ws.name, what: 'goals', scope: 'all', date: app.today }, { kind: 'xlsx', sheets: workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, sheets: MODULE_SHEETS }) }, (f) => `Exported ${f}`);
   const copy = (kind: FillKind) => {
     void navigator.clipboard?.writeText(headersOf(kind)).then(() => app.toast(`Copied the ${specOf(kind).name} headers`), () => app.toast('Copying didn’t work here. The template has the headers.', 'error'));
   };
@@ -75,7 +76,9 @@ export function Import() {
 
       {lost && <p className="hint" role="status">Choose the file again: nothing was saved.</p>}
       {stopped && <p className="hint" role="status">Stopped. Nothing was saved.</p>}
-      <input ref={file} type="file" accept=".xlsx,.zip,.csv,.tsv,.txt" className="sr" aria-label="Choose a spreadsheet" onChange={(e) => void pick(e.target.files?.[0])} />
+      {/* Reached by Choose a file, not by Tab (it is 1 px); emptied once read, so the same file can be chosen again after
+          a problem is fixed (IM5 review). */}
+      <input ref={file} type="file" accept=".xlsx,.zip,.csv,.tsv,.txt" className="sr" tabIndex={-1} aria-label="Choose a spreadsheet" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; void pick(f); }} />
       {pasting ? (
         <section className="stack import-paste" aria-labelledby="paste-h">
           <label className="field"><span className="field-label" id="paste-h">Paste rows from a spreadsheet</span>
@@ -88,7 +91,7 @@ export function Import() {
           </div>
         </section>
       ) : (
-        <div className={'dropzone' + (over ? ' over' : '')}
+        <div className={'dropzone' + (over ? ' over' : '')} role="group" aria-label="Drop a file here, or choose one"
           onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
           onDrop={(e) => { e.preventDefault(); setOver(false); void pick(e.dataTransfer.files?.[0]); }}>
           <span className="strong">Drop a file here</span>
@@ -98,10 +101,11 @@ export function Import() {
         </div>
       )}
       {problem && (
-        <p className="hint tone-off" role="alert">{problem.text}
+        // A div, not a paragraph: Copy the headers is a menu (IM5 review).
+        <div className="hint tone-off import-problem" role="alert">{problem.text}
           {problem.template && <> <button type="button" className="linkish tap" onClick={() => void saveTemplate(app)}>Download the template</button></>}
           {problem.headers && <> {copyMenu}</>}
-        </p>
+        </div>
       )}
 
       <div className="import-starts">
@@ -110,7 +114,7 @@ export function Import() {
           <span className="hint">The template has every column, says which are required, and carries two example rows that are never imported.</span>
           <div><button type="button" className="btn" onClick={() => void saveTemplate(app)}>Download the template</button></div>
         </section>
-        <section className="stack" aria-labelledby="start-here">
+        <section className="stack import-workbook" aria-labelledby="start-here">
           <h2 className="h3" id="start-here">Changing what’s here</h2>
           <span className="hint">The workbook is every goal, plan, check-in and person as they are now. Change cells, add rows, load it back.</span>
           <div><button type="button" className="btn" onClick={() => void workbookFile()}>Download the workbook</button></div>
@@ -125,7 +129,7 @@ export function Import() {
           <li><span className="strong">A check-in</span>: {requiredLine('checkIns')}</li>
           <li><span className="strong">A person</span>: {requiredLine('people')}</li>
         </ul>
-        <span className="hint"><Link to="/help/columns">Every column, with its format and an example</Link></span>
+        <span className="hint"><Link className="import-link" to="/help/columns">Every column, with its format and an example</Link></span>
       </section>
 
       {past.length > 0 && (
@@ -141,7 +145,7 @@ export function Import() {
               </li>
             ))}
           </ul>
-          <Link className="small" to="/data/imports">All {past.length} past imports</Link>
+          <Link className="small import-link" to="/data/imports">{past.length === 1 ? 'Open Past imports' : `All ${past.length} past imports`}</Link>
         </section>
       )}
     </div>

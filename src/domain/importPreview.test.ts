@@ -1,6 +1,6 @@
 /* The import preview's rules (backlog IM3; docs/design/import/spec.md rules 5 and 8, C19) and the IM2 review's fixes. */
 import { buildPlatformOrg } from '../data/platformOrg';
-import { planChanges, type ChangeInput, type Rec } from './changeset';
+import { GoalSet, planChanges, sheetCounts, showOf, type ChangeInput, type Rec } from './changeset';
 import { leaveOut } from './leaveOut';
 import { currentWeek } from './plan';
 import { readLine, readTables } from './sheets';
@@ -83,7 +83,8 @@ describe('the IM2 review, fixed in IM3', () => {
     const rows = { goals: [rec({ Goal: same.title, Team: team, Owner: 'Rhea Kapoor', Start: '9', Target: '5' }, 2), rec({ Goal: same.title, Owner: 'Rhea Kapoor', Start: '9', Target: '4' }, 3)] };
     const id = run('amara', rows).groups.find((x) => x.kind === 'same-goal')!.id;
     const cs = run('amara', rows, { answers: { [id]: { choice: 'same' } } });
-    expect(cs.issues.some((x) => x.kind === 'duplicate' && x.row === 3)).toBe(true);
+    // Both rows are named, the earlier one too (IM3 review): neither is dropped without a word.
+    expect(cs.issues.filter((x) => x.kind === 'duplicate').map((x) => [x.row, x.level])).toEqual([[2, 'must'], [3, 'must']]);
     expect(cs.commit).toBeNull();
   });
   it('a near-miss goal name answered “Use …” is caught on two rows of one week', () => {
@@ -111,5 +112,29 @@ describe('the IM2 review, fixed in IM3', () => {
     const team = after.teams.find((t) => t.name === 'Night shift')!;
     const out = undoImport({ snapshot: after, full: after, cycle, week, actor: s.people.find((p) => p.id === 'amara')!, now: today.toISOString(), newId: (p: string) => `${p}_u${++n}` } as never, cs.commit!.changes.find((c) => c.action === 'imported')!.importId!);
     expect(out.commit.removeTeams).toEqual([team.id]);
+  });
+});
+
+describe('the IM3 and #257 reviews, fixed later', () => {
+  it('a row that must be fixed is counted as Must fix on its sheet, not as Added', () => {
+    // Row 3's goal is made before its Feeds into is found to name nothing: it is a change, but not one that saves.
+    const cs = run('amara', { goals: [rec({ Goal: 'Fewer pages at night', Owner: 'Rhea Kapoor', Unit: 'pages', Start: '10', Target: '2' }, 2), rec({ Goal: 'Faster builds', Owner: 'Rhea Kapoor', Unit: 'min', Start: '10', Target: '5', 'Feeds into': 'Nothing at all here' }, 3)] });
+    expect(cs.items.filter((x) => x.kind === 'new goal')).toHaveLength(2);
+    expect(sheetCounts(cs, 'Goals')).toMatchObject({ added: 1, must: 1 });
+  });
+  it('one helper says what a change does, for the counts and the changes list alike', () => {
+    expect([showOf('new goal'), showOf('check-in'), showOf('plan'), showOf('replaces check-in'), showOf('delete goal'), showOf('person left')]).toEqual(['added', 'added', 'changed', 'changed', 'stopped', 'stopped']);
+  });
+  it('with two goals sharing a key, the key names the first in the list, as a scan does, even after either changes', () => {
+    const a = { ...s.goals[0]!, id: 'a', key: 'G-900' }, b = { ...s.goals[1]!, id: 'b', key: 'G-900' };
+    const set = new GoalSet([a, b]);
+    expect(set.byRef('G-900')?.id).toBe('a');
+    set.set('a', { ...a, title: 'Renamed' });
+    expect(set.byRef('G-900')?.id).toBe('a');
+    set.set('b', { ...b, title: 'Also renamed' });
+    expect(set.byRef('G-900')?.id).toBe('a');
+    set.set('a', { ...a, key: 'G-901' });
+    expect(set.byRef('G-900')?.id).toBe('b');
+    expect(set.byRef('G-901')?.id).toBe('a');
   });
 });
