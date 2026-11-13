@@ -2,7 +2,7 @@
 
 # Access today
 
-Who may read and change what in Faro’s database today, read from the database itself after every migration (43). **All of it is demo access: replace.** Faro has no sign-in on purpose (a demo that never holds real data), so the app’s public key (`anon`) may read and change every workspace. Requirement R1 ([sign-in and access](../requirements/internal/r1-sign-in-and-access.md)) says what the internal app does instead; the two shapes at the end of this page are what replaces each line here. The full schema is [schema.sql](../core/schema.sql).
+Who may read and change what in Faro’s database today, read from the database itself after every migration (44). **All of it is demo access: replace.** Faro has no sign-in on purpose (a demo that never holds real data), so the app’s public key (`anon`) may read and change every workspace. Requirement R1 ([sign-in and access](../requirements/internal/r1-sign-in-and-access.md)) says what the internal app does instead; the two shapes at the end of this page are what replaces each line here. The full schema is [schema.sql](../core/schema.sql).
 
 Each new table in the migrations copied the block before it, so the pattern seen most often there is the one not to keep. Read this page, not the migrations, for the access surface.
 
