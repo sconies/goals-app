@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'proposal-leads-home',
+    date: '2026-11-13',
+    title: 'A proposal for you can lead Home',
+    points: [
+      'A goal someone proposed for you that you haven’t opened becomes Home’s main action once it has waited a week, if nothing else is asked of you first.',
+      'Open it goes to the goal, and the proposal isn’t listed a second time under Needs your response.',
+    ],
+    articles: ['home', 'goal-proposed'],
+  },
+  {
     id: 'proposals-on-home',
     date: '2026-11-13',
     title: 'Proposals for you show on Home',
