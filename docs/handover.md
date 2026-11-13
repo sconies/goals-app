@@ -336,6 +336,28 @@ Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this sessi
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
 
+## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~01:10 UTC (session at half, handing over; supersedes the 12 Nov 23:10 entry)
+
+Session: session_012kbr8z3ACYiinbB3TbXmPk. Planning is session_012kbr939zneZWtAo7UQEHRP.
+
+| Branch | State | PR |
+|---|---|---|
+| `st1-mediums` | **Merged as #318** at 01:15 UTC. U82, N1 and N12 passed alone on the branch and on main; P9 failed once more in a loaded run at another route and passed twice alone (the shell check with track 4) | #318 merged |
+| `ge10-home-proposals` | GE10 (F), Home's two proposal rows. Typecheck, unit tests and spec pass; main merged in at 01:05; **`evals:changed` not run** (U134 has new checks) | #319 (draft) |
+
+**Next, in order:**
+1. **#300's review fixes** (planning, 00:37): full text on the `build-reviews` branch (the 11 Nov build reviews file), section "#300". Mediums, all from `rangeSide` (the nearer bound) used where both bounds matter: (1) "Will it stay within?" judges only the nearer bound (`scorecard.ts` ~171): judge the worse of the two; (2) a number moving back towards the middle reads "Getting worse" (`trend.ts` ~101, scorecard's since cell, `attention.ts` ~79): room = min(v − lower, upper − v), no floating-point midpoint; (3) on a narrow band the chart's two limit labels overlap (`rangeChart.tsx`: pad by a share of the band, Lower label under its line). Lows: two numbers in Limit override Must stay "at most" without a question; wording names only the nearer bound (`year.ts` ~123, "Inside the 99.50% limit"); add a journey or finish check for the between form, page and chart; a between row read through the public fallback becomes "at most". Fold in #293's low: comments say a past stage "is asked when it is made active", but `activate` asks nothing.
+2. #319: `evals:changed`, then merge. Then the rest of GE10 (F), as the 12 Nov 23:10 entry lists it, plus Home's lead for a for-you proposal (the Home spec's `ask` rule) and "in {review}" in its line.
+
+**Habits, learned this session:**
+- The first download on main is **263.4 KB** of 265, not 259.4: other tracks have grown it. #319 adds 0.5 KB. Measure by building and summing gzip of what `dist/index.html` preloads; keep new markup lazy.
+- The main checkout had no `node_modules`: `npm ci` there once, then `cp -al` into each worktree.
+- Don't merge main into a worktree while an eval subagent runs in it.
+- `evals:changed` on anything touching `App.tsx`, `ChangeItem` or `Home.tsx` runs the full suite (~18 minutes).
+- U97 now calls `designProblems(page)`, P6's test lifted into a function in `evals/journeys.cjs`, for pages P6 can't reach (the arrival needs the browser store).
+
+**Prompt for the next track 2 session:** "You are track 2 of Faro's build (goal entry and set-up). Read CLAUDE.md, then the track 2 section of docs/handover.md ('Track 2 … Friday 13 November, ~01:10 UTC') and do its 'Next' list in order, one PR each. The first download is about 264 of 265 KB: keep anything new lazy; never raise budgets. Track 3 is building IM8 in Onboarding.tsx's upload step: stay out of it. Follow CLAUDE.md's gate (typecheck, npm test, npm run spec, evals:changed, build:mcp from a real node_modules via cp -al, never ln -s). Build in a worktree, send eval runs to a subagent that returns only the scorecard, check mergeable_state before waiting on CI, and merge by hand on green with merge commits. Report to the planning session (session_012kbr939zneZWtAo7UQEHRP, or whichever session tells you planning has moved) once, when done or blocked. At half context, write a handover entry in a PR and send the planning session the next prompt."
+
 ## Track 2 (one goal, goal entry, set-up), Thursday 12 November, ~23:10 UTC (session past half full, handing over)
 
 Session: session_012kbr8yX1yx6BkMYiJ6F5Dr. Each build ran in a subagent in its own worktree (`git worktree add`, then `cp -al node_modules`), and each eval run went to a subagent that returned only the scorecard. Merges used **merge commits**. Planning is session_012kbr939zneZWtAo7UQEHRP.
@@ -447,6 +469,59 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
   - the feeds-lower rule lives only in the form;
   - the unbuilt "cycle ended", "Add one" and gone-parent states from the onboarding spec.
 - **U23 (entry)** scored 8.6 locally and is track 2's to lift.
+
+## Track 4, Thursday 12 November, 18:00 UTC (session past half full, handing over)
+
+Session: session_012kbr8xdoEbLiMQaBAxLeuJ.
+
+- **#229, #193's four review mediums** (open as a draft when this was written; merge it on green CI if it hasn't merged, and report the merge to planning, now session_012kbr939zneZWtAo7UQEHRP: finished results and blockers only):
+  1. **A failed engine load says so.** `run` in `src/app/state.tsx` toasts `ENGINE_OFFLINE` (offline, #183's words) or reloads once through `recoverFromStaleCode`. When it has just reloaded, it offers Reload (`ENGINE_FAILED`). Chromium keeps a module that failed to load, so a reload is the only real retry. N8 (`evals/notes/8-telemetry.cjs`) has the case.
+  2. **Home asks for `sort: 'worst'`.**
+  3. **The query port names scopes.** `GoalAsk.scope` is `'mine' | 'team' | 'watching' | 'all' | 'team:<id>'`, answered by `scopeIds` in `domain/goalsPage.ts` with `scopeFacts` from `app/reads.ts`. With no sort, a list comes worst first, then by title (`localGoals.ts`). `goals.csv` and the contract follow.
+  4. **One port per loaded workspace** (`portFor` in `src/app/goals.ts`).
+  - Its eval run: everything passed except U4 (8.9), which is main's own failure (#226: "publishing is not confirmed", after #208's publish change). That belongs to track 2 and planning, not track 4.
+- **Track 6** converts `goalsContract` to given/when/then data after #229 merges. Its session session_012kbr8xR9jB8yU52qz82Gah handed over at 17:57; a fresh track 6 session works from the track 6 handover page on branch `kt-changes`, which records AX5 part 2's shape. Send "merged" notes (#229, and AX5 part 2 later) to whichever track 6 session planning starts: ask planning for its id. A windowed load and `history` paging fit their format as multi-step cases. They have AX5 part 2's planned Store shape (below) and are leaving `storeContract` alone until it merges.
+- **#193's lows, still open:**
+  - keyset paging restarts from the top when the `after` goal has gone;
+  - `engine.test.ts`'s import pattern misses `import *`, re-exports and imports split over several lines;
+  - on a near miss, `counts().attention` disagrees with its list;
+  - `attentionCount` in `goalsPage.ts` has no caller;
+  - `goals.csv` is written by the adapter it tests.
+- **Next: AX5 part 2, the narrower load. The handover's "last few weeks of changes" is unsafe as written.** A survey (12 Nov, 17:40) found that comments are change-log entries (entity `note`), and that several rules read the log at any age:
+  - `commentsOf` and `liveNotes`/`writtenNotes` (`removal.ts`, `asks.ts`), Recently removed and restore, and `personHistory`;
+  - asks (legacy update-asks, "answered since");
+  - `startOf`/`canUndoStart` (a cycle's "created" entry);
+  - imports: `importEntry`/`undoImport`/`canUndoImport` and the past-imports lists;
+  - `sinceLooked`, and Metrics "Last changed";
+  - MCP `get_activity` (`src/mcp/workTools.ts`), which filters every change with no cursor.
+
+  The safe parts:
+  - **Check-ins:** `scopeToCycle` already keeps only the current cycle's. The wrap-up (`wrapUpScope`) and `recarry` need last year's while its wrap-up is open, which is 4 weeks after the year ends. `cycleStanding`, `canUndoStart` and `copyUntouched` only ask whether a cycle has any check-in.
+  - **Activity and goal History:** both slice a list that is already fully in memory, with no paging. Supabase `all()` already pages by id.
+
+  **The planned shape** (sent to track 6):
+  - `load(ws, window?)`. With no window, the whole workspace, as now. With `{ from }`, two things are narrowed:
+    - check-ins only from cycles that overlap `from` onwards;
+    - changes with `at >= from`, plus anchors of any age: entity `note`, `request` and `cycle`, and import summaries (`imported`/`undone`, or carrying `undo`).
+  - `Snapshot.history?: { from, checkInCycles }` says what was left out.
+  - `history(ws, { before?: {at, id}, goalId?, size <= 100 })` gives older entries newest first, keyset by (at, id). Activity, History and `get_activity` page with it.
+  - Three new contract cases: a windowed load drops the right rows and keeps the anchors; `history` pages with no skips or repeats and narrows by goal; a load with no window is whole.
+  - Implement it in the browser, Supabase and Postgres stores, plus `server/mcp.ts`. Supabase probably needs an index on `(workspace_id, at)`: a migration, shipped one merge ahead of the code (AX10).
+  - Size: M to L. Consider splitting: (a) the window and `history` in the port, the contract and the stores; (b) Activity, History and `get_activity` paging.
+- **Before AX5 part 2, two shared-shell faults from planning (22:05; one PR is fine):**
+  1. **U12, desktop only.** At 1440×900 the sidebar's Demo box (`.demo-entry`) ends at y=913, 13 px past the fold: the sidebar has grown (`src/styles.css` `.side`, `src/ui/Demo.tsx`).
+  2. **P9 EVERY-WIDTH, in the full suite.** It fails with "1280px rhea /: no navigation" (Home has no navigation at 1280). Track 1 owns Home: tell it if the cause is Home's.
+- **Merging:** auto-merge can't be turned on, because main has no branch protection rules. `enable_pr_auto_merge` says "Protected branch rules not configured". Merge by hand on green CI. Main moves every few minutes, so merge main in, push, and merge as soon as CI (about 5 minutes) is green.
+- **Then, in order:**
+  1. FT2, FT1, SW1, SW2.
+  2. AX2.
+  3. AX6.
+- **Traps:**
+  - Gate: `npm run typecheck`, `npm test`, `npm run lint:layers`, `npm run evals:changed` (anything in `src/app/state.tsx` runs the full suite, about 15 minutes), and `npm run spec` committed.
+  - After `npm run build:mcp`, run `sed -i 's#^// \(\.\./\)*home/user/goals-app/node_modules/#// node_modules/#' api/mcp.js`.
+  - The evals exit 1 while U1 to U5 aren't all 10; U4 is red on main.
+  - `src/docPaths.test.ts` fails a hand-written page that names a file that doesn't exist, including in the handover.
+  - A domain rule may not take a `Snapshot` (lint:layers); build facts in `src/app/reads.ts`.
 
 ## Track 4, Thursday 12 November, 16:40 UTC (session past half full, handing over)
 

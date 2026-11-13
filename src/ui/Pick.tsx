@@ -93,6 +93,9 @@ export function PickFrom({ source, kind, label, value, onChange, several = false
   const wrap = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
   const field = useRef<HTMLInputElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  /** Where the open panel is drawn on a computer: fixed to the window, so a sheet or a table that clips can't cut it. */
+  const [place, setPlace] = useState<Record<string, string> | null>(null);
   const typed = q.trim().length > 0;
 
   // What's offered: suggestions before typing, then what the search finds. The last question asked wins.
@@ -122,6 +125,30 @@ export function PickFrom({ source, kind, label, value, onChange, several = false
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, search, value.join(' ')]);
+
+  // On a computer the panel is fixed under its field, or above it when the window has no room below (FS1 review): a
+  // sheet or Data's table scrolls and clips, and would cut it off. On a phone it is the full screen (the stylesheet's).
+  useLayoutEffect(() => {
+    if (!open) { setPlace(null); return; }
+    const at = () => {
+      const box = wrap.current?.getBoundingClientRect();
+      if (!box) return;
+      const gap = 4, edge = 8;
+      const want = Math.min(panel.current?.scrollHeight ?? 360, 420);
+      const below = window.innerHeight - box.bottom - gap - edge;
+      const above = box.top - gap - edge;
+      const up = below < want && above > below;
+      const room = Math.max(160, up ? above : below);
+      const width = Math.min(Math.max(box.width, 360), window.innerWidth - 2 * 16);
+      const left = Math.max(16, Math.min(box.left, window.innerWidth - width - 16));
+      const top = up ? box.top - gap - Math.min(want, room) : box.bottom + gap;
+      setPlace({ '--pick-top': `${Math.round(top)}px`, '--pick-left': `${Math.round(left)}px`, '--pick-width': `${Math.round(width)}px`, '--pick-max': `${Math.round(room)}px` });
+    };
+    at();
+    window.addEventListener('resize', at);
+    window.addEventListener('scroll', at, true);
+    return () => { window.removeEventListener('resize', at); window.removeEventListener('scroll', at, true); };
+  }, [open, rows.length, failed]);
 
   // Closing on a click elsewhere keeps what was chosen.
   useEffect(() => {
@@ -190,7 +217,7 @@ export function PickFrom({ source, kind, label, value, onChange, several = false
         </button>
       )}
       {open && (
-        <div className="pick-panel" role="dialog" aria-label={label}>
+        <div className={'pick-panel' + (place ? ' placed' : '')} ref={panel} style={place ?? undefined} role="dialog" aria-label={label}>
           <div className="pick-head"><span className="strong">{label}</span><button type="button" className="linkish" onClick={close}>Close</button></div>
           <input
             ref={field} autoFocus className="input" type="search" value={q} maxLength={200} placeholder={w.find}

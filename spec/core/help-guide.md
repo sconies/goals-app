@@ -156,7 +156,7 @@ Opening Faro on a device that remembers no workspace brings you here, at /welcom
 
 `joining`. An invitation is a link that opens one workspace: it says who set it up and what it holds, then asks which one you are.
 
-Routes: `/join/:workspaceId`. Screens: `Start`. Requirements: `SETUP-FIRST-SCREEN`, `IDENTITY`.
+Routes: `/join/:workspaceId/*`. Screens: `Start`. Requirements: `SETUP-FIRST-SCREEN`, `IDENTITY`.
 
 #### What it’s for
 
@@ -167,6 +167,7 @@ Whoever set up a workspace copies its invitation and sends it themselves: Faro s
 - Welcome to the workspace: who set it up and when, how many people and goals it has, then Which one are you?, with everyone listed by team and one line each (who set it up, an admin, how many goals they own, or no goals yet). With more than eight people, Find your name narrows the list.
 - Choose your name: that is the whole step. Home opens as you, and this device remembers your answer. The first time anyone chooses their name, Activity says they opened the workspace for the first time.
 - Not on the list? Ask whoever set it up to add you: the link writes them an email.
+- Not you, or opened the wrong link? Go to Welcome, under the list, takes you to the front door, where you can open another workspace or set up your own. The invitation stays waiting until you choose a name.
 - A link to a workspace that isn’t there says This invitation doesn’t open a workspace (it may have been deleted, or the link was cut short) and opens nothing else; Go to Welcome takes you to the front door.
 
 #### Saying who you are
@@ -597,6 +598,7 @@ Requirements: `FIND-AND-PICK`, `LIST-BAR`, `FIND-ANYWHERE`.
 - What matches comes in groups: Goals, People, Teams, and Metrics while the metric library is on. Each shows its first three with how many match in all; “See all 8 goals” opens that list with your search filled in.
 - A goal’s key on its own (G-48, g48 or 48) puts that goal first. Enter opens the first row; Down and Up move to another; Escape closes. Each row is a link, so you can open it in a new tab.
 - Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open.
+- On a computer, a picker opens under its field, or above it when the window has no room below, so a sheet or a table never cuts it off.
 
 #### Keys
 
@@ -705,7 +707,7 @@ The goal’s owner, or an admin.
 
 `reviews`. A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said.
 
-Routes: `/reviews`, `/reviews/new`, `/reviews/:reviewId`, `/reviews/:reviewId/edit`, `/reviews/:reviewId/summary`, `/review`, `/goals/:goalId?review=*`. Screens: `Review`, `Inspect`. Requirements: `REVIEW`, `REVIEW-SETUP`, `REVIEW-RUN`, `REVIEW-DECIDE`, `INSPECT-ACT`, `REVIEW-LIST-STATE`, `REVIEW-AGENDA`, `EXCEPTIONS-FIRST`.
+Routes: `/reviews`, `/reviews/new`, `/reviews/:reviewId`, `/reviews/:reviewId/edit`, `/reviews/:reviewId/summary`, `/review`, `/goals/:goalId?review=*`. Screens: `Review`, `Inspect`. Requirements: `REVIEW`, `REVIEW-SETUP`, `REVIEW-RUN`, `REVIEW-DECIDE`, `INSPECT-ACT`, `REVIEW-LIST-STATE`, `REVIEW-AGENDA`, `EXCEPTIONS-FIRST`, `REVIEW-SPEAK`.
 
 #### What it’s for
 
@@ -734,7 +736,7 @@ A regular look at the goals that need it, with notes, questions and actions that
 
 #### Who can
 
-Anyone can set up a review or join one. Someone in the review, whoever set it up, or an admin can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it.
+Anyone can set up a review, and everyone can read every review. Only people in a review, or an admin, speak for it: mark goals reviewed, add a note, accept a risk, and ask a question or agree a next step in it. Anyone can still ask a question or agree a next step on a goal’s own page. Someone not in a review is told who can add them: someone in it, whoever set it up, or an admin, who can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it.
 
 ### The activity log
 

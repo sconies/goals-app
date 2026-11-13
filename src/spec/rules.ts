@@ -30,7 +30,7 @@ import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK,
 import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPAN } from '../domain/thresholds';
 import { cycleStanding, importName, leaveWorkspace, keptText, pastImports, undoPreview } from '../domain/removal';
 import { applyCommit } from '../data/store';
-import { acceptRisk, teamPeople } from '../domain/actions';
+import { acceptRisk, reviewCall, teamPeople } from '../domain/actions';
 import { adminsLine, cycleLine, LEAD_FROM, NEEDS_SHOWN, ONLY_ADMIN_FROM, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
 import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, sameAsWritten, typedDecimals } from '../domain/numbers';
 import { stagesFromJoining } from '../domain/templates';
@@ -133,7 +133,7 @@ const dayOneWs = (owners: string[]): Pick<Snapshot, 'people' | 'goals' | 'checkI
   people: [{ id: 'ana', name: 'Ana Silva', role: '', initials: 'AS', teamId: 't', admin: true }, { id: 'ben', name: 'Ben Ortiz', role: '', initials: 'BO', teamId: 't', admin: false }],
   goals: owners.map((ownerId, i) => ({ id: `g${i}`, ownerId, title: `Goal ${i}` } as unknown as Goal)),
   checkIns: [], watches: [],
-  changes: [{ id: 'c', at: DAY_MADE, actorId: 'ana', goalId: null, entity: 'workspace', entityId: 'w', action: 'created', summary: 'Created “Field Operations” with 2 people', diffs: [] }],
+  changes: [{ id: 'c', at: DAY_MADE, actorId: 'ana', goalId: null, entity: 'workspace', entityId: 'w', action: 'imported', summary: 'Created “Field Operations” with 2 people', diffs: [] }],
 });
 
 /* ---------- the demo workspace on Wednesday 11 November, for the directory's examples ---------- */
@@ -857,11 +857,13 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
     code: [
       { file: 'src/domain/decide.ts', names: ['needsDecision', 'decisionFor', 'acceptNote', 'acceptedReason', 'lastTime', 'sessionDecisions'] },
       { file: 'src/domain/actions.ts', names: ['acceptRisk', 'addAction', 'markReviewed'] },
-      { file: 'src/domain/review.ts', names: ['sessionToDo'] },
+      { file: 'src/domain/review.ts', names: ['sessionToDo', 'canSpeakFor', 'speakRefusal', 'joinLine'] },
     ],
-    tests: ['src/domain/decide.test.ts', 'src/domain/review.test.ts'],
-    reqs: ['REVIEW-DECIDE', 'REVIEW-RUN'],
+    tests: ['src/domain/decide.test.ts', 'src/domain/review.test.ts', 'src/domain/speakFor.test.ts'],
+    reqs: ['REVIEW-DECIDE', 'REVIEW-RUN', 'REVIEW-SPEAK'],
     body: `
+**Who may speak for a review** (\`canSpeakFor\`): someone in it, or an admin. Marking a goal reviewed, a note, the review accepting a risk, and a question or next step raised in the review are refused for anyone else with "Only people in {review}, or an admin, can speak for it." (\`speakRefusal\`). Everyone may read a review, and anyone may still ask a question or agree a next step on a goal's own page. A review's page tells someone not in it who can add them (\`joinLine\`): "You’re not in this review. {its people and whoever set it up, up to six, then "and {n} more"} or an admin can add you."
+
 **Who must decide.** A goal whose status is \`off\` or \`risk\` (\`needsDecision\`) is not marked reviewed in a walk until something is decided about it. Every other goal is marked reviewed as before.
 
 **What counts as a decision** (\`decisionFor\`), the latest in the session first:
@@ -880,6 +882,7 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
       { given: 'Which statuses need a decision: off, risk, on, stale, done.', then: 'yes, yes, no, no, no', run: () => ['off', 'risk', 'on', 'stale', 'done'].map((k) => (needsDecision(k) ? 'yes' : 'no')).join(', ') },
       { given: 'The words saved for accepting the risk because "the vendor fix lands next release", and what is read back from them and from "Talked it through".', then: 'We accept the risk: the vendor fix lands next release / the vendor fix lands next release / not a decision', run: () => { const w = acceptNote('the vendor fix lands next release'); return `${w} / ${acceptedReason(w)} / ${acceptedReason('Talked it through') ?? 'not a decision'}`; } },
       { given: 'In the demo workspace, Daniel accepts the risk on the merge queue in the Developer Productivity fortnightly with the reason "ok".', then: 'refused: Say why the review accepts the risk.', run: () => summaryOf(asPerson('daniel', (x) => acceptRisk(x, goalIn('lead-mq'), demo!.reviews.find((r) => r.id === 'devprod')!, 'ok', 46))) },
+      { given: 'In the demo workspace, Oskar, who is not in the Developer Productivity fortnightly and is not an admin, marks the merge queue reviewed in it.', then: 'refused: Only people in Developer Productivity fortnightly, or an admin, can speak for it.', run: () => summaryOf(asPerson('oskar', (x) => reviewCall(x, goalIn('lead-mq'), demo!.reviews.find((r) => r.id === 'devprod')!, 'acknowledge', ''))) },
       { given: 'Searching the demo workspace’s people for "kap", then "rhea tunde".', then: 'Rhea Kapoor / nobody', run: () => [search(personRows(demo!), { q: 'kap' }), search(personRows(demo!), { q: 'rhea tunde' })].map((a) => a.rows.map((p) => p.name).join(', ') || 'nobody').join(' / ') },
     ],
     unclear: ['Accepting the risk is stored as a note whose words start with a fixed phrase, so no new kind of record was needed before the talk. A rebuild should give it a kind of its own (a decision with a reason), and keep the phrase only for what people read.'],
@@ -1128,7 +1131,7 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
       { given: 'The workspace /join/ws_a and the old /?workspace=ws_b name.', then: 'ws_a, ws_b', run: () => `${invitedTo('/join/ws_a', '')}, ${invitedTo('/', '?workspace=ws_b')}` },
       { given: 'https://elsewhere.example/join/ws_a, pasted into Welcome on https://faro.example.', then: 'That isn’t a Faro invitation. It looks like https://faro.example/join/…', run: () => { const r = readInvitation('https://elsewhere.example/join/ws_a', 'https://faro.example'); return 'problem' in r ? r.problem : r.id; } },
       { given: 'The arrival’s lines for Ana (set it up), Ben (owns 1 goal) and Cara (owns none); and its opening line, 3 people and no goals.', then: 'Set this up · admin / Owns 1 goal / No goals yet / Ana Silva set this up on 11 Nov to keep the team’s goals in one place: 3 people, no goals yet.', run: () => [arrivalLine({ id: 'ana', admin: true }, 'ana', 0), arrivalLine({ id: 'ben', admin: false }, 'ana', 1), arrivalLine({ id: 'cara', admin: false }, 'ana', 0), arrivalIntro({ name: 'Field Operations', createdAt: '2026-11-11T10:00:00Z' }, 'Ana Silva', 3, 0)].join(' / ') },
-      { given: 'Has Ben arrived before and after his arrival is logged; has Ana, who set it up?', then: 'no / yes / yes', run: () => { const made = { entity: 'workspace' as const, action: 'created' as const, entityId: 'ws', summary: 'Created “Field Operations”', actorId: 'ana' }; const ppl = [{ id: 'ana', admin: true }, { id: 'ben', admin: false }]; const came = { entity: 'person' as const, action: 'acknowledged' as const, entityId: 'ben', summary: 'Ben Carter opened Field Operations for the first time', actorId: 'ben' }; return [arrived('ben', [made], ppl), arrived('ben', [made, came], ppl), arrived('ana', [made], ppl)].map((b) => (b ? 'yes' : 'no')).join(' / '); } },
+      { given: 'Has Ben arrived before and after his arrival is logged; has Ana, who set it up?', then: 'no / yes / yes', run: () => { const made = { entity: 'workspace' as const, action: 'imported' as const, entityId: 'ws', summary: 'Created “Field Operations”', actorId: 'ana' }; const ppl = [{ id: 'ana', admin: true }, { id: 'ben', admin: false }]; const came = { entity: 'person' as const, action: 'acknowledged' as const, entityId: 'ben', summary: 'Ben Carter opened Field Operations for the first time', actorId: 'ben' }; return [arrived('ben', [made], ppl), arrived('ben', [made, came], ppl), arrived('ana', [made], ppl)].map((b) => (b ? 'yes' : 'no')).join(' / '); } },
     ],
     unclear: ['Faro lets anyone with the link choose any name, the admin’s included: the internal app replaces the arrival with the first sign-in (R1, rules 9 to 11).', 'What a device remembers (each workspace and who you are there) is kept in the browser; the internal app keeps it with the signed-in person.'],
   },

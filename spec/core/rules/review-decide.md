@@ -7,6 +7,8 @@ A goal behind leaves a review with a next step (an owner and a week) or an accep
 
 ## The rule
 
+**Who may speak for a review** (`canSpeakFor`): someone in it, or an admin. Marking a goal reviewed, a note, the review accepting a risk, and a question or next step raised in the review are refused for anyone else with "Only people in {review}, or an admin, can speak for it." (`speakRefusal`). Everyone may read a review, and anyone may still ask a question or agree a next step on a goal's own page. A review's page tells someone not in it who can add them (`joinLine`): "You’re not in this review. {its people and whoever set it up, up to six, then "and {n} more"} or an admin can add you."
+
 **Who must decide.** A goal whose status is `off` or `risk` (`needsDecision`) is not marked reviewed in a walk until something is decided about it. Every other goal is marked reviewed as before.
 
 **What counts as a decision** (`decisionFor`), the latest in the session first:
@@ -40,6 +42,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Which statuses need a decision: off, risk, on, stale, done. | `yes, yes, no, no, no` |
 | The words saved for accepting the risk because "the vendor fix lands next release", and what is read back from them and from "Talked it through". | `We accept the risk: the vendor fix lands next release / the vendor fix lands next release / not a decision` |
 | In the demo workspace, Daniel accepts the risk on the merge queue in the Developer Productivity fortnightly with the reason "ok". | `refused: Say why the review accepts the risk.` |
+| In the demo workspace, Oskar, who is not in the Developer Productivity fortnightly and is not an admin, marks the merge queue reviewed in it. | `refused: Only people in Developer Productivity fortnightly, or an admin, can speak for it.` |
 | Searching the demo workspace’s people for "kap", then "rhea tunde". | `Rhea Kapoor / nobody` |
 
 ## Not self-explanatory
@@ -50,12 +53,13 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - [src/domain/decide.ts](../../../src/domain/decide.ts): `needsDecision`, `decisionFor`, `acceptNote`, `acceptedReason`, `lastTime`, `sessionDecisions`
 - [src/domain/actions.ts](../../../src/domain/actions.ts): `acceptRisk`, `addAction`, `markReviewed`
-- [src/domain/review.ts](../../../src/domain/review.ts): `sessionToDo`
+- [src/domain/review.ts](../../../src/domain/review.ts): `sessionToDo`, `canSpeakFor`, `speakRefusal`, `joinLine`
 
 ## Requirements
 
 - `REVIEW-DECIDE`: A goal off track or at risk leaves a review's walk with a decision: a next step with an owner (chosen by searching, never from a list of everyone) and a week it's due by, or "We accept the risk" with a reason. The goal page shows next steps as dated rows with an owner, changed there, an overdue one flagged; anyone can add one. The next session opens with what the last one agreed and asks if it's done. Finish review says what was decided and who owns what, with Undo. A review isn't "to do" before anything is due.
 - `REVIEW-RUN`: What was said in a review is kept as its summary; owners see questions and actions on their goal page.
+- `REVIEW-SPEAK`: Only someone in a review, or an admin, speaks for it: marking a goal reviewed, a note, accepting a risk, and a question or next step raised in it are refused for anyone else with one sentence, through the app and the AI tools alike. Everyone can still read it. Its page tells someone not in it who can add them, and never offers a Join it refuses.
 
 ## Tests that check it
 
@@ -84,3 +88,11 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - an outstanding session and the next one, named apart (review F07) › on the day itself, the session is just its date, with no separate next
 - a review session keeps its order while it runs (deep review T3) › numbers the walk once: reviewing goals, and saving an action on one, never moves a goal or skips one
 - a review session keeps its order while it runs (deep review T3) › marks the goals with nothing flagged together, and Undo puts every one back on the agenda
+
+### [src/domain/speakFor.test.ts](../../../src/domain/speakFor.test.ts)
+
+- who may speak for a review (RV7) › someone in it, or an admin; nobody else
+- who may speak for a review (RV7) › refuses reviewed, a note, the risk accepted, a question and a next step in it from someone not in it, with one sentence
+- who may speak for a review (RV7) › lets a member and an admin speak for it
+- who may speak for a review (RV7) › leaves a question and a next step on a goal’s own page open to anyone
+- who may speak for a review (RV7) › tells someone not in it who can add them: its people and whoever set it up, up to six, then how many more
