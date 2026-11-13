@@ -1,7 +1,7 @@
 /* The habit moment (docs/design/round-4/habit/spec.md): the forgiving run (CF4's table, workspace-settings 2.5), the
    receipt's sentences (2.1) and the moment a check-in makes (rule 3). */
 import { describe, expect, it } from 'vitest';
-import { forgivenIn, onTimeStreak, receiptFacts, receiptText, reviewDate, weekProgress, type ReceiptFacts } from './progress';
+import { dueWords, forgivenIn, onTimeStreak, receiptFacts, receiptText, reviewDate, weekProgress, type ReceiptFacts } from './progress';
 import { beforeReviewText, checkInStanding, habit, type HabitRows, habitShown, habitWeeks, moment, momentText, weekWords } from './habit';
 import { weekDate } from './plan';
 import type { CheckIn, Cycle, Goal, Snapshot, Status } from './types';
@@ -51,7 +51,8 @@ describe('the forgiving run (CF4, built unconditionally until CF2 adds cycle.str
 });
 
 describe('the receipt (spec 2.1)', () => {
-  const r = (p: Partial<ReceiptFacts>): ReceiptFacts => ({ total: 2, after: 0, week: 46, dueDay: 'Thursday', review: true, run: 0, forgiven: null, nextDue: 'Thursday 19 Nov', ...p });
+  // The deadline is dueWords' (rule RS1): `review` true for someone in a review held on the due day with Reviews on.
+  const r = ({ review = true, ...p }: Partial<ReceiptFacts> & { review?: boolean }): ReceiptFacts => ({ total: 2, after: 0, week: 46, words: dueWords(review, cycle, 46, review), run: 0, forgiven: null, nextDue: 'Thursday 19 Nov', ...p });
   it('says every check-in is in before the review, and the run from two weeks', () => {
     expect(receiptText(r({ total: 1 }))).toEqual({ first: 'Your check-in is in before Thursday’s review.', second: null });
     expect(receiptText(r({ run: 5 }))).toEqual({ first: 'Both of your check-ins are in before Thursday’s review.', second: 'That is 5 weeks in a row.' });
@@ -66,9 +67,22 @@ describe('the receipt (spec 2.1)', () => {
     expect(receiptText(r({ total: 1, after: 1 })).first).toBe('Your check-in is in. It came after Thursday’s review.');
     expect(receiptText(r({ total: 3, after: 2 })).first).toBe('All 3 of your check-ins are in. 2 came after Thursday’s review.');
   });
-  it('says the deadline, not a review, to someone in no review that day (deep review T4)', () => {
-    expect(receiptText(r({ review: false })).first).toBe('Both of your check-ins are in for week 46, before Thursday’s deadline.');
-    expect(receiptText(r({ review: false, total: 1, after: 1 })).first).toBe('Your check-in is in. It came in after Thursday’s deadline.');
+  it('says the deadline, not a review, to someone in no review that day (deep review T4), in dueWords’ words', () => {
+    expect(receiptText(r({ review: false })).first).toBe('Both of your check-ins are in by Thursday.');
+    expect(receiptText(r({ review: false, total: 1, after: 1 })).first).toBe('Your check-in is in. It came after Thursday.');
+  });
+  it('with Reviews off, says “by Thursday” and “after Thursday” even where a review is held (Reviews switch spec 2.1)', () => {
+    const off = (p: Partial<ReceiptFacts>) => receiptText({ ...r({}), words: dueWords(false, cycle, 46, true), ...p });
+    expect(off({ total: 7, run: 3 })).toEqual({ first: 'All 7 of your check-ins are in by Thursday.', second: 'That is 3 weeks in a row.' });
+    expect(off({ total: 7, after: 2 })).toEqual({ first: 'All 7 of your check-ins are in. 2 came after Thursday.', second: 'The next are due by Thursday 19 Nov.' });
+    for (const p of [{ total: 7 }, { total: 7, after: 2 }, { total: 1, after: 1 }, { run: 5, forgiven: 45 }]) {
+      const t = off(p);
+      expect(`${t.first} ${t.second ?? ''}`).not.toMatch(/review/i);
+    }
+  });
+  it('with Reviews on, names the review as in spec 2.1', () => {
+    expect(receiptText(r({ total: 7 })).first).toBe('All 7 of your check-ins are in before Thursday’s review.');
+    expect(receiptText(r({ total: 7, after: 2 })).first).toBe('All 7 of your check-ins are in. 2 came after Thursday’s review.');
   });
   it('never says a run was lost or broken', () => {
     for (const p of [{ after: 1, run: 0 }, { after: 2, run: 9 }, { run: 0 }, { run: 7, forgiven: 45 }]) {
@@ -78,8 +92,8 @@ describe('the receipt (spec 2.1)', () => {
   });
   it('reads its facts from the week (receiptFacts)', () => {
     const s = weeks(41, 46, [46], 41);
-    const f = receiptFacts(weekProgress('tunde', s, cycle, 46, new Date('2026-11-13T12:00:00Z')), 'tunde', s, cycle, 46, true);
-    expect(f).toMatchObject({ total: 1, after: 1, week: 46, dueDay: 'Thursday', review: true, run: 5, nextDue: '2026-11-19' });
+    const f = receiptFacts(weekProgress('tunde', s, cycle, 46, new Date('2026-11-13T12:00:00Z')), 'tunde', s, cycle, 46, dueWords(true, cycle, 46, true));
+    expect(f).toMatchObject({ total: 1, after: 1, week: 46, words: { by: 'before Thursday’s review', after: 'after Thursday’s review' }, run: 5, nextDue: '2026-11-19' });
   });
 });
 
