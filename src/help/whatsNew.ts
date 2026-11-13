@@ -35,6 +35,16 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['features', 'home', 'goal-page', 'reviews'],
   },
   {
+    id: 'import-check-close',
+    date: '2026-11-13',
+    title: 'Checking an import has a way out on a phone',
+    points: [
+      'Check this import and its list of changes have Close without saving at the top: the file is forgotten and you are back on Import.',
+      'If you answered a question or gave a reason, it asks first.',
+    ],
+    articles: ['import'],
+  },
+  {
     id: 'proposed-fixes-review',
     date: '2026-11-13',
     title: 'Proposed goals: Home, the Map and the AI assistant',

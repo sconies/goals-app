@@ -846,7 +846,7 @@ Anyone reads the tables. Admins change them; admins can also pin a saved layout 
 
 `import`, from the spreadsheets module. Load a workbook, a zip of CSVs or one CSV to add or change people, goals, plan numbers and check-ins, past weeks included, or to stop a goal.
 
-Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/changes`, `/data/import/done/:importId`. Screens: `Import`, `Check`, `Large`, `Changes`, `Imported`. Requirements: `BULK-IMPORT`, `WORKSPACES`, `HONEST-NUMBERS`, `ONE-FORMAT`, `ROUND-TRIP`, `IMPORT-ACTIONS`, `SPREADSHEETS-ON-DATA`, `IMPORT-LEVELS`, `IMPORT-PREVIEW`, `IMPORT-LARGE`.
+Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/changes`, `/data/import/done/:importId`. Screens: `Import`, `Check`, `CheckClose`, `Large`, `Changes`, `Imported`. Requirements: `BULK-IMPORT`, `WORKSPACES`, `HONEST-NUMBERS`, `ONE-FORMAT`, `ROUND-TRIP`, `IMPORT-ACTIONS`, `SPREADSHEETS-ON-DATA`, `IMPORT-LEVELS`, `IMPORT-PREVIEW`, `IMPORT-LARGE`.
 
 #### How to use it
 
@@ -862,6 +862,7 @@ Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/cha
 - The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over: an email, or a name only one person has). The same rules as the app apply, and the preview shows what each does.
 - Every row is checked with the app’s own rules, and Check this import shows the result before anything is saved: the file and what was read (sheets and columns it didn’t read are named), counts by sheet, then what must be fixed, then questions, then what will be saved. Show the changes lists every change in the file’s order, 50 at a time, with each field before and after and how a value Faro supplied was worked out (“the owner’s team; the row gave none”).
 - Plan changes after check-ins need a reason. A plan change that flips which way is better, or puts a number far outside the old plan, is a question, and saves only once you say yes.
+- To leave without saving, use Close without saving at the top of Check this import or its list of changes: the file is forgotten and you are back on Import. If you answered a question or gave a reason, it asks first.
 - A file that changes nothing says Nothing would change. If it edits worked-out cells, such as Status, it says so: Faro never reads them, so to change where a goal stands, post a check-in.
 - A file exported from another workspace is asked about first: its keys and IDs belong there, so its rows can be added as new goals, or not at all.
 - A number goal’s weeks are From and To, written as a year and a week (2026-W46, 2027-W13). Plan from week and Due week, counted from the cycle’s start, are still written and still load: where a row has both, the one you changed counts, and two that disagree are Must fix; a Due week left empty beside a To says nothing. In a file with no Start column, a bare number under From (“52”) is Must fix: it may be the starting number, so put that under Start, or write the week as 2026-W46. A week a year doesn’t have says so (“2027 has 52 weeks. Use 2027-W52, or 2028-W01.”). A stage may be written Design@48 or Design@2026-W48.
