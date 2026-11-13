@@ -329,7 +329,7 @@ export const WORK_TOOLS: ToolDef[] = [
       if (a.id) {
         const x = articleById(String(a.id));
         if (!x) return { isError: true, text: `There’s no help article with id ${String(a.id)}. Articles: ${ARTICLES.map((y) => y.id).join(', ')}.` };
-        return { data: { ...brief(x), sections: x.sections, routes: x.routes, related: x.related.map((r) => brief(articleById(r)!)) }, text: articleText(x) };
+        return { data: { ...brief(x), sections: x.sections, routes: x.routes, related: x.related.flatMap((r) => { const y = articleById(r); return y ? [brief(y)] : []; }) }, text: articleText(x) };
       }
       // A list answers as every list does (listed, #249's review): the same keys every time, and why when it's empty.
       const list = a.search ? searchGuide(String(a.search)) : ARTICLES;
