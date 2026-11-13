@@ -37,6 +37,29 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['home', 'requests'],
   },
   {
+    id: 'metric-change',
+    date: '2026-11-13',
+    title: 'A metric that changes tells its goals',
+    points: [
+      'Changing what a metric means, or which way is better, now shows its goals first and asks whether it is still the same number.',
+      'When the number itself changes, say why: each goal’s chart gets a dashed line, “Definition changed, week 46”, and its History your reason.',
+      'A new unit is either a new label, changed on every goal too, or a different scale, which is a new metric.',
+      'A metric that has measured goals is retired, not deleted: its goals keep their numbers and say so, and Bring it back undoes it. Admins can merge two metrics in the same unit.',
+    ],
+    articles: ['metric-change'],
+  },
+  {
+    id: 'data-search-finds',
+    date: '2026-11-13',
+    title: 'Searching Data finds what you typed',
+    points: [
+      'A goal’s key finds its check-ins and asks too: G-48 on Check-ins shows that goal’s rows, and on Asks every ask about it.',
+      'A number with a point is one word: 12.5 finds 12.5, not every row with a 12 and a 5.',
+      'Search looks only in the columns shown, and the line under it now says so while some are hidden, with Choose columns.',
+    ],
+    articles: ['data', 'finding'],
+  },
+  {
     id: 'review-speaks-for-its-goals',
     date: '2026-11-13',
     title: 'A review speaks only for the goals it walks',

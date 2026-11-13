@@ -37,6 +37,28 @@ export interface Metric {
   /** Removed: kept, out of every list, restorable (domain/removal). */
   removedAt?: string | null;
   removedBy?: Id | null;
+  /** Retired (MT3): out of the pickers and the library's list, its links kept and its goals still measured by it; brought
+      back by clearing these. Absent on a metric never retired; null and '' once brought back. */
+  retiredAt?: string | null;
+  retiredBy?: Id | null;
+  retiredWhy?: string;
+  /** The metric its goals' owners are offered in its place (same unit), when the person retiring it named one. */
+  replacedBy?: Id | null;
+  /** Changes of meaning or direction its goals show on their chart and History (rule 4), oldest first. */
+  marks?: MetricMark[];
+}
+
+/** A change to a metric its goals must show (MT3 rule 4): what it meant, or which way was better, from a week on. */
+export interface MetricMark {
+  /** The cycle week it was made in, and when. */
+  week: number;
+  at: string;
+  by: Id;
+  kind: 'definition' | 'direction';
+  why: string;
+  /** The two texts (meaning) or directions, before and after. */
+  was: string;
+  now: string;
 }
 
 /**

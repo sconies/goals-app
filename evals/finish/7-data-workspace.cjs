@@ -251,6 +251,39 @@ module.exports = {
     if (Math.abs(pv.off) > 1 || !pv.table) fails.push(`[W9] plan details ${Math.round(pv.off)}px off the title; week table ${pv.table}`);
     if (pv.save !== '1 rgb(210, 206, 196) nowrap') fails.push(`[W16] Save not ready: ${pv.save}`);
     await c.close();
+    /* ---------- Data search (build review of #234): a goal key, a decimal, and the columns it reads ---------- */
+    [c, r] = await open(1280, 800, 'rhea', '/data?t=checkIns');
+    const col = (name) => r.evaluate((n) => { const i = [...document.querySelectorAll('.dtable thead th')].findIndex((t) => t.innerText.trim() === n); return i < 0 ? null : [...document.querySelectorAll('.dtable tbody tr')].map((tr) => (tr.children[i]?.querySelector('input')?.value ?? tr.children[i]?.innerText ?? '').trim()); }, name);
+    const ciKeys = (await col('Goal key')) ?? [];
+    const key = ciKeys.find(Boolean);
+    if (!key) fails.push('[S1] Check-ins shows no Goal key column');
+    else {
+      await r.goto(url(`/data?t=checkIns&q=${encodeURIComponent(key)}`)); await r.waitForTimeout(400);
+      const got = (await col('Goal key')) ?? [];
+      if (!got.length || got.some((k) => k !== key)) fails.push(`[S1] searching Check-ins for ${key} shows ${got.length} rows (${[...new Set(got)].slice(0, 4).join(', ')})`);
+      const said = await r.evaluate(() => ({ hint: document.querySelector('.data-searched')?.innerText ?? '', cols: document.querySelector('.data-tools')?.innerText.match(/Columns · (\d+) of (\d+)/) }));
+      const hidden = said.cols && Number(said.cols[1]) < Number(said.cols[2]);
+      if (hidden && !/only in the \d+ columns shown/.test(said.hint)) fails.push(`[S3] a search with columns hidden doesn't say it reads only the columns shown ("${said.hint}")`);
+    }
+    // A decimal is one word: every row found holds that number, not just its whole part.
+    await r.goto(url('/data?t=checkIns')); await r.waitForTimeout(400);
+    const dec = await r.evaluate(() => [...document.querySelectorAll('.dtable tbody td')].map((td) => (td.querySelector('input')?.value ?? td.innerText).trim()).find((v) => /^\d+\.\d+$/.test(v)) ?? null);
+    if (dec) {
+      await r.goto(url(`/data?t=checkIns&q=${encodeURIComponent(dec)}`)); await r.waitForTimeout(400);
+      const rows = await r.evaluate(() => [...document.querySelectorAll('.dtable tbody tr')].map((tr) => [...tr.children].map((td) => (td.querySelector('input')?.value ?? td.innerText).trim()).join(' | ')));
+      const stray = rows.filter((t) => !t.includes(dec));
+      if (!rows.length || stray.length) fails.push(`[S2] searching ${dec} finds ${rows.length} rows, ${stray.length} without it (${stray[0] ?? ''})`);
+    }
+    // Asks keep several goal keys in one cell: each key finds the ask.
+    await r.goto(url('/data?t=requests')); await r.waitForTimeout(400);
+    const askKeys = ((await col('Goal keys')) ?? []).find((v) => v.includes(';'));
+    if (askKeys) {
+      const second = askKeys.split(';')[1].trim();
+      await r.goto(url(`/data?t=requests&q=${encodeURIComponent(second)}`)); await r.waitForTimeout(400);
+      const got = (await col('Goal keys')) ?? [];
+      if (!got.length || got.some((v) => !v.split(';').map((k) => k.trim()).includes(second))) fails.push(`[S1] searching Asks for ${second} shows ${got.length} rows (${got.slice(0, 3).join(' / ')})`);
+    }
+    await c.close();
     [c, r] = await open(1280, 800, 'rhea', '/goals?scope=all');
     await r.locator('.views-menu > summary').click();
     await r.getByRole('button', { name: 'Export these goals' }).click(); await r.waitForTimeout(400);

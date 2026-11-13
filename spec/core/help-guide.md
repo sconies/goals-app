@@ -812,7 +812,7 @@ Routes: `/data`. Screens: `DataTables`, `DataFilters`, `DataLayout`. Requirement
 
 #### How to use it
 
-- Pick a table. Search it (each word you type starts a word in a shown column, as on Goals; a key like G-48 finds its goal), sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.
+- Pick a table. Search it (each word you type starts a word in a shown column, as on Goals, and the line under it says so while columns are hidden; a number like 12.5 is one word; a key like G-48 finds its goal, and on Check-ins and Asks that goal’s rows), sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.
 - Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.
 - Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.
 - Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.
@@ -1166,6 +1166,34 @@ Requirements: `METRIC-PARTS`.
 #### On the goal’s page
 
 - About lists Measured by: For, what it means, From the metric, where the number comes from, caveats, the goal’s own target, and its own definition when that says more than the metric’s.
+
+### Changing, retiring and merging a metric
+
+`metric-change`, from the metrics module. Which changes save at once, the ones that tell a metric’s goals first, and retiring, bringing back and merging.
+
+Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-CHANGE`.
+
+#### What saves at once
+
+- A new name, owner, source owner, refresh or caveats saves at once, as does any change to a metric no goal uses.
+
+#### What reads back first
+
+- Changing what a metric means, or where its number comes from, shows the goals it measures and asks “Is it still the same number?”. Same number, better words: nothing is marked. The number itself changes: say why, in a line, and each goal’s chart and History say “Definition changed, week {w}” with your reason. Their numbers and plans don’t change.
+- Changing which way is better needs a reason too, names the goals whose target now lies the wrong way, and marks each goal.
+- A new unit is either a new label for the same numbers (every goal’s unit changes with it) or a different scale. A different scale is a different metric: add it as a new metric and move goals to it, or retire this one.
+- Fewer decimal places names the goals that show more; they keep theirs until their owners change them.
+- Undo takes back the change, its marks and, for a new label, every goal’s unit, as one.
+
+#### Retire, not delete
+
+- A metric that has measured a goal is retired, not deleted: its goals keep their numbers and plans and say “Measured by {metric}, retired {date}”. It leaves the pickers and the library’s list (Retired metrics are listed apart), and it can be brought back at any time with Bring it back.
+- Say why it is retired. Name what replaces it, in the same unit, and its goals’ owners are offered it on the goal’s page.
+- A metric no goal has ever used is deleted instead, and can be put back from Recently removed for 30 days.
+
+#### Merge (admins)
+
+- An admin merges a metric into another in the same unit: every goal it measures moves to the other, keeping its For and part, and it is retired pointing there. One Undo puts it all back.
 
 ### Teams
 
