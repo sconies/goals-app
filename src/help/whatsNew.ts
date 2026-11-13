@@ -27,6 +27,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'proposed-type-changes',
+    date: '2026-11-13',
+    title: 'A proposed goal’s type can still change',
+    points: [
+      'Changing a proposed goal, Type lets you turn it into a number to move, a number to keep in range, or dated stages.',
+      'Once it is active, its type stays: add a new goal instead.',
+    ],
+    articles: ['goal-proposed', 'edit-goal'],
+  },
+  {
     id: 'asks-follow-owner-by-role',
     date: '2026-11-13',
     title: 'Asks that follow a goal’s new owner are the ones put to the owner',
