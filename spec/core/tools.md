@@ -5113,7 +5113,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 ## get_metric
 
-**Read a metric.** One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; and, for its owner and admins, what it still needs (rule 3).
+**Read a metric.** One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).
 
 From the [metrics](../modules/metrics/README.md) module: switched off with it.
 

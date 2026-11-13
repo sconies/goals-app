@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'metric-lists-proposed',
+    date: '2026-11-13',
+    title: 'A metric’s page lists its proposed goals',
+    points: [
+      'A proposed goal that names a metric is listed on the metric’s page under its goals, as “Proposed · 1”, with no numbers.',
+      'It joins the comparison only once it is made active. The AI assistant’s get_metric gives them apart too.',
+    ],
+    articles: ['metrics', 'goal-proposed'],
+  },
+  {
     id: 'sidebar-fits-a-laptop',
     date: '2026-11-13',
     title: 'The whole sidebar fits on a laptop screen',
