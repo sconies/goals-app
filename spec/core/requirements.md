@@ -395,7 +395,7 @@ A baseline can be a figure of its own (BL). A number goal's Baseline can say the
 - **Copy:** build it as Faro does.
 - **Rule:** [A baseline of its own](rules/baseline.md)
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
-- **Journeys and checks:** U161
+- **Journeys and checks:** U162
 
 ### GOAL-PAGE
 

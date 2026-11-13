@@ -6198,7 +6198,7 @@ journey('U153', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: 
   // It reads and saves nothing: 'logged' is not this journey's.
 }, ['logged']);
 
-journey('U161', ['GOAL-BASELINE'], 'A baseline of its own (BL): as Rhea, CI cost per run (no check-ins yet) is given the period its baseline covers, “June to September 2026”, ticked Provisional, and saved; its page shows the baseline as its number with “Baseline, June to September 2026, provisional” beside it, the Goals list says “(baseline)”, and the goal keeps it', 14, async (h, device) => {
+journey('U162', ['GOAL-BASELINE'], 'A baseline of its own (BL): as Rhea, CI cost per run (no check-ins yet) is given the period its baseline covers, “June to September 2026”, ticked Provisional, and saved; its page shows the baseline as its number with “Baseline, June to September 2026, provisional” beside it, the Goals list says “(baseline)”, and the goal keeps it', 14, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals/ci-cost/edit'));
   const period = p.getByLabel(/^Period the baseline covers/);
