@@ -19,13 +19,13 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`get_overview`](#get_overview) | Overview of the goals | reads | — |
 | [`find_goals`](#find_goals) | Find goals | reads | — |
 | [`get_goal`](#get_goal) | One goal in full | reads | — |
-| [`post_check_in`](#post_check_in) | Post a check-in | changes | [postCheckIn](actions.md#postcheckin) |
-| [`update_goal`](#update_goal) | Change a goal | changes | [saveGoal](actions.md#savegoal) |
-| [`make_goal_active`](#make_goal_active) | Make a proposed goal active | changes | — |
-| [`create_goal`](#create_goal) | Add a goal | changes | [saveGoal](actions.md#savegoal) |
-| [`set_plan_numbers`](#set_plan_numbers) | Set plan numbers by hand | changes | [saveGoal](actions.md#savegoal) |
+| [`post_check_in`](#post_check_in) | Post a check-in | changes | [planChanges](actions.md#planchanges), [postCheckIn](actions.md#postcheckin) |
+| [`update_goal`](#update_goal) | Change a goal | changes | [planChanges](actions.md#planchanges), [saveGoal](actions.md#savegoal) |
+| [`make_goal_active`](#make_goal_active) | Make a proposed goal active | changes | [activate](actions.md#activate) |
+| [`create_goal`](#create_goal) | Add a goal | changes | [planChanges](actions.md#planchanges), [saveGoal](actions.md#savegoal) |
+| [`set_plan_numbers`](#set_plan_numbers) | Set plan numbers by hand | changes | [planChanges](actions.md#planchanges), [saveGoal](actions.md#savegoal) |
 | [`add_comment`](#add_comment) | Comment on a goal | changes | [addNote](actions.md#addnote) |
-| [`bulk_change`](#bulk_change) | Change many goals at once | changes | [postCheckIn](actions.md#postcheckin), [saveGoal](actions.md#savegoal) |
+| [`bulk_change`](#bulk_change) | Change many goals at once | changes | [planChanges](actions.md#planchanges), [postCheckIn](actions.md#postcheckin), [saveGoal](actions.md#savegoal) |
 | [`get_my_work`](#get_my_work) | What needs me | reads | — |
 | [`list_requests`](#list_requests) | Asks: decisions or help, updates, questions, actions | reads | — |
 | [`list_reviews`](#list_reviews) | Reviews | reads | — |
@@ -53,7 +53,7 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`save_review`](#save_review) | Set up or change a review | changes | [saveReview](actions.md#savereview) |
 | [`watch`](#watch) | Watch goals | changes | [watch](actions.md#watch) |
 | [`unwatch`](#unwatch) | Stop watching | changes | [unwatch](actions.md#unwatch) |
-| [`save_person`](#save_person) | Add or change a person | changes | [savePerson](actions.md#saveperson) |
+| [`save_person`](#save_person) | Add or change a person | changes | [planChanges](actions.md#planchanges), [savePerson](actions.md#saveperson) |
 | [`wrap_up_goal`](#wrap_up_goal) | Wrap up a goal | changes | [saveRetro](actions.md#saveretro) |
 | [`start_next_cycle`](#start_next_cycle) | Start the next cycle | changes; removes something | [startNextCycle](actions.md#startnextcycle) |
 | [`save_view`](#save_view) | Save a view of the goals | changes | [saveView](actions.md#saveview) |
@@ -794,7 +794,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 …”
 - “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 
-**Does the same as:** [postCheckIn](actions.md#postcheckin), so it refuses with their words too.
+**Does the same as:** [planChanges](actions.md#planchanges), [postCheckIn](actions.md#postcheckin), so it refuses with their words too.
 
 ## update_goal
 
@@ -1024,7 +1024,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 - “A range between two numbers needs limit, the upper number, as well as lower.”
 
-**Does the same as:** [saveGoal](actions.md#savegoal), so it refuses with their words too.
+**Does the same as:** [planChanges](actions.md#planchanges), [saveGoal](actions.md#savegoal), so it refuses with their words too.
 
 ## make_goal_active
 
@@ -1086,7 +1086,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
 
-**Does the same as:** no action: it reads, or does something only an assistant needs.
+**Does the same as:** [activate](actions.md#activate), so it refuses with their words too.
 
 ## create_goal
 
@@ -1316,7 +1316,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 - “A range between two numbers needs limit, the upper number, as well as lower.”
 
-**Does the same as:** [saveGoal](actions.md#savegoal), so it refuses with their words too.
+**Does the same as:** [planChanges](actions.md#planchanges), [saveGoal](actions.md#savegoal), so it refuses with their words too.
 
 ## set_plan_numbers
 
@@ -1407,7 +1407,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 …”
 - “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 
-**Does the same as:** [saveGoal](actions.md#savegoal), so it refuses with their words too.
+**Does the same as:** [planChanges](actions.md#planchanges), [saveGoal](actions.md#savegoal), so it refuses with their words too.
 
 ## add_comment
 
@@ -1569,7 +1569,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 - “… should be a list of rows.”
 
-**Does the same as:** [postCheckIn](actions.md#postcheckin), [saveGoal](actions.md#savegoal), so it refuses with their words too.
+**Does the same as:** [planChanges](actions.md#planchanges), [postCheckIn](actions.md#postcheckin), [saveGoal](actions.md#savegoal), so it refuses with their words too.
 
 ## get_my_work
 
@@ -3135,7 +3135,7 @@ No arguments.
 - “There’s no one called … in this workspace. Use list_people.”
 - “There’s no team called …. Teams: ….”
 
-**Does the same as:** [savePerson](actions.md#saveperson), so it refuses with their words too.
+**Does the same as:** [planChanges](actions.md#planchanges), [savePerson](actions.md#saveperson), so it refuses with their words too.
 
 ## wrap_up_goal
 
