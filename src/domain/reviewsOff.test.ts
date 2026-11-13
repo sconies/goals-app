@@ -3,7 +3,7 @@
    counts and says. Nothing is changed by switching off: the counts are what stays. */
 import { buildPlatformOrg } from '../data/platformOrg';
 import { asksOf } from './asks';
-import { switchOffLines, switchOffReadBack } from './review';
+import { switchOffLines, switchOffReadBack } from './reviewsOff';
 
 const s = buildPlatformOrg(new Date('2026-11-12T12:00:00Z'));
 const reads = { people: s.people, reviews: s.reviews, changes: s.changes, asks: asksOf(s) };

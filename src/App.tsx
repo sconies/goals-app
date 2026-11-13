@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter, Link, matchPath, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { AppProvider, useApp, useSetup } from './app/state';
 import type { Mode, Store } from './data/store';
 import type { Clock, Identity } from './ports';
@@ -8,11 +8,9 @@ import { movedTo } from './domain/directory';
 import { Shell } from './ui/Shell';
 import { MotionLayer } from './ui/Count';
 import { PageWait } from './ui/bits';
-import { Find } from './ui/Find';
 import { ErrorBoundary, TelemetryRoutes } from './telemetry/react';
 import { Moved, useModules } from './core/app';
 import { reviewsOn } from './app/reads';
-import { SwitchedOffLine } from './ui/SwitchedOff';
 
 // Every page but Home loads when it is first opened (the first download, R4's 300 KB; scripts/check-bundle.mjs): a
 // first visit lands on Home, and a link to another page fetches that page's part as it opens.
@@ -52,6 +50,7 @@ const GoalWizard = lazy(() => import('./screens/GoalWizard').then((m) => ({ defa
 const GoalPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.GoalPrint })));
 const WrapUp = lazy(() => import('./screens/Retro').then((m) => ({ default: m.WrapUp })));
 const StartNext = lazy(() => import('./screens/StartNext').then((m) => ({ default: m.StartNext })));
+const NotFound = lazy(() => import('./screens/NotFound').then((m) => ({ default: m.NotFound })));
 const RetroGoal = lazy(() => import('./screens/Retro').then((m) => ({ default: m.RetroGoal })));
 
 export function Routed() {
@@ -201,28 +200,6 @@ function OldInvitation() {
 function MovedFrom() {
   const { pathname, search, hash } = useLocation();
   return <Navigate to={movedTo(pathname, search, hash) ?? '/'} replace />;
-}
-
-/** An address that leads nowhere: say so, and offer the way home (re-review, 8 Nov, backlog T). One that is a route of
-    a module installed here but switched off says so, and who can switch it on (FT2, N21). */
-function NotFound() {
-  const { pathname } = useLocation();
-  const { installed, on } = useModules();
-  const off = installed.find((m) => !on.has(m.id) && m.routes.some((r) => matchPath(r, pathname)));
-  return (
-    <div className="page narrow not-found">
-      <h1 className="title-xl">Page not found</h1>
-      <p className="muted">There’s nothing at this address. The link may be old, or mistyped.</p>
-      {off && <SwitchedOffLine name={off.name} />}
-      <div className="row"><Link className="btn primary" to="/">Go to Home</Link></div>
-      {/* Then Find, inline, and Help (navigation spec, 2.6). */}
-      <section className="stack not-found-find" aria-label="Find">
-        <h2 className="field-label">Or find what you were looking for</h2>
-        <Find inline onClose={() => {}} />
-      </section>
-      <div className="row"><Link className="btn ghost" to="/help">Help</Link></div>
-    </div>
-  );
 }
 
 /** /watching → /goals?scope=watching, keeping the rest of the address (the demo's date, a level). */

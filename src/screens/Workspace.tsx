@@ -32,7 +32,7 @@ import { CORE_SECTION_LABELS } from './workspaceSections';
 import { movedTo } from '../domain/directory';
 import { WORKSPACE_MEANS } from '../domain/vocabulary';
 import { reviewsOn } from '../app/reads';
-import { switchOffLines, switchOffReadBack } from '../domain/review';
+import { switchOffLines, switchOffReadBack } from '../domain/reviewsOff';
 import { asksOf } from '../domain/asks';
 
 /** Below this width, Workspace is About and then its other sections as a list, one section at a time (a phone). */
