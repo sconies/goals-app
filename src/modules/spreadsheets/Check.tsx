@@ -2,7 +2,7 @@
    was read, counts by sheet, then what must be fixed, then the questions, then what will be saved, and Save. Nothing is
    saved until every Must fix is fixed (or its rows left out) and every Check is answered; one answer covers every row
    in its group. The file is held in memory (importStore): a reload comes back to Import. */
-import { useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import { useApp } from '../../app/state';
 import { saveAndSay } from '../../app/files';
@@ -17,7 +17,6 @@ import { parseDelimited, readLine, readTables, type ReadTables, type Tables } fr
 import { workedOutEdits } from '../../domain/workedOut';
 import { useMark } from '../../telemetry/react';
 import { Sheet as SheetBox, WarnMark } from '../../ui/bits';
-import { Answered as AnsweredLine, IssueGroup as SharedGroup } from '../../ui/IssueGroup';
 import type { Snapshot } from '../../domain/types';
 import { isNewIn, useImportPlan } from './importPlan';
 import { stopCheck } from './checkRun';
@@ -25,6 +24,11 @@ import { importStore } from './importStore';
 import { Reading, TooManyChanges, useReadingDue } from './Large';
 import { baseName, leftRowsOf, rowsSheets, type RowProblem } from './rowsFile';
 import './import.css';
+
+/* The group block is shared with set-up (src/ui/IssueGroup) and loaded with the first group, so Import's own entry in
+   the first download doesn't grow (the bundle budget). */
+const SharedGroup = lazy(() => import('../../ui/IssueGroup').then((m) => ({ default: m.IssueGroup })));
+const AnsweredLine = lazy(() => import('../../ui/IssueGroup').then((m) => ({ default: m.Answered })));
 
 const SHEETS: Sheet[] = ['Goals', 'Plan', 'Check-ins', 'People'];
 const KEY: Record<Sheet, keyof Tables> = { Goals: 'goals', Plan: 'plan', 'Check-ins': 'checkIns', People: 'people' };
@@ -285,7 +289,7 @@ const focusOn = (then: string) => requestAnimationFrame(() => {
 /** A question answered: what was asked and the answer, with Change. */
 function Answered({ id }: { id: string }) {
   const said = importStore.get().said[id]!;
-  return <AnsweredLine id={id} title={said.title} label={said.label} onChange={() => importStore.answer(id, null)} />;
+  return <Suspense fallback={null}><AnsweredLine id={id} title={said.title} label={said.label} onChange={() => importStore.answer(id, null)} /></Suspense>;
 }
 
 /** The cell an answer reads as: a team's name, a person's email (or name), a goal's key. */
@@ -300,8 +304,8 @@ function valueOf(s: Snapshot, kind: 'team' | 'person' | 'goal', id: string): str
 function GroupBlock({ g, cs, prior }: { g: IssueGroup; cs: ChangeSet; prior?: Answer }) {
   const app = useApp();
   return (
-    <SharedGroup g={g} rows={cs.issues.filter((i) => i.group === g.id)} prior={prior} valueOf={(kind, id) => valueOf(app.snapshot, kind, id)}
-      onAnswer={(x) => { importStore.answer(g.id, x.answer, { title: x.title, label: x.label, level: x.level }); focusOn(`[id="answered-${g.id}"]`); }} />
+    <Suspense fallback={null}><SharedGroup g={g} rows={cs.issues.filter((i) => i.group === g.id)} prior={prior} valueOf={(kind, id) => valueOf(app.snapshot, kind, id)}
+      onAnswer={(x) => { importStore.answer(g.id, x.answer, { title: x.title, label: x.label, level: x.level }); focusOn(`[id="answered-${g.id}"]`); }} /></Suspense>
   );
 }
 

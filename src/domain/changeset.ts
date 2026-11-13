@@ -989,23 +989,14 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     }
     // A new goal's stages already due (C4; onboarding rule 3, in bulk): done, not done, or counted from this week.
     let doneIds: string[] = [];
-    // At set-up (create mode, IM8) the same question is asked with its own two answers, "Count them from this week" first
-    // (set-up chooses it unless changed); a goal with check-ins in the file keeps its weeks, as they happened.
-    if (!existing && d.kind === 'milestone' && create && !reported(r)) {
-      const past = d.stages.filter((st) => { const w = parseNumber(st.dueWeek); return w != null && w < week; });
-      const a = past.length ? ask('past-stage', 'Goals', row, d.title, `${plural(past.length, 'stage')} of “${d.title}” ${past.length === 1 ? 'is' : 'are'} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(', ')}, so it would start late.`, { column: 'Stages', answers: ANSWERS.pastStageSetUp }) : null;
-      if (a === 'leave') return;
-      if (a?.choice === 'from-now') {
-        const moved = stagesFromNow(d.stages.map((st) => `${st.name}@${st.dueWeek}`).join('; '), week, cycle.weeks).split(';').map((x) => x.trim());
-        d.stages = d.stages.map((st, k) => ({ ...st, dueWeek: /@\s*(\d+)$/.exec(moved[k] ?? '')?.[1] ?? st.dueWeek }));
-      }
-    }
-    if (!existing && !create && d.kind === 'milestone') {
+    // At set-up (create mode, IM8) it is asked with its own two answers, "Count them from this week" first (set-up chooses
+    // it unless changed); there a goal with check-ins in the file keeps its weeks, as they happened.
+    if (!existing && d.kind === 'milestone' && !(create && reported(r))) {
       const past = d.stages.filter((st) => { const w = parseNumber(st.dueWeek); return w != null && w < week; });
       if (past.length) {
         // Saying they're done is a check-in, so the owner's (R1): from anyone else it's asked, and said, but not recorded.
-        const marks = mayPostCheckIn({ id: actor.id, admin: admin() }, { ownerId: d.ownerId }, via) ? '' : ' ' + MARKS_STAGES(people.get(d.ownerId)?.name ?? 'Its owner');
-        const a = ask('past-stage', 'Goals', row, d.title, `${plural(past.length, 'stage')} of “${d.title}” ${past.length === 1 ? 'is' : 'are'} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(', ')}. ${past.length === 1 ? 'Is it' : 'Are they'} done?${marks}`, { column: 'Stages', answers: ANSWERS.pastStage });
+        const marks = create || mayPostCheckIn({ id: actor.id, admin: admin() }, { ownerId: d.ownerId }, via) ? '' : ' ' + MARKS_STAGES(people.get(d.ownerId)?.name ?? 'Its owner');
+        const a = ask('past-stage', 'Goals', row, d.title, `${plural(past.length, 'stage')} of “${d.title}” ${past.length === 1 ? 'is' : 'are'} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(', ')}${create ? ', so it would start late.' : `. ${past.length === 1 ? 'Is it' : 'Are they'} done?${marks}`}`, { column: 'Stages', answers: create ? ANSWERS.pastStageSetUp : ANSWERS.pastStage });
         if (a === 'leave') return;
         if (a?.choice === 'done' && !marks) doneIds = past.map((st) => st.id);
         if (a?.choice === 'from-now') {

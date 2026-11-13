@@ -11055,37 +11055,19 @@ function* planChangesInChunks(input) {
 			d.stages = stages;
 		}
 		let doneIds = [];
-		if (!existing && d.kind === "milestone" && create && !reported(r)) {
-			const past = d.stages.filter((st) => {
-				const w = parseNumber(st.dueWeek);
-				return w != null && w < week;
-			});
-			const a = past.length ? ask("past-stage", "Goals", row, d.title, `${plural$2(past.length, "stage")} of “${d.title}” ${past.length === 1 ? "is" : "are"} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(", ")}, so it would start late.`, {
-				column: "Stages",
-				answers: ANSWERS.pastStageSetUp
-			}) : null;
-			if (a === "leave") return;
-			if (a?.choice === "from-now") {
-				const moved = stagesFromNow(d.stages.map((st) => `${st.name}@${st.dueWeek}`).join("; "), week, cycle.weeks).split(";").map((x) => x.trim());
-				d.stages = d.stages.map((st, k) => ({
-					...st,
-					dueWeek: /@\s*(\d+)$/.exec(moved[k] ?? "")?.[1] ?? st.dueWeek
-				}));
-			}
-		}
-		if (!existing && !create && d.kind === "milestone") {
+		if (!existing && d.kind === "milestone" && !(create && reported(r))) {
 			const past = d.stages.filter((st) => {
 				const w = parseNumber(st.dueWeek);
 				return w != null && w < week;
 			});
 			if (past.length) {
-				const marks = mayPostCheckIn({
+				const marks = create || mayPostCheckIn({
 					id: actor.id,
 					admin: admin()
 				}, { ownerId: d.ownerId }, via) ? "" : " " + MARKS_STAGES(people.get(d.ownerId)?.name ?? "Its owner");
-				const a = ask("past-stage", "Goals", row, d.title, `${plural$2(past.length, "stage")} of “${d.title}” ${past.length === 1 ? "is" : "are"} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(", ")}. ${past.length === 1 ? "Is it" : "Are they"} done?${marks}`, {
+				const a = ask("past-stage", "Goals", row, d.title, `${plural$2(past.length, "stage")} of “${d.title}” ${past.length === 1 ? "is" : "are"} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(", ")}${create ? ", so it would start late." : `. ${past.length === 1 ? "Is it" : "Are they"} done?${marks}`}`, {
 					column: "Stages",
-					answers: ANSWERS.pastStage
+					answers: create ? ANSWERS.pastStageSetUp : ANSWERS.pastStage
 				});
 				if (a === "leave") return;
 				if (a?.choice === "done" && !marks) doneIds = past.map((st) => st.id);
@@ -18677,10 +18659,9 @@ var WHATS_NEW = [
 		date: "2026-11-13",
 		title: "Set-up checks a spreadsheet as Import does",
 		points: [
-			"Setting up from a spreadsheet now ends on the same preview as Import: how many goals and people it adds, what must be fixed, and its questions with their answers.",
-			"A goal owned by someone nobody typed offers “Add {name}”, who joins your people with the row’s team, or “Give it to someone here”.",
-			"Stages already due are asked about, answered “Count them from this week” for you; Change it to keep the weeks as typed.",
-			"Nothing is created until every question is answered."
+			"A spreadsheet given at set-up ends on Import’s preview: what it adds, what must be fixed, and its questions.",
+			"An owner nobody typed: “Add {name}”, or “Give it to someone here”.",
+			"Stages already due count from this week unless you change it."
 		],
 		articles: ["set-up", "import"]
 	},

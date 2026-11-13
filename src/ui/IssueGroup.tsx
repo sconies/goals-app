@@ -6,7 +6,6 @@ import type { Answer, Choice, Issue, IssueGroup as Group } from '../domain/probl
 import { PAGE } from '../domain/importLimits';
 import { WarnMark } from './bits';
 import { PickOne, type PickSource } from './Pick';
-import './issueGroup.css';
 
 const n = (k: number, one: string, many = one + 's') => `${k.toLocaleString('en-GB')} ${k === 1 ? one : many}`;
 const rowKey = (x: { sheet: string; row: number }) => `${x.sheet}:${x.row}`;

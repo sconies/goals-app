@@ -27,10 +27,9 @@ export const WHATS_NEW: NewsEntry[] = [
     date: '2026-11-13',
     title: 'Set-up checks a spreadsheet as Import does',
     points: [
-      'Setting up from a spreadsheet now ends on the same preview as Import: how many goals and people it adds, what must be fixed, and its questions with their answers.',
-      'A goal owned by someone nobody typed offers “Add {name}”, who joins your people with the row’s team, or “Give it to someone here”.',
-      'Stages already due are asked about, answered “Count them from this week” for you; Change it to keep the weeks as typed.',
-      'Nothing is created until every question is answered.',
+      'A spreadsheet given at set-up ends on Import’s preview: what it adds, what must be fixed, and its questions.',
+      'An owner nobody typed: “Add {name}”, or “Give it to someone here”.',
+      'Stages already due count from this week unless you change it.',
     ],
     articles: ['set-up', 'import'],
   },
