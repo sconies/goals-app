@@ -381,6 +381,7 @@ const CORE_TOOLS: ToolDef[] = [
       back_on_plan_by_week: int('With a plan: the week it is back on plan by.'),
       needs: str('A decision or help needed, and from whom.'),
       next_step: str('The next step.'),
+      reason: str(`If the week already has a check-in, this corrects it: why, in a sentence (${MIN_CORRECT_REASON} to 500 characters), kept as “Why corrected”.`),
       answers: ANSWERS_ARG,
       dry_run: DRY,
     } },
@@ -388,7 +389,7 @@ const CORE_TOOLS: ToolDef[] = [
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
       const r = row({ ...a, goal_id: g.id, week: a.week ?? ctx.week, call: a.call == null || a.call === '' ? undefined : statusIn(a.call, CALLS) }, { goal_id: 'goal id', week: 'week', value: 'value', stages: 'stages', call: 'call', cause: 'cause', why: 'why', why_greener: 'why greener', path_to_green: 'path to green', recovery: 'recovery', back_on_plan_by_week: 'back on plan by week', needs: 'needs', next_step: 'next step' });
-      return change(ctx, { checkIns: [r] }, { dry: !!a.dry_run, answers: a.answers });
+      return change(ctx, { checkIns: [r] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, answers: a.answers });
     },
   },
   {

@@ -543,7 +543,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
           })()}
           {valueOk && (goal.kind !== 'milestone' || draft.stages.length > 0) && (
             <>
-              {goal.kind !== 'milestone' && <Verdict goal={goal} e={e} />}
+              {goal.kind !== 'milestone' && <Verdict goal={goal} e={e} same={correcting && !!existing && draft.value.trim() === draftFrom(existing).value} />}
               <div className="callline">
                 <span className="muted">Status</span><Chip k={e.status} />
                 <span className="muted">{e.status === e.calc ? 'from the numbers' : 'your call'}</span>
@@ -765,7 +765,8 @@ function GoalHead({ goal, previous, teamLine, compact, steps }: { goal: Goal; pr
 }
 
 /** What the number means, the moment it's typed: one sentence and a chart. */
-function Verdict({ goal, e }: { goal: Goal; e: Evaluation }) {
+/** `same`: a correction still showing the number it started from (the walkthrough waits for one typed). */
+function Verdict({ goal, e, same = false }: { goal: Goal; e: Evaluation; same?: boolean }) {
   const app = useApp();
   const a = e.assessment;
   const gap = gapText(goal, a);
@@ -783,7 +784,7 @@ function Verdict({ goal, e }: { goal: Goal; e: Evaluation }) {
   } else if (a.kind === 'range' && goal.kind === 'range') line = `${gap.long}. The limit is ${targetText(goal)}.`;
   const hasChart = a.kind !== 'milestone';
   return (
-    <div className="verdict" data-tone={gap.tone} role="status">
+    <div className="verdict" data-tone={gap.tone} data-same={same || undefined} role="status">
       <div className="verdict-head">
         <span className={'tone-' + gap.tone}>{title}</span>
         {hasChart && <button type="button" className="linkish tap small" aria-expanded={chart} onClick={() => setChart(!chart)}>{chart ? 'Hide chart' : 'Show chart'}</button>}

@@ -2421,10 +2421,12 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   const dialog = p.getByRole('dialog', { name: 'Review your changes' });
   await see(dialog, 'Oskar Lindgren', 'the review does not show the person change');
   h.set('errors', !(await dialog.getByText('fixing first').isVisible().catch(() => false)), 'the review found problems with the edits');
+  // Changing a week's check-in corrects it, as the check-in screen does: the review asks why first (#225's review, medium 6).
+  await h.fill(dialog.getByLabel('Why are you correcting this check-in?'), 'The note named the wrong week');
   await h.click(dialog.getByRole('button', { name: /^Save 2 changes/ }));
   await see(p, 'Saved 2 changes', 'saving the tables did not confirm');
   const s = await h.snapshot();
-  h.set('logged', s.people.find((x) => x.id === 'oskar')?.role === 'Staff engineer, DevEx' && s.changes.some((c) => c.entity === 'check-in' && c.actorId === 'grace' && c.diffs.some((d) => d.field === 'Via' && d.to === 'Data tables')), 'the person or the check-in correction was not saved and logged');
+  h.set('logged', s.people.find((x) => x.id === 'oskar')?.role === 'Staff engineer, DevEx' && s.changes.some((c) => c.entity === 'check-in' && c.actorId === 'grace' && c.diffs.some((d) => d.field === 'Via' && d.to === 'Data tables') && c.diffs.some((d) => d.field === 'Why corrected' && d.to === 'The note named the wrong week')), 'the person or the check-in correction was not saved and logged');
   // Someone who isn't an admin can look but not change anything.
   const m = await newPage(device, 'rhea');
   await m.goto(url('/data'));

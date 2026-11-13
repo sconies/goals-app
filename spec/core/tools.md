@@ -652,6 +652,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `back_on_plan_by_week` | integer | no | With a plan: the week it is back on plan by. |
 | `needs` | string | no | A decision or help needed, and from whom. |
 | `next_step` | string | no | The next step. |
+| `reason` | string | no | If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”. |
 | `answers` | object | no | Answers to the questions (Check) a dry run asked, by the group id it gave: {"<id>": "<choice>"} or {"<id>": {"choice": "choose", "value": "Platform"}}. One answer covers every row in its group. Ask the person; never answer for them. |
 | `dry_run` | boolean | no | Check the change without saving it. Use it to see what would change, or what is missing. |
 
@@ -732,6 +733,10 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
     "next_step": {
       "type": "string",
       "description": "The next step."
+    },
+    "reason": {
+      "type": "string",
+      "description": "If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”."
     },
     "answers": {
       "type": "object",

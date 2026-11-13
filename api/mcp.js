@@ -25392,6 +25392,7 @@ var CORE_TOOLS = [
 				back_on_plan_by_week: int("With a plan: the week it is back on plan by."),
 				needs: str("A decision or help needed, and from whom."),
 				next_step: str("The next step."),
+				reason: str(`If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”.`),
 				answers: ANSWERS_ARG,
 				dry_run: DRY
 			}
@@ -25425,6 +25426,7 @@ var CORE_TOOLS = [
 				next_step: "next step"
 			})] }, {
 				dry: !!a.dry_run,
+				reason: a.reason,
 				answers: a.answers
 			});
 		}
