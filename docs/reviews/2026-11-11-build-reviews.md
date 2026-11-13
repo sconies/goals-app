@@ -138,6 +138,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #317 Import and Export: the four mediums on #257 and #248 | 3 | 0 | 0 | 0 |
 | #331 #300 review: a range between weighs both limits | 2 | 0 | 0 | 0 |
 | #327 Migration 0044: history paging indexes | 4 | 0 | 0 | 0 |
+| #336 IM8: set-up shows the import's preview | 3 | 0 | 7 | 4 |
 | #335 #323 and #229 review mediums | 4 | 0 | 0 | 0 |
 | #340 MT1 review: the two mediums from #281 | metrics | 0 | 0 | 0 |
 | #313 FS1 review: three mediums from #111 | 1 | 0 | 0 | 0 |
@@ -1482,3 +1483,27 @@ Fixes both and five of the lows. The `saveMetric` action itself asks rule 1's Ch
 ### #337 KT13: the store contract as data; #339, #333 and #345 handover and round 4 design
 
 The store contract's cases moved to data, run on all three stores and by the drill; skimmed. The rest are documents and design notes. Not reviewed.
+
+### #336 IM8: set-up from a spreadsheet shows the same preview as Import (track 3, merged 03:05 UTC, 13 Nov)
+
+Read first by a reviewing session on the browser store at 1440 and 390, with a before-and-after probe of `pickPerson`; I re-read the team rule and set-up's People reader on main at `241d8a06`. No high finding: in every file run, what the preview said is what the new workspace held (the demo's export: 126 goals, 98 people, 15 teams, 5,249 check-ins), no goal row was dropped without a word, Create is blocked by click, double click and Enter while a question is open, a new file clears the old answers, and whoever sets up is the admin whatever the People sheet says. Set-up and Import share the engine and one `IssueGroup`.
+
+**1. Medium (ran, before and after). An Import regression: after answering the only or last open question, focus falls to the page.** `Answered` is now a second lazy piece, so its first render suspends and the one-frame focus finds nothing (`src/modules/spreadsheets/Check.tsx:284-292`). Before this PR focus went to the answered line.
+
+**2. Medium (ran). Set-up never moves focus after an answer;** it is on `body` every time (`src/screens/Onboarding.tsx:516-520` has no focus step).
+
+**3. Medium (ran). "Choose a goal" for a check-in row is a dead end at set-up:** the finder is given the people search and says "Couldn't search just now. Try again", so that Must fix can only be cleared by uploading again (`Onboarding.tsx:514-515`).
+
+**4. Medium (ran; unchanged by this PR). A near-miss team is still not a question at set-up:** "Depot" beside "Depots" makes a second team (`src/domain/changeset.ts`, `if (create) return addTeam`). Owner and Type near misses are asked.
+
+**5. Medium (ran: 754 owner, owner email and owner ID combinations, old engine against new). `pickPerson`'s result changed, for Import too, in a commit described as reading each cell once.** With no answer, "use" or "leave", all agree. For "Choose…", 172 differ: where the row's other person cells disagreed, or its Owner ID was bad, the old engine kept a Must fix and the new one saves the row to the person chosen; and one answer covers every row in its group. Fix: keep those as Must fix, or state the rule in the spec and What's new with a test.
+
+**6. Medium (ran; older). Set-up ignores the People sheet's Action column,** so the template's Example person ("Ana Silva", team "Platform") is added as real, and someone marked Left is added active and owns a goal (`peopleFromRecords`). Preview and workspace agree, so not high.
+
+**7. Medium (ran). If the preview's lazy chunk fails to load, set-up goes blank,** with an uncaught error and no way to try again (`Onboarding.tsx:84, 511`: no error boundary). The draft survives a reload.
+
+**Lows.**
+- The count line leaves out goals waiting on a Check, against the guide's "a goal still to fix counted too".
+- Set-up uses none of IM6's worker or limits and rebuilds the plan on every render: 1.3 s per render at 6,000 rows, 4.7 s at 30,000.
+- A people-only file uploaded after a goals file drops the goals without a word (older).
+- Wording: "Settle the 5 questions" when all five are Must fix; "1 past check-ins"; skipped Example goal rows not mentioned; a person added by an answer stays after the file is replaced; Import's "Change" is 32 px high on a computer (44 before).
