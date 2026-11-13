@@ -1465,7 +1465,7 @@ From the [metrics](../modules/metrics/README.md) module.
 
 **Does:** Add a metric to the library; change or remove a metric.
 
-**Input**:
+**Input** (`SaveMetricInput`):
 
 | Field | Type | Needed | What it is |
 |---|---|---|---|
@@ -1481,17 +1481,20 @@ From the [metrics](../modules/metrics/README.md) module.
 | `caveats` | `string` | no | What to watch out for when reading it (a known gap, a change of method). |
 | `id` | `string` | no |  |
 | `confirm` | `boolean` | no |  |
+| `answers` | `Partial<Record<CheckField, string>>` | no |  |
 
 **Result:** `{ commit: Commit \| null; metric: Metric; }`
 
 **Who may:** Anyone; they own it unless they name another owner (to add a metric to the library); Its owner, or an admin (to change or remove a metric).
 
-**The rule:** `saveMetric`, in `src/modules/metrics/rules.ts`.
+**The rule:** `saveMetricAsked`, in `src/modules/metrics/rulesSave.ts`.
 
 **Refuses with:**
 
+- “Nothing saved: use that metric instead.”
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
 - “Only … or an admin can change this metric.”
+- “Answer … first: …”
 
 **AI tools that do the same:** [`save_metric`](tools.md#save_metric)
 
@@ -1576,7 +1579,7 @@ From the [metrics](../modules/metrics/README.md) module.
 
 ## The types the actions name
 
-Each type an action’s input or result names that isn’t a record in [the data model](data-model.md), as the code declares it (with its comments), in A to Z order. 37 types.
+Each type an action’s input or result names that isn’t a record in [the data model](data-model.md), as the code declares it (with its comments), in A to Z order. 39 types.
 
 ### Answers
 
@@ -1630,6 +1633,14 @@ export interface ChangeSet {
   /** Create mode: everything the new workspace starts with (set-up reads it). */
   created?: Pick<Snapshot, 'people' | 'teams' | 'goals' | 'checkIns' | 'requests' | 'keysIssued'>;
 }
+```
+
+### CheckField
+
+In `src/modules/metrics/rulesDefine.ts`.
+
+```ts
+export type CheckField = 'name' | 'unit' | 'meaning';
 ```
 
 ### CheckId
@@ -2034,6 +2045,14 @@ export interface SaveGoalInput {
       changed keeps its state: it is made active by domain/proposed activate, never by a save. */
   state?: 'active' | 'proposed';
 }
+```
+
+### SaveMetricInput
+
+In `src/modules/metrics/rulesSave.ts`.
+
+```ts
+export type SaveMetricInput = MetricInput & { id?: string; confirm?: boolean; answers?: Partial<Record<CheckField, string>> };
 ```
 
 ### Sheet

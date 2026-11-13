@@ -385,6 +385,11 @@ export function importCases(w: ConformanceWorkspace): ImportCase[] {
     { case: 'two-columns', actor: 'amara', sheet: 'goals', rows: [fresh({ 'Goal name': 'Another name' })] },
     { case: 'date-as-week', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-14', Week: '2026-11-04', Value: '6' }] },
     { case: 'left-alone', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-14', Target: '1' }], given: { stopped: ['G-14'] } },
+    // Set-up's upload through the preview (IM8): an owner the People sheet lacks offers "Add {name}"; a new goal's stages
+    // already due are asked with "Count them from this week" first, and answered so they move.
+    { case: 'unknown-owner-setup', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'Night shift rota', 'Owner email': 'nia@example.com', Owner: 'Nia Okoro', Team: 'CI/CD', Unit: '%', Start: '10', Target: '50' }], given: { mode: 'create', sheets: { people: [{ Name: 'Ines Novak', Email: 'ines@example.com', Team: 'CI/CD' }] } } },
+    { case: 'past-stage-setup', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'Rota agreed', 'Owner email': 'ines@example.com', Team: 'CI/CD', Type: 'milestone', Stages: 'Draft@2; Agreed@6; Live@50' }], given: { mode: 'create', sheets: { people: [{ Name: 'Ines Novak', Email: 'ines@example.com', Team: 'CI/CD' }] } } },
+    { case: 'past-stage-setup-answered', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'Rota agreed', 'Owner email': 'ines@example.com', Team: 'CI/CD', Type: 'milestone', Stages: 'Draft@2; Agreed@6; Live@50' }], given: { mode: 'create', sheets: { people: [{ Name: 'Ines Novak', Email: 'ines@example.com', Team: 'CI/CD' }] } }, answers: { 'past-stage:goals:stages:': 'from-now' } },
     { case: 'as-recorded', actor: 'amara', sheet: 'checkIns', rows: [{ Goal: 'Cache hit rate', Week: '20', Value: '12', Call: 'On track' }], given: { mode: 'create', sheets: { goals: [{ Goal: 'Cache hit rate', 'Owner email': 'ines@example.com', Team: 'CI/CD', Unit: '%', Start: '10', Target: '50', 'Plan from week': '1', 'Due week': '40' }], people: [{ Name: 'Ines Novak', Email: 'ines@example.com', Team: 'CI/CD' }] } } },
   ];
 }

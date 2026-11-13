@@ -162,6 +162,7 @@ describe('rule 14: proposed goals', () => {
     expect(rb.after).toEqual([
       'It is listed as Proposed, apart from the goals that are under way: it is in no count, no review’s agenda and nobody’s check-ins.',
       'Its plan is kept as you typed it. When it is made active, the plan starts from that week unless they say otherwise.',
+      'Amara sees it on their Home as a proposal for them. Faro doesn’t send email.',
     ]);
   });
 

@@ -1046,13 +1046,16 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   await h.click(p.getByRole('button', { name: 'Next' }));
   await h.click(p.getByRole('radio', { name: /Goals from your spreadsheet/ }));
   await h.click(p.getByRole('button', { name: 'Next' }));
-  // U4: stages due before the joining week are counted from it, said on Check, with the way to keep them as typed.
-  await see(p, '“Canary releases live” had stages due before it', 'Check doesn’t say the late stages were moved');
-  await h.click(p.getByRole('button', { name: 'Keep the weeks as typed' }));
-  await see(p, 'Kept as typed');
-  await h.click(p.getByRole('button', { name: 'Count them from this week' }));
-  await see(p, 'Counted from this week, week 45');
-  h.set('attention', await p.locator('.setup-stage-weeks').isVisible(), 'Check doesn’t show the stages it moved');
+  // U4, through the import's preview (IM8): stages due before the joining week are asked about, counted from it unless
+  // changed, and "Keep the weeks as typed" is one Change away.
+  const asked = p.locator('.import-answered').filter({ hasText: 'stages due before this week, so it would start late: Count them from this week' });
+  await asked.waitFor({ timeout: 5000 }).catch(() => fail('Check doesn’t say the late stages are counted from this week'));
+  await h.click(asked.getByRole('button', { name: 'Change' }));
+  await h.click(p.getByRole('radio', { name: 'Keep the weeks as typed' }));
+  await see(p, 'would start late: Keep the weeks as typed');
+  await h.click(p.locator('.import-answered').getByRole('button', { name: 'Change' }));
+  await h.click(p.getByRole('radio', { name: 'Count them from this week' }));
+  h.set('attention', await asked.isVisible(), 'Check doesn’t show the stages it moved');
   await h.checkpoint('check');
   await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await see(p, 'Field Operations is ready');
@@ -1103,6 +1106,58 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   await other.close();
   await p.context().close();
 }, ['budget']);
+
+journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first import (U92’s second half): at /?store=browser, set-up with a spreadsheet whose goals name an owner nobody typed ends on the import’s preview, not a dead end: Must fix offers “Add {name}” and “Give it to someone here”, the stage question is already answered “Count them from this week” and can be changed, Create waits for the answers, and nothing is saved before it; afterwards the person added owns their goal and no stage is due before this week', 18, async (h, device) => {
+  const p = h.use(await newPage(device, 'grace'));
+  await p.goto(live('/workspace/new'));
+  await p.locator('.steps').first().waitFor();
+  await h.progressShown('set up');
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Depot Network');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.fill(p.getByLabel('Your name'), 'Ana Silva');
+  await h.fill(p.getByLabel('Your team'), 'Depots');
+  await h.fill(p.getByLabel('Your email'), 'ana.silva@example.com');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.fill(p.getByLabel('Person 1: name'), 'Ben Carter');
+  await h.fill(p.getByLabel('Person 1: email'), 'ben.carter@example.com');
+  await h.inView(p.getByRole('button', { name: 'Upload a spreadsheet' }), 'entry', 'Upload a spreadsheet');
+  // A goals sheet only: its second goal's owner is on no one's list, and its stages began in week 2.
+  const csv = ['Goal,Team,Owner email,Owner,Type,Unit,Start,Target,Stages',
+    'Parcels on time,Depots,ben.carter@example.com,Ben Carter,metric,%,91,97,',
+    'Night shift rota,Depots,nia.okoro@example.com,Nia Okoro,milestone,,,,Draft@2; Agreed@6; Live@50'].join('\n');
+  await p.locator('input[type=file]').first().setInputFiles({ name: 'depots.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await see(p, 'Read depots.csv', 'the upload is not said');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('radio', { name: /Goals from your spreadsheet/ }));
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'From depots.csv', 'Check does not show the spreadsheet’s preview');
+  await see(p, '2 goals and 2 people would be added, once the goal below is settled', 'the preview’s count leaves the goal to fix out');
+  await h.checkpoint('preview');
+  // The preview's Must fix: Nia isn't here; two answers, "Add Nia Okoro" first.
+  const fix = p.locator('.import-group.level-fix').filter({ hasText: 'nia.okoro@example.com' });
+  const answers = await fix.locator('.import-answer').allInnerTexts();
+  h.set('errors', answers.join(' | ') === 'Add Nia Okoro | Give it to someone here', 'the owner nobody typed is answered with: ' + (answers.join(' | ') || 'nothing'));
+  // Create waits for the answer, and says why; nothing is saved.
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
+  h.set('one-action', await p.getByRole('alert').filter({ hasText: 'depots.csv' }).isVisible(), 'Create with a question open does not say why it waits');
+  if (await p.evaluate(() => localStorage.getItem('goals-live-workspace'))) fail('a workspace was saved before Create workspace');
+  await h.click(fix.getByRole('radio', { name: 'Add Nia Okoro' }));
+  await see(p, '2 goals and 3 people would be added', 'adding Nia does not count her');
+  // Her goal's stages, asked once its owner is settled: answered for you, "Count them from this week", with Change.
+  const stages = p.locator('.import-answered').filter({ hasText: 'would start late: Count them from this week' });
+  h.set('attention', await stages.waitFor({ timeout: 5000 }).then(() => true, () => false), 'the stage question is not answered “Count them from this week”');
+  await h.checkpoint('answered');
+  (await designProblems(p)).forEach((x) => fail('set-up’s preview breaks a design rule: ' + x));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
+  await p.waitForURL(/\/ready/);
+  const wsId = await p.evaluate(() => localStorage.getItem('goals-live-workspace'));
+  const s = await h.snapshot(wsId);
+  const rota = s && s.goals.find((g) => g.title === 'Night shift rota');
+  const nia = s && s.people.find((x) => x.email === 'nia.okoro@example.com');
+  h.set('finish', !!rota && !!nia && rota.ownerId === nia.id && nia.teamId === s.teams.find((t) => t.name === 'Depots')?.id, 'Nia does not own the rota in Depots');
+  h.set('logged', !!rota && rota.stages.every((x) => x.dueWeek > NOW), 'a stage starts already due: ' + JSON.stringify(rota?.stages.map((x) => x.dueWeek)));
+  await p.context().close();
+});
 
 journey('U12', ['DEMO-MODE'], 'Demo: switch person, look around, start over', 4, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
@@ -3369,7 +3424,7 @@ journey('U72', ['NAV-FORMS'], 'One way out of a form: each focus-mode page has o
   const p = h.use(await newPage(device, 'rhea'));
   const wrong = [];
   const closers = () => p.locator('.focus-top').first().locator('button, a').filter({ hasText: /^Close|^Cancel/ }).or(p.locator('.focus-top').first().locator('.iconbtn[aria-label^="Close"]'));
-  for (const [addr, want] of [['/check-in/ci-docker', 'Close and keep the draft'], ['/reviews/new', 'Close without saving'], ['/reviews/weekly/edit', 'Close without saving'], ['/workspace/new', 'Close and keep the draft'], ['/goals/new', 'Close and keep the draft'], ['/goals/ci-docker/edit', 'Close and keep the draft'], ['/quick-check-in', 'Close and keep the draft']]) {
+  for (const [addr, want] of [['/check-in/ci-docker', 'Close and keep the draft'], ['/reviews/new', 'Close without saving'], ['/reviews/weekly/edit', 'Close without saving'], ['/workspace/new', 'Close and keep the draft'], ['/goals/new', 'Close and keep the draft'], ['/goals/ci-docker/edit', 'Close and keep the draft'], ['/quick-check-in', 'Close and keep the draft'], ['/data/import', 'Close without saving']]) {
     await p.goto(url(addr));
     await p.locator('.focus-top').first().waitFor({ timeout: 8000 }).catch(() => {});
     const n = await closers().count();
@@ -5459,6 +5514,14 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
   await p.goto(on('/goals/' + id, '2026-11-25'));
   await page.waitFor();
   h.set('finish', (await page.locator('.proposed-word').innerText()).trim() === 'Proposed', 'a fortnight later it no longer says Proposed');
+  // Nine weeks after it was proposed, Tunde's Home asks about it once, under Needs your response; Not yet puts it off.
+  const later = new Date(Date.parse(made.proposedAt) + 63 * 86_400_000).toISOString().slice(0, 10);
+  await p.goto(on('/', later));
+  const stale = p.locator('.needs-you [data-proposal="stale"]');
+  await stale.first().waitFor({ timeout: 5000 }).catch(() => fail('nine weeks on, Home has no row for the proposal'));
+  h.set('attention', /“Signed artifacts in staging” has been proposed for 9 weeks\. Make it active, or withdraw it\./.test(await stale.first().innerText()) && await stale.first().getByRole('link', { name: 'Open it' }).isVisible(), 'the stale proposal row reads: ' + (await stale.first().innerText()).replace(/\s+/g, ' '));
+  await stale.first().getByRole('button', { name: 'Not yet' }).click();
+  h.set('attention', (await stale.count()) === 0, '“Not yet” left the proposal row on Home');
   // As Oskar: comment, ask and watch, and who can make it active.
   await p.goto(on('/'));
   await viewAs(p, 'Oskar', h);

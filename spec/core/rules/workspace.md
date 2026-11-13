@@ -15,7 +15,7 @@ What Workspace says about each cycle and team, the longest name a workspace may 
 
 **Leaving.** Anyone may leave a workspace themselves. It is the same as an admin marking them as left (whoever takes over their goals and open asks is chosen first; they leave the reviews they were in), logged as "Name left the workspace". The only admin may not leave.
 
-**Set-up says only what it was told** (deep review U2–U7). People typed are never replaced by a spreadsheet uploaded after them: the file's people come after, anyone already there (the same email, or the same name where either has no email) isn't added twice, and only a typed row's empty fields take the file's (`mergePeople`); the upload says what it added and can be undone. A template's stage weeks count from the week the workspace joins (`stagesFromNow`); so do a spreadsheet's, for any goal with a stage due before that week and no check-ins in the file (`stagesFromJoining`), said on Check with "Keep the weeks as typed". A goal with check-ins in the file keeps its weeks. Set-up never asks who leads a team, so it names no lead; anything else that adds a team adds its first person as the lead. The invitation link names the workspace (`/join/<id>`; the old `/?workspace=<id>` leads there), and opening it opens that workspace and remembers it, whatever the browser had open. With no goals, nothing is said to be due.
+**Set-up says only what it was told** (deep review U2–U7). People typed are never replaced by a spreadsheet uploaded after them: the file's people come after, anyone already there (the same email, or the same name where either has no email) isn't added twice, and only a typed row's empty fields take the file's (`mergePeople`); the upload says what it added and can be undone. A template's stage weeks count from the week the workspace joins (`stagesFromNow`); so do a spreadsheet's, for any goal with a stage due before that week and no check-ins in the file: the import's preview asks (create mode's `past-stage`) and set-up answers "Count them from this week" unless changed to "Keep the weeks as typed" (`setupDefaults`, IM8). A goal with check-ins in the file keeps its weeks, unasked. An owner the People sheet lacks is a Must fix answered with "Add {name}" (`ownerToAdd`: the row's name, email and team join the people step) or "Give it to someone here". Set-up never asks who leads a team, so it names no lead; anything else that adds a team adds its first person as the lead. The invitation link names the workspace (`/join/<id>`; the old `/?workspace=<id>` leads there), and opening it opens that workspace and remembers it, whatever the browser had open. With no goals, nothing is said to be due.
 
 **What an admin has to sort out** (About's "To sort out", for admins only; a member is shown nothing), in this order: no goals in the running cycle; no review that hasn't ended; the only admin, once the workspace has 5 people or more; people with no email; people in no team; teams of 3 people or more with no lead (set-up never asks who leads a team, so a small new team isn't told off). About shows the first 3; the rest open from "and {k} more". The year ending is Home's to say, and feedback is the builders' business.
 
@@ -38,7 +38,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | One goal with two check-ins, in the only cycle. | `1 goal, 2 check-ins: it stays` |
 | A team led by Lee, who is in it, with Pat in it too. | `2 people` |
 | Theo Brandt (theo@) and Mina Okafor (no email) typed, then a file with THEO@, Mina Okafor (mina@) and Ana Silva uploaded. | `Theo Brandt theo@example.com; Mina Okafor mina@example.com; Ana Silva ana@example.com` |
-| A spreadsheet loaded at set-up in week 46 of 53: “Canary releases live” at Design@2; Pilot@6; All services@10, and “Later” at A@47; B@50. | `Canary releases live: Design@47; Pilot@50; All services@53 / Later: A@47; B@50` |
+| A spreadsheet loaded at set-up in week 46 of 53: “Canary releases live” at Design@2; Pilot@6; All services@10, and “Later” at A@47; B@50, both Ben’s; set-up gives its default answer. | `Canary releases live: Design@47; Pilot@50; All services@53 / Later: A@47; B@50` |
+| At set-up, a goal row owned by “nia.okoro@example.com” (Owner “Nia Okoro”, Team Depots) that nobody typed, answered “Add Nia Okoro”. | `Nia Okoro nia.okoro@example.com Depots` |
 | A workspace name of 83 characters. | `Keep the name to 80 characters or fewer: it has 83.` |
 | A workspace name of 62 characters, as it is typed. | `62 of 80 characters` |
 | Lee, the only admin, leaves. | `refused: You’re the only admin here: make someone else an admin before you leave.` |
@@ -61,12 +62,14 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - [src/domain/thresholds.ts](../../../src/domain/thresholds.ts): `nameProblem`, `nameLength`, `MAX_WORKSPACE_NAME`
 - [src/domain/workspaceAttention.ts](../../../src/domain/workspaceAttention.ts): `workspaceNeeds`, `workspaceName`, `adminsLine`, `yearLine`, `cycleLine`, `cycleWhen`, `NEEDS_SHOWN`, `ONLY_ADMIN_FROM`, `LEAD_FROM`
 - [src/domain/people.ts](../../../src/domain/people.ts): `mergePeople`
-- [src/domain/templates.ts](../../../src/domain/templates.ts): `stagesFromJoining`, `stagesFromNow`
+- [src/domain/templates.ts](../../../src/domain/templates.ts): `reportedIn`, `stagesFromNow`
+- [src/domain/importer.ts](../../../src/domain/importer.ts): `setupDefaults`, `SETUP_DEFAULTS`, `ownerToAdd`
 
 ## Requirements
 
 - `WORKSPACE-ONE-PLACE`: Workspace is one place (backlog WS). The sidebar's header (and a phone's top bar) is the workspace switcher: it names the open workspace (the example without its "Example: "), lists every workspace with its kind, says your role on the open one ("Open now"), and leads to About and to setting up a new workspace (not Home). Switching is navigation with a history entry, so Back returns to the workspace you came from; you land on the same kind of page or Home, never on the old workspace's goal; while the other loads the screen says "Opening <name>…"; part-way through a task with a draft it asks first and says the draft stays in its own workspace. The person menu is only about people. Your role shows: "Admin" beside your name where you are one, and Workspace says in one line whose workspace it is and your part in it. Cycles show their dates, which is running, their goals and check-ins, and their actions; a team counts its lead; a workspace name's 80-character limit is said while typing, never cut; no button clips its label.
 - `WORKSPACE-ABOUT`: Workspace opens on About (app redesign WR2). Under the title, one line: "{workspace} · you’re an admin here" or "… a member here". For admins only, "To sort out": no goals, no review, the only admin of five or more people, people with no email, people in no team, teams of three or more with no lead, each a sentence, why, and one button, at most three then "and {k} more"; nothing to sort out leaves it out. Then the facts, each leading to its section: name (and "example data" or "kept in this browser"), people and teams, the year and when its wrap-up opens, the admins (a member is told to ask one of them), which features are on, and recording. Nothing about another workspace: no set-up, demo or reset buttons. A member sees no control they can't use.
+- `SETUP-UPLOAD`: A spreadsheet given at set-up is checked before the read-back, not after it: every row that is wrong or doubtful is named with its row and its fix, counts never leave a wrong row out, the file's people join those typed, and nothing is saved until the workspace is created.
 
 ## Tests that check it
 
@@ -92,7 +95,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ### [src/domain/setupTruth.test.ts](../../../src/domain/setupTruth.test.ts)
 
-- set-up that tells the truth › counts an uploaded template’s stages from the joining week, so nothing is late on day one (U4)
+- set-up that tells the truth › counts an uploaded template’s stages from the joining week by default, so nothing is late on day one (U4, IM8)
 - set-up that tells the truth › keeps the stage weeks of an uploaded goal that has check-ins in the file: its history happened (U4)
 - set-up that tells the truth › adds an upload’s people after those already typed, never replacing them or adding anyone twice (U5)
 - set-up that tells the truth › offers the decimal places a refused number needs, and nothing for a number that fits (U3)
@@ -101,3 +104,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - set-up that tells the truth › stops set-up on a goal whose owner is one letter out, and says why
 - set-up that tells the truth › stops set-up on a goal whose type is one letter out, and says why
 - set-up that tells the truth › still builds a row it reads on past a question, and says the question beside it
+
+### [src/domain/setupUpload.test.ts](../../../src/domain/setupUpload.test.ts)
+
+- set-up’s upload through the preview (IM8) › asks about a new goal’s stages already due, with “Count them from this week” first; set-up chooses it unless changed
+- set-up’s upload through the preview (IM8) › keeps the weeks of a goal with check-ins in the file, unasked: its history happened
+- set-up’s upload through the preview (IM8) › offers “Add {person}” and “Give it to someone here” for an owner the People sheet lacks, and blocks set-up until answered
+- set-up’s upload through the preview (IM8) › names an owner given by name only as typed
