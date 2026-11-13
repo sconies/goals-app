@@ -28,7 +28,7 @@ Each action of [the command port](../core/actions.md), run once as the person na
 |---|---|---|---|---|
 | `planChanges` | rhea | saved | `checkIns` 5,249 of 5,249; `goals` 126 of 126; `modules.metrics.metricLinks` 1 of 12; `modules.metrics.metrics` 13 of 13; `people` 1 of 97, past the rest by `id`; `teams` 1 of 14, past the rest by `id` | `checkIns`, `goals`, `modules.metrics.metrics` |
 | `postCheckIn` | rhea | saved | `checkIns` 5,249 of 5,249; `goals` 126 of 126; `people` 0 of 97, past the rest by `id`; `requests` 41 of 41; `teams` 0 of 14, past the rest by `id` | `checkIns`, `goals`, `requests` |
-| `saveGoal` | rhea | saved | `checkIns` 5,249 of 5,249; `goals` 17 of 126, past the rest by `teamId`; `modules.metrics.metricLinks` 1 of 12; `modules.metrics.metrics` 13 of 13; `people` 1 of 97, past the rest by `id`; `teams` 1 of 14, past the rest by `id` | `checkIns`, `modules.metrics.metrics` |
+| `saveGoal` | rhea | saved | `checkIns` 5,249 of 5,249; `goals` 17 of 126, past the rest by `id`, `teamId`; `modules.metrics.metricLinks` 1 of 12; `modules.metrics.metrics` 13 of 13; `people` 1 of 97, past the rest by `id`; `teams` 1 of 14, past the rest by `id` | `checkIns`, `modules.metrics.metrics` |
 | `activate` | amara | refused: ““Lead time for changes” is already active.” | `goals` 1 of 126 | — |
 | `stopGoal` | rhea | saved | `checkIns` 1 of 5,249; `goals` 126 of 126; `requests` 41 of 41 | `goals`, `requests` |
 | `deleteGoal` | amara | saved | `checkIns` 0 of 5,249, past the rest by `goalId`; `goals` 126 of 126; `requests` 41 of 41 | `goals`, `requests` |

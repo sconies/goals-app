@@ -1555,7 +1555,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 ## get_my_work
 
-**What needs me.** What needs the person this week, as their Home shows it: their goals with a check-in due this week or that need attention (flagged for something new that nobody has picked up yet), those behind but already being handled, every open ask waiting on them (decisions or help, questions, asks for an update, actions, grouped by kind, overdue ones marked), and the reviews they’re in. Statuses are said as people see them, with the code: “Off track (off)”.
+**What needs me.** What needs the person this week, as their Home shows it: their goals with a check-in due this week or that need attention (flagged for something new that nobody has picked up yet), those behind but already being handled, every open ask waiting on them (decisions or help, questions, asks for an update, actions, grouped by kind, each in Home’s order with Home’s line for how long it has waited or when it is due, whether it is late, and who it was asked of when it came with a goal they now own), and the reviews they’re in. Statuses are said as people see them, with the code: “Off track (off)”.
 
 **Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
 
@@ -1629,13 +1629,15 @@ No arguments.
         why: string[];
     }[];
     requestsForYou: {
+        waiting: string;
+        late: boolean;
+        handedFrom: string | null;
         id: string;
         kind: AskKind;
         ask: string;
         status: AskStatus;
         statusLabel: string;
         dueWeek: number | null;
-        overdue: boolean;
         review: string | null;
         askedBy: string;
         askedOf: string;
@@ -1657,20 +1659,28 @@ No arguments.
         question: string;
         by: string;
         review: string | null;
+        waiting: string;
+        late: boolean;
+        handedFrom: string | null;
     }[];
     asksForAnUpdate: {
         id: string;
         goalId: string | undefined;
         by: string;
         at: string;
+        waiting: string;
+        late: boolean;
+        handedFrom: string | null;
     }[];
     yourActions: {
         id: string;
         goalId: string | undefined;
         action: string;
         dueWeek: number | null;
-        overdue: boolean;
+        waiting: string;
+        late: boolean;
         agreedBy: string;
+        handedFrom: string | null;
     }[];
     yourReviews: {
         id: string;

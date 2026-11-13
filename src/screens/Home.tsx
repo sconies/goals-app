@@ -131,9 +131,12 @@ function NeedsYou({ asks, also }: { asks: Waiting[]; also: boolean }) {
   const said = (w: Waiting) => {
     const who = w.by ? `${w.by} ${w.kind === 'action' ? 'agreed it' : 'asked'}` : 'You agreed it';
     // "Waiting since 28 Jul, 14 weeks" already says the day it was asked: it isn't said twice (F1, one line in the side column).
-    const since = w.line.startsWith('Waiting since');
+    // "Asked yesterday" says it too, so the day goes only with a due date's line (#310's lows).
+    const since = /^(Waiting since|Asked )/.test(w.line);
     const asked = `${who}${w.where ? ` in ${w.where}` : ''}${since ? '' : ` on ${dayText(w.askedOn).replace(/^\w+ /, '')}`}`;
-    return w.late ? `${w.line} · ${asked}.` : `${asked} · ${w.line}.`;
+    // The wait comes first, so a phone's one line, cut short, still says it (build review of #310).
+    // It came with a goal they now own (Lane, 13 Nov): who it was asked of.
+    return `${w.line} · ${asked}${w.was ? ` · Asked of ${w.was.split(' ')[0]}, now yours` : ''}.`;
   };
   return (
     <section className="block needs-you" data-part="Needs your response">

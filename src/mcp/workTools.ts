@@ -10,6 +10,7 @@ import { activityFilter, parseActivity } from '../domain/activity';
 import { attentionList, splitAttention } from '../domain/attention';
 import { cycleDates, cycleState, dayWithYear, wrapUpOpenOn } from '../domain/cycle';
 import { dashboard } from '../domain/home';
+import { homeAsks } from '../app/reads';
 import { ASK_STATUS, ATTENTION, choices, HANDLED_LINE, codeFrom, LABEL, lower, STATUS, withCode } from '../domain/vocabulary';
 import type { DisplayStatus } from '../domain/types';
 
@@ -127,7 +128,7 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'get_my_work',
     title: 'What needs me',
-    description: `What needs the person this week, as their Home shows it: their goals with a check-in due this week or that need attention (${ATTENTION.needs.meaning.replace(/\.$/, '').toLowerCase()}), those behind but already ${lower(ATTENTION.handled)}, every open ask waiting on them (decisions or help, questions, asks for an update, actions, grouped by kind, ${lower(ASK_STATUS.overdue)} ones marked), and the reviews they’re in. Statuses are said as people see them, with the code: “${said('off')}”.`,
+    description: `What needs the person this week, as their Home shows it: their goals with a check-in due this week or that need attention (${ATTENTION.needs.meaning.replace(/\.$/, '').toLowerCase()}), those behind but already ${lower(ATTENTION.handled)}, every open ask waiting on them (decisions or help, questions, asks for an update, actions, grouped by kind, each in Home’s order with Home’s line for how long it has waited or when it is due, whether it is late, and who it was asked of when it came with a goal they now own), and the reviews they’re in. Statuses are said as people see them, with the code: “${said('off')}”.`,
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: READ,
     async run(_a, ctx) {
@@ -140,12 +141,17 @@ export const WORK_TOOLS: ToolDef[] = [
       const attention = split.needs.map((a) => ({ id: a.goal.id, title: a.goal.title, status: a.status.status, statusLabel: LABEL[a.status.status], why: a.flags.map((f) => f.detail), because: a.flags.map((f) => withCode({ label: f.label, code: f.kind })) }));
       const handled = split.handled.map((a) => ({ id: a.goal.id, title: a.goal.title, status: a.status.status, statusLabel: LABEL[a.status.status], inHand: a.handled!.text, said: a.handled!.said || null, why: a.flags.map((f) => f.detail) }));
       // Every open ask waiting on them: one way to ask, so each kind is the same record with its own state.
-      const waiting = openForPerson(me, s).filter((r) => r.goalIds.some((id) => s.goals.some((g) => g.id === id))).map((r) => requestData(ctx, r));
+      // How long each has waited, when it is due and whether it is late are Home's (rule 3, one rule), in Home's order.
+      const home = homeAsks(me, s, ctx.cycle, ctx.week, ctx.today);
+      const at = new Map(home.map((w, i) => [w.askId, { i, w }]));
+      const waiting = openForPerson(me, s).filter((r) => at.has(r.id)).sort((a, b) => at.get(a.id)!.i - at.get(b.id)!.i)
+        .map((r) => { const w = at.get(r.id)!.w; const { overdue: _, ...d } = requestData(ctx, r); void _; return { ...d, waiting: w.line, late: w.late, handedFrom: w.was }; });
       const ofKind = (k: AskKind) => waiting.filter((r) => r.kind === k);
       const requests = ofKind('decision');
-      const questions = ofKind('question').map((r) => ({ id: r.id, goalId: r.goals[0]?.id, goal: r.goals[0]?.title, question: r.ask, by: r.askedBy, review: r.review }));
-      const asks = ofKind('update').map((r) => ({ id: r.id, goalId: r.goals[0]?.id, by: r.askedBy, at: r.raisedAt }));
-      const actions = ofKind('action').map((r) => ({ id: r.id, goalId: r.goals[0]?.id, action: r.ask, dueWeek: r.dueWeek, overdue: r.overdue, agreedBy: r.askedBy }));
+      const questions = ofKind('question').map((r) => ({ id: r.id, goalId: r.goals[0]?.id, goal: r.goals[0]?.title, question: r.ask, by: r.askedBy, review: r.review, waiting: r.waiting, late: r.late, handedFrom: r.handedFrom }));
+      const asks = ofKind('update').map((r) => ({ id: r.id, goalId: r.goals[0]?.id, by: r.askedBy, at: r.raisedAt, waiting: r.waiting, late: r.late, handedFrom: r.handedFrom }));
+      const actions = ofKind('action').map((r) => ({ id: r.id, goalId: r.goals[0]?.id, action: r.ask, dueWeek: r.dueWeek, waiting: r.waiting, late: r.late, agreedBy: r.askedBy, handedFrom: r.handedFrom }));
+      const when = (x: { waiting: string; handedFrom: string | null }) => ` · ${x.waiting}${x.handedFrom ? ` · asked of ${x.handedFrom}, now yours` : ''}`;
       const reviews = s.reviews.filter((r) => r.people.includes(me)).map((r) => { const x = reviewSession(r, s, ctx.cycle, ctx.today, ctx.week); return { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total }; });
       // The strip at the top of Home: their goals by status, their on-time streak, what they watch, their next review.
       const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today);
@@ -160,10 +166,10 @@ export const WORK_TOOLS: ToolDef[] = [
         `Week ${ctx.week} for ${ctx.actor.name}.`,
         `${d.scope === 'mine' ? 'Your goals' : 'All goals'}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(', ') || 'none'}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? 'week' : 'weeks'}.` : ''}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ''}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ''}`,
         `Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(', ') : 'none'}.`,
-        `Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask} (${r.id})`).join('; ') : 'none'}.`,
-        `Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question} (${q.id})`).join('; ') : 'none'}.`,
-        `Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by} (${x.id})`).join('; ') : 'none'}.`,
-        `Your actions: ${actions.length ? actions.map((x) => `${x.action}${x.dueWeek ? ` by week ${x.dueWeek}${x.overdue ? `, ${lower(ASK_STATUS.overdue)}` : ''}` : ''} (${x.id})`).join('; ') : 'none'}.`,
+        `Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask}${when(r)} (${r.id})`).join('; ') : 'none'}.`,
+        `Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question}${when(q)} (${q.id})`).join('; ') : 'none'}.`,
+        `Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by}${when(x)} (${x.id})`).join('; ') : 'none'}.`,
+        `Your actions: ${actions.length ? actions.map((x) => `${x.action}${x.dueWeek ? ` by week ${x.dueWeek}` : ''}${when(x)} (${x.id})`).join('; ') : 'none'}.`,
         // Each reason is a sentence with its own full stop: joined into one line, only the line's last one stays.
         `Your goals that need attention: ${attention.length ? attention.map((g) => `${g.title}, ${said(g.status)}: ${g.why.map(clause).join('. ')}`).join('; ') : 'none'}.`,
         `${ATTENTION.handled.label} (${HANDLED_LINE.replace(/\.$/, '')}): ${handled.length ? handled.map((g) => `${g.title} (${said(g.status)}): ${clause(g.inHand)}`).join('; ') : 'none'}.`,

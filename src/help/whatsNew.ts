@@ -23,6 +23,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'asks-follow-owner',
+    date: '2026-11-13',
+    title: 'Open asks follow a goal to its new owner',
+    points: [
+      'When a goal changes owner, its open asks of the old owner go to the new one. Their Home says “Asked of Tunde, now yours”, and the ask’s history says so for whoever asked. Answered asks stay as they were.',
+      'Under Needs your response, how long an ask has waited comes first, so a phone shows it whole; the day is counted where you are.',
+      'The AI tools’ “what needs me” lists asks in Home’s order, with Home’s words for how long each has waited and whether it is late.',
+      'A review missed in the last week of the year is no longer “Not held yet” after the year has ended.',
+      'Adding or changing a metric has one way out, top right, like every form.',
+    ],
+    articles: ['home', 'requests'],
+  },
+  {
     id: 'metric-part',
     date: '2026-11-13',
     title: 'Measure a goal by one part of a number',

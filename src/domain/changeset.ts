@@ -39,6 +39,7 @@ import { readWeekCode, weekCode, weekUnknownText } from './weeks';
 import { checkInsFor } from './status';
 import { makesLoop } from './tree';
 import { asksOf, requestsAfterCheckIn } from './asks';
+import { asksFollowOwner, openAsksDiff } from './askHandover';
 import { deleteGoal, markPersonLeft, stopGoal } from './removal';
 import { stagesFromNow } from './templates';
 import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
@@ -1596,6 +1597,18 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
         raise('removal-refused', 'People', l.row, l.person.name, e.message.replace(/choose who takes (them|it) over/, 'say who takes them over in Takes over'), { column: 'Takes over' });
       }
     }
+  }
+
+  // A goal that changes owner takes its open asks of the old owner with it (Lane, 13 Nov; domain/askHandover). An ask a
+  // row already changed (someone leaving hands theirs over) is left as that row says.
+  const handed = asksFollowOwner({ goals: s.goals, people: s.people, asks: asksOf(s) }, [...goalOut.values()], { actorId: actor.id, now, newId });
+  for (const r of handed.requests) {
+    if (reqOut.has(r.id)) continue;
+    reqOut.set(r.id, r);
+    const ch = handed.changes.find((c) => c.entityId === r.id)!;
+    changes.push(ch);
+    const item = items.find((x) => x.goalId === ch.goalId && (x.kind === 'goal' || x.kind === 'plan'));
+    if (item && !item.diffs.some((d) => d.field.startsWith('Open asks'))) item.diffs.push(openAsksDiff(handed.moved.get(ch.goalId!) ?? 1, ch));
   }
 
   // A check-in posted from its own screen is no import: no Via mark, and no import to undo unless it corrects a week (rule 8).

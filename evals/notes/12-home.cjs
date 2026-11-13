@@ -63,6 +63,15 @@ module.exports = {
       await q.locator('.needs-you').first().waitFor({ timeout: 8000 }).catch(() => {});
       const metas = await q.locator('.needs-you .need-meta').evaluateAll((els) => els.map((e) => ({ text: e.innerText, warn: !!e.querySelector('svg, .warn-mark, [class*=warn]') })));
       check(metas.some((m) => m.warn && /^Was due before .+’s session on Tue 10 Nov/.test(m.text.trim())), `Rhea, 2026-11-11, ${w}px: no late question says “Was due before…” first with the warning mark (${metas.map((m) => m.text).join(' | ')})`);
+      // The wait is what HM2 adds: on a phone's one line, cut short, it still shows whole (build review of #310).
+      const cut = await q.locator('.needs-you .need-meta').evaluateAll((els) => els.map((e) => {
+        const text = e.textContent ?? '';
+        const node = [...e.childNodes].find((n) => n.nodeType === 3 && n.textContent.includes(' · '));
+        if (!node) return null;
+        const r = document.createRange(); r.setStart(node, 0); r.setEnd(node, node.textContent.indexOf(' · '));
+        return r.getBoundingClientRect().right > e.getBoundingClientRect().right + 0.5 ? text : null;
+      }).filter(Boolean));
+      check(!cut.length, `Rhea, 2026-11-11, ${w}px: an ask’s waiting line is cut short (${cut.join(' | ')})`);
       await c2.close();
     }
     return fails;

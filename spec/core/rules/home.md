@@ -15,7 +15,9 @@ Whether Home leads with one thing asked of the viewer today, and its one primary
 4. *A review*: one the viewer is in, this week's, on or past its day, not held, with goals not yet marked reviewed; the earliest, then by name. Past its day it says "Not held yet" with the warning mark. **Open the review**, or **Continue: {goal}** once begun.
 5. *An ask*: the first ask waiting on the viewer in the order below, when it is late, due this week, or has waited 7 days or more with no date. "Needs your response · {its line}" · "{First name} needs a decision" (asked a question, asked for an update; "A next step you agreed is due") · "“{ask}”. About {goal}." · **Respond**, **Answer**, **Check in** or **Mark done**. It is then not listed again under "Also needs your response".
 
-**An ask that waits** (`waiting`). Its due date is its own due week's Sunday; else, for a question raised in a review, the first session after the one it was raised in, fixed when asked (it does not move on when that session passes); else none. Late: today is after the due date. Its line, said after who asked and when: late, with the warning mark, "Was due week {w} ({dates})" or "Was due before {review}’s session on {Tue 10 Nov}"; "Due before today’s session" / "tomorrow’s" with the warning mark; "Due this week ({dates})"; "Due week {w} ({dates})"; "Before its next session, {Tue 24 Nov}"; no date and 7 days or more, "Waiting since {4 Aug}, {8 days | 14 weeks}" (weeks from 14 days); newer, "Asked today", "yesterday" or "on {Tuesday}". **Order** (`waitingOrder`): late; due this week; no date and waited 7 days or more, oldest first; the rest, newest first; within each, decisions, questions, updates, next steps.
+**An ask that waits** (`waiting`). Its due date is its own due week's Sunday; else, for a question raised in a review, the first session after the one it was raised in, fixed when asked (it does not move on when that session passes); else none. Late: today is after the due date. Its line, said after who asked and when: late, with the warning mark, "Was due week {w} ({dates})" or "Was due before {review}’s session on {Tue 10 Nov}"; "Due before today’s session" / "tomorrow’s" with the warning mark; "Due this week ({dates})"; "Due week {w} ({dates})"; "Before its next session, {Tue 24 Nov}"; no date and 7 days or more, "Waiting since {4 Aug}, {8 days | 14 weeks}" (weeks from 14 days); newer, "Asked today", "yesterday" or "on {Tuesday}". The day it was asked is read on the viewer's own clock, as today is (at UTC+10 an ask made half an hour ago is "Asked today"). Under the ask the line comes first, then who asked, where and on which day (left out when the line says it), so a phone's one line, cut short, still says how long it has waited. **Order** (`waitingOrder`): late; due this week; no date and waited 7 days or more, oldest first; the rest, newest first; within each, decisions, questions, updates, next steps.
+
+**An ask follows its goal's owner** (`asksFollowOwner`, Lane, 13 Nov). When a goal changes owner, by goal edit, Import, Data's tables, bulk edit or the AI tools, each open ask asked of the old owner about it goes to the new owner, unless the old owner still owns another goal the ask is about. The ask's log says "{Asker}’s ask now goes to {new owner}, who owns {goal} now" (Asked of: old → new), where whoever asked sees it; the goal's change says "Open asks ({n}): {old} → {new}", and Import's preview shows it before saving; undoing the import puts it back. The new owner's Home adds "Asked of {first name}, now yours". Answered, done and withdrawn asks stay as they were. Someone leaving hands their asks to whoever they name instead.
 
 With two or more number goals to check in on, the check-in leads add the quiet link "Or type all your numbers in one table". A ring counts what the lead counts (check-ins, reviewed, wrapped).
 
@@ -38,6 +40,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Someone who owns, watches and is asked nothing. | `Nothing is asked of you today. You don’t own or watch a goal in Platform Engineering yet. [See the goals] [Set up a goal]` |
 | Daniel’s question, raised on Tuesday 3 Nov in the Developer Productivity fortnightly, whose next session is Tuesday 10 Nov: its line on Monday 9 Nov, then on Wednesday 11 Nov unanswered. | `Due before tomorrow’s session / Was due before Developer Productivity fortnightly’s session on Tue 10 Nov` |
 | Amara, Monday 9 Nov, no check-ins of her own; Rhea’s decision for her asked on 4 Aug, with no date. | `ask: Needs your response · waiting since 4 Aug, 13 weeks · Rhea needs a decision · Respond` |
+| Tunde’s goal “Warm build cache” has Rhea’s open question and Amara’s answered one, both asked of Tunde; it goes to Sam Patel. | `Rhea Kapoor’s ask now goes to Sam Patel, who owns Warm build cache now (Asked of: Tunde Bakare → Sam Patel); 1 ask moved` |
 | Tunde, Wednesday 23 Dec (week 52), both in, the wrap-up open. | `wrap-up: 2026 ends on Sunday 3 Jan · Wrap up your 2 goals · Start the wrap-up` |
 
 ## Not self-explanatory
@@ -46,7 +49,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/home.ts](../../../src/domain/home.ts): `homeFor`, `homeLead`, `quietLine`, `LEAD_DAYS`, `longDay`, `waiting`, `waitingOrder`, `askLead`
+- [src/domain/home.ts](../../../src/domain/home.ts): `homeFor`, `homeLead`, `quietLine`, `LEAD_DAYS`, `longDay`, `waiting`, `waitingOrder`, `askLead`, `missedReviews`
+- [src/domain/askHandover.ts](../../../src/domain/askHandover.ts): `asksFollowOwner`, `handedFrom`, `openAsksDiff`
 
 ## Requirements
 
@@ -82,3 +86,11 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - Home rule 3: an ask that waits › orders late, then due this week, then old undated oldest first, then the rest newest first; decisions first within each
 - Home rule 3: an ask that waits › leads when late, due this week or a week old; not when new
 - Home rule 3: an ask that waits › rank 60: an ask leads only when nothing before it does, and is then not listed again
+- Home after the build review of #305 › a session missed in the year’s last week is not “not held” once the year has ended
+
+### [src/domain/askHandover.test.ts](../../../src/domain/askHandover.test.ts)
+
+- asks follow a goal’s new owner (Lane, 13 Nov) › goal edit: the open question goes to the new owner, logged on the ask and on the goal; the answered one stays
+- asks follow a goal’s new owner (Lane, 13 Nov) › the change engine (Import, Data, bulk edit and MCP): the same rule, said on the goal’s row before saving
+- asks follow a goal’s new owner (Lane, 13 Nov) › an ask the old owner must still answer about another goal they keep stays with them
+- asks follow a goal’s new owner (Lane, 13 Nov) › says who it was asked of only while it is still with the person it came to

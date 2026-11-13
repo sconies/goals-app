@@ -18,7 +18,7 @@ import { LABEL } from '../../domain/vocabulary';
 import { newId } from '../../data/store';
 import { BackLink } from '../../ui/BackLink';
 import { EmptyResult, Sheet, StatusShape, StatusWord, WarnMark } from '../../ui/bits';
-import { Icon } from '../../ui/Icon';
+import { FormClose } from '../../ui/FormClose';
 import { CountLine, FilterLine, ListBar, ListSearch, NoneFound, SortMenu } from '../../ui/ListBar';
 import { MenuButton } from '../../ui/MenuButton';
 import { PickOne } from '../../ui/Pick';
@@ -410,7 +410,7 @@ export function MetricForm() {
   if (live && !canEditMetric(app.viewer, live)) {
     return (
       <div className="focus metric-form">
-        <div className="focus-top"><BackLink to={metricPath(live)} label={live.name} /><span /></div>
+        <div className="focus-top"><span /><FormClose keeps={false} onClose={() => void nav(metricPath(live))} /></div>
         <div className="focus-body"><h1 className="qtitle big">Change {live.name}</h1><p>Only {app.person(live.ownerId)?.name ?? 'its owner'} or an admin can change this metric.</p></div>
       </div>
     );
@@ -494,9 +494,9 @@ export function MetricForm() {
   return (
     <div className="focus metric-form">
       <div className="focus-top">
-        <BackLink to={live ? metricPath(live) : '/metrics'} label={live ? live.name : 'Metrics'} />
+        {/* A form: one closing control, top right, and no back link (navigation spec 2.5; build review of #282). */}
         <span />
-        <button className="iconbtn" type="button" onClick={back} aria-label="Close and keep the draft"><Icon name="close" /></button>
+        <FormClose keeps onClose={back} />
       </div>
       <form className="focus-body stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div ref={top}><h1 className="qtitle big">{live ? `Change ${live.name}` : 'Add a metric'}</h1></div>
@@ -561,7 +561,7 @@ export function MetricForm() {
           {count && <p className="small metric-count" role="status">{count}</p>}
           <p className="small metric-still">{still.line}</p>
         </div>
-        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={back}>Cancel</button><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : live ? 'Save changes' : 'Add the metric'}</button></div>
+        <div className="foot-row"><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : live ? 'Save changes' : 'Add the metric'}</button></div>
         {waiting && open.length > 0 && <FixLine>Answer the question above first.</FixLine>}
       </form>
     </div>

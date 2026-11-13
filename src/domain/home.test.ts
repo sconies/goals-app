@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { askLead, homeFor, homeLead, quietLine, waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession } from './home';
+import { askLead, homeFor, homeLead, missedReviews, quietLine, waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession } from './home';
+import { buildPlatformOrg } from '../data/platformOrg';
+import { scopeToCycle } from './cycle';
+import { currentWeek, hasEnded } from './plan';
 
 /* Rule 2's worked examples (docs/design/home/spec.md): weekly, due Thursday 12 Nov, week 46 of 53. */
 const due = (n: number, number = true) => Array.from({ length: n }, (_, i) => ({ id: `g${i + 1}`, title: `Goal ${i + 1}`, number }));
@@ -148,5 +151,20 @@ describe('Home rule 3: an ask that waits', () => {
     const p = homeFor(facts({ today: '2026-11-09', asks: [w] }, { due: due(2) }));
     expect([p.lead?.kind, p.asks.length]).toEqual(['ask', 0]);
     expect(homeFor(facts({ today: '2026-11-11', asks: [w] }, { done: 1, due: due(1) })).lead?.kind).toBe('check-in');
+  });
+});
+
+describe('Home after the build review of #305', () => {
+  it('a session missed in the year’s last week is not “not held” once the year has ended', () => {
+    const full = buildPlatformOrg(new Date('2026-11-11T12:00:00Z'));
+    const missedOn = (day: string) => {
+      const today = new Date(day + 'T12:00:00Z');
+      const cycle = full.cycles[0]!;
+      expect(hasEnded(cycle, today)).toBe(true);
+      const s = scopeToCycle(full, cycle);
+      return full.people.filter((p) => s.reviews.some((r) => r.people.includes(p.id))).flatMap((p) => missedReviews(p.id, s, cycle, currentWeek(cycle, today), today));
+    };
+    expect(missedOn('2027-01-11')).toEqual([]);
+    expect(missedOn('2027-02-20')).toEqual([]);
   });
 });
