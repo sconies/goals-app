@@ -79,11 +79,14 @@ export function Coach() {
     };
     tick();
     const t = setInterval(tick, 350);
+    // A page still drawing (Data, on a phone): the ring goes round the target as soon as it is there, not a tick later (U29).
+    const drawn = new MutationObserver(() => { if (find(step.target)) { drawn.disconnect(); tick(); } });
+    drawn.observe(document.body, { childList: true, subtree: true });
     // Scrolling moves the target: follow it at once rather than at the next tick.
     const onScroll = () => { const el = find(step.target) ?? (step.ifMissing ? find(step.ifMissing.target) : null); const r = el?.getBoundingClientRect(); setRing(r ? ringBox(r, { width: window.innerWidth, height: window.innerHeight }) : null); };
     window.addEventListener('scroll', onScroll, { capture: true, passive: true });
     window.addEventListener('resize', onScroll);
-    return () => { clearInterval(t); window.removeEventListener('scroll', onScroll, { capture: true }); window.removeEventListener('resize', onScroll); };
+    return () => { clearInterval(t); drawn.disconnect(); window.removeEventListener('scroll', onScroll, { capture: true }); window.removeEventListener('resize', onScroll); };
   }, [tour, step, state, pathname, search]);
 
   // Measure the card as it is now, before it's painted, so a longer or shorter step never ends off the screen.

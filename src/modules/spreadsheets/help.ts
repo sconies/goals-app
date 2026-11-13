@@ -2,6 +2,7 @@
    shows the field table itself (domain/columns fieldTable), drawn by this module's ColumnsHelp in Help's help.article place. */
 import type { Article } from '../../help/guide';
 import { requiredLine } from '../../domain/columns';
+import { limitHelp } from '../../domain/importLimits';
 
 const help: Article[] = [
   {
@@ -13,7 +14,7 @@ const help: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'On Data, choose Import, beside Export. Export everything first to start from what is already in the app, or download the template from the Import page to start from nothing.',
-        'Drop a file or choose one (up to 5,000 rows a file is comfortable, and checked in a second or two; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.',
+        `Drop a file or choose one (${limitHelp()}). Or choose “or paste rows from a spreadsheet”, paste the cells straight from Excel or Sheets with their header row, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.`,
         `What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine('goals')} A check-in, ${requiredLine('checkIns')} A person, ${requiredLine('people')}`,
         'Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.',
         'A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once, and so are two columns that mean the same one (Goal and Goal name): you choose which is read.',
@@ -28,7 +29,7 @@ const help: Article[] = [
         'A file exported from another workspace is asked about first: its keys and IDs belong there, so its rows can be added as new goals, or not at all.',
         'A number goal’s weeks are From and To, written as a year and a week (2026-W46, 2027-W13). Plan from week and Due week, counted from the cycle’s start, are still written and still load: where a row has both, the one you changed counts, and two that disagree are Must fix; a Due week left empty beside a To says nothing. In a file with no Start column, a bare number under From (“52”) is Must fix: it may be the starting number, so put that under Start, or write the week as 2026-W46. A week a year doesn’t have says so (“2027 has 52 weeks. Use 2027-W52, or 2028-W01.”). A stage may be written Design@48 or Design@2026-W48.',
         'Past weeks are marked as loaded later, so history never looks like a fresh update. Rows that change nothing are left alone, and so are a stopped goal’s rows.',
-        'Saving ends on Imported: how many changes were saved from which file, what they were, and the rows left out to download. See the goals, or Undo this import.',
+        'Saving ends on Imported: how many rows were saved from which file (counted as Undo counts them), what they were, and the rows left out to download. See the goals, or Undo this import.',
         'Loaded the wrong file? Undo this import, on Imported, on Data under Past imports, or on its entry in Activity, puts every row back as it was, stopped goals and people who left included. It says first which rows have changed since and will stay.',
       ] },
       { heading: 'Must fix, and Check', list: [
@@ -63,8 +64,8 @@ const help: Article[] = [
     after: 'import',
     sections: [
       { heading: 'The list', list: [
-        'On Data, choose Import, then All past imports at the foot of the page. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.',
-        'Find one by its file, by who made it or by what it changed. Open one to see what it saved.',
+        'On Data, choose Import, then the link to past imports at the foot of the page. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.',
+        'Find one by its file, by who made it or by what it changed; a search that finds nothing says so. Open one to see what it saved.',
         'In Activity an import is one entry too, with its rows folded under it: Show the changes lists them. Search still finds each row, and each goal’s history still shows its own.',
       ] },
       { heading: 'What Undo puts back', list: [
@@ -72,6 +73,7 @@ const help: Article[] = [
         'A goal that fed one Undo deletes moves up to what that goal fed. Someone the import added stays while they lead a team, sit in a review or have an ask.',
         'Before anything is undone, it says how many rows go back and which stay as they are because they changed after the import, each with why: “Rhea Kapoor posted a check-in for week 45 on 12 Nov”, “Its target was changed on 10 Nov”.',
         'When every row has changed since, there is nothing left to undo, and it says so.',
+        'Two imports of the same rows can be undone newest first: once the newer one is undone, the older one puts back everything it wrote.',
         'Once undone, the line says when and by whom, and Undo is gone.',
       ] },
       { heading: 'Who can', text: ['Whoever made the import, or an admin. Everyone else sees the list without Undo.'] },
@@ -91,7 +93,8 @@ const help: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'On Goals, choose Export these goals. When the goals are filtered, it starts from the ones shown now; Everything in the cycle is one click away, with how many goals, check-ins and people that is: stopped and proposed goals count, as the workbook holds them.',
-        'Export .xlsx is the one button. The file’s name is at the foot of the sheet before you press it, and the message after says it again: Exported platform-goals-all-2026-11-05.xlsx.',
+        'Export .xlsx is the one button. The file’s name is at the foot of the sheet before you press it, with how many goals it holds as of this week, and the message after says it again: Exported platform-goals-all-2026-11-05.xlsx. Import’s Download the workbook saves the same file, by the same name.',
+        'A view that shows no goals has nothing of its own to export: the sheet starts from everything, and None shown now can’t be chosen. On Data, a table that shows no rows says so instead of saving a file of headers.',
         'On Data, Export saves the open table exactly as laid out, as .xlsx or .csv, with the columns that say which record each row is added so it loads back; the menu says how many rows and columns that is. Everything… opens the same Export as Goals. Import is beside it.',
         'Excel workbook, the usual choice: a first sheet, Start here, that says for every column what it means, whether a new row must have it, its format and an example; then Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks, Notes and Metrics. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.',
         'Other formats: CSV files, zipped (the same sheets, one CSV each with the same headers); one sheet as CSV, chosen in its row; JSON; and the brief for an AI chat.',

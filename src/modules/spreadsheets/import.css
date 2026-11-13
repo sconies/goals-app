@@ -35,3 +35,6 @@
 .import-bar { width: 100%; height: 8px; accent-color: var(--fg); }
 .import-reading .linkish { min-height: 44px; display: inline-flex; align-items: center; }
 .import-too-many { margin-top: var(--s3); }
+/* Import's links of their own (Every column, Past imports) are 44 px to hit on a phone or a touch screen (IM5 review). */
+@media (pointer: coarse), (max-width: 1023px) { .import-page .import-link { min-height: 44px; display: inline-flex; align-items: center; } }
+.import-problem { margin: 0; }

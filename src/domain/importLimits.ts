@@ -19,12 +19,22 @@ export const PAGE = 50;
 /** A count as people read it: 5,000. */
 export const count = (n: number) => n.toLocaleString('en-GB');
 
-/** Import's limit line (spec 2.1). */
-export const limitLine = () => `Up to ${count(ROWS_COMFORT)} rows a file.`;
+/** Import's limit line (spec 2.1): what Faro reads and what it saves at once, both true of the workbook offered beside it
+    (a whole workspace's is more than ROWS_COMFORT rows, and loads back; #257 review). */
+export const limitLine = () => `Up to ${count(ROWS_READ_MAX)} rows a file, and ${count(CHANGES_SAVE_MAX)} changes at a time.`;
 
-/** Why a file is refused for its size (spec 2.1): too many rows, or too many bytes. */
-export function tooLarge(name: string, got: { rows?: number; bytes?: number }): string | null {
-  if (got.bytes != null && got.bytes > BYTES_READ_MAX) return `${name} is larger than 20 MB. Faro reads up to ${count(ROWS_READ_MAX)} rows in one file. Split it and import each part.`;
-  if (got.rows != null && got.rows > ROWS_READ_MAX) return `${name} has ${count(got.rows)} rows. Faro reads up to ${count(ROWS_READ_MAX)} in one file. Split it and import each part.`;
+/** Help's sentence on size (the import article): the limits as Import says them, and what is quick. */
+export const limitHelp = () => `up to ${count(ROWS_READ_MAX)} rows or 20 MB a file, and ${count(CHANGES_SAVE_MAX)} changes at a time; up to ${count(ROWS_COMFORT)} rows is checked in a second or two`;
+
+/** Why a file (or, through the AI tools, one call's rows) is refused for its size (spec 2.1): too many rows, or too many
+    bytes. Every door checks it: Import, set-up's upload and the MCP tools. */
+export function tooLarge(name: string, got: { rows?: number; bytes?: number }, door: 'file' | 'call' = 'file'): string | null {
+  const then = door === 'file' ? 'Split it and import each part.' : 'Send them in parts.';
+  if (got.bytes != null && got.bytes > BYTES_READ_MAX) return `${name} is larger than 20 MB. Faro reads up to ${count(ROWS_READ_MAX)} rows in one file. ${then}`;
+  if (got.rows != null && got.rows > ROWS_READ_MAX) return `${name} has ${count(got.rows)} rows. Faro reads up to ${count(ROWS_READ_MAX)} in one ${door}. ${then}`;
   return null;
 }
+
+/** Why a change is too large to save at once (spec 2.8), or null: the preview offers it in parts; the AI tools say so. */
+export const tooManyChanges = (changes: number): string | null =>
+  changes > CHANGES_SAVE_MAX ? `This would change ${count(changes)} rows. Faro saves up to ${count(CHANGES_SAVE_MAX)} at a time.` : null;

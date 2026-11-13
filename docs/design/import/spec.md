@@ -26,7 +26,7 @@ Wording is exact. `{n}` is a number written with digit grouping (1,000). Plurals
 In order:
 
 1. Back link "‹ Data". Title **Import**. One line: "Add or change goals, plans, check-ins and people from a spreadsheet. You see every change before anything is saved, and one Undo takes a whole import back."
-2. The drop area: "Drop a file here"; "An Excel workbook (.xlsx), a .csv, or a .zip of CSVs. Up to 5,000 rows a file."; **Choose a file** (primary); link "or paste rows from a spreadsheet".
+2. The drop area: "Drop a file here"; "An Excel workbook (.xlsx), a .csv, or a .zip of CSVs. Up to 30,000 rows a file, and 5,000 changes at a time." (both true of the workbook offered beside it; #257 review); **Choose a file** (primary); link "or paste rows from a spreadsheet".
 3. Two columns: "Starting from nothing" / "The template has every column, says which are required, and carries two example rows that are never imported." / **Download the template**. "Changing what's here" / "The workbook is every goal, plan, check-in and person as they are now. Change cells, add rows, load it back." / **Download the workbook**.
 4. "What a new row must have": three rows made from the field table by `requiredLine(kind)` (rule 2): "A goal", "A check-in", "A person"; link "Every column, with its format and an example" → `/help/columns`.
 5. "Past imports": the newest three (2.7's rows), link "All {n} past imports". Absent when there are none.
@@ -72,7 +72,7 @@ The list bar: search "Find a goal, a person or a key"; All {n}, Added {n}, Chang
 
 ### 2.5 Imported (`/data/import/done/<importId>`)
 
-Title **Imported**. Panel: "Saved {n} changes from {name}." / the counts sentence / "{l} rows were left out. Download them" / **See the goals** (primary, to `/goals`) and **Undo this import**. Line: "Undo stays on Data, under Past imports, and on this import's line in Activity." Undone: "This import was undone on {date} by {name}." and no Undo. If the save fails: stay on the preview with "Nothing was saved: {reason}. Try again."
+Title **Imported**. Panel: "Saved {n} rows from {name}." ({n} counted as 2.6 counts the rows Undo puts back) / the counts sentence / "{l} rows were left out. Download them" / **See the goals** (primary, to `/goals`) and **Undo this import**. Line, for whoever may undo it: "Undo stays on Data, under Past imports, and on this import's line in Activity." Undone: "This import was undone on {date} by {name}." and no Undo. If the save fails: stay on the preview with "Nothing was saved: {reason}. Try again."
 
 ### 2.6 Undo (a sheet, from 2.5, 2.7 and Activity)
 
@@ -430,7 +430,7 @@ The result of `bulk_change`, in words: a first line, "Checked, nothing saved" or
 
 | # | Requirements | Journey |
 |---|---|---|
-| U87 | FIELD-TABLE | What a file needs, before uploading: as Rhea, Import says what a new goal, check-in and person must have, and "Up to 5,000 rows a file"; "Every column…" opens Help's table, where Goal and Owner are Required, Start is "Required for a number goal" and Status is Worked out; the template downloads, its first sheet is the same table, its example rows say Example, and loading it unchanged reads "Nothing would change" with "3 example rows left out" |
+| U87 | FIELD-TABLE | What a file needs, before uploading: as Rhea, Import says what a new goal, check-in and person must have, and "Up to 30,000 rows a file, and 5,000 changes at a time."; "Every column…" opens Help's table, where Goal and Owner are Required, Start is "Required for a number goal" and Status is Worked out; the template downloads, its first sheet is the same table, its example rows say Example, and loading it unchanged reads "Nothing would change" with "3 example rows left out" |
 | U88 | IMPORT-LEVELS, IMPORT-PREVIEW | One answer for many rows: as Amara, a file with 14 rows for "Platfrom", 3 new goals with no owner and a stage in week 2 gives Must fix "17 rows, 2 kinds", one Check on the stage, and Save disabled; "Use Platform" closes its group to one line; "Download the 3 rows to fix" saves a file whose first column is Problem; the corrected file loads with "Your 2 answers still apply."; answering the stage question enables "Save {n} changes"; the changes list shows a default as "(her team; the row gave none)" |
 | U89 | IMPORT-PREVIEW, ROUND-TRIP | Out and back in: every export (the workbook, the zip, Data's Check-ins as shown with three columns) loaded straight back reads "Nothing would change"; with Status edited on two rows it adds the worked-out line; a file with "Targett" asks to read it as Target; a file with a title row says the header is on row 2; a file exported from another workspace asks before anything else |
 | U90 | IMPORT-UNDO | Undo and past imports: save an import of 5 goals and 10 check-ins; "Imported" offers Undo; Data → Past imports lists it with the file's name; as Rhea post a check-in on one imported goal; as Amara, Undo says 14 rows go back and 1 stays, naming Rhea's check-in; after it the line reads "Undone on…"; Activity shows one entry for the import with "Show the 15 changes" |

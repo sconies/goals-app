@@ -63,3 +63,5 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - undo puts back every kind, and leaves nothing hanging (IM4 review) › someone the import added stays while they lead a team, sit in a review or have an ask
 - undo puts back every kind, and leaves nothing hanging (IM4 review) › names a corrected check-in and a bulk edit on People by what they are
 - Activity folds an import’s rows under it (spec 2.7) › folds rows whose summary is listed, and leaves a row found alone
+- the IM4 review, fixed later › two imports undone newest first: the older one then undoes in full, not stuck on the newer one’s rows
+- the IM4 review, fixed later › Undo’s log line names what it undid, and counts the rows Imported said were saved

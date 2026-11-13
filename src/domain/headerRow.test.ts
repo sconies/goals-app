@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { buildPlatformOrg } from '../data/platformOrg/generate';
 import { planChanges } from './changeset';
 import { currentWeek } from './plan';
-import { readHeader, readLine, readTables } from './sheets';
+import { gridOf, headerRowsLine, parseDelimited, readHeader, readLine, readTables } from './sheets';
 
 describe('rule 3: the header row', () => {
   it('skips a title row above the headers', () => {
@@ -78,5 +78,27 @@ describe('rule 3 in the engine (every door)', () => {
       const cs = run({ goals: [{ __row: '2', id: 'ns-lead', goal: lead.title, [h]: String(target + 7), reason: 'Agreed at the review with the platform leads.' }] });
       expect(cs.items.find((i) => i.goalId === 'ns-lead')?.diffs.some((d) => /target/i.test(d.field)), h).toBe(true);
     }
+  });
+});
+
+describe('rows keep their number in the file (IM5 review)', () => {
+  it('a blank line in a CSV or a workbook stays, so the rows after it keep their numbers; blank lines at the end go', () => {
+    const csv = parseDelimited('Goal,Owner\nLead time,Rhea Kapoor\n\nBuild minutes,Rhea Kapoor\n\n', { keepBlank: true });
+    expect(csv).toHaveLength(4);
+    const read = readTables([{ name: 'Goals.csv', rows: csv }]);
+    expect(read.tables.goals!.filter((r) => r.goal).map((r) => [r.__row, r.goal])).toEqual([['2', 'Lead time'], ['4', 'Build minutes']]);
+    expect(read.rowCount).toBe(2);
+    expect(gridOf([['Goal', 'Owner'], [null, ''], ['Lead time', 'Rhea Kapoor'], [null, null]])).toEqual([['Goal', 'Owner'], ['', ''], ['Lead time', 'Rhea Kapoor']]);
+    // Read without keepBlank (a paste into a form), blank lines still go.
+    expect(parseDelimited('a,b\n\n1,2')).toEqual([['a', 'b'], ['1', '2']]);
+  });
+  it('the separator is the header row’s, not a title line’s', () => {
+    expect(parseDelimited('Platform goals FY27\nGoal\tOwner\tUnit\nLead time\tRhea Kapoor\th')).toEqual([['Platform goals FY27'], ['Goal', 'Owner', 'Unit'], ['Lead time', 'Rhea Kapoor', 'h']]);
+    expect(parseDelimited('Goals; FY27\nGoal,Owner,Unit\nLead time,Rhea Kapoor,h')[1]).toEqual(['Goal', 'Owner', 'Unit']);
+  });
+  it('says the header row only when something above it was skipped', () => {
+    const titled = readTables([{ name: 'Goals', rows: [['Platform goals FY27'], ['Goal', 'Owner'], ['Lead time', 'Rhea Kapoor']] }]);
+    expect(headerRowsLine(titled)).toBe('Row 2 of Goals is the header row; 1 row above it was skipped.');
+    expect(headerRowsLine(readTables([{ name: 'Goals', rows: [[''], ['Goal', 'Owner'], ['Lead time', 'Rhea Kapoor']] }]))).toBe('');
   });
 });

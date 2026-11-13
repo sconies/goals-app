@@ -7,6 +7,7 @@ import { foldImports } from './activity';
 import { planChanges, VIA_LABEL, type Rec } from './changeset';
 import { currentWeek } from './plan';
 import { importCounts, importName, keptText, nothingToUndo, pastImports, undoImport, undoPreview } from './removal';
+import { importRows } from './importRows';
 import type { Change } from './types';
 
 const today = new Date('2026-11-05T13:00:00Z');
@@ -139,5 +140,26 @@ describe('Activity folds an import’s rows under it (spec 2.7)', () => {
     expect(out.rows.get(head.id)!.length).toBe(list.length - 1);
     const alone: Change[] = list.filter((c) => c.action !== 'imported');
     expect(foldImports(alone).top.length).toBe(alone.length);
+  });
+});
+
+describe('the IM4 review, fixed later', () => {
+  const at = (h: number) => new Date(today.getTime() + h * 3_600_000).toISOString();
+  it('two imports undone newest first: the older one then undoes in full, not stuck on the newer one’s rows', () => {
+    const { after, entry } = imported();
+    const goal = after.goals.find((g) => g.title === 'Pipeline cache hit rate')!;
+    const b = planChanges({ tables: { goals: [rec(2, { Key: goal.key!, Target: '95', Reason: 'Raised at the review.' })] }, snapshot: after, cycle, week, actor: who('amara'), now: at(1), newId, via: 'spreadsheet', file: { name: 'more.xlsx', leftOut: 0 } });
+    expect(b.commit).not.toBeNull();
+    const s2 = applyCommit(after, b.commit!);
+    const bId = b.commit!.changes.find((c) => c.action === 'imported')!.entityId;
+    const s3 = applyCommit(s2, undoImport(ctx(s2, 'amara', at(2)), bId).commit);
+    const p = undoPreview(ctx(s3, 'amara', at(3)), entry.entityId);
+    expect(p).toEqual({ restores: 3, skipped: [] });
+  });
+  it('Undo’s log line names what it undid, and counts the rows Imported said were saved', () => {
+    const { after, entry } = imported();
+    const out = undoImport(ctx(after, 'amara', at(1)), entry.entityId);
+    expect(out.commit.changes[0]!.summary).toBe('Undid the import of goals.xlsx: 3 rows put back');
+    expect(importRows(entry)).toBe(out.restored);
   });
 });

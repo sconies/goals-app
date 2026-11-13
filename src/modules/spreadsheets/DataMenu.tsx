@@ -35,8 +35,16 @@ export function DataMenu({ table, asShown }: PlaceProps['data.tools']) {
     el.addEventListener('toggle', opened, true);
     return () => el.removeEventListener('toggle', opened, true);
   }, []);
+  // Closed, the sheet gives the focus back to Export, which opened it: the menu item it came from is hidden by then, and
+  // the focus would fall to the page itself (#248 review).
+  const closeEverything = () => {
+    setEverything(false);
+    requestAnimationFrame(() => wrap.current?.querySelector<HTMLElement>('.data-export > summary')?.focus());
+  };
   const tableAs = (kind: 'csv' | 'xlsx') => {
     const s = asShown();
+    // A table that shows no rows has nothing to export: said, rather than a file of headers saved (#248 review).
+    if (s.rows.length < 2) { app.toast('This table shows no rows, so there’s nothing to export. Clear the search or the filters first.', 'error'); return; }
     void saveAndSay(app.toast, { workspace: app.ws.name, what: table, scope: 'as-shown', date: app.today },
       kind === 'csv' ? { kind: 'csv', text: toCsv(s.rows) } : { kind: 'xlsx', sheets: [{ name: table, rows: s.rows, muted: s.muted }] }, (file) => `Exported ${file}`);
   };
@@ -50,7 +58,7 @@ export function DataMenu({ table, asShown }: PlaceProps['data.tools']) {
       ]} />
       </span>
       <Link className="btn sm data-import" to="/data/import">Import</Link>
-      {everything && <ExportSheet goals={app.snapshot.goals} viewName="" onClose={() => setEverything(false)} />}
+      {everything && <ExportSheet goals={app.snapshot.goals} viewName="" onClose={closeEverything} />}
     </>
   );
 }

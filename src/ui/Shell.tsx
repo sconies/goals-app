@@ -9,7 +9,6 @@ import { Avatar, Sheet } from './bits';
 import { CORE_NAV, GROUP_NAMES, isForm, litItem, litTab, menuGroups, menuViews, moreFor, pageName, phoneTabs, type NavId } from '../domain/navigation';
 import { recentsOf, usePrefs } from '../app/search';
 import { DemoEntry, DemoPanel } from './Demo';
-import { Coach } from './Coach';
 import { ResearchBar } from './ResearchBar';
 import { setAppearance, useAppearance } from '../app/appearance';
 import { usePlaceNames, useTrail } from './BackLink';
@@ -27,6 +26,9 @@ import { Find, FIND_KEY, isFindKey } from './Find';
 
 /** Marking up a screen loads only when someone starts one (src/markup). */
 const MarkupFlow = lazy(() => import('../markup/Markup'));
+// The walkthrough coach is the demo's only, and only while a walkthrough runs: it loads after the first page (the bundle
+// budget, scripts/check-bundle.mjs).
+const Coach = lazy(() => import('./Coach').then((m) => ({ default: m.Coach })));
 /** Ctrl+Shift+M, or Cmd+Shift+M on a Mac: mark up this screen, from anywhere. */
 const isMarkupKey = (e: KeyboardEvent) => (e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.key.toLowerCase() === 'm';
 const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -350,7 +352,7 @@ function ShellBody({ children }: { children: ReactNode }) {
           {sheet === 'people' ? <YouMenu onClose={() => setSheet(null)} /> : null}
         </DemoPanel>
       )}
-      {app.mode === 'demo' && <Coach />}
+      {app.mode === 'demo' && <Suspense fallback={null}><Coach /></Suspense>}
       <ResearchBar />
       {sheet === 'feedback' && <FeedbackSheet onClose={() => setSheet(null)} fromPage={pathname === '/feedback' && !!cameFrom.current.to}
         onMarkup={() => { setSheet(null); if (pathname === '/feedback' && cameFrom.current.to) { markAfter.current = true; void navigate(cameFrom.current.to); } else setMarking(true); }}

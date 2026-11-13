@@ -2172,7 +2172,7 @@
                     "entityId": "imp_c0023",
                     "action": "undone",
                     "importId": "imp_c0023",
-                    "summary": "Undid imported a spreadsheet: 3 rows put back"
+                    "summary": "Undid the spreadsheet: 3 rows put back"
                   },
                   {
                     "id": "chg_c0025",
