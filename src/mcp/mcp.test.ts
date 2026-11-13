@@ -207,7 +207,7 @@ describe('MCP server', () => {
   });
 
   it('checks a bulk change first and saves only with apply', async () => {
-    const { call, data, deps } = await setup('amara');
+    const { call, data } = await setup('amara');
     const rows = { goals: [{ ID: 'mttr-pir', Level: 'svp' }, { Goal: 'Runbooks with an owner', Owner: 'Mateo Fernández', Type: 'metric', Unit: '%', Start: 20, Target: 90, 'Feeds into ID': 'ns-cfr' }] };
     const check = await call('bulk_change', rows);
     expect(check.content[0]!.text).toMatch(/dry run.*1 new goal, 1 goal changed/);
@@ -217,7 +217,7 @@ describe('MCP server', () => {
   });
 
   it('says each new goal’s ID and key, from create_goal and bulk_change, dry run and saved (MCP load, 12 Nov)', async () => {
-    const { call, data, deps } = await setup('amara');
+    const { call, data } = await setup('amara');
     type Created = { id: string; key: string | null; title: string }[];
     const one = await call('create_goal', { type: 'metric', title: 'Runbooks with an owner', owner: 'Mateo Fernández', unit: '%', start: 20, target: 90 });
     expect(one.isError).toBe(false);
@@ -238,7 +238,7 @@ describe('MCP server', () => {
   });
 
   it('creates and changes a range between two numbers (lower and limit)', async () => {
-    const { call, data, deps } = await setup('amara');
+    const { call, data } = await setup('amara');
     const made = await call('create_goal', { type: 'range', title: 'API uptime', owner: 'Mateo Fernández', unit: '%', decimals: 2, lower: 99.5, limit: 99.95, margin: 0.1 });
     expect(made.isError).toBe(false);
     const g = data().goals.find((x) => x.title === 'API uptime')!;
@@ -284,7 +284,7 @@ describe('MCP server', () => {
   });
 
   it('lists find_goals a page at a time, compactly, with the same keys every time (#249’s review)', async () => {
-    const { call, data, deps } = await setup('amara');
+    const { call, data } = await setup('amara');
     const running = data().goals.filter((g) => !g.stoppedAt && !g.removedAt && !isProposed(g)).length;
     const first = await call('find_goals', {});
     const d = first.structuredContent! as { total: number; offset: number; goals: { id: string }[]; more: string | null; why: string | null };
