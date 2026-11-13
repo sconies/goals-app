@@ -8,7 +8,7 @@ import { findGoal, isKey } from '../../domain/goalKey';
 import * as M from './rules';
 import { linkGoalMetric, linkReads } from './rulesLink';
 import * as L from './rulesLibrary';
-import { goalsOfMetric, libraryReads, lineOf } from './reads';
+import { goalsOfMetric, libraryReads, lineOf, proposedOfMetric } from './reads';
 import { answersFrom } from './rulesDefine';
 import { openChecks, saveMetricAsked } from './rulesSave';
 import { forWords, linkChecks, type LinkCheck } from './rulesParts';
@@ -124,7 +124,7 @@ const tools: ToolDef[] = [
   {
     name: 'get_metric',
     title: 'Read a metric',
-    description: 'One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; and, for its owner and admins, what it still needs (rule 3).',
+    description: 'One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).',
     inputSchema: { type: 'object', additionalProperties: false, required: ['metric'], properties: { metric: str('The metric’s ID or name.') } },
     annotations: READ,
     async run(a, ctx) {
@@ -134,6 +134,8 @@ const tools: ToolDef[] = [
         const side = goalsOfMetric(ctx.snapshot, ctx.cycle, ctx.today, ctx.week, m.id);
         const goals = side.map((r) => ({ goalId: r.goal.id, key: r.goal.key ?? null, goal: r.goal.title, status: r.status, statusLabel: LABEL[r.status], slice: r.slice, now: r.now, target: r.target, vsPlan: r.vsPlan, owner: r.owner }));
         const summary = L.summaryLine(side);
+        // Proposed goals (GE10) that name it: apart, with no numbers, in no comparison.
+        const proposed = proposedOfMetric(ctx.snapshot, m.id).map((g) => ({ goalId: g.id, key: g.key ?? null, goal: g.title, owner: ctx.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? null }));
         const needs = M.canEditMetric(ctx.actor, m) ? L.metricNeeds(m, libraryReads(ctx.snapshot, ctx.now)).map((x) => ({ id: x.id, sentence: x.sentence })) : [];
         // Rule 1's line: words, never a score.
         const still = lineOf(ctx.snapshot, m);
@@ -143,9 +145,10 @@ const tools: ToolDef[] = [
           `Source: ${d.source || '—'} (owned by ${d.sourceOwner || '—'}) · refresh: ${d.refresh ?? 'not said'}`, `Owner: ${d.owner ?? '—'}`, `Caveats: ${d.caveats || '—'}`,
           goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}`).join('\n')}` : 'Measures no goal yet.',
           ...(summary ? [summary] : []),
+          ...(proposed.length ? [`Proposed (${proposed.length}), not judged: ${proposed.map((x) => `${x.key ?? x.goalId} ${x.goal}${x.owner ? ` (${x.owner})` : ''}`).join('; ')}`] : []),
           ...(needs.length ? [`To sort out: ${needs.map((x) => x.sentence).join('; ')}`] : []),
         ];
-        return { data: { ...d, stillToSay, goals, summary, needs }, text: lines.join('\n') };
+        return { data: { ...d, stillToSay, goals, proposed, summary, needs }, text: lines.join('\n') };
       });
     },
   },

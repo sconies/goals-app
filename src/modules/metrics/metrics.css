@@ -26,6 +26,9 @@
 .metric-summary { margin: 0; color: var(--muted); }
 
 /* A metric's goals side by side: a table on a computer; on a phone each goal is a short block of its own. */
+/* Proposed goals that name it (GE10): a plain list under the table, with no numbers. */
+.metric-proposed { margin-top: var(--s3); }
+.metric-proposed ul { list-style: none; margin: var(--s2) 0 0; padding: 0; display: grid; gap: var(--s2); }
 .metric-goals { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
 .metric-goals th { text-align: left; font-size: 0.75rem; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
 .metric-goals td { padding: 10px 8px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
