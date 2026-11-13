@@ -27,6 +27,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'look-around-the-demo',
+    date: '2026-11-13',
+    title: 'Look around the demo from any workspace',
+    points: [
+      'The workspace switcher has Look around the demo: the example workspace, which you can change freely without touching yours.',
+      'On a phone, Home’s review cell uses a shorter label, so the review’s name fits.',
+    ],
+    articles: ['workspace'],
+  },
+  {
     id: 'reviews-switch-clock',
     date: '2026-11-13',
     title: 'Check-ins say plainly which day they’re due',
@@ -66,7 +76,7 @@ export const WHATS_NEW: NewsEntry[] = [
     title: 'Your run forgives one missed week, and reaching a target is said, quietly',
     points: [
       'When your week’s check-ins are all in, the last screen says whether they were in before the deadline (or the review, if you are in one that day), and how many weeks in a row you have been on time.',
-      'One late week no longer ends your run: if the four weeks before it were on time, it is forgiven, and the next check-in says so once.',
+      'One late or missed week no longer ends your run: if the four weeks before it were on time, it is forgiven, and the next check-in says so once. A goal called Done leaves your run, and a goal you take over counts only from when it became yours.',
       'A check-in that takes a goal to its target says so in one quiet panel, with a way to copy the goal’s share image. One that brings a goal back on track after two weeks or more behind says that too.',
       'The goal’s History marks those weeks “Reached its target” or “Back on track”.',
     ],

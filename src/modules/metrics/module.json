@@ -161,5 +161,11 @@
   "filters": [
     "metric"
   ],
-  "toSortOut": true
+  "toSortOut": true,
+  "parity": {
+    "Metrics": ["list_metrics", "get_metric", "save_metric", "remove_metric", "restore_removed"],
+    "MetricPlaces": ["get_goal", "get_metric", "list_metrics"],
+    "MeasuredBy": ["list_metrics", "save_metric", "link_goal_metric"],
+    "GoalFilterSheet": ["list_metrics"]
+  }
 }
