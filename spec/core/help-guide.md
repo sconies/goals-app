@@ -359,7 +359,7 @@ Anyone can watch any goal. A goal’s owner has no Watch: it is always on their 
 
 `goals`. Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look.
 
-Routes: `/goals`, `/goals?view=list`, `/goals?view=table`, `/goals?view=board`. Screens: `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`. Requirements: `GOALS-SCOPE`, `GOALS-ATTENTION`, `GOALS-ADDRESS`, `GOALS-MENUS`, `VIEWS`, `OUTCOME-TREE`, `HIERARCHY`, `STICKY-HEAD`, `NAV-GOALS`, `STORY`, `LEVELS`, `BULK-EDIT`.
+Routes: `/goals`, `/goals?view=list`, `/goals?view=table`, `/goals?view=board`. Screens: `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`. Requirements: `GOALS-SCOPE`, `GOALS-ATTENTION`, `GOALS-ADDRESS`, `GOALS-MENUS`, `VIEWS`, `OUTCOME-TREE`, `HIERARCHY`, `STICKY-HEAD`, `NAV-GOALS`, `STORY`, `LEVELS`, `BULK-EDIT`.
 
 #### What it’s for
 

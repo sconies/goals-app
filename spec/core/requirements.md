@@ -284,7 +284,7 @@ Only the goal's owner checks in on the check-in screen: the owner's call is the 
 A headline goal with input goals from several teams, each with an estimated effect; the headline shows its inputs and their mix of statuses.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Tests:** `evals/scenarios.eval.ts` (1)
 - **Journeys and checks:** U4, U9
 
@@ -356,7 +356,7 @@ The goal page leads with its summary bar, then the chart (plan, actual, projecti
 Goals are shown as trees: each goal that feeds nothing heads a tree, with what feeds it worst first; team goals that are not linked are flagged.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** U3
 
 ### LEVELS
@@ -365,7 +365,7 @@ Every goal has a level, Team by default, or SVP or North star for goals reported
 
 - **Copy:** build it as Faro does.
 - **Rule:** [Levels](rules/levels.md)
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** U4, U9, U13
 
 ### STICKY-HEAD
@@ -373,7 +373,7 @@ Every goal has a level, Team by default, or SVP or North star for goals reported
 In the Goals table and the quarter results, the column headings stay in view while the goals scroll under them, on a phone and a desktop.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** U38
 
 ### FIRST-CHECKIN
@@ -507,7 +507,7 @@ Goals opens on the viewer's own goals: its tabs say whose goals (Mine when they 
 
 - **Copy:** build it as Faro does.
 - **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** U73
 
 ### GOALS-ATTENTION
@@ -516,7 +516,7 @@ Needs attention is a switch on any scope, with its count for that scope and thos
 
 - **Copy:** build it as Faro does.
 - **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** U73
 
 ### GOALS-ADDRESS
@@ -525,7 +525,7 @@ Goals' address names the scope, the group, the layout and the switch; every old 
 
 - **Copy:** build it as Faro does.
 - **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** U73
 
 ### GOALS-MENUS
@@ -533,7 +533,7 @@ Goals' address names the scope, the group, the layout and the switch; every old 
 Goals' Layout, Group and Views are menus with one meaning on every width: Layout says the open layout and what each one is; Views holds the saved views, Save this view, Copy link and Export these goals. On a phone one View sheet holds Layout, Group, Saved views and the same actions, opened from a button that says the layout and group. The head and the bar keep their place and width in every layout, and on the Map Group and Sort say the Map is always the trees.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** U135
 
 ## Platform
@@ -791,7 +791,7 @@ An owner can type the week’s numbers for all their number goals in one table; 
 
 - **Copy:** build it as Faro does.
 - **Rule:** [The change engine](rules/change-engine.md)
-- **Help:** “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`; “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Help:** “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`; “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** U21, U45, U57
 
 ### NO-DOUBLE-POST
@@ -1012,7 +1012,7 @@ A goal year's weeks follow the calendar: week 1 is the week with the first Thurs
 The same goals can be seen as a list, a sortable table, a board by status, or a week-by-week history grid of owners’ calls (each with the goal’s number now). Cards went on 9 Nov: a link, saved view or remembered choice that names it opens the list and says so once. Every layout has the same one-line health summary above the goals (how many off track, at risk, on track and so on, shape and word, as Home counts them). Sorted, the Trees tab is one list across every tree. The Board shows 8 cards in a healthy lane before Show all, each card leads with its own status (shape and word) and names the goal it feeds into. By team lists the teams worst first (most off track, then at risk, no recent update, no check-in yet), each with its goals counted by status, shape and word. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address. Choosing a tab or a layout is a step in the browser's history, so Back returns to the one before. A link naming a tab, team, owner or tree the workspace doesn't have opens the default instead, with one line saying what was left out. Every tab is shown whole beside the layouts. On a phone the goals come first: which goals (the tabs and saved views, with Export) and the layout are two menus on one line, the first saying the open view and its count, so the first goal starts within about 240px of the top of a 360px screen.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** N10, U19
 
 ### GOAL-MAP
@@ -1056,7 +1056,7 @@ AI assistant tokens are made and revoked only by security-definer functions (okr
 Every goal that is off track, at risk or gone quiet tells its story where it is listed and in exports: why it is off, what the owner will do, by when, what they need and from whom. Things the numbers would hide are flagged: no recovery plan, a missed or slipping date, the same cause week after week, a call greener than the numbers, a goal gone quiet. A legend says what each status means. Once due, a goal shows Completed, Completed late or Did not meet.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “A goal’s page” (`goal-page`), screens `GoalScreen`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`; “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** U19, U33
 
 ### QUARTER-RESULTS
@@ -1172,7 +1172,7 @@ Settings is about you (app redesign WR3): who you are here, with "Your page" lea
 Goals is one section of the navigation with Mine, Watching and All, and your saved views under it; a person in one workspace never sees a workspace switcher.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “On a phone, a tablet or a big screen” (`any-device`)
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`; “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** N4
 
 ### MOTION-ALIVE

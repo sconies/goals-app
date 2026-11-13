@@ -17976,7 +17976,8 @@ var CORE_ARTICLES = [
 			"GoalViews",
 			"GoalTable",
 			"GoalBoard",
-			"BulkEdit"
+			"BulkEdit",
+			"StoppedList"
 		],
 		reqs: [
 			"GOALS-SCOPE",
@@ -25401,6 +25402,7 @@ init_columns();
 init_status();
 init_attention();
 init_vocabulary();
+init_review();
 init_removal();
 init_goalKey();
 init_proposed();
@@ -25796,7 +25798,11 @@ var CORE_TOOLS = [
 				scope: str("Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.", { enum: SCOPES }),
 				query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
 				view: str("The name of a saved view: one of yours, or one pinned for everyone."),
-				state: str("active (the default) or proposed: proposed goals have no status and are listed only when asked for.", { enum: ["active", "proposed"] }),
+				state: str("active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter).", { enum: [
+					"active",
+					"proposed",
+					"stopped"
+				] }),
 				limit: {
 					type: "integer",
 					minimum: 1,
@@ -25880,6 +25886,29 @@ var CORE_TOOLS = [
 					v
 				}] : [];
 			});
+			if (a.state === "stopped") {
+				const facts = scopeFacts(ctx.snapshot, ctx.actor);
+				const stopped = (ctx.snapshot.archive?.goals ?? []).filter((g) => (scope === "mine" ? g.ownerId === ctx.actor.id : scope === "team" ? facts.teams.some((t) => t.id === g.teamId) : scope === "watching" ? watchedGoals(ctx.actor.id, {
+					...ctx.snapshot,
+					goals: [...ctx.snapshot.goals, g]
+				}).some((w) => w.id === g.id) : true) && (!words.trim() || words.toLowerCase().split(/\s+/).every((w) => `${g.title} ${g.key ?? ""}`.toLowerCase().includes(w)))).sort((x, y) => (y.stoppedAt ?? "").localeCompare(x.stoppedAt ?? ""));
+				const who = (id) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? null;
+				return listed(goalPage(stopped.map((g) => ({
+					key: g.key ?? null,
+					id: g.id,
+					title: g.title,
+					type: g.kind,
+					level: g.level,
+					owner: who(g.ownerId),
+					team: ctx.snapshot.teams.find((t) => t.id === g.teamId)?.name ?? null,
+					status: null,
+					statusLabel: STOPPED,
+					state: "stopped",
+					stoppedAt: g.stoppedAt ?? null,
+					stoppedBy: who(g.stoppedBy),
+					stopReason: g.stopReason ?? null
+				})), a, "No stopped goals here."));
+			}
 			const proposedOnly = a.state === "proposed";
 			const inScopeOf = (g) => !inScope ? true : !isProposed(g) ? inScope.has(g.id) : scope === "mine" ? g.ownerId === ctx.actor.id : scope === "team" ? scopeFacts(ctx.snapshot, ctx.actor).teams.some((t) => t.id === g.teamId) : false;
 			const wordsOf = (g) => `${g.title} ${g.key ?? ""}`.toLowerCase();
