@@ -22,6 +22,7 @@ import type { Answers, ChangeInput, ChangeSet, CheckInPost, PostMode, Tables, Vi
 import { ACTIONS } from '../mcp/parity';
 import { commitOf, loadEngine, loadGoalEntry, MODULE_ACTIONS, perform, performAny, ready, type ActionInput, type ActionName, type RunContext, type RunResult } from './actions';
 import { telemetry } from '../telemetry';
+import { isOffline, recoverFromStaleCode } from '../telemetry/staleCode';
 import * as R from '../domain/removal';
 import { forgetDemoBrowser, forgetWorkspaceBrowser } from './demoBrowser';
 import { avatarHues, duplicateTitles, goalTell, nameWithTell } from '../domain/people';
@@ -323,6 +324,11 @@ export const loadMark = (): number => (lastMark = Math.max(performance.now(), la
 
 /** Said when a save is tried with nobody signed in (outside the demo). */
 export const NOBODY = 'Nobody is signed in here, so nothing can be saved.';
+/** When the change engine (app/actions.ts) can't load, the action says so instead of doing nothing (#193's review):
+    offline in the words of a page that needs a connection (#183), online with a Reload that fetches it afresh (a
+    browser keeps a part that failed to load, so asking again in the same page fails again). Drafts survive a reload. */
+export const ENGINE_OFFLINE = 'You’re offline, and saving needs a part of Faro that hasn’t loaded yet. What you typed is kept: try again when you’re back online.';
+export const ENGINE_FAILED = 'A part of Faro that saves changes didn’t load. Reload to try again; what you typed is kept.';
 
 const ToastCtx = createContext<Toast[]>([]);
 /** The messages on screen. Kept apart from the app state so a message coming and going doesn't recompute every screen. */
@@ -625,7 +631,12 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       const before = snapshot;
       // Outside the demo, nobody signed in can't act: there is no stand-in to act as (AX3).
       if (!signedIn.current) { toast(NOBODY, 'error'); throw new Error(NOBODY); }
-      await ready(name);
+      try { await ready(name); } catch (e) {
+        if (isOffline()) toast(ENGINE_OFFLINE, 'error');
+        // Online, it is stale code or a failed fetch: reload once (staleCode.ts), or offer the reload when it just did.
+        else if (!recoverFromStaleCode(e)) toast(ENGINE_FAILED, 'error', { label: 'Reload', run: () => location.reload() });
+        throw e;
+      }
       let out: ReturnType<typeof perform<N>>;
       try { out = performAny(rx(), name, input) as ReturnType<typeof perform<N>>; } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
       // A token's secret is made where it's kept (the shared database makes its own) and shown once; only its hash is stored.

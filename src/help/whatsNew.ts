@@ -34,6 +34,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['goal-proposed', 'home'],
   },
   {
+    id: 'save-part-not-loaded',
+    date: '2026-11-12',
+    title: 'Saving says when it can’t',
+    points: [
+      'If the part of Faro that saves a check-in hasn’t loaded (you went offline before it arrived, say), Post check-in now says so instead of doing nothing until you reload.',
+      'Offline, it asks you to try again once you’re back online. Online, it reloads the page or offers Reload, and what you typed is kept.',
+      'Home now really lists your goals worst first, then by name, as the last release said.',
+    ],
+    articles: ['any-device', 'home'],
+  },
+  {
     id: 'asks-say-how-long',
     date: '2026-11-12',
     title: 'Asks say how long they have waited',
