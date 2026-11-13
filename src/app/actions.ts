@@ -48,7 +48,7 @@ import type { SaveGoalInput } from '../domain/goalEntry';
 import { findGoal } from '../domain/goalKey';
 import type { Tables } from '../domain/sheets';
 import type { TableLayout } from '../domain/tableLayout';
-import type { Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
+import type { CheckInReading, Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
 import type { Commit } from '../domain/commit';
 import MODULE_PARTS from 'virtual:faro-modules/actions';
 import { recordsOn } from '../core/records';
@@ -86,9 +86,9 @@ export const ACTIONS = {
   planChanges: (x: RunContext, i: { tables: Tables; via: Via; reason?: string; confirm?: boolean; answers?: Answers; apply?: boolean; file?: { name: string; leftOut?: number }; posts?: CheckInPost[] }) =>
     eng().planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, answers: i.answers, full: x.full, records: x.records, file: i.file, ...(i.posts?.length ? { posts: i.posts } : {}) }),
   /* One check-in from its screen, through the same engine (check-in spec, rule 13). The week defaults to this one. */
-  postCheckIn: (x: RunContext, i: { goalId: string; draft: Draft; mode: PostMode; week?: number; reason?: string }) => {
+  postCheckIn: (x: RunContext, i: { goalId: string; draft: Draft; mode: PostMode; week?: number; reason?: string; reading?: CheckInReading | null }) => {
     const goalId = goalOf(x, i.goalId).id;
-    return eng().postCheckIn(x, { goalId, week: i.week ?? x.week, draft: i.draft, mode: i.mode, reason: i.reason });
+    return eng().postCheckIn(x, { goalId, week: i.week ?? x.week, draft: i.draft, mode: i.mode, reason: i.reason, ...(i.reading ? { reading: i.reading } : {}) });
   },
   /* A goal from New goal or the edit page (goal entry, rule 7): the same rights and Must fix as every other door. With
      `also`, what the form's module place chose (goal.measure) runs on the workspace with the goal in it, for the goal as

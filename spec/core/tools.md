@@ -658,6 +658,10 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `needs` | string | no | A decision or help needed, and from whom. |
 | `next_step` | string | no | The next step. |
 | `reason` | string | no | If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”. |
+| `reading_confirmed` | boolean | no | True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded. |
+| `different_because` | object | no | When the owner’s value differs from what the source reads now, why: the reading and the reason are recorded beside their number (never a flag). kind: behind (the source is behind: they have a newer number), other-count (it counts something else), wrong (it is wrong this week) or else (something else, with text of at least 10 characters). |
+| `different_because.kind` | one of `behind`, `other-count`, `wrong`, `else` | yes | Why it differs. |
+| `different_because.text` | string | no | In the owner’s words; needed for else. |
 | `answers` | object | no | Answers to the questions (Check) a dry run asked, by the group id it gave: {"<id>": "<choice>"} or {"<id>": {"choice": "choose", "value": "Platform"}}. One answer covers every row in its group. Ask the person; never answer for them. |
 | `dry_run` | boolean | no | Check the change without saving it. Use it to see what would change, or what is missing. |
 
@@ -742,6 +746,34 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
     "reason": {
       "type": "string",
       "description": "If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”."
+    },
+    "reading_confirmed": {
+      "type": "boolean",
+      "description": "True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded."
+    },
+    "different_because": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "description": "When the owner’s value differs from what the source reads now, why: the reading and the reason are recorded beside their number (never a flag). kind: behind (the source is behind: they have a newer number), other-count (it counts something else), wrong (it is wrong this week) or else (something else, with text of at least 10 characters).",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "Why it differs.",
+          "enum": [
+            "behind",
+            "other-count",
+            "wrong",
+            "else"
+          ]
+        },
+        "text": {
+          "type": "string",
+          "description": "In the owner’s words; needed for else."
+        }
+      }
     },
     "answers": {
       "type": "object",

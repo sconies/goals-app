@@ -196,3 +196,5 @@
 .habit-mark .habit-fill { fill: currentColor; }
 .habit-mark.is-empty { display: inline-block; }
 @media (max-width: 640px) { .habit-weeks { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* A number filled in from its source (NR 2.3): the quiet ink until the owner touches the row, still readable (AA). */
+.quick .qvalue input.qsuggested { color: var(--muted); font-weight: 400; }
