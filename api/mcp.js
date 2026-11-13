@@ -2552,7 +2552,7 @@ function checkInLevels(goal, week, draft, own) {
 		checks
 	};
 }
-var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, correctReasonOk, correctReasonAsk, decimalsOf, MISSING_TEXT, VALUE_CODES, reached, unanswered, answeredDiffs;
+var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, decimalsOf, MISSING_TEXT, VALUE_CODES, reached, unanswered, answeredDiffs;
 var init_checkin = __esmMin((() => {
 	init_status();
 	init_plan();
@@ -2575,11 +2575,6 @@ var init_checkin = __esmMin((() => {
 		["other", "Something else"]
 	];
 	causeLabel = (c) => [...CAUSES_BEHIND, ...CAUSES_AHEAD].find(([k]) => k === c)?.[1] ?? "";
-	correctReasonOk = (text) => {
-		const t = text.trim();
-		return t.length >= 10 && t.length <= 500 && (t.match(/\p{L}/gu) ?? []).length >= 3;
-	};
-	correctReasonAsk = (week) => `Say why, in a sentence of at least 10 characters (at most 500), so anyone reading week ${week} later knows.`;
 	decimalsOf = (goal, n) => goal && goal.kind !== "milestone" ? goal.decimals : (String(n).split(".")[1] ?? "").length;
 	MISSING_TEXT = {
 		value: "this week’s value",
@@ -7498,6 +7493,14 @@ var init_actions = __esmMin((() => {
 		return ((w[0]?.[0] ?? "") + (w.length > 1 ? w[w.length - 1][0] : "")).toUpperCase();
 	};
 	liveView = (x, id) => (x.snapshot.views ?? []).find((v) => v.id === id && !v.deletedAt);
+})), correctReasonOk, correctReasonAsk;
+var init_correctReason = __esmMin((() => {
+	init_checkin();
+	correctReasonOk = (text) => {
+		const t = text.trim();
+		return t.length >= 10 && t.length <= 500 && (t.match(/\p{L}/gu) ?? []).length >= 3;
+	};
+	correctReasonAsk = (week) => `Say why, in a sentence of at least 10 characters (at most 500), so anyone reading week ${week} later knows.`;
 }));
 // src/domain/goalEntry.ts
 /**
@@ -12300,6 +12303,7 @@ function keepsTheRules(c) {
 }
 var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, CORRECTS_VIA, initialsOf, GoalSet;
 var init_changeset = __esmMin((() => {
+	init_correctReason();
 	init_actions();
 	init_changes();
 	init_checkin();
