@@ -15,7 +15,7 @@ A goal can be proposed before anyone is held to it: visible to everyone, never j
 
 **Counted apart.** `goalCounts` gives active and proposed apart, and a count line adds "{n} proposed": "2 goals, worst first. 1 proposed". With the State filter on Proposed (`state=proposed`), Goals lists them newest first; the Board is one column, "Proposed"; the Map draws each in its tree with the goals above it for context, as a node with a dashed outline and the word, on no critical path and in no "Under it", and opening one goes to its page. Without the filter neither draws one.
 
-**Saving.** A new goal is proposed when "Is it under way?" is answered "Not yet: propose it", a file's State says proposed, or a tool's state does. While proposed, the type's own required fields (Baseline and Target, the Limit, the stages) are optional all together (`proposedMustFix`): a proposal that says none of them is stored as dated stages with no stages (`measureUnsaid`) and every screen says "How it’s measured isn’t said yet."; one that says part of it is judged as any goal is. No reason is ever asked of a change to a proposed goal.
+**Saving.** A new goal is proposed when "Is it under way?" is answered "Not yet: propose it", a file's State says proposed, or a tool's state does. While proposed, the type's own required fields (Baseline and Target, the Limit, the stages) are optional all together (`proposedMustFix`): a proposal that says none of them is stored as dated stages with no stages (`measureUnsaid`) and every screen says "How it’s measured isn’t said yet."; one that says part of it is judged as any goal is. No reason is ever asked of a change to a proposed goal. Its type can still change: the edit page has Type (Move a number · Keep a number in range · Hit dated stages) under "It’s proposed, so its type can still change."; an active goal's is refused at the save: "A goal’s type can’t change once it is active. Add a new goal instead."
 
 **Who.** Anyone may propose a goal for anyone. Its owner or an admin makes it active (`mayActivate`); whoever proposed it may also change or withdraw it while it is proposed (`mayChangeGoal`).
 
@@ -80,6 +80,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 14: proposed goals › Goals, Mine, as Tunde: the count line says the proposed goal apart
 - rule 14: proposed goals › a fortnight later it still says Proposed, and a check-in on it is refused in the check-in’s words
 - rule 14: proposed goals › Rhea proposes a goal for Camille with only a name: nothing measured yet; Camille’s Home asks; she may make it active, Rhea may change it, Oskar neither
+- rule 14: proposed goals › Proposed, its type can still change: Tunde turns G-132 into stages; an active goal’s type is refused
 - rule 14: proposed goals › Tunde makes it active in week 48: From becomes 48, read back with its dates; Undo makes it proposed again
 - rule 14: proposed goals › GE10 review: From before this week is asked at every door; a From outside the plan is refused
 - rule 14: proposed goals › GE10 review: a stages goal proposed with a stage already done saves no check-in

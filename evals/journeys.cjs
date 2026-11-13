@@ -5594,6 +5594,43 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
 }, []);
 
 /* Check reads the metric from the draft (build review of #202, findings 2 and 3): a reload keeps it, a new team re-slices it. */
+journey('U149', ['GOAL-PROPOSED', 'GOAL-EDIT-PAGE'], 'A proposed goal’s type: as Tunde, a goal proposed from New goal opens its edit page with Type under “It’s proposed, so its type can still change.”; choosing “Keep a number in range” shows the limit, and with one typed Save changes keeps it proposed as a range goal; his active “Contract tests between the top 40 service pairs” has no Type on its edit page', 25, async (h, device) => {
+  const p = h.use(await newPage(device, 'tunde'));
+  const on = (path, day = '2026-11-11') => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  await p.goto(on('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await h.fill(p.getByLabel(/Name it the way/), 'Change failure rate on the new runners');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await h.fill(p.getByLabel(/^Unit/), '%');
+  await h.fill(p.getByLabel(/^Baseline$/), '20');
+  await h.fill(p.getByLabel(/^Target$/), '10');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await h.click(p.getByRole('group', { name: 'Is it under way?' }).getByRole('radio', { name: /Not yet: propose it/ }));
+  await h.click(p.getByRole('button', { name: 'Propose goal' }));
+  await p.waitForURL(/\/goals\/[^/?]+\?.*published=1/);
+  const id = new URL(p.url()).pathname.split('/').pop();
+  await p.goto(on('/goals/' + id + '/edit'));
+  await see(p, 'It’s proposed, so its type can still change.', 'a proposed goal’s edit page doesn’t say its type can change');
+  const type = p.getByRole('group', { name: 'Type' });
+  await h.click(type.getByRole('button', { name: 'Keep a number in range' }));
+  await see(p, 'Warn this close', 'choosing a range doesn’t show the limit');
+  await h.checkpoint('type');
+  await h.fill(p.getByRole('textbox', { name: /^Limit/ }).first(), '12');
+  await h.fill(p.getByRole('textbox', { name: /^Warn this close/ }).first(), '1');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(new RegExp('/goals/' + id + '(\\?|$)'));
+  const snap = await h.snapshot();
+  const g = snap.goals.find((x) => x.id === id);
+  h.set('logged', !!g && g.kind === 'range' && !!g.proposedAt && g.range?.limit === 12, `the proposed goal was saved as ${g?.kind}, ${g?.proposedAt ? 'proposed' : 'active'}, not a proposed range goal with a limit of 12`);
+  await p.goto(on('/goals/cfr-contract/edit'));
+  await p.locator('.goal-edit').waitFor({ timeout: 8000 }).catch(() => {});
+  h.set('finish', (await p.getByRole('group', { name: 'Type' }).count()) === 0, 'an active goal’s edit page offers Type');
+});
+
 journey('U145', ['METRICS-MEASURED-BY', 'NEW-GOAL-STEPS'], 'The metric chosen survives Check: as Rhea, a goal measured by Pipeline queue wait (p90) for CI/CD; a reload on Check still reads “Pipeline queue wait (p90), for CI/CD.”; “Change” on Who and where puts focus on its first field, and choosing Build & Release then Continue reads “for Build & Release.”; Publish saves the goal measured by it for Build & Release', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals/new'));

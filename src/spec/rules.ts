@@ -47,7 +47,7 @@ import { activeReadBack, leftAsUsual, readBack, reviewsJoining, underWay, type R
 import { judged } from '../domain/proposed';
 import { goalCounts, measureUnsaid, withProposedCount } from '../domain/proposedSummary';
 import { mayActivate, NOTHING_TO_CHECK_IN, proposalAsks, readyToActivate } from '../domain/proposedActions';
-import { proposedMustFix } from '../domain/goalEntry';
+import { proposedMustFix, TYPE_FIXED } from '../domain/goalEntry';
 import { mayChangeGoal } from '../domain/goalRights';
 import { blankGoal, pastStage, stagesDoneAtSetUp, type GoalDraft } from '../domain/goal';
 import { CHECK_IDS, fieldNeed, formNeed, goalChecks, goalMustFix, planGoal, stepSays, stepState as goalStepState, stepFields, unanswered as goalUnanswered } from '../domain/goalEntry';
@@ -1501,7 +1501,7 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
 
 **Counted apart.** \`goalCounts\` gives active and proposed apart, and a count line adds "{n} proposed": "2 goals, worst first. 1 proposed". With the State filter on Proposed (\`state=proposed\`), Goals lists them newest first; the Board is one column, "Proposed"; the Map draws each in its tree with the goals above it for context, as a node with a dashed outline and the word, on no critical path and in no "Under it", and opening one goes to its page. Without the filter neither draws one.
 
-**Saving.** A new goal is proposed when "Is it under way?" is answered "Not yet: propose it", a file's State says proposed, or a tool's state does. While proposed, the type's own required fields (Baseline and Target, the Limit, the stages) are optional all together (\`proposedMustFix\`): a proposal that says none of them is stored as dated stages with no stages (\`measureUnsaid\`) and every screen says "How it’s measured isn’t said yet."; one that says part of it is judged as any goal is. No reason is ever asked of a change to a proposed goal.
+**Saving.** A new goal is proposed when "Is it under way?" is answered "Not yet: propose it", a file's State says proposed, or a tool's state does. While proposed, the type's own required fields (Baseline and Target, the Limit, the stages) are optional all together (\`proposedMustFix\`): a proposal that says none of them is stored as dated stages with no stages (\`measureUnsaid\`) and every screen says "How it’s measured isn’t said yet."; one that says part of it is judged as any goal is. No reason is ever asked of a change to a proposed goal. Its type can still change: the edit page has Type (Move a number · Keep a number in range · Hit dated stages) under "It’s proposed, so its type can still change."; an active goal's is refused at the save: "${TYPE_FIXED}"
 
 **Who.** Anyone may propose a goal for anyone. Its owner or an admin makes it active (\`mayActivate\`); whoever proposed it may also change or withdraw it while it is proposed (\`mayChangeGoal\`).
 

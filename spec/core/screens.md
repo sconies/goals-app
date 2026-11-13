@@ -581,14 +581,14 @@ None written in its markup beyond the screen itself: it draws what it has.
 |---|---|---|
 | “Why change it?” | textarea | `replanning` |
 | “Name …” | text | always |
-| “What it measures” | textarea | `goal.kind !== 'milestone'` |
-| “Baseline (…) …” | text | `goal.kind === 'metric'` |
-| “From” | WeekPick | `goal.kind === 'metric'` |
-| “Target (…) …” | text | `goal.kind === 'metric'` |
-| “To” | WeekPick | `goal.kind === 'metric'` |
-| “Lower limit …” | text | `goal.kind === 'range'` and `d.bound === 'between'` |
-| “Upper limit / Limit …” | text | `goal.kind === 'range'` |
-| “Warn this close …” | text | `goal.kind === 'range'` |
+| “What it measures” | textarea | `d.kind !== 'milestone'` |
+| “Baseline (…) …” | text | `d.kind === 'metric'` |
+| “From” | WeekPick | `d.kind === 'metric'` |
+| “Target (…) …” | text | `d.kind === 'metric'` |
+| “To” | WeekPick | `d.kind === 'metric'` |
+| “Lower limit …” | text | `d.kind === 'range'` and `d.bound === 'between'` |
+| “Upper limit / Limit …” | text | `d.kind === 'range'` |
+| “Warn this close …” | text | `d.kind === 'range'` |
 | “Owner” | PickOne | always |
 | “Team” | PickOne | always |
 | “Feeds into” | PickOne | always |
@@ -612,9 +612,9 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “All goals” | link | always |
 | “Back to the goal” | link | always |
 | “Discard them” | button | `restored` |
-| “At most” | button | `goal.kind === 'range'` |
-| “At least” | button | `goal.kind === 'range'` |
-| “Between” | button | `goal.kind === 'range'` |
+| “At most” | button | `d.kind === 'range'` |
+| “At least” | button | `d.kind === 'range'` |
+| “Between” | button | `d.kind === 'range'` |
 | “… (worked out when it shows)” | primary | always |
 
 ## Print

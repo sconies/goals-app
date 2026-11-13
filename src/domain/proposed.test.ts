@@ -9,7 +9,8 @@ import { carryCopy, carryKind } from './carry';
 import { planChanges } from './changeset';
 import { currentCycle, scopeToCycle } from './cycle';
 import { countLine } from './find';
-import { blankGoal, type GoalDraft } from './goal';
+import { blankGoal, draftFor, type GoalDraft } from './goal';
+import { TYPE_FIXED } from './goalEntry';
 import { mayChangeGoal } from './goalRights';
 import { scopesFor } from './goalsPage';
 import { currentWeek } from './plan';
@@ -88,6 +89,15 @@ describe('rule 14: proposed goals', () => {
     const rhea = { id: 'rhea', admin: false }, camille = { id: 'camille', admin: false }, oskar = { id: 'oskar', admin: false };
     expect([mayActivate(camille, g), mayActivate(rhea, g), mayActivate(oskar, g)]).toEqual([true, false, false]);
     expect([mayChangeGoal(camille, g), mayChangeGoal(rhea, g), mayChangeGoal(oskar, g)]).toEqual([true, true, false]);
+  });
+
+  it('Proposed, its type can still change: Tunde turns G-132 into stages; an active goal’s type is refused', () => {
+    const { w, goal } = proposed();
+    const stages = { ...draftFor(goal), kind: 'milestone' as const, stages: [{ id: 's1', name: 'Signing in CI', dueWeek: '50' }] };
+    const out = perform(x('tunde', w), 'saveGoal', { draft: stages, goalId: goal.id }) as { goal: Goal };
+    expect([out.goal.kind, isProposed(out.goal)]).toEqual(['milestone', true]);
+    const lead = w.full.goals.find((g) => g.id === 'ns-lead')!;
+    expect(() => perform(x('rhea', w), 'saveGoal', { draft: { ...draftFor(lead), kind: 'range', limit: '3' }, goalId: lead.id })).toThrow(TYPE_FIXED);
   });
 
   it('Tunde makes it active in week 48: From becomes 48, read back with its dates; Undo makes it proposed again', () => {

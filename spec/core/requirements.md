@@ -331,7 +331,7 @@ A goal can be proposed before anyone is held to it: it is visible and can be dis
 - **Copy:** build it as Faro does.
 - **Rule:** [Proposed goals](rules/proposed.md)
 - **Help:** “Proposed goals” (`goal-proposed`), screens `ProposedGoal`, `ProposedList`
-- **Journeys and checks:** U134
+- **Journeys and checks:** U134, U149
 
 ### NEW-GOAL-TRUTH
 
@@ -454,7 +454,7 @@ Changing a goal is one page in four sections an address can open at (What it is 
 
 - **Copy:** build it as Faro does.
 - **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
-- **Journeys and checks:** U136
+- **Journeys and checks:** U136, U149
 
 ### GOAL-SAYS
 

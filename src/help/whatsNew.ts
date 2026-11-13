@@ -23,6 +23,15 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'proposed-type-changes',
+    date: '2026-11-13',
+    title: 'A proposed goal’s type can still change',
+    points: [
+      'Changing a proposed goal, Type lets you turn it into a number to move, a number to keep in range, or dated stages. Once it is active, its type stays.',
+    ],
+    articles: ['goal-proposed', 'edit-goal'],
+  },
+  {
     id: 'sidebar-fits-a-laptop',
     date: '2026-11-13',
     title: 'The whole sidebar fits on a laptop screen',
