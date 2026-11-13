@@ -277,6 +277,11 @@ const CORE_ARTICLES: Article[] = [
         'The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned.',
         'A number that looks wrong (ten times last week’s, say) is a question you answer before posting: “Yes, it’s right” or change it. The same number as last week asks whether you measured it again. Your answer is kept in the goal’s History. A number that can’t be used says what to fix.',
       ] },
+      { heading: 'With no set rhythm', list: [
+        'An admin can choose no set rhythm for a workspace (Workspace, Features). Then Check-in is “Check in on a goal”: your goals with no check-in this week first, those you have never checked in on at the top, then those checked in this week. Each row has its own button; nothing is due, late or counted against you, and there is no streak.',
+        'A goal is judged by what it last said. Where that isn’t this week’s, its status says which week it is from: “On track · as of week 44”, on Goals, Home, Watching and the goal’s page. No goal reads No recent update, and History has no “No check-in” rows.',
+        'Home and Goals say what has a check-in this week, not what is due. Goals’ Last check-in filter still finds the goals that have gone quiet.',
+      ] },
       { heading: 'Ad hoc check-ins and corrections', list: [
         'Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status. A second check-in in a week is compared with last week, not with your first one, and so is the goal’s “vs last week”.',
         'Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.',
@@ -1083,7 +1088,9 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'On Workspace, Features says how this workspace works and lists the optional parts of Faro, each with what it does; About says which are on, from the same list. Goals, check-ins and people are the core and always on.',
-        'How you work holds Reviews: walking a set of goals together on a cadence. While it is on, it says how many reviews are set up. Tools holds the rest, such as the Metric library and Spreadsheets. Each has a switch with On or Off beside it.',
+        'How you work starts with the check-in rhythm: “Every week, due by Thursday” (a goal with no check-in for 14 days reads No recent update) or “No set rhythm” (owners check in when there’s news; nothing is due or late for want of a check-in). Change opens a sheet with the two choices and, with Every week, the day check-ins are due by.',
+        'Before you save, the sheet says what changes for everyone here, counted: how many goals have nothing due, how many stop reading No recent update and what each would show instead, and that dates people chose and every check-in already posted stay as they are. Switched back on, nothing is late that day: the rhythm counts from today, and the sheet says when the first check-ins are due. Save says what it did, with Undo.',
+        'Then Reviews: walking a set of goals together on a cadence. While it is on, it says how many reviews are set up. Tools holds the rest, such as the Metric library and Spreadsheets. Each has a switch with On or Off beside it.',
         'Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching a tool off, or anything on, acts at once.',
         'Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.',
         'With Reviews off, asks and next steps stay on their goals and on Home, each goal’s History and Activity keep what was said in reviews, and check-ins are still due by the same day.',
@@ -1091,14 +1098,14 @@ const CORE_ARTICLES: Article[] = [
         'Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.',
         'Spreadsheets is one of the tools: Export and Import on Data, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says.',
       ] },
-      { heading: 'Who can', text: ['Admins switch features. Everyone sees what is on.'] },
+      { heading: 'Who can', text: ['Admins switch features and choose the check-in rhythm. Everyone sees what is on, and Cycles says the rhythm to everyone (“Check-ins: every week, due by Thursday.” or “Check-ins: no set rhythm.”).'] },
       { heading: 'For the people building Faro', list: [
         'Each feature is a module: one folder in src/modules with a module.json saying what it adds and what it needs. docs/architecture.md explains how to add one.',
       ] },
     ],
     routes: ['/workspace/features'],
     screens: [],
-    reqs: ['MODULES', 'REVIEWS-OPTIONAL'],
+    reqs: ['MODULES', 'REVIEWS-OPTIONAL', 'RHYTHM-OPTIONAL'],
     keywords: ['features', 'modules', 'switch off', 'turn off', 'disable', 'enable', 'spreadsheets', 'reviews', 'how you work', 'tools', 'optional', 'workspace settings'],
     related: ['workspace', 'data', 'import'],
   },

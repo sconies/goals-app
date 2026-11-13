@@ -27,6 +27,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'check-in-rhythm',
+    date: '2026-11-13',
+    title: 'Check-ins can have no set rhythm',
+    points: [
+      'Check-ins can have no set rhythm. An admin chooses on Workspace, Features: every week, or no set rhythm.',
+      'With none, nothing is due or late, and each goal says which week its status is from (“On track · as of week 44”).',
+      'Before it changes, the sheet says what will change for everyone, counted. Switching a rhythm back on counts from that day, so nothing is late, and Undo puts it back.',
+    ],
+    articles: ['features', 'check-in'],
+  },
+  {
     id: 'habit-receipt-and-moment',
     date: '2026-11-13',
     title: 'Your run forgives one missed week, and reaching a target is said, quietly',
