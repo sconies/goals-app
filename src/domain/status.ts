@@ -265,29 +265,3 @@ export function worst(statuses: DisplayStatus[]): DisplayStatus {
   return STATUS_ORDER.find((k) => RANK[k] === r && statuses.includes(k)) ?? statuses[0]!;
 }
 
-/** What changing the check-in rhythm would do, counted (FT1, spec 4.2's read-back): the live goals (not done, stopped,
-    removed or proposed), how many read No recent update now and would not after (`unstale`, by the status each would
-    show then: `none` is "no check-in yet"), and how many would read it after that don't now (`stale`, 0 when a rhythm is
-    switched on: it counts from today). */
-export interface RhythmReadBack {
-  live: number;
-  unstale: number;
-  unstaleBy: Partial<Record<DisplayStatus, number>>;
-  stale: number;
-}
-
-export function rhythmReadBack(goals: readonly Goal[], checkIns: CheckIn[], cycle: Cycle, to: { weeks: number; dueDay?: number }, today: Date): RhythmReadBack {
-  const after: Cycle = { ...cycle, checkInWeeks: to.weeks, reviewDay: to.weeks > 0 ? to.dueDay ?? cycle.reviewDay : cycle.reviewDay,
-    ...((cycle.checkInWeeks ?? 1) === 0 && to.weeks > 0 ? { rhythmFrom: today.toISOString().slice(0, 10) } : {}) };
-  const out: RhythmReadBack = { live: 0, unstale: 0, unstaleBy: {}, stale: 0 };
-  for (const g of goals) {
-    if (g.stoppedAt || g.removedAt || g.proposedAt) continue;
-    const now = goalStatus(g, cycle, checkIns, today).status;
-    if (now === 'done') continue;
-    out.live++;
-    const then = goalStatus(g, after, checkIns, today).status;
-    if (now === 'stale' && then !== 'stale') { out.unstale++; out.unstaleBy[then] = (out.unstaleBy[then] ?? 0) + 1; }
-    if (now !== 'stale' && then === 'stale') out.stale++;
-  }
-  return out;
-}

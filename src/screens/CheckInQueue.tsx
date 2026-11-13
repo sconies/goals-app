@@ -5,7 +5,8 @@
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
-import { checkInList, daysToReview, firstDueWeek, reviewDate, WEEKDAY, weekProgress, type CheckInRow } from '../domain/progress';
+import { daysToReview, firstDueWeek, reviewDate, WEEKDAY, weekProgress } from '../domain/progress';
+import { checkInList, type CheckInRow } from '../domain/rhythm';
 import { rhythmOf } from '../domain/thresholds';
 import { weekDates } from '../domain/plan';
 import { summarise } from '../domain/summary';

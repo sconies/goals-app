@@ -117,9 +117,7 @@ export interface HomeFacts {
   checkIns: { total: number; done: number; due: { id: string; title: string; number: boolean }[]; draft: boolean; allInOnTimeToday: boolean; streak: number | null;
     /** The receipt's facts (habit spec 2.1), for the day the week is completed: whether its last check-in was today, how many
         came after the due day, the forgiven week inside the run, and whether the due day is a review the viewer is in (T4). */
-    completedToday?: boolean; after?: number; forgiven?: number | null; hasReview?: boolean;
-    /** With no set rhythm (FT1): the live goals that have never had a check-in, for the lead's "{Title} has none yet." */
-    never?: { id: string; title: string }[] };
+    completedToday?: boolean; after?: number; forgiven?: number | null; hasReview?: boolean };
   /** The wrap-up, while it is open: the cycle's last day, whether it has passed, the viewer's goals not yet wrapped up. */
   wrap: { name?: string; ends: string; ended: boolean; left: { id: string; title: string }[]; total: number } | null;
   sessions: HomeSession[];
@@ -217,14 +215,6 @@ export function homeLead(f: HomeFacts): Lead | null {
   if (f.rhythm && due && f.today > f.rhythm.dueDate) return checkInLead(f, true);
   // 30: due within LEAD_DAYS, a draft kept, or a review the viewer is in is today and will read them.
   if (f.rhythm && due && (dayDiff(f.today, f.rhythm.dueDate) <= LEAD_DAYS || f.checkIns.draft || f.sessions.some((x) => x.date === f.today && !x.held))) return checkInLead(f, false);
-  // 30 with no set rhythm (FT1): an owner with a live goal that has no check-in this week is led to the check-in list;
-  // nothing is due, so the lead says what is in and no more. Once each has one, there is no lead.
-  if (!f.rhythm && f.checkIns.total > 0 && f.checkIns.done < f.checkIns.total && f.week >= 1 && !f.ended && !f.starts) {
-    const { total, done, never } = f.checkIns;
-    return { kind: 'check-in', eyebrow: 'Your goals', warn: false, title: `${done} ${done === 1 ? 'has' : 'have'} a check-in this week.`,
-      line: never?.length ? `${titles(never)} ${never.length === 1 ? 'has' : 'have'} none yet.` : `${total - done} of your ${total} ${plural(total, 'goal')} ${total - done === 1 ? 'has' : 'have'} none this week.`,
-      action: { label: 'Check in on a goal', to: '/check-in' }, also: null, ring: null, about: null };
-  }
   // 40: the wrap-up, once no check-in is still to do this week (Monday 21 Dec with two to do has no lead: the wrap-up is a cell).
   if (f.wrap && f.wrap.left.length && !(f.rhythm && due)) {
     const n = f.wrap.left.length;

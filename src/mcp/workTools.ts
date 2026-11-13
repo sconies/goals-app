@@ -21,10 +21,9 @@ export const said = (k: DisplayStatus) => withCode(STATUS[k]);
 /** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
 import { ASK_KIND_LABEL, askText, asksOf, canAnswer, canMarkDone, isOverdue, openForPerson, openUpdateAsk } from '../domain/asks';
 import { reviewSession, watchedGoals } from '../domain/review';
-import { checkInList, receiptFacts, receiptText, reviewOnDueDay, WEEKDAY, weekCompletion, weekProgress } from '../domain/progress';
+import { receiptFacts, receiptText, reviewOnDueDay, WEEKDAY, weekCompletion, weekProgress } from '../domain/progress';
 import { rhythmOf } from '../domain/thresholds';
-import { rhythmFact, rhythmReadBackLines, rhythmToast } from '../domain/rhythm';
-import { rhythmReadBack } from '../domain/status';
+import { checkInList, setRhythm, rhythmFact, rhythmReadBack, rhythmReadBackLines, rhythmToast } from '../domain/rhythm';
 import { workbook } from '../domain/export';
 import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { findGoal, isKey } from '../domain/goalKey';
@@ -689,7 +688,7 @@ export const WORK_TOOLS: ToolDef[] = [
         const text = lines.length ? `Nothing is changed yet. What changes for everyone here:\n${lines.map((l) => `- ${l.strong}${l.rest}`).join('\n')}\nCall set_rhythm again with confirm: true to make the change.` : `Nothing to change: ${rhythmFact(ctx.cycle)}`;
         return { data: { changed: false, rhythm: rhythmFact(ctx.cycle), wouldChange: lines.map((l) => l.strong + l.rest) }, text };
       }
-      const res = await save(ctx, A.setRhythm(ax(ctx), ctx.cycle, to), rhythmToast(ctx.cycle, to), `Nothing to change: ${rhythmFact(ctx.cycle)}`);
+      const res = await save(ctx, setRhythm(ax(ctx), ctx.cycle, to), rhythmToast(ctx.cycle, to), `Nothing to change: ${rhythmFact(ctx.cycle)}`);
       return { ...res, data: { rhythm: weeks ? 'every week' : 'none', dueBy: weeks ? WEEKDAY[dueDay] : null } };
     },
   },

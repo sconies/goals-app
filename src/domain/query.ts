@@ -9,7 +9,6 @@ import { ATTENTION, ATTENTION_FLAGS, FLAG, LABEL, QUARTER, RESULT, WARNING, type
 import type { GoalSummary } from './summary';
 import type { Cycle, Goal, GoalKind, Level } from './types';
 import { quarterOf } from './year';
-import { rhythmOf } from './thresholds';
 
 export type QStatus = 'off' | 'risk' | 'stale' | 'on' | 'done' | 'planned' | 'none';
 /** A reason a goal needs attention (domain/attention.ts's flags), for "Needs attention because …"; or its path to green's date slipped. */
@@ -53,10 +52,6 @@ export interface GoalQuery {
 export const EMPTY_QUERY: GoalQuery = { q: '', status: [], level: [], team: [], owner: [], kind: [], attention: false, needs: [], due: null, quiet: null, quarter: null, result: [], feeds: null, helps: false, sort: null, dir: 1, cols: {} };
 
 export const STATUS_OPTIONS: [QStatus, string][] = (['off', 'risk', 'stale', 'on', 'done', 'none', 'planned'] as const).map((k) => [k, LABEL[k]]);
-/** The statuses a cycle's goals can have, to filter by: without No recent update when there is no set rhythm (FT1). */
-export const statusOptions = (cycle: Pick<Cycle, 'checkInWeeks' | 'reviewDay' | 'rhythmFrom' | 'startDate'>): [QStatus, string][] => (rhythmOf(cycle) ? STATUS_OPTIONS : STATUS_OPTIONS.filter(([k]) => k !== 'stale'));
-/** What the filter line says when a link asks for No recent update and there is no set rhythm (FT1, spec 2.6). */
-export const NO_STALE_HERE = 'No recent update isn’t used here: there is no set check-in rhythm.';
 /** "Needs attention because …": each flag that makes a goal need attention, in its vocabulary words. */
 export const NEED_OPTIONS: [Need, string][] = [...ATTENTION_FLAGS.filter((k): k is Exclude<FlagKind, 'due'> => k !== 'due').map((k): [Need, string] => [k, FLAG[k].label]), ['slipped', WARNING.slipped.label]];
 /** Links and saved views from before release 2 said these; they still open the same goals. */

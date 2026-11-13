@@ -34,8 +34,7 @@ import { WORKSPACE_MEANS } from '../domain/vocabulary';
 import { reviewsOn } from '../app/reads';
 import { switchOffLines, switchOffReadBack } from '../domain/reviewsOff';
 import { asksOf } from '../domain/asks';
-import { rhythmAbout, rhythmChoiceOf, rhythmFact, rhythmLine, rhythmReadBackLines, rhythmToast, type RhythmChoice } from '../domain/rhythm';
-import { rhythmReadBack } from '../domain/status';
+import { rhythmAbout, rhythmChoiceOf, rhythmFact, rhythmLine, rhythmReadBack, rhythmReadBackLines, rhythmToast, type RhythmChoice } from '../domain/rhythm';
 import { WEEKDAY } from '../domain/progress';
 
 /** Below this width, Workspace is About and then its other sections as a list, one section at a time (a phone). */

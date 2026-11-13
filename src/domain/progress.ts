@@ -207,27 +207,3 @@ export function firstReports(s: Snapshot, cycle: Cycle, week: number): { total: 
   return { total: live.length, reported: live.length - silent.length, waiting: [...by].map(([ownerId, goals]) => ({ ownerId, goals })), silent: silent.map((g) => g.id), due: dueDate(cycle, week) };
 }
 
-/** A row of the check-in list (FT1, NV3): a goal, and the week and time of its latest check-in (null: none yet). */
-export interface CheckInRow {
-  goalId: string;
-  lastWeek: number | null;
-  lastPostedAt: string | null;
-}
-
-/**
- * The person's live goals for checking in with no set rhythm (FT1, spec 2.3): those with no check-in this week
- * (`waiting`: never-checked-in goals first, then oldest first) and those that have one (`thisWeek`). Done and stopped goals
- * are left out. A done goal is one whose latest check-in says so.
- */
-export function checkInList(personId: string, goals: readonly Goal[], checkIns: readonly CheckIn[], week: number): { waiting: CheckInRow[]; thisWeek: CheckInRow[] } {
-  const rows = goals
-    .filter((g) => g.ownerId === personId && !g.stoppedAt && !g.removedAt && !g.proposedAt)
-    .map((g) => {
-      const own = checkIns.filter((c) => c.goalId === g.id && !c.removedAt);
-      const latest = own.length ? own.reduce((a, b) => (b.postedAt > a.postedAt ? b : a)) : null;
-      return { row: { goalId: g.id, lastWeek: latest?.week ?? null, lastPostedAt: latest?.postedAt ?? null }, done: latest?.status === 'done', now: own.some((c) => c.week === week) };
-    })
-    .filter((r) => !r.done);
-  const waiting = rows.filter((r) => !r.now).map((r) => r.row).sort((a, b) => (a.lastPostedAt ?? '').localeCompare(b.lastPostedAt ?? ''));
-  return { waiting, thisWeek: rows.filter((r) => r.now).map((r) => r.row) };
-}

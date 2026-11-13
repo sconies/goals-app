@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
+import { statusOptions } from '../domain/rhythm';
 import { useGoalColumns } from '../core/app';
 import { levelIds, levelName } from '../domain/levels';
-import { EMPTY_QUERY, KIND_OPTIONS, NEED_OPTIONS, RESULT_OPTIONS, SORT_OPTIONS, statusOptions, type GoalQuery, type SortKey } from '../domain/query';
+import { EMPTY_QUERY, KIND_OPTIONS, NEED_OPTIONS, RESULT_OPTIONS, SORT_OPTIONS, type GoalQuery, type SortKey } from '../domain/query';
 import type { Level } from '../domain/types';
 import { ATTENTION, QUARTER, STOPPED } from '../domain/vocabulary';
 import { Sheet } from '../ui/bits';

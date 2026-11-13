@@ -4,10 +4,11 @@
 import { buildPlatformOrg } from '../data/platformOrg';
 import { cycleFromRow, cycleToRow } from '../data/rows';
 import { CYCLE, checkIn, metric } from '../spec/examples';
-import { setRhythm, NotAllowed, type ActionContext } from './actions';
+import { NotAllowed, type ActionContext } from './actions';
 import { flagsFor } from './attention';
-import { checkInList, dueDate, firstDueWeek, firstReports, onTimeStreak, weekDoneText, weekProgress } from './progress';
-import { goalStatus, rhythmReadBack } from './status';
+import { dueDate, firstDueWeek, firstReports, onTimeStreak, weekDoneText, weekProgress } from './progress';
+import { goalStatus } from './status';
+import { checkInList, rhythmReadBack, setRhythm } from './rhythm';
 import { RULES, rhythmOf, staleAfterDays } from './thresholds';
 import type { Cycle, Snapshot } from './types';
 

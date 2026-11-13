@@ -131,7 +131,6 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
       streak: mine.length ? onTimeStreak(viewerId, s, cycle, week) : null,
       completedToday: allIn && thisWeek.some((c) => c.postedAt.slice(0, 10) === day),
       after: receipt.after, forgiven: receipt.forgiven, hasReview,
-      ...(rhythmOf(cycle) ? {} : { never: p.goals.filter((g) => !s.checkIns.some((c) => c.goalId === g.id)).map((g) => ({ id: g.id, title: g.title })) }),
     },
     wrap: wrapUpOpenOn(wc, today) ? { name: wc.name, ends: cycleDates(wc).lastDay, ended: hasEnded(wc, today), left: wrapMine.filter((g) => !ws.retros.some((r) => r.goalId === g.id)).map((g) => ({ id: g.id, title: g.title })), total: wrapMine.length } : null,
     sessions,
