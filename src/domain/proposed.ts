@@ -43,6 +43,16 @@ export const PROPOSED_ASK_WEEKS = 8;
 /** Whole weeks since a goal was proposed. */
 export const weeksProposed = (g: Pick<Goal, 'proposedAt'>, today: Date): number => (g.proposedAt ? Math.floor((today.getTime() - new Date(g.proposedAt).getTime()) / (7 * 86_400_000)) : 0);
 
+/**
+ * " in {review}" for a goal proposed in a review's walk (decision 15), by the review's name; empty when it was proposed
+ * elsewhere, or the review isn't there to name (ended, or Reviews switched off: `reviewOf` gives null), so nothing is
+ * said about reviews.
+ */
+export const proposedInWords = (g: Pick<Goal, 'proposedIn'>, reviewOf: (id: string) => string | null): string => {
+  const name = g.proposedIn ? reviewOf(g.proposedIn) : null;
+  return name ? ` in ${name}` : '';
+};
+
 export interface ProposalAsk { kind: 'for-you' | 'stale'; goal: Goal; says: string }
 
 /**
@@ -50,11 +60,11 @@ export interface ProposalAsk { kind: 'for-you' | 'stale'; goal: Goal; says: stri
  * goal proposed PROPOSED_ASK_WEEKS weeks ago or more that the viewer may make active (an admin only for their own), not
  * put off. `seen` is what the viewer has opened, and until when each stale ask is put off (the Prefs port).
  */
-export function proposalAsks(goals: readonly Goal[], viewer: Pick<Person, 'id' | 'admin'>, today: Date, seen: { opened: ReadonlySet<string>; putOff: ReadonlyMap<string, string> }, nameOf: (id: string) => string = (id) => id): ProposalAsk[] {
+export function proposalAsks(goals: readonly Goal[], viewer: Pick<Person, 'id' | 'admin'>, today: Date, seen: { opened: ReadonlySet<string>; putOff: ReadonlyMap<string, string> }, nameOf: (id: string) => string = (id) => id, reviewOf: (id: string) => string | null = () => null): ProposalAsk[] {
   const out: ProposalAsk[] = [];
   for (const g of goals.filter(isProposed)) {
     if (g.ownerId === viewer.id && g.proposedBy && g.proposedBy !== viewer.id && !seen.opened.has(g.id)) {
-      out.push({ kind: 'for-you', goal: g, says: `${nameOf(g.proposedBy).split(' ')[0]} proposed a goal for you: “${g.title}”.` });
+      out.push({ kind: 'for-you', goal: g, says: `${nameOf(g.proposedBy).split(' ')[0]} proposed a goal for you${proposedInWords(g, reviewOf)}: “${g.title}”.` });
       continue;
     }
     const n = weeksProposed(g, today);

@@ -128,10 +128,11 @@ export function layoutFrom(ctx: McpContext, a: Record<string, unknown>): TableLa
 /** A sentence as part of a longer line: without its closing full stop, so the line never ends in two. */
 const clause = (t: string) => t.trim().replace(/\.+$/, '');
 
-/** The newest n changes that pass `keep`. With the store's history (AX5 part 2b) it pages back through the log, 100 at
-    a time, rather than filtering every change ever made; without it, it reads the snapshot. */
-async function activityPages(ctx: McpContext, keep: (c: Change) => boolean, n: number): Promise<Change[]> {
-  if (!ctx.history) return ctx.snapshot.changes.filter(keep).sort((x, y) => (x.at < y.at ? 1 : -1)).slice(0, n);
+/** The newest n changes that pass `keep`. A whole snapshot (the server loads whole today) already holds every entry, so
+    they are read from it; only a windowed one (Snapshot.history) pages back through the store's history, 100 at a time
+    (AX5 part 2b). */
+export async function activityPages(ctx: McpContext, keep: (c: Change) => boolean, n: number): Promise<Change[]> {
+  if (!ctx.history || !ctx.snapshot.history) return ctx.snapshot.changes.filter(keep).sort((x, y) => (x.at < y.at ? 1 : -1)).slice(0, n);
   const out: Change[] = [];
   let before: HistoryKey | null | undefined;
   do {
