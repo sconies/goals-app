@@ -361,7 +361,7 @@ function codeFrom(terms, input) {
 	const coded = /\(([^)]+)\)\s*$/.exec(String(input ?? ""));
 	return coded ? codeFrom(terms, coded[1]) : null;
 }
-var ALL, pct$3, term, STATUS, STATUS_ORDER, statusFlag, FLAG, ATTENTION_FLAGS, ATTENTION, HANDLED_LINE, WARNING, RESULT, QUARTER, OWNER_VIEW_LABEL, OWNER_VIEW, STAGE, ASK_KIND, ASK_STATUS, SESSION, DECIDED, TREND, GAP, REMOVAL, leftName, LEFT, STOPPED, ENDED, COMMENT_REMOVED, NOTE_REMOVED, RHYTHM, GROUPS$1, labels, LABEL, MEANING, RESULT_TEXT, RESULT_MEANING, lower, withCode, choices;
+var ALL, pct$3, term, STATUS, STATUS_ORDER, statusFlag, FLAG, ATTENTION_FLAGS, ATTENTION, HANDLED_LINE, WARNING, RESULT, QUARTER, OWNER_VIEW_LABEL, OWNER_VIEW, STAGE, ASK_KIND, ASK_STATUS, SESSION, DECIDED, TREND, GAP, REMOVAL, leftName, LEFT, STOPPED, ENDED, COMMENT_REMOVED, NOTE_REMOVED, AS_OF, RHYTHM, GROUPS$1, labels, LABEL, MEANING, RESULT_TEXT, RESULT_MEANING, lower, withCode, choices;
 var init_vocabulary = __esmMin((() => {
 	init_thresholds();
 	ALL = [
@@ -914,17 +914,13 @@ var init_vocabulary = __esmMin((() => {
 	COMMENT_REMOVED = REMOVAL["comment-removed"].label;
 	NOTE_REMOVED = REMOVAL["note-removed"].label;
 	REMOVAL.edited.label;
+	AS_OF = "The week a status is from, said when it isn’t this week’s and there is no set check-in rhythm.";
 	RHYTHM = { asOf: term("asOf", {
 		label: "as of week {n}",
 		short: "the week a status is from",
-		meaning: "The week a goal’s status and numbers are from, said when it isn’t this week and there is no set check-in rhythm.",
-		long: "With no set check-in rhythm a goal keeps the status its latest check-in gave, however old. Beside it, “as of week 44” says which week that was.",
-		rule: "status#goalStatus",
-		where: [
-			"screens",
-			"help",
-			"ai"
-		]
+		meaning: AS_OF,
+		long: AS_OF,
+		rule: "status#goalStatus"
 	}) };
 	GROUPS$1 = {
 		status: {
@@ -18635,7 +18631,8 @@ var CORE_ARTICLES = [
 				list: [
 					"An admin can choose no set rhythm for a workspace (Workspace, Features). Then Check-in is “Check in on a goal”: your goals with no check-in this week first, those you have never checked in on at the top, then those checked in this week. Each row has its own button; nothing is due, late or counted against you, and there is no streak.",
 					"A goal is judged by what it last said. Where that isn’t this week’s, its status says which week it is from: “On track · as of week 44”, on Goals, Home, Watching and the goal’s page. No goal reads No recent update, and History has no “No check-in” rows.",
-					"Home and Goals say what has a check-in this week, not what is due. Goals’ Last check-in filter still finds the goals that have gone quiet."
+					"Home and Goals say what has a check-in this week, not what is due. On Home each of your goals without one this week has its own Check in button. Goals’ Last check-in filter still finds the goals that have gone quiet.",
+					"On a goal that isn’t yours, “Ask the owner for an update” is there whenever its latest check-in isn’t this week’s. Its forecast is still made from the numbers there are, and says whose pace it is: “on the pace to week 44”. A printed goal says “as of week 44” beside its status."
 				]
 			},
 			{
