@@ -78,6 +78,13 @@ export interface PlaceProps {
     /** "No new number this week", where the step offers it (a goal with a number, not a correction). */
     onSkip?: () => void;
   };
+  /**
+   * The one-table check-in ("Type all your numbers in one table", NR 2.3): given the table's goals, a module hands back
+   * (`onReadings`) the readings it would fill in, by goal id: only those its rule calls fresh. The table shows each in its
+   * cell in faint ink until the owner touches the row, says under the table how many are from their sources, and posting
+   * the table confirms them; a cell changed from its reading asks why in its row. Draws nothing of its own.
+   */
+  'checkin.table': { goals: Goal[]; week: number; onReadings: (r: Record<string, CheckInReading>) => void };
 }
 
 /** What a module's block in the check-in's number step asks of the step's primary (checkin.number). */

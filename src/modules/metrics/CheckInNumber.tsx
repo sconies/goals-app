@@ -7,7 +7,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../app/state';
 import type { NumberStep, PlaceProps } from '../../core/app';
-import { parseNumber } from '../../domain/checkin';
+import { parseNumber, previousFor } from '../../domain/checkin';
+import { checkInsFor } from '../../domain/status';
 import { fmt } from '../../domain/format';
 import { MIN_CORRECT_REASON } from '../../domain/checkin';
 import { READING_WHY, readWhen } from '../../domain/reading';
@@ -174,3 +175,33 @@ export function CheckInNumber(p: PlaceProps['checkin.number']) {
   return <div id="value-hint" className="stack ci-reading-block" style={{ gap: 'var(--s2)' }} data-reading={shown ?? ''}>{body}</div>;
 }
 
+
+/** The one-table check-in (place checkin.table, NR 2.3): the readings it fills in, asked once when the table opens, by
+    goal. Only a fresh reading for a goal not yet checked in this week is offered there; any other state leaves the cell
+    to the owner, as on the step. */
+export function CheckInTableReadings({ goals, week, onReadings }: PlaceProps['checkin.table']) {
+  const app = useApp();
+  const key = goals.map((g) => g.id).join(',');
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      const sources = sourcesFrom(await app.exampleSeed().catch(() => null), app.cycle, demoBehindWeeks());
+      if (!sources.length) return;
+      const out: Record<string, CheckInReading> = {};
+      for (const g of goals) {
+        const m = g.kind === 'milestone' ? null : measureOf(app.snapshot, g);
+        if (!m) continue;
+        const a = await askSource(sources, m.metric, sliceOf(m.link), app.today);
+        if (!a.source || !a.reading || typeof a.reading !== 'object') continue;
+        const own = checkInsFor(g, app.snapshot.checkIns);
+        // A goal already checked in this week isn't filled in again: the table would post a second check-in for it.
+        if (own.some((c) => c.week === week)) continue;
+        const lastValue = previousFor(own, week).number?.value ?? null;
+        if (readingState(a.reading, own.at(-1)?.reading ?? null, lastValue, app.today, null, m.metric.decimals) === 'fresh') out[g.id] = { source: a.source, value: a.reading.value, at: a.reading.at };
+      }
+      if (live) onReadings(out);
+    })();
+    return () => { live = false; };
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}

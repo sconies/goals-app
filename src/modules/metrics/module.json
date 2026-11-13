@@ -24,7 +24,8 @@
     "goal.sections",
     "people.person",
     "people.team",
-    "checkin.number"
+    "checkin.number",
+    "checkin.table"
   ],
   "tables": [
     {
@@ -92,6 +93,7 @@
     "U157",
     "U158",
     "U159",
+    "U160",
     "F15",
     "N16"
   ],

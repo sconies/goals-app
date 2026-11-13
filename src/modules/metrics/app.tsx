@@ -22,6 +22,8 @@ const MeasuredBy = ((props: object) => <Suspense fallback={null}><LazyMeasuredBy
 // The check-in's number filled in from its source (NR2): loaded when the number step first shows it, never on Home.
 const LazyCheckInNumber = lazy(() => import('./CheckInNumber').then((m) => ({ default: m.CheckInNumber as ComponentType<object> })));
 const CheckInNumber = ((props: object) => <Suspense fallback={null}><LazyCheckInNumber {...props} /></Suspense>) as unknown as typeof import('./CheckInNumber').CheckInNumber;
+const LazyTableReadings = lazy(() => import('./CheckInNumber').then((m) => ({ default: m.CheckInTableReadings as ComponentType<object> })));
+const CheckInTableReadings = ((props: object) => <Suspense fallback={null}><LazyTableReadings {...props} /></Suspense>) as unknown as typeof import('./CheckInNumber').CheckInTableReadings;
 const GoalMetric = later('GoalMetric');
 const PersonMetrics = later('PersonMetrics');
 const TeamMetrics = later('TeamMetrics');
@@ -47,6 +49,7 @@ const metrics: AppModule = {
     'people.person': PersonMetrics,
     'people.team': TeamMetrics,
     'checkin.number': CheckInNumber,
+    'checkin.table': CheckInTableReadings,
   },
   finders: [metricFinder],
   filters: [measuredByFilter],
