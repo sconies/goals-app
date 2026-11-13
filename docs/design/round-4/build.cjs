@@ -251,8 +251,51 @@ ${note('“This week” is a view of Goals, beside List, Table, Board, History a
 ${note('Two ways in, and no new menu row: Home’s “Changed since” line for a leader (HM4) opens the view over that leader’s teams; the demo pins “This week across the division” for everyone, beside the views it has today.')}` }),
 };
 
+/* ───────────────────────── 5. Reviews as a feature switch ───────────────────────── */
+const offRows = [['Home', ['Check-in', 1], 'Goals'], ['People', 'Metrics', 'Activity', 'Data'], ['New goal'], ['Workspace', 'Settings', 'Help', 'Feedback']];
+const offTabs = ['Home', 'Check-in', 'Goals', 'People', 'More'];
+const rs = {
+  '01-home-reviews-off': shell({ title: 'Home', cur: 'Home', rows: offRows, tabs: offTabs, body: `
+<div class="head"><div class="stack"><h1>Good morning, Rhea</h1><p class="hint">Platform Engineering · week 46 · Q4</p></div></div>
+<div class="panel"><p class="label">Check-ins are due by Thursday 12 Nov, tomorrow</p><h2>1 check-in to do</h2><p class="hint">CI cost per pipeline run.</p><div><span class="btn primary">Start check-in</span></div></div>
+<div class="sec"><h2>Needs your response · 1</h2><span></span></div>
+<ul class="list"><li><span class="av sm">DO</span><span class="t"><b>Pipeline queue wait (p90)</b><span>“If the runner budget is approved on the 12th, how soon does queue wait drop under five minutes?” Daniel asked 8 days ago.</span></span><span class="btn sm">Answer</span></li></ul>
+<div class="sec"><h2>Your goals · 8</h2><a>See them in Goals</a></div>
+<div class="counts">${st('off', 2)}${st('risk', 1)}${st('none', 1)}${st('on', 3)}${st('done', 1)}</div>
+${note('Reviews off. The menu has no Reviews row and the phone’s fourth tab is People. Home has no review card and no “Next review”; the check-in line names the day, not a review; an ask says how long it has waited instead of which session it was due before. Nothing is greyed and nothing says “off”.')}` }),
+
+  '02-switch-off': shell({ title: 'Workspace', cur: 'Workspace', who: ['AN', 'Amara Nwosu', 'Admin'], body: `
+<p class="hint"><a>Workspace</a> › Features</p>
+<div class="sheet" style="margin:18px 0"><h2>Switch off Reviews in Platform Engineering?</h2>
+<p><b>Reviews leaves the menu</b>, and Home’s “Next review”.</p>
+<p><b>3 reviews stay in the record</b>, with what was said and decided in them. Each goal’s History keeps its part.</p>
+<p><b>7 open next steps agreed in a review stay open</b>, on their goals, with their owners and dates.</p>
+<p><b>2 questions waiting for a review</b> stay open; they no longer name a session.</p>
+<p><b>4 accepted risks stay on their goals</b>, as they were said. No new one can be accepted while Reviews is off.</p>
+<p><b>Check-ins are still due by Thursday.</b> “Before the review” becomes “by Thursday” on Home, in the check-in and in the count of goals checked in on time.</p>
+<p class="hint">Nothing is deleted. Switch Reviews back on and every review is as it was.</p>
+<div class="row between"><span class="btn">Keep Reviews on</span><span class="btn primary">Switch Reviews off</span></div></div>
+${note('FT2’s read-back, with two lines added by round 4: accepted risks, and the day check-ins are due. Counts come from the same rule that draws the pages, so the sheet can’t promise what the app won’t do.')}` }),
+
+  '03-team-and-goal': shell({ title: 'CI/CD', cur: 'People', rows: offRows, tabs: offTabs, body: `
+<p class="hint"><a>People</a> › <a>Teams</a> › CI/CD</p>
+<div class="head" style="margin-top:6px"><div class="stack"><h1>CI/CD</h1><p class="hint">6 people · 17 goals</p></div></div>
+<div class="panel"><p class="label">Week 46, due by Thursday 12 Nov</p><h2>15 of 17 goals were checked in on time, 14 without being asked</h2><p class="hint"><a>1 came in after an ask</a>. <a>2 have no check-in for week 46 yet</a>.</p></div>
+<div class="sec"><h2>The last 8 weeks</h2><span>These 17 goals, by week</span></div>
+${strip}
+<p class="hint" style="margin-top:8px">“All in” means every goal due that week was checked in by its Thursday. Weeks, not people: nobody is named here.</p>
+<div class="hr"></div>
+<p class="case">ON A GOAL’S PAGE, IN HISTORY, WHILE REVIEWS IS OFF</p>
+<ul class="list">
+<li><span class="t"><b>Next step agreed · Tue 10 Nov</b><span>Tariq to confirm the runner budget by 19 Nov. Agreed in Developer Productivity fortnightly.</span></span></li>
+<li><span class="t"><b>Risk accepted · Tue 27 Oct</b><span>“We accept the risk: queue wait stays over plan until the new runners arrive.” Said in Platform leadership weekly.</span></span></li>
+<li><span class="t"><b>Looked at · Tue 27 Oct</b><span>By Amara Nwosu, in Platform leadership weekly.</span></span></li></ul>
+<p class="hint" style="margin-top:8px">A review’s name is words here, not a link, while Reviews is off.</p>
+${note('The habit measure and the row of weeks keep working with Reviews off, on the same clock (the day check-ins are due) under plainer words. What was said in reviews stays on each goal; the review’s own pages are closed until the switch is back on.')}` }),
+};
+
 (async () => {
-  for (const [dir, screens] of [['small-workspaces', sm], ['readings', nr], ['habit', hb], ['portfolio', pf]]) {
+  for (const [dir, screens] of [['small-workspaces', sm], ['readings', nr], ['habit', hb], ['portfolio', pf], ['reviews-switch', rs]]) {
     await kit.render(path.join(__dirname, dir, 'mockups'), screens);
   }
 })();
