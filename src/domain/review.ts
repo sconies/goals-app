@@ -70,13 +70,30 @@ function agendaItems(r: Review, s: Snapshot, cycle: Cycle, today: Date): GoalAtt
 }
 
 export function reviewSession(r: Review, s: Snapshot, cycle: Cycle, today: Date, week: number): ReviewSession {
-  const w = sessionWeek(r, week, cycle);
+  const at = (w: number): ReviewSession => {
+    const said = saidIn(s).filter((d) => d.reviewId === r.id && d.week === w);
+    // Only an explicit "reviewed" counts; a note, question or action can come before the assessment is finished.
+    const covered = new Set(said.filter((d) => d.kind === 'acknowledge').map((d) => d.goalId));
+    const done = items.filter((a) => covered.has(a.goal.id)).length;
+    return { review: r, week: w, date: sessionDate(r, cycle, w), items, covered, done, total: items.length, said };
+  };
   const items = agendaItems(r, s, cycle, today);
-  const said = saidIn(s).filter((d) => d.reviewId === r.id && d.week === w);
-  // Only an explicit "reviewed" counts; a note, question or action can come before the assessment is finished.
-  const covered = new Set(said.filter((d) => d.kind === 'acknowledge').map((d) => d.goalId));
-  const done = items.filter((a) => covered.has(a.goal.id)).length;
-  return { review: r, week: w, date: sessionDate(r, cycle, w), items, covered, done, total: items.length, said };
+  const x = at(sessionWeek(r, week, cycle));
+  // A session whose date passed while Reviews was switched off, and wasn't held, isn't outstanding once it is back on:
+  // the current session is the next date on its cadence (FT2; README 2.2 of the reviews-switch spec).
+  const off = offSpell(s.changes);
+  return off && x.date >= off.from && x.date < off.to && x.done < x.total ? at(sessionWeek(r, x.week + 1, cycle)) : x;
+}
+
+/**
+ * The days Reviews was last switched off and back on (yyyy-mm-dd), from the change log setModule writes (its Reviews
+ * field going Off, then On), or null while it hasn't come back on. Nothing is stored for it (FT2).
+ */
+export function offSpell(changes: readonly { entity: string; at: string; diffs: readonly { field: string; to: string }[] }[]): { from: string; to: string } | null {
+  const last = (to: string, before = '~') => changes.filter((c) => c.entity === 'workspace' && c.at < before && c.diffs.some((d) => d.field === 'Reviews' && d.to === to)).reduce<string | null>((m, c) => (!m || c.at > m ? c.at : m), null);
+  const on = last('On');
+  const off = on && last('Off', on);
+  return on && off ? { from: off.slice(0, 10), to: on.slice(0, 10) } : null;
 }
 
 /**

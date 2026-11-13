@@ -53,13 +53,12 @@ export function nextReviews(personId: string, s: Pick<Snapshot, 'reviews'>, cycl
 export interface MissedReview { id: string; name: string; week: number; date: string; daysPast: number }
 
 /** This week's sessions the person is in that are past their date and not held, longest past first. */
-export function missedReviews(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, backOn: string | null = null): MissedReview[] {
+export function missedReviews(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): MissedReview[] {
   return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
     const sx = reviewSession(r, s, cycle, today, week);
     return { id: r.id, name: r.name, week: sx.week, date: sx.date, daysPast: daysPast(sx, today) };
   // A session after the cycle's last week (a fortnightly one landing in week 54) isn't in this cycle: never missed in it.
-  // A session whose date passed while Reviews was switched off isn't missed: its next date is the next session (FT2).
-  }).filter((x) => x.daysPast > 0 && x.week <= cycle.weeks && !(backOn && x.date < backOn)).sort((a, b) => b.daysPast - a.daysPast || a.name.localeCompare(b.name));
+  }).filter((x) => x.daysPast > 0 && x.week <= cycle.weeks).sort((a, b) => b.daysPast - a.daysPast || a.name.localeCompare(b.name));
 }
 
 export interface Dashboard {
@@ -79,9 +78,8 @@ export interface Dashboard {
   missed: MissedReview[];
 }
 
-/** With Reviews switched off (`reviews` false, FT2) there is no next review and none missed; switched back on
-    (`backOn`, the day), no session whose date passed while it was off is missed. */
-export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { reviews: boolean; backOn?: string | null } = { reviews: true }): Dashboard {
+/** With Reviews switched off (`reviews` false, FT2) there is no next review and none missed. */
+export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { reviews: boolean } = { reviews: true }): Dashboard {
   const mine = s.goals.filter((g) => g.ownerId === personId);
   const goals: Goal[] = mine.length ? mine : s.goals;
   const watched = watchedGoals(personId, s);
@@ -92,7 +90,7 @@ export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: num
     streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
     watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
     ...(() => { const upcoming = opts.reviews ? nextReviews(personId, s, cycle, week, today) : []; return { next: upcoming[0] ?? null, upcoming }; })(),
-    missed: opts.reviews ? missedReviews(personId, s, cycle, week, today, opts.backOn ?? null) : [],
+    missed: opts.reviews ? missedReviews(personId, s, cycle, week, today) : [],
   };
 }
 

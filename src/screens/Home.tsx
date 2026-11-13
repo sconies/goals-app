@@ -10,7 +10,7 @@ import { EMPTY_QUERY } from '../domain/query';
 import { countList } from '../domain/order';
 import { gettingStarted, inviteLink, type DayOneFacts } from '../domain/dayOne';
 import { workspaceName } from '../domain/workspaceAttention';
-import { dayOneRows, homeFacts, reviewsBackOn, reviewsOn, wrapUpScope } from '../app/reads';
+import { dayOneRows, homeFacts, reviewsOn, wrapUpScope } from '../app/reads';
 import { useApp } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
@@ -301,7 +301,7 @@ function useDashboard(): Dashboard {
   const app = useApp();
   const mine = useGoalCounts(useMineAsk(app.viewer.id));
   const all = useGoalCounts(mine && !mine.total ? { query: EMPTY_QUERY } : null);
-  const d = dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { reviews: reviewsOn(useModules().on), backOn: reviewsBackOn(app.snapshot.changes) });
+  const d = dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { reviews: reviewsOn(useModules().on) });
   const counted = mine?.total ? mine : all;
   return counted ? { ...d, scope: mine?.total ? 'mine' : 'all', counts: countList(counted.status), total: counted.total } : d;
 }

@@ -67,23 +67,31 @@ describe('Home with Reviews switched off (FT2)', () => {
 });
 
 describe('Reviews back on (FT2)', () => {
-  it('finds the day it was last switched back on from the change log, or none', async () => {
-    const { reviewsBackOn } = await import('./reads');
-    const on = (at: string, to: string) => ({ entity: 'workspace', at, diffs: [{ field: 'Reviews', to }] });
-    expect(reviewsBackOn([])).toBeNull();
-    expect(reviewsBackOn([on('2026-11-02T09:00:00Z', 'Off')])).toBeNull();
-    expect(reviewsBackOn([on('2026-11-02T09:00:00Z', 'Off'), on('2026-11-04T10:00:00Z', 'On'), on('2026-11-03T10:00:00Z', 'On')])).toBe('2026-11-04');
+  const sw = (at: string, to: 'On' | 'Off') => ({ entity: 'workspace', entityId: 'platform-org', action: 'edited', summary: `Switched ${to === 'On' ? 'on' : 'off'} Reviews`, at, actorId: 'amara', diffs: [{ field: 'Reviews', from: to === 'On' ? 'Off' : 'On', to }] }) as unknown as (typeof s.changes)[number];
+  it('finds the days it was last off, from the change log, or none while it hasn’t come back on', async () => {
+    const { offSpell } = await import('../domain/review');
+    expect(offSpell([])).toBeNull();
+    expect(offSpell([sw('2026-11-02T09:00:00Z', 'Off')])).toBeNull();
+    expect(offSpell([sw('2026-10-20T09:00:00Z', 'Off'), sw('2026-10-21T09:00:00Z', 'On'), sw('2026-11-02T09:00:00Z', 'Off'), sw('2026-11-04T10:00:00Z', 'On')])).toEqual({ from: '2026-11-02', to: '2026-11-04' });
   });
-  it('a session whose date passed while it was off is not missed, nor a lead', () => {
-    const week = currentWeek(cycle, today);
+  it('a session whose date passed while it was off is not outstanding, nor missed, nor a lead: the next date is the session', async () => {
+    const { reviewSession } = await import('../domain/review');
     // The day after the demo's Thursday: this week's session is past its date and not held.
     const later = new Date(Date.parse(today.toISOString()) + 86_400_000);
     const lw = currentWeek(cycle, later);
+    const before = reviewSession(review, s, cycle, later, lw);
+    expect(before.week).toBe(lw);
     expect(dashboard(who, s, cycle, lw, later).missed.length).toBeGreaterThan(0);
-    const back = { entity: 'workspace', entityId: 'platform-org', action: 'edited', summary: 'Switched on Reviews', at: later.toISOString(), actorId: 'amara', diffs: [{ field: 'Reviews', from: 'Off', to: 'On' }] } as unknown as (typeof s.changes)[number];
-    const t = { ...s, changes: [...s.changes, back] };
-    expect(dashboard(who, t, cycle, lw, later, { reviews: true, backOn: later.toISOString().slice(0, 10) }).missed).toEqual([]);
-    expect(homeFacts(who, t, cycle, lw, later, { workspace: 'Platform', draft: false }).sessions.filter((x) => x.date < later.toISOString().slice(0, 10) && !x.held)).toEqual([]);
-    expect(week).toBeGreaterThan(0);
+    // Switched off the day before the session, and back on the day after it.
+    const off = new Date(Date.parse(before.date + 'T09:00:00Z') - 86_400_000).toISOString();
+    const t = { ...s, changes: [...s.changes, sw(off, 'Off'), sw(later.toISOString(), 'On')] };
+    const after = reviewSession(review, t, cycle, later, lw);
+    expect(after.week).toBeGreaterThan(lw);
+    expect(after.date > before.date).toBe(true);
+    expect(dashboard(who, t, cycle, lw, later).missed).toEqual([]);
+    expect(homeFacts(who, t, cycle, lw, later, { workspace: 'Platform', draft: false }).sessions.filter((x) => !x.held && x.date < later.toISOString().slice(0, 10))).toEqual([]);
+    // Switched off only after the session's date had passed: it was outstanding already, and still is.
+    const late = { ...s, changes: [...s.changes, sw(later.toISOString(), 'Off'), sw(new Date(Date.parse(later.toISOString()) + 3_600_000).toISOString(), 'On')] };
+    expect(reviewSession(review, late, cycle, later, lw).week).toBe(lw);
   });
 });

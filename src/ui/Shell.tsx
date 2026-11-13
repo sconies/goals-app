@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, matchPath, useLocation, useNavigate } from 'react-router';
 import { useModules } from '../core/app';
-import { reviewsBackOn, reviewsOn } from '../app/reads';
+import { reviewsOn } from '../app/reads';
 import { useApp, useToasts } from '../app/state';
 import { weekProgress } from '../domain/progress';
 import { reviewSession, sessionToDo } from '../domain/review';
@@ -198,8 +198,7 @@ function ShellBody({ children }: { children: ReactNode }) {
   const setPresent = (on: boolean) => { try { sessionStorage.setItem('goals-present', on ? '1' : ''); } catch { /* private mode */ } setPresentState(on); };
   const due = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.length;
   // A review you're in that's held this week, still has goals to cover, and has something to review (review.sessionToDo).
-  const backOn = reviews ? reviewsBackOn(app.snapshot.changes) : null;
-  const reviewsOpen = !reviews ? 0 : app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).filter((x) => sessionToDo(x, app.snapshot, app.week, app.today) && !(backOn && x.date < backOn)).length;
+  const reviewsOpen = !reviews ? 0 : app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).filter((x) => sessionToDo(x, app.snapshot, app.week, app.today)).length;
   const count = (id: NavId) => (id === 'checkin' ? due : id === 'reviews' ? reviewsOpen : 0);
   const team = app.viewer.teamId ? app.team(app.viewer.teamId)?.name ?? '' : '';
   const work = useRef<HTMLElement>(null);

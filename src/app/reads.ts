@@ -29,15 +29,6 @@ const live = <T extends { removedAt?: string | null }>(xs: T[]) => xs.filter((x)
  */
 export const reviewsOn = (on: ReadonlySet<string>): boolean => on.has('reviews');
 
-/**
- * The day Reviews was last switched back on (yyyy-mm-dd), from the change log setModule writes, or null when it never
- * was: a session whose date passed while it was off is not "Not held yet" (FT2). No stored date is needed.
- */
-export function reviewsBackOn(changes: readonly { entity: string; at: string; diffs: readonly { field: string; to: string }[] }[]): string | null {
-  const c = changes.filter((x) => x.entity === 'workspace' && x.diffs.some((d) => d.field === 'Reviews' && d.to === 'On')).reduce<string | null>((m, x) => (!m || x.at > m ? x.at : m), null);
-  return c ? c.slice(0, 10) : null;
-}
-
 /** What a review action says when Reviews is off (FT2, spec 1.2). */
 export const reviewsOffWords = (workspace: string) => `Reviews is off in ${workspace}.`;
 
@@ -106,10 +97,8 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   const allIn = p.goals.length > 0 && p.done.length >= p.goals.length;
   const dueDate = reviewDate(cycle, Math.max(1, week));
   // Once the year has ended no session is held in it: a "Not held yet" lead would never go (HM1 review).
-  const backOn = reviewsBackOn(s.changes);
   const sessions: HomeSession[] = ended || !reviews ? [] : s.reviews.filter((r) => r.people.includes(viewerId)).map((r) => reviewSession(r, s, cycle, today, week))
-    // A session whose date passed while Reviews was off is not "Not held yet" (FT2).
-    .filter((x) => x.week === Math.max(1, week) && x.week <= cycle.weeks && !(backOn && x.date < backOn)).map((x) => {
+    .filter((x) => x.week === Math.max(1, week) && x.week <= cycle.weeks).map((x) => {
       const { discuss, healthy } = agendaOf(x);
       const order = walkOrder(sessionPlan(x, s, cycle, today));
       const nextId = order.find((id) => !x.covered.has(id));
