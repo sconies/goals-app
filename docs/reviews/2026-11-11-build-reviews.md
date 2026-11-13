@@ -148,6 +148,8 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #355 GE10: proposed goals on the Map and the Board | 2 | 0 | 1 | 2 |
 | #335 #323 and #229 review mediums | 4 | 0 | 0 | 0 |
 | #351 MT3: a metric that changes tells its goals | metrics | 0 | 6 | 6 |
+| #358 AX5 part 2b: the app loads a window | 4 | 1 | 2 | 4 |
+| #369 Review mediums; open asks follow a goal's new owner | 1 | 0 | 7 | 8 |
 | #360 A metric link always writes its part (#308's high) | metrics | 0 | 0 | 0 |
 | #352 A review speaks only for the goals it walks (#322's medium) | 1 | 0 | 0 | 0 |
 | #366 Data search finds what you typed (#234's mediums) | 1 | 0 | 0 | 0 |
@@ -178,6 +180,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #199: a column whose header differs from Faro's only by punctuation, an accent or spacing is neither read nor named | Track 3, 15:35 UTC, 12 Nov | **Fixed** by #214; the reproduction re-run: "Target.", "Tárget" and "Due_week" are read, a near miss is asked about, an unknown column is named |
 | #227: any member can put a check-in on someone else's goal by creating it with stages already done | Its builder (session …91EAkyS7gzPSYrnJPg), 18:15 UTC, 12 Nov | **Fixed** by #247 (read, with its tests): the set-up check-in asks the rule at the form, a sheet, MCP and `recordStagesDone`; from anyone but the owner the goal is published without it, and the stage question says who marks it |
 | #308: on a database, a save with several metric links, some with a part and some without, is refused for everyone (removing a metric, starting the next year, a workspace from the demo) | Its builder (session …92c7taPQJmK4jDJU9E), 04:06 UTC, 13 Nov | **Fixed** by #360 (re-run by me on main at `7ab34d99`): a link always writes its part, `''` when it has none, so the mixed batch saves; a schema test saves one through `okr_upsert` |
+| #358: with a second year, once the first year's check-ins fall outside the loaded window, a save that touches that year's goals adds its finished goals to the next year | A track 4 builder (session …931R7QEqBrfxbNv2QV), 12:52 UTC, 13 Nov | **Open** |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -1637,3 +1640,37 @@ Changing a metric's unit, direction or meaning while goals are measured by it; m
 - Through the old names in `public`, part, retirement and marks save but do not read back (until 0c2).
 
 **Fine.** A unit change is refused as a different number without `relabel`; a relabel changes the goal's unit only and its History says who and what; a non-owner cannot change, retire, bring back or delete; a retired metric cannot be linked, relinked, merged or changed; "Retired" is plain words, not a badge.
+
+### #358 AX5 part 2b: the app loads a window (track 4, merged 06:00 UTC, 13 Nov)
+
+The app now loads from 420 days before today (`appWindow`, `src/ports/window.ts`), on every load and reload; a save applies its commit to the windowed snapshot. The MCP server still loads the whole workspace, and only `get_activity` pages. Read first by a reviewing session with a two-year workspace through all three stores and the app on screen; the windowed load and all 127 history pages were identical in the three stores, and no entry was missed or shown twice across the boundary. One high, which I reproduced myself.
+
+**1. High (re-run by me at rule level on main at `c39b342a`; needs a second year, and today at least 421 days after the first year's last day). A save that touches goals of a year the window left out adds that year's finished goals to the next year.** The app's commit runs `withRecarry(cur.snap, …)` on the windowed snapshot (`src/app/state.tsx:493`); `recarry` reads `full.checkIns` as whole (`src/domain/recarry.ts:34-36`), finds none for the old year, takes "finish" for "carry" and adds a copy. Nothing there asks `checkInsLeftOut`. My run: the demo, 2027 started on 21 Dec 2026, today 3 Mar 2028, the window from 8 Jan 2027 (5,249 check-ins whole, none loaded). A save that only moves six of the eighteen 2026 goals that had finished to another team adds nothing on the whole snapshot and six goals to 2027 on the windowed one, each logged "… carries on into 2027". The first reader met it on screen by removing a team as an admin (`removeTeam` moves the team's goals in every year): 2027 went from 106 goals to 110. Related, at rule level: `copyUntouched` (`src/domain/copies.ts:9-12`) calls a copy untouched once a person's edit to it is older than the window, and a recarry then rewrites its plan. Fix: `recarry` returns nothing when `checkInsLeftOut(full, goal.cycleId)`; `copyUntouched` counts a copy older than the window as touched; a rule test on a windowed two-year snapshot. Sent at once.
+
+**2. Medium (ran on screen and at rule level). When nobody starts the next year for 14 months, the year on screen itself falls outside the window, and every screen reads it as having no check-ins without saying so.** `currentCycle` stays on the last cycle for ever, and the window drops its check-ins once its last day is 420 days back; only `removal.ts` reads `Snapshot.history`. The demo opened on 15 Mar 2028: "126 goals… 126 no check-in yet", with 5,249 check-ins in the store. On the same snapshot the workbook's Check-ins sheet has one row against 5,250; loading the whole export back gives 5,249 errors; and `startNextCycle` says "126 goals carry on" where the whole data says 108 carry on and 18 finish, so a year started that late would carry goals that had finished. With two years and no third, `canUndoStart` (`removal.ts:441-453`) says yes where the whole data says "40 check-ins are in it", and `undoStart` removes the year. Fix: the window always keeps the current cycle and the one in wrap-up; guard `canUndoStart`.
+
+**3. Medium (ran). `get_activity` makes one database query per 100 log entries whenever a filter matches fewer than the limit, though the server has already loaded the whole log:** 64 queries for a goal, a person or a search on the demo, one with no filter (`src/mcp/workTools.ts:130-140`). The answers are the same.
+
+**Lows.**
+- "Show older changes" shows when nothing is older and vanishes on one click; and a first older page lands at the top of the list, far from where the reader was.
+- The app refuses to undo an import older than the window; `undo_import` on the MCP server, which loads whole, allows it (read).
+- No test runs `recarry`, `canUndoStart`, `startNextCycle`, the export or the import on a windowed multi-year snapshot; `useOlderChanges` and `activityPages` have no test; no journey for "Show older changes".
+- "What a window leaves out" is written twice in TypeScript with different day arithmetic (`window.ts:24-27`, `removal.ts:115-120`), and twice in SQL.
+
+**Fine.** The removals #335 guarded; exports, the import, "make it proposed again", a metric link's "has check-ins" and the plan-change reason read the current year only, which is whole in the ordinary case; every query filters by workspace; migration 0044's indexes match the paging queries (read). Not run against Supabase.
+
+### #369 Review mediums from #310, #305 and #282; open asks follow a goal's new owner (track 1, merged 05:46 UTC, 13 Nov)
+
+Read first by a reviewing session with probes and the demo at 1440 and 390 (ten people over fourteen days). No high finding: no ask was shown to, or answerable by, someone who shouldn't have it, and none became invisible to everyone. The same rule and log run for Change a goal and for the engine by every door; the old owner can no longer answer and the new one can; answered asks stay.
+
+Holding in full: the day an ask was made is counted in the viewer's own day (#310's 2: four time zones, either side of midnight); `get_my_work` has Home's order, line and lateness (#310's 3, for that tool); no "Not held yet" after the year (#305's 1, by unit test); the first attention goal is on a phone's first screen on all 70 person-days (#305's 2); `/metrics/new` and its edit page show one closing control (#282's 2).
+
+**1. Medium (ran). The new owner is not told an ask was handed over where they are most likely to meet it:** Home's lead says "Daniel asked a question" and nothing of "Asked of Rhea, now yours" (`src/domain/home.ts:347-353`), and in the list the note comes last, where a phone cuts it.
+**2. Medium (ran). A proposed goal that changes owner keeps its asks with the old owner:** both callers pass the active goals only (`src/domain/askHandover.ts:23`, `goalEntry.ts:631`).
+**3. Medium (ran), and Lane's call. Every kind of open ask moves, including ones asked of a person by name, and an ask can end up asked of whoever asked it.** The test is only that the recipient was the old owner (`askHandover.ts:30-36`): a next step "Tunde to ring the vendor" moved to the new owner, and a goal handed to the person who asked a question logs "Rhea Kapoor's ask now goes to Rhea Kapoor" and lets her answer herself.
+**4. Medium (ran). The waiting line is still cut on a phone for the longer wordings** (#310's 1, in part): 23 of 89 lines, such as "Was due week 45 (2–8 N…". The new check looks at one person on one day.
+**5. Medium (ran). `list_requests` still uses the other "overdue" rule** (`src/mcp/workTools.ts:96`): a question past its session is late in `get_my_work` and not overdue there.
+**6. Medium (ran). The first-screen fix is met partly by cutting the review's name:** in 51 of 64 lone cells at 390 it now reads "Not held yet · Tue 10 Nov  Developer Producti…".
+**7. Medium (ran). History's sentence for the handover reads wrongly:** "Grace Achterberg daniel Okafor's ask now goes to Tunde Bakare…" (the summary starts with a name and its first letter is lowered, `src/ui/ChangeItem.tsx:33`).
+
+**Lows.** `update_goal` says nothing of the asks that move; undoing an import puts asks back but logs nothing on the ask; marking someone as left can give Oskar "Asked of Tunde, now yours" for a goal he doesn't own; the "now yours" note is found by the person's name in the change log, so a rename or the window drops it (read); 57 of 89 meta lines are still two lines at 1440; a read-only metric edit page says "Close without saving"; a proposed goal's "waiting since" still reads the UTC day (read); with one kind, its heading wraps at 390.
