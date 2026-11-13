@@ -16,10 +16,14 @@ export const LINK_REASON_MAX = 300;
 
 /**
  * Two parts are the same part when this matches: lower case, accents and punctuation removed, spaces collapsed, and a
- * trailing "s" dropped from each word ("Tier 1 service" and "tier-1 services" are one part).
+ * trailing "s" dropped from each word of four letters or more ("Tier 1 service" and "tier-1 services" are one part;
+ * "US" is not "U").
  */
 export const partKey = (part: string) =>
-  fold(part).replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(' ').filter(Boolean).map((w) => (w.length > 1 && w.endsWith('s') ? w.slice(0, -1) : w)).join(' ');
+  fold(part).replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(' ').filter(Boolean).map((w) => (w.length > 3 && w.endsWith('s') ? w.slice(0, -1) : w)).join(' ');
+
+/** The numbers in a part, in order: "Region 2" and "Region 1" differ by them, so neither is a misspelling of the other. */
+const numbersIn = (key: string) => (key.match(/\p{N}+/gu) ?? []).join(' ');
 
 /** A metric's link as these rules read it: whose number (team, or null for the company) and which part. */
 export interface PartLink { goalId: string; teamId: string | null; part?: string; removedAt?: string | null }
@@ -45,7 +49,8 @@ export function partsOf(links: readonly PartLink[]): string[] {
 
 /**
  * A part in use that the typed one probably means: the same `partKey` spelt differently, or one edit away from one
- * (never for parts of two characters or fewer: "EU" is not "US"). Null when it is a part in use as typed, or new.
+ * (never for parts of two characters or fewer: "EU" is not "US"; never when their numbers differ: "Region 2" is not
+ * "Region 1"). Null when it is a part in use as typed, or new.
  */
 export function closePart(part: string, parts: readonly string[]): string | null {
   const p = part.trim();
@@ -54,7 +59,7 @@ export function closePart(part: string, parts: readonly string[]): string | null
   const same = parts.find((x) => partKey(x) === k);
   if (same) return same;
   if (k.length <= 2) return null;
-  return parts.find((x) => partKey(x).length > 2 && editsBetween(partKey(x), k, 1) === 1) ?? null;
+  return parts.find((x) => partKey(x).length > 2 && numbersIn(partKey(x)) === numbersIn(k) && editsBetween(partKey(x), k, 1) === 1) ?? null;
 }
 
 export type LinkField = 'measuredBy' | 'target' | 'decimals' | 'part' | 'why';
@@ -63,7 +68,10 @@ export interface LinkCheck { field: LinkField; kind: 'fix' | 'check'; words: str
 /** Another goal measured by the same metric, as the "another goal" Check names it. */
 export interface OtherLink extends PartLink { title: string; key: string; ownerName: string }
 
-/** What linking reads: the goal's present link (if any), the metric's other live links, and whether it has check-ins. */
+/**
+ * What linking reads: the goal's last link (live or removed, so unlinking first doesn't get round the reason), the
+ * metric's other live links on goals of the goal's own cycle, and whether it has check-ins.
+ */
 export interface LinkReads {
   present: { metricId: string; teamId: string | null; part?: string } | null;
   others: readonly OtherLink[];
@@ -71,7 +79,8 @@ export interface LinkReads {
   sliceName: (teamId: string | null) => string;
 }
 
-/** Whether the metric, the team or the part differ from the goal's present link (a new link differs from nothing). */
+/** Whether the metric, the team or the part differ from the goal's last link, removed or not (a goal never measured
+    by a metric differs from nothing). */
 export const linkChanges = (present: LinkReads['present'], metricId: string, teamId: string | null, part: string) =>
   !!present && (present.metricId !== metricId || present.teamId !== teamId || partKey(present.part ?? '') !== partKey(part));
 
@@ -105,7 +114,7 @@ export function linkChecks(
   }
   // Why is asked only of a link that could be made: a goal that can't be measured by the metric needs no reason.
   if (!problems.errors.length && r.hasCheckIns && linkChanges(r.present, metric.id, slice.teamId, part) && !reason.trim()) {
-    out.push({ field: 'why', kind: 'fix', words: 'Say why this goal is measured differently now. It shows in its History.', answers: [] });
+    out.push({ field: 'why', kind: 'fix', words: 'Say why this goal is measured differently now.', answers: [] });
   }
   if (reason.trim().length > LINK_REASON_MAX) out.push({ field: 'why', kind: 'fix', words: `Keep the reason to ${LINK_REASON_MAX} characters or fewer.`, answers: [] });
   return out;

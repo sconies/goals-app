@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { goalsIn } from '../domain/review';
 import { serve, type Deps } from '../../server/mcp';
-import { applyCommit } from '../data/store';
+import { applyCommit, checkExpectations, type Commit } from '../data/store';
+import { STALE_RERUNS } from '../ports/store';
 import { buildPlatformOrg } from '../data/platformOrg';
 import { asksOf } from '../domain/asks';
 import { isProposed } from '../domain/proposed';
@@ -9,7 +10,7 @@ import { currentWeek, planAt } from '../domain/plan';
 import { applyQuery, parseQuery } from '../domain/query';
 import { summariseAll } from '../domain/summary';
 import type { ApiToken, MetricGoal, RangeGoal, Snapshot } from '../domain/types';
-import { hashToken, newToken } from './protocol';
+import { hashToken, newToken, STALE_TOOL } from './protocol';
 
 // Monday of week 45, before this week's check-ins.
 const today = new Date('2026-11-02T12:00:00Z');
@@ -399,6 +400,19 @@ describe('MCP server', () => {
     expect(asksOf(oskar.data()).find((r) => r.id === q.id)!.status).toBe('withdrawn');
   });
 
+  it('make_goal_proposed makes an active goal with no check-ins proposed again, as the app does; one with check-ins is refused (GE10 parity)', async () => {
+    const grace = await setup('grace');
+    const s = grace.data();
+    const fresh = s.goals.find((g) => !g.stoppedAt && !g.removedAt && !isProposed(g) && !s.checkIns.some((c) => c.goalId === g.id && !c.removedAt))!;
+    const busy = s.goals.find((g) => !g.stoppedAt && !g.removedAt && !isProposed(g) && s.checkIns.some((c) => c.goalId === g.id && !c.removedAt))!;
+    expect((await grace.call('make_goal_proposed', { goal_id: busy.id })).content[0]!.text).toMatch(/check-ins/);
+    expect((await grace.call('make_goal_proposed', { goal_id: fresh.id, dry_run: true })).structuredContent).toMatchObject({ saved: false });
+    expect(isProposed(grace.data().goals.find((g) => g.id === fresh.id)!)).toBe(false);
+    expect((await grace.call('make_goal_proposed', { goal_id: fresh.id })).isError).toBe(false);
+    expect(grace.data().goals.find((g) => g.id === fresh.id)).toMatchObject({ proposedBy: 'grace' });
+    expect((await grace.call('make_goal_proposed', { goal_id: fresh.id })).content[0]!.text).toMatch(/already proposed/);
+  });
+
   it('removes, archives and undoes with the app’s own rules: stop a goal, edit and remove a comment, mark someone as left, undo an import, restore', async () => {
     const rhea = await setup('rhea');
     // Not Rhea's goal: refused, as in the app.
@@ -440,5 +454,71 @@ describe('MCP server', () => {
     const mateo = await setup('mateo');
     (mateo.deps as { load: Deps['load'] }).load = async () => grace.data();
     expect((await mateo.rpc('tools/call', { name: 'get_overview', arguments: {} })).body.error.message).toMatch(/no longer in the workspace/);
+  });
+});
+
+describe('a save refused as stale, through MCP (AX6)', () => {
+  /** A server whose store checks what each save was based on, with someone else's change saved before its next ones. */
+  async function racing(others: ((s: Snapshot) => Snapshot)[]) {
+    const s = await setup('amara');
+    let data: Snapshot = structuredClone(built);
+    let saves = 0;
+    const bump = (c: Commit) => { const next = applyCommit(data, c); return { ...next, goals: next.goals.map((g) => (c.goals?.some((x) => x.id === g.id) ? { ...g, version: (data.goals.find((o) => o.id === g.id)?.version ?? 0) + 1 } : g)) }; };
+    s.deps.load = async () => structuredClone(data);
+    s.deps.commit = async (_ws, c) => {
+      saves++;
+      const other = others.shift();
+      if (other) data = other(data);
+      checkExpectations(data, c.expect);
+      data = bump(c);
+    };
+    return { ...s, data: () => data, saves: () => saves };
+  }
+  const relevel = (s: Snapshot): Snapshot => ({ ...s, goals: s.goals.map((g) => (g.id === 'ns-ai' ? { ...g, level: 'svp', version: (g.version ?? 0) + 1 } : g)) });
+
+  it('runs the tool again on the latest and saves: both changes stay', async () => {
+    const r = await racing([relevel]);
+    const out = await r.call('update_goal', { goal_id: 'ns-ai', title: 'AI review for every pull request' });
+    expect(out.isError).toBe(false);
+    expect(r.saves()).toBe(2);
+    const g = r.data().goals.find((x) => x.id === 'ns-ai')!;
+    expect([g.title, g.level]).toEqual(['AI review for every pull request', 'svp']);
+  });
+
+  it('says so plainly when every run is refused, and saves nothing', async () => {
+    const r = await racing(Array.from({ length: 1 + STALE_RERUNS }, () => relevel));
+    const out = await r.call('update_goal', { goal_id: 'ns-ai', title: 'AI review for every pull request' });
+    expect(out.isError).toBe(true);
+    expect(out.content[0]!.text).toBe(STALE_TOOL);
+    expect(r.saves()).toBe(1 + STALE_RERUNS);
+    expect(r.data().goals.find((x) => x.id === 'ns-ai')!.title).not.toBe('AI review for every pull request');
+  });
+});
+
+describe('A switched-off module behind the AI’s other doors (module map F3, F4)', () => {
+  it('get_help offers none of its articles, and says why when asked for one', async () => {
+    const { call, deps } = await setup('amara');
+    const before = (await call('get_help', {})).structuredContent!.articles as { id: string }[];
+    expect(before.some((a) => a.id === 'metrics')).toBe(true);
+    deps.modulesOff = async () => ['metrics'];
+    const after = (await call('get_help', {})).structuredContent!.articles as { id: string }[];
+    expect(after.some((a) => a.id === 'metrics')).toBe(false);
+    expect(after.length).toBeLessThan(before.length);
+    expect(((await call('get_help', { search: 'metric library' })).structuredContent!.articles as { id: string }[]).some((a) => a.id === 'metrics')).toBe(false);
+    const one = await call('get_help', { id: 'metrics' });
+    expect(one.isError).toBe(true);
+    expect(one.content[0]!.text).toBe('Metric library is switched off in Platform Engineering, so its Help isn’t shown there. An admin can switch it on in Workspace, under Features.');
+  });
+
+  it('find_goals reads a switched-off module’s column as no filter, as Goals does', async () => {
+    const { call, data, deps } = await setup('amara');
+    const link = (data().modules?.metrics?.metricLinks as { metricId: string; removedAt?: string | null }[] | undefined)?.find((l) => !l.removedAt);
+    expect(link).toBeDefined();
+    const ids = async (query: string) => ((await call('find_goals', { scope: 'all', query, limit: 500 })).structuredContent!.goals as { id: string }[]).map((g) => g.id).sort();
+    const all = await ids('');
+    const measured = await ids(`metric=${link!.metricId}`);
+    expect(measured.length).toBeLessThan(all.length);
+    deps.modulesOff = async () => ['metrics'];
+    expect(await ids(`metric=${link!.metricId}`)).toEqual(await ids(''));
   });
 });

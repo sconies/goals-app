@@ -58,6 +58,8 @@ import { ArchivedGoalScope } from '../app/state';
 import { isProposed } from '../domain/proposed';
 
 const ProposedGoal = lazy(() => import('./ProposedGoal').then((m) => ({ default: m.ProposedGoal })));
+/* The goals proposed to feed this one, under What feeds it (GE10): loaded only when there are some. */
+const ProposedFeeders = lazy(() => import('../ui/ProposedFeeders').then((m) => ({ default: m.ProposedFeeders })));
 import { canDeleteCheckIn, importUndone } from '../domain/removal';
 import { DeleteCheckIn, StoppedNote } from '../ui/RemoveControls';
 import { BackToProposedSheet, goalRemoveLabel, RemoveGoalSheet } from '../ui/RemoveSheets';
@@ -137,6 +139,8 @@ function GoalView({ goal }: { goal: Goal }) {
   };
 
   const children = app.snapshot.goals.filter((g) => g.parentId === goal.id);
+  // Proposed goals feeding it are listed apart and counted in nothing (GE10).
+  const proposedChildren = (app.snapshot.proposed ?? []).filter((g) => g.parentId === goal.id && !g.removedAt);
   const parent = goal.parentId ? app.goal(goal.parentId) : undefined;
   const updateAsk = openUpdateAsk(goal.id, app.snapshot);
   const due = att.flags.some((f) => f.kind === 'due');
@@ -252,7 +256,7 @@ function GoalView({ goal }: { goal: Goal }) {
       onOpen={(id) => { setOpenAsk(id); setFocusAsk(true); }} onDone={done} onAdd={() => setAdding(true)} />
   );
   const talked = reviewsHere && <TalkedSection key="talked" goal={goal} />;
-  const feeding = !review && (children.length > 0 || !!parent) && <FeedsSection key="feeds" feeding={children} feeds={feeds} parent={parent} />;
+  const feeding = !review && (children.length > 0 || proposedChildren.length > 0 || !!parent) && <FeedsSection key="feeds" feeding={children} proposed={proposedChildren} feeds={feeds} parent={parent} />;
   const quarters = !review && isYear(cycle) && <QuarterStrip key="quarters" goal={goal} />;
   const activity = !review && <HistorySection key="history" goal={goal} focusComposer={tabComments && !alias} />;
   const about = !review && <AboutSection key="about" goal={goal} detailsRef={aboutRef} open={aboutOpen ?? firstVisit} onToggle={setAboutOpen} />;
@@ -772,7 +776,7 @@ function TalkedSection({ goal }: { goal: Goal }) {
 
 /* ---------------------------------------------------------------------------------------------------- what feeds it */
 
-function FeedsSection({ feeding, feeds, parent }: { feeding: Goal[]; feeds: ReturnType<typeof feedsLine>; parent?: Goal }) {
+function FeedsSection({ feeding, proposed = [], feeds, parent }: { feeding: Goal[]; proposed?: Goal[]; feeds: ReturnType<typeof feedsLine>; parent?: Goal }) {
   const app = useApp();
   const [all, setAll] = useState(false);
   const onPath = criticalPath(app.snapshot.goals, (g) => app.statusOf(g).status);
@@ -780,8 +784,9 @@ function FeedsSection({ feeding, feeds, parent }: { feeding: Goal[]; feeds: Retu
   const shown = all ? rest : rest.slice(0, pinned ? 2 : 3);
   return (
     <section className="block feeds goal-section" id="feeds" aria-labelledby="g-feeds" data-part="What feeds it">
-      <SectionHead id="g-feeds" title="What feeds it" purpose={feeding.length ? 'The goals that move this number, worst first.' : 'What this goal feeds into.'}>
-        {parent && <p className="feeds-into">Feeds into <Link className="linkish" to={'/goals/' + parent.id}>{parent.title}</Link> <span className={'nowrap tone-' + app.statusOf(parent).status}><StatusShape k={app.statusOf(parent).status} />{LABEL[app.statusOf(parent).status]}</span></p>}
+      <SectionHead id="g-feeds" title="What feeds it" purpose={feeding.length ? 'The goals that move this number, worst first.' : proposed.length ? 'The goals proposed to move this number.' : 'What this goal feeds into.'}>
+        {/* A proposed goal above it has no status: the word alone (GE10). */}
+        {parent && <p className="feeds-into">Feeds into <Link className="linkish" to={'/goals/' + parent.id}>{parent.title}</Link> {isProposed(parent) ? <span className="nowrap muted">· Proposed</span> : <span className={'nowrap tone-' + app.statusOf(parent).status}><StatusShape k={app.statusOf(parent).status} />{LABEL[app.statusOf(parent).status]}</span>}</p>}
         {/* How they stand, said once: "Directly feeding it (four goals): 2 off track, 1 at risk". */}
         {feeds && (
           <p className="feeds-sum">
@@ -794,6 +799,7 @@ function FeedsSection({ feeding, feeds, parent }: { feeding: Goal[]; feeds: Retu
         {shown.map((g) => <li key={g.id}><GoalRow g={g} /></li>)}
       </ul>}
       {rest.length > shown.length && <button type="button" className="linkish small show-all" onClick={() => setAll(true)}>Show the other {rest.length - shown.length}</button>}
+      {proposed.length > 0 && <Suspense fallback={null}><ProposedFeeders goals={proposed} /></Suspense>}
     </section>
   );
 }

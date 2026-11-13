@@ -105,7 +105,10 @@ describe('one check at every door (N19)', () => {
     const cs = planChanges({ tables: { goals: [{ __row: '2', goal: 'A north star for Amara', owner: amara.name, level: 'north star', unit: '%', start: '10', target: '20' }] }, snapshot, cycle, week, actor: tunde, now: TODAY.toISOString(), newId, via: 'spreadsheet' });
     expect(cs.issues.filter((i) => i.level === 'must')).toEqual([]);
     const call = await tools('tunde');
-    const out = await call('create_goal', { title: 'A north star for Amara', type: 'metric', owner: amara.name, level: 'north star', unit: '%', start: 10, target: 20 });
+    // For someone else with no state, the tool asks once whether it starts active (GE10, decision 16); given, it saves.
+    const asked = await call('create_goal', { title: 'A north star for Amara', type: 'metric', owner: amara.name, level: 'north star', unit: '%', start: 10, target: 20 });
+    expect(asked.text).toMatch(/is for Amara Nwosu and would start as active\. Is that what you mean\?/);
+    const out = await call('create_goal', { title: 'A north star for Amara', type: 'metric', owner: amara.name, level: 'north star', unit: '%', start: 10, target: 20, state: 'proposed' });
     expect(out.error, out.text).toBe(false);
     const theirs = snapshot.goals.find((g) => g.ownerId !== 'tunde')!;
     expect(() => perform(ctx(), 'saveGoal', { draft: { ...blankGoal(theirs.teamId, theirs.ownerId, ''), title: 'Renamed' }, goalId: theirs.id })).toThrow(/its owner\) or an admin/);

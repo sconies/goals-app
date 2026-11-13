@@ -28,6 +28,7 @@ export const LIMITS: Limit[] = [
   // Years
   { constraint: 'okr_cycles_weeks_check', holds: ['weeks >= 1', 'weeks <= 53'], rule: 'years-and-weeks', words: 'A goal year has 1 to 53 weeks.' },
   { constraint: 'okr_cycles_review_day_check', holds: ['review_day >= 0', 'review_day <= 6'], rule: 'years-and-weeks', words: 'A year’s review day is a day of the week, 0 to 6 (Monday is 0).' },
+  { constraint: 'okr_cycles_check_in_weeks_ok', holds: ['check_in_weeks', 'ARRAY[0, 1, 2, 4]'], rule: 'years-and-weeks', words: 'A year’s check-in rhythm is 1 (every week) or 0 (no set rhythm); 2 and 4 are kept for later. (The app offers 1 and 0.)' },
   // Goals
   { constraint: 'okr_goals_title_check', holds: ['>= 3'], rule: 'goal-entry', words: 'A goal’s title has at least 3 characters (spaces at either end not counted).', code: 'src/domain/thresholds.ts#MIN_NAME' },
   { constraint: 'okr_goals_decimals_check', holds: ['decimals >= 0', 'decimals <= 3'], rule: 'goal-entry', words: 'A goal keeps 0 to 3 decimal places. (A metric may keep 4: a goal measured by it keeps fewer, and is warned.)' },
@@ -66,12 +67,15 @@ export const LIMITS: Limit[] = [
   { constraint: 'okr_metrics_source_owner_check', holds: ['<= 2000'], rule: 'metric-defined', words: '', code: 'src/modules/metrics/rules.ts#METRIC_LIMITS' },
   { constraint: 'okr_metrics_caveats_check', holds: ['<= 2000'], rule: 'metric-defined', words: '', code: 'src/modules/metrics/rules.ts#METRIC_LIMITS' },
   { constraint: 'okr_goal_metrics_part_len', holds: ['<= 60'], rule: 'metric-measured-by', words: 'The part of a metric a goal is measured by (“Which part”) has at most 60 characters; empty means all of it.' },
+  { constraint: 'okr_metrics_measurement_ok', holds: ["'measured'", "'partly'", "'gap'"], rule: 'metric-defined', words: 'A metric is measured, partly measured or a gap (not measured yet); measured unless someone says otherwise.' },
+  { constraint: 'okr_metrics_measurement_note_len', holds: ['<= 300'], rule: 'metric-defined', words: 'What is missing from a metric’s measurement has at most 300 characters.' },
   { constraint: 'okr_metrics_retired_why_len', holds: ['<= 300'], rule: 'metric-care', words: 'Why a metric was retired has at most 300 characters.' },
 ];
 
 /** Check constraints that aren't a rule for the rebuild, and why. A table name stands for every constraint on it. */
 export const NOT_LIMITS: Record<string, string> = {
   okr_changes_undo_check: 'How Faro stores an undo; the change log’s shape is in the data model.',
+  okr_check_ins_reading_ok: 'How Faro stores a check-in’s reading (one jsonb value with its source, value and time); NR1 gives the check-in a `reading` (readings spec, rule 2).',
   okr_metrics_marks_array: 'How Faro stores a metric’s marks (a list); the data model gives `marks` as a list of changes.',
   okr_goal_metrics_check: 'How Faro stores a goal’s metric beside the goal (one row per goal); the data model has `metricId` on the goal.',
   okr_markups: 'Markups go to the builders’ inbox, which R1 replaces (MARKUP-INBOX is tagged replace).',
