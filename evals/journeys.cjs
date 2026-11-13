@@ -3432,7 +3432,7 @@ journey('U72', ['NAV-FORMS'], 'One way out of a form: each focus-mode page has o
   const p = h.use(await newPage(device, 'rhea'));
   const wrong = [];
   const closers = () => p.locator('.focus-top').first().locator('button, a').filter({ hasText: /^Close|^Cancel/ }).or(p.locator('.focus-top').first().locator('.iconbtn[aria-label^="Close"]'));
-  for (const [addr, want] of [['/check-in/ci-docker', 'Close and keep the draft'], ['/reviews/new', 'Close without saving'], ['/reviews/weekly/edit', 'Close without saving'], ['/workspace/new', 'Close and keep the draft'], ['/goals/new', 'Close and keep the draft'], ['/goals/ci-docker/edit', 'Close and keep the draft'], ['/quick-check-in', 'Close and keep the draft']]) {
+  for (const [addr, want] of [['/check-in/ci-docker', 'Close and keep the draft'], ['/reviews/new', 'Close without saving'], ['/reviews/weekly/edit', 'Close without saving'], ['/workspace/new', 'Close and keep the draft'], ['/goals/new', 'Close and keep the draft'], ['/goals/ci-docker/edit', 'Close and keep the draft'], ['/quick-check-in', 'Close and keep the draft'], ['/data/import', 'Close without saving']]) {
     await p.goto(url(addr));
     await p.locator('.focus-top').first().waitFor({ timeout: 8000 }).catch(() => {});
     const n = await closers().count();

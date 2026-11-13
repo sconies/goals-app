@@ -9,7 +9,7 @@ import { saveAndSay } from '../../app/files';
 import { fieldTable, isFillIn, requiredLine, specOf, type FillKind } from '../../domain/columns';
 import { workbook } from '../../domain/export';
 import { importCounts, importName, pastImports } from '../../domain/removal';
-import { BackLink } from '../../ui/BackLink';
+import { FormClose } from '../../ui/FormClose';
 import { MenuButton } from '../../ui/MenuButton';
 import { whenText } from '../../ui/ChangeItem';
 import { saveTemplate } from './template';
@@ -62,7 +62,12 @@ export function Import() {
 
   return (
     <div className="page narrow import-page">
-      <BackLink />
+      {/* A form (navigation spec 2.5): one way out, top right, in words; focus mode hides the tab bar, so without it a phone
+          has none. Nothing is kept, so pasted rows are asked about first. */}
+      <div className="focus-top quick-top">
+        <span className="small strong">Import</span>
+        <FormClose keeps={false} dirty={pasting && !!pasted.trim()} onClose={() => nav('/data')} />
+      </div>
       <div className="page-head">
         <h1 className="title-xl">Import</h1>
         <span className="hint">Add or change goals, plans, check-ins and people from a spreadsheet. You see every change before anything is saved, and one Undo takes a whole import back.</span>
