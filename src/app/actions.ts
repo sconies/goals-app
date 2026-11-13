@@ -186,6 +186,8 @@ export interface ModuleAction<I = any, O = any> {
   said?(out: NonNullable<O>, input: I): string;
   /** Loads what `run` needs, when that is too large for the first download: the dispatcher awaits it first (`ready`). */
   ready?(): Promise<void>;
+  /** Its input carries a whole record as the person last saw it, so a stale save isn't run again (AX6, `rerunsWhenStale`). */
+  wholeRecord?: boolean;
 }
 /** What a module's actions.ts default-exports: its actions, by name. */
 export type ModuleActions = Record<string, ModuleAction>;
@@ -219,6 +221,16 @@ export function commitOf(name: ActionName | string, out: unknown, input: unknown
   if (name === 'planChanges') return (input as { apply?: boolean }).apply ? (out as { commit: import('../domain/commit').Commit | null }).commit : null;
   return 'commit' in (out as object) ? (out as { commit: import('../domain/commit').Commit | null }).commit : (out as import('../domain/commit').Commit);
 }
+
+/**
+ * Actions whose input carries whole records as the person last saw them (a goal's form, a review's settings, a table of
+ * values, a removal's Undo), not only what they changed. Run again on fresh data after a stale refusal (AX6,
+ * app/rerun.ts), such an input would put back what someone else just changed, so these aren't re-run: the person is
+ * told and shown the latest, as before. A module's action says the same with `wholeRecord`.
+ */
+const WHOLE_RECORD = new Set<string>(['saveGoal', 'saveReview', 'planChanges', 'undoRemoval']);
+/** Whether a save refused as stale may run this action again on the latest (AX6). */
+export const rerunsWhenStale = (name: string) => !WHOLE_RECORD.has(name) && !MODULE_ACTIONS[name]?.wholeRecord;
 
 /** What `run` gives back: the rule's result, or for a token the secret, shown once. */
 export type RunResult<N extends ActionName> = N extends 'createToken' ? string : ActionResult<N>;
