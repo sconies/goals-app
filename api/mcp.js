@@ -5878,13 +5878,16 @@ function textMatches(words, q, key) {
 }
 /** Rule 1 over words already split by `wordsOf` (a long list splits each row once, not on every key). */
 function wordsMatch(have, q, key) {
+	return wordsMatcher(q)(have, key);
+}
+/** `wordsMatch` with `q` read once: for a long list, where the same search is tried against every row (N12). */
+function wordsMatcher(q) {
 	const asked = wordsOf(q);
-	if (!asked.length) return true;
+	if (!asked.length) return () => true;
 	const typedKey = normalKey(q.trim());
-	if (typedKey) return !!key && typedKey === key;
+	if (typedKey) return (_, key) => !!key && typedKey === key;
 	const bare = /^\d{1,9}$/.test(q.trim()) ? formatKey(Number(q.trim())) : null;
-	if (bare && key && bare === key) return true;
-	return asked.every((w) => have.some((h) => h.startsWith(w)));
+	return (have, key) => !!bare && !!key && bare === key || asked.every((w) => have.some((h) => h.startsWith(w)));
 }
 /** One letter added, dropped or changed, or two next to each other swapped. */
 function oneEditApart(a, b) {
@@ -6181,10 +6184,11 @@ function applyTable(rows, head, q, filters, sort, searched) {
 	].map(idx).find((i) => i >= 0) ?? -1;
 	const keyTyped = keyAt >= 0 && (!!normalKey(typed) || /^\d{1,9}$/.test(typed));
 	const keysOf = (r) => keyTyped ? (r.cells[keyAt] ?? "").split(";").map((k) => k.trim()).filter(Boolean) : [];
+	const matches = wordsMatcher(typed);
 	const found = (r) => {
 		const ks = keysOf(r);
 		const w = wordsFor(r, cols, colsKey);
-		return ks.length ? ks.some((k) => wordsMatch(w, typed, k)) : wordsMatch(w, typed, null);
+		return ks.length ? ks.some((k) => matches(w, k)) : matches(w, null);
 	};
 	const live = filters.filter((f) => idx(f.col) >= 0 && (NO_VALUE.includes(f.op) || f.value.trim() !== ""));
 	const out = rows.filter((r) => (!typed || found(r)) && live.every((f) => passes(r.cells[idx(f.col)] ?? "", f)));
