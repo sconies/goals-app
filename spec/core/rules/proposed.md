@@ -27,7 +27,7 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
 
 **Withdrawing** is deleting (domain/removal): Recently removed for 30 days, with Undo; History says "Withdrew the proposal “{goal}”".
 
-**Home** (`proposalAsks`): a goal proposed for the viewer by someone else, not yet opened; and one proposed 8 weeks ago or more (`PROPOSED_ASK_WEEKS`) for its owner: "“{goal}” has been proposed for {n} weeks. Make it active, or withdraw it." Never a status, a count or a flag.
+**Home** (`proposalAsks`): under "Proposed goals" in "Needs your response", a goal proposed for the viewer by someone else, not yet opened ("{Name} proposed a goal for you: “{goal}”."), and one proposed 8 weeks ago or more (`PROPOSED_ASK_WEEKS`) for its owner: "“{goal}” has been proposed for {n} weeks. Make it active, or withdraw it." Each has "Open it"; the second also "Not yet", which puts it off for 8 more weeks. Opening the goal as its owner ends the first. What each person opened and put off is kept behind the Prefs port. Never a status, a count or a flag. Proposing for someone else says so after the read-back: "{Owner} sees it on their Home as a proposal for them. Faro doesn’t send email."
 
 **The carry.** A proposed goal carries into the next year as proposed.
 
@@ -59,9 +59,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/proposed.ts](../../../src/domain/proposed.ts): `isProposed`, `judged`, `withProposed`, `measureEmpty`, `withdrawnSummary`
+- [src/domain/proposed.ts](../../../src/domain/proposed.ts): `isProposed`, `judged`, `withProposed`, `measureEmpty`, `withdrawnSummary`, `proposalAsks`
 - [src/domain/proposedSummary.ts](../../../src/domain/proposedSummary.ts): `goalCounts`, `withProposedCount`, `measureUnsaid`, `proposedSummary`
-- [src/domain/proposedActions.ts](../../../src/domain/proposedActions.ts): `mayActivate`, `readyToActivate`, `activate`, `activated`, `backToProposed`, `proposalAsks`
+- [src/domain/proposedActions.ts](../../../src/domain/proposedActions.ts): `mayActivate`, `readyToActivate`, `activate`, `activated`, `backToProposed`
 - [src/domain/goalEntry.ts](../../../src/domain/goalEntry.ts): `proposedMustFix`, `unsaidDraft`
 - [src/domain/goalRights.ts](../../../src/domain/goalRights.ts): `mayChangeGoal`
 - [src/domain/cycle.ts](../../../src/domain/cycle.ts): `scopeToCycle`
