@@ -14179,11 +14179,15 @@ var init_rulesLink = __esmMin((() => {
 	init_rulesChange();
 }));
 // src/data/examples.ts
+/** The modules an eval build starts the example with switched off (FARO_MODULES_OFF, evals/run.mjs): CI's smoke run with
+every module switched off at runtime. Empty in every other build. */
+var MODULES_OFF = "".split(",").map((x) => x.trim()).filter(Boolean);
 var EXAMPLE = {
 	id: "platform-org",
 	name: "Example: Platform Engineering",
 	kind: "example",
-	createdAt: "2026-01-01T00:00:00.000Z"
+	createdAt: "2026-01-01T00:00:00.000Z",
+	...MODULES_OFF.length ? { modulesOff: MODULES_OFF } : {}
 };
 // src/ports/store.ts
 /** A save refused because someone else changed the same thing first. */
@@ -14928,8 +14932,8 @@ var _virtual_faro_modules_default = [
 			"U80",
 			"U103",
 			"U104",
-			"U148",
-			"U149",
+			"U150",
+			"U151",
 			"N1",
 			"N21"
 		],
@@ -14944,11 +14948,11 @@ var _virtual_faro_modules_default = [
 				"Switched off, Home has no Next review cell and no review lead: someone who owns no goal is led to the goals they watch that need attention (“Goals you watch · {n} need attention · See them”), or to nothing; a question waits by its own age and names no session; the due flag says “Due by Thu 12 Nov.”, on or off.",
 				"Switching off first reads back what stays (the reviews, what was said in them, the open next steps and questions raised in one) from the rule switchOffReadBack, and Undo brings Reviews back (journey U103).",
 				"Back on, every review, its people, its cadence and what was said are as they were (journey U104).",
-				"The clock's words come from one rule, dueWords (rule RS1), and match every row of spec/conformance/reviews.csv: “before Thursday’s review” only with Reviews on and a review held on the due day, otherwise “by Thursday”; switched off, no page names a review in its own words outside Workspace, Features, History's unlinked names and the closed page's sentence, and the check-in's receipt says “…checked in for week 45, by Thursday.” (journey U148).",
+				"The clock's words come from one rule, dueWords (rule RS1), and match every row of spec/conformance/reviews.csv: “before Thursday’s review” only with Reviews on and a review held on the due day, otherwise “by Thursday”; switched off, no page names a review in its own words outside Workspace, Features, History's unlinked names and the closed page's sentence, and the check-in's receipt says “…checked in for week 45, by Thursday.” (journey U150).",
 				"A closed page says “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and every review tool, and edit_call on a note said in a review, answers “Reviews is switched off in {workspace}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features.”, the one sentence every switched-off module's tools use (check N30).",
 				"The read-back before switching off adds, after the questions line, “{n} accepted risks stay on their goals, as they were said. No new one can be accepted while Reviews is off.” (left out at nought) and “Check-ins are still due by Thursday. “Before the review” becomes “by Thursday” on Home, in the check-in and in the count of goals checked in on time.” (rule RS2; the readback row of reviews.csv).",
 				"Switched off, the workbook has no Notes sheet and no Review column on Asks; a workbook that has them loads as usual, and the preview says once “Reviews is off in {workspace}: the Notes sheet and the Review column were not read.”.",
-				"Switched back on after a week off, every session whose date passed while it was off moves to its next date: neither Reviews nor Home says “Not held yet” (journey U149)."
+				"Switched back on after a week off, every session whose date passed while it was off moves to its next date: neither Reviews nor Home says “Not held yet” (journey U151)."
 			],
 			"gaps": [
 				"Reviews is a switch, not yet a folder of its own (FT3 moves it): its screens (src/screens/Review.tsx, src/screens/Inspect.tsx, ReviewPrint in src/screens/Print.tsx), its rules (src/domain/review.ts, with offSpell for a session passed while it was off; src/domain/reviewsOff.ts, the read-back's switchOffReadBack; src/domain/decide.ts, the review half of src/domain/onePager.ts, lastTalked in src/domain/goalPage.ts), its actions (saveReview, reviewCall, acceptRisk, markReviewed, unmarkReviewed, endReview and deleteReview in src/domain/actions.ts and src/domain/removal.ts), its menu row (src/domain/navigation.ts) and its table (okr_reviews, migration 0006, with review_id on okr_decisions and okr_requests) are still the core's. Its review actions refuse while it is off in src/app/actions.ts (performAny), and the read-back sheet is drawn by src/screens/Workspace.tsx. This folder holds its routes, its Help article and its AI tools; src/app/reads.ts reviewsOn is the one place that asks whether it is on.",
@@ -20418,7 +20422,7 @@ var WHATS_NEW = [
 	{
 		id: "reviews-switch-clock",
 		date: "2026-11-13",
-		title: "Check-ins are due by a day, with or without reviews",
+		title: "Check-ins say plainly which day they’re due",
 		points: [
 			"Once all your goals are in, the check-in says when against the deadline: “by Thursday”, or “before Thursday’s review” when a review is held that day. With Reviews off it never names a review.",
 			"Switching Reviews off now also says how many accepted risks stay on their goals, and that check-ins are still due by the same day.",

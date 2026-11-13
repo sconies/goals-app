@@ -4861,7 +4861,7 @@ journey('U104', ['REVIEWS-OPTIONAL', 'MODULES'], 'Reviews off, then back on: off
    no review outside Workspace, Features, History's unlinked names and the closed page's sentence. What people wrote
    (goal titles such as "Time to first review", asks, notes) is data, not the app's words, so it is taken out first. */
 const ownWords = (text, s) => {
-  const theirs = [...s.goals.map((g) => g.title), ...(s.requests || []).flatMap((r) => [r.ask, r.answer]), ...s.decisions.map((d) => d.note), ...s.reviews.map((r) => r.name), ...(s.checkIns || []).flatMap((c) => [c.note, c.pathToGreen && c.pathToGreen.needs, c.pathToGreen && c.pathToGreen.plan])]
+  const theirs = [...s.goals.map((g) => g.title), ...(s.requests || []).flatMap((r) => [r.ask, r.answer]), ...s.decisions.map((d) => d.note), ...s.reviews.map((r) => r.name), ...(s.checkIns || []).flatMap((c) => [c.note, c.why, c.pathToGreen && c.pathToGreen.needs, c.pathToGreen && c.pathToGreen.plan])]
     .filter((x) => typeof x === 'string' && x.length > 2).sort((a, b) => b.length - a.length);
   let t = text.replace(/“[^”]*”/g, '');
   for (const x of theirs) t = t.split(x).join('');

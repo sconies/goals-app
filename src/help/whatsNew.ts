@@ -29,7 +29,7 @@ export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'reviews-switch-clock',
     date: '2026-11-13',
-    title: 'Check-ins are due by a day, with or without reviews',
+    title: 'Check-ins say plainly which day they’re due',
     points: [
       'Once all your goals are in, the check-in says when against the deadline: “by Thursday”, or “before Thursday’s review” when a review is held that day. With Reviews off it never names a review.',
       'Switching Reviews off now also says how many accepted risks stay on their goals, and that check-ins are still due by the same day.',
