@@ -35,8 +35,9 @@ export const WHATS_NEW: NewsEntry[] = [
       'The button names the number (“Confirm 12 min”). Nothing is posted until you finish the check-in.',
       'Type a different number and you’re asked why it differs. Your number counts; the reading and your reason are kept beside it, and nobody is flagged.',
       'A reading more than a week old isn’t filled in, and a company-wide number never fills in a team’s goal.',
+      'Where a number came from also shows on the goal’s Measured by and History, on the metric’s page (with how often its source’s number was typed over), in a review’s agenda and in the Check-ins sheet.',
     ],
-    articles: ['check-in', 'metric-slices'],
+    articles: ['check-in', 'metric-slices', 'metrics', 'goal-page'],
   },
   {
     id: 'switch-from-the-narrow-menu',
