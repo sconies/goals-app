@@ -194,6 +194,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #440 AX6 review: #419's mediums | 4 | 0 | 0 | 0 |
 | #442 SM2: no noughts, and the quiet empty pages | 2 | 0 | 0 | 0 |
 | #435 SM4: the rail's Faro mark is the workspace switcher | 2 | 0 | 0 | 0 |
+| #437 NR2: readings in the check-in | readings | 0 | 6 | 5 |
 
 **High findings, and where each stands**
 
@@ -1880,3 +1881,22 @@ Read by me; no high or medium. #437 (NR2, which now writes readings) is with a f
 **#442 (track 2).** A count of nought beside a tab is left out; the empty Watching, Activity and Metrics pages say when you would want them, with a plain button. **#435 (track 2).** On the icon rail the Faro mark opens the workspace switcher; the panel loads on first open.
 
 #438 is a design note for tags; #443 and #445 are handover pages.
+
+### #437 NR2: readings in the check-in (session …8y3FdWxxDaqeRvJw4c, merged 13 Nov)
+
+Read first by a reviewing session on PGlite with every migration through both database stores, through the MCP tools, and on screen at 1440 and 390 with stubbed sources. It called the first two findings high. I read the code behind both and log them as medium for one reason: a number source exists only in the example workspace today (`src/modules/metrics/sources.ts`, `readingTool.ts:16`: "a workspace of your own has none"), so no real workspace can hold a reading yet. Both become high the day a real source is registered, and the rebuild would copy the pattern, so they should be fixed before then. No high.
+
+A caller cannot supply a reading: `post_check_in` takes two flags and the server reads the source itself. With the metric library off the reading fields are refused and a plain post still works. A slow or hanging source never blocks the form, and a typed number is never overwritten by a late reading.
+
+**1. Medium (ran on both database stores; I read the code). Correcting a check-in that has a reading leaves the old reading beside the new number in the database, while the app in memory shows none.** `src/data/rows.ts:134` writes `reading` only when set and a correction carries none (`src/domain/changeset.ts:1461-1467`), so the row keeps what it had: confirm 19, correct to 18, and a fresh load gives value 18 with a reading of 19 and no reason, which History would read as "18, typed. CI analytics said 19". The same through `post_check_in` with a reason and through a workbook. The browser store drops it, so the demo and a database disagree. This is #434's first finding, now real. Fix: always write the key, and add a correction-with-a-reading case to the store contract.
+**2. Medium (ran; I read the code). `post_check_in` with an earlier `week` and `reading_confirmed` saves today's reading as that week's number:** the reader asks the source as at today whatever the week (`src/modules/metrics/readingTool.ts:24`), and the tool files it under the week given (`src/mcp/tools.ts:428-431`). Week 43 came back as "1 check-in (1 for past weeks)" with value 19 and a reading dated 5 Nov. Fix: read as at that week's due day, or refuse reading fields for any week but this one.
+**3. Medium (ran). Opening the number step saves the filled-in reading as a draft the owner never typed;** when the source moves on, the step says "You typed 20 min. CI analytics said 22 min" and demands a reason (`CheckInNumber.tsx:67`).
+**4. Medium (ran through MCP, read for the form). The block compares at the metric's decimals and the engine at the goal's,** so a goal with more places than its metric is asked why its number differs after the reader dropped the reason as "the same" (`CheckInNumber.tsx:58`, `readingTool.ts:34` against `changeset.ts:1464`).
+**5. Medium (ran). Rule 2 is half enforced in the engine:** no reason, a short "else" and an unknown kind are refused, but a reason of 100,000 characters, a reading 60 days old, one dated 2031, an unreadable date and an empty source name are stored.
+**6. Medium (ran with stubbed sources; latent until a real one exists). A source that returns rubbish breaks the check-in:** a string value or an unreadable date throws and the number field never appears; NaN fills the field with "NaN"; a pre-fill is not rounded to the goal's places, so "Confirm 20 min" sits over a field saying 20.4567 and is then refused.
+
+**Lows.** The one table's filled-in cell differs by colour only, and its label doesn't say it came from a source; MCP's answer doesn't say what reading was recorded; two controls are under 44px at 390 and the reason radios have four tab stops; on the server the demo source is worked out from live check-ins, so it can differ from the form's (handoff should say); README has no line on readings.
+
+**For Lane.** Opening the one-table check-in and pressing "Post 1 check-in" without touching anything posted a filled-in number as confirmed. The readings note's 2.3 says posting the table confirms them; an earlier answer of his says never post a week nobody updated.
+
+**Fine.** Undo of an import, delete then restore, "check in again" and a table post of two goals agree after a reload; rows already checked in are not filled; same-as-last is answered only when the number equals the reading; the wipe-to-NULL half of #434's finding has no door that produces it; no stripes, pills or emoji; U156 to U160 assert stored readings. Not run: start-next-year, the full evals.
