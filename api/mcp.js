@@ -361,7 +361,7 @@ function codeFrom(terms, input) {
 	const coded = /\(([^)]+)\)\s*$/.exec(String(input ?? ""));
 	return coded ? codeFrom(terms, coded[1]) : null;
 }
-var ALL, pct$3, term, STATUS, STATUS_ORDER, statusFlag, FLAG, ATTENTION_FLAGS, ATTENTION, HANDLED_LINE, WARNING, RESULT, QUARTER, OWNER_VIEW_LABEL, OWNER_VIEW, STAGE, ASK_KIND, ASK_STATUS, SESSION, DECIDED, TREND, GAP, REMOVAL, leftName, LEFT, STOPPED, ENDED, COMMENT_REMOVED, NOTE_REMOVED, GROUPS$1, labels, LABEL, MEANING, RESULT_TEXT, RESULT_MEANING, lower, withCode, choices;
+var ALL, pct$3, term, STATUS, STATUS_ORDER, statusFlag, FLAG, ATTENTION_FLAGS, ATTENTION, HANDLED_LINE, WARNING, RESULT, QUARTER, OWNER_VIEW_LABEL, OWNER_VIEW, STAGE, ASK_KIND, ASK_STATUS, SESSION, DECIDED, TREND, GAP, REMOVAL, leftName, LEFT, STOPPED, ENDED, COMMENT_REMOVED, NOTE_REMOVED, RHYTHM, GROUPS$1, labels, LABEL, MEANING, RESULT_TEXT, RESULT_MEANING, lower, withCode, choices;
 var init_vocabulary = __esmMin((() => {
 	init_thresholds();
 	ALL = [
@@ -402,7 +402,7 @@ var init_vocabulary = __esmMin((() => {
 			label: "No recent update",
 			short: `no check-in for ${RULES.staleDays / 7} weeks or more`,
 			meaning: `No check-in for ${RULES.staleDays} days or more, so its status can’t be trusted.`,
-			long: `The latest check-in was posted ${RULES.staleDays} days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in.`,
+			long: `The latest check-in was posted ${RULES.staleDays} days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in. Never used when there is no set check-in rhythm.`,
 			rule: "status#goalStatus",
 			retired: [
 				"No recent check-in",
@@ -914,6 +914,18 @@ var init_vocabulary = __esmMin((() => {
 	COMMENT_REMOVED = REMOVAL["comment-removed"].label;
 	NOTE_REMOVED = REMOVAL["note-removed"].label;
 	REMOVAL.edited.label;
+	RHYTHM = { asOf: term("asOf", {
+		label: "as of week {n}",
+		short: "the week a status is from",
+		meaning: "The week a goal’s status and numbers are from, said when it isn’t this week and there is no set check-in rhythm.",
+		long: "With no set check-in rhythm a goal keeps the status its latest check-in gave, however old. Beside it, “as of week 44” says which week that was.",
+		rule: "status#goalStatus",
+		where: [
+			"screens",
+			"help",
+			"ai"
+		]
+	}) };
 	GROUPS$1 = {
 		status: {
 			title: "A goal’s status",
@@ -970,6 +982,10 @@ var init_vocabulary = __esmMin((() => {
 		removal: {
 			title: "Removed, stopped and ended",
 			terms: REMOVAL
+		},
+		rhythm: {
+			title: "The check-in rhythm",
+			terms: RHYTHM
 		}
 	};
 	Object.keys(GROUPS$1).flatMap((group) => Object.values(GROUPS$1[group].terms).map((term) => ({
@@ -15858,6 +15874,8 @@ init_vocabulary();
 init_columns();
 init_records();
 init_checkin();
+init_thresholds();
+init_progress();
 var EXPORT_FORMAT = "goals-app.export";
 GOALS.columns.filter((c) => c.role !== "worked").map((c) => c.header);
 GOALS.columns.filter((c) => c.role === "worked").map((c) => c.header);
@@ -15912,14 +15930,20 @@ var DEFINED = [
 	"stage",
 	"askStatus"
 ];
-/** Every word an export uses for a state, defined: read from the vocabulary (domain/vocabulary.ts), never restated. */
-function definitions() {
-	return DEFINED.flatMap((k) => Object.values(GROUPS$1[k].terms).filter((t) => t.where.includes("exports") && !t.same?.startsWith("status.")).map((t) => [
+/** Every word an export uses for a state, defined: read from the vocabulary (domain/vocabulary.ts), never restated.
+With no set check-in rhythm (`rhythm` false, FT1) No recent update is never used, so it isn't defined. */
+function definitions(rhythm = true) {
+	return DEFINED.flatMap((k) => Object.entries(GROUPS$1[k].terms).filter(([key, t]) => t.where.includes("exports") && !t.same?.startsWith("status.") && (rhythm || !(k === "status" && key === "stale"))).map(([, t]) => [
 		"Words",
 		t.label,
 		t.long,
 		GROUPS$1[k].title
 	]));
+}
+/** The workspace's check-in rhythm, as the Start here sheet says it (FT1). */
+function rhythmSentence(cycle) {
+	const r = rhythmOf(cycle);
+	return r ? `Check-in rhythm: every week, due by ${WEEKDAY[r.dueDay]}. A goal with no check-in for ${staleAfterDays(cycle)} days reads No recent update.` : "Check-in rhythm: none. A status is the latest check-in’s.";
 }
 /** The headers of the field table, on the Start here sheet. */
 var FIELD_TABLE_HEAD = [
@@ -15944,7 +15968,8 @@ function startHere(x, opts = {}) {
 			x.ws.id,
 			x.cycle.id
 		],
-		[opts.template ? "Fill in a row for each goal, check-in and person, then load the file on Import: you see every change before anything is saved. Headers in bold are required on a new row. Rows whose Action says Example are never imported. Each sheet is recognised by its header row, so keep the headers as they are." : "Change any column a person fills in, add rows, and load the file back on Import: you see every change before anything is saved. Worked-out columns are set in grey and ignored. Each sheet is recognised by its header row, so keep the headers as they are."]
+		[opts.template ? "Fill in a row for each goal, check-in and person, then load the file on Import: you see every change before anything is saved. Headers in bold are required on a new row. Rows whose Action says Example are never imported. Each sheet is recognised by its header row, so keep the headers as they are." : "Change any column a person fills in, add rows, and load the file back on Import: you see every change before anything is saved. Worked-out columns are set in grey and ignored. Each sheet is recognised by its header row, so keep the headers as they are."],
+		...opts.template ? [] : [[rhythmSentence(x.cycle)]]
 	];
 	for (const kind of FILL_SHEETS) {
 		const sheet = specOf(kind);
@@ -15988,7 +16013,7 @@ function startHere(x, opts = {}) {
 			"What it means",
 			"Kind"
 		],
-		...definitions()
+		...definitions(!!rhythmOf(x.cycle))
 	];
 }
 var muted = (kind, head) => head.map(String).filter((h) => isWorkedOut(kind, h));
@@ -16354,12 +16379,18 @@ function aiBrief(x) {
 	out.push("");
 	out.push("## How to read the status");
 	out.push(`The status is the owner’s call each week, checked against the numbers; a call ${lower(FLAG.greener)} says so.`);
-	for (const k of [
+	const rhythm = !!rhythmOf(x.cycle);
+	for (const k of rhythm ? [
 		"on",
 		"risk",
 		"off",
 		"stale"
+	] : [
+		"on",
+		"risk",
+		"off"
 	]) out.push(`- **${LABEL[k]}:** ${MEANING[k]}`);
+	if (!rhythm) out.push(`- ${rhythmSentence(x.cycle)}`);
 	out.push(`- **${ATTENTION.needs.label}:** ${ATTENTION.needs.long}`);
 	for (const k of [
 		"completed",
@@ -16920,7 +16951,7 @@ function sinceCell(goal, cycle, checkIns, week, stale, gain) {
 		move
 	};
 }
-function metricCard(goal, cycle, checkIns, week, stale) {
+function metricCard(goal, cycle, checkIns, week, stale, pace) {
 	const a = assessPosted(goal, cycle, checkIns, week);
 	if (a.kind !== "metric") return {
 		cells: [],
@@ -17003,7 +17034,7 @@ function metricCard(goal, cycle, checkIns, week, stale) {
 			key: "hit",
 			label,
 			value: LIKELIHOOD_WORD[l],
-			sub: `likely ${fmt(p.value, goal)} ${byWeekWords(cycle, due)}`,
+			sub: `likely ${fmt(p.value, goal)} ${byWeekWords(cycle, due)}${pace}`,
 			tone,
 			likelihood: l
 		});
@@ -17026,7 +17057,7 @@ function metricCard(goal, cycle, checkIns, week, stale) {
 		}
 	};
 }
-function rangeCard(goal, cycle, checkIns, week, stale) {
+function rangeCard(goal, cycle, checkIns, week, stale, pace) {
 	const a = assessPosted(goal, cycle, checkIns, week);
 	if (a.kind !== "range") return {
 		cells: [],
@@ -17102,7 +17133,7 @@ function rangeCard(goal, cycle, checkIns, week, stale) {
 			key: "hit",
 			label,
 			value: LIKELIHOOD_WORD[stay],
-			sub: `likely ${fmt(pr.value, goal)} ${byWeekWords(cycle, cycle.weeks)}`,
+			sub: `likely ${fmt(pr.value, goal)} ${byWeekWords(cycle, cycle.weeks)}${pace}`,
 			tone: stay === "likely" ? "good" : stay === "possible" ? "flat" : "bad",
 			likelihood: stay
 		});
@@ -17157,9 +17188,13 @@ function milestoneCard(goal, checkIns, week) {
 }
 /** A goal's scorecard from its check-ins up to `week`. `stale` when its status can't be trusted, so nothing is projected.
 A stopped goal makes no forecast: its card says how it stood (no "will it hit?" cell and no likely end on the
-chart), and the note under it says when and why it stopped. */
-function goalScorecard(goal, cycle, checkIns, week, stale) {
-	const card = goal.kind === "metric" ? metricCard(goal, cycle, checkIns, week, stale) : goal.kind === "range" ? rangeCard(goal, cycle, checkIns, week, stale) : milestoneCard(goal, checkIns, week);
+chart), and the note under it says when and why it stopped.
+`asOfWeek`: with no set rhythm (FT1), the week the latest check-in is from when it isn't this week's. The projection
+is still made from the numbers there are (age alone never makes it Can’t say), and its line says so: "likely 3.2
+days by year end · on the pace to week 44". Null with a rhythm (then No recent update says it). */
+function goalScorecard(goal, cycle, checkIns, week, stale, asOfWeek = null) {
+	const pace = asOfWeek != null && !stale ? ` · on the pace to week ${asOfWeek}` : "";
+	const card = goal.kind === "metric" ? metricCard(goal, cycle, checkIns, week, stale, pace) : goal.kind === "range" ? rangeCard(goal, cycle, checkIns, week, stale, pace) : milestoneCard(goal, checkIns, week);
 	const done = doneCheckIn(goal, checkIns, week);
 	if (!goal.stoppedAt && !done) return card;
 	const cells = card.cells.filter((c) => c.key !== "hit");
@@ -26914,8 +26949,9 @@ var CORE_TOOLS = [
 					text: JSON.stringify(data, null, 2)
 				};
 			}
-			const stale = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status === "stale";
-			const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale).cells.map((c) => ({
+			const gs = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today);
+			const stale = gs.status === "stale";
+			const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale, rhythmOf(ctx.cycle) ? null : gs.asOfWeek).cells.map((c) => ({
 				label: c.label,
 				value: c.value,
 				detail: c.sub

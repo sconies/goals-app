@@ -14,7 +14,7 @@ Group `status`.
 | `on` | On track | At least 95% of the progress planned by now, inside its limit, or every stage on schedule. If the recent trend says it will still finish short, it is flagged as getting worse. | `status#goalStatus` | screens, exports, help, ai |
 | `risk` | At risk | 80%–95% of the progress planned by now, inside a limit’s warning margin or over it for one week, or a stage up to 2 weeks late. The owner says how it gets back: its path to green. | `status#goalStatus` | screens, exports, help, ai |
 | `off` | Off track | Under 80% of the progress planned by now, a stage more than 2 weeks late, or over a limit two weeks running. It needs a decision, help or a new plan. | `status#goalStatus` | screens, exports, help, ai |
-| `stale` | No recent update | The latest check-in was posted 14 days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in. Never said: “No recent check-in”, “gone quiet”, “goes quiet”, “An update is overdue”, “update is overdue”, “no check-in for 2+ weeks”, “Quiet for”. | `status#goalStatus` | screens, exports, help, ai |
+| `stale` | No recent update | The latest check-in was posted 14 days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in. Never used when there is no set check-in rhythm. Never said: “No recent check-in”, “gone quiet”, “goes quiet”, “An update is overdue”, “update is overdue”, “no check-in for 2+ weeks”, “Quiet for”. | `status#goalStatus` | screens, exports, help, ai |
 | `none` | No check-in yet | The goal has begun and nobody has checked in on it yet. 14 days after it began with still none, it has no recent update. Never said: “Waiting for its first check-in”, “Nothing reported yet”. | `status#goalStatus` | screens, exports, help, ai |
 | `planned` | Not started | Week 0: the goal is set up and its first check-in is due in week 1. | `status#goalStatus` | screens, exports, help, ai |
 | `done` | Done | The owner called it done in a check-in. Done means finished wherever it is said: a goal, a stage or an action. | `status#goalStatus` | screens, exports, help, ai |
@@ -27,7 +27,7 @@ Group `flag`.
 |---|---|---|---|---|
 | `off` | Off track | Under 80% of the progress planned by now, a stage more than 2 weeks late, or over a limit two weeks running. It needs a decision, help or a new plan. Same meaning as `status.off`. | `attention#attentionFor` | screens, exports, help, ai |
 | `risk` | At risk | 80%–95% of the progress planned by now, inside a limit’s warning margin or over it for one week, or a stage up to 2 weeks late. The owner says how it gets back: its path to green. Same meaning as `status.risk`. | `attention#attentionFor` | screens, exports, help, ai |
-| `stale` | No recent update | The latest check-in was posted 14 days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in. Same meaning as `status.stale`. | `attention#attentionFor` | screens, exports, help, ai |
+| `stale` | No recent update | The latest check-in was posted 14 days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in. Never used when there is no set check-in rhythm. Same meaning as `status.stale`. | `attention#attentionFor` | screens, exports, help, ai |
 | `decision` | Decision or help needed | An open ask for a decision or help on the goal (its own, or one it is linked to). It stops counting once it is answered or withdrawn. | `asks#openFor` | screens, exports, help, ai |
 | `no-path` | No path to green | The latest check-in is off track or at risk and has no path to green: what changes, the week it is back on plan by, and any decision or help needed. Never said: “No recovery plan”. | `attention#attentionFor` | screens, exports, help, ai |
 | `missed-path` | Missed its own date | The path to green named a week to be back on plan by, that week has passed, and the goal is still off track or at risk. Never said: “Missed path to green”. | `attention#attentionFor` | screens, exports, help, ai |
@@ -163,3 +163,11 @@ Group `removal`.
 | `comment-removed` | Comment removed | A removed comment keeps its place in the thread, with these words. | `removal#commentsOf` | screens, exports, help, ai |
 | `note-removed` | Note removed | A removed review note keeps its place in the record, with these words. | `removal#commentsOf` | screens, exports, help, ai |
 | `edited` | edited | The words were corrected after they were posted; the log keeps the before and after. | `removal#commentsOf` | screens, exports, help, ai |
+
+## The check-in rhythm
+
+Group `rhythm`.
+
+| Code | Word | Meaning | Rule | Where |
+|---|---|---|---|---|
+| `asOf` | as of week {n} | With no set check-in rhythm a goal keeps the status its latest check-in gave, however old. Beside it, “as of week 44” says which week that was. | `status#goalStatus` | screens, help, ai |

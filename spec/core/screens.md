@@ -87,9 +87,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 |---|---|---|
 | “… (worked out when it shows)” | primary | always |
 | “… (worked out when it shows)” | link | `quiet.buttons.length > 0` |
+| “Check in” | link | `rest.length > 0` and `checkInHere?.(g)` |
 | “Show the … with nothing flagged” | button | `rest.length > 0` and `rest.length > shown.length` |
 | “Show all …” | button | `asks.length > shown.length` |
-| “Check in” | link | `a.goal.ownerId === app.viewer.id && a.flags.some((f) => f.kind === 'due' \|\| f.kind === 'stale' \|\| f.kind === …` |
+| “Check in” | link | `a.goal.ownerId === app.viewer.id && (a.flags.some((f) => f.kind === 'due' \|\| f.kind === 'stale' \|\| f.kind ===…` |
 | “See the wrap-up” | link | `wrapUpOpenOn(app.cycle, app.today)` |
 | “See Cycles / Start …” | link | always |
 | “… (worked out when it shows)” | button | `r.id === 'invite'` |
@@ -482,7 +483,8 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “… (worked out when it shows)” | primary | `!(!showPrimary \|\| !primary.kind)` and `!(primary.kind === 'check-in' \|\| primary.kind === 'first-check-in')` and `!(primary.kind === 'ask-update')` and `primary.kind === 'add-step'` |
 | “… (worked out when it shows)” | primary | `!(!showPrimary \|\| !primary.kind)` and `!(primary.kind === 'check-in' \|\| primary.kind === 'first-check-in')` and `!(primary.kind === 'ask-update')` and `!(primary.kind === 'add-step')` |
 | “… (worked out when it shows)” | link | `!(review \|\| !standing.kind)` and `standing.kind === 'check-in-again'` |
-| “Undo” | button | `!stopped` and not the goal’s owner and `stale` and `!review` and `updateAsk` and `canWithdraw(updateAsk, app.viewer, goal)` |
+| “Ask … for an update” | button | `!review` and `askable` |
+| “Undo” | button | `!stopped` and `!isOwner && (stale \|\| noRhythm) && !review` and `updateAsk` and `canWithdraw(updateAsk, app.viewer, goal)` |
 | “Post the first check-in” | primary | `published` and `!(week < 1)` and the goal’s owner |
 | “Later” | button | `published` and `!(week < 1)` and the goal’s owner |
 | “Ask …” | button | `published` and `!(week < 1)` and not the goal’s owner |
