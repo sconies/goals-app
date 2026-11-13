@@ -1954,6 +1954,10 @@ export interface GoalDraft {
   /** The week the plan starts from, when it's being set (a spreadsheet's Plan from week). Left out: as it was, or this
       week for a new goal set up mid-cycle. */
   fromWeek?: string;
+  /** The period the baseline covers (BL, domain/baseline rule 1): given, the plan's start is a baseline of its own. */
+  baselinePeriod?: string;
+  /** Whether that baseline is provisional. */
+  baselineProvisional?: boolean;
   source: string;
   definition: string;
   unit: string;

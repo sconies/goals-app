@@ -1,6 +1,10 @@
 case,row,actor,sheet,line,rows,answers,given,target,name,kind,diffs,counts,unchanged,needs_reason,saves
 required-empty,0,amara,goals,,"[{""Goal"":""No owner"",""Unit"":""%"",""Start"":""1"",""Target"":""2""}]",,,,,,,,0,no,no
 required-empty-start,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":"""",""Target"":""50""}]",,,,,,,,0,no,no
+baseline-provisional,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""Baseline period"":""June to September 2026"",""Baseline is"":""provisional""}]",,,,,,,newGoals=1,0,no,yes
+baseline-provisional,1,,Goals,2,,,,goal_c1,A new goal,new goal,"Name: — → A new goal | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 10% | Target: — → 50% | Plan shape: — → Straight line | Plan from week: — → Week 45 | Baseline: — → Baseline, June to September 2026, provisional | Via: — → Spreadsheet",,,no,
+baseline-period-long,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""Baseline period"":""The whole of the summer quarter and most of the autumn one, 2026""}]",,,,,,,,0,no,no
+baseline-is-unknown,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""Baseline period"":""Q3 2026"",""Baseline is"":""maybe""}]",,,,,,,,0,no,no
 not-a-number,0,amara,checkIns,,"[{""Goal key"":""G-14"",""Week"":""45"",""Value"":""six""}]",,,,,,,,0,no,no
 formula,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""=20+2""}]",,,,,,,,0,no,no
 precision,0,amara,checkIns,,"[{""Goal key"":""G-14"",""Week"":""45"",""Value"":""6.25""}]",,,,,,,,0,no,no

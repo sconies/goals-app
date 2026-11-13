@@ -863,6 +863,8 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `unit` | string | no | Number goals: the unit, e.g. "%", "days", "USD". |
 | `decimals` | integer | no | Number goals: decimal places, 0 to 3. |
 | `start` | number | no | Move-a-number goals: where it starts. |
+| `baseline_period` | string | no | Move-a-number goals: the period the baseline (start) covers, when it is a figure you already have, e.g. "June to September 2026" (at most 60 characters). Given, start is shown as the goal’s number, marked as the baseline, until its first check-in. "none" removes it. |
+| `baseline_is` | one of `provisional`, `firm` | no | Move-a-number goals with a baseline period: provisional (it may still be firmed up: changing start then isn’t a plan change and needs no reason) or firm. |
 | `target` | number | no | Move-a-number goals: the target. |
 | `plan_shape` | one of `straight`, `back-loaded`, `stepped` | no | Move-a-number goals: how the plan moves from start to target. |
 | `from` | string | no | Move-a-number goals: the week the baseline (start) was true and the plan starts, as a year and a week, e.g. "2026-W46". Left out: this week for a new goal. |
@@ -933,6 +935,18 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
     "start": {
       "type": "number",
       "description": "Move-a-number goals: where it starts."
+    },
+    "baseline_period": {
+      "type": "string",
+      "description": "Move-a-number goals: the period the baseline (start) covers, when it is a figure you already have, e.g. \"June to September 2026\" (at most 60 characters). Given, start is shown as the goal’s number, marked as the baseline, until its first check-in. \"none\" removes it."
+    },
+    "baseline_is": {
+      "type": "string",
+      "description": "Move-a-number goals with a baseline period: provisional (it may still be firmed up: changing start then isn’t a plan change and needs no reason) or firm.",
+      "enum": [
+        "provisional",
+        "firm"
+      ]
     },
     "target": {
       "type": "number",
@@ -1206,6 +1220,8 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `unit` | string | no | Number goals: the unit, e.g. "%", "days", "USD". |
 | `decimals` | integer | no | Number goals: decimal places, 0 to 3. |
 | `start` | number | no | Move-a-number goals: where it starts. |
+| `baseline_period` | string | no | Move-a-number goals: the period the baseline (start) covers, when it is a figure you already have, e.g. "June to September 2026" (at most 60 characters). Given, start is shown as the goal’s number, marked as the baseline, until its first check-in. "none" removes it. |
+| `baseline_is` | one of `provisional`, `firm` | no | Move-a-number goals with a baseline period: provisional (it may still be firmed up: changing start then isn’t a plan change and needs no reason) or firm. |
 | `target` | number | no | Move-a-number goals: the target. |
 | `plan_shape` | one of `straight`, `back-loaded`, `stepped` | no | Move-a-number goals: how the plan moves from start to target. |
 | `from` | string | no | Move-a-number goals: the week the baseline (start) was true and the plan starts, as a year and a week, e.g. "2026-W46". Left out: this week for a new goal. |
@@ -1281,6 +1297,18 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
     "start": {
       "type": "number",
       "description": "Move-a-number goals: where it starts."
+    },
+    "baseline_period": {
+      "type": "string",
+      "description": "Move-a-number goals: the period the baseline (start) covers, when it is a figure you already have, e.g. \"June to September 2026\" (at most 60 characters). Given, start is shown as the goal’s number, marked as the baseline, until its first check-in. \"none\" removes it."
+    },
+    "baseline_is": {
+      "type": "string",
+      "description": "Move-a-number goals with a baseline period: provisional (it may still be firmed up: changing start then isn’t a plan change and needs no reason) or firm.",
+      "enum": [
+        "provisional",
+        "firm"
+      ]
     },
     "target": {
       "type": "number",

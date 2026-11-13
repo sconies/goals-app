@@ -360,6 +360,8 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
           <span className="bar-now">{num}</span>
           {/* Only in the one-line bar: the gap to plan, which the scorecard says in full. */}
           {card.gap && <span className="bar-gap"><span aria-hidden="true">· </span>{card.gap}</span>}
+          {/* Before the first check-in, a baseline of its own is the number: said as one (domain/baseline rule 2). */}
+          {figures.baseline && <span className="bar-baseline">{figures.baseline}</span>}
         </div>
         {firstDue && !goal.stoppedAt ? <p className="small muted sc-none" data-part="Scorecard">The scorecard starts with the first check-in.</p> : card.cells.length > 0 && <ScoreGrid cells={card.cells} />}
         {askedLine && <div className="bar-note">{askedLine}</div>}

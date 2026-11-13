@@ -6198,6 +6198,32 @@ journey('U153', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: 
   // It reads and saves nothing: 'logged' is not this journey's.
 }, ['logged']);
 
+journey('U162', ['GOAL-BASELINE'], 'A baseline of its own (BL): as Rhea, CI cost per run (no check-ins yet) is given the period its baseline covers, “June to September 2026”, ticked Provisional, and saved; its page shows the baseline as its number with “Baseline, June to September 2026, provisional” beside it, the Goals list says “(baseline)”, and the goal keeps it', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/ci-cost/edit'));
+  const period = p.getByLabel(/^Period the baseline covers/);
+  await period.waitFor();
+  h.set('entry', true);
+  await h.fill(period, 'June to September 2026');
+  const prov = p.getByLabel(/^Provisional/);
+  h.set('errors', (await prov.count()) === 1, 'Provisional is not offered once a period is given');
+  await prov.check();
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/goals\/ci-cost(\?|#|$)/);
+  h.set('progress', true);
+  const bar = p.locator('.goal-bar');
+  await see(bar, 'Baseline, June to September 2026, provisional', 'the goal’s page does not say its number is the baseline');
+  h.set('attention', (await bar.locator('.bar-now').textContent() ?? '').trim() !== 'No value yet', 'the page still says No value yet');
+  await h.checkpoint('baseline shown');
+  const after = await h.snapshot();
+  const g = (after.goals ?? []).find((x) => x.id === 'ci-cost');
+  h.set('logged', !!g?.baseline && g.baseline.period === 'June to September 2026' && g.baseline.provisional === true && g.baseline.value === g.plan.start, 'the goal did not keep its baseline');
+  await p.goto(url('/goals?q=CI+cost'));
+  await see(p, '(baseline)', 'the Goals list does not mark the number as the baseline');
+  h.set('finish', true);
+  await p.context().close();
+}, []);
+
 journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, a goal stopped with a reason is gone from Goals and listed with the State filter on Stopped (“1 stopped goal, most recently stopped first.”), with the Stopped mark, who stopped it and when, and the reason; the Filters sheet’s State offers Active, Proposed and Stopped; Remove goes back to the active goals', 15, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   const on = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2026-11-11';
