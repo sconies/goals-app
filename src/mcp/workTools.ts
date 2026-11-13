@@ -9,7 +9,7 @@ import type { Commit } from '../data/store';
 import * as A from '../domain/actions';
 import { activityFilter, parseActivity } from '../domain/activity';
 import { attentionList, splitAttention } from '../domain/attention';
-import { cycleDates, cycleState, dayWithYear, wrapUpOpenOn } from '../domain/cycle';
+import { wrapUpOpenOn } from '../domain/cycle';
 import { dashboard, longDay } from '../domain/home';
 import { askWaiting, homeAsks } from '../app/reads';
 import { ASK_STATUS, ATTENTION, choices, HANDLED_LINE, codeFrom, LABEL, lower, STATUS, withCode } from '../domain/vocabulary';
@@ -21,13 +21,13 @@ import { HISTORY_MAX } from '../ports/window';
 export const said = (k: DisplayStatus) => withCode(STATUS[k]);
 /** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
 import { ASK_KIND_LABEL, askText, asksOf, canAnswer, canMarkDone, isOverdue, openForPerson, openUpdateAsk } from '../domain/asks';
-import { reviewSession, watchedGoals } from '../domain/review';
+import { reviewSession } from '../domain/review';
 import { receiptFacts, receiptText, weekCompletion, weekProgress } from '../domain/progress';
 import { workbook } from '../domain/export';
 import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { findGoal, isKey } from '../domain/goalKey';
 import { proposalAsks, withProposed } from '../domain/proposed';
-import type { Ask, AskKind, Level, Retro, Watch } from '../domain/types';
+import type { Ask, AskKind, Level } from '../domain/types';
 import { ARTICLES, GROUPS, articleById, articleText, searchGuide, type Article } from '../help/guide';
 import { newsSince } from '../help/whatsNew';
 import { canUndoImport, importUndone } from '../domain/removal';
@@ -35,7 +35,7 @@ import { startPage, startPageText } from '../domain/startYear';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 import { listed } from './listed';
 import { MODULES, modulesOn } from '../core/registry';
-import { dueWordsHere, reviewsOn } from '../app/reads';
+import { dueWordsHere, reviewsOn, watchingOn, wrapUpOn } from '../app/reads';
 import { RULE_PAGES, systemOverview } from '../spec/overview';
 import { VIA_MCP } from '../domain/via';
 
@@ -186,7 +186,9 @@ export const WORK_TOOLS: ToolDef[] = [
       const reviewsHere = reviewsOn(modulesOn(ctx.ws).on);
       const reviews = !reviewsHere ? [] : s.reviews.filter((r) => r.people.includes(me)).map((r) => { const x = reviewSession(r, s, ctx.cycle, ctx.today, ctx.week); return { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total }; });
       // The strip at the top of Home: their goals by status, their on-time streak, what they watch, their next review.
-      const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today, { reviews: reviewsHere });
+      // With Watching off (SW1) nothing is watched; with the Wrap-up off, it isn't said to be open.
+      const on = modulesOn(ctx.ws).on;
+      const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today, { reviews: reviewsHere, watching: watchingOn(on) });
       const wp = weekProgress(me, s, ctx.cycle, ctx.week, ctx.today);
       const rf = weekCompletion(wp).complete ? receiptFacts(wp, me, s, ctx.cycle, ctx.week, dueWordsHere(reviewsHere, s, ctx.cycle, ctx.week, me)) : null;
       const weekReceipt = rf ? { ...receiptText({ ...rf, nextDue: rf.nextDue ? longDay(rf.nextDue) : null }), forgivenWeek: rf.forgiven } : null;
@@ -195,10 +197,10 @@ export const WORK_TOOLS: ToolDef[] = [
         onTimeStreakWeeks: d.streak,
         // The check-in's receipt, once every check-in of the week is in (habit spec 2.1): the same two sentences.
         weekReceipt,
-        watching: d.watching ? { goals: d.watching.all.length, needAttention: d.watching.needs.map((a) => a.goal.title), beingHandled: d.watching.handled.map((a) => ({ title: a.goal.title, inHand: a.handled!.text })), noRecentUpdate: d.watching.quiet.length } : null,
+        ...(watchingOn(on) ? { watching: d.watching ? { goals: d.watching.all.length, needAttention: d.watching.needs.map((a) => a.goal.title), beingHandled: d.watching.handled.map((a) => ({ title: a.goal.title, inHand: a.handled!.text })), noRecentUpdate: d.watching.quiet.length } : null } : {}),
         ...(reviewsHere ? { nextReview: d.next ? { id: d.next.id, name: d.next.name, date: d.next.date, day: d.next.weekday } : null } : {}),
       };
-      const data = { week: ctx.week, atAGlance: glance, checkInsDue: due, needsAttention: attention, beingHandled: handled, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, proposedGoals: proposedForYou, ...(reviewsHere ? { yourReviews: reviews } : {}), wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today) };
+      const data = { week: ctx.week, atAGlance: glance, checkInsDue: due, needsAttention: attention, beingHandled: handled, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, proposedGoals: proposedForYou, ...(reviewsHere ? { yourReviews: reviews } : {}), ...(wrapUpOn(on) ? { wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today) } : {}) };
       const text = [
         `Week ${ctx.week} for ${ctx.actor.name}.`,
         `${d.scope === 'mine' ? 'Your goals' : 'All goals'}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(', ') || 'none'}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? 'week' : 'weeks'}.` : ''}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ''}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ''}`,

@@ -77,6 +77,8 @@ export interface DayOneRows {
   watchers: ReadonlySet<string>;
   /** The cycle's last day is past (cycle-end rule 2): nothing is due, so no first check-in is asked for. */
   ended?: boolean;
+  /** Watching is switched off (SW1): no row asks anyone to watch goals. */
+  watching?: boolean;
 }
 
 /**
@@ -111,7 +113,7 @@ export function gettingStarted(viewerId: string, s: DayOneRows, ws: { name: stri
   if (noCheckIn.length) rows.push(firstCheckIn());
   if (!mine.length) {
     if (!facts.sawGoals) rows.push({ id: 'see-goals', says: `See what ${ws.name} is working towards.`, action: 'See the goals', to: '/goals' });
-    if (!s.watchers.has(viewerId)) rows.push({ id: 'watch', says: 'Watch the goals you care about, and they’ll show here.', action: 'Find goals to watch', to: '/goals' });
+    if (s.watching !== false && !s.watchers.has(viewerId)) rows.push({ id: 'watch', says: 'Watch the goals you care about, and they’ll show here.', action: 'Find goals to watch', to: '/goals' });
     rows.push({ id: 'own-goal', says: 'Set up a goal of your own, in about 3 minutes.', action: 'New goal', to: '/goals/new' });
   }
   return rows;

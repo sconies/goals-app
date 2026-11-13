@@ -15,19 +15,19 @@ import { WatchingBody } from './Watching';
 import { watchedGoals } from '../domain/review';
 import type { Goal } from '../domain/types';
 import type { TreeNode } from '../domain/tree';
-import { forgetGoneLayout, GONE_LAYOUT, GONE_LAYOUT_NOTE, LAYOUTS, LayoutMenu, layoutLine, layoutName, useLayout, type Layout, type ViewGroup } from './GoalViews';
+import { forgetGoneLayout, GONE_LAYOUT, GONE_LAYOUT_NOTE, LAYOUTS, LayoutMenu, layoutLine, layoutName, layoutsOn, MAP_OFF_NOTE, useLayout, type Layout, type ViewGroup } from './GoalViews';
 import { GoalTable } from './GoalTable';
 import { GoalBoard } from './GoalBoard';
 import { HistoryGrid } from './GoalHistory';
 import { StatusLegend } from '../ui/StatusLegend';
-import { Place } from '../core/app';
+import { Place, useModules } from '../core/app';
 import { FilterBar, useGoalQuery, useLatestParams, useViewActions } from './GoalFilters';
 import { MenuButton } from '../ui/MenuButton';
 import { EMPTY_QUERY, filters, SORT_OPTIONS } from '../domain/query';
 import { useGoalCounts, useGoalList } from '../app/goals';
 import { NoneFound } from '../ui/ListBar';
 import { usePrefs } from '../app/search';
-import { scopeFacts } from '../app/reads';
+import { goalMapOn, scopeFacts, watchingOn, wrapUpOn } from '../app/reads';
 import { goalsLine, GROUPS, movedGoals, ownGroup, scopesFor, type Group, type Scope } from '../domain/goalsPage';
 
 const GOAL_WORDS = { thing: 'goal', things: 'goals' };
@@ -55,7 +55,9 @@ export function GoalsScreen() {
   const prefs = usePrefs();
   // The facts the scope rule reads, from the one place find_goals reads them too.
   const facts = useMemo(() => scopeFacts(app.snapshot, app.viewer), [app.snapshot, app.viewer]);
-  const { tabs: scopeTabs, opens } = scopesFor(facts, prefs.get<Scope>(app.ws.id, app.viewer.id, 'goals-scope'));
+  const modules = useModules();
+  const mapHere = goalMapOn(modules.on);
+  const { tabs: scopeTabs, opens } = scopesFor(facts, prefs.get<Scope>(app.ws.id, app.viewer.id, 'goals-scope'), { watching: watchingOn(modules.on) });
   const hasScope = (x: Scope) => scopeTabs.some((t) => t.id === x);
   // Old addresses (show=…, a filter with no scope, a bare /goals) say what they meant, replacing the entry (rule 6).
   // A filter naming a team, person or goal the workspace doesn't have is dropped, and the page says so (spec 2.1, item 7).
@@ -69,6 +71,8 @@ export function GoalsScreen() {
     let next = latest();
     // Cards has gone: a link or a remembered layout that says it opens in List, said once.
     if (next.get('view') === GONE_LAYOUT) { next.delete('view'); said.push(GONE_LAYOUT_NOTE); }
+    // The Goal map switched off (SW1, spec 2.6): a link or saved view that asked for the Map opens the List, said once.
+    else if (next.get('view') === 'map' && !mapHere) { next.delete('view'); said.push(MAP_OFF_NOTE); }
     else if (forgetGoneLayout()) said.push(GONE_LAYOUT_NOTE);
     const old = movedGoals(next.toString(), opens, hasScope);
     if (old) { next = new URLSearchParams(old.search); if (old.note) said.push(old.note); }
@@ -90,7 +94,7 @@ export function GoalsScreen() {
     if (said.length) setMoved({ text: said.join(' '), at: next.toString(), from: params.toString() });
     if (next.toString() !== params.toString()) setParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params, opens, loaded]);
+  }, [params, opens, loaded, mapHere]);
   const scope: Scope = hasScope(params.get('scope') as Scope) ? (params.get('scope') as Scope) : opens;
   useEffect(() => { if (params.get('scope')) prefs.set(app.ws.id, app.viewer.id, 'goals-scope', scope); }, [scope, params, prefs, app.ws.id, app.viewer.id]);
   const scopeTab = scopeTabs.find((t) => t.id === scope)!;
@@ -99,7 +103,7 @@ export function GoalsScreen() {
   const switchOn = params.get('attention') === '1' || !!params.get('needs');
   const show: Show = switchOn ? 'attention' : group === 'tree' ? 'outcomes' : group === 'team' ? 'teams' : group === 'level' ? 'levels' : scope === 'watching' ? 'watching' : 'mine';
   const { trees, loose } = outcomeTrees(app.snapshot.goals, worstFirst(app));
-  const [layout, setLayout] = useLayout();
+  const [layout, setLayout] = useLayout(mapHere);
   const flat = (n: TreeNode, depth = 0): { goal: Goal; depth: number }[] => [{ goal: n.goal, depth }, ...n.children.flatMap((c) => flat(c, depth + 1))];
   const one = (key: string, title: string, goals: Goal[]): ViewGroup => ({ key, title, rows: goals.map((goal) => ({ goal, depth: 0 })) });
   // Built once per change to the goals, so the views' summaries aren't recomputed on every render.
@@ -256,7 +260,7 @@ export function GoalsScreen() {
           <span className="hint goals-period">{periodNow(app.cycle, app.today).split(' · ').map((part, i) => <Fragment key={i}>{i > 0 && ' · '}<span className="nb">{part}</span></Fragment>)}</span>
         </span>
         {/* New goal is a quiet link here (Lane, 9 Nov): people seldom make one, so it isn't the page's big button. The sidebar's New goal is one step from anywhere. */}
-        <span className="actions">{wrapUpOpenOn(app.cycle, app.today) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn ghost sm new-goal-quiet" to="/goals/new">New goal</Link></span>
+        <span className="actions">{wrapUpOn(modules.on) && wrapUpOpenOn(app.cycle, app.today) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn ghost sm new-goal-quiet" to="/goals/new">New goal</Link></span>
       </div>
       {/* Whose goals, as tabs; at the right of the same row, the Views menu (one meaning on every width). */}
       <div className="goals-toolbar">
@@ -295,7 +299,7 @@ export function GoalsScreen() {
         trail={<>
           <MenuButton className="group-menu" label="Group" summary="" markCurrent display={switchOn && !onMap ? 'Group: needs attention first' : `Group: ${onMap ? GROUPS.find(([k]) => k === 'tree')![1] : groupWord}`}
             items={groupOff ? [{ label: groupOff, note: true }] : GROUPS.map(([k, l]) => ({ label: l, hint: GROUP_LINE[k], current: group === k, onClick: () => pickGroup(k) }))} />
-          <LayoutMenu layout={layout} onChange={setLayout} />
+          <LayoutMenu layout={layout} onChange={setLayout} layouts={layoutsOn(mapHere)} />
         </>}
         after={<>
           {/* On a phone (goals spec, 2.4): the switch at the left, how the goals are seen at the right, in one sheet. */}
@@ -308,7 +312,7 @@ export function GoalsScreen() {
         </>} />}
       </div>
       {actions.sheets}
-      {sheetOpen && <ViewSheet layout={layout} onLayout={setLayout} group={group} groupOff={groupOff} onGroup={pickGroup} items={viewItems}
+      {sheetOpen && <ViewSheet layouts={layoutsOn(mapHere)} layout={layout} onLayout={setLayout} group={group} groupOff={groupOff} onGroup={pickGroup} items={viewItems}
         canSave={actions.canSave} onSave={() => { setSheetOpen(false); actions.save(); }} onCopy={() => void actions.copyLink()}
         manage={actions.manage} tools={<Place name="goals.tools" goals={shown} viewName={viewName} inMenu />} onClose={() => setSheetOpen(false)} />}
 
@@ -417,8 +421,8 @@ const GROUP_LINE: Record<Group, string> = {
  * The phone's View sheet (goals spec, 2.4): Layout, Group (not on the Map), Saved views, then saving, the link and the
  * modules' tools. Each choice applies at once; Done closes it.
  */
-function ViewSheet({ layout, onLayout, group, groupOff, onGroup, items, canSave, onSave, onCopy, manage, tools, onClose }: {
-  layout: Layout; onLayout: (l: Layout) => void; group: Group; groupOff: string | null; onGroup: (g: Group) => void;
+function ViewSheet({ layouts = LAYOUTS, layout, onLayout, group, groupOff, onGroup, items, canSave, onSave, onCopy, manage, tools, onClose }: {
+  layouts?: [Layout, string][]; layout: Layout; onLayout: (l: Layout) => void; group: Group; groupOff: string | null; onGroup: (g: Group) => void;
   items: { label: string; current: boolean; onClick: () => void }[]; canSave: boolean; onSave: () => void; onCopy: () => void;
   manage: { label: string; onClick?: () => void }[]; tools: React.ReactNode; onClose: () => void;
 }) {
@@ -426,7 +430,7 @@ function ViewSheet({ layout, onLayout, group, groupOff, onGroup, items, canSave,
     <Sheet open onClose={onClose} title="View">
       <div className="view-sheet stack">
         <fieldset className="filter-group"><legend className="field-label">Layout</legend>
-          {LAYOUTS.map(([k, l]) => (
+          {layouts.map(([k, l]) => (
             <label key={k} className="check view-choice"><input type="radio" name="view-layout" checked={layout === k} onChange={() => onLayout(k)} />
               <span className="menu-text"><span>{l}</span><span className="hint">{layoutLine(k)}</span></span></label>
           ))}

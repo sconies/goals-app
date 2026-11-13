@@ -129,9 +129,12 @@ export function dayOneRows(s: Pick<Snapshot, 'people' | 'goals' | 'checkIns' | '
 /** A review's name, for " in {review}" (GE10): null when it isn't in the workspace to name. */
 export const reviewName = (s: Pick<Snapshot, 'reviews'>, id: string | null | undefined): string | null => (id ? s.reviews.find((r) => r.id === id)?.name ?? null : null);
 
-export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot }; opened?: ReadonlySet<string>; putOff?: ReadonlyMap<string, string>; reviews?: boolean }): HomeFacts {
+export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot }; opened?: ReadonlySet<string>; putOff?: ReadonlyMap<string, string>; reviews?: boolean; watching?: boolean; wrapUp?: boolean }): HomeFacts {
   // Reviews switched off (FT2): no session leads or names a day, and no ask names a review.
   const reviews = opts.reviews !== false;
+  // Watching switched off (SW1): nothing is watched, and someone who owns no goal is led to every goal needing
+  // attention; the Wrap-up switched off: nobody is asked to wrap up (the year still ends).
+  const watching = opts.watching !== false, wrapUp = opts.wrapUp !== false;
   const day = today.toISOString().slice(0, 10);
   const p = weekProgress(viewerId, s, cycle, week, today);
   const mine = s.goals.filter((g) => g.ownerId === viewerId);
@@ -162,7 +165,7 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   const wrapMine = ws.goals.filter((g) => g.ownerId === viewerId);
   return {
     today: day, week, lastWeek: cycle.weeks, cycleName: cycle.name, workspace: opts.workspace,
-    starts: start ? { on: start.firstDay, firstDue: start.firstDue } : null, ended: ended && !(wrapOpen && mine.some((g) => !s.retros.some((r) => r.goalId === g.id))),
+    starts: start ? { on: start.firstDay, firstDue: start.firstDue } : null, ended: ended && !(wrapUp && wrapOpen && mine.some((g) => !s.retros.some((r) => r.goalId === g.id))),
     rhythm: { dueDate, nextDueDate: week < cycle.weeks ? reviewDate(cycle, Math.max(1, week) + 1) : null },
     checkIns: {
       total: p.goals.length, done: p.done.length,
@@ -172,11 +175,13 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
       completedToday: allIn && thisWeek.some((c) => c.postedAt.slice(0, 10) === day),
       after: receipt.after, forgiven: receipt.forgiven, words: { by: words.by, after: words.after },
     },
-    wrap: wrapUpOpenOn(wc, today) ? { name: wc.name, ends: cycleDates(wc).lastDay, ended: hasEnded(wc, today), left: wrapMine.filter((g) => !ws.retros.some((r) => r.goalId === g.id)).map((g) => ({ id: g.id, title: g.title })), total: wrapMine.length } : null,
+    wrap: wrapUp && wrapUpOpenOn(wc, today) ? { name: wc.name, ends: cycleDates(wc).lastDay, ended: hasEnded(wc, today), left: wrapMine.filter((g) => !ws.retros.some((r) => r.goalId === g.id)).map((g) => ({ id: g.id, title: g.title })), total: wrapMine.length } : null,
     sessions,
     owns: mine.length,
-    watches: watchedGoals(viewerId, s).filter((g) => g.ownerId !== viewerId).length,
-    ...(!reviews && !mine.length ? { watchNeeds: watchedGoals(viewerId, s).filter((g) => needsAttention(attentionFor(g, s, cycle, today))).length } : {}),
+    watches: watching ? watchedGoals(viewerId, s).filter((g) => g.ownerId !== viewerId).length : 0,
+    ...(!watching ? { watchingOff: true } : {}),
+    ...(!watching && !mine.length ? { allNeeds: live(s.goals).filter((g) => !g.stoppedAt && needsAttention(attentionFor(g, s, cycle, today))).length } : {}),
+    ...(watching && !reviews && !mine.length ? { watchNeeds: watchedGoals(viewerId, s).filter((g) => needsAttention(attentionFor(g, s, cycle, today))).length } : {}),
     asks: homeAsks(viewerId, s, cycle, week, today, reviews),
     // Goal entry rule 14: proposed for the viewer by someone else and not yet opened (what was opened is the Prefs port's).
     // Every row under "Proposed goals" (both kinds), so the quiet line never says nothing is asked beside them (#319's review).
