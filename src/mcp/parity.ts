@@ -94,6 +94,7 @@ export const SCREENS: Record<string, Entry> = {
   DataLayout: ['list_views', 'save_table_view', 'delete_view', 'pin_view'],
   Import: ['bulk_change'],
   Check: ['bulk_change'],
+  Large: ['bulk_change'],
   Changes: ['bulk_change'],
   Imported: ['get_activity', 'undo_import'],
   PastImports: ['get_activity', 'undo_import'],
@@ -113,6 +114,7 @@ export const SCREENS: Record<string, Entry> = {
   Print: ['get_goal', 'get_review'],
   Help: ['get_help', 'whats_new'],
   Onboarding: { notForAssistants: 'Setting up a new workspace happens before there is a token for it.' },
-  Start: { notForAssistants: 'The first screen, before a workspace exists.' },
+  Start: { notForAssistants: 'Saying who you are on an invitation, and the screen right after set-up: a token already acts as one person in one workspace.' },
+  Welcome: { notForAssistants: 'The front door, before anyone has chosen a workspace: a token already belongs to one.' },
   Research: { notForAssistants: 'Research sessions in the demo, for the people building the app.' },
 };

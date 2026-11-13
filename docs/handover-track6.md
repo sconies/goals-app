@@ -1,6 +1,6 @@
 # Track 6 handover: the handoff kit (KT)
 
-Written 12 Nov 2026 by the first track 6 session and updated by the second, third, fourth and fifth. The next session starts from here.
+Written 12 Nov 2026 by the first track 6 session and updated by the second to eighth (the seventh did KT9 and KT10; the eighth KT11). The next session starts from here.
 
 ## The brief
 
@@ -59,6 +59,39 @@ The ground rules:
     - The spec test fails if a core screen has no picture.
     - Retake them (`-- --no-build Home`, say) when a screen's look changes a lot. Nothing forces it.
 
+- **KT6, gap 4 (#275).** The actions and AI tools as contracts:
+  - **Pages:** `spec/core/actions.md` (every action: input, result, who may, refusals, its tools, and an appendix of every non-record type the inputs and results name) and `spec/core/tools.md` (every MCP tool: input schema as a table and JSON, hints, the type of its `data`, its own refusals, the actions it does the same as). Both are linked from the spec README and `llms.txt`.
+  - **Generator:** `src/spec/calls.ts`, which uses the TypeScript checker (a `ts.Program` over `src/app/actions.ts`, the modules' `actions.ts` and the tool files; about 1 s).
+    - Who may comes from `ACCESS` in `src/spec/internal.ts`, matched by the rule function each action calls (`ruleCalled`). A new action needs an `ACCESS` line, or `calls.test.ts` fails.
+    - Refusals are the `no(…)` and `new NotAllowed(…)` sentences in the rule and in the functions it calls under `src/domain` and `src/modules`. Template parts show as "…".
+    - A tool's own refusals are read the same way under `src/mcp` and `src/modules`, plus `new Error` and `{ isError: true, text }`.
+    - A new tool file must be added to `toolFiles`, or the generator throws.
+  - **Tests:** `src/spec/calls.test.ts`.
+  - **Not done:** the command port still has no contract *test* (nothing runs the actions against a server). `MetricInput` is missing from the types appendix because the checker loses its alias inside an intersection; its fields are listed on the action.
+
+- **KT7, gap 5 (this PR).** Five more requirements for the internal app, in `src/spec/platform.ts` (the same `InternalRequirement` shape as R1 to R4, spliced into `INTERNAL` in `src/spec/internal.ts`, listed in `INTERNAL_PAGES`):
+  - **R5** notifications and the weekly habit: channels, what is sent and when, the digest's words, check-in from a notification, never shame, streaks that forgive, the habit measure ("before the review, without a nudge"), one sign-in with a role per workspace, feedback per workspace. One example runs `onTimeStreak` to show today's streak doesn't forgive.
+  - **R7** retention, privacy and erasure; **R8** audit; **R9** observability and service levels (replaces the "Observability, as an idea" note, now gone); **R10** accessibility (WCAG 2.2 AA).
+  - Decisions taken with the 12 Nov evaluation's recommended answers (habit measure 2a, digests 3a); every figure is marked a proposal.
+
+- **KT8, gap 6's last items.** `src/spec/thresholds.ts` (`NAMED_THRESHOLDS`, `thresholdClashes`): every page of `spec/` and `llms.txt` that names a threshold in words must give the code's number; a new named threshold gets a line there. `RULE_PAGES`' third column is now each rule's `summary` from `src/spec/rules.ts`, word for word (`spec.test.ts` checks), so `llms.txt` says what the rule page says.
+
+- **KT9, gap 7.** What to copy, the logical model and the SQL-only limits:
+  - **Tags:** every requirement in `evals/requirements.json` has `use`: `copy`, `replace` (with `by`, R1 to R10) or `demo-only`. `src/spec/uses.ts` gives the words; the requirements page opens with the counts and lists, each requirement says its tag, and a module page says it in brackets. A new requirement needs a tag, or `spec.test.ts` fails (`wrongUses`).
+  - **The logical model:** `src/spec/logical.ts` (`LOGICAL`, `SCOPE_RULES`) opens `spec/core/data-model.md` with keys, uniqueness, references and the workspace-scope rules. Every field it names is checked against `src/domain/types.ts` (`wrongLogical`).
+  - **Limits:** `src/spec/limits.ts` (`LIMITS`, `NOT_LIMITS`) says every check constraint in `schema.sql` in words on its rule's page ("Limits the records hold"), with the code that holds it too where traced. A new check constraint must go in one of the two lists, or the spec test fails (`wrongLimits`).
+  - **dont-copy.md:** five more rows, the review's section 5.
+
+- **KT10, gap 8.** The home zone as a parameter, and data that scores it:
+  - **Reference:** `src/spec/zones.ts`: `wallClock` reads a moment on a zone's clock dressed as UTC, then `weekIn` and `daysSinceIn` count as the UTC rules do; `momentOf` takes a zone's clock time to a moment (the earlier one when clocks go back). Tests: `src/spec/zones.test.ts`.
+  - **Rule page:** weeks-and-plans says the zone is a parameter, with a worked example (New York against UTC). R3's "Required" examples now run.
+  - **zone.csv:** its input is `zone` in `workspace.json` (`ZONE_CASE`: New York, check-ins near midnight, the night the clocks go back). It is scored when asked (`ALSO` and `KEYS` in `scripts/drill.mjs`; drill-faro asks for it).
+
+- **KT11, gap 9.** Scale can be accepted (two PRs: #304, then this one):
+  - **The seed:** `scripts/seed.mjs` → `spec/rebuild/seed.mjs`. It copies `workspace.json` 239 times (30,114 goals, 1.25 million check-ins), one division per copy, and gives the same files byte for byte on every run (`seed.json` holds the SHA-256s). Tests: `src/spec/seed.test.ts`.
+  - **`spec/rebuild/scale.md`** (`src/spec/scaleKit.ts`): the seed; the week's turn (budget `TURN` in `src/spec/scale.ts`: within 15 minutes and by 06:00, with 30 s of rule time for 30,000 goals projected by `scale.test.ts`, 9.6 s today; a switch in one step; the line "Statuses are as of week n"); and being handled worked out from one goal's records. R4's rule 2, example and checks say the same.
+  - **`spec/rebuild/reads.md`** (`src/spec/reads.ts`, `readsRun.ts`, `readsSamples.ts`, `readsPage.ts`): every action is run on the demo with each list wrapped, and the page records which records it used and which lists it read whole. `goalSlice` proves that every goal's summary row, being handled included, comes out the same from its own records as from the whole workspace. A new action needs a sample in `readsSamples.ts`, or `reads.test.ts` fails.
+
 ## Next, in order
 
 1. **Gap 1, part (b), the rest: the goals and store contracts as data** (search and prefs are done: KT3). Agreed with track 4 (`session_012kbr8yGf2m8ghRQungzjo3`; also `session_012kbr8xdoEbLiMQaBAxLeuJ` for #193's follow-ups):
@@ -72,10 +105,9 @@ The ground rules:
      - The **goals contract** waits for track 4's next PR. It changes `among` to `scope`, puts `goals.csv` in rule order, and makes the last case "narrows to a scope".
      - The **store contract** waits until AX5 part 2 merges. Track 4 sent its planned shape on 12 Nov: `load(ws, window?)`, where `{ from }` trims check-ins and change-log entries but keeps notes, ask, cycle and import anchors; `Snapshot.history`; and `history(ws, { before, goalId, size })` for keyset paging. It brings three new contract cases (a windowed load, paging history, a whole load). They fit the case format as multi-step cases. Track 4 will say when it merges.
      - Keep the names of the goals contract's four structural checks: `ports-at-scale.md` cites them.
-2. **Gap 4 (next to build: it doesn't wait on track 4):** schemas for the AI tools and actions, generated into `spec/core/tools.md` and `spec/core/actions.md`.
-3. **Gap 5:** requirements R5, R7, R8 and R9 with acceptance checks, and an accessibility standard.
+2. **Gap 5: done (KT7).** Requirements R5, R7, R8, R9 and R10 (accessibility).
    - **R5 (from the planning session, 12 Nov):** spec only, written as `docs/reviews/2026-11-12-muse-product-evaluation.md` describes. It covers digests (with their wording as worked examples), never shaming, streaks that forgive, the habit measure ("% of goals checked in before the review, without a nudge"), one sign-in with a role per workspace, Feedback scoped per workspace, and Slack and Teams as a platform requirement. Faro itself sends nothing.
-4. **Gaps 6 to 9:** the rest, in the review's order. Gap 6's disagreements are done (KT1). Still open from gap 6: a spec lint for two different numbers given for one named threshold, and generating `llms.txt`'s summary lines from the rule pages.
+3. **Gap 9: done (KT11).** Every gap but 1(b)'s goals and store contracts is done; those wait on track 4.
 
 ## Things to know
 

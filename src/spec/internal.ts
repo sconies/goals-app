@@ -8,15 +8,18 @@
    fails when an action that says who may do something (src/domain/actions.ts, src/domain/removal.ts) isn't in it, or a
    function it names has gone. A worked example with `run` is run against Faro's code, by the same test and by the
    generator, which refuses to write one that isn't true. Pure apart from those imports: the caller writes the files. */
-import { createToken, NotAllowed, renameWorkspace, saveRetro, savePerson, canDeleteWorkspace, startNextCycle, type ActionContext } from '../domain/actions';
+import { daysSinceIn, homeTime, momentOf, weekIn } from './zones';
+import { arrive, createToken, NotAllowed, renameWorkspace, saveRetro, savePerson, canDeleteWorkspace, startNextCycle, type ActionContext } from '../domain/actions';
 import { canAnswer, canMarkDone, canWithdraw } from '../domain/asks';
 import { currentWeek, daysSince } from '../domain/plan';
 import { levelIds, levelName } from '../domain/levels';
 import { sessionDate } from '../domain/review';
+import { splitTables } from '../domain/splitFile';
+import { CHANGES_SAVE_MAX } from '../domain/importLimits';
 import type { Ask, Goal, Person, Review, Snapshot } from '../domain/types';
 import { CYCLE } from './examples';
 import { cell, link, table } from './md';
-import { INTERNAL_PAGES } from './overview';
+import { R10, R5, R7, R8, R9 } from './platform';
 
 export interface InternalExample {
   given: string;
@@ -88,6 +91,7 @@ export const ACCESS: Access[] = [
   { area: 'Views and watching', what: 'Pin a view for everyone', who: 'Admins', code: [`${A}pinView`] },
   { area: 'People, teams and the workspace', what: 'Add someone; change their name, job title, team or admin rights', who: 'Admins', code: [`${A}savePerson`, C] },
   { area: 'People, teams and the workspace', what: 'Mark someone as left (handing over their goals and asks); delete someone with no history', who: 'Admins; not themselves, and never the only admin', code: [`${R}markPersonLeft`, `${R}deletePerson`, `${R}leaving`] },
+  { area: 'People, teams and the workspace', what: 'Arrive: the first time you choose your name in a workspace (its arrival screen), the log says so, once', who: 'Anyone, as themselves (in the internal app the first sign-in records it: SR3)', code: [`${A}arrive`] },
   { area: 'People, teams and the workspace', what: 'Leave the workspace yourself (handing over your goals and asks)', who: 'Anyone; never the only admin', code: [`${R}leaveWorkspace`] },
   { area: 'People, teams and the workspace', what: 'Add, rename, lead or remove a team', who: 'Admins', code: [`${A}saveTeam`, `${A}removeTeam`] },
   { area: 'People, teams and the workspace', what: 'Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to', who: 'Admins', code: [`${A}startNextCycle`, `${R}undoStart`, `${R}deleteCycle`] },
@@ -140,12 +144,16 @@ export const INTERNAL: InternalRequirement[] = [
       '6. **Builder tokens and the builder inbox.** Builders are the people who look after the app itself (in the internal app, a group in the company directory). Only builders read the builder inbox: the markups and feedback people send about the app, from every workspace. A builder makes a builder token for themselves; it reaches the inbox as well as their workspace, and stops counting as one the moment they leave the builders. Someone who sent a markup or feedback sees its status (New, In hand, Fixed, Won’t fix), not other people’s. **Faro differs on purpose:** it never holds real data, so its inbox is open to anyone (Lane, 8 Nov, backlog O); the internal app must not copy that. Faro keeps one Feedback inbox across workspaces, which anyone reads and only an admin triages: a status change from anyone else is refused by the rule (`statusPatch`, `mayTriage`; Lane, 12 Nov). **The rebuild scopes Feedback per workspace:** a workspace’s feedback is read and triaged by that workspace’s admins, and only the builder inbox crosses workspaces.',
       '7. **Who may read a sent markup** (a markup about a goal sent to someone, backlog 3a). Its sender, the people it was sent to, and, when it was sent into a review, the people in that review. An admin of the workspace may remove one. Nobody else, watchers included. A markup is a picture of the sender’s screen, so it is only sent to people who can read everything on it: in the internal app, members of the same workspace. Its picture is kept private and read through a short-lived address the server makes for someone allowed to read it ([R4](r4-scale-and-safety.md), the master key).',
       '8. **Exports are logged** (R-E1). An export (the workbook, the zipped CSVs, one sheet, JSON, the brief for an AI chat, a table from Data as shown, or the same through the AI assistant) follows the read rules of rule 3 and is written to the audit log with who, when and what: the file’s name, which goals (everything in the cycle, or a view and its filter) and which sheets. Exporting needs no right beyond reading, so nothing is refused; the log is so an admin can see what left the app and when.',
+      '9. **Opening the app without signing in shows the sign-in** (set-up spec SR1), never Welcome with a list of workspaces, a workspace or a name picker. After sign-in: no workspace, Welcome; one, its Home; several, the last one opened.',
+      '10. **An invitation is addressed to a person** (SR2). Adding someone to a workspace (their email, rule 2) is what invites them; the platform tells them by its own means (email, chat), with the same three lines Faro’s invitation has. Faro’s copy-and-paste link is the stand-in.',
+      '11. **Arriving is the first sign-in** (SR3). There is no “Which one are you?”: the signed-in email is matched to the person record. Someone with no record sees “You’re not in {workspace}. Ask {admins} to add you.” and nothing of the workspace. The server records the arrival at the first sign-in (the same log entry Faro writes when someone first chooses their name: `arrive`).',
     ].join('\n'),
     today: [
       'The app asks “Who are you?” and remembers the answer on the device (Help, “Saying who you are”; `src/screens/Start.tsx`).',
       'Every rule in the access table is checked in `src/domain/actions.ts`, `src/domain/removal.ts`, `src/domain/asks.ts` and the change engine (`src/domain/changeset.ts`), by the app and the MCP server alike, before anything is saved. The database doesn’t check them.',
       'The public key can still write to most tables (not tokens; it can only add markups and feedback). Tokens are made in the database by `okr_token_create` and found by hash (`okr_token_find`, migration 0024).',
       'Every grant, row rule and `security definer` function the database has today is listed in one place, read from the database after every migration and each marked “demo access: replace”: [access today](../../rebuild/access-today.md). It ends with the two shapes that replace them: a membership rule on each table, and a definer function that checks who is calling before it does anything.',
+      'A browser that remembers no workspace opens Welcome at its own address, `/welcome`, never a workspace nobody chose; an invitation is a link, `/join/<workspace>`, that opens the arrival screen: who set the workspace up, then “Which one are you?”, where anyone may choose any name, the admin’s included (`src/screens/Welcome.tsx`, `src/screens/Start.tsx`, `invitedTo` and `inviteLink` in `src/domain/dayOne.ts`, the arrival’s lines in `src/domain/arrival.ts`). Choosing a name the first time writes the arrival to the log (`arrive` in `src/domain/actions.ts`).',
       'Every workspace in the shared database is listed to anyone who opens the app (`SupabaseStore.workspaces` in `src/adapters/supabase/goalsStore.ts`).',
       'Faro’s inbox is open on purpose (backlog O, migration 0031): anyone, with no sign-in, reads every markup and piece of feedback and their pictures (a public-read bucket nobody can list), and changes a status through the one status rule, recorded as the person using the app and undoable; any token reaches it through MCP. There is no builder sign-in and no builder token in the app any more (the builders list and builder tokens from migrations 0024 and 0029 are left in the database, unused). The internal app keeps rule 6 as written.',
       'Markups today are reports about the app; sending one about a goal (3a) is not built yet.',
@@ -159,6 +167,9 @@ export const INTERNAL: InternalRequirement[] = [
       { given: 'Oskar asked Maya for a decision. May Oskar, Maya and Priya (an admin) answer it?', then: 'Oskar no, Maya yes, Priya yes', run: () => { const r = ask('decision', OSKAR.id, MAYA.id); return `Oskar ${yes(canAnswer(r, OSKAR))}, Maya ${yes(canAnswer(r, MAYA))}, Priya ${yes(canAnswer(r, PRIYA))}`; } },
       { given: 'Priya asked Oskar to do an action. May Oskar, Priya and Maya mark it done?', then: 'Oskar yes, Priya yes, Maya no', run: () => { const r = ask('action', PRIYA.id, OSKAR.id); return `Oskar ${yes(canMarkDone(r, OSKAR))}, Priya ${yes(canMarkDone(r, PRIYA))}, Maya ${yes(canMarkDone(r, MAYA))}`; } },
       { given: 'Oskar raised a decision on Maya’s goal, and also asked her for an update on it. May Maya withdraw each?', then: 'the decision yes, the update no', run: () => `the decision ${yes(canWithdraw(ask('decision', OSKAR.id, PRIYA.id), MAYA, GOAL_OF_MAYA))}, the update ${yes(canWithdraw(ask('update', OSKAR.id, MAYA.id), MAYA, GOAL_OF_MAYA))}` },
+      { given: 'Oskar opens Platform for the first time from the invitation and chooses his name.', then: 'the log says “Oskar Lind opened Platform for the first time”; choosing again adds nothing', run: () => { const first = arrive(ctx(OSKAR), { name: 'Platform' }); const again = arrive({ ...ctx(OSKAR), snapshot: { ...ctx(OSKAR).snapshot, changes: first?.changes ?? [] } as Snapshot }, { name: 'Platform' }); return `the log says “${first?.changes[0]?.summary}”; choosing again ${again ? 'logs it again' : 'adds nothing'}`; } },
+      { given: 'Someone opens the internal app with no sign-in, holding Platform’s invitation.', then: 'The sign-in, then Platform’s Home as the person with their email; no Welcome, no list of workspaces and no “Which one are you?”.' },
+      { given: 'Someone signs in whose email is on no person in Platform, holding Platform’s invitation.', then: '“You’re not in Platform. Ask Priya Shah to add you.” and nothing of the workspace.' },
       { given: 'Someone signs in as Maya.Patel@Example.com, and Maya’s person record has maya.patel@example.com.', then: 'They are Maya: emails are compared in lower case.' },
       { given: 'Oskar is marked as left in Platform, and still has a token.', then: 'He can’t open Platform, and his token is refused at once.' },
       { given: 'Maya sends a markup of her goal’s chart to Oskar.', then: 'Maya and Oskar can read it; Priya, an admin, can remove it but it isn’t in her list; someone watching the goal can’t see it.' },
@@ -251,17 +262,18 @@ export const INTERNAL: InternalRequirement[] = [
     ],
     examples: [
       { given: 'Faro today: a cycle starting Monday 7 September 2026. A check-in is posted at 2026-09-14T03:30Z, which is 23:30 on Sunday in New York. Which week is it, by the server’s clock?', then: '1', run: () => String(currentWeek(CYCLE, new Date('2026-09-14T03:30:00Z'))) },
-      { given: 'Required: the same check-in, in a workspace whose home zone is America/New_York.', then: 'It is still Sunday in the home zone, so week 0: the check-in is on time for week 0.' },
+      { given: 'Required: the same check-in, in a workspace whose home zone is America/New_York. Which week, and what time is it there?', then: 'week 0, at 2026-09-13 23:30: still Sunday in the home zone, so the check-in is on time for week 0', run: () => `week ${weekIn(CYCLE, new Date('2026-09-14T03:30:00Z'), 'America/New_York')}, at ${homeTime('2026-09-14T03:30:00Z', 'America/New_York')}: still Sunday in the home zone, so the check-in is on time for week 0` },
       { given: 'Faro today: the last check-in was posted at 2026-09-13T23:30Z. How many days without an update at 2026-09-14T00:30Z?', then: '1', run: () => String(daysSince('2026-09-13T23:30:00Z', new Date('2026-09-14T00:30:00Z'))) },
-      { given: 'Required: the same two moments in a workspace whose home zone is Europe/London (summer time, UTC+1).', then: '0: both are 14 September in London.' },
+      { given: 'Required: the same two moments in a workspace whose home zone is Europe/London (summer time, UTC+1).', then: '0: 2026-09-14 00:30 and 2026-09-14 01:30 in London', run: () => `${daysSinceIn('2026-09-13T23:30:00Z', new Date('2026-09-14T00:30:00Z'), 'Europe/London')}: ${homeTime('2026-09-13T23:30:00Z', 'Europe/London')} and ${homeTime('2026-09-14T00:30:00Z', 'Europe/London')} in London` },
       { given: 'Faro today: a weekly review on Thursdays. When is its session in week 1?', then: '2026-09-17, a date with no time', run: () => `${sessionDate({ everyWeeks: 1, weekday: 3 } as Review, CYCLE, 1)}, a date with no time` },
-      { given: 'Required: a review on Thursdays at 14:00 Europe/London. Its sessions on 22 and 29 October 2026, seen from New York.', then: '22 Oct: 13:00Z, 09:00 in New York. 29 Oct (London’s clocks went back on 25 Oct, New York’s go back on 1 Nov): 14:00Z, 10:00 in New York. Both show as 14:00 London time.' },
+      { given: 'Required: a review on Thursdays at 14:00 Europe/London. Its sessions on 22 and 29 October 2026, seen from New York.', then: '22 Oct: 13:00Z, 09:00 in New York. 29 Oct (London’s clocks went back on 25 Oct, New York’s go back on 1 Nov): 14:00Z, 10:00 in New York. Both show as 14:00 London time.', run: () => { const s = (d: string) => momentOf(`${d}T14:00`, 'Europe/London').toISOString(); return `22 Oct: ${s('2026-10-22').slice(11, 16)}Z, ${homeTime(s('2026-10-22'), 'America/New_York').slice(11)} in New York. 29 Oct (London’s clocks went back on 25 Oct, New York’s go back on 1 Nov): ${s('2026-10-29').slice(11, 16)}Z, ${homeTime(s('2026-10-29'), 'America/New_York').slice(11)} in New York. Both show as ${homeTime(s('2026-10-22'), 'Europe/London').slice(11)} London time.`; } },
       { given: 'Required: Oskar, in Singapore, reads a check-in Maya posted at 2026-09-14T09:00Z in a London workspace.', then: 'He sees “Mon 14 Sep, 17:00”; the week it counts for is London’s week.' },
     ],
     checks: [
       'Every stored timestamp is a UTC instant written by the server; none is a local time.',
       'A workspace has a home zone, UTC until an admin sets one, and changing it is logged.',
       'With the home zone UTC, a rebuild of the rules passes stage 1’s conformance data unchanged (the data is judged at noon UTC).',
+      'With the home zone America/New_York, the rules give every row of `spec/conformance/zone.csv` (`"also": ["zone"]` in `drill.json`): weeks that turn at midnight there, days counted there, and the night the clocks go back.',
       'Two people in different zones, at the same moment, see the same week, the same statuses and the same days without an update, in the app and through the AI assistant.',
       'A check-in posted just before midnight in the home zone counts for that day’s week, wherever its author is.',
       'A review session keeps its time in its own zone across a clock change, and each person sees it in their own zone, with the zone named when it differs.',
@@ -282,7 +294,7 @@ export const INTERNAL: InternalRequirement[] = [
     ],
     rule: [
       '1. **Design for** 15,000 people, 1,500 teams, 30,000 goals in a cycle, 1.5 million check-ins and 15 million change-log entries a year, in one workspace, with 2,000 people using it in the busiest hour (Monday morning, before reviews). These are working figures, not measured ones.',
-      '2. **Summary rows on the server.** For each live goal, the server keeps one summary row: its official status and what the numbers say, its flags, whether it needs attention and how it is being handled, the projection and the scorecard, worked out by the stage 1 rules (the same code, or a rebuild that passes stage 1’s drill). A summary is worked out again when anything it reads changes (a check-in, the plan, an ask, a decision, a review mark) and when the week turns (goals go stale by time alone, [R3](r3-time-zones.md)). Screens, lists, counts and the AI assistant read summaries; only a goal’s own page reads its check-ins. The rules stay in one place: a summary is never worked out a second way.',
+      '2. **Summary rows on the server.** For each live goal, the server keeps one summary row: its official status and what the numbers say, its flags, whether it needs attention and how it is being handled, the projection and the scorecard, worked out by the stage 1 rules (the same code, or a rebuild that passes stage 1’s drill). A summary is worked out again when anything it reads changes (a check-in, the plan, an ask, a decision, a review mark) and when the week turns (goals go stale by time alone, [R3](r3-time-zones.md)): every live goal’s summary at once, within 15 minutes of midnight in the home zone and never later than 06:00, switched in one step when all are done, with last week’s shown until then under one quiet line saying so ([accepting scale](../../rebuild/scale.md)). Whether a goal is being handled is worked out from that goal’s own records, like the rest of its summary. Screens, lists, counts and the AI assistant read summaries; only a goal’s own page reads its check-ins. The rules stay in one place: a summary is never worked out a second way.',
       '3. **Paging, on the server.** Every list that can grow (goals, people, teams, Activity, asks, reviews’ agendas, Recently removed, the builder inbox) is filtered, sorted and paged by the server, 50 rows at a time, with keyset paging (the next page starts after the last row’s key), so a row added or changed while someone reads can’t be skipped or shown twice. Search is on the server too: it is the search function behind find-and-pick (backlog 0a). Nothing loads a whole workspace.',
       '4. **Page-load budgets**, measured at the 75th percentile on a company laptop on the office network and on a mid-range phone on 4G: the first screen (Home) usable within 2 s on a laptop and 3 s on a phone; any later screen within 1 s; a check-in saved within 1 s; any read of the API within 500 ms at the 95th percentile. The first screen’s JavaScript is at most 300 KB compressed (code split by screen), and a long table draws only the rows in view. CI checks them against a seeded workspace of 15,000 people and fails a change that breaks one.',
       '5. **Backups, and restores that have been done.** The database is backed up continuously (point-in-time recovery), kept at least 30 days, and so are stored files (markup pictures). A restore into a separate environment is rehearsed every quarter and timed: at most 5 minutes of changes lost, and the app back within 4 hours. Any workspace can be exported whole, at any time, in the one spreadsheet format. Undo and the 30-day restore of removed things are for people’s mistakes, not instead of backups.',
@@ -292,7 +304,7 @@ export const INTERNAL: InternalRequirement[] = [
     today: [
       'The app loads every record of a workspace into the browser, 900 rows at a time with keyset paging (`SupabaseStore.load` in `src/adapters/supabase/goalsStore.ts`), and runs the rules there for every screen.',
       'There are no summary rows; lists, counts and Home are worked out in the browser from every goal and check-in.',
-      'The demo workspace has 126 goals; nothing tests a workspace of 15,000 people yet (backlog 0a adds an eval with one for the pickers).',
+      'The demo workspace has 126 goals. The kit carries a generator for one of company size (`spec/rebuild/seed.mjs`: 30,114 goals, 1.25 million check-ins), but Faro doesn’t load it: its own budget is the demo made ten times bigger, and the week’s turn for 30,000 goals projected from it (`src/spec/scale.test.ts`). There is no turn job: the browser works every status out again as it draws.',
       'Backups are Supabase’s own; no restore has been rehearsed. Migrations are safe to run twice and CI applies them on merge (`scripts/migrate.mjs`), but they aren’t rehearsed on a copy first. Faro never holds real data, so these are left to the internal app (backlog 0c).',
       'The MCP server reads and writes with the app’s public key only, never the service role key (backlog 0c): markup pictures are in a public-read bucket since the open inbox (migration 0031).',
       'Faro shares a Supabase project with another app (family-hq). Its tables and functions live in their own schema, `faro`, owned by a Faro-only role that can’t read or write anything else; CI’s migrations run as that role and check the fence first (migration 0035, `scripts/check-fence.mjs`). The internal app gets a database of its own.',
@@ -302,16 +314,17 @@ export const INTERNAL: InternalRequirement[] = [
       { given: 'Priya filters Goals to Off track: 1,240 goals.', then: 'She sees the first 50, sorted by the server, with the count from the summaries; the next page starts after the 50th goal’s key, and a goal that turns off track while she reads is neither skipped nor shown twice.' },
       { given: 'Oskar posts a check-in that puts his goal behind plan.', then: 'His goal’s summary row is worked out again in the same save: the goal is At risk on every screen and to the AI assistant straight away.' },
       { given: 'Week 9 turns over at midnight in the home zone; 400 goals had their last check-in 14 days ago.', then: 'Their summaries are worked out again at the turn: they show No recent update without anyone checking in.' },
+      { given: 'Week 9 turns over; at 00:04 Maya opens Home while the turn is still running.', then: 'She sees every goal as of week 8, and one line: “Statuses are as of week 8. This week’s are being worked out.” At 00:09 the turn is done and every summary switches to week 9 at once.' },
       { given: 'A migration adds a column to the check-ins table with 1.5 million rows.', then: 'It is run first on last night’s copy and timed; it adds the column without a lock that stops check-ins, and runs again harmlessly.' },
       { given: 'The quarterly restore drill.', then: 'Yesterday’s 14:00 is restored into a separate environment, the app starts against it, and the time it took is written down.' },
       { given: 'The AI assistant reads Maya’s goals.', then: 'It reads as Maya’s token, under R1’s rules, not with the master key.' },
     ],
     checks: [
       'For the demo workspace, the summary rows match `spec/conformance/` (status, flags, projection and scorecard) in every week.',
-      'Changing a check-in, a plan, an ask, a decision or a review mark updates its goal’s summary in the same save; the week’s turn updates the goals that go stale.',
+      'Changing a check-in, a plan, an ask, a decision or a review mark updates its goal’s summary in the same save; the week’s turn updates every live goal’s summary, switched in one step, within its budget, against the seeded company workspace (`spec/rebuild/seed.mjs`).',
       'No screen or AI tool reads more than one page of a growing list at once, or any goal’s check-ins but the goal being shown.',
       'Keyset paging: adding or changing rows while someone pages through a list never skips or repeats one.',
-      'CI loads a seeded workspace of 15,000 people and 30,000 goals and fails a change that breaks a page-load budget.',
+      'CI loads a seeded workspace of 15,000 people and 30,000 goals (`spec/rebuild/seed.mjs` writes one) and fails a change that breaks a page-load budget.',
       'A restore drill has been done in the last quarter, timed, within 5 minutes of changes lost and 4 hours back.',
       'Every migration has run twice on a copy of production before it runs on production.',
       'The master key is used by one function only (signing picture addresses); a check fails a change that uses it anywhere else, and it appears in no browser bundle or log.',
@@ -323,6 +336,7 @@ export const INTERNAL: InternalRequirement[] = [
       'Faro shows the pattern at its own size (backlog AX4): CI fails a change when the first download (the entry script and every file the page preloads with it) passes a stated size (`scripts/check-bundle.mjs`, 265 KB compressed: 262 KB today plus a 3 KB margin, under R4’s 300: every page but Home loads when it is opened, as do the guide, What’s new, the spreadsheet tools and the change engine, and the first download carries only Help’s index of article titles and routes and the newest release, so a release never grows it. AX4 first measured the entry alone, 241 KB; the check now counts every file the page preloads with it, which is what a first visit really waits for), or when the real app’s, which also waits for the Supabase store and client before it draws, passes 324 KB (321 today plus the same margin), or when the demo workspace made ten times bigger passes a stated weight or time to summarise every goal (`src/spec/scale.test.ts`). Each limit is the size on the day it was set plus a 3 KB margin (`MARGIN_KB`): lowered as the size comes down, never raised past that.',
     ],
   },
+  R5,
   {
     id: 'R6a', file: 'r6a-organisation', title: 'R6a. The organisation',
     summary: 'Teams form a tree fed from the company directory, people have managers, goal levels are set per workspace, and every list, count, Home and review can be scoped to a part of the company.',
@@ -457,30 +471,55 @@ export const INTERNAL: InternalRequirement[] = [
       'Faro’s “carry on” wrap-up becomes the round’s starting drafts.',
     ],
   },
+  R7,
+  R8,
+  R9,
+  R10,
+  {
+    id: 'R11', file: 'r11-large-imports', title: 'R11. Large imports, a server-side job',
+    summary: 'An import of tens of thousands of rows is a job on the server (R-L1 to R-L6): checked there by the same rules, saved in one transaction or in batches that end in one state, with Undo kept per import, and the browser’s preview only advice.',
+    why: [
+      'Faro checks and saves an import in the browser: it checks up to 30,000 rows in a worker, with progress and Stop, and saves up to 5,000 changes at a time (requirement IMPORT-LARGE). That shows the pattern; a company’s quarterly upload of every team’s goals and check-ins is larger, and must not depend on a tab staying open.',
+      'An import is the largest single change anyone makes. Half-saved, or saved without the rules the server keeps, it does damage no one sees until a review.',
+    ],
+    rule: [
+      '1. **R-L1. A job on the server.** Upload, check, preview, save: each a step of one job the server keeps. It survives a closed tab, and its preview shows the same groups and counts as Faro’s (sheets read, Must fix, Check, then the changes).',
+      '2. **R-L2. One state at the end.** Saving is one transaction, or batches that can be resumed and end in one state. A job that fails leaves nothing half-saved, or says exactly what was saved and offers to finish or undo it.',
+      '3. **R-L3. The server runs the rules.** The import’s checks are the change engine’s (stage 2), run by the server, which writes the audit entries with the actor and the time. A preview made in the browser is advice; the server checks again before it saves.',
+      '4. **R-L4. Undo is kept per import.** The before-image of every record an import changed is kept with the import for a stated time (suggested 90 days), not inside one audit row, so Undo works for a large import as for a small one.',
+      '5. **R-L5. Fast enough, and one at a time.** 30,000 rows are checked in under 30 seconds and saved in under 2 minutes. Two imports touching the same goal can’t interleave: the second waits, or is refused with who holds the goal.',
+      '6. **R-L6. Files are handled safely.** Uploaded files are scanned, limited in size, and not kept after the job ends.',
+    ].join('\n'),
+    today: [
+      'The browser reads the file and checks it with the change engine (`planChangesInChunks` in `src/domain/changeset.ts`); a file of more than 500 rows is checked in a worker (`src/modules/spreadsheets/worker.ts`), with progress every 500 rows and Stop (`src/modules/spreadsheets/Large.tsx`).',
+      'Saving is one commit from the browser; a file that would change more than 5,000 rows is checked, not saved, and offered in parts (`src/domain/splitFile.ts`). The limits are in `src/domain/importLimits.ts`.',
+      'Undo keeps the before-images inside the import’s summary change (`undo` on the change, `src/domain/removal.ts` undoImport).',
+      'Nothing on the server checks a row: the database keeps its own constraints and access rules only.',
+    ],
+    examples: [
+      { given: 'A file of 6,000 new goals, checked in Faro.', then: '2 parts', run: () => String(splitTables({ goals: Array.from({ length: 6000 }, (_, i) => ({ goal: `Goal ${i + 1}`, owner: 'Rhea' })) }, CHANGES_SAVE_MAX).length) + ' parts' },
+      { given: 'Priya uploads 28,000 rows at 17:55 and closes her laptop.', then: 'The job carries on; at 09:00 she opens Imports and finds the preview waiting, with the same groups and counts.' },
+      { given: 'The save fails at row 12,400 of 20,000.', then: 'Nothing is saved, or the job says 12,399 rows were saved and offers to finish or undo them.' },
+      { given: 'Two admins import files that both change the Platform north star.', then: 'The second waits until the first is saved or undone, or is told who holds the goal.' },
+    ],
+    checks: [
+      'An import job survives the browser closing between check and save.',
+      'A failed save leaves the workspace as it was, or as the job says it is.',
+      'An import’s Undo works 89 days later and is refused, with why, after 90.',
+      '30,000 rows are checked in under 30 seconds and saved in under 2 minutes on the platform’s test data.',
+      'An uploaded file is gone from storage once its job ends.',
+    ],
+    stage: { file: 'stage-2-core-data.md', title: 'Stage 2: the core data and the change engine', why: 'the import is the change engine run over a file; the server runs it (R-L3) and the browser’s preview is advice.' },
+    decided: [
+      'The limits (5,000 changes saved at once in Faro; 30 seconds and 2 minutes for 30,000 rows on the platform; 90 days of Undo) are proposals for the internal team to confirm.',
+      'Faro splits a file too large to save into parts, each with its own Undo, rather than saving in batches: a model in the browser can’t promise one state at the end.',
+    ],
+  },
 ];
-
-/** The note on observability: an idea, not a requirement (backlog 8r; release 5 was dropped on 8 Nov). */
-export const OBSERVABILITY = {
-  title: 'Observability, as an idea',
-  summary: 'Not a requirement. What Faro records about how it is used today, and what the internal app might take from it; the company’s own tooling does the rest.',
-  today: [
-    'Each MCP tool call is recorded as a span, with the database reads and saves inside it, in `okr_telemetry_spans` (migration 0022); a W3C `traceparent` header joins a caller’s trace. Spans carry the tool’s name, the person’s and workspace’s ids and the class of any failure, never a tool’s arguments or answers (docs/mcp.md, “Telemetry”).',
-    'An admin can turn recording off for a workspace (`setRecording`); then nothing is recorded or sent for it, from the app or the server.',
-    'After every deploy, `GET /api/mcp?check` says whether the server reaches the database and can read pictures, and CI fails when something is missing (`.github/workflows/deploy-check.yml`).',
-    'A markup carries the steps before it and the visit’s errors, so a builder sees what happened (the builder inbox).',
-  ],
-  idea: [
-    'Send traces, logs and errors to the company’s own tools (OpenTelemetry), not a page inside the app.',
-    'Keep Faro’s privacy rule: record what happened and how long it took, never what people wrote; recording off means nothing is sent.',
-    'Keep the check after each deploy, and alert on the page-load budgets of [R4](r4-scale-and-safety.md) and on failed saves.',
-    'Dropped on 8 Nov, for the company’s tooling to cover if wanted: an overlay in the app, an Observability page, a weekly review of the traces by Claude, and alerts of Faro’s own.',
-  ],
-};
 
 /* ---------- the pages ---------- */
 
-const GENERATED = '<!-- Generated by npm run spec from src/spec/internal.ts. Edit the code, not this file. -->\n\n';
-const titleOf = (file: string) => INTERNAL_PAGES.find(([f]) => f === file)?.[1] ?? file;
+const GENERATED = '<!-- Generated by npm run spec from src/spec/internal.ts and src/spec/platform.ts. Edit the code, not this file. -->\n\n';
 
 /** `src/domain/actions.ts#savePerson` as a link to the file, with the function named. */
 const codeLink = (ref: string) => { const [file, fn] = ref.split('#'); return `${link(3, file!, fn ? `\`${fn}\`` : `\`${file}\``)}`; };
@@ -534,35 +573,15 @@ function page(q: InternalRequirement): string {
   ].join('\n');
 }
 
-function observability(): string {
-  const o = OBSERVABILITY;
-  return GENERATED + [
-    `# ${o.title}`,
-    '',
-    o.summary,
-    '',
-    '## What Faro records today',
-    '',
-    ...o.today.map((t) => `- ${t}`),
-    '',
-    '## The idea',
-    '',
-    ...o.idea.map((t) => `- ${t}`),
-    '',
-  ].join('\n');
-}
-
 function index(): string {
   return GENERATED + [
     '# Requirements for the internal app',
     '',
-    'Faro is a model for the company’s internal goals app, plus a demo; it never holds real data. The internal team copies its code and plugs in their own platform. Some things that app must do, Faro doesn’t build: because that platform provides the machinery (sign-in, single sign-on, time zones done properly, the scale and safety of real data), or because they only matter in a company the size of the real one (its organisation, delegates, a planning round). Each is written here instead, so the rebuild has the rule even though Faro has no code for it.',
+    'Faro is a model for the company’s internal goals app, plus a demo; it never holds real data. The internal team copies its code and plugs in their own platform. Some things that app must do, Faro doesn’t build: because that platform provides the machinery (sign-in, single sign-on, time zones done properly, the scale and safety of real data, telling people things, keeping and erasing data, audit, monitoring), or because they only matter in a company the size of the real one (its organisation, delegates, a planning round). Each is written here instead, so the rebuild has the rule even though Faro has no code for it.',
     '',
     'Each page says why, the rule, what Faro does today (and where it falls short), worked examples (those marked **Faro today** are run against Faro’s code), acceptance checks, and the nearest stage of [the rebuild kit](../../rebuild/README.md).',
     '',
     table(['Requirement', 'What it says', 'Nearest stage'], INTERNAL.map((q) => [`[${q.title}](${q.file}.md)`, cell(q.summary), `[${q.stage.title}](../../rebuild/${q.stage.file})`])),
-    '',
-    `And a short note, not a requirement: [${titleOf('observability')}](observability.md), what Faro records about how it is used today and what the internal app might take from it.`,
     '',
     '## How they fit the rest of the spec',
     '',
@@ -586,7 +605,7 @@ export function wrongInternalExamples(): string[] {
 
 /** Every file under spec/requirements/internal/, by path from the repository root. */
 export function internalFiles(): Record<string, string> {
-  const out: Record<string, string> = { 'spec/requirements/internal/README.md': index(), 'spec/requirements/internal/observability.md': observability() };
+  const out: Record<string, string> = { 'spec/requirements/internal/README.md': index() };
   for (const q of INTERNAL) out[`spec/requirements/internal/${q.file}.md`] = page(q);
   return out;
 }

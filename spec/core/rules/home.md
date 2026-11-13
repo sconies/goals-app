@@ -13,6 +13,9 @@ Whether Home leads with one thing asked of the viewer today, and its one primary
 2. *Check-ins*: a rhythm is set, a check-in is still to do, and it is due within `LEAD_DAYS` (1) day, or a draft is kept (**Pick up where you left off**), or a review the viewer is in is today and isn't held ("{Review} is today" · "{n} check-ins to do before it").
 3. *The wrap-up*: open (the cycle's last two weeks, or after its end), the viewer owns goals not yet wrapped up, and no check-in is still to do this week. **Start the wrap-up** opens the first.
 4. *A review*: one the viewer is in, this week's, on or past its day, not held, with goals not yet marked reviewed; the earliest, then by name. Past its day it says "Not held yet" with the warning mark. **Open the review**, or **Continue: {goal}** once begun.
+5. *An ask*: the first ask waiting on the viewer in the order below, when it is late, due this week, or has waited 7 days or more with no date. "Needs your response · {its line}" · "{First name} needs a decision" (asked a question, asked for an update; "A next step you agreed is due") · "“{ask}”. About {goal}." · **Respond**, **Answer**, **Check in** or **Mark done**. It is then not listed again under "Also needs your response".
+
+**An ask that waits** (`waiting`). Its due date is its own due week's Sunday; else, for a question raised in a review, the first session after the one it was raised in, fixed when asked (it does not move on when that session passes); else none. Late: today is after the due date. Its line, said after who asked and when: late, with the warning mark, "Was due week {w} ({dates})" or "Was due before {review}’s session on {Tue 10 Nov}"; "Due before today’s session" / "tomorrow’s" with the warning mark; "Due this week ({dates})"; "Due week {w} ({dates})"; "Before its next session, {Tue 24 Nov}"; no date and 7 days or more, "Waiting since {4 Aug}, {8 days | 14 weeks}" (weeks from 14 days); newer, "Asked today", "yesterday" or "on {Tuesday}". **Order** (`waitingOrder`): late; due this week; no date and waited 7 days or more, oldest first; the rest, newest first; within each, decisions, questions, updates, next steps.
 
 With two or more number goals to check in on, the check-in leads add the quiet link "Or type all your numbers in one table". A ring counts what the lead counts (check-ins, reviewed, wrapped).
 
@@ -33,6 +36,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Rhea, Tuesday 10 Nov, 6 to do, her Developer Productivity fortnightly today. | `check-in: Developer Productivity fortnightly is today · 6 check-ins to do before it · Start check-in` |
 | Rhea, Tuesday 10 Nov, all 7 in. | `review: Developer Productivity fortnightly is today · your 7 check-ins are in · 14 goals to discuss · Open the review` |
 | Someone who owns, watches and is asked nothing. | `Nothing is asked of you today. You don’t own or watch a goal in Platform Engineering yet. [See the goals] [Set up a goal]` |
+| Daniel’s question, raised on Tuesday 3 Nov in the Developer Productivity fortnightly, whose next session is Tuesday 10 Nov: its line on Monday 9 Nov, then on Wednesday 11 Nov unanswered. | `Due before tomorrow’s session / Was due before Developer Productivity fortnightly’s session on Tue 10 Nov` |
+| Amara, Monday 9 Nov, no check-ins of her own; Rhea’s decision for her asked on 4 Aug, with no date. | `ask: Needs your response · waiting since 4 Aug, 13 weeks · Rhea needs a decision · Respond` |
 | Tunde, Wednesday 23 Dec (week 52), both in, the wrap-up open. | `wrap-up: 2026 ends on Sunday 3 Jan · Wrap up your 2 goals · Start the wrap-up` |
 
 ## Not self-explanatory
@@ -41,7 +46,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/home.ts](../../../src/domain/home.ts): `homeFor`, `homeLead`, `quietLine`, `LEAD_DAYS`, `longDay`
+- [src/domain/home.ts](../../../src/domain/home.ts): `homeFor`, `homeLead`, `quietLine`, `LEAD_DAYS`, `longDay`, `waiting`, `waitingOrder`, `askLead`
 
 ## Requirements
 
@@ -68,3 +73,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - Home rule 2: the lead › no set rhythm: a check-in is never the lead, nothing is due or late
 - Home rule 2: the lead › before the cycle starts, and after it ends
 - Home rule 2: the lead › never says “You’re all set” or “0 weeks”
+- Home after the build review of HM1 › while asks wait, the quiet line doesn’t say nothing is asked
+- Home rule 3: an ask that waits › Daniel’s question raised in the fortnightly, the day before its next session
+- Home rule 3: an ask that waits › the same, unanswered after the session: late, and its date does not move to the next session
+- Home rule 3: an ask that waits › Rhea’s decision for Amara, asked 4 Aug with no date: waited 99 days, 14 weeks
+- Home rule 3: an ask that waits › a next step due week 47, then the same in week 48
+- Home rule 3: an ask that waits › with no session date (Reviews off), by its age
+- Home rule 3: an ask that waits › orders late, then due this week, then old undated oldest first, then the rest newest first; decisions first within each
+- Home rule 3: an ask that waits › leads when late, due this week or a week old; not when new
+- Home rule 3: an ask that waits › rank 60: an ask leads only when nothing before it does, and is then not listed again

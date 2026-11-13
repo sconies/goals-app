@@ -41,11 +41,13 @@ export function Questions({ checks, answers, onAnswer, onNo, onChange, alertSlot
   );
 }
 
-/** One open question. Asked while a number is typed, it is scrolled into view (U93: on a phone it was below the fold),
-    leaving focus in the field; asked again for new values (150 then 160), the same. */
+/** One open question. Asked while a number is typed, it is scrolled into view once, when it first shows (U93: on a phone
+    it was below the fold), leaving focus in the field. Each further digit changes its key but doesn't scroll again, so
+    the page stays still while typing and stays where the person scrolled it. Answered, then asked again for new values
+    (150 then 160), it shows anew and is brought into view again. */
 function OpenQuestion({ c, alert, onYes, onNo }: { c: GoalCheck; alert: boolean; onYes: () => void; onNo: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => { questionAppeared(ref.current); }, [c.slot, c.key]);
+  useEffect(() => { questionAppeared(ref.current); }, [c.slot]);
   return <CheckBlock id={`q-${c.slot.replace(/[^\w-]/g, '-')}`} slot={c.slot} question={c.question} yes={c.yes} no={c.no} alert={alert} onYes={onYes} onNo={onNo} blockRef={ref} />;
 }
 

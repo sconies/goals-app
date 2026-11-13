@@ -6,7 +6,8 @@
 import { buildExample } from '../data/examples';
 import { currentWeek } from '../domain/plan';
 import { summariseAll } from '../domain/summary';
-import { scaleWorkspace } from './scale';
+import { attentionFor } from '../domain/attention';
+import { scaleWorkspace, TURN } from './scale';
 
 /** The 10x workspace as JSON, at most (50 MB on 11 Nov 2026: the history is most of it). */
 export const LOADED_MB = 55;
@@ -45,5 +46,15 @@ describe('the scale budget: the demo workspace, ten times over', () => {
     const big = timed(() => summariseAll(ten.goals, ten, cycle, today, week));
     expect(big).toBeLessThan(SUMMARISE_MS);
     expect((big / ten.goals.length) / (small / one.goals.length)).toBeLessThan(GROWTH);
+  }, 60_000);
+
+  it(`works out the week's turn for ${TURN.goals.toLocaleString('en-GB')} goals within ${TURN.rulesSeconds} s of rule time, projected from the ten-times workspace`, async () => {
+    const one = await buildExample(today);
+    const ten = scaleWorkspace(one, 10);
+    const cycle = one.cycles[one.cycles.length - 1]!;
+    const week = currentWeek(cycle, today);
+    // A summary row is the summary and the goal's flags, needs attention and being handled (R4, rule 2).
+    const big = timed(() => { summariseAll(ten.goals, ten, cycle, today, week); for (const g of ten.goals) attentionFor(g, ten, cycle, today); });
+    expect((big / ten.goals.length) * TURN.goals / 1000).toBeLessThan(TURN.rulesSeconds);
   }, 60_000);
 });

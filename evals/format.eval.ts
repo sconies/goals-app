@@ -129,7 +129,7 @@ describe('one format', () => {
     const g = scoped(full0).goals.find((x) => x.kind === 'range')!;
     const bad = (o: Record<string, string>) => errors(load(full0, { goals: [{ __row: '2', key: g.key!, ...o }] }))[0] ?? '';
     expect(bad({ level: 'vp' })).toMatch(/Level says “vp”. Use north star, svp or team/);
-    expect(bad({ 'must stay': 'sometimes' })).toMatch(/Must stay says “sometimes”. Use at most or at least/);
+    expect(bad({ 'must stay': 'sometimes' })).toMatch(/Must stay says “sometimes”. Use at most, at least or between/);
     expect(bad({ type: 'pie' })).toMatch(/Type says “pie”/);
     expect(bad({ action: 'Archive' })).toMatch(/Action says “Archive”. Use Stop, Delete or Example, or leave it empty/);
     const m = scoped(full0).goals.find((x) => x.kind === 'metric')!;

@@ -21,12 +21,19 @@ Home is where you start each day. It answers one question first: what is asked o
 
 - The lead, under the greeting, is the first of these that is true: your check-ins once their deadline has passed; your check-ins the day before they are due, or on the day of a review you’re in that reads them, or when you left one half done (Pick up where you left off); the wrap-up at the end of the year, once your check-ins are in; and a review you’re in, on its day or after it while it isn’t held (then it says Not held yet). Its ring says what it counts: check-ins, reviewed or wrapped.
 - With two or more number goals to check in on, a quiet link under the button opens the table, to type all your numbers at once.
-- This week, above the lead, shows a review you’re in, or one that has passed its day without being held, as one cell. It is left out when the lead is that review.
-- Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.
-- Your goals come next, counted once: how many there are by status, each count opening exactly those goals in Goals (“1 at risk” lists the one). Then the ones that need attention, worst first, each with Check in when that is what it needs; what is being handled, folded away; and the rest, five at a time. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Each row opens its goal. Goals you watch follow.
+- This week, above the lead, shows a review you’re in, or one that has passed its day without being held, as one cell. It is left out when the lead is that review; with two reviews on one day, the lead takes one and the cell the other. Once the year has ended, no review is said to be not held.
+- While someone waits for your response, Home doesn’t say nothing is asked of you: it says how many asks wait. If you’re an admin, a note says when the year is ending or has ended, with Start for the next one.
+- Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions. Each says who asked, where and on what day, and how long it has waited or when it is due; a late one says so first, with the warning mark. Five show, then Show all. Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.
+- When an ask is late, due this week, or has waited a week or more, and nothing comes before it, it is the lead, with its one button (Respond, Answer, Check in or Mark done); the rest are under Also needs your response.
+- Your goals come next, counted once: how many there are by status, each count opening exactly those goals in Goals (“1 at risk” lists the one). Then the ones that need attention, worst first, each with Check in when that is what it needs; what is being handled, folded away; and the rest, five at a time. Each row opens its goal. Goals you watch follow.
 - On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.
 - Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it.
 - After a release you haven’t seen, a quiet line at the foot of Home says what’s new in Faro. Open it, or dismiss it with the cross.
+
+#### Why an ask says how long it has waited
+
+- An ask with a week it is due by is due that week’s Sunday. A question raised in a review is due before the review’s next session after the one it was raised in, and stays due then: it doesn’t move on to a later session when that one passes.
+- An ask with no date says how long it has waited: “Waiting since 4 Aug, 14 weeks”. The oldest come first, after anything late or due this week.
 
 #### When Home has no button
 
@@ -82,7 +89,7 @@ Requirements: `PROJECTION-RANGE`, `STATUS-BANDS`, `STATUS-DIRECTION`, `RANGE`, `
 
 The status is the owner’s call each week. The app works out what the numbers say and shows it beside the call. A call greener than calculated needs a reason, and is flagged.
 
-A number goal is judged against the plan for that week, whether higher or lower is better. When the plan has moved less than the goal’s decimals can show (a new goal’s first week, say), the plan as written to those decimals counts as on plan. A range goal is at risk inside its warning margin or after one breach, and off track after two weeks out of range. A stage up to 2 weeks late is at risk; later than that is off track.
+A number goal is judged against the plan for that week, whether higher or lower is better. When the plan has moved less than the goal’s decimals can show (a new goal’s first week, say), the plan as written to those decimals counts as on plan. A range goal is at risk inside its warning margin or after one breach, and off track after two weeks out of range. A range between two numbers is out above its upper limit or below its lower one, and at risk within the margin of either. A stage up to 2 weeks late is at risk; later than that is off track.
 
 #### Where to see it
 
@@ -108,7 +115,7 @@ Start your own workspace from a template, your own spreadsheet, or nothing at al
 
 #### How to use it
 
-- A new Faro opens on its welcome page: what it’s for, Try the demo (the main button) and, just below, Set up your workspace. Choose Set up your workspace. It asks one question per screen: the workspace’s name (three to 80 characters; it counts them as you near the limit), the month its goal year starts and whether to record how the app is used there (off unless you tick it), who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.
+- Start from Welcome’s Set up a workspace (or the workspace switcher’s Set up a new workspace). It asks one question per screen: the workspace’s name (three to 80 characters; it counts them as you near the limit), the month its goal year starts and whether to record how the app is used there (off unless you tick it), who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.
 - In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.
 - Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.
 - Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.
@@ -123,14 +130,48 @@ Start your own workspace from a template, your own spreadsheet, or nothing at al
 - Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.
 - Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.
 - On a phone, the small links in set-up (Start over, Change, Change people) are as easy to hit as a button.
-- The last screen gives you the one next thing to do, and a link to copy for your team. The link opens this workspace, whichever one their browser last had open. Faro sends no email: you send the link yourself.
+- The last screen gives you the one next thing to do, and a link to copy for your team: /join/ and the workspace. It opens this workspace and nothing else, and asks them which one they are (see Joining a workspace you were invited to). Faro sends no email: you send the link yourself.
 - Set up with no goals (Set goals up later), nothing is due: no check-ins until there are goals.
 - Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.
 - In the demo, a workspace you made can start over from the Demo panel: it is removed from this browser, drafts and all. The walkthroughs there open the example, whose people and goals they follow.
 
+### Welcome: starting, the demo, or an invitation
+
+`welcome`. Welcome is Faro’s front door, at its own address: set up a workspace, look around the demo, or join a workspace you were invited to.
+
+Routes: `/welcome`. Screens: `Welcome`. Requirements: `SETUP-FIRST-SCREEN`.
+
+#### What it’s for
+
+Opening Faro on a device that remembers no workspace brings you here, at /welcome. It never drops you into a workspace you didn’t choose.
+
+#### How to use it
+
+- Set up a workspace is the main button: about 5 minutes, and nothing is saved until the last step.
+- Look around the demo opens a made-up division of about 100 people with a year of goals. It’s example data: change anything, but none of it can be kept or copied into a workspace.
+- Join a workspace you were invited to: open the link you were sent, or paste it here and choose Open it. Only a Faro invitation (an address with /join/ in it) opens anything.
+- Coming back, Welcome says Welcome back and lists what this device remembers: each workspace with who you are in it and the week, with Open, and a set-up you didn’t finish, with where it stopped, Carry on and Discard (which asks first: what you typed is lost).
+
+### Joining a workspace you were invited to
+
+`joining`. An invitation is a link that opens one workspace: it says who set it up and what it holds, then asks which one you are.
+
+Routes: `/join/:workspaceId`. Screens: `Start`. Requirements: `SETUP-FIRST-SCREEN`, `IDENTITY`.
+
+#### What it’s for
+
+Whoever set up a workspace copies its invitation and sends it themselves: Faro sends no email. The link (/join/ and the workspace) opens that workspace and nothing else, whatever your browser had open before. An older link with ?workspace= in it leads to the same place.
+
+#### How to use it
+
+- Welcome to the workspace: who set it up and when, how many people and goals it has, then Which one are you?, with everyone listed by team and one line each (who set it up, an admin, how many goals they own, or no goals yet). With more than eight people, Find your name narrows the list.
+- Choose your name: that is the whole step. Home opens as you, and this device remembers your answer. The first time anyone chooses their name, Activity says they opened the workspace for the first time.
+- Not on the list? Ask whoever set it up to add you: the link writes them an email.
+- A link to a workspace that isn’t there says This invitation doesn’t open a workspace (it may have been deleted, or the link was cut short) and opens nothing else; Go to Welcome takes you to the front door.
+
 #### Saying who you are
 
-Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.
+Until company sign-in arrives, the app asks once on each device which one you are and remembers the answer. Choose Not you? in the person menu to change it. In the internal app, signing in with your company login replaces this step.
 
 Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If it can’t open you, it says you can’t open the workspace yet, and why: you aren’t signed in; no one there has that email; more than one person has it; or you’re marked as having left. Nothing of the workspace is shown. Copy a message for them writes the note to send whoever set it up, and Try again looks once more after they’ve fixed it.
 
@@ -425,7 +466,7 @@ Seeing results over the year without mistaking a week’s confidence for a quart
 - Select a square to read it in words beside the grid: the week and its dates, the goal, the call, the number and that week’s plan. The arrow keys move between squares.
 - Once a goal is done it needs no more check-ins, so the weeks after say “Done since week 37” (its week), not that a check-in is missing.
 - On a goal on track or done now, a quarter it didn’t meet is shown quietly, as history, rather than as a warning.
-- A quarter that ended before a goal was set up says Not applicable, with the week it was set up. It is never judged, and is in no count of met or not met.
+- A quarter that ended before a goal was set up says Not applicable, with the week it was set up. It is never judged, and is in no count of met or not met. A quarter with nothing due says None due. The key has both, and the goal’s page and its printed page use the same words.
 - A goal year is about 52 weeks from the month the workspace picked, in four quarters. Quarter targets are read off the owner’s plan.
 
 ### The goal map
@@ -594,6 +635,7 @@ Routes: `/goals/new`, `/goals/new/:step`. Screens: `GoalWizard`. Requirements: `
 - Decimals follow what you type: 12.5 is kept to 1 decimal place, and the line under the numbers says so, with Change to choose whole numbers or 1, 2 or 3 places. Once chosen, a start, target, limit or plan number typed with more is refused, not rounded (with “Keep 1 decimal place” to keep them), so what you see is what was saved.
 - A number has only the number in it: “12 days” in a goal that counts % is a problem to fix (“the unit goes in Unit”); in a goal that counts days it’s 12. A target the same as the start offers to make it a number to keep in range instead. Each stage needs its own name and a week; two stages with one name, or one with no week, are each said under their own row.
 - A warning margin for a range is optional: left empty, it warns only once the limit is crossed.
+- A range keeps a number at most a limit, at least it, or between two numbers: Must stay has At most, At least and Between. Between asks for a lower and an upper limit (“between 99.5% and 99.95%”); the lower must be below the upper. The number is out of range above the upper or below the lower, and at risk within the warning margin of either; the chart shows both limits.
 - Some things are possible but unlikely, so they are asked about, never refused. A question sits under the field it is about, marked Check, with two answers: the first keeps what you typed, the second changes it. Asked: a number with no unit (is it a plain count?), a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), a billion or more, a target on the worse side of the start for the metric that measures it, a warning margin as wide as the limit, weeks set by hand that leave most of the change to the end, a goal with the same name in the same team, an owner in another team than the goal’s (“Move it to …” moves it), and a goal feeding one at a lower level (“No, it feeds nothing” removes the link).
 - A question asked while you type is brought into view, on a phone too, and the cursor stays in the field. Continue waits for the questions on its step: focus goes to the first, and the line above the button says “Answer the question above, under Target.” Answered, a question folds to one line, “You said 150% is right.”, with Change. Your answer holds for the values it was about: change the number and it asks again. Each answer is kept in the goal’s History, as Checked.
 - Two goals can have the same name (two teams can both “Reduce latency”). You’re told which other goal has it, with its key, team and owner, and wherever both could be on screen each shows its key beside the title.
@@ -618,7 +660,7 @@ Putting a goal in front of its would-be owner, or a leader, without committing t
 
 - Propose one from New goal: on Check, answer “Is it under way?” with “Not yet: propose it”, then Propose goal. It gets a key and a page at once. How it’s measured may wait.
 - Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.
-- Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.
+- Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.
 - Change it: the same page as any goal, with no reason ever asked. Withdraw it: it goes to Recently removed for 30 days, with Undo.
 - Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. Find lists them with the word Proposed.
 - A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active. A goal with check-ins can’t go back to proposed: stop it instead.
@@ -646,6 +688,7 @@ Routes: `/goals/:goalId/edit`. Screens: `GoalEdit`. Requirements: `PLAN-CHANGE`,
 - A question asked while you type is brought into view, and the cursor stays in the field. Save changes waits for the questions: pressed with one still open, it takes you to the first, wherever it is on the page, and the line above the button says where (“Answer the question above, under Target.”). The second answer, such as “No, I’ll change the numbers”, takes you back to the field.
 - A target on the other side of the start flips which way is better, so it is never saved quietly: the form says so (“This makes higher better”) and saves once you tick the yes beneath it. A start, target or week’s number far outside the plan it replaces is asked about the same way. The import, Data and the AI assistant ask the same questions.
 - The original plan stays on the chart, dotted, and earlier weeks and closed quarters stay judged against the plan of their day. There is no approval step.
+- A range can change between At most, At least and Between under Plan and target, as its limit can; Between asks for the lower limit too.
 - A goal’s type can’t change once check-ins have started.
 
 #### One way out
@@ -785,7 +828,7 @@ Anyone reads the tables. Admins change them; admins can also pin a saved layout 
 
 `import`, from the spreadsheets module. Load a workbook, a zip of CSVs or one CSV to add or change people, goals, plan numbers and check-ins, past weeks included, or to stop a goal.
 
-Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/changes`, `/data/import/done/:importId`. Screens: `Import`, `Check`, `Changes`, `Imported`. Requirements: `BULK-IMPORT`, `WORKSPACES`, `HONEST-NUMBERS`, `ONE-FORMAT`, `ROUND-TRIP`, `IMPORT-ACTIONS`, `SPREADSHEETS-ON-DATA`, `IMPORT-LEVELS`, `IMPORT-PREVIEW`.
+Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/changes`, `/data/import/done/:importId`. Screens: `Import`, `Check`, `Large`, `Changes`, `Imported`. Requirements: `BULK-IMPORT`, `WORKSPACES`, `HONEST-NUMBERS`, `ONE-FORMAT`, `ROUND-TRIP`, `IMPORT-ACTIONS`, `SPREADSHEETS-ON-DATA`, `IMPORT-LEVELS`, `IMPORT-PREVIEW`, `IMPORT-LARGE`.
 
 #### How to use it
 
@@ -819,6 +862,12 @@ Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/cha
 - Or leave them out and save the rest: the sheet says which rows go, and the rows that go with them (a new goal’s check-ins, goals that feed into it). Put them back changes your mind.
 - An answered question closes to what was asked and your answer, with Change.
 - An admin answering a team that isn’t here may add it as a new team. A new goal with no Type is read from the columns it fills in: Start and Target a number goal, Limit a range, Stages a stages goal.
+
+#### Large files
+
+- A large file is checked without stopping the page: after a moment, Reading {file} says how far the check has got and what it has found so far. You can keep using Faro in another tab; nothing is saved until you say so. Stop ends the check, and nothing is saved.
+- The changes, and a question’s rows, are shown 50 at a time, with Show 50 more.
+- Faro saves up to 5,000 changes in one import. A file that would change more is checked, not saved: Download as {k} files of 5,000 rows splits it, keeping each goal with its plan and check-ins and a goal before the goals that feed into it. Import the parts in order; each has its own Undo.
 
 #### Who can
 
@@ -1040,26 +1089,32 @@ A metric says exactly what a number means (what is counted, over what, its unit 
 - Anyone reads the library and every metric, and anyone adds a metric.
 - A metric’s owner and admins change or remove it. They also see what it still needs (an owner, a meaning, a source, a goal that uses it) on its page, under To sort out, and as a warning on its row in the library. Everyone else sees who can change it.
 
-### Adding or changing a metric
+### Defining a metric well
 
-`metric-add`, from the metrics module. Add a metric with a name, a unit and which way is better, and say what it means, where the number comes from and who owns it.
+`metric-define`, from the metrics module. A metric needs three things to be used: a name, a unit and which way is better. The rest can be said later, and its page says what is still to say, in words, never as a score.
 
-Routes: `/metrics/new`, `/metrics/:metricId/edit`. Requirements: `METRICS-CARE`.
+Routes: `/metrics/new`, `/metrics/:metricId/edit`. Requirements: `METRIC-DEFINED`, `METRICS-CARE`.
 
-#### How to use it
+#### What it needs
 
-- In Metrics, choose Add a metric. Name, Unit and Which way is better are needed; the rest is optional and can be added later.
-- Name: what people call it, 3 to 120 characters. No two metrics share a name, whatever the case.
-- What it means and how it’s calculated: what is counted, from when to when, and what is left out. This is what makes two goals about the same number agree.
-- Unit: as it follows a number (hours, %, USD, deploys). A goal measured by it must use the same unit. Decimal places: 0 to 4.
-- Where the number comes from and who owns that source: a dashboard, a query or a report, and the team or person who looks after it. How often it refreshes, if known.
-- Owner: who answers for the definition, you to start with. Caveats: anything to watch out for when reading it.
-- Opened from a metric’s To sort out, the form opens at the field that needs filling.
-- While you add one, a name close to a metric already in the library is asked about (“This looks like …”), with Use that one to open it. Carry on if yours is different: it never stops the save.
-- What you type is kept as a draft: Close, Back or a reload doesn’t lose it. A field’s problem shows under it once you leave it.
+- In Metrics, choose Add a metric. Three things are needed: the Name (3 to 120 characters, used by one metric whatever the case), the Unit as it follows a number (hours, %, USD, deploys), and Which way is better. Decimal places is optional: 0 if left.
+- Five more make it fully defined, and can be said later: what it means and how it’s calculated (what is counted, out of what or over what period, and what is left out); where the number comes from; who owns that source; how often it refreshes; and an owner here who answers for what it means.
+- A metric’s page says “Fully defined” under its title, or what is still to say: “Still to say: where the number comes from, how often it refreshes.” Its owner and admins can open the form at each item from there. It is never a score, a percentage or a bar, and nothing is sorted by it.
+
+#### Must fix and Check
+
+- A Must fix stops the save until it is fixed: a name missing, too short or already used, no unit, or no direction. It shows under its field, outlined, once you leave the field or try to save.
+- A Check is a question to answer once. There are three: a name one letter or one word from another metric’s, or one a metric used to have (“This is one letter from “Deploy success rate” …”, with Use that one or Mine is different: keep it); a unit spelt differently from one in use (“Other metrics here use “min”.”); and a percentage whose meaning doesn’t say out of what (with It’s right as written).
+- The foot of the form counts them (“1 to fix, 2 to check.”) above the completeness line. Saving with a Check unanswered takes you to it. An answered Check closes to one line with Change; changing the field asks again.
+- Use that one opens the metric already in the library; what you typed is kept as a draft.
+
+#### Changing or removing one
+
+- What you type is kept as a draft: Close, Back or a reload doesn’t lose it. Opened from a metric’s To sort out or its completeness line, the form opens at the field that needs filling.
 - Changing the unit or which way is better of a metric goals use asks first, here and through the AI assistant: their numbers and plans don’t change, and the goals that now differ say so under “Measured by” on their page.
 - Workspace → About tells admins how many metrics have no owner (someone who left owned them), with See them.
 - On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back.
+- An AI assistant asks the same questions: save_metric returns them and saves nothing until it calls again with your answers.
 
 ### Measured by: choosing a goal’s metric
 
@@ -1241,7 +1296,8 @@ Requirements: `MCP-TOKENS`, `MCP-PARITY`, `TOKENS-SERVER-ONLY`.
 - Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.
 - It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses. A goal that raises a question (over 100%, no unit, a link to a lower level, a plan that flips which way is better) comes back as “Not saved. Check with the person first:” with every question; it saves once you have said yes to each and it calls again with “confirm”.
 - In one bulk change it can add a whole tree of goals and their first numbers: each new goal’s row has a Ref, and the rows below name it in Feeds into ref or Goal ref. One dry run checks it all.
-- Adding goals, one at a time or many at once, it is told each new goal’s key (G-12) and ID straight away, so it can link, check in on or change them without searching first.
+- Adding goals, one at a time or many at once, it is told each new goal’s key (G-12) and ID straight away, so it can link, check in on or change them without searching first. The key is the one the goal holds once saved, even when someone else adds a goal at the same moment. A dry run says the keys the goals would get, and no IDs yet.
+- Finding goals, it gets 50 at a time, with how many match in all and how to ask for the next page.
 - Lists (goals it finds, asks, reviews, people, activity, views, metrics and the rest) always come back in one shape, filtered or not, so it reads them the same way every time.
 - Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.
 - Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you.

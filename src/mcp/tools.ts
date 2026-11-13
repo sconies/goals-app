@@ -108,6 +108,15 @@ function row(args: Record<string, unknown>, map: Record<string, string>): Rec {
   return r;
 }
 /** Rows given as objects with column names, any case, spaces or underscores. */
+/** A range between two numbers as the Goals sheet says it: both in Limit (99.5–99.95), the same rule as an import. A
+    lower bound given alone keeps the goal's own upper one. */
+function withLower(a: Record<string, unknown>, was?: Goal): Record<string, unknown> {
+  if (a.lower == null) return a;
+  const upper = a.limit ?? (was?.kind === 'range' ? was.range.limit : undefined);
+  if (upper == null) throw new Error('A range between two numbers needs limit, the upper number, as well as lower.');
+  return { ...a, limit: `${a.lower}–${upper}`, must_stay: 'between' };
+}
+
 function rows(list: unknown, sheet: string): Rec[] {
   if (list == null) return [];
   if (!Array.isArray(list)) throw new Error(`${sheet} should be a list of rows.`);
@@ -127,6 +136,9 @@ const ANSWERS_ARG = { type: 'object', additionalProperties: { anyOf: [{ type: 's
 /** The answers argument, as the engine takes them. */
 const answersOf = (a: unknown): Answers => Object.fromEntries(Object.entries((a ?? {}) as Record<string, unknown>).map(([k, v]) => [k, typeof v === 'string' ? { choice: v } : { choice: String((v as { choice?: unknown }).choice ?? ''), ...((v as { value?: unknown }).value != null ? { value: String((v as { value: unknown }).value) } : {}) }]));
 
+/** find_goals' page: how many goals it lists unless asked, and the most it lists at once. */
+const FIND_PAGE = 50, FIND_MAX = 200;
+
 async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown }): Promise<ToolResult> {
   // A goal's key: as saved once it is, as the change gives it before (a dry run's key is the one it would get).
   const keyOf = (id: string): string | null => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
@@ -142,7 +154,7 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
     saved: false,
     summary: describe(cs),
     // Every goal a change is to, by its ID and key: a new goal's key is the one it is given (MCP load, 12 Nov).
-    changes: cs.items.map((x) => ({ goalId: x.goalId, ...(x.goalId ? { key: keyOf(x.goalId) } : {}), goal: x.goal, kind: x.kind, summary: x.summary, fields: x.diffs.filter((d) => d.field !== 'Via').map((d) => ({ field: d.field, from: d.from, to: d.to })), pastWeek: !!x.backfilled })),
+    changes: cs.items.map((x) => ({ goalId: x.goalId as string | null, ...(x.goalId ? { key: keyOf(x.goalId) } : {}), goal: x.goal, kind: x.kind, summary: x.summary, fields: x.diffs.filter((d) => d.field !== 'Via').map((d) => ({ field: d.field, from: d.from, to: d.to })), pastWeek: !!x.backfilled })),
     unchanged: cs.unchanged,
     examples: cs.examples,
     problems: errors.map((x) => ({ sheet: x.sheet, row: x.row, goal: x.name, kind: x.kind, message: x.message })),
@@ -153,10 +165,12 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
     needsReason: cs.needsReason,
     questions: cs.items.flatMap((x) => (x.questions ?? []).map((q) => ({ goalId: x.goalId, goal: x.goal, id: q.id, field: q.field, question: q.text }))),
     needsConfirm: cs.needsConfirm,
-    /** The goals the change adds: each one's ID and key, to use straight away (feeds_into_id, post_check_in, Goal key). */
-    created: cs.items.filter((x) => x.kind === 'new goal').map((x) => ({ id: x.goalId, key: keyOf(x.goalId), title: x.goal })),
+    /** The goals the change adds: each one's ID and key, to use straight away (feeds_into_id, post_check_in, Goal key).
+        Saved: as stored. A dry run: the key each would be given and no ID yet (the save makes the IDs). Refused: none. */
+    created: [] as { id: string | null; key: string | null; title: string }[],
   };
-  const createdLine = () => (data.created.length ? `\nNew ${data.created.length === 1 ? 'goal' : 'goals'}: ${data.created.map((x) => `${x.key ?? '—'} · ${x.id} · ${x.title}`).join('; ')}.` : '');
+  const added = cs.items.filter((x) => x.kind === 'new goal');
+  const createdLine = () => (data.created.length ? `\nNew ${data.created.length === 1 ? 'goal' : 'goals'}: ${data.created.map((x) => [x.key ?? '—', x.id, x.title].filter(Boolean).join(' · ')).join('; ')}.${data.saved ? '' : ' Each gets its ID when it is saved; a key is kept unless another goal takes it first.'}` : '');
   const lines = (l: { goal: string; message: string }[]) => l.map((x) => `- ${x.goal ? x.goal + ': ' : ''}${x.message}`).join('\n');
   if (errors.length) return { isError: true, data, text: `Not saved. Must fix:\n${lines(errors.map((x) => ({ goal: x.name, message: x.message })))}` };
   if (cs.needsReason) {
@@ -172,12 +186,19 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
   const examples = cs.examples ? ` ${examplesLine(cs.examples)}` : '';
   if (!cs.items.length) return { data, text: `Nothing to change: it already says that.${examples}` };
   const what = `${describe(cs)}.${notes.length ? `\nRead as:\n${lines(notes.map((x) => ({ goal: x.name, message: x.message })))}` : ''}${cs.leftOut.length ? `\nLeft out at the person's answer: ${cs.leftOut.length} row(s).` : ''}${examples ? `\n${examples.trim()}` : ''}`;
-  if (opts.dry || !cs.commit) return { data, text: `Checked, not saved (dry run). Would save: ${what}${createdLine()}` };
+  if (opts.dry || !cs.commit) {
+    data.created = added.map((x) => ({ id: null, key: keyOf(x.goalId), title: x.goal }));
+    // A dry run's IDs are not the ones a save makes, so no new goal's ID is given before it exists (#242's review).
+    data.changes = data.changes.map((x) => (added.some((a) => a.goalId === x.goalId) ? { ...x, goalId: null } : x));
+    return { data, text: `Checked, not saved (dry run). Would save: ${what}${createdLine()}` };
+  }
   await ctx.save(cs.commit);
-  // Read back as saved: the store settles each new goal's key, so two people adding goals at once never share one.
-  data.created = data.created.map((x) => ({ ...x, key: keyOf(x.id) }));
+  // Read back as saved: the server reads each new goal's key from the database after the save (Deps.goalKeys), so two
+  // people adding goals at once never share one and the answer names the key the goal holds.
+  data.saved = true;
+  data.created = added.map((x) => ({ id: x.goalId, key: keyOf(x.goalId), title: x.goal }));
   data.changes = data.changes.map((x) => (x.goalId ? { ...x, key: keyOf(x.goalId) } : x));
-  return { data: { ...data, saved: true }, text: `Saved as ${ctx.actor.name}: ${what}${createdLine()}` };
+  return { data, text: `Saved as ${ctx.actor.name}: ${what}${createdLine()}` };
 }
 
 /** A goal by its ID or its key (G-12). */
@@ -209,8 +230,9 @@ const GOAL_FIELDS = {
   from: str('Move-a-number goals: the week the baseline (start) was true and the plan starts, as a year and a week, e.g. "2026-W46". Left out: this week for a new goal.'),
   to: str('Move-a-number goals: the week the target is due, as a year and a week, e.g. "2027-W13": up to the last week of next year. Left out: the end of this goal year.'),
   due_week: int('Move-a-number goals: the week the target is due, counted from the cycle start (the older form of to; weeks beyond the cycle run into the next goal year).'),
-  limit: num('Keep-in-range goals: the limit.'),
-  must_stay: str('Keep-in-range goals: which side of the limit is good.', { enum: ['at most', 'at least'] }),
+  limit: num('Keep-in-range goals: the limit; for a range between two numbers, the upper one.'),
+  lower: num('Keep-in-range goals between two numbers ("keep it between 99.5 and 99.95"): the lower one, below limit. Giving it makes must_stay "between".'),
+  must_stay: str('Keep-in-range goals: which side of the limit is good, or between lower and limit.', { enum: ['at most', 'at least', 'between'] }),
   margin: num('Keep-in-range goals: how close to the limit counts as at risk.'),
   stages: { type: 'array', items: { type: 'string' }, description: 'Milestone goals: each stage as "Name@week", e.g. "Pilot@6".' },
   feeds_into_id: str('The ID or key (G-12) of the goal this one feeds. Empty string to unlink.'),
@@ -237,7 +259,7 @@ const CORE_TOOLS: ToolDef[] = [
   {
     name: 'find_goals',
     title: 'Find goals',
-    description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords('off')}”), latest number, this week’s plan, target and gap. Filter by whose goals they are (scope: mine, team, watching or all, as the Goals screen’s tabs), words in the name or a key, owner, status or level, or only the goals on the ${ATTENTION.needs.label} list (${ATTENTION.needs.meaning.replace(/\.$/, '').toLowerCase()}, then those ${ATTENTION.handled.label.toLowerCase()} below them, marked: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.`,
+    description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords('off')}”), latest number, this week’s plan, target and gap. Filter by whose goals they are (scope: mine, team, watching or all, as the Goals screen’s tabs), words in the name or a key, owner, status or level, or only the goals on the ${ATTENTION.needs.label} list (${ATTENTION.needs.meaning.replace(/\.$/, '').toLowerCase()}, then those ${ATTENTION.handled.label.toLowerCase()} below them, marked: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal. Answers as JSON, the same keys every time: week, weeks, total (how many match), offset, goals (at most limit of them, 50 unless asked), more (how to ask for the next page, or null) and why (why nothing matches, or null).`,
     inputSchema: { type: 'object', additionalProperties: false, properties: {
       text: str('Words on the goal’s row (its name, key, owner, team, level, status, reason or definition), each the start of a word; or its key (G-12).'),
       owner: str('Part of the owner’s name.'),
@@ -249,9 +271,24 @@ const CORE_TOOLS: ToolDef[] = [
       query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(', ')}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ['met', 'missed'])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
       view: str('The name of a saved view: one of yours, or one pinned for everyone.'),
       state: str('active (the default) or proposed: proposed goals have no status and are listed only when asked for.', { enum: ['active', 'proposed'] }),
+      limit: { type: 'integer', minimum: 1, maximum: FIND_MAX, description: `How many goals to list, from offset: ${FIND_PAGE} unless asked, at most ${FIND_MAX}.` },
+      offset: { type: 'integer', minimum: 0, description: 'How many matching goals to skip, for the next page (as “more” says).' },
     } },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
+      /** One page of what matched, in the one shape find_goals always answers in (#249's review: 126 goals were 81k
+          characters, with no paging). */
+      const goalPage = <T,>(all: T[], args: Record<string, unknown>, none: string) => {
+        const limit = Math.min(FIND_MAX, Math.max(1, Math.floor(Number(args.limit) || FIND_PAGE)));
+        const offset = Math.max(0, Math.floor(Number(args.offset) || 0));
+        const goals = all.slice(offset, offset + limit);
+        const next = offset + goals.length;
+        return {
+          week: ctx.week, weeks: ctx.cycle.weeks, total: all.length, offset, goals,
+          more: next < all.length ? `${all.length - next} more: call again with offset ${next}${args.limit ? ` and limit ${limit}` : ''}.` : null,
+          why: all.length ? null : none,
+        };
+      };
       const link = a.query ? new URLSearchParams(String(a.query).replace(/^.*\?/, '')) : null;
       let query = link ? parseQuery(link) : EMPTY_QUERY;
       // A Goals link (or a saved view) says whose goals with scope=, as the screen's address does (build review of #116).
@@ -277,13 +314,13 @@ const CORE_TOOLS: ToolDef[] = [
         attention: query.attention || !!a.needs_attention,
       };
       // An argument narrows the link: where the two don't overlap, no goal can match (an empty list would mean "any").
-      if ((status && !asked.status.length) || (a.level && !asked.level.length)) return listed({ week: ctx.week, weeks: ctx.cycle.weeks, goals: [] });
+      if ((status && !asked.status.length) || (a.level && !asked.level.length)) return listed(goalPage([], a, 'No goal can match both the filters asked for and the link’s.'));
       // Whose goals (goals spec, rule 1): the scope's goals, from the same rule as the Goals screen's tabs.
       // The scope argument wins over the link's.
       const scope = a.scope ? String(a.scope) as Scope : linkScope ? linkScope as Scope : null;
       if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
       const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).tabs.find((t) => t.id === scope) : null;
-      if (scope && scope !== 'all' && !scoped) return listed({ week: ctx.week, weeks: ctx.cycle.weeks, goals: [], why: scope === 'team' ? 'You’re in no team and lead none.' : 'You own no goals this year.' });
+      if (scope && scope !== 'all' && !scoped) return listed(goalPage([], a, scope === 'team' ? 'You’re in no team and lead none.' : 'You own no goals this year.'));
       const inScope = scoped ? new Set(scoped.ids) : null;
       const words = [String(a.text ?? ''), query.q].filter((x) => x.trim()).join(' ');
       const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -303,7 +340,7 @@ const CORE_TOOLS: ToolDef[] = [
       if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== 'handled'), ...list.filter((s) => attentionGroup(s.attention) === 'handled')];
       const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.state === 'proposed' ? null : s.status, statusLabel: s.statusLabel, state: s.state ?? 'active', needsAttention: needsAttention(s.attention), beingHandled: s.attention.handled?.text ?? null, lookedAt: s.attention.lookedAt?.text ?? null, because: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => withCode({ label: f.label, code: f.kind })), now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
       // The same shape every time, filtered or not (MCP load, 12 Nov): the list as JSON, as structured content and as text.
-      return listed({ week: ctx.week, weeks: ctx.cycle.weeks, goals: data });
+      return listed(goalPage(data, a, 'No goal matches. Try fewer or plainer words, or another scope or status.'));
     },
   },
   {
@@ -362,21 +399,21 @@ const CORE_TOOLS: ToolDef[] = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
-      return change(ctx, { goals: [row({ ...a, goal_id: g.id }, { goal_id: 'id', ...GOAL_COLS })] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, confirm: a.confirm === true, answers: a.answers });
+      return change(ctx, { goals: [row(withLower({ ...a, goal_id: g.id }, g), { goal_id: 'id', ...GOAL_COLS })] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, confirm: a.confirm === true, answers: a.answers });
     },
   },
   {
     name: 'make_goal_active',
     title: 'Make a proposed goal active',
     description: 'Its owner or an admin: make a proposed goal active. A number goal’s plan runs from this week, or from the week given. From then it is judged against its plan and check-ins are due. Use dry_run first to read back the dates and when the first check-in is due, and say it to the person.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), from: str('Number goals: the week its plan runs from, as a year and a week (2026-W48) or the week’s number. Left out: this week.'), dry_run: DRY } },
+    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), from: str('Number goals: the week its plan runs from, as a year and a week (2026-W48) or the week’s number. Left out: this week.'), confirm: bool('True once the person has said the goal has been running since an earlier From (the question comes back otherwise).'), dry_run: DRY } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
       let fromWeek: number | undefined;
       if (a.from != null && a.from !== '') { const r = readWeekCode(ctx.cycle, String(a.from)); if (!('n' in r)) throw new Error(r.text ?? `From says “${String(a.from)}”. Write a year and a week, like 2026-W48.`); fromWeek = r.n; }
       let out;
-      try { out = activate(ctx, { goalId: g.id, fromWeek }); } catch (e) { if (e instanceof NotAllowed) return { isError: true, text: e.message }; throw e; }
+      try { out = activate(ctx, { goalId: g.id, fromWeek, confirm: a.confirm === true }); } catch (e) { if (e instanceof NotAllowed) return { isError: true, text: e.message }; throw e; }
       const says = activeReadBack(g, { cycle: ctx.cycle, week: ctx.week, today: ctx.today, rhythm: 'weekly', fromWeek: fromWeek ?? Math.max(0, ctx.week) });
       if (a.dry_run) return { data: { saved: false, readBack: says }, text: `Checked, not saved (dry run). ${says}` };
       await ctx.save({ ...out.commit, changes: out.commit.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA_MCP] })) });
@@ -390,7 +427,7 @@ const CORE_TOOLS: ToolDef[] = [
     inputSchema: { type: 'object', additionalProperties: false, required: ['title', 'type'], properties: { type: str('What kind of goal.', { enum: ['metric', 'range', 'milestone'] }), ...GOAL_FIELDS, confirm: CONFIRM, answers: ANSWERS_ARG, dry_run: DRY } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     async run(a, ctx) {
-      return change(ctx, { goals: [row({ owner: ctx.actor.name, ...a }, { type: 'type', ...GOAL_COLS })] }, { dry: !!a.dry_run, confirm: a.confirm === true, answers: a.answers });
+      return change(ctx, { goals: [row(withLower({ owner: ctx.actor.name, ...a }), { type: 'type', ...GOAL_COLS })] }, { dry: !!a.dry_run, confirm: a.confirm === true, answers: a.answers });
     },
   },
   {
@@ -445,6 +482,8 @@ const CORE_TOOLS: ToolDef[] = [
 
 /** Which feature module each module tool is from (src/modules/<id>/tools.ts). */
 const TOOL_MODULE = new Map(MODULE_TOOLS.flatMap((m) => m.part.map((t) => [t.name, m.id] as const)));
+/** The feature module a tool belongs to, if it isn't the core's. */
+export const toolModule = (name: string): string | undefined => TOOL_MODULE.get(name);
 
 /** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
     requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts; then each feature

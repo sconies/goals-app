@@ -22,6 +22,8 @@ describe('an action made in one workspace', () => {
     let app: AppState | null = null;
     let toasts: ReturnType<typeof useToasts> = [];
     const Peek = () => { app = useApp(); toasts = useToasts(); return null; };
+    // A workspace opens only once chosen on this device (set-up spec ST1): this browser remembers A.
+    localStorage.setItem('goals-app-workspace', 'ws_a');
     render(<AppProvider store={store} mode="demo" today={today}><Peek /></AppProvider>);
     await waitFor(() => expect(app?.ws.id).toBeTruthy());
     act(() => app!.switchWorkspace('ws_a'));

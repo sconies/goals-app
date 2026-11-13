@@ -10,6 +10,11 @@ import { screenFacts } from './screenFacts';
 import { ARTICLES } from '../help/guide';
 import { checks, coreRoutes, requirements } from './sources';
 import { HEADERS } from './conformance';
+import { thresholdClashes } from './thresholds';
+import { wrongUses } from './uses';
+import { wrongLimits } from './limits';
+import { wrongLogical } from './logical';
+import { declarations } from './model';
 
 const root = path.resolve(__dirname, '../..');
 
@@ -29,6 +34,24 @@ describe('the spec', () => {
 
   it('says the same overview in llms.txt as the AI assistant’s describe_system', () => {
     expect(fs.readFileSync(path.join(root, 'llms.txt'), 'utf8')).toBe(systemOverview());
+  });
+
+  /* Copy, replace or demo only (kit review, 12 Nov, gap 7). */
+  it('tags every requirement copy, replace (naming the R) or demo-only, the demo’s own included', () => {
+    const reqs = requirements({ root }).requirements;
+    expect(wrongUses(reqs)).toEqual([]);
+    const demo = reqs.filter((q) => q.use === 'demo-only').map((q) => q.id);
+    expect(demo).toEqual(expect.arrayContaining(['DEMO-MODE', 'DEMO-STORAGE', 'WALKTHROUGHS', 'RESEARCH', 'BRAND', 'LAUNCH', 'STALE-RELOAD']));
+    expect(reqs.find((q) => q.id === 'TOKENS-SERVER-ONLY')).toMatchObject({ use: 'replace', by: 'R1' });
+  });
+
+  it('says every limit the stored records hold on its rule’s page, so nobody has to read schema.sql for one', () => {
+    const read = (f: string) => fs.readFileSync(path.join(root, f), 'utf8');
+    expect(wrongLimits(read('spec/core/schema.sql'), RULE_LIST.map((x) => x.id), read)).toEqual([]);
+  });
+
+  it('gives every record’s key, uniqueness and references in fields the records have', () => {
+    expect(wrongLogical(declarations({ root }).decls)).toEqual([]);
   });
 
   it('names a main action for every core screen, and none for a screen that has gone', () => {
@@ -78,6 +101,19 @@ describe('the spec', () => {
     const r = { root };
     let spec: Record<string, string>;
     beforeAll(async () => { spec = await buildSpec(root); }, 60_000);
+
+    it('gives one number for each named threshold, the code’s, on every page', () => {
+      const pages = Object.fromEntries(Object.entries(spec).filter(([p]) => /\.(md|txt)$/.test(p)));
+      expect(thresholdClashes(pages)).toEqual([]);
+      expect(thresholdClashes({ 'x.md': 'On track at 90%; no recent update after 21 days; no check-in for 2 weeks or more.' })).toEqual([
+        'x.md: “On track at 90%” gives 90 for on track (RULES.onTrack), the code says 95',
+        'x.md: “no recent update after 21 days” gives 21 for no recent update (RULES.staleDays), the code says 14',
+      ]);
+    });
+
+    it('says what each rule decides in llms.txt in the rule page’s own words', () => {
+      expect(RULE_PAGES.filter(([id, , what]) => RULE_LIST.find((r) => r.id === id)?.summary !== what).map(([id]) => id)).toEqual([]);
+    });
 
     it('writes every check’s title as words, never as the code that makes it', () => {
       expect(checks(r).filter((c) => !c.title || /\$\{|\(\[\^|`/.test(c.title)).map((c) => `${c.id}: ${c.title}`)).toEqual([]);

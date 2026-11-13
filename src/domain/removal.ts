@@ -126,7 +126,7 @@ export const hasHistory = (h: ReturnType<typeof personHistory>) => h.goals + h.c
 export function leaving(x: Pick<ActionContext, 'snapshot' | 'cycle' | 'full'>, id: string) {
   const full = x.full ?? x.snapshot;
   const later = new Set(full.cycles.filter((c) => !c.removedAt && c.startDate > x.cycle.startDate).map((c) => c.id));
-  const goals = [...x.snapshot.goals.filter((g) => g.ownerId === id), ...full.goals.filter((g) => later.has(g.cycleId) && g.ownerId === id && !g.removedAt && !g.stoppedAt)];
+  const goals = [...withProposed(x.snapshot).filter((g) => g.ownerId === id), ...full.goals.filter((g) => later.has(g.cycleId) && g.ownerId === id && !g.removedAt && !g.stoppedAt)];
   const open = asksOf(x.snapshot).filter((r) => r.status === 'open');
   return {
     goals,

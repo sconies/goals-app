@@ -8,12 +8,12 @@ import { kindWords } from '../domain/format';
 import { valueSeries } from '../domain/plan';
 import { projects } from '../domain/scorecard';
 import { assessPosted } from '../domain/status';
-import { quarterOf } from '../domain/year';
+import { quarterLabel, quarterOf } from '../domain/year';
 import { periodNow } from '../domain/cycle';
 import { Chip, Empty, LevelTag } from '../ui/bits';
-import { MetricChart, QuarterMark, quarterWords, RangeChart, StageList } from '../ui/charts';
+import { MetricChart, QuarterMark, quarterWords, StageList } from '../ui/charts';
+import { RangeChart } from '../ui/rangeChart';
 import { Icon } from '../ui/Icon';
-import { QUARTER } from '../domain/vocabulary';
 import { FLAG } from '../domain/vocabulary';
 
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -156,7 +156,7 @@ function GoalPrintView() {
             <ol className="ps-quarters">
               {sh.quarters.map((q) => (
                 <li key={q.quarter.n}>
-                  <span className="ps-q-head"><strong>{q.quarter.label}</strong><span className="q-result"><QuarterMark kind={q.kind} done={q.quarter.n === nowQ.n ? (app.week - nowQ.from + 1) / (nowQ.to - nowQ.from + 1) : 0} />{q.kind === 'met' || q.kind === 'missed' ? QUARTER[q.kind].label : q.kind === 'open' ? (q.quarter.n === nowQ.n ? QUARTER.open.label : 'To come') : 'None due'}</span></span>
+                  <span className="ps-q-head"><strong>{q.quarter.label}</strong><span className="q-result"><QuarterMark kind={q.kind} done={q.quarter.n === nowQ.n ? (app.week - nowQ.from + 1) / (nowQ.to - nowQ.from + 1) : 0} />{quarterLabel(q, nowQ.n)}</span></span>
                   {q.kind !== 'none' && <span className="small">{quarterWords(q.text, true)}</span>}
                 </li>
               ))}

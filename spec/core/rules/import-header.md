@@ -27,10 +27,6 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Headers Name, Department, Salary band. | `no Faro sheet` |
 | Headers Key, Goal, Targett. | `Targett is near Target` |
 
-## Not self-explanatory
-
-- **Not self-explanatory:** Reading a file in a worker, with progress and Stop, is IM6.
-
 ## Where it lives
 
 - [src/domain/sheets.ts](../../../src/domain/sheets.ts): `readHeader`, `headerMatch`, `readTables`

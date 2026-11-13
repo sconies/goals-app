@@ -15,13 +15,56 @@ Each screen, and the views with a route of their own or a key that opens them, h
 
 Words worked out when the screen shows (from the goal, the person or the week) are written “…”. A screen’s look is in [the design rules](design-rules.md), and every Help article in full in [the Help guide](help-guide.md). Views, overlays and pages with no route of their own (the Goals layouts, Find, the shell, the error pages) follow the routes. Feature modules add their own screens: see [the modules](../modules/README.md). **Not self-explanatory:** a condition written as code is the screen’s own; a rebuild reads it for what it means (who is looking, what the goal has), not for its names.
 
+## Start
+
+[src/screens/Start.tsx](../../src/screens/Start.tsx)
+
+- `/join/:workspaceId` (`Join`): An invitation is a link that opens one workspace: it says who set it up and what it holds, then asks which one you are. Help: “Joining a workspace you were invited to” (`joining`).
+- `/ready` (`Ready`): A workspace holds one organisation’s people, teams, goals and history. Setting one up takes about three minutes. Help: “Setting up a workspace” (`set-up`).
+- `/join/:workspaceId` (`Join`): An invitation is a link that opens one workspace: it says who set it up and what it holds, then asks which one you are. Help: “Joining a workspace you were invited to” (`joining`).
+
+- **Named parts:** “Which one are you?”, “This invitation doesn’t open a workspace”, “Open another workspace”
+- **Main action:** On an invitation, choose which one you are, then go on to Home; on /ready, the one next thing after setting up.
+- **Primary buttons in its markup:** “See your goals”, “Set up the first goal”
+- **AI tools:** none, on purpose: Saying who you are on an invitation, and the screen right after set-up: a token already acts as one person in one workspace.
+
+**Pictures** (`/join/ws_nope` before anyone has signed up): [390 wide](screens/start-390.jpg), [1440 wide](screens/start-1440.jpg)
+
+<img src="screens/start-390.jpg" alt="Start at 390 wide" width="195"> <img src="screens/start-1440.jpg" alt="Start at 1440 wide" width="480">
+
+**Fields**
+
+| Field | Kind | Shown when |
+|---|---|---|
+| “Find your name” | search | `many` |
+
+**States**
+
+| State | What it says | Shown when |
+|---|---|---|
+| whole screen | “a quiet wait (PageWait)” | `!here` |
+| loading | “a quiet wait (PageWait), drawn only after 300 ms” | always |
+| refused | “You can’t open” | always |
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “Go to Welcome” | link | always |
+| “Copied: send it to them / Copy a message for them” | primary | `message` |
+| “Try again” | primary | always |
+| “Check in on your … / Go to Home” | primary | `mine.due.length + mine.upcoming.length > 0` |
+| “See your goals” | primary | `!(mine.due.length + mine.upcoming.length > 0)` and `goals` |
+| “Set up the first goal” | primary | `!(mine.due.length + mine.upcoming.length > 0)` and `!goals` |
+| “Link copied: paste it into an email or chat / Copy the link to send” | button | always |
+
 ## Home
 
 [src/screens/Home.tsx](../../src/screens/Home.tsx)
 
 - `/` (`Home`): Home shows what needs you this week: one main thing to do, what people have asked of you, and the goals you own and watch. Help: “Home and your week at a glance” (`home`).
 
-- **Named parts:** “Your goals”, “Needs your response”, “Goals you watch”, “Getting started”, “This week (region)”, “For you (region)”
+- **Named parts:** “Your goals”, “Goals you watch”, “Getting started”, “This week (region)”, “For you (region)”
 - **Main action:** The lead’s, or none: what is asked of you today (late check-ins, check-ins due tomorrow or before today’s review, the wrap-up, a review on its day), or one quiet line that nothing is.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_my_work`, `get_overview`
@@ -45,7 +88,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “… (worked out when it shows)” | primary | always |
 | “… (worked out when it shows)” | link | `quiet.buttons.length > 0` |
 | “Show the … with nothing flagged” | button | `rest.length > 0` and `rest.length > shown.length` |
+| “Show all …” | button | `asks.length > shown.length` |
 | “Check in” | link | `a.goal.ownerId === app.viewer.id && a.flags.some((f) => f.kind === 'due' \|\| f.kind === 'stale' \|\| f.kind === …` |
+| “See the wrap-up” | link | `wrapUpOpenOn(app.cycle, app.today)` |
+| “See Cycles / Start …” | link | always |
 | “… (worked out when it shows)” | button | `r.id === 'invite'` |
 | “… (worked out when it shows)” | link | `!(r.id === 'invite')` and `r.to` |
 | “Hide this” | button | always |
@@ -418,7 +464,8 @@ None: nothing to type or choose here.
 | “From” | WeekPick | `step === 2` and `d.kind === 'metric'` |
 | “Target” | text | `step === 2` and `d.kind === 'metric'` |
 | “To” | WeekPick | `step === 2` and `d.kind === 'metric'` |
-| “Limit …” | text | `step === 2` and `d.kind === 'range'` |
+| “Lower limit …” | text | `step === 2` and `d.kind === 'range'` and `d.bound === 'between'` |
+| “Upper limit / Limit …” | text | `step === 2` and `d.kind === 'range'` |
 | “Warn this close … How near the limit counts as at risk, in …. Left empty, it warns only once the limit is cro…” | text | `step === 2` and `d.kind === 'range'` |
 | “How it’s measured · optional” | textarea | `step === 2` and `((noMetric && (!measurePlace \|\| saidNone \|\| !!d.definition.trim() \|\| !!d.source.trim())) \|\| d.kind === 'miles…` |
 | “Where the number comes from · optional” | text | `step === 2` and `((noMetric && (!measurePlace \|\| saidNone \|\| !!d.definition.trim() \|\| !!d.source.trim())) \|\| d.kind === 'miles…` |
@@ -434,12 +481,12 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Keep it at … or under” | button | `hold != null` |
 | “Keep it at … or over” | button | `hold != null` |
 | “Keep …” | button | `e?.id === 'too-precise' && e.keep != null` |
-| “(Close and keep the draft)” | button | always |
 | “Start a new one” | button | `restored` and `!asking` |
 | “Discard it” | button | `asking` |
 | “Keep it” | button | `asking` |
 | “At most” | button | `step === 2` and `d.kind === 'range'` |
 | “At least” | button | `step === 2` and `d.kind === 'range'` |
+| “Between” | button | `step === 2` and `d.kind === 'range'` |
 | “Change” | button | `step === 3` and `read` and `r.step != null` |
 | “Back” | button | `step > 0` |
 | “Skip: say how it’s measured later” | button | `step === 1` and `proposing` |
@@ -540,7 +587,8 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “From” | WeekPick | `goal.kind === 'metric'` |
 | “Target (…) …” | text | `goal.kind === 'metric'` |
 | “To” | WeekPick | `goal.kind === 'metric'` |
-| “Limit …” | text | `goal.kind === 'range'` |
+| “Lower limit …” | text | `goal.kind === 'range'` and `d.bound === 'between'` |
+| “Upper limit / Limit …” | text | `goal.kind === 'range'` |
 | “Warn this close …” | text | `goal.kind === 'range'` |
 | “Owner” | PickOne | always |
 | “Team” | PickOne | always |
@@ -567,6 +615,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Discard them” | button | `restored` |
 | “At most” | button | `goal.kind === 'range'` |
 | “At least” | button | `goal.kind === 'range'` |
+| “Between” | button | `goal.kind === 'range'` |
 | “… (worked out when it shows)” | primary | always |
 
 ## Print
@@ -751,9 +800,9 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 - `/workspace/new` (`Onboarding`): A workspace holds one organisation’s people, teams, goals and history. Setting one up takes about three minutes. Help: “Setting up a workspace” (`set-up`).
 
-- **Named parts:** “Run the company on outcomes, and manage by exception”, “What’s this workspace for?”, “Who are you?”, “Who else is on it?”, “Where do you want to start?”, “What outcome are you after?”, “What feeds it?”
+- **Named parts:** “What’s this workspace for?”, “Who are you?”, “Who else is on it?”, “Where do you want to start?”, “What outcome are you after?”, “What feeds it?”
 - **Main action:** Set up a workspace, one question a screen.
-- **Primary buttons in its markup:** “Try the demo”
+- **Primary buttons in its markup:** none written as plain text
 - **AI tools:** none, on purpose: Setting up a new workspace happens before there is a token for it.
 
 **Pictures** (`/workspace/new` as amara): [390 wide](screens/onboarding-390.jpg), [1440 wide](screens/onboarding-1440.jpg)
@@ -796,8 +845,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “Try the demo” | primary | always |
-| “Set up your workspace” | button | always |
 | “Start over” | button | `restored` |
 | “Change” | button | `d.step === 0` and `!cycleOpen` |
 | “Same as above (…)” | button | `d.step === 2` and `!r.team.trim() && above && above !== d.me.team.trim()` |
@@ -1024,43 +1071,42 @@ None: nothing to type or choose here.
 |---|---|---|
 | “See all help” | link | always |
 
-## Start
+## Welcome
 
-[src/screens/Start.tsx](../../src/screens/Start.tsx)
+[src/screens/Welcome.tsx](../../src/screens/Welcome.tsx)
 
-- `/ready` (`Ready`): A workspace holds one organisation’s people, teams, goals and history. Setting one up takes about three minutes. Help: “Setting up a workspace” (`set-up`).
+- `/welcome` (`Welcome`): Welcome is Faro’s front door, at its own address: set up a workspace, look around the demo, or join a workspace you were invited to. Help: “Welcome: starting, the demo, or an invitation” (`welcome`).
 
-- **Named parts:** “Who are you?”, “Open another workspace”
-- **Main action:** Say who you are, then go on to Home.
-- **Primary buttons in its markup:** “See your goals”, “Set up the first goal”
-- **AI tools:** none, on purpose: The first screen, before a workspace exists.
+- **Named parts:** “Welcome back”, “On this device”, “Run the company on outcomes, and manage by exception”
+- **Main action:** Set up a workspace; coming back, Open the workspace last opened (or Carry on a set-up left unfinished).
+- **Primary buttons in its markup:** “Set up a workspace”
+- **AI tools:** none, on purpose: The front door, before anyone has chosen a workspace: a token already belongs to one.
 
-**Pictures** (`/` before anyone has signed up): [390 wide](screens/start-390.jpg), [1440 wide](screens/start-1440.jpg)
+**Pictures** (`/welcome` before anyone has signed up): [390 wide](screens/welcome-390.jpg), [1440 wide](screens/welcome-1440.jpg)
 
-<img src="screens/start-390.jpg" alt="Start at 390 wide" width="195"> <img src="screens/start-1440.jpg" alt="Start at 1440 wide" width="480">
+<img src="screens/welcome-390.jpg" alt="Welcome at 390 wide" width="195"> <img src="screens/welcome-1440.jpg" alt="Welcome at 1440 wide" width="480">
 
 **Fields**
 
 | Field | Kind | Shown when |
 |---|---|---|
-| “Your name” | PickOne | always |
+| “The link you were sent” | text | `joining` |
 
 **States**
 
-| State | What it says | Shown when |
-|---|---|---|
-| refused | “You can’t open” | always |
+None written in its markup beyond the screen itself: it draws what it has.
 
 **Buttons, and who sees them**
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “Copied: send it to them / Copy a message for them” | primary | `message` |
-| “Try again” | primary | always |
-| “Check in on your … / Go to Home” | primary | `mine.due.length + mine.upcoming.length > 0` |
-| “See your goals” | primary | `!(mine.due.length + mine.upcoming.length > 0)` and `goals` |
-| “Set up the first goal” | primary | `!(mine.due.length + mine.upcoming.length > 0)` and `!goals` |
-| “Link copied: paste it into an email or chat / Copy the link to send” | button | always |
+| “Open it” | button | `joining` |
+| “Open” | primary | `back` |
+| “Keep it” | button | `back` and `draft` and `discarding` |
+| “Discard it” | button | `back` and `draft` and `discarding` |
+| “Discard” | button | `back` and `draft` and `!discarding` |
+| “Carry on” | primary | `back` and `draft` and `!discarding` |
+| “Set up a workspace” | primary | `!back` |
 
 ## Views, overlays and pages with no route of their own
 
@@ -1127,7 +1173,7 @@ None: nothing to type or choose here.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “Close” | button | always |
+| “Close” | button | `!inline` |
 | “Try again” | button | `failed` |
 
 ### The workspace switcher
@@ -1407,7 +1453,7 @@ None.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “Filters Filter and sort · …” | button | always |
+| “Filters Filters / Filter and sort · …” | button | always |
 | “Rename / Save view” | primary | always |
 | “Cancel” | button | always |
 
@@ -1423,7 +1469,7 @@ None.
 
 | Field | Kind | Shown when |
 |---|---|---|
-| “Sort” | select | always |
+| “Sort” | select | `!sortOff` |
 | “Only goals that need attention, with those … below them” | checkbox | always |
 | “Find an owner” | search | always |
 | “Due” | select | always |

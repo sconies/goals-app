@@ -19,7 +19,7 @@ The one way many changes come in at once: a spreadsheet, set-up, the bulk check-
 
 **A row that gives a week.** A Check-ins row with "Back on plan by week" and no Recovery is a plan: the old record's recovery state is read only when the row gives neither, so a correction never loses the week it gives.
 
-**Speed** (import spec, rule 10). No row scans a list: goals by id, key and folded name, people by id, the saved check-ins by goal, and the issues by row are maps built once and kept up as rows are read, and a name one letter out is worked out once per name. Results are the same as a scan's, in the same order. A file costs about what its rows do: in Faro's tests, 5,000 new rows are checked in well under a second, and an unedited workbook of nearly 30,000 rows in about two (`src/domain/importSpeed.test.ts`, with N18's limits of 3, 8 and 20 seconds for 1,000, 5,000 and 30,000 rows). The size limits are in `src/domain/importLimits.ts`: comfortable up to 5,000 rows, and read up to 30,000 rows or 20 MB.
+**Speed** (import spec, rule 10). No row scans a list: goals by id, key and folded name, people by id, the saved check-ins by goal, and the issues by row are maps built once and kept up as rows are read, and a name one letter out is worked out once per name. Results are the same as a scan's, in the same order. A file costs about what its rows do: in Faro's tests, 5,000 new rows are checked in well under a second, and an unedited workbook of nearly 30,000 rows in about two (`src/domain/importSpeed.test.ts`, with N18's limits of 3, 8 and 20 seconds for 1,000, 5,000 and 30,000 rows). The size limits are in `src/domain/importLimits.ts`: comfortable up to 5,000 rows, and read up to 30,000 rows or 20 MB. `planChangesInChunks(input)` is the same engine a chunk at a time: it yields how far it has got (rows read, and what they would add, change and must fix) every 500 rows, so the import's worker can report progress and stop between chunks; `planChanges` runs it to the end. A file that would change more than 5,000 rows is checked, not saved, and split into parts (`splitTables` in `src/domain/splitFile.ts`): people first, each goal with its plan and check-ins, a goal before the goals that feed into it, and a goal larger than a part on its own.
 
 **What it gives:** the items (each a change to one record, with its field-by-field differences), what was unchanged, the issues (errors that block, warnings to check, notes on how a row was read), whether a reason is needed, counts, and the commit (null while anything blocks). In "create" mode (set-up) the workspace starts empty and every row is new.
 
@@ -29,6 +29,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 | Given | The rule gives |
 |---|---|
+| A file of 6,000 new goals, the 6,000th feeding into the first; each part holds at most 5,000 rows. | `2 parts: 5,000 and 1,000 rows; the first goal in part 1` |
+| The engine run a chunk at a time over 1,200 new goals. | `progress at 500 and 1,000 rows of 1,200` |
 | A plan week of 0.125 kept at 2 decimal places, written 0.13 by the export, read back as 0.13; and as 0.12. | `no change / a change` |
 | Rhea loads three new goals into the demo workspace: Ref top; Ref mid, Feeds into ref top; Ref leaf, Feeds into ref mid. | `mid feeds top, leaf feeds mid` |
 | In the demo workspace, Tariq (its owner) changes the AI-assisted reviews north star (ns-ai) to a target of 90, with no reason. | `needs a reason; nothing to save` |
@@ -143,3 +145,5 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 10: a large file is checked in about the time it takes to read › checks an unedited workbook of nearly 30,000 rows within 20 s, and nothing would change
 - rule 10: a large file is checked in about the time it takes to read › costs about what its rows do: five times the rows, well under twenty-five times the time
 - rule 10: a large file is checked in about the time it takes to read › says fourteen rows with one typo once, as one group, among thousands
+- rule 10: planChangesInChunks reports every 500 rows, and ends where planChanges does › yields its progress every chunk, counting up, with what it has found so far
+- rule 10: planChangesInChunks reports every 500 rows, and ends where planChanges does › counts a Must fix as it finds it

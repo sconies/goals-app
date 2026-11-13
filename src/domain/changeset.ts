@@ -44,6 +44,7 @@ import { deleteGoal, markPersonLeft, stopGoal } from './removal';
 import { stagesFromNow } from './templates';
 import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
 import { goalMeasureOf, type ModuleRecords } from './records';
+import { CHUNK } from './importLimits';
 import { ANSWERS, fold, groupId, groupIssues, issueOf, levelOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
 import type { Ask, Change, CheckIn, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, Review, Snapshot, StageUpdate, Status, Team } from './types';
 import { FLAG, LEFT, lower, STOPPED } from './vocabulary';
@@ -185,15 +186,24 @@ export function describe(cs: Pick<ChangeSet, 'counts'>): string {
 /** Rows whose Action says Example (the template's, C15), in a sentence: left out, never imported. Empty for none. */
 export const examplesLine = (n: number): string => (n ? `${plural(n, 'example row')} left out.` : '');
 
+/** A Limit cell holding two numbers, a range between them: "99.5–99.95", "99.5 - 99.95", "99.5 to 99.95" (each may
+    carry the goal's unit). The lower and upper as typed, or null for anything else. Here, not in columns.ts, so it loads
+    with the import (the first download is at its budget). */
+export function twoNumbers(raw: string): { lower: string; upper: string } | null {
+  const m = /^\s*(-?[^\s–—-][^–—]*?)\s*(?:–|—|-|\bto\b)\s*(-?[^\s–—-].*?)\s*$/i.exec(String(raw));
+  if (!m || !/\d/.test(m[1]!) || !/\d/.test(m[2]!)) return null;
+  return { lower: m[1]!, upper: m[2]! };
+}
+
 /** The columns a goal form's field is, for its problem on the Goals sheet. */
 /** A goal field's column on the Goals sheet, where a Must fix from goal entry's rule 2 (domain/goalEntry) is said. */
-const FIELD_COLUMN: Partial<Record<GoalField, string>> = { title: 'Goal', teamId: 'Team', ownerId: 'Owner', level: 'Level', parentId: 'Feeds into', start: 'Start', target: 'Target', limit: 'Limit', margin: 'Margin', decimals: 'Decimals', effect: 'Effect', stages: 'Stages', points: 'Plan', unit: 'Unit', fromWeek: 'Plan from week', endWeek: 'Due week' };
+const FIELD_COLUMN: Partial<Record<GoalField, string>> = { title: 'Goal', teamId: 'Team', ownerId: 'Owner', level: 'Level', parentId: 'Feeds into', start: 'Start', target: 'Target', lower: 'Limit', limit: 'Limit', margin: 'Margin', decimals: 'Decimals', effect: 'Effect', stages: 'Stages', points: 'Plan', unit: 'Unit', fromWeek: 'Plan from week', endWeek: 'Due week' };
 /** Each Must fix's kind among the engine's (domain/problemLevels): every one is a Must fix; the kind says which sort. */
 const MUST_KIND: Record<MustFixId, IssueKind> = {
   'name-empty': 'required-empty', 'name-short': 'required-empty', 'owner-empty': 'required-empty', 'team-empty': 'required-empty', 'level-empty': 'required-empty',
-  'start-empty': 'required-empty', 'target-empty': 'required-empty', 'limit-empty': 'required-empty', 'stage-none': 'required-empty',
+  'start-empty': 'required-empty', 'target-empty': 'required-empty', 'limit-empty': 'required-empty', 'lower-empty': 'required-empty', 'stage-none': 'required-empty',
   'feeds-loop': 'loop', 'not-number': 'not-a-number', 'has-words': 'not-a-number', 'too-precise': 'precision', 'plan-point': 'not-a-number', 'decimals-lose': 'precision',
-  'decimals-range': 'unknown-word', 'same-as-start': 'impossible-number', 'margin-negative': 'impossible-number',
+  'decimals-range': 'unknown-word', 'same-as-start': 'impossible-number', 'margin-negative': 'impossible-number', 'lower-not-below': 'impossible-number',
   'stage-name': 'stage-format', 'stage-week': 'stage-format', 'stage-twice': 'stage-format', 'stage-done-removed': 'cant-change',
   'to-before-from': 'plan-order', 'week-unknown': 'week-wrong', 'week-beyond': 'week-wrong',
 };
@@ -253,7 +263,23 @@ function namedHeaders(t: Tables, nearOk: (sheet: Sheet, header: string, as: stri
   return out;
 }
 
+/** How far a check has got (rule 10): rows read of the file's rows, and what it has found so far. */
+export interface PlanProgress { done: number; total: number; added: number; changed: number; mustFix: number }
+
+/** What a row's change counts as on the Reading panel ("So far: {a} would be added, {c} changed"). */
+const ADDS: ReadonlySet<ItemKind> = new Set<ItemKind>(['new goal', 'new person', 'check-in']);
+
+/** The engine, in one go: `planChangesInChunks` run to the end. Results are the same either way. */
 export function planChanges(input: ChangeInput): ChangeSet {
+  const run = planChangesInChunks(input);
+  for (;;) { const step = run.next(); if (step.done) return step.value; }
+}
+
+/**
+ * The engine, a chunk at a time (rule 10): it yields its progress every `CHUNK` rows, so a worker can report it and stop
+ * between chunks, and returns the change set. `planChanges` is this run to the end.
+ */
+export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress, ChangeSet, void> {
   const { snapshot: s, cycle, week, now, newId, via } = input;
   const create = input.mode === 'create';
   const answers: Answers = input.answers ?? {};
@@ -283,6 +309,19 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const note = (kind: IssueKind, sheet: Sheet, row: number, name: string, message: string, x: Extra = {}) => raise(kind, sheet, row, name, message, x);
   /** The answer given to a group, if any (rule 7). */
   const answerOf = (kind: IssueKind, sheet: Sheet, column?: string, found?: string): Answer | undefined => answers[groupId(kind, sheet, column, found)];
+  // Progress (rule 10): rows read so far, of every row in the file, and what the rows read so far found, counted as they come.
+  const total = (input.tables.goals?.length ?? 0) + (input.tables.plan?.length ?? 0) + (input.tables.checkIns?.length ?? 0) + (input.tables.people?.length ?? 0);
+  let done = 0, seenItems = 0, seenIssues = 0;
+  const so = { added: 0, changed: 0, mustFix: 0 };
+  const tick = () => ++done % CHUNK === 0;
+  /** Goals read but not yet made into changes (they are, once every row is read): added, and changed. */
+  let goalsSoFar = (): [number, number] => [0, 0];
+  const progress = (): PlanProgress => {
+    for (; seenItems < items.length; seenItems++) if (ADDS.has(items[seenItems]!.kind)) so.added++; else so.changed++;
+    for (; seenIssues < issues.length; seenIssues++) if (issues[seenIssues]!.level === 'must') so.mustFix++;
+    const [a, c] = goalsSoFar();
+    return { done, total, added: so.added + a, changed: so.changed + c, mustFix: so.mustFix };
+  };
   const leftSet = new Set<string>();
   const leave = (sheet: Sheet, row: number) => { if (!leftSet.has(`${sheet}|${row}`)) { leftSet.add(`${sheet}|${row}`); leftOut.push({ sheet, row }); } };
   // Rule 3, at every door (a file, a paste, MCP): a column under another name the field table gives it ("Goal name") is
@@ -474,7 +513,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const adminsAnswer = newAdminRows.length >= 3 ? answerOf('many-admins', 'People', 'Admin') : undefined;
 
   const leaving: { person: Person; row: number; to: Person }[] = [];
-  personRows.forEach(({ r, row }) => {
+  const personRow = ({ r, row }: (typeof personRows)[number]) => {
     if (skipPeople.has(row)) return;
     const name = val(r, 'name');
     const email = normalEmail(val(r, 'email'));
@@ -574,7 +613,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (!admin()) { if (answerOf('not-allowed', 'People')?.choice === 'leave') return leave('People', row); return raise('not-allowed', 'People', row, before.name, 'Only an admin can change people.', { answers: ANSWERS.leaveOnly }); }
     people.set(before.id, after);
     peopleTouched.set(before.id, { before, row });
-  });
+  };
+  for (const x of personRows) { personRow(x); if (tick()) yield progress(); }
   /** A Team objective cell: the team's objective, said on its lead's row (where empty clears it); any other row may set it. */
   function objective(r: Rec, row: number, p: Person) {
     if (!has(r, 'team objective') || !p.teamId) return;
@@ -668,6 +708,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const fileKeys = create ? (input.tables.goals ?? []).map((r) => normalKey(val(r, 'key'))).filter((k): k is string => !!k) : [];
   let lastKeyGiven = Math.max(lastKey(s.goals, s.keysIssued), ...fileKeys.map((k) => Number(k.replace(/\D/g, ''))), 0);
   const touched = new Map<string, { before: Goal | null; row: number; sheet: Sheet; reason: string; plan: boolean }>();
+  goalsSoFar = () => { let a = 0, c = 0; for (const t of touched.values()) if (t.before) c++; else a++; return [a, c]; };
   const withCheckIns = new Set(s.checkIns.map((c) => c.goalId));
   const started = (id: string) => withCheckIns.has(id);
   // R1's row, stated once (domain/goalRights): its owner, or an admin (anyone, while a new workspace is set up).
@@ -734,7 +775,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     ...personRows.filter(({ r }) => codeOf(PERSON_ACTION_WORDS, val(r, 'action')) === 'left').map(({ row }) => ({ sheet: 'People' as Sheet, row })),
   ];
 
-  goalRows.forEach(({ r, row, i }) => {
+  const goalRow = ({ r, row, i }: (typeof goalRows)[number]) => {
     if (skipGoals.has(row)) return;
     if ((refRows.get(fold(val(r, 'ref'))) ?? []).length > 1) return;
     const id = val(r, 'id');
@@ -901,10 +942,15 @@ export function planChanges(input: ChangeInput): ChangeSet {
       // A new goal whose whole plan is already past: a finished goal added for the record, or a mistake (past-plan).
       if (from < end && !existing && !create && end < week && ask('past-plan', 'Goals', row, d.title, `“${d.title}” has a plan that ended in week ${end}; it’s week ${week}.`, { column: 'Due week', answers: ANSWERS.pastPlan }) === 'leave') return;
     }
-    if (val(r, 'limit')) d.limit = val(r, 'limit');
+    // Two numbers in Limit are a range between them (99.5–99.95), whatever Must stay says; one is the limit, and the
+    // upper bound of a range already between two.
+    const two = twoNumbers(val(r, 'limit'));
+    if (two) Object.assign(d, { lower: two.lower, limit: two.upper });
+    else if (val(r, 'limit')) d.limit = val(r, 'limit');
     const bound = readWord(BOUND_WORDS, val(r, 'must stay'), 'Goals', row, d.title);
     if (bound === undefined) return;
-    if (bound) d.bound = bound;
+    if (two) d.bound = 'between';
+    else if (bound) d.bound = bound;
     if (val(r, 'margin')) d.margin = val(r, 'margin');
     // A new range has no warning margin unless the row gives one (round 2: none by default).
     else if (!existing && d.kind === 'range') d.margin = '0';
@@ -1017,7 +1063,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (doneIds.length) doneAtSetUp.push({ goalId: gid, stageIds: doneIds, row });
     work.set(gid, built);
     touched.set(gid, { before: existing, row, sheet: 'Goals', reason: val(r, 'reason') || val(r, 'reason for change'), plan: !!existing && planChanged(existing, built) });
-  });
+  };
+  for (const x of goalRows) { goalRow(x); if (tick()) yield progress(); }
   function lookupNow(): Lookup {
     return { person: (pid) => people.get(pid), goal: (gid) => work.get(gid), teamName: (tid) => teams.get(tid)?.name ?? tid };
   }
@@ -1058,7 +1105,12 @@ export function planChanges(input: ChangeInput): ChangeSet {
     });
     if (missing) { if (leftSet.has(`Goals|${l.row}`)) touched.delete(l.id); continue; }
     const ids = new Set(found.map((x) => x.p?.id ?? ''));
-    if (ids.size > 1) { raise('conflicting-refs', 'Goals', l.row, g.title, 'Feeds into and Feeds into key name different goals. Change just one of them.', { column: 'Feeds into' }); continue; }
+    if (ids.size > 1) {
+      // Said with the columns the row used (build review of #259): "Feeds into ref and Feeds into key name different goals".
+      const said = found.map((x) => ({ 'feeds into ref': 'Feeds into ref', 'feeds into key': 'Feeds into key', 'feeds into id': 'Feeds into ID', 'feeds into': 'Feeds into' })[x.c]);
+      raise('conflicting-refs', 'Goals', l.row, g.title, `${said.slice(0, -1).join(', ')} and ${said[said.length - 1]} name different goals. Change just one of them.`, { column: said[0]! });
+      continue;
+    }
     const parentId = [...ids][0] || null;
     if (parentId === l.id) { raise('loop', 'Goals', l.row, g.title, 'A goal can’t feed into itself.', { column: 'Feeds into' }); continue; }
     if (parentId && makesLoop(l.id, parentId, [...work.values()])) { raise('loop', 'Goals', l.row, g.title, 'That link would make a loop: the goal it feeds already feeds into it.', { column: 'Feeds into' }); continue; }
@@ -1080,7 +1132,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   }
 
   /* ---------- plan numbers ---------- */
-  (input.tables.plan ?? []).forEach((r, i) => {
+  const planRow = (r: Rec, i: number) => {
     const row = rowOf(r, i);
     if (blankRow(r)) return;
     const keyRef = val(r, 'key'), idRef = val(r, 'id');
@@ -1145,7 +1197,9 @@ export function planChanges(input: ChangeInput): ChangeSet {
     work.set(id, next);
     const t = touched.get(id);
     touched.set(id, { before, row: t?.row ?? row, sheet: t?.sheet ?? 'Plan', reason: t?.reason || val(r, 'reason'), plan: !!before });
-  });
+  };
+  const planList = input.tables.plan ?? [];
+  for (let i = 0; i < planList.length; i++) { planRow(planList[i]!, i); if (tick()) yield progress(); }
 
   /* ---------- check-ins: which goal each row is, and more decimal places when the answer says to keep them ---------- */
   const ciRows = (input.tables.checkIns ?? []).map((r, i) => ({ r, row: rowOf(r, i) })).filter(({ r }) => !blankRow(r));
@@ -1180,6 +1234,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const lookup = lookupNow();
   const goalOut = new Map<string, Goal>();
   let needsReason = false;
+  goalsSoFar = () => [0, 0];
   for (const [id, t] of touched) {
     const after = work.get(id)!;
     const ch = goalChange(t.before, after, lookup, actor.id, now, newId('chg'));
@@ -1237,7 +1292,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     return undefined;
   };
   const skipCheckIns = twice('Check-ins', ciRows.map(({ r, row }) => {
-    const g = goalFor(r) ?? answeredGoal(r);
+    // A new goal named by its Goal ref (backlog BT) is the same goal however it is named (build review of #259).
+    const g = (val(r, 'goal ref') ? goalOfRef(val(r, 'goal ref')).g : undefined) ?? goalFor(r) ?? answeredGoal(r);
     const w = weekCell(val(r, 'week'), 'Check-ins', row, '', false).n;
     const cid = create ? '' : val(r, 'id');
     return { row, name: g?.title ?? val(r, 'goal'), id: cid ? 'c:' + cid : g && w != null ? `${g.id}:${w}` : '' };
@@ -1340,6 +1396,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     items.push({ sheet: 'Check-ins', row, goalId: g.id, goal: g.title, kind: existing ? 'replaces check-in' : 'check-in', summary: ch.summary, diffs: ch.diffs, backfilled, ...(corrects && !post && !correctReasonOk(why) ? { needsReason: true } : {}) });
   };
   for (const { r, row } of rows) {
+    if (tick()) yield progress();
     if (skipCheckIns.has(row)) continue;
     const refText = val(r, 'goal key') || val(r, 'goal id');
     const clash = refText ? goalOfRow(val(r, 'goal key'), val(r, 'goal id')).problem : undefined;

@@ -58,6 +58,7 @@ const GUIDE = 'src/help/guide.ts';
  * result the word means. Each says why. Anything else fails: read the word from src/domain/vocabulary.ts.
  */
 const ALLOWED: { file: string; word: string; why: string }[] = [
+  { file: 'src/screens/Welcome.tsx', word: 'Open', why: 'Welcome’s button that opens a workspace this device remembers (set-up spec 2.1): a verb, not an ask’s status.' },
   { file: 'src/domain/checkin.ts', word: 'On plan', why: 'NO_REASON: the why older check-ins stored when nothing needed explaining (“On plan.”). A stored value to recognise, never shown as the gap word.' },
   { file: 'src/domain/asks.ts', word: 'Question', why: 'The change log’s field names for an ask’s words, stored on every change since asks began; ChangeItem reads them back.' },
   { file: 'src/domain/asks.ts', word: 'Action', why: 'The change log’s field names for an ask’s words, stored on every change since asks began; ChangeItem reads them back.' },
@@ -269,7 +270,7 @@ describe('one Needs attention', () => {
       const reviewed = sorted([...new Set(s.reviews.flatMap((r) => agendaOf({ ...reviewSession(r, s, cycle, today, week), covered: new Set() }).discuss.filter((a) => !a.handled).map((a) => a.goal.id)))]);
       const inReviews = sorted(rule.filter((id) => s.reviews.some((r) => reviewSession(r, s, cycle, today, week).items.some((a) => a.goal.id === id))));
       // The AI assistant: find_goals with the same filter.
-      const ai = await callTool('find_goals', { needs_attention: true }, context(s, today));
+      const ai = await callTool('find_goals', { needs_attention: true, limit: 200 }, context(s, today));
       const aiIds = sorted(((ai.data as { goals: { id: string }[] }).goals).map((g) => g.id));
       expect(rule.length, 'something needs attention on this day').toBeGreaterThan(0);
       expect(home).toEqual(rule);
