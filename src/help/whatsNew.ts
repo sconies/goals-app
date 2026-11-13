@@ -33,6 +33,18 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['metrics', 'goal-proposed'],
   },
   {
+    id: 'import-review-lows',
+    date: '2026-11-13',
+    title: 'Import, Undo and Export, smaller fixes',
+    points: [
+      'Import says what Faro reads: up to 30,000 rows a file, and 5,000 changes at a time. Set-up and the AI assistant keep the same limits.',
+      'Row numbers count blank lines, so row 7 is row 7 in your file.',
+      'Imported counts the rows saved as Undo does, and two imports undone newest first both undo in full.',
+      'Export’s foot note says how many goals the file holds, and an empty view can’t be exported empty.',
+    ],
+    articles: ['import', 'past-imports', 'export'],
+  },
+  {
     id: 'proposed-on-map-and-board',
     date: '2026-11-13',
     title: 'Proposed goals on the Map and the Board',
