@@ -173,6 +173,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #403 AX2: every change through the dispatcher | 4 | 0 | 0 | 1 |
 | #378 GE10: Stopped in the State filter | 2 | 0 | 0 | 0 |
 | #392 U109: the week picker moves one week per key | 2 | 0 | 0 | 0 |
+| #371 FT2: Reviews behind a feature switch | 4 | 0 | 5 | 4 |
 
 **High findings, and where each stands**
 
@@ -1744,3 +1745,17 @@ Read by me; no high or medium.
 **#392 (track 2).** The week picker's keys read the highlighted week and shown year from refs, so keys pressed faster than a render each move one week. Test added.
 
 #405 (settings and CLAUDE.md) and #407 (a handover page) are not code. #410 and #371 are with first-pass reviewers.
+
+### #371 FT2: Reviews behind a feature switch (track 4, merged 13 Nov)
+
+Read first by a reviewing session: 42 routes for four people at 1440 and 390 with Reviews off, every review action and tool called directly, off-then-on compared, and Reviews-on compared with the parent commit. It called the first finding high; I log it as medium: it needs a tab left open across the switch, it is how every switch behaves (the browser reads the switches once per page load), and what it saves is an ordinary review note that the switch keeps anyway. No high. Switching off and on again loses and changes nothing, and with Reviews on the only difference from before is the due flag's intended new words.
+
+**1. Medium (ran). A tab open before an admin switched Reviews off keeps Reviews working and still saves review data.** The dispatcher reads the browser's own copy of the workspace (`src/app/state.tsx:608`); a reload of the snapshot does not bring `modulesOff` with it, and only the tab that made the switch updates its own (`state.tsx:729-731`). Tab A on a goal in a review, tab B switches Reviews off, tab A saves a note: saved, dated after the switch. True of every module's switch, not only this one. Fix: load the switches with the snapshot; and write "the server refuses a switched-off module's writes" into the spec as a requirement for the rebuild.
+**2. Medium (ran; list read by me). Several doors still write review data with Reviews off, because the refusal goes by a hand-kept list of action names** (`REVIEW_ACTIONS`, `src/app/actions.ts:202,214`): MCP `edit_comment` and `delete_comment` on a review note, `deleteNote`, `saveGoal` with `proposedIn`, and `restoreRemoved`/`undoRemoval` reopening an ended review all ran. No screen offers them while off. Fix: refuse by what the commit touches (a decision, a review, `proposedIn`).
+**3. Medium (ran). Exports still carry review data and the import says nothing of what it didn't read:** `asks_csv` has a Review column naming reviews and `notes_csv` is review notes, with Reviews off (`src/domain/export.ts:234`). CLAUDE.md's rule for a switched-off module is not met here; if it is meant for a later item, the module's spec should say so.
+**4. Medium (ran). Two AI tools leak review facts inside wider answers:** `list_requests` returns each ask's review name (`src/mcp/workTools.ts:102`), and `get_help` lists and returns the Reviews article that the screen hides.
+**5. Medium (read). New goal's read-back still says "It joins {review}" or "It joins no review yet" with Reviews off:** `src/screens/GoalWizard.tsx:293` passes `reviewsOn: true`.
+
+**Lows.** A switched-off review address still names the review in the page title and the phone's top bar; the goal page keeps "agreed in {review}" and the one-pager a "From reviews" block where Home drops the name; `docs/architecture.md`, `docs/handoff.md` and the module map did not follow (the map still says reviews are "not yet switchable" and "eight AI tools"); two refusal sentences for one thing, and `evals/help.eval.ts` no longer checks the Reviews article's title when the module is built.
+
+**Fine.** No menu row, phone tab, Home cell or lead, People mention, console error or blank page with Reviews off; every review route shows "Page not found" with the switched-off line and no review data; the seven review tools and the main review actions refuse; only an admin can switch, asked in the action; `get_my_work` is clean; every eval loosening sits behind the build-without-Reviews flag. As the module's own "gaps" says, this is a switch and not yet a module: the screens, rules and table are still the core's, gated by 19 calls. Not run: Supabase, an unchanged export loaded back with Reviews off, start-next-year while off.
