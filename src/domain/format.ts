@@ -76,7 +76,7 @@ export function staysText(g: RangeGoal): string {
 }
 
 export function targetText(g: Goal): string {
-  if (g.kind === 'metric') return fmt(g.plan.target, g);
+  if (g.kind === 'metric') return g.targetUnset ? 'Target not set' : fmt(g.plan.target, g);
   if (g.kind === 'range') return g.range.bound === 'between' ? `${fmt(g.range.lower!, g)}–${fmt(g.range.limit, g)}` : (g.range.bound === 'atMost' ? '≤ ' : '≥ ') + fmt(g.range.limit, g);
   const last = g.stages[g.stages.length - 1];
   return last ? 'All by week ' + last.dueWeek : 'No stages';

@@ -39,7 +39,7 @@ function goalFields(g: Goal, l: Lookup): Record<string, string> {
   }
   if (g.kind === 'metric') {
     f.Start = fmt(g.plan.start, g);
-    f.Target = fmt(g.plan.target, g);
+    f.Target = g.targetUnset ? 'Not set' : fmt(g.plan.target, g);
     f['Plan shape'] = shapeName[g.plan.shape];
     f['Plan from week'] = g.plan.fromWeek ? `Week ${g.plan.fromWeek}` : '—';
     f['Target due'] = g.plan.endWeek ? `Week ${g.plan.endWeek}` : '—';

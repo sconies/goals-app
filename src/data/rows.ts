@@ -70,7 +70,7 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
     id: g.id, key: g.key ?? null, cycle_id: g.cycleId, team_id: g.teamId, owner_id: g.ownerId, parent_id: g.parentId, title: g.title, kind: g.kind, io: g.io,
     headline: false, level: g.level, guardrail: g.guardrail, effect: g.effect, why_helps: g.whyHelps ?? null, source: g.source, definition: g.definition,
     unit: g.kind === 'milestone' ? null : g.unit, decimals: g.kind === 'milestone' ? null : g.decimals,
-    plan_start: g.kind === 'metric' ? g.plan.start : null, plan_target: g.kind === 'metric' ? g.plan.target : null, plan_shape: g.kind === 'metric' ? g.plan.shape : null, plan_from_week: g.kind === 'metric' ? g.plan.fromWeek ?? 0 : 0, plan_end_week: g.kind === 'metric' ? g.plan.endWeek ?? null : null, plan_points: g.kind === 'metric' && g.plan.points?.length ? g.plan.points : null,
+    plan_start: g.kind === 'metric' ? g.plan.start : null, plan_target: g.kind === 'metric' && !g.targetUnset ? g.plan.target : null, plan_shape: g.kind === 'metric' ? g.plan.shape : null, plan_from_week: g.kind === 'metric' ? g.plan.fromWeek ?? 0 : 0, plan_end_week: g.kind === 'metric' ? g.plan.endWeek ?? null : null, plan_points: g.kind === 'metric' && g.plan.points?.length ? g.plan.points : null,
     original_plan: g.kind === 'metric' ? g.originalPlan : null, rebaselined_week: g.kind === 'metric' ? g.rebaselinedWeek : null,
     plan_history: g.kind === 'metric' && g.planHistory?.length ? g.planHistory : null,
     // BL (0049): written on every row, null when there's no baseline, so a batch mixing goals with and without one
@@ -109,10 +109,12 @@ export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
     const op = r.original_plan;
     return {
       ...common, kind: 'metric', unit: r.unit ?? '', decimals: Number(r.decimals ?? 0),
-      plan: { start: num(r.plan_start) as number, target: num(r.plan_target) as number, shape: r.plan_shape ?? 'straight', ...(r.plan_from_week ? { fromWeek: Number(r.plan_from_week) } : {}), ...(r.plan_end_week ? { endWeek: Number(r.plan_end_week) } : {}), ...(r.plan_points?.length ? { points: r.plan_points.map((p) => ({ week: Number(p.week), value: Number(p.value) })) } : {}) },
+      plan: { start: num(r.plan_start) as number, target: (r.plan_target == null ? num(r.plan_start) : num(r.plan_target)) as number, shape: r.plan_shape ?? 'straight', ...(r.plan_from_week ? { fromWeek: Number(r.plan_from_week) } : {}), ...(r.plan_end_week ? { endWeek: Number(r.plan_end_week) } : {}), ...(r.plan_points?.length ? { points: r.plan_points.map((p) => ({ week: Number(p.week), value: Number(p.value) })) } : {}) },
       // Whole earlier plans, so weeks before a re-plan are judged against exactly what applied then.
       originalPlan: op ? planOf(op) : null, rebaselinedWeek: r.rebaselined_week,
       ...(r.plan_history?.length ? { planHistory: r.plan_history.map((v) => ({ untilWeek: Number(v.untilWeek), plan: planOf(v.plan) })) } : {}),
+      // A proposed goal with its target not set yet (GB): the plan holds the start in its place.
+      ...(r.plan_target == null ? { targetUnset: true as const } : {}),
       ...(r.baseline_value != null ? { baseline: { value: Number(r.baseline_value), period: r.baseline_period ?? '', provisional: !!r.baseline_provisional } } : {}),
     };
   }

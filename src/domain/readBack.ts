@@ -16,7 +16,7 @@ import { firstReview, reviewDate, WEEKDAY } from './progress';
 import { goalsIn, treeOf } from './review';
 import { LABEL } from './vocabulary';
 import { cycleYear, weekSays } from './weeks';
-import { measureEmpty } from './proposed';
+import { baselineOnly, measureEmpty } from './proposed';
 import { MEASURE_UNSAID } from './proposedSummary';
 import type { Cycle, Goal, Level, MetricPlan, Review } from './types';
 
@@ -106,6 +106,9 @@ export function readBack(d: GoalDraft, c: ReadBackContext): ReadBack {
   let what: string;
   if (c.state === 'proposed' && measureEmpty(d)) {
     what = MEASURE_UNSAID;
+  } else if (c.state === 'proposed' && baselineOnly(d) && parseNumber(d.start) != null) {
+    // A baseline and nothing else yet (GB): the number it is at, and that the target comes before it is made active.
+    what = `A number at ${num(parseNumber(d.start)!)} now. No target is set yet: set one before it is made active.`;
   } else if (d.kind === 'metric') {
     what = plan
       ? `A number to move: from ${num(plan.start)} in ${weekSays(cy, plan.from, 'sentence')} to ${num(plan.target)} by ${weekSays(cy, plan.to, 'sentence')}, ${handSet(d) ? 'with the weeks’ numbers set by hand' : SHAPE_WORDS[d.shape]}. ${plan.target > plan.start ? 'Higher' : 'Lower'} is better.`
