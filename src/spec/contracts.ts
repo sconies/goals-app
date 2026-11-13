@@ -4,28 +4,29 @@
 import { PREFS_CONTRACT } from '../ports/contracts/cases/prefs';
 import { SEARCH_CONTRACT } from '../ports/contracts/cases/search';
 import { goalsContract } from '../ports/contracts/cases/goals';
+import { STORE_CONTRACT } from '../ports/contracts/cases/store';
 import type { Contract } from '../ports/contracts/cases/format';
 
 /** Every contract written as data, in the order a build is asked to pass them, made with the conformance files (by
-    name: goals.csv, status.csv, flags.csv, workspace.json) the goals contract is made from. The store contract joins
-    when track 4's AX5 part 2 lands. */
-export const contracts = (read: (file: string) => string): Contract[] => [SEARCH_CONTRACT, PREFS_CONTRACT, goalsContract(read)];
+    name: goals.csv, status.csv, flags.csv, workspace.json) the goals contract is made from. */
+export const contracts = (read: (file: string) => string): Contract[] => [SEARCH_CONTRACT, PREFS_CONTRACT, STORE_CONTRACT, goalsContract(read)];
 
 /** What each key of a `then` checks: the words the README gives (cases/format.ts, `Then`, says the same). */
 const THEN_KEYS: [string, string][] = [
-  ['select', 'a path into the answer that the other keys look at: `total`, `rows[0].name`, `rows[].id` (every row’s id), `[].id` when the answer is a list. Inside `all` and `anyOf`, each path starts from the whole answer again.'],
+  ['select', 'a path into the answer that the other keys look at: `total`, `rows[0].name`, `rows[].id` (every row’s id), `[].id` when the answer is a list, `goals[id=g1].title` (the item whose id is `g1`). Inside `all` and `anyOf`, each path starts from the whole answer again.'],
   ['equals', 'equal as JSON: the same keys (a key left out and one holding nothing are the same), the same values, lists in the same order.'],
   ['has', 'at least this: an object’s keys as deep as given (others may be there too), a list’s items one for one.'],
   ['includes', 'a list holding each of these, anywhere in it.'],
   ['excludes', 'a list holding none of these.'],
   ['length', 'a list or text exactly this long.'],
   ['maxLength', 'a list or text no longer than this.'],
+  ['matches', 'text matching this regular expression (JavaScript’s), such as a token’s secret that can’t be known in advance.'],
   ['distinct', 'a list with no item twice.'],
   ['ordered', '`"text"`: A to Z in the language’s own order; `{ "rank": { … } }`: by each item’s rank, highest first, ties in any order (stale and at risk tie, so worst first is checked this way, not by a fixed list).'],
   ['throws', 'the operation refuses: the shim answers `{ "error": … }`, in any words.'],
   ['absent', 'nothing there: the key is left out, or null.'],
   ['all', 'every one of these holds.'],
-  ['anyOf', 'at least one of these holds: where the contract accepts either of two answers (a near miss is optional).'],
+  ['anyOf', 'at least one of these holds: where the contract accepts either of two answers (a near miss is optional). A `throws` among them lets the operation refuse.'],
 ];
 
 const code = (s: string) => `\`${s}\``;
@@ -40,7 +41,7 @@ function readme(CONTRACTS: Contract[]): string {
     '',
     '## A contract file',
     '',
-    'Each `<port>.json` holds `port` (the name the shim is asked by), `about`, `ops` (each operation the shim answers, with its arguments and what it does), `given` (what a case starts from) and `cases`. A case is `{ "name", "given"?, "steps" }`: a sentence saying what any build must do, its own `given` when it doesn’t start from the contract’s, and its steps, each `{ "when": { "op", "args" }, "then" }`. A step with `pages` calls its operation again with the last answer’s `next` put in as `after` (in the argument at `pages.arg`), until `next` is null or `pages.max` calls; `pages.each` is checked on every answer, and `then` on `{ "pages", "rows" }`: how many calls were made, and every page’s rows in order. `pages.between`, when given, is an operation called once after the first page and before the second: something that happens while someone pages, such as a goal added.',
+    'Each `<port>.json` holds `port` (the name the shim is asked by), `about`, `ops` (each operation the shim answers, with its arguments and what it does), `given` (what a case starts from) and `cases`. A case is `{ "name", "given"?, "steps" }`: a sentence saying what any build must do, its own `given` when it doesn’t start from the contract’s, and its steps, each `{ "when": { "op", "args" }, "then" }`. A step with `pages` calls its operation again with the last answer’s `next` put in as `after` (in the argument at `pages.arg`), until `next` is null or `pages.max` calls (`pages.key`, when given, names the option `next` goes in instead of `after`, such as `before`); `pages.each` is checked on every answer, and `then` on `{ "pages", "rows" }`: how many calls were made, and every page’s rows in order (an answer’s `rows`, or the list `pages.rows` names, such as `changes`). `pages.between`, when given, is an operation called once after the first page and before the second: something that happens while someone pages, such as a goal added.',
     '',
     'What a `then` checks (every key given must hold; an empty `then` only asks that the operation doesn’t refuse):',
     '',
@@ -74,8 +75,6 @@ function readme(CONTRACTS: Contract[]): string {
       ...c.cases.map((x) => `1. ${x.name}`),
       '',
     ]),
-    '**Not yet as data:** the goals store’s contract (`storeContract`) is still only in Faro’s code; it moves here when the store’s windowed load and history land.',
-    '',
   ].join('\n');
 }
 

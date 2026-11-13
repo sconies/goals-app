@@ -32,6 +32,8 @@ The track 3 session that built item 0 is at half its context. A fresh track 3 se
 
 ## Planning state, Thursday 12 November, 21:55 UTC (planning session handing over)
 
+**Update, Friday 13 November, 02:10 UTC.** Current sessions (these replace the IDs below): track 1 session_012kbr8zenZxEHT6rv4yLzHG; track 2 session_012kbr8zJcP8xenTkLS4rV4P; track 3 session_012kbr8yuAExZc7Qwjdwi7Ew; track 4 session_012kbr8y3UGvoeUMdAQ8yaJ8; track 6 session_012kbr91nEq272Y9HvKNhm98 (the store contract, the kit's last gap); track 7b session_012kbr92c7taPQJmK4jDJU9E; reviewer session_012kbr8y4Bh3MudNC1bdo3RN. Main has a branch protection rule since 02:05 (a PR, the smoke check, up to date with main; no approvals), so auto-merge works: enable_pr_auto_merge (MERGE) once the gate passes. Lane decided (13 Nov): when a goal's owner changes, its open asks move to the new owner and the asker is told (track 1 builds it). The first download is about 264 of 265 KB.
+
 The planning session session_012kbr939zneZWtAo7UQEHRP is about half full and hands over. Everything below this section still holds; this is what changed since 18:30.
 
 - **Open sessions** (each reports once, when done or blocked):
@@ -52,6 +54,25 @@ The planning session session_012kbr939zneZWtAo7UQEHRP is about half full and han
   3. Backlog AD (#227 medium 3, admin import doors keyed on `via`) waits for a pick.
   4. Optional: build api/mcp.js in CI. Recommended: leave it.
 - **Prompt for the next planning session:** "You are Faro's planning session. Check out main, read CLAUDE.md, the top section of docs/handover.md ('Planning state, Thursday 12 November, 21:55 UTC') and docs/backlog.md. Get your session ID with get_session and send_message every open session listed there: 'Planning has moved to session <ID>. Report there from now on, and send only finished results and blockers.' Then read reports with ReadNotifications; when a track hands over, start a fresh session from its handover prompt; relay the reviewer's findings to the owning track; fix anything that breaks main at once; put Lane's ideas in the backlog; ask Lane the 'Waiting for Lane' items still open, in one batch of multiple-choice questions, recommended answer first. Stay quiet otherwise. Hand over at about half full."
+
+## Track 1, Friday 13 November, 02:00 UTC (session past half, handing over; supersedes the 00:30 entry)
+
+Session: session_012kbr8zenZxEHT6rv4yLzHG. **Merged:** #313 (`fs1-mediums`). #322 (`rv7-gated`: RV7, who may speak for a review; gate fixes: `removal.test.ts` has Rhea speak for a review Rhea is in, `REVIEW-SPEAK` tagged copy; **and the `undoElsewhere` flake, fixed**: test files share workers (`isolate: false`), and `invitation.test.tsx` left the jsdom address at `/join/ws_nope`, so `undoElsewhere` run next in that worker read an invitation to a missing workspace and opened nothing; the invitation test now puts the address back after each test. Reproduce a suspected leak with `npx vitest run <a> <b> --no-file-parallelism`).
+
+| Branch | State | PR |
+|---|---|---|
+| `ck-correct-fixes` | #225's review, main merged in. Gate fixes: MCP's `post_check_in` had no `reason` though its refusal asked for one (added, with a test in `mcp.test.ts`); the check-in walkthrough's number step ended at once on a correction (its verdict shows prefilled), so the verdict carries `data-same` until the number changes and the tour waits for `.verdict:not([data-same])`; U35 fills "Why are you correcting this check-in?"; READABLE-IDS gives `reason`. **Bundle:** main is 264.74 of the 265 KB first download; the branch made it 265.02, so the reason's helpers moved to their own module, correctReason.ts on that branch (out of `checkin.ts`, which `actions.ts` loads first). Second `evals:changed`: U31, U35, READABLE-IDS and every F/N/P check pass; U38, U40, U53 timed out in the run (a build ran under it) and pass alone. **Blocked on the bundle again (02:30):** main grew to 264.76 KB and the branch, merged with it, is 265.06, over 265. Shortening its What's new entry changed nothing; the growth is spread over actions (+103 B), index (+68), removal (+43), state (+34), app (+30), store (+23), home (+20). Find what the branch adds to the first download (build both with `--minify false` and diff), or lazy-load something eager; never raise the budget. CI's smoke fails until then | #326 |
+| `import-formclose` | Planning's regression from #282: Import had no way out on a phone; FormClose "Close without saving" to Data, U72 checks it. Typecheck passes; **unit tests and `evals:changed` not run yet** | #328 |
+
+**Next, in order (planning, 13 Nov 01:49):** merge #328 and #326; then #234's mediums (the 21:40 entry); then the build reviewer's other mediums (the 11 Nov build-reviews file on branch `build-reviews`): #282 `/metrics/new` is in focus mode but `isForm` doesn't count it; #310 on a phone an ask's waiting time is cut off with an ellipsis; #310 an ask's day is read in UTC but today in the viewer's zone ("Asked yesterday" for a recent ask); #310 Home's "late" and MCP's "overdue" disagree, and `get_my_work` gives no waiting time or order; #305 `missedReviews` has no ended-cycle test ("Not held yet" after the year ends); #305 U2's fold fails on 5 of 70 person-days (the check runs only on the default day). **With the #310 mediums, Lane's decision (13 Nov):** when a goal's owner changes, its open asks move to the new owner, who sees them on Home with "Asked of <old owner>, now yours", and the asker is told; answered asks stay. One rule in the domain, used by the app, the import and MCP, with a test and the spec words. Then the habit moment, N12's Find timing, #110's lows, HM1's lows and the lows batch (21:40 entry).
+
+**Habits, learned this session:**
+- The merge helpers (scratchpad, gone with the container): `wn.cjs` rebuilds What's new as main's file with the branch's own entries on top, **and moves an own entry's date up to main's newest** (guide.test fails on an older date above a newer one); `mm.sh` takes main's `api/mcp.js`, `evals/report.md`, `spec`, `llms.txt`; `fin.sh` runs `build:mcp` (`grep -c home/user` 0), `npm run spec`, commits "Merge main [no news]", typechecks.
+- `api/mcp.js` bundles What's new: any edit to it needs `npm run build:mcp` again, or CI's smoke fails.
+- Run `npm test` after every main merge before pushing: a branch can break an older test only once main's tests meet it (RV7 and `removal.test.ts`).
+- The bundle budget is at its edge: check `npx vite build --manifest && node scripts/check-bundle.mjs` on anything that touches `src/domain` or `src/app`; never raise the budget.
+- Don't edit or build in a worktree while an eval runs there.
+- Draft PRs can't be merged: `update_pull_request draft:false` first.
 
 ## Track 1, Friday 13 November, 00:30 UTC (session past half, handing over; supersedes the 12 Nov 21:40 entry)
 
@@ -335,6 +356,27 @@ Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this sessi
 - **Fence check (#125):** Supabase's own tables in extensions, cron and net, open to every role by default, are a warning; a direct grant to `faro_owner` still fails. 0038 is live.
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
+
+## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~02:50 UTC (session at half, handing over; supersedes the 01:10 entry)
+
+Session: session_012kbr8zJcP8xenTkLS4rV4P. Planning is session_012kbr939zneZWtAo7UQEHRP.
+
+| Branch | State | PR |
+|---|---|---|
+| `range-review-fixes` | #300's review (three mediums, the lows) and #293's low. **Merged as #331** at 02:27 UTC by auto-merge | #331 merged |
+| `ge10-home-proposals` | GE10 (F), Home's two proposal rows, plus `screens/savedViews.ts` (useViews/viewParams out of GoalFilters: first download 261.4 of 265 KB, real app 320.4 of 324). Gate passed; ready, **auto-merge on** since 02:49 | #319 |
+
+**Next, in order** (after #319 merges; if it hasn't, read its checks first):
+1. The rest of GE10 (F), one PR each where they're big: Home's lead for a for-you proposal (the Home spec's `ask` rule) and "in {review}" in its line; "Make it proposed again" (`backToProposed` is built, no action); Map and Board with the filter; the metric page's "Proposed · n"; Reviews' "Propose a new goal" and "Last time"; changing the type while proposed; "Stopped" in the State filter; `for-someone-else` for files and tools; what feeds it; the start-year count.
+
+**Habits, learned this session:**
+- Merging: planning's branch rule (02:10). When the gate passes and the PR is ready, call `enable_pr_auto_merge` (MERGE) and move on. If main moves first, merge main in, rebuild `api/mcp.js` and the spec, and push.
+- Measure the budget with `npx vite build --manifest` then `node scripts/check-bundle.mjs`. It has two budgets: the first download (265) and the real app's (324). Both were within 0.1 KB of their limit before #319; #319 frees about 3.6 KB.
+- Find what a chunk holds from a `--sourcemap` build's `.js.map` sources; it is quicker than guessing.
+- Main's full suite is red on F8 ("toast in sheet 390", Export from the View sheet on a phone; issues #330, #332, #338). This is not track 2's. Don't chase it from a feature branch.
+- `src/help/whatsNew.ts` conflicts on every merge of main: keep both entries, ours first.
+
+**Prompt for the next track 2 session:** "You are track 2 of Faro's build (goal entry and set-up). Read CLAUDE.md, then the track 2 section of docs/handover.md ('Track 2 … Friday 13 November, ~02:50 UTC') and do its 'Next' list in order, one PR each. Check #319 first: if it hasn't merged, fix what blocks it. The first download is about 261 of 265 KB (real app 320 of 324): keep anything new lazy; never raise budgets. Track 3 is building IM8 in Onboarding.tsx's upload step: stay out of it. Follow CLAUDE.md's gate (typecheck, npm test, npm run spec, evals:changed, build:mcp from a real node_modules via cp -al, never ln -s). Build in a worktree, send eval runs to a subagent that returns only the scorecard, check mergeable_state, then enable auto-merge (MERGE) once the gate passes. Report to the planning session (session_012kbr939zneZWtAo7UQEHRP, or whichever session tells you planning has moved) once, when done or blocked. At half context, write a handover entry in a PR and send the planning session the next prompt."
 
 ## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~01:10 UTC (session at half, handing over; supersedes the 12 Nov 23:10 entry)
 

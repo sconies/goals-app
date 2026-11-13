@@ -652,6 +652,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `back_on_plan_by_week` | integer | no | With a plan: the week it is back on plan by. |
 | `needs` | string | no | A decision or help needed, and from whom. |
 | `next_step` | string | no | The next step. |
+| `reason` | string | no | If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”. |
 | `answers` | object | no | Answers to the questions (Check) a dry run asked, by the group id it gave: {"<id>": "<choice>"} or {"<id>": {"choice": "choose", "value": "Platform"}}. One answer covers every row in its group. Ask the person; never answer for them. |
 | `dry_run` | boolean | no | Check the change without saving it. Use it to see what would change, or what is missing. |
 
@@ -733,6 +734,10 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
       "type": "string",
       "description": "The next step."
     },
+    "reason": {
+      "type": "string",
+      "description": "If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”."
+    },
     "answers": {
       "type": "object",
       "additionalProperties": {
@@ -780,7 +785,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - ““…” isn’t a status here. Use one of: ….”
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 
@@ -1007,7 +1012,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 - “A range between two numbers needs limit, the upper number, as well as lower.”
@@ -1297,7 +1302,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 - “A range between two numbers needs limit, the upper number, as well as lower.”
@@ -1387,7 +1392,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 
@@ -1546,7 +1551,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 - “Not saved. Must fix:
 …”
-- “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
+- “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 - “… should be a list of rows.”
@@ -5177,7 +5182,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `caveats` | string | no | What to watch out for when reading it. |
 | `confirm` | boolean | no | Yes to changing the unit or direction of a metric goals use, once the person has said so. |
 | `answers` | object | no | The person’s answers to the checks a previous call returned. |
-| `answers.name` | string | no | “keep” (mine is different), or “use:<id>” to use that metric instead (nothing is saved). |
+| `answers.name` | string | no | “keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave. |
 | `answers.unit` | one of `keep`, `use` | no | “keep” the unit as typed, or “use” the one in use. |
 | `answers.meaning` | one of `as-written` | no | “as-written”: the meaning is right as written. |
 
@@ -5258,7 +5263,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
       "properties": {
         "name": {
           "type": "string",
-          "description": "“keep” (mine is different), or “use:<id>” to use that metric instead (nothing is saved)."
+          "description": "“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave."
         },
         "unit": {
           "type": "string",
@@ -5293,8 +5298,13 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 - “There’s no metric called or with the ID …. Use list_metrics.”
 - “There’s no one called … in this workspace. Use list_people.”
+- “Answers are words for name, unit or meaning, from the questions you were asked.”
+- “There’s no question about “…”: answers are for name, unit or meaning.”
+- “The answer for … is one of the words the question offered, such as “keep:<id>”, “use” or “as-written”.”
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
 - “Only … or an admin can change this metric.”
+- “Nothing saved: use that metric instead.”
+- “Answer … first: …”
 
 **Does the same as:** [saveMetric](actions.md#savemetric), so it refuses with their words too.
 

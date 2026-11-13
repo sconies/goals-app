@@ -22,7 +22,7 @@ Faro’s own code builds an index of every check-in the first time it is asked f
 
 ## Each action
 
-Each action of [the command port](../core/actions.md), run once as the person named, with an input picked from the demo (`src/spec/readsSamples.ts`). A refused action shows what it read before it said no, with its words: the demo’s date or records don’t allow it, and it reads more once allowed. **Every record of** names the lists an action read whole: what a server has to narrow first. 22 of 57 actions do today, because the rules that take the whole workspace (`scripts/whole-workspace.json`) look through a list where an index would do. The goal an action names is looked up by its id (`goals … past the rest by id`), which a server does with its key.
+Each action of [the command port](../core/actions.md), run once as the person named, with an input picked from the demo (`src/spec/readsSamples.ts`). A refused action shows what it read before it said no, with its words: the demo’s date or records don’t allow it, and it reads more once allowed. **Every record of** names the lists an action read whole: what a server has to narrow first. 22 of 58 actions do today, because the rules that take the whole workspace (`scripts/whole-workspace.json`) look through a list where an index would do. The goal an action names is looked up by its id (`goals … past the rest by id`), which a server does with its key.
 
 | Action | As | On the demo | Records used (of the list), and what the rest were looked past by | Every record of |
 |---|---|---|---|---|
@@ -30,6 +30,7 @@ Each action of [the command port](../core/actions.md), run once as the person na
 | `postCheckIn` | rhea | saved | `checkIns` 5,249 of 5,249; `goals` 126 of 126; `people` 0 of 97, past the rest by `id`; `requests` 41 of 41; `teams` 0 of 14, past the rest by `id` | `checkIns`, `goals`, `requests` |
 | `saveGoal` | rhea | saved | `checkIns` 5,249 of 5,249; `goals` 17 of 126, past the rest by `id`, `teamId`; `modules.metrics.metricLinks` 1 of 12; `modules.metrics.metrics` 13 of 13; `people` 1 of 97, past the rest by `id`; `teams` 1 of 14, past the rest by `id` | `checkIns`, `modules.metrics.metrics` |
 | `activate` | amara | refused: ““Lead time for changes” is already active.” | `goals` 1 of 126 | — |
+| `backToProposed` | amara | saved | `checkIns` 0 of 5,249, past the rest by `goalId`; `goals` 101 of 126 | — |
 | `stopGoal` | rhea | saved | `checkIns` 1 of 5,249; `goals` 126 of 126; `requests` 41 of 41 | `goals`, `requests` |
 | `deleteGoal` | amara | saved | `checkIns` 0 of 5,249, past the rest by `goalId`; `goals` 126 of 126; `requests` 41 of 41 | `goals`, `requests` |
 | `deleteCheckIn` | rhea | saved | `checkIns` 5,249 of 5,249; `goals` 0 of 126, past the rest by `id`, `ownerId`; `requests` 0 of 41, past the rest by `checkInId` | `checkIns` |
@@ -79,7 +80,7 @@ Each action of [the command port](../core/actions.md), run once as the person na
 | `createToken` | amara | saved | `people` 1 of 97 | — |
 | `revokeToken` | amara | saved | `tokens` 1 of 2 | — |
 | `sendFeedback` | rhea | saved | nothing in the workspace’s lists | — |
-| `saveMetric` | amara | saved | `modules.metrics.metrics` 13 of 13; `people` 1 of 97 | `modules.metrics.metrics` |
+| `saveMetric` | amara | refused: “Answer this question first: This looks like “Remote build cache hit rate” (%, higher is better, owned by Rhea Kapoor, 1 goal).” | `changes` 6,330 of 6,330; `goals` 126 of 126; `modules.metrics.metricLinks` 12 of 12; `modules.metrics.metrics` 13 of 13; `people` 1 of 97, past the rest by `id` | `changes`, `goals`, `modules.metrics.metricLinks`, `modules.metrics.metrics` |
 | `removeMetric` | amara | saved | `modules.metrics.metricLinks` 1 of 12, past the rest by `metricId`; `modules.metrics.metrics` 1 of 13 | — |
 | `linkGoalMetric` | amara | nothing to save | `checkIns` 0 of 5,249, past the rest by `goalId`; `goals` 1 of 126, past the rest by `id`; `modules.metrics.metricLinks` 1 of 12, past the rest by `metricId`; `modules.metrics.metrics` 1 of 13 | — |
 | `unlinkGoalMetric` | amara | saved | `goals` 0 of 126, past the rest by `id`; `modules.metrics.metricLinks` 1 of 12; `modules.metrics.metrics` 1 of 13 | — |

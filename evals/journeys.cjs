@@ -1046,13 +1046,16 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   await h.click(p.getByRole('button', { name: 'Next' }));
   await h.click(p.getByRole('radio', { name: /Goals from your spreadsheet/ }));
   await h.click(p.getByRole('button', { name: 'Next' }));
-  // U4: stages due before the joining week are counted from it, said on Check, with the way to keep them as typed.
-  await see(p, '“Canary releases live” had stages due before it', 'Check doesn’t say the late stages were moved');
-  await h.click(p.getByRole('button', { name: 'Keep the weeks as typed' }));
-  await see(p, 'Kept as typed');
-  await h.click(p.getByRole('button', { name: 'Count them from this week' }));
-  await see(p, 'Counted from this week, week 45');
-  h.set('attention', await p.locator('.setup-stage-weeks').isVisible(), 'Check doesn’t show the stages it moved');
+  // U4, through the import's preview (IM8): stages due before the joining week are asked about, counted from it unless
+  // changed, and "Keep the weeks as typed" is one Change away.
+  const asked = p.locator('.import-answered').filter({ hasText: 'stages due before this week, so it would start late: Count them from this week' });
+  await asked.waitFor({ timeout: 5000 }).catch(() => fail('Check doesn’t say the late stages are counted from this week'));
+  await h.click(asked.getByRole('button', { name: 'Change' }));
+  await h.click(p.getByRole('radio', { name: 'Keep the weeks as typed' }));
+  await see(p, 'would start late: Keep the weeks as typed');
+  await h.click(p.locator('.import-answered').getByRole('button', { name: 'Change' }));
+  await h.click(p.getByRole('radio', { name: 'Count them from this week' }));
+  h.set('attention', await asked.isVisible(), 'Check doesn’t show the stages it moved');
   await h.checkpoint('check');
   await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await see(p, 'Field Operations is ready');
@@ -1103,6 +1106,58 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   await other.close();
   await p.context().close();
 }, ['budget']);
+
+journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first import (U92’s second half): at /?store=browser, set-up with a spreadsheet whose goals name an owner nobody typed ends on the import’s preview, not a dead end: Must fix offers “Add {name}” and “Give it to someone here”, the stage question is already answered “Count them from this week” and can be changed, Create waits for the answers, and nothing is saved before it; afterwards the person added owns their goal and no stage is due before this week', 18, async (h, device) => {
+  const p = h.use(await newPage(device, 'grace'));
+  await p.goto(live('/workspace/new'));
+  await p.locator('.steps').first().waitFor();
+  await h.progressShown('set up');
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Depot Network');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.fill(p.getByLabel('Your name'), 'Ana Silva');
+  await h.fill(p.getByLabel('Your team'), 'Depots');
+  await h.fill(p.getByLabel('Your email'), 'ana.silva@example.com');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.fill(p.getByLabel('Person 1: name'), 'Ben Carter');
+  await h.fill(p.getByLabel('Person 1: email'), 'ben.carter@example.com');
+  await h.inView(p.getByRole('button', { name: 'Upload a spreadsheet' }), 'entry', 'Upload a spreadsheet');
+  // A goals sheet only: its second goal's owner is on no one's list, and its stages began in week 2.
+  const csv = ['Goal,Team,Owner email,Owner,Type,Unit,Start,Target,Stages',
+    'Parcels on time,Depots,ben.carter@example.com,Ben Carter,metric,%,91,97,',
+    'Night shift rota,Depots,nia.okoro@example.com,Nia Okoro,milestone,,,,Draft@2; Agreed@6; Live@50'].join('\n');
+  await p.locator('input[type=file]').first().setInputFiles({ name: 'depots.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await see(p, 'Read depots.csv', 'the upload is not said');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('radio', { name: /Goals from your spreadsheet/ }));
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'From depots.csv', 'Check does not show the spreadsheet’s preview');
+  await see(p, '2 goals and 2 people would be added, once the goal below is settled', 'the preview’s count leaves the goal to fix out');
+  await h.checkpoint('preview');
+  // The preview's Must fix: Nia isn't here; two answers, "Add Nia Okoro" first.
+  const fix = p.locator('.import-group.level-fix').filter({ hasText: 'nia.okoro@example.com' });
+  const answers = await fix.locator('.import-answer').allInnerTexts();
+  h.set('errors', answers.join(' | ') === 'Add Nia Okoro | Give it to someone here', 'the owner nobody typed is answered with: ' + (answers.join(' | ') || 'nothing'));
+  // Create waits for the answer, and says why; nothing is saved.
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
+  h.set('one-action', await p.getByRole('alert').filter({ hasText: 'depots.csv' }).isVisible(), 'Create with a question open does not say why it waits');
+  if (await p.evaluate(() => localStorage.getItem('goals-live-workspace'))) fail('a workspace was saved before Create workspace');
+  await h.click(fix.getByRole('radio', { name: 'Add Nia Okoro' }));
+  await see(p, '2 goals and 3 people would be added', 'adding Nia does not count her');
+  // Her goal's stages, asked once its owner is settled: answered for you, "Count them from this week", with Change.
+  const stages = p.locator('.import-answered').filter({ hasText: 'would start late: Count them from this week' });
+  h.set('attention', await stages.waitFor({ timeout: 5000 }).then(() => true, () => false), 'the stage question is not answered “Count them from this week”');
+  await h.checkpoint('answered');
+  (await designProblems(p)).forEach((x) => fail('set-up’s preview breaks a design rule: ' + x));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
+  await p.waitForURL(/\/ready/);
+  const wsId = await p.evaluate(() => localStorage.getItem('goals-live-workspace'));
+  const s = await h.snapshot(wsId);
+  const rota = s && s.goals.find((g) => g.title === 'Night shift rota');
+  const nia = s && s.people.find((x) => x.email === 'nia.okoro@example.com');
+  h.set('finish', !!rota && !!nia && rota.ownerId === nia.id && nia.teamId === s.teams.find((t) => t.name === 'Depots')?.id, 'Nia does not own the rota in Depots');
+  h.set('logged', !!rota && rota.stages.every((x) => x.dueWeek > NOW), 'a stage starts already due: ' + JSON.stringify(rota?.stages.map((x) => x.dueWeek)));
+  await p.context().close();
+});
 
 journey('U12', ['DEMO-MODE'], 'Demo: switch person, look around, start over', 4, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
@@ -1626,7 +1681,9 @@ journey('U142', ['ONE-PER-WEEK', 'CHANGE-LOG', 'IMPORT-UNDO'], 'Correct this che
   await see(p, 'Undone');
   const s3 = await h.snapshot();
   const back = s3.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW);
-  h.set('logged', back.length === 1 && back[0].value === right, `after Undo week ${NOW} holds ${back.map((c) => c.value).join(', ') || 'nothing'}`);
+  // Undone, the week's row no longer says it was corrected (review of #225, medium 2): it reads as first posted.
+  const stale = await hist.locator('.ci-corrected').first().waitFor({ state: 'detached', timeout: 5000 }).then(() => false, () => true);
+  h.set('logged', back.length === 1 && back[0].value === right && !stale, stale ? 'after Undo, History still says the week was corrected' : `after Undo week ${NOW} holds ${back.map((c) => c.value).join(', ') || 'nothing'}`);
 });
 
 journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days; started then, 2026’s wrap-up stays open', 6, async (h, device) => {
@@ -2424,10 +2481,12 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   const dialog = p.getByRole('dialog', { name: 'Review your changes' });
   await see(dialog, 'Oskar Lindgren', 'the review does not show the person change');
   h.set('errors', !(await dialog.getByText('fixing first').isVisible().catch(() => false)), 'the review found problems with the edits');
+  // Changing a week's check-in corrects it, as the check-in screen does: the review asks why first (#225's review, medium 6).
+  await h.fill(dialog.getByLabel('Why are you correcting this check-in?'), 'The note named the wrong week');
   await h.click(dialog.getByRole('button', { name: /^Save 2 changes/ }));
   await see(p, 'Saved 2 changes', 'saving the tables did not confirm');
   const s = await h.snapshot();
-  h.set('logged', s.people.find((x) => x.id === 'oskar')?.role === 'Staff engineer, DevEx' && s.changes.some((c) => c.entity === 'check-in' && c.actorId === 'grace' && c.diffs.some((d) => d.field === 'Via' && d.to === 'Data tables')), 'the person or the check-in correction was not saved and logged');
+  h.set('logged', s.people.find((x) => x.id === 'oskar')?.role === 'Staff engineer, DevEx' && s.changes.some((c) => c.entity === 'check-in' && c.actorId === 'grace' && c.diffs.some((d) => d.field === 'Via' && d.to === 'Data tables') && c.diffs.some((d) => d.field === 'Why corrected' && d.to === 'The note named the wrong week')), 'the person or the check-in correction was not saved and logged');
   // Someone who isn't an admin can look but not change anything.
   const m = await newPage(device, 'rhea');
   await m.goto(url('/data'));
@@ -3365,7 +3424,7 @@ journey('U72', ['NAV-FORMS'], 'One way out of a form: each focus-mode page has o
   const p = h.use(await newPage(device, 'rhea'));
   const wrong = [];
   const closers = () => p.locator('.focus-top').first().locator('button, a').filter({ hasText: /^Close|^Cancel/ }).or(p.locator('.focus-top').first().locator('.iconbtn[aria-label^="Close"]'));
-  for (const [addr, want] of [['/check-in/ci-docker', 'Close and keep the draft'], ['/reviews/new', 'Close without saving'], ['/reviews/weekly/edit', 'Close without saving'], ['/workspace/new', 'Close and keep the draft'], ['/goals/new', 'Close and keep the draft'], ['/goals/ci-docker/edit', 'Close and keep the draft'], ['/quick-check-in', 'Close and keep the draft']]) {
+  for (const [addr, want] of [['/check-in/ci-docker', 'Close and keep the draft'], ['/reviews/new', 'Close without saving'], ['/reviews/weekly/edit', 'Close without saving'], ['/workspace/new', 'Close and keep the draft'], ['/goals/new', 'Close and keep the draft'], ['/goals/ci-docker/edit', 'Close and keep the draft'], ['/quick-check-in', 'Close and keep the draft'], ['/data/import', 'Close without saving']]) {
     await p.goto(url(addr));
     await p.locator('.focus-top').first().waitFor({ timeout: 8000 }).catch(() => {});
     const n = await closers().count();
@@ -5408,7 +5467,7 @@ journey('U137', ['GOAL-ENTRY-REQUIRED', 'NEW-GOAL-STEPS'], 'Read back before it�
 }, []);
 
 /* GE10: a goal that is proposed, not yet active (goal entry 2.15, rule 14). */
-journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as Tunde, New goal’s last step asks “Is it under way?”; “Not yet: propose it” turns the button to “Propose goal” and the block to “After you propose it”; the goal has a key and a page that says “Proposed” as a word with no status shape; Goals, Mine counts it apart (“· 1 proposed”) and the link lists it; its check-in says there is nothing to check in; a fortnight later it still says “Proposed”. As Oskar its page has comment, ask and watch and “Tunde Bakare or an admin can make this active.” As Tunde, “Make it active” reads back From as this week with the first check-in’s date; after it the page reads “No check-in yet”; Undo returns it to proposed; “Withdraw it” removes it', 40, async (h, device) => {
+journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as Tunde, New goal’s last step asks “Is it under way?”; “Not yet: propose it” turns the button to “Propose goal” and the block to “After you propose it”; the goal has a key and a page that says “Proposed” as a word with no status shape; Goals, Mine counts it apart (“· 1 proposed”) and the link lists it; its check-in says there is nothing to check in; a fortnight later it still says “Proposed”. As Oskar its page has comment, ask and watch and “Tunde Bakare or an admin can make this active.” As Tunde, “Make it active” reads back From as this week with the first check-in’s date; after it the page reads “No check-in yet”; Undo returns it to proposed; made active again, the “…” menu’s “Make it proposed again” asks and returns it to proposed; “Withdraw it” removes it', 40, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));
   const on = (path, day = '2026-11-11') => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
   await p.goto(on('/goals/new'));
@@ -5455,6 +5514,14 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
   await p.goto(on('/goals/' + id, '2026-11-25'));
   await page.waitFor();
   h.set('finish', (await page.locator('.proposed-word').innerText()).trim() === 'Proposed', 'a fortnight later it no longer says Proposed');
+  // Nine weeks after it was proposed, Tunde's Home asks about it once, under Needs your response; Not yet puts it off.
+  const later = new Date(Date.parse(made.proposedAt) + 63 * 86_400_000).toISOString().slice(0, 10);
+  await p.goto(on('/', later));
+  const stale = p.locator('.needs-you [data-proposal="stale"]');
+  await stale.first().waitFor({ timeout: 5000 }).catch(() => fail('nine weeks on, Home has no row for the proposal'));
+  h.set('attention', /“Signed artifacts in staging” has been proposed for 9 weeks\. Make it active, or withdraw it\./.test(await stale.first().innerText()) && await stale.first().getByRole('link', { name: 'Open it' }).isVisible(), 'the stale proposal row reads: ' + (await stale.first().innerText()).replace(/\s+/g, ' '));
+  await stale.first().getByRole('button', { name: 'Not yet' }).click();
+  h.set('attention', (await stale.count()) === 0, '“Not yet” left the proposal row on Home');
   // As Oskar: comment, ask and watch, and who can make it active.
   await p.goto(on('/'));
   await viewAs(p, 'Oskar', h);
@@ -5482,6 +5549,17 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
   await h.click(undo);
   await page.waitFor({ timeout: 8000 }).catch(() => {});
   h.set('errors', await page.isVisible(), 'Undo didn’t return it to proposed');
+  // Made active again, then back: "Make it proposed again" in the "…" menu (no check-ins yet), with its confirm.
+  await h.click(page.getByRole('button', { name: 'Make it active' }).first());
+  await h.click(p.locator('.make-active').getByRole('button', { name: 'Make it active' }));
+  await see(p, 'No check-in yet', 'made active again, the page doesn’t read as a new goal’s');
+  await h.click(p.locator('.goal-bar summary[aria-label="More about this goal"]').first());
+  await h.click(p.getByRole('group', { name: 'More about this goal' }).getByRole('button', { name: 'Make it proposed again' }));
+  await see(p, 'It will have no status and nothing will be due until it is made active.', 'Make it proposed again doesn’t say what happens');
+  await h.click(p.getByRole('button', { name: 'Make it proposed' }));
+  await see(p, 'is proposed again.', 'making it proposed again doesn’t say so');
+  await page.waitFor({ timeout: 8000 }).catch(() => {});
+  h.set('finish', await page.isVisible(), 'Make it proposed again didn’t return it to proposed');
   // Withdraw it: gone, with Undo.
   await h.click(page.getByRole('button', { name: 'Withdraw it' }).first());
   await see(p, 'It goes to Recently removed for 30 days.', 'Withdraw doesn’t say where it goes');

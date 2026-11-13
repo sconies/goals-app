@@ -9,6 +9,7 @@ import * as MEAS from './rulesMeasure';
 import * as DEF from './rulesDefine';
 import * as PARTS from './rulesParts';
 import { checkReads, lineOf } from './reads';
+import * as SAVE from './rulesSave';
 import { goalsOfMetric, libraryReads } from './reads';
 import { CHECK_IN_MOMENT } from '../../spec/conformance';
 import { currentWeek } from '../../domain/plan';
@@ -40,6 +41,7 @@ A **metric** is one number defined once per workspace, so every goal about it me
     { given: 'Oskar adds a metric named “Build time” with no unit or direction.', then: 'refused: Say its unit: %, min, hours, USD, deploys… Say which way is better: higher or lower.', run: () => summaryOf(asPerson('oskar', (x) => MET.saveMetric(x, { name: 'Build time' }).commit)) },
     { given: 'Oskar adds “Build time”, in min, lower is better.', then: 'Added the metric “Build time”', run: () => summaryOf(asPerson('oskar', (x) => MET.saveMetric(x, { name: 'Build time', unit: 'min', direction: 'lower' }).commit)) },
     { given: 'Oskar adds “flaky TEST rate”, in %, lower is better, when “Flaky test rate” is already in the library.', then: 'refused: There’s already a metric called Flaky test rate. Use it, or give this one a different name.', run: () => summaryOf(asPerson('oskar', (x) => MET.saveMetric(x, { name: 'flaky TEST rate', unit: '%', direction: 'lower' }).commit)) },
+    { given: 'Oskar adds “Fláky test rate”, in %, lower is better, when “Flaky test rate” is already in the library.', then: 'refused: There’s already a metric called Flaky test rate. Use it, or give this one a different name.', run: () => summaryOf(asPerson('oskar', (x) => MET.saveMetric(x, { name: 'Fláky test rate', unit: '%', direction: 'lower' }).commit)) },
     { given: 'Oskar changes the caveats of Flaky test rate, which Rhea owns.', then: 'refused: Only Rhea Kapoor or an admin can change this metric.', run: () => summaryOf(asPerson('oskar', (x) => MET.saveMetric(x, { id: 'metric_flaky-rate', caveats: 'Retries hide some.' }).commit)) },
     { given: 'Rhea changes Flaky test rate to 2 decimals.', then: 'Changed the metric “Flaky test rate”', run: () => summaryOf(asPerson('rhea', (x) => MET.saveMetric(x, { id: 'metric_flaky-rate', decimals: 2 }).commit)) },
     { given: 'What measures the lead time north star (ns-lead), and its target in it.', then: 'Lead time for changes, The whole company, target 24', run: () => { const m = MET.measureOf(demo(), goalIn('ns-lead'))!; return `${m.metric.name}, ${m.slice}, ${m.target!.kind} ${m.target!.value}`; } },
@@ -133,7 +135,7 @@ rules.push({
   id: 'metric-care',
   title: 'Looking after metrics',
   summary: 'A name close to one already in the library (rule 4), and what an admin is told on Workspace → About.',
-  code: [{ file: 'src/modules/metrics/rulesLibrary.ts', names: ['closeNames', 'nameWords', 'closeNameWords'] }, { file: 'src/modules/metrics/rules.ts', names: ['ownerName', 'ownerlessMetrics'] }, { file: 'src/modules/metrics/finder.ts', names: ['metricsToSortOut'] }],
+  code: [{ file: 'src/modules/metrics/names.ts', names: ['closeNames', 'nameWords'] }, { file: 'src/modules/metrics/rulesLibrary.ts', names: ['closeNameWords'] }, { file: 'src/modules/metrics/rules.ts', names: ['ownerName', 'ownerlessMetrics'] }, { file: 'src/modules/metrics/finder.ts', names: ['metricsToSortOut'] }],
   tests: ['src/modules/metrics/rulesCare.test.ts'],
   reqs: ['METRICS-CARE'],
   body: `
@@ -155,7 +157,7 @@ rules.push({
   id: 'metric-defined',
   title: 'Defining a metric well',
   summary: 'What a metric still needs to say, in words and never as a score (rule 6), and the three questions adding or changing one may ask before it is saved: a close name, a unit spelt another way, a percentage that doesn’t say out of what.',
-  code: [{ file: 'src/modules/metrics/edits.ts', names: ['editsBetween'] }, { file: 'src/modules/metrics/rulesDefine.ts', names: ['stillToSay', 'nameChecks', 'formerNames', 'unitChecks', 'meaningChecks', 'metricChecks', 'unansweredChecks', 'countLine'] }, { file: 'src/modules/metrics/reads.ts', names: ['checkReads', 'lineOf'] }],
+  code: [{ file: 'src/modules/metrics/edits.ts', names: ['editsBetween'] }, { file: 'src/modules/metrics/rulesDefine.ts', names: ['stillToSay', 'nameChecks', 'formerNames', 'unitChecks', 'meaningChecks', 'metricChecks', 'unansweredChecks', 'answersFrom', 'countLine'] }, { file: 'src/modules/metrics/reads.ts', names: ['lineOf'] }, { file: 'src/modules/metrics/checkReads.ts', names: ['checkReads'] }, { file: 'src/modules/metrics/rulesSave.ts', names: ['openChecks', 'saveMetricAsked'] }],
   tests: ['src/modules/metrics/rulesDefine.test.ts', 'src/modules/metrics/tools.test.ts'],
   reqs: ['METRIC-DEFINED'],
   body: `
@@ -190,6 +192,7 @@ A metric is **usable** with three things: a name, a unit and which way is better
     { given: '“Deploy success rate”, in %: “Deploys that worked.”', then: 'out-of-what', run: () => DEF.meaningChecks({ name: 'Deploy success rate', unit: '%', meaning: 'Deploys that worked.' }) ?? 'nothing' },
     { given: 'Any metric in % with no meaning.', then: 'nothing', run: () => DEF.meaningChecks({ name: 'Anything', unit: '%', meaning: '' }) ?? 'nothing' },
     { given: 'Rhea adds “Flaky tests rate”, %, no direction, meaning “Flakes seen.”: the foot of the form.', then: '1 to fix, 2 to check.', run: () => { const next = { id: '', name: 'Flaky tests rate', unit: '%', meaning: 'Flakes seen.' }; return DEF.countLine(1, DEF.metricChecks(next, null, checkReads(demo())).length); } },
+    { given: 'Oskar adds “Flaky tests rate”, %, lower is better, meaning “Flakes seen.”, from a goal’s Measured by, answering nothing.', then: 'refused: Answer these questions first: This is one letter from “Flaky test rate” (%, lower is better, owned by Rhea Kapoor, 1 goal). This is a percentage, and the words don’t say out of what. For example: “production deploys with no rollback or hotfix, out of all production deploys, over 28 days”.', run: () => summaryOf(asPerson('oskar', (x) => SAVE.saveMetricAsked(x, { name: 'Flaky tests rate', unit: '%', direction: 'lower', meaning: 'Flakes seen.' }).commit)) },
   ],
   unclear: ['Two close names are both found, but the form and save_metric ask about the closest one only.', 'The weekly rhythm is assumed for the form’s refresh hint until a workspace can choose its rhythm (FT1).'],
 });
