@@ -1,6 +1,7 @@
 /* Reads (docs/design/architecture.md, 4.4: AR4): the one place that turns the loaded workspace into what each rule
    reads. New rules in src/domain take only these rows, never the whole workspace (the layers lint checks it), so the
    internal app can hand them the same shapes from its query port instead of a loaded workspace. */
+import { rhythmOf } from '../domain/thresholds';
 import type { GoalRows, PersonRows, TeamRows } from '../domain/find';
 import { creatorOf, type DayOneRows } from '../domain/dayOne';
 import { summariseAll } from '../domain/summary';
@@ -122,7 +123,7 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   return {
     today: day, week, lastWeek: cycle.weeks, cycleName: cycle.name, workspace: opts.workspace,
     starts: start ? { on: start.firstDay, firstDue: start.firstDue } : null, ended: ended && !(wrapOpen && mine.some((g) => !s.retros.some((r) => r.goalId === g.id))),
-    rhythm: { dueDate, nextDueDate: week < cycle.weeks ? reviewDate(cycle, Math.max(1, week) + 1) : null },
+    rhythm: rhythmOf(cycle) ? { dueDate, nextDueDate: week < cycle.weeks ? reviewDate(cycle, Math.max(1, week) + 1) : null } : null,
     checkIns: {
       total: p.goals.length, done: p.done.length,
       due: p.due.map((g) => ({ id: g.id, title: g.title, number: g.kind !== 'milestone' })), draft: opts.draft,
@@ -130,6 +131,7 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
       streak: mine.length ? onTimeStreak(viewerId, s, cycle, week) : null,
       completedToday: allIn && thisWeek.some((c) => c.postedAt.slice(0, 10) === day),
       after: receipt.after, forgiven: receipt.forgiven, hasReview,
+      ...(rhythmOf(cycle) ? {} : { never: p.goals.filter((g) => !s.checkIns.some((c) => c.goalId === g.id)).map((g) => ({ id: g.id, title: g.title })) }),
     },
     wrap: wrapUpOpenOn(wc, today) ? { name: wc.name, ends: cycleDates(wc).lastDay, ended: hasEnded(wc, today), left: wrapMine.filter((g) => !ws.retros.some((r) => r.goalId === g.id)).map((g) => ({ id: g.id, title: g.title })), total: wrapMine.length } : null,
     sessions,
