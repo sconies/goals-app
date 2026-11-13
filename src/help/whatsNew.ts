@@ -34,6 +34,41 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['any-device', 'home'],
   },
   {
+    id: 'asks-say-how-long',
+    date: '2026-11-12',
+    title: 'Asks say how long they have waited',
+    points: [
+      'Each ask on Home says how long it has waited, or when it is due, and a late one says so first with the warning mark.',
+      'A question raised in a review is due before the next session after the one it was raised in, and stays due then.',
+      'The oldest or most pressing ask can be Home’s one main action when nothing comes before it.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'home-after-review',
+    date: '2026-11-12',
+    title: 'Home says what waits, and keeps every review',
+    points: [
+      'While an ask waits for your response, Home no longer says nothing is asked of you.',
+      'On a phone, the lead’s line and the quiet line wrap instead of being cut short.',
+      'Two reviews on one day both show on Home, and once the year has ended no review is said to be not held.',
+      'Admins see again when the year is ending, with Start for the next one.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'forms-close-in-words',
+    date: '2026-11-12',
+    title: 'Every form closes in words, and Back finds your list',
+    points: [
+      'Editing a goal, New goal and the one-table check-in now close with “Close and keep the draft”, top right, as the other forms do.',
+      'A goal opened from a saved view says “Back to” the view’s name.',
+      'From Check-in’s list, Back comes back to the list. “Start with…” walks only what is still due, and its count is the list’s.',
+      'Page not found has a Find field, so you can look for what you meant.',
+    ],
+    articles: ['getting-around', 'check-in'],
+  },
+  {
     id: 'range-between',
     date: '2026-11-12',
     title: 'Keep a number between two others',
