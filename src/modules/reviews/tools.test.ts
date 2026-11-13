@@ -33,7 +33,7 @@ async function setup(personId: string, modulesOff: string[] = []) {
   return { call, data: () => data };
 }
 
-const OFF = (tool: string) => `Reviews is switched off in Platform Engineering, so ${tool} can't be used there. An admin can switch it on in Workspace, under Features.`;
+const OFF = (tool: string) => `Reviews is switched off in Platform Engineering, so ${tool} can’t be used there. An admin can switch it on in Workspace, under Features.`;
 
 describe('Reviews’ tools', () => {
   it('work while Reviews is on', async () => {

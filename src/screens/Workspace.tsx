@@ -33,6 +33,7 @@ import { movedTo } from '../domain/directory';
 import { WORKSPACE_MEANS } from '../domain/vocabulary';
 import { reviewsOn } from '../app/reads';
 import { switchOffLines, switchOffReadBack } from '../domain/reviewsOff';
+import { dueWords } from '../domain/progress';
 import { asksOf } from '../domain/asks';
 
 /** Below this width, Workspace is About and then its other sections as a list, one section at a time (a phone). */
@@ -592,7 +593,7 @@ function Features() {
 function ReviewsOffSheet({ onClose, onSwitch }: { onClose: () => void; onSwitch: () => void }) {
   const app = useApp();
   const ws = workspaceName(app.ws, app.mode).name;
-  const r = switchOffReadBack({ people: app.snapshot.people, reviews: app.snapshot.reviews, changes: app.snapshot.changes, asks: asksOf(app.snapshot) });
+  const r = switchOffReadBack({ people: app.snapshot.people, reviews: app.snapshot.reviews, changes: app.snapshot.changes, asks: asksOf(app.snapshot), decisions: app.snapshot.decisions, goals: app.snapshot.goals, dueDay: dueWords(false, app.cycle, app.week).day });
   return (
     <Sheet open onClose={onClose} title={`Switch off Reviews in ${ws}?`}>
       <div className="stack readback" style={{ gap: 'var(--s3)' }}>

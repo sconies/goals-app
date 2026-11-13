@@ -2,6 +2,7 @@
    wrap-ups and the next cycle, saved views, tokens and feedback, plus what needs them and the activity log. Each write
    is a shared action (domain/actions.ts), so the assistant meets exactly the rules the person does in the app, and every
    change it makes is logged as that person, via MCP. Check-ins, goals and plans are in tools.ts. */
+import { moduleOffSentence } from './moduleOff';
 import { MODULE_RECORDS } from '../core/records';
 import { levelIds } from '../domain/levels';
 import type { Commit } from '../data/store';
@@ -21,7 +22,7 @@ export const said = (k: DisplayStatus) => withCode(STATUS[k]);
 /** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
 import { ASK_KIND_LABEL, askText, asksOf, canAnswer, canMarkDone, isOverdue, openForPerson, openUpdateAsk } from '../domain/asks';
 import { reviewSession, watchedGoals } from '../domain/review';
-import { receiptFacts, receiptText, reviewOnDueDay, weekCompletion, weekProgress } from '../domain/progress';
+import { receiptFacts, receiptText, weekCompletion, weekProgress } from '../domain/progress';
 import { workbook } from '../domain/export';
 import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { findGoal, isKey } from '../domain/goalKey';
@@ -34,7 +35,7 @@ import { startPage, startPageText } from '../domain/startYear';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 import { listed } from './listed';
 import { MODULES, modulesOn } from '../core/registry';
-import { reviewsOn } from '../app/reads';
+import { dueWordsHere, reviewsOn } from '../app/reads';
 import { RULE_PAGES, systemOverview } from '../spec/overview';
 import { VIA_MCP } from '../domain/via';
 
@@ -107,7 +108,7 @@ export const lines = (l: string[], none: string) => (l.length ? l.join('\n') : n
 
 /** A data table's sheet, from the same workbook the Data screen and the exports use. */
 /** A Data table's sheet of the workbook, for this context (the spreadsheets module's export_table reads it too). */
-export const sheetOf = (ctx: McpContext, t: DataTable) => workbook({ ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today }).find((x) => x.name === TABLES[t].sheet)!;
+export const sheetOf = (ctx: McpContext, t: DataTable) => workbook({ ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, reviews: reviewsOn(modulesOn(ctx.ws).on) }).find((x) => x.name === TABLES[t].sheet)!;
 const headOf = (ctx: McpContext, t: DataTable) => (sheetOf(ctx, t).rows[0] ?? []).map((c) => String(c ?? ''));
 /** A table layout from a tool's arguments: a saved table view by name, or a table with columns, widths and a query. */
 export function layoutFrom(ctx: McpContext, a: Record<string, unknown>): TableLayout {
@@ -127,7 +128,7 @@ export function layoutFrom(ctx: McpContext, a: Record<string, unknown>): TableLa
 }
 
 /** What a switched-off module's tool answers (callTool's sentence), for a core tool that is partly Reviews' (FT2). */
-const offSentence = (ctx: McpContext, tool: string) => `Reviews is switched off in ${ctx.ws.name}, so ${tool} can't be used there. An admin can switch it on in Workspace, under Features.`;
+const offSentence = (ctx: McpContext, tool: string) => moduleOffSentence('Reviews', ctx.ws.name, tool);
 
 /** A sentence as part of a longer line: without its closing full stop, so the line never ends in two. */
 const clause = (t: string) => t.trim().replace(/\.+$/, '');
@@ -187,7 +188,7 @@ export const WORK_TOOLS: ToolDef[] = [
       // The strip at the top of Home: their goals by status, their on-time streak, what they watch, their next review.
       const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today, { reviews: reviewsHere });
       const wp = weekProgress(me, s, ctx.cycle, ctx.week, ctx.today);
-      const rf = weekCompletion(wp).complete ? receiptFacts(wp, me, s, ctx.cycle, ctx.week, reviewOnDueDay(s.reviews, me, ctx.cycle, reviewsHere, Math.max(1, ctx.week))) : null;
+      const rf = weekCompletion(wp).complete ? receiptFacts(wp, me, s, ctx.cycle, ctx.week, dueWordsHere(reviewsHere, s, ctx.cycle, ctx.week, me)) : null;
       const weekReceipt = rf ? { ...receiptText({ ...rf, nextDue: rf.nextDue ? longDay(rf.nextDue) : null }), forgivenWeek: rf.forgiven, forgivenWeekWas: rf.forgiven == null ? null : rf.forgivenMissed ? 'missed' : 'late' } : null;
       const glance = {
         goals: { whose: d.scope, total: d.total, byStatus: d.counts.map((c) => ({ status: c.status, statusLabel: LABEL[c.status], n: c.n })) },

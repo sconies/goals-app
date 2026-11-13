@@ -181,7 +181,8 @@ export class BrowserStore implements ExampleStore {
     // …and the feature modules switched off there.
     const mods = this.modulesOff();
     const withSwitch = (w: Workspace): Workspace => {
-      const m = mods[w.id] ?? [];
+      // The example starts from its own switches (an eval build's FARO_MODULES_OFF), until changed here.
+      const m = mods[w.id] ?? w.modulesOff ?? [];
       return { ...w, ...(off.includes(w.id) ? { recording: false } : {}), ...(m.length ? { modulesOff: m } : {}) };
     };
     return (this.hasExample ? [names[EXAMPLE.id] ? { ...EXAMPLE, name: names[EXAMPLE.id]! } : EXAMPLE, ...own] : own).map(withSwitch);
@@ -201,7 +202,8 @@ export class BrowserStore implements ExampleStore {
   private modulesOff(): Record<string, string[]> { return this.get<Record<string, string[]>>(this.key + ':modules-off') ?? this.modsMemory; }
   private setModulesOff(id: string, off: string[]) {
     this.modsMemory = { ...this.modulesOff(), [id]: off };
-    if (!off.length) delete this.modsMemory[id];
+    // Every module back on is kept as [] where the example starts with some off, so it isn't read as the start again.
+    if (!off.length && !(id === EXAMPLE.id && EXAMPLE.modulesOff?.length)) delete this.modsMemory[id];
     this.put(this.key + ':modules-off', this.modsMemory);
   }
 

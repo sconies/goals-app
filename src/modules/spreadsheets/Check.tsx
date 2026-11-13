@@ -7,7 +7,7 @@ import { Link, Navigate, useNavigate } from 'react-router';
 import { useApp } from '../../app/state';
 import { saveAndSay } from '../../app/files';
 import { readChanges } from '../../app/spreadsheet';
-import { sheetsOn } from '../../core/records';
+import { exportOn } from '../../core/records';
 import { describe, sheetCounts, type ChangeSet } from '../../domain/changeset';
 import { workbook } from '../../domain/export';
 import { leaveOut } from '../../domain/leaveOut';
@@ -77,6 +77,8 @@ export function choosePaste(text: string, onProblem: (text: string) => void): bo
 
 export function Check() {
   const app = useApp();
+  // With Reviews off (RS, spec 5) the Notes sheet and a Review column on Asks are not read, and the file line says so once.
+  const lineOpts = exportOn(app.ws).reviews ? {} : { reviewsOff: app.ws.name };
   const nav = useNavigate();
   const plan = useImportPlan();
   const { st, base, left, otherWorkspace, toSave, run, tables } = plan;
@@ -104,7 +106,7 @@ export function Check() {
       <div className="page narrow import-check">
         <CheckClose />
         <div className="page-head"><h1 className="title-xl">Check this import</h1><span className="hint">Nothing has been saved.</span></div>
-        <p className="small">{st.name} · {readLine(read)}</p>
+        <p className="small">{st.name} · {readLine(read, 0, lineOpts)}</p>
         <div className="level-block level-check" role="group" aria-labelledby="other-ws">
           <span className="level-head"><WarnMark /><span className="level-word">Check</span></span>
           <strong id="other-ws" className="level-q">This file was exported from {from}, not from {app.ws.name}. Its keys and IDs belong there.</strong>
@@ -183,7 +185,7 @@ export function Check() {
         <span className="hint">{saving ? SAVING : 'Nothing has been saved.'}</span>
       </div>
 
-      <p className="small import-file-line"><span className="strong">{st.name}</span> · {[readLine(read, cs.examples), headerRowsLine(read)].filter(Boolean).join(' ')}</p>
+      <p className="small import-file-line"><span className="strong">{st.name}</span> · {[readLine(read, cs.examples, lineOpts), headerRowsLine(read)].filter(Boolean).join(' ')}</p>
       {st.carried > 0 && <p className="small">Your {n(st.carried, 'answer')} still {st.carried === 1 ? 'applies' : 'apply'}.</p>}
       {problem && <p className="hint tone-off" role="alert">{problem}</p>}
 
@@ -272,7 +274,7 @@ function Counts({ cs, base, read }: { cs: ChangeSet; base: Tables; read: { name:
 /** "Nothing would change" (2.3), with the worked-out cells that differ from today's, when there are any. */
 function Nothing({ cs, base, names }: { cs: ChangeSet; base: Tables; names: Partial<Record<keyof Tables, string>> }) {
   const app = useApp();
-  const edits = useMemo(() => workedOutEdits(base, workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, sheets: sheetsOn(app.ws) }), names), [base, app, names]);
+  const edits = useMemo(() => workedOutEdits(base, workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, ...exportOn(app.ws) }), names), [base, app, names]);
   const rows = edits.reduce((k, e) => k + e.rows.length, 0);
   const cols = [...new Set(edits.flatMap((e) => e.columns))];
   return (

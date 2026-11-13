@@ -14,7 +14,7 @@ import { forecastText } from '../domain/tree';
 import { currentWeek, weekDates } from '../domain/plan';
 import { fmt, gapText, staysText, targetText, weekLabel } from '../domain/format';
 import { isEveryday, levelName } from '../domain/levels';
-import { daysToReview, receiptFacts, receiptText, reviewOnDueDay, weekCompletion, weekDoneText, weekProgress } from '../domain/progress';
+import { receiptFacts, receiptText, weekCompletion, weekDoneText, weekProgress } from '../domain/progress';
 import { longDay } from '../domain/home';
 import { moment, momentText, type Moment } from '../domain/habit';
 import type { CheckIn, Goal, Ask, MilestoneGoal, Status, RecoveryState } from '../domain/types';
@@ -32,7 +32,7 @@ import { NO_REASON, resumeWalk, type KeptWalk } from '../domain/checkin';
 import { LABEL as STATUS_WORD, STAGE } from '../domain/vocabulary';
 import { RULES } from '../domain/thresholds';
 import { useModules } from '../core/app';
-import { reviewsOn } from '../app/reads';
+import { dueWordsHere, reviewsOn } from '../app/reads';
 
 /**
  * Check-in. /check-in is the week's list (CheckInQueue, NV3); /check-in?start=1 is the focused walk through every due
@@ -224,13 +224,14 @@ function TablePosted({ posted, kept }: FromTable) {
   );
 }
 
-/** The week's receipt (habit spec 2.1; HB1): whether every check-in was in before the review, and the run. The heading
+/** The week's receipt (habit spec 2.1; HB1): whether every check-in was in by the deadline (dueWords), and the run. The heading
     above it is unchanged. Never says a run was lost. */
 function Receipt() {
   const app = useApp();
-  // The due day is named as a review only for someone in a review held that day, while Reviews is on (T4, FT2).
-  const hasReview = reviewOnDueDay(app.snapshot.reviews, app.viewer.id, app.cycle, reviewsOn(useModules().on), Math.max(1, app.week));
-  const f = receiptFacts(weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today), app.viewer.id, app.snapshot, app.cycle, app.week, hasReview);
+  // The deadline in dueWords' words (RS1): "before Thursday’s review" only for someone in a review held that day while
+  // Reviews is on (T4, FT2); otherwise "by Thursday".
+  const words = dueWordsHere(reviewsOn(useModules().on), app.snapshot, app.cycle, app.week, app.viewer.id);
+  const f = receiptFacts(weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today), app.viewer.id, app.snapshot, app.cycle, app.week, words);
   const r = receiptText({ ...f, nextDue: f.nextDue ? longDay(f.nextDue) : null });
   return (
     <div className="ci-receipt">
@@ -265,7 +266,6 @@ function Posted({ goal, c, updated, fixing, left, nextTitle, onNext }: { goal: G
   const btn = useRef<HTMLButtonElement & HTMLAnchorElement>(null);
   useEffect(() => btn.current?.focus(), []);
   const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
-  const late = daysToReview(app.cycle, app.week, app.today) < 0;
   // Rule 3: a target reached, or back on track. Never on a correction or a second check-in in the same week.
   const m = moment(app.checkInsOf(goal).filter((x) => x.id !== c.id), c, goal, !fixing && !updated);
   return (
@@ -275,7 +275,7 @@ function Posted({ goal, c, updated, fixing, left, nextTitle, onNext }: { goal: G
       <p className="muted">{goal.title}{goal.kind !== 'milestone' && c.value != null ? `: ${fmt(c.value, goal)}` : ''}. Its status <span className="nobr">is <Chip k={c.status} /></span></p>
       {c.pathToGreen?.needs && <p className="small">Asked for: {c.pathToGreen.needs}. It shows on the goal and on their Home.</p>}
       {m && <MomentPanel m={m} goal={goal} c={c} />}
-      {!left && p.goals.length > 0 && (weekCompletion(p).complete ? <Receipt /> : <p className="muted ci-week-done">{weekDoneText(p, app.week, late)}</p>)}
+      {!left && p.goals.length > 0 && (weekCompletion(p).complete ? <Receipt /> : <p className="muted ci-week-done">{weekDoneText(p, app.week)}</p>)}
       <div className="row done-actions">
         {left
           ? <button ref={btn} className="btn primary big-btn" onClick={onNext}>Next: {nextTitle}</button>
