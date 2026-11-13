@@ -6,6 +6,7 @@
    What feeds it opens with how the goals feeding it stand; and every section says in one line what it answers.
    The words come from the domain (domain/goalPage and the modules it asks); this file lays them out. */
 import { rhythmOf } from '../domain/thresholds';
+import { canAskUpdate } from '../domain/rhythm';
 import { Place, useModules } from '../core/app';
 import { reviewsOn } from '../app/reads';
 import { MODULE_RECORDS } from '../core/records';
@@ -34,7 +35,7 @@ import { goalsIn, watchOf, watchScope } from '../domain/review';
 import { NextStepSheet } from '../ui/NextStepSheet';
 import {
   askedOf, asksOnGoal, commentReach, goalHistory, HISTORY_FILTERS, HISTORY_LABEL, barFigures, feedingOrder, feedsLine, lastTalked, pathCheck, planFor, postedLine,
-  canAskUpdate, primaryAction, sameReasonText, sinceLooked, standingAction, stepsAndAsks, updatedLine, whyLine, whyPointer,
+  primaryAction, sameReasonText, sinceLooked, standingAction, stepsAndAsks, updatedLine, whyLine, whyPointer,
   type AskedItem, type HistoryEntry, type HistoryFilter, type StepRow, type StepsAndAsks, type StreamItem,
 } from '../domain/goalPage';
 import type { CheckIn, DisplayStatus, Goal, MetricGoal } from '../domain/types';

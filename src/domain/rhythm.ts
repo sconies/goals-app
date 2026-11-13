@@ -9,7 +9,7 @@ import { NotAllowed, type ActionContext } from './actions';
 import { cycleState } from './cycle';
 import type { Commit } from './commit';
 import { rhythmOf, staleAfterDays } from './thresholds';
-import type { CheckIn, Cycle, DisplayStatus, Goal } from './types';
+import type { CheckIn, Cycle, DisplayStatus, Goal, Person } from './types';
 import { LABEL } from './vocabulary';
 import { STATUS_OPTIONS, type QStatus } from './query';
 
@@ -168,3 +168,13 @@ export function setRhythm(x: ActionContext, cycle: Cycle, to: { weeks: number; d
 export const statusOptions = (cycle: Cycle): [QStatus, string][] => (rhythmOf(cycle) ? STATUS_OPTIONS : STATUS_OPTIONS.filter(([k]) => k !== 'stale'));
 /** What the filter line says when a link asks for No recent update and there is no set rhythm (FT1, spec 2.6). */
 export const NO_STALE_HERE = 'No recent update isn’t used here: there is no set check-in rhythm.';
+
+/**
+ * Whether the viewer may ask the owner for an update (FT1, spec 2.5): not the owner, the goal live, its latest check-in
+ * not this week's, and no update ask open. With a rhythm the page offers it as the primary action once the goal has no
+ * recent update; with no set rhythm, as an ordinary button whenever this says yes. Here, not in goalPage.ts, so the
+ * first download doesn't carry it.
+ */
+export function canAskUpdate(o: { goal: Goal; viewer: Pick<Person, 'id'>; status: DisplayStatus; latestWeek: number | null; week: number; updateAsked: boolean }): boolean {
+  return o.viewer.id !== o.goal.ownerId && !o.goal.stoppedAt && !o.goal.proposedAt && o.status !== 'done' && o.latestWeek !== o.week && !o.updateAsked;
+}

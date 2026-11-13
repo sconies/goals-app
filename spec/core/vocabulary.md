@@ -170,4 +170,4 @@ Group `rhythm`.
 
 | Code | Word | Meaning | Rule | Where |
 |---|---|---|---|---|
-| `asOf` | as of week {n} | With no set check-in rhythm a goal keeps the status its latest check-in gave, however old. Beside it, “as of week 44” says which week that was. | `status#goalStatus` | screens, help, ai |
+| `asOf` | as of week {n} | The week a status is from, said when it isn’t this week’s and there is no set check-in rhythm. | `status#goalStatus` | screens, exports, help, ai |

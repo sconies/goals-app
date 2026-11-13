@@ -419,9 +419,8 @@ export const WORKSPACE_MEANS = 'A workspace is one organisation’s goals and th
 /* ---------- the check-in rhythm ---------- */
 
 /** Said beside a status with no set check-in rhythm (FT1, spec 2.7); `{n}` is the week. */
-export const RHYTHM = {
-  asOf: term('asOf', { label: 'as of week {n}', short: 'the week a status is from', meaning: 'The week a goal’s status and numbers are from, said when it isn’t this week and there is no set check-in rhythm.', long: 'With no set check-in rhythm a goal keeps the status its latest check-in gave, however old. Beside it, “as of week 44” says which week that was.', rule: 'status#goalStatus', where: ['screens', 'help', 'ai'] }),
-};
+const AS_OF = 'The week a status is from, said when it isn’t this week’s and there is no set check-in rhythm.';
+export const RHYTHM = { asOf: term('asOf', { label: 'as of week {n}', short: 'the week a status is from', meaning: AS_OF, long: AS_OF, rule: 'status#goalStatus' }) };
 
 /* ---------- every group, and helpers ---------- */
 

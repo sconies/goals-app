@@ -156,15 +156,6 @@ export function primaryAction(o: {
   return { kind: null, label: '', targetId: null };
 }
 
-/**
- * Whether the viewer may ask the owner for an update (FT1, spec 2.5): not the owner, the goal live, its latest check-in
- * not this week's, and no update ask open. With a rhythm the page offers it as the primary action once the goal has no
- * recent update; with no set rhythm, as an ordinary button whenever this says yes.
- */
-export function canAskUpdate(o: { goal: Goal; viewer: Person; status: DisplayStatus; latestWeek: number | null; week: number; updateAsked: boolean }): boolean {
-  return o.viewer.id !== o.goal.ownerId && !o.goal.stoppedAt && !o.goal.proposedAt && o.status !== 'done' && o.latestWeek !== o.week && !o.updateAsked;
-}
-
 /** The plain button beside the primary one: the owner's "Check in again", or anyone else's "Watch" / "Watching". With no
     set rhythm and no check-in this week, the owner's is "Check in for week {n}" (FT1): an ordinary button, nothing due. */
 export type StandingKind = 'check-in-again' | 'watch' | 'watching' | null;
