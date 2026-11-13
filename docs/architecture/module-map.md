@@ -48,7 +48,7 @@ The core is everything outside `src/modules`. It cannot be switched off because 
 
 **Core, and staying core** (architecture readiness review, 11 November): the goal map, markup and the scorecard were looked at and left. The map and the scorecard read core records only; markup lives mostly in one folder and may move when something needs it to.
 
-Of the features in the core today, these are **distinct but not yet switchable**, because their switch is designed and not built (FT2, SW1, SW2): reviews, Watching, AI access, Feedback, the goal map, the wrap-up's own screens. Until their switch ships, each needs the sentence in its spec saying why it cannot be switched off — see fix item F1.
+Of the features in the core today, these are **distinct but not yet switchable**, because their switch is designed and not built (SW1, SW2): Watching, AI access, Feedback, the goal map, the wrap-up's own screens. Until their switch ships, each needs the sentence in its spec saying why it cannot be switched off — see fix item F1.
 
 ## 2. The modules
 
