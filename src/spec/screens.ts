@@ -43,6 +43,7 @@ export const OTHER_VIEWS: OtherView[] = [
   { name: 'Goals: changing several at once', file: 'src/screens/BulkEdit.tsx', where: 'On the table, once goals are ticked.', help: 'goals', mainAction: 'Change the ticked goals’ owner or level, or watch them, checked and shown before it’s saved.' },
   { name: 'Goals: the board', file: 'src/screens/GoalBoard.tsx', where: '/goals?view=board', help: 'goals', mainAction: 'Read the goals grouped in columns by status, and open one.' },
   { name: 'Goals: the map', file: 'src/screens/GoalMap.tsx', where: '/goals?view=map', help: 'goal-map', mainAction: 'Follow how goals roll up to the ones above them, and open one.' },
+  { name: 'Goals: stopped goals', file: 'src/screens/StoppedList.tsx', where: '/goals?state=stopped (the State filter)', help: 'goals', mainAction: 'Read the goals stopped this year in the scope, most recently stopped first, with who stopped each, when and why, and open one.' },
   { name: 'Goals: proposed goals', file: 'src/screens/ProposedList.tsx', where: '/goals?state=proposed (the count line’s “· {n} proposed”, or the State filter)', help: 'goal-proposed', mainAction: 'Read the proposed goals in the scope, newest first, with what each would measure, and open one.' },
   { name: 'A proposed goal’s page', file: 'src/screens/ProposedGoal.tsx', where: '/goals/:goalId, for a goal that is proposed, not yet active', help: 'goal-proposed', mainAction: 'For its owner or an admin, Make it active (or Finish it, when something is missing); for anyone else, comment, ask or watch.' },
   { name: 'Goals: history', file: 'src/screens/GoalHistory.tsx', where: '/goals?view=history', help: 'history', mainAction: 'Read each goal’s status week by week, and open one.' },
@@ -55,7 +56,7 @@ export const OTHER_VIEWS: OtherView[] = [
   { name: 'A review: one goal at a time', file: 'src/screens/Inspect.tsx', where: 'A review’s walk (/goals/:goalId?review=…), and a goal’s page during one.', help: 'reviews', mainAction: 'Say what the review decided about this goal, and go on to the next.' },
   { name: 'Data: filters', file: 'src/screens/DataFilters.tsx', where: 'Filter, on a table in Data.', help: 'data', mainAction: 'Narrow the rows a table shows.' },
   { name: 'Data: columns and layouts', file: 'src/screens/DataLayout.tsx', where: 'Columns, on a table in Data.', help: 'data', mainAction: 'Choose and order the columns, and save the layout.' },
-  { name: 'Page not found', file: 'src/App.tsx', component: 'NotFound', where: 'Any address that leads nowhere.', mainAction: 'Go to Home.' },
+  { name: 'Page not found', file: 'src/screens/NotFound.tsx', component: 'NotFound', where: 'Any address that leads nowhere.', mainAction: 'Go to Home.' },
   { name: 'The error page', file: 'src/telemetry/react.tsx', component: 'ErrorBoundary', where: 'Instead of a screen that failed to draw, or a part that can’t load while offline, or while a new version loads.', mainAction: 'Reload, or Try again when offline.' },
 ];
 

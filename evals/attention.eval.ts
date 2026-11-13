@@ -12,8 +12,11 @@ import { currentWeek } from '../src/domain/plan';
 import { agendaOf, reviewSession, watchedGoals } from '../src/domain/review';
 import type { Ask, ApiToken, CheckIn, Decision, Snapshot } from '../src/domain/types';
 import { hashToken, newToken } from '../src/mcp/protocol';
+import { isModuleOn } from '../src/core/registry';
 
 const R = (id: string, text: string) => `[${id}] ${text}`;
+/** Built without Reviews (FARO_WITHOUT=reviews): the core's own routes stand in, and the review parts aren't asked for. */
+const noReviews = !isModuleOn(null, 'reviews');
 const today = new Date('2026-11-05T12:00:00Z'); // Thursday of week 45; the leadership weekly is this afternoon
 const s0 = seed(today);
 const cycle = s0.cycles[0]!;
@@ -161,13 +164,17 @@ describe('the AI assistant sees the same split', () => {
   });
   it(R('ATTENTION-HANDLED', 'an action agreed through the assistant moves the red goal to being handled in the overview; a new check-in moves it back'), async () => {
     const daniel = await as('daniel'); // Daniel runs the Developer Productivity fortnightly, which has the merge queue on its map
-    await daniel('review_call', { review_id: 'devprod', goal_id: 'lead-mq', kind: 'action', text: 'Chase the vendor for the SEC-88 date', who: 'Diego', due_week: 46 });
+    // In the review when there are reviews; without them, the core's own way to agree a next step.
+    if (noReviews) await daniel('add_action', { goal_id: 'lead-mq', text: 'Chase the vendor for the SEC-88 date', who: 'Diego', due_week: 46 });
+    else await daniel('review_call', { review_id: 'devprod', goal_id: 'lead-mq', kind: 'action', text: 'Chase the vendor for the SEC-88 date', who: 'Diego', due_week: 46 });
     let brief = (await daniel('get_overview')).text;
     const inHand = brief.slice(brief.indexOf('## Being handled'), brief.indexOf('## No recent update'));
     expect(inHand).toContain('### Merge queue live for every monorepo');
     expect(inHand).toContain('**Being handled:** Action: Diego, due week 46: Chase the vendor');
-    const review = await daniel('get_review', { review_id: 'devprod' });
-    expect(review.data!.toDiscuss.find((g: { id: string }) => g.id === 'lead-mq').beingHandled).toBe('Action: Diego, due week 46');
+    if (!noReviews) {
+      const review = await daniel('get_review', { review_id: 'devprod' });
+      expect(review.data!.toDiscuss.find((g: { id: string }) => g.id === 'lead-mq').beingHandled).toBe('Action: Diego, due week 46');
+    }
     // Diego checks in again on the same data, with Amara's action in it: it's news, off track again.
     const diego = await as('diego', recheck({ ...s0, requests: [...(s0.requests ?? []), action('lead-mq')] }, 'lead-mq'));
     brief = (await diego('get_overview')).text;
@@ -176,8 +183,16 @@ describe('the AI assistant sees the same split', () => {
   });
   it(R('HOME-OWNER', 'get_my_work starts with the week at a glance'), async () => {
     const w = await (await as('diego'))('get_my_work');
-    expect(w.data!.atAGlance).toMatchObject({ goals: { whose: 'mine', total: 2 }, watching: null, nextReview: { name: 'Developer Productivity fortnightly', day: 'Tuesday' } });
     expect(w.data!.atAGlance.onTimeStreakWeeks).toEqual(expect.any(Number));
+    if (noReviews) {
+      // Without Reviews the glance has no next review, in the data or the words.
+      expect(w.data!.atAGlance).toMatchObject({ goals: { whose: 'mine', total: 2 }, watching: null });
+      expect(w.data!.atAGlance).not.toHaveProperty('nextReview');
+      expect(w.text).toMatch(/Your goals: 1 off track, 1 done\. On-time streak: \d+ weeks?\./);
+      expect(w.text).not.toMatch(/Next review/);
+      return;
+    }
+    expect(w.data!.atAGlance).toMatchObject({ goals: { whose: 'mine', total: 2 }, watching: null, nextReview: { name: 'Developer Productivity fortnightly', day: 'Tuesday' } });
     expect(w.text).toMatch(/Your goals: 1 off track, 1 done\. On-time streak: \d+ weeks?\. Next review: Developer Productivity fortnightly, Tuesday/);
   });
 });

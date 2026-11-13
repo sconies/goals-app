@@ -91,6 +91,7 @@ export const SCREENS: Record<string, Entry> = {
   GoalWizard: ['create_goal'],
   ProposedGoal: ['get_goal', 'make_goal_active', 'update_goal', 'delete_goal', 'add_comment', 'ask_question', 'watch'],
   ProposedList: ['find_goals'],
+  StoppedList: ['find_goals'],
   GoalEdit: ['update_goal', 'set_plan_numbers'],
   CheckInFlow: ['post_check_in', 'link_request'],
   CheckInQueue: ['get_my_work', 'post_check_in'],
@@ -129,4 +130,5 @@ export const SCREENS: Record<string, Entry> = {
   Start: { notForAssistants: 'Saying who you are on an invitation, and the screen right after set-up: a token already acts as one person in one workspace.' },
   Welcome: { notForAssistants: 'The front door, before anyone has chosen a workspace: a token already belongs to one.' },
   Research: { notForAssistants: 'Research sessions in the demo, for the people building the app.' },
+  NotFound: { notForAssistants: 'An address that leads nowhere: a tool names what it can’t find in its own answer.' },
 };

@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (154): build it as Faro does.
+- **Copy** (157): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -222,6 +222,24 @@ A check-in says which week it is for and where it is in the week's queue, even a
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`
 - **Journeys and checks:** U57, U111
 
+### HABIT-RECEIPT
+
+Once a person's check-ins for the week are all in, the receipt says whether they were in before the deadline ("All 4 of your check-ins are in for week 46, before Thursday’s deadline."; the due day is called a review only for someone in a review held that day) and the run of weeks in a row on time, from two; or how many came in after it and when the next are due, with no run. One late week is forgiven when the four weeks before it were on time, and said once ("Week 45 came in late; one late week doesn’t break a run."). Never "lost", "broken", a nought or an exclamation mark. Home's quiet line says the same two sentences on the day the week is completed.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [The habit: the run, the receipt and a moment](rules/habit.md)
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Journeys and checks:** U151
+
+### HABIT-MOMENT
+
+A check-in that reaches a goal's target, or brings it back on track after two weeks or more behind, shows one quiet panel on its receipt (the status's shape and word, what happened in one line, "Copy the share image" for a target reached) and its row in the goal's History says "Reached its target" or "Back on track" in small capitals. Never on a correction, a backfilled week or an import; no animation, confetti or banner on anyone else's screen.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [The habit: the run, the receipt and a moment](rules/habit.md)
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Journeys and checks:** U151
+
 ### REASON-AHEAD
 
 A reason is required when 120% or more ahead, and the check-in asks whether the target should change.
@@ -284,7 +302,7 @@ Only the goal's owner checks in on the check-in screen: the owner's call is the 
 A headline goal with input goals from several teams, each with an estimated effect; the headline shows its inputs and their mix of statuses.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Tests:** `evals/scenarios.eval.ts` (1)
 - **Journeys and checks:** U4, U9
 
@@ -331,7 +349,7 @@ A goal can be proposed before anyone is held to it: it is visible and can be dis
 - **Copy:** build it as Faro does.
 - **Rule:** [Proposed goals](rules/proposed.md)
 - **Help:** “Proposed goals” (`goal-proposed`), screens `ProposedGoal`, `ProposedList`
-- **Journeys and checks:** U134, U148, U149
+- **Journeys and checks:** U134, U148, U149, U150
 
 ### NEW-GOAL-TRUTH
 
@@ -356,7 +374,7 @@ The goal page leads with its summary bar, then the chart (plan, actual, projecti
 Goals are shown as trees: each goal that feeds nothing heads a tree, with what feeds it worst first; team goals that are not linked are flagged.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** U3
 
 ### LEVELS
@@ -365,7 +383,7 @@ Every goal has a level, Team by default, or SVP or North star for goals reported
 
 - **Copy:** build it as Faro does.
 - **Rule:** [Levels](rules/levels.md)
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** U4, U9, U13
 
 ### STICKY-HEAD
@@ -373,7 +391,7 @@ Every goal has a level, Team by default, or SVP or North star for goals reported
 In the Goals table and the quarter results, the column headings stay in view while the goals scroll under them, on a phone and a desktop.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** U38
 
 ### FIRST-CHECKIN
@@ -507,7 +525,7 @@ Goals opens on the viewer's own goals: its tabs say whose goals (Mine when they 
 
 - **Copy:** build it as Faro does.
 - **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** U73
 
 ### GOALS-ATTENTION
@@ -516,7 +534,7 @@ Needs attention is a switch on any scope, with its count for that scope and thos
 
 - **Copy:** build it as Faro does.
 - **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** U73
 
 ### GOALS-ADDRESS
@@ -525,7 +543,7 @@ Goals' address names the scope, the group, the layout and the switch; every old 
 
 - **Copy:** build it as Faro does.
 - **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** U73
 
 ### GOALS-MENUS
@@ -533,7 +551,7 @@ Goals' address names the scope, the group, the layout and the switch; every old 
 Goals' Layout, Group and Views are menus with one meaning on every width: Layout says the open layout and what each one is; Views holds the saved views, Save this view, Copy link and Export these goals. On a phone one View sheet holds Layout, Group, Saved views and the same actions, opened from a button that says the layout and group. The head and the bar keep their place and width in every layout, and on the Map Group and Sort say the Map is always the trees.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** U135
 
 ## Platform
@@ -694,77 +712,6 @@ Needs attention is one rule (domain/attention.ts): off track, at risk, no recent
 - **Help:** “Needs attention, and being handled” (`needs-attention`)
 - **Tests:** `evals/vocabulary.eval.ts` (3)
 
-## Reviews
-
-### REVIEW
-
-A review walks its goals worst and stalest first, one goal page at a time, with next and previous.
-
-- **Copy:** build it as Faro does.
-- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Journeys and checks:** U3
-
-### INSPECT-ACT
-
-On each goal in a review, a participant can mark it seen, add a note, ask the owner a question or add an action; saying anything covers the goal and moves on.
-
-- **Copy:** build it as Faro does.
-- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Journeys and checks:** U3
-
-### REVIEW-SETUP
-
-Anyone can set up a review: a name, a cadence (every 1, 2 or 4 weeks on a weekday), the goals (levels, trees, single goals) and the people.
-
-- **Copy:** build it as Faro does.
-- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Journeys and checks:** U13
-
-### REVIEW-RUN
-
-What was said in a review is kept as its summary; owners see questions and actions on their goal page.
-
-- **Copy:** build it as Faro does.
-- **Rule:** [Deciding in a review](rules/review-decide.md)
-- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Journeys and checks:** U3, U36
-
-### REVIEW-SPEAK
-
-Only someone in a review, or an admin, speaks for it: marking a goal reviewed, a note, accepting a risk, and a question or next step raised in it are refused for anyone else with one sentence, through the app and the AI tools alike. Everyone can still read it. Its page tells someone not in it who can add them, and never offers a Join it refuses.
-
-- **Copy:** build it as Faro does.
-- **Rule:** [Deciding in a review](rules/review-decide.md)
-- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Journeys and checks:** N25
-
-### REVIEW-DECIDE
-
-A goal off track or at risk leaves a review's walk with a decision: a next step with an owner (chosen by searching, never from a list of everyone) and a week it's due by, or "We accept the risk" with a reason. The goal page shows next steps as dated rows with an owner, changed there, an overdue one flagged; anyone can add one. The next session opens with what the last one agreed and asks if it's done. Finish review says what was decided and who owns what, with Undo. A review isn't "to do" before anything is due.
-
-- **Copy:** build it as Faro does.
-- **Rule:** [Deciding in a review](rules/review-decide.md)
-- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Tests:** `src/mcp/mcp.test.ts` (2)
-- **Journeys and checks:** N1, U3
-
-### REVIEW-LIST-STATE
-
-The Reviews page says, for every review, where this session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held and how many of its actions are open.
-
-- **Copy:** build it as Faro does.
-- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Tests:** `src/domain/review.test.ts` (7), `evals/review-notes.eval.ts` (4)
-- **Journeys and checks:** N1
-
-### REVIEW-AGENDA
-
-A review's agenda reads at a glance: one line per goal (status, name, number, gap) with nothing cut off at any width; the end of a review shows what was said and leads back to the review.
-
-- **Copy:** build it as Faro does.
-- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Journeys and checks:** N1
-
 ## Focus
 
 ### DRAFTS
@@ -791,7 +738,7 @@ An owner can type the week’s numbers for all their number goals in one table; 
 
 - **Copy:** build it as Faro does.
 - **Rule:** [The change engine](rules/change-engine.md)
-- **Help:** “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`; “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Help:** “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`; “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** U21, U45, U57
 
 ### NO-DOUBLE-POST
@@ -856,6 +803,15 @@ Whatever is exported loads straight back as no change: every demo workspace as a
 - **Help:** “Data” (`data`), screens `DataTables`, `DataFilters`, `DataLayout`
 - **Tests:** `evals/format.eval.ts` (5)
 - **Journeys and checks:** U46, U89
+
+## Reviews
+
+### INSPECT-ACT
+
+On each goal in a review, a participant can mark it seen, add a note, ask the owner a question or add an action; saying anything covers the goal and moves on.
+
+- **Copy:** build it as Faro does.
+- **Journeys and checks:** U3
 
 ## Demo
 
@@ -1012,7 +968,7 @@ A goal year's weeks follow the calendar: week 1 is the week with the first Thurs
 The same goals can be seen as a list, a sortable table, a board by status, or a week-by-week history grid of owners’ calls (each with the goal’s number now). Cards went on 9 Nov: a link, saved view or remembered choice that names it opens the list and says so once. Every layout has the same one-line health summary above the goals (how many off track, at risk, on track and so on, shape and word, as Home counts them). Sorted, the Trees tab is one list across every tree. The Board shows 8 cards in a healthy lane before Show all, each card leads with its own status (shape and word) and names the goal it feeds into. By team lists the teams worst first (most off track, then at risk, no recent update, no check-in yet), each with its goals counted by status, shape and word. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address. Choosing a tab or a layout is a step in the browser's history, so Back returns to the one before. A link naming a tab, team, owner or tree the workspace doesn't have opens the default instead, with one line saying what was left out. Every tab is shown whole beside the layouts. On a phone the goals come first: which goals (the tabs and saved views, with Export) and the layout are two menus on one line, the first saying the open view and its count, so the first goal starts within about 240px of the top of a 360px screen.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** N10, U19
 
 ### GOAL-MAP
@@ -1056,7 +1012,7 @@ AI assistant tokens are made and revoked only by security-definer functions (okr
 Every goal that is off track, at risk or gone quiet tells its story where it is listed and in exports: why it is off, what the owner will do, by when, what they need and from whom. Things the numbers would hide are flagged: no recovery plan, a missed or slipping date, the same cause week after week, a call greener than the numbers, a goal gone quiet. A legend says what each status means. Once due, a goal shows Completed, Completed late or Did not meet.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “A goal’s page” (`goal-page`), screens `GoalScreen`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`; “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** U19, U33
 
 ### QUARTER-RESULTS
@@ -1141,7 +1097,7 @@ Every screen size gets a layout made for it, from a 360px phone to a 3440px moni
 A leader's attention goes to the exceptions. A weekly review walks the goals that need a look one at a time and takes the goals on track with nothing flagged together in one acknowledgement, which can be opened or walked instead. A goal page says which contributing goals are most likely to make it miss. A request for a decision has Respond beside it. Asking for an update leaves a lasting 'Asked' in place of the button. The table keeps each goal's story to one line, with Details to open it, and the board puts the north star first and folds healthy lanes to a count. New goal asks before resuming an unpublished one. One name per idea: No recent update, Contributing goals, Decision or help needed.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Needs attention, and being handled” (`needs-attention`); “Reviews” (`reviews`), screens `Review`, `Inspect`
+- **Help:** “Needs attention, and being handled” (`needs-attention`)
 - **Journeys and checks:** U33
 
 ## Home
@@ -1154,7 +1110,7 @@ Home opens on what is asked of you today, with one primary action, or says that 
 - **Rule:** [Home: what is asked of you today](rules/home.md)
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Tests:** `evals/attention.eval.ts` (5)
-- **Journeys and checks:** N3, N10, N26, U122
+- **Journeys and checks:** N3, N10, N26, U103, U122
 
 ## Interface
 
@@ -1172,7 +1128,7 @@ Settings is about you (app redesign WR3): who you are here, with "Your page" lea
 Goals is one section of the navigation with Mine, Watching and All, and your saved views under it; a person in one workspace never sees a workspace switcher.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “On a phone, a tablet or a big screen” (`any-device`)
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`; “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** N4
 
 ### MOTION-ALIVE
@@ -1261,7 +1217,7 @@ Every page names itself in the browser's title (“{name} · {workspace} · Faro
 
 - **Copy:** build it as Faro does.
 - **Rule:** [Navigation: the menu, the lit item and a page’s name](rules/navigation.md)
-- **Help:** “Getting around” (`getting-around`)
+- **Help:** “Getting around” (`getting-around`), screens `NotFound`
 - **Journeys and checks:** U69
 
 ### NAV-BACK
@@ -1270,7 +1226,7 @@ One back link per page, “‹ {where}” above the title, never on a place's fi
 
 - **Copy:** build it as Faro does.
 - **Rule:** [Navigation: the menu, the lit item and a page’s name](rules/navigation.md)
-- **Help:** “Getting around” (`getting-around`)
+- **Help:** “Getting around” (`getting-around`), screens `NotFound`
 - **Journeys and checks:** U70
 
 ### NAV-FORMS
@@ -1278,7 +1234,7 @@ One back link per page, “‹ {where}” above the title, never on a place's fi
 A form has one way out, top right, in words: “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Getting around” (`getting-around`)
+- **Help:** “Getting around” (`getting-around`), screens `NotFound`
 - **Journeys and checks:** U72, U136
 
 ## Finding
@@ -1529,7 +1485,7 @@ The owner or an admin stops a goal with check-ins, with a required reason: it le
 - **Copy:** build it as Faro does.
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`; “Removing, stopping and undoing” (`removing`)
 - **Tests:** `evals/remove.eval.ts` (1)
-- **Journeys and checks:** U44
+- **Journeys and checks:** U44, U150
 
 ## Architecture
 
@@ -1540,7 +1496,7 @@ Faro is a small core with named extension points (routes, navigation, Home block
 - **Copy:** build it as Faro does.
 - **Help:** “Features: switching parts of Faro on or off” (`features`)
 - **Tests:** `evals/modules.eval.ts` (4)
-- **Journeys and checks:** U48
+- **Journeys and checks:** N21, U48, U103, U104
 
 ## Numbers
 

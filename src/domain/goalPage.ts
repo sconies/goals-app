@@ -192,6 +192,8 @@ export interface StepsAndAsks { forYou: StepRow[]; open: StepRow[]; done: StepRo
 export interface StepsInput {
   goal: Goal; viewer: Person; week: number; cycle: Cycle; status: DisplayStatus;
   asks: readonly Ask[]; people: readonly Pick<Person, 'id' | 'name'>[]; reviews: readonly { id: string; name: string }[];
+  /** Whether Reviews is on (FT2): off, a question names no review; a next step still says in words where it was agreed. */
+  reviewsOn?: boolean;
 }
 
 const KIND_WORD: Record<AskKind, string> = { decision: ASK_KIND.decision.label, question: ASK_KIND.question.label, action: DECIDED['next-step'].label, update: `${ASK_KIND.update.label} asked` };
@@ -218,7 +220,7 @@ export function stepsAndAsks(i: StepsInput): StepsAndAsks {
     if (!r.goalIds.includes(i.goal.id) || r.status === 'withdrawn') continue;
     const open = r.status === 'open';
     const overdueBy = isOverdue(r, i.week) ? i.week - r.dueWeek! : 0;
-    const where = reviewName(r.reviewId);
+    const where = r.kind === 'action' || i.reviewsOn !== false ? reviewName(r.reviewId) : null;
     const many = r.goalIds.length > 1 ? ` · for ${r.goalIds.length} goals` : '';
     const line = r.kind === 'action'
       ? `${r.recipientId ? firstName(r.recipientId) : 'Anyone'}${r.dueWeek != null ? ` · ${by(r.dueWeek)}` : ''} · ${where ? `agreed in ${where}` : `agreed by ${firstName(r.askedBy)}`}`

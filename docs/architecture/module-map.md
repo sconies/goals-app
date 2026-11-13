@@ -32,7 +32,7 @@ The core is everything outside `src/modules`. It cannot be switched off because 
 | In the core | What it holds | Why it can't be switched off |
 |---|---|---|
 | Goals and plans | `src/domain/goal.ts`, `plan.ts`, `range.ts`, `newGoal.ts`, `goalEntry.ts` | The thing every other part is about |
-| Check-ins | `src/domain/checkin.ts`, `checkInDoors.ts`, `postCheckIn.test.ts` | The week's loop; the status rules read them |
+| Check-ins | `src/domain/checkin.ts`, `checkInDoors.ts`, `postCheckIn.test.ts`; the habit (`habit.ts`, the run and the receipt in `progress.ts`; HB1) | The week's loop; the status rules read them |
 | Weeks, cycles and the year's end | `src/domain/cycle.ts`, `carry.ts`, `recarry.ts`, `startYear.ts` | A week number is the unit every rule counts in. The wrap-up's *words* may become a module; results, carrying on and starting the next year stay core |
 | The status rules | `src/domain/status.ts`, `attention.ts`, `progress.ts`, `scorecard.ts` | They are what Faro is. The forecast is core with two settings: switching it off would change what "On track" means |
 | People and teams | `src/domain/people.ts`, `directory.ts`, `levels.ts` | Every goal has an owner; every list is scoped by team |

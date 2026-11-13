@@ -407,6 +407,9 @@ describe('MCP server', () => {
     expect((await rhea.call('stop_goal', { goal_id: 'ci-docker', reason: 'Taken over by the platform team.' })).isError).toBe(false);
     expect(rhea.data().goals.find((g) => g.id === 'ci-docker')).toMatchObject({ stopReason: 'Taken over by the platform team.', stoppedBy: 'rhea' });
     expect(((await rhea.call('find_goals', { text: 'Base image' })).structuredContent!.goals as { id: string }[]).map((g) => g.id)).not.toContain('ci-docker');
+    // The State filter's Stopped, as the tools have it (GE10): this year's stopped goals, with who, when and why.
+    const stopped = (await rhea.call('find_goals', { state: 'stopped' })).structuredContent!.goals as { id: string; state: string; stoppedBy: string; stopReason: string }[];
+    expect(stopped.map((g) => [g.id, g.state, g.stoppedBy, g.stopReason])).toEqual([['ci-docker', 'stopped', 'Rhea Kapoor', 'Taken over by the platform team.']]);
     // A comment: written, edited, removed; get_goal says so.
     await rhea.call('add_comment', { goal_id: 'lead-review', text: 'First go' });
     const goal = await rhea.call('get_goal', { goal_id: 'lead-review' });
@@ -437,5 +440,33 @@ describe('MCP server', () => {
     const mateo = await setup('mateo');
     (mateo.deps as { load: Deps['load'] }).load = async () => grace.data();
     expect((await mateo.rpc('tools/call', { name: 'get_overview', arguments: {} })).body.error.message).toMatch(/no longer in the workspace/);
+  });
+});
+
+describe('A switched-off module behind the AI’s other doors (module map F3, F4)', () => {
+  it('get_help offers none of its articles, and says why when asked for one', async () => {
+    const { call, deps } = await setup('amara');
+    const before = (await call('get_help', {})).structuredContent!.articles as { id: string }[];
+    expect(before.some((a) => a.id === 'metrics')).toBe(true);
+    deps.modulesOff = async () => ['metrics'];
+    const after = (await call('get_help', {})).structuredContent!.articles as { id: string }[];
+    expect(after.some((a) => a.id === 'metrics')).toBe(false);
+    expect(after.length).toBeLessThan(before.length);
+    expect(((await call('get_help', { search: 'metric library' })).structuredContent!.articles as { id: string }[]).some((a) => a.id === 'metrics')).toBe(false);
+    const one = await call('get_help', { id: 'metrics' });
+    expect(one.isError).toBe(true);
+    expect(one.content[0]!.text).toBe('Metric library is switched off in Platform Engineering, so its Help isn’t shown there. An admin can switch it on in Workspace, under Features.');
+  });
+
+  it('find_goals reads a switched-off module’s column as no filter, as Goals does', async () => {
+    const { call, data, deps } = await setup('amara');
+    const link = (data().modules?.metrics?.metricLinks as { metricId: string; removedAt?: string | null }[] | undefined)?.find((l) => !l.removedAt);
+    expect(link).toBeDefined();
+    const ids = async (query: string) => ((await call('find_goals', { scope: 'all', query, limit: 500 })).structuredContent!.goals as { id: string }[]).map((g) => g.id).sort();
+    const all = await ids('');
+    const measured = await ids(`metric=${link!.metricId}`);
+    expect(measured.length).toBeLessThan(all.length);
+    deps.modulesOff = async () => ['metrics'];
+    expect(await ids(`metric=${link!.metricId}`)).toEqual(await ids(''));
   });
 });

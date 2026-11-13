@@ -51,4 +51,14 @@ describe('the week picker (GE9 review)', () => {
     expect(screen.queryByText(/isn’t a week or a date/)).toBeNull();
     expect(onChange).toHaveBeenCalledWith(47);
   });
+
+  it('moves one week per key even when keys come faster than a render (U109 on a slow phone)', () => {
+    const onChange = pick();
+    const list = screen.getByRole('listbox');
+    act(() => {
+      for (let i = 0; i < 5; i++) list.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      list.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    expect(onChange).toHaveBeenCalledWith(52);
+  });
 });
