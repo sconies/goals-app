@@ -23,6 +23,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'asks-follow-owner-by-role',
+    date: '2026-11-13',
+    title: 'Asks that follow a goal’s new owner are the ones put to the owner',
+    points: [
+      'When a goal changes owner, the open asks put to its owner — an update asked for, a question — go with it, and the new owner sees “Asked of {name}, now yours”.',
+      'An ask put to a person by name — a next step they agreed, a decision asked of them — stays with that person.',
+      'If the new owner is the one who asked, the ask closes: nobody answers their own ask.',
+    ],
+    articles: ['requests', 'goal-page'],
+  },
+  {
     id: 'proposed-fixes-review',
     date: '2026-11-13',
     title: 'Proposed goals: Home, the Map and the AI assistant',

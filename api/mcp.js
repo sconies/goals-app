@@ -7576,25 +7576,45 @@ function asksFollowOwner(s, after, x) {
 	for (const g of after) owner.set(g.id, g.ownerId);
 	const name = (id) => s.people.find((p) => p.id === id)?.name ?? "Someone";
 	for (const r of s.asks) {
-		if (r.status !== "open" || !r.recipientId) continue;
+		if (r.status !== "open" || !r.recipientId || !FOLLOWS_OWNER.includes(r.kind)) continue;
 		const g = changed.find((c) => r.goalIds.includes(c.id) && before.get(c.id).ownerId === r.recipientId);
 		if (!g || r.goalIds.some((id) => owner.get(id) === r.recipientId)) continue;
 		const from = r.recipientId;
-		out.requests.push({
-			...r,
-			recipientId: g.ownerId,
-			updatedAt: x.now
-		});
 		out.moved.set(g.id, (out.moved.get(g.id) ?? 0) + 1);
-		out.changes.push({
+		const base = {
 			id: x.newId("chg"),
 			at: x.now,
 			actorId: x.actorId,
 			goalId: g.id,
 			entity: "request",
 			entityId: r.id,
-			action: "edited",
-			summary: `${name(r.askedBy)}’s ask now goes to ${name(g.ownerId)}, who owns ${g.title} now`,
+			action: "edited"
+		};
+		if (r.askedBy === g.ownerId) {
+			out.requests.push({
+				...r,
+				status: "withdrawn",
+				updatedAt: x.now
+			});
+			out.changes.push({
+				...base,
+				summary: `Closed ${name(r.askedBy)}’s ask, since ${name(g.ownerId)} owns ${g.title} now`,
+				diffs: [{
+					field: "Asked of",
+					from: name(from),
+					to: "—"
+				}]
+			});
+			continue;
+		}
+		out.requests.push({
+			...r,
+			recipientId: g.ownerId,
+			updatedAt: x.now
+		});
+		out.changes.push({
+			...base,
+			summary: `Moved ${name(r.askedBy)}’s ask to ${name(g.ownerId)}, who owns ${g.title} now`,
 			diffs: [{
 				field: "Asked of",
 				from: name(from),
@@ -7611,13 +7631,17 @@ function handedFrom(askId, recipientName, changes) {
 	const d = last?.diffs.find((v) => v.field === "Asked of");
 	return d && d.to === recipientName ? d.from : null;
 }
-var openAsksDiff;
+var FOLLOWS_OWNER, openAsksDiff;
 var init_askHandover = __esmMin((() => {
-	openAsksDiff = (n, moved) => ({
-		field: `Open asks (${n})`,
-		from: moved.diffs[0].from,
-		to: moved.diffs[0].to
-	});
+	FOLLOWS_OWNER = ["update", "question"];
+	openAsksDiff = (n, moved) => {
+		const d = moved.diffs.find((v) => v.field === "Asked of");
+		return {
+			field: `Open asks (${n})`,
+			from: d.from,
+			to: d.to
+		};
+	};
 }));
 // src/domain/goalEntry.ts
 /**
@@ -12370,7 +12394,7 @@ function* planChangesInChunks(input) {
 		}
 	}
 	const handed = asksFollowOwner({
-		goals: s.goals,
+		goals: withProposed(s),
 		people: s.people,
 		asks: asksOf(s)
 	}, [...goalOut.values()], {
@@ -14859,7 +14883,7 @@ function waiting(a, today) {
 		warn = true;
 	} else if (due?.why === "week" && dueThisWeek) line = `Due this week (${a.dueWeek.dates})`;
 	else if (due?.why === "week") line = `Due week ${a.dueWeek.week} (${a.dueWeek.dates})`;
-	else if (due) line = `Before its next session, ${shortDay(due.date)}`;
+	else if (due) line = `Due by ${shortDay(due.date)}`;
 	else if (waitedDays >= 7) line = `Waiting since ${dayMonth(a.askedOn)}, ${waitedDays < 14 ? `${waitedDays} days` : `${Math.floor(waitedDays / 7)} weeks`}`;
 	else line = waitedDays === 0 ? "Asked today" : waitedDays === 1 ? "Asked yesterday" : `Asked on ${LONG_DAYS[(/* @__PURE__ */ new Date(a.askedOn + "T00:00:00Z")).getUTCDay()]}`;
 	const to = a.kind === "update" ? `/check-in/${a.goals[0].id}` : `/goals/${a.goals[0].id}?respond=${a.id}`;
@@ -14986,43 +15010,52 @@ var localDay = (iso) => {
 	return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10);
 };
 function homeAsks(viewerId, s, cycle, week, today) {
+	return openForPerson(viewerId, s).flatMap((r) => {
+		const w = askWaiting(r, viewerId, s, cycle, week, today);
+		return w ? [w] : [];
+	}).sort(waitingOrder);
+}
+/**
+* One ask as Home reads it for a viewer: its line, its due day and whether it is late. The one lateness rule: Home,
+* `get_my_work` and `list_requests` all read `late` from here (build review of #369, medium 5). Null when none of its
+* goals is in the workspace.
+*/
+function askWaiting(r, viewerId, s, cycle, week, today) {
 	const day = today.toISOString().slice(0, 10);
 	const me = s.people.find((p) => p.id === viewerId)?.name ?? "";
 	const first = (id) => s.people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
 	const all = withProposed(s);
-	return openForPerson(viewerId, s).flatMap((r) => {
-		const goals = r.goalIds.map((id) => all.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({
-			id: g.id,
-			title: g.title
-		}));
-		if (!goals.length) return [];
-		const rv = r.reviewId ? s.reviews.find((v) => v.id === r.reviewId) : void 0;
-		let session = null;
-		if (r.dueWeek == null && r.kind === "question" && rv) {
-			const w = r.week != null ? nextSessionWeek(rv, r.week) : upcomingSessionWeek(rv, cycle, week, today);
-			if (w <= cycle.weeks) session = {
-				name: rv.name,
-				date: sessionDate(rv, cycle, w)
-			};
-		}
-		const sunday = (w) => new Date(Date.parse(weekDate(cycle, w) + "T00:00:00Z") + 5184e5).toISOString().slice(0, 10);
-		return [waiting({
-			id: r.id,
-			kind: r.kind,
-			by: r.askedBy === viewerId ? null : first(r.askedBy),
-			goals,
-			said: r.ask,
-			askedOn: localDay(r.createdAt),
-			was: handedFrom(r.id, me, s.changes ?? []),
-			dueWeek: r.dueWeek != null ? {
-				week: r.dueWeek,
-				sunday: sunday(r.dueWeek),
-				dates: weekDates(cycle, r.dueWeek)
-			} : null,
-			session,
-			where: rv?.name ?? null
-		}, day)];
-	}).sort(waitingOrder);
+	const goals = r.goalIds.map((id) => all.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({
+		id: g.id,
+		title: g.title
+	}));
+	if (!goals.length) return null;
+	const rv = r.reviewId ? s.reviews.find((v) => v.id === r.reviewId) : void 0;
+	let session = null;
+	if (r.dueWeek == null && r.kind === "question" && rv) {
+		const w = r.week != null ? nextSessionWeek(rv, r.week) : upcomingSessionWeek(rv, cycle, week, today);
+		if (w <= cycle.weeks) session = {
+			name: rv.name,
+			date: sessionDate(rv, cycle, w)
+		};
+	}
+	const sunday = (w) => new Date(Date.parse(weekDate(cycle, w) + "T00:00:00Z") + 5184e5).toISOString().slice(0, 10);
+	return waiting({
+		id: r.id,
+		kind: r.kind,
+		by: r.askedBy === viewerId ? null : first(r.askedBy),
+		goals,
+		said: r.ask,
+		askedOn: localDay(r.createdAt),
+		was: handedFrom(r.id, me, s.changes ?? []),
+		dueWeek: r.dueWeek != null ? {
+			week: r.dueWeek,
+			sunday: sunday(r.dueWeek),
+			dates: weekDates(cycle, r.dueWeek)
+		} : null,
+		session,
+		where: rv?.name ?? null
+	}, day);
 }
 // src/domain/goalsPage.ts
 init_query();
@@ -19821,6 +19854,17 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "asks-follow-owner-by-role",
+		date: "2026-11-13",
+		title: "Asks that follow a goal’s new owner are the ones put to the owner",
+		points: [
+			"When a goal changes owner, the open asks put to its owner — an update asked for, a question — go with it, and the new owner sees “Asked of {name}, now yours”.",
+			"An ask put to a person by name — a next step they agreed, a decision asked of them — stays with that person.",
+			"If the new owner is the one who asked, the ask closes: nobody answers their own ask."
+		],
+		articles: ["requests", "goal-page"]
+	},
+	{
 		id: "proposed-fixes-review",
 		date: "2026-11-13",
 		title: "Proposed goals: Home, the Map and the AI assistant",
@@ -22845,6 +22889,7 @@ var levelsOf = (v) => {
 	if (bad.length) throw new Error(`Levels are ${LEVELS$1.join(", ")} (not ${bad.join(", ")}).`);
 	return list;
 };
+var askLate = (ctx, r) => r.status === "open" ? askWaiting(r, r.recipientId ?? ctx.actor.id, ctx.snapshot, ctx.cycle, ctx.week, ctx.today)?.late ?? isOverdue(r, ctx.week) : false;
 var requestData = (ctx, r) => ({
 	id: r.id,
 	kind: r.kind,
@@ -22852,7 +22897,7 @@ var requestData = (ctx, r) => ({
 	status: r.status,
 	statusLabel: ASK_STATUS[r.status].label,
 	dueWeek: r.dueWeek,
-	overdue: isOverdue(r, ctx.week),
+	overdue: askLate(ctx, r),
 	review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null,
 	askedBy: name$1(ctx, r.askedBy),
 	askedOf: r.recipientId ? name$1(ctx, r.recipientId) : "anyone",

@@ -329,7 +329,7 @@ export function waiting(a: AskFacts, today: string): Waiting {
   else if (due?.why === 'session' && dayDiff(today, due.date) <= 1) { line = dayDiff(today, due.date) === 0 ? 'Due before today’s session' : 'Due before tomorrow’s session'; warn = true; }
   else if (due?.why === 'week' && dueThisWeek) line = `Due this week (${a.dueWeek!.dates})`;
   else if (due?.why === 'week') line = `Due week ${a.dueWeek!.week} (${a.dueWeek!.dates})`;
-  else if (due) line = `Before its next session, ${shortDay(due.date)}`;
+  else if (due) line = `Due by ${shortDay(due.date)}`;
   else if (waitedDays >= 7) line = `Waiting since ${dayMonth(a.askedOn)}, ${waitedDays < 14 ? `${waitedDays} days` : `${Math.floor(waitedDays / 7)} weeks`}`;
   else line = waitedDays === 0 ? 'Asked today' : waitedDays === 1 ? 'Asked yesterday' : `Asked on ${LONG_DAYS[new Date(a.askedOn + 'T00:00:00Z').getUTCDay()]}`;
   const to = a.kind === 'update' ? `/check-in/${a.goals[0]!.id}` : `/goals/${a.goals[0]!.id}?respond=${a.id}`;
@@ -355,6 +355,8 @@ export function askLead(w: Waiting | undefined): Lead | null {
   if (!w || !(w.late || w.dueThisWeek || (!w.due && w.waitedDays >= 7))) return null;
   const others = w.goals.length - 1;
   const about = w.goals.length > 1 ? `${w.goals.length} goals are waiting on it: ${w.goals[0]!.title}, and ${others} more.` : `About ${w.goals[0]?.title ?? 'a goal'}.`;
+  // It came to you with a goal you now own (Lane, 13 Nov; review of #369, medium 1): say so where you first meet it.
+  const handed = w.was ? ` Asked of ${w.was.split(' ')[0]}, now yours.` : '';
   return { kind: 'ask', eyebrow: `Needs your response · ${w.line.charAt(0).toLowerCase()}${w.line.slice(1)}`, warn: w.warn, title: ASK_TITLE[w.kind](w.by ?? 'Someone'),
-    line: `“${w.said}”. ${about}`, action: { label: ASK_ACTION[w.kind], to: w.to }, also: null, ring: null, about: w.askId };
+    line: `“${w.said}”. ${about}${handed}`, action: { label: ASK_ACTION[w.kind], to: w.to }, also: null, ring: null, about: w.askId };
 }

@@ -1659,7 +1659,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
 
   // A goal that changes owner takes its open asks of the old owner with it (Lane, 13 Nov; domain/askHandover). An ask a
   // row already changed (someone leaving hands theirs over) is left as that row says.
-  const handed = asksFollowOwner({ goals: s.goals, people: s.people, asks: asksOf(s) }, [...goalOut.values()], { actorId: actor.id, now, newId });
+  const handed = asksFollowOwner({ goals: withProposed(s), people: s.people, asks: asksOf(s) }, [...goalOut.values()], { actorId: actor.id, now, newId });
   for (const r of handed.requests) {
     if (reqOut.has(r.id)) continue;
     reqOut.set(r.id, r);
