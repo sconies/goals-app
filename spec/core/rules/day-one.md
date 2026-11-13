@@ -43,6 +43,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ### [src/domain/dayOne.test.ts](../../../src/domain/dayOne.test.ts)
 
 - set-up’s steps (rule 6) › counts the path chosen
+- getting started (rule 7) › who set it up is read from the change set-up writes, even with another admin listed first (review of #285)
 - getting started (rule 7) › Ana set it up with Ben, gave Ben one goal and left two unowned
 - getting started (rule 7) › Ben opens it for the first time: who set it up and what’s his
 - getting started (rule 7) › Ben owning none: see, watch and set up a goal

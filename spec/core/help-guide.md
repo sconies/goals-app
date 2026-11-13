@@ -156,7 +156,7 @@ Opening Faro on a device that remembers no workspace brings you here, at /welcom
 
 `joining`. An invitation is a link that opens one workspace: it says who set it up and what it holds, then asks which one you are.
 
-Routes: `/join/:workspaceId`. Screens: `Start`. Requirements: `SETUP-FIRST-SCREEN`, `IDENTITY`.
+Routes: `/join/:workspaceId/*`. Screens: `Start`. Requirements: `SETUP-FIRST-SCREEN`, `IDENTITY`.
 
 #### What it’s for
 
@@ -167,6 +167,7 @@ Whoever set up a workspace copies its invitation and sends it themselves: Faro s
 - Welcome to the workspace: who set it up and when, how many people and goals it has, then Which one are you?, with everyone listed by team and one line each (who set it up, an admin, how many goals they own, or no goals yet). With more than eight people, Find your name narrows the list.
 - Choose your name: that is the whole step. Home opens as you, and this device remembers your answer. The first time anyone chooses their name, Activity says they opened the workspace for the first time.
 - Not on the list? Ask whoever set it up to add you: the link writes them an email.
+- Not you, or opened the wrong link? Go to Welcome, under the list, takes you to the front door, where you can open another workspace or set up your own. The invitation stays waiting until you choose a name.
 - A link to a workspace that isn’t there says This invitation doesn’t open a workspace (it may have been deleted, or the link was cut short) and opens nothing else; Go to Welcome takes you to the front door.
 
 #### Saying who you are
@@ -598,6 +599,7 @@ Requirements: `FIND-AND-PICK`, `LIST-BAR`, `FIND-ANYWHERE`.
 - What matches comes in groups: Goals, People, Teams, and Metrics while the metric library is on. Each shows its first three with how many match in all; “See all 8 goals” opens that list with your search filled in.
 - A goal’s key on its own (G-48, g48 or 48) puts that goal first. Enter opens the first row; Down and Up move to another; Escape closes. Each row is a link, so you can open it in a new tab.
 - Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open.
+- On a computer, a picker opens under its field, or above it when the window has no room below, so a sheet or a table never cuts it off.
 
 #### Keys
 
@@ -1410,6 +1412,7 @@ Requirements: `NAV-PLACES`, `NAV-COLLAPSED`, `LAUNCH`, `PHONE`, `A11Y`, `NO-ERRO
 - Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.
 - When Faro is updated while you have it open, the page you are on may reload itself once, at the same address, to load the new version. Anything you were typing is kept as a draft. If it still can’t load, you see Reload and Home instead.
 - Offline, a page Faro hasn’t loaded yet (Help, say) tells you it needs a connection instead of reloading. Try again opens it once you’re back online; Go back returns you to where you were.
+- The same goes for saving: if the part of Faro that saves a check-in or a change hasn’t loaded, Post check-in tells you so instead of doing nothing. Offline, try again once you’re back online; online, it reloads the page, or offers Reload, and keeps what you typed.
 - Feedback, in the menu’s last group or in More, has Send feedback: it tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro.
 
 #### On your home screen

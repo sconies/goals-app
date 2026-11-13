@@ -63,6 +63,12 @@ module.exports = {
     const waitFor = async (p, test, ms = 4000) => { const end = Date.now() + ms; while (Date.now() < end) { if (test()) return true; await p.waitForTimeout(150); } return test(); };
 
     async function checkIn(p) {
+      await fillCheckIn(p);
+      await p.getByRole('button', { name: 'Post check-in' }).click();
+      await p.getByText('Check-in saved').first().waitFor({ timeout: 5000 });
+    }
+    // Everything up to Post check-in.
+    async function fillCheckIn(p) {
       await p.goto(url('/check-in/dep-jenkins'));
       const g = await p.evaluate(async () => (await window.__goalsStore.load('platform-org')).goals.find((x) => x.id === 'dep-jenkins'));
       await p.getByLabel('This week’s value').fill(String(g.plan.start));
@@ -78,8 +84,6 @@ module.exports = {
       // Last week's plan, carried in unchanged, is said to be still true (deep review U9).
       const still = p.getByLabel('Still true this week');
       if (await still.isVisible().catch(() => false)) await still.check();
-      await p.getByRole('button', { name: 'Post check-in' }).click();
-      await p.getByText('Check-in saved').first().waitFor({ timeout: 5000 });
     }
 
     for (const [w, h, touch] of SIZES) {
@@ -221,6 +225,47 @@ module.exports = {
         await p.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 10000 });
         fail(!(await p.getByText('This page needs a connection').count()), '[STALE-RELOAD] back online, Try again still shows the offline page');
       } catch (e) { fail(false, `[STALE-RELOAD] offline: ${String(e.message || e).split('\n')[0]} (${loads} loads)`); }
+      await c.close();
+    }
+
+    // ---------- The change engine can't load (#193's review): Post check-in says so, never nothing ----------
+    // Offline, in the words of a page that needs a connection (#183); back online, it posts, or (in a browser that
+    // keeps the part that failed) offers Reload, and the reload keeps what was typed.
+    {
+      const c = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+      let refuse = true;
+      await c.route(/\/assets\/changeset-[^/]+\.js(\?.*)?$/, (route) => (refuse ? route.abort('internetdisconnected') : route.continue()));
+      // As if the page had just reloaded for stale code: no automatic reload here, so each step is the one tested.
+      await c.addInitScript(() => { try { sessionStorage.setItem('faro-stale-reload', String(Date.now())); } catch { /* blocked */ } });
+      const p = await c.newPage();
+      p.setDefaultTimeout(8000);
+      const tag = '[STALE-RELOAD] the change engine:';
+      try {
+        await p.goto(url('/'));
+        await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'chen'));
+        await fillCheckIn(p);
+        await p.waitForTimeout(1500); // the engine's idle load has failed by now
+        await c.setOffline(true);
+        await p.getByRole('button', { name: 'Post check-in' }).click();
+        await p.getByText('You’re offline, and saving needs a part of Faro that hasn’t loaded yet').waitFor({ timeout: 5000 });
+        fail(await p.getByRole('button', { name: 'Post check-in' }).isEnabled(), `${tag} offline: Post check-in stayed disabled after the failure`);
+        fail(!(await p.getByText('Check-in saved').count()), `${tag} offline: said saved`);
+        refuse = false;
+        await c.setOffline(false);
+        await p.getByRole('button', { name: 'Post check-in' }).click();
+        const saved = p.getByText('Check-in saved').first();
+        const failed = p.getByText('A part of Faro that saves changes didn’t load');
+        await saved.or(failed).first().waitFor({ timeout: 5000 });
+        if (await failed.count()) {
+          await p.getByRole('button', { name: 'Reload', exact: true }).click();
+          await p.waitForLoadState('load');
+          const post = p.getByRole('button', { name: 'Post check-in' });
+          await post.waitFor({ timeout: 10000 });
+          fail(/moved the Jenkins job owners/.test(await p.locator('main').innerText()) || (await p.getByLabel('What happened').inputValue().catch(() => '')).includes('Jenkins'), `${tag} the reload lost what was typed`);
+          await post.click();
+          await saved.waitFor({ timeout: 8000 });
+        }
+      } catch (e) { fail(false, `${tag} ${String(e.message || e).split('\n')[0]}`); }
       await c.close();
     }
     return fails;

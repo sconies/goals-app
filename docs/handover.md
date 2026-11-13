@@ -421,6 +421,101 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
   - the unbuilt "cycle ended", "Add one" and gone-parent states from the onboarding spec.
 - **U23 (entry)** scored 8.6 locally and is track 2's to lift.
 
+## Track 4, Thursday 12 November, 18:00 UTC (session past half full, handing over)
+
+Session: session_012kbr8xdoEbLiMQaBAxLeuJ.
+
+- **#229, #193's four review mediums** (open as a draft when this was written; merge it on green CI if it hasn't merged, and report the merge to planning, now session_012kbr939zneZWtAo7UQEHRP: finished results and blockers only):
+  1. **A failed engine load says so.** `run` in `src/app/state.tsx` toasts `ENGINE_OFFLINE` (offline, #183's words) or reloads once through `recoverFromStaleCode`. When it has just reloaded, it offers Reload (`ENGINE_FAILED`). Chromium keeps a module that failed to load, so a reload is the only real retry. N8 (`evals/notes/8-telemetry.cjs`) has the case.
+  2. **Home asks for `sort: 'worst'`.**
+  3. **The query port names scopes.** `GoalAsk.scope` is `'mine' | 'team' | 'watching' | 'all' | 'team:<id>'`, answered by `scopeIds` in `domain/goalsPage.ts` with `scopeFacts` from `app/reads.ts`. With no sort, a list comes worst first, then by title (`localGoals.ts`). `goals.csv` and the contract follow.
+  4. **One port per loaded workspace** (`portFor` in `src/app/goals.ts`).
+  - Its eval run: everything passed except U4 (8.9), which is main's own failure (#226: "publishing is not confirmed", after #208's publish change). That belongs to track 2 and planning, not track 4.
+- **Track 6** converts `goalsContract` to given/when/then data after #229 merges. Its session session_012kbr8xR9jB8yU52qz82Gah handed over at 17:57; a fresh track 6 session works from the track 6 handover page on branch `kt-changes`, which records AX5 part 2's shape. Send "merged" notes (#229, and AX5 part 2 later) to whichever track 6 session planning starts: ask planning for its id. A windowed load and `history` paging fit their format as multi-step cases. They have AX5 part 2's planned Store shape (below) and are leaving `storeContract` alone until it merges.
+- **#193's lows, still open:**
+  - keyset paging restarts from the top when the `after` goal has gone;
+  - `engine.test.ts`'s import pattern misses `import *`, re-exports and imports split over several lines;
+  - on a near miss, `counts().attention` disagrees with its list;
+  - `attentionCount` in `goalsPage.ts` has no caller;
+  - `goals.csv` is written by the adapter it tests.
+- **Next: AX5 part 2, the narrower load. The handover's "last few weeks of changes" is unsafe as written.** A survey (12 Nov, 17:40) found that comments are change-log entries (entity `note`), and that several rules read the log at any age:
+  - `commentsOf` and `liveNotes`/`writtenNotes` (`removal.ts`, `asks.ts`), Recently removed and restore, and `personHistory`;
+  - asks (legacy update-asks, "answered since");
+  - `startOf`/`canUndoStart` (a cycle's "created" entry);
+  - imports: `importEntry`/`undoImport`/`canUndoImport` and the past-imports lists;
+  - `sinceLooked`, and Metrics "Last changed";
+  - MCP `get_activity` (`src/mcp/workTools.ts`), which filters every change with no cursor.
+
+  The safe parts:
+  - **Check-ins:** `scopeToCycle` already keeps only the current cycle's. The wrap-up (`wrapUpScope`) and `recarry` need last year's while its wrap-up is open, which is 4 weeks after the year ends. `cycleStanding`, `canUndoStart` and `copyUntouched` only ask whether a cycle has any check-in.
+  - **Activity and goal History:** both slice a list that is already fully in memory, with no paging. Supabase `all()` already pages by id.
+
+  **The planned shape** (sent to track 6):
+  - `load(ws, window?)`. With no window, the whole workspace, as now. With `{ from }`, two things are narrowed:
+    - check-ins only from cycles that overlap `from` onwards;
+    - changes with `at >= from`, plus anchors of any age: entity `note`, `request` and `cycle`, and import summaries (`imported`/`undone`, or carrying `undo`).
+  - `Snapshot.history?: { from, checkInCycles }` says what was left out.
+  - `history(ws, { before?: {at, id}, goalId?, size <= 100 })` gives older entries newest first, keyset by (at, id). Activity, History and `get_activity` page with it.
+  - Three new contract cases: a windowed load drops the right rows and keeps the anchors; `history` pages with no skips or repeats and narrows by goal; a load with no window is whole.
+  - Implement it in the browser, Supabase and Postgres stores, plus `server/mcp.ts`. Supabase probably needs an index on `(workspace_id, at)`: a migration, shipped one merge ahead of the code (AX10).
+  - Size: M to L. Consider splitting: (a) the window and `history` in the port, the contract and the stores; (b) Activity, History and `get_activity` paging.
+- **Before AX5 part 2, two shared-shell faults from planning (22:05; one PR is fine):**
+  1. **U12, desktop only.** At 1440×900 the sidebar's Demo box (`.demo-entry`) ends at y=913, 13 px past the fold: the sidebar has grown (`src/styles.css` `.side`, `src/ui/Demo.tsx`).
+  2. **P9 EVERY-WIDTH, in the full suite.** It fails with "1280px rhea /: no navigation" (Home has no navigation at 1280). Track 1 owns Home: tell it if the cause is Home's.
+- **Merging:** auto-merge can't be turned on, because main has no branch protection rules. `enable_pr_auto_merge` says "Protected branch rules not configured". Merge by hand on green CI. Main moves every few minutes, so merge main in, push, and merge as soon as CI (about 5 minutes) is green.
+- **Then, in order:**
+  1. FT2, FT1, SW1, SW2.
+  2. AX2.
+  3. AX6.
+- **Traps:**
+  - Gate: `npm run typecheck`, `npm test`, `npm run lint:layers`, `npm run evals:changed` (anything in `src/app/state.tsx` runs the full suite, about 15 minutes), and `npm run spec` committed.
+  - After `npm run build:mcp`, run `sed -i 's#^// \(\.\./\)*home/user/goals-app/node_modules/#// node_modules/#' api/mcp.js`.
+  - The evals exit 1 while U1 to U5 aren't all 10; U4 is red on main.
+  - `src/docPaths.test.ts` fails a hand-written page that names a file that doesn't exist, including in the handover.
+  - A domain rule may not take a `Snapshot` (lint:layers); build facts in `src/app/reads.ts`.
+
+## Track 4, Thursday 12 November, 16:40 UTC (session past half full, handing over)
+
+- **Merged:** #193, which is AX5 part 1 plus the fix for the first download.
+  - **The query port:** `Goals` in `src/ports/goals.ts`, with `goals()`, `counts()` and `goal()`. Paging is by key, at most 50 rows a page. List rows carry no check-ins.
+  - **Its adapter:** `src/adapters/localGoals.ts`, which can also answer at once (`now`) so no screen draws empty first. The app reads it through `src/app/goals.ts` (`useGoalList`, `useGoalCounts`).
+  - **Its contract:** `goalsContract` in `src/ports/contracts/goals.ts`. Its cases are `spec/conformance/goals.csv`, which the drill scores when asked (`"also": ["goals"]`).
+  - **Who reads it:** Home (your goals, now worst first, and the week-at-a-glance counts) and Goals (the filtered list, the near miss and the switch count).
+  - **`Store`:** now in `src/ports/store.ts`. The example plumbing is `ExampleStore` and `examplesOf` in `src/data/store.ts`, and only the browser store has it.
+  - **The first download:** 293 to 263 KB, and the real app's 350 to 321. The budgets are 262 + `MARGIN_KB` and 321 + `MARGIN_KB`, where `MARGIN_KB` is 3 (Lane, 12 Nov: the size measured that day plus 3 KB).
+    - The change engine (`domain/changeset`) loads on its own: `loadEngine` and `ready` in `src/app/actions.ts`.
+    - Screens that preview changes while they render import `src/app/engineReady.ts`. U45 caught Quick check-in previewing before the engine was there.
+    - Small names that pulled the engine in live in `src/domain/via.ts`. `src/app/engine.test.ts` lists who may import the engine at run time.
+    - Help's index in the first download holds only the newest What's new release. Every release's title is in `virtual:faro-news-index` (`src/help/newsIndex.ts`), and `lookup.test.ts` guards this.
+- **First, #193's build review** (reviewer session, 12 Nov 17:17; full text in draft PR #134 (the build-reviews log on branch `build-reviews`), section "#193"). No high findings: the port matches the old code across 1,742 viewer, scope and query combinations. Fix the mediums in one PR before anything else:
+  1. **A failed engine load is silent.** When the change engine's chunk fails to load, Post check-in does nothing and says nothing, and the tab can't post until it is reloaded.
+     - `run` awaits `ready(name)` with no toast (`src/app/state.tsx`, about line 593).
+     - `CheckInFlow.tsx`'s catch (about lines 352–355) only re-enables the button.
+     - Chromium keeps the failed module, so a second `import()` in `loadEngine` never fetches it again.
+     - Fix: toast the failure, in the offline words when offline; reset `engine` so the next try fetches afresh, or reload once via `staleCode`; add a journey.
+  2. **Home's order isn't what we told people.** What's new (`your-goals-worst-first`), the Home guide article and two comments say Home lists your goals worst first. `applyQuery` sorts only when `q.sort` is set (`src/domain/query.ts`, about line 212), and Home asks with none: 13 of 29 owners with several goals don't see worst first. Fix: ask with `sort: 'worst'` in `useMineAsk` (`src/screens/Home.tsx`), so the words become true.
+  3. **The port's default order and its scope aren't server-shaped.** With no sort, rows come in the workspace array's order, and `goals.csv` pins that order. Scope travels as `among`, a list of every goal's id. A server could answer neither. Give the default order a rule (worst first, then by title), and name scopes in the ask (`scope: 'mine' | 'team:<id>' | 'watching'`) instead of sending ids.
+  4. **Summaries are worked out two or three times per change.** Each hook makes its own port (`src/app/goals.ts`, lines 12–19), so Home and Goals run `summariseAll` two or three times: about 550 ms on Home at ten times the demo's size, against 20 ms before. Make one port per snapshot (a context, or a memo keyed on the snapshot).
+  - **Lows:**
+    - Keyset paging restarts from the top when the `after` goal has gone (`localGoals.ts`, about line 33).
+    - `engine.test.ts`'s pattern misses `import * as`, re-exports, double quotes and imports split over several lines. The bundle budget is the real guard.
+    - On a near miss, `counts().attention` disagrees with its own list.
+    - `attentionCount` (`goalsPage.ts`) has no caller now.
+    - No journey came with the change, and `goals.csv` is written by the adapter it tests.
+- **Next, in order:**
+  1. **AX5 part 2, the narrower load.** The load takes only the current cycle's check-ins and the last few weeks of changes; Activity and a goal's History fetch older pages.
+     - Watch what reads the change log beyond Activity and History: `creatorOf` (Getting started), undo, the wrap-up of last year while it stays open, and `statusChange`.
+     - Tell track 6 (session_012kbr8xR9jB8yU52qz82Gah) before `storeContract` changes. Track 6 is turning the port contracts into data (given, when, then) in a new `cases` folder beside the contracts, and will convert `goalsContract` to that format too.
+  2. FT2, then FT1, SW1 and SW2 (`docs/design/feature-toggles/`, `docs/design/feature-switches/`).
+  3. AX2: a test that nothing on `AppState` reaches `commit` except through `run`, and `applyChanges` sending its input again with `apply`. Check that `postCheckIn` is in the action table (it is, and it now waits for the change engine to load).
+  4. AX6.
+- **Still left from the reviews:** the workspace switcher on the "can't open … yet" page (`CantOpenYet` in `src/screens/Start.tsx`).
+- **Traps:**
+  - Main moves fast, and a conflicted PR gets no CI at all. Merge main in, then rerun `build:mcp` and `spec`. Take What's new from main and add your entry back.
+  - `docs/glossary.md` names the file that keeps each word on purpose. Moving such a word between files fails CONSISTENT-WORDS.
+  - `evals/report.md` is rewritten by every local run. Discard it rather than commit it.
+  - Under local load, N6 and `src/data/fence.test.ts` failed once; each passes when run alone.
+
 ## Track 4, Thursday 12 November, midday (session past half full, handing over)
 
 - **Merged:** #183, the offline fix from #167's build review. Offline, a page that loads when opened (Help, say) no longer reloads into the browser's error page:

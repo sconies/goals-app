@@ -5,17 +5,35 @@ import { useEffect, useMemo, useState } from 'react';
 import { localGoals } from '../adapters/localGoals';
 import { allGoals, allGoalsNow, type GoalAsk, type GoalCounts, type GoalPage, type Goals } from '../ports/goals';
 import { useGoalColumns } from '../core/app';
-import { goalRows } from './reads';
+import { goalRows, scopeFacts } from './reads';
+import type { ScopeFacts } from '../domain/goalsPage';
 import { useApp } from './state';
+
+/* One port per workspace as loaded (#193's review): Home's list and its counts, and the Goals screen's three reads,
+   share one set of summaries instead of working them out once per hook. The port is remade only when what it reads
+   changes: the workspace, the cycle, the day and week, the module columns, or who is asking. */
+let last: { deps: readonly unknown[]; port: Goals } | null = null;
+function portFor(deps: readonly unknown[], make: () => Goals): Goals {
+  if (last && last.deps.length === deps.length && last.deps.every((d, i) => Object.is(d, deps[i]))) return last.port;
+  const port = make();
+  last = { deps, port };
+  return port;
+}
 
 export function useGoals(): Goals {
   const app = useApp();
   // A module's filters (Measured by) narrow through the same port; with the module off, its filter narrows nothing.
   const { columns } = useGoalColumns();
-  return useMemo(() => {
+  const { snapshot, cycle, today, week } = app;
+  const viewerId = app.viewer.id, teamId = app.viewer.teamId;
+  return useMemo(() => portFor([snapshot, cycle, today, week, columns, viewerId, teamId], () => {
     let rows: ReturnType<typeof goalRows> | undefined;
-    return localGoals(() => (rows ??= goalRows(app.snapshot, app.cycle, app.today, app.week, columns)));
-  }, [app.snapshot, app.cycle, app.today, app.week, columns]);
+    let facts: ScopeFacts | undefined;
+    return localGoals(
+      () => (rows ??= goalRows(snapshot, cycle, today, week, columns)),
+      () => (facts ??= scopeFacts(snapshot, { id: viewerId, teamId })),
+    );
+  }), [snapshot, cycle, today, week, columns, viewerId, teamId]);
 }
 
 /**
@@ -43,7 +61,7 @@ export function useGoalList(ask: Omit<GoalAsk, 'after'> | null): GoalPage | null
 }
 
 /** The counts for the same filter: null while a server is answering, or when `ask` is null. */
-export function useGoalCounts(ask: Pick<GoalAsk, 'query' | 'among'> | null): GoalCounts | null {
+export function useGoalCounts(ask: Pick<GoalAsk, 'query' | 'scope'> | null): GoalCounts | null {
   const port = useGoals();
   return useAnswer(port, JSON.stringify(ask), ask && ((n) => n.counts(ask)), () => port.counts(ask!));
 }

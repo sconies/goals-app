@@ -24,7 +24,7 @@ export interface NewsEntry {
 export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'correct-means-one-thing',
-    date: '2026-11-12',
+    date: '2026-11-13',
     title: 'Correcting a check-in means one thing everywhere',
     points: [
       'Correct it, from the week’s list or the receipt, opens the correction with what the check-in said, so you change only what was wrong.',
@@ -33,6 +33,41 @@ export const WHATS_NEW: NewsEntry[] = [
       'A half-written correction keeps its reason when you come back to it. A cycle that has ended can’t be corrected from the form.',
     ],
     articles: ['check-in'],
+  },
+  {
+    id: 'invitation-way-out',
+    date: '2026-11-13',
+    title: 'An invitation no longer holds you at its first screen',
+    points: [
+      'The screen an invitation opens has Go to Welcome under the list of names, so a wrong link or a shared computer is never a dead end.',
+      'Setting up a workspace of your own works from there too, before you have chosen a name.',
+      'An old invitation link to a workspace that isn’t there says so, rather than opening Welcome.',
+      'Who set a workspace up is now read from the workspace itself, so the first screen, “Set this up · admin” and “Ask … to add you” name the right person when there is more than one admin.',
+      'Activity no longer gives a name twice when someone opens a workspace for the first time.',
+    ],
+    articles: ['joining', 'welcome'],
+  },
+  {
+    id: 'pickers-in-full',
+    date: '2026-11-12',
+    title: 'Pickers show in full, and Find finds people who have left',
+    points: [
+      'On a computer, a picker opened in a sheet or in Data’s table is no longer cut off: it opens above its field when there is no room below.',
+      'Find finds someone who has left again, marked “(left)”, as it always said it would.',
+      'Setting up a workspace with two people of one name, the owner you pick is the one the goal gets.',
+    ],
+    articles: ['finding'],
+  },
+  {
+    id: 'save-part-not-loaded',
+    date: '2026-11-12',
+    title: 'Saving says when it can’t',
+    points: [
+      'If the part of Faro that saves a check-in hasn’t loaded (you went offline before it arrived, say), Post check-in now says so instead of doing nothing until you reload.',
+      'Offline, it asks you to try again once you’re back online. Online, it reloads the page or offers Reload, and what you typed is kept.',
+      'Home now really lists your goals worst first, then by name, as the last release said.',
+    ],
+    articles: ['any-device', 'home'],
   },
   {
     id: 'asks-say-how-long',

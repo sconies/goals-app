@@ -577,7 +577,7 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   out['spec/core/import-issues.md'] = GENERATED('src/domain/issueKinds.ts, src/domain/problemLevels.ts, src/domain/columns.ts and import.csv’s cases') + importIssuesMarkdown(w);
   for (const [f, text] of Object.entries(files)) out[`spec/conformance/${f}`] = text;
   out['spec/conformance/README.md'] = conformanceReadme(w, files);
-  Object.assign(out, contractFiles());
+  Object.assign(out, contractFiles((f) => out[`spec/conformance/${f}`] ?? (() => { throw new Error(`No conformance file ${f}.`); })()));
   // Stage 1's scored files only: scorecard-words.csv, find.csv and the rest are scored when asked.
   const stage1 = ['status', 'flags', 'projection', 'scorecard', 'checkin'] as const;
   const rows = Object.fromEntries(stage1.map((f) => [f, { rows: files[`${f}.csv`]!.trimEnd().split('\n').length - 1, header: HEADERS[f] }])) as Stage1Files;

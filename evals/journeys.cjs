@@ -784,6 +784,32 @@ journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app:
   await p.context().close();
 });
 
+/** The design rules (docs/design-rules.md) broken on the page as it is: P6's test, also run by journeys on pages P6 can't reach. */
+async function designProblems(r) {
+  return r.evaluate(() => {
+    const out = [];
+    const name = (el) => el.tagName.toLowerCase() + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '');
+    for (const el of document.querySelectorAll('body *')) {
+      const b = el.getBoundingClientRect();
+      // Lines themselves (dividers, legend samples) and SVG internals are not boxes.
+      if (b.width <= 4 || b.height <= 4 || el.closest('svg')) continue;
+      const cs = getComputedStyle(el);
+      const sides = ['Top', 'Right', 'Bottom', 'Left'].map((k) => ({ w: parseFloat(cs['border' + k + 'Width']) || 0, c: cs['border' + k + 'Color'], st: cs['border' + k + 'Style'] })).filter((x) => x.w > 0 && x.st !== 'none' && !/rgba\(0, 0, 0, 0\)/.test(x.c));
+      const thick = sides.filter((x) => x.w >= 2);
+      if (thick.length && sides.length < 4) out.push(name(el) + ': a coloured edge on one side');
+      else if (sides.length === 4 && (new Set(sides.map((x) => x.c)).size > 1 || new Set(sides.map((x) => x.w)).size > 1) && thick.length) out.push(name(el) + ': one edge unlike the others');
+      if (/(^|, )[^,]*?([2-9]|\d{2})(\.\d+)?px 0px 0px 0px inset|0px ([2-9]|\d{2})px 0px 0px inset/.test(cs.boxShadow)) out.push(name(el) + ': an inset accent bar');
+      if (/gradient/.test(cs.backgroundImage) && !el.closest('.skeleton')) out.push(name(el) + ': a gradient');
+      // Glass: a translucent bar blurring what scrolls under it (deep review D1). Surfaces are flat.
+      if ((cs.backdropFilter && cs.backdropFilter !== 'none') || (cs.webkitBackdropFilter && cs.webkitBackdropFilter !== 'none')) out.push(name(el) + ': glass (a backdrop blur)');
+      if (parseFloat(cs.borderTopLeftRadius) >= 999 && cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && /result|status|state|badge/.test(String(el.className)) && !/^\s*\d+\s*$/.test(el.textContent || '')) out.push(name(el) + ': a capsule badge for a state');
+      for (const pseudo of ['::before', '::after']) { const c = getComputedStyle(el, pseudo).content; if (/[⚠✓✗✔❌⭐🔥★✕↘‹›⌄−▾↩]/.test(c)) out.push(name(el) + pseudo + ': a glyph used as an icon'); }
+    }
+    if (/[⚠✓✗✔❌⭐🔥★✕↘‹›⌄−▾↩]/.test(document.body.innerText)) out.push('text: a glyph used as an icon');
+    return [...new Set(out)];
+  });
+}
+
 journey('U97', ['SETUP-FIRST-SCREEN', 'IDENTITY', 'ONBOARDING'], 'The first screen and the way in: Welcome at its own address with one main action; set-up at its own; the invitation opens the workspace it names, says who set it up and asks which one you are; a link to nothing opens nothing; Welcome back remembers', 22, async (h, device) => {
   const p = h.use(await newPage(device));
   // A browser with nothing: the root leads to Welcome, never into a workspace.
@@ -798,6 +824,9 @@ journey('U97', ['SETUP-FIRST-SCREEN', 'IDENTITY', 'ONBOARDING'], 'The first scre
   await h.fill(p.getByLabel('The link you were sent'), 'https://example.com/goals');
   await h.click(p.getByRole('button', { name: 'Open it' }));
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'That isn’t a Faro invitation.' }).isVisible(), 'a link that isn’t an invitation is not explained');
+  // The link /ready copied before, to a workspace that isn't there, says so too: it doesn't land on Welcome (#285's review).
+  await p.goto(live('/?workspace=ws_nope'));
+  await see(p, 'This invitation doesn’t open a workspace', 'the old link to a workspace that isn’t there did not say so: ' + p.url());
   // Set-up has its own address, with nothing open.
   await p.goto(live('/workspace/new'));
   await p.getByLabel('Name', { exact: true }).waitFor({ timeout: 5000 }).catch(() => fail('/workspace/new with nothing open did not open set-up'));
@@ -834,6 +863,13 @@ journey('U97', ['SETUP-FIRST-SCREEN', 'IDENTITY', 'ONBOARDING'], 'The first scre
   h.set('attention', rows.length === 3 && rows.some((r) => /Ana Silva[\s\S]*Set this up · admin/.test(r)) && rows.some((r) => /Ben Carter[\s\S]*No goals yet/.test(r)) && await q.getByText('Not on the list?').isVisible(), 'the arrival’s people: ' + rows.map((r) => r.replace(/\s+/g, ' ')).join(' | '));
   if (await q.locator('.side:visible, .tabbar:visible').count()) fail('the arrival shows the workspace’s shell before anyone is chosen');
   await h.checkpoint('arrival');
+  (await designProblems(q)).forEach((x) => fail('the arrival breaks a design rule: ' + x));
+  // The arrival has a way out, and setting up a workspace of your own isn't held at it (#285's review, medium 1).
+  h.set('entry', await q.getByRole('link', { name: 'Go to Welcome' }).isVisible(), 'the arrival has no way to Welcome');
+  await q.goto(live('/workspace/new'));
+  await q.getByLabel('Name', { exact: true }).waitFor({ timeout: 5000 }).catch(() => fail('/workspace/new from an unanswered invitation did not open set-up'));
+  await q.goto(live('/join/' + encodeURIComponent(wsId)));
+  await see(q, 'Welcome to Field Operations', 'the invitation did not open again after set-up was left');
   await h.click(q.getByRole('button', { name: /^Ben Carter\b/ }));
   await q.waitForURL((u) => !/\/join\//.test(u.pathname), { timeout: 5000 }).catch(() => fail('choosing a name stayed on the invitation’s address'));
   await q.locator('section.getting-started').first().waitFor({ timeout: 5000 }).catch(() => fail('choosing a name did not open Home with the first-week block'));
@@ -3092,7 +3128,13 @@ journey('U91', ['FIND-AND-PICK'], 'Picking everywhere else: editing a goal, its 
   await cell.waitFor();
   await h.click(cell);
   await h.fill(p.locator('.pick.open').getByRole('combobox'), 'mei');
-  await h.click(p.locator('.pick.open').getByRole('option', { name: /Mei/ }).first());
+  // FS1's review: the open panel isn't cut off by the table it sits in. Its first option is on screen and is what a
+  // click at its middle reaches, without scrolling.
+  const meiOpt = p.locator('.pick.open').getByRole('option', { name: /Mei/ }).first();
+  await meiOpt.waitFor();
+  const reached = await meiOpt.evaluate((o) => { const b = o.getBoundingClientRect(); const x = b.left + b.width / 2, y = b.top + b.height / 2; return y > 0 && y < innerHeight && x > 0 && x < innerWidth && o.contains(document.elementFromPoint(x, y)); });
+  h.set('finish', reached, 'Data’s owner picker is cut off by the table: its first option can’t be reached where it is drawn');
+  await h.click(meiOpt);
   await see(p, /1 change in 1 row, not saved yet/, 'picking an owner in Data did not make a change to review');
   h.set('attention', (await p.locator('.dcell.edited').count()) === 1, 'the changed owner cell is not marked as changed');
   const dataBig = await big();
@@ -6254,33 +6296,12 @@ async function platformChecks() {
     const c4 = await browser.newContext({ viewport: vp });
     const r = await c4.newPage();
     for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['rhea', '/goals'], ['rhea', '/goals?scope=all&view=table'], ['rhea', '/goals?scope=all&view=board'], ['rhea', '/goals?scope=all&view=history'], ['rhea', '/goals?scope=all&view=map'],
-      ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['amara', '/reviews/weekly'], ['rhea', '/watching'], ['mateo', '/quick-check-in'], ['mateo', '/data/import'], ['rhea', '/activity'], ['grace', '/data'], ['grace', '/workspace'], ['grace', '/people'], ['oskar', '/people/rhea'], ['oskar', '/teams'], ['grace', '/teams/cicd'], ['grace', '/feedback'], ['grace', '/workspace/features'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['rhea', '/retro'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/help/columns'], ['rhea', '/whats-new']]) {
+      ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['amara', '/reviews/weekly'], ['rhea', '/watching'], ['mateo', '/quick-check-in'], ['mateo', '/data/import'], ['rhea', '/activity'], ['grace', '/data'], ['grace', '/workspace'], ['grace', '/people'], ['oskar', '/people/rhea'], ['oskar', '/teams'], ['grace', '/teams/cicd'], ['grace', '/feedback'], ['grace', '/workspace/features'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['rhea', '/retro'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/help/columns'], ['rhea', '/whats-new'], ['rhea', '/welcome'], ['rhea', '/join/ws_nope']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:platform-org', w), who);
       await r.reload();
       await r.waitForTimeout(route.includes('map') ? 700 : 250);
-      const found = await r.evaluate(() => {
-        const out = [];
-        const name = (el) => el.tagName.toLowerCase() + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '');
-        for (const el of document.querySelectorAll('body *')) {
-          const b = el.getBoundingClientRect();
-          // Lines themselves (dividers, legend samples) and SVG internals are not boxes.
-          if (b.width <= 4 || b.height <= 4 || el.closest('svg')) continue;
-          const cs = getComputedStyle(el);
-          const sides = ['Top', 'Right', 'Bottom', 'Left'].map((k) => ({ w: parseFloat(cs['border' + k + 'Width']) || 0, c: cs['border' + k + 'Color'], st: cs['border' + k + 'Style'] })).filter((x) => x.w > 0 && x.st !== 'none' && !/rgba\(0, 0, 0, 0\)/.test(x.c));
-          const thick = sides.filter((x) => x.w >= 2);
-          if (thick.length && sides.length < 4) out.push(name(el) + ': a coloured edge on one side');
-          else if (sides.length === 4 && (new Set(sides.map((x) => x.c)).size > 1 || new Set(sides.map((x) => x.w)).size > 1) && thick.length) out.push(name(el) + ': one edge unlike the others');
-          if (/(^|, )[^,]*?([2-9]|\d{2})(\.\d+)?px 0px 0px 0px inset|0px ([2-9]|\d{2})px 0px 0px inset/.test(cs.boxShadow)) out.push(name(el) + ': an inset accent bar');
-          if (/gradient/.test(cs.backgroundImage) && !el.closest('.skeleton')) out.push(name(el) + ': a gradient');
-          // Glass: a translucent bar blurring what scrolls under it (deep review D1). Surfaces are flat.
-          if ((cs.backdropFilter && cs.backdropFilter !== 'none') || (cs.webkitBackdropFilter && cs.webkitBackdropFilter !== 'none')) out.push(name(el) + ': glass (a backdrop blur)');
-          if (parseFloat(cs.borderTopLeftRadius) >= 999 && cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && /result|status|state|badge/.test(String(el.className)) && !/^\s*\d+\s*$/.test(el.textContent || '')) out.push(name(el) + ': a capsule badge for a state');
-          for (const pseudo of ['::before', '::after']) { const c = getComputedStyle(el, pseudo).content; if (/[⚠✓✗✔❌⭐🔥★✕↘‹›⌄−▾↩]/.test(c)) out.push(name(el) + pseudo + ': a glyph used as an icon'); }
-        }
-        if (/[⚠✓✗✔❌⭐🔥★✕↘‹›⌄−▾↩]/.test(document.body.innerText)) out.push('text: a glyph used as an icon');
-        return [...new Set(out)];
-      });
+      const found = await designProblems(r);
       found.forEach((x) => design.push(`${device} ${route}: ${x}`));
       // Status is a shape plus a word, and the shape is the word's: every Goals layout, at both widths.
       (await shapeMismatches(r)).forEach((x) => design.push(`${device} ${route}: ${x}`));
