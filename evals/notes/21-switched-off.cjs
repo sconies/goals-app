@@ -1,0 +1,96 @@
+/* N21: a switched-off module's addresses (FT2, docs/design/feature-toggles/spec.md sections 3, 4.2 and 9). run({ open, url })
+   returns a list of failures. As Amara, an admin, on a computer: switching Reviews off first reads back what stays, and
+   its counts are the workspace's (the rule switchOffReadBack: reviews not ended or removed, what was said or marked in
+   them, the open next steps and questions raised in one); then, with every installed module switched off, each of their
+   routes (from each module.json) is Page not found with “{Name} is switched off in {workspace}. An admin can switch it on
+   in Workspace, Features.”, a link for an admin; Reviews' Help article says the same. For Rhea, who isn't an admin, the
+   line is words, not a link, and Features offers her no switch (setModule refuses her too: src/domain/actions.ts, its
+   unit test). */
+const fs = require('fs');
+const path = require('path');
+
+const MODULES = fs.readdirSync(path.join(__dirname, '../../src/modules'), { withFileTypes: true })
+  .filter((d) => d.isDirectory() && fs.existsSync(path.join(__dirname, '../../src/modules', d.name, 'module.json')))
+  .map((d) => require(`../../src/modules/${d.name}/module.json`));
+/** A route as an address: each parameter given a value. */
+const address = (route) => route.replace(/:[A-Za-z]+/g, 'x');
+const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+
+module.exports = {
+  id: 'N21',
+  area: 'modules',
+  title: 'A switched-off module’s addresses say so, and who can switch it on; the read-back before switching Reviews off counts what stays',
+  reqs: ['REVIEWS-OPTIONAL', 'MODULES'],
+  async run({ open, url }) {
+    const fails = [];
+    const [c, p] = await open(1440, 900, 'amara', '/workspace/features');
+    const box = (name) => p.getByRole('checkbox', { name, exact: true });
+    await box('Reviews').waitFor();
+
+    // The read-back's counts are the workspace's, as the rule counts them.
+    const s = await p.evaluate(() => window.__goalsStore.load('platform-org'));
+    const cycleId = s.goals.find((g) => g.id === 'ns-lead')?.cycleId;
+    const inCycle = new Set(s.goals.filter((g) => g.cycleId === cycleId && !g.removedAt).map((g) => g.id));
+    const asks = (s.requests ?? []).filter((r) => r.goalIds.some((id) => inCycle.has(id)));
+    const want = {
+      people: s.people.filter((x) => !x.leftAt && !x.removedAt).length,
+      reviews: s.reviews.filter((r) => !r.removedAt && !r.endedAt).length,
+      said: s.changes.filter((x) => x.entity === 'review' || x.entity === 'decision').length,
+      steps: asks.filter((a) => a.kind === 'action' && a.status === 'open' && a.reviewId).length,
+      questions: asks.filter((a) => a.kind === 'question' && a.status === 'open' && a.reviewId).length,
+    };
+    await box('Reviews').click();
+    const sheet = p.getByRole('dialog', { name: /^Switch off Reviews in / });
+    await sheet.waitFor();
+    const said = (await sheet.innerText()).replace(/\s+/g, ' ');
+    const expect = [
+      `For all ${want.people} people here:`,
+      'Reviews leaves the menu, and Home’s “Next review”.',
+      ...(want.reviews ? [`${n(want.reviews, 'review stays', 'reviews stay')} in the record${want.said ? `, with the ${n(want.said, 'thing', 'things')} said or marked in ${want.reviews === 1 ? 'it' : 'them'}` : ''}.`] : []),
+      ...(want.steps ? [`${n(want.steps, 'open next step', 'open next steps')} agreed in a review ${want.steps === 1 ? 'stays' : 'stay'} open on their goals and on Home.`] : []),
+      ...(want.questions ? [`${n(want.questions, 'question', 'questions')} waiting for a review ${want.questions === 1 ? 'stays' : 'stay'} open`] : []),
+      'Nothing is deleted. Switch Reviews back on and every review is as it was.',
+    ];
+    for (const line of expect) if (!said.includes(line)) fails.push(`the read-back does not say “${line}”: ${said.slice(0, 400)}`);
+    if (!want.steps && /open next step/.test(said)) fails.push('the read-back counts open next steps there are none of');
+    await sheet.getByRole('button', { name: 'Switch off Reviews' }).click();
+    await p.getByText('Reviews is off in').first().waitFor();
+
+    // Every other installed module off too, each at once.
+    for (const m of MODULES.filter((x) => x.id !== 'reviews')) {
+      const b = box(m.name);
+      if (!(await b.count()) || !(await b.isChecked())) continue;
+      await b.click();
+      await p.getByText(`${m.name} is off in`).first().waitFor();
+    }
+
+    // Each module's routes: the not-found page with the line, “Workspace, Features” a link for an admin.
+    for (const m of MODULES) {
+      for (const r of m.routes) {
+        await p.goto(url(address(r)));
+        const main = p.locator('main');
+        await main.getByText('Page not found').first().waitFor({ timeout: 8000 }).catch(() => {});
+        const text = (await main.innerText().catch(() => '')).replace(/\s+/g, ' ');
+        if (!/Page not found/.test(text)) { fails.push(`${m.name} off: ${r} is not Page not found`); continue; }
+        if (!new RegExp(`${m.name} is switched off in .+\\. An admin can switch it on in Workspace, Features\\.`).test(text)) fails.push(`${m.name} off: ${r} does not say “${m.name} is switched off in …”`);
+        else if (!(await main.getByRole('link', { name: 'Workspace, Features' }).count())) fails.push(`${m.name} off: on ${r}, “Workspace, Features” is not a link for an admin`);
+      }
+    }
+    await p.goto(url('/help/reviews'));
+    await p.locator('main').getByText(/There’s no help article here/).first().waitFor({ timeout: 8000 }).catch(() => {});
+    if (!/Reviews is switched off in/.test(await p.locator('main').innerText())) fails.push('Reviews off: /help/reviews does not say Reviews is switched off');
+
+    // Rhea isn't an admin: the line is words, not a link, and Features offers her no switch.
+    await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+    await p.goto(url('/reviews'));
+    await p.locator('main').getByText('Page not found').first().waitFor({ timeout: 8000 }).catch(() => {});
+    const rhea = await p.locator('main').innerText();
+    if (!/Reviews is switched off in/.test(rhea)) fails.push('for Rhea, /reviews does not say Reviews is switched off');
+    if (await p.locator('main').getByRole('link', { name: 'Workspace, Features' }).count()) fails.push('for Rhea, who isn’t an admin, “Workspace, Features” is a link');
+    await p.goto(url('/workspace/features'));
+    await p.waitForTimeout(500);
+    if (await p.getByRole('checkbox', { name: 'Reviews', exact: true }).count()) fails.push('Features offers Rhea, who isn’t an admin, the Reviews switch');
+    await c.close();
+    return fails;
+  },
+};

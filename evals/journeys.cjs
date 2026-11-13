@@ -4725,7 +4725,10 @@ journey('U103', ['REVIEWS-OPTIONAL', 'MODULES', 'HOME-OWNER'], 'Amara switches R
   if (!/Goals you watch/.test(leadText) || !/\d+ needs? attention/.test(leadText)) fail(`Home’s lead is not “Goals you watch · {n} need attention”: ${leadText}`);
   if (!(await lead.getByRole('link', { name: 'See them' }).count())) fail('Home’s lead has no See them');
   if (await p.locator('.dash-review').count()) fail('Home still shows a review cell');
-  if (/review/i.test(await p.locator('[data-part="Home"]').innerText().then((t) => t.split('\n').filter((l) => !/History|Activity/.test(l)).join('\n')))) fail('Home still says “review” somewhere');
+  // An ask's own words may say "review" ("…to the finance review"); Home itself names no review, session or walk.
+  const homeSays = await p.locator('[data-part="Home"]').innerText();
+  const named = homeSays.match(/Review today|Review tomorrow|Review on |Not held yet|Open the review|Continue the review|to discuss|in Platform leadership weekly|in Quarterly business review|next session|today’s session/);
+  if (named) fail(`Home still names a review: “${named[0]}”`);
   // A review's address says it is off, and who can switch it on.
   await p.goto(url('/reviews'));
   await see(p, 'Page not found');
