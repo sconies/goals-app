@@ -196,6 +196,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #435 SM4: the rail's Faro mark is the workspace switcher | 2 | 0 | 0 | 0 |
 | #437 NR2: readings in the check-in | readings | 0 | 6 | 5 |
 | #404 MT3 review: #351's mediums | 7c | 0 | 0 | 0 |
+| #446 NR3: readings shown, and NR2's review mediums | readings | 0 | 4 | 7 |
 
 **High findings, and where each stands**
 
@@ -1907,3 +1908,18 @@ A caller cannot supply a reading: `post_check_in` takes two flags and the server
 **#404 (track 7c): #351's mediums on MT3. Holds as read.** A change to a metric offers Undo, which takes its marks and a relabel's goal units back with it; a goal's marks are bounded by its own cycle (`cycleUntil`, `src/domain/records.ts`), so a change made next year never marks this year's goals; at most the latest three weeks of marks are drawn, two in one week as one line; a retired metric of the same name is named with the day it was retired; marks show on range charts; stopped goals are counted. Tests added.
 
 #448 (phone pages run with the CPU slowed), #450 (a check renumbered) and #454 (a journey's expectation) change evals only; #453 is a handover page. #444 (four more switches), #428, #449 and #452 with migration 0050 (measurement status, baseline, a proposed goal with no target) and #446 (readings shown, NR2's mediums) are with first-pass reviewers.
+
+### #446 NR3: readings shown, and NR2's review mediums (session …8y3FdWxxDaqeRvJw4c, merged 13 Nov)
+
+Read first by a reviewing session on PGlite with every migration through each store, through the tools, and on screen at 1440 and 390; not re-run by me. No high.
+
+**Of #437's six mediums:** 1 is fixed (every row now writes `reading`, null clears it: a corrected number leaves no reading in memory or the database, and an unchanged number keeps it through a correction of other fields, delete and restore, and Undo); 5 is fixed but for the source's name; 6 is fixed in `askSource`. Mediums 2, 3 and 4 are not fixed, though the commit says the review's mediums are done.
+
+**1. Medium (ran). `post_check_in` with an earlier week and `reading_confirmed` still saves today's reading as that week's number** (`src/modules/metrics/readingTool.ts`; `src/mcp/tools.ts:429-430`): week 43 holds value 19 with a reading dated 5 Nov.
+**2. Medium (ran). The step and the AI's reader still compare at the metric's decimals, the engine at the goal's,** so a reason can be given and still be refused (`CheckInNumber.tsx:58,71,84-85` against `changeset.ts:1464`).
+**3. Medium (ran). Opening the number step still stores the filled-in reading as a draft** (`CheckInFlow.tsx:572`, `CheckInNumber.tsx:67`): touch nothing, leave, and reopening says "Picked up where you left off".
+**4. Medium, and Lane's call (ran). With the Metric library switched off, readings still show in the core and the tools:** the goal's History line, the agenda's "from CI analytics", `get_goal`'s `numberFrom` and four workbook columns ask no switch (`GoalScreen.tsx:985`, `goalRows.tsx:80`, `export.ts:195-242`, `columns.ts:283-286`). The guide says the History line stays as a fact about the check-in; nothing says so for the other three.
+
+**Lows.** A blank or 5,000-character source name is recorded; through public's old names a re-save after a reload now clears a reading (not a path the live app takes); "This week's number" shows the latest check-in's whatever its week; once one check-in has a reading every other History row gains "Typed by {author}"; the JSON export and `get_goal` carry "read 9:00 today" with no zone; a correction to a different number drops the reading, so the "used a different number" count misses it; the pre-fill is still not rounded (read).
+
+**Fine.** The sentences are true for each case and invent no reason; the metric page and `get_metric` agree, leave out stopped and removed goals, and name goals and weeks, never people; the export's four columns are for reading only and an unchanged export loads back as no change; no sideways scroll, stripes or pills. Lane's item from #437 (the one table posts an untouched filled-in number as confirmed) is unchanged.
