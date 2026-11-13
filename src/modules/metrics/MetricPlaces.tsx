@@ -7,6 +7,7 @@ import type { PlaceProps } from '../../core/app';
 import { canLinkGoal, linkProblems, measureOf, metricsOf } from './rules';
 import { markLabel, marksFor, onDay } from './rulesChange';
 import { WarnMark } from '../../ui/bits';
+import { readingThisWeek } from '../../domain/reading';
 import { decimalsWords, directionWords, findMetrics, liveLinks, metricPath, type LibraryRow } from './rulesLibrary';
 import { libraryReads } from './reads';
 import './metrics.css';
@@ -54,6 +55,9 @@ export function GoalMetric({ goal }: PlaceProps['goal.sections']) {
   const sameUnit = !!other && other.unit.trim().toLowerCase() === m.metric.unit.trim().toLowerCase();
   const may = canLinkGoal(app.viewer, goal) && !goal.stoppedAt;
   const marks = marksFor(m.metric, m.link, app.cycle.startDate);
+  // "This week’s number" (NR 2.4): only what the latest check-in recorded of its source; nothing when it recorded none.
+  const latest = app.checkInsOf(goal).at(-1);
+  const thisWeek = goal.kind === 'milestone' ? null : readingThisWeek(latest, goal, app.person(latest?.authorId ?? '')?.name ?? 'someone who has left', app.today);
   const useOther = async () => { try { await app.run('linkGoalMetric', { goalId: goal.id, metricId: other!.id, teamId: m.link.teamId, part: m.part, reason: `${m.metric.name} was retired.` }); } catch { /* the rule's message is shown */ } };
   return (
     <section className="stack metric-block" aria-labelledby="g-metric" data-part="Measured by">
@@ -74,6 +78,7 @@ export function GoalMetric({ goal }: PlaceProps['goal.sections']) {
         <dt>What it means</dt><dd>{m.metric.meaning || <span className="hint">Its meaning hasn’t been written yet.</span>}</dd>
         <dt>From the metric</dt><dd>{m.metric.unit}, {decimalsWords(m.metric.decimals)}, {directionWords(m.metric.direction)}</dd>
         {where && <><dt>Where the number comes from</dt><dd>{where}</dd></>}
+        {thisWeek && <><dt>This week’s number</dt><dd className="metric-this-week">{thisWeek}</dd></>}
         {m.metric.caveats && <><dt>Caveats</dt><dd>{m.metric.caveats}</dd></>}
         {m.targetText && <><dt>This goal’s own</dt><dd>{m.targetText}</dd></>}
         {own && <><dt>For this goal</dt><dd>{own}</dd></>}

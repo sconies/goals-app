@@ -375,6 +375,13 @@ No arguments.
             postedAt: string;
             postedBy: string | null;
             backfilled: boolean;
+            numberFrom: {
+                from: string;
+                sourceSaid: number | null;
+                measuredAt: string | null;
+                reason: string | null;
+                says: string | null;
+            } | null;
         }[];
         unmeasured?: {
             since: string;
@@ -545,6 +552,13 @@ No arguments.
             postedAt: string;
             postedBy: string | null;
             backfilled: boolean;
+            numberFrom: {
+                from: string;
+                sourceSaid: number | null;
+                measuredAt: string | null;
+                reason: string | null;
+                says: string | null;
+            } | null;
         }[];
         unmeasured?: {
             since: string;
@@ -5991,6 +6005,13 @@ From the [spreadsheets](../modules/spreadsheets/README.md) module: switched off 
             postedAt: string;
             postedBy: string | null;
             backfilled: boolean;
+            numberFrom: {
+                from: string;
+                sourceSaid: number | null;
+                measuredAt: string | null;
+                reason: string | null;
+                says: string | null;
+            } | null;
         }[];
         unmeasured?: {
             since: string;

@@ -25,6 +25,7 @@ import {
 import type { Archive, CheckIn, Decision, Goal, Person } from './types';
 import { moduleSheetRows } from './records';
 import { NO_REASON } from './checkin';
+import { readingCells, readingHistoryLine } from './reading';
 
 export type { Cell, ExportInput } from './columns';
 /** A sheet: its name, its rows (the header first), and the columns set apart in grey: worked out, or only for reading.
@@ -191,6 +192,13 @@ export const csvFiles = (book: Table[]) => book.map((t) => ({ name: `${t.name}.c
 
 /* ---------- JSON ---------- */
 
+/** A check-in's reading in the JSON export and get_goal: the sheet's four columns, and History's line. */
+function numberFrom(c: CheckIn, g: Goal, who: string, today: Date) {
+  const dec = g.kind === 'milestone' ? 0 : g.decimals;
+  const r = readingCells(c, dec);
+  return r.from ? { from: r.from, sourceSaid: r.value, measuredAt: r.at, reason: r.reason, says: g.kind === 'milestone' ? null : readingHistoryLine(c, g, who, today, { timeZone: 'UTC' }) } : null;
+}
+
 export function toJson(x: ExportInput) {
   const { sums, name, c } = prepare(x, true);
   const team = (id: string | null) => x.snapshot.teams.find((t) => t.id === id)?.name ?? null;
@@ -233,6 +241,8 @@ export function toJson(x: ExportInput) {
           call: c.status, callLabel: LABEL[c.status], calculated: c.calculated, calculatedLabel: LABEL[c.calculated], cause: c.cause, why: c.why || null, whyGreener: c.greenerWhy || null,
           pathToGreen: c.pathToGreen ? { what: c.pathToGreen.what, byWeek: c.pathToGreen.byWeek, needs: c.pathToGreen.needs || null, state: c.pathToGreen.state ?? 'plan' } : null,
           next: c.next || null, postedAt: c.postedAt, postedBy: name(c.authorId) || null, backfilled: !!c.backfilled,
+          // Where its number came from (NR 2.4), as History says it; null when no source was read.
+          numberFrom: numberFrom(c, g, name(c.authorId) || 'someone who has left', x.today),
         })),
       };
     }),

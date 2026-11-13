@@ -32,6 +32,11 @@ import { checkReads, goalsOfMetric, libraryReads, lineOf, proposedOfMetric } fro
 import { countLine, metricChecks, STILL_FIELD, stillToSay, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
 import { CheckSaid, FixLine } from '../../ui/Levels';
 import { changeKinds, linkedGoals } from './rulesChange';
+import { readWhen } from '../../domain/reading';
+import { checkInsFor } from '../../domain/status';
+import { differentNumbers, differentWords, fillsIn, fillsInWords } from './rulesReading';
+import { sliceOf, type NumberSource } from './source';
+import { sourcesFrom } from './sources';
 import './metrics.css';
 
 const METRICS = { thing: 'metric', things: 'metrics' };
@@ -170,7 +175,8 @@ export function MetricsLibrary() {
 const pageParams = (params: URLSearchParams, page: number) => { const n = new URLSearchParams(params); if (page > 1) n.set('page', String(page)); else n.delete('page'); return n.toString(); };
 
 function EmptyLibrary() {
-  return <EmptyResult title="No metrics yet." action={<Link className="btn primary" to="/metrics/new">Add a metric</Link>}>A metric says exactly what a number means, so every goal that uses it means the same thing.</EmptyResult>;
+  // Small workspaces 2.4: says when you'd want one; its button is a plain one, not the page's primary.
+  return <EmptyResult title="No metrics yet" action={<Link className="btn" to="/metrics/new">Add a metric</Link>}>You don’t need one until two goals share a number. Then say what it means once, here, and both goals mean the same thing.</EmptyResult>;
 }
 
 /** A metric in the library: a link to it, its unit, direction and owner, its goals by status, and (for its owner and
@@ -276,6 +282,7 @@ export function MetricPage() {
         <dt>Added</dt><dd>{by(m.createdBy, m.createdAt)}</dd>
         <dt>Last changed</dt><dd>{by(lastChangedBy(app.snapshot.changes, m), m.updatedAt)}</dd>
       </dl>
+      {rows.length > 0 && !!m.source.trim() && <ReadingsTable metric={m} rows={rows} />}
       {needs.length > 0 && (
         <section className="stack metric-sortout" style={{ gap: 'var(--s2)' }} aria-labelledby="metric-sortout">
           <h2 className="label" id="metric-sortout">To sort out</h2>
@@ -346,6 +353,63 @@ function GoalsTable({ rows }: { rows: MetricGoalRow[] }) {
         ))}
       </tbody>
     </table>
+  );
+}
+
+/** The sources registered for the open workspace (the demo's in the example; none in a workspace of your own). Null
+    until known: the example's seed loads once. */
+function useSources(): NumberSource[] | null {
+  const app = useApp();
+  const [sources, setSources] = useState<NumberSource[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    void app.exampleSeed().catch(() => null).then((seed) => { if (live) setSources(sourcesFrom(seed, app.cycle)); });
+    return () => { live = false; };
+  }, [app.ws.id, app.cycle.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  return sources;
+}
+
+/** Under “Where the number comes from” (NR 2.4, rule 4): how each goal's check-in gets its number, then how often a
+    number filled in from the source was typed over in the last 8 weeks, with those goals and weeks. Goals, never people. */
+function ReadingsTable({ metric: m, rows }: { metric: Metric; rows: MetricGoalRow[] }) {
+  const app = useApp();
+  const sources = useSources();
+  const [open, setOpen] = useState(false);
+  if (!sources) return null;
+  const links = linksOf(app.snapshot).filter((l) => l.metricId === m.id && !l.removedAt);
+  const cells = rows.map((r) => {
+    const link = links.find((l) => l.goalId === r.goal.id);
+    return { r, words: link ? fillsInWords(fillsIn(sources, m, sliceOf(link), checkInsFor(r.goal, app.snapshot.checkIns)), (at) => readWhen(at, app.today)) : '' };
+  });
+  const decimals = new Map(rows.map((r) => [r.goal.id, r.goal.kind === 'milestone' ? 0 : r.goal.decimals] as [string, number]));
+  const counts = differentNumbers(app.snapshot.checkIns, decimals, app.week);
+  const title = (id: string) => rows.find((r) => r.goal.id === id)?.goal.title ?? id;
+  return (
+    <section className="stack metric-readings" style={{ gap: 'var(--s2)' }} aria-labelledby="metric-readings" data-part="In each goal’s check-in">
+      <h2 className="label" id="metric-readings">In each goal’s check-in</h2>
+      <table className="metric-reads">
+        <thead><tr><th scope="col">Goal</th><th scope="col">For</th><th scope="col">In its check-in</th></tr></thead>
+        <tbody>
+          {cells.map(({ r, words }) => (
+            <tr key={r.goal.id}>
+              <td className="mg-goal"><Link to={`/goals/${encodeURIComponent(r.goal.id)}`}>{r.goal.title}</Link></td>
+              <td className="mg-for" data-label="For">{r.slice}</td>
+              <td className="mg-read" data-label="In its check-in">{words}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {counts.map((d) => (
+        <div key={d.source} className="stack" style={{ gap: 'var(--s1)' }}>
+          <p className="small metric-different">{differentWords(d)}{d.k > 0 && <> <button type="button" className="linkish" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Hide them' : 'See them'}</button></>}</p>
+          {open && d.k > 0 && (
+            <ul className="metric-mini metric-different-weeks">
+              {d.weeks.map((w) => <li key={`${w.goalId}-${w.week}`}><Link to={`/goals/${encodeURIComponent(w.goalId)}?history=checkins&week=${w.week}#history`}>{title(w.goalId)}, week {w.week}</Link></li>)}
+            </ul>
+          )}
+        </div>
+      ))}
+    </section>
   );
 }
 

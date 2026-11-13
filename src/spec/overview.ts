@@ -70,6 +70,7 @@ export const INTERNAL_PAGES: [string, string, string][] = [
   ['r9-observability', 'R9. Observability and service levels', 'the signals sent to the company’s tools, the service levels promised, and what pages the on-call person'],
   ['r10-accessibility', 'R10. Accessibility', 'WCAG 2.2 AA on every screen: shape and word, the keyboard, screen readers, zoom and reflow'],
   ['r11-large-imports', 'R11. Large imports, a server-side job', 'an import of tens of thousands of rows as a job on the server: the rules run there, one state at the end, Undo kept per import (R-L1 to R-L6)'],
+  ['r12-number-sources', 'R12. Number sources', 'connectors for where metrics’ numbers are kept: credentials on the server, a reference per metric and slice, readings on a schedule with revisions, failures to the source’s owner (R12.1 to R12.8)'],
 ];
 
 export function systemOverview(): string {
