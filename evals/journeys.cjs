@@ -3424,7 +3424,7 @@ journey('U72', ['NAV-FORMS'], 'One way out of a form: each focus-mode page has o
   const p = h.use(await newPage(device, 'rhea'));
   const wrong = [];
   const closers = () => p.locator('.focus-top').first().locator('button, a').filter({ hasText: /^Close|^Cancel/ }).or(p.locator('.focus-top').first().locator('.iconbtn[aria-label^="Close"]'));
-  for (const [addr, want] of [['/check-in/ci-docker', 'Close and keep the draft'], ['/reviews/new', 'Close without saving'], ['/reviews/weekly/edit', 'Close without saving'], ['/workspace/new', 'Close and keep the draft'], ['/goals/new', 'Close and keep the draft'], ['/goals/ci-docker/edit', 'Close and keep the draft'], ['/quick-check-in', 'Close and keep the draft'], ['/data/import', 'Close without saving']]) {
+  for (const [addr, want] of [['/check-in/ci-docker', 'Close and keep the draft'], ['/reviews/new', 'Close without saving'], ['/reviews/weekly/edit', 'Close without saving'], ['/workspace/new', 'Close and keep the draft'], ['/goals/new', 'Close and keep the draft'], ['/goals/ci-docker/edit', 'Close and keep the draft'], ['/quick-check-in', 'Close and keep the draft'], ['/data/import', 'Close without saving'], ['/metrics/new', 'Close and keep the draft']]) {
     await p.goto(url(addr));
     await p.locator('.focus-top').first().waitFor({ timeout: 8000 }).catch(() => {});
     const n = await closers().count();
@@ -3433,6 +3433,8 @@ journey('U72', ['NAV-FORMS'], 'One way out of a form: each focus-mode page has o
     else if (want && words !== want) wrong.push(`${addr}: “${words}”, want “${want}”`);
     // Goal edit's second exit, back to the goal, is gone (navigation spec 2.5).
     if (/\/edit$/.test(addr) && addr.startsWith('/goals/') && await p.locator('.focus-top').first().locator('a').count()) wrong.push(`${addr}: a second way out`);
+    // A form draws no back link either, a module's focus page included (build review of #282).
+    if (await p.locator('.backlink').count()) wrong.push(`${addr}: a back link as well`);
   }
   h.set('entry', !wrong.length, wrong.join('; '));
   h.set('one-action', true);

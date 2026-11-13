@@ -1,10 +1,11 @@
 /* N26: Home's one primary, and quiet when quiet (docs/design/home/spec.md, HM1). run({ open, url }) returns a list of failures.
    [HOME-OWNER] On every day of two weeks for four of the demo's people, at a phone's and a computer's size: at most one
-   primary button on Home, and none when there is no lead (the quiet line); the lead's button in the first screen (above
+   primary button on Home, and none when there is no lead (the quiet line); the lead's button, and on a phone the first of
+   your goals that needs attention, in the first screen (above
    the phone's tab bar at 390×844, above the fold at 1440×900); and Home never says "0 weeks", "None you’re in" or
    "You’re all set", nor links to a bare /goals or an old show= address. */
 const DAYS = Array.from({ length: 14 }, (_, i) => new Date(Date.UTC(2026, 10, 9 + i)).toISOString().slice(0, 10));
-const PEOPLE = ['tunde', 'rhea', 'amara', 'oskar'];
+const PEOPLE = ['tunde', 'rhea', 'amara', 'oskar', 'tariq'];
 const SIZES = [[390, 844, true], [1440, 900, false]];
 
 module.exports = {
@@ -34,6 +35,8 @@ module.exports = {
             fold,
             text: home?.innerText ?? '',
             hrefs: [...(home?.querySelectorAll('a[href]') ?? [])].map((a) => a.getAttribute('href').replace(/^\/demo/, '')),
+            // U2's measure: the first of your goals that needs attention, its title ending 8px above the fold.
+            firstGoal: (() => { const t = home?.querySelector('.home-mine .arow .arow-title'); return t ? t.getBoundingClientRect().bottom : null; })(),
           };
         });
         check(seen.lead !== 'missing', `${at}: Home has neither a lead nor the quiet line`);
@@ -43,6 +46,8 @@ module.exports = {
           check(/Nothing is asked of you today\.| in for week \d+\.|(One ask waits|\d+ asks wait) for your response\./.test(seen.text), `${at}: the quiet line is not one of its sentences`);
         } else check(seen.primaries === 1 && seen.bottom != null && seen.bottom <= seen.fold, `${at}: the lead’s button (${seen.lead}) is not in the first screen (${Math.round(seen.bottom ?? -1)}px, fold ${Math.round(seen.fold)}px)`);
         check(!/\b0 weeks\b|None you’re in|You’re all set/.test(seen.text), `${at}: Home says something it no longer says`);
+        // [HOME-OWNER] On every day, not U2's one (build review of #305): your first goal that needs attention starts on a phone's first screen.
+        if (touch && seen.firstGoal != null) check(seen.firstGoal <= seen.fold - 8, `${at}: the first of your goals that needs attention ends at ${Math.round(seen.firstGoal)}px, under the fold at ${Math.round(seen.fold)}px`);
         const bad = seen.hrefs.filter((x) => /^\/goals(\?)?$/.test(x.replace(/[?&]today=[\d-]+/, '')) || /[?&]show=/.test(x));
         check(!bad.length, `${at}: a bare or old Goals link (${bad.join(' ')})`);
       }
@@ -62,7 +67,7 @@ module.exports = {
       const [c2, q] = await open(w, h, 'rhea', '/?today=2026-11-11', touch);
       await q.locator('.needs-you').first().waitFor({ timeout: 8000 }).catch(() => {});
       const metas = await q.locator('.needs-you .need-meta').evaluateAll((els) => els.map((e) => ({ text: e.innerText, warn: !!e.querySelector('svg, .warn-mark, [class*=warn]') })));
-      check(metas.some((m) => m.warn && /^Was due before .+’s session on Tue 10 Nov/.test(m.text.trim())), `Rhea, 2026-11-11, ${w}px: no late question says “Was due before…” first with the warning mark (${metas.map((m) => m.text).join(' | ')})`);
+      check(metas.some((m) => m.warn && /^Was due by Tue 10 Nov/.test(m.text.trim())), `Rhea, 2026-11-11, ${w}px: no late question says “Was due by Tue 10 Nov” first with the warning mark (${metas.map((m) => m.text).join(' | ')})`);
       // The wait is what HM2 adds: on a phone's one line, cut short, it still shows whole (build review of #310).
       const cut = await q.locator('.needs-you .need-meta').evaluateAll((els) => els.map((e) => {
         const text = e.textContent ?? '';

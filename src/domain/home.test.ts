@@ -113,7 +113,7 @@ describe('Home rule 3: an ask that waits', () => {
   });
   it('the same, unanswered after the session: late, and its date does not move to the next session', () => {
     const w = waiting(ask({ session: DP }), '2026-11-11');
-    expect([w.late, w.line]).toEqual([true, 'Was due before Developer Productivity fortnightly’s session on Tue 10 Nov']);
+    expect([w.late, w.line]).toEqual([true, 'Was due by Tue 10 Nov']);
   });
   it('Rhea’s decision for Amara, asked 4 Aug with no date: waited 99 days, 14 weeks', () => {
     const w = waiting(ask({ kind: 'decision', by: 'Rhea', askedOn: '2026-08-04' }), '2026-11-11');

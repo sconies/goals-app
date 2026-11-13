@@ -14407,7 +14407,7 @@ function waiting(a, today) {
 		line = `Was due week ${a.dueWeek.week} (${a.dueWeek.dates})`;
 		warn = true;
 	} else if (late) {
-		line = `Was due before ${a.session.name}’s session on ${shortDay(a.session.date)}`;
+		line = `Was due by ${shortDay(a.session.date)}`;
 		warn = true;
 	} else if (due?.why === "session" && dayDiff(today, due.date) <= 1) {
 		line = dayDiff(today, due.date) === 0 ? "Due before today’s session" : "Due before tomorrow’s session";
@@ -19319,7 +19319,8 @@ var WHATS_NEW = [
 		title: "Open asks follow a goal to its new owner",
 		points: [
 			"When a goal changes owner, its open asks of the old owner go to the new one. Their Home says “Asked of Tunde, now yours”, and the ask’s history says so for whoever asked. Answered asks stay as they were.",
-			"Under Needs your response, how long an ask has waited comes first, so a phone shows it whole; the day is counted where you are.",
+			"Under Needs your response, how long an ask has waited comes first, so a phone shows it whole (a late one says “Was due by Tue 10 Nov”); the day is counted where you are.",
+			"On a phone, the first of your goals that needs attention now starts on the first screen on review days too.",
 			"The AI tools’ “what needs me” lists asks in Home’s order, with Home’s words for how long each has waited and whether it is late.",
 			"A review missed in the last week of the year is no longer “Not held yet” after the year has ended.",
 			"Adding or changing a metric has one way out, top right, like every form."

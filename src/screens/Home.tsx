@@ -151,7 +151,9 @@ function NeedsYou({ asks, also }: { asks: Waiting[]; also: boolean }) {
       <h2 className="block-title">{also ? 'Also needs your response' : 'Needs your response'} <span className="count-pill">· {asks.length + proposals.length}</span></h2>
       {groups.map(([k, list]) => (
         <div key={k} className="need-group">
-          <h3 className="need-group-title">{ASK_GROUP[k]} <span className="count-pill">· {list.length}</span></h3>
+          {/* One kind only: the block's title already says it, so no kind heading (build review of #305: the first goal
+              that needs attention starts on a phone's first screen). */}
+          {groups.length > 1 && <h3 className="need-group-title">{ASK_GROUP[k]} <span className="count-pill">· {list.length}</span></h3>}
           <ul className="needs-list">
             {list.map((w) => {
               const askedBy = app.snapshot.requests?.find((r) => r.id === w.askId)?.askedBy ?? '';

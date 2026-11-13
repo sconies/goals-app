@@ -298,7 +298,8 @@ export function waiting(a: AskFacts, today: string): Waiting {
   let line: string;
   let warn = false;
   if (late && due!.why === 'week') { line = `Was due week ${a.dueWeek!.week} (${a.dueWeek!.dates})`; warn = true; }
-  else if (late) { line = `Was due before ${a.session!.name}’s session on ${shortDay(a.session!.date)}`; warn = true; }
+  // Short enough to show whole on a phone's one line; the review is named after it ("asked in …"; build review of #310).
+  else if (late) { line = `Was due by ${shortDay(a.session!.date)}`; warn = true; }
   else if (due?.why === 'session' && dayDiff(today, due.date) <= 1) { line = dayDiff(today, due.date) === 0 ? 'Due before today’s session' : 'Due before tomorrow’s session'; warn = true; }
   else if (due?.why === 'week' && dueThisWeek) line = `Due this week (${a.dueWeek!.dates})`;
   else if (due?.why === 'week') line = `Due week ${a.dueWeek!.week} (${a.dueWeek!.dates})`;
