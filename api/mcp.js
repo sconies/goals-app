@@ -13602,9 +13602,10 @@ function goalRows(s, cycle, today, week, columns) {
 }
 function personRows(s) {
 	const teams = new Map(s.teams.map((t) => [t.id, t]));
+	const here = new Set(s.people.map((p) => p.id));
 	return {
 		kind: "person",
-		people: live(s.people),
+		people: live([...s.people, ...(s.archive?.people ?? []).filter((p) => !here.has(p.id))]),
 		teamName: (id) => teams.get(id)?.name ?? "",
 		teamLead: (id) => teams.get(id)?.leadId ?? null
 	};
@@ -13670,35 +13671,40 @@ var SCOPES = [
 */
 function scopesFor(f, last) {
 	const tabs = [];
-	const mine = f.goals.filter((g) => g.ownerId === f.viewerId).map((g) => g.id);
+	const mine = scopeIds(f, "mine");
 	if (mine.length) tabs.push({
 		id: "mine",
 		label: "Mine",
 		ids: mine
 	});
-	if (f.teams.length) {
-		const ids = new Set(f.teams.map((t) => t.id));
-		tabs.push({
-			id: "team",
-			label: f.teams.length === 1 ? "My team" : "My teams",
-			ids: f.goals.filter((g) => ids.has(g.teamId)).map((g) => g.id)
-		});
-	}
+	if (f.teams.length) tabs.push({
+		id: "team",
+		label: f.teams.length === 1 ? "My team" : "My teams",
+		ids: scopeIds(f, "team")
+	});
 	tabs.push({
 		id: "watching",
 		label: "Watching",
-		ids: f.goals.filter((g) => f.watched.has(g.id)).map((g) => g.id)
+		ids: scopeIds(f, "watching")
 	});
 	tabs.push({
 		id: "all",
 		label: "All",
-		ids: f.goals.map((g) => g.id)
+		ids: scopeIds(f, "all")
 	});
 	const has = (s) => !!s && tabs.some((t) => t.id === s);
 	return {
 		tabs,
 		opens: has(last) ? last : mine.length ? "mine" : tabs.find((t) => t.id === "watching").ids.length ? "watching" : "all"
 	};
+}
+/** The goals in a scope, by id, in the workspace's order. "team" is the viewer's own team and the teams they lead. */
+function scopeIds(f, scope) {
+	if (scope === "all") return f.goals.map((g) => g.id);
+	if (scope === "mine") return f.goals.filter((g) => g.ownerId === f.viewerId).map((g) => g.id);
+	if (scope === "watching") return f.goals.filter((g) => f.watched.has(g.id)).map((g) => g.id);
+	const teams = new Set(scope === "team" ? f.teams.map((t) => t.id) : [scope.slice(5)]);
+	return f.goals.filter((g) => teams.has(g.teamId)).map((g) => g.id);
 }
 // src/ports/search.ts
 /** The core's kinds; a module adds its own (the metric library: 'metric'). */
@@ -16795,7 +16801,8 @@ var CORE_ARTICLES = [
 					"Press Ctrl K (Cmd K on a Mac), or choose Find at the top of the sidebar (on a phone, Find in the top bar), and type a name, a few words, or a goal’s key like G-48.",
 					"What matches comes in groups: Goals, People, Teams, and Metrics while the metric library is on. Each shows its first three with how many match in all; “See all 8 goals” opens that list with your search filled in.",
 					"A goal’s key on its own (G-48, g48 or 48) puts that goal first. Enter opens the first row; Down and Up move to another; Escape closes. Each row is a link, so you can open it in a new tab.",
-					"Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open."
+					"Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open.",
+					"On a computer, a picker opens under its field, or above it when the window has no room below, so a sheet or a table never cuts it off."
 				]
 			},
 			{
@@ -18152,6 +18159,7 @@ var CORE_ARTICLES = [
 					"Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.",
 					"When Faro is updated while you have it open, the page you are on may reload itself once, at the same address, to load the new version. Anything you were typing is kept as a draft. If it still can’t load, you see Reload and Home instead.",
 					"Offline, a page Faro hasn’t loaded yet (Help, say) tells you it needs a connection instead of reloading. Try again opens it once you’re back online; Go back returns you to where you were.",
+					"The same goes for saving: if the part of Faro that saves a check-in or a change hasn’t loaded, Post check-in tells you so instead of doing nothing. Offline, try again once you’re back online; online, it reloads the page, or offers Reload, and keeps what you typed.",
 					"Feedback, in the menu’s last group or in More, has Send feedback: it tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro."
 				]
 			},
@@ -18319,6 +18327,28 @@ var WHATS_NEW = [
 			"A review you’re not in says who can add you, instead of offering a Join button that didn’t work."
 		],
 		articles: ["reviews"]
+	},
+	{
+		id: "pickers-in-full",
+		date: "2026-11-12",
+		title: "Pickers show in full, and Find finds people who have left",
+		points: [
+			"On a computer, a picker opened in a sheet or in Data’s table is no longer cut off: it opens above its field when there is no room below.",
+			"Find finds someone who has left again, marked “(left)”, as it always said it would.",
+			"Setting up a workspace with two people of one name, the owner you pick is the one the goal gets."
+		],
+		articles: ["finding"]
+	},
+	{
+		id: "save-part-not-loaded",
+		date: "2026-11-12",
+		title: "Saving says when it can’t",
+		points: [
+			"If the part of Faro that saves a check-in hasn’t loaded (you went offline before it arrived, say), Post check-in now says so instead of doing nothing until you reload.",
+			"Offline, it asks you to try again once you’re back online. Online, it reloads the page or offers Reload, and what you typed is kept.",
+			"Home now really lists your goals worst first, then by name, as the last release said."
+		],
+		articles: ["any-device", "home"]
 	},
 	{
 		id: "asks-say-how-long",

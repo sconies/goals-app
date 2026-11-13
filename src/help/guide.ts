@@ -598,6 +598,7 @@ const CORE_ARTICLES: Article[] = [
         'What matches comes in groups: Goals, People, Teams, and Metrics while the metric library is on. Each shows its first three with how many match in all; “See all 8 goals” opens that list with your search filled in.',
         'A goal’s key on its own (G-48, g48 or 48) puts that goal first. Enter opens the first row; Down and Up move to another; Escape closes. Each row is a link, so you can open it in a new tab.',
         'Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open.',
+        'On a computer, a picker opens under its field, or above it when the window has no room below, so a sheet or a table never cuts it off.',
       ] },
       { heading: 'Keys', list: [
         'Ctrl K (Cmd K on a Mac): Find, from any page.',
@@ -1275,6 +1276,7 @@ const CORE_ARTICLES: Article[] = [
         'Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.',
         'When Faro is updated while you have it open, the page you are on may reload itself once, at the same address, to load the new version. Anything you were typing is kept as a draft. If it still can’t load, you see Reload and Home instead.',
         'Offline, a page Faro hasn’t loaded yet (Help, say) tells you it needs a connection instead of reloading. Try again opens it once you’re back online; Go back returns you to where you were.',
+        'The same goes for saving: if the part of Faro that saves a check-in or a change hasn’t loaded, Post check-in tells you so instead of doing nothing. Offline, try again once you’re back online; online, it reloads the page, or offers Reload, and keeps what you typed.',
         'Feedback, in the menu’s last group or in More, has Send feedback: it tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro.',
       ] },
       { heading: 'On your home screen', list: [
