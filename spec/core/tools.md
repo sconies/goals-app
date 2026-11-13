@@ -5343,7 +5343,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 ## link_goal_metric
 
-**Say which metric measures a goal.** Measure a goal by a metric, for a slice: a team’s number (team) or the whole company’s (team left out). Or give unlink true to stop measuring it by one. The goal’s owner or an admin. The goal must have a number (not dated stages) in the metric’s unit; its own target is the target in that metric. A goal aiming the other way from the metric’s better direction is allowed, with a warning. Linking again the same way changes nothing.
+**Say which metric measures a goal.** Measure a goal by a metric, for a slice: a team’s number (team) or the whole company’s (team left out), and optionally one part of it (part). A first call that raises a question saves nothing and returns `checks`; call again with `answers`. Or give unlink true to stop measuring it by one. The goal’s owner or an admin. The goal must have a number (not dated stages) in the metric’s unit; its own target is the target in that metric. A goal aiming the other way from the metric’s better direction is allowed, with a warning. Linking again the same way changes nothing.
 
 From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
@@ -5356,6 +5356,11 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `goal` | string | yes | The goal’s ID or key (G-12). |
 | `metric` | string | no | The metric’s ID or name. Required unless unlinking. |
 | `team` | string | no | The slice: a team by ID or name. Leave out for the whole company. |
+| `part` | string | no | Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them. |
+| `reason` | string | no | Why the goal is measured differently now. Required when a goal with check-ins changes its metric, team or part; it shows in the goal’s History. |
+| `answers` | object | no | Answers to the checks a first call returned: part ("keep" or "use:<part>"), others ("carry-on": another goal already measures the same number). |
+| `answers.part` | string | no |  |
+| `answers.others` | string | no |  |
 | `unlink` | boolean | no | Stop measuring the goal by its metric. |
 
 <details><summary>The input schema, as JSON</summary>
@@ -5379,6 +5384,27 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
     "team": {
       "type": "string",
       "description": "The slice: a team by ID or name. Leave out for the whole company."
+    },
+    "part": {
+      "type": "string",
+      "description": "Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them."
+    },
+    "reason": {
+      "type": "string",
+      "description": "Why the goal is measured differently now. Required when a goal with check-ins changes its metric, team or part; it shows in the goal’s History."
+    },
+    "answers": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Answers to the checks a first call returned: part (\"keep\" or \"use:<part>\"), others (\"carry-on\": another goal already measures the same number).",
+      "properties": {
+        "part": {
+          "type": "string"
+        },
+        "others": {
+          "type": "string"
+        }
+      }
     },
     "unlink": {
       "type": "boolean",

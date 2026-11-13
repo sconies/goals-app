@@ -6,7 +6,10 @@
    Pure: each takes only what it reads. Nothing here is a score: "Still to say" is words, never a number, and nothing may
    sort by it. A Check never stops a metric being usable; it is a question to answer once. */
 import { fold } from '../../domain/find';
+import { editsBetween } from './edits';
 import { closeNames, directionWords } from './rulesLibrary';
+
+export { editsBetween };
 import type { Metric, MetricDirection } from './types';
 
 /* ---------- what a metric still needs ---------- */
@@ -49,23 +52,6 @@ export interface NameCheck { kind: NameCheckKind; other: { id: string; name: str
 /** A name as `letters` compares it: lower case, no accents, no punctuation, single spaces. */
 const bare = (s: string) => fold(s).replace(/[^\p{L}\p{N}%]+/gu, ' ').trim();
 
-/** Edits (insert, delete, change one character) between two strings, stopping once past `max`. */
-export function editsBetween(a: string, b: string, max: number): number {
-  if (Math.abs(a.length - b.length) > max) return max + 1;
-  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
-  for (let i = 1; i <= a.length; i++) {
-    const row = [i];
-    let least = i;
-    for (let j = 1; j <= b.length; j++) {
-      const v = Math.min(prev[j]! + 1, row[j - 1]! + 1, prev[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1));
-      row.push(v);
-      if (v < least) least = v;
-    }
-    if (least > max) return max + 1;
-    prev = row;
-  }
-  return prev[b.length]!;
-}
 
 /**
  * Rule 1. Up to two names close to `name`, closest first. **former**: `name` is a name a metric in use used to have

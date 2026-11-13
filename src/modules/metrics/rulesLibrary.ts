@@ -153,7 +153,7 @@ export type GoalRow = Pick<GoalSummary, 'goal' | 'status' | 'now' | 'nowValue' |
 export interface MetricGoalRow {
   goal: GoalRow['goal'];
   status: DisplayStatus;
-  /** The slice in words: the team's name, or "The whole company". */
+  /** The slice in words: the team's name, or "The whole company", then " · {part}" when the link is for one part (MT2). */
   slice: string;
   /** The latest value in the goal's format, or "No value yet". */
   now: string;
@@ -175,7 +175,8 @@ export function metricGoals(metricId: string, links: readonly MetricLink[], goal
   for (const l of links) {
     const s = l.metricId === metricId && !l.removedAt ? byGoal.get(l.goalId) : undefined;
     if (!s) continue;
-    const slice = l.teamId == null ? COMPANY : teams.find((t) => t.id === l.teamId)?.name ?? 'A removed team';
+    const team = l.teamId == null ? COMPANY : teams.find((t) => t.id === l.teamId)?.name ?? 'A removed team';
+    const slice = (l.part ?? '').trim() ? `${team} · ${(l.part ?? '').trim()}` : team;
     rows.push({ goal: s.goal, status: s.status, slice, now: s.now, nowValue: s.nowValue, target: `${s.target} ${byWeekWords(cycle as Cycle, s.dueWeek)}`, vsPlan: s.gap, owner: s.owner });
   }
   return rows.sort((a, b) => RANK[b.status] - RANK[a.status] || a.slice.localeCompare(b.slice) || a.goal.title.localeCompare(b.goal.title));

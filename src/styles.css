@@ -426,6 +426,8 @@ svg.chart { display: block; overflow: visible; }
 
 /* ---------- sheet, menus, toasts ---------- */
 .sheet-wrap { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: 72px 16px 16px; background: rgba(16, 24, 40, .32); animation: fade .15s ease-out both; }
+/* A sheet another sheet was opened from (Export over the phone's View sheet): hidden until that one closes. */
+.sheet-wrap.under-sheet { visibility: hidden; }
 /* backwards, not both: a transform kept after the animation would hold a picker's full-screen sheet (fixed) inside this one. */
 .sheet { width: min(460px, 100%); max-height: calc(100vh - 96px); overflow: auto; border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); animation: sheet-up .18s ease-out backwards; }
 .sheet-head { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 12px; background: var(--surface); }

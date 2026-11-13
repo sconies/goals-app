@@ -37,6 +37,7 @@ const entry = (): GoalEntry => { if (!goalEntry) throw new Error('Goal entry has
 export async function ready(name: string): Promise<void> {
   if (NEEDS_ENGINE.has(name)) await loadEngine();
   if (name === 'saveGoal') await loadGoalEntry();
+  await MODULE_ACTIONS[name]?.ready?.();
 }
 const eng = (): Engine => { if (!engine) throw new Error('The change engine hasn’t loaded yet: call ready() first.'); return engine; };
 import type { Draft } from '../domain/checkin';
@@ -163,6 +164,8 @@ export interface ModuleAction<I = any, O = any> {
   /** The AI tools that do the same, so an assistant can do whatever a person can (src/mcp/parity.test.ts). */
   tools: string[];
   said?(out: NonNullable<O>, input: I): string;
+  /** Loads what `run` needs, when that is too large for the first download: the dispatcher awaits it first (`ready`). */
+  ready?(): Promise<void>;
 }
 /** What a module's actions.ts default-exports: its actions, by name. */
 export type ModuleActions = Record<string, ModuleAction>;
