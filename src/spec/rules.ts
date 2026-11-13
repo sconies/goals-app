@@ -28,6 +28,7 @@ import { currentWeek, daysSince, firstWeekFrom, resultWeek, isCount, isShare, NO
 import { amount, byWeekWords, goalScorecard, likelihood } from '../domain/scorecard';
 import { directionLabel, fmt, gapText, nowText, targetText } from '../domain/format';
 import { assessMetric, assessMilestone, assessPosted, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
+import { isUnmeasured } from '../domain/unmeasured';
 import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPAN } from '../domain/thresholds';
 import { cycleStanding, importName, leaveWorkspace, keptText, pastImports, undoPreview } from '../domain/removal';
 import { applyCommit } from '../data/store';
@@ -1545,6 +1546,31 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
     unclear: ['A Map node and a Board column for proposed goals (with the filter on), Home’s two rows, “Make it proposed again” in the goal’s menu, the metric page’s listing and Reviews’ “Propose a new goal” were specified (2.15) and are built; the rules they need are here.', 'Whether a goal for someone else should start proposed: New goal starts on “Not yet” for one (decision 16); a file or a tool starts it active unless State says proposed.'],
   },
 
+  /* ---------- a goal held to no number (backlog MS; the core's half) ---------- */
+  {
+    id: 'unmeasured',
+    title: 'A goal held to no number',
+    summary: 'A goal whose number isn’t measured yet has no status from its plan, nothing due, late or quiet, and no projection, until it is measured: a core rule over the goal’s own field.',
+    code: [{ file: 'src/domain/unmeasured.ts', names: ['isUnmeasured', 'heldToNoNumber', 'UNMEASURED'] }, { file: 'src/domain/status.ts', names: ['goalStatus', 'projects'] }, { file: 'src/domain/attention.ts', names: ['flagsFor'] }],
+    tests: ['src/domain/unmeasured.test.ts'],
+    reqs: [],
+    body: `
+**The word.** *Not measured yet*: the goal's number isn't measured, so it is held to no number. Shown as a broken ring and the words, where its status would be; never a status shape.
+
+**Data.** A goal is held to no number while \`unmeasuredSince\` is set and it is neither removed nor stopped (\`isUnmeasured\`). The field is the goal's own: whatever measures the goal sets and clears it (the metric library does, when the goal is linked to a metric with a gap and when that metric is measured; its section says how). These rules read the goal alone, so they hold with every module switched off.
+
+**Its status** (\`goalStatus\`). Done if the owner's latest check-in calls it done; Not started in week 0; otherwise No check-in yet (\`none\`), whatever its plan or check-ins say, and never No recent update: nothing on it goes quiet. Its calculation is \`none\`, and it is never greener than the numbers. It projects nothing (\`projects\`).
+
+**Nothing due** (\`flagsFor\`). No check-in is due on it, and it has no worsening trend; it lists under its metric's To sort out instead. The export says \`unmeasured: { since }\` and the status label Not measured yet.`,
+    examples: (() => {
+      const today = new Date(CHECK_IN_MOMENT);
+      return [
+        { given: 'In the demo workspace, Flaky test rate’s goal (lead-flaky), held to no number since today.', then: 'none, calc none, projects: no', run: () => { const g = { ...goalIn('lead-flaky'), unmeasuredSince: CHECK_IN_MOMENT }; const c = demo!.cycles.find((x) => x.id === g.cycleId)!; const st = goalStatus(g, c, demo!.checkIns, today); return `${st.status}, calc ${st.calc}, projects: ${projects(g, st.status) ? 'yes' : 'no'}`; } },
+        { given: 'The same goal, stopped.', then: 'not held', run: () => (isUnmeasured({ ...goalIn('lead-flaky'), unmeasuredSince: CHECK_IN_MOMENT, stoppedAt: CHECK_IN_MOMENT }) ? 'held' : 'not held') },
+      ];
+    })(),
+    unclear: ['The goal side asks for no baseline once a goal may be saved without one (backlog GB and BL); until then a held goal keeps the plan it was given, unjudged.', 'Lists show a held goal as No check-in yet; its page shows Not measured yet.'],
+  },
   /* ---------- a baseline as a field of its own (backlog BL; core) ---------- */
   {
     id: 'baseline',

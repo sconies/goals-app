@@ -6,7 +6,7 @@ import type { HistoryAsk, HistoryPage } from '../ports/store';
 import { LEVEL_WORDS, levelIds } from '../domain/levels';
 import { addNote, NotAllowed } from '../domain/actions';
 import { EMPTY_QUERY, parseQuery, queryEntries, type GoalQuery } from '../domain/query';
-import { reviewsOn, reviewWriteRows, scopeFacts, searchRows } from '../app/reads';
+import { reviewsOn, reviewWriteRows, scopeFacts, searchRows, watchingOn } from '../app/reads';
 import { scopesFor, SCOPES, type Scope } from '../domain/goalsPage';
 import { localSearch } from '../adapters/localSearch';
 import type { FoundRow, Search, SearchAsk } from '../ports/search';
@@ -23,9 +23,7 @@ import { watchedGoals } from '../domain/review';
 import { NEED_OPTIONS } from '../domain/query';
 import { WORK_TOOLS } from './workTools';
 import { listed } from './listed';
-import { MARKUP_TOOLS } from './markupTools';
 import type { MarkupOps } from '../markup/ops';
-import { FEEDBACK_TOOLS } from './feedbackTools';
 import type { FeedbackOps } from '../markup/feedback';
 import { REMOVE_TOOLS } from './removeTools';
 import MODULE_TOOLS from 'virtual:faro-modules/tools';
@@ -337,8 +335,9 @@ const CORE_TOOLS: ToolDef[] = [
       // The scope argument wins over the link's.
       const scope = a.scope ? String(a.scope) as Scope : linkScope ? linkScope as Scope : null;
       if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
-      const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).tabs.find((t) => t.id === scope) : null;
-      if (scope && scope !== 'all' && !scoped) return listed(goalPage([], a, scope === 'team' ? 'You’re in no team and lead none.' : 'You own no goals this year.'));
+      const watchingHere = watchingOn(modulesOn(ctx.ws).on);
+      const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).tabs.find((t) => t.id === scope) : null;
+      if (scope && scope !== 'all' && !scoped) return listed(goalPage([], a, scope === 'team' ? 'You’re in no team and lead none.' : scope === 'watching' ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : 'You own no goals this year.'));
       const inScope = scoped ? new Set(scoped.ids) : null;
       const words = [String(a.text ?? ''), query.q].filter((x) => x.trim()).join(' ');
       // With Reviews off `inreview=` narrows nothing, as on Goals (build review of #424).
@@ -564,7 +563,7 @@ export const toolModule = (name: string): string | undefined => TOOL_MODULE.get(
 // The modules' Goals columns are read from a link here as in the app (core/app registers them for the screens).
 addColumnParams(MODULE_GOAL_COLUMNS.map((c) => c.param));
 
-export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS, ...REMOVE_TOOLS, ...MARKUP_TOOLS, ...FEEDBACK_TOOLS, ...MODULE_TOOLS.flatMap((m) => m.part)];
+export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS, ...REMOVE_TOOLS, ...MODULE_TOOLS.flatMap((m) => m.part)];
 
 /** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. A module's
     tool in a workspace that has switched that module off says so, and does nothing. */

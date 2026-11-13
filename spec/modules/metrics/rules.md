@@ -2,7 +2,7 @@
 
 # Metric library: its rules
 
-The module’s 8 rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.
+The module’s 9 rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.
 
 | Rule | What it decides |
 |---|---|
@@ -13,6 +13,7 @@ The module’s 8 rules, in order. Each is a section of its own below, with its w
 | [Defining a metric well](#defining-a-metric-well) | What a metric still needs to say, in words and never as a score (rule 6), and the three questions adding or changing one may ask before it is saved: a close name, a unit spelt another way, a percentage that doesn’t say out of what. |
 | [For, which part, and what a goal takes from its metric](#for-which-part-and-what-a-goal-takes-from-its-metric) | Which part of a team’s or the company’s number a goal is measured by (rule 7), the parts other goals on the metric use, what linking asks, and why a goal with check-ins says why it is measured differently. |
 | [Changing, retiring and merging a metric](#changing-retiring-and-merging-a-metric) | What kind of change a save is (rule 8), the marks a change of meaning or direction leaves on its goals (rule 9), and retiring, bringing back and merging (rule 10): a metric that changes tells its goals. |
+| [Measured, partly measured or a gap](#measured-partly-measured-or-a-gap) | Whether a metric is measured today (rule 11), what the library does with a gap or a part, and the goals a gap holds to no number: the library fills in the goal’s field; the core’s rule reads it. |
 | [A reading in a check-in](#a-reading-in-a-check-in) | Where a metric’s number comes from can fill in a goal’s check-in (NR): which state the number step is in, and what a check-in records of what the source said. A person confirms every number; nothing is ever posted for them. |
 
 ## The metric library
@@ -670,6 +671,58 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
+
+## Measured, partly measured or a gap
+
+Whether a metric is measured today (rule 11), what the library does with a gap or a part, and the goals a gap holds to no number: the library fills in the goal’s field; the core’s rule reads it.
+
+### The rule
+
+**Rule 11. Measured, Partly or Gap** (`measurementOf`, `measurementProblems`). Each metric says whether its number is measured today: `measured` (in full, every time it is due; the default, and what a metric never said otherwise is), `partly` (some of it, or not every period) or `gap` (nobody measures it yet), with an optional line on what is missing and who is sorting it out (at most 300 characters; kept only while not measured). It is always shown as a shape and its word: a filled square (Measured), a half-filled square (Partly), a broken square (Gap). Its owner or an admin says it, as any other field; History logs it as “Measured”.
+
+**To sort out** (`metricNeeds`). A gap comes first in what a metric needs: “Not measured yet: {n} goals held to no number” (the goals it measures now; “Not measured yet” with none); a part: “Only partly measured”. Each with “Say how it’s measured”, which opens the form at that field. The library’s “Something to sort out” filter lists them with the rest.
+
+**Held to no number** (`heldBy`, `heldByLink`; the core's `isUnmeasured`). A goal measured by a metric with a gap is held to no number: the goal's own field `unmeasuredSince` is set, and the core's status rule reads it (never the library). The library sets and clears it, in the same save as the cause, with a line in the goal's History and one Undo:
+- a metric saved as a gap holds every goal it measures now (a live link; the goal neither removed nor stopped; not one with dated stages): “Held to no number until “{metric}” is measured”;
+- the metric saved as measured or partly lets go of them: “Held to its plan again, as “{metric}” is measured”;
+- a goal linked to a gap is held; linked to a measured metric, or unlinked, it is let go (“Held to its plan again”).
+A save that leaves the gap as it was writes no goal.
+
+### Worked examples
+
+Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
+
+| Given | The rule gives |
+|---|---|
+| Flaky test rate, never said otherwise. | `Measured` |
+| Rhea says Flaky test rate is a gap: “The new runners send no results yet.” | `Changed the metric “Flaky test rate” / Held to no number until “Flaky test rate” is measured` |
+| Rhea says what is missing from Flaky test rate in 301 characters. | `refused: Keep what’s missing to 300 characters or fewer.` |
+| Flaky test rate as a gap, measuring one goal: what it needs first. | `gap: Not measured yet: 1 goal held to no number → Say how it’s measured` |
+
+### Not self-explanatory
+
+- **Not self-explanatory:** A partly measured metric holds its goals to their plans: the part that is measured is the number. Say what is missing so readers know.
+- **Not self-explanatory:** The goal side asks for no baseline only once a goal may be saved without one (backlog GB and BL); until then a goal held to no number keeps the plan it was given, unjudged.
+
+### Where it lives
+
+- [src/modules/metrics/rulesMeasured.ts](../../../src/modules/metrics/rulesMeasured.ts): `measurementOf`, `holdsToNoNumber`, `measurementProblems`, `measurementWords`, `heldBy`, `heldByLink`
+- [src/modules/metrics/rulesLibrary.ts](../../../src/modules/metrics/rulesLibrary.ts): `metricNeeds`
+- [src/domain/unmeasured.ts](../../../src/domain/unmeasured.ts): `isUnmeasured`, `heldToNoNumber`
+
+### Requirements
+
+- `METRIC-MEASUREMENT`: A gap in measurement is visible and owned, not faked (MS). Each metric says whether it is measured today, Measured, Partly or Gap, always as a shape (a filled, half-filled or broken square) and its word, with an optional line on what is missing (at most 300 characters). A metric with a gap or measured only in part is listed under To sort out on its page and in the library ("Not measured yet: {n} goals held to no number", "Only partly measured") with Say how it's measured. A goal measured by a metric with a gap is held to no number: it says Not measured yet (a broken ring and the words) instead of a status, nothing on it is due, late or quiet, and it projects nothing; linking it to a measured metric, unlinking it, or its metric being measured holds it to its plan again, in the same save, with one Undo and a line in its History. save_metric takes measurement and measurement_note, and get_metric and the export say so.
+
+### Tests that check it
+
+#### [src/modules/metrics/rulesMeasured.test.ts](../../../src/modules/metrics/rulesMeasured.test.ts)
+
+- a metric’s measurement status (MS) › is measured unless someone says otherwise, and a gap or a part says what’s missing
+- a metric’s measurement status (MS) › holds the goals a gap measures to no number, in the same save, and to their plans again once measured
+- a metric’s measurement status (MS) › holds a goal linked to a gap, and lets go of it when it is unlinked
+- a metric’s measurement status (MS) › round-trips through the rows: the status always written, the goal’s hold only when set
+- a metric’s measurement status (MS) › says so in the export: held to no number, and the word for it
 
 ## A reading in a check-in
 

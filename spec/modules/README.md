@@ -6,9 +6,13 @@ Each feature module is one folder, `src/modules/<id>/`, with a `module.json` say
 
 | Module | What it does | Needs |
 |---|---|---|
+| [Feedback](feedback/README.md) | Send feedback about Faro, or mark up a screen. It goes to the people who build Faro. | nothing |
+| [Goal map](goal-map/README.md) | See every goal and what feeds it on one canvas, with the path the risk runs along. | nothing |
 | [Metric library](metrics/README.md) | Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company. | nothing |
 | [Reviews](reviews/README.md) | Walk a set of goals together on a cadence, decide what happens next and keep what was said. | nothing |
 | [Spreadsheets](spreadsheets/README.md) | Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved. | nothing |
+| [Watching](watching/README.md) | Follow goals you don’t own: they show on your Home and under Watching in Goals. | nothing |
+| [Wrap-up](wrap-up/README.md) | At the end of the year, each owner says how their goals landed and what they learned. | nothing |
 
 ## Distinct features still in the core
 
@@ -16,8 +20,4 @@ These can’t be switched off yet. Each says why, and which item gives it a swit
 
 | Feature | Why it can’t be switched off yet | Its switch |
 |---|---|---|
-| Watching | Home’s “Goals you watch” and Goals’ watching scope read watches inside core screens. Its switch is designed, not built. | SW1 |
 | AI access | Every AI call is checked against a token at the server’s door. Switching it off needs the Features screen’s groups and a way to keep tokens named for when it comes back. | SW2 |
-| Feedback | Its menu row, its page and its inbox tools are core code. Its switch is designed, not built. | SW1 |
-| The goal map | It is one of Goals’ views, drawn from core records only. Its switch is designed, not built. | SW1 |
-| The wrap-up | Its screens sit beside the year’s end rules (results, carrying on, starting the next year), which stay core whatever happens. Its own screens get a switch; the rules don’t. | SW1 |

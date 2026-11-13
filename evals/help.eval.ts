@@ -60,7 +60,8 @@ describe('Help: what everything does', () => {
   });
 
   it(G('the Help link on a page opens that page’s article, the most specific one'), () => {
-    expect(articleForPath('/goals', '?view=map')?.id).toBe('goal-map');
+    // Without the Goal map (FARO_WITHOUT=goal-map, SW1) its address is Goals'.
+    expect(articleForPath('/goals', '?view=map')?.id).toBe(gone.help.has('goal-map') ? 'goals' : 'goal-map');
     expect(articleForPath('/goals/new')?.id).toBe('new-goal');
     expect(articleForPath('/goals/G-12')?.id).toBe('goal-page');
     // A walk's address is Reviews' article; without Reviews it is the goal's page (the app drops ?review= there).

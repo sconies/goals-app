@@ -45,6 +45,7 @@ export const MORE_RULE_PAGES: [string, string][] = [
   ['new-goal', 'New goal'],
   ['read-back', 'The read-back'],
   ['proposed', 'Proposed goals'],
+  ['unmeasured', 'A goal held to no number'],
   ['baseline', 'A baseline of its own'],
   ['not-born-late', 'A goal not born late'],
   ['finding', 'Finding things'],

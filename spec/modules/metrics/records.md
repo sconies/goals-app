@@ -27,6 +27,14 @@ How often a metric's source refreshes its number.
 type MetricRefresh = 'live' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'quarterly'
 ```
 
+## MetricMeasurement
+
+Whether the number is measured today (MS): in full, in part (some of it, or not every period), or not yet (a gap).
+
+```ts
+type MetricMeasurement = 'measured' | 'partly' | 'gap'
+```
+
 ## Metric
 
 A metric in the library (backlog 0b): one definition of a number, shared by every goal it measures, so two goals about "build time" mean the same build time. The rules are in rules.ts: a name, a unit and a direction are required; the rest is optional. Anyone can add one; its owner or an admin changes or removes it. Stored in okr_metrics.
@@ -44,6 +52,8 @@ A metric in the library (backlog 0b): one definition of a number, shared by ever
 | `refresh` | `MetricRefresh \| null` | yes | How often the source refreshes; null when nobody has said. |
 | `ownerId` | `Id` | yes | The person who answers for the definition: whoever added it, unless they hand it on. |
 | `caveats` | `string` | yes | What to watch out for when reading it (a known gap, a change of method). |
+| `measurement` | `MetricMeasurement` | no | Whether it is measured today (MS; rulesMeasured.ts): absent on one never said otherwise, which is measured. Goals measured by a metric with a gap are held to no number (domain/unmeasured) until it is measured. |
+| `measurementNote` | `string` | no | What's missing from the measurement, and who is sorting it out ('' or absent when measured). |
 | `createdBy` | `Id` | yes |  |
 | `createdAt` | `string` | yes |  |
 | `updatedAt` | `string` | yes |  |
