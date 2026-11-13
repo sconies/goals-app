@@ -407,7 +407,7 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   if (built('reviews')) {
     // Rhea is in no review this week (hers is on Tuesday), so Home says the week is done in one sentence (HM1).
     // On the day it is completed, Home says the check-in's receipt (habit spec 2.1); on a later day, the week.
-    await see(p, /(Your check-in is|Both (of your )?check-ins are|All \d+ (of your )?check-ins are) in( for week| before|\.)/, 'posted check-ins survive a reload, and home says the week is done');
+    await see(p, /(Your check-in is|Both (of your )?check-ins are|All \d+ (of your )?check-ins are) in( for week| before| by|\.)/, 'posted check-ins survive a reload, and home says the week is done');
   } else {
     // Without Reviews, Daniel's question waits by its own age, not for Tuesday's session: nine days, so it leads Home
     // (rule 3), and nothing is left to check in on.
@@ -4901,7 +4901,7 @@ journey('U152', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews off, the 
     if (hit) named.push(`${route}: “${hit[0].trim()}”`);
   }
   h.set('finish', !named.length, `with Reviews off a page names a review: ${named.join('; ')}`);
-  // Her check-in: both due goals, as in U1; the receipt says the week is in by Thursday.
+  // Her check-in: both due goals, as in U1; HB1's receipt says the week is in by Thursday (Reviews switch spec 2.1).
   await p.goto(url('/check-in?start=1'));
   const before = await h.snapshot();
   const plan = (id) => before.goals.find((g) => g.id === id).plan;
@@ -4915,9 +4915,9 @@ journey('U152', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews off, the 
   await h.click(p.getByRole('button', { name: 'Change landed early' }));
   await h.fill(p.getByLabel('What happened'), 'The runner budget came through a week early.');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
-  await see(p, `checked in for week ${NOW}`);
-  const receipt = (await p.locator('.ci-week-done').innerText()).trim();
-  h.set('progress', new RegExp(`checked in for week ${NOW}, by Thursday\\.$`).test(receipt) && !/review/i.test(receipt), `the receipt says “${receipt}”, not “…, by Thursday.”`);
+  await see(p, /(Your check-in is|of your check-ins are) in/);
+  const receipt = (await p.locator('.ci-receipt').innerText()).trim();
+  h.set('progress', /(Your check-in is|of your check-ins are) in by Thursday\./.test(receipt) && !/review/i.test(receipt), `the receipt says “${receipt}”, not “…are in by Thursday.”`);
   await h.checkpoint('receipt');
   const after = await h.snapshot();
   h.set('logged', after.changes.some((c) => c.entity === 'workspace' && c.summary === 'Switched off Reviews') && after.changes.filter((c) => c.actorId === 'rhea' && c.action === 'posted' && new RegExp(`week ${NOW}:`).test(c.summary)).length >= 2, 'switching off or the two check-ins were not logged');
