@@ -8,7 +8,7 @@ import { proposedSummary } from '../domain/proposedSummary';
 import { proposalAsks, withProposed } from '../domain/proposed';
 import { scopeToCycle, wrapUpCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
-import type { Cycle, Person, Snapshot } from '../domain/types';
+import type { Ask, Cycle, Person, Snapshot } from '../domain/types';
 import type { ScopeFacts } from '../domain/goalsPage';
 import { agendaOf, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
 import { waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession, type Waiting } from '../domain/home';
@@ -75,6 +75,9 @@ export function dayOneRows(s: Pick<Snapshot, 'people' | 'goals' | 'checkIns' | '
  * Home's facts (docs/design/home/spec.md rule 1): what the lead and the quiet line read, from the rules that already
  * say each thing (weekProgress, onTimeStreak, reviewSession, the wrap-up's dates). `draft` says a check-in draft is kept.
  */
+/** A review's name, for " in {review}" (GE10): null when it isn't in the workspace to name. */
+export const reviewName = (s: Pick<Snapshot, 'reviews'>, id: string | null | undefined): string | null => (id ? s.reviews.find((r) => r.id === id)?.name ?? null : null);
+
 export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot }; opened?: ReadonlySet<string>; putOff?: ReadonlyMap<string, string> }): HomeFacts {
   const day = today.toISOString().slice(0, 10);
   const p = weekProgress(viewerId, s, cycle, week, today);
@@ -119,7 +122,7 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
     // Every row under "Proposed goals" (both kinds), so the quiet line never says nothing is asked beside them (#319's review).
     proposalRows: proposalAsks(s.proposed ?? [], { id: viewerId, admin: false }, today, { opened: opts.opened ?? new Set(), putOff: opts.putOff ?? new Map() }).length,
     proposals: proposalAsks(s.proposed ?? [], { id: viewerId, admin: false }, today, { opened: opts.opened ?? new Set(), putOff: new Map() }, (id) => s.people.find((p) => p.id === id)?.name ?? 'Someone')
-      .filter((a) => a.kind === 'for-you').map((a) => ({ id: a.goal.id, title: a.goal.title, by: s.people.find((p) => p.id === a.goal.proposedBy)?.name.split(' ')[0] ?? 'Someone', proposedOn: a.goal.proposedAt!.slice(0, 10) })),
+      .filter((a) => a.kind === 'for-you').map((a) => ({ id: a.goal.id, title: a.goal.title, by: s.people.find((p) => p.id === a.goal.proposedBy)?.name.split(' ')[0] ?? 'Someone', proposedOn: a.goal.proposedAt!.slice(0, 10), in: reviewName(s, a.goal.proposedIn) })),
   };
 }
 
@@ -143,25 +146,32 @@ export function wrapUpScope(full: Snapshot, cycle: Cycle, snapshot: Snapshot, we
 const localDay = (iso: string) => { const n = new Date(iso); return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10); };
 
 export function homeAsks(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): Waiting[] {
+  return openForPerson(viewerId, s).flatMap((r) => { const w = askWaiting(r, viewerId, s, cycle, week, today); return w ? [w] : []; }).sort(waitingOrder);
+}
+
+/**
+ * One ask as Home reads it for a viewer: its line, its due day and whether it is late. The one lateness rule: Home,
+ * `get_my_work` and `list_requests` all read `late` from here (build review of #369, medium 5). Null when none of its
+ * goals is in the workspace.
+ */
+export function askWaiting(r: Ask, viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): Waiting | null {
   const day = today.toISOString().slice(0, 10);
   const me = s.people.find((p) => p.id === viewerId)?.name ?? '';
   const first = (id: string) => s.people.find((p) => p.id === id)?.name.split(' ')[0] ?? 'Someone';
   const all = withProposed(s);
-  return openForPerson(viewerId, s).flatMap((r) => {
-    // A proposed goal's asks stay on Home (build review of #349): asked while proposed, or before it went back to proposed.
-    const goals = r.goalIds.map((id) => all.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({ id: g!.id, title: g!.title }));
-    if (!goals.length) return [];
-    const rv = r.reviewId ? s.reviews.find((v) => v.id === r.reviewId) : undefined;
-    let session: AskFacts['session'] = null;
-    if (r.dueWeek == null && r.kind === 'question' && rv) {
-      const w = r.week != null ? nextSessionWeek(rv, r.week) : upcomingSessionWeek(rv, cycle, week, today);
-      if (w <= cycle.weeks) session = { name: rv.name, date: sessionDate(rv, cycle, w) };
-    }
-    const sunday = (w: number) => new Date(Date.parse(weekDate(cycle, w) + 'T00:00:00Z') + 6 * 86_400_000).toISOString().slice(0, 10);
-    const facts: AskFacts = {
-      id: r.id, kind: r.kind, by: r.askedBy === viewerId ? null : first(r.askedBy), goals, said: r.ask, askedOn: localDay(r.createdAt), was: handedFrom(r.id, me, s.changes ?? []),
-      dueWeek: r.dueWeek != null ? { week: r.dueWeek, sunday: sunday(r.dueWeek), dates: weekDates(cycle, r.dueWeek) } : null, session, where: rv?.name ?? null,
-    };
-    return [waiting(facts, day)];
-  }).sort(waitingOrder);
+  // A proposed goal's asks stay on Home (build review of #349): asked while proposed, or before it went back to proposed.
+  const goals = r.goalIds.map((id) => all.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({ id: g!.id, title: g!.title }));
+  if (!goals.length) return null;
+  const rv = r.reviewId ? s.reviews.find((v) => v.id === r.reviewId) : undefined;
+  let session: AskFacts['session'] = null;
+  if (r.dueWeek == null && r.kind === 'question' && rv) {
+    const w = r.week != null ? nextSessionWeek(rv, r.week) : upcomingSessionWeek(rv, cycle, week, today);
+    if (w <= cycle.weeks) session = { name: rv.name, date: sessionDate(rv, cycle, w) };
+  }
+  const sunday = (w: number) => new Date(Date.parse(weekDate(cycle, w) + 'T00:00:00Z') + 6 * 86_400_000).toISOString().slice(0, 10);
+  const facts: AskFacts = {
+    id: r.id, kind: r.kind, by: r.askedBy === viewerId ? null : first(r.askedBy), goals, said: r.ask, askedOn: localDay(r.createdAt), was: handedFrom(r.id, me, s.changes ?? []),
+    dueWeek: r.dueWeek != null ? { week: r.dueWeek, sunday: sunday(r.dueWeek), dates: weekDates(cycle, r.dueWeek) } : null, session, where: rv?.name ?? null,
+  };
+  return waiting(facts, day);
 }

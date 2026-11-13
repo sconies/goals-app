@@ -9,6 +9,9 @@ import { canUndoStart, deleteCycle, stopGoal, undoStart } from './removal';
 import { applyCommit } from '../data/store';
 import { startPage } from './startYear';
 import { recarry, withRecarry } from './recarry';
+import { checkInsLeftOut } from './leftOut';
+import { copyUntouched } from './copies';
+import { appWindow, windowed } from '../ports/window';
 import type { Commit } from './commit';
 import { buildPlatformOrg } from '../data/platformOrg';
 import type { CheckIn, Cycle, Goal, MetricGoal, Retro, Snapshot } from './types';
@@ -358,5 +361,68 @@ describe('the carry rule (rule 5: the copy) and what comes with a goal (rule 6)'
     const reread = Object.fromEntries(Object.entries({ ...copy, plan }).reverse()) as unknown as Goal;
     const s3 = { ...s1, goals: s1.goals.map((g) => (g.id === copy.id ? reread : g)) };
     expect(recarry(old, s3, {}, { now: '2026-12-29T10:00:00Z', actorId: amara.id, newId: (p) => p, records: RECORDS })).toBeNull();
+  });
+});
+
+describe('Keeping a copy true on a windowed load (AX5 part 2b, build review of #358)', () => {
+  // The demo, 2027 started on 21 Dec 2026, 2028 after it, then loaded in March 2029: 2026's check-ins are outside the window.
+  const s0 = buildPlatformOrg(on('2026-11-05'));
+  const y26 = s0.cycles[0]!;
+  const amara = s0.people.find((p) => p.id === 'amara')!;
+  let k = 0;
+  const ctx: ActionContext = { snapshot: { ...s0, goals: s0.goals.filter((g) => g.cycleId === y26.id && !g.removedAt && !g.stoppedAt) }, cycle: y26, week: 52, actor: amara, now: '2026-12-21T10:00:00Z', newId: (p) => `${p}_v${++k}`, full: s0, records: RECORDS };
+  const whole = applyCommit(s0, startNextCycle(ctx).commit);
+  const y27 = whole.cycles.find((c) => c.id !== y26.id)!;
+  // A third year (2028, with nothing in it yet), so 2026 is not among the window's newest two and falls out of it.
+  const y28 = { ...y27, id: 'c_2028', name: '2028', startDate: `2028${y27.startDate.slice(4)}`, removedAt: null };
+  const loaded = windowed({ ...whole, cycles: [...whole.cycles, y28] }, appWindow(on('2029-03-03')));
+  const x = { now: '2029-03-03T10:00:00Z', actorId: amara.id, newId: (p: string) => `${p}_v${++k}`, records: RECORDS };
+  // 2026 goals that finished there (no copy in 2027), moved to another team: a save that touches them.
+  const finished = whole.goals.filter((g) => g.cycleId === y26.id && !g.removedAt && !g.stoppedAt && g.key && !whole.goals.some((c) => c.cycleId === y27.id && c.key === g.key)).slice(0, 6);
+  const team = whole.teams.find((t) => finished.every((g) => g.teamId !== t.id))!;
+  const moved: Commit = { goals: finished.map((g) => ({ ...g, teamId: team.id })), changes: [] };
+
+  it('the window leaves 2026’s check-ins out', () => {
+    expect(finished.length).toBe(6);
+    expect(checkInsLeftOut(loaded, y26.id)).toBe(true);
+  });
+
+  it('adds no copy that the whole data wouldn’t', () => {
+    expect(withRecarry(whole, moved, x).goals!.filter((g) => g.cycleId === y27.id)).toEqual([]);
+    expect(withRecarry(loaded, moved, x).goals!.filter((g) => g.cycleId === y27.id)).toEqual([]);
+    expect(withRecarry(loaded, moved, x).changes!.filter((c) => /carries on into/.test(c.summary))).toEqual([]);
+  });
+
+  it('counts a copy made before the window as used, so recarry never rewrites it', () => {
+    const copy = whole.goals.find((g) => g.cycleId === y27.id && !g.removedAt)!;
+    expect(copyUntouched(copy, whole)).toBe(true);
+    expect(copyUntouched(copy, loaded)).toBe(false);
+  });
+});
+
+describe('The year in use never falls out of the window (build review of #358, medium 2)', () => {
+  // Nobody starts 2027: opened on 15 Mar 2028, 2026 ended more than 420 days back, but it is still the year on screen.
+  const s0 = buildPlatformOrg(on('2026-11-05'));
+  const y26 = s0.cycles[0]!;
+  const late = windowed(s0, appWindow(on('2028-03-15')));
+  it('keeps its check-ins, and says none are left out', () => {
+    expect(late.checkIns.length).toBe(s0.checkIns.length);
+    expect(checkInsLeftOut(late, y26.id)).toBe(false);
+  });
+
+  // 2027 started on 21 Dec 2026 and never followed: undoing its start sees the check-ins in it on a late load.
+  const amara = s0.people.find((p) => p.id === 'amara')!;
+  let k = 0;
+  const ctx: ActionContext = { snapshot: { ...s0, goals: s0.goals.filter((g) => g.cycleId === y26.id && !g.removedAt && !g.stoppedAt) }, cycle: y26, week: 52, actor: amara, now: '2026-12-21T10:00:00Z', newId: (p) => `${p}_m${++k}`, full: s0, records: RECORDS };
+  const two = applyCommit(s0, startNextCycle(ctx).commit);
+  const y27 = two.cycles.find((c) => c.id !== y26.id)!;
+  const copy = two.goals.find((g) => g.cycleId === y27.id && !g.removedAt)!;
+  const withCheckIn: Snapshot = { ...two, checkIns: [...two.checkIns, { ...two.checkIns.find((c) => c.goalId === s0.goals.find((g) => g.cycleId === y26.id)!.id)!, id: 'ci_m1', goalId: copy.id, week: 10, removedAt: null }] };
+  it('keeps both years, so undoing the start still sees a check-in in 2027', () => {
+    const w = windowed(withCheckIn, appWindow(on('2029-06-01')));
+    expect(checkInsLeftOut(w, y27.id)).toBe(false);
+    expect(checkInsLeftOut(w, y26.id)).toBe(false);
+    expect(canUndoStart(w, y27.id)).toEqual(canUndoStart(withCheckIn, y27.id));
+    expect(canUndoStart(w, y27.id).ok).toBe(false);
   });
 });
