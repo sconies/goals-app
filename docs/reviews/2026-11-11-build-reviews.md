@@ -142,6 +142,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #334 AD: admin doors by row | polish | 0 | 1 | 3 |
 | #326 CK: fixes to Correct this check-in | 1 | 0 | 1 | 3 |
 | #328 Import: a way to close it | 1 | 0 | 1 | 2 |
+| #319 GE10: Home's rows for proposals | 2 | 0 | 2 | 3 |
+| #349 GE10: Make it proposed again | 2 | 0 | 2 | 1 |
+| #344 GE10: a proposal leads Home; migration 0045 | 2 | 0 | 0 | 2 |
+| #355 GE10: proposed goals on the Map and the Board | 2 | 0 | 1 | 2 |
 | #335 #323 and #229 review mediums | 4 | 0 | 0 | 0 |
 | #340 MT1 review: the two mediums from #281 | metrics | 0 | 0 | 0 |
 | #313 FS1 review: three mediums from #111 | 1 | 0 | 0 | 0 |
@@ -1546,3 +1550,31 @@ Fixes #282's medium 1 on Import itself: "Close without saving" at the top right,
 **1. Medium (ran at 390). The fix stops one step short: once a file or paste is read, the preview has no way out on a phone.** All of `/data/import/*` is a form (`src/domain/navigation.ts`), and `/data/import/check` and its changes list show only their own buttons; the ways out are saving or the browser's Back. Fix: the same close on Check and Changes, and add both to U72.
 
 **Lows.** U72 counts the control and reads its words but does not press it. Two links on Import are 17 and 20 px high on touch (older).
+
+### Four more GE10 pull requests: #319, #349, #344 and #355 (track 2, merged 02:54 to 04:23 UTC, 13 Nov)
+
+Read first by a reviewing session with domain probes, PGlite and the screens at 1440 and 390; I re-read `backToProposed` on main at `241d8a06`. No high finding. Only the owner sees a proposal's row on Home; proposals stay out of "Your goals" and its status counts; on the Map and Board they carry the word alone, no status shape or tone, are not draggable and are drawn only with the State filter.
+
+**#319 Home's rows for proposals.**
+
+1. Medium (ran). `get_my_work` says nothing about a goal proposed for you, though it says it shows "their Home" (`src/mcp/workTools.ts:128-158`); the parity check passes because it maps the screen, not its rows.
+2. Medium (ran). Home says "Nothing is asked of you today." beside "Needs your response · 2 / Proposed goals · 2": `quietLine` reads only the asks (`src/domain/home.ts:239`).
+
+- Lows: "Opened" and "Not yet" are kept per browser, so opening the goal on a phone leaves the row on the laptop; on a phone the row's sentence is cut to one line; no journey walks the "proposed a goal for you" row.
+
+**#349 "Make it proposed again".** The owner or an admin, refused for anyone else at the screen, the action and MCP, and refused for a goal with check-ins; Undo works; the plan is kept.
+
+1. Medium (ran; a direct call only, and high if a door ever reaches it). The check-ins test reads this year's check-ins, so a goal from another year passes: `backToProposed` finds the goal in every year (`goalIn`) and tests `x.snapshot.checkIns` (`src/domain/proposedActions.ts:81`). With 2027 started, a 2026 goal with 46 check-ins was made proposed again, and 2026 then lists it as proposed with none of them. No screen or tool reaches it today (its page in 2027 says the goal doesn't exist; the tools look only in the current year). Fix: refuse a goal outside the cycle and test check-ins on the whole load.
+2. Medium (ran). Open asks on the goal vanish from its owner's Home when it goes back to proposed, and stay open unseen: `homeAsks` resolves goals among the active ones (`src/app/reads.ts:139`). A question asked while it is proposed never shows either, though the proposed page offers Ask. Fix: resolve through `withProposed`, in `get_my_work` too.
+
+- Low: every Change page of a goal with check-ins now ends, unasked, with "It has check-ins, so it can't go back to proposed. Stop it instead."
+
+**#344 A proposal leads Home; migration 0045.** No medium. Migration 0045 (PGlite, after 0001 to 0044, as a non-superuser owner, twice): one nullable text column in `faro`, nothing else created, the redirect unharmed, and no code on main reads it yet. The lead follows the ask rule: a check-in or a late one leads first, a proposal only after seven days, oldest first.
+
+- Lows: the lead has unit tests and no journey; `supabase/README.md` omits 0045.
+
+**#355 Proposed goals on the Map and the Board.**
+
+1. Medium (ran). With "Troubled trees" ticked, which is remembered per workspace, the filtered Map draws no proposed goal: the page says "1 proposed goal, newest first." over "No tree is in trouble…" (`src/screens/GoalMap.tsx:121-127`). Fix: ignore the switch when the State filter is on.
+
+- Lows: with the filter on there is no layout switch, scope tabs or View menu, so Board and Map are reached only by turning the filter on from that layout; the Map says "newest first", and "Proposed" is typed as a literal in `ProposedList.tsx`.
