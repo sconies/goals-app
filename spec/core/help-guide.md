@@ -1127,7 +1127,7 @@ Routes: `/metrics/new`, `/metrics/:metricId/edit`. Requirements: `METRIC-DEFINED
 - What you type is kept as a draft: Close, Back or a reload doesn’t lose it. Opened from a metric’s To sort out or its completeness line, the form opens at the field that needs filling.
 - Changing the unit or which way is better of a metric goals use asks first, here and through the AI assistant: their numbers and plans don’t change, and the goals that now differ say so under “Measured by” on their page.
 - Workspace → About tells admins how many metrics have no owner (someone who left owned them), with See them.
-- On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back.
+- On a metric’s page, its owner and admins choose Change this metric, Retire this metric… (one a goal has used) or Delete this metric… (one no goal has used). Retiring keeps its goals’ numbers and plans; Undo, Bring it back, or Recently removed for 30 days for a deleted one, puts it back.
 - An AI assistant asks the same questions: save_metric returns them and saves nothing until it calls again with your answers to those questions. Someone who may not change a metric is told so before being asked anything.
 
 ### Measured by: choosing a goal’s metric
@@ -1186,14 +1186,15 @@ Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-CHANGE`.
 #### What reads back first
 
 - Changing what a metric means, or where its number comes from, shows the goals it measures and asks “Is it still the same number?”. Same number, better words: nothing is marked. The number itself changes: say why, in a line, and each goal’s chart and History say “Definition changed, week {w}” with your reason. Their numbers and plans don’t change.
-- Changing which way is better needs a reason too, names the goals whose target now lies the wrong way, and marks each goal.
+- Changing which way is better needs a reason too, names the goals whose target now lies the wrong way, and marks each goal. Goals that are stopped count too, as they can be restored.
 - A new unit is either a new label for the same numbers (every goal’s unit changes with it) or a different scale. A different scale is a different metric: add it as a new metric and move goals to it, or retire this one.
 - Fewer decimal places names the goals that show more; they keep theirs until their owners change them.
-- Undo takes back the change, its marks and, for a new label, every goal’s unit, as one.
+- The toast after a change has Undo: it takes back the change, its marks and, for a new label, every goal’s unit, as one.
+- A mark belongs to the year it was made in: a change made next year leaves this year’s goals as they were. A chart shows the latest three, and two in one week as one line.
 
 #### Retire, not delete
 
-- A metric that has measured a goal is retired, not deleted: its goals keep their numbers and plans and say “Measured by {metric}, retired {date}”. It leaves the pickers and the library’s list (Retired metrics are listed apart), and it can be brought back at any time with Bring it back.
+- A metric that has measured a goal is retired, not deleted: its goals keep their numbers and plans and say “Measured by {metric}, retired {date}”. It leaves the pickers and the library’s list; See the retired metrics, under the list (or Filters, Retired metrics only), lists them, and any can be brought back with Bring it back. Adding a metric with its name says it is retired and links to it.
 - Say why it is retired. Name what replaces it, in the same unit, and its goals’ owners are offered it on the goal’s page.
 - A metric no goal has ever used is deleted instead, and can be put back from Recently removed for 30 days.
 
