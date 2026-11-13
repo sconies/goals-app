@@ -132,7 +132,7 @@ export function metricFrom(input: MetricInput, before: Metric | null, x: Pick<Ac
 
 /**
  * What's wrong with a metric, in words someone can act on; empty when it can be saved. Required: a name (3 to 120
- * characters, not one another metric here uses), a unit (up to 20 characters) and a direction (higher or lower is
+ * characters, not one another metric here uses, accents and case aside), a unit (up to 20 characters) and a direction (higher or lower is
  * better). Optional: the meaning, decimals (0 to 4), source and its owner, refresh (one of REFRESHES), owner (someone in
  * the workspace) and caveats, each text up to 2,000 characters.
  */
@@ -142,7 +142,7 @@ export function metricProblems(m: Metric, s: Rows & { people: Person[] }): strin
   else if (m.name.length < 3) out.push('Give the metric a name of at least three characters.');
   else if (m.name.length > METRIC_LIMITS.name) out.push(`Keep the name to ${METRIC_LIMITS.name} characters or fewer.`);
   else {
-    const same = liveMetrics(s).find((v) => v.id !== m.id && v.name.toLowerCase() === m.name.toLowerCase());
+    const same = liveMetrics(s).find((v) => v.id !== m.id && !v.name.localeCompare(m.name, 'en', { sensitivity: 'base' }));
     if (same) out.push(`There’s already a metric called ${same.name}. Use it, or give this one a different name.`);
   }
   if (!m.unit) out.push('Say its unit: %, min, hours, USD, deploys…');
