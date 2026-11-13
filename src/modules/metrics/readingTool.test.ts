@@ -30,7 +30,7 @@ async function setup(modulesOff: string[] = []) {
   let id = 0;
   const call = async (name: string, args: object = {}) => {
     const res = await serve(new Request('https://x/api/mcp', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method: 'tools/call', params: { name, arguments: args } }) }), deps);
-    return (await res.json()).result as { content: { text: string }[]; isError: boolean };
+    return (await res.json()).result as { content: { text: string }[]; isError: boolean; structuredContent?: Record<string, unknown> };
   };
   const latest = () => data.checkIns.filter((c) => c.goalId === 'ns-ci').sort((a, b) => a.postedAt.localeCompare(b.postedAt)).at(-1)!;
   return { call, latest };
@@ -63,5 +63,19 @@ describe('post_check_in reads the goal’s source (NR rule 3)', () => {
     const r = await off.call('post_check_in', { goal_id: 'ns-ci', value: 20, reading_confirmed: true });
     expect(r.isError).toBe(true);
     expect(r.content[0]!.text).toMatch(/^Metric library is switched off in Platform Engineering/);
+  });
+});
+
+describe('the AI sees where a number came from, as the screens show it (NR 2.4)', () => {
+  it('get_goal says each check-in’s reading in History’s words; get_metric says how each goal fills in and how often it was typed over', async () => {
+    const { call } = await setup();
+    expect((await call('post_check_in', { goal_id: 'ns-ci', value: 20, different_because: { kind: 'other-count', text: 'It leaves out release branches.' } })).isError).toBe(false);
+    const g = await call('get_goal', { goal_id: 'ns-ci' });
+    const cis = (g.structuredContent!.goal as { checkIns: { week: number; numberFrom: unknown }[] }).checkIns;
+    expect(cis.find((c) => c.week === 45)!.numberFrom).toEqual({ from: 'Typed', sourceSaid: 19, measuredAt: '2026-11-05T09:00:00.000Z', reason: 'The source counts something else: “It leaves out release branches.”', says: 'Typed by Daniel Okafor. CI analytics said 19 min. The source counts something else: “It leaves out release branches.”' });
+    expect(cis.find((c) => c.week === 44)!.numberFrom).toBe(null);
+    const m = await call('get_metric', { metric: 'metric_ci-time' });
+    expect(m.structuredContent).toMatchObject({ goals: [{ goalId: 'ns-ci', inItsCheckIn: 'Filled in from CI analytics · last read 9:00 today' }], differentNumbers: [{ source: 'CI analytics', checkIns: 1, different: 1, weeks: [{ goalId: 'ns-ci', week: 45 }] }] });
+    expect(m.content[0]!.text).toMatch(/In the last 8 weeks, 1 of 1 check-in filled in from CI analytics used a different number\. \(G-\d+ week 45\)/);
   });
 });
