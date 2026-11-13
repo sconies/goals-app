@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'setup-upload-preview',
+    date: '2026-11-13',
+    title: 'Set-up checks a spreadsheet as Import does',
+    points: [
+      'Setting up from a spreadsheet now ends on the same preview as Import: how many goals and people it adds, what must be fixed, and its questions with their answers.',
+      'A goal owned by someone nobody typed offers “Add {name}”, who joins your people with the row’s team, or “Give it to someone here”.',
+      'Stages already due are asked about, answered “Count them from this week” for you; Change it to keep the weeks as typed.',
+      'Nothing is created until every question is answered.',
+    ],
+    articles: ['set-up', 'import'],
+  },
+  {
     id: 'import-export-fixes',
     date: '2026-11-13',
     title: 'Import and Export, four fixes',

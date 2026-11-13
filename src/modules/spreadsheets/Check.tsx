@@ -11,13 +11,13 @@ import { MODULE_SHEETS } from '../../core/records';
 import { describe, type ChangeSet } from '../../domain/changeset';
 import { workbook } from '../../domain/export';
 import { leaveOut } from '../../domain/leaveOut';
-import { questionsLine, type Answer, type Choice, type IssueGroup, type Sheet } from '../../domain/problemLevels';
-import { CHANGES_SAVE_MAX, PAGE, tooLarge } from '../../domain/importLimits';
+import { questionsLine, type Answer, type IssueGroup, type Sheet } from '../../domain/problemLevels';
+import { CHANGES_SAVE_MAX, tooLarge } from '../../domain/importLimits';
 import { parseDelimited, readLine, readTables, type ReadTables, type Tables } from '../../domain/sheets';
 import { workedOutEdits } from '../../domain/workedOut';
 import { useMark } from '../../telemetry/react';
 import { Sheet as SheetBox, WarnMark } from '../../ui/bits';
-import { PickOne } from '../../ui/Pick';
+import { Answered as AnsweredLine, IssueGroup as SharedGroup } from '../../ui/IssueGroup';
 import type { Snapshot } from '../../domain/types';
 import { isNewIn, useImportPlan } from './importPlan';
 import { stopCheck } from './checkRun';
@@ -285,16 +285,9 @@ const focusOn = (then: string) => requestAnimationFrame(() => {
 /** A question answered: what was asked and the answer, with Change. */
 function Answered({ id }: { id: string }) {
   const said = importStore.get().said[id]!;
-  return (
-    <div className="import-answered" id={`answered-${id}`} tabIndex={-1}>
-      <span>{said.title}: <span className="strong">{said.label}</span></span>
-      <button type="button" className="btn ghost sm" onClick={() => importStore.answer(id, null)}>Change</button>
-    </div>
-  );
+  return <AnsweredLine id={id} title={said.title} label={said.label} onChange={() => importStore.answer(id, null)} />;
 }
 
-/** What a choice that needs a value finds: a team, a person or a goal, by the group's column. */
-const pickKind = (g: IssueGroup): 'team' | 'person' | 'goal' => (g.column === 'Team' ? 'team' : ['Owner', 'Owner email', 'Takes over', 'Name', 'Email'].includes(g.column ?? '') ? 'person' : 'goal');
 /** The cell an answer reads as: a team's name, a person's email (or name), a goal's key. */
 function valueOf(s: Snapshot, kind: 'team' | 'person' | 'goal', id: string): string {
   if (kind === 'team') return s.teams.find((t) => t.id === id)?.name ?? '';
@@ -303,62 +296,12 @@ function valueOf(s: Snapshot, kind: 'team' | 'person' | 'goal', id: string): str
   return g?.key ?? g?.id ?? '';
 }
 
-/** One group (rule 6): its title, where its rows are and the fix, its answers, and its rows on request. */
+/** One group (rule 6), answered into the import (src/ui/IssueGroup). */
 function GroupBlock({ g, cs, prior }: { g: IssueGroup; cs: ChangeSet; prior?: Answer }) {
   const app = useApp();
-  const [chosen, setChosen] = useState('');
-  const [shown, setShown] = useState(0);
-  const give = (c: Choice, v?: string) => {
-    // An unlikely number's answer covers the numbers it was given for, and those of the answer before it.
-    const covers = g.values ? [...new Set([...(prior?.covers ?? []), ...g.values])] : undefined;
-    importStore.answer(g.id, { choice: c.choice, ...(v ? { value: v } : {}), ...(covers ? { covers } : {}) }, { title: g.title, label: v ? `Use “${v}”` : c.label, level: g.level === 'must' ? 'must' : 'check' });
-    focusOn(`[id="answered-${g.id}"]`);
-  };
-  const rows = cs.issues.filter((i) => i.group === g.id);
-  const valueChoice = g.answers.find((c) => c.choice === chosen && c.needsValue);
-  const list = valueChoice?.options?.filter((o) => o !== g.suggest) ?? [];
-  const isMust = g.level === 'must';
   return (
-    <div className={'level-block import-group ' + (isMust ? 'level-fix' : 'level-check')} role="group" aria-labelledby={`t-${g.id}`}>
-      <span className="level-head"><WarnMark /><span className="level-word">{isMust ? 'Must fix' : 'Check'}</span></span>
-      <strong id={`t-${g.id}`} className="level-q">{g.title}</strong>
-      <span className="small">{g.where}. {g.count > 1 || g.example !== g.title ? g.example : ''}</span>
-      {g.answers.length > 0 && (
-        <fieldset className="import-answers">
-          <legend className="sr">{g.title}</legend>
-          {g.answers.map((c) => (
-            <label key={c.choice} className="import-answer">
-              <input type="radio" name={`a-${g.id}`} checked={chosen === c.choice} onChange={() => { setChosen(c.choice); if (!c.needsValue) give(c); }} />
-              <span>{c.label}</span>
-            </label>
-          ))}
-          {valueChoice && (
-            <span className="import-value">
-              {valueChoice.options ? (
-                // A column's few words: one radio each, chosen at once.
-                <span className="import-answers" role="radiogroup" aria-label={valueChoice.label}>
-                  {list.map((o) => <label key={o} className="import-answer"><input type="radio" name={`o-${g.id}`} onChange={() => give(valueChoice, o)} /><span>Use “{o}”</span></label>)}
-                </span>
-              ) : (
-                // A team, a person or a goal: found by typing (find-and-pick), never chosen from a list of everything.
-                <PickOne kind={pickKind(g)} label={valueChoice.label} value={null} onChange={(id) => { const v = id ? valueOf(app.snapshot, pickKind(g), id) : ''; if (v) give(valueChoice, v); }} />
-              )}
-            </span>
-          )}
-        </fieldset>
-      )}
-      {rows.length > 0 && (shown === 0 ? (
-        <button type="button" className="linkish tap import-show" onClick={() => setShown(PAGE)}>Show the {n(rows.length, 'row')}</button>
-      ) : (
-        <div className="import-rows">
-          <table className="import-rows-table">
-            <thead><tr><th scope="col" className="num">Row</th><th scope="col">Name</th><th scope="col">{g.column ?? 'Cell'}</th></tr></thead>
-            <tbody>{rows.slice(0, shown).map((i) => <tr key={rowKey(i)}><td className="num">{i.row}</td><td>{i.name || '—'}</td><td>{i.value ?? i.found ?? '—'}</td></tr>)}</tbody>
-          </table>
-          {rows.length > shown && <button type="button" className="linkish tap" onClick={() => setShown(shown + PAGE)}>Show {PAGE} more</button>}
-        </div>
-      ))}
-    </div>
+    <SharedGroup g={g} rows={cs.issues.filter((i) => i.group === g.id)} prior={prior} valueOf={(kind, id) => valueOf(app.snapshot, kind, id)}
+      onAnswer={(x) => { importStore.answer(g.id, x.answer, { title: x.title, label: x.label, level: x.level }); focusOn(`[id="answered-${g.id}"]`); }} />
   );
 }
 
