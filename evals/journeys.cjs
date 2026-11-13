@@ -5864,7 +5864,8 @@ journey('U153', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: 
   await p.locator('.team-page').waitFor();
   h.set('errors', await p.locator('section.habit').count() === 0, 'a one-owner team’s page shows the panel');
   await h.checkpoint('teams');
-});
+  // It reads and saves nothing: 'logged' is not this journey's.
+}, ['logged']);
 
 journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, a goal stopped with a reason is gone from Goals and listed with the State filter on Stopped (“1 stopped goal, most recently stopped first.”), with the Stopped mark, who stopped it and when, and the reason; the Filters sheet’s State offers Active, Proposed and Stopped; Remove goes back to the active goals', 15, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
