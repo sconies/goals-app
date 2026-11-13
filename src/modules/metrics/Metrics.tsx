@@ -23,11 +23,12 @@ import { CountLine, FilterLine, ListBar, ListSearch, NoneFound, SortMenu } from 
 import { MenuButton } from '../../ui/MenuButton';
 import { PickOne } from '../../ui/Pick';
 import { useWidth } from '../../ui/useWidth';
-import { canEditMetric, DIRECTION_LABEL, metricChangeQuestion, linksOf, METRIC_LIMITS, metricFrom, metricProblems, metricsOf, REFRESH_LABEL, REFRESHES, type Metric, type MetricDirection, type MetricInput, type MetricRefresh } from './rules';
+import { canEditMetric, DIRECTION_LABEL, everUsed, liveMetrics, linksOf, METRIC_LIMITS, metricFrom, metricProblems, metricsOf, REFRESH_LABEL, REFRESHES, type Metric, type MetricDirection, type MetricInput, type MetricRefresh } from './rules';
 import { decimalsWords, directionWords, findMetrics, goalsByStatus, LIBRARY_PAGE, LIBRARY_SORTS, metricAt, metricNeeds, metricPath, movedMetrics, needsLine, ownerName, summaryLine, unitsInUse, type LibraryAsk, type LibrarySort, type MetricGoalRow } from './rulesLibrary';
 import { checkReads, goalsOfMetric, libraryReads, lineOf, proposedOfMetric } from './reads';
 import { countLine, metricChecks, STILL_FIELD, stillToSay, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
 import { CheckSaid, FixLine } from '../../ui/Levels';
+import { changeKinds, linkedGoals } from './rulesChange';
 import './metrics.css';
 
 const METRICS = { thing: 'metric', things: 'metrics' };
@@ -195,7 +196,7 @@ export function MetricPage() {
   const nav = useNavigate();
   const { metricId = '' } = useParams();
   const reads = useReads();
-  const [removing, setRemoving] = useState(false);
+  const [removing, setRemoving] = useState<null | 'delete' | 'retire' | 'merge'>(null);
   const all = metricsOf(app.full ?? app.snapshot);
   const m = metricAt(all, metricId);
   if (!m) {
@@ -222,16 +223,26 @@ export function MetricPage() {
   const needs = edit ? metricNeeds(m, reads) : [];
   const by = (id: string, at: string) => `by ${app.person(id)?.name ?? 'someone who has left'} on ${dateOf(at)}`;
   const one = rows.length === 1 ? rows[0]! : null;
+  const retired = !!m.retiredAt;
+  const used = everUsed(m.id, linksOf(app.full ?? app.snapshot));
+  const replaced = m.replacedBy ? all.find((v) => v.id === m.replacedBy) : undefined;
+  const bringBack = async () => { try { await app.run('unretireMetric', { metricId: m.id }); } catch { /* the rule's message is shown */ } };
   return (
     <div className="page metric-page">
       <BackLink to="/metrics" label="Metrics" />
+      {retired && (
+        <div className="metric-retired stack" role="note" style={{ gap: 'var(--s2)' }}>
+          <p>Retired on {dateOf(m.retiredAt!)} by {app.person(m.retiredBy ?? '')?.name ?? 'someone who has left'}: “{m.retiredWhy}”.{replaced && <> Replaced by <Link to={metricPath(replaced)}>{replaced.name}</Link>.</>}</p>
+          {edit && <div><button type="button" className="btn primary" onClick={() => void bringBack()}>Bring it back</button></div>}
+        </div>
+      )}
       <div className="page-head row between metric-head">
         <div className="stack" style={{ gap: 4, minWidth: 0 }}>
           <h1 className="title-xl">{m.name}</h1>
-          <span className="hint">{m.unit}, {decimalsWords(m.decimals)} · {directionWords(m.direction)} · {ownerLive && owner ? <>owned by <Link to={`/people/${encodeURIComponent(owner.id)}`}>{owner.name}</Link></> : 'no owner'} · <StillLine metric={m} links={edit} /></span>
+          <span className="hint">{m.unit}, {decimalsWords(m.decimals)} · {directionWords(m.direction)} · {ownerLive && owner ? <>owned by <Link to={`/people/${encodeURIComponent(owner.id)}`}>{owner.name}</Link></> : 'no owner'} · {retired ? <span className="metric-still">Retired</span> : <StillLine metric={m} links={edit} />}</span>
         </div>
         {/* Goals, filtered to this metric (the module's Goals filter, ?metric=): the same goals as the table below (N16). */}
-        {rows.length > 0 && <Link className="btn primary" to={`/goals?scope=all&metric=${encodeURIComponent(m.id)}`}>{one ? 'See its goal' : `See its ${rows.length} goals`}</Link>}
+        {rows.length > 0 && <Link className={retired ? 'btn' : 'btn primary'} to={`/goals?scope=all&metric=${encodeURIComponent(m.id)}`}>{one ? 'See its goal' : `See its ${rows.length} goals`}</Link>}
       </div>
       <section className="stack metric-meaning" style={{ gap: 4 }} aria-labelledby="metric-meaning">
         <h2 className="label" id="metric-meaning">What it means and how it’s calculated</h2>
@@ -272,11 +283,19 @@ export function MetricPage() {
       {edit ? (
         <section className="people-admin stack metric-admin" aria-labelledby="metric-admin">
           <h2 className="label" id="metric-admin">{ownerLive && owner ? `For ${owner.id === app.viewer.id ? 'you' : firstOf(owner.name)} and admins` : 'For admins'}</h2>
-          <div className="row"><Link className="btn" to={`${metricPath(m)}/edit`}>Change this metric</Link></div>
-          <div className="people-admin-quiet"><button type="button" className="btn ghost" onClick={() => setRemoving(true)}>Remove this metric…</button></div>
+          {!retired && <div className="row"><Link className="btn" to={`${metricPath(m)}/edit`}>Change this metric</Link></div>}
+          {!retired && (
+            <div className="people-admin-quiet row">
+              {used ? <button type="button" className="btn ghost" onClick={() => setRemoving('retire')}>Retire this metric…</button> : <button type="button" className="btn ghost" onClick={() => setRemoving('delete')}>Delete this metric…</button>}
+              {used && app.viewer.admin && <button type="button" className="btn ghost" onClick={() => setRemoving('merge')}>Merge into another metric…</button>}
+            </div>
+          )}
         </section>
       ) : <p className="hint">{ownerLive && owner ? `${owner.name} or an admin can change this.` : 'An admin can change this.'}</p>}
-      {removing && <RemoveMetricSheet metric={m} rows={rows} onClose={() => setRemoving(false)} onRemoved={() => void nav('/metrics')} />}
+      <MetricHistory metric={m} />
+      {removing === 'delete' && <RemoveMetricSheet metric={m} rows={rows} onClose={() => setRemoving(null)} onRemoved={() => void nav('/metrics')} />}
+      {removing === 'retire' && <RetireSheet metric={m} onClose={() => setRemoving(null)} />}
+      {removing === 'merge' && <MergeSheet metric={m} onClose={() => setRemoving(null)} onMerged={(into) => void nav(metricPath(into))} />}
     </div>
   );
 }
@@ -355,16 +374,124 @@ function RemoveMetricSheet({ metric: m, onClose, onRemoved }: { metric: Metric; 
   const rest = rows.length - titles.length;
   const go = async () => {
     setBusy(true);
-    try { await app.run('removeMetric', { metricId: m.id }, { said: `Removed ${m.name}` }); onClose(); onRemoved(); } catch { setBusy(false); }
+    try { await app.run('removeMetric', { metricId: m.id }, { said: `Deleted ${m.name}` }); onClose(); onRemoved(); } catch { setBusy(false); }
   };
   return (
-    <Sheet open onClose={onClose} title={`Remove “${m.name}”?`}>
+    <Sheet open onClose={onClose} title={`Delete “${m.name}”?`}>
       <div className="stack" style={{ gap: 'var(--s4)' }}>
-        <p className="small">{rows.length ? `${plural(rows.length, 'goal stops', 'goals stop')} being measured by it: ${titles.join(', ')}${rest ? ` and ${rest} more` : ''}. They keep their numbers and plans.` : 'No goal uses it.'}</p>
+        <p className="small">{rows.length ? `${plural(rows.length, 'goal stops', 'goals stop')} being measured by it: ${titles.join(', ')}${rest ? ` and ${rest} more` : ''}. They keep their numbers and plans.` : 'No goal has been measured by it.'}</p>
         <p className="small">You can put it back for 30 days from Recently removed.</p>
-        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn danger big-btn" type="button" disabled={busy} onClick={() => void go()}>{busy ? 'Removing…' : 'Remove the metric'}</button></div>
+        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn danger big-btn" type="button" disabled={busy} onClick={() => void go()}>{busy ? 'Deleting…' : 'Delete the metric'}</button></div>
       </div>
     </Sheet>
+  );
+}
+
+/** The goals a metric measures now, named as the read-backs name them: the first six, then “and {k} more”. */
+function goalNames(titles: string[]) {
+  const shown = titles.slice(0, 6);
+  return `${shown.join(', ')}${titles.length > shown.length ? ` and ${titles.length - shown.length} more` : ''}`;
+}
+function liveGoalTitles(app: ReturnType<typeof useApp>, metricId: string): string[] {
+  const s = app.full ?? app.snapshot;
+  const ids = new Set(linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt).map((l) => l.goalId));
+  return s.goals.filter((g) => ids.has(g.id) && !g.removedAt && !g.stoppedAt).map((g) => g.title);
+}
+
+/** Retiring a metric (MT3, spec 2.3): its goals stay measured by it and say so; it leaves the pickers; Undo, or Bring it back. */
+function RetireSheet({ metric: m, onClose }: { metric: Metric; onClose: () => void }) {
+  const app = useApp();
+  const [why, setWhy] = useState('');
+  const [by, setBy] = useState('');
+  const [tried, setTried] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const titles = liveGoalTitles(app, m.id);
+  const other = by ? liveMetrics(app.snapshot).find((v) => v.id === by) : undefined;
+  const apart = !!other && (other.id === m.id || other.unit.trim().toLowerCase() !== m.unit.trim().toLowerCase());
+  const go = async () => {
+    setTried(true);
+    if (!why.trim() || apart) return;
+    setBusy(true);
+    try { await app.run('retireMetric', { metricId: m.id, why, replacedBy: by || null }, { said: `Retired ${m.name}` }); onClose(); } catch { setBusy(false); }
+  };
+  return (
+    <Sheet open onClose={onClose} title={`Retire “${m.name}”?`}>
+      <div className="stack" style={{ gap: 'var(--s4)' }}>
+        <p className="small">{titles.length ? <><strong>{plural(titles.length, 'goal stays', 'goals stay')} measured by it</strong> and keep{titles.length === 1 ? 's' : ''} {titles.length === 1 ? 'its' : 'their'} numbers and plans: {goalNames(titles)}. They will say “Measured by {m.name}, retired {new Date(app.today).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}”.</> : 'No goal is measured by it now.'}</p>
+        <p className="small">It leaves the pickers and the library’s list. It can be brought back at any time.</p>
+        <label className="field">
+          <span className="label">Why <span className="hint">Required</span></span>
+          <textarea className={tried && !why.trim() ? 'is-fix' : undefined} rows={2} maxLength={300} value={why} onChange={(e) => setWhy(e.target.value)} aria-invalid={tried && !why.trim()} />
+          {tried && !why.trim() && <FixLine>Say why it is retired, in a line. Its goals will show this.</FixLine>}
+        </label>
+        <div className="field">
+          <PickOne kind="metric" label="Replaced by (optional)" none="Not said" value={by || null} onChange={(id) => setBy(id ?? '')} invalid={apart} />
+          {apart ? <FixLine>{other!.id === m.id ? 'Choose another metric.' : `${m.name} is in ${m.unit} and ${other!.name} is in ${other!.unit}. It can only be replaced by a metric in the same unit.`}</FixLine> : <span className="hint">Its goals’ owners are offered this one.</span>}
+        </div>
+        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="button" disabled={busy} onClick={() => void go()}>{busy ? 'Retiring…' : 'Retire the metric'}</button></div>
+      </div>
+    </Sheet>
+  );
+}
+
+/** Merging a metric into another in the same unit (MT3, spec 2.3; admins): its goals move, it is retired pointing there. */
+function MergeSheet({ metric: m, onClose, onMerged }: { metric: Metric; onClose: () => void; onMerged: (into: Metric) => void }) {
+  const app = useApp();
+  const [into, setInto] = useState('');
+  const [why, setWhy] = useState('');
+  const [anyway, setAnyway] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const other = into && into !== m.id ? liveMetrics(app.snapshot).find((v) => v.id === into) : undefined;
+  const apart = other && other.unit.trim().toLowerCase() !== m.unit.trim().toLowerCase();
+  const n = liveGoalTitles(app, m.id).length;
+  const k = other ? liveGoalTitles(app, other.id).length : 0;
+  const wrong = other && !apart && other.direction !== m.direction;
+  const go = async () => {
+    if (!other || apart || (wrong && !anyway)) return;
+    setBusy(true);
+    try { await app.run('mergeMetrics', { fromId: m.id, intoId: other.id, why }, { said: `Merged ${m.name} into ${other.name}. ${plural(n, 'goal', 'goals')} moved.` }); onClose(); onMerged(other); } catch { setBusy(false); }
+  };
+  return (
+    <Sheet open onClose={onClose} title={`Merge “${m.name}” into another metric`}>
+      <div className="stack" style={{ gap: 'var(--s4)' }}>
+        <div className="field">
+          <PickOne kind="metric" label="Into" value={into || null} onChange={(id) => { setInto(id ?? ''); setAnyway(false); }} invalid={!!apart} />
+          {apart && <FixLine>{m.name} is in {m.unit} and {other!.name} is in {other!.unit}. Only metrics in the same unit can be merged.</FixLine>}
+        </div>
+        {other && !apart && <p className="small">“{m.name}” ({plural(n, 'goal', 'goals')}) becomes “{other.name}” ({plural(k, 'goal', 'goals')}). Both are in {m.unit}. The {plural(n, 'goal', 'goals')} will be measured by {other.name} from today, and their History will say so. “{m.name}” is retired, pointing to {other.name}.</p>}
+        {wrong && !anyway && (
+          <div className="level-check stack" style={{ gap: 'var(--s2)' }}>
+            <span className="row" style={{ gap: 6 }}><WarnMark /><strong>Check</strong></span>
+            <span className="small">{m.name}: {DIRECTION_LABEL[m.direction].toLowerCase()}. {other!.name}: {DIRECTION_LABEL[other!.direction].toLowerCase()}. {plural(n, 'goal', 'goals')} will aim the wrong way.</span>
+            <div className="row"><button type="button" className="btn sm" onClick={() => setAnyway(true)}>Merge anyway</button><button type="button" className="btn sm ghost" onClick={onClose}>Cancel</button></div>
+          </div>
+        )}
+        <label className="field">
+          <span className="label">Why <span className="hint">optional</span></span>
+          <input type="text" maxLength={300} value={why} placeholder={other ? `The same number as ${other.name}.` : ''} onChange={(e) => setWhy(e.target.value)} />
+        </label>
+        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="button" disabled={busy || !other || !!apart || (!!wrong && !anyway)} onClick={() => void go()}>{busy ? 'Merging…' : 'Merge them'}</button></div>
+      </div>
+    </Sheet>
+  );
+}
+
+/** A metric's History (MT3, spec 2.4): the change log's entries for it, newest first, 20 then Show earlier. */
+function MetricHistory({ metric: m }: { metric: Metric }) {
+  const app = useApp();
+  const [all, setAll] = useState(false);
+  const entries = app.snapshot.changes.filter((c) => c.entity === 'metric' && c.entityId === m.id && !c.goalId).slice().reverse();
+  const shown = all ? entries : entries.slice(0, 20);
+  return (
+    <section className="stack metric-history" id="history" style={{ gap: 'var(--s2)' }} aria-labelledby="metric-history">
+      <h2 className="label" id="metric-history">History</h2>
+      {shown.length ? (
+        <ul className="metric-history-list">
+          {shown.map((c) => <li key={c.id} className="small"><span>{app.person(c.actorId)?.name ?? 'Someone'}: {c.summary.charAt(0).toLowerCase()}{c.summary.slice(1)}</span> <span className="hint">{dateOf(c.at)}</span></li>)}
+        </ul>
+      ) : <p className="hint small">{app.person(m.createdBy)?.name ?? 'Someone'} added this metric on {dateOf(m.createdAt)}.</p>}
+      {!all && entries.length > 20 && <div><button type="button" className="btn ghost sm" onClick={() => setAll(true)}>Show earlier</button></div>}
+    </section>
   );
 }
 
@@ -399,6 +526,11 @@ export function MetricForm() {
   const [busy, setBusy] = useState(false);
   // Changing the unit or direction goals use is asked first (spec 2.3).
   const [asking, setAsking] = useState(false);
+  // MT3's read-back (spec 2.2): is it still the same number, a new unit's label or scale, and why.
+  const [comparable, setComparable] = useState<boolean | undefined>(undefined);
+  const [unitIs, setUnitIs] = useState<'label' | 'scale' | undefined>(undefined);
+  const [why, setWhy] = useState('');
+  const [whyTried, setWhyTried] = useState(false);
   // Rule 1's Checks answered, each with the field's value it was answered for: a new value asks again.
   const [answered, setAnswered] = useState<Partial<Record<CheckField, { choice: string; at: string }>>>({});
   // Saving was tried with a Check unanswered: the Check is outlined and the button says so.
@@ -443,7 +575,12 @@ export function MetricForm() {
   const count = countLine(shownFixes.length, shownChecks.length);
   const still = stillToSay(next, true);
   // The goals the metric measures now, and how many of them a new unit or direction would set apart (linkProblems).
-  const question = live ? metricChangeQuestion(live, next, app.snapshot.goals, linksOf(app.snapshot)) : null;
+  // Rule 3: what kind of change this is, for the goals the metric measures now. `words` saves at once.
+  const linked = live ? linkedGoals(app.full ?? app.snapshot, live.id) : [];
+  const kinds = live ? changeKinds(live, next, linked, { relabel: unitIs === 'label' }) : ['none'];
+  const unitChanging = !!live && linked.length > 0 && live.unit.trim().toLowerCase() !== next.unit.trim().toLowerCase();
+  const question = live && (unitChanging || kinds.some((k) => k === 'meaning' || k === 'direction' || k === 'decimals')) ? kinds : null;
+  const marking = !!question && ((question.includes('meaning') && comparable === false) || question.includes('direction'));
   const back = () => void nav(live ? metricPath(live) : '/metrics');
   const answer = (c: MetricCheck, choice: string) => {
     if (choice.startsWith('use:')) { const m = metricsOf(app.snapshot).find((x) => x.id === choice.slice(4)); if (m) void nav(metricPath(m)); return; }
@@ -484,14 +621,15 @@ export function MetricForm() {
     }
     setWaiting(false);
     if (question && !confirmed) { setAsking(true); return; }
+    if (question && (unitIs === 'scale' || (unitChanging && !unitIs) || (question.includes('meaning') && comparable === undefined) || (marking && !why.trim()))) { setWhyTried(true); return; }
     setAsking(false);
     setBusy(true);
     try {
       // The answers go with the save: the action asks the same Checks and refuses while one is open.
       const answers = Object.fromEntries(checks.flatMap((c) => (answered[c.field] && answered[c.field]!.at === valueOf(c.field) ? [[c.field, answered[c.field]!.choice]] : [])));
-      const out = await app.run('saveMetric', { ...input, answers, ...(live ? { id: live.id, ...(confirmed ? { confirm: true } : {}) } : {}) }) as { metric: Metric };
+      const out = await app.run('saveMetric', { ...input, answers, ...(live ? { id: live.id, ...(question ? { comparable, relabel: unitIs === 'label', ...(why.trim() ? { reason: why.trim() } : {}) } : {}) } : {}) }) as { metric: Metric };
       clearDraft();
-      app.toast(live ? `Saved ${out.metric.name}` : `Added ${out.metric.name}`);
+      app.toast(live ? (marking || unitIs === 'label' ? `Changed ${out.metric.name}. ${plural(linked.length, 'goal says', 'goals say')} so.` : `Saved ${out.metric.name}`) : `Added ${out.metric.name}`);
       void nav(metricPath(out.metric), { replace: true });
     } catch { setBusy(false); }
   };
@@ -557,7 +695,7 @@ export function MetricForm() {
         </fieldset>
         <div className="field" id="metric-owner">
           <PickOne kind="person" label="Owner" value={d.ownerId || null} onChange={(id) => set({ ownerId: id ?? '' })} invalid={about(/owner isn’t/i).length > 0} />
-          <span className="hint">{owner && owner.id === app.viewer.id ? `${owner.name} (you). ` : ''}Answers for what it means. Can change it and remove it.</span>
+          <span className="hint">{owner && owner.id === app.viewer.id ? `${owner.name} (you). ` : ''}Answers for what it means. Can change it and retire it.</span>
           {err(/owner isn’t/i)}
         </div>
         <div className="field" id="metric-caveats">
@@ -567,11 +705,9 @@ export function MetricForm() {
         </div>
         {/* Anything else the rule says (a length, decimals), together above the button. */}
         {tried && <div className="stack">{problems.filter((p) => !FIELD_PROBLEM.test(p)).map((p) => <div key={p} className="level-block level-fix" role="alert"><span className="level-head"><WarnMark /><span className="level-word">Must fix</span></span><span>{p}</span></div>)}</div>}
-        {asking && question && (
-          <div className="restored small stack" role="alertdialog" aria-labelledby="metric-confirm" style={{ gap: 'var(--s2)' }}>
-            <span id="metric-confirm">{question.text}</span>
-            <span className="row"><button type="button" className="btn sm" onClick={() => void save(true)}>Change it</button><button type="button" className="btn ghost sm" onClick={() => { setAsking(false); set({ unit: live!.unit, direction: live!.direction }); }}>Keep it as it was</button></span>
-          </div>
+        {asking && question && live && (
+          <ChangeReadBack before={live} after={next} kinds={question} linked={linked} unitChanging={unitChanging} comparable={comparable} setComparable={setComparable} unitIs={unitIs} setUnitIs={setUnitIs} why={why} setWhy={setWhy} tried={whyTried} marking={marking}
+            onSave={() => void save(true)} onKeep={() => { setAsking(false); setComparable(undefined); setUnitIs(undefined); setWhy(''); setWhyTried(false); set({ unit: live.unit, direction: live.direction, meaning: live.meaning, source: live.source, decimals: live.decimals }); }} />
         )}
         <div className="stack metric-foot" style={{ gap: 'var(--s1)' }}>
           {count && <p className="small metric-count" role="status">{count}</p>}
@@ -580,6 +716,66 @@ export function MetricForm() {
         <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={back}>Cancel</button><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : live ? 'Save changes' : 'Add the metric'}</button></div>
         {waiting && open.length > 0 && <FixLine>Answer the question above first.</FixLine>}
       </form>
+    </div>
+  );
+}
+
+/** The change read-back (MT3, spec 2.2): what a change does to the goals a metric measures, before it is saved. */
+function ChangeReadBack(p: {
+  before: Metric; after: Metric; kinds: string[]; linked: { title: string; decimals: number; aimsUp: boolean | null }[]; unitChanging: boolean;
+  comparable: boolean | undefined; setComparable: (v: boolean) => void; unitIs: 'label' | 'scale' | undefined; setUnitIs: (v: 'label' | 'scale') => void;
+  why: string; setWhy: (v: string) => void; tried: boolean; marking: boolean; onSave: () => void; onKeep: () => void;
+}) {
+  const { before: b, after: a, kinds, linked } = p;
+  const n = linked.length;
+  const meaning = kinds.includes('meaning');
+  const sourceOnly = meaning && b.meaning.trim() === a.meaning.trim();
+  const title = meaning ? (sourceOnly ? `Change where “${b.name}” comes from?` : `Change what “${b.name}” means?`) : p.unitChanging ? `Change “${b.unit}” to “${a.unit}” on ${b.name} and its ${plural(n, 'goal', 'goals')}?` : kinds.includes('direction') ? `Change which way is better for ${b.name}?` : `Change the decimal places of ${b.name}?`;
+  const wrong = kinds.includes('direction') ? linked.filter((g) => g.aimsUp != null && (g.aimsUp ? 'higher' : 'lower') !== a.direction) : [];
+  const more = linked.filter((g) => g.decimals > a.decimals);
+  const names = goalNames(linked.map((g) => g.title));
+  const primary = kinds.filter((k) => k !== 'words').length > 1 ? 'Save these changes' : meaning ? (sourceOnly ? 'Change the source' : 'Change the meaning') : p.unitChanging ? 'Change the unit' : kinds.includes('direction') ? 'Change the direction' : 'Save changes';
+  return (
+    <div className="metric-readback stack" role="alertdialog" aria-labelledby="metric-readback" style={{ gap: 'var(--s3)' }}>
+      <h2 className="title-m" id="metric-readback">{title}</h2>
+      {meaning && (
+        <>
+          <dl className="metric-facts">
+            <dt>Was</dt><dd>{sourceOnly ? b.source || 'Not said' : b.meaning || 'Not said'}</dd>
+            <dt>Will be</dt><dd><strong>{sourceOnly ? a.source || 'Not said' : a.meaning || 'Not said'}</strong></dd>
+          </dl>
+          <fieldset className="stack" style={{ gap: 'var(--s1)' }}>
+            <legend className="label">Is it still the same number?</legend>
+            <label className="row"><input type="radio" name="comparable" checked={p.comparable === true} onChange={() => p.setComparable(true)} /> Same number, better words <span className="hint">Nothing is marked.</span></label>
+            <label className="row"><input type="radio" name="comparable" checked={p.comparable === false} onChange={() => p.setComparable(false)} /> The number itself changes, from this week <span className="hint">Earlier weeks were measured the old way, and every goal says so.</span></label>
+            {p.tried && p.comparable === undefined && <FixLine>Say whether it is still the same number.</FixLine>}
+          </fieldset>
+        </>
+      )}
+      {p.unitChanging && (
+        <fieldset className="stack" style={{ gap: 'var(--s1)' }}>
+          <legend className="label">{plural(n, 'goal is', 'goals are')} measured by {b.name} in {b.unit}. Is “{a.unit}” a new label for the same numbers, or a different scale?</legend>
+          <label className="row"><input type="radio" name="unit-is" checked={p.unitIs === 'label'} onChange={() => p.setUnitIs('label')} /> A new label: change it on the goals too</label>
+          <label className="row"><input type="radio" name="unit-is" checked={p.unitIs === 'scale'} onChange={() => p.setUnitIs('scale')} /> A different scale</label>
+          {p.unitIs === 'scale' && <FixLine>A metric in {a.unit} is a different number. Add it as a new metric and move goals to it, or retire this one.</FixLine>}
+          {p.unitIs === 'label' && <p className="small">{plural(n, 'goal', 'goals')} will show “{a.unit}” instead of “{b.unit}”. No number changes.</p>}
+        </fieldset>
+      )}
+      {kinds.includes('direction') && <p className="small">{wrong.length ? `For ${wrong.length} of its ${plural(n, 'goal', 'goals')} the target now lies the wrong way: ${goalNames(wrong.map((g) => g.title))}. Each will show a Check until its owner has looked.` : `All ${plural(n, 'goal', 'goals')} already aim that way.`}</p>}
+      {kinds.includes('decimals') && more.length > 0 && <p className="small">{plural(more.length, 'goal shows', 'goals show')} more decimal places than {b.name} will: {goalNames(more.map((g) => g.title))}. They keep theirs until their owners change them.</p>}
+      {p.marking && (
+        <label className="field">
+          <span className="label">Why <span className="hint">Required</span></span>
+          <textarea rows={2} maxLength={300} value={p.why} onChange={(e) => p.setWhy(e.target.value)} aria-invalid={p.tried && !p.why.trim()} />
+          {p.tried && !p.why.trim() && <FixLine>Say why, in a line. Every goal measured by it will show this.</FixLine>}
+        </label>
+      )}
+      <div className="small stack" style={{ gap: 'var(--s1)' }}>
+        <strong>{plural(n, 'goal is', 'goals are')} measured by it</strong>
+        <span>{names}</span>
+        <span>{p.marking ? `Each goal’s chart and History will say “${meaning && p.comparable === false ? 'Definition' : 'Direction'} changed”, with your reason. Their numbers and plans don’t change.` : meaning && p.comparable === true ? 'Nothing changes on these goals but the words they show.' : ''}</span>
+      </div>
+      <div className="row"><button type="button" className="btn primary" disabled={p.unitIs === 'scale'} onClick={p.onSave}>{primary}</button><button type="button" className="btn ghost" onClick={p.onKeep}>Keep it as it was</button></div>
     </div>
   );
 }

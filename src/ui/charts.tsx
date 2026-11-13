@@ -171,13 +171,15 @@ interface MetricProps { goal: MetricGoal; weeks: number; week: number; series: P
   hit?: boolean;
   /** The scorecard's numbers, marked where they are: the gap to plan at now, the likely end, and the gap from it to the target. */
   marks?: ChartMarks | null;
+  /** Modules' marks (MT3's `goal.marks`): a dashed hairline at a week, its label beside it. */
+  notes?: readonly { week: number; label: string }[];
 }
 
 export function MetricChart(p: MetricProps) {
   return <Sized height={p.height ?? 220}>{(w) => <MetricSvg {...p} W={w} H={p.height ?? 220} />}</Sized>;
 }
 
-function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast: fcValue, ptgBy, showKey = true, fromWeek, projection, scrub, draw, landed, hit, marks, W, H }: MetricProps & { W: number; H: number }) {
+function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast: fcValue, ptgBy, showKey = true, fromWeek, projection, scrub, draw, landed, hit, marks, notes, W, H }: MetricProps & { W: number; H: number }) {
   // The projection's likeliest value is its line; without one, a plain forecast (the plan preview has neither).
   const forecast = projection ? projection.value : fcValue;
   // A goal that runs past the cycle (to the end of the year) is drawn to its own end.
@@ -245,6 +247,7 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast:
           ? weekTicks(x0, weeks, (W - f.padL - f.padR) / (weeks - x0)).map((w) => <text key={w} className="c-axis" x={X(w)} y={H - 5} textAnchor={w === x0 ? 'start' : 'middle'}>{w === week ? 'Now' : 'Wk ' + w}</text>)
           : <WeekLabels f={f} weeks={weeks} week={week} X={X} wide={!compact} />}
         <line className="c-today" x1={X(week)} x2={X(week)} y1={f.padT - 6} y2={H - f.padB} />
+        {notes?.map((n) => <g key={n.label} className="c-note"><line x1={X(n.week)} x2={X(n.week)} y1={f.padT - 6} y2={H - f.padB} /><text x={X(n.week) > W * 0.6 ? X(n.week) - 4 : X(n.week) + 4} y={f.padT + 6} textAnchor={X(n.week) > W * 0.6 ? 'end' : 'start'}>{n.label}</text></g>)}
         <line className="c-target" x1={f.padL} x2={W - f.padR} y1={Y(plan.target)} y2={Y(plan.target)} />
         {originalPlan && <polyline className="c-orig" points={line(planPts(originalPlan))} />}
         <polyline className="c-plan" points={line(planPts(plan))} />

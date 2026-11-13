@@ -5,7 +5,10 @@
    | Action             | Input                                   | Gives back                       |
    |--------------------|-----------------------------------------|----------------------------------|
    | `saveMetric`       | `MetricInput & { id?, confirm?, answers? }` | `{ commit, metric }`; refused while a Check is open |
-   | `removeMetric`     | `{ metricId }`                          | the commit; says so, with Undo   |
+   | `removeMetric`     | `{ metricId }`                          | the commit; says so, with Undo; refused once used |
+   | `retireMetric`     | `{ metricId, why, replacedBy? }`        | the commit; with Undo (MT3)      |
+   | `unretireMetric`   | `{ metricId }`                          | the commit; with Undo            |
+   | `mergeMetrics`     | `{ fromId, intoId, why? }`              | the commit; with Undo (admins)   |
    | `linkGoalMetric`   | `{ goalId, metricId, teamId, part?, reason? }` | the commit, or null (no change)  |
    | `unlinkGoalMetric` | `{ goalId }`                            | the commit, or null; with Undo   | */
 import type { ModuleAction, ModuleActions, RunContext } from '../../app/actions';
@@ -35,6 +38,9 @@ const actions = {
   removeMetric: { run: (x, i: { metricId: string }) => removeMetric(x, i.metricId), said, tools: ['remove_metric', 'restore_removed'] } satisfies ModuleAction<{ metricId: string }, Commit>,
   linkGoalMetric: { ready: loadLink, run: (x, i: LinkInput) => link().linkGoalMetric(x, goalOf(x, i.goalId), i.metricId, i.teamId, i.part ?? '', i.reason ?? ''), tools: ['link_goal_metric'] } satisfies ModuleAction<LinkInput, Commit | null>,
   unlinkGoalMetric: { run: (x, i: { goalId: string }) => unlinkGoalMetric(x, goalOf(x, i.goalId)), said, tools: ['link_goal_metric'] } satisfies ModuleAction<{ goalId: string }, Commit | null>,
+  retireMetric: { ready: loadLink, run: (x, i: { metricId: string; why: string; replacedBy?: string | null }) => link().retireMetric(x, i.metricId, i.why, i.replacedBy ?? null), said, tools: ['retire_metric'] } satisfies ModuleAction<{ metricId: string; why: string; replacedBy?: string | null }, Commit>,
+  unretireMetric: { ready: loadLink, run: (x, i: { metricId: string }) => link().unretireMetric(x, i.metricId), said, tools: ['retire_metric'] } satisfies ModuleAction<{ metricId: string }, Commit>,
+  mergeMetrics: { ready: loadLink, run: (x, i: { fromId: string; intoId: string; why?: string }) => link().mergeMetrics(x, i.fromId, i.intoId, i.why ?? ''), said, tools: ['merge_metrics'] } satisfies ModuleAction<{ fromId: string; intoId: string; why?: string }, Commit>,
 } satisfies ModuleActions;
 
 export default actions;

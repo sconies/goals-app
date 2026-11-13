@@ -1166,6 +1166,34 @@ Requirements: `METRIC-PARTS`.
 
 - About lists Measured by: For, what it means, From the metric, where the number comes from, caveats, the goal’s own target, and its own definition when that says more than the metric’s.
 
+### Changing, retiring and merging a metric
+
+`metric-change`, from the metrics module. Which changes save at once, the ones that tell a metric’s goals first, and retiring, bringing back and merging.
+
+Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-CHANGE`.
+
+#### What saves at once
+
+- A new name, owner, source owner, refresh or caveats saves at once, as does any change to a metric no goal uses.
+
+#### What reads back first
+
+- Changing what a metric means, or where its number comes from, shows the goals it measures and asks “Is it still the same number?”. Same number, better words: nothing is marked. The number itself changes: say why, in a line, and each goal’s chart and History say “Definition changed, week {w}” with your reason. Their numbers and plans don’t change.
+- Changing which way is better needs a reason too, names the goals whose target now lies the wrong way, and marks each goal.
+- A new unit is either a new label for the same numbers (every goal’s unit changes with it) or a different scale. A different scale is a different metric: add it as a new metric and move goals to it, or retire this one.
+- Fewer decimal places names the goals that show more; they keep theirs until their owners change them.
+- Undo takes back the change, its marks and, for a new label, every goal’s unit, as one.
+
+#### Retire, not delete
+
+- A metric that has measured a goal is retired, not deleted: its goals keep their numbers and plans and say “Measured by {metric}, retired {date}”. It leaves the pickers and the library’s list (Retired metrics are listed apart), and it can be brought back at any time with Bring it back.
+- Say why it is retired. Name what replaces it, in the same unit, and its goals’ owners are offered it on the goal’s page.
+- A metric no goal has ever used is deleted instead, and can be put back from Recently removed for 30 days.
+
+#### Merge (admins)
+
+- An admin merges a metric into another in the same unit: every goal it measures moves to the other, keeping its For and part, and it is retired pointing there. One Undo puts it all back.
+
 ### Teams
 
 `teams`. The workspace’s teams, A to Z, each with its lead, its people and its goals by status; a team’s page says what it is here to do. Admins add, change and remove teams.
