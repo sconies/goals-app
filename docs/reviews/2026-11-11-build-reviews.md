@@ -175,6 +175,13 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #392 U109: the week picker moves one week per key | 2 | 0 | 0 | 0 |
 | #371 FT2: Reviews behind a feature switch | 4 | 0 | 5 | 4 |
 | #410 HB1: the forgiving run, the receipt and a target reached | habit | 0 | 6 | 7 |
+| #415 GE10: mediums on #376 | 2 | 0 | 0 | 0 |
+| #384 MT2 review: #308's mediums and lows | 7c | 0 | 0 | 0 |
+| #422 GE10: goals added for someone else are asked about; proposed goals in What feeds it | 2 | 0 | 0 | 0 |
+| #418 GE10 MCP parity: make_goal_proposed | 2 | 0 | 0 | 0 |
+| #411 F5, F6: module records follow the switches | 7c | 0 | 0 | 0 |
+| #412 F1, F3, F4: get_help and find_goals follow a switch; always-on features say why | 4 | 0 | 0 | 0 |
+| #413, #417, #423 migrations 0046, 0047, 0048 | 7c, 1, 4 | 0 | 0 | 1 |
 
 **High findings, and where each stands**
 
@@ -1775,3 +1782,17 @@ Read first by a reviewing session with probes on the demo, MCP calls, and the ch
 **Lows.** "See the goal" in the panel is 22px high on touch and duplicates "View the goal"; `reviewOnDueDay` ignores a review held every two or four weeks, so "before Thursday's review" shows in a week with none (`progress.ts:161`, read); "after 5 weeks behind plan" counts check-ins, not weeks; "never on a second check-in the same week" is kept by the screen, not by `moment()`; `get_my_work` can print "On-time streak: 0 weeks"; the evals accept either "review" or "deadline" for the same person, so the T4 rule isn't pinned, and no journey covers the forgiven sentence; a reload on the receipt returns to the form.
 
 **Fine.** The run's worked table (one late week forgiven after four on time, two in a row not); week 1, a late-starting goal, week 53; higher and lower targets judged the right way, range and stages goals never "reached"; nothing on a backfill or a correction; only the owner checks in, so no admin sees another's receipt; the walk shows the receipt only after the last goal, focus on the one primary; no stripe, emoji or animation, no sideways scroll; the share holds the goal's image and link only. Not run: the full evals.
+
+### The 17:40 UTC check, 13 Nov: #415, #384, #422, #418, #411, #412 and three migrations
+
+Read by me; no high or medium. #419 and #416 are with first-pass reviewers.
+
+**#415 (track 2): #376's five mediums. Holds.** `planGoal` refuses a goal proposed in a review by someone who may not speak for it (`src/domain/goalEntry.ts:599`), and says the goal need not be in the review's scope; an ordinary save keeps the existing goal's `proposedIn` and `proposedBy`; the carried copy, "make it proposed again" and the engine's row clear `proposedIn` by writing null; the sheet returns focus and keeps what was typed until Cancel. Tests added.
+
+**#384 (track 7c): #308's mediums 2 to 4 and its lows. Holds.** The reason is asked against the goal's last link, removed or not, so unlinking first no longer gets round it; an open Check holds the form's save as the tool holds it; "another goal" reads only goals of the goal's own cycle at both doors; short words keep their "s" and parts whose numbers differ are not near misses; `get_metric` lists parts.
+
+**#422 (track 2).** A file or tool that adds a goal for someone else with no State is asked once how it starts (a Check with "Yes, active" and "No, start them as proposed"); admins and set-up are not asked, and `confirm` answers active. Proposed goals show under What feeds it and are counted apart on the start-next-year page. **#418:** `make_goal_proposed` runs the app's own rule. **#411:** a carried copy takes the records of modules that are on (`recordsOn` now follows `modulesOn`). **#412:** `get_help` and `find_goals` leave out a switched-off module's articles and column (this closes half of #371's medium 4; `list_requests` still names the review), and the features with no switch yet say why in the spec.
+
+**Migrations 0046 (measurement status, #413), 0047 (a check-in's reading, #417) and 0048 (the check-in rhythm, #423).** Each adds columns only, in `faro`, safe to run twice, shipped a merge ahead of the code; 0046 and 0047 write their column grants out, 0048 relies on the table's grants (its test saves through `okr_upsert`). Low, to watch when the code lands: `measurement`, `measurement_note` and `check_in_weeks` are NOT NULL with a default, and `okr_upsert` gives NULL to a row that lacks a key another row in the batch carries (#308's high), so the code must write these on every row, never only when set. #423's title and test name say 0046; the file is 0048.
+
+#417 also moves the number source's port into the metric library (no behaviour change). #420 is a handover page.
