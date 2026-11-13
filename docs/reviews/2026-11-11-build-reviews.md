@@ -190,6 +190,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #430 migration 0049: a goal's baseline | 7c | 0 | 0 | 1 |
 | #424 RS1: with Reviews off, the due day is a deadline and review data leaves exports | 4 | 0 | 4 | 5 |
 | #434 NR1: a source reads a link's slice; what a check-in keeps of a reading | readings | 0 | 3 | 7 |
+| #439 FT2 review: #371's mediums | 4 | 0 | 0 | 1 |
+| #440 AX6 review: #419's mediums | 4 | 0 | 0 | 0 |
+| #442 SM2: no noughts, and the quiet empty pages | 2 | 0 | 0 | 0 |
+| #435 SM4: the rail's Faro mark is the workspace switcher | 2 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -1864,3 +1868,15 @@ Read first by a reviewing session on PGlite with every migration, through each s
 **3. Medium (ran). `askSource` can hang or reject, and trusts what a source returns:** no timeout, `reads()` throwing rejects where the port says "unreachable", and a string value, a date next year or an unreadable date all read as fresh (`rulesReading.ts:17-28`).
 
 **Lows.** The column accepts a reading whose value is null, and NaN arrives as null; a change to the reading alone is invisible to History and to "nothing changed"; the demo source matches a part by lower case where rule 7 uses `partKey`; `read` with the slice left out returns the first slice's number; two conformance rows, both "fresh"; the core's types now name the module's concept (`CheckInReading`, the four reasons) where the architecture page says the core never names a metric; the architecture page lists an adapters folder that doesn't exist.
+
+### The 20:57 UTC check, 13 Nov: #439, #440, #442 and #435
+
+Read by me; no high or medium. #437 (NR2, which now writes readings) is with a first-pass reviewer. `beforeReview` is unchanged, so #416's high is still open.
+
+**#439 (track 4): #371's mediums. Holds.** With Reviews off a save is refused by what it writes, not by which action made it: `writesReviews` (`src/domain/reviewWrites.ts`) refuses a commit that logs a change to a review or a note said in one, writes a decision or a new review, raises an ask in a review or proposes a goal in one, and both the dispatcher (`src/app/actions.ts:219-231`) and the AI tools' save (`src/mcp/tools.ts`, `reviewsGuarded`) go through it; an input that names a review is refused before its rule runs. What a save only carries along (answering a question raised in a review, a leaver leaving their reviews, a carried goal joining one) still saves. Every reload now brings the workspace's switches (`src/app/state.tsx` `loadWs`), so a tab left open sees the switch at its next reload, and the spec now asks the server to refuse a switched-off module's writes. `list_requests` names no review, the New goal read-back follows the switch, and a switched-off address is titled "Page not found". A plain comment on a goal is a change, not a decision, so it still saves (checked). Low: between the switch and that tab's next reload a save still goes through; the server-side refusal is a requirement for the rebuild, as Faro has no server of its own for the app's saves. Still open from #424 and #416: `inreview=` on Goals and `find_goals`, review notes in the JSON export, and the habit panel's words.
+
+**#440 (track 4): #419's four mediums. Holds.** A re-run refuses someone no longer among the people and checks sign-in on every run; a failed reload after a stale refusal throws the stale refusal, so the person is told; actions confirmed against what was shown (make active, stop, delete, mark as left, remove a team, undo an import, start the next year, and the metric library's remove, retire and merge) are no longer run again; the goal form moves onto the latest goal keeping only the fields the person changed (`rebaseDraft`, with tests); an AI tool that ran again says so first.
+
+**#442 (track 2).** A count of nought beside a tab is left out; the empty Watching, Activity and Metrics pages say when you would want them, with a plain button. **#435 (track 2).** On the icon rail the Faro mark opens the workspace switcher; the panel loads on first open.
+
+#438 is a design note for tags; #443 and #445 are handover pages.
