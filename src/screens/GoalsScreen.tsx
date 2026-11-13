@@ -23,7 +23,8 @@ import { StatusLegend } from '../ui/StatusLegend';
 import { Place } from '../core/app';
 import { FilterBar, useGoalQuery, useLatestParams, useViewActions } from './GoalFilters';
 import { MenuButton } from '../ui/MenuButton';
-import { EMPTY_QUERY, filters, SORT_OPTIONS } from '../domain/query';
+import { EMPTY_QUERY, filters, NO_STALE_HERE, SORT_OPTIONS } from '../domain/query';
+import { rhythmOf } from '../domain/thresholds';
 import { useGoalCounts, useGoalList } from '../app/goals';
 import { NoneFound } from '../ui/ListBar';
 import { usePrefs } from '../app/search';
@@ -305,6 +306,8 @@ export function GoalsScreen() {
           </div>
           {/* The one count line (rule 4); the filter line follows it. */}
           {(line || proposedLink) && <p className="small goals-line" role="status">{line}{proposedLink}</p>}
+          {/* A link or saved view asking for No recent update, with no set rhythm (FT1, spec 2.6): matches nothing, and says why. */}
+          {query.status.includes('stale') && !rhythmOf(app.cycle) && <p className="small no-stale-here">{NO_STALE_HERE} <button type="button" className="linkish" onClick={() => { const p = latest(); p.delete('status'); setParams(p); }}>Clear</button></p>}
         </>} />}
       </div>
       {actions.sheets}

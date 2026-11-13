@@ -9,6 +9,7 @@ import { ATTENTION, ATTENTION_FLAGS, FLAG, LABEL, QUARTER, RESULT, WARNING, type
 import type { GoalSummary } from './summary';
 import type { Cycle, Goal, GoalKind, Level } from './types';
 import { quarterOf } from './year';
+import { rhythmOf } from './thresholds';
 
 export type QStatus = 'off' | 'risk' | 'stale' | 'on' | 'done' | 'planned' | 'none';
 /** A reason a goal needs attention (domain/attention.ts's flags), for "Needs attention because …"; or its path to green's date slipped. */
@@ -52,6 +53,10 @@ export interface GoalQuery {
 export const EMPTY_QUERY: GoalQuery = { q: '', status: [], level: [], team: [], owner: [], kind: [], attention: false, needs: [], due: null, quiet: null, quarter: null, result: [], feeds: null, helps: false, sort: null, dir: 1, cols: {} };
 
 export const STATUS_OPTIONS: [QStatus, string][] = (['off', 'risk', 'stale', 'on', 'done', 'none', 'planned'] as const).map((k) => [k, LABEL[k]]);
+/** The statuses a cycle's goals can have, to filter by: without No recent update when there is no set rhythm (FT1). */
+export const statusOptions = (cycle: Pick<Cycle, 'checkInWeeks' | 'reviewDay' | 'rhythmFrom' | 'startDate'>): [QStatus, string][] => (rhythmOf(cycle) ? STATUS_OPTIONS : STATUS_OPTIONS.filter(([k]) => k !== 'stale'));
+/** What the filter line says when a link asks for No recent update and there is no set rhythm (FT1, spec 2.6). */
+export const NO_STALE_HERE = 'No recent update isn’t used here: there is no set check-in rhythm.';
 /** "Needs attention because …": each flag that makes a goal need attention, in its vocabulary words. */
 export const NEED_OPTIONS: [Need, string][] = [...ATTENTION_FLAGS.filter((k): k is Exclude<FlagKind, 'due'> => k !== 'due').map((k): [Need, string] => [k, FLAG[k].label]), ['slipped', WARNING.slipped.label]];
 /** Links and saved views from before release 2 said these; they still open the same goals. */
@@ -230,7 +235,7 @@ export function describeQuery(q: GoalQuery, names: QueryNames): { key: string; t
   if (q.kind.length) out.push({ key: 'kind', text: q.kind.map((k) => label(KIND_OPTIONS, k)).join(' or ') });
   if (q.attention || q.needs.length) out.push({ key: 'needs', text: ATTENTION.needs.label + (q.needs.length ? ` because: ${q.needs.map((n) => label(NEED_OPTIONS, n).toLowerCase()).join(' or ')}` : '') });
   if (q.due != null) out.push({ key: 'due', text: q.due === 'quarter' ? 'Due this quarter' : `Due by week ${q.due}` });
-  if (q.quiet != null) out.push({ key: 'quiet', text: `No update for ${q.quiet}+ ${q.quiet === 1 ? 'week' : 'weeks'}` });
+  if (q.quiet != null) out.push({ key: 'quiet', text: `Last check-in ${q.quiet} ${q.quiet === 1 ? 'week' : 'weeks'} ago or more` });
   if (q.quarter) out.push({ key: 'qtr', text: `${QUARTER[q.quarter].label} last quarter` });
   if (q.result.length) out.push({ key: 'result', text: q.result.map((r) => label(RESULT_OPTIONS, r)).join(' or ') });
   if (q.feeds) out.push({ key: 'feeds', text: `In the tree of ${names.goal(q.feeds)}` });
@@ -253,7 +258,7 @@ export function queryParts(q: GoalQuery, names: QueryNames): FilterPart[] {
   if (q.kind.length) out.push({ key: 'kind', label: 'Kind', values: q.kind.map((k) => label(KIND_OPTIONS, k)) });
   if (q.needs.length) out.push({ key: 'needs', label: `${ATTENTION.needs.label} because`, values: q.needs.map((n) => label(NEED_OPTIONS, n).toLowerCase()) });
   if (q.due != null) out.push({ key: 'due', label: 'Due', values: [q.due === 'quarter' ? 'this quarter' : `by week ${q.due}`] });
-  if (q.quiet != null) out.push({ key: 'quiet', label: 'No update for', values: [`${q.quiet}+ ${q.quiet === 1 ? 'week' : 'weeks'}`] });
+  if (q.quiet != null) out.push({ key: 'quiet', label: 'Last check-in', values: [`${q.quiet} ${q.quiet === 1 ? 'week' : 'weeks'} ago or more`] });
   if (q.quarter) out.push({ key: 'qtr', label: 'Last quarter', values: [QUARTER[q.quarter].label] });
   if (q.result.length) out.push({ key: 'result', label: 'Result', values: q.result.map((r) => label(RESULT_OPTIONS, r)) });
   if (q.feeds) out.push({ key: 'feeds', label: 'In the tree of', values: [names.goal(q.feeds)] });
