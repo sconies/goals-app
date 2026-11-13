@@ -5,7 +5,9 @@ import { buildPlatformOrg } from '../data/platformOrg';
 import { currentCycle, scopeToCycle } from '../domain/cycle';
 import { dashboard } from '../domain/home';
 import { currentWeek } from '../domain/plan';
-import { homeFacts } from './reads';
+import { askWaiting, homeFacts } from './reads';
+import { asksOf } from '../domain/asks';
+import type { Ask } from '../domain/types';
 
 const today = new Date('2026-11-05T12:00:00Z');
 const full = buildPlatformOrg(today);
@@ -20,6 +22,19 @@ describe('Home’s facts', () => {
     const f = homeFacts(who, s, cycle, cycle.weeks, after, { workspace: 'Platform', draft: false });
     expect(f.sessions).toEqual([]);
   });
+  it('a question past its review session is late (the one lateness rule list_requests reads, review of #369, medium 5)', () => {
+    // A review whose session week has passed, and an open question on it with no due week: isOverdue (dueWeek < week)
+    // would call it on time; askWaiting calls it late, because its session has gone.
+    const rv = review;
+    const owner = s.goals.find((g) => g.ownerId)!.ownerId;
+    const base = asksOf(s).find((r) => r.kind === 'question') ?? asksOf(s)[0]!;
+    const q: Ask = { ...base, id: 'q_session', kind: 'question', status: 'open', goalIds: [s.goals[0]!.id], recipientId: owner, dueWeek: null, reviewId: rv.id, week: 2, createdAt: '2026-11-01T09:00:00Z' };
+    const withQ = { ...s, asks: [...asksOf(s), q] };
+    const w = askWaiting(q, owner, withQ, cycle, currentWeek(cycle, today), today);
+    expect(w?.late).toBe(true);
+    expect(w?.due?.why).toBe('session');
+  });
+
   it('two reviews on one day are both in the week at a glance', () => {
     const twin = { ...review, id: review.id + '_twin', name: 'A second review' };
     const two = { ...s, reviews: [...s.reviews, twin] };

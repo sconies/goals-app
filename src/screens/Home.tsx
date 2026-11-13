@@ -143,9 +143,10 @@ function NeedsYou({ asks, also, leadAbout }: { asks: Waiting[]; also: boolean; l
     // "Asked yesterday" says it too, so the day goes only with a due date's line (#310's lows).
     const since = /^(Waiting since|Asked )/.test(w.line);
     const asked = `${who}${w.where ? ` in ${w.where}` : ''}${since ? '' : ` on ${dayText(w.askedOn).replace(/^\w+ /, '')}`}`;
-    // The wait comes first, so a phone's one line, cut short, still says it (build review of #310).
-    // It came with a goal they now own (Lane, 13 Nov): who it was asked of.
-    return `${w.line} · ${asked}${w.was ? ` · Asked of ${w.was.split(' ')[0]}, now yours` : ''}.`;
+    // The wait comes first, so a phone's one line, cut short, still says it (build review of #310). The handover comes
+    // second, not last, so it survives the cut where the new owner first meets the ask (review of #369, medium 1).
+    const handed = w.was ? ` · Asked of ${w.was.split(' ')[0]}, now yours` : '';
+    return `${w.line}${handed} · ${asked}.`;
   };
   return (
     <section className="block needs-you" data-part="Needs your response">

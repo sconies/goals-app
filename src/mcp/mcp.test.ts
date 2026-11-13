@@ -340,6 +340,21 @@ describe('MCP server', () => {
     expect(a).toMatchObject({ kind: 'action', recipientId: 'rhea', dueWeek: 48, ask: 'Audit CODEOWNERS for payments' });
   });
 
+  it('[REVIEW-DECIDE] undoes marking a goal reviewed, as the app’s Undo does (parity: unmarkReviewed)', async () => {
+    const { call, data } = await setup('daniel');
+    expect((await call('review_call', { review_id: 'devprod', goal_id: 'lead-mq', kind: 'acknowledge' })).isError).toBe(false);
+    const mark = data().decisions.at(-1)!;
+    expect(mark).toMatchObject({ kind: 'acknowledge', goalId: 'lead-mq' });
+    expect(mark.removedAt ?? null).toBe(null);
+    const undo = await call('unmark_reviewed', { call_ids: [mark.id] });
+    expect(undo.isError).toBe(false);
+    expect(data().decisions.find((d) => d.id === mark.id)!.removedAt).toBeTruthy();
+    // Undone already: refused, and nothing changes.
+    const again = await call('unmark_reviewed', { call_ids: [mark.id] });
+    expect(again.isError).toBe(true);
+    expect(again.content[0]!.text).toMatch(/There’s no mark with those IDs/);
+  });
+
   it('comments and exports', async () => {
     const { call, data } = await setup('oskar');
     await call('add_comment', { goal_id: 'ns-lead', text: 'Merge queue is the bottleneck' });
