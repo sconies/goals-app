@@ -189,7 +189,7 @@ function EditSheet({ goal }: { goal: Goal }) {
           {/* Proposed, the type can still change (2.15): a stages goal with none yet keeps one empty row to fill in. */}
           {isProposed(goal) && (
             <div className="field"><span className="field-label" id="kind-l">Type</span>
-              <div className="seg full" role="group" aria-labelledby="kind-l">
+              <div className="seg full kind-seg" role="group" aria-labelledby="kind-l">
                 {GOAL_KINDS.map(([k, l]) => <button key={k} type="button" aria-pressed={d.kind === k} onClick={() => set({ kind: k, ...(k === 'milestone' && !d.stages.length ? { stages: [{ id: newId('st'), name: '', dueWeek: '' }] } : {}) })}>{l}</button>)}
               </div>
               <span className="hint">It’s proposed, so its type can still change.</span>
