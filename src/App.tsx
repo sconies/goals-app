@@ -65,7 +65,10 @@ export function Routed() {
   const modules = useModules();
   // Welcome and an invitation stand on their own, outside the shell, whoever is (or isn't) chosen here yet.
   if (pathname === '/welcome') return <Suspense fallback={null}><Welcome /></Suspense>;
-  if (pathname.startsWith('/join/')) return <Suspense fallback={null}><Routes><Route path="/join/:workspaceId" element={<Join />} /></Routes></Suspense>;
+  if (pathname.startsWith('/join/')) return <Suspense fallback={null}><Routes><Route path="/join/:workspaceId/*" element={<Join />} /></Routes></Suspense>;
+  // Setting up another workspace needs no name here: someone who opened an invitation and went no further isn't held at
+  // its arrival (review of #285, medium 1).
+  if (!app.viewerChosen && pathname === '/workspace/new') return <Suspense fallback={null}><SetUp /></Suspense>;
   if (!app.viewerChosen) return <Suspense fallback={null}><WhoAreYou /></Suspense>;
   return (
     <Shell>
@@ -159,7 +162,7 @@ function Outside() {
     <Suspense fallback={null}>
       <Routes>
         <Route path="/welcome" element={<Welcome />} />
-        <Route path="/join/:workspaceId" element={<Join />} />
+        <Route path="/join/:workspaceId/*" element={<Join />} />
         <Route path="/workspace/new" element={<SetUp />} />
         {/* Just made: the workspace is opening, and /ready draws once it has. */}
         <Route path="/ready" element={<ToWelcome after={1500} />} />
@@ -177,14 +180,17 @@ function SetUp() {
 
 /** On to Welcome, keeping the demo's date and the store (`today=`, `store=`); `after` waits first, for a workspace opening. */
 function ToWelcome({ after = 0 }: { after?: number }) {
-  const { search } = useLocation();
+  const { pathname, search } = useLocation();
   const nav = useNavigate();
   const setup = useSetup();
+  // The old invitation link (`/?workspace=<id>`) is OldInvitation's to lead on, to the invitation's own address, which
+  // says when the workspace isn't there; going to Welcome first would win the race (review of #285, medium 2).
+  const oldLink = pathname === '/' && new URLSearchParams(search).has('workspace');
   useEffect(() => {
-    if (!setup.listed) return;
+    if (!setup.listed || oldLink) return;
     const t = setTimeout(() => nav('/welcome' + search, { replace: true }), after);
     return () => clearTimeout(t);
-  }, [setup.listed, after, nav, search]);
+  }, [setup.listed, oldLink, after, nav, search]);
   return null;
 }
 

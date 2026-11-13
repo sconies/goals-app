@@ -156,7 +156,7 @@ Opening Faro on a device that remembers no workspace brings you here, at /welcom
 
 `joining`. An invitation is a link that opens one workspace: it says who set it up and what it holds, then asks which one you are.
 
-Routes: `/join/:workspaceId`. Screens: `Start`. Requirements: `SETUP-FIRST-SCREEN`, `IDENTITY`.
+Routes: `/join/:workspaceId/*`. Screens: `Start`. Requirements: `SETUP-FIRST-SCREEN`, `IDENTITY`.
 
 #### What it’s for
 
@@ -167,6 +167,7 @@ Whoever set up a workspace copies its invitation and sends it themselves: Faro s
 - Welcome to the workspace: who set it up and when, how many people and goals it has, then Which one are you?, with everyone listed by team and one line each (who set it up, an admin, how many goals they own, or no goals yet). With more than eight people, Find your name narrows the list.
 - Choose your name: that is the whole step. Home opens as you, and this device remembers your answer. The first time anyone chooses their name, Activity says they opened the workspace for the first time.
 - Not on the list? Ask whoever set it up to add you: the link writes them an email.
+- Not you, or opened the wrong link? Go to Welcome, under the list, takes you to the front door, where you can open another workspace or set up your own. The invitation stays waiting until you choose a name.
 - A link to a workspace that isn’t there says This invitation doesn’t open a workspace (it may have been deleted, or the link was cut short) and opens nothing else; Go to Welcome takes you to the front door.
 
 #### Saying who you are

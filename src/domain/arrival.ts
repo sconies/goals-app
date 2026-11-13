@@ -45,5 +45,7 @@ export function arrivalIntro(ws: { name: string; createdAt: string }, admin: str
 export function draftStopped(d: { step?: number; template?: string; savedAt?: string }): string {
   const step = ALL[Math.min(Math.max(d.step ?? 0, 0), ALL.length - 1)]!;
   const counter = stepCounter(step, d.template ?? '');
-  return `Stopped at ${counter.charAt(0).toLowerCase()}${counter.slice(1)}, ${SETUP_STEP_NAMES[step]}${d.savedAt ? `, on ${shortDate(d.savedAt)}` : ''}. Nothing is saved yet.`;
+  // Before a starting point is chosen the number of steps isn't known, so the step is named without a count.
+  const at = / of /.test(counter) ? `${counter.charAt(0).toLowerCase()}${counter.slice(1)}, ${SETUP_STEP_NAMES[step]}` : SETUP_STEP_NAMES[step];
+  return `Stopped at ${at}${d.savedAt ? `, on ${shortDate(d.savedAt)}` : ''}. Nothing is saved yet.`;
 }
