@@ -51,6 +51,8 @@ const RULES = [
   [/^src\/screens\/Inspect\.tsx|^evals\/notes\/13-review-speak\.cjs$/, ['N25']],
   // Reviews behind its switch (FT2): its read-back, a switched-off module's addresses, and its two journeys.
   [/^src\/domain\/reviewsOff\.ts$|^src\/screens\/NotFound\.tsx$|^src\/ui\/SwitchedOff\.tsx$|^evals\/notes\/21-switched-off\.cjs$/, ['U103', 'U104', 'U48', 'N21']],
+  // The check-in rhythm (FT1): its words, its sheet and its journeys and check.
+  [/^src\/domain\/rhythm\.ts$|^evals\/finish\/20-no-rhythm\.cjs$/, ['U101', 'U102', 'U104', 'F20', 'N21']],
   [/^src\/screens\/(DataTables|DataLayout|DataFilters|BulkEdit)\.tsx|^src\/domain\/(changeset|importer|export|sheets|format|formatDoc)\.ts|^src\/app\/(spreadsheet|files|zip)\.ts/, ['U19', 'U20', 'U21', 'U35', 'U45', 'U46', 'F7', 'F8', 'N5']],
   // The import's preview (IM3): its rules and its two checks.
   [/^src\/domain\/(changeset|sheets|leaveOut|workedOut|problemLevels)\.ts/, ['U87', 'U88', 'U89', 'U94', 'U98', 'F17', 'N18', 'P19']],
@@ -96,4 +98,9 @@ function touches(files) {
   return { full, ids: [...ids].sort((a, b) => a.localeCompare(b, 'en', { numeric: true })), unmatched };
 }
 
-module.exports = { touches, RULES };
+/** The journeys about what is due, late or on time (FT1): CI's "Core journeys with no rhythm" (FARO_DEMO_RHYTHM=0)
+    runs the smoke gate without them, since with no set rhythm nothing is due. U3, U49, U63 and U80 have a rhythm half
+    and are left out whole until they split. */
+const rhythm = ['U1', 'U2', 'U3', 'U8', 'U19', 'U33', 'U38', 'U49', 'U63', 'U80'];
+
+module.exports = { touches, RULES, rhythm };
