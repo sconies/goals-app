@@ -74,7 +74,10 @@
     "METRICS-CARE",
     "METRIC-DEFINED",
     "METRIC-PARTS",
-    "METRIC-CHANGE"
+    "METRIC-CHANGE",
+    "READING-PREFILL",
+    "READING-RECORDED-ONLY",
+    "READING-SEVEN-DAYS"
   ],
   "journeys": [
     "U81",
@@ -85,6 +88,10 @@
     "U146",
     "U106",
     "U152",
+    "U156",
+    "U157",
+    "U158",
+    "U159",
     "F15",
     "N16"
   ],

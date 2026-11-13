@@ -5939,6 +5939,114 @@ journey('U151', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the rece
   await h.checkpoint('late');
 });
 
+/* Readings fill in the check-in (NR2, docs/design/round-4/readings/spec.md 2.1 to 2.3). The demo's "CI analytics" reads
+   CI pipeline time on main (p90) for the whole company, measured at 09:00 UTC on Thursday 5 Nov (src/modules/metrics/numbers.ts). */
+journey('U156', ['READING-PREFILL', 'READING-RECORDED-ONLY'], 'A number filled in from its source: as Daniel on Thursday 5 Nov, CI pipeline time’s check-in opens with 20 already in the field, “From CI analytics, read 9:00 today.” and the primary “Confirm 20 min”; confirming posts it, and the read-back says “20 min, from CI analytics, read 9:00 today. Confirmed by you.”; the check-in records the reading with no reason', 2, async (h, device) => {
+  const p = h.use(await newPage(device, 'daniel'));
+  await p.goto(url('/check-in/ns-ci'));
+  await see(p, 'What’s the number this week?');
+  const block = p.locator('.ci-reading-block');
+  await see(block, 'From CI analytics', 'the step does not say where the number came from');
+  const field = p.getByLabel('This week’s value');
+  const filled = await field.inputValue();
+  h.set('entry', filled === '20', `the field opened with “${filled}”, not the reading`);
+  h.set('attention', /read \d{1,2}:\d{2} today\./.test(await block.innerText()) && !/Typed in by hand/.test(await p.locator('main, .focus').first().innerText()), 'the step does not say when it was read, or still says “Typed in by hand.”');
+  await h.checkpoint('filled in');
+  const confirm = p.getByRole('button', { name: 'Confirm 20 min' });
+  h.set('progress', await confirm.isVisible(), 'the primary does not name the number');
+  await h.click(confirm);
+  await see(p, 'Check-in saved');
+  const line = (await p.locator('.ci-reading').innerText().catch(() => '')).trim();
+  h.set('finish', /^20 min, from CI analytics, read \d{1,2}:\d{2} today\. Confirmed by you\.$/.test(line), `the read-back says “${line}”`);
+  await h.checkpoint('posted');
+  const s = await h.snapshot();
+  const c = s.checkIns.filter((x) => x.goalId === 'ns-ci').sort((a, b) => a.postedAt.localeCompare(b.postedAt)).at(-1);
+  h.set('logged', c?.value === 20 && c?.reading?.source === 'CI analytics' && c.reading.value === 20 && !c.reading.why, `the check-in recorded ${JSON.stringify(c?.reading)}`);
+  h.set('errors', true);
+  await p.context().close();
+});
+
+journey('U157', ['READING-RECORDED-ONLY'], 'A different number, and why: as Daniel, typing 19 over CI analytics’ 20 says “You typed 19 min. CI analytics said 20 min…”, holds “Use 19 min” until a reason is chosen (Something else needs 10 characters), then posts 19; the read-back says “19 min, typed. CI analytics said 20 min: the source is behind: I have a newer number.”, and nothing is flagged: the check-in is on plan, not flagged for its data', 5, async (h, device) => {
+  const p = h.use(await newPage(device, 'daniel'));
+  await p.goto(url('/check-in/ns-ci'));
+  const field = p.getByLabel('This week’s value');
+  await see(p.locator('.ci-reading-block'), 'From CI analytics');
+  h.set('entry', (await field.inputValue()) === '20', 'the field did not open filled in');
+  await h.fill(field, '19');
+  const block = p.locator('.ci-reading-block');
+  await see(block, 'You typed 19 min.', 'typing another number does not say so');
+  await see(block, 'Why is it different?');
+  const use = p.getByRole('button', { name: 'Use 19 min' });
+  await h.click(use);
+  await see(block, 'Choose why it’s different.', 'Use went on without a reason');
+  await h.click(block.getByRole('radio', { name: 'Something else', exact: true }));
+  await use.click();
+  const held = await see(block, 'at least 10 characters', 'Something else went on without words').then(() => true, () => false);
+  h.set('progress', held && /\/check-in\//.test(p.url()), 'a reason was not asked before posting');
+  await h.checkpoint('why');
+  await h.click(block.getByRole('radio', { name: 'The source is behind: I have a newer number' }));
+  await h.click(use);
+  await see(p, 'Check-in saved');
+  const line = (await p.locator('.ci-reading').innerText().catch(() => '')).trim();
+  h.set('finish', line === '19 min, typed. CI analytics said 20 min: the source is behind: I have a newer number.', `the read-back says “${line}”`);
+  await h.checkpoint('posted');
+  const s = await h.snapshot();
+  const c = s.checkIns.filter((x) => x.goalId === 'ns-ci').sort((a, b) => a.postedAt.localeCompare(b.postedAt)).at(-1);
+  h.set('logged', c?.value === 19 && c?.reading?.value === 20 && c.reading.why?.kind === 'behind', `the check-in recorded ${c?.value} and ${JSON.stringify(c?.reading)}`);
+  // Recorded only: no flag, no other status for a number the owner typed over the source's (answer d).
+  h.set('attention', c?.dataFlagged === false && c?.status === 'on', `the check-in is ${c?.status}, flagged ${c?.dataFlagged}`);
+  h.set('errors', true);
+  await p.context().close();
+});
+
+journey('U158', ['READING-SEVEN-DAYS', 'READING-PREFILL'], 'Too old to fill in: with the demo’s sources two weeks behind (?sources=behind), Daniel’s check-in on CI pipeline time opens with the field empty and the warning “CI analytics last read this on Thu 29 Oct, 7 days ago.” and “That is too old to fill in.”; the old reading is not on the page, the primary is the step’s own and No new number this week is offered', 1, async (h, device) => {
+  const p = h.use(await newPage(device, 'daniel'));
+  await p.goto(url('/check-in/ns-ci?sources=behind'));
+  const block = p.locator('.ci-reading-block');
+  await see(block, 'That is too old to fill in.', 'a reading more than 7 days old is not said to be too old');
+  const field = p.getByLabel('This week’s value');
+  h.set('entry', (await field.inputValue()) === '', `the field opened with “${await field.inputValue()}”`);
+  const said = (await block.innerText()).replace(/\s+/g, ' ');
+  h.set('attention', /CI analytics last read this on \w{3} \d{1,2} \w{3}, \d+ days ago\./.test(said) && (await block.locator('svg').count()) > 0, `the block says “${said}”, or has no warning mark`);
+  // The old value is never offered: nothing says what the source read, and nothing confirms it.
+  h.set('finish', !/From CI analytics|said \d|Confirm/.test(said) && (await p.getByRole('button', { name: /^Confirm/ }).count()) === 0, `the old reading is on the page: “${said}”`);
+  h.set('progress', await block.getByRole('button', { name: 'No new number this week' }).isVisible(), 'No new number this week is not offered');
+  await h.checkpoint('too old');
+  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await see(p, 'Type this week’s number.', 'Continue with an empty field does not ask for the number');
+  h.set('errors', true);
+  h.set('logged', true);
+  await p.context().close();
+});
+
+journey('U159', ['READING-PREFILL'], 'A company-wide number never fills in a team’s goal: as Rhea, Main-branch queue wait is measured by CI pipeline time on main (p90) for CI/CD (with a reason, as it has check-ins); its check-in opens with the field empty and “CI analytics measures this for the whole company, not for CI/CD on its own, so it isn’t filled in.”', 7, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/lead-ci-time/edit'));
+  const field = p.locator('.measured-by');
+  await field.waitFor();
+  await h.click(field.getByRole('button', { name: /^Measured by/ }));
+  const panel = p.locator('.pick.open');
+  await h.fill(panel.getByRole('combobox'), 'CI pipeline time');
+  await h.click(panel.getByRole('option', { name: /CI pipeline time on main/ }));
+  const part = p.getByLabel(/^Which part/);
+  if (await part.count() && (await part.inputValue())) await h.fill(part, '');
+  await h.fill(p.getByLabel(/^Why$/), 'Measure the team’s pipelines by CI time now');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/goals\/(lead-ci-time|G-\d+)(\?|$)/);
+  h.set('entry', true);
+  await p.goto(url('/check-in/lead-ci-time'));
+  const block = p.locator('.ci-reading-block');
+  await see(block, 'CI analytics measures this for the whole company, not for CI/CD on its own, so it isn’t filled in.', 'a team’s goal on a company-wide source does not say why it is not filled in');
+  const value = await p.getByLabel('This week’s value').inputValue();
+  h.set('finish', value === '', `the field was filled in with “${value}”`);
+  h.set('attention', !/From CI analytics|Confirm/.test(await block.innerText()), 'the company’s number is offered to the team');
+  await h.checkpoint('not filled in');
+  h.set('progress', true);
+  h.set('errors', true);
+  h.set('logged', true);
+  await p.context().close();
+});
+
 journey('U153', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: as Rhea on Developer Productivity fortnightly, the panel says how many goals are checked in so far, its “have no check-in for week 45 yet” link opens exactly that many goals, and “The last 8 weeks” has eight cells, each a week with words; no person’s name is in the panel; a team’s page shows the same panel for its goals, and a one-owner team’s page shows none', 10, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/reviews/devprod'));

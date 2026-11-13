@@ -326,6 +326,10 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   const set = (patch: Partial<Draft>) => { setTouched(true); keep(patch); };
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
+  // A module's block in the number step (place checkin.number; NR): a number filled in from its source. While it draws,
+  // it says what the step's primary does, and hands back the reading to record with the check-in (rule 3).
+  const [numberStep, setNumberStep] = useState<NumberStep | null>(null);
+  const [reading, setReading] = useState<CheckInReading | null>(null);
   const [showNext, setShowNext] = useState(!!draft.next);
   // Opened from a goal's "Ask for a decision or help" (?need=1): the decision-or-help field starts open.
   const loc = useLocation();
@@ -358,14 +362,13 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   const team = app.team(goal.teamId);
   // The levels (rules 2 and 3): a number that looks wrong, or the same as last week, is asked about and must be answered.
   const levels = checkInLevels(goal, week, draft, own);
+  // A number read from its source and confirmed was measured again: "the same as last week?" is answered by the reading.
+  const sameAsk = reading && parseNumber(draft.value) === reading.value ? levels.checks.find((c) => c.id === 'same-as-last' && (draft.answers ?? {})[c.id] !== c.key) : undefined;
+  useEffect(() => { if (sameAsk) keep({ answers: { ...draft.answers, [sameAsk.id]: sameAsk.key } }); }, [sameAsk?.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const open = unanswered(levels.checks, draft.answers);
   const gate = stepState(levels.mustFix, open);
   const valueRef = useRef<HTMLInputElement>(null);
   const checkRef = useRef<HTMLDivElement>(null);
-  // A module's block in the number step (place checkin.number; NR): a number filled in from its source. While it draws,
-  // it says what the step's primary does, and hands back the reading to record with the check-in (rule 3).
-  const [numberStep, setNumberStep] = useState<NumberStep | null>(null);
-  const [reading, setReading] = useState<CheckInReading | null>(null);
 
   const valueOk = goal.kind === 'milestone' || !e.codes.some((c) => VALUE_CODES.includes(c));
   // The first number can restart the plan, when the goal is new and the number isn't where its plan starts (rule 4).
