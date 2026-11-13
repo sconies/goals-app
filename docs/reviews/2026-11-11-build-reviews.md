@@ -147,6 +147,12 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #344 GE10: a proposal leads Home; migration 0045 | 2 | 0 | 0 | 2 |
 | #355 GE10: proposed goals on the Map and the Board | 2 | 0 | 1 | 2 |
 | #335 #323 and #229 review mediums | 4 | 0 | 0 | 0 |
+| #360 A metric link always writes its part (#308's high) | metrics | 0 | 0 | 0 |
+| #352 A review speaks only for the goals it walks (#322's medium) | 1 | 0 | 0 | 0 |
+| #366 Data search finds what you typed (#234's mediums) | 1 | 0 | 0 | 0 |
+| #347 Import, Check and Export: the review lows | 3 | 0 | 0 | 0 |
+| #356 GE10: a metric's page lists its proposed goals | 2 | 0 | 0 | 0 |
+| #354 U12: the sidebar on a short screen | 4 | 0 | 0 | 0 |
 | #340 MT1 review: the two mediums from #281 | metrics | 0 | 0 | 0 |
 | #313 FS1 review: three mediums from #111 | 1 | 0 | 0 | 0 |
 | #291, #295, #296, #304, #307 KT9, KT10 and KT6: the kit | 6 | 0 | 0 | 0 |
@@ -170,7 +176,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #145: set-up from a spreadsheet drops a goal whose owner or word is one letter out, and says nothing | Track 3, 03:35 UTC, 12 Nov | **Fixed** by #181; the reproduction re-run: a near-miss owner or Type now blocks set-up with its question |
 | #199: a column whose header differs from Faro's only by punctuation, an accent or spacing is neither read nor named | Track 3, 15:35 UTC, 12 Nov | **Fixed** by #214; the reproduction re-run: "Target.", "Tárget" and "Due_week" are read, a near miss is asked about, an unknown column is named |
 | #227: any member can put a check-in on someone else's goal by creating it with stages already done | Its builder (session …91EAkyS7gzPSYrnJPg), 18:15 UTC, 12 Nov | **Fixed** by #247 (read, with its tests): the set-up check-in asks the rule at the form, a sheet, MCP and `recordStagesDone`; from anyone but the owner the goal is published without it, and the stage question says who marks it |
-| #308: on a database, a save with several metric links, some with a part and some without, is refused for everyone (removing a metric, starting the next year, a workspace from the demo) | Its builder (session …92c7taPQJmK4jDJU9E), 04:06 UTC, 13 Nov | **Open** |
+| #308: on a database, a save with several metric links, some with a part and some without, is refused for everyone (removing a metric, starting the next year, a workspace from the demo) | Its builder (session …92c7taPQJmK4jDJU9E), 04:06 UTC, 13 Nov | **Fixed** by #360 (re-run by me on main at `7ab34d99`): a link always writes its part, `''` when it has none, so the mixed batch saves; a schema test saves one through `okr_upsert` |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -1578,3 +1584,27 @@ Read first by a reviewing session with domain probes, PGlite and the screens at 
 1. Medium (ran). With "Troubled trees" ticked, which is remembered per workspace, the filtered Map draws no proposed goal: the page says "1 proposed goal, newest first." over "No tree is in trouble…" (`src/screens/GoalMap.tsx:121-127`). Fix: ignore the switch when the State filter is on.
 
 - Lows: with the filter on there is no layout switch, scope tabs or View menu, so Board and Map are reached only by turning the filter on from that layout; the Map says "newest first", and "Proposed" is typed as a literal in `ProposedList.tsx`.
+
+### #360 A metric link always writes its part (metrics, merged 04:41 UTC, 13 Nov)
+
+Fixes #308's high, 35 minutes after it was sent. `metricLinkToRow` writes `part: String(l.part ?? '').trim()` for every link, and `src/data/schema.test.ts` saves a mixed batch through `okr_upsert`. I re-ran my own probe on main at `7ab34d99`: the batch that failed now saves, with `''` for the link that has no part. No finding.
+
+### #352 A review speaks only for the goals it walks (track 1, merged 05:09 UTC, 13 Nov)
+
+Fixes #322's medium. One function, `maySpeak` (`src/domain/actions.ts`), asks who may speak and then that the goal is in `goalsIn(review.scope, …)`, for a review call, accepting a risk, a question and a next step; refused in words that name the review and the goal, from a member and an admin alike, with a domain test and an MCP test that nothing is saved. Read, with `speakFor.test.ts` run. No finding.
+
+### #366 Data search finds what you typed (track 1, merged 05:19 UTC, 13 Nov)
+
+Fixes all three of #234's mediums. A typed key finds its rows by Key, Goal key or Goal keys (several on Asks); a point or comma between two digits stays in its number, so 12.5 is one word (`wordsOf`, `src/domain/find.ts`, which every search shares); and while columns are hidden the count line says "Search looks only in the {n} columns shown", with Choose columns. Read; not re-run on screen. No finding.
+
+### #347 Import, Check and Export: the review lows (track 3, merged 04:32 UTC, 13 Nov)
+
+Takes lows from the reviews of #145, #248, #257 and #277, among them: the size limits at every door (set-up's upload and the MCP tools: rows read, then changes saved); Import's limit line says 30,000 rows a file and 5,000 changes at a time; with two goals sharing a key the first in the list holds it; two rows answered "They're the same" are both named; Import's Download the workbook is Export's file and name; closing Export gives focus back; the growth-ratio test is the best of three. It also lets an older import undo in full once a newer one has been undone (`src/domain/removal.ts`, with a test). Read, with `importUndo.test.ts` run; the screens were not re-run. No finding.
+
+### #356 GE10: a metric's page lists its proposed goals; #354 U12: the sidebar on a short screen
+
+A metric's page lists the proposed goals that name it apart, as "Proposed · n", with name, key and owner and no numbers, in no comparison (`proposedOfMetric`, with a test). #354 is two style rules so the sidebar's last row ends above the fold at 1440 by 900. Read. No finding.
+
+### #357, #361, #359 and #363 handovers
+
+Documents. Not reviewed.
