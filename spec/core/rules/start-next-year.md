@@ -83,6 +83,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - Keeping a copy true on a windowed load (AX5 part 2b, build review of #358) › the window leaves 2026’s check-ins out
 - Keeping a copy true on a windowed load (AX5 part 2b, build review of #358) › adds no copy that the whole data wouldn’t
 - Keeping a copy true on a windowed load (AX5 part 2b, build review of #358) › counts a copy made before the window as used, so recarry never rewrites it
+- The year in use never falls out of the window (build review of #358, medium 2) › keeps its check-ins, and says none are left out
+- The year in use never falls out of the window (build review of #358, medium 2) › keeps both years, so undoing the start still sees a check-in in 2027
 
 ### [src/domain/journeys.test.ts](../../../src/domain/journeys.test.ts)
 
