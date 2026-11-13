@@ -16,15 +16,6 @@ export const causeLabel = (c: Cause | null) => [...CAUSES_BEHIND, ...CAUSES_AHEA
 export const MIN_REASON = 10;
 /** A correction's reason, at least this long (check-in spec rule 8): said once here, so the form needs no engine to check it. */
 export const MIN_CORRECT_REASON = 10;
-/** A correction's reason, at most this long: a sentence or two, never a pasted document (review of #225, lows). */
-export const MAX_CORRECT_REASON = 500;
-/** Whether a correction's reason says something: long enough, not too long, and words, not ten full stops. */
-export const correctReasonOk = (text: string): boolean => {
-  const t = text.trim();
-  return t.length >= MIN_CORRECT_REASON && t.length <= MAX_CORRECT_REASON && (t.match(/\p{L}/gu) ?? []).length >= 3;
-};
-/** What a correction's reason needs, in a sentence (the form and the engine say the same). */
-export const correctReasonAsk = (week: number) => `Say why, in a sentence of at least ${MIN_CORRECT_REASON} characters (at most ${MAX_CORRECT_REASON}), so anyone reading week ${week} later knows.`;
 /** The why older check-ins stored when nothing needed explaining. Not a reason, and never shown as one. */
 export const NO_REASON = 'On plan.';
 /** A check-in's why, when it is a reason someone gave. */
