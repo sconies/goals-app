@@ -7,7 +7,7 @@
    Each fact has one home on it (the plan's "one home for each fact" table). */
 import type { GoalAttention } from './attention';
 import { fmt, NO_VALUE, staysText } from './format';
-import { currentWeek, daysSince, weekDate, goalAsOf, planAt, planEnd, projectionFor, valueSeries } from './plan';
+import { currentWeek, daysSince, firstWeekFrom, weekDate, goalAsOf, planAt, planEnd, projectionFor, valueSeries } from './plan';
 import { onTimeStreak, reviewDate, WEEKDAY } from './progress';
 import { asksOf, canAnswer, canMarkDone, canWithdraw, isOverdue, isResolved, liveNotes, openAsksFor, writtenNotes } from './asks';
 import { dayText, goalsIn, saidIn, sessionDate, sessionWeek, type Said } from './review';
@@ -17,6 +17,7 @@ import type { Ask, AskKind, Change, CheckIn, Cycle, Decision, DisplayStatus, Goa
 import { NO_REASON } from './checkin';
 import { ASK_KIND, ASK_STATUS, ATTENTION, DECIDED, stagesBehind } from './vocabulary';
 import { textMatches } from './find';
+import { rhythmOf } from './thresholds';
 
 const first = (s: Snapshot, id: string | null | undefined) => s.people.find((p) => p.id === id)?.name.split(' ')[0] ?? 'Someone';
 const said = (why: string | null | undefined) => !!why && why.trim() !== '' && why !== NO_REASON;
@@ -312,11 +313,14 @@ export function postedLine(goal: Goal, s: Snapshot, cycle: Cycle, week: number):
 }
 
 /** "Updated 6 Nov · week 45": when the goal's latest check-in was posted, and the week it's for. Null before the first. */
-export function updatedLine(goal: Goal, s: Snapshot): string | null {
+export function updatedLine(goal: Goal, s: Snapshot, asOfWeek: number | null = null): string | null {
   const own = checkInsFor(goal, s.checkIns);
   if (!own.length) return null;
   const latest = own.reduce((a, b) => (b.postedAt > a.postedAt ? b : a));
-  return `Updated ${new Date(latest.postedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })} · week ${latest.week}`;
+  const day = new Date(latest.postedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  // With no set rhythm, a status not from this week says which week it is from (FT1): "As of week 44 · last check-in 28 Oct".
+  if (asOfWeek != null) return `As of week ${asOfWeek} · last check-in ${day}`;
+  return `Updated ${day} · week ${latest.week}`;
 }
 
 /** What a person saw last time they looked at a goal, kept in their browser. */
@@ -599,13 +603,15 @@ export function goalHistory(i: HistoryInput, filter: HistoryFilter = 'all', q = 
   const own = checkInsFor(i.goal, i.checkIns as CheckIn[]);
   const checked = new Set(own.map((c) => c.week));
   const created = i.goal.createdAt ? Math.max(1, currentWeek(i.cycle, new Date(i.goal.createdAt))) : 1;
-  const firstWeek = Math.max(1, Math.min(created, ...own.map((c) => c.week)));
+  // Nothing was owed before the present rhythm began, and nothing at all with no set rhythm (FT1): no "No check-in" rows.
+  const rhythm = rhythmOf(i.cycle);
+  const firstWeek = Math.max(1, Math.min(created, ...own.map((c) => c.week)), i.cycle.rhythmFrom && rhythm ? firstWeekFrom(i.cycle, rhythm.from, rhythm.dueDay) : 1);
   const missed: MissedEntry[] = [];
   const one = (w: number) => missed.push({ kind: 'missed', at: weekEnd(i.cycle, w), from: w, to: w, weeks: 1, yet: !own.length && w === i.week });
   // Four or more missed in a row are one entry; fewer are a week each.
   const run = (from: number, to: number) => { if (to < from) return; if (to - from + 1 >= 4) missed.push({ kind: 'missed', at: weekEnd(i.cycle, to), from, to, weeks: to - from + 1, yet: false }); else for (let k = from; k <= to; k++) one(k); };
   const last = i.goal.stoppedAt ? Math.min(i.week, currentWeek(i.cycle, new Date(i.goal.stoppedAt))) : i.week;
-  for (let w = firstWeek; w <= last;) {
+  for (let w = firstWeek; rhythm && w <= last;) {
     if (checked.has(w)) { w++; continue; }
     let to = w;
     while (to + 1 <= last && !checked.has(to + 1)) to++;

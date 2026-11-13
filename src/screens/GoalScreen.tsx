@@ -5,6 +5,7 @@
    last week, to target, will it hit); the chart marks those numbers where they are; Why opens with the owner's reason;
    What feeds it opens with how the goals feeding it stand; and every section says in one line what it answers.
    The words come from the domain (domain/goalPage and the modules it asks); this file lays them out. */
+import { rhythmOf } from '../domain/thresholds';
 import { Place, useModules } from '../core/app';
 import { reviewsOn } from '../app/reads';
 import { MODULE_RECORDS } from '../core/records';
@@ -330,7 +331,8 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
   const slot = useRef<HTMLDivElement>(null);
   const c = useCompact(slot);
   // When it was last updated: the latest check-in's date, beside its week.
-  const updated = updatedLine(goal, app.snapshot);
+  const st = app.statusOf(goal);
+  const updated = updatedLine(goal, app.snapshot, !rhythmOf(app.cycle) && st.status !== 'done' ? st.asOfWeek : null);
   const num = figures.nowValue != null && goal.kind !== 'milestone'
     ? <CountNumber value={figures.nowValue} from={countFrom} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} duration={storyOn() ? STORY_MS * storyPace() : MOTION_MS} onLanded={storyOn() ? landedMoment : undefined} land={storyOn()} />
     : figures.now;
