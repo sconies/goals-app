@@ -3,7 +3,7 @@ import { screenFiles } from '../core/sources';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ACTIONS, SCREENS } from './parity';
-import { MODULE_ACTIONS } from '../app/actions';
+import { ACTIONS as TABLE, MODULE_ACTIONS } from '../app/actions';
 import { TOOLS } from './tools';
 
 const root = path.join(__dirname, '..', '..');
@@ -17,6 +17,17 @@ describe('Every action a person can take, their AI assistant can take too', () =
     const actions = [...body.matchAll(/^ {2}(\w+)\(.*\): (Promise<[^>]*>|ChangeSet|void);$/gm)].map((m) => m[1]!).filter((n) => n !== 'toast');
     expect(actions.length).toBeGreaterThan(20);
     expect(actions.filter((a) => !(a in ACTIONS))).toEqual([]);
+  });
+
+  it('maps every action the dispatcher runs (app/actions.ts) to MCP tools, or says why it is app-only', () => {
+    // The core's table, so the spec's “AI tools that do the same” (spec/core/actions.md) is backed: every action has a
+    // tool doing the same, or a reason it is deliberately app-only. (A module's actions carry their own tools.)
+    for (const name of Object.keys(TABLE)) {
+      const e = ACTIONS[name];
+      expect(e, name).toBeDefined();
+      if (Array.isArray(e!)) { expect(e.length, name).toBeGreaterThan(0); expect(e.filter((t) => !names.has(t)), name).toEqual([]); }
+      else expect((e as { notForAssistants: string }).notForAssistants.length, name).toBeGreaterThan(20);
+    }
   });
 
   it('maps every feature module’s action (run through app.run) to MCP tools that exist', () => {

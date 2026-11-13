@@ -82,6 +82,10 @@ const CORE_ARTICLES: Article[] = [
         'Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it.',
         'After a release you haven’t seen, a quiet line at the foot of Home says what’s new in Faro. Open it, or dismiss it with the cross.',
       ] },
+      { heading: 'In a workspace that doesn’t hold reviews', list: [
+        'When an admin has switched Reviews off, Home leads with your check-ins, the wrap-up and what is asked of you, as above. Someone who owns no goals and watches some is led to the goals they watch that need attention, with See them; watching nothing, Home starts with what needs your response.',
+        'A question waits by its own age (“Waiting since 4 Aug, 14 weeks”), and a next step says when you agreed it and the week it’s due.',
+      ] },
       { heading: 'Why an ask says how long it has waited', list: [
         'An ask with a week it is due by is due that week’s Sunday. A question raised in a review is due before the review’s next session after the one it was raised in, and stays due then: it doesn’t move on to a later session when that one passes.',
         'An ask with no date says how long it has waited: “Waiting since 4 Aug, 14 weeks”. The oldest come first, after anything late or due this week.',
@@ -400,11 +404,12 @@ const CORE_ARTICLES: Article[] = [
         'In the sidebar, Goals has your saved views under it.',
         'The status key sits under the goals. New goal is a quiet link at the top right; the sidebar’s New goal opens it from anywhere.',
         'Proposed goals are never among these and never counted with them: the count line adds “· 1 proposed”, a link that lists them. The Filters sheet has State: Active (the default) or Proposed.',
+        'Goals is the same whether or not a workspace holds reviews: every list, filter and view works without them, and a link that opened Goals for a review’s goals opens Goals without the review.',
       ] },
       { heading: 'Who can', text: ['Everyone sees every goal. Owners change their own goals from the Table; admins can change any.'] },
     ],
     routes: ['/goals', '/goals?view=list', '/goals?view=table', '/goals?view=board'],
-    screens: ['GoalsScreen', 'GoalViews', 'GoalTable', 'GoalBoard', 'BulkEdit'],
+    screens: ['GoalsScreen', 'GoalViews', 'GoalTable', 'GoalBoard', 'BulkEdit', 'StoppedList'],
     reqs: ['GOALS-SCOPE', 'GOALS-ATTENTION', 'GOALS-ADDRESS', 'GOALS-MENUS', 'VIEWS', 'OUTCOME-TREE', 'HIERARCHY', 'STICKY-HEAD', 'NAV-GOALS', 'STORY', 'LEVELS', 'BULK-EDIT'],
     keywords: ['list', 'table', 'board', 'cards', 'health', 'trees', 'layout', 'by team', 'by level', 'mine', 'portfolio', 'outcomes', 'story', 'phone', 'views'],
     related: ['goals-filters', 'history', 'goal-map', 'needs-attention'],
@@ -542,6 +547,10 @@ const CORE_ARTICLES: Article[] = [
         'About this goal: what it measures (or Describe it, for the owner, when it isn’t described yet), its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change, and one link: Change this goal. It’s open the first time you visit, and folded after.',
         'On a computer from about 1,100 px wide, Next steps and asks and Last time we talked sit in a side column; on a phone everything is in one column, in this order.',
       ] },
+      { heading: 'In a workspace that doesn’t hold reviews', list: [
+        'When an admin has switched Reviews off, the page has Next steps and asks, Why, the chart, What feeds it, History and About, and nothing else in their place. Questions say who asked and when; a next step agreed in a review still says, in words, where it was agreed.',
+        'History keeps everything said in reviews, and its Reviews filter is there while it has entries. An address that opened a goal in a review’s walk opens the goal’s own page.',
+      ] },
       { heading: 'Changing it', list: [
         'Change this goal (in About, or the “…” menu) opens the goal’s form. Each change asks why once check-ins have started, and the reason goes in the activity for everyone watching.',
         'Your own comments have Edit (they then say edited) and Remove; an admin can remove anyone’s, leaving “Comment removed” in its place. The latest check-in has Delete this check-in, for the goal’s owner (check-ins are theirs, whoever posted it); after a newer one it can only be corrected.',
@@ -553,7 +562,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'A stopped goal', list: [
         'A goal stopped mid-year keeps its page, marked Stopped (a ring with a bar across, and the word), with who stopped it, when and why. Its chart, check-ins and activity stay as they were; it has no main button, and Restart it is there for an admin or whoever stopped it.',
         'A stopped goal makes no forecast: its scorecard keeps Vs plan, Vs last week and To target as they stood, without Will it hit the target, and its chart has no projection.',
-        'It is out of every list, count, review and Home, but still in exports (Status: Stopped) and Activity.',
+        'It is out of every list, count, review and Home, but still in exports (Status: Stopped) and Activity. Goals lists the year’s stopped goals with the State filter on Stopped, most recently stopped first, with who stopped each, when and why.',
       ] },
       { heading: 'Sharing it', list: [
         'Share image copies a picture of the summary bar and a small chart, with the goal’s link. Where the browser can’t copy a picture, it saves one instead and copies the link.',
@@ -676,7 +685,7 @@ const CORE_ARTICLES: Article[] = [
         'Propose one from New goal: on Check, answer “Is it under way?” with “Not yet: propose it”, then Propose goal. It gets a key and a page at once. How it’s measured may wait.',
         'Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.',
         'Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.',
-        'Change it: the same page as any goal, with no reason ever asked. Withdraw it: it goes to Recently removed for 30 days, with Undo.',
+        'Change it: the same page as any goal, with no reason ever asked, and its type can still change. Withdraw it: it goes to Recently removed for 30 days, with Undo.',
         'Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.',
         'In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet.',
         'On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).',
@@ -710,7 +719,7 @@ const CORE_ARTICLES: Article[] = [
         'A target on the other side of the start flips which way is better, so it is never saved quietly: the form says so (“This makes higher better”) and saves once you tick the yes beneath it. A start, target or week’s number far outside the plan it replaces is asked about the same way. The import, Data and the AI assistant ask the same questions.',
         'The original plan stays on the chart, dotted, and earlier weeks and closed quarters stay judged against the plan of their day. There is no approval step.',
         'A range can change between At most, At least and Between under Plan and target, as its limit can; Between asks for the lower limit too.',
-        'A goal’s type can’t change once check-ins have started.',
+        'A goal’s type can’t change once it is active. While it is proposed, Type, under Plan and target, changes it: “It’s proposed, so its type can still change.”',
       ] },
       { heading: 'One way out', list: [
         'Save changes stays at the foot of the window wherever you are on the page, and never covers the field you’re typing in.',
@@ -726,45 +735,6 @@ const CORE_ARTICLES: Article[] = [
   },
 
   /* ---------- Reviews and the year ---------- */
-  {
-    id: 'reviews',
-    title: 'Reviews',
-    summary: 'A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said.',
-    group: 'leading',
-    sections: [
-      { heading: 'What it’s for', text: ['A regular look at the goals that need it, with notes, questions and actions that stick to the goal.'] },
-      { heading: 'Setting one up', list: [
-        'Choose Set up a review on Reviews. Give it a name and a cadence: every 1, 2 or 4 weeks, on a weekday.',
-        'Pick the goals: every goal at a level, a goal and everything feeding it, or single goals, found by typing their name or key. Then the people taking part, found by typing a name or a team (you and your team are suggested).',
-      ] },
-      { heading: 'Running it', list: [
-        'Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open. A session under way is listed first. A session not held by its date is outstanding: it says “Outstanding from” its date and how many days past, with the next session beside it, so the two are never mixed up. The review’s page and the bar you walk it with say the same.',
-        'Walking a review, the bar names the goal you’re on among the goals to discuss, and how many of the whole review are reviewed (the goals with nothing flagged count too). The order is fixed when the session starts: reviewing a goal or saving an action never moves one, Continue review picks up at the goal you left, and Previous goal goes back to ones already reviewed. Opening a goal’s walk from its own address keeps the same order.',
-        'Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead. Marking them asks first, and the message after it has Undo. While goals to discuss are left, the review carries on; when they’re all that’s left, Finish review marks them and records the session as held.',
-        'The walk opens each goal’s page in turn, under a bar with the review’s name (in full, on two lines if it needs them) and how far through you are. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.',
-        'A goal off track or at risk asks first: “What happens next, who, by when?” Add the next step (what, who and the week it’s due by; type to find the person: you and your team are suggested first), or choose We accept the risk and say why. Only then can it be marked reviewed. Skip for now leaves it for later in the session.',
-        'A session opens with Last time: what the previous session agreed, who agreed to do it, by when, and whether it’s done. Whoever does it, whoever agreed it, or an admin can mark it done there. Each goal in the walk shows its own. Goals proposed in it are listed after: “Proposed: … Tunde hasn’t made it active yet.”, or the day they did.',
-        'A new goal the room agrees on: choose Propose a new goal in the walk. Give it a name, who will own it and what it will feed. It is saved as proposed, and its owner sets it up and makes it active.',
-        'Finish review says what was decided (each person’s next steps, the risks accepted, the questions still open) before it records the session as held, and its message has Undo. The walk’s last goal finishes the same way.',
-        'Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session.',
-      ] },
-      { heading: 'Before this review', list: [
-        'At the top of a review’s page: how many of its goals were checked in before it, and how many of those without being asked (an ask for an update is the only nudge). Before the review’s day it says how many are in so far.',
-        'Under it, “came in after an ask” and “have no check-in yet” each open exactly those goals on Goals, worst first. Then the last 8 weeks, one square each: All in, how many came after, None in, or Nothing due.',
-        'It counts weeks and goals, never people: nobody is named in it, and a set of goals with fewer than three owners doesn’t show it.',
-      ] },
-      { heading: 'Ending one', list: [
-        'End this review, at the foot of its page: it stops showing as due and keeps its notes and actions on each goal and in exports. Its page says Ended, with Reopen. A review that was never held is deleted instead.',
-        'A note said in a review can be removed by whoever said it, or an admin; the goal’s activity then says “Note removed” in its place. A corrected note says edited.',
-      ] },
-      { heading: 'Who can', text: ['Anyone can set up a review, and everyone can read every review. Only people in a review, or an admin, speak for it: mark goals reviewed, add a note, accept a risk, and ask a question or agree a next step in it, and only about the goals it covers. Anyone can still ask a question or agree a next step on a goal’s own page. Someone not in a review is told who can add them: someone in it, whoever set it up, or an admin, who can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it.'] },
-    ],
-    routes: ['/reviews', '/reviews/new', '/reviews/:reviewId', '/reviews/:reviewId/edit', '/reviews/:reviewId/summary', '/review', '/goals/:goalId?review=*'],
-    screens: ['Review', 'Inspect'],
-    reqs: ['REVIEW', 'REVIEW-SETUP', 'REVIEW-RUN', 'REVIEW-DECIDE', 'INSPECT-ACT', 'REVIEW-LIST-STATE', 'REVIEW-AGENDA', 'EXCEPTIONS-FIRST', 'REVIEW-SPEAK', 'HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'],
-    keywords: ['review', 'meeting', 'agenda', 'walk', 'notes', 'questions', 'actions', 'summary', 'cadence', 'weekly review', 'before this review', 'checked in before', 'last 8 weeks', 'without being asked'],
-    related: ['needs-attention', 'goal-page', 'print', 'requests'],
-  },
   {
     id: 'activity',
     title: 'The activity log',
@@ -872,7 +842,7 @@ const CORE_ARTICLES: Article[] = [
         'Print uses black on white with the status shapes kept, and no navigation.',
       ] },
     ],
-    routes: ['/goals/:goalId/print', '/reviews/:reviewId/print'],
+    routes: ['/goals/:goalId/print'],
     screens: ['Print'],
     reqs: ['PRINT-EXPORT'],
     keywords: ['print', 'pdf', 'one pager', 'a4', 'paper', 'save as pdf'],
@@ -991,7 +961,7 @@ const CORE_ARTICLES: Article[] = [
         'Teams is the second tab of People. Find a team by its name or its lead’s.',
         'Each row shows the team’s lead, or No lead (set-up doesn’t ask who leads a team), how many people are in it (its lead counts as one of them, even when their own team is another), and its goals this year counted by status, shape and word. The counts are the same numbers Goals shows by team.',
         'Open a team to see what it is here to do, its goals by status (each count opens those goals), and its people, lead first. See its goals opens Goals for just that team; Show all lists all its people in People.',
-        'A team’s page also says how many of its goals were checked in before this week’s review, without being asked, and the last 8 weeks, as a review’s page does. Only for a team whose goals have three or more owners: nobody is named.',
+        'A team’s page also says how many of its goals were checked in before this week’s review, without being asked, and the last 8 weeks, as a review’s page does (with Reviews switched off, “On time this week”). Only for a team whose goals have three or more owners: nobody is named.',
       ] },
       { heading: 'For admins', list: [
         'Add a team is the main action. On a team’s page, Change its name, lead or purpose; and, apart, Remove this team. An empty team goes at once; a team with people or goals first moves them to another team, in the same save, and each goal’s history says so.',
@@ -1001,7 +971,7 @@ const CORE_ARTICLES: Article[] = [
     ],
     routes: ['/teams', '/teams/:teamId', '/workspace/teams'],
     screens: [],
-    reqs: ['PEOPLE-DIRECTORY', 'WORKSPACE-ADMIN', 'HABIT-MEASURE'],
+    reqs: ['PEOPLE-DIRECTORY', 'WORKSPACE-ADMIN', 'HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'],
     keywords: ['teams', 'team', 'team lead', 'add team', 'rename team', 'remove team', 'move goals', 'purpose', 'objective'],
     related: ['people', 'workspace', 'goals'],
   },
@@ -1070,10 +1040,11 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'An address that leads nowhere', list: [
         'An old or mistyped link says “Page not found”, with Go to Home and Help. A goal, review or person that isn’t there says so in its own words.',
+        'A link to a part of Faro an admin has switched off in this workspace, such as Reviews, says so under it: “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.” For an admin, Workspace, Features is a link.',
       ] },
     ],
     routes: [],
-    screens: [],
+    screens: ['NotFound'],
     reqs: ['NAV-WHERE', 'NAV-BACK', 'NAV-FORMS'],
     keywords: ['back', 'back link', 'title', 'tab', 'where am i', 'lit', 'close', 'draft', 'not found', 'navigation'],
     related: ['settings', 'finding'],
@@ -1108,15 +1079,18 @@ const CORE_ARTICLES: Article[] = [
   {
     id: 'features',
     title: 'Features: switching parts of Faro on or off',
-    summary: 'Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus features an admin can switch on or off for a workspace, such as Spreadsheets.',
+    summary: 'Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace: how you work (Reviews) and tools such as the Metric library and Spreadsheets.',
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
-        'On Workspace, Features lists the optional parts of Faro this workspace can use, each with what it does; About says which are on, from the same list. Goals, check-ins, reviews and people are the core and always on. Each has a switch with On or Off beside it; switch one off for everyone here; tick it to switch it back on.',
-        'Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.',
-        'Nothing a feature saved is deleted. Switch it back on and everything is as it was.',
+        'On Workspace, Features says how this workspace works and lists the optional parts of Faro, each with what it does; About says which are on, from the same list. Goals, check-ins and people are the core and always on.',
+        'How you work holds Reviews: walking a set of goals together on a cadence. While it is on, it says how many reviews are set up. Tools holds the rest, such as the Metric library and Spreadsheets. Each has a switch with On or Off beside it.',
+        'Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching a tool off, or anything on, acts at once.',
+        'Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.',
+        'With Reviews off, asks and next steps stay on their goals and on Home, each goal’s History and Activity keep what was said in reviews, and check-ins are still due by the same day.',
+        'Nothing a feature saved is deleted. Switch it back on and everything is as it was: every review, its people, its cadence and what was said. A session whose date passed while Reviews was off isn’t said to be not held.',
         'Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.',
-        'Spreadsheets is the first feature: Export and Import on Data, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says.',
+        'Spreadsheets is one of the tools: Export and Import on Data, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says.',
       ] },
       { heading: 'Who can', text: ['Admins switch features. Everyone sees what is on.'] },
       { heading: 'For the people building Faro', list: [
@@ -1125,8 +1099,8 @@ const CORE_ARTICLES: Article[] = [
     ],
     routes: ['/workspace/features'],
     screens: [],
-    reqs: ['MODULES'],
-    keywords: ['features', 'modules', 'switch off', 'turn off', 'disable', 'enable', 'spreadsheets', 'optional', 'workspace settings'],
+    reqs: ['MODULES', 'REVIEWS-OPTIONAL'],
+    keywords: ['features', 'modules', 'switch off', 'turn off', 'disable', 'enable', 'spreadsheets', 'reviews', 'how you work', 'tools', 'optional', 'workspace settings'],
     related: ['workspace', 'data', 'import'],
   },
   {

@@ -248,6 +248,8 @@ export function goalsQueryRowsOf(w: ConformanceWorkspace): string[][] {
 export const NAV_ADDRESSES = ['/', '/check-in', '/check-in/lead-mq', '/quick-check-in', '/goals', '/goals?scope=mine', '/watching', '/goals/new', '/goals/lead-mq', '/goals/lead-mq/edit', '/goals/lead-mq?review=weekly', '/goals/nowhere', '/reviews/weekly', '/people/rhea', '/teams/cicd', '/activity', '/data', '/workspace/people', '/settings', '/help/check-in', '/whats-new', '/retro', '/retro/x', '/research', '/nowhere'];
 /** A module's menu item, as a module's app.tsx gives it, for the rows that show where one goes. */
 export const NAV_MODULE = { id: 'example', to: '/example', label: 'Example', group: 'lookup' as const };
+/** Home with Reviews switched off in the workspace (FT2): the last two rows, one per viewer. */
+export const NAV_REVIEWS_OFF = '/ (Reviews off)';
 /** Two viewers: one who owns goals, one who owns none. */
 export const NAV_VIEWERS = ['rhea', 'oskar'];
 export const NAV_HEADER = ['viewer', 'owns_goals', 'address', 'menu', 'tabs', 'lit', 'page'];
@@ -275,6 +277,13 @@ export function navigationRowsOf(w: ConformanceWorkspace): string[][] {
     for (const address of [NAV_MODULE.to, NAV_MODULE.to + '/one']) {
       rows.push([viewer, yes(owns), address, (['work', 'lookup', 'make', 'you'] as const).map((k) => mg[k].join(' ')).join(' | '), tabs.join(' '), litItem(address, '', mside, [NAV_MODULE]) ?? '', pageName(address, '', { ...names, module: (p) => (p === NAV_MODULE.to || p.startsWith(NAV_MODULE.to + '/') ? NAV_MODULE.label : null) })]);
     }
+  }
+  // With Reviews switched off (FT2): Home for each viewer, the address marked so (the menu and tabs without Reviews).
+  for (const viewer of NAV_VIEWERS) {
+    const s = asOf(w, new Date(w.builtFor));
+    const owns = s.goals.some((g) => g.ownerId === viewer && goalStatus(g, w.cycle, s.checkIns, new Date(w.builtFor)).status !== 'done');
+    const g = menuGroups(owns, [], false);
+    rows.push([viewer, yes(owns), NAV_REVIEWS_OFF, (['work', 'lookup', 'make', 'you'] as const).map((k) => g[k].join(' ')).join(' | '), phoneTabs(owns, false).join(' '), litItem('/', '', [...g.work, ...g.lookup, ...g.make, ...g.you]) ?? '', pageName('/', '', { goal: () => null, review: () => null, view: () => null, article: () => null, person: () => null, team: () => null })]);
   }
   return rows;
 }

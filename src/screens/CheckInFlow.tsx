@@ -31,6 +31,8 @@ import { useMark } from '../telemetry/react';
 import { NO_REASON, resumeWalk, type KeptWalk } from '../domain/checkin';
 import { LABEL as STATUS_WORD, STAGE } from '../domain/vocabulary';
 import { RULES } from '../domain/thresholds';
+import { useModules } from '../core/app';
+import { reviewsOn } from '../app/reads';
 
 /**
  * Check-in. /check-in is the week's list (CheckInQueue, NV3); /check-in?start=1 is the focused walk through every due
@@ -226,9 +228,8 @@ function TablePosted({ posted, kept }: FromTable) {
     above it is unchanged. Never says a run was lost. */
 function Receipt() {
   const app = useApp();
-  // The due day is named as a review only for someone in a review held that day (deep review T4); the reviews switch
-  // (FT2) isn't built yet, so reviews are on.
-  const hasReview = reviewOnDueDay(app.snapshot.reviews, app.viewer.id, app.cycle, true);
+  // The due day is named as a review only for someone in a review held that day, while Reviews is on (T4, FT2).
+  const hasReview = reviewOnDueDay(app.snapshot.reviews, app.viewer.id, app.cycle, reviewsOn(useModules().on));
   const f = receiptFacts(weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today), app.viewer.id, app.snapshot, app.cycle, app.week, hasReview);
   const r = receiptText({ ...f, nextDue: f.nextDue ? longDay(f.nextDue) : null });
   return (
@@ -302,6 +303,8 @@ type Step = 'measure' | 'carry' | 'account';
 function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting, discardRef }: { goal: Goal; correct?: boolean; onPosted: (c: CheckIn, updated: boolean) => void; onSkip?: () => void; onDiscarded: () => void; onDrafting: (on: boolean) => void; discardRef: { current: () => void } }) {
   const app = useApp();
   const { week, cycle } = app;
+  // With Reviews switched off (FT2) the hint names no review.
+  const reviewsHere = reviewsOn(useModules().on);
   const own = app.checkInsOf(goal);
   // Already checked in this week? This one is added alongside it (ad hoc), starting from where the last one left off.
   const existing = [...own].reverse().find((c) => c.week === week) ?? null;
@@ -686,7 +689,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
               <WeekPicks week={week} weeks={cycle.weeks} value={draft.ptgBy} labelledBy="ptg-by-if" onPick={(w) => set({ ptgBy: draft.ptgBy === w ? null : w })} />
             </div>
           ) : showNeeds
-            ? <label className="field"><span className="field-label">Also need a decision or help? <span className="muted" style={{ fontWeight: 400 }}>Optional; shown at the top of the goal and in reviews</span></span><input className="input" value={draft.needs} onChange={(ev) => set({ needs: ev.target.value })} placeholder="e.g. Amara: approve the extra runner budget" /></label>
+            ? <label className="field"><span className="field-label">Also need a decision or help? <span className="muted" style={{ fontWeight: 400 }}>Optional; shown at the top of the goal{reviewsHere ? ' and in reviews' : ''}</span></span><input className="input" value={draft.needs} onChange={(ev) => set({ needs: ev.target.value })} placeholder="e.g. Amara: approve the extra runner budget" /></label>
             : <div><button type="button" className="linkish tap" onClick={() => setShowNeeds(true)}>Also need a decision or help?</button></div>}
             </div>
           )}

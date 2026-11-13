@@ -1,11 +1,19 @@
-/* Parity between the app and its AI assistants: for every action a person can take (each write in AppState) and every
-   screen they can read, the MCP tools that do the same, or why an assistant has no need of it. A test reads AppState and
-   the screens folder, so a new action or screen without an entry here fails the build. */
+/* Parity between the app and its AI assistants: for every action a person can take (each write in AppState, and every
+   action the dispatcher runs: app/actions.ts) and every screen they can read, the MCP tools that do the same, or why an
+   assistant has no need of it. A test reads AppState, the dispatcher's table and the screens folder, so a new action or
+   screen without an entry here fails the build. */
 
 type Entry = string[] | { notForAssistants: string };
 
-/** Each action in AppState (src/app/state.tsx) that changes something. */
+/** Each action in AppState (src/app/state.tsx) that changes something, and each action the dispatcher runs by name
+    (src/app/actions.ts ACTIONS) that no AppState member is named for (`planChanges`, the undo toasts, `arrive`). */
 export const ACTIONS: Record<string, Entry> = {
+  // The change engine itself, which the goal, check-in, people and bulk tools all run (src/mcp/tools.ts planChanges).
+  planChanges: ['bulk_change', 'create_goal', 'update_goal', 'set_plan_numbers', 'post_check_in', 'save_person'],
+  activate: ['make_goal_active'],
+  backToProposed: { notForAssistants: 'Making an active goal proposed again is an app step (GE10): an assistant brings a goal in already proposed (create_goal, state proposed) or makes one active (make_goal_active), and a goal with check-ins can’t go back.' },
+  recordStagesDone: { notForAssistants: 'Marking which stages were already done at set-up is the owner’s own first step in the app; an assistant brings a goal in with create_goal or a workbook (bulk_change), and the owner records done stages at the first check-in (post_check_in).' },
+  undoRemoval: { notForAssistants: 'Undoing a removal straight after it is the Undo on the app’s toast; an assistant that removed something brings it back with restore_removed (within 30 days).' },
   olderChanges: ['get_activity'],
   postCheckIn: ['post_check_in', 'bulk_change'],
   answerRequest: ['answer_request'],
@@ -83,6 +91,7 @@ export const SCREENS: Record<string, Entry> = {
   GoalWizard: ['create_goal'],
   ProposedGoal: ['get_goal', 'make_goal_active', 'update_goal', 'delete_goal', 'add_comment', 'ask_question', 'watch'],
   ProposedList: ['find_goals'],
+  StoppedList: ['find_goals'],
   GoalEdit: ['update_goal', 'set_plan_numbers'],
   CheckInFlow: ['post_check_in', 'link_request'],
   CheckInQueue: ['get_my_work', 'post_check_in'],
@@ -121,4 +130,5 @@ export const SCREENS: Record<string, Entry> = {
   Start: { notForAssistants: 'Saying who you are on an invitation, and the screen right after set-up: a token already acts as one person in one workspace.' },
   Welcome: { notForAssistants: 'The front door, before anyone has chosen a workspace: a token already belongs to one.' },
   Research: { notForAssistants: 'Research sessions in the demo, for the people building the app.' },
+  NotFound: { notForAssistants: 'An address that leads nowhere: a tool names what it can’t find in its own answer.' },
 };

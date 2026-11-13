@@ -23,9 +23,9 @@ function WeekMark({ mark }: { mark: HabitWeek['mark'] }) {
  * The panel and the row for `goals` in `week`. `link` is the Goals parameter that names the set (`inreview=…` or
  * `team=…`), so each count opens exactly its goals. `heading` is the panel's label.
  */
-export function BeforeReview({ goals, week, link, heading }: { goals: Goal[]; week: number; link: string; heading: string }) {
+export function BeforeReview({ goals, week, link, heading, reviews = true }: { goals: Goal[]; week: number; link: string; heading: string; reviews?: boolean }) {
   const app = useApp();
-  const b = beforeReview(goals, week, { checkIns: app.snapshot.checkIns, asks: app.snapshot.requests ?? [] }, app.cycle, app.today, app.viewer.id);
+  const b = beforeReview(goals, week, { checkIns: app.snapshot.checkIns, asks: app.snapshot.requests ?? [] }, app.cycle, app.today, app.viewer.id, reviews);
   if (!b) return null;
   const h = b.counts, row = b.weeks;
   const to = (v: string) => `/goals?${link}&checkedin=${v}&sort=worst`;
@@ -51,7 +51,7 @@ export function BeforeReview({ goals, week, link, heading }: { goals: Goal[]; we
               </li>
             ))}
           </ol>
-          <p className="tiny muted">“All in” means every goal due that week was checked in before the review. Weeks, not people: nobody is named here.</p>
+          <p className="tiny muted">“All in” means every goal due that week was checked in {reviews ? 'before the review' : 'by its due day'}. Weeks, not people: nobody is named here.</p>
         </>
       )}
     </section>

@@ -157,8 +157,7 @@ export function receiptText(r: ReceiptFacts): { first: string; second: string | 
 }
 
 /** Whether the person is in a review held on the workspace's due day (live, not ended): only then is the due day said
-    as a review (deep review T4). `reviewsOn` is the reviews switch's flag, as readBack.ts takes it; FT2 isn't built, so
-    every caller passes true for now. */
+    as a review (deep review T4). `reviewsOn` is the reviews switch's flag (FT2), as readBack.ts takes it. */
 export function reviewOnDueDay(reviews: readonly Pick<Review, 'people' | 'weekday' | 'removedAt' | 'endedAt'>[], personId: string, cycle: Cycle, reviewsOn: boolean): boolean {
   return reviewsOn && reviews.some((r) => !r.removedAt && !r.endedAt && r.weekday === cycle.reviewDay && r.people.includes(personId));
 }

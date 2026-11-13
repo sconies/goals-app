@@ -12,7 +12,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { BeforeReview } from '../ui/BeforeReview';
-import { Place } from '../core/app';
+import { Place, useModules } from '../core/app';
+import { reviewsOn } from '../app/reads';
 import { DIRECTORY_PAGE, personLine, teamSummary } from '../domain/directory';
 import { useFound } from '../app/search';
 import { historyStep } from '../domain/find';
@@ -216,6 +217,7 @@ function PersonRow({ p }: { p: Person }) {
 
 export function PersonPage() {
   const app = useApp();
+  const reviewsHere = reviewsOn(useModules().on);
   const { personId = '' } = useParams();
   const [editing, setEditing] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -238,7 +240,8 @@ export function PersonPage() {
   const counts = statusCounts(goals.map((g) => app.statusOf(g).status));
   const team = p.teamId ? app.team(p.teamId) : undefined;
   const leads = app.snapshot.teams.filter((t) => t.leadId === p.id && t.id !== p.teamId).sort((a, b) => a.name.localeCompare(b.name));
-  const reviews = app.snapshot.reviews.filter((r) => !r.endedAt);
+  // A person's reviews only while Reviews is on (FT2).
+  const reviews = reviewsHere ? app.snapshot.reviews.filter((r) => !r.endedAt) : [];
   const runs = reviews.filter((r) => r.createdBy === p.id);
   const inThem = reviews.filter((r) => r.createdBy !== p.id && r.people.includes(p.id));
   const reviewLink = (r: { id: string; name: string }) => <Link key={r.id} to={`/reviews/${encodeURIComponent(r.id)}`}>{r.name}</Link>;
@@ -349,6 +352,7 @@ const TEAM_PEOPLE = 8;
 
 export function TeamPage() {
   const app = useApp();
+  const reviewsHere = reviewsOn(useModules().on);
   const { teamId = '' } = useParams();
   const [editing, setEditing] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -386,7 +390,7 @@ export function TeamPage() {
         {s.byStatus.length ? <Counts counts={s.byStatus} label={`${t.name}’s goals`} to={(k) => `/goals?team=${encodeURIComponent(t.id)}&status=${k}`} /> : <p className="hint">No goals this year.</p>}
       </section>
       {/* Weeks, not people (habit spec 2.3): only for a team of three or more owners. */}
-      <BeforeReview goals={app.snapshot.goals.filter((g) => g.teamId === t.id && !g.removedAt && !g.stoppedAt)} week={app.week} link={`team=${encodeURIComponent(t.id)}`} heading="Before this week’s review" />
+      <BeforeReview goals={app.snapshot.goals.filter((g) => g.teamId === t.id && !g.removedAt && !g.stoppedAt)} week={app.week} link={`team=${encodeURIComponent(t.id)}`} heading={reviewsHere ? 'Before this week’s review' : 'On time this week'} reviews={reviewsHere} />
       <section className="stack" style={{ gap: 'var(--s2)' }} aria-labelledby="team-people">
         <h2 className="label" id="team-people">People · {people.length}</h2>
         {!people.length ? <p className="hint">No one is in {t.name} yet.</p> : (
