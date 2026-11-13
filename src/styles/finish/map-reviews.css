@@ -160,6 +160,8 @@
   .decide-buttons .btn { flex: 1 1 0; min-width: 0; padding: 0 16px; white-space: normal; line-height: 1.25; text-align: center; }
   .decide .quiet-links { flex-wrap: wrap; gap: 0 16px; }
   .decide .quiet-links .linkish.skip-now { display: none; }
+  /* "Propose a new goal" moves into the action sheet on a phone (GE10), so the decide bar keeps to its height (RV 4). */
+  .decide .quiet-links .linkish.propose-now { display: none; }
 }
 /* Under 1024px every text link in the review is a 44px target (RV 7). */
 @media (max-width: 1023px) {

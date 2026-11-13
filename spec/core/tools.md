@@ -49,6 +49,7 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`review_call`](#review_call) | Say something in a review | changes | [askQuestion](actions.md#askquestion), [reviewCall](actions.md#reviewcall), [acceptRisk](actions.md#acceptrisk), [markReviewed](actions.md#markreviewed) |
 | [`add_action`](#add_action) | Add a next step to a goal | changes | [addAction](actions.md#addaction) |
 | [`edit_call`](#edit_call) | Correct something said in a review | changes | [editCall](actions.md#editcall) |
+| [`unmark_reviewed`](#unmark_reviewed) | Undo marking goals reviewed | changes | [unmarkReviewed](actions.md#unmarkreviewed) |
 | [`save_review`](#save_review) | Set up or change a review | changes | [saveReview](actions.md#savereview) |
 | [`watch`](#watch) | Watch goals | changes | [watch](actions.md#watch) |
 | [`unwatch`](#unwatch) | Stop watching | changes | [unwatch](actions.md#unwatch) |
@@ -2817,6 +2818,53 @@ No arguments.
 - “There’s no one called … in this workspace. Use list_people.”
 
 **Does the same as:** [editCall](actions.md#editcall), so it refuses with their words too.
+
+## unmark_reviewed
+
+**Undo marking goals reviewed.** Undo marking one or more goals reviewed in a review (review_call with acknowledge): they go back on the agenda. Whoever marked them, or an admin. The log keeps both.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `call_ids` | list of string | yes | The marks’ IDs (kind acknowledge), from get_review. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "call_ids"
+  ],
+  "properties": {
+    "call_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The marks’ IDs (kind acknowledge), from get_review."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:**
+
+- “There’s no mark with those IDs. Use get_review.”
+
+**Does the same as:** [unmarkReviewed](actions.md#unmarkreviewed), so it refuses with their words too.
 
 ## save_review
 
