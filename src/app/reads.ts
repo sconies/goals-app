@@ -10,10 +10,10 @@ import { scopeToCycle, wrapUpCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
 import type { Cycle, Person, Snapshot } from '../domain/types';
 import type { ScopeFacts } from '../domain/goalsPage';
-import { agendaOf, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
+import { agendaOf, heldOnDueDay, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
 import { waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession, type Waiting } from '../domain/home';
 import { handedFrom } from '../domain/askHandover';
-import { onTimeStreak, reviewDate, weekProgress } from '../domain/progress';
+import { dueWords, onTimeStreak, reviewDate, weekProgress, type DueWords } from '../domain/progress';
 import { hasEnded, weekDate, weekDates } from '../domain/plan';
 import { beforeStart, cycleDates, wrapUpOpenOn } from '../domain/cycle';
 import { openForPerson } from '../domain/asks';
@@ -32,6 +32,13 @@ export const reviewsOn = (on: ReadonlySet<string>): boolean => on.has('reviews')
 
 /** What a review action says when Reviews is off (FT2, spec 1.2). */
 export const reviewsOffWords = (workspace: string) => `Reviews is off in ${workspace}.`;
+
+/**
+ * This week's deadline in dueWords' words (RS1), from what the rule reads: whether Reviews is on, and whether a review is
+ * held on the due day. The check-in's receipt says it; no screen writes "review" in a deadline itself.
+ */
+export const dueWordsHere = (reviews: boolean, s: Pick<Snapshot, 'reviews'>, cycle: Cycle, week: number): DueWords =>
+  dueWords(reviews, cycle, week, reviews && heldOnDueDay(s.reviews, cycle, week));
 
 /** Every goal's summary row, with what the Goals filters need beyond it. */
 export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns']): GoalRows {

@@ -36,10 +36,58 @@ export function weekCompletion(p: WeekProgress): { done: number; total: number; 
   return { done: p.done.length, total: p.goals.length, complete: p.goals.length > 0 && p.done.length >= p.goals.length };
 }
 
-/** The confirmation's sentence, from weekCompletion: all of them in, what's still due, or what isn't due yet. */
-export function weekDoneText(p: WeekProgress, week: number, late = false): string {
+/** What dueWords says about one week's deadline. */
+export interface DueWords {
+  /** By the deadline: "before Thursday’s review", or "by Thursday" (the receipt; the habit measure's "under the row"). */
+  by: string;
+  /** Past it: "after Thursday’s review", or "after Thursday". */
+  after: string;
+  /** In time, as a label or a heading says it: "before the review", or "on time" (the habit measure's panel and cell). */
+  onTime: string;
+  /** The due day's name: "Thursday". */
+  day: string;
+  /** The due date, named in full as a deadline: "Thursday 12 Nov" (Home names the deadline as a deadline, never a review). */
+  date: string;
+  /** The `due` flag's sentence: "Due by Thu 12 Nov.", with Reviews on or off. */
+  flag: string;
+}
+
+const SHORT_MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * Rule RS1 (docs/design/round-4/reviews-switch/spec.md 4): one phrase for the clock. The day check-ins are due
+ * (`Cycle.reviewDay`) never needed a review, so a screen never writes "review" in a deadline itself: it asks here.
+ * With Reviews on and a review held on the due day (`held`, from review.ts heldOnDueDay) the deadline is "before
+ * Thursday’s review"; with no review set up on that day, or Reviews off, it is "by Thursday". The `due` flag says
+ * "Due by Thu 12 Nov." either way.
+ */
+export function dueWords(reviewsOn: boolean, cycle: Cycle, week: number, held = false): DueWords {
+  return dueWordsOn(reviewsOn, reviewDate(cycle, Math.max(1, week)), held);
+}
+
+/** dueWords for a due date already worked out (yyyy-mm-dd), as Home's facts carry it. */
+export function dueWordsOn(reviewsOn: boolean, iso: string, held = false): DueWords {
+  const d = new Date(iso.slice(0, 10) + 'T00:00:00Z');
+  const day = WEEKDAY[(d.getUTCDay() + 6) % 7] ?? '';
+  const review = reviewsOn && held;
+  return {
+    by: review ? `before ${day}’s review` : `by ${day}`,
+    after: review ? `after ${day}’s review` : `after ${day}`,
+    onTime: review ? 'before the review' : 'on time',
+    day,
+    date: `${day} ${d.getUTCDate()} ${SHORT_MONTH[d.getUTCMonth()]}`,
+    flag: `Due by ${day.slice(0, 3)} ${d.getUTCDate()} ${SHORT_MONTH[d.getUTCMonth()]}.`,
+  };
+}
+
+/**
+ * The confirmation's sentence, from weekCompletion: all of them in, what's still due, or what isn't due yet. All in, it
+ * says when against the deadline in dueWords' words (`clock`): "…checked in for week 46, by Thursday." or "…, after
+ * Thursday’s review."
+ */
+export function weekDoneText(p: WeekProgress, week: number, clock?: { late: boolean; words: DueWords }): string {
   const w = weekCompletion(p);
-  if (w.complete) return `${w.total === 1 ? 'Your goal is' : w.total === 2 ? 'Both your goals are' : `All ${w.total} of your goals are`} checked in for week ${week}${late ? ', after the review day' : ''}.`;
+  if (w.complete) return `${w.total === 1 ? 'Your goal is' : w.total === 2 ? 'Both your goals are' : `All ${w.total} of your goals are`} checked in for week ${week}${clock ? `, ${clock.late ? clock.words.after : clock.words.by}` : ''}.`;
   if (p.due.length) return `${w.done} of ${w.total} checked in for week ${week}. Still due this week: ${p.due.map((g) => g.title).join(', ')}.`;
   const rest = w.total - w.done;
   return `${w.done} of ${w.total} checked in for week ${week}. ${rest === 1 ? 'The other one isn’t' : `The other ${rest} aren’t`} due until next week.`;

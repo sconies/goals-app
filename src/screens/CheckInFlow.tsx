@@ -30,7 +30,7 @@ import { NO_REASON, resumeWalk, type KeptWalk } from '../domain/checkin';
 import { LABEL as STATUS_WORD, STAGE } from '../domain/vocabulary';
 import { RULES } from '../domain/thresholds';
 import { useModules } from '../core/app';
-import { reviewsOn } from '../app/reads';
+import { dueWordsHere, reviewsOn } from '../app/reads';
 
 /**
  * Check-in. /check-in is the week's list (CheckInQueue, NV3); /check-in?start=1 is the focused walk through every due
@@ -178,6 +178,7 @@ function AllDone({ first, fromTable }: { first?: boolean; fromTable?: FromTable 
   const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
   const w = weekCompletion(p);
   const streak = onTimeStreak(app.viewer.id, app.snapshot, app.cycle, app.week);
+  const clock = { late: daysToReview(app.cycle, app.week, app.today) < 0, words: dueWordsHere(reviewsOn(useModules().on), app.snapshot, app.cycle, app.week) };
   const ref = useRef<HTMLAnchorElement>(null);
   useEffect(() => ref.current?.focus(), []);
   return (
@@ -185,7 +186,7 @@ function AllDone({ first, fromTable }: { first?: boolean; fromTable?: FromTable 
       <div className="celebrate" role="status">
         <ProgressRing done={p.done.length} total={Math.max(1, p.goals.length)} size={96} counts="check-ins" label={`${p.done.length} of ${p.goals.length} check-ins done this week`} />
         <h1 className="title-xl">{!p.goals.length || (first && !p.done.length) ? 'Nothing to check in' : w.complete ? `Week ${app.week} is done` : `${w.done} of ${w.total} checked in`}</h1>
-        <p className="muted">{!p.goals.length ? `You don’t own any goals this ${periodWord(app.cycle)}.` : first && !p.done.length ? 'None of your goals is due this week.' : weekDoneText(p, app.week)}</p>
+        <p className="muted">{!p.goals.length ? `You don’t own any goals this ${periodWord(app.cycle)}.` : first && !p.done.length ? 'None of your goals is due this week.' : weekDoneText(p, app.week, clock)}</p>
         {fromTable && <TablePosted posted={fromTable.posted} kept={fromTable.kept} />}
         {streak >= 2 && w.complete && <p className="streak big">{streak} weeks in a row on time</p>}
         <div className="row done-actions">
@@ -230,14 +231,15 @@ function Posted({ goal, c, updated, left, nextTitle, onNext }: { goal: Goal; c: 
   const btn = useRef<HTMLButtonElement & HTMLAnchorElement>(null);
   useEffect(() => btn.current?.focus(), []);
   const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
-  const late = daysToReview(app.cycle, app.week, app.today) < 0;
+  // The deadline in dueWords' words (RS1): "by Thursday", or "before Thursday’s review" when one is held that day.
+  const clock = { late: daysToReview(app.cycle, app.week, app.today) < 0, words: dueWordsHere(reviewsOn(useModules().on), app.snapshot, app.cycle, app.week) };
   return (
     <div className="celebrate" role="status">
       <span className="tick" aria-hidden="true"><svg viewBox="0 0 48 48" width="64" height="64"><circle cx="24" cy="24" r="22" /><path d="m14 25 7 7 13-15" /></svg></span>
       <h1 className="title-xl">Check-in saved</h1>{updated && <p className="muted">Kept alongside your earlier check-in this week; this one is now the week’s status.</p>}
       <p className="muted">{goal.title}{goal.kind !== 'milestone' && c.value != null ? `: ${fmt(c.value, goal)}` : ''}. Its status <span className="nobr">is <Chip k={c.status} /></span></p>
       {c.pathToGreen?.needs && <p className="small">Asked for: {c.pathToGreen.needs}. It shows on the goal and on their Home.</p>}
-      {!left && p.goals.length > 0 && <p className="muted ci-week-done">{weekDoneText(p, app.week, late)}</p>}
+      {!left && p.goals.length > 0 && <p className="muted ci-week-done">{weekDoneText(p, app.week, clock)}</p>}
       <div className="row done-actions">
         {left
           ? <button ref={btn} className="btn primary big-btn" onClick={onNext}>Next: {nextTitle}</button>

@@ -2,7 +2,7 @@
    attention, and your next review. Worked out once, for Home and for the AI assistant's "what needs me". */
 import { attentionFor, needsAttention, type GoalAttention } from './attention';
 import { daysSince, hasEnded } from './plan';
-import { onTimeStreak, WEEKDAY } from './progress';
+import { dueWordsOn, onTimeStreak, WEEKDAY } from './progress';
 import { daysPast, reviewSession, sessionDate, upcomingSessionWeek, watchedGoals } from './review';
 import { goalStatus } from './status';
 import { statusCounts } from './order';
@@ -159,6 +159,8 @@ export function longDay(iso: string): string {
   const d = new Date(iso.slice(0, 10) + 'T00:00:00Z');
   return `${LONG_DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${SHORT_MONTHS[d.getUTCMonth()]}`;
 }
+/** A check-in deadline's date in dueWords' words (RS1): Home names it as a deadline, with Reviews on or off (deep review T4). */
+const dueOn = (iso: string) => dueWordsOn(false, iso).date;
 const dayDiff = (from: string, to: string) => Math.round((Date.parse(to + 'T00:00:00Z') - Date.parse(from + 'T00:00:00Z')) / 86_400_000);
 const plural = (n: number, one: string, many = one + 's') => (n === 1 ? one : many);
 /** "Deploy lead time", "A and B", "A, and 2 more". */
@@ -180,14 +182,14 @@ function checkInLead(f: HomeFacts, late: boolean): Lead {
   const ring = { done: f.checkIns.done, total: f.checkIns.total, counts: 'check-ins' as const };
   const action = { label: f.checkIns.draft ? 'Pick up where you left off' : 'Start check-in', to: '/check-in?start=1' };
   if (late) {
-    return { kind: 'check-in-late', eyebrow: `Check-ins were due on ${longDay(dueDate)}`, warn: false, title: `${n} ${plural(n, 'check-in')} still to do`,
+    return { kind: 'check-in-late', eyebrow: `Check-ins were due on ${dueOn(dueDate)}`, warn: false, title: `${n} ${plural(n, 'check-in')} still to do`,
       line: `${titles(due)}. ${n === 1 ? 'It counts' : 'They count'} for week ${f.week} until Sunday.`, action, also, ring, about: null };
   }
   if (review) {
     return { kind: 'check-in', eyebrow: `${review.name} is today`, warn: false, title: `${n} ${plural(n, 'check-in')} to do before it`,
-      line: `The review reads them as you post them. The workspace’s own deadline is ${longDay(dueDate)}. About ${minutes} ${plural(minutes, 'minute')}.`, action, also, ring, about: null };
+      line: `The review reads them as you post them. The workspace’s own deadline is ${dueOn(dueDate)}. About ${minutes} ${plural(minutes, 'minute')}.`, action, also, ring, about: null };
   }
-  return { kind: 'check-in', eyebrow: `Check-ins are due by ${longDay(dueDate)}${when}`, warn: false, title: `${n} ${plural(n, 'check-in')} to do`,
+  return { kind: 'check-in', eyebrow: `Check-ins are due by ${dueOn(dueDate)}${when}`, warn: false, title: `${n} ${plural(n, 'check-in')} to do`,
     line: `${titles(due)}. About ${minutes} ${plural(minutes, 'minute')}.`, action, also, ring, about: null };
 }
 
@@ -244,19 +246,19 @@ export function proposalLead(list: readonly ProposedForYou[], today: string): Le
 export function quietLine(f: HomeFacts): Quiet {
   // While asks wait on the viewer ("Needs your response"), Home doesn't say nothing is asked (HM1 review).
   const sentence = f.asks.length ? `${f.asks.length === 1 ? 'One ask waits' : `${f.asks.length} asks wait`} for your response.` : 'Nothing is asked of you today.';
-  if (f.starts) return { sentence, line: `${f.cycleName} starts on ${longDay(f.starts.on)}. The first check-ins are due by ${longDay(f.starts.firstDue)}.`, buttons: [] };
+  if (f.starts) return { sentence, line: `${f.cycleName} starts on ${longDay(f.starts.on)}. The first check-ins are due by ${dueOn(f.starts.firstDue)}.`, buttons: [] };
   if (f.ended) return { sentence, line: `${f.cycleName} has ended.`, buttons: [] };
   const c = f.checkIns;
-  if (f.rhythm && c.due.length) return { sentence, line: `Check-ins for week ${f.week} are due by ${longDay(f.rhythm.dueDate)}. You have ${c.due.length} to do.`, buttons: [{ label: 'Check in early', to: '/check-in' }] };
+  if (f.rhythm && c.due.length) return { sentence, line: `Check-ins for week ${f.week} are due by ${dueOn(f.rhythm.dueDate)}. You have ${c.due.length} to do.`, buttons: [{ label: 'Check in early', to: '/check-in' }] };
   if (f.rhythm && c.total > 0 && c.done >= c.total) {
     const allIn = c.total === 1 ? 'Your check-in is' : c.total === 2 ? 'Both check-ins are' : `All ${c.total} check-ins are`;
     const streak = c.allInOnTimeToday && (c.streak ?? 0) >= 2 ? `That is ${c.streak} weeks in a row on time. ` : '';
-    const next = f.rhythm.nextDueDate && f.week < f.lastWeek ? `The next ${c.total === 1 ? 'is' : 'are'} due by ${longDay(f.rhythm.nextDueDate)}.` : '';
+    const next = f.rhythm.nextDueDate && f.week < f.lastWeek ? `The next ${c.total === 1 ? 'is' : 'are'} due by ${dueOn(f.rhythm.nextDueDate)}.` : '';
     return { sentence: `${allIn} in for week ${f.week}.`, line: (streak + next).trim() || null, buttons: [] };
   }
   if (!f.owns && !f.watches && !f.asks.length) return { sentence, line: `You don’t own or watch a goal in ${f.workspace} yet.`, buttons: [{ label: 'See the goals', to: '/goals?scope=all' }, { label: 'Set up a goal', to: '/goals/new' }] };
   // Set up after this week's deadline: the first check-in is next week's, said plainly.
-  if (f.rhythm && c.total > 0 && !c.done && f.rhythm.nextDueDate) return { sentence, line: `Your first ${plural(c.total, 'check-in is', 'check-ins are')} due by ${longDay(f.rhythm.nextDueDate)}.`, buttons: [] };
+  if (f.rhythm && c.total > 0 && !c.done && f.rhythm.nextDueDate) return { sentence, line: `Your first ${plural(c.total, 'check-in is', 'check-ins are')} due by ${dueOn(f.rhythm.nextDueDate)}.`, buttons: [] };
   return { sentence, line: null, buttons: [] };
 }
 

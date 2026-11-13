@@ -28,6 +28,15 @@ export function sessionDate(r: Review, cycle: Cycle, week: number): string {
 }
 
 /**
+ * Whether a review is held on a week's due day (RS1): a review not ended or removed whose session falls in that week, on
+ * the day check-ins are due. dueWords then says "before Thursday’s review"; otherwise "by Thursday".
+ */
+export function heldOnDueDay(reviews: readonly Review[], cycle: Cycle, week: number): boolean {
+  const w = Math.max(1, week);
+  return reviews.some((r) => !r.removedAt && !r.endedAt && r.weekday === cycle.reviewDay && sessionWeek(r, w, cycle) === w);
+}
+
+/**
  * A goal the review can take as read: it doesn't need attention (domain/attention.ts, the one rule Home, Watching and
  * the Goals filter use) and isn't behind and being handled. Reviews walk the rest one at a time and acknowledge these
  * together (Senior UX review, 2 Nov).
