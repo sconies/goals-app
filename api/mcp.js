@@ -4437,14 +4437,38 @@ var init_cycle = __esmMin((() => {
 	];
 	RESULT_LABEL = labels(OWNER_VIEW);
 }));
+// src/domain/leftOut.ts
+/**
+* The cycles whose check-ins a windowed load keeps (AX5 part 2b; ports/window.ts and every store use this rule): each
+* whose last day (domain/cycle cycleDates) is on or after the window's first day (yyyy-mm-dd, UTC), and the
+* NEWEST_KEPT newest cycles not removed, by start date, however old.
+*/
+function keptCycles(cycles, fromDay) {
+	const newest = cycles.filter((c) => !c.removedAt).sort((a, b) => a.startDate < b.startDate ? 1 : a.startDate > b.startDate ? -1 : 0).slice(0, 2);
+	return new Set([...cycles.filter((c) => cycleDates(c).lastDay >= fromDay), ...newest].map((c) => c.id));
+}
+/** Whether a windowed load (Snapshot.history) left a cycle's check-ins out: it has some, and the window didn't keep it. */
+function checkInsLeftOut(s, cycleId) {
+	const h = s.history;
+	if (!h || !h.checkInCycles.includes(cycleId)) return false;
+	return !keptCycles(s.cycles, h.from.slice(0, 10)).has(cycleId);
+}
+var changesLeftOut;
+var init_leftOut = __esmMin((() => {
+	init_cycle();
+	changesLeftOut = (s, at) => !!s.history && Date.parse(at) < Date.parse(s.history.from);
+}));
 // src/domain/copies.ts
-/** Whether a carried copy is as the start made it: no check-in in it and no change to it by a person since. */
+/** Whether a carried copy is as the start made it: no check-in in it and no change to it by a person since. A copy made
+before a windowed load's start counts as used: a person's change to it may be among the entries left out. */
 function copyUntouched(copy, full) {
+	if (changesLeftOut(full, copy.createdAt)) return false;
 	if (full.checkIns.some((c) => c.goalId === copy.id && !c.removedAt)) return false;
 	return !full.changes.some((c) => c.goalId === copy.id && c.at > copy.createdAt && !byRecarry(c.summary));
 }
 var byRecarry;
 var init_copies = __esmMin((() => {
+	init_leftOut();
 	byRecarry = (summary) => /now starts from where it ended in |now starts from .*’s final number$|carries on into |, so it left /.test(summary);
 }));
 // src/domain/people.ts
@@ -8403,13 +8427,6 @@ function deleteNote(x, id) {
 		})]
 	};
 }
-/** Whether a windowed load (Snapshot.history) left a cycle's check-ins out: it has some, and it ended before the window. */
-function checkInsLeftOut(s, cycleId) {
-	const h = s.history;
-	if (!h || !h.checkInCycles.includes(cycleId)) return false;
-	const c = s.cycles.find((v) => v.id === cycleId);
-	return !c || cycleDates(c).lastDay < h.from.slice(0, 10);
-}
 /** What a person has left a mark on: goals they owned (in any cycle), check-ins, notes and comments, and asks. */
 function personHistory(s, id) {
 	return {
@@ -9490,7 +9507,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 	}
 }
-var no$1, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, IMPORT_TOO_OLD, changesLeftOut, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay$1, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
+var no$1, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, IMPORT_TOO_OLD, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay$1, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
 	init_goalRights();
 	init_proposed();
@@ -9501,8 +9518,8 @@ var init_removal = __esmMin((() => {
 	init_tableLayout();
 	init_via();
 	init_vocabulary();
-	init_cycle();
 	init_records();
+	init_leftOut();
 	no$1 = (msg) => {
 		throw new NotAllowed(msg);
 	};
@@ -9524,7 +9541,6 @@ var init_removal = __esmMin((() => {
 		return k;
 	};
 	IMPORT_TOO_OLD = "That import is over a year old, so it can’t be undone: too much may have changed since.";
-	changesLeftOut = (s, at) => !!s.history && Date.parse(at) < Date.parse(s.history.from);
 	hasHistory = (h) => h.goals + h.checkIns + h.notes + h.asks > 0 || h.unknown;
 	livePerson = (x, id) => {
 		const p = x.snapshot.people.find((v) => v.id === id);
@@ -14044,6 +14060,7 @@ var StaleError = class extends Error {
 var isStale = (e) => e instanceof StaleError || e instanceof Error && /\bstale: /.test(e.message);
 // src/ports/window.ts
 init_cycle();
+init_leftOut();
 /** Entries of these kinds are anchors: kept at any age, because rules read them whatever their age (comments, asks, a
 cycle's "created" entry, a person's arrival (domain/dayOne arrived), a metric's last change and former names). */
 var ANCHOR_ENTITIES = [
@@ -14057,9 +14074,10 @@ var ANCHOR_ENTITIES = [
 var ANCHOR_ACTIONS = ["imported", "undone"];
 /** The day (yyyy-mm-dd, UTC) a window starts on. */
 var windowDay = (w) => new Date(w.from).toISOString().slice(0, 10);
-/** A cycle overlaps the window when its last day (domain/cycle cycleDates) is on or after the window's first day.
-In SQL: start_date + ((weeks + 1) * 7 - 1) >= the window's day. */
-var overlaps = (c, w) => cycleDates(c).lastDay >= windowDay(w);
+/** The cycles whose check-ins a windowed load keeps: those that overlap it, and always the newest two not removed (the
+year on screen and the one in its wrap-up), however old (domain/leftOut keptCycles, the one statement of the rule).
+In SQL: the overlap test, or the id is among the two newest by start_date where removed_at is null. */
+var openCycles = (cycles, w) => keptCycles(cycles, windowDay(w));
 var historySize = (ask) => Math.max(1, Math.min(100, Math.floor(ask.size ?? 50)));
 /** Said when a workspace would be made from a windowed load: what the window left out would be lost for good. */
 var PARTIAL_SNAPSHOT = "A workspace can only be made from a whole one: this copy leaves out older check-ins and changes.";
@@ -14145,6 +14163,7 @@ init_carry();
 init_cycle();
 init_records();
 init_copies();
+init_leftOut();
 init_actions();
 /**
 * Keeps a carried copy true after the start (cycle-end rule 6): when a goal of a year that has a later cycle changes
@@ -14152,13 +14171,15 @@ init_actions();
 * is untouched** (no check-in in it, no change to it by a person since the start), the copy's plan or stages are
 * replaced, the copy and what came with it leave (it now finishes or stops; its children's copies lose it as parent),
 * or the copy comes back (the one taken out, same ID and key) or is added, with what comes with it and its children's
-* copies under it again. Nothing when the copy has been used, a person removed it, or there is no later cycle. `extra`
+* copies under it again. Nothing when the copy has been used, a person removed it, there is no later cycle, or a windowed load left the
+* year's check-ins out. `extra`
 * is what the change is about to save.
 */
 function recarry(goal, full, extra, x) {
 	const cycle = full.cycles.find((c) => c.id === goal.cycleId);
 	const later = cycle && laterCycle(full.cycles, cycle);
 	if (!cycle || !later || !goal.key) return null;
+	if (checkInsLeftOut(full, cycle.id)) return null;
 	const copies = full.goals.filter((g) => g.cycleId === later.id && g.key === goal.key);
 	const live = copies.find((g) => !g.removedAt);
 	const left = live ? void 0 : copies.filter((g) => g.removedAt && leftByRecarry(g, full)).sort((a, b) => (b.removedAt ?? "").localeCompare(a.removedAt ?? ""))[0];
@@ -21757,10 +21778,11 @@ function layoutFrom(ctx, a) {
 }
 /** A sentence as part of a longer line: without its closing full stop, so the line never ends in two. */
 var clause = (t) => t.trim().replace(/\.+$/, "");
-/** The newest n changes that pass `keep`. With the store's history (AX5 part 2b) it pages back through the log, 100 at
-a time, rather than filtering every change ever made; without it, it reads the snapshot. */
+/** The newest n changes that pass `keep`. A whole snapshot (the server loads whole today) already holds every entry, so
+they are read from it; only a windowed one (Snapshot.history) pages back through the store's history, 100 at a time
+(AX5 part 2b). */
 async function activityPages(ctx, keep, n) {
-	if (!ctx.history) return ctx.snapshot.changes.filter(keep).sort((x, y) => x.at < y.at ? 1 : -1).slice(0, n);
+	if (!ctx.history || !ctx.snapshot.history) return ctx.snapshot.changes.filter(keep).sort((x, y) => x.at < y.at ? 1 : -1).slice(0, n);
 	const out = [];
 	let before;
 	do {
@@ -49047,10 +49069,12 @@ var SupabaseStore = class {
 	}
 	async windowCheckIns(ws, w, cycles, goals) {
 		const goalsOf = (cycleIds) => goals.filter((g) => cycleIds.has(g.cycle_id)).map((g) => g.id);
-		const open = new Set(cycles.filter((c) => overlaps({
+		const open = openCycles(cycles.map((c) => ({
+			id: c.id,
 			startDate: c.start_date,
-			weeks: c.weeks
-		}, w)).map((c) => c.id));
+			weeks: c.weeks,
+			removedAt: c.removed_at ?? null
+		})), w);
 		const rows = (await Promise.all(chunks(goalsOf(open), IDS).map((ids) => this.all("okr_check_ins", ws, (q) => q.in("goal_id", ids))))).flat();
 		const cycleOf = new Map(goals.map((g) => [g.id, g.cycle_id]));
 		const found = new Set(rows.flatMap((r) => cycleOf.has(r.goal_id) ? [cycleOf.get(r.goal_id)] : []));
