@@ -36,6 +36,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Oskar adds a metric named “Build time” with no unit or direction. | `refused: Say its unit: %, min, hours, USD, deploys… Say which way is better: higher or lower.` |
 | Oskar adds “Build time”, in min, lower is better. | `Added the metric “Build time”` |
 | Oskar adds “flaky TEST rate”, in %, lower is better, when “Flaky test rate” is already in the library. | `refused: There’s already a metric called Flaky test rate. Use it, or give this one a different name.` |
+| Oskar adds “Fláky test rate”, in %, lower is better, when “Flaky test rate” is already in the library. | `refused: There’s already a metric called Flaky test rate. Use it, or give this one a different name.` |
 | Oskar changes the caveats of Flaky test rate, which Rhea owns. | `refused: Only Rhea Kapoor or an admin can change this metric.` |
 | Rhea changes Flaky test rate to 2 decimals. | `Changed the metric “Flaky test rate”` |
 | What measures the lead time north star (ns-lead), and its target in it. | `Lead time for changes, The whole company, target 24` |
@@ -73,6 +74,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - what a metric needs › a name no other metric here has, any case
 - what a metric needs › decimals 0 to 4, a known refresh, an owner in the workspace, text in bounds
 - what a metric needs › trims what it keeps
+- adding and changing a metric › asks rule 1’s Checks at every door: saving refuses while one is open, and saves once it is answered (#281)
+- adding and changing a metric › treats a name that differs only by accents or case as the same name: a Must fix (#281)
+- adding and changing a metric › refuses someone who may not change the metric before asking anything (#281)
 - adding and changing a metric › anyone adds one, owns it, and it’s logged field by field
 - adding and changing a metric › its owner or an admin changes it; anyone else is told who can
 - adding and changing a metric › the owner can hand it on; saving it unchanged saves nothing
@@ -96,6 +100,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › lists the library and reads one metric in full, with the goals it measures
 - metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
 - metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
 - metric library tools › removes a metric, unlinking its goals, and restore_removed brings it back
@@ -188,6 +193,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › lists the library and reads one metric in full, with the goals it measures
 - metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
 - metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
 - metric library tools › removes a metric, unlinking its goals, and restore_removed brings it back
@@ -303,7 +309,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ### Where it lives
 
-- [src/modules/metrics/rulesLibrary.ts](../../../src/modules/metrics/rulesLibrary.ts): `closeNames`, `nameWords`, `closeNameWords`
+- [src/modules/metrics/names.ts](../../../src/modules/metrics/names.ts): `closeNames`, `nameWords`
+- [src/modules/metrics/rulesLibrary.ts](../../../src/modules/metrics/rulesLibrary.ts): `closeNameWords`
 - [src/modules/metrics/rules.ts](../../../src/modules/metrics/rules.ts): `ownerName`, `ownerlessMetrics`
 - [src/modules/metrics/finder.ts](../../../src/modules/metrics/finder.ts): `metricsToSortOut`
 
@@ -374,6 +381,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | “Deploy success rate”, in %: “Deploys that worked.” | `out-of-what` |
 | Any metric in % with no meaning. | `nothing` |
 | Rhea adds “Flaky tests rate”, %, no direction, meaning “Flakes seen.”: the foot of the form. | `1 to fix, 2 to check.` |
+| Oskar adds “Flaky tests rate”, %, lower is better, meaning “Flakes seen.”, from a goal’s Measured by, answering nothing. | `refused: Answer these questions first: This is one letter from “Flaky test rate” (%, lower is better, owned by Rhea Kapoor, 1 goal). This is a percentage, and the words don’t say out of what. For example: “production deploys with no rollback or hotfix, out of all production deploys, over 28 days”.` |
 
 ### Not self-explanatory
 
@@ -383,8 +391,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ### Where it lives
 
 - [src/modules/metrics/edits.ts](../../../src/modules/metrics/edits.ts): `editsBetween`
-- [src/modules/metrics/rulesDefine.ts](../../../src/modules/metrics/rulesDefine.ts): `stillToSay`, `nameChecks`, `formerNames`, `unitChecks`, `meaningChecks`, `metricChecks`, `unansweredChecks`, `countLine`
-- [src/modules/metrics/reads.ts](../../../src/modules/metrics/reads.ts): `checkReads`, `lineOf`
+- [src/modules/metrics/rulesDefine.ts](../../../src/modules/metrics/rulesDefine.ts): `stillToSay`, `nameChecks`, `formerNames`, `unitChecks`, `meaningChecks`, `metricChecks`, `unansweredChecks`, `answersFrom`, `countLine`
+- [src/modules/metrics/reads.ts](../../../src/modules/metrics/reads.ts): `lineOf`
+- [src/modules/metrics/checkReads.ts](../../../src/modules/metrics/checkReads.ts): `checkReads`
+- [src/modules/metrics/rulesSave.ts](../../../src/modules/metrics/rulesSave.ts): `openChecks`, `saveMetricAsked`
 
 ### Requirements
 
@@ -413,6 +423,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metricChecks › asks about a unit spelt another way, and says no owner who has left
 - metricChecks › asks only about what changed
 - metricChecks › an answer covers its check only when it is one of its choices
+- metricChecks › takes answers as words for name, unit and meaning only, and says so plainly otherwise
 - metricChecks › says the count line
 
 #### [src/modules/metrics/tools.test.ts](../../../src/modules/metrics/tools.test.ts)
@@ -420,6 +431,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › lists the library and reads one metric in full, with the goals it measures
 - metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
 - metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
 - metric library tools › removes a metric, unlinking its goals, and restore_removed brings it back
@@ -499,6 +511,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - what a metric needs › a name no other metric here has, any case
 - what a metric needs › decimals 0 to 4, a known refresh, an owner in the workspace, text in bounds
 - what a metric needs › trims what it keeps
+- adding and changing a metric › asks rule 1’s Checks at every door: saving refuses while one is open, and saves once it is answered (#281)
+- adding and changing a metric › treats a name that differs only by accents or case as the same name: a Must fix (#281)
+- adding and changing a metric › refuses someone who may not change the metric before asking anything (#281)
 - adding and changing a metric › anyone adds one, owns it, and it’s logged field by field
 - adding and changing a metric › its owner or an admin changes it; anyone else is told who can
 - adding and changing a metric › the owner can hand it on; saving it unchanged saves nothing
@@ -522,6 +537,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › lists the library and reads one metric in full, with the goals it measures
 - metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
 - metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
 - metric library tools › removes a metric, unlinking its goals, and restore_removed brings it back

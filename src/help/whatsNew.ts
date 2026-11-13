@@ -45,6 +45,18 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['goal-proposed', 'home'],
   },
   {
+    id: 'metric-checks-everywhere',
+    date: '2026-11-13',
+    title: 'New metrics checked everywhere',
+    points: [
+      'Adding a metric from a goal’s “Measured by” now asks the same questions as Add a metric: a name close to another’s, a unit spelt another way, a percentage that doesn’t say out of what.',
+      'A name that differs from another metric’s only by an accent, such as “Fláky test rate”, must be changed, as one differing only by case already did.',
+      'Answering a question on the form keeps your place: Change on the answered line takes the focus.',
+      '“Lower is better” and “Higher is better” are bigger to tap on a phone.',
+    ],
+    articles: ['metric-define', 'metric-measured-by'],
+  },
+  {
     id: 'range-between-both-limits',
     date: '2026-11-13',
     title: 'A range between two numbers weighs both its limits',

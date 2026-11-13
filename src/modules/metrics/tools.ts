@@ -8,8 +8,9 @@ import { findGoal, isKey } from '../../domain/goalKey';
 import * as M from './rules';
 import { linkGoalMetric, linkReads } from './rulesLink';
 import * as L from './rulesLibrary';
-import { checkReads, goalsOfMetric, libraryReads, lineOf } from './reads';
-import { metricChecks, unansweredChecks, unitChecks, type CheckField } from './rulesDefine';
+import { goalsOfMetric, libraryReads, lineOf } from './reads';
+import { answersFrom } from './rulesDefine';
+import { openChecks, saveMetricAsked } from './rulesSave';
 import { forWords, linkChecks, type LinkCheck } from './rulesParts';
 import { goalStatus } from '../../domain/status';
 import { LABEL } from '../../domain/vocabulary';
@@ -152,7 +153,7 @@ const tools: ToolDef[] = [
     name: 'save_metric',
     title: 'Add or change a metric',
     description: 'Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing. Changing the unit or direction of a metric goals use is refused with a question: ask the person, then call again with confirm: true. A likely mistake is questioned before anything is saved (a name one letter or a word from another metric’s, or one a metric used to have; a unit spelt differently from one in use; a percentage whose meaning doesn’t say out of what): the call returns `checks`, each with its question and answers, and saves nothing. Ask the person, then call again with `answers`. The result says what the metric still needs to say (“Fully defined”, or “Still to say: …”); it is never a score.',
-    inputSchema: { type: 'object', additionalProperties: false, properties: { id: str('The metric to change, by ID or name. Leave out to add one.'), ...FIELDS, confirm: { type: 'boolean', description: 'Yes to changing the unit or direction of a metric goals use, once the person has said so.' }, answers: { type: 'object', additionalProperties: false, description: 'The person’s answers to the checks a previous call returned.', properties: { name: str('“keep” (mine is different), or “use:<id>” to use that metric instead (nothing is saved).'), unit: str('“keep” the unit as typed, or “use” the one in use.', { enum: ['keep', 'use'] }), meaning: str('“as-written”: the meaning is right as written.', { enum: ['as-written'] }) } } } },
+    inputSchema: { type: 'object', additionalProperties: false, properties: { id: str('The metric to change, by ID or name. Leave out to add one.'), ...FIELDS, confirm: { type: 'boolean', description: 'Yes to changing the unit or direction of a metric goals use, once the person has said so.' }, answers: { type: 'object', additionalProperties: false, description: 'The person’s answers to the checks a previous call returned.', properties: { name: str('“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave.'), unit: str('“keep” the unit as typed, or “use” the one in use.', { enum: ['keep', 'use'] }), meaning: str('“as-written”: the meaning is right as written.', { enum: ['as-written'] }) } } } },
     annotations: WRITE,
     async run(a, ctx) {
       return ruled(async () => {
@@ -170,19 +171,15 @@ const tools: ToolDef[] = [
           ...(a.caveats !== undefined ? { caveats: String(a.caveats) } : {}),
           ...(a.confirm === true ? { confirm: true } : {}),
         };
-        // Rule 1's questions first: a Check left unanswered saves nothing and returns the questions.
-        const answers = (a.answers && typeof a.answers === 'object' ? a.answers : {}) as Partial<Record<CheckField, string>>;
+        // Rule 1's questions first, after the rights: a Check left unanswered saves nothing and returns the questions.
+        const answers = answersFrom(a.answers);
         if (answers.name?.startsWith('use:')) { const use = metricOf(ctx, answers.name.slice(4)); return { data: { saved: false, use: use.id }, text: `Nothing saved: use ${use.name} (${use.id}) instead.` }; }
-        const before = input.id ? M.metricsOf(ctx.snapshot).find((x) => x.id === input.id) ?? null : null;
-        const r = checkReads(ctx.snapshot);
-        if (answers.unit === 'use' && input.unit !== undefined) { const u = unitChecks(input.unit, [...new Set(r.metrics.filter((x) => x.id !== before?.id).map((x) => x.unit))]); if (u) input.unit = u.use; }
-        const typed = M.metricFrom(input, before, ax(ctx));
-        const open = unansweredChecks(metricChecks(typed, before, r), answers);
-        if (open.length && !M.metricProblems(typed, ctx.snapshot).length) {
+        const { open } = openChecks(ax(ctx), { ...input, answers });
+        if (open.length) {
           const checks = open.map((c) => ({ field: c.field, question: c.words, answers: c.answers.map((x) => ({ answer: x.choice, label: x.label })) }));
           return { data: { saved: false, checks }, text: `Nothing saved yet. Ask the person, then call again with answers:\n${checks.map((c) => `- ${c.field}: ${c.question} (${c.answers.map((x) => `${x.answer}: ${x.label}`).join('; ')})`).join('\n')}` };
         }
-        const { commit, metric } = M.saveMetric(ax(ctx), input);
+        const { commit, metric } = saveMetricAsked(ax(ctx), { ...input, answers });
         if (!commit) return { data: { saved: false, id: metric.id }, text: `Nothing changed: ${metric.name} already says that.` };
         await save(ctx, commit);
         const still = lineOf(ctx.snapshot, metric).line;
