@@ -68,7 +68,7 @@
     ],
     "exit": [
       "Switched off, the menu has no Reviews row and the phone's tabs are Home, Check-in, Goals and People for someone with a goal to check in on, and Home, Goals, People and Activity for anyone else (the two rows of navigation.csv at the address “/ (Reviews off)”).",
-      "Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and the six review actions and tools refuse with “Reviews is off in {workspace}.” or the switched-off module's sentence (check N21).",
+      "Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and whatever would save Reviews' records (a review, a note said in one, an ask raised in one, a goal proposed in one), from any action or AI tool, is refused with the switched-off module's sentence and saves nothing (check N21; src/app/reviewsOffWrites.test.ts).",
       "Switched off, Home has no Next review cell and no review lead: someone who owns no goal is led to the goals they watch that need attention (“Goals you watch · {n} need attention · See them”), or to nothing; a question waits by its own age and names no session; the due flag says “Due by Thu 12 Nov.”, on or off.",
       "Switching off first reads back what stays (the reviews, what was said in them, the open next steps and questions raised in one) from the rule switchOffReadBack, and Undo brings Reviews back (journey U103).",
       "Back on, every review, its people, its cadence and what was said are as they were (journey U104).",

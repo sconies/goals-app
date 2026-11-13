@@ -55,7 +55,7 @@ describe('one way to run an action', () => {
     const off: RunContext = { ...x, workspace: { ...x.workspace, modulesOff: ['reviews'] } };
     const review = x.snapshot.reviews.find((r) => r.id === 'weekly')!;
     const goal = x.snapshot.goals.find((g) => g.id === 'ns-lead')!;
-    const said = 'Reviews is off in Platform.';
+    const said = 'Reviews is switched off in Platform. An admin can switch it on in Workspace, under Features.';
     expect(() => perform(off, 'reviewCall', { goalId: goal.id, reviewId: review.id, kind: 'note', note: 'Looked at it' })).toThrow(said);
     expect(() => perform(off, 'markReviewed', { goalIds: [goal.id], reviewId: review.id, week: x.week })).toThrow(said);
     expect(() => perform(off, 'saveReview', { review: { ...review, name: 'Renamed' } })).toThrow(said);

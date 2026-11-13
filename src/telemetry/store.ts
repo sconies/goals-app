@@ -22,7 +22,7 @@ export function tracedStore(store: Store, tel: Telemetry): Store {
   const demo = examplesOf(store);
   return {
     kind: store.kind,
-    ...(demo ? { hasExample: true, resetExample: (id?: string) => demo.resetExample(id) } : {}),
+    ...(demo ? { hasExample: true, resetExample: (id?: string) => demo.resetExample(id), ...(demo.seeded ? { seeded: (id: string) => demo.seeded!(id) } : {}) } : {}),
     workspaces: () => store.workspaces(),
     load: (ws, window) => timed(pg ? 'select' : 'load', () => store.load(ws, window)),
     history: (ws, ask) => timed(pg ? 'select' : 'history', () => store.history(ws, ask)),

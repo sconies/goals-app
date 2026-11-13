@@ -167,7 +167,8 @@ export function MetricsLibrary() {
 const pageParams = (params: URLSearchParams, page: number) => { const n = new URLSearchParams(params); if (page > 1) n.set('page', String(page)); else n.delete('page'); return n.toString(); };
 
 function EmptyLibrary() {
-  return <EmptyResult title="No metrics yet." action={<Link className="btn primary" to="/metrics/new">Add a metric</Link>}>A metric says exactly what a number means, so every goal that uses it means the same thing.</EmptyResult>;
+  // Small workspaces 2.4: says when you'd want one; its button is a plain one, not the page's primary.
+  return <EmptyResult title="No metrics yet" action={<Link className="btn" to="/metrics/new">Add a metric</Link>}>You don’t need one until two goals share a number. Then say what it means once, here, and both goals mean the same thing.</EmptyResult>;
 }
 
 /** A metric in the library: a link to it, its unit, direction and owner, its goals by status, and (for its owner and

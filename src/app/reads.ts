@@ -17,7 +17,7 @@ import { handedFrom } from '../domain/askHandover';
 import { dueWords, inByDueDay, onTimeStreak, postedDay, receiptFacts, reviewDate, weekProgress, type DueWords } from '../domain/progress';
 import { hasEnded, weekDate, weekDates } from '../domain/plan';
 import { beforeStart, cycleDates, wrapUpOpenOn } from '../domain/cycle';
-import { openForPerson } from '../domain/asks';
+import { asksOf, openForPerson } from '../domain/asks';
 import { attentionFor, needsAttention } from '../domain/attention';
 import type { QueryContext } from '../domain/query';
 import type { LocalRows } from '../adapters/localSearch';
@@ -31,8 +31,12 @@ const live = <T extends { removedAt?: string | null }>(xs: T[]) => xs.filter((x)
  */
 export const reviewsOn = (on: ReadonlySet<string>): boolean => on.has('reviews');
 
-/** What a review action says when Reviews is off (FT2, spec 1.2). */
-export const reviewsOffWords = (workspace: string) => `Reviews is off in ${workspace}.`;
+/** What an action of a switched-off module says (docs/architecture/module-map.md, "An action, refused"): one sentence. */
+export const switchedOffWords = (module: string, workspace: string) => `${module} is switched off in ${workspace}. An admin can switch it on in Workspace, under Features.`;
+/** What domain/reviewWrites reads of a workspace as loaded: its goals (proposed ones too), reviews and asks. */
+export const reviewWriteRows = (s: Snapshot) => ({ goals: [...s.goals, ...(s.proposed ?? [])], reviews: s.reviews, asks: asksOf(s) });
+/** What a save of Reviews' records says while Reviews is off (FT2): the switched-off module's sentence (build review of #371). */
+export const reviewsOffWords = (workspace: string) => switchedOffWords('Reviews', workspace);
 
 /*
  * SW1: the four switches whose code is still the core's, each answered here and nowhere else (feature-switches spec
@@ -50,10 +54,9 @@ export const goalMapOn = (on: ReadonlySet<string>): boolean => on.has('goal-map'
     on and starting the next year are the core's and never ask. */
 export const wrapUpOn = (on: ReadonlySet<string>): boolean => on.has('wrap-up');
 
-/** The core's actions that belong to a switch while its code is still the core's (FT2, SW1 spec 1.3): each refuses
+/** The core's actions that belong to a switch while its code is still the core's (SW1 spec 1.3; Reviews' saves are refused by what they write, in actions.ts): each refuses
     while its module is off, with `moduleOffWords`. Revoking and starting the next year never refuse. */
 export const SWITCHED_ACTIONS: Readonly<Record<string, string>> = {
-  saveReview: 'reviews', reviewCall: 'reviews', acceptRisk: 'reviews', markReviewed: 'reviews', unmarkReviewed: 'reviews', endReview: 'reviews', deleteReview: 'reviews',
   watch: 'watching', unwatch: 'watching', saveRetro: 'wrap-up', sendFeedback: 'feedback',
 };
 

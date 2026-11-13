@@ -10,7 +10,7 @@ import { currentWeek, planAt } from '../domain/plan';
 import { applyQuery, parseQuery } from '../domain/query';
 import { summariseAll } from '../domain/summary';
 import type { ApiToken, MetricGoal, RangeGoal, Snapshot } from '../domain/types';
-import { hashToken, newToken, STALE_TOOL } from './protocol';
+import { hashToken, newToken, RAN_AGAIN, STALE_TOOL } from './protocol';
 
 // Monday of week 45, before this week's check-ins.
 const today = new Date('2026-11-02T12:00:00Z');
@@ -481,6 +481,8 @@ describe('a save refused as stale, through MCP (AX6)', () => {
     const out = await r.call('update_goal', { goal_id: 'ns-ai', title: 'AI review for every pull request' });
     expect(out.isError).toBe(false);
     expect(r.saves()).toBe(2);
+    // Said, so the assistant can tell the person it ran on something that had changed.
+    expect(out.content[0]!.text.startsWith(RAN_AGAIN)).toBe(true);
     const g = r.data().goals.find((x) => x.id === 'ns-ai')!;
     expect([g.title, g.level]).toEqual(['AI review for every pull request', 'svp']);
   });

@@ -163,11 +163,11 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Waiting on a decision already asked for another goal?” | button | `othersAsked.length > 0` |
 | “… For … · asked by …” | button | `linking` |
 | “Keep … for this goal” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `shown?.block` and `!(keep == null)` |
-| “Measured again: unchanged” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `lastNumber?.value != null && !draft.value` |
+| “Measured again: unchanged” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `!numberStep` and `lastNumber?.value != null && !draft.value` |
 | “Start from …” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `offer` and `goal.kind === 'metric'` |
 | “Keep … and say why” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `offer` and `goal.kind === 'metric'` |
 | “Undo” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `rebased === 'start'` and `rebasedFrom` |
-| “No new number this week” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `!draft.value.trim() && onSkip` |
+| “No new number this week” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `!draft.value.trim() && onSkip && !numberStep` |
 | “Change” | button | `step === 'measure'` and `valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0)` |
 | “Also need a decision or help?” | button | `step === 'account'` and `needsWay` and `!(draft.ptgState === 'help')` and `!showNeeds` |
 | “Back” | button | `step !== 'carry'` and `(trail.length > 0 \|\| step !== 'measure')` |
@@ -203,6 +203,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | Field | Kind | Shown when |
 |---|---|---|
 | “…: this week’s number in …” | text | `goals.length > 0` |
+| “Say more at least … characters / optional” | text | `goals.length > 0` and `differs` and `read` and `!invalidNumber` |
 | “In a sentence” | textarea | `goals.length > 0` and `(showWhy \|\| showPath)` and `showWhy` |
 | “How it gets back on plan” | textarea | `goals.length > 0` and `(showWhy \|\| showPath)` and `showPath` |
 
@@ -1044,7 +1045,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 - `/watching` (`Watching`)
 
-- **Named parts:** “What changed this week”, “What you watch”, “You’re not watching anything yet”, “What changed (region)”
+- **Named parts:** “What changed this week”, “What you watch”, “You’re not watching anything”, “What changed (region)”
 - **Main action:** Open a goal you watch that needs attention.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_watching`, `find_goals`, `watch`, `unwatch`
@@ -1069,8 +1070,8 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Show all …” | button | `!open` |
 | “Stop” | button | `managing` |
 | “Watch …” | button | always |
-| “Watch every … goal (…)” | primary | always |
-| “Pick goals from the list” | primary | always |
+| “Pick goals from the list” | link | `!allMine` |
+| “Watch every … goal (…)” | button | `!allMine` |
 
 ## Retro
 
