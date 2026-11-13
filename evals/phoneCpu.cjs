@@ -1,15 +1,17 @@
-/* A phone's slower CPU, in every eval run (Lane, 13 Nov). Every browser context no wider than a phone runs its pages with
-   the CPU slowed PHONE_CPU times (4 unless the environment says otherwise; PHONE_CPU=1 turns it off), through the
-   DevTools protocol's Emulation.setCPUThrottlingRate. A fast laptop and a loaded CI runner then both run a phone as a
-   slow phone, so a race that only shows on a slow phone (U109's keys outrunning a render, U98's Stop gone before the
-   click) shows on every run, a pull request's included, instead of now and then after the merge.
+/* A phone's slower CPU, in the runs before a merge (Lane, 13 Nov). When PHONE_CPU is more than 1, every browser context
+   no wider than a phone runs its pages with the CPU slowed that many times, through the DevTools protocol's
+   Emulation.setCPUThrottlingRate. evals/run.mjs sets it to 4 for its quick runs (smoke, and what a change touches), so a
+   race that only a slow phone shows (U109's keys outrunning a render, U98's Stop gone before the click) turns up on the
+   pull request instead of now and then after the merge. Unset, as in the full suite's shards, pages run at full speed.
+   Chromium slows a page by keeping its core busy, not idle (a slowed page used 1.5 s of CPU for 0.3 s of work), so
+   browsers running side by side starve each other: the quick runs run their journey processes one after another.
    It slows a page's own thread, not its workers (an import's check runs in one): a worker's time is the machine's.
    Desktop-sized contexts are left at full speed, so a timing check measured on a desktop (N12) means what it did. */
 
 /** The widest viewport that counts as a phone: a phone held either way, not a tablet. */
 const PHONE_MAX_WIDTH = 600;
 /** How many times slower a phone's CPU runs than the machine's. */
-const PHONE_CPU = Math.max(1, Number(process.env.PHONE_CPU ?? 4) || 1);
+const PHONE_CPU = Math.max(1, Number(process.env.PHONE_CPU ?? 1) || 1);
 
 const isPhone = (opts) => (opts?.viewport?.width ?? Infinity) <= PHONE_MAX_WIDTH;
 
