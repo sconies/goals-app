@@ -6224,6 +6224,55 @@ journey('U162', ['GOAL-BASELINE'], 'A baseline of its own (BL): as Rhea, CI cost
   await p.context().close();
 }, []);
 
+journey('U163', ['GOAL-NO-TARGET', 'GOAL-PROPOSED'], 'A baseline and nothing else yet (GB): as Tunde, New goal’s measure step with a Baseline of 0.42 USD and no Target offers “No target agreed yet? Propose it with just the baseline”; Check reads “A number at 0.42 USD now. No target is set yet”, and Propose goal saves it with no target; its page says “Target not set” with Set the target as its one primary and no status shape; Set the target opens Change it, and once 0.30 is saved it can be made active', 22, async (h, device) => {
+  const p = h.use(await newPage(device, 'tunde'));
+  const on = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2026-11-11';
+  await p.goto(on('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await h.fill(p.getByLabel(/Name it the way/), 'Cost per pipeline run');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await h.fill(p.getByLabel(/^Unit/), 'USD');
+  await h.fill(p.getByLabel(/^Baseline$/), '0.42');
+  const offer = p.getByRole('button', { name: 'No target agreed yet? Propose it with just the baseline' });
+  h.set('entry', await offer.isVisible().catch(() => false), 'the measure step with a Baseline and no Target doesn’t offer to propose it without one');
+  await h.click(offer);
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await see(p, 'A number at 0.42 USD now. No target is set yet', 'Check doesn’t read back that no target is set');
+  h.set('errors', (await p.getByRole('radio', { name: /Not yet: propose it/ }).isChecked().catch(() => false)), '“Is it under way?” isn’t on “Not yet: propose it” after choosing to propose it');
+  await h.checkpoint('check');
+  await h.click(p.getByRole('button', { name: 'Propose goal' }));
+  await p.waitForURL(/\/goals\/[^/?]+\?.*published=1/);
+  const id = new URL(p.url()).pathname.split('/').pop();
+  const page = p.locator('.goal-proposed');
+  await page.waitFor();
+  h.set('progress', true);
+  await see(page, 'Target not set', 'the proposed goal’s page doesn’t say “Target not set”');
+  h.set('a11y', (await page.locator('.status-shape').count()) === 0, 'a goal with no target draws a status shape');
+  const snap = await h.snapshot();
+  const made = (snap.goals ?? []).find((g) => g.id === id);
+  h.set('logged', !!made && !!made.proposedAt && made.kind === 'metric' && made.targetUnset === true && made.plan.start === 0.42 && made.unit === 'USD', 'the goal wasn’t saved proposed, as a number goal with its baseline and no target');
+  const primary = page.locator('.proposed-actions .btn.primary');
+  h.set('attention', (await primary.count()) === 1 && (await primary.innerText()).trim() === 'Set the target', `the one primary reads “${(await primary.first().innerText().catch(() => '')).trim()}”, not “Set the target”`);
+  await h.checkpoint('target not set');
+  await h.click(primary);
+  await p.waitForURL(/\/edit/);
+  const target = p.locator('[data-field="target"]').first();
+  await target.waitFor();
+  await h.fill(target, '0.30');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL((u) => !u.pathname.endsWith('/edit'));
+  await page.waitFor();
+  const active = page.getByRole('button', { name: 'Make it active' });
+  h.set('finish', (await active.isVisible().catch(() => false)) && !(await page.innerText()).includes('Target not set'), 'once its target is set, the page doesn’t offer Make it active');
+  const after = (await h.snapshot()).goals.find((g) => g.id === id);
+  h.set('logged', !!after && !after.targetUnset && after.plan.target === 0.3, 'the target wasn’t saved');
+  await p.context().close();
+}, []);
+
 journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, a goal stopped with a reason is gone from Goals and listed with the State filter on Stopped (“1 stopped goal, most recently stopped first.”), with the Stopped mark, who stopped it and when, and the reason; the Filters sheet’s State offers Active, Proposed and Stopped; Remove goes back to the active goals', 15, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   const on = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2026-11-11';

@@ -20,7 +20,7 @@ import { fieldNeedOf, type Required } from './columns';
 import { buildGoal, decimalsFor, draftOf, pastStage, planChanged, planQuestion, stagesDoneAtSetUp, withPoints, type GoalDraft } from './goal';
 import { periodProblem } from './baseline';
 import { findGoal, nextKey } from './goalKey';
-import { isProposed, measureEmpty, withProposed } from './proposed';
+import { baselineOnly, isProposed, measureEmpty, withProposed } from './proposed';
 import { MARKS_STAGES, mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { fold } from './find';
 import { FAR_RATIO, groupDigits, notNumberText, numberAsTyped, parseNumber, placesText, typedDecimals, usuallyPositive } from './numbers';
@@ -665,7 +665,9 @@ const MEASURE_REQUIRED = new Set<MustFix['id']>(['start-empty', 'target-empty', 
  */
 export function proposedMustFix(d: GoalDraft, ctx: MustFixContext): MustFix[] {
   const all = goalMustFix(d, ctx);
-  return measureEmpty(d) ? all.filter((f) => !MEASURE_REQUIRED.has(f.id)) : all;
+  if (measureEmpty(d)) return all.filter((f) => !MEASURE_REQUIRED.has(f.id));
+  // A baseline and nothing else yet (GB): a number goal's target may stay empty while it is proposed.
+  return baselineOnly(d) ? all.filter((f) => f.id !== 'target-empty') : all;
 }
 
 /** The draft a proposed goal with nothing measured is stored as. */

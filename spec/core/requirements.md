@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (168): build it as Faro does.
+- **Copy** (169): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -376,7 +376,7 @@ A goal can be proposed before anyone is held to it: it is visible and can be dis
 - **Copy:** build it as Faro does.
 - **Rule:** [Proposed goals](rules/proposed.md)
 - **Help:** “Proposed goals” (`goal-proposed`), screens `ProposedGoal`, `ProposedList`
-- **Journeys and checks:** U134, U148, U149, U150
+- **Journeys and checks:** U134, U148, U149, U150, U163
 
 ### NEW-GOAL-TRUTH
 
@@ -396,6 +396,15 @@ A baseline can be a figure of its own (BL). A number goal's Baseline can say the
 - **Rule:** [A baseline of its own](rules/baseline.md)
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** U162
+
+### GOAL-NO-TARGET
+
+A goal can go in with a baseline and nothing else yet (GB). While a number goal is proposed, its target may be left out: it keeps its baseline and unit, has no status, nothing due and is in no count, says "Target not set" (on its page, with Set the target, and in lists as "{baseline} now, target not set"), and is made active only once a target is set. New goal, Change a goal, the Goals sheet and the tools all allow it; an active goal still needs a target.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [Proposed goals](rules/proposed.md)
+- **Help:** “Proposed goals” (`goal-proposed`), screens `ProposedGoal`, `ProposedList`
+- **Journeys and checks:** U163
 
 ### GOAL-PAGE
 

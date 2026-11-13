@@ -689,7 +689,7 @@ Anyone can set up a goal, for themselves or for anyone else, at any level: here,
 
 `goal-proposed`. A goal can be proposed before anyone is held to it: everyone can see it and comment, it has no status and nothing is due, and its owner or an admin makes it active when it is agreed.
 
-Routes: `/goals?state=proposed`. Screens: `ProposedGoal`, `ProposedList`. Requirements: `GOAL-PROPOSED`.
+Routes: `/goals?state=proposed`. Screens: `ProposedGoal`, `ProposedList`. Requirements: `GOAL-PROPOSED`, `GOAL-NO-TARGET`.
 
 #### What it’s for
 
@@ -700,6 +700,7 @@ Putting a goal in front of its would-be owner, or a leader, without committing t
 - Propose one from New goal: on Check, answer “Is it under way?” with “Not yet: propose it”, then Propose goal. It gets a key and a page at once. How it’s measured may wait.
 - Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.
 - Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.
+- A number goal can be proposed with its Baseline and no Target yet, when the number is known but nobody has agreed where it should go. It says “Target not set” (in lists: “0.42 USD now, target not set”), has no status and nothing due, and needs a target before it can be made active: Set the target on its page opens Change it at the plan. Leaving out the Baseline and giving only a Target isn’t enough: the baseline is what such a goal is.
 - Change it: the same page as any goal, with no reason ever asked, and its type can still change. Withdraw it: it goes to Recently removed for 30 days, with Undo.
 - Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.
 - In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet. Only people in the review, or an admin, can propose one there.

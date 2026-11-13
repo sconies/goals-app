@@ -32,8 +32,8 @@ Stage 2’s drill scores the change engine: for each case (rows loaded from a sh
 
 | File | Rows expected | Columns, in this order |
 |---|---|---|
-| `changes.csv` | 129 | `case`, `row`, `actor`, `sheet`, `line`, `rows`, `answers`, `given`, `target`, `name`, `kind`, `diffs`, `counts`, `unchanged`, `needs_reason`, `saves` |
-| `import.csv` | 67 | `case`, `actor`, `sheet`, `rows`, `answers`, `given`, `kind`, `level`, `group`, `message`, `must`, `questions`, `saves`, `kinds` |
+| `changes.csv` | 133 | `case`, `row`, `actor`, `sheet`, `line`, `rows`, `answers`, `given`, `target`, `name`, `kind`, `diffs`, `counts`, `unchanged`, `needs_reason`, `saves` |
+| `import.csv` | 70 | `case`, `actor`, `sheet`, `rows`, `answers`, `given`, `kind`, `level`, `group`, `message`, `must`, `questions`, `saves`, `kinds` |
 
 - What each file’s rows are, and the cases or viewers to run, is in [the conformance data](../conformance/README.md#the-files): every input a row needs is in the row or in `workspace.json`. Rows are matched by their key columns, columns by name, text exactly.
 
