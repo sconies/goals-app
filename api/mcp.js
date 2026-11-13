@@ -13665,35 +13665,40 @@ var SCOPES = [
 */
 function scopesFor(f, last) {
 	const tabs = [];
-	const mine = f.goals.filter((g) => g.ownerId === f.viewerId).map((g) => g.id);
+	const mine = scopeIds(f, "mine");
 	if (mine.length) tabs.push({
 		id: "mine",
 		label: "Mine",
 		ids: mine
 	});
-	if (f.teams.length) {
-		const ids = new Set(f.teams.map((t) => t.id));
-		tabs.push({
-			id: "team",
-			label: f.teams.length === 1 ? "My team" : "My teams",
-			ids: f.goals.filter((g) => ids.has(g.teamId)).map((g) => g.id)
-		});
-	}
+	if (f.teams.length) tabs.push({
+		id: "team",
+		label: f.teams.length === 1 ? "My team" : "My teams",
+		ids: scopeIds(f, "team")
+	});
 	tabs.push({
 		id: "watching",
 		label: "Watching",
-		ids: f.goals.filter((g) => f.watched.has(g.id)).map((g) => g.id)
+		ids: scopeIds(f, "watching")
 	});
 	tabs.push({
 		id: "all",
 		label: "All",
-		ids: f.goals.map((g) => g.id)
+		ids: scopeIds(f, "all")
 	});
 	const has = (s) => !!s && tabs.some((t) => t.id === s);
 	return {
 		tabs,
 		opens: has(last) ? last : mine.length ? "mine" : tabs.find((t) => t.id === "watching").ids.length ? "watching" : "all"
 	};
+}
+/** The goals in a scope, by id, in the workspace's order. "team" is the viewer's own team and the teams they lead. */
+function scopeIds(f, scope) {
+	if (scope === "all") return f.goals.map((g) => g.id);
+	if (scope === "mine") return f.goals.filter((g) => g.ownerId === f.viewerId).map((g) => g.id);
+	if (scope === "watching") return f.goals.filter((g) => f.watched.has(g.id)).map((g) => g.id);
+	const teams = new Set(scope === "team" ? f.teams.map((t) => t.id) : [scope.slice(5)]);
+	return f.goals.filter((g) => teams.has(g.teamId)).map((g) => g.id);
 }
 // src/ports/search.ts
 /** The core's kinds; a module adds its own (the metric library: 'metric'). */
@@ -15978,7 +15983,7 @@ var CORE_ARTICLES = [
 				text: ["Until company sign-in arrives, the app asks once on each device which one you are and remembers the answer. Choose Not you? in the person menu to change it. In the internal app, signing in with your company login replaces this step.", "Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If it can’t open you, it says you can’t open the workspace yet, and why: you aren’t signed in; no one there has that email; more than one person has it; or you’re marked as having left. Nothing of the workspace is shown. Copy a message for them writes the note to send whoever set it up, and Try again looks once more after they’ve fixed it."]
 			}
 		],
-		routes: ["/join/:workspaceId"],
+		routes: ["/join/:workspaceId/*"],
 		screens: ["Start"],
 		reqs: ["SETUP-FIRST-SCREEN", "IDENTITY"],
 		keywords: [
@@ -18147,6 +18152,7 @@ var CORE_ARTICLES = [
 					"Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.",
 					"When Faro is updated while you have it open, the page you are on may reload itself once, at the same address, to load the new version. Anything you were typing is kept as a draft. If it still can’t load, you see Reload and Home instead.",
 					"Offline, a page Faro hasn’t loaded yet (Help, say) tells you it needs a connection instead of reloading. Try again opens it once you’re back online; Go back returns you to where you were.",
+					"The same goes for saving: if the part of Faro that saves a check-in or a change hasn’t loaded, Post check-in tells you so instead of doing nothing. Offline, try again once you’re back online; online, it reloads the page, or offers Reload, and keeps what you typed.",
 					"Feedback, in the menu’s last group or in More, has Send feedback: it tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro."
 				]
 			},
@@ -18316,6 +18322,17 @@ var WHATS_NEW = [
 			"Activity no longer gives a name twice when someone opens a workspace for the first time."
 		],
 		articles: ["joining", "welcome"]
+	},
+	{
+		id: "save-part-not-loaded",
+		date: "2026-11-12",
+		title: "Saving says when it can’t",
+		points: [
+			"If the part of Faro that saves a check-in hasn’t loaded (you went offline before it arrived, say), Post check-in now says so instead of doing nothing until you reload.",
+			"Offline, it asks you to try again once you’re back online. Online, it reloads the page or offers Reload, and what you typed is kept.",
+			"Home now really lists your goals worst first, then by name, as the last release said."
+		],
+		articles: ["any-device", "home"]
 	},
 	{
 		id: "asks-say-how-long",

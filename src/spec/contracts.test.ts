@@ -6,13 +6,22 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { checkThen, runContract } from '../../scripts/drill.mjs';
-import { CONTRACTS } from './contracts';
+import { contracts } from './contracts';
 import { PREFS_CONTRACT } from '../ports/contracts/cases/prefs';
 import { SEARCH_CONTRACT, WORST_FIRST } from '../ports/contracts/cases/search';
 import { seededSearch } from '../adapters/contractPorts';
 import { caller, methods } from '../ports/contracts/cases/run';
 import { searchStart } from '../ports/contracts/search';
 import type { Search } from '../ports/search';
+import { GOALS_CONTRACT, goalsStart } from '../ports/contracts/goals';
+import { localGoals } from '../adapters/localGoals';
+import { goalRows, scopeFacts } from '../app/reads';
+import { currentWeek } from '../domain/plan';
+import { asOf, type ConformanceWorkspace } from './conformance';
+import conformanceJson from '../../spec/conformance/workspace.json';
+
+const conf = conformanceJson as unknown as ConformanceWorkspace;
+const at = new Date(conf.builtFor);
 
 const root = path.resolve(__dirname, '../..');
 
@@ -49,8 +58,28 @@ describe('the port contracts as data (spec/conformance/contracts)', () => {
     expect(results.find((r) => !r.pass)!.problems[0]).toMatch(/rows\[\]\.status: out of order/);
   });
 
+  it('fails a goals port that moves the next page when a goal is added between pages, naming the case', async () => {
+    // A port that pages by position, not by key: the goal added first pushes the next page one row along.
+    const results = await runContract(GOALS_CONTRACT(), caller({ goals: goalsStart(async () => asOf(conf, at), async (s, viewer) => {
+      const rows = goalRows(s, conf.cycle, at, currentWeek(conf.cycle, at));
+      const real = localGoals(() => rows, () => scopeFacts(s, { id: viewer, teamId: s.people.find((p) => p.id === viewer)?.teamId ?? null }));
+      return { ...real, async goals(ask) {
+        if (!ask.after) return real.goals(ask);
+        const all = (await real.goals({ ...ask, after: null, size: 10_000 })).total;
+        const everyRow = [] as Awaited<ReturnType<typeof real.goals>>['rows'];
+        let next: string | null = null;
+        do { const p = await real.goals({ ...ask, after: next, size: 50 }); everyRow.push(...p.rows); next = p.next; } while (next);
+        const from = Number(ask.after);
+        const size = ask.size ?? 50;
+        return { rows: everyRow.slice(from, from + size), next: from + size < all ? String(from + size) : null, total: all };
+      } };
+    }) }));
+    expect(results.filter((r) => !r.pass).map((r) => r.name)).toContain('pages by key: every goal once and none twice, and a goal added between pages doesn’t move the next page');
+  });
+
   it('writes every contract to the kit as it is in the code', () => {
-    for (const c of CONTRACTS) expect(JSON.parse(fs.readFileSync(path.join(root, `spec/conformance/contracts/${c.port}.json`), 'utf8'))).toEqual(JSON.parse(JSON.stringify(c)));
+    const conformance = (f: string) => fs.readFileSync(path.join(root, 'spec/conformance', f), 'utf8');
+    for (const c of contracts(conformance)) expect(JSON.parse(fs.readFileSync(path.join(root, `spec/conformance/contracts/${c.port}.json`), 'utf8'))).toEqual(JSON.parse(JSON.stringify(c)));
   });
 
   it('runs every contract through a build’s shim, and fails one that forgets on reopening', () => {

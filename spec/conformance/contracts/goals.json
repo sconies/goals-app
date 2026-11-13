@@ -1,0 +1,3111 @@
+{
+  "port": "goals",
+  "about": "The query port’s goal calls (`Goals`): what Home, Goals and the AI tools read about goals, a page of summary rows at a time, each row what the stage 1 rules say about the goal now. `given` names the conformance workspace (`workspace.json`, beside this folder) as it stood at its `builtFor`, asked by `viewer` (for scopes): the shim makes a port over it. An ask is `{ query, scope?, after?, size? }`, where `query` is a Goals link’s query string (`status=off&sort=title`; the Goals screen’s filters and sort, [the Goals page](../../core/rules/goals-page.md)) and `scope` names a Goals scope, answered for the viewer. A row is the goal’s summary without its check-ins: `goal` (the record), `status`, `attention.flags` (each with its `kind`) and the rest.",
+  "ops": {
+    "given": "Start a fresh port over this workspace, for this viewer. Answers null.",
+    "goals": "(ask) One page of the goals the query matches: `{ rows, next, total, near? }`, at most 50 rows whatever `size` asks for, in the query’s sort, or worst first then by title with no sort. `next` is the key to ask the next page with (`after`), null on the last; `near` is the near miss a search found nothing for (find rule 5).",
+    "counts": "(ask without paging) `{ total, status, attention }` for the same filter: how many match, how many in each status, and how many need attention with the query’s own attention filter left off.",
+    "goal": "(id) One live goal’s summary with its check-ins (`checkIns`); null for a goal that isn’t live here.",
+    "add": "(goal) A goal is saved to the workspace by someone else, between two of your calls: later calls see it. Answers null."
+  },
+  "given": {
+    "workspace": "workspace.json",
+    "viewer": "rhea"
+  },
+  "cases": [
+    {
+      "name": "answers the Goals query (every goal) as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": ""
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 126
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "cfr-halt",
+              "lead-runners",
+              "vuln-containers",
+              "env-tpl-data",
+              "ml-gpu",
+              "fresh-kafka",
+              "ns-lead",
+              "lead-mq",
+              "lead-merge",
+              "lead-ci-time",
+              "slo-multiregion",
+              "mttr-runbooks",
+              "vuln-autofix",
+              "ns-cfr",
+              "cfr-contract",
+              "ns-vuln",
+              "slo-latency",
+              "ns-devsat",
+              "lead-flaky",
+              "env-templates",
+              "devsat-toil",
+              "dep-jenkins",
+              "fresh-lakehouse",
+              "ml-eval",
+              "cost-storage",
+              "mttr-noise",
+              "devsat-docs",
+              "env-search",
+              "lead-review-rota",
+              "mttr-gamedays",
+              "ns-env",
+              "net-mtls",
+              "fresh-streaming",
+              "vuln-distroless",
+              "iam-groups",
+              "lead-review-bot",
+              "ai-useful",
+              "ci-docker",
+              "cost-spot",
+              "cfr-tests",
+              "lead-arm",
+              "ns-ci",
+              "ns-cost",
+              "slo-capacity",
+              "cost-commit",
+              "cost-rightsize",
+              "ns-slo",
+              "fresh-quality",
+              "slo-failover",
+              "devsat-onboard",
+              "lead-batch",
+              "devsat-devcontainers",
+              "laptops",
+              "ai-workshop",
+              "devex-remote",
+              "ai-assist",
+              "env-tickets",
+              "cfr-postmortem",
+              "fresh-ml",
+              "lead-quarantine",
+              "cost-idle",
+              "mttr-aiops",
+              "net-ipv6",
+              "iam-sso",
+              "ci-shard-js",
+              "cost-requests",
+              "cost-logs",
+              "iam-keys",
+              "dep-gates",
+              "mttr-detect",
+              "ns-mttr",
+              "env-provision",
+              "ml-registry",
+              "ml-serving",
+              "mttr-oncall",
+              "lead-rollback",
+              "dep-gates-perf",
+              "dep-templates",
+              "devsat-support",
+              "mttr-pir",
+              "iam-jit",
+              "ns-deploy",
+              "slo-edge",
+              "lead-review-small",
+              "ns-ai",
+              "iam-review",
+              "build-sign",
+              "dep-freeze",
+              "dep-flags",
+              "lead-cache",
+              "vuln-sca",
+              "ai-default",
+              "dep-gates-sec",
+              "env-scorecards",
+              "mttr-slo-alerts",
+              "dep-selfserve",
+              "ci-docker-slim",
+              "vuln-sbom",
+              "vuln-vault",
+              "devsat-localdev",
+              "slo-catalogue",
+              "devsat-actions",
+              "fresh-catalogue",
+              "cost-showback",
+              "env-portal",
+              "ci-shard",
+              "lead-testown",
+              "cfr-progressive",
+              "mttr-traces",
+              "obs-dashboards",
+              "slo-coverage",
+              "lead-canary",
+              "ns-fresh",
+              "fresh-contracts",
+              "lead-review",
+              "vuln-secrets",
+              "fresh-cdc",
+              "ci-cost",
+              "vuln-pentest",
+              "slo-gtm",
+              "env-gpu",
+              "env-tpl-java",
+              "ci-shard-java",
+              "ci-docker-registry",
+              "ai-approval",
+              "ci-dedupe"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": ""
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 126,
+              "status": {
+                "off": 11,
+                "risk": 21,
+                "stale": 2,
+                "none": 2,
+                "on": 82,
+                "planned": 0,
+                "done": 8
+              },
+              "attention": 36
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “status=off” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "status=off"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 11
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "cfr-halt",
+              "lead-runners",
+              "vuln-containers",
+              "env-tpl-data",
+              "ml-gpu",
+              "fresh-kafka",
+              "ns-lead",
+              "lead-mq",
+              "lead-merge",
+              "lead-ci-time",
+              "slo-multiregion"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "status=off"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 11,
+              "status": {
+                "off": 11,
+                "risk": 0,
+                "stale": 0,
+                "none": 0,
+                "on": 0,
+                "planned": 0,
+                "done": 0
+              },
+              "attention": 11
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “status=off,risk” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "status=off,risk"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 32
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "cfr-halt",
+              "lead-runners",
+              "vuln-containers",
+              "env-tpl-data",
+              "ml-gpu",
+              "fresh-kafka",
+              "ns-lead",
+              "lead-mq",
+              "lead-merge",
+              "lead-ci-time",
+              "slo-multiregion",
+              "mttr-runbooks",
+              "vuln-autofix",
+              "ns-cfr",
+              "cfr-contract",
+              "ns-vuln",
+              "slo-latency",
+              "ns-devsat",
+              "lead-flaky",
+              "env-templates",
+              "devsat-toil",
+              "dep-jenkins",
+              "fresh-lakehouse",
+              "ml-eval",
+              "mttr-noise",
+              "devsat-docs",
+              "lead-review-rota",
+              "mttr-gamedays",
+              "ns-env",
+              "net-mtls",
+              "fresh-streaming",
+              "vuln-distroless"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "status=off,risk"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 32,
+              "status": {
+                "off": 11,
+                "risk": 21,
+                "stale": 0,
+                "none": 0,
+                "on": 0,
+                "planned": 0,
+                "done": 0
+              },
+              "attention": 31
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “attention=1” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "attention=1"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 37
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "cfr-halt",
+              "lead-runners",
+              "vuln-containers",
+              "env-tpl-data",
+              "ml-gpu",
+              "fresh-kafka",
+              "ns-lead",
+              "lead-mq",
+              "lead-merge",
+              "lead-ci-time",
+              "slo-multiregion",
+              "mttr-runbooks",
+              "vuln-autofix",
+              "ns-cfr",
+              "cfr-contract",
+              "ns-vuln",
+              "slo-latency",
+              "ns-devsat",
+              "lead-flaky",
+              "env-templates",
+              "devsat-toil",
+              "dep-jenkins",
+              "fresh-lakehouse",
+              "ml-eval",
+              "cost-storage",
+              "mttr-noise",
+              "devsat-docs",
+              "env-search",
+              "lead-review-rota",
+              "mttr-gamedays",
+              "ns-env",
+              "net-mtls",
+              "fresh-streaming",
+              "vuln-distroless",
+              "fresh-ml",
+              "cost-requests",
+              "mttr-detect"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "attention=1"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 37,
+              "status": {
+                "off": 11,
+                "risk": 21,
+                "stale": 2,
+                "none": 0,
+                "on": 3,
+                "planned": 0,
+                "done": 0
+              },
+              "attention": 36
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “attention=1&needs=stale” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "attention=1&needs=stale"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 2
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "cost-storage",
+              "env-search"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "attention=1&needs=stale"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 2,
+              "status": {
+                "off": 0,
+                "risk": 0,
+                "stale": 2,
+                "none": 0,
+                "on": 0,
+                "planned": 0,
+                "done": 0
+              },
+              "attention": 36
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “team=cicd” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "team=cicd"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 17
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "lead-runners",
+              "ns-lead",
+              "lead-mq",
+              "lead-ci-time",
+              "lead-flaky",
+              "ci-docker",
+              "lead-arm",
+              "lead-quarantine",
+              "ci-shard-js",
+              "lead-cache",
+              "ci-docker-slim",
+              "ci-shard",
+              "lead-testown",
+              "ci-cost",
+              "ci-shard-java",
+              "ci-docker-registry",
+              "ci-dedupe"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "team=cicd"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 17,
+              "status": {
+                "off": 4,
+                "risk": 1,
+                "stale": 0,
+                "none": 1,
+                "on": 8,
+                "planned": 0,
+                "done": 3
+              },
+              "attention": 5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “owner=rhea” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "owner=rhea"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 8
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "ns-lead",
+              "lead-ci-time",
+              "lead-flaky",
+              "ci-docker",
+              "dep-gates",
+              "ci-shard",
+              "ci-cost",
+              "ci-dedupe"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "owner=rhea"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 8,
+              "status": {
+                "off": 2,
+                "risk": 1,
+                "stale": 0,
+                "none": 1,
+                "on": 3,
+                "planned": 0,
+                "done": 1
+              },
+              "attention": 3
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “level=north-star” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "level=north-star"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 12
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "ns-lead",
+              "ns-cfr",
+              "ns-vuln",
+              "ns-devsat",
+              "ns-env",
+              "ns-ci",
+              "ns-cost",
+              "ns-slo",
+              "ns-mttr",
+              "ns-deploy",
+              "ns-ai",
+              "ns-fresh"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "level=north-star"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 12,
+              "status": {
+                "off": 1,
+                "risk": 4,
+                "stale": 0,
+                "none": 0,
+                "on": 7,
+                "planned": 0,
+                "done": 0
+              },
+              "attention": 4
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “kind=milestone” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "kind=milestone"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 19
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "cfr-halt",
+              "lead-runners",
+              "env-tpl-data",
+              "fresh-kafka",
+              "lead-mq",
+              "fresh-lakehouse",
+              "slo-failover",
+              "devsat-devcontainers",
+              "lead-rollback",
+              "dep-gates-perf",
+              "iam-review",
+              "env-scorecards",
+              "fresh-cdc",
+              "vuln-pentest",
+              "slo-gtm",
+              "env-tpl-java",
+              "ci-shard-java",
+              "ci-docker-registry",
+              "ai-approval"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "kind=milestone"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 19,
+              "status": {
+                "off": 5,
+                "risk": 1,
+                "stale": 0,
+                "none": 0,
+                "on": 6,
+                "planned": 0,
+                "done": 7
+              },
+              "attention": 6
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “q=tunde” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "q=tunde"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 2
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "cfr-contract",
+              "lead-rollback"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "q=tunde"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 2,
+              "status": {
+                "off": 0,
+                "risk": 1,
+                "stale": 0,
+                "none": 0,
+                "on": 1,
+                "planned": 0,
+                "done": 0
+              },
+              "attention": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “q=rolback” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "q=rolback"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 2
+                },
+                {
+                  "select": "near",
+                  "equals": "rollback"
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "ns-cfr",
+              "lead-rollback"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "q=rolback"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 2,
+              "status": {
+                "off": 0,
+                "risk": 1,
+                "stale": 0,
+                "none": 0,
+                "on": 1,
+                "planned": 0,
+                "done": 0
+              },
+              "attention": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “q=zzzz” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "q=zzzz"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 0
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": []
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "q=zzzz"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 0,
+              "status": {
+                "off": 0,
+                "risk": 0,
+                "stale": 0,
+                "none": 0,
+                "on": 0,
+                "planned": 0,
+                "done": 0
+              },
+              "attention": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “quiet=2” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "quiet=2"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 2
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "cost-storage",
+              "env-search"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "quiet=2"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 2,
+              "status": {
+                "off": 0,
+                "risk": 0,
+                "stale": 2,
+                "none": 0,
+                "on": 0,
+                "planned": 0,
+                "done": 0
+              },
+              "attention": 2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “feeds=ns-lead” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "feeds=ns-lead"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 17
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "lead-runners",
+              "ns-lead",
+              "lead-mq",
+              "lead-merge",
+              "lead-ci-time",
+              "lead-flaky",
+              "lead-review-rota",
+              "lead-review-bot",
+              "lead-arm",
+              "lead-batch",
+              "lead-quarantine",
+              "lead-rollback",
+              "lead-review-small",
+              "lead-cache",
+              "lead-testown",
+              "lead-canary",
+              "lead-review"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "feeds=ns-lead"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 17,
+              "status": {
+                "off": 5,
+                "risk": 2,
+                "stale": 0,
+                "none": 0,
+                "on": 10,
+                "planned": 0,
+                "done": 0
+              },
+              "attention": 7
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “sort=title” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "sort=title"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 126
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "iam-groups",
+              "lead-review-bot",
+              "ai-useful",
+              "mttr-runbooks",
+              "vuln-autofix",
+              "cfr-halt",
+              "lead-runners",
+              "ci-docker",
+              "cost-spot",
+              "fresh-cdc",
+              "ns-cfr",
+              "cfr-tests",
+              "ci-cost",
+              "lead-arm",
+              "ns-ci",
+              "ns-cost",
+              "slo-capacity",
+              "cost-commit",
+              "cost-rightsize",
+              "vuln-containers",
+              "cfr-contract",
+              "ns-vuln",
+              "slo-latency",
+              "ns-slo",
+              "env-tpl-data",
+              "fresh-quality",
+              "slo-failover",
+              "devsat-onboard",
+              "lead-batch",
+              "devsat-devcontainers",
+              "ns-devsat",
+              "laptops",
+              "ai-workshop",
+              "devex-remote",
+              "ai-assist",
+              "env-tickets",
+              "vuln-pentest",
+              "cfr-postmortem",
+              "fresh-ml",
+              "lead-flaky",
+              "lead-quarantine",
+              "slo-gtm",
+              "env-templates",
+              "env-gpu",
+              "ml-gpu",
+              "devsat-toil",
+              "cost-idle",
+              "mttr-aiops",
+              "net-ipv6",
+              "iam-sso",
+              "env-tpl-java",
+              "ci-shard-java",
+              "ci-shard-js",
+              "dep-jenkins",
+              "fresh-kafka",
+              "cost-requests",
+              "fresh-lakehouse",
+              "ns-lead",
+              "cost-logs",
+              "iam-keys",
+              "dep-gates",
+              "mttr-detect",
+              "ns-mttr",
+              "env-provision",
+              "lead-mq",
+              "lead-merge",
+              "ml-eval",
+              "ml-registry",
+              "ml-serving",
+              "cost-storage",
+              "mttr-oncall",
+              "lead-rollback",
+              "mttr-noise",
+              "dep-gates-perf",
+              "lead-ci-time",
+              "dep-templates",
+              "devsat-docs",
+              "devsat-support",
+              "env-search",
+              "mttr-pir",
+              "iam-jit",
+              "ns-deploy",
+              "slo-edge",
+              "lead-review-small",
+              "ns-ai",
+              "ci-docker-registry",
+              "iam-review",
+              "build-sign",
+              "dep-freeze",
+              "dep-flags",
+              "lead-cache",
+              "lead-review-rota",
+              "vuln-sca",
+              "ai-default",
+              "mttr-gamedays",
+              "ai-approval",
+              "dep-gates-sec",
+              "ns-env",
+              "env-scorecards",
+              "net-mtls",
+              "mttr-slo-alerts",
+              "dep-selfserve",
+              "ci-docker-slim",
+              "vuln-sbom",
+              "vuln-vault",
+              "devsat-localdev",
+              "slo-catalogue",
+              "devsat-actions",
+              "ci-dedupe",
+              "fresh-catalogue",
+              "cost-showback",
+              "env-portal",
+              "ci-shard",
+              "lead-testown",
+              "cfr-progressive",
+              "fresh-streaming",
+              "mttr-traces",
+              "vuln-distroless",
+              "slo-multiregion",
+              "obs-dashboards",
+              "slo-coverage",
+              "lead-canary",
+              "ns-fresh",
+              "fresh-contracts",
+              "lead-review",
+              "vuln-secrets"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "sort=title"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 126,
+              "status": {
+                "off": 11,
+                "risk": 21,
+                "stale": 2,
+                "none": 2,
+                "on": 82,
+                "planned": 0,
+                "done": 8
+              },
+              "attention": 36
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “sort=last” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "sort=last"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 126
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "env-tpl-java",
+              "ci-shard-java",
+              "ai-approval",
+              "ci-dedupe",
+              "ci-docker-registry",
+              "slo-gtm",
+              "env-search",
+              "vuln-pentest",
+              "cost-storage",
+              "ci-cost",
+              "env-gpu",
+              "dep-jenkins",
+              "lead-batch",
+              "ns-vuln",
+              "iam-groups",
+              "cfr-tests",
+              "cost-commit",
+              "mttr-aiops",
+              "ci-shard-js",
+              "slo-edge",
+              "ci-docker-slim",
+              "lead-review",
+              "ci-docker",
+              "env-provision",
+              "ai-default",
+              "fresh-cdc",
+              "cfr-halt",
+              "cfr-contract",
+              "slo-latency",
+              "lead-flaky",
+              "env-templates",
+              "devsat-toil",
+              "ml-eval",
+              "mttr-noise",
+              "devsat-docs",
+              "ns-env",
+              "net-mtls",
+              "vuln-distroless",
+              "lead-review-bot",
+              "ai-useful",
+              "lead-arm",
+              "ns-ci",
+              "ns-cost",
+              "ns-slo",
+              "slo-failover",
+              "devex-remote",
+              "ai-assist",
+              "env-tickets",
+              "fresh-ml",
+              "cost-logs",
+              "iam-keys",
+              "mttr-detect",
+              "ns-mttr",
+              "lead-rollback",
+              "dep-gates-perf",
+              "devsat-support",
+              "ns-deploy",
+              "lead-review-small",
+              "iam-review",
+              "build-sign",
+              "dep-freeze",
+              "mttr-slo-alerts",
+              "vuln-sbom",
+              "devsat-localdev",
+              "slo-catalogue",
+              "fresh-catalogue",
+              "cost-showback",
+              "env-portal",
+              "ci-shard",
+              "cfr-progressive",
+              "mttr-traces",
+              "slo-coverage",
+              "lead-canary",
+              "ns-fresh",
+              "vuln-secrets",
+              "lead-runners",
+              "vuln-containers",
+              "env-tpl-data",
+              "ml-gpu",
+              "fresh-kafka",
+              "ns-lead",
+              "lead-mq",
+              "lead-merge",
+              "lead-ci-time",
+              "slo-multiregion",
+              "mttr-runbooks",
+              "vuln-autofix",
+              "ns-cfr",
+              "ns-devsat",
+              "fresh-lakehouse",
+              "lead-review-rota",
+              "mttr-gamedays",
+              "fresh-streaming",
+              "cost-spot",
+              "slo-capacity",
+              "cost-rightsize",
+              "fresh-quality",
+              "devsat-onboard",
+              "devsat-devcontainers",
+              "laptops",
+              "ai-workshop",
+              "cfr-postmortem",
+              "lead-quarantine",
+              "cost-idle",
+              "net-ipv6",
+              "iam-sso",
+              "cost-requests",
+              "dep-gates",
+              "ml-registry",
+              "ml-serving",
+              "mttr-oncall",
+              "dep-templates",
+              "mttr-pir",
+              "iam-jit",
+              "ns-ai",
+              "dep-flags",
+              "lead-cache",
+              "vuln-sca",
+              "dep-gates-sec",
+              "env-scorecards",
+              "dep-selfserve",
+              "vuln-vault",
+              "devsat-actions",
+              "lead-testown",
+              "obs-dashboards",
+              "fresh-contracts"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "sort=last"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 126,
+              "status": {
+                "off": 11,
+                "risk": 21,
+                "stale": 2,
+                "none": 2,
+                "on": 82,
+                "planned": 0,
+                "done": 8
+              },
+              "attention": 36
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “sort=due.desc” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "sort=due.desc"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 126
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "vuln-containers",
+              "ml-gpu",
+              "ns-lead",
+              "lead-merge",
+              "lead-ci-time",
+              "slo-multiregion",
+              "mttr-runbooks",
+              "vuln-autofix",
+              "ns-cfr",
+              "cfr-contract",
+              "ns-vuln",
+              "slo-latency",
+              "ns-devsat",
+              "lead-flaky",
+              "env-templates",
+              "devsat-toil",
+              "dep-jenkins",
+              "ml-eval",
+              "cost-storage",
+              "mttr-noise",
+              "devsat-docs",
+              "env-search",
+              "lead-review-rota",
+              "mttr-gamedays",
+              "ns-env",
+              "net-mtls",
+              "fresh-streaming",
+              "vuln-distroless",
+              "iam-groups",
+              "lead-review-bot",
+              "ai-useful",
+              "ci-docker",
+              "cost-spot",
+              "cfr-tests",
+              "lead-arm",
+              "ns-ci",
+              "ns-cost",
+              "slo-capacity",
+              "cost-commit",
+              "cost-rightsize",
+              "ns-slo",
+              "fresh-quality",
+              "devsat-onboard",
+              "lead-batch",
+              "laptops",
+              "ai-workshop",
+              "devex-remote",
+              "ai-assist",
+              "env-tickets",
+              "cfr-postmortem",
+              "fresh-ml",
+              "lead-quarantine",
+              "cost-idle",
+              "mttr-aiops",
+              "net-ipv6",
+              "iam-sso",
+              "ci-shard-js",
+              "cost-requests",
+              "cost-logs",
+              "iam-keys",
+              "dep-gates",
+              "mttr-detect",
+              "ns-mttr",
+              "env-provision",
+              "ml-registry",
+              "ml-serving",
+              "mttr-oncall",
+              "dep-templates",
+              "devsat-support",
+              "mttr-pir",
+              "iam-jit",
+              "ns-deploy",
+              "slo-edge",
+              "lead-review-small",
+              "ns-ai",
+              "build-sign",
+              "dep-freeze",
+              "dep-flags",
+              "lead-cache",
+              "vuln-sca",
+              "ai-default",
+              "dep-gates-sec",
+              "mttr-slo-alerts",
+              "dep-selfserve",
+              "ci-docker-slim",
+              "vuln-sbom",
+              "vuln-vault",
+              "devsat-localdev",
+              "slo-catalogue",
+              "devsat-actions",
+              "fresh-catalogue",
+              "cost-showback",
+              "env-portal",
+              "ci-shard",
+              "lead-testown",
+              "cfr-progressive",
+              "mttr-traces",
+              "obs-dashboards",
+              "slo-coverage",
+              "lead-canary",
+              "ns-fresh",
+              "fresh-contracts",
+              "lead-review",
+              "vuln-secrets",
+              "ci-cost",
+              "env-gpu",
+              "ci-dedupe",
+              "iam-review",
+              "slo-failover",
+              "dep-gates-perf",
+              "fresh-lakehouse",
+              "lead-rollback",
+              "devsat-devcontainers",
+              "env-scorecards",
+              "lead-runners",
+              "fresh-cdc",
+              "ci-docker-registry",
+              "cfr-halt",
+              "env-tpl-data",
+              "fresh-kafka",
+              "lead-mq",
+              "vuln-pentest",
+              "slo-gtm",
+              "ci-shard-java",
+              "env-tpl-java",
+              "ai-approval"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "sort=due.desc"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 126,
+              "status": {
+                "off": 11,
+                "risk": 21,
+                "stale": 2,
+                "none": 2,
+                "on": 82,
+                "planned": 0,
+                "done": 8
+              },
+              "attention": 36
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the Goals query “status=on&sort=gap” as goals.csv says",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "status=on&sort=gap"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "all": [
+                {
+                  "select": "total",
+                  "equals": 82
+                },
+                {
+                  "select": "near",
+                  "absent": true
+                }
+              ]
+            }
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "iam-groups",
+              "lead-review-bot",
+              "ai-useful",
+              "ci-docker",
+              "cost-spot",
+              "cfr-tests",
+              "lead-arm",
+              "ns-ci",
+              "ns-cost",
+              "slo-capacity",
+              "cost-commit",
+              "cost-rightsize",
+              "ns-slo",
+              "fresh-quality",
+              "slo-failover",
+              "devsat-onboard",
+              "lead-batch",
+              "devsat-devcontainers",
+              "laptops",
+              "ai-workshop",
+              "devex-remote",
+              "env-tickets",
+              "cfr-postmortem",
+              "fresh-ml",
+              "lead-quarantine",
+              "net-ipv6",
+              "iam-sso",
+              "ci-shard-js",
+              "cost-requests",
+              "cost-logs",
+              "dep-gates",
+              "mttr-detect",
+              "ns-mttr",
+              "env-provision",
+              "mttr-oncall",
+              "lead-rollback",
+              "dep-gates-perf",
+              "dep-templates",
+              "devsat-support",
+              "mttr-pir",
+              "iam-jit",
+              "ns-deploy",
+              "slo-edge",
+              "lead-review-small",
+              "ns-ai",
+              "iam-review",
+              "build-sign",
+              "dep-freeze",
+              "lead-cache",
+              "vuln-sca",
+              "ai-default",
+              "dep-gates-sec",
+              "env-scorecards",
+              "dep-selfserve",
+              "ci-docker-slim",
+              "vuln-vault",
+              "devsat-localdev",
+              "slo-catalogue",
+              "devsat-actions",
+              "fresh-catalogue",
+              "env-portal",
+              "ci-shard",
+              "lead-testown",
+              "cfr-progressive",
+              "mttr-traces",
+              "obs-dashboards",
+              "slo-coverage",
+              "lead-canary",
+              "ns-fresh",
+              "fresh-contracts",
+              "lead-review",
+              "vuln-secrets",
+              "ai-assist",
+              "cost-idle",
+              "mttr-aiops",
+              "iam-keys",
+              "ml-registry",
+              "ml-serving",
+              "dep-flags",
+              "mttr-slo-alerts",
+              "vuln-sbom",
+              "cost-showback"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "status=on&sort=gap"
+              }
+            ]
+          },
+          "then": {
+            "equals": {
+              "total": 82,
+              "status": {
+                "off": 0,
+                "risk": 0,
+                "stale": 0,
+                "none": 0,
+                "on": 82,
+                "planned": 0,
+                "done": 0
+              },
+              "attention": 3
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "gives each goal the status and flags the rules give it (status.csv and flags.csv, this week)",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": ""
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20
+          },
+          "then": {
+            "all": [
+              {
+                "select": "rows[].goal.key",
+                "equals": [
+                  "G-39",
+                  "G-15",
+                  "G-79",
+                  "G-98",
+                  "G-114",
+                  "G-106",
+                  "G-1",
+                  "G-7",
+                  "G-6",
+                  "G-14",
+                  "G-53",
+                  "G-46",
+                  "G-77",
+                  "G-35",
+                  "G-37",
+                  "G-75",
+                  "G-58",
+                  "G-67",
+                  "G-11",
+                  "G-96",
+                  "G-70",
+                  "G-28",
+                  "G-115",
+                  "G-113",
+                  "G-65",
+                  "G-44",
+                  "G-69",
+                  "G-102",
+                  "G-4",
+                  "G-47",
+                  "G-95",
+                  "G-88",
+                  "G-105",
+                  "G-80",
+                  "G-120",
+                  "G-3",
+                  "G-92",
+                  "G-23",
+                  "G-62",
+                  "G-36",
+                  "G-16",
+                  "G-18",
+                  "G-59",
+                  "G-56",
+                  "G-63",
+                  "G-60",
+                  "G-50",
+                  "G-110",
+                  "G-54",
+                  "G-68",
+                  "G-9",
+                  "G-72",
+                  "G-123",
+                  "G-94",
+                  "G-118",
+                  "G-93",
+                  "G-103",
+                  "G-40",
+                  "G-111",
+                  "G-12",
+                  "G-61",
+                  "G-124",
+                  "G-116",
+                  "G-85",
+                  "G-21",
+                  "G-122",
+                  "G-66",
+                  "G-86",
+                  "G-31",
+                  "G-42",
+                  "G-41",
+                  "G-99",
+                  "G-112",
+                  "G-121",
+                  "G-48",
+                  "G-10",
+                  "G-33",
+                  "G-29",
+                  "G-73",
+                  "G-49",
+                  "G-84",
+                  "G-26",
+                  "G-57",
+                  "G-5",
+                  "G-89",
+                  "G-87",
+                  "G-119",
+                  "G-30",
+                  "G-34",
+                  "G-17",
+                  "G-76",
+                  "G-90",
+                  "G-32",
+                  "G-101",
+                  "G-43",
+                  "G-27",
+                  "G-24",
+                  "G-78",
+                  "G-82",
+                  "G-71",
+                  "G-52",
+                  "G-74",
+                  "G-109",
+                  "G-64",
+                  "G-100",
+                  "G-19",
+                  "G-13",
+                  "G-38",
+                  "G-45",
+                  "G-117",
+                  "G-51",
+                  "G-8",
+                  "G-104",
+                  "G-108",
+                  "G-2",
+                  "G-81",
+                  "G-107",
+                  "G-126",
+                  "G-83",
+                  "G-55",
+                  "G-125",
+                  "G-97",
+                  "G-20",
+                  "G-25",
+                  "G-91",
+                  "G-22"
+                ]
+              },
+              {
+                "select": "rows[].status",
+                "equals": [
+                  "off",
+                  "off",
+                  "off",
+                  "off",
+                  "off",
+                  "off",
+                  "off",
+                  "off",
+                  "off",
+                  "off",
+                  "off",
+                  "risk",
+                  "risk",
+                  "risk",
+                  "risk",
+                  "risk",
+                  "risk",
+                  "risk",
+                  "risk",
+                  "risk",
+                  "risk",
+                  "risk",
+                  "risk",
+                  "risk",
+                  "stale",
+                  "risk",
+                  "risk",
+                  "stale",
+                  "risk",
+                  "risk",
+                  "risk",
+                  "risk",
+                  "risk",
+                  "risk",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "on",
+                  "done",
+                  "none",
+                  "done",
+                  "done",
+                  "none",
+                  "done",
+                  "done",
+                  "done",
+                  "done",
+                  "done"
+                ]
+              },
+              {
+                "select": "rows[].attention.flags[].kind",
+                "equals": [
+                  [
+                    "off"
+                  ],
+                  [
+                    "off",
+                    "decision"
+                  ],
+                  [
+                    "off"
+                  ],
+                  [
+                    "off",
+                    "decision"
+                  ],
+                  [
+                    "off"
+                  ],
+                  [
+                    "off",
+                    "decision",
+                    "trend"
+                  ],
+                  [
+                    "off",
+                    "decision",
+                    "trend"
+                  ],
+                  [
+                    "off",
+                    "decision"
+                  ],
+                  [
+                    "off"
+                  ],
+                  [
+                    "off",
+                    "decision",
+                    "trend"
+                  ],
+                  [
+                    "off"
+                  ],
+                  [
+                    "risk"
+                  ],
+                  [
+                    "risk",
+                    "trend"
+                  ],
+                  [
+                    "risk"
+                  ],
+                  [
+                    "risk"
+                  ],
+                  [
+                    "risk",
+                    "trend",
+                    "due"
+                  ],
+                  [
+                    "risk",
+                    "trend"
+                  ],
+                  [
+                    "decision",
+                    "risk"
+                  ],
+                  [
+                    "risk"
+                  ],
+                  [
+                    "risk",
+                    "trend"
+                  ],
+                  [
+                    "risk"
+                  ],
+                  [
+                    "risk",
+                    "due"
+                  ],
+                  [
+                    "risk"
+                  ],
+                  [
+                    "risk"
+                  ],
+                  [
+                    "stale",
+                    "trend",
+                    "due"
+                  ],
+                  [
+                    "risk"
+                  ],
+                  [
+                    "risk",
+                    "trend"
+                  ],
+                  [
+                    "stale",
+                    "due"
+                  ],
+                  [
+                    "risk",
+                    "trend"
+                  ],
+                  [
+                    "risk",
+                    "trend"
+                  ],
+                  [
+                    "risk"
+                  ],
+                  [
+                    "risk",
+                    "trend"
+                  ],
+                  [
+                    "risk"
+                  ],
+                  [
+                    "risk",
+                    "trend"
+                  ],
+                  [
+                    "due"
+                  ],
+                  [],
+                  [],
+                  [
+                    "due"
+                  ],
+                  [],
+                  [
+                    "due"
+                  ],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [
+                    "due"
+                  ],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [
+                    "due"
+                  ],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [
+                    "trend"
+                  ],
+                  [],
+                  [],
+                  [
+                    "due"
+                  ],
+                  [],
+                  [],
+                  [
+                    "due"
+                  ],
+                  [
+                    "trend"
+                  ],
+                  [],
+                  [],
+                  [],
+                  [
+                    "trend"
+                  ],
+                  [],
+                  [
+                    "due"
+                  ],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [
+                    "due"
+                  ],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [
+                    "due"
+                  ],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [
+                    "due"
+                  ],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [],
+                  [
+                    "due"
+                  ],
+                  [],
+                  [],
+                  [
+                    "due"
+                  ],
+                  [],
+                  [],
+                  [
+                    "due"
+                  ],
+                  [],
+                  [],
+                  [],
+                  [],
+                  []
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "pages by key: every goal once and none twice, and a goal added between pages doesn’t move the next page",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 20,
+                "query": "sort=title"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20,
+            "each": {
+              "select": "rows",
+              "maxLength": 20
+            },
+            "between": {
+              "op": "add",
+              "args": [
+                {
+                  "id": "aaa-added",
+                  "cycleId": "cycle",
+                  "teamId": "cicd",
+                  "ownerId": "rhea",
+                  "title": "AAA added between pages",
+                  "source": "DORA dashboard (Four Keys)",
+                  "definition": "Median hours from a change’s first commit to it running in production, across every deployable service",
+                  "io": "output",
+                  "level": "north-star",
+                  "guardrail": false,
+                  "parentId": null,
+                  "effect": null,
+                  "createdAt": "2025-12-17T00:00:00.000Z",
+                  "kind": "metric",
+                  "unit": "hours",
+                  "decimals": 0,
+                  "plan": {
+                    "start": 52,
+                    "target": 24,
+                    "shape": "straight"
+                  },
+                  "originalPlan": null,
+                  "rebaselinedWeek": null
+                }
+              ]
+            }
+          },
+          "then": {
+            "all": [
+              {
+                "select": "rows[].goal.id",
+                "length": 126,
+                "distinct": true,
+                "excludes": [
+                  "aaa-added"
+                ]
+              },
+              {
+                "select": "pages",
+                "equals": 7
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "never gives more than a page, whatever size is asked for",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "query": "",
+                "size": 10000
+              }
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "rows",
+                "length": 50
+              },
+              {
+                "select": "total",
+                "equals": 126
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "gives a goal’s check-ins only through goal()",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "query": ""
+              }
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "rows[0].checkIns",
+                "absent": true
+              },
+              {
+                "select": "rows[0].series",
+                "absent": true
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "goal",
+            "args": [
+              "ns-lead"
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "goal.id",
+                "equals": "ns-lead"
+              },
+              {
+                "select": "checkIns",
+                "length": 44
+              },
+              {
+                "select": "checkIns[].goalId",
+                "excludes": [
+                  "lead-review",
+                  "lead-review-bot",
+                  "lead-review-rota",
+                  "lead-review-small",
+                  "lead-merge",
+                  "lead-mq",
+                  "lead-canary",
+                  "lead-batch",
+                  "lead-rollback",
+                  "lead-flaky",
+                  "lead-quarantine",
+                  "lead-testown",
+                  "lead-ci-time",
+                  "lead-runners",
+                  "lead-arm",
+                  "lead-cache",
+                  "ns-ci",
+                  "ci-shard",
+                  "ci-shard-java",
+                  "ci-shard-js",
+                  "ci-dedupe",
+                  "ci-docker",
+                  "ci-docker-slim",
+                  "ci-docker-registry",
+                  "ns-deploy",
+                  "dep-selfserve",
+                  "dep-jenkins",
+                  "dep-templates",
+                  "dep-freeze",
+                  "dep-gates",
+                  "dep-gates-sec",
+                  "dep-gates-perf",
+                  "dep-flags",
+                  "ns-cfr",
+                  "cfr-tests",
+                  "cfr-contract",
+                  "cfr-progressive",
+                  "cfr-halt",
+                  "cfr-postmortem",
+                  "ns-mttr",
+                  "mttr-detect",
+                  "mttr-slo-alerts",
+                  "mttr-noise",
+                  "mttr-traces",
+                  "mttr-runbooks",
+                  "mttr-gamedays",
+                  "mttr-oncall",
+                  "mttr-aiops",
+                  "mttr-pir",
+                  "ns-slo",
+                  "slo-coverage",
+                  "slo-catalogue",
+                  "slo-multiregion",
+                  "slo-failover",
+                  "slo-gtm",
+                  "slo-capacity",
+                  "slo-edge",
+                  "slo-latency",
+                  "ns-cost",
+                  "cost-rightsize",
+                  "cost-idle",
+                  "cost-spot",
+                  "cost-commit",
+                  "cost-showback",
+                  "cost-storage",
+                  "cost-logs",
+                  "ns-devsat",
+                  "devsat-onboard",
+                  "devsat-docs",
+                  "devsat-toil",
+                  "devsat-localdev",
+                  "devsat-devcontainers",
+                  "devsat-support",
+                  "devsat-actions",
+                  "ns-vuln",
+                  "vuln-sca",
+                  "vuln-autofix",
+                  "vuln-sbom",
+                  "vuln-containers",
+                  "vuln-distroless",
+                  "vuln-secrets",
+                  "vuln-vault",
+                  "vuln-pentest",
+                  "iam-jit",
+                  "iam-sso",
+                  "iam-keys",
+                  "iam-review",
+                  "net-mtls",
+                  "ns-ai",
+                  "ai-default",
+                  "ai-approval",
+                  "ai-useful",
+                  "ai-assist",
+                  "ai-workshop",
+                  "ns-env",
+                  "env-templates",
+                  "env-tpl-java",
+                  "env-tpl-data",
+                  "env-provision",
+                  "env-gpu",
+                  "env-portal",
+                  "env-scorecards",
+                  "env-search",
+                  "env-tickets",
+                  "ns-fresh",
+                  "fresh-streaming",
+                  "fresh-kafka",
+                  "fresh-cdc",
+                  "fresh-contracts",
+                  "fresh-catalogue",
+                  "fresh-quality",
+                  "fresh-ml",
+                  "ml-registry",
+                  "ml-eval",
+                  "ml-gpu",
+                  "fresh-lakehouse",
+                  "net-ipv6",
+                  "obs-dashboards",
+                  "devex-remote",
+                  "build-sign",
+                  "iam-groups",
+                  "ml-serving",
+                  "cost-requests",
+                  "laptops",
+                  "ci-cost"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "goal",
+            "args": [
+              "nowhere"
+            ]
+          },
+          "then": {
+            "equals": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "narrows to a scope by its name, for the person asking, and counts the same filter",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "",
+                "scope": "mine"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "ns-lead",
+              "lead-ci-time",
+              "lead-flaky",
+              "ci-docker",
+              "dep-gates",
+              "ci-shard",
+              "ci-cost",
+              "ci-dedupe"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "",
+                "scope": "team:cicd"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "lead-runners",
+              "ns-lead",
+              "lead-mq",
+              "lead-ci-time",
+              "lead-flaky",
+              "ci-docker",
+              "lead-arm",
+              "lead-quarantine",
+              "ci-shard-js",
+              "lead-cache",
+              "ci-docker-slim",
+              "ci-shard",
+              "lead-testown",
+              "ci-cost",
+              "ci-shard-java",
+              "ci-docker-registry",
+              "ci-dedupe"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": "",
+                "scope": "all"
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20
+          },
+          "then": {
+            "select": "rows[].goal.id",
+            "equals": [
+              "cfr-halt",
+              "lead-runners",
+              "vuln-containers",
+              "env-tpl-data",
+              "ml-gpu",
+              "fresh-kafka",
+              "ns-lead",
+              "lead-mq",
+              "lead-merge",
+              "lead-ci-time",
+              "slo-multiregion",
+              "mttr-runbooks",
+              "vuln-autofix",
+              "ns-cfr",
+              "cfr-contract",
+              "ns-vuln",
+              "slo-latency",
+              "ns-devsat",
+              "lead-flaky",
+              "env-templates",
+              "devsat-toil",
+              "dep-jenkins",
+              "fresh-lakehouse",
+              "ml-eval",
+              "cost-storage",
+              "mttr-noise",
+              "devsat-docs",
+              "env-search",
+              "lead-review-rota",
+              "mttr-gamedays",
+              "ns-env",
+              "net-mtls",
+              "fresh-streaming",
+              "vuln-distroless",
+              "iam-groups",
+              "lead-review-bot",
+              "ai-useful",
+              "ci-docker",
+              "cost-spot",
+              "cfr-tests",
+              "lead-arm",
+              "ns-ci",
+              "ns-cost",
+              "slo-capacity",
+              "cost-commit",
+              "cost-rightsize",
+              "ns-slo",
+              "fresh-quality",
+              "slo-failover",
+              "devsat-onboard",
+              "lead-batch",
+              "devsat-devcontainers",
+              "laptops",
+              "ai-workshop",
+              "devex-remote",
+              "ai-assist",
+              "env-tickets",
+              "cfr-postmortem",
+              "fresh-ml",
+              "lead-quarantine",
+              "cost-idle",
+              "mttr-aiops",
+              "net-ipv6",
+              "iam-sso",
+              "ci-shard-js",
+              "cost-requests",
+              "cost-logs",
+              "iam-keys",
+              "dep-gates",
+              "mttr-detect",
+              "ns-mttr",
+              "env-provision",
+              "ml-registry",
+              "ml-serving",
+              "mttr-oncall",
+              "lead-rollback",
+              "dep-gates-perf",
+              "dep-templates",
+              "devsat-support",
+              "mttr-pir",
+              "iam-jit",
+              "ns-deploy",
+              "slo-edge",
+              "lead-review-small",
+              "ns-ai",
+              "iam-review",
+              "build-sign",
+              "dep-freeze",
+              "dep-flags",
+              "lead-cache",
+              "vuln-sca",
+              "ai-default",
+              "dep-gates-sec",
+              "env-scorecards",
+              "mttr-slo-alerts",
+              "dep-selfserve",
+              "ci-docker-slim",
+              "vuln-sbom",
+              "vuln-vault",
+              "devsat-localdev",
+              "slo-catalogue",
+              "devsat-actions",
+              "fresh-catalogue",
+              "cost-showback",
+              "env-portal",
+              "ci-shard",
+              "lead-testown",
+              "cfr-progressive",
+              "mttr-traces",
+              "obs-dashboards",
+              "slo-coverage",
+              "lead-canary",
+              "ns-fresh",
+              "fresh-contracts",
+              "lead-review",
+              "vuln-secrets",
+              "fresh-cdc",
+              "ci-cost",
+              "vuln-pentest",
+              "slo-gtm",
+              "env-gpu",
+              "env-tpl-java",
+              "ci-shard-java",
+              "ci-docker-registry",
+              "ai-approval",
+              "ci-dedupe"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "counts",
+            "args": [
+              {
+                "query": "",
+                "scope": "mine"
+              }
+            ]
+          },
+          "then": {
+            "select": "total",
+            "equals": 8
+          }
+        }
+      ]
+    },
+    {
+      "name": "lists with no sort worst first, then by title",
+      "steps": [
+        {
+          "when": {
+            "op": "goals",
+            "args": [
+              {
+                "size": 50,
+                "query": ""
+              }
+            ]
+          },
+          "pages": {
+            "arg": 0,
+            "max": 20
+          },
+          "then": {
+            "all": [
+              {
+                "select": "rows[].status",
+                "ordered": {
+                  "rank": {
+                    "off": 3,
+                    "risk": 2,
+                    "stale": 2,
+                    "on": 1,
+                    "done": 0,
+                    "planned": 0,
+                    "none": 0
+                  }
+                }
+              },
+              {
+                "select": "rows[].goal.id",
+                "equals": [
+                  "cfr-halt",
+                  "lead-runners",
+                  "vuln-containers",
+                  "env-tpl-data",
+                  "ml-gpu",
+                  "fresh-kafka",
+                  "ns-lead",
+                  "lead-mq",
+                  "lead-merge",
+                  "lead-ci-time",
+                  "slo-multiregion",
+                  "mttr-runbooks",
+                  "vuln-autofix",
+                  "ns-cfr",
+                  "cfr-contract",
+                  "ns-vuln",
+                  "slo-latency",
+                  "ns-devsat",
+                  "lead-flaky",
+                  "env-templates",
+                  "devsat-toil",
+                  "dep-jenkins",
+                  "fresh-lakehouse",
+                  "ml-eval",
+                  "cost-storage",
+                  "mttr-noise",
+                  "devsat-docs",
+                  "env-search",
+                  "lead-review-rota",
+                  "mttr-gamedays",
+                  "ns-env",
+                  "net-mtls",
+                  "fresh-streaming",
+                  "vuln-distroless",
+                  "iam-groups",
+                  "lead-review-bot",
+                  "ai-useful",
+                  "ci-docker",
+                  "cost-spot",
+                  "cfr-tests",
+                  "lead-arm",
+                  "ns-ci",
+                  "ns-cost",
+                  "slo-capacity",
+                  "cost-commit",
+                  "cost-rightsize",
+                  "ns-slo",
+                  "fresh-quality",
+                  "slo-failover",
+                  "devsat-onboard",
+                  "lead-batch",
+                  "devsat-devcontainers",
+                  "laptops",
+                  "ai-workshop",
+                  "devex-remote",
+                  "ai-assist",
+                  "env-tickets",
+                  "cfr-postmortem",
+                  "fresh-ml",
+                  "lead-quarantine",
+                  "cost-idle",
+                  "mttr-aiops",
+                  "net-ipv6",
+                  "iam-sso",
+                  "ci-shard-js",
+                  "cost-requests",
+                  "cost-logs",
+                  "iam-keys",
+                  "dep-gates",
+                  "mttr-detect",
+                  "ns-mttr",
+                  "env-provision",
+                  "ml-registry",
+                  "ml-serving",
+                  "mttr-oncall",
+                  "lead-rollback",
+                  "dep-gates-perf",
+                  "dep-templates",
+                  "devsat-support",
+                  "mttr-pir",
+                  "iam-jit",
+                  "ns-deploy",
+                  "slo-edge",
+                  "lead-review-small",
+                  "ns-ai",
+                  "iam-review",
+                  "build-sign",
+                  "dep-freeze",
+                  "dep-flags",
+                  "lead-cache",
+                  "vuln-sca",
+                  "ai-default",
+                  "dep-gates-sec",
+                  "env-scorecards",
+                  "mttr-slo-alerts",
+                  "dep-selfserve",
+                  "ci-docker-slim",
+                  "vuln-sbom",
+                  "vuln-vault",
+                  "devsat-localdev",
+                  "slo-catalogue",
+                  "devsat-actions",
+                  "fresh-catalogue",
+                  "cost-showback",
+                  "env-portal",
+                  "ci-shard",
+                  "lead-testown",
+                  "cfr-progressive",
+                  "mttr-traces",
+                  "obs-dashboards",
+                  "slo-coverage",
+                  "lead-canary",
+                  "ns-fresh",
+                  "fresh-contracts",
+                  "lead-review",
+                  "vuln-secrets",
+                  "fresh-cdc",
+                  "ci-cost",
+                  "vuln-pentest",
+                  "slo-gtm",
+                  "env-gpu",
+                  "env-tpl-java",
+                  "ci-shard-java",
+                  "ci-docker-registry",
+                  "ai-approval",
+                  "ci-dedupe"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

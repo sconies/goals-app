@@ -1342,7 +1342,7 @@ The app records traces, logs and metrics in its own database in OpenTelemetry's 
 
 ### STALE-RELOAD
 
-After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop. Offline, nothing reloads (a reload would load nothing): the page says it needs a connection, with Try again and Go back.
+After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop. Offline, nothing reloads (a reload would load nothing): the page says it needs a connection, with Try again and Go back. An action that needs a part that hasn't loaded (the change engine, for Post check-in) never fails silently: offline it says saving needs a connection and what was typed is kept; online it reloads once, or offers Reload when it just did, and the reload keeps what was typed.
 
 - **Demo only:** Faro’s own, for the demo and its builders. Don’t build it.
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
