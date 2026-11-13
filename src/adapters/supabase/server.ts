@@ -44,6 +44,7 @@ export function supabaseDeps(origin: string, env: Record<string, string | undefi
       return (data as { name?: string } | null)?.name ?? 'Workspace';
     },
     load: (ws) => store.load(ws),
+    history: (ws, ask) => store.history(ws, ask),
     commit: (ws, c) => store.commit(ws, c),
     // The keys the database settled for goals a save just added (migration 0021's okr_goal_key).
     async goalKeys(ws, ids) {

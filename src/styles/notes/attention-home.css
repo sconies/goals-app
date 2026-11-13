@@ -42,6 +42,11 @@ a.dash-count:focus-visible, a.dash-all:focus-visible { outline: 2px solid var(--
   .dash-sub { display: none; }
   .dash-label-when { display: inline; }
   .dash-value { overflow-wrap: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* A cell on its own (the strip is just this week's review): its label and value on one line, so the first goal that
+     needs attention still starts on the first screen (build review of #305). */
+  .dash > .dash-cell:only-child { flex-direction: row; align-items: baseline; gap: 8px; }
+  .dash > .dash-cell:only-child .dash-label { flex: none; }
+  .dash > .dash-cell:only-child .dash-value { min-width: 0; }
   /* A leader's two cells (all goals by status, the next review): the counts get three fifths, so they pair up two to a
      line ("11 off track  21 at risk") and the strip stays slim; the review's name wraps in what's left, never cut. */
   .dash:has(> .dash-cell:first-child:nth-last-child(2)) { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }

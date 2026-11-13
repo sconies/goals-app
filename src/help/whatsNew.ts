@@ -23,6 +23,31 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'older-changes-on-request',
+    date: '2026-11-13',
+    title: 'Faro opens with the last year of changes, and fetches older ones when asked',
+    points: [
+      'A workspace opens faster: it brings the last year or so of changes, and every comment, ask and import whatever its age.',
+      'Show older changes, at the end of Activity and of a goal’s History, fetches older ones a page at a time.',
+      'An import over a year old can no longer be undone, since too much may have changed since.',
+    ],
+    articles: ['activity'],
+  },
+  {
+    id: 'asks-follow-owner',
+    date: '2026-11-13',
+    title: 'Open asks follow a goal to its new owner',
+    points: [
+      'When a goal changes owner, its open asks of the old owner go to the new one. Their Home says “Asked of Tunde, now yours”, and the ask’s history says so for whoever asked. Answered asks stay as they were.',
+      'Under Needs your response, how long an ask has waited comes first, so a phone shows it whole (a late one says “Was due by Tue 10 Nov”); the day is counted where you are.',
+      'On a phone, the first of your goals that needs attention now starts on the first screen on review days too.',
+      'The AI tools’ “what needs me” lists asks in Home’s order, with Home’s words for how long each has waited and whether it is late.',
+      'A review missed in the last week of the year is no longer “Not held yet” after the year has ended.',
+      'Adding or changing a metric has one way out, top right, like every form.',
+    ],
+    articles: ['home', 'requests'],
+  },
+  {
     id: 'metric-change',
     date: '2026-11-13',
     title: 'A metric that changes tells its goals',

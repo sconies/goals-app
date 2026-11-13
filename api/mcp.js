@@ -3091,7 +3091,7 @@ function answerOf(d) {
 		byId: a.answeredBy ?? ""
 	};
 }
-var isHealthy, tier, dayText, reviewedText, canSpeakFor, speakRefusal, scopeRefusal;
+var isHealthy, tier, dayText, reviewedText, nextSessionWeek, canSpeakFor, speakRefusal, scopeRefusal;
 var init_review = __esmMin((() => {
 	init_attention();
 	init_vocabulary();
@@ -3107,6 +3107,7 @@ var init_review = __esmMin((() => {
 		timeZone: "UTC"
 	});
 	reviewedText = (s) => `${s.done} of ${s.total} reviewed`;
+	nextSessionWeek = (r, sessionWk) => sessionWeek(r, sessionWk + 1);
 	ASK_KIND.action.label;
 	canSpeakFor = (r, p) => p.admin || r.people.includes(p.id);
 	speakRefusal = (r) => `Only people in ${r.name}, or an admin, can speak for it.`;
@@ -7530,6 +7531,67 @@ var init_correctReason = __esmMin((() => {
 	};
 	correctReasonAsk = (week) => `Say why, in a sentence of at least 10 characters (at most 500), so anyone reading week ${week} later knows.`;
 }));
+// src/domain/askHandover.ts
+/** The open asks that move when `after` replaces the goals of the same id in `s` (its goals, people and every ask, `asksOf`). */
+function asksFollowOwner(s, after, x) {
+	const before = new Map(s.goals.map((g) => [g.id, g]));
+	const changed = after.filter((g) => {
+		const b = before.get(g.id);
+		return !!b && b.ownerId !== g.ownerId;
+	});
+	const out = {
+		requests: [],
+		changes: [],
+		moved: /* @__PURE__ */ new Map()
+	};
+	if (!changed.length) return out;
+	const owner = new Map(s.goals.map((g) => [g.id, g.ownerId]));
+	for (const g of after) owner.set(g.id, g.ownerId);
+	const name = (id) => s.people.find((p) => p.id === id)?.name ?? "Someone";
+	for (const r of s.asks) {
+		if (r.status !== "open" || !r.recipientId) continue;
+		const g = changed.find((c) => r.goalIds.includes(c.id) && before.get(c.id).ownerId === r.recipientId);
+		if (!g || r.goalIds.some((id) => owner.get(id) === r.recipientId)) continue;
+		const from = r.recipientId;
+		out.requests.push({
+			...r,
+			recipientId: g.ownerId,
+			updatedAt: x.now
+		});
+		out.moved.set(g.id, (out.moved.get(g.id) ?? 0) + 1);
+		out.changes.push({
+			id: x.newId("chg"),
+			at: x.now,
+			actorId: x.actorId,
+			goalId: g.id,
+			entity: "request",
+			entityId: r.id,
+			action: "edited",
+			summary: `${name(r.askedBy)}’s ask now goes to ${name(g.ownerId)}, who owns ${g.title} now`,
+			diffs: [{
+				field: "Asked of",
+				from: name(from),
+				to: name(g.ownerId)
+			}]
+		});
+	}
+	return out;
+}
+/** Who an open ask was asked of before it came to its person with a goal's ownership, if it did: the latest such change. */
+function handedFrom(askId, recipientName, changes) {
+	let last = null;
+	for (const c of changes) if (c.entity === "request" && c.entityId === askId && c.diffs.some((v) => v.field === "Asked of") && (!last || c.at >= last.at)) last = c;
+	const d = last?.diffs.find((v) => v.field === "Asked of");
+	return d && d.to === recipientName ? d.from : null;
+}
+var openAsksDiff;
+var init_askHandover = __esmMin((() => {
+	openAsksDiff = (n, moved) => ({
+		field: `Open asks (${n})`,
+		from: moved.diffs[0].from,
+		to: moved.diffs[0].to
+	});
+}));
 // src/domain/goalEntry.ts
 /**
 * A number draft's From and To as cycle weeks (rule 13): what it says, else what the goal has, else this week and the
@@ -7992,6 +8054,7 @@ function proposedMustFix(d, ctx) {
 }
 var GOAL_FIELDS$1, withUnit, CHECK_IDS, capital, MEASURE_REQUIRED, unsaidDraft;
 var init_goalEntry = __esmMin((() => {
+	init_asks();
 	init_actions();
 	init_changes();
 	init_checkin();
@@ -12273,6 +12336,23 @@ function* planChangesInChunks(input) {
 			}
 		}
 	}
+	const handed = asksFollowOwner({
+		goals: s.goals,
+		people: s.people,
+		asks: asksOf(s)
+	}, [...goalOut.values()], {
+		actorId: actor.id,
+		now,
+		newId
+	});
+	for (const r of handed.requests) {
+		if (reqOut.has(r.id)) continue;
+		reqOut.set(r.id, r);
+		const ch = handed.changes.find((c) => c.entityId === r.id);
+		changes.push(ch);
+		const item = items.find((x) => x.goalId === ch.goalId && (x.kind === "goal" || x.kind === "plan"));
+		if (item && !item.diffs.some((d) => d.field.startsWith("Open asks"))) item.diffs.push(openAsksDiff(handed.moved.get(ch.goalId) ?? 1, ch));
+	}
 	if (via !== "form") for (const ch of changes) ch.diffs.push({
 		field: "Via",
 		from: "—",
@@ -12494,6 +12574,7 @@ var init_changeset = __esmMin((() => {
 	init_status();
 	init_tree();
 	init_asks();
+	init_askHandover();
 	init_removal();
 	init_templates();
 	init_sheets();
@@ -13910,11 +13991,13 @@ var isStale = (e) => e instanceof StaleError || e instanceof Error && /\bstale: 
 // src/ports/window.ts
 init_cycle();
 /** Entries of these kinds are anchors: kept at any age, because rules read them whatever their age (comments, asks, a
-cycle's "created" entry). */
+cycle's "created" entry, a person's arrival (domain/dayOne arrived), a metric's last change and former names). */
 var ANCHOR_ENTITIES = [
 	"note",
 	"request",
-	"cycle"
+	"cycle",
+	"person",
+	"metric"
 ];
 /** Import and bulk-edit summaries (and their undoing) are anchors too: past imports and "Undo this import" read them. */
 var ANCHOR_ACTIONS = ["imported", "undone"];
@@ -14630,8 +14713,9 @@ function nextReviews(personId, s, cycle, week, today) {
 		};
 	}).filter((x) => x.week <= cycle.weeks).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
 }
-/** This week's sessions the person is in that are past their date and not held, longest past first. */
+/** This week's sessions the person is in that are past their date and not held, longest past first; none once the cycle has ended. */
 function missedReviews(personId, s, cycle, week, today) {
+	if (hasEnded(cycle, today)) return [];
 	return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
 		const sx = reviewSession(r, s, cycle, today, week);
 		return {
@@ -14663,10 +14747,127 @@ function dashboard(personId, s, cycle, week, today) {
 		missed: missedReviews(personId, s, cycle, week, today)
 	};
 }
+var LONG_DAYS = [
+	"Sunday",
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday"
+];
+var SHORT_MONTHS = [
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec"
+];
+var dayDiff = (from, to) => Math.round((Date.parse(to + "T00:00:00Z") - Date.parse(from + "T00:00:00Z")) / 864e5);
+var SHORT_DAYS = [
+	"Sun",
+	"Mon",
+	"Tue",
+	"Wed",
+	"Thu",
+	"Fri",
+	"Sat"
+];
+/** "Tue 10 Nov". */
+var shortDay = (iso) => {
+	const d = /* @__PURE__ */ new Date(iso + "T00:00:00Z");
+	return `${SHORT_DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${SHORT_MONTHS[d.getUTCMonth()]}`;
+};
+/** "4 Aug". */
+var dayMonth = (iso) => {
+	const d = /* @__PURE__ */ new Date(iso + "T00:00:00Z");
+	return `${d.getUTCDate()} ${SHORT_MONTHS[d.getUTCMonth()]}`;
+};
+/** The week's Monday and Sunday around a day. */
+function weekAround(today) {
+	const d = /* @__PURE__ */ new Date(today + "T00:00:00Z");
+	const back = (d.getUTCDay() + 6) % 7;
+	const monday = (/* @__PURE__ */ new Date(d.getTime() - back * 864e5)).toISOString().slice(0, 10);
+	return {
+		monday,
+		sunday: new Date(Date.parse(monday + "T00:00:00Z") + 5184e5).toISOString().slice(0, 10)
+	};
+}
+/** Rule 3: how long an ask has waited, when it is due, whether it is late, and the line that says so. */
+function waiting(a, today) {
+	const waitedDays = Math.max(0, dayDiff(a.askedOn, today));
+	const due = a.dueWeek ? {
+		date: a.dueWeek.sunday,
+		why: "week"
+	} : a.session ? {
+		date: a.session.date,
+		why: "session"
+	} : null;
+	const late = !!due && today > due.date;
+	const { monday, sunday } = weekAround(today);
+	const dueThisWeek = !!due && !late && due.date >= monday && due.date <= sunday;
+	let line;
+	let warn = false;
+	if (late && due.why === "week") {
+		line = `Was due week ${a.dueWeek.week} (${a.dueWeek.dates})`;
+		warn = true;
+	} else if (late) {
+		line = `Was due by ${shortDay(a.session.date)}`;
+		warn = true;
+	} else if (due?.why === "session" && dayDiff(today, due.date) <= 1) {
+		line = dayDiff(today, due.date) === 0 ? "Due before today’s session" : "Due before tomorrow’s session";
+		warn = true;
+	} else if (due?.why === "week" && dueThisWeek) line = `Due this week (${a.dueWeek.dates})`;
+	else if (due?.why === "week") line = `Due week ${a.dueWeek.week} (${a.dueWeek.dates})`;
+	else if (due) line = `Before its next session, ${shortDay(due.date)}`;
+	else if (waitedDays >= 7) line = `Waiting since ${dayMonth(a.askedOn)}, ${waitedDays < 14 ? `${waitedDays} days` : `${Math.floor(waitedDays / 7)} weeks`}`;
+	else line = waitedDays === 0 ? "Asked today" : waitedDays === 1 ? "Asked yesterday" : `Asked on ${LONG_DAYS[(/* @__PURE__ */ new Date(a.askedOn + "T00:00:00Z")).getUTCDay()]}`;
+	const to = a.kind === "update" ? `/check-in/${a.goals[0].id}` : `/goals/${a.goals[0].id}?respond=${a.id}`;
+	return {
+		askId: a.id,
+		kind: a.kind,
+		by: a.by,
+		where: a.where,
+		goals: a.goals,
+		said: a.said,
+		askedOn: a.askedOn,
+		waitedDays,
+		was: a.was ?? null,
+		due,
+		late,
+		dueThisWeek,
+		line,
+		warn,
+		to
+	};
+}
+var KIND_ORDER = [
+	"decision",
+	"question",
+	"update",
+	"action"
+];
+/** Rule 3's order (it replaces "overdue first, then newest"): late; due this week; no date and waited 7 days or more, oldest first; the rest, newest first. Within each, decisions, questions, updates, next steps. */
+function waitingOrder(a, b) {
+	const tier = (w) => w.late ? 0 : w.dueThisWeek ? 1 : !w.due && w.waitedDays >= 7 ? 2 : 3;
+	const t = tier(a) - tier(b);
+	if (t) return t;
+	const k = KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind);
+	if (k) return k;
+	return tier(a) === 2 ? a.askedOn.localeCompare(b.askedOn) : b.askedOn.localeCompare(a.askedOn);
+}
 // src/app/reads.ts
 init_cycle();
 init_plan();
 init_review();
+init_askHandover();
 init_progress();
 init_asks();
 var live = (xs) => xs.filter((x) => !x.removedAt);
@@ -14736,6 +14937,57 @@ function scopeFacts(s, viewer) {
 		})),
 		watched: new Set(watchedGoals(viewer.id, s).map((g) => g.id))
 	};
+}
+/**
+* Rule 3's facts for each open ask waiting on the viewer, in its order. A question raised in a review is due before the
+* first session after the one it was raised in, fixed when asked: it doesn't move on when that session passes.
+*/
+/**
+* The day a stamp falls on where the person is: today is their wall-clock day (app/state), so the day an ask was made is
+* read on the same clock, not in UTC (build review of #310: "Asked yesterday" for an ask made half an hour ago at UTC+10).
+* On a server, whose zone is UTC, it is the stamp's UTC day.
+*/
+var localDay = (iso) => {
+	const n = new Date(iso);
+	return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10);
+};
+function homeAsks(viewerId, s, cycle, week, today) {
+	const day = today.toISOString().slice(0, 10);
+	const me = s.people.find((p) => p.id === viewerId)?.name ?? "";
+	const first = (id) => s.people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
+	return openForPerson(viewerId, s).flatMap((r) => {
+		const goals = r.goalIds.map((id) => s.goals.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({
+			id: g.id,
+			title: g.title
+		}));
+		if (!goals.length) return [];
+		const rv = r.reviewId ? s.reviews.find((v) => v.id === r.reviewId) : void 0;
+		let session = null;
+		if (r.dueWeek == null && r.kind === "question" && rv) {
+			const w = r.week != null ? nextSessionWeek(rv, r.week) : upcomingSessionWeek(rv, cycle, week, today);
+			if (w <= cycle.weeks) session = {
+				name: rv.name,
+				date: sessionDate(rv, cycle, w)
+			};
+		}
+		const sunday = (w) => new Date(Date.parse(weekDate(cycle, w) + "T00:00:00Z") + 5184e5).toISOString().slice(0, 10);
+		return [waiting({
+			id: r.id,
+			kind: r.kind,
+			by: r.askedBy === viewerId ? null : first(r.askedBy),
+			goals,
+			said: r.ask,
+			askedOn: localDay(r.createdAt),
+			was: handedFrom(r.id, me, s.changes ?? []),
+			dueWeek: r.dueWeek != null ? {
+				week: r.dueWeek,
+				sunday: sunday(r.dueWeek),
+				dates: weekDates(cycle, r.dueWeek)
+			} : null,
+			session,
+			where: rv?.name ?? null
+		}, day)];
+	}).sort(waitingOrder);
 }
 // src/domain/goalsPage.ts
 init_query();
@@ -16918,7 +17170,7 @@ var CORE_ARTICLES = [
 					"With two or more number goals to check in on, a quiet link under the button opens the table, to type all your numbers at once.",
 					"This week, above the lead, shows a review you’re in, or one that has passed its day without being held, as one cell. It is left out when the lead is that review; with two reviews on one day, the lead takes one and the cell the other. Once the year has ended, no review is said to be not held.",
 					"While someone waits for your response, Home doesn’t say nothing is asked of you: it says how many asks wait. If you’re an admin, a note says when the year is ending or has ended, with Start for the next one.",
-					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions. Each says who asked, where and on what day, and how long it has waited or when it is due; a late one says so first, with the warning mark. Five show, then Show all. Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.",
+					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions. Each says first how long it has waited or when it is due (a late one with the warning mark), then who asked, where and on what day; one that came to you with a goal you now own also says “Asked of Tunde, now yours”. Five show, then Show all. Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.",
 					"When an ask is late, due this week, or has waited a week or more, and nothing comes before it, it is the lead, with its one button (Respond, Answer, Check in or Mark done); the rest are under Also needs your response. A goal someone proposed for you is asked of you like an ask with no date: once a week has passed and no ask comes first, it is the lead, with Open it.",
 					"Your goals come next, counted once: how many there are by status, each count opening exactly those goals in Goals (“1 at risk” lists the one). Then the ones that need attention, worst first, each with Check in when that is what it needs; what is being handled, folded away; and the rest, five at a time. Each row opens its goal. Goals you watch follow.",
 					"On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.",
@@ -17439,7 +17691,8 @@ var CORE_ARTICLES = [
 					"The Respond panel is the same for every kind: answer it, check in (an update; the goal’s owner only, as check-ins are theirs), or mark it done (an action). Answering closes it for every goal it covers. For a decision, Ask the owner first asks them a question of your own and leaves theirs open.",
 					"On a goal’s page, Next steps and asks lists every ask and next step on it once: the kind and its words, who and when, and whether it’s open, overdue (with by how much), answered or done. Each row has at most one button for you: Respond, Answer, Mark done, Check in or Withdraw.",
 					"Waiting on a decision already asked for another goal? Say so in the check-in: link to that request instead of asking again, and one answer covers both goals.",
-					"Still true in the next check-in carries an open request forward; dropping the ask withdraws it."
+					"Still true in the next check-in carries an open request forward; dropping the ask withdraws it.",
+					"When a goal changes owner, its open asks of the old owner go to the new one, who sees them on Home (“Asked of Tunde, now yours”). The ask’s history says so, for whoever asked; answered asks stay as they were. An ask about another goal the old owner keeps stays with them."
 				]
 			},
 			{
@@ -18338,7 +18591,8 @@ var CORE_ARTICLES = [
 				"Search finds the words on a change: who, the goal and its key, what was said and the numbers. A line under it says how many match; the filters on read as words with Remove (see Finding and choosing). Choose who and which goal by typing their name. Show the changes opens the before and after.",
 				"The search and filters are in the link, so a filtered log can be shared, and Back undoes the last choice. Save .csv exports what is shown.",
 				"Every removal is here too: a goal stopped, a person marked as left, a check-in or comment deleted, a view deleted, a watch stopped, and each restore.",
-				"An import or bulk edit has Undo this import on its entry, for whoever made it or an admin. It puts every row back as it was; rows changed since are skipped and listed on the entry that says it was undone."
+				"An import or bulk edit has Undo this import on its entry, for whoever made it or an admin. It puts every row back as it was; rows changed since are skipped and listed on the entry that says it was undone. An import over a year old can no longer be undone.",
+				"The app opens with about the last year of changes, plus every comment, ask and import whatever its age. Show older changes, at the end of the list, fetches older ones a page at a time; a goal’s History has the same."
 			]
 		}, {
 			heading: "Safe saves",
@@ -19531,6 +19785,31 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "older-changes-on-request",
+		date: "2026-11-13",
+		title: "Faro opens with the last year of changes, and fetches older ones when asked",
+		points: [
+			"A workspace opens faster: it brings the last year or so of changes, and every comment, ask and import whatever its age.",
+			"Show older changes, at the end of Activity and of a goal’s History, fetches older ones a page at a time.",
+			"An import over a year old can no longer be undone, since too much may have changed since."
+		],
+		articles: ["activity"]
+	},
+	{
+		id: "asks-follow-owner",
+		date: "2026-11-13",
+		title: "Open asks follow a goal to its new owner",
+		points: [
+			"When a goal changes owner, its open asks of the old owner go to the new one. Their Home says “Asked of Tunde, now yours”, and the ask’s history says so for whoever asked. Answered asks stay as they were.",
+			"Under Needs your response, how long an ask has waited comes first, so a phone shows it whole (a late one says “Was due by Tue 10 Nov”); the day is counted where you are.",
+			"On a phone, the first of your goals that needs attention now starts on the first screen on review days too.",
+			"The AI tools’ “what needs me” lists asks in Home’s order, with Home’s words for how long each has waited and whether it is late.",
+			"A review missed in the last week of the year is no longer “Not held yet” after the year has ended.",
+			"Adding or changing a metric has one way out, top right, like every form."
+		],
+		articles: ["home", "requests"]
+	},
 	{
 		id: "metric-change",
 		date: "2026-11-13",
@@ -22570,11 +22849,27 @@ function layoutFrom(ctx, a) {
 }
 /** A sentence as part of a longer line: without its closing full stop, so the line never ends in two. */
 var clause = (t) => t.trim().replace(/\.+$/, "");
+/** The newest n changes that pass `keep`. With the store's history (AX5 part 2b) it pages back through the log, 100 at
+a time, rather than filtering every change ever made; without it, it reads the snapshot. */
+async function activityPages(ctx, keep, n) {
+	if (!ctx.history) return ctx.snapshot.changes.filter(keep).sort((x, y) => x.at < y.at ? 1 : -1).slice(0, n);
+	const out = [];
+	let before;
+	do {
+		const page = await ctx.history({
+			before,
+			size: 100
+		});
+		for (const c of page.changes) if (keep(c) && out.push(c) >= n) return out;
+		before = page.next;
+	} while (before);
+	return out;
+}
 var WORK_TOOLS = [
 	{
 		name: "get_my_work",
 		title: "What needs me",
-		description: `What needs the person this week, as their Home shows it: their goals with a check-in due this week or that need attention (${ATTENTION.needs.meaning.replace(/\.$/, "").toLowerCase()}), those behind but already ${lower(ATTENTION.handled)}, every open ask waiting on them (decisions or help, questions, asks for an update, actions, grouped by kind, ${lower(ASK_STATUS.overdue)} ones marked), and the reviews they’re in. Statuses are said as people see them, with the code: “${said("off")}”.`,
+		description: `What needs the person this week, as their Home shows it: their goals with a check-in due this week or that need attention (${ATTENTION.needs.meaning.replace(/\.$/, "").toLowerCase()}), those behind but already ${lower(ATTENTION.handled)}, every open ask waiting on them (decisions or help, questions, asks for an update, actions, grouped by kind, each in Home’s order with Home’s line for how long it has waited or when it is due, whether it is late, and who it was asked of when it came with a goal they now own), and the reviews they’re in. Statuses are said as people see them, with the code: “${said("off")}”.`,
 		inputSchema: {
 			type: "object",
 			properties: {},
@@ -22609,7 +22904,21 @@ var WORK_TOOLS = [
 				said: a.handled.said || null,
 				why: a.flags.map((f) => f.detail)
 			}));
-			const waiting = openForPerson(me, s).filter((r) => r.goalIds.some((id) => s.goals.some((g) => g.id === id))).map((r) => requestData(ctx, r));
+			const home = homeAsks(me, s, ctx.cycle, ctx.week, ctx.today);
+			const at = new Map(home.map((w, i) => [w.askId, {
+				i,
+				w
+			}]));
+			const waiting = openForPerson(me, s).filter((r) => at.has(r.id)).sort((a, b) => at.get(a.id).i - at.get(b.id).i).map((r) => {
+				const w = at.get(r.id).w;
+				const { overdue: _, ...d } = requestData(ctx, r);
+				return {
+					...d,
+					waiting: w.line,
+					late: w.late,
+					handedFrom: w.was
+				};
+			});
 			const ofKind = (k) => waiting.filter((r) => r.kind === k);
 			const requests = ofKind("decision");
 			const questions = ofKind("question").map((r) => ({
@@ -22618,22 +22927,31 @@ var WORK_TOOLS = [
 				goal: r.goals[0]?.title,
 				question: r.ask,
 				by: r.askedBy,
-				review: r.review
+				review: r.review,
+				waiting: r.waiting,
+				late: r.late,
+				handedFrom: r.handedFrom
 			}));
 			const asks = ofKind("update").map((r) => ({
 				id: r.id,
 				goalId: r.goals[0]?.id,
 				by: r.askedBy,
-				at: r.raisedAt
+				at: r.raisedAt,
+				waiting: r.waiting,
+				late: r.late,
+				handedFrom: r.handedFrom
 			}));
 			const actions = ofKind("action").map((r) => ({
 				id: r.id,
 				goalId: r.goals[0]?.id,
 				action: r.ask,
 				dueWeek: r.dueWeek,
-				overdue: r.overdue,
-				agreedBy: r.askedBy
+				waiting: r.waiting,
+				late: r.late,
+				agreedBy: r.askedBy,
+				handedFrom: r.handedFrom
 			}));
+			const when = (x) => ` · ${x.waiting}${x.handedFrom ? ` · asked of ${x.handedFrom}, now yours` : ""}`;
 			const reviews = s.reviews.filter((r) => r.people.includes(me)).map((r) => {
 				const x = reviewSession(r, s, ctx.cycle, ctx.today, ctx.week);
 				return {
@@ -22691,10 +23009,10 @@ var WORK_TOOLS = [
 					`Week ${ctx.week} for ${ctx.actor.name}.`,
 					`${d.scope === "mine" ? "Your goals" : "All goals"}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(", ") || "none"}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? "week" : "weeks"}.` : ""}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ""}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ""}`,
 					`Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.`,
-					`Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask} (${r.id})`).join("; ") : "none"}.`,
-					`Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question} (${q.id})`).join("; ") : "none"}.`,
-					`Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by} (${x.id})`).join("; ") : "none"}.`,
-					`Your actions: ${actions.length ? actions.map((x) => `${x.action}${x.dueWeek ? ` by week ${x.dueWeek}${x.overdue ? `, ${lower(ASK_STATUS.overdue)}` : ""}` : ""} (${x.id})`).join("; ") : "none"}.`,
+					`Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask}${when(r)} (${r.id})`).join("; ") : "none"}.`,
+					`Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question}${when(q)} (${q.id})`).join("; ") : "none"}.`,
+					`Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by}${when(x)} (${x.id})`).join("; ") : "none"}.`,
+					`Your actions: ${actions.length ? actions.map((x) => `${x.action}${x.dueWeek ? ` by week ${x.dueWeek}` : ""}${when(x)} (${x.id})`).join("; ") : "none"}.`,
 					`Your goals that need attention: ${attention.length ? attention.map((g) => `${g.title}, ${said(g.status)}: ${g.why.map(clause).join(". ")}`).join("; ") : "none"}.`,
 					`${ATTENTION.handled.label} (${HANDLED_LINE.replace(/\.$/, "")}): ${handled.length ? handled.map((g) => `${g.title} (${said(g.status)}): ${clause(g.inHand)}`).join("; ") : "none"}.`
 				].join("\n")
@@ -22903,14 +23221,12 @@ var WORK_TOOLS = [
 		async run(a, ctx) {
 			const q = parseActivity(new URLSearchParams(String(a.query ?? "").replace(/^.*\?/, "")));
 			if (q.goal) q.goal = goalOf$2(ctx, q.goal).id;
-			const keep = activityFilter(q, {
+			return listed({ changes: (await activityPages(ctx, activityFilter(q, {
 				snapshot: ctx.snapshot,
 				cycle: ctx.cycle,
 				week: ctx.week,
 				watched: null
-			});
-			const n = Math.min(500, Math.max(1, Number(a.limit ?? 50)));
-			return listed({ changes: ctx.snapshot.changes.filter(keep).sort((x, y) => x.at < y.at ? 1 : -1).slice(0, n).map((c) => ({
+			}), Math.min(500, Math.max(1, Number(a.limit ?? 50))))).map((c) => ({
 				at: c.at,
 				by: name$1(ctx, c.actorId),
 				goal: c.goalId ? ctx.snapshot.goals.find((g) => g.id === c.goalId)?.title ?? c.goalId : null,
@@ -27575,6 +27891,7 @@ async function serve(req, deps) {
 				ctx.full = all;
 				return secret;
 			},
+			...deps.history ? { history: (ask) => db("select", () => deps.history(found.workspaceId, ask)) } : {},
 			...deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace(found.workspaceId) } : {},
 			...deps.markups ? { markups: deps.markups(hash) } : {},
 			...deps.feedback ? { feedback: deps.feedback(hash) } : {}
@@ -50159,6 +50476,7 @@ function supabaseDeps(origin, env = process.env, client) {
 			return data?.name ?? "Workspace";
 		},
 		load: (ws) => store.load(ws),
+		history: (ws, ask) => store.history(ws, ask),
 		commit: (ws, c) => store.commit(ws, c),
 		async goalKeys(ws, ids) {
 			const { data, error } = await db.from("okr_goals").select("id, key").eq("workspace_id", ws).in("id", ids);
