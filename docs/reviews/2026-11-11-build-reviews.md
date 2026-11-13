@@ -131,6 +131,8 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #293 GE10 review: the four findings from #270 | 2 | 0 | 0 | 1 |
 | #294 Track 7 review fixes (#242, #249, #239) | MCP load | 0 | 0 | 0 |
 | #322 RV7: who may speak for a review | 1 | 0 | 1 | 6 |
+| #323 AX5: narrow load | 4 | 0 | 2 | 5 |
+| #229 Track 4: #193's mediums | 4 | 0 | 1 | 2 |
 | #318 ST1 review: the three mediums from #285 | 2 | 0 | 0 | 0 |
 | #313 FS1 review: three mediums from #111 | 1 | 0 | 0 | 0 |
 | #291, #295, #296, #304, #307 KT9, KT10 and KT6: the kit | 6 | 0 | 0 | 0 |
@@ -1404,3 +1406,23 @@ Someone in a review, or an admin, may mark a goal reviewed, add a note, accept a
 - The walk's sentence is cut out of the join line by string replacement (`Inspect.tsx:102`), and on a phone the non-member's bar is four lines of names.
 
 **Unconfirmed.** A stale tab saving after its person is removed.
+
+### #323 AX5: narrow load (track 4, merged 01:11 UTC, 13 Nov)
+
+`Store.load(ws, { from })` trims two things: check-ins of cycles that ended before `from`, and change-log entries before it (anchors of any age are kept). Everything else is whole, and `Snapshot.history` marks the snapshot as partial. Read first by a reviewing session on PGlite and the browser store; the report reached me through its file after a restart, and I confirmed on main at `1ab6a54e` that no caller passes a window (`src/app/state.tsx` and `server/mcp.ts` all call `load(ws)`) and that nothing reads `history.checkInCycles`. So neither medium can happen on main today. No high finding.
+
+The three stores agree for nine windows, to the same check-in and entry ids; the contract runs against all four set-ups (54 tests); no row of another workspace comes back from a windowed load or a history page; reads page under the 1,000-row cap; no SQL is built from input; nothing reaches outside `faro`. A commit is a delta, so a save from a narrow snapshot cannot by itself overwrite unloaded check-ins.
+
+**1. Medium (ran; latent, and high the day a caller passes a window). Rules run on a narrow snapshot allow deleting things that have check-ins.** `goalHasCheckIns` (`src/domain/removal.ts:246`), `cycleStanding` and `deleteCycle` (`:383-403`), `personHistory` (`:112`) and others read `s.checkIns` as if whole; `checkInCycles` is written by the three stores and read by nothing. With a 2025 cycle holding one goal and one check-in and a window from June 2026: `deleteGoal` is allowed and saved (full: "It has check-ins: stop it instead"), `deleteCycle` is allowed and saved, and `stopGoal` is wrongly refused. Removal is soft, so nothing was destroyed. Fix: before part 2b wires a window, make the "has any check-in" rules read `history.checkInCycles` or refuse on a partial snapshot, with a rule test for it.
+
+**2. Medium (ran; latent). Nothing stops a partial snapshot being used as a whole one.** `createWorkspace(copy, narrowSnapshot)` kept 2 of 3 check-ins and stored the `history` field, so the copy says it is partial for ever (`src/data/store.ts:298`); and the app keeps whichever load lands last, with no look at `history` (read). Fix: strip `history` on write, and refuse or merge a partial snapshot in `createWorkspace` and the app's loader.
+
+**Lows.** No "save from a partial snapshot" case and no boundary case in the store contract. Two comments ask for an index that has existed since 0003. A legacy update ask on an old-cycle goal reads "open" under a window (read). Supabase's windowed load is one request per 100 goals, and anchors are never trimmed, so the narrow log still grows without bound (read). The cycle-end formula is restated in SQL beside `cycleDates`. Not run against real PostgREST.
+
+### #229 Track 4: #193's mediums (track 4, merged 00:32 UTC, 13 Nov)
+
+Three of the four hold (same reviewing session): a failed engine load now says so (N8 passes); Home asks worst first (in order for all 29 owners with more than one goal, where 13 were out of order); and the named scope returns the same goals, order and counts as the old id list across 2,716 viewer, scope and query combinations.
+
+**1. Medium (ran). "One port per workspace" does not hold: there is still one port per hook.** `portFor`'s key includes `columns` (`src/app/goals.ts:16-29`), and `useGoalColumns` builds a new object in each hook's own `useMemo`, so no two hooks share a key and the one-slot cache is overwritten each time. One render with six goal hooks summarised the workspace three times. Fix: key on stable inputs, or build the columns inside the shared port, with a test.
+
+**Lows.** `saveGoal` with a module's `also` still fails without a word when the engine can't load (`src/app/state.tsx:768`; read). No unit test for the port's sharing or the toast's branches.
