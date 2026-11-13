@@ -46,7 +46,7 @@ Module id `metrics`, in [src/modules/metrics/](../../../src/modules/metrics/modu
 | U152 | Metric links carry over: as Amara, on 21 Dec 2026 Start 2027 on Cycles; every goal carried into 2027 that was measured by a metric in 2026 is measured by the same metric, for the same team and part, in 2027 | `evals/journeys.cjs` |
 | F15 | The metric library on a phone: the first metric near the top, rows of at most three lines, a metric’s goals as rows, nothing scrolls sideways | `evals/finish/15-metrics.cjs` |
 | N16 | One set of numbers: a metric’s row in the library counts the goals its page lists, status by status | `evals/notes/16-metrics.cjs` |
-| U152 | Metric links carry over: as Amara, on 21 Dec 2026 Start 2027 on Cycles; every goal carried into 2027 that was measured by a metric in 2026 is measured by the same metric, for the same team and part, in 2027 | `evals/journeys.cjs` |
+| U153 | A gap in measurement is visible and owned (MS): as Rhea, Flaky test rate is said to be a Gap with what is missing; its page shows the square Gap mark and, under To sort out, “Not measured yet: 1 goal held to no number”; its goal says “Not measured yet” with the broken ring, nothing due on it. Said to be Measured again, the goal is held to its plan once more | `evals/journeys.cjs` |
 
 ## Help
 
