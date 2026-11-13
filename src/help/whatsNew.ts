@@ -37,6 +37,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['workspace'],
   },
   {
+    id: 'reviews-switch-clock',
+    date: '2026-11-13',
+    title: 'Check-ins say plainly which day they’re due',
+    points: [
+      'The day check-ins are due is said one way everywhere: “by Thursday”, or “before Thursday’s review” only when you are in a review held that day. With Reviews off, the week’s receipt says “All 7 of your check-ins are in by Thursday.”',
+      'Switching Reviews off now also says how many accepted risks stay on their goals, and that check-ins are still due by the same day.',
+      'With Reviews off, an exported spreadsheet has no Notes sheet and no Review column on Asks, and an import that has them says once that they were not read.',
+    ],
+    articles: ['check-in', 'features'],
+  },
+  {
     id: 'goals-for-others-asked-in-files',
     date: '2026-11-13',
     title: 'Proposed goals in What feeds it, the year’s start and files',

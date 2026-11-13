@@ -2,12 +2,15 @@
 /* Fix item F2: a module switched off in a workspace adds no sheet to its exports, at every door: the workbook (Export,
    Import's "Export everything", the preview's "Nothing would change"), the zipped CSVs, and the MCP export tool. */
 import { serve, type Deps } from '../../../server/mcp';
-import { MODULE_RECORDS, MODULE_SHEETS, sheetsOn } from '../../core/records';
+import { exportOn, MODULE_RECORDS, MODULE_SHEETS, sheetsOn } from '../../core/records';
+import { MODULES } from '../../core/registry';
+import { REVIEWS_COLUMN, REVIEWS_SHEET } from '../../domain/columns';
 import { buildPlatformOrg } from '../../data/platformOrg';
-import { workbook } from '../../domain/export';
+import { sheetNamed, workbook } from '../../domain/export';
 import type { ApiToken, Snapshot } from '../../domain/types';
 import { hashToken, newToken } from '../../mcp/protocol';
 
+const MODULE_IDS = MODULES.map((m) => m.id);
 const today = new Date('2026-11-02T12:00:00Z');
 const built = buildPlatformOrg(today);
 // The first module in this build that adds a sheet (the metric library's Metrics); none in a build without one.
@@ -59,5 +62,32 @@ describe.skipIf(!owner)('a switched-off module’s sheet leaves every export (F2
     expect(off.content[0]!.text).toMatch(/switched off in Platform Engineering/);
     // The JSON and the core's sheets are unchanged.
     expect((await call([owner!.module], 'export', { format: 'goals_csv' })).isError).toBe(false);
+  });
+});
+
+describe('with Reviews switched off, every export leaves out the Notes sheet and the Review column (RS1, Reviews switch spec 5)', () => {
+  const ws = (off: string[]) => ({ id: 'platform-org', name: 'Platform Engineering', modulesOff: off });
+  const book = (off: string[]) => workbook({ ws: ws(off), snapshot: built, cycle: built.cycles[0]!, week: 10, today, ...exportOn(ws(off)) });
+
+  it('exportOn carries the sheets and Reviews, from the one switch', () => {
+    expect(exportOn(ws([]))).toEqual({ sheets: MODULE_SHEETS, reviews: MODULE_IDS.includes('reviews') });
+    expect(exportOn(ws(['reviews'])).reviews).toBe(false);
+  });
+
+  it.skipIf(!MODULE_IDS.includes('reviews'))('the workbook has Notes and a Review column while on, and neither once off', () => {
+    const on = book([]), off = book(['reviews']);
+    expect(on.map((x) => x.name)).toContain(REVIEWS_SHEET);
+    expect(off.map((x) => x.name)).not.toContain(REVIEWS_SHEET);
+    expect(sheetNamed(on, 'Asks').rows[0]).toContain(REVIEWS_COLUMN);
+    expect(sheetNamed(off, 'Asks').rows[0]).not.toContain(REVIEWS_COLUMN);
+  });
+
+  it.skipIf(!MODULE_IDS.includes('reviews'))('the MCP export tool says the Notes sheet is switched off, and still gives Asks', async () => {
+    const off = await call(['reviews'], 'export', { format: 'notes_csv' });
+    expect(off.isError).toBe(true);
+    expect(off.content[0]!.text).toMatch(/Notes sheet’s module is switched off in Platform Engineering/);
+    const asks = await call(['reviews'], 'export', { format: 'asks_csv' });
+    expect(asks.isError).toBe(false);
+    expect(asks.content[0]!.text.split('\n')[0]).not.toContain(REVIEWS_COLUMN);
   });
 });

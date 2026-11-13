@@ -4,7 +4,7 @@
    (FARO_WITHOUT) declares nothing here, so its rows are neither read nor written, and none are deleted. */
 import PARTS from 'virtual:faro-modules/records';
 import type { ModuleRecords, ModuleSheet } from '../domain/records';
-import { modulesOn } from './registry';
+import { isModuleOn, modulesOn } from './registry';
 
 /** Every module's records, in module id order. */
 export const MODULE_RECORDS: readonly ModuleRecords[] = PARTS.map((p) => ({ ...p.part, module: p.id }));
@@ -30,3 +30,10 @@ export const recordsOf = (records: readonly ModuleRecords[], on: ReadonlySet<str
     any export (the Export sheet, Data's downloads, the MCP export tool), as it adds nothing else. */
 export const sheetsOn = (ws: { modulesOff?: readonly string[] } | null | undefined): readonly ModuleSheet[] =>
   recordsOn(ws).flatMap((m) => m.sheets ?? []);
+
+/** What a workspace's exports hold, for every door that writes one (the Export sheet, Import's "Export everything", the
+    preview's worked-out check, the Data tables, the MCP export tool): the sheets of the modules switched on there (F2),
+    and whether Reviews is on (RS1, Reviews switch spec 5): with it off the workbook has no Notes sheet and Asks no Review
+    column. Spread into workbook()'s input, so the rule lives here once. */
+export const exportOn = (ws: { modulesOff?: readonly string[] } | null | undefined): { sheets: readonly ModuleSheet[]; reviews: boolean } =>
+  ({ sheets: sheetsOn(ws), reviews: isModuleOn(ws, 'reviews') });

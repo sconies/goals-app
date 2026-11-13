@@ -23,7 +23,7 @@ const noReviews = !isModuleOn(null, 'reviews');
 const TODAY = new Date('2026-11-05T12:00:00Z'); // Thursday of week 45 of 53
 const DEC = new Date('2026-12-24T12:00:00Z'); // week 52: the wrap-up is open
 
-async function as(personId: string, today = TODAY, start?: Snapshot) {
+async function as(personId: string, today = TODAY, start?: Snapshot, modulesOff: string[] = []) {
   let data: Snapshot = start ?? seed(TODAY);
   const token = newToken();
   const t: ApiToken = { id: 'tok-' + personId, personId, name: 'Eval', tokenHash: await hashToken(token), createdBy: 'amara', createdAt: today.toISOString(), lastUsedAt: null, revokedAt: null };
@@ -36,6 +36,7 @@ async function as(personId: string, today = TODAY, start?: Snapshot) {
     commit: async (_ws, c) => { data = applyCommit(data, c); },
     touch: async () => undefined,
     deleteWorkspace: async () => { deleted = true; },
+    modulesOff: async () => modulesOff,
     now: () => today,
   };
   let n = 0;
@@ -273,5 +274,30 @@ describe('AI assistants can do what the person can', () => {
     expect(amara.deleted()).toBe(false);
     await amara.call('delete_workspace', { confirm_name: 'Acme' });
     expect(amara.deleted()).toBe(true);
+  });
+});
+
+/* N30 (RS, docs/design/round-4/reviews-switch/spec.md 5 and 7): a switched-off module's tools all answer with one
+   sentence, the same pattern for every module; edit_call on a note said in a review says Reviews' too. */
+describe('a switched-off module’s tools say one sentence (N30)', () => {
+  const off = (module: string, tool: string) => `${module} is switched off in Acme, so ${tool} can’t be used there. An admin can switch it on in Workspace, under Features.`;
+  for (const m of MODULES.filter((x) => x.aiTools.length)) {
+    it(`[REVIEWS-OPTIONAL] N30: with ${m.name} off, each of its tools (${m.aiTools.join(', ')}) answers “${m.name} is switched off in Acme, so {tool} can’t be used there. …” and changes nothing`, async () => {
+      const amara = await as('amara', TODAY, undefined, [m.id]);
+      const before = amara.data().changes.length;
+      for (const tool of m.aiTools) {
+        const r = await amara.call(tool, {});
+        expect(r.error, tool).toBe(true);
+        expect(r.text, tool).toBe(off(m.name, tool));
+      }
+      expect(amara.data().changes.length).toBe(before);
+    });
+  }
+
+  it('[REVIEWS-OPTIONAL] N30: with Reviews off, edit_call on a note said in a review answers with Reviews’ sentence', async () => {
+    const amara = await as('amara', TODAY, undefined, ['reviews']);
+    const note = amara.data().decisions.find((d) => d.kind === 'note' && d.reviewId)!;
+    const r = await amara.call('edit_call', { call_id: note.id, text: 'Corrected' });
+    expect([r.error, r.text]).toEqual([true, off('Reviews', 'edit_call')]);
   });
 });
