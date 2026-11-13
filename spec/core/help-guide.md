@@ -11,7 +11,7 @@ Every article on Faro’s Help page, in full and in its order: what each screen 
 
 `home`. Home shows what needs you this week: one main thing to do, what people have asked of you, and the goals you own and watch.
 
-Routes: `/`. Screens: `Home`. Requirements: `HOME-OWNER`, `PROFILES`, `SHAPE-MATCHES-WORD`, `DAY-ONE`.
+Routes: `/`. Screens: `Home`, `HomeProposals`. Requirements: `HOME-OWNER`, `PROFILES`, `SHAPE-MATCHES-WORD`, `DAY-ONE`.
 
 #### What it’s for
 

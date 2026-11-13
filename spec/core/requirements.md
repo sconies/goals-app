@@ -635,7 +635,7 @@ Faro can be put on a phone's home screen and is easy to see there: a web app man
 There are no role labels: owners edit and check in on their goals; everyone else can view, watch and comment; admins manage people and settings.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Home and your week at a glance” (`home`), screens `Home`; “People: finding someone” (`people`), screens `People`
+- **Help:** “Home and your week at a glance” (`home`), screens `Home`, `HomeProposals`; “People: finding someone” (`people`), screens `People`
 - **Journeys and checks:** U1, U2, U9, U141
 
 ### ADMIN
@@ -892,7 +892,7 @@ In a workspace's first weeks Home tells each person, the second included, what i
 
 - **Copy:** build it as Faro does.
 - **Rule:** [Day one: set-up’s steps and “Getting started”](rules/day-one.md)
-- **Help:** “Home and your week at a glance” (`home`), screens `Home`
+- **Help:** “Home and your week at a glance” (`home`), screens `Home`, `HomeProposals`
 - **Journeys and checks:** U86
 
 ### IDENTITY
@@ -1090,7 +1090,7 @@ The app follows docs/design-rules.md on every screen: no coloured edge stripes o
 A status shape always agrees with the word beside it, everywhere: the shape comes from the goal’s status (or a stage’s state, a result or a quarter that shares its shape, as src/domain/vocabulary.ts SHAPE_WORDS says), never from what flags it. An on-track goal flagged only for Getting worse or Greener than calculated keeps the On track shape on Home and in the Goals screen’s Needs attention, and says the flag in its own words beside the warning mark, as the goal’s page does. The design checks (P3, P4, P6) hold every status shape on every screen to its word with the app’s own rule (shapeAgrees).
 
 - **Copy:** build it as Faro does.
-- **Help:** “Home and your week at a glance” (`home`), screens `Home`
+- **Help:** “Home and your week at a glance” (`home`), screens `Home`, `HomeProposals`
 - **Tests:** `evals/shapes.eval.ts` (2)
 - **Journeys and checks:** P3, P4, P6
 
@@ -1134,7 +1134,7 @@ Home opens on what is asked of you today, with one primary action, or says that 
 
 - **Copy:** build it as Faro does.
 - **Rule:** [Home: what is asked of you today](rules/home.md)
-- **Help:** “Home and your week at a glance” (`home`), screens `Home`
+- **Help:** “Home and your week at a glance” (`home`), screens `Home`, `HomeProposals`
 - **Tests:** `evals/attention.eval.ts` (5)
 - **Journeys and checks:** N3, N10, N26, U122
 

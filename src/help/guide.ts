@@ -95,7 +95,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'Who can', text: ['Everyone has a Home. What is on it depends on the goals you own, the goals you watch and the reviews you’re in. There are no role labels.'] },
     ],
     routes: ['/'],
-    screens: ['Home'],
+    screens: ['Home', 'HomeProposals'],
     reqs: ['HOME-OWNER', 'PROFILES', 'SHAPE-MATCHES-WORD', 'DAY-ONE'],
     keywords: ['dashboard', 'start', 'streak', 'needs your response', 'today', 'this week'],
     related: ['check-in', 'needs-attention', 'requests', 'watching'],
