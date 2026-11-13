@@ -5902,7 +5902,7 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
 }, []);
 
 /* Check reads the metric from the draft (build review of #202, findings 2 and 3): a reload keeps it, a new team re-slices it. */
-journey('U151', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the receipt: as Valentina on Thursday 5 Nov, her one check-in at 80 (Commitment coverage’s target) shows one panel “… reached its target” with “Copy the share image” and “See the goal”, and the receipt “Your check-in is in by Thursday.”; the goal’s History marks that week “Reached its target”; as Jonah on Friday 6 Nov (nothing posted for week 45), his check-in says “It came in after Thursday’s deadline.” and no run', 12, async (h, device) => {
+journey('U151', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the receipt: as Valentina on Thursday 5 Nov, her one check-in at 80 (Commitment coverage’s target) shows one panel “… reached its target” with “Copy the share image” and the check-in’s own status (View the goal is the page’s), and the receipt “Your check-in is in by Thursday.”; the goal’s History marks that week “Reached its target”; as Jonah on Friday 6 Nov (nothing posted for week 45), his check-in says “It came in after Thursday’s deadline.” and no run', 12, async (h, device) => {
   const on = (path, day) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
   const p = h.use(await newPage(device, 'valentina'));
   await p.goto(on('/check-in/cost-commit', '2026-11-05'));
@@ -5912,13 +5912,16 @@ journey('U151', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the rece
   const panel = p.locator('.ci-moment');
   await see(panel, 'reached its target', 'no panel says the goal reached its target');
   await see(panel, 'against a target of', 'the panel does not say the target');
-  h.set('finish', await panel.getByRole('button', { name: 'Copy the share image' }).isVisible() && await panel.getByRole('link', { name: 'See the goal' }).isVisible() && await p.locator('.ci-moment').count() === 1, 'the panel has not one share button and one link to the goal');
+  // #410 review: one share button and no second link to the goal (the page's View the goal is the one), and the panel's
+  // status is the check-in's own, the same word the line above says.
+  const status = (await p.locator('.celebrate .nobr').first().innerText()).replace(/^is\s*/, '').trim();
+  h.set('finish', await panel.getByRole('button', { name: 'Copy the share image' }).isVisible() && await panel.getByRole('link').count() === 0 && await p.locator('.ci-moment').count() === 1 && (await panel.innerText()).includes(status), `the panel has not one share button, no link and the check-in’s status (${status})`);
   // The due day is a review only for someone in a review held that day (deep review T4); otherwise it is the deadline.
   await see(p, /Your check-in is in (before Thursday’s review|by Thursday)\./, 'the receipt does not say it was in before the due day');
   const said = await p.locator('.celebrate').innerText();
   h.set('errors', !/lost|broken|!/i.test(said), `the receipt said “${said.replace(/\s+/g, ' ')}”`);
   await h.checkpoint('reached');
-  await h.click(panel.getByRole('link', { name: 'See the goal' }));
+  await h.click(p.getByRole('link', { name: 'View the goal' }));
   await p.waitForURL(/\/goals\//);
   const result = p.locator('.ci-result').first();
   await result.waitFor({ timeout: 5000 }).catch(() => undefined);
