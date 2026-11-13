@@ -38,7 +38,7 @@ Home is where you start each day. It answers one question first: what is asked o
 #### When Home has no button
 
 - Before the day your check-ins are due, Home says “Nothing is asked of you today.” and when they are due, with Check in early if you want to get ahead. When asks or proposed goals wait for you, it says so instead (“A proposed goal waits for your response.”).
-- Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in, it says what the check-in’s last screen said: whether they were in before the review, and how many weeks in a row you have been on time, from two weeks.
+- Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in, it says what the check-in’s last screen said: whether they were in before the deadline, and how many weeks in a row you have been on time, from two weeks.
 - If you own and watch nothing, it says so, with a way to see the goals and to set one up.
 - It never tells you about a deadline you met.
 
@@ -274,7 +274,7 @@ Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, qua
 
 #### When the week’s are all in
 
-The last screen says whether your check-ins were in before the review (“All 4 of your check-ins are in before Thursday’s review.”) and, from two weeks, how many weeks in a row you have been on time. If some came after the review it says how many, and when the next are due.
+The last screen says whether your check-ins were in before the deadline (“All 4 of your check-ins are in for week 46, before Thursday’s deadline.”; if you are in a review that day, “… before Thursday’s review.”) and, from two weeks, how many weeks in a row you have been on time. If some came after it, it says how many, and when the next are due.
 
 One late week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. Only you see your run.
 

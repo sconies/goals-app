@@ -13,7 +13,7 @@ import type { ScopeFacts } from '../domain/goalsPage';
 import { agendaOf, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
 import { waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession, type Waiting } from '../domain/home';
 import { handedFrom } from '../domain/askHandover';
-import { onTimeStreak, receiptFacts, reviewDate, weekProgress } from '../domain/progress';
+import { onTimeStreak, receiptFacts, reviewDate, reviewOnDueDay, weekProgress } from '../domain/progress';
 import { hasEnded, weekDate, weekDates } from '../domain/plan';
 import { beforeStart, cycleDates, wrapUpOpenOn } from '../domain/cycle';
 import { openForPerson } from '../domain/asks';
@@ -86,8 +86,8 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   const start = beforeStart(cycle, today);
   const thisWeek = s.checkIns.filter((c) => c.week === week && p.goals.some((g) => g.id === c.goalId));
   const allIn = p.goals.length > 0 && p.done.length >= p.goals.length;
-  // The receipt's review is named while reviews are on (FT2 isn't built, so they are) and the workspace holds one.
-  const hasReview = s.reviews.some((r) => !r.removedAt && !r.endedAt);
+  // The receipt names the due day as a review only for someone in a review held that day (T4; FT2 isn't built, so reviews are on).
+  const hasReview = reviewOnDueDay(s.reviews, viewerId, cycle, true);
   const receipt = allIn ? receiptFacts(p, viewerId, s, cycle, week, hasReview) : { after: 0, forgiven: null };
   const dueDate = reviewDate(cycle, Math.max(1, week));
   // Once the year has ended no session is held in it: a "Not held yet" lead would never go (HM1 review).

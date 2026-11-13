@@ -11,10 +11,10 @@ The habit Faro most wants is checking in before the review without being asked. 
 
 **The run** (`onTimeStreak`). A week is *on time* when the person had something due in it and every goal they own that was due was checked in by them on or before the week's review day (the end of the day: reviews have a day and no hour). Walk back from the latest finished week (this week counts once every goal is checked in; otherwise start from last week), counting on-time weeks. A week that is not on time is **forgiven** when each of the 4 weeks before it in which the person had something due was on time: it isn't counted, and the walk goes on. A week not on time and not forgiven ends the walk, and so does a week with nothing due. "Checked in this week, but late" is a late week like any other. `forgivenIn` gives the latest forgiven week inside the run, or none. The forgiving run is the default (CF4); a workspace setting to make it strict or hide it comes with CF2's `streak` column, which isn't built: until then every workspace forgives.
 
-**The receipt** (`receiptText`, from `receiptFacts`), once every one of the person's check-ins for the week is in. It reads their goals this week, how many of them were first checked in after the due day, the review's weekday (none when reviews are switched off or the workspace holds no review), the run, the forgiven week and the next due day:
+**The receipt** (`receiptText`, from `receiptFacts`), once every one of the person's check-ins for the week is in. It reads their goals this week, how many of them were first checked in after the due day, the due day's weekday and whether it is a review the person is in (`reviewOnDueDay`: a live review held on that weekday with them in it, while reviews are on; otherwise it is the workspace's deadline, and Faro never calls a deadline a review), the run, the forgiven week and the next due day:
 
-- all in by the due day: "{Your check-in is | Both of your check-ins are | All {n} of your check-ins are} in before {Thursday}’s review." (with no review, "… in for week {w}."), then, from a run of 2, "That is {k} weeks in a row."; and on the first receipt after a forgiven week (it is last week), "Week {w} came in late; one late week doesn’t break a run.";
-- some after: "{…} in. {It | One | Both | All of them | {m}} came after {Thursday}’s review." then "The next {is | are} due by {Thursday 19 Nov}." No run is mentioned, and none is said to be lost.
+- all in by the due day: "{Your check-in is | Both of your check-ins are | All {n} of your check-ins are} in before {Thursday}’s review." (in no review that day, "… in for week {w}, before {Thursday}’s deadline."), then, from a run of 2, "That is {k} weeks in a row."; and on the first receipt after a forgiven week (it is last week), "Week {w} came in late; one late week doesn’t break a run.";
+- some after: "{…} in. {It | One | Both | All of them | {m}} came after {Thursday}’s review." (or "came in after {Thursday}’s deadline.") then "The next {is | are} due by {Thursday 19 Nov}." No run is mentioned, and none is said to be lost.
 
 Never said: "streak lost", "broken", a nought, a count of late weeks, an exclamation mark. A person is never told that an ask came before their check-in. Home's quiet line says the same two sentences on the day the week is completed ([Home](home.md)), and `get_my_work` gives them as `weekReceipt`.
 
@@ -30,18 +30,18 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Tunde (one goal, due Thursday) at week 46, on time: weeks 41–46 with 45 late; 41–46 with 44 and 45 late; 44–46 with 45 late (nothing due before 44); 36–46 with 40 and 45 late. | `5, week 45 forgiven / 1 / 1 / 9, week 45 forgiven` |
 | Two check-ins in by Thursday, a run of 5, week 45 forgiven. | `Both of your check-ins are in before Thursday’s review. That is 5 weeks in a row. Week 45 came in late; one late week doesn’t break a run.` |
 | Four check-ins, one after Thursday’s review, a run of 5. | `All 4 of your check-ins are in. One came after Thursday’s review. The next are due by Thursday 19 Nov.` |
-| One check-in, no review in the workspace. | `Your check-in is in for week 46.` |
+| One check-in, by someone in no review held on Thursday; then one after the deadline. | `Your check-in is in for week 46, before Thursday’s deadline. / Your check-in is in. It came in after Thursday’s deadline. The next is due by Thursday 19 Nov.` |
 | Deploy lead time (40 h → 20 h): 22 h in week 45, then 20 h in week 46; then 28 h on track after 34 h At risk and 35 h Off track. | `Deploy lead time reached its target: 20 h, against a target of 20 h, in week 46 of 53. It started the year at 40 h. / Deploy lead time is back on track: 28 h, after 2 weeks behind plan.` |
 | The same 20 h, backfilled. | `none` |
 
 ## Where it lives
 
-- [src/domain/progress.ts](../../../src/domain/progress.ts): `onTimeStreak`, `forgivenIn`, `FORGIVE_AFTER`, `receiptFacts`, `receiptText`
+- [src/domain/progress.ts](../../../src/domain/progress.ts): `onTimeStreak`, `forgivenIn`, `FORGIVE_AFTER`, `receiptFacts`, `receiptText`, `reviewOnDueDay`
 - [src/domain/habit.ts](../../../src/domain/habit.ts): `moment`, `momentText`, `BACK_AFTER`, `MOMENT_RESULT`
 
 ## Requirements
 
-- `HABIT-RECEIPT`: Once a person's check-ins for the week are all in, the receipt says whether they were in before the review ("All 4 of your check-ins are in before Thursday’s review.") and the run of weeks in a row on time, from two; or how many came after it and when the next are due, with no run. One late week is forgiven when the four weeks before it were on time, and said once ("Week 45 came in late; one late week doesn’t break a run."). Never "lost", "broken", a nought or an exclamation mark. Home's quiet line says the same two sentences on the day the week is completed.
+- `HABIT-RECEIPT`: Once a person's check-ins for the week are all in, the receipt says whether they were in before the deadline ("All 4 of your check-ins are in for week 46, before Thursday’s deadline."; the due day is called a review only for someone in a review held that day) and the run of weeks in a row on time, from two; or how many came in after it and when the next are due, with no run. One late week is forgiven when the four weeks before it were on time, and said once ("Week 45 came in late; one late week doesn’t break a run."). Never "lost", "broken", a nought or an exclamation mark. Home's quiet line says the same two sentences on the day the week is completed.
 - `HABIT-MOMENT`: A check-in that reaches a goal's target, or brings it back on track after two weeks or more behind, shows one quiet panel on its receipt (the status's shape and word, what happened in one line, "Copy the share image" for a target reached) and its row in the goal's History says "Reached its target" or "Back on track" in small capitals. Never on a correction, a backfilled week or an import; no animation, confetti or banner on anyone else's screen.
 
 ## Tests that check it
@@ -56,7 +56,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the receipt (spec 2.1) › says every check-in is in before the review, and the run from two weeks
 - the receipt (spec 2.1) › says a forgiven week once, on the first receipt after it
 - the receipt (spec 2.1) › says how many came after, the next due day, and no run
-- the receipt (spec 2.1) › says the week when the workspace has no review
+- the receipt (spec 2.1) › says the deadline, not a review, to someone in no review that day (deep review T4)
 - the receipt (spec 2.1) › never says a run was lost or broken
 - the receipt (spec 2.1) › reads its facts from the week (receiptFacts)
 - the moment (rule 3) › is reached when the value meets the target and the week before did not

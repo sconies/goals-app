@@ -224,7 +224,7 @@ A check-in says which week it is for and where it is in the week's queue, even a
 
 ### HABIT-RECEIPT
 
-Once a person's check-ins for the week are all in, the receipt says whether they were in before the review ("All 4 of your check-ins are in before Thursday’s review.") and the run of weeks in a row on time, from two; or how many came after it and when the next are due, with no run. One late week is forgiven when the four weeks before it were on time, and said once ("Week 45 came in late; one late week doesn’t break a run."). Never "lost", "broken", a nought or an exclamation mark. Home's quiet line says the same two sentences on the day the week is completed.
+Once a person's check-ins for the week are all in, the receipt says whether they were in before the deadline ("All 4 of your check-ins are in for week 46, before Thursday’s deadline."; the due day is called a review only for someone in a review held that day) and the run of weeks in a row on time, from two; or how many came in after it and when the next are due, with no run. One late week is forgiven when the four weeks before it were on time, and said once ("Week 45 came in late; one late week doesn’t break a run."). Never "lost", "broken", a nought or an exclamation mark. Home's quiet line says the same two sentences on the day the week is completed.
 
 - **Copy:** build it as Faro does.
 - **Rule:** [The habit: the run, the receipt and a moment](rules/habit.md)
