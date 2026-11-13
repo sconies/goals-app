@@ -12,7 +12,7 @@ import type { Snapshot } from '../domain/types';
 import { callTool, type McpContext } from '../mcp/tools';
 import { moduleOffSentence } from '../mcp/moduleOff';
 import { loadGoalEntry, perform, performAny, type RunContext } from './actions';
-import { reviewsOffWords } from './reads';
+import { reviewsOffWords, reviewWriteRows } from './reads';
 
 const today = new Date('2026-11-05T12:00:00Z');
 let n = 0;
@@ -37,17 +37,18 @@ describe('writesReviews', () => {
   const s = buildPlatformOrg(today);
   const goal = s.goals.find((g) => !g.proposedIn)!;
   const ask = (s.requests ?? []).find((r) => !!r.reviewId)!;
+  const rows = reviewWriteRows(s);
   it('is true of a note, a new review, a goal newly proposed in a review and an ask newly raised in one', () => {
-    expect(writesReviews({ decisions: [reviewNote(s)], changes: [] }, s)).toBe(true);
-    expect(writesReviews({ reviews: [{ ...s.reviews[0]!, id: 'new-review' }], changes: [] }, s)).toBe(true);
-    expect(writesReviews({ goals: [{ ...goal, proposedIn: s.reviews[0]!.id }], changes: [] }, s)).toBe(true);
-    expect(writesReviews({ requests: [{ ...ask, id: 'new-ask' }], changes: [] }, s)).toBe(true);
-    expect(writesReviews({ changes: [{ id: 'c', at: '', actorId: 'x', goalId: null, entity: 'review', entityId: 'r', action: 'restored', summary: '', diffs: [] }] }, s)).toBe(true);
+    expect(writesReviews({ decisions: [reviewNote(s)], changes: [] }, rows)).toBe(true);
+    expect(writesReviews({ reviews: [{ ...s.reviews[0]!, id: 'new-review' }], changes: [] }, rows)).toBe(true);
+    expect(writesReviews({ goals: [{ ...goal, proposedIn: s.reviews[0]!.id }], changes: [] }, rows)).toBe(true);
+    expect(writesReviews({ requests: [{ ...ask, id: 'new-ask' }], changes: [] }, rows)).toBe(true);
+    expect(writesReviews({ changes: [{ id: 'c', at: '', actorId: 'x', goalId: null, entity: 'review', entityId: 'r', action: 'restored', summary: '', diffs: [] }] }, rows)).toBe(true);
   });
   it('is false of what a save only carries along: an ask raised in a review, answered; a review a person leaves; a goal edited', () => {
-    expect(writesReviews({ requests: [{ ...ask, status: 'answered' }], changes: [] }, s)).toBe(false);
-    expect(writesReviews({ reviews: [{ ...s.reviews[0]!, people: s.reviews[0]!.people.slice(1) }], changes: [] }, s)).toBe(false);
-    expect(writesReviews({ goals: [{ ...goal, title: 'Renamed' }], changes: [] }, s)).toBe(false);
+    expect(writesReviews({ requests: [{ ...ask, status: 'answered' }], changes: [] }, rows)).toBe(false);
+    expect(writesReviews({ reviews: [{ ...s.reviews[0]!, people: s.reviews[0]!.people.slice(1) }], changes: [] }, rows)).toBe(false);
+    expect(writesReviews({ goals: [{ ...goal, title: 'Renamed' }], changes: [] }, rows)).toBe(false);
   });
 });
 

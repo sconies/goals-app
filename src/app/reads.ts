@@ -17,7 +17,7 @@ import { handedFrom } from '../domain/askHandover';
 import { dueWords, onTimeStreak, receiptFacts, reviewDate, weekProgress, type DueWords } from '../domain/progress';
 import { hasEnded, weekDate, weekDates } from '../domain/plan';
 import { beforeStart, cycleDates, wrapUpOpenOn } from '../domain/cycle';
-import { openForPerson } from '../domain/asks';
+import { asksOf, openForPerson } from '../domain/asks';
 import { attentionFor, needsAttention } from '../domain/attention';
 import type { QueryContext } from '../domain/query';
 import type { LocalRows } from '../adapters/localSearch';
@@ -33,6 +33,8 @@ export const reviewsOn = (on: ReadonlySet<string>): boolean => on.has('reviews')
 
 /** What an action of a switched-off module says (docs/architecture/module-map.md, "An action, refused"): one sentence. */
 export const switchedOffWords = (module: string, workspace: string) => `${module} is switched off in ${workspace}. An admin can switch it on in Workspace, under Features.`;
+/** What domain/reviewWrites reads of a workspace as loaded: its goals (proposed ones too), reviews and asks. */
+export const reviewWriteRows = (s: Snapshot) => ({ goals: [...s.goals, ...(s.proposed ?? [])], reviews: s.reviews, asks: asksOf(s) });
 /** What a save of Reviews' records says while Reviews is off (FT2): the switched-off module's sentence (build review of #371). */
 export const reviewsOffWords = (workspace: string) => switchedOffWords('Reviews', workspace);
 

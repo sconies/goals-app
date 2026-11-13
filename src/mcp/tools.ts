@@ -6,7 +6,7 @@ import type { HistoryAsk, HistoryPage } from '../ports/store';
 import { LEVEL_WORDS, levelIds } from '../domain/levels';
 import { addNote, NotAllowed } from '../domain/actions';
 import { EMPTY_QUERY, parseQuery, queryEntries, type GoalQuery } from '../domain/query';
-import { reviewsOn, scopeFacts, searchRows } from '../app/reads';
+import { reviewsOn, reviewWriteRows, scopeFacts, searchRows } from '../app/reads';
 import { scopesFor, SCOPES, type Scope } from '../domain/goalsPage';
 import { localSearch } from '../adapters/localSearch';
 import type { FoundRow, Search, SearchAsk } from '../ports/search';
@@ -573,7 +573,7 @@ class ReviewsOff extends Error {}
  */
 function reviewsGuarded(ctx: McpContext, tool: string): McpContext {
   const save = async (c: Commit) => {
-    if (writesReviews(c, ctx.full ?? ctx.snapshot)) throw new ReviewsOff(moduleOffSentence('Reviews', ctx.ws.name, tool));
+    if (writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new ReviewsOff(moduleOffSentence('Reviews', ctx.ws.name, tool));
     return ctx.save(c);
   };
   return new Proxy(ctx, { get: (t, k, r) => (k === 'save' ? save : Reflect.get(t, k, r)) });

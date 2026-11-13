@@ -15111,7 +15111,7 @@ var _virtual_faro_modules_default = [
 			"entry": ["The core rules (stage 1) work out each goal's status, flags and attention, and the asks (stage 1: one way to ask): a review reads them and adds nothing to them.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2)."],
 			"exit": [
 				"Switched off, the menu has no Reviews row and the phone's tabs are Home, Check-in, Goals and People for someone with a goal to check in on, and Home, Goals, People and Activity for anyone else (the two rows of navigation.csv at the address “/ (Reviews off)”).",
-				"Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and the six review actions and tools refuse with “Reviews is off in {workspace}.” or the switched-off module's sentence (check N21).",
+				"Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and whatever would save Reviews' records (a review, a note said in one, an ask raised in one, a goal proposed in one), from any action or AI tool, is refused with the switched-off module's sentence and saves nothing (check N21; src/app/reviewsOffWrites.test.ts).",
 				"Switched off, Home has no Next review cell and no review lead: someone who owns no goal is led to the goals they watch that need attention (“Goals you watch · {n} need attention · See them”), or to nothing; a question waits by its own age and names no session; the due flag says “Due by Thu 12 Nov.”, on or off.",
 				"Switching off first reads back what stays (the reviews, what was said in them, the open next steps and questions raised in one) from the rule switchOffReadBack, and Undo brings Reviews back (journey U103).",
 				"Back on, every review, its people, its cadence and what was said are as they were (journey U104).",
@@ -15653,6 +15653,12 @@ var live = (xs) => xs.filter((x) => !x.removedAt);
 * without the module (FARO_WITHOUT=reviews) answers false. FT3 moves Reviews' code into its folder and retires this.
 */
 var reviewsOn = (on) => on.has("reviews");
+/** What domain/reviewWrites reads of a workspace as loaded: its goals (proposed ones too), reviews and asks. */
+var reviewWriteRows = (s) => ({
+	goals: [...s.goals, ...s.proposed ?? []],
+	reviews: s.reviews,
+	asks: asksOf(s)
+});
 /**
 * This week's deadline in dueWords' words (RS1), from what the rule reads: whether Reviews is on, and whether a review is
 * held on the due day (with `personId`, one that person is in: deep review T4). The check-in's receipt, Home and the AI's
@@ -22385,7 +22391,7 @@ var requestData = (ctx, r) => ({
 	statusLabel: ASK_STATUS[r.status].label,
 	dueWeek: r.dueWeek,
 	overdue: askLate(ctx, r),
-	review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null,
+	...reviewsOn(modulesOn(ctx.ws).on) ? { review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null } : {},
 	askedBy: name$1(ctx, r.askedBy),
 	askedOf: r.recipientId ? name$1(ctx, r.recipientId) : "anyone",
 	goals: r.goalIds.map((g) => {
@@ -26096,6 +26102,24 @@ var tools_default = [
 		part: tools
 	}
 ];
+// src/domain/reviewWrites.ts
+/**
+* Rule (FT2). A save writes Reviews' records when it logs a change to a review or to a note said in one, writes a note
+* (a decision) or a review not stored before, raises an ask in a review (one whose review differs from the stored ask's,
+* or a new one naming a review), or proposes a goal in a review (a `proposedIn` that differs from the stored goal's).
+* What a save carries along unchanged is not: answering a question raised in a review, editing a goal once proposed in
+* one, or the reviews a person leaves when marked as left, or a carried goal joins. `stored` is what the workspace as
+* loaded holds of those.
+*/
+function writesReviews(c, stored) {
+	if ((c.changes ?? []).some((x) => x.entity === "review" || x.entity === "decision")) return true;
+	if (c.decisions?.length) return true;
+	if (c.reviews?.some((r) => !stored.reviews.some((v) => v.id === r.id))) return true;
+	const goal = (id) => stored.goals.find((g) => g.id === id);
+	if (c.goals?.some((g) => !!g.proposedIn && g.proposedIn !== (goal(g.id)?.proposedIn ?? null))) return true;
+	if (c.requests?.some((a) => !!a.reviewId && a.reviewId !== (stored.asks.find((x) => x.id === a.id)?.reviewId ?? null))) return true;
+	return false;
+}
 // src/domain/readBack.ts
 init_goalEntry();
 init_goal();
@@ -27237,8 +27261,12 @@ async function callTool(name, args, ctx) {
 		text: moduleOffSentence(moduleById(from)?.name ?? from, ctx.ws.name, name)
 	};
 	try {
-		return await t.run(args ?? {}, ctx);
+		return await t.run(args ?? {}, reviewsOn(modulesOn(ctx.ws).on) ? ctx : reviewsGuarded(ctx, name));
 	} catch (e) {
+		if (e instanceof ReviewsOff) return {
+			isError: true,
+			text: e.message
+		};
 		const text = e instanceof Error ? e.message : String(e);
 		return {
 			isError: true,
@@ -27246,6 +27274,22 @@ async function callTool(name, args, ctx) {
 			cause: e
 		};
 	}
+}
+/** A save refused because it writes Reviews' records while Reviews is off: said as the switched-off sentence alone. */
+var ReviewsOff = class extends Error {};
+/**
+* The context a tool runs with while Reviews is off: the same, except that a save writing Reviews' records (a review, a
+* note said in one, an ask raised in one, a goal proposed in one: domain/reviewWrites) is refused and saves nothing, in
+* the switched-off sentence, whichever tool made it (build review of #371: edit_comment and delete_comment on a review
+* note, create_goal proposed in a review, restore_removed reopening an ended review). Everything else reads and writes
+* through to the context itself, which a save moves on.
+*/
+function reviewsGuarded(ctx, tool) {
+	const save = async (c) => {
+		if (writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new ReviewsOff(moduleOffSentence("Reviews", ctx.ws.name, tool));
+		return ctx.save(c);
+	};
+	return new Proxy(ctx, { get: (t, k, r) => k === "save" ? save : Reflect.get(t, k, r) });
 }
 /** Who a token acts as, in a sentence: said with every refusal. */
 var actingAs = (p) => `This token acts as ${p.name}, who ${p.admin ? "is an admin" : "isn’t an admin"}.`;

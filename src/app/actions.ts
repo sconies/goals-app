@@ -53,7 +53,7 @@ import type { Commit } from '../domain/commit';
 import MODULE_PARTS from 'virtual:faro-modules/actions';
 import { recordsOn } from '../core/records';
 import { isModuleOn, moduleById, modulesOn } from '../core/registry';
-import { reviewsOffWords, reviewsOn, switchedOffWords } from './reads';
+import { reviewsOffWords, reviewsOn, reviewWriteRows, switchedOffWords } from './reads';
 import { writesReviews } from '../domain/reviewWrites';
 
 /** What the dispatcher hands each action: the rules' context, and the workspace itself for the few that change it. */
@@ -226,7 +226,7 @@ export function performAny(x: RunContext, name: string, input: unknown): unknown
   const out = fn ? fn(x, input) : mod!.run(x, input);
   if (off) {
     const c = commitOf(name, out, input);
-    if (c && writesReviews(c, x.full ?? x.snapshot)) throw new A.NotAllowed(reviewsOffWords(x.workspace.name));
+    if (c && writesReviews(c, reviewWriteRows(x.full ?? x.snapshot))) throw new A.NotAllowed(reviewsOffWords(x.workspace.name));
   }
   return out;
 }
