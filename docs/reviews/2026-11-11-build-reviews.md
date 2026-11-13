@@ -133,6 +133,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #322 RV7: who may speak for a review | 1 | 0 | 1 | 6 |
 | #323 AX5: narrow load | 4 | 0 | 2 | 5 |
 | #229 Track 4: #193's mediums | 4 | 0 | 1 | 2 |
+| #308 MT2: metric parts | metrics | 1 | 3 | 5 |
 | #318 ST1 review: the three mediums from #285 | 2 | 0 | 0 | 0 |
 | #317 Import and Export: the four mediums on #257 and #248 | 3 | 0 | 0 | 0 |
 | #331 #300 review: a range between weighs both limits | 2 | 0 | 0 | 0 |
@@ -159,6 +160,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #145: set-up from a spreadsheet drops a goal whose owner or word is one letter out, and says nothing | Track 3, 03:35 UTC, 12 Nov | **Fixed** by #181; the reproduction re-run: a near-miss owner or Type now blocks set-up with its question |
 | #199: a column whose header differs from Faro's only by punctuation, an accent or spacing is neither read nor named | Track 3, 15:35 UTC, 12 Nov | **Fixed** by #214; the reproduction re-run: "Target.", "Tárget" and "Due_week" are read, a near miss is asked about, an unknown column is named |
 | #227: any member can put a check-in on someone else's goal by creating it with stages already done | Its builder (session …91EAkyS7gzPSYrnJPg), 18:15 UTC, 12 Nov | **Fixed** by #247 (read, with its tests): the set-up check-in asks the rule at the form, a sheet, MCP and `recordStagesDone`; from anyone but the owner the goal is published without it, and the stage question says who marks it |
+| #308: on a database, a save with several metric links, some with a part and some without, is refused for everyone (removing a metric, starting the next year, a workspace from the demo) | Its builder (session …92c7taPQJmK4jDJU9E), 04:06 UTC, 13 Nov | **Open** |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -1445,3 +1447,24 @@ Two `create index if not exists` on `faro.okr_changes`, by `(workspace_id, at de
 ### #325 and #329 handovers
 
 Documents. Not reviewed.
+
+### #308 MT2: metric parts (metrics, merged 02:09 UTC, 13 Nov)
+
+A goal can be measured by a part of a metric's number ("CI/CD · release builds"). Read first by a reviewing session with the stores on PGlite, the MCP tools and the screens at 1440 and 390; the report reached me through its file after a restart. One high, which I reproduced myself.
+
+**1. High (re-run by me on main at `837a4a72`, PGlite with every migration). On a database, a save that carries several links, some with a part and some without, is refused for everyone.** `metricLinkToRow` writes `part` only when the link has one (`src/modules/metrics/records.ts:37`). `okr_upsert` (migration 0011) inserts the union of the columns the batch's rows carry and fills the rest from `jsonb_populate_recordset`, so in a mixed batch the row without the key gets NULL, and 0043 made `part` NOT NULL. With rows built by `metricLinkToRow` and saved through `faro.okr_upsert`: a link with a part saves; one without saves; both in one batch fail with "null value in column "part" of relation "okr_goal_metrics" violates not-null constraint"; both save once the second carries `part: ''`. The first reader ran the app's own saves through the Postgres and Supabase stores: `removeMetric` with mixed goals, `startNextCycle` (the demo has 2 of 12 links with a part, so the next year cannot be started) and `createWorkspace` from the demo all fail this way, with nothing half-saved. The browser store is not affected, and no store test writes a part, so CI is green. This is the hazard the review of #299 named. Fix: always write `part: (l.part ?? '').trim()`, and add a mixed-batch case to the store contract. Sent at once.
+
+**2. Medium (ran). "A goal with check-ins must say why what measures it changes" is got round at both doors by unlinking first.** `linkChanges` is false when there is no present link (`rulesParts.ts:75-76`, `:107`), and unlinking asks nothing. As Rhea through MCP on a goal with 42 check-ins: a new part with no reason is refused; `unlink: true` and then the same call saves, and History has no reason. Fix: compare with the goal's last link, removed or not, or ask why on unlink.
+
+**3. Medium (ran). The form saves with a Check unanswered and the tool refuses, so the doors disagree and one part ends up with two spellings.** `MeasuredBy.tsx:91` blocks only on a Must fix; `tools.ts:239-243` holds the save for every open Check. Saving "Main branch pipeline" past the Check left the metric's page listing "main branch pipelines" and "Main branch pipeline".
+
+**4. Medium (ran). The tool and the form read different goals for the "another goal already measures this" Check:** after the next year is started the tool, reading the whole workspace (`rulesLink.ts:50`), asks about the goal's own copy from last year; the form, reading the cycle, does not.
+
+**Lows.**
+- `partKey` and `closePart` over-match short and numbered parts: "US" equals "U"; "Region 2" is asked about against "Region 1" every time.
+- `link_goal_metric` says "get_metric lists them", and `get_metric` has no list of parts.
+- A failed lazy load in the goal form's save says nothing (`state.tsx:768-769`; read, and the same gap as #229's low).
+- "Why" has no "Required", "It shows in its History." is said twice, and focus stays on Save after a refusal.
+- Through the old names in `public`, a saved part is not read back (until 0c2).
+
+**Fine.** Single-link saves write `''`; 60 characters saves and 61 is refused at both doors; a member cannot name a part on someone else's goal; existing links read as before; main needs 0043 only for a link with a part, and 0043 merged first.
