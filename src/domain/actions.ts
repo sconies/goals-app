@@ -11,6 +11,7 @@ import type { Commit } from './commit';
 import { applyModuleRows, hasModuleRows, type ModuleRecords, type ModuleRows } from './records';
 import type { Lookup } from './changes';
 import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycle, RESULT_LABEL, startFromLine, wrapUpOpenOn } from './cycle';
+import { WEEKDAY } from './progress';
 import { carryExtras, startReadBack } from './carry';
 import { copyUntouched } from './copies';
 import { personChange, personProblems } from './people';
@@ -522,6 +523,40 @@ export function setModule(x: ActionContext, ws: { id: string; modulesOff?: strin
     changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: ws.id, action: 'edited',
       summary: `${on ? 'Switched on' : 'Switched off'} ${name}${also.length ? `, and with it ${also.join(', ')}` : ''}`,
       diffs: [{ field: name, from: on ? 'Off' : 'On', to: on ? 'On' : 'Off' }] }],
+  };
+}
+
+/** The check-in rhythm in words, as the change log and the read-back say it: "every week" or "no set rhythm" (FT1). */
+export const rhythmWords = (c: Pick<Cycle, 'checkInWeeks'>) => ((c.checkInWeeks ?? 1) === 0 ? 'no set rhythm' : 'every week');
+
+/**
+ * Admins: the workspace's check-in rhythm (FT1, spec 1.1): every week, due by a weekday, or no set rhythm. Kept on the
+ * running cycle. Going from none to some starts the rhythm today (`rhythmFrom`), so nothing is late on the day it is
+ * switched on; changing only the due day doesn't restart it. Null when nothing changed.
+ */
+export function setRhythm(x: ActionContext, cycle: Cycle, to: { weeks: number; dueDay?: number; /** Undo only: the rhythm's start as it was (null: the cycle's). */ from?: string | null }): Commit | null {
+  if (!x.actor.admin) no('Only admins can change the check-in rhythm.');
+  if (to.weeks !== 0 && to.weeks !== 1) no('Faro checks in every week, or on no set rhythm.');
+  if (to.weeks > 0 && to.dueDay != null && !(Number.isInteger(to.dueDay) && to.dueDay >= 0 && to.dueDay <= 6)) no('Choose a day of the week.');
+  if (cycleState(cycle, new Date(x.now)) !== 'running' && cycleState(cycle, new Date(x.now)) !== 'ending') no('That year is over; its rhythm can’t change.');
+  const was = cycle.checkInWeeks ?? 1;
+  const dueDay = to.weeks > 0 ? to.dueDay ?? cycle.reviewDay : cycle.reviewDay;
+  if (was === to.weeks && dueDay === cycle.reviewDay) return null;
+  // The rhythm is carried explicitly, so the saved row says it (data/rows.ts writes both columns then).
+  const after: Cycle = { ...cycle, reviewDay: dueDay, checkInWeeks: to.weeks };
+  if (to.from !== undefined) {
+    if (to.from) after.rhythmFrom = to.from;
+    else delete after.rhythmFrom;
+  } else if (was === 0 && to.weeks > 0) after.rhythmFrom = x.now.slice(0, 10);
+  const day = (d: number) => WEEKDAY[d]!;
+  const said = (c: Cycle) => ((c.checkInWeeks ?? 1) === 0 ? 'no set rhythm' : `every week, due by ${day(c.reviewDay)}`);
+  const summary = was === to.weeks
+    ? `Changed the day check-ins are due by from ${day(cycle.reviewDay)} to ${day(dueDay)}`
+    : to.weeks === 0 ? 'Changed the check-in rhythm from every week to no set rhythm' : `Changed the check-in rhythm from no set rhythm to every week, due by ${day(dueDay)}`;
+  return {
+    cycles: [after],
+    changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: cycle.id, action: 'edited', summary,
+      diffs: [{ field: 'Check-in rhythm', from: said(cycle), to: said(after) }] }],
   };
 }
 

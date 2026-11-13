@@ -1,7 +1,7 @@
 /* The status rules. Pure functions: same inputs, same answer, on every screen. */
 import { daysSince, currentWeek, weekDate, goalAsOf, hasEnded, planAt, projectionFor, type Point, type Projection, planEnd } from './plan';
 import type { CheckIn, Cycle, DisplayStatus, Goal, MetricGoal, MilestoneGoal, RangeGoal, StageUpdate, Status } from './types';
-import { RULES } from './thresholds';
+import { RULES, rhythmOf, staleAfterDays } from './thresholds';
 import { rangeNear, rangeOut } from './range';
 import { LABEL, STATUS_ORDER } from './vocabulary';
 
@@ -196,6 +196,9 @@ export interface GoalStatus {
   greener: boolean;
   daysSinceCheckIn: number | null;
   week: number;
+  /** The latest check-in's week when it isn't this week's, else null (FT1). Worked out whatever the rhythm; screens say
+      "as of week {n}" only with no set rhythm (with one, No recent update does that job). */
+  asOfWeek: number | null;
 }
 
 export function goalStatus(goal: Goal, cycle: Cycle, checkIns: CheckIn[], today: Date): GoalStatus {
@@ -210,10 +213,14 @@ export function goalStatus(goal: Goal, cycle: Cycle, checkIns: CheckIn[], today:
   else if (week === 0) status = 'planned';
   // Once the cycle's last day is past nothing in it is out of date: a goal keeps the last status given (cycle-end rule 2).
   else if (hasEnded(cycle, today)) status = latest ? latest.status : 'none';
-  else if (quiet < RULES.staleDays) status = latest ? latest.status : 'none';
-  else status = 'stale';
+  else {
+    // With no set rhythm nothing goes quiet: a goal is what it last said (FT1).
+    const after = staleAfterDays(cycle);
+    status = after == null || quiet < after ? (latest ? latest.status : 'none') : 'stale';
+  }
   const greener = latest != null && RANK[latest.status] < RANK[latest.calculated];
-  return { status, calc, latest, greener, daysSinceCheckIn: days, week };
+  const asOfWeek = latest && latest.week !== week ? latest.week : null;
+  return { status, calc, latest, greener, daysSinceCheckIn: days, week, asOfWeek };
 }
 
 /**
@@ -231,14 +238,17 @@ export const projects = (goal: Goal, status: DisplayStatus) => status !== 'stale
 
 /**
  * Days since a goal's latest check-in was posted, or, with none, since it began (the cycle's start, or when it was
- * added if later). The one rule for "no recent update": stale at RULES.staleDays, and the Goals filter "No update for
- * N weeks" counts the same days in weeks.
+ * added if later), and never from before the present check-in rhythm began (`rhythmFrom`, FT1). The one rule for "no
+ * recent update": stale at staleAfterDays(cycle), and the Goals filter "Last check-in N weeks ago or more" counts the
+ * same days in weeks.
  */
 export function daysWithoutUpdate(goal: Goal, cycle: Cycle, latest: CheckIn | null, today: Date): number {
-  if (latest) return daysSince(latest.postedAt, today);
+  // Nothing is late for a time before the present rhythm began (FT1): a rhythm switched on today counts from today.
+  const rhythm = cycle.rhythmFrom ? rhythmOf(cycle)?.from ?? '' : '';
+  if (latest) return daysSince(rhythm > latest.postedAt.slice(0, 10) ? rhythm : latest.postedAt, today);
   // A plan that starts later (its From still to come, goal entry rule 13) begins then: nothing is late before it.
   const from = goal.kind === 'metric' && (goal.plan.fromWeek ?? 0) > 0 ? weekDate(cycle, goal.plan.fromWeek!) : '';
-  const began = [cycle.startDate, goal.createdAt ? goal.createdAt.slice(0, 10) : '', from].reduce((a, b) => (b > a ? b : a));
+  const began = [cycle.startDate, goal.createdAt ? goal.createdAt.slice(0, 10) : '', from, rhythm].reduce((a, b) => (b > a ? b : a));
   return daysSince(began, today);
 }
 
@@ -253,4 +263,31 @@ export function worst(statuses: DisplayStatus[]): DisplayStatus {
   const r = Math.max(...statuses.map((s) => RANK[s]));
   if (r === 1) return 'on';
   return STATUS_ORDER.find((k) => RANK[k] === r && statuses.includes(k)) ?? statuses[0]!;
+}
+
+/** What changing the check-in rhythm would do, counted (FT1, spec 4.2's read-back): the live goals (not done, stopped,
+    removed or proposed), how many read No recent update now and would not after (`unstale`, by the status each would
+    show then: `none` is "no check-in yet"), and how many would read it after that don't now (`stale`, 0 when a rhythm is
+    switched on: it counts from today). */
+export interface RhythmReadBack {
+  live: number;
+  unstale: number;
+  unstaleBy: Partial<Record<DisplayStatus, number>>;
+  stale: number;
+}
+
+export function rhythmReadBack(goals: readonly Goal[], checkIns: CheckIn[], cycle: Cycle, to: { weeks: number; dueDay?: number }, today: Date): RhythmReadBack {
+  const after: Cycle = { ...cycle, checkInWeeks: to.weeks, reviewDay: to.weeks > 0 ? to.dueDay ?? cycle.reviewDay : cycle.reviewDay,
+    ...((cycle.checkInWeeks ?? 1) === 0 && to.weeks > 0 ? { rhythmFrom: today.toISOString().slice(0, 10) } : {}) };
+  const out: RhythmReadBack = { live: 0, unstale: 0, unstaleBy: {}, stale: 0 };
+  for (const g of goals) {
+    if (g.stoppedAt || g.removedAt || g.proposedAt) continue;
+    const now = goalStatus(g, cycle, checkIns, today).status;
+    if (now === 'done') continue;
+    out.live++;
+    const then = goalStatus(g, after, checkIns, today).status;
+    if (now === 'stale' && then !== 'stale') { out.unstale++; out.unstaleBy[then] = (out.unstaleBy[then] ?? 0) + 1; }
+    if (now !== 'stale' && then === 'stale') out.stale++;
+  }
+  return out;
 }

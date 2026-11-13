@@ -161,6 +161,7 @@ export const ACTIONS = {
   renameWorkspace: (x: RunContext, i: { name: string }) => A.renameWorkspace(x, x.workspace, i.name),
   setRecording: (x: RunContext, i: { on: boolean }) => A.setRecording(x, x.workspace, i.on),
   setModule: (x: RunContext, i: { moduleId: string; on: boolean }) => A.setModule(x, x.workspace, x.modules, i.moduleId, i.on),
+  setRhythm: (x: RunContext, i: { weeks: number; dueDay?: number }) => A.setRhythm(x, x.cycle, i),
   /* A removal's Undo, straight after it (its message): every record it changed back as it was. Unlike the others, the
      input carries records: the removal as saved and the workspace just before it, which the Undo holds. */
   undoRemoval: (x: RunContext, i: { removal: Commit; before: Snapshot }) => R.undoRemoval(x, i.removal, i.before),

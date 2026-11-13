@@ -308,7 +308,7 @@ export function postedLine(goal: Goal, s: Snapshot, cycle: Cycle, week: number):
   const prev = own[own.length - 2] ?? null;
   const streak = onTimeStreak(goal.ownerId, s, cycle, week);
   const moved = prev && prev.status !== latest.status ? `${lower(prev.status)} → ${lower(latest.status)}` : prev ? `still ${lower(latest.status)}` : `first check-in, ${lower(latest.status)}`;
-  return { text: `Posted: ${moved}${streak >= 2 ? ` · ${streak} weeks on time` : ''}`, from: prev?.status ?? null, to: latest.status, streak };
+  return { text: `Posted: ${moved}${streak != null && streak >= 2 ? ` · ${streak} weeks on time` : ''}`, from: prev?.status ?? null, to: latest.status, streak: streak ?? 0 };
 }
 
 /** "Updated 6 Nov · week 45": when the goal's latest check-in was posted, and the week it's for. Null before the first. */
