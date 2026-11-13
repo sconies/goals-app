@@ -2,7 +2,7 @@
 
 # Metric library: its rules
 
-The module’s 7 rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.
+The module’s 8 rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.
 
 | Rule | What it decides |
 |---|---|
@@ -13,6 +13,7 @@ The module’s 7 rules, in order. Each is a section of its own below, with its w
 | [Defining a metric well](#defining-a-metric-well) | What a metric still needs to say, in words and never as a score (rule 6), and the three questions adding or changing one may ask before it is saved: a close name, a unit spelt another way, a percentage that doesn’t say out of what. |
 | [For, which part, and what a goal takes from its metric](#for-which-part-and-what-a-goal-takes-from-its-metric) | Which part of a team’s or the company’s number a goal is measured by (rule 7), the parts other goals on the metric use, what linking asks, and why a goal with check-ins says why it is measured differently. |
 | [Changing, retiring and merging a metric](#changing-retiring-and-merging-a-metric) | What kind of change a save is (rule 8), the marks a change of meaning or direction leaves on its goals (rule 9), and retiring, bringing back and merging (rule 10): a metric that changes tells its goals. |
+| [A reading in a check-in](#a-reading-in-a-check-in) | Where a metric’s number comes from can fill in a goal’s check-in (NR): which state the number step is in, and what a check-in records of what the source said. A person confirms every number; nothing is ever posted for them. |
 
 ## The metric library
 
@@ -661,3 +662,67 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
+
+## A reading in a check-in
+
+Where a metric’s number comes from can fill in a goal’s check-in (NR): which state the number step is in, and what a check-in records of what the source said. A person confirms every number; nothing is ever posted for them.
+
+### The rule
+
+A **number source** (`NumberSource`, the module's port) reads a metric, optionally for a link's **slice** (`{ teamId, part }`: a team or the whole company, and a part or all of it). A source that reads only the whole company reads no team's slice: a company-wide number is never put in a team's goal. `read(metric, at, slice)` gives the latest reading measured at or before `at` (`{ value, at }`, `at` when the source measured it), null when it has none, and throws only when it can't be reached. The step asks once when it opens (`askSource`).
+
+**Rule 1. A reading's state** (`readingState(reading, lastReading, lastValue, now, typed, decimals)`). The first that applies: **no-slice**, the source reads the metric but not this slice; **unreachable**, it threw; **missing**, no reading; **old**, measured more than 7 days before now (one limit for every metric, and an old value is never offered); **same**, the goal's latest check-in recorded a reading measured at or after this one; **jump**, the reading is ten times or a tenth of the last number (by size; from a last number of 0, a size of 10 or more); **changed**, the owner typed a number that differs from the reading at the metric's decimals; otherwise **fresh**. `readingRevised` says when the source, asked again for the last reading's moment, now gives another number.
+
+**Rule 2. What is recorded** (`recordReading`, the core's `CheckIn.reading`). `{ source, value, at, why? }`: the source's name, what it said and when it measured it; `why` (`behind`, `other-count`, `wrong` or `else` with words) only when the check-in's number differs. The check-in's `value` is always the owner's number. Nothing that judges a goal (its status, flags, attention or order) reads it. Saved only when set (migration 0047's nullable `reading`).
+
+**The demo's sources** (`demoSources`). "CI analytics" reads CI pipeline time on main (p90) for the whole company; "CI runner metrics" reads Pipeline queue wait (p90) for CI/CD · main branch pipelines and Build & Release · release pipelines. Each is a seeded series made once from the example as it was seeded, never from later check-ins: the numbers of the goal it follows by week, continued one week, measured at 09:00 UTC on the review day; release pipelines has no reading in the last week, and an eval fixture can make every series two weeks behind.
+
+### Worked examples
+
+Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
+
+| Given | The rule gives |
+|---|---|
+| Now Thu 12 Nov 10:00: 12 min at Thu 09:02; the last check-in 13, typed. | `fresh` |
+| The same, and the owner types 14. | `changed` |
+| The same, and the owner types 12.0. | `fresh` |
+| 13 min at Mon 2 Nov. | `old` |
+| 13 min at Fri 6 Nov 09:00, which week 45’s check-in recorded. | `same` |
+| 13 min at Thu 5 Nov 09:00, which week 45’s check-in recorded (7 days and an hour). | `old` |
+| The link is for CI/CD; the source reads the whole company only. | `no-slice` |
+| 130 at Thu 09:02; the last number 13. | `jump` |
+| Recorded: CI analytics said 12 at Thu 09:02; the owner used 14 because the source is behind. | `{"source":"CI analytics","value":12,"at":"2026-11-12T09:02:00Z","why":{"kind":"behind"}}` |
+
+### Not self-explanatory
+
+- **Not self-explanatory:** NR’s table gives 120 against a last 13 as a jump; MT4’s Check, which NR keeps, is ten times or more, and 120 is 9.2 times, so it is fresh: the example here uses 130.
+- **Not self-explanatory:** NR2 draws the states in the number step and records the reading; until then nothing reads a source on screen and no check-in carries a reading.
+- **Not self-explanatory:** The demo has one goal on each read slice; Build & Release · release pipelines is read but no goal is linked to it yet.
+
+### Where it lives
+
+- [src/modules/metrics/rulesReading.ts](../../../src/modules/metrics/rulesReading.ts): `readingState`, `askSource`, `readingRevised`, `recordReading`, `sameAt`, `isJump`
+- [src/modules/metrics/source.ts](../../../src/modules/metrics/source.ts): `Slice`, `NumberSource`, `sliceOf`
+- [src/modules/metrics/numbers.ts](../../../src/modules/metrics/numbers.ts): `DEMO_SERIES`, `seededSeries`, `demoSources`
+- [src/domain/thresholds.ts](../../../src/domain/thresholds.ts): `RULES`
+
+### Requirements
+
+
+### Tests that check it
+
+#### [src/modules/metrics/rulesReading.test.ts](../../../src/modules/metrics/rulesReading.test.ts)
+
+- rule 1: a reading’s state › gives the spec’s table
+- rule 1: a reading’s state › says revised when the source now gives another number for the last reading’s moment
+- asking a source › never gives a team the company’s number
+- asking a source › says unreachable when the source throws, and nothing when no source reads the metric
+- rule 2: what is recorded › keeps the reason only when the number differs, and nothing when nothing was read
+- rule 2: what is recorded › is read by no rule that judges a goal: nothing in src/domain but the types names a check-in’s reading
+- rule 2: the row › writes reading only when set, and reads it back
+
+#### [src/modules/metrics/numbers.test.ts](../../../src/modules/metrics/numbers.test.ts)
+
+- the demo’s seeded series (NR section 5) › reads CI pipeline time for the whole company only, measured at 09:00 on the review day
+- the demo’s seeded series (NR section 5) › doesn’t change when a check-in is posted later: its numbers are the seeded example’s
+- the demo’s seeded series (NR section 5) › gives two slices of queue wait different numbers, one with no reading in the last week, and a series two weeks behind
