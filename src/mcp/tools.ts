@@ -39,6 +39,7 @@ import { proposedSummary } from '../domain/proposedSummary';
 import { activeReadBack } from '../domain/readBack';
 import { readWeekCode } from '../domain/weeks';
 import { isTableView } from '../domain/tableLayout';
+import { moment, momentText } from '../domain/habit';
 import type { Cycle, DisplayStatus, Goal, Level, Person, Snapshot } from '../domain/types';
 
 export interface McpContext {
@@ -144,7 +145,7 @@ const answersOf = (a: unknown): Answers => Object.fromEntries(Object.entries((a 
 /** find_goals' page: how many goals it lists unless asked, and the most it lists at once. */
 const FIND_PAGE = 50, FIND_MAX = 200;
 
-async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown }): Promise<ToolResult> {
+async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown; saved?: (cs: ChangeSet, before: McpContext['snapshot']) => { data: Record<string, unknown>; text: string } | null }): Promise<ToolResult> {
   // The size limits every door keeps (domain/importLimits): rows read in one call, then changes saved at once.
   const big = tooLarge('This call', { rows: (tables.goals?.length ?? 0) + (tables.plan?.length ?? 0) + (tables.checkIns?.length ?? 0) + (tables.people?.length ?? 0) }, 'call');
   if (big) return { isError: true, text: `Not checked. ${big}` };
@@ -202,13 +203,15 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
     data.changes = data.changes.map((x) => (added.some((a) => a.goalId === x.goalId) ? { ...x, goalId: null } : x));
     return { data, text: `Checked, not saved (dry run). Would save: ${what}${createdLine()}` };
   }
+  const before = ctx.snapshot;
   await ctx.save(cs.commit);
+  const extra = opts.saved?.(cs, before) ?? null;
   // Read back as saved: the server reads each new goal's key from the database after the save (Deps.goalKeys), so two
   // people adding goals at once never share one and the answer names the key the goal holds.
   data.saved = true;
   data.created = added.map((x) => ({ id: x.goalId, key: keyOf(x.goalId), title: x.goal }));
   data.changes = data.changes.map((x) => (x.goalId ? { ...x, key: keyOf(x.goalId) } : x));
-  return { data, text: `Saved as ${ctx.actor.name}: ${what}${createdLine()}` };
+  return { data: extra ? { ...data, ...extra.data } : data, text: `Saved as ${ctx.actor.name}: ${what}${createdLine()}${extra ? `\n${extra.text}` : ''}` };
 }
 
 /** A goal by its ID or its key (G-12). */
@@ -408,7 +411,16 @@ const CORE_TOOLS: ToolDef[] = [
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
       const r = row({ ...a, goal_id: g.id, week: a.week ?? ctx.week, call: a.call == null || a.call === '' ? undefined : statusIn(a.call, CALLS) }, { goal_id: 'goal id', week: 'week', value: 'value', stages: 'stages', call: 'call', cause: 'cause', why: 'why', why_greener: 'why greener', path_to_green: 'path to green', recovery: 'recovery', back_on_plan_by_week: 'back on plan by week', needs: 'needs', next_step: 'next step' });
-      return change(ctx, { checkIns: [r] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, answers: a.answers });
+      // A target reached, or back on track (habit rule 3), said as the receipt says it. Never on a correction.
+      const saved = (cs: ChangeSet, before: McpContext['snapshot']) => {
+        if (cs.items.some((x) => x.kind === 'replaces check-in')) return null;
+        const c = cs.commit?.checkIns?.find((x) => x.goalId === g.id);
+        const m = c && moment(before.checkIns.filter((x) => x.goalId === g.id), c, g);
+        if (!c || !m) return null;
+        const t = momentText(m, g, c, ctx.cycle.weeks);
+        return { data: { moment: { kind: m.kind, heading: t.heading, line: t.line } }, text: `${t.heading}. ${t.line}` };
+      };
+      return change(ctx, { checkIns: [r] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, answers: a.answers, saved });
     },
   },
   {

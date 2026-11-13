@@ -228,3 +228,10 @@
   .week-inspector .wi-goal { max-width: 100%; }
   .week-inspector .wi-call { flex-wrap: wrap; white-space: normal; }
 }
+
+/* A check-in that reached its target or came back on track (habit spec 2.2): a result in small capitals, in the
+   status's colour, with no capsule. */
+.goal-page .ci-call { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.goal-page .ci-result { font-size: 0.6875rem; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+.goal-page .ci-result.is-done { color: var(--done-fg); }
+.goal-page .ci-result.is-on { color: var(--on-fg); }
