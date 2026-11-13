@@ -63,7 +63,7 @@ export const STATUS: Record<DisplayStatus, Term<DisplayStatus>> = {
   stale: term('stale', {
     label: 'No recent update', short: `no check-in for ${RULES.staleDays / 7} weeks or more`,
     meaning: `No check-in for ${RULES.staleDays} days or more, so its status can’t be trusted.`,
-    long: `The latest check-in was posted ${RULES.staleDays} days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in.`,
+    long: `The latest check-in was posted ${RULES.staleDays} days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in. Never used when there is no set check-in rhythm.`,
     rule: 'status#goalStatus',
     retired: ['No recent check-in', 'gone quiet', 'goes quiet', 'An update is overdue', 'update is overdue', 'no check-in for 2+ weeks', 'Quiet for'],
   }),

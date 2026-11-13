@@ -46,7 +46,9 @@ jobs:
       - name: "Rebuild kit: every feature module has a rebuild stage (spec/rebuild)"
         run: node scripts/check-rebuild.mjs
       - name: "Rebuild kit: the drill harness scores Faro's own rules at 100%"
-        run: npm run drill -- scripts/drill-faro --diffs 5
+        run: |
+          npm run drill -- scripts/drill-faro --diffs 5
+          npm run drill -- scripts/drill-faro --diffs 5 --expected spec/conformance/no-rhythm --files status,flags,scorecard,projection
       - name: The MCP server bundle matches its source
         run: |
           npm run build:mcp

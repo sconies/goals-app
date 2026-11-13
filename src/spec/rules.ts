@@ -246,7 +246,7 @@ export const RULE_LIST: Rule[] = [
     tests: ['src/domain/rules.test.ts#metric status', 'src/domain/rules.test.ts#range status', 'src/domain/rules.test.ts#milestone status', 'src/domain/rules.test.ts#official status', 'evals/scenarios.eval.ts'],
     reqs: ['STATUS-BANDS', 'STATUS-DIRECTION', 'RANGE', 'MILESTONE', 'OWNER-CALL', 'GREENER', 'STALE', 'HONEST-NUMBERS'],
     body: `
-There are seven statuses (codes in brackets): ${STATUS_ORDER.map((k) => `${LABEL[k]} (\`${k}\`)`).join(', ')}, listed worst first. Their meanings are in [the vocabulary](../vocabulary.md). The numbers below come from \`RULES\` in \`src/domain/thresholds.ts\`: on track at ${pct(RULES.onTrack)}, at risk from ${pct(RULES.atRisk)}, well ahead at ${pct(RULES.wellAhead)}, stale after ${RULES.staleDays} days, a stage off track when more than ${RULES.lateWeeksOff} weeks late.
+There are seven statuses (codes in brackets): ${STATUS_ORDER.map((k) => `${LABEL[k]} (\`${k}\`)`).join(', ')}, listed worst first. Their meanings are in [the vocabulary](../vocabulary.md). The numbers below come from \`RULES\` in \`src/domain/thresholds.ts\`: on track at ${pct(RULES.onTrack)}, at risk from ${pct(RULES.atRisk)}, well ahead at ${pct(RULES.wellAhead)}, stale after ${RULES.staleCheckIns} missed check-ins (${RULES.staleCheckIns} × 7 × the cycle's check-in weeks: ${RULES.staleDays} days every week; never with no set rhythm), a stage off track when more than ${RULES.lateWeeksOff} weeks late.
 
 ### What the numbers say: the calculation
 
@@ -304,10 +304,12 @@ The calculation gives one of \`on\`, \`risk\`, \`off\`, \`done\`, \`planned\` (w
 2. If *latest*'s call is \`done\`: **Done**.
 3. Else if *week* is 0: **Not started**.
 4. Else if the cycle's last day is past ([a year's end](year-end.md)): *latest*'s call, or **No check-in yet** if there is none. After the last day no goal becomes No recent update for want of a check-in.
-5. Else if the days without an update are under ${RULES.staleDays}: *latest*'s call (the owner's), or **No check-in yet** if there is none.
+5. Else if the cycle has no set check-in rhythm (\`checkInWeeks\` 0), or the days without an update are under \`staleAfterDays\` (${RULES.staleCheckIns} × 7 × \`checkInWeeks\`, ${RULES.staleDays} when check-ins are every week, the default): *latest*'s call (the owner's), or **No check-in yet** if there is none.
 6. Else: **No recent update** (\`stale\`).
 
 *Days without an update* are the days since *latest* was posted; with no check-in, since the goal began: the latest of the cycle's start, the day it was added, and, for a number goal whose plan starts later (\`fromWeek\` > 0), that week's day (the cycle's start + 7 × \`fromWeek\` days; [years and weeks](years-and-weeks.md): a plan not yet started is not due).
+
+**The check-in rhythm** is a field of the cycle (\`checkInWeeks\`: 1, every week, when absent; 0, no set rhythm; 2 and 4 are kept for later) with \`rhythmFrom\`, the day the present rhythm began (the cycle's start when absent). Days without an update never count from before \`rhythmFrom\`, so a rhythm switched on today makes nothing late today. \`asOfWeek\` is the week of *latest* when it isn't this week, else none; with no set rhythm a screen says it beside the status ("On track · as of week 44").
 
 The owner's call is official, even where the numbers disagree. A call is *greener* when it ranks better than what the rules calculated when it was posted: the check-in's stored \`calculated\`, never a recalculation (the two can differ, for example when a stage becomes late after posting). Ranks: ${Object.entries(RANK).map(([k, v]) => `\`${k}\` ${v}`).join(', ')}; lower is better.
 
@@ -330,6 +332,9 @@ The owner's call is official, even where the numbers disagree. A call is *greene
       { given: 'The 30→75 goal, checked in for week 4 with 40, called at risk where the rules said off track, posted 8 October; status on 10 October.', then: 'risk, greener', run: () => { const s = goalStatus(g3075, CYCLE, [ci('m', 4, 40, { status: 'risk', calculated: 'off', postedAt: '2026-10-08T10:00:00Z' })], at('2026-10-10T10:00:00Z')); return `${s.status}${s.greener ? ', greener' : ''}`; } },
       { given: 'Its only check-in posted 23 September: status on 6 October (13 days) and 7 October (14 days).', then: 'on, stale', run: () => { const c = [ci('m', 2, 36, { postedAt: '2026-09-23T10:00:00Z' })]; return `${goalStatus(g3075, CYCLE, c, at('2026-10-06T10:00:00Z')).status}, ${goalStatus(g3075, CYCLE, c, at('2026-10-07T10:00:00Z')).status}`; } },
       { given: 'No check-ins at all: status on 8, 15 and 21 September.', then: 'planned, none, stale', run: () => ['2026-09-08', '2026-09-15', '2026-09-21'].map((d) => goalStatus(g3075, CYCLE, [], at(d + 'T10:00:00Z')).status).join(', ') },
+      { given: 'No set rhythm (checkInWeeks 0): the 30→75 goal on track in week 1, posted Mon 14 Sept; today Thu 8 Oct (week 4, 24 days). Every week, then with none.', then: 'stale; on, as of week 1', run: () => { const c = [ci('m', 1, 34, { postedAt: '2026-09-14T10:00:00Z' })], none = { ...CYCLE, checkInWeeks: 0 }, s = goalStatus(g3075, none, c, at('2026-10-08T12:00:00Z')); return `${goalStatus(g3075, CYCLE, c, at('2026-10-08T12:00:00Z')).status}; ${s.status}, as of week ${s.asOfWeek}`; } },
+      { given: 'No check-in at all; today Thu 8 Oct. Every week, then with no set rhythm.', then: 'stale, none', run: () => [CYCLE, { ...CYCLE, checkInWeeks: 0 }].map((c) => goalStatus(g3075, c, [], at('2026-10-08T12:00:00Z')).status).join(', ') },
+      { given: 'The first example, every week, with the rhythm switched on on Mon 5 Oct (rhythmFrom): on Thu 8 Oct (3 days from the 5th), and on Mon 19 Oct (14 days).', then: 'on, stale', run: () => { const c = [ci('m', 1, 34, { postedAt: '2026-09-14T10:00:00Z' })], from = { ...CYCLE, rhythmFrom: '2026-10-05' }; return ['2026-10-08', '2026-10-19'].map((d) => goalStatus(g3075, from, c, at(d + 'T12:00:00Z')).status).join(', '); } },
       { given: 'Groups of goals: [on, stale], [on, stale, risk], [none, planned], [on, risk, off], [done, done], [on, done].', then: 'stale, risk, none, off, done, on', run: () => ([['on', 'stale'], ['on', 'stale', 'risk'], ['none', 'planned'], ['on', 'risk', 'off'], ['done', 'done'], ['on', 'done']] as const).map((x) => worst([...x])).join(', ') },
     ],
     unclear: ['Step 5 (on plan as written) depends on how numbers are rounded to decimals: JavaScript’s `Number(x.toFixed(d))`. A rebuild in another language should round half away from zero on the decimal string, and compare with a tolerance of 10⁻⁹.'],
