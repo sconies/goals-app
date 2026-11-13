@@ -34,6 +34,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['set-up', 'import'],
   },
   {
+    id: 'proposals-on-home',
+    date: '2026-11-13',
+    title: 'Proposals for you show on Home',
+    points: [
+      'A goal someone proposes for you shows on your Home, under Needs your response, until you open it.',
+      'A proposal that has waited 8 weeks or more asks once whether to make it active or withdraw it; Not yet puts it off for 8 more weeks.',
+      'Proposing a goal for someone else now says they will see it on their Home.',
+    ],
+    articles: ['goal-proposed', 'home'],
+  },
+  {
     id: 'range-between-both-limits',
     date: '2026-11-13',
     title: 'A range between two numbers weighs both its limits',

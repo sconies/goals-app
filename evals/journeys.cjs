@@ -5510,6 +5510,14 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
   await p.goto(on('/goals/' + id, '2026-11-25'));
   await page.waitFor();
   h.set('finish', (await page.locator('.proposed-word').innerText()).trim() === 'Proposed', 'a fortnight later it no longer says Proposed');
+  // Nine weeks after it was proposed, Tunde's Home asks about it once, under Needs your response; Not yet puts it off.
+  const later = new Date(Date.parse(made.proposedAt) + 63 * 86_400_000).toISOString().slice(0, 10);
+  await p.goto(on('/', later));
+  const stale = p.locator('.needs-you [data-proposal="stale"]');
+  await stale.first().waitFor({ timeout: 5000 }).catch(() => fail('nine weeks on, Home has no row for the proposal'));
+  h.set('attention', /“Signed artifacts in staging” has been proposed for 9 weeks\. Make it active, or withdraw it\./.test(await stale.first().innerText()) && await stale.first().getByRole('link', { name: 'Open it' }).isVisible(), 'the stale proposal row reads: ' + (await stale.first().innerText()).replace(/\s+/g, ' '));
+  await stale.first().getByRole('button', { name: 'Not yet' }).click();
+  h.set('attention', (await stale.count()) === 0, '“Not yet” left the proposal row on Home');
   // As Oskar: comment, ask and watch, and who can make it active.
   await p.goto(on('/'));
   await viewAs(p, 'Oskar', h);
