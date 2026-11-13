@@ -101,9 +101,11 @@ describe('deleting a check-in and undoing an import ask the same rule', () => {
   });
 
   it('the owner deletes one an admin loaded onto their goal; a previous owner can’t delete theirs', () => {
-    const row: Rec = { __row: '2', 'goal id': goal.id, week: String(week), value: onPlan };
-    const cs = planChanges({ tables: { checkIns: [row] }, snapshot: fresh, cycle, week, actor: person('amara'), now: today.toISOString(), newId, via: 'spreadsheet' });
-    const after = applyCommit(fresh, cs.commit!);
+    // An admin's workbook corrects the goal's latest check-in (a workbook can't add this week's new one: backlog AD).
+    const latest = checkInsFor(goal, snapshot.checkIns).at(-1)!;
+    const row: Rec = { __row: '2', id: latest.id, 'goal id': goal.id, week: String(latest.week), value: String(latest.value), why: 'Corrected from the source data, as loaded' };
+    const cs = planChanges({ tables: { checkIns: [row] }, snapshot, cycle, week, actor: person('amara'), now: today.toISOString(), newId, via: 'spreadsheet', reason: 'Loaded' });
+    const after = applyCommit(snapshot, cs.commit!);
     const c = checkInsFor(goal, after.checkIns).at(-1)!;
     expect(c.authorId).toBe('amara');
     expect(canDeleteCheckIn(after, goal, c, mateo)).toBe(true);
@@ -130,9 +132,11 @@ describe('deleting a check-in and undoing an import ask the same rule', () => {
   });
 
   it('an admin still undoes a workbook they loaded (the workbook door)', () => {
-    const row: Rec = { __row: '2', 'goal id': goal.id, week: String(week), value: onPlan };
-    const cs = planChanges({ tables: { checkIns: [row] }, snapshot: fresh, cycle, week, actor: person('amara'), now: today.toISOString(), newId, via: 'spreadsheet' });
-    const after = applyCommit(fresh, cs.commit!);
+    // An admin's workbook corrects the goal's latest check-in (a workbook can't add this week's new one: backlog AD).
+    const latest = checkInsFor(goal, snapshot.checkIns).at(-1)!;
+    const row: Rec = { __row: '2', id: latest.id, 'goal id': goal.id, week: String(latest.week), value: String(latest.value), why: 'Corrected from the source data, as loaded' };
+    const cs = planChanges({ tables: { checkIns: [row] }, snapshot, cycle, week, actor: person('amara'), now: today.toISOString(), newId, via: 'spreadsheet', reason: 'Loaded' });
+    const after = applyCommit(snapshot, cs.commit!);
     const imp = cs.commit!.changes.find((c) => c.action === 'imported')!.entityId;
     expect(undoImport(as('amara', after, later), imp).restored).toBe(1);
   });
