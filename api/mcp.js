@@ -5905,13 +5905,16 @@ function textMatches(words, q, key) {
 }
 /** Rule 1 over words already split by `wordsOf` (a long list splits each row once, not on every key). */
 function wordsMatch(have, q, key) {
+	return wordsMatcher(q)(have, key);
+}
+/** `wordsMatch` with `q` read once: for a long list, where the same search is tried against every row (N12). */
+function wordsMatcher(q) {
 	const asked = wordsOf(q);
-	if (!asked.length) return true;
+	if (!asked.length) return () => true;
 	const typedKey = normalKey(q.trim());
-	if (typedKey) return !!key && typedKey === key;
+	if (typedKey) return (_, key) => !!key && typedKey === key;
 	const bare = /^\d{1,9}$/.test(q.trim()) ? formatKey(Number(q.trim())) : null;
-	if (bare && key && bare === key) return true;
-	return asked.every((w) => have.some((h) => h.startsWith(w)));
+	return (have, key) => !!bare && !!key && bare === key || asked.every((w) => have.some((h) => h.startsWith(w)));
 }
 /** One letter added, dropped or changed, or two next to each other swapped. */
 function oneEditApart(a, b) {
@@ -6208,10 +6211,11 @@ function applyTable(rows, head, q, filters, sort, searched) {
 	].map(idx).find((i) => i >= 0) ?? -1;
 	const keyTyped = keyAt >= 0 && (!!normalKey(typed) || /^\d{1,9}$/.test(typed));
 	const keysOf = (r) => keyTyped ? (r.cells[keyAt] ?? "").split(";").map((k) => k.trim()).filter(Boolean) : [];
+	const matches = wordsMatcher(typed);
 	const found = (r) => {
 		const ks = keysOf(r);
 		const w = wordsFor(r, cols, colsKey);
-		return ks.length ? ks.some((k) => wordsMatch(w, typed, k)) : wordsMatch(w, typed, null);
+		return ks.length ? ks.some((k) => matches(w, k)) : matches(w, null);
 	};
 	const live = filters.filter((f) => idx(f.col) >= 0 && (NO_VALUE.includes(f.op) || f.value.trim() !== ""));
 	const out = rows.filter((r) => (!typed || found(r)) && live.every((f) => passes(r.cells[idx(f.col)] ?? "", f)));
@@ -16893,6 +16897,7 @@ var help$2 = [
 					"The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over: an email, or a name only one person has). The same rules as the app apply, and the preview shows what each does.",
 					"Every row is checked with the app’s own rules, and Check this import shows the result before anything is saved: the file and what was read (sheets and columns it didn’t read are named), counts by sheet, then what must be fixed, then questions, then what will be saved. Show the changes lists every change in the file’s order, 50 at a time, with each field before and after and how a value Faro supplied was worked out (“the owner’s team; the row gave none”).",
 					"Plan changes after check-ins need a reason. A plan change that flips which way is better, or puts a number far outside the old plan, is a question, and saves only once you say yes.",
+					"To leave without saving, use Close without saving at the top of Check this import or its list of changes: the file is forgotten and you are back on Import. If you answered a question or gave a reason, it asks first.",
 					"A file that changes nothing says Nothing would change. If it edits worked-out cells, such as Status, it says so: Faro never reads them, so to change where a goal stands, post a check-in.",
 					"A file exported from another workspace is asked about first: its keys and IDs belong there, so its rows can be added as new goals, or not at all.",
 					"A number goal’s weeks are From and To, written as a year and a week (2026-W46, 2027-W13). Plan from week and Due week, counted from the cycle’s start, are still written and still load: where a row has both, the one you changed counts, and two that disagree are Must fix; a Due week left empty beside a To says nothing. In a file with no Start column, a bare number under From (“52”) is Must fix: it may be the starting number, so put that under Start, or write the week as 2026-W46. A week a year doesn’t have says so (“2027 has 52 weeks. Use 2027-W52, or 2028-W01.”). A stage may be written Design@48 or Design@2026-W48.",
@@ -16938,6 +16943,7 @@ var help$2 = [
 		screens: [
 			"Import",
 			"Check",
+			"CheckClose",
 			"Large",
 			"Changes",
 			"Imported"
