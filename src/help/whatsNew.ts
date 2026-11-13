@@ -27,6 +27,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'readings-fill-in-check-ins',
+    date: '2026-11-13',
+    title: 'Check-ins start with the number, where a source can be read',
+    points: [
+      'A goal measured by a metric whose source Faro can read opens its check-in with the latest reading filled in, and says where it came from and when: “From CI analytics, read 9:02 today.”',
+      'The button names the number (“Confirm 12 min”). Nothing is posted until you finish the check-in.',
+      'Type a different number and you’re asked why it differs. Your number counts; the reading and your reason are kept beside it, and nobody is flagged.',
+      'A reading more than a week old isn’t filled in, and a company-wide number never fills in a team’s goal.',
+    ],
+    articles: ['check-in', 'metric-slices'],
+  },
+  {
     id: 'look-around-the-demo',
     date: '2026-11-13',
     title: 'Look around the demo from any workspace',

@@ -11,7 +11,7 @@ import type { Draft } from '../domain/checkin';
 import { currentWeek } from '../domain/plan';
 import { invitedTo } from '../domain/dayOne';
 import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
-import type { CheckIn, Cycle, Decision, Goal, Ask, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
+import type { CheckIn, CheckInReading, Cycle, Decision, Goal, Ask, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
 import { currentCycle, scopeToCycle, withArchivedGoal, withoutRemoved } from '../domain/cycle';
 import { findGoal, withKeys } from '../domain/goalKey';
 import type { TableLayout } from '../domain/tableLayout';
@@ -75,6 +75,9 @@ export interface AppState {
   /** Set up a workspace; `recording` is whether it records how the app is used, as chosen at set-up (off unless chosen). */
   createWorkspace(name: string, data: Snapshot, meId?: string, recording?: boolean): Promise<string>;
   resetExample(): Promise<void>;
+  /** The open workspace as the demo built it, before this browser's saves, when it is the example; null otherwise
+      (a workspace of your own, or the real app). The metric module makes the demo's number sources from it (NR). */
+  exampleSeed(): Promise<Snapshot | null>;
   /** Admins: delete the open workspace (not an example) and everything in it, then open another. */
   deleteWorkspace(): Promise<void>;
   /** Admins: give the open workspace a new name. */
@@ -120,7 +123,9 @@ export interface AppState {
   /** Posts (or replaces) this week's check-in and logs it. */
   /** Post a check-in through the engine (rule 13): `new` for this week, or `again` beside this week's own. */
   /** `reason` is a correction's why (mode `correct`, at least MIN_CORRECT_REASON characters). */
-  postCheckIn(goal: Goal, draft: Draft, mode: PostMode, reason?: string): Promise<CheckIn>;
+  /** One check-in, through the engine. `reading`: what the metric's source said, from the number step's module block
+      (the place checkin.number; NR rule 3), recorded with it when the rule allows. */
+  postCheckIn(goal: Goal, draft: Draft, mode: PostMode, reason?: string, reading?: CheckInReading | null): Promise<CheckIn>;
   /** Answer an ask (a decision or help, an update, a question): one answer for every goal it applies to. */
   answerRequest(r: Ask, answer: string): Promise<void>;
   /** Mark an action done, with an optional note. */
@@ -725,6 +730,10 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       ws, workspaces, opening: wanted && wanted !== wsId ? workspaces.find((w) => w.id === wanted) ?? null : null, snapshot: sc, allGoals: snapshot.goals, full: snapshot, olderChanges: (ask: HistoryAsk) => store.history(ws.id, ask), cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind, saveNote,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
+      exampleSeed: async () => {
+        const demo = examplesOf(store);
+        return demo?.seeded && ws.kind === 'example' ? demo.seeded(ws.id) : null;
+      },
       resetExample: async () => {
         const demo = examplesOf(store);
         if (!demo) throw new Error('Only the demo has an example to reset.');
@@ -797,12 +806,12 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         return a;
       },
       checkInsOf: (g) => checkInsFor(g, g.stoppedAt ? sc.archive?.checkIns ?? [] : sc.checkIns),
-      postCheckIn: (goal, draft, mode, reason) => {
+      postCheckIn: (goal, draft, mode, reason, reading) => {
         const inFlight = posting.current.get(goal.id);
         if (inFlight) return inFlight;
         // One way to save (check-in spec, rule 13): the engine the table, the import and the AI tools use; its ask too.
         // A correction is an import of one (rule 8): it says what it changed, and Undo takes the import back (2.7).
-        const posted = run('postCheckIn', { goalId: goal.id, draft, mode, ...(mode === 'correct' ? { reason } : {}) }).then((out) => {
+        const posted = run('postCheckIn', { goalId: goal.id, draft, mode, ...(mode === 'correct' ? { reason } : {}), ...(reading ? { reading } : {}) }).then((out) => {
           const ch = out.commit.changes.find((x) => x.importId);
           if (mode === 'correct' && ch?.importId) {
             const importId = ch.importId;

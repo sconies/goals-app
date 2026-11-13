@@ -2,6 +2,7 @@
    number step is in, from what the metric's source said, what the goal's latest check-in recorded, and what the owner
    typed. The step's block (NR2) draws each state; nothing here posts anything. The record itself (rule 2) is the core's
    `CheckIn.reading`, which no rule that judges a goal reads. */
+import { sameAtPlaces } from '../../domain/reading';
 import { RULES } from '../../domain/thresholds';
 import type { CheckInReading } from '../../domain/types';
 import type { NumberSource, Reading, Slice, SourcedMetric } from './source';
@@ -27,10 +28,9 @@ export async function askSource(sources: readonly NumberSource[], metric: Source
   }
 }
 
-const atDecimals = (v: number, decimals: number) => Number(v.toFixed(Math.max(0, decimals)));
-
-/** Whether `a` and `b` are one number at the metric's decimals (12 and 12.0 are; 12 and 14 aren't). */
-export const sameAt = (a: number, b: number, decimals: number) => atDecimals(a, decimals) === atDecimals(b, decimals);
+/** Whether `a` and `b` are one number at the metric's decimals (12 and 12.0 are; 12 and 14 aren't): the core's, so the
+    engine's rule 3 and this rule compare one way. */
+export const sameAt = sameAtPlaces;
 
 /** Whether a reading is ten times or a tenth of the last number, by size (MT4's Check, kept by NR). */
 export function isJump(value: number, lastValue: number | null): boolean {

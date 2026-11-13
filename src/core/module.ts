@@ -17,9 +17,10 @@
    This file is plain TypeScript, with no screens: the server and the guide use it too. */
 
 /** Places on core screens a module can put something: Home's blocks, a goal page's sections, Data's tools, Goals'
-    tools, the goal forms' "Measured by" field, a fact in a goal's summary (goal.facts, GT1), a person's and a team's page in People (app redesign WR1), and a Help article's own block (help.article).
+    tools, the goal forms' "Measured by" field, a fact in a goal's summary (goal.facts, GT1), a person's and a team's page in People (app redesign WR1), a Help article's own block (help.article), and the
+    check-in's number step (checkin.number, NR: where a number can be filled in from its source).
     src/core/app.tsx says what each is given. (Workspace takes whole sections instead: `sections` below.) */
-export const PLACES = ['home.blocks', 'goal.facts', 'goal.sections', 'data.tools', 'goals.tools', 'goal.measure', 'people.person', 'people.team', 'help.article'] as const;
+export const PLACES = ['home.blocks', 'goal.facts', 'goal.sections', 'data.tools', 'goals.tools', 'goal.measure', 'people.person', 'people.team', 'help.article', 'checkin.number'] as const;
 export type PlaceName = (typeof PLACES)[number];
 
 /** A module's module.json: what it is, what it needs and what it adds, as data. */

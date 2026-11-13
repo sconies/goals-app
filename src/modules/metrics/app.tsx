@@ -19,6 +19,9 @@ const GoalMeasuredBy = later('GoalMeasuredBy');
 // "Measured by" in the goal forms (ML2): loaded when a form first shows it.
 const LazyMeasuredBy = lazy(() => import('./MeasuredBy').then((m) => ({ default: m.MeasuredBy as ComponentType<object> })));
 const MeasuredBy = ((props: object) => <Suspense fallback={null}><LazyMeasuredBy {...props} /></Suspense>) as unknown as typeof import('./MeasuredBy').MeasuredBy;
+// The check-in's number filled in from its source (NR2): loaded when the number step first shows it, never on Home.
+const LazyCheckInNumber = lazy(() => import('./CheckInNumber').then((m) => ({ default: m.CheckInNumber as ComponentType<object> })));
+const CheckInNumber = ((props: object) => <Suspense fallback={null}><LazyCheckInNumber {...props} /></Suspense>) as unknown as typeof import('./CheckInNumber').CheckInNumber;
 const GoalMetric = later('GoalMetric');
 const PersonMetrics = later('PersonMetrics');
 const TeamMetrics = later('TeamMetrics');
@@ -43,6 +46,7 @@ const metrics: AppModule = {
     'goal.sections': GoalMetric,
     'people.person': PersonMetrics,
     'people.team': TeamMetrics,
+    'checkin.number': CheckInNumber,
   },
   finders: [metricFinder],
   filters: [measuredByFilter],
