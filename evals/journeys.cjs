@@ -1124,14 +1124,16 @@ journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first imp
   // A goals sheet only: its second goal's owner is on no one's list, and its stages began in week 2.
   const csv = ['Goal,Team,Owner email,Owner,Type,Unit,Start,Target,Stages',
     'Parcels on time,Depots,ben.carter@example.com,Ben Carter,metric,%,91,97,',
-    'Night shift rota,Depots,nia.okoro@example.com,Nia Okoro,milestone,,,,Draft@2; Agreed@6; Live@50'].join('\n');
+    'Night shift rota,Depots,nia.okoro@example.com,Nia Okoro,milestone,,,,Draft@2; Agreed@6; Live@50',
+    // A team one letter from Depots: asked, not made a second team (#336 review).
+    'Sort times,Depot,ben.carter@example.com,Ben Carter,metric,min,40,30,'].join('\n');
   await p.locator('input[type=file]').first().setInputFiles({ name: 'depots.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
   await see(p, 'Read depots.csv', 'the upload is not said');
   await h.click(p.getByRole('button', { name: 'Next' }));
   await h.click(p.getByRole('radio', { name: /Goals from your spreadsheet/ }));
   await h.click(p.getByRole('button', { name: 'Next' }));
   await see(p, 'From depots.csv', 'Check does not show the spreadsheet’s preview');
-  await see(p, '2 goals and 2 people would be added, once the goal below is settled', 'the preview’s count leaves the goal to fix out');
+  await see(p, '3 goals and 2 people would be added, once the 2 goals below are settled', 'the preview’s count leaves the goals to fix out');
   await h.checkpoint('preview');
   // The preview's Must fix: Nia isn't here; two answers, "Add Nia Okoro" first.
   const fix = p.locator('.import-group.level-fix').filter({ hasText: 'nia.okoro@example.com' });
@@ -1142,7 +1144,15 @@ journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first imp
   h.set('one-action', await p.getByRole('alert').filter({ hasText: 'depots.csv' }).isVisible(), 'Create with a question open does not say why it waits');
   if (await p.evaluate(() => localStorage.getItem('goals-live-workspace'))) fail('a workspace was saved before Create workspace');
   await h.click(fix.getByRole('radio', { name: 'Add Nia Okoro' }));
-  await see(p, '2 goals and 3 people would be added', 'adding Nia does not count her');
+  await see(p, '3 goals and 3 people would be added', 'adding Nia does not count her');
+  // After an answer the focus goes on, never to the page (#336 review): here to the team's question.
+  await p.waitForTimeout(100);
+  const onAfterAdd = await p.evaluate(() => !!document.activeElement && document.activeElement !== document.body);
+  const team = p.locator('.import-group').filter({ hasText: 'Depot' }).filter({ hasText: 'Did you mean' });
+  await h.click(team.getByRole('radio', { name: 'Use Depots' }));
+  await p.waitForTimeout(100);
+  const onAfterTeam = await p.evaluate(() => !!document.activeElement && document.activeElement !== document.body);
+  h.set('a11y', onAfterAdd && onAfterTeam, `after an answer the focus fell to the page (after Add: ${onAfterAdd}, after the team: ${onAfterTeam})`);
   // Her goal's stages, asked once its owner is settled: answered for you, "Count them from this week", with Change.
   const stages = p.locator('.import-answered').filter({ hasText: 'would start late: Count them from this week' });
   h.set('attention', await stages.waitFor({ timeout: 5000 }).then(() => true, () => false), 'the stage question is not answered “Count them from this week”');
@@ -1154,7 +1164,9 @@ journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first imp
   const s = await h.snapshot(wsId);
   const rota = s && s.goals.find((g) => g.title === 'Night shift rota');
   const nia = s && s.people.find((x) => x.email === 'nia.okoro@example.com');
-  h.set('finish', !!rota && !!nia && rota.ownerId === nia.id && nia.teamId === s.teams.find((t) => t.name === 'Depots')?.id, 'Nia does not own the rota in Depots');
+  const depots = s && s.teams.find((t) => t.name === 'Depots');
+  const sort = s && s.goals.find((g) => g.title === 'Sort times');
+  h.set('finish', !!rota && !!nia && rota.ownerId === nia.id && nia.teamId === depots?.id && sort?.teamId === depots?.id && !s.teams.some((t) => t.name === 'Depot'), 'Nia does not own the rota in Depots, or Sort times is not in Depots (or a second team “Depot” was made)');
   h.set('logged', !!rota && rota.stages.every((x) => x.dueWeek > NOW), 'a stage starts already due: ' + JSON.stringify(rota?.stages.map((x) => x.dueWeek)));
   await p.context().close();
 });
