@@ -188,6 +188,8 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #425 Look around the demo; a phone's lone review cell uses a short label | 2 | 0 | 0 | 0 |
 | #431 F8: a module lists its own screens' AI tools | 4 | 0 | 0 | 0 |
 | #430 migration 0049: a goal's baseline | 7c | 0 | 0 | 1 |
+| #424 RS1: with Reviews off, the due day is a deadline and review data leaves exports | 4 | 0 | 4 | 5 |
+| #434 NR1: a source reads a link's slice; what a check-in keeps of a reading | readings | 0 | 3 | 7 |
 
 **High findings, and where each stands**
 
@@ -1839,3 +1841,26 @@ Read by me; no high or medium. #424 and #434 are with first-pass reviewers. `bef
 **Migration 0049 (#430, track 7c).** Three nullable columns on `faro.okr_goals` for a goal's baseline, with a length check and a "whole or nothing" check; column grants written out; safe to run twice; a test runs it twice. Low, to watch when the code lands: a nullable column written only on some rows of a batch is set to NULL on the others (#376's finding), and the "whole" check refuses a period or a provisional flag without a figure, so the three must always be written together and on every goal row.
 
 #426 is a handover page.
+
+### #424 RS1: Reviews off, second half (track 4, merged 13 Nov)
+
+Read first by a reviewing session through the real MCP server, the real workbook writers and the demo at 1440 and 390, with the parent commit beside it. No high. The round trip holds in all four combinations of on and off (5,522 rows unchanged; asks' review ids, decisions and reviews identical after applying); the import says once what it didn't read; the clock's sentences are right for eight people over three days in both states, and "before Thursday's review" shows only for people in a review held that day.
+
+Of #371's mediums it closes one: the workbook, `asks_csv`, `notes_csv` and Data's Asks table no longer carry review data, and the import says so. Still open, re-run here: a tab open across the switch still saves ("Mark 36 goals reviewed" saved 36 entries after the switch); `edit_comment`, `delete_comment` and `restore_removed` still write review data; `list_requests` still names the review; `inreview=` still answers on Goals and in `find_goals`; the New goal read-back still says "It joins {review}".
+
+**1. Medium (ran). Review data can still be written with Reviews off** through the doors above (`REVIEW_ACTIONS` unchanged, `src/app/actions.ts:204`; `src/mcp/removeTools.ts:66,139-164`).
+**2. Medium (ran). Reads still name reviews with Reviews off:** `list_requests` (`src/mcp/workTools.ts:103`), `inreview=` (`src/app/reads.ts:52`), and the JSON export still holds the notes said in reviews (`src/domain/export.ts:236`) while `notes_csv` is refused.
+**3. Medium (ran). Help and the generated spec quote a receipt the app never shows:** the new `clock` branch of `weekDoneText` (`src/domain/progress.ts:88`) has no caller, yet the Check in article and the Reviews spec's example 5 say "All 3 of your goals are checked in for week 46, by Thursday."
+**4. Medium (read). The habit panel's words don't come from `dueWords`:** `People.tsx:394`, `BeforeReview.tsx:56` and `habit.ts:116` say "review" from the switch alone, so with Reviews on and no review held that day a team's page says "review" against RS1's own table; the conformance column that scores `onTime` scores nothing the app shows.
+
+**Lows.** Help's Teams article names a heading the page no longer has; the import's line names "the Notes sheet and the Review column" whichever the file has, and reads "…Example: Platform Engineering: the Notes…"; U1 and U122 accept the old sentences beside the new, U154 sets three results to true outright and N30 tries only `edit_call`; "is Reviews on" is asked a second way in `src/core/records.ts:39`; Help and What's new still describe reviews with Reviews off.
+
+### #434 NR1: readings, the rule and the port (session …8y3FdWxxDaqeRvJw4c, merged 13 Nov)
+
+Read first by a reviewing session on PGlite with every migration, through each store. No high. Nothing writes a reading yet and no screen or tool asks a source, so every finding is latent until NR2; the plain save and read-back are sound (value, time, source and reason intact; a mixed batch of new check-ins correct; an unchanged export loads back as no change).
+
+**1. Medium (ran; high the day NR2 writes readings). Re-saving a check-in that has a stored reading gives three different results by store and by batch.** `rows.ts:134` writes `reading` only when set, and a correction builds a fresh check-in with the old id and no reading (`src/domain/checkin.ts:231`, used at `changeset.ts:1451`). Saved alone on a database, the corrected number keeps the old reading and its reason, which now describe a number no longer there; in a commit with another check-in that carries a reading it is wiped to NULL (#376's pattern); the browser store always drops it; and `reading: null` saved alone can never clear it on a database. Fix: decide what a correction does with the reading, and always write the key.
+**2. Medium (ran). `recordReading` enforces none of rule 2:** a different number with no reason, a reason of three characters, one of 100,000, an unknown kind, and a reading from 2020 are all recorded (`src/modules/metrics/rulesReading.ts:68-72`); the limits exist only for a form not yet built.
+**3. Medium (ran). `askSource` can hang or reject, and trusts what a source returns:** no timeout, `reads()` throwing rejects where the port says "unreachable", and a string value, a date next year or an unreadable date all read as fresh (`rulesReading.ts:17-28`).
+
+**Lows.** The column accepts a reading whose value is null, and NaN arrives as null; a change to the reading alone is invisible to History and to "nothing changed"; the demo source matches a part by lower case where rule 7 uses `partKey`; `read` with the slice left out returns the first slice's number; two conformance rows, both "fresh"; the core's types now name the module's concept (`CheckInReading`, the four reasons) where the architecture page says the core never names a metric; the architecture page lists an adapters folder that doesn't exist.
