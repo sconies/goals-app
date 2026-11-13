@@ -66,7 +66,7 @@ describe('rule 2: a metric’s goals', () => {
   });
   it('a keep-in-range goal says its room to the limit', () => {
     const [row] = goalsOfMetric(s, cycle, today, week, 'metric_flaky-rate');
-    expect([row!.slice, row!.target, row!.vsPlan]).toEqual(['CI/CD', '≤ 2.0% by year end', 'Near the 2.0% limit']);
+    expect([row!.slice, row!.target, row!.vsPlan]).toEqual(['CI/CD · main pipelines', '≤ 2.0% by year end', 'Near the 2.0% limit']);
   });
   it('CI compute cost per pipeline run has no rows', () => {
     expect(goalsOfMetric(s, cycle, today, week, 'metric_ci-cost')).toEqual([]);

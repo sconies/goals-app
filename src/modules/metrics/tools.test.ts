@@ -98,10 +98,14 @@ describe('metric library tools', () => {
 
   it('links a goal for a team’s slice, warns on a direction mismatch, and unlinks it', async () => {
     const { call, data } = await setup('rhea');
-    const r = await call('link_goal_metric', { goal: 'ci-shard', metric: 'Remote build cache hit rate', team: 'CI/CD' });
+    const ask = await call('link_goal_metric', { goal: 'ci-shard', metric: 'Remote build cache hit rate', team: 'CI/CD' });
+    expect(ask.structuredContent).toMatchObject({ saved: false, checks: [{ field: 'part', answers: ['carry-on'] }] });
+    expect(ask.content[0]!.text).toMatch(/Another goal already measures this for CI\/CD: “.+” \(G-\d+, .+\)\. Two goals on one number is unusual\./);
+    expect(linksOf(data()).find((l) => l.goalId === 'ci-shard')).toBeUndefined();
+    const r = await call('link_goal_metric', { goal: 'ci-shard', metric: 'Remote build cache hit rate', team: 'CI/CD', answers: { others: 'carry-on' } });
     expect(r.isError).toBe(false);
     expect(linksOf(data()).find((l) => l.goalId === 'ci-shard')).toMatchObject({ metricId: 'metric_cache-hit', teamId: 'cicd' });
-    const wrong = await call('link_goal_metric', { goal: 'ci-shard', metric: 'Flaky test rate' });
+    const wrong = await call('link_goal_metric', { goal: 'ci-shard', metric: 'Flaky test rate', reason: 'Shards are measured by flakiness now' });
     expect(wrong.content[0]!.text).toMatch(/Warning: The goal aims up, but for Flaky test rate lower is better/);
     expect(linksOf(data()).find((l) => l.goalId === 'ci-shard')).toMatchObject({ metricId: 'metric_flaky-rate', teamId: null });
     expect((await call('link_goal_metric', { goal: 'ns-lead', metric: 'CI pipeline time on main (p90)' })).content[0]!.text).toMatch(/The goal is in hours and the metric is in min/);
