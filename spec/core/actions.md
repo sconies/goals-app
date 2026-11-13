@@ -42,7 +42,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | [acceptRisk](#acceptrisk) | Mark goals reviewed in a session; accept the risk on a goal behind, with a reason | Anyone | [`review_call`](tools.md#review_call) |
 | [markReviewed](#markreviewed) | Mark goals reviewed in a session; accept the risk on a goal behind, with a reason | Anyone | [`review_call`](tools.md#review_call) |
 | [editCall](#editcall) | Correct what was said in a review, or an ask’s words | Whoever said or asked it, or an admin | [`edit_call`](tools.md#edit_call) |
-| [unmarkReviewed](#unmarkreviewed) | Undo marking goals reviewed in a session | Whoever marked them, or an admin | — |
+| [unmarkReviewed](#unmarkreviewed) | Undo marking goals reviewed in a session | Whoever marked them, or an admin | [`unmark_reviewed`](tools.md#unmark_reviewed) |
 | [deleteNote](#deletenote) | Remove a note said in a review | Whoever said it, or an admin | [`delete_comment`](tools.md#delete_comment) |
 | [endReview](#endreview) | End a review, or delete one never held | Whoever set it up, or an admin | [`end_review`](tools.md#end_review) |
 | [deleteReview](#deletereview) | End a review, or delete one never held | Whoever set it up, or an admin | [`delete_review`](tools.md#delete_review) |
@@ -61,7 +61,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | [startNextCycle](#startnextcycle) | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`start_next_cycle`](tools.md#start_next_cycle) |
 | [deleteCycle](#deletecycle) | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`delete_cycle`](tools.md#delete_cycle) |
 | [undoStart](#undostart) | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`undo_start_cycle`](tools.md#undo_start_cycle) |
-| [arrive](#arrive) | Arrive: the first time you choose your name in a workspace (its arrival screen), the log says so, once | Anyone, as themselves (in the internal app the first sign-in records it: SR3) | — |
+| [arrive](#arrive) | Arrive: the first time you choose your name in a workspace (its arrival screen), the log says so, once | Anyone, as themselves (in the internal app the first sign-in records it: SR3) | none |
 | [renameWorkspace](#renameworkspace) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`rename_workspace`](tools.md#rename_workspace) |
 | [setRecording](#setrecording) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`set_recording`](tools.md#set_recording) |
 | [setModule](#setmodule) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`set_feature`](tools.md#set_feature) |
@@ -172,6 +172,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | `metric` | `GoalMeasure \| null` | no | What measures it, as the form chose (the goal.measure place): its name and which way is better, for the wrong-side question; null for nothing. Left out, what measures it now (domain/records goalMeasureOf), for a goal being changed. |
 | `stagesDone` | `string[]` | no | A new goal's stages already done when it was set up (OB2's rule 3), recorded in the same save. When left out, the stages the draft says are done (answered yes to stage-past). |
 | `state` | `'active' \| 'proposed'` | no | A new goal only: 'proposed' saves it proposed, not yet active (GE10, rule 14); left out, active. A goal being changed keeps its state: it is made active by domain/proposed activate, never by a save. |
+| `proposedIn` | `string` | no | A new proposed goal only: the review it is proposed in ("Propose a new goal" in the walk, GE10 decision 15). |
 
 **Result:** `{ commit: Commit \| null; goal: Goal; }` ([Goal](data-model.md#goal))
 
@@ -187,6 +188,8 @@ Every change a person makes, as the command port runs it ([the ports at company 
 - “That person isn’t in this workspace any more. Choose who owns it.”
 - “That team isn’t here any more. Choose a team.”
 - “The goal it feeds isn’t here any more. Choose another, or nothing.”
+- “Only a new proposed goal is proposed in a review.”
+- “That review isn’t here any more. Reload to see the latest.”
 - “Not saved. Must fix: …”
 - “Not saved. Check with the person first: …”
 
@@ -844,7 +847,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 - “Those goals are no longer marked reviewed.”
 - “Only whoever marked them, or an admin, can undo it.”
 
-**AI tools that do the same:** none
+**AI tools that do the same:** [`unmark_reviewed`](tools.md#unmark_reviewed)
 
 ## deleteNote
 
@@ -1318,7 +1321,7 @@ Nothing.
 
 **Refuses with:** nothing of its own beyond who may and the shared refusals above.
 
-**AI tools that do the same:** none
+**AI tools that do the same:** none. An arrival is a person choosing their own name in the app for the first time; an assistant acts as someone who has already arrived, so there is nothing for it to say.
 
 ## renameWorkspace
 
@@ -2201,6 +2204,8 @@ export interface SaveGoalInput {
   /** A new goal only: 'proposed' saves it proposed, not yet active (GE10, rule 14); left out, active. A goal being
       changed keeps its state: it is made active by domain/proposed activate, never by a save. */
   state?: 'active' | 'proposed';
+  /** A new proposed goal only: the review it is proposed in ("Propose a new goal" in the walk, GE10 decision 15). */
+  proposedIn?: string;
 }
 ```
 

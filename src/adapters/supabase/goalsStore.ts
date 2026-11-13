@@ -10,7 +10,7 @@ import {
   type RetroRow, type ReviewRow, type StageRow, type TeamRow, type TokenRow, type ViewRow, type WatchRow, type WorkspaceRow } from '../../data/rows';
 import { EXAMPLE, StaleError, type Commit, type Store } from '../../data/store';
 import type { HistoryAsk, HistoryPage, LoadWindow } from '../../ports/store';
-import { ANCHOR_ACTIONS, ANCHOR_ENTITIES, historySize, overlaps, wholeOnly } from '../../ports/window';
+import { ANCHOR_ACTIONS, ANCHOR_ENTITIES, historySize, openCycles, wholeOnly } from '../../ports/window';
 import { hasModuleRows, type DbRow, type ModuleRecords } from '../../domain/records';
 import { MODULE_RECORDS } from '../../core/records';
 
@@ -75,14 +75,14 @@ export class SupabaseStore implements Store {
 
   /*
    * The narrower load (AX5 part 2), by the rules in ports/window.ts, filtered in the queries. Check-ins are read for the
-   * goals of the cycles that overlap the window (their last day, domain/cycle cycleDates, on or after its first day), a
+   * goals of the cycles the window keeps (ports/window openCycles: those that overlap it, and the newest two), a
    * hundred goal ids per request; whether an older cycle has any check-in is asked with one row at most. Entries are read
    * from the window's start on, or as anchors. At company scale okr_changes wants an index on (workspace_id, at), which a
    * migration can add, shipped one merge ahead (AX10); a database function could then read check-ins by cycle in one go.
    */
   private async windowCheckIns(ws: string, w: LoadWindow, cycles: CycleRow[], goals: GoalRow[]) {
     const goalsOf = (cycleIds: Set<string>) => goals.filter((g) => cycleIds.has(g.cycle_id)).map((g) => g.id);
-    const open = new Set(cycles.filter((c) => overlaps({ startDate: c.start_date, weeks: c.weeks }, w)).map((c) => c.id));
+    const open = openCycles(cycles.map((c) => ({ id: c.id, startDate: c.start_date, weeks: c.weeks, removedAt: c.removed_at ?? null })), w);
     const rows = (await Promise.all(chunks(goalsOf(open), IDS).map((ids) => this.all<CheckInRow>('okr_check_ins', ws, (q) => q.in('goal_id', ids))))).flat();
     const cycleOf = new Map(goals.map((g) => [g.id, g.cycle_id]));
     const found = new Set(rows.flatMap((r) => (cycleOf.has(r.goal_id) ? [cycleOf.get(r.goal_id)!] : [])));

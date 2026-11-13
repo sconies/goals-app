@@ -4,6 +4,27 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 
 
 
+## Track 1, Friday 13 November, 14:25 UTC (context near full, handing over; supersedes the 05:45 entry)
+
+Session: session_012kbr8xrSzicJV6Yybqqzng. **Merged:** #400 (see below), #382 (an ended cycle refuses every correction in the engine, at every door; conformance case `ended-cycle` with `given.at`), #387 (Import's check and changes get `CheckClose`, "Close without saving" back to Import; U72 presses it).
+
+**#400** (`ask-handover-mediums`, merged 14:24): Lane's rule (only `update` and `question` asks follow a new owner, `FOLLOWS_OWNER` in `askHandover.ts`; a named ask stays; one the new owner asked closes as withdrawn); #369's mediums 1, 2, 4, 5, 7 (`askWaiting` in `app/reads.ts` is the one lateness rule for Home, `get_my_work` and `list_requests`; a question before its session reads "Due by Tue 24 Nov"; N26 now checks every ask's waiting line for five people over 14 days); MCP parity: `unmark_reviewed`, and `arrive` has a reason. Nothing of track 1's is in flight.
+
+**Open for Lane:** #369's medium 6 (a lone "this week" cell cuts a long review name at 390). Wrapping the name breaks #305's fold guarantee (N26: first goal at 775 px, fold 775), so it was reverted. Lane needs to choose: a shorter label, a taller cell, or keep the cut.
+
+**Next, in order** (planning, 13 Nov; follow `docs/architecture/module-map.md`, #388):
+1. **The habit moment**, `docs/design/round-4/habit/spec.md`: HB1, then HB2; HB3 once HM7 exists. HB is core, not a module; its words follow the `reviews` switch through a flag, as `readBack.ts` does (never import reviews), using RS1's "on time, without being asked" when reviews are off. CF2's migration is not on main (no `cycle.streak`), so HB1 builds the forgiving run unconditionally and says so in its PR. Home's cell (HB3) loads its rule after paint. Each ships its MCP tools in the same PR (`get_my_work` gets the streak).
+2. **NR1–NR3** (`docs/design/round-4/readings/spec.md`, replaces MT4): part of the metric library, no new switch. First move `NumberSource`/`SourcedMetric` out of the core ports into the metric library (a module-map fix item).
+3. **HM3/HM4** if not built, then **PF1–PF2** (the leader's week, `docs/design/round-4/portfolio/spec.md`): core, a view of Goals; its "This week, for these goals" entry belongs to reviews and shows only while `reviews` is on.
+4. N12's Find timing only if main's fixer (session_012kbr8zm5LkH575XFmikwtq, branch `fix/n12-data-search`) hasn't landed it; then #110's lows, HM1's lows and the lows batch (the 05:45 entry's list, plus #369's lows: `update_goal` is silent about moved asks; undoing an import logs nothing on the ask; marking someone as left can give "now yours" to a non-owner; `handedFrom` matches by name; meta lines two lines at 1440; a read-only metric edit page says "Close without saving"; a proposed goal's "waiting since" reads the UTC day; one kind's heading wraps at 390).
+
+**Habits, learned this session:**
+- What's new lists features only (Lane, #386): fixes, polish and wording get "[no news]" unless they change a number people rely on, restore something broken for many, or change who may do what. On a conflict in `whatsNew.ts`, take main's and re-add only feature entries.
+- Never `require('./evals/journeys.cjs')` to syntax-check it: it runs the whole suite. Use `node --check`.
+- `ONLY` and `FINISH` take comma-separated IDs (`ONLY=U3,U21`), and `FINISH` alone runs only F/N/P checks.
+- A new capitalised `.tsx` in a module is a "screen": add it to its guide article's `screens` and to `SCREENS` in `src/mcp/parity.ts`.
+- A status word ("Open", "Answered"…) written outside the vocabulary fails `vocabulary.eval`: log a field that isn't a status.
+
 ## Track 1, Friday 13 November, 05:45 UTC (session past half, handing over; supersedes the 02:00 entry)
 
 Session: session_012kbr91FiHKpcgaoQxfHX4a. **Merged:** #328 (Import's way out; F8's stale locator was fixed on main by #342 the same way), #326 (#225's review, with Lane's budget raise: first download 275 KB, the real app's 334 KB, `MARGIN_KB` still 3), #352 (`rv7-scope`: a review speaks only for the goals it walks, `maySpeak` in `actions.ts`, `scopeRefusal`; MCP `review_call` says the rule), #366 (`data-search-mediums`: #234's three mediums, F7's [S1]–[S3]).
@@ -93,6 +114,19 @@ The track 3 session that built item 0 is at half its context. A fresh track 3 se
 - Item 0's changes touch `changeset.ts` and `export.ts`, so `evals:changed` runs the full suite (about 17 minutes in four shards).
 
 ## Planning state, Friday 13 November, 12:35 UTC (planning session handing over)
+
+**Update, 13 Nov ~14:00 UTC: the plan to handoff (Lane).** Build tiers 1–3 here before handoff, because building later on API tokens costs more; then FD, the lows and the full drill (item 11); then hand over. WM, 0c2, 0t and 3a stay in the backlog. Each track works its whole list (CLAUDE.md, 13 Nov):
+
+| Track | Session | List, in order |
+|---|---|---|
+| 4 | session_012kbr931R7QEqBrfxbNv2QV | #354, #358; AX2; AX6; FT2 then RS1; FT1, SW1, SW2; FD |
+| 1 | session_012kbr8xrSzicJV6Yybqqzng | in-flight review fixes (asks: only those addressed to the owner move, never to the asker; Lane 13 Nov); HB1, HB2 (HB3 after HM7); NR1–NR3; HM3/HM4, PF1–PF2; lows |
+| 2 | session_012kbr92MfjHTHVBgQp2nL52 | review mediums; #376–#378; GE10 (F); TG; SM4, SM2, SM3, SM1; lows |
+| 3 | session_012kbr8xq9rFhq98QkAVM4hp | #336's review fixes; MI (round 2's MT6); import lows |
+| 7c | session_012kbr932dXk7emNz7HTfoU1 | #308's and #351's review fixes; MS, BL, GB, MC; GR, MQ |
+| Main fixer | session_012kbr8zm5LkH575XFmikwtq | main's full evals green, one rolling issue |
+
+Lane (13 Nov): every distinct feature is a module behind its own switch, and the handoff shows Faro can be built module by module (CLAUDE.md). When every track reports done: one session runs item 11 (core first, then each module on its own) (the full drill from spec/ and llms.txt alone) and brings docs/handoff.md up to date (its R5 line is stale since #283), and rewrites README.md, docs/handoff.md and docs/architecture.md from the module map and the generated spec, plus a one-line GitHub repository description for Lane to paste.
 
 Planning was session_012kbr939zneZWtAo7UQEHRP. Read this section, then the 12 Nov 21:55 section below for the standing context.
 

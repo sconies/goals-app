@@ -3,7 +3,7 @@
    so instead of running. */
 import { aiBrief, sheetNamed, toCsv, toJson, workbook } from '../../domain/export';
 import { sheetNamesWith, START_HERE } from '../../domain/columns';
-import { MODULE_SHEETS } from '../../core/records';
+import { MODULE_SHEETS, sheetsOn } from '../../core/records';
 import { exportedTable, TABLE_ORDER, TABLES } from '../../domain/tableLayout';
 import type { ToolDef } from '../../mcp/tools';
 import { layoutFrom, sheetOf } from '../../mcp/workTools';
@@ -12,7 +12,9 @@ const str = (description: string, extra: object = {}) => ({ type: 'string', desc
 const ids = (description: string) => ({ type: 'array', items: { type: 'string' }, description });
 const READ = { readOnlyHint: true, openWorldHint: false } as const;
 /** Each sheet of the workbook as a CSV format the export tool offers: goals_csv, plan_csv, check_ins_csv… */
-const CSV_FORMATS = sheetNamesWith(MODULE_SHEETS).filter((n) => n !== START_HERE).map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, '_')}_csv`, n] as const);
+const csvFormats = (sheets: Parameters<typeof sheetNamesWith>[0]) => sheetNamesWith(sheets).filter((n) => n !== START_HERE).map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, '_')}_csv`, n] as const);
+/** Every format this build has, for the tool's schema; a workspace with a module switched off has fewer (F2). */
+const CSV_FORMATS = csvFormats(MODULE_SHEETS);
 
 const tools: ToolDef[] = [
   {
@@ -22,12 +24,17 @@ const tools: ToolDef[] = [
     inputSchema: { type: 'object', additionalProperties: false, required: ['format'], properties: { format: str('Which export.', { enum: ['json', 'brief', ...CSV_FORMATS.map(([f]) => f)] }) } },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
-      const x = { ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, sheets: MODULE_SHEETS };
+      // The sheets of the modules switched on in this workspace (F2): a module that's off adds none.
+      const sheets = sheetsOn(ctx.ws);
+      const x = { ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, sheets };
+      const formats = csvFormats(sheets);
       if (a.format === 'json') { const j = toJson(x); return { data: j, text: JSON.stringify(j) }; }
       if (a.format === 'brief') return { text: aiBrief(x) };
-      const sheet = CSV_FORMATS.find(([f]) => f === a.format)?.[1];
+      const sheet = formats.find(([f]) => f === a.format)?.[1];
       if (sheet) return { text: toCsv(sheetNamed(workbook(x), sheet).rows) };
-      return { isError: true, text: `format should be json, brief or one of ${CSV_FORMATS.map(([f]) => f).join(', ')}.` };
+      const off = MODULE_SHEETS.find((m) => !sheets.includes(m) && csvFormats([m]).at(-1)?.[0] === a.format);
+      if (off) return { isError: true, text: `The ${off.spec.name} sheet’s module is switched off in ${ctx.ws.name}, so it isn’t exported there. An admin can switch it on in Workspace, under Features.` };
+      return { isError: true, text: `format should be json, brief or one of ${formats.map(([f]) => f).join(', ')}.` };
     },
   },
   {
