@@ -1110,7 +1110,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     if (existing) built = { ...existing, ...built } as Goal;
     if (key) built = { ...built, key };
     // Proposed: kept as proposed, proposed now by whoever sends the row, or made active (its proposal cleared).
-    if (proposing && !wasProposed) built = { ...built, proposedAt: now, proposedBy: actor.id };
+    if (proposing && !wasProposed) built = { ...built, proposedAt: now, proposedBy: actor.id, ...(built.proposedIn ? { proposedIn: null } : {}) };
     if (wasProposed && !proposing) built = { ...built, proposedAt: null, proposedBy: null };
     if (existing && d.whyHelps === '' && 'whyHelps' in built) delete (built as { whyHelps?: string }).whyHelps;
     // A row that stops or deletes a goal says only that: its other columns must say what the goal says now.
