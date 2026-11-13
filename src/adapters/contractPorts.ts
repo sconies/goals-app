@@ -1,5 +1,6 @@
 /* Faro's own ports as the port contracts open them (src/ports/contracts/cases): the browser's Search over a case's
-   workspace, and browser Prefs over a store in memory. parts.test.ts runs the contracts on them, and Faro's shim
+   workspace, browser Prefs over a store in memory, the browser's goals store in memory, and the query port over the
+   conformance workspace. parts.test.ts runs the contracts on them, and Faro's shim
    (scripts/drill-faro/shim.mjs) answers the drill harness with them, which proves the harness: it must pass every case. */
 import type { Snapshot } from '../domain/types';
 import { currentWeek } from '../domain/plan';
@@ -12,6 +13,8 @@ import { localSearch } from './localSearch';
 import { localGoals } from './localGoals';
 import { goalRows, scopeFacts } from '../app/reads';
 import { goalsStart } from '../ports/contracts/goals';
+import { storeStart } from '../ports/contracts/store';
+import { BrowserStore } from '../data/store';
 import { asOf, type ConformanceWorkspace } from '../spec/conformance';
 import conformanceJson from '../../spec/conformance/workspace.json';
 
@@ -51,5 +54,8 @@ export const conformanceGoals = async (s: Snapshot, viewer: string) => {
 };
 export const conformanceBase = async () => asOf(conf, new Date(conf.builtFor));
 
+/** The browser's goals store over a fresh store in memory, without the example. */
+export const memoryStore = async () => new BrowserStore(() => new Date('2026-10-30T12:00:00Z'), { storage: memoryStorage(), example: false, key: 'contract' });
+
 /** What Faro's shim answers: every port that has a contract as data. */
-export const faroCaller = () => caller({ search: searchStart(seededSearch), prefs: prefsStart(memoryPrefs), goals: goalsStart(conformanceBase, conformanceGoals) });
+export const faroCaller = () => caller({ search: searchStart(seededSearch), prefs: prefsStart(memoryPrefs), store: storeStart(memoryStore), goals: goalsStart(conformanceBase, conformanceGoals) });
