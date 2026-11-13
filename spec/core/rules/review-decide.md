@@ -7,7 +7,7 @@ A goal behind leaves a review with a next step (an owner and a week) or an accep
 
 ## The rule
 
-**Who may speak for a review** (`canSpeakFor`): someone in it, or an admin. Marking a goal reviewed, a note, the review accepting a risk, and a question or next step raised in the review are refused for anyone else with "Only people in {review}, or an admin, can speak for it." (`speakRefusal`). Everyone may read a review, and anyone may still ask a question or agree a next step on a goal's own page. A review's page tells someone not in it who can add them (`joinLine`): "You’re not in this review. {its people and whoever set it up, up to six, then "and {n} more"} or an admin can add you."
+**Who may speak for a review** (`canSpeakFor`): someone in it, or an admin. Marking a goal reviewed, a note, the review accepting a risk, and a question or next step raised in the review are refused for anyone else with "Only people in {review}, or an admin, can speak for it." (`speakRefusal`). Even then, only about a goal the review walks (its goals, trees and levels, `goalsIn`): anything said in it about another goal is refused with "{review} doesn’t cover {goal}, so nothing can be said about it there." (`scopeRefusal`). Everyone may read a review, and anyone may still ask a question or agree a next step on a goal's own page. A review's page tells someone not in it who can add them (`joinLine`): "You’re not in this review. {its people and whoever set it up, up to six, then "and {n} more"} or an admin can add you."
 
 **Who must decide.** A goal whose status is `off` or `risk` (`needsDecision`) is not marked reviewed in a walk until something is decided about it. Every other goal is marked reviewed as before.
 
@@ -42,6 +42,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Which statuses need a decision: off, risk, on, stale, done. | `yes, yes, no, no, no` |
 | The words saved for accepting the risk because "the vendor fix lands next release", and what is read back from them and from "Talked it through". | `We accept the risk: the vendor fix lands next release / the vendor fix lands next release / not a decision` |
 | In the demo workspace, Daniel accepts the risk on the merge queue in the Developer Productivity fortnightly with the reason "ok". | `refused: Say why the review accepts the risk.` |
+| In the demo workspace, Daniel, who is in the Developer Productivity fortnightly, marks a goal the fortnightly doesn’t walk reviewed in it. | `refused: Developer Productivity fortnightly doesn’t cover {that goal}, so nothing can be said about it there.` |
 | In the demo workspace, Oskar, who is not in the Developer Productivity fortnightly and is not an admin, marks the merge queue reviewed in it. | `refused: Only people in Developer Productivity fortnightly, or an admin, can speak for it.` |
 | Searching the demo workspace’s people for "kap", then "rhea tunde". | `Rhea Kapoor / nobody` |
 
@@ -53,7 +54,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - [src/domain/decide.ts](../../../src/domain/decide.ts): `needsDecision`, `decisionFor`, `acceptNote`, `acceptedReason`, `lastTime`, `sessionDecisions`
 - [src/domain/actions.ts](../../../src/domain/actions.ts): `acceptRisk`, `addAction`, `markReviewed`
-- [src/domain/review.ts](../../../src/domain/review.ts): `sessionToDo`, `canSpeakFor`, `speakRefusal`, `joinLine`
+- [src/domain/review.ts](../../../src/domain/review.ts): `sessionToDo`, `canSpeakFor`, `speakRefusal`, `scopeRefusal`, `joinLine`
 
 ## Requirements
 
@@ -96,3 +97,4 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - who may speak for a review (RV7) › lets a member and an admin speak for it
 - who may speak for a review (RV7) › leaves a question and a next step on a goal’s own page open to anyone
 - who may speak for a review (RV7) › tells someone not in it who can add them: its people and whoever set it up, up to six, then how many more
+- who may speak for a review (RV7) › refuses anything said in it about a goal it doesn’t walk, from a member and an admin alike (build review of #322)

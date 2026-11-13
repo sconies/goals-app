@@ -319,6 +319,8 @@ export const canSpeakFor = (r: Pick<Review, 'people'>, p: Pick<Person, 'id' | 'a
 
 /** The refusal, in words a person (or their assistant) can act on. */
 export const speakRefusal = (r: Pick<Review, 'name'>) => `Only people in ${r.name}, or an admin, can speak for it.`;
+/** Said when something is said in a review about a goal it doesn't walk (build review of #322). */
+export const scopeRefusal = (r: Pick<Review, 'name'>, g: Pick<Goal, 'title'>) => `${r.name} doesn’t cover ${g.title}, so nothing can be said about it there.`;
 
 /**
  * The line a review's page shows someone not in it, who can't speak for it: who can add them (its people and whoever

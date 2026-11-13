@@ -22,7 +22,7 @@ Faro’s own code builds an index of every check-in the first time it is asked f
 
 ## Each action
 
-Each action of [the command port](../core/actions.md), run once as the person named, with an input picked from the demo (`src/spec/readsSamples.ts`). A refused action shows what it read before it said no, with its words: the demo’s date or records don’t allow it, and it reads more once allowed. **Every record of** names the lists an action read whole: what a server has to narrow first. 22 of 57 actions do today, because the rules that take the whole workspace (`scripts/whole-workspace.json`) look through a list where an index would do. The goal an action names is looked up by its id (`goals … past the rest by id`), which a server does with its key.
+Each action of [the command port](../core/actions.md), run once as the person named, with an input picked from the demo (`src/spec/readsSamples.ts`). A refused action shows what it read before it said no, with its words: the demo’s date or records don’t allow it, and it reads more once allowed. **Every record of** names the lists an action read whole: what a server has to narrow first. 25 of 57 actions do today, because the rules that take the whole workspace (`scripts/whole-workspace.json`) look through a list where an index would do. The goal an action names is looked up by its id (`goals … past the rest by id`), which a server does with its key.
 
 | Action | As | On the demo | Records used (of the list), and what the rest were looked past by | Every record of |
 |---|---|---|---|---|
@@ -48,9 +48,9 @@ Each action of [the command port](../core/actions.md), run once as the person na
 | `linkRequest` | amara | saved | `goals` 0 of 126, past the rest by `id`; `people` 1 of 97, past the rest by `id`; `requests` 41 of 41 | `requests` |
 | `withdrawRequest` | amara | saved | `goals` 0 of 126, past the rest by `id`; `requests` 1 of 41, past the rest by `id` | — |
 | `saveReview` | amara | saved | `goals` 0 of 126, past the rest by `id`; `people` 0 of 97, past the rest by `id`; `reviews` 1 of 6 | — |
-| `reviewCall` | amara | saved | `goals` 0 of 126, past the rest by `id`; `reviews` 1 of 6 | — |
-| `acceptRisk` | amara | saved | `goals` 0 of 126, past the rest by `id`; `reviews` 1 of 6 | — |
-| `markReviewed` | amara | saved | `goals` 0 of 126, past the rest by `id`; `reviews` 1 of 6 | — |
+| `reviewCall` | amara | saved | `goals` 126 of 126; `reviews` 1 of 6 | `goals` |
+| `acceptRisk` | amara | saved | `goals` 126 of 126; `reviews` 1 of 6 | `goals` |
+| `markReviewed` | amara | saved | `goals` 126 of 126; `reviews` 1 of 6 | `goals` |
 | `editCall` | amara | saved | `decisions` 1 of 798; `requests` 0 of 41, past the rest by `id` | — |
 | `unmarkReviewed` | amara | saved | `decisions` 1 of 798, past the rest by `id` | — |
 | `deleteNote` | amara | saved | `decisions` 1 of 798 | — |

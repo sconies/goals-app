@@ -58,7 +58,7 @@ import type { ActionContext } from '../domain/actions';
 import MODULE_SPEC from 'virtual:faro-modules/spec';
 import { backTo, litItem, menuGroups, menuRows, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
 import { movedGoals, ownGroup, scopesFor } from '../domain/goalsPage';
-import { watchedGoals } from '../domain/review';
+import { goalsIn, watchedGoals } from '../domain/review';
 import { countLine, filterLine, findAll, keyOf, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
@@ -857,12 +857,12 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
     code: [
       { file: 'src/domain/decide.ts', names: ['needsDecision', 'decisionFor', 'acceptNote', 'acceptedReason', 'lastTime', 'sessionDecisions'] },
       { file: 'src/domain/actions.ts', names: ['acceptRisk', 'addAction', 'markReviewed'] },
-      { file: 'src/domain/review.ts', names: ['sessionToDo', 'canSpeakFor', 'speakRefusal', 'joinLine'] },
+      { file: 'src/domain/review.ts', names: ['sessionToDo', 'canSpeakFor', 'speakRefusal', 'scopeRefusal', 'joinLine'] },
     ],
     tests: ['src/domain/decide.test.ts', 'src/domain/review.test.ts', 'src/domain/speakFor.test.ts'],
     reqs: ['REVIEW-DECIDE', 'REVIEW-RUN', 'REVIEW-SPEAK'],
     body: `
-**Who may speak for a review** (\`canSpeakFor\`): someone in it, or an admin. Marking a goal reviewed, a note, the review accepting a risk, and a question or next step raised in the review are refused for anyone else with "Only people in {review}, or an admin, can speak for it." (\`speakRefusal\`). Everyone may read a review, and anyone may still ask a question or agree a next step on a goal's own page. A review's page tells someone not in it who can add them (\`joinLine\`): "You’re not in this review. {its people and whoever set it up, up to six, then "and {n} more"} or an admin can add you."
+**Who may speak for a review** (\`canSpeakFor\`): someone in it, or an admin. Marking a goal reviewed, a note, the review accepting a risk, and a question or next step raised in the review are refused for anyone else with "Only people in {review}, or an admin, can speak for it." (\`speakRefusal\`). Even then, only about a goal the review walks (its goals, trees and levels, \`goalsIn\`): anything said in it about another goal is refused with "{review} doesn’t cover {goal}, so nothing can be said about it there." (\`scopeRefusal\`). Everyone may read a review, and anyone may still ask a question or agree a next step on a goal's own page. A review's page tells someone not in it who can add them (\`joinLine\`): "You’re not in this review. {its people and whoever set it up, up to six, then "and {n} more"} or an admin can add you."
 
 **Who must decide.** A goal whose status is \`off\` or \`risk\` (\`needsDecision\`) is not marked reviewed in a walk until something is decided about it. Every other goal is marked reviewed as before.
 
@@ -882,6 +882,7 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
       { given: 'Which statuses need a decision: off, risk, on, stale, done.', then: 'yes, yes, no, no, no', run: () => ['off', 'risk', 'on', 'stale', 'done'].map((k) => (needsDecision(k) ? 'yes' : 'no')).join(', ') },
       { given: 'The words saved for accepting the risk because "the vendor fix lands next release", and what is read back from them and from "Talked it through".', then: 'We accept the risk: the vendor fix lands next release / the vendor fix lands next release / not a decision', run: () => { const w = acceptNote('the vendor fix lands next release'); return `${w} / ${acceptedReason(w)} / ${acceptedReason('Talked it through') ?? 'not a decision'}`; } },
       { given: 'In the demo workspace, Daniel accepts the risk on the merge queue in the Developer Productivity fortnightly with the reason "ok".', then: 'refused: Say why the review accepts the risk.', run: () => summaryOf(asPerson('daniel', (x) => acceptRisk(x, goalIn('lead-mq'), demo!.reviews.find((r) => r.id === 'devprod')!, 'ok', 46))) },
+      { given: 'In the demo workspace, Daniel, who is in the Developer Productivity fortnightly, marks a goal the fortnightly doesn’t walk reviewed in it.', then: 'refused: Developer Productivity fortnightly doesn’t cover {that goal}, so nothing can be said about it there.', run: () => { const rv = demo!.reviews.find((r) => r.id === 'devprod')!; const all = demo!.goals; const out = all.find((g) => !goalsIn(rv.scope, all).some((v) => v.id === g.id))!; return summaryOf(asPerson('daniel', (x) => reviewCall(x, out, rv, 'acknowledge', ''))).replace(out.title, '{that goal}'); } },
       { given: 'In the demo workspace, Oskar, who is not in the Developer Productivity fortnightly and is not an admin, marks the merge queue reviewed in it.', then: 'refused: Only people in Developer Productivity fortnightly, or an admin, can speak for it.', run: () => summaryOf(asPerson('oskar', (x) => reviewCall(x, goalIn('lead-mq'), demo!.reviews.find((r) => r.id === 'devprod')!, 'acknowledge', ''))) },
       { given: 'Searching the demo workspace’s people for "kap", then "rhea tunde".', then: 'Rhea Kapoor / nobody', run: () => [search(personRows(demo!), { q: 'kap' }), search(personRows(demo!), { q: 'rhea tunde' })].map((a) => a.rows.map((p) => p.name).join(', ') || 'nobody').join(' / ') },
     ],

@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'review-speaks-for-its-goals',
+    date: '2026-11-13',
+    title: 'A review speaks only for the goals it walks',
+    points: [
+      'In a review, marking a goal reviewed, a note, accepting a risk, a question or a next step is only for a goal the review covers: its goals, trees and levels. Anything else is refused, in the app and through the AI tools, with a sentence that says why.',
+      'Anyone can still ask a question or agree a next step on the goal’s own page.',
+    ],
+    articles: ['reviews'],
+  },
+  {
     id: 'metric-part',
     date: '2026-11-13',
     title: 'Measure a goal by one part of a number',
