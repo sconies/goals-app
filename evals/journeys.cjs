@@ -29,6 +29,17 @@ const url = (p) => BASE + '/demo' + p + (p.includes('?') ? '&' : '?') + 'today='
 /** The real app, with its data kept in this browser (the eval build has no Supabase). */
 const live = (p) => BASE + p + (p.includes('?') ? '&' : '?') + 'store=browser&today=' + TODAY;
 const consoleErrors = [];
+/** Whether this build has a feature module: FARO_WITHOUT leaves modules out, and those that need them (vite.modules.ts).
+    A core journey that reads a module's part of a screen expects the core's own words without it. */
+const LEFT_OUT = (() => {
+  const left = new Set((process.env.FARO_WITHOUT || '').split(',').map((x) => x.trim()).filter(Boolean));
+  if (!left.size) return left;
+  const dir = path.join(__dirname, '..', 'src', 'modules');
+  const all = fs.readdirSync(dir).filter((d) => fs.existsSync(path.join(dir, d, 'module.json'))).map((d) => JSON.parse(fs.readFileSync(path.join(dir, d, 'module.json'), 'utf8')));
+  for (let changed = true; changed;) { changed = false; for (const m of all) if (!left.has(m.id) && (m.needs || []).some((n) => left.has(n))) { left.add(m.id); changed = true; } }
+  return left;
+})();
+const built = (id) => !LEFT_OUT.has(id);
 /* The demo follows the calendar: on Thursday 5 November 2026 it is in ISO week 45 of 2026, a 53-week year. The
    Platform Engineering example is written for week 45 (src/data/platformOrg). W(storyWeek) is the old seven-week
    story's mapping, kept until every journey is rewritten for the new example. */
@@ -389,8 +400,15 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   h.set('logged', posts.length === 2 && posts.every((c) => c.diffs.some((d) => d.field === 'Value')), `expected two logged week-${NOW} posts by Rhea, saw ${posts.length}`);
   await p.goto(url('/'));
   await p.reload();
-  // Rhea is in no review this week (hers is on Tuesday), so Home says the week is done in one sentence (HM1).
-  await see(p, /(Your check-in is|Both check-ins are|All \d+ check-ins are) in for week/, 'posted check-ins survive a reload, and home says the week is done');
+  if (built('reviews')) {
+    // Rhea is in no review this week (hers is on Tuesday), so Home says the week is done in one sentence (HM1).
+    await see(p, /(Your check-in is|Both check-ins are|All \d+ check-ins are) in for week/, 'posted check-ins survive a reload, and home says the week is done');
+  } else {
+    // Without Reviews, Daniel's question waits by its own age, not for Tuesday's session: nine days, so it leads Home
+    // (rule 3), and nothing is left to check in on.
+    await see(p, 'Daniel asked a question', 'without Reviews, the question nine days old leads Home');
+    h.set('finish', !(await p.getByText(/check-ins? to do/).count()), 'posted check-ins do not survive a reload: Home still counts check-ins to do');
+  }
   // An ad hoc check-in, any time, from the goal page: kept alongside the first, and the latest is the week's status.
   await p.goto(url('/goals/ci-docker'));
   // Checked in already: the owner's check-in is no longer the page's main action; "Check in again" is beside it.
@@ -1798,7 +1816,8 @@ journey('U16', ['ATTENTION', 'WATCHING', 'ONE-ASK', 'ONE-WATCHING'], 'Home by re
   { const panel = await demoPanel(p, h); h.set('progress', !(await panel.getByRole('button', { name: /4 tabs/ }).count()), 'the four-tab trial is still offered'); await p.keyboard.press('Escape'); }
   if (device === 'phone') {
     const labels = await p.locator('.tabbar').getByRole('link').allInnerTexts();
-    h.set('progress', labels.map((x) => x.replace(/\d+/g, '').trim()).join(',') === 'Home,Goals,Reviews,People', `phone tabs are ${labels.join(', ')}`);
+    // Without Reviews, the tab it had goes to Activity (navigation: the two rows for Reviews off).
+    h.set('progress', labels.map((x) => x.replace(/\d+/g, '').trim()).join(',') === (built('reviews') ? 'Home,Goals,Reviews,People' : 'Home,Goals,People,Activity'), `phone tabs are ${labels.join(', ')}`);
   }
   await p.goto(url('/goals?scope=watching'));
   await see(p, 'Needs attention', 'Watching shows inside Goals');
