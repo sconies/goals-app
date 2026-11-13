@@ -23,6 +23,29 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'proposals-on-home',
+    date: '2026-11-13',
+    title: 'Proposals for you show on Home',
+    points: [
+      'A goal someone proposes for you shows on your Home, under Needs your response, until you open it.',
+      'A proposal that has waited 8 weeks or more asks once whether to make it active or withdraw it; Not yet puts it off for 8 more weeks.',
+      'Proposing a goal for someone else now says they will see it on their Home.',
+    ],
+    articles: ['goal-proposed', 'home'],
+  },
+  {
+    id: 'range-between-both-limits',
+    date: '2026-11-13',
+    title: 'A range between two numbers weighs both its limits',
+    points: [
+      'A number moving back towards the middle of its range now reads as getting better, from either side, in its trend, “Vs last week” and the attention flags.',
+      '“Will it stay within?” answers for whichever limit the number is likelier to cross, not only the nearer one.',
+      'On a narrow range the chart’s Upper and Lower labels no longer sit on each other, and a quarter ended inside the range names both limits.',
+      'In a spreadsheet, two numbers in Limit with Must stay saying At most or At least now ask whether you meant Between.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
     id: 'metric-part',
     date: '2026-11-13',
     title: 'Measure a goal by one part of a number',

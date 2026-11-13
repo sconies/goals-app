@@ -4,9 +4,11 @@
    phone); whoever proposed it may change or withdraw it; anyone may comment, ask and watch. Loaded with the goal's
    page, only when a proposed goal is opened. The words are the domain's (domain/proposed, domain/readBack). */
 import '../styles/notes/proposed.css';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { AppStateProvider, useApp } from '../app/state';
+import { usePrefs } from '../app/search';
+import { markOpened } from '../app/proposalSeen';
 import { activeReadBack } from '../domain/readBack';
 import { MEASURE_UNSAID, measureUnsaid } from '../domain/proposedSummary';
 import { mayActivate, readyToActivate } from '../domain/proposedActions';
@@ -42,6 +44,9 @@ export function wouldSay(goal: Goal, parent: Goal | undefined, weeks: number): s
  */
 export function ProposedGoal({ goal }: { goal: Goal }) {
   const app = useApp();
+  const prefs = usePrefs();
+  // Its owner has seen it: Home's "{Name} proposed a goal for you" row goes (rule 14).
+  useEffect(() => { if (goal.ownerId === app.viewer.id) markOpened(prefs, app.ws.id, app.viewer.id, goal.id); }, [prefs, app.ws.id, app.viewer.id, goal.id, goal.ownerId]);
   const value = useMemo(() => (app.snapshot.goals.some((g) => g.id === goal.id) ? app : { ...app, snapshot: { ...app.snapshot, goals: [...app.snapshot.goals, goal] } }), [app, goal]);
   return <AppStateProvider value={value}><ProposedPage goal={goal} /></AppStateProvider>;
 }

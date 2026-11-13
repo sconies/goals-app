@@ -3,7 +3,9 @@ import { buildPlatformOrg } from '../data/platformOrg';
 import { currentWeek } from './plan';
 import { goalStatus } from './status';
 import { amount, goalScorecard, likelihood, likelihoodFloor, projects } from './scorecard';
+import { goalTrend } from './trend';
 import type { CheckIn, Cycle, MetricGoal, RangeGoal } from './types';
+import { quarterResult } from './year';
 
 describe('will it hit the target: where the target sits against the projected range', () => {
   // Higher is better; likely 50, range 46–54 (half-width 4).
@@ -110,6 +112,40 @@ describe('the scorecard on made-up goals', () => {
     expect(card.cells[2]!.value).toBe('2.7 pts of room');
     // Rising 0.1 a week from 2.3% in week 13: about 6.3% by week 53, over the 5% limit.
     expect(card.cells[3]!.value).toMatch(/Unlikely|Very unlikely/);
+  });
+});
+
+describe('a range between two numbers: both bounds where both matter (#300 review)', () => {
+  const cycle: Cycle = { id: 'c', name: 'Year', startDate: '2026-01-05', weeks: 53 } as Cycle;
+  const ci = (week: number, value: number): CheckIn => ({ id: `u-${week}`, goalId: 'u', week, value, status: 'on', calculated: 'on', why: 'On plan.', cause: null, authorId: 'x', postedAt: `2026-01-01T00:00:${String(week).padStart(2, '0')}Z` } as unknown as CheckIn);
+  const uptime = { id: 'u', kind: 'range', title: 'Uptime', unit: '%', decimals: 2, range: { bound: 'between', lower: 99.5, limit: 99.95, margin: 0 } } as unknown as RangeGoal;
+  const band = { id: 'u', kind: 'range', title: 'Share', unit: '%', decimals: 1, range: { bound: 'between', lower: 1.6, limit: 1.8, margin: 0 } } as unknown as RangeGoal;
+  const cell = (g: RangeGoal, vs: [number, number][], key: string) => goalScorecard(g, cycle, vs.map(([w, v]) => ci(w, v)), vs[vs.length - 1]![0], false).cells.find((c) => c.key === key)!;
+
+  it('will it stay within judges the worse of the two bounds', () => {
+    // Rising from near the lower bound towards a breach of the upper one: judged against the lower alone it read Likely.
+    const rising = [10, 11, 12, 13, 14, 15].map((w): [number, number] => [w, 99.52 + (w - 10) * 0.04]);
+    expect(cell(uptime, rising, 'hit').value).toBe('Possible');
+    // Falling from near the upper bound through the lower one.
+    const falling = [10, 11, 12, 13, 14, 15].map((w): [number, number] => [w, 99.9 - (w - 10) * 0.03]);
+    expect(cell(uptime, falling, 'hit').value).toMatch(/Unlikely|Very unlikely/);
+    const flat = [10, 11, 12, 13].map((w): [number, number] => [w, 99.72]);
+    expect(cell(uptime, flat, 'hit').value).toBe('Likely');
+  });
+  it('a move back towards the middle is better, from either side', () => {
+    expect(cell(uptime, [[10, 99.9], [11, 99.8]], 'since')).toMatchObject({ value: '0.10 pts better', tone: 'good' });
+    expect(cell(band, [[10, 1.9], [11, 1.7]], 'since')).toMatchObject({ value: '0.2 pts better', tone: 'good' });
+    expect(cell(band, [[10, 1.7], [11, 1.65]], 'since')).toMatchObject({ value: '0.1 pts worse', tone: 'bad' });
+    // From just inside one bound to just inside the other: no nearer either.
+    expect(cell(band, [[10, 1.65], [11, 1.75]], 'since')).toMatchObject({ value: '0.1 pts up', tone: 'flat' });
+    expect(goalTrend(uptime, cycle, [ci(10, 99.9), ci(11, 99.8), ci(12, 99.7)]).word).toBe('better');
+    expect(goalTrend(uptime, cycle, [ci(10, 99.7), ci(11, 99.8), ci(12, 99.9)]).word).toBe('worse');
+    expect(goalTrend(band, cycle, [ci(10, 1.9), ci(11, 1.8), ci(12, 1.7)]).word).toBe('better');
+  });
+  it('a quarter ended inside the range names both bounds', () => {
+    const q = { n: 1, label: 'Q1', from: 1, to: 13 } as Parameters<typeof quarterResult>[3];
+    expect(quarterResult(band, cycle, [ci(13, 1.7)], q, 20).text).toBe('Q1: 1.7% at the end, between 1.6% and 1.8%');
+    expect(quarterResult(band, cycle, [ci(13, 1.9)], q, 20).text).toBe('Q1: 1.9% at the end, outside the 1.8% limit');
   });
 });
 

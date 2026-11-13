@@ -1,7 +1,5 @@
 /* Search, filters, sort and saved views for the Goals screen. Every setting lives in the URL, so a view is a link you
    can share; saving a view keeps that link under a name. What each filter means is in domain/query.ts. */
-import { isTableView } from '../domain/tableLayout';
-import { movedGoals } from '../domain/goalsPage';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigationType, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
@@ -16,10 +14,9 @@ import { Sheet } from '../ui/bits';
 import type { MenuItem } from '../ui/MenuButton';
 import { FilterLine } from '../ui/ListBar';
 
-/** The params a view is made of: which goals and how they're grouped (show), the layout (view), and the query. */
-const VIEW_KEYS = ['scope', 'group', 'show', 'view', 'weeks', 'hist', ...QUERY_KEYS];
-// view=list is the list said out loud (GoalViews' useLayout), the same view as no layout at all.
-export const viewParams = (p: URLSearchParams) => new URLSearchParams([...p].filter(([k, v]) => VIEW_KEYS.includes(k) && !(k === 'view' && v === 'list')).sort(([a], [b]) => VIEW_KEYS.indexOf(a) - VIEW_KEYS.indexOf(b))).toString();
+// What a view is made of, and the views a person sees: in savedViews.ts, so the shell needn't load the filters.
+export { useViews, viewParams } from './savedViews';
+import { useViews, viewParams } from './savedViews';
 
 /**
  * The address as it is now, to build a change on. The router hands a screen its search params once it has drawn them,
@@ -47,16 +44,6 @@ export function useGoalQuery(): [GoalQuery, (change: GoalQuery | ((q: GoalQuery)
     if (out.toString() !== base.toString()) setParams(out, { replace: !opts?.push });
   };
   return [q, set];
-}
-
-/** The views this person sees: their own and the ones an admin pinned for everyone. Data's saved layouts are kept apart. */
-export function useViews(): SavedView[] {
-  const app = useApp();
-  // A view saved in the Cards layout is the same view in List (Lane, 9 Nov): opening it says so once (GoalsScreen).
-  // A view saved in the old form (show=…, no scope) is read in the new one (goals spec, rule 6); the record isn't rewritten.
-  const fresh = (params: string) => viewParams(new URLSearchParams(movedGoals(params, 'all', () => true)?.search ?? params));
-  return (app.snapshot.views ?? []).filter((v) => !v.deletedAt && !isTableView(v) && (v.pinned || v.personId === app.viewer.id))
-    .map((v) => (new URLSearchParams(v.params).get('view') === 'cards' ? { ...v, params: fresh(viewParams(new URLSearchParams([...new URLSearchParams(v.params)].filter(([k]) => k !== 'view')))) } : { ...v, params: fresh(v.params) })).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.createdAt.localeCompare(b.createdAt));
 }
 
 /** Search, filters and sort, with the active filters as words you can remove one by one. */
