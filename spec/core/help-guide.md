@@ -365,7 +365,7 @@ Anyone can watch any goal. A goal’s owner has no Watch: it is always on their 
 
 `goals`. Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look.
 
-Routes: `/goals`, `/goals?view=list`, `/goals?view=table`, `/goals?view=board`. Screens: `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`. Requirements: `GOALS-SCOPE`, `GOALS-ATTENTION`, `GOALS-ADDRESS`, `GOALS-MENUS`, `VIEWS`, `OUTCOME-TREE`, `HIERARCHY`, `STICKY-HEAD`, `NAV-GOALS`, `STORY`, `LEVELS`, `BULK-EDIT`.
+Routes: `/goals`, `/goals?view=list`, `/goals?view=table`, `/goals?view=board`. Screens: `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`. Requirements: `GOALS-SCOPE`, `GOALS-ATTENTION`, `GOALS-ADDRESS`, `GOALS-MENUS`, `VIEWS`, `OUTCOME-TREE`, `HIERARCHY`, `STICKY-HEAD`, `NAV-GOALS`, `STORY`, `LEVELS`, `BULK-EDIT`.
 
 #### What it’s for
 
@@ -563,7 +563,7 @@ A proposed goal’s page is simpler: Proposed above the title, what it would mea
 
 - A goal stopped mid-year keeps its page, marked Stopped (a ring with a bar across, and the word), with who stopped it, when and why. Its chart, check-ins and activity stay as they were; it has no main button, and Restart it is there for an admin or whoever stopped it.
 - A stopped goal makes no forecast: its scorecard keeps Vs plan, Vs last week and To target as they stood, without Will it hit the target, and its chart has no projection.
-- It is out of every list, count, review and Home, but still in exports (Status: Stopped) and Activity.
+- It is out of every list, count, review and Home, but still in exports (Status: Stopped) and Activity. Goals lists the year’s stopped goals with the State filter on Stopped, most recently stopped first, with who stopped each, when and why.
 
 #### Sharing it
 

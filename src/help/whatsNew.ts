@@ -27,6 +27,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'state-filter-stopped',
+    date: '2026-11-13',
+    title: 'Find the goals stopped this year',
+    points: [
+      'The Filters sheet’s State has a third choice, Stopped: the goals stopped this year, most recently stopped first.',
+      'Each says who stopped it, when and why, and opens its page as it stood.',
+    ],
+    articles: ['goals', 'goal-page'],
+  },
+  {
     id: 'reviews-switch',
     date: '2026-11-13',
     title: 'Reviews can be switched off, and nothing they saved is lost',
