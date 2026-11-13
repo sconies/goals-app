@@ -56,9 +56,12 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const shortDate = (iso: string) => { const d = new Date(iso); return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`; };
 const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
 
-/** Who set a workspace up: whoever its "Created …" change names, else its first admin. */
+/**
+ * Who set a workspace up: whoever its "Created …" change names, else its first admin. Set-up writes that change as
+ * `imported` (`createWorkspace`, src/app/state.tsx); `created` is read too, for a log written by another tool.
+ */
 export function creatorOf(changes: Pick<Change, 'entity' | 'action' | 'summary' | 'actorId'>[], people: Pick<Person, 'id' | 'admin'>[]): string | null {
-  const made = changes.find((c) => c.entity === 'workspace' && c.action === 'created' && c.summary.startsWith('Created'));
+  const made = changes.find((c) => c.entity === 'workspace' && (c.action === 'imported' || c.action === 'created') && c.summary.startsWith('Created'));
   return made?.actorId ?? people.find((p) => p.admin)?.id ?? null;
 }
 

@@ -391,6 +391,13 @@ export interface Snapshot {
    * list them (Goals with its filter, Find, their own page, the sheet and the tools) read them from here.
    */
   proposed?: Goal[];
+  /**
+   * Set only when the snapshot was loaded with a window (ports/store LoadWindow, AX5 part 2): what was left out. Check-ins
+   * of cycles that ended before `from`, and change-log entries before it other than the anchors (ports/window.ts), are
+   * not loaded; `checkInCycles` names every cycle with any check-in, in the whole workspace, so a rule asking whether a
+   * cycle has one needn't load them. Older entries come a page at a time from Store.history.
+   */
+  history?: { from: string; checkInCycles: string[] };
 }
 
 export interface Archive {

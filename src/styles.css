@@ -1502,6 +1502,11 @@ fieldset > legend { padding: 0; }
 .pick-tick { font-size: var(--fs-small, 0.875rem); color: var(--muted); }
 .pick-foot { display: flex; justify-content: flex-end; padding-top: var(--s2); border-top: 1px solid var(--line-2); }
 .pick-add { display: block; width: 100%; text-align: left; padding: var(--s2) var(--s3); min-height: 44px; border-top: 1px solid var(--line-2); }
+/* On a computer the open panel is fixed to the window where Pick.tsx measures its field (FS1 review), so a sheet or a
+   table that scrolls can't cut it off. */
+@media (min-width: 641px) {
+  .pick-panel.placed { position: fixed; top: var(--pick-top); left: var(--pick-left); width: var(--pick-width); max-width: none; max-height: var(--pick-max); margin-top: 0; overflow-y: auto; z-index: 70; }
+}
 @media (max-width: 640px) {
   .pick-panel { position: fixed; inset: 0; margin: 0; width: auto; max-width: none; border-radius: 0; z-index: 60; overflow-y: auto; }
   .pick-list { max-height: none; }

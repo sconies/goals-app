@@ -12865,6 +12865,23 @@ var StaleError = class extends Error {
 	}
 };
 var isStale = (e) => e instanceof StaleError || e instanceof Error && /\bstale: /.test(e.message);
+// src/ports/window.ts
+init_cycle();
+/** Entries of these kinds are anchors: kept at any age, because rules read them whatever their age (comments, asks, a
+cycle's "created" entry). */
+var ANCHOR_ENTITIES = [
+	"note",
+	"request",
+	"cycle"
+];
+/** Import and bulk-edit summaries (and their undoing) are anchors too: past imports and "Undo this import" read them. */
+var ANCHOR_ACTIONS = ["imported", "undone"];
+/** The day (yyyy-mm-dd, UTC) a window starts on. */
+var windowDay = (w) => new Date(w.from).toISOString().slice(0, 10);
+/** A cycle overlaps the window when its last day (domain/cycle cycleDates) is on or after the window's first day.
+In SQL: start_date + ((weeks + 1) * 7 - 1) >= the window's day. */
+var overlaps = (c, w) => cycleDates(c).lastDay >= windowDay(w);
+var historySize = (ask) => Math.max(1, Math.min(100, Math.floor(ask.size ?? 50)));
 // src/data/store.ts
 init_asks();
 init_goalKey();
@@ -13597,9 +13614,10 @@ function goalRows(s, cycle, today, week, columns) {
 }
 function personRows(s) {
 	const teams = new Map(s.teams.map((t) => [t.id, t]));
+	const here = new Set(s.people.map((p) => p.id));
 	return {
 		kind: "person",
-		people: live(s.people),
+		people: live([...s.people, ...(s.archive?.people ?? []).filter((p) => !here.has(p.id))]),
 		teamName: (id) => teams.get(id)?.name ?? "",
 		teamLead: (id) => teams.get(id)?.leadId ?? null
 	};
@@ -15974,6 +15992,7 @@ var CORE_ARTICLES = [
 					"Welcome to the workspace: who set it up and when, how many people and goals it has, then Which one are you?, with everyone listed by team and one line each (who set it up, an admin, how many goals they own, or no goals yet). With more than eight people, Find your name narrows the list.",
 					"Choose your name: that is the whole step. Home opens as you, and this device remembers your answer. The first time anyone chooses their name, Activity says they opened the workspace for the first time.",
 					"Not on the list? Ask whoever set it up to add you: the link writes them an email.",
+					"Not you, or opened the wrong link? Go to Welcome, under the list, takes you to the front door, where you can open another workspace or set up your own. The invitation stays waiting until you choose a name.",
 					"A link to a workspace that isn’t there says This invitation doesn’t open a workspace (it may have been deleted, or the link was cut short) and opens nothing else; Go to Welcome takes you to the front door."
 				]
 			},
@@ -15982,7 +16001,7 @@ var CORE_ARTICLES = [
 				text: ["Until company sign-in arrives, the app asks once on each device which one you are and remembers the answer. Choose Not you? in the person menu to change it. In the internal app, signing in with your company login replaces this step.", "Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If it can’t open you, it says you can’t open the workspace yet, and why: you aren’t signed in; no one there has that email; more than one person has it; or you’re marked as having left. Nothing of the workspace is shown. Copy a message for them writes the note to send whoever set it up, and Try again looks once more after they’ve fixed it."]
 			}
 		],
-		routes: ["/join/:workspaceId"],
+		routes: ["/join/:workspaceId/*"],
 		screens: ["Start"],
 		reqs: ["SETUP-FIRST-SCREEN", "IDENTITY"],
 		keywords: [
@@ -16795,7 +16814,8 @@ var CORE_ARTICLES = [
 					"Press Ctrl K (Cmd K on a Mac), or choose Find at the top of the sidebar (on a phone, Find in the top bar), and type a name, a few words, or a goal’s key like G-48.",
 					"What matches comes in groups: Goals, People, Teams, and Metrics while the metric library is on. Each shows its first three with how many match in all; “See all 8 goals” opens that list with your search filled in.",
 					"A goal’s key on its own (G-48, g48 or 48) puts that goal first. Enter opens the first row; Down and Up move to another; Escape closes. Each row is a link, so you can open it in a new tab.",
-					"Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open."
+					"Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open.",
+					"On a computer, a picker opens under its field, or above it when the window has no room below, so a sheet or a table never cuts it off."
 				]
 			},
 			{
@@ -18309,6 +18329,30 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "invitation-way-out",
+		date: "2026-11-13",
+		title: "An invitation no longer holds you at its first screen",
+		points: [
+			"The screen an invitation opens has Go to Welcome under the list of names, so a wrong link or a shared computer is never a dead end.",
+			"Setting up a workspace of your own works from there too, before you have chosen a name.",
+			"An old invitation link to a workspace that isn’t there says so, rather than opening Welcome.",
+			"Who set a workspace up is now read from the workspace itself, so the first screen, “Set this up · admin” and “Ask … to add you” name the right person when there is more than one admin.",
+			"Activity no longer gives a name twice when someone opens a workspace for the first time."
+		],
+		articles: ["joining", "welcome"]
+	},
+	{
+		id: "pickers-in-full",
+		date: "2026-11-12",
+		title: "Pickers show in full, and Find finds people who have left",
+		points: [
+			"On a computer, a picker opened in a sheet or in Data’s table is no longer cut off: it opens above its field when there is no room below.",
+			"Find finds someone who has left again, marked “(left)”, as it always said it would.",
+			"Setting up a workspace with two people of one name, the owner you pick is the one the goal gets."
+		],
+		articles: ["finding"]
+	},
 	{
 		id: "save-part-not-loaded",
 		date: "2026-11-12",
@@ -48428,6 +48472,11 @@ init_records();
 /** A database function that isn't there: the database is missing migrations. Said apart from a request that failed. */
 var missing = (error) => error.code === "PGRST202" || /Could not find the function|function .* does not exist/i.test(error.message);
 var MISSING = (fn) => `The database has no ${fn}: apply the migrations in supabase/migrations.`;
+/** A value in a PostgREST filter, quoted so commas, dots and colons in it (a time, say) read as part of it. */
+var quoted = (v) => `"${v.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
+/** How many goal ids go in one `in` filter, so a request's address stays short. */
+var IDS = 100;
+var chunks = (xs, n) => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, i * n + n));
 /** Requests give up after this long, so a dead connection shows an error instead of loading forever. */
 var TIMEOUT_MS = 12e3;
 /** Supabase returns at most 1,000 rows per request; read in pages below that. */
@@ -48451,11 +48500,11 @@ var SupabaseStore = class {
 		this.records = records;
 		this.db = client ?? faroClient(url, key, { fetch: timedFetch });
 	}
-	async all(table, ws) {
+	async all(table, ws, narrow = (q) => q) {
 		const out = [];
 		let after = null;
 		for (;;) {
-			let q = this.db.from(table).select("*").eq("workspace_id", ws).order("id").limit(PAGE);
+			let q = narrow(this.db.from(table).select("*").eq("workspace_id", ws)).order("id").limit(PAGE);
 			if (after != null) q = q.gt("id", after);
 			const { data, error } = await q;
 			if (error) throw new Error(`${table}: ${error.message}`);
@@ -48470,16 +48519,48 @@ var SupabaseStore = class {
 		if (error) throw new Error("Workspaces: " + error.message);
 		return (data ?? []).map(workspaceFromRow).filter((w) => w.kind !== "example" && w.id !== EXAMPLE.id);
 	}
-	async load(ws) {
+	async windowCheckIns(ws, w, cycles, goals) {
+		const goalsOf = (cycleIds) => goals.filter((g) => cycleIds.has(g.cycle_id)).map((g) => g.id);
+		const open = new Set(cycles.filter((c) => overlaps({
+			startDate: c.start_date,
+			weeks: c.weeks
+		}, w)).map((c) => c.id));
+		const rows = (await Promise.all(chunks(goalsOf(open), IDS).map((ids) => this.all("okr_check_ins", ws, (q) => q.in("goal_id", ids))))).flat();
+		const cycleOf = new Map(goals.map((g) => [g.id, g.cycle_id]));
+		const found = new Set(rows.flatMap((r) => cycleOf.has(r.goal_id) ? [cycleOf.get(r.goal_id)] : []));
+		const any = async (cycleId) => {
+			for (const ids of chunks(goalsOf(/* @__PURE__ */ new Set([cycleId])), IDS)) {
+				const { data, error } = await this.db.from("okr_check_ins").select("id").eq("workspace_id", ws).in("goal_id", ids).limit(1);
+				if (error) throw new Error(`okr_check_ins: ${error.message}`);
+				if ((data ?? []).length) return true;
+			}
+			return false;
+		};
+		const older = cycles.filter((c) => !open.has(c.id));
+		for (const [c, has] of await Promise.all(older.map(async (c) => [c, await any(c.id)]))) if (has) found.add(c.id);
+		return {
+			rows,
+			checkInCycles: [...found].sort()
+		};
+	}
+	windowChanges(ws, w) {
+		const anchors = `entity.in.(${ANCHOR_ENTITIES.join(",")}),action.in.(${ANCHOR_ACTIONS.join(",")}),undo.not.is.null`;
+		return this.all("okr_changes", ws, (q) => q.or(`at.gte.${quoted(new Date(w.from).toISOString())},${anchors}`));
+	}
+	async load(ws, window) {
+		const shape = window ? Promise.all([this.all("okr_cycles", ws), this.all("okr_goals", ws)]) : null;
 		const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens, views, requests, modules] = await Promise.all([
 			this.all("okr_teams", ws),
 			this.all("okr_people", ws),
-			this.all("okr_cycles", ws),
-			this.all("okr_goals", ws),
+			shape ? shape.then(([c]) => c) : this.all("okr_cycles", ws),
+			shape ? shape.then(([, g]) => g) : this.all("okr_goals", ws),
 			this.all("okr_stages", ws),
-			this.all("okr_check_ins", ws),
+			shape ? shape.then(([c, g]) => this.windowCheckIns(ws, window, c, g)) : this.all("okr_check_ins", ws).then((rows) => ({
+				rows,
+				checkInCycles: null
+			})),
 			this.all("okr_decisions", ws),
-			this.all("okr_changes", ws),
+			window ? this.windowChanges(ws, window) : this.all("okr_changes", ws),
 			this.all("okr_watches", ws),
 			this.all("okr_reviews", ws),
 			this.all("okr_retros", ws),
@@ -48495,7 +48576,7 @@ var SupabaseStore = class {
 			people: people.map(personFromRow),
 			cycles: cycles.map(cycleFromRow),
 			goals: withKeys(goals.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)).map((g) => goalFromRows(g, stages))),
-			checkIns: checkIns.map(checkInFromRow),
+			checkIns: checkIns.rows.map(checkInFromRow),
 			decisions: decisions.map(decisionFromRow),
 			changes: changes.map(changeFromRow).sort((a, b) => a.at.localeCompare(b.at)),
 			watches: watches.map(watchFromRow),
@@ -48505,8 +48586,36 @@ var SupabaseStore = class {
 			tokens: tokens.map(tokenFromRow),
 			views: views.map(viewFromRow),
 			requests: requests.map(requestFromRow),
-			...modules ? { modules } : {}
+			...modules ? { modules } : {},
+			...window && checkIns.checkInCycles ? { history: {
+				from: window.from,
+				checkInCycles: checkIns.checkInCycles
+			} } : {}
 		});
+	}
+	/** Older change-log entries, newest first, keyset by (at, id) (ports/window.ts historyPage): at <= before.at and
+	(at < before.at or id < before.id), ordered by at desc, id desc, one row more than asked to know if more remain. */
+	async history(ws, ask) {
+		const size = historySize(ask);
+		let q = this.db.from("okr_changes").select("*").eq("workspace_id", ws);
+		if (ask.goalId) q = q.eq("goal_id", ask.goalId);
+		const b = ask.before;
+		if (b) {
+			const at = new Date(b.at).toISOString();
+			q = q.lte("at", at).or(`at.lt.${quoted(at)},id.lt.${quoted(b.id)}`);
+		}
+		const { data, error } = await q.order("at", { ascending: false }).order("id", { ascending: false }).limit(size + 1);
+		if (error) throw new Error(`okr_changes: ${error.message}`);
+		const rows = data ?? [];
+		const changes = rows.slice(0, size).map(changeFromRow);
+		const last = changes.at(-1);
+		return {
+			changes,
+			next: rows.length > size && last ? {
+				at: last.at,
+				id: last.id
+			} : null
+		};
 	}
 	/** A workspace's rows from a database function that returns them. */
 	async listed(fn, ws) {
