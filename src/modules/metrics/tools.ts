@@ -7,7 +7,7 @@ import type { Commit } from '../../domain/commit';
 import { findGoal, isKey } from '../../domain/goalKey';
 import * as M from './rules';
 import { linkGoalMetric, linkReads } from './rulesLink';
-import { mergeMetrics, retireMetric, unretireMetric } from './rulesChange';
+import { linkedGoals, mergeMetrics, retireMetric, unretireMetric } from './rulesChange';
 import * as L from './rulesLibrary';
 import { goalsOfMetric, libraryReads, lineOf, proposedOfMetric } from './reads';
 import { answersFrom } from './rulesDefine';
@@ -196,11 +196,16 @@ const tools: ToolDef[] = [
           const checks = open.map((c) => ({ field: c.field, question: c.words, answers: c.answers.map((x) => ({ answer: x.choice, label: x.label })) }));
           return { data: { saved: false, checks }, text: `Nothing saved yet. Ask the person, then call again with answers:\n${checks.map((c) => `- ${c.field}: ${c.question} (${c.answers.map((x) => `${x.answer}: ${x.label}`).join('; ')})`).join('\n')}` };
         }
-        const { commit, metric } = saveMetricAsked(ax(ctx), { ...input, answers });
+        const x = ax(ctx);
+        const was = input.id ? M.metricsOf(x.snapshot).find((m) => m.id === input.id) : undefined;
+        const { commit, metric } = saveMetricAsked(x, { ...input, answers });
         if (!commit) return { data: { saved: false, id: metric.id }, text: `Nothing changed: ${metric.name} already says that.` };
         await save(ctx, commit);
         const still = lineOf(ctx.snapshot, metric).line;
-        return { data: { saved: true, id: metric.id, changes: commit.changes[0]!.diffs, stillToSay: still }, text: `${commit.changes[0]!.summary} (as ${ctx.actor.name}). Its ID is ${metric.id}. ${still}` };
+        // Fewer decimal places: the goals that show more keep theirs, as the form's read-back says (#351 review).
+        const more = was && metric.decimals < was.decimals ? linkedGoals(x.full ?? x.snapshot, metric.id).filter((g) => g.decimals > metric.decimals) : [];
+        const places = more.length ? ` ${more.length === 1 ? '1 goal shows' : `${more.length} goals show`} more decimal places than ${metric.name} now does: ${more.map((g) => g.title).join(', ')}. They keep theirs until their owners change them.` : '';
+        return { data: { saved: true, id: metric.id, changes: commit.changes[0]!.diffs, stillToSay: still, ...(more.length ? { moreDecimals: more.map((g) => g.id) } : {}) }, text: `${commit.changes[0]!.summary} (as ${ctx.actor.name}). Its ID is ${metric.id}. ${still}${places}` };
       });
     },
   },

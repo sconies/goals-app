@@ -4,7 +4,7 @@
 
    | Action             | Input                                   | Gives back                       |
    |--------------------|-----------------------------------------|----------------------------------|
-   | `saveMetric`       | `MetricInput & { id?, confirm?, answers? }` | `{ commit, metric }`; refused while a Check is open |
+   | `saveMetric`       | `MetricInput & { id?, confirm?, answers? }` | `{ commit, metric }`; refused while a Check is open; a change with Undo |
    | `removeMetric`     | `{ metricId }`                          | the commit; says so, with Undo; refused once used |
    | `retireMetric`     | `{ metricId, why, replacedBy? }`        | the commit; with Undo (MT3)      |
    | `unretireMetric`   | `{ metricId }`                          | the commit; with Undo            |
@@ -34,7 +34,8 @@ const goalOf = (x: RunContext, id: string): Goal =>
   findGoal(x.snapshot.goals, id) ?? (x.allGoals && findGoal(x.allGoals, id)) ?? (x.snapshot.archive && findGoal(x.snapshot.archive.goals, id)) ?? (() => { throw new NotAllowed('That goal no longer exists. Reload to see the latest.'); })();
 
 const actions = {
-  saveMetric: { ready: loadLink, run: (x, i: SaveMetricInput) => link().saveMetricAsked(x, i), tools: ['save_metric'] } satisfies ModuleAction<SaveMetricInput, { commit: Commit | null; metric: Metric }>,
+  // A change offers Undo, which takes back its marks and a relabel's goal units with it (MT3); adding one says its own.
+  saveMetric: { ready: loadLink, run: (x, i: SaveMetricInput) => link().saveMetricAsked(x, i), said: (o, i) => (i.id && o.commit ? o.commit.changes[0]!.summary : ''), tools: ['save_metric'] } satisfies ModuleAction<SaveMetricInput, { commit: Commit | null; metric: Metric }>,
   removeMetric: { run: (x, i: { metricId: string }) => removeMetric(x, i.metricId), said, tools: ['remove_metric', 'restore_removed'] } satisfies ModuleAction<{ metricId: string }, Commit>,
   linkGoalMetric: { ready: loadLink, run: (x, i: LinkInput) => link().linkGoalMetric(x, goalOf(x, i.goalId), i.metricId, i.teamId, i.part ?? '', i.reason ?? ''), tools: ['link_goal_metric'] } satisfies ModuleAction<LinkInput, Commit | null>,
   unlinkGoalMetric: { run: (x, i: { goalId: string }) => unlinkGoalMetric(x, goalOf(x, i.goalId)), said, tools: ['link_goal_metric'] } satisfies ModuleAction<{ goalId: string }, Commit | null>,

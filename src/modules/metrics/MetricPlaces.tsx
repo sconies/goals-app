@@ -4,6 +4,7 @@
 import { Link } from 'react-router';
 import { useApp } from '../../app/state';
 import type { PlaceProps } from '../../core/app';
+import { cycleUntil } from '../../domain/records';
 import { canLinkGoal, linkProblems, measureOf, metricsOf } from './rules';
 import { markLabel, marksFor, onDay } from './rulesChange';
 import { WarnMark } from '../../ui/bits';
@@ -53,7 +54,7 @@ export function GoalMetric({ goal }: PlaceProps['goal.sections']) {
   const other = r?.replacedBy ? metricsOf(app.snapshot).find((v) => v.id === r.replacedBy && !v.removedAt && !v.retiredAt) : undefined;
   const sameUnit = !!other && other.unit.trim().toLowerCase() === m.metric.unit.trim().toLowerCase();
   const may = canLinkGoal(app.viewer, goal) && !goal.stoppedAt;
-  const marks = marksFor(m.metric, m.link, app.cycle.startDate);
+  const marks = marksFor(m.metric, m.link, app.cycle.startDate, cycleUntil(app.cycle));
   const useOther = async () => { try { await app.run('linkGoalMetric', { goalId: goal.id, metricId: other!.id, teamId: m.link.teamId, part: m.part, reason: `${m.metric.name} was retired.` }); } catch { /* the rule's message is shown */ } };
   return (
     <section className="stack metric-block" aria-labelledby="g-metric" data-part="Measured by">
