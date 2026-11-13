@@ -16,7 +16,7 @@ import { asOf, type ConformanceWorkspace } from '../spec/conformance';
 import conformanceJson from '../../spec/conformance/workspace.json';
 import { prefsContract, searchContract } from '../ports/contracts/search';
 import { memoryPrefs, seededSearch } from './contractPorts';
-import { goalRows } from '../app/reads';
+import { goalRows, scopeFacts } from '../app/reads';
 import { currentWeek } from '../domain/plan';
 import { freshPostgres } from './postgres/testDb';
 import { openFeedback } from './supabase/feedback';
@@ -90,8 +90,9 @@ searchContract('over the workspace in this browser', seededSearch);
 // The query port over the conformance workspace as it was built for: the moment goals.csv, status.csv and flags.csv read.
 const conf = conformanceJson as unknown as ConformanceWorkspace;
 const builtFor = new Date(conf.builtFor);
-goalsContract('over the workspace in this browser', async () => asOf(conf, builtFor), async (s) => {
+goalsContract('over the workspace in this browser', async () => asOf(conf, builtFor), async (s, viewer) => {
   const rows = goalRows(s, conf.cycle, builtFor, currentWeek(conf.cycle, builtFor));
-  return localGoals(() => rows);
+  const person = s.people.find((p) => p.id === viewer);
+  return localGoals(() => rows, () => scopeFacts(s, { id: viewer, teamId: person?.teamId ?? null }));
 });
 prefsContract('in this browser', memoryPrefs);
