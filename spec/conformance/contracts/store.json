@@ -1,0 +1,3564 @@
+{
+  "port": "store",
+  "about": "The goals store (`Store`): where a workspace’s records are kept, whatever keeps them. `given` is `{ workspaces: [{ workspace, snapshot }] }`: start a fresh, empty store and make each workspace in it with `createWorkspace`. A snapshot is a workspace’s records by kind (`goals`, `people`, `teams`, `cycles`, `checkIns`, `changes`, `tokens`, `modules` and the rest; [the records](../../core/types.md)); a commit is one save: the records it adds or replaces by kind, change-log entries to add, and `expect`, the versions it was based on. A store must keep a feature module’s records it knows nothing about: `modules.<module>.<key>`, each row whole, saved with the rest of its commit. The contract’s module is `contract`, whose one record is a mark on a goal (`modules.contract.marks`); a database store gets its table first, as the module’s migration would make it:\n\n```sql\ncreate table if not exists faro.okr_contract_marks (id text primary key, workspace_id text not null references faro.okr_workspaces (id), goal_id text not null references faro.okr_goals (id), text text not null, at timestamptz not null, removed_at timestamptz, removed_by text);\ngrant select, insert, update on faro.okr_contract_marks to anon;\ninsert into faro.module_tables (table_name, module, position) values ('okr_contract_marks', 'contract', 100) on conflict (table_name) do nothing;\ncreate or replace view public.okr_contract_marks with (security_invoker = on) as select * from faro.okr_contract_marks;\n```",
+  "ops": {
+    "given": "Start a fresh store holding these workspaces. Answers null.",
+    "workspaces": "The workspaces kept: `[{ id, name, kind, createdAt }]`.",
+    "createWorkspace": "(workspace, snapshot) Keep a new workspace and all its records. Answers null.",
+    "load": "(workspaceId, window?) The workspace’s records. With `window` (`{ from }`): only the check-ins of cycles whose last day is on or after `from`’s day, and only the change-log entries from `from` on plus the anchors of any age (comments, asks, a cycle’s entries, an import’s summary or undoing, or any entry carrying `undo`), and `history: { from, checkInCycles }` (every cycle with a check-in, sorted); without one, everything, and no `history`.",
+    "commit": "(workspaceId, commit) Save it whole or not at all: a saved goal or review is one version on; refuse it as stale when a goal or review it `expect`s has moved on. Never changes another workspace’s records. Answers null.",
+    "issueToken": "(workspaceId, commit) Keep the commit’s new AI assistant token and answer its secret (at least 20 characters, no spaces), which is never kept or given back.",
+    "deleteWorkspace": "(workspaceId) Remove the workspace and everything in it. Answers null.",
+    "history": "(workspaceId, { before?, goalId?, size? }) Change-log entries a page at a time, newest first (by `at`, then `id`, both descending): `{ changes, next }`, those strictly older than `before` (`{ at, id }`), only one goal’s when `goalId` is given, 50 unless `size` says otherwise and never more than 100; `next` is the last entry’s `{ at, id }` when there are more, else null."
+  },
+  "given": {
+    "workspaces": [
+      {
+        "workspace": {
+          "id": "ws_contract",
+          "name": "Contract",
+          "kind": "own",
+          "createdAt": "2026-10-30T12:00:00.000Z"
+        },
+        "snapshot": {
+          "people": [
+            {
+              "id": "p-ana-silva-c",
+              "name": "Ana Silva",
+              "role": "VP Engineering",
+              "initials": "AS",
+              "teamId": "t-leadership-c",
+              "admin": true,
+              "email": "ana.silva@example.com"
+            },
+            {
+              "id": "p-ben-ortiz-c",
+              "name": "Ben Ortiz",
+              "role": "Platform lead",
+              "initials": "BO",
+              "teamId": "t-platform-c",
+              "admin": false,
+              "email": "ben.ortiz@example.com"
+            },
+            {
+              "id": "p-chloe-wu-c",
+              "name": "Chloe Wu",
+              "role": "Engineering manager",
+              "initials": "CW",
+              "teamId": "t-platform-c",
+              "admin": false,
+              "email": "chloe.wu@example.com"
+            },
+            {
+              "id": "p-dev-patel-c",
+              "name": "Dev Patel",
+              "role": "Engineer",
+              "initials": "DP",
+              "teamId": "t-platform-c",
+              "admin": false,
+              "email": "dev.patel@example.com"
+            }
+          ],
+          "teams": [
+            {
+              "id": "t-leadership-c",
+              "name": "Leadership",
+              "leadId": "",
+              "objective": ""
+            },
+            {
+              "id": "t-platform-c",
+              "name": "Platform",
+              "leadId": "",
+              "objective": "Make every deploy safe and fast"
+            }
+          ],
+          "cycles": [
+            {
+              "id": "cycle-c",
+              "name": "2026",
+              "startDate": "2025-12-29",
+              "weeks": 53,
+              "reviewDay": 3
+            }
+          ],
+          "goals": [
+            {
+              "id": "g-deploy-lead-time-c",
+              "cycleId": "cycle-c",
+              "teamId": "t-platform-c",
+              "ownerId": "p-ben-ortiz-c",
+              "title": "Deploy lead time",
+              "io": "input",
+              "level": "north-star",
+              "guardrail": false,
+              "parentId": null,
+              "effect": null,
+              "source": "CI dashboard",
+              "definition": "",
+              "createdAt": "2026-10-30T12:00:00.000Z",
+              "kind": "metric",
+              "unit": "days",
+              "decimals": 0,
+              "plan": {
+                "start": 5,
+                "target": 1,
+                "shape": "back",
+                "fromWeek": 43
+              },
+              "originalPlan": null,
+              "rebaselinedWeek": null,
+              "key": "G-1"
+            },
+            {
+              "id": "g-deploys-rolled-back-c",
+              "cycleId": "cycle-c",
+              "teamId": "t-platform-c",
+              "ownerId": "p-ben-ortiz-c",
+              "title": "Deploys rolled back",
+              "io": "input",
+              "level": "team",
+              "guardrail": false,
+              "parentId": "g-deploy-lead-time-c",
+              "effect": null,
+              "source": "CI dashboard",
+              "definition": "",
+              "createdAt": "2026-10-30T12:00:00.001Z",
+              "kind": "range",
+              "unit": "%",
+              "decimals": 0,
+              "range": {
+                "bound": "atMost",
+                "limit": 5,
+                "margin": 1
+              },
+              "key": "G-2"
+            },
+            {
+              "id": "g-canary-releases-live-c",
+              "cycleId": "cycle-c",
+              "teamId": "t-platform-c",
+              "ownerId": "p-ben-ortiz-c",
+              "title": "Canary releases live",
+              "io": "input",
+              "level": "team",
+              "guardrail": false,
+              "parentId": "g-deploy-lead-time-c",
+              "effect": 1,
+              "source": "Jira PLAT epics",
+              "definition": "",
+              "createdAt": "2026-10-30T12:00:00.002Z",
+              "kind": "milestone",
+              "stages": [
+                {
+                  "id": "s1--1-c",
+                  "name": "Design",
+                  "dueWeek": 2
+                },
+                {
+                  "id": "s2--2-c",
+                  "name": "Pilot",
+                  "dueWeek": 6
+                },
+                {
+                  "id": "s3--3-c",
+                  "name": "All services",
+                  "dueWeek": 10
+                }
+              ],
+              "key": "G-3"
+            }
+          ],
+          "checkIns": [],
+          "decisions": [],
+          "changes": [
+            {
+              "id": "chg-weekly-review-c",
+              "at": "2026-10-30T12:00:00.000Z",
+              "actorId": "p-ana-silva-c",
+              "goalId": null,
+              "entity": "review",
+              "entityId": "rev-weekly-c",
+              "action": "created",
+              "summary": "Set up a review: “Weekly review”",
+              "diffs": [
+                {
+                  "field": "Review",
+                  "from": "—",
+                  "to": "Weekly review"
+                }
+              ]
+            }
+          ],
+          "watches": [],
+          "reviews": [
+            {
+              "id": "rev-weekly-c",
+              "name": "Weekly review",
+              "everyWeeks": 1,
+              "weekday": 3,
+              "scope": {
+                "goals": [],
+                "trees": [],
+                "levels": [
+                  "north-star",
+                  "svp",
+                  "team"
+                ]
+              },
+              "people": [
+                "p-ana-silva-c",
+                "p-ben-ortiz-c",
+                "p-chloe-wu-c",
+                "p-dev-patel-c"
+              ],
+              "createdBy": "p-ana-silva-c",
+              "createdAt": "2026-10-30T12:00:00.000Z"
+            }
+          ],
+          "retros": [],
+          "requests": [],
+          "views": [
+            {
+              "id": "view-everything-at-a-glance-c",
+              "personId": "p-ana-silva-c",
+              "name": "Everything at a glance",
+              "params": "show=levels&view=table",
+              "pinned": true,
+              "createdAt": "2026-10-30T12:00:00.000Z",
+              "updatedAt": "2026-10-30T12:00:00.000Z",
+              "deletedAt": null
+            },
+            {
+              "id": "view-off-track-or-at-risk-c",
+              "personId": "p-ana-silva-c",
+              "name": "Off track or at risk",
+              "params": "status=off,risk&sort=worst",
+              "pinned": true,
+              "createdAt": "2026-10-30T12:00:00.000Z",
+              "updatedAt": "2026-10-30T12:00:00.000Z",
+              "deletedAt": null
+            },
+            {
+              "id": "view-no-update-for-2-weeks-or-more-c",
+              "personId": "p-ana-silva-c",
+              "name": "No update for 2 weeks or more",
+              "params": "quiet=2&sort=last",
+              "pinned": true,
+              "createdAt": "2026-10-30T12:00:00.000Z",
+              "updatedAt": "2026-10-30T12:00:00.000Z",
+              "deletedAt": null
+            }
+          ],
+          "keysIssued": 3
+        }
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "keeps a new workspace whole, and lists it",
+      "steps": [
+        {
+          "when": {
+            "op": "workspaces",
+            "args": []
+          },
+          "then": {
+            "select": "[].id",
+            "includes": [
+              "ws_contract"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "goals[].id",
+                "length": 3,
+                "includes": [
+                  "g-deploy-lead-time-c",
+                  "g-deploys-rolled-back-c",
+                  "g-canary-releases-live-c"
+                ]
+              },
+              {
+                "select": "people[].id",
+                "length": 4,
+                "includes": [
+                  "p-ana-silva-c",
+                  "p-ben-ortiz-c",
+                  "p-chloe-wu-c",
+                  "p-dev-patel-c"
+                ]
+              },
+              {
+                "select": "teams[].id",
+                "length": 2,
+                "includes": [
+                  "t-leadership-c",
+                  "t-platform-c"
+                ]
+              },
+              {
+                "select": "cycles[].id",
+                "equals": [
+                  "cycle-c"
+                ]
+              },
+              {
+                "select": "goals[id=g-deploy-lead-time-c]",
+                "has": {
+                  "title": "Deploy lead time",
+                  "kind": "metric",
+                  "ownerId": "p-ben-ortiz-c"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "saves a change-log entry and gives it back",
+      "steps": [
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "changes": [
+                  {
+                    "id": "chg_c0001",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploy-lead-time-c",
+                    "entity": "note",
+                    "entityId": "note_c0002",
+                    "action": "noted",
+                    "summary": "Commented",
+                    "diffs": [
+                      {
+                        "field": "Comment",
+                        "from": "—",
+                        "to": "Kept by the store"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "select": "changes[].diffs[0].to",
+            "includes": [
+              "Kept by the store"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "saves a goal one version on, and refuses a save based on the version before it as stale",
+      "steps": [
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "goals": [
+                  {
+                    "id": "g-deploy-lead-time-c",
+                    "cycleId": "cycle-c",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ben-ortiz-c",
+                    "title": "Renamed once",
+                    "io": "input",
+                    "level": "north-star",
+                    "guardrail": false,
+                    "parentId": null,
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "kind": "metric",
+                    "unit": "days",
+                    "decimals": 0,
+                    "plan": {
+                      "start": 5,
+                      "target": 1,
+                      "shape": "back",
+                      "fromWeek": 43
+                    },
+                    "originalPlan": null,
+                    "rebaselinedWeek": null,
+                    "key": "G-1"
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0003",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploy-lead-time-c",
+                    "entity": "note",
+                    "entityId": "note_c0004",
+                    "action": "noted",
+                    "summary": "Commented",
+                    "diffs": [
+                      {
+                        "field": "Comment",
+                        "from": "—",
+                        "to": "Renamed once"
+                      }
+                    ]
+                  }
+                ],
+                "expect": {
+                  "goals": [
+                    {
+                      "id": "g-deploy-lead-time-c",
+                      "version": 0
+                    }
+                  ],
+                  "reviews": [],
+                  "checkIns": []
+                }
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "goals[id=g-deploy-lead-time-c].title",
+                "equals": "Renamed once"
+              },
+              {
+                "select": "goals[id=g-deploy-lead-time-c].version",
+                "equals": 1
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "goals": [
+                  {
+                    "id": "g-deploy-lead-time-c",
+                    "cycleId": "cycle-c",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ben-ortiz-c",
+                    "title": "Renamed from an old screen",
+                    "io": "input",
+                    "level": "north-star",
+                    "guardrail": false,
+                    "parentId": null,
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "kind": "metric",
+                    "unit": "days",
+                    "decimals": 0,
+                    "plan": {
+                      "start": 5,
+                      "target": 1,
+                      "shape": "back",
+                      "fromWeek": 43
+                    },
+                    "originalPlan": null,
+                    "rebaselinedWeek": null,
+                    "key": "G-1"
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0005",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploy-lead-time-c",
+                    "entity": "note",
+                    "entityId": "note_c0006",
+                    "action": "noted",
+                    "summary": "Commented",
+                    "diffs": [
+                      {
+                        "field": "Comment",
+                        "from": "—",
+                        "to": "Renamed from an old screen"
+                      }
+                    ]
+                  }
+                ],
+                "expect": {
+                  "goals": [
+                    {
+                      "id": "g-deploy-lead-time-c",
+                      "version": 0
+                    }
+                  ],
+                  "reviews": [],
+                  "checkIns": []
+                }
+              }
+            ]
+          },
+          "then": {
+            "throws": true
+          }
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "select": "goals[id=g-deploy-lead-time-c].title",
+            "equals": "Renamed once"
+          }
+        }
+      ]
+    },
+    {
+      "name": "never lets a save to one workspace change another’s records",
+      "steps": [
+        {
+          "when": {
+            "op": "createWorkspace",
+            "args": [
+              {
+                "id": "ws_neighbour",
+                "name": "Neighbour",
+                "kind": "own",
+                "createdAt": "2026-10-30T12:00:00.000Z"
+              },
+              {
+                "people": [
+                  {
+                    "id": "p-ana-silva-o",
+                    "name": "Ana Silva",
+                    "role": "VP Engineering",
+                    "initials": "AS",
+                    "teamId": "t-leadership-o",
+                    "admin": true,
+                    "email": "ana.silva@example.com"
+                  },
+                  {
+                    "id": "p-ben-ortiz-o",
+                    "name": "Ben Ortiz",
+                    "role": "Platform lead",
+                    "initials": "BO",
+                    "teamId": "t-platform-o",
+                    "admin": false,
+                    "email": "ben.ortiz@example.com"
+                  },
+                  {
+                    "id": "p-chloe-wu-o",
+                    "name": "Chloe Wu",
+                    "role": "Engineering manager",
+                    "initials": "CW",
+                    "teamId": "t-platform-o",
+                    "admin": false,
+                    "email": "chloe.wu@example.com"
+                  },
+                  {
+                    "id": "p-dev-patel-o",
+                    "name": "Dev Patel",
+                    "role": "Engineer",
+                    "initials": "DP",
+                    "teamId": "t-platform-o",
+                    "admin": false,
+                    "email": "dev.patel@example.com"
+                  }
+                ],
+                "teams": [
+                  {
+                    "id": "t-leadership-o",
+                    "name": "Leadership",
+                    "leadId": "",
+                    "objective": ""
+                  },
+                  {
+                    "id": "t-platform-o",
+                    "name": "Platform",
+                    "leadId": "",
+                    "objective": "Make every deploy safe and fast"
+                  }
+                ],
+                "cycles": [
+                  {
+                    "id": "cycle-o",
+                    "name": "2026",
+                    "startDate": "2025-12-29",
+                    "weeks": 53,
+                    "reviewDay": 3
+                  }
+                ],
+                "goals": [
+                  {
+                    "id": "g-deploy-lead-time-o",
+                    "cycleId": "cycle-o",
+                    "teamId": "t-platform-o",
+                    "ownerId": "p-ben-ortiz-o",
+                    "title": "Deploy lead time",
+                    "io": "input",
+                    "level": "north-star",
+                    "guardrail": false,
+                    "parentId": null,
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "kind": "metric",
+                    "unit": "days",
+                    "decimals": 0,
+                    "plan": {
+                      "start": 5,
+                      "target": 1,
+                      "shape": "back",
+                      "fromWeek": 43
+                    },
+                    "originalPlan": null,
+                    "rebaselinedWeek": null,
+                    "key": "G-1"
+                  },
+                  {
+                    "id": "g-deploys-rolled-back-o",
+                    "cycleId": "cycle-o",
+                    "teamId": "t-platform-o",
+                    "ownerId": "p-ben-ortiz-o",
+                    "title": "Deploys rolled back",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-o",
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.001Z",
+                    "kind": "range",
+                    "unit": "%",
+                    "decimals": 0,
+                    "range": {
+                      "bound": "atMost",
+                      "limit": 5,
+                      "margin": 1
+                    },
+                    "key": "G-2"
+                  },
+                  {
+                    "id": "g-canary-releases-live-o",
+                    "cycleId": "cycle-o",
+                    "teamId": "t-platform-o",
+                    "ownerId": "p-ben-ortiz-o",
+                    "title": "Canary releases live",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-o",
+                    "effect": 1,
+                    "source": "Jira PLAT epics",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.002Z",
+                    "kind": "milestone",
+                    "stages": [
+                      {
+                        "id": "s1--1-o",
+                        "name": "Design",
+                        "dueWeek": 2
+                      },
+                      {
+                        "id": "s2--2-o",
+                        "name": "Pilot",
+                        "dueWeek": 6
+                      },
+                      {
+                        "id": "s3--3-o",
+                        "name": "All services",
+                        "dueWeek": 10
+                      }
+                    ],
+                    "key": "G-3"
+                  }
+                ],
+                "checkIns": [],
+                "decisions": [],
+                "changes": [
+                  {
+                    "id": "chg-weekly-review-o",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-o",
+                    "goalId": null,
+                    "entity": "review",
+                    "entityId": "rev-weekly-o",
+                    "action": "created",
+                    "summary": "Set up a review: “Weekly review”",
+                    "diffs": [
+                      {
+                        "field": "Review",
+                        "from": "—",
+                        "to": "Weekly review"
+                      }
+                    ]
+                  }
+                ],
+                "watches": [],
+                "reviews": [
+                  {
+                    "id": "rev-weekly-o",
+                    "name": "Weekly review",
+                    "everyWeeks": 1,
+                    "weekday": 3,
+                    "scope": {
+                      "goals": [],
+                      "trees": [],
+                      "levels": [
+                        "north-star",
+                        "svp",
+                        "team"
+                      ]
+                    },
+                    "people": [
+                      "p-ana-silva-o",
+                      "p-ben-ortiz-o",
+                      "p-chloe-wu-o",
+                      "p-dev-patel-o"
+                    ],
+                    "createdBy": "p-ana-silva-o",
+                    "createdAt": "2026-10-30T12:00:00.000Z"
+                  }
+                ],
+                "retros": [],
+                "requests": [],
+                "views": [
+                  {
+                    "id": "view-everything-at-a-glance-o",
+                    "personId": "p-ana-silva-o",
+                    "name": "Everything at a glance",
+                    "params": "show=levels&view=table",
+                    "pinned": true,
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "updatedAt": "2026-10-30T12:00:00.000Z",
+                    "deletedAt": null
+                  },
+                  {
+                    "id": "view-off-track-or-at-risk-o",
+                    "personId": "p-ana-silva-o",
+                    "name": "Off track or at risk",
+                    "params": "status=off,risk&sort=worst",
+                    "pinned": true,
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "updatedAt": "2026-10-30T12:00:00.000Z",
+                    "deletedAt": null
+                  },
+                  {
+                    "id": "view-no-update-for-2-weeks-or-more-o",
+                    "personId": "p-ana-silva-o",
+                    "name": "No update for 2 weeks or more",
+                    "params": "quiet=2&sort=last",
+                    "pinned": true,
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "updatedAt": "2026-10-30T12:00:00.000Z",
+                    "deletedAt": null
+                  }
+                ],
+                "keysIssued": 3
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "people": [
+                  {
+                    "id": "p-ana-silva-o",
+                    "name": "Moved across",
+                    "role": "VP Engineering",
+                    "initials": "AS",
+                    "teamId": "t-leadership-o",
+                    "admin": true,
+                    "email": "ana.silva@example.com"
+                  }
+                ],
+                "changes": []
+              }
+            ]
+          },
+          "then": {
+            "anyOf": [
+              {},
+              {
+                "throws": true
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "goals": [
+                  {
+                    "id": "g-canary-releases-live-o",
+                    "cycleId": "cycle-o",
+                    "teamId": "t-platform-o",
+                    "ownerId": "p-ben-ortiz-o",
+                    "title": "Taken over",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-o",
+                    "effect": 1,
+                    "source": "Jira PLAT epics",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.002Z",
+                    "kind": "milestone",
+                    "stages": [],
+                    "key": "G-3"
+                  }
+                ],
+                "changes": []
+              }
+            ]
+          },
+          "then": {
+            "anyOf": [
+              {},
+              {
+                "throws": true
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_neighbour"
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "people[id=p-ana-silva-o].name",
+                "equals": "Ana Silva"
+              },
+              {
+                "select": "goals[id=g-canary-releases-live-o].title",
+                "equals": "Canary releases live"
+              },
+              {
+                "select": "goals[id=g-canary-releases-live-o].stages[].id",
+                "equals": [
+                  "s1--1-o",
+                  "s2--2-o",
+                  "s3--3-o"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps a module’s records whole, saves them with a commit, and removes and restores them with what they point to",
+      "steps": [
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "modules": {
+                  "contract": {
+                    "marks": [
+                      {
+                        "id": "mark_c0007",
+                        "goalId": "g-canary-releases-live-c",
+                        "text": "Kept as it was given, line\nbreaks and “quotes” too",
+                        "at": "2026-10-30T12:00:00.000Z"
+                      }
+                    ]
+                  }
+                },
+                "changes": [
+                  {
+                    "id": "chg_c0008",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploy-lead-time-c",
+                    "entity": "note",
+                    "entityId": "note_c0009",
+                    "action": "noted",
+                    "summary": "Commented",
+                    "diffs": [
+                      {
+                        "field": "Comment",
+                        "from": "—",
+                        "to": "Marked"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "modules.contract.marks",
+                "equals": [
+                  {
+                    "id": "mark_c0007",
+                    "goalId": "g-canary-releases-live-c",
+                    "text": "Kept as it was given, line\nbreaks and “quotes” too",
+                    "at": "2026-10-30T12:00:00.000Z"
+                  }
+                ]
+              },
+              {
+                "select": "changes[].diffs[0].to",
+                "includes": [
+                  "Marked"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "changes": [
+                  {
+                    "id": "chg_c0010",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploy-lead-time-c",
+                    "entity": "note",
+                    "entityId": "note_c0011",
+                    "action": "noted",
+                    "summary": "Commented",
+                    "diffs": [
+                      {
+                        "field": "Comment",
+                        "from": "—",
+                        "to": "Something else"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "select": "modules.contract.marks",
+            "equals": [
+              {
+                "id": "mark_c0007",
+                "goalId": "g-canary-releases-live-c",
+                "text": "Kept as it was given, line\nbreaks and “quotes” too",
+                "at": "2026-10-30T12:00:00.000Z"
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "goals": [
+                  {
+                    "id": "g-canary-releases-live-c",
+                    "cycleId": "cycle-c",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ben-ortiz-c",
+                    "title": "Canary releases live",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-c",
+                    "effect": 1,
+                    "source": "Jira PLAT epics",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.002Z",
+                    "kind": "milestone",
+                    "stages": [
+                      {
+                        "id": "s1--1-c",
+                        "name": "Design",
+                        "dueWeek": 2
+                      },
+                      {
+                        "id": "s2--2-c",
+                        "name": "Pilot",
+                        "dueWeek": 6
+                      },
+                      {
+                        "id": "s3--3-c",
+                        "name": "All services",
+                        "dueWeek": 10
+                      }
+                    ],
+                    "key": "G-3",
+                    "removedAt": "2026-10-30T12:00:00.000Z",
+                    "removedBy": "p-ana-silva-c"
+                  }
+                ],
+                "modules": {
+                  "contract": {
+                    "marks": [
+                      {
+                        "id": "mark_c0007",
+                        "goalId": "g-canary-releases-live-c",
+                        "text": "Kept as it was given, line\nbreaks and “quotes” too",
+                        "at": "2026-10-30T12:00:00.000Z",
+                        "removedAt": "2026-10-30T12:00:00.000Z",
+                        "removedBy": "p-ana-silva-c"
+                      }
+                    ]
+                  }
+                },
+                "changes": []
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "goals[id=g-canary-releases-live-c].removedAt",
+                "matches": "^\\d{4}-\\d\\d-\\d\\dT"
+              },
+              {
+                "select": "modules.contract.marks",
+                "equals": [
+                  {
+                    "id": "mark_c0007",
+                    "goalId": "g-canary-releases-live-c",
+                    "text": "Kept as it was given, line\nbreaks and “quotes” too",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "removedAt": "2026-10-30T12:00:00.000Z",
+                    "removedBy": "p-ana-silva-c"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "goals": [
+                  {
+                    "id": "g-canary-releases-live-c",
+                    "cycleId": "cycle-c",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ben-ortiz-c",
+                    "title": "Canary releases live",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-c",
+                    "effect": 1,
+                    "source": "Jira PLAT epics",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.002Z",
+                    "kind": "milestone",
+                    "stages": [
+                      {
+                        "id": "s1--1-c",
+                        "name": "Design",
+                        "dueWeek": 2
+                      },
+                      {
+                        "id": "s2--2-c",
+                        "name": "Pilot",
+                        "dueWeek": 6
+                      },
+                      {
+                        "id": "s3--3-c",
+                        "name": "All services",
+                        "dueWeek": 10
+                      }
+                    ],
+                    "key": "G-3",
+                    "version": 1,
+                    "removedAt": null,
+                    "removedBy": null
+                  }
+                ],
+                "modules": {
+                  "contract": {
+                    "marks": [
+                      {
+                        "id": "mark_c0007",
+                        "goalId": "g-canary-releases-live-c",
+                        "text": "Kept as it was given, line\nbreaks and “quotes” too",
+                        "at": "2026-10-30T12:00:00.000Z",
+                        "removedAt": null,
+                        "removedBy": null
+                      }
+                    ]
+                  }
+                },
+                "changes": []
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "goals[].id",
+                "includes": [
+                  "g-canary-releases-live-c"
+                ]
+              },
+              {
+                "select": "goals[id=g-canary-releases-live-c].removedAt",
+                "absent": true
+              },
+              {
+                "select": "modules.contract.marks",
+                "has": [
+                  {
+                    "id": "mark_c0007",
+                    "goalId": "g-canary-releases-live-c",
+                    "text": "Kept as it was given, line\nbreaks and “quotes” too",
+                    "at": "2026-10-30T12:00:00.000Z"
+                  }
+                ]
+              },
+              {
+                "select": "modules.contract.marks[0].removedAt",
+                "absent": true
+              },
+              {
+                "select": "modules.contract.marks[0].removedBy",
+                "absent": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "brings back what Undo restores, as loaded, and it stays back after the next load",
+      "steps": [
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "goals": [
+                  {
+                    "id": "g-deploys-rolled-back-c",
+                    "cycleId": "cycle-c",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ben-ortiz-c",
+                    "title": "Deploys rolled back",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-c",
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.001Z",
+                    "kind": "range",
+                    "unit": "%",
+                    "decimals": 0,
+                    "range": {
+                      "bound": "atMost",
+                      "limit": 5,
+                      "margin": 1
+                    },
+                    "key": "G-2",
+                    "removedAt": "2026-10-30T12:00:00.000Z",
+                    "removedBy": "p-ana-silva-c"
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0012",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploys-rolled-back-c",
+                    "diffs": [
+                      {
+                        "field": "Goal",
+                        "from": "Deploys rolled back",
+                        "to": "—"
+                      }
+                    ],
+                    "entity": "goal",
+                    "entityId": "g-deploys-rolled-back-c",
+                    "action": "removed",
+                    "summary": "Deleted Deploys rolled back"
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "goals": [
+                  {
+                    "id": "g-deploys-rolled-back-c",
+                    "cycleId": "cycle-c",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ben-ortiz-c",
+                    "title": "Deploys rolled back",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-c",
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.001Z",
+                    "kind": "range",
+                    "unit": "%",
+                    "decimals": 0,
+                    "range": {
+                      "bound": "atMost",
+                      "limit": 5,
+                      "margin": 1
+                    },
+                    "key": "G-2",
+                    "removedAt": null,
+                    "removedBy": null
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0013",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploys-rolled-back-c",
+                    "diffs": [],
+                    "entity": "goal",
+                    "entityId": "g-deploys-rolled-back-c",
+                    "action": "restored",
+                    "summary": "Undid: deleted Deploys rolled back"
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "goals[].id",
+                "includes": [
+                  "g-deploys-rolled-back-c"
+                ]
+              },
+              {
+                "select": "goals[id=g-deploys-rolled-back-c].removedAt",
+                "absent": true
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "people": [
+                  {
+                    "id": "p-ben-ortiz-c",
+                    "name": "Ben Ortiz",
+                    "role": "Platform lead",
+                    "initials": "BO",
+                    "teamId": "t-platform-c",
+                    "admin": false,
+                    "email": "ben.ortiz@example.com",
+                    "leftAt": "2026-10-30T12:00:00.000Z",
+                    "leftBy": "p-ana-silva-c"
+                  }
+                ],
+                "goals": [
+                  {
+                    "id": "g-deploy-lead-time-c",
+                    "cycleId": "cycle-c",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ana-silva-c",
+                    "title": "Deploy lead time",
+                    "io": "input",
+                    "level": "north-star",
+                    "guardrail": false,
+                    "parentId": null,
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "kind": "metric",
+                    "unit": "days",
+                    "decimals": 0,
+                    "plan": {
+                      "start": 5,
+                      "target": 1,
+                      "shape": "back",
+                      "fromWeek": 43
+                    },
+                    "originalPlan": null,
+                    "rebaselinedWeek": null,
+                    "key": "G-1"
+                  },
+                  {
+                    "id": "g-deploys-rolled-back-c",
+                    "cycleId": "cycle-c",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ana-silva-c",
+                    "title": "Deploys rolled back",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-c",
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.001Z",
+                    "kind": "range",
+                    "unit": "%",
+                    "decimals": 0,
+                    "range": {
+                      "bound": "atMost",
+                      "limit": 5,
+                      "margin": 1
+                    },
+                    "key": "G-2",
+                    "removedAt": null,
+                    "removedBy": null,
+                    "version": 2
+                  },
+                  {
+                    "id": "g-canary-releases-live-c",
+                    "cycleId": "cycle-c",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ana-silva-c",
+                    "title": "Canary releases live",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-c",
+                    "effect": 1,
+                    "source": "Jira PLAT epics",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.002Z",
+                    "kind": "milestone",
+                    "stages": [
+                      {
+                        "id": "s1--1-c",
+                        "name": "Design",
+                        "dueWeek": 2
+                      },
+                      {
+                        "id": "s2--2-c",
+                        "name": "Pilot",
+                        "dueWeek": 6
+                      },
+                      {
+                        "id": "s3--3-c",
+                        "name": "All services",
+                        "dueWeek": 10
+                      }
+                    ],
+                    "key": "G-3"
+                  }
+                ],
+                "reviews": [
+                  {
+                    "id": "rev-weekly-c",
+                    "name": "Weekly review",
+                    "everyWeeks": 1,
+                    "weekday": 3,
+                    "scope": {
+                      "goals": [],
+                      "trees": [],
+                      "levels": [
+                        "north-star",
+                        "svp",
+                        "team"
+                      ]
+                    },
+                    "people": [
+                      "p-ana-silva-c",
+                      "p-chloe-wu-c",
+                      "p-dev-patel-c"
+                    ],
+                    "createdBy": "p-ana-silva-c",
+                    "createdAt": "2026-10-30T12:00:00.000Z"
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0014",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": null,
+                    "diffs": [
+                      {
+                        "field": "Status",
+                        "from": "—",
+                        "to": "Left"
+                      },
+                      {
+                        "field": "Goals handed over",
+                        "from": "3 goals",
+                        "to": "Ana Silva"
+                      },
+                      {
+                        "field": "Reviews left",
+                        "from": "Weekly review",
+                        "to": "—"
+                      }
+                    ],
+                    "entity": "person",
+                    "entityId": "p-ben-ortiz-c",
+                    "action": "left",
+                    "summary": "Marked Ben Ortiz as left"
+                  },
+                  {
+                    "id": "chg_c0015",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploy-lead-time-c",
+                    "diffs": [
+                      {
+                        "field": "Owner",
+                        "from": "Ben Ortiz",
+                        "to": "Ana Silva"
+                      }
+                    ],
+                    "entity": "goal",
+                    "entityId": "g-deploy-lead-time-c",
+                    "action": "edited",
+                    "summary": "Handed over to Ana Silva, as Ben Ortiz left"
+                  },
+                  {
+                    "id": "chg_c0016",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploys-rolled-back-c",
+                    "diffs": [
+                      {
+                        "field": "Owner",
+                        "from": "Ben Ortiz",
+                        "to": "Ana Silva"
+                      }
+                    ],
+                    "entity": "goal",
+                    "entityId": "g-deploys-rolled-back-c",
+                    "action": "edited",
+                    "summary": "Handed over to Ana Silva, as Ben Ortiz left"
+                  },
+                  {
+                    "id": "chg_c0017",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-canary-releases-live-c",
+                    "diffs": [
+                      {
+                        "field": "Owner",
+                        "from": "Ben Ortiz",
+                        "to": "Ana Silva"
+                      }
+                    ],
+                    "entity": "goal",
+                    "entityId": "g-canary-releases-live-c",
+                    "action": "edited",
+                    "summary": "Handed over to Ana Silva, as Ben Ortiz left"
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "people": [
+                  {
+                    "id": "p-ben-ortiz-c",
+                    "name": "Ben Ortiz",
+                    "role": "Platform lead",
+                    "initials": "BO",
+                    "teamId": "t-platform-c",
+                    "admin": false,
+                    "email": "ben.ortiz@example.com",
+                    "leftAt": null,
+                    "leftBy": null
+                  }
+                ],
+                "goals": [
+                  {
+                    "id": "g-deploy-lead-time-c",
+                    "cycleId": "cycle-c",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ben-ortiz-c",
+                    "title": "Deploy lead time",
+                    "io": "input",
+                    "level": "north-star",
+                    "guardrail": false,
+                    "parentId": null,
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "kind": "metric",
+                    "unit": "days",
+                    "decimals": 0,
+                    "plan": {
+                      "start": 5,
+                      "target": 1,
+                      "shape": "back",
+                      "fromWeek": 43
+                    },
+                    "originalPlan": null,
+                    "rebaselinedWeek": null,
+                    "key": "G-1"
+                  },
+                  {
+                    "id": "g-deploys-rolled-back-c",
+                    "cycleId": "cycle-c",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ben-ortiz-c",
+                    "title": "Deploys rolled back",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-c",
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.001Z",
+                    "kind": "range",
+                    "unit": "%",
+                    "decimals": 0,
+                    "range": {
+                      "bound": "atMost",
+                      "limit": 5,
+                      "margin": 1
+                    },
+                    "key": "G-2",
+                    "removedAt": null,
+                    "removedBy": null,
+                    "version": 2
+                  },
+                  {
+                    "id": "g-canary-releases-live-c",
+                    "cycleId": "cycle-c",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ben-ortiz-c",
+                    "title": "Canary releases live",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-c",
+                    "effect": 1,
+                    "source": "Jira PLAT epics",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.002Z",
+                    "kind": "milestone",
+                    "stages": [
+                      {
+                        "id": "s1--1-c",
+                        "name": "Design",
+                        "dueWeek": 2
+                      },
+                      {
+                        "id": "s2--2-c",
+                        "name": "Pilot",
+                        "dueWeek": 6
+                      },
+                      {
+                        "id": "s3--3-c",
+                        "name": "All services",
+                        "dueWeek": 10
+                      }
+                    ],
+                    "key": "G-3"
+                  }
+                ],
+                "reviews": [
+                  {
+                    "id": "rev-weekly-c",
+                    "name": "Weekly review",
+                    "everyWeeks": 1,
+                    "weekday": 3,
+                    "scope": {
+                      "goals": [],
+                      "trees": [],
+                      "levels": [
+                        "north-star",
+                        "svp",
+                        "team"
+                      ]
+                    },
+                    "people": [
+                      "p-ana-silva-c",
+                      "p-ben-ortiz-c",
+                      "p-chloe-wu-c",
+                      "p-dev-patel-c"
+                    ],
+                    "createdBy": "p-ana-silva-c",
+                    "createdAt": "2026-10-30T12:00:00.000Z"
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0018",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": null,
+                    "diffs": [],
+                    "entity": "person",
+                    "entityId": "p-ben-ortiz-c",
+                    "action": "restored",
+                    "summary": "Undid: marked Ben Ortiz as left"
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "people[].id",
+                "includes": [
+                  "p-ben-ortiz-c"
+                ]
+              },
+              {
+                "select": "people[id=p-ben-ortiz-c].leftAt",
+                "absent": true
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "modules": {
+                  "contract": {
+                    "marks": [
+                      {
+                        "id": "mark_c0019",
+                        "goalId": "g-deploys-rolled-back-c",
+                        "text": "Undone",
+                        "at": "2026-10-30T12:00:00.000Z"
+                      }
+                    ]
+                  }
+                },
+                "changes": []
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "modules": {
+                  "contract": {
+                    "marks": [
+                      {
+                        "id": "mark_c0019",
+                        "goalId": "g-deploys-rolled-back-c",
+                        "text": "Undone",
+                        "at": "2026-10-30T12:00:00.000Z",
+                        "removedAt": "2026-10-30T12:00:00.000Z",
+                        "removedBy": "p-ana-silva-c"
+                      }
+                    ]
+                  }
+                },
+                "changes": [
+                  {
+                    "id": "chg_c0020",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploy-lead-time-c",
+                    "entity": "note",
+                    "entityId": "note_c0021",
+                    "action": "noted",
+                    "summary": "Commented",
+                    "diffs": [
+                      {
+                        "field": "Comment",
+                        "from": "—",
+                        "to": "Removed a mark"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "changes": [
+                  {
+                    "id": "chg_c0022",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploy-lead-time-c",
+                    "diffs": [],
+                    "entity": "note",
+                    "entityId": "note_c0021",
+                    "action": "restored",
+                    "summary": "Undid: commented"
+                  }
+                ],
+                "modules": {
+                  "contract": {
+                    "marks": [
+                      {
+                        "id": "mark_c0019",
+                        "goalId": "g-deploys-rolled-back-c",
+                        "text": "Undone",
+                        "at": "2026-10-30T12:00:00.000Z",
+                        "removedAt": null,
+                        "removedBy": null
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "modules.contract.marks[].id",
+                "includes": [
+                  "mark_c0019"
+                ]
+              },
+              {
+                "select": "modules.contract.marks[id=mark_c0019].removedAt",
+                "absent": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "puts back what an import deleted, stopped or marked as left when the import is undone, and it stays back",
+      "steps": [
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "goals": [
+                  {
+                    "id": "g-canary-releases-live-c",
+                    "cycleId": "cycle-c",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ben-ortiz-c",
+                    "title": "Canary releases live",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-c",
+                    "effect": 1,
+                    "source": "Jira PLAT epics",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.002Z",
+                    "kind": "milestone",
+                    "stages": [
+                      {
+                        "id": "s1--1-c",
+                        "name": "Design",
+                        "dueWeek": 2
+                      },
+                      {
+                        "id": "s2--2-c",
+                        "name": "Pilot",
+                        "dueWeek": 6
+                      },
+                      {
+                        "id": "s3--3-c",
+                        "name": "All services",
+                        "dueWeek": 10
+                      }
+                    ],
+                    "key": "G-3",
+                    "removedAt": "2026-10-30T12:00:00.000Z",
+                    "removedBy": "p-ana-silva-c"
+                  },
+                  {
+                    "id": "g-deploys-rolled-back-c",
+                    "cycleId": "cycle-c",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ben-ortiz-c",
+                    "title": "Deploys rolled back",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-c",
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.001Z",
+                    "kind": "range",
+                    "unit": "%",
+                    "decimals": 0,
+                    "range": {
+                      "bound": "atMost",
+                      "limit": 5,
+                      "margin": 1
+                    },
+                    "key": "G-2",
+                    "stoppedAt": "2026-10-30T12:00:00.000Z",
+                    "stoppedBy": "p-ana-silva-c",
+                    "stopReason": "Stopped by a row’s Action"
+                  }
+                ],
+                "people": [
+                  {
+                    "id": "p-dev-patel-c",
+                    "name": "Dev Patel",
+                    "role": "Engineer",
+                    "initials": "DP",
+                    "teamId": "t-platform-c",
+                    "admin": false,
+                    "email": "dev.patel@example.com",
+                    "leftAt": "2026-10-30T12:00:00.000Z",
+                    "leftBy": "p-ana-silva-c"
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0024",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": null,
+                    "entity": "workspace",
+                    "entityId": "imp_c0023",
+                    "action": "imported",
+                    "summary": "Imported a spreadsheet: 3 rows",
+                    "diffs": [],
+                    "importId": "imp_c0023",
+                    "undo": {
+                      "goals": [
+                        {
+                          "id": "g-canary-releases-live-c",
+                          "before": {
+                            "id": "g-canary-releases-live-c",
+                            "cycleId": "cycle-c",
+                            "teamId": "t-platform-c",
+                            "ownerId": "p-ben-ortiz-c",
+                            "title": "Canary releases live",
+                            "io": "input",
+                            "level": "team",
+                            "guardrail": false,
+                            "parentId": "g-deploy-lead-time-c",
+                            "effect": 1,
+                            "source": "Jira PLAT epics",
+                            "definition": "",
+                            "createdAt": "2026-10-30T12:00:00.002Z",
+                            "kind": "milestone",
+                            "stages": [
+                              {
+                                "id": "s1--1-c",
+                                "name": "Design",
+                                "dueWeek": 2
+                              },
+                              {
+                                "id": "s2--2-c",
+                                "name": "Pilot",
+                                "dueWeek": 6
+                              },
+                              {
+                                "id": "s3--3-c",
+                                "name": "All services",
+                                "dueWeek": 10
+                              }
+                            ],
+                            "key": "G-3"
+                          }
+                        },
+                        {
+                          "id": "g-deploys-rolled-back-c",
+                          "before": {
+                            "id": "g-deploys-rolled-back-c",
+                            "cycleId": "cycle-c",
+                            "teamId": "t-platform-c",
+                            "ownerId": "p-ben-ortiz-c",
+                            "title": "Deploys rolled back",
+                            "io": "input",
+                            "level": "team",
+                            "guardrail": false,
+                            "parentId": "g-deploy-lead-time-c",
+                            "effect": null,
+                            "source": "CI dashboard",
+                            "definition": "",
+                            "createdAt": "2026-10-30T12:00:00.001Z",
+                            "kind": "range",
+                            "unit": "%",
+                            "decimals": 0,
+                            "range": {
+                              "bound": "atMost",
+                              "limit": 5,
+                              "margin": 1
+                            },
+                            "key": "G-2"
+                          }
+                        }
+                      ],
+                      "checkIns": [],
+                      "people": [
+                        {
+                          "id": "p-dev-patel-c",
+                          "before": {
+                            "id": "p-dev-patel-c",
+                            "name": "Dev Patel",
+                            "role": "Engineer",
+                            "initials": "DP",
+                            "teamId": "t-platform-c",
+                            "admin": false,
+                            "email": "dev.patel@example.com"
+                          }
+                        }
+                      ],
+                      "requests": []
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "goals": [
+                  {
+                    "id": "g-canary-releases-live-c",
+                    "cycleId": "cycle-c",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ben-ortiz-c",
+                    "title": "Canary releases live",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-c",
+                    "effect": 1,
+                    "source": "Jira PLAT epics",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.002Z",
+                    "kind": "milestone",
+                    "stages": [
+                      {
+                        "id": "s1--1-c",
+                        "name": "Design",
+                        "dueWeek": 2
+                      },
+                      {
+                        "id": "s2--2-c",
+                        "name": "Pilot",
+                        "dueWeek": 6
+                      },
+                      {
+                        "id": "s3--3-c",
+                        "name": "All services",
+                        "dueWeek": 10
+                      }
+                    ],
+                    "key": "G-3",
+                    "removedAt": null,
+                    "removedBy": null
+                  },
+                  {
+                    "id": "g-deploys-rolled-back-c",
+                    "cycleId": "cycle-c",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ben-ortiz-c",
+                    "title": "Deploys rolled back",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-c",
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.001Z",
+                    "kind": "range",
+                    "unit": "%",
+                    "decimals": 0,
+                    "range": {
+                      "bound": "atMost",
+                      "limit": 5,
+                      "margin": 1
+                    },
+                    "key": "G-2",
+                    "stoppedAt": null,
+                    "stoppedBy": null,
+                    "stopReason": null
+                  }
+                ],
+                "people": [
+                  {
+                    "id": "p-dev-patel-c",
+                    "name": "Dev Patel",
+                    "role": "Engineer",
+                    "initials": "DP",
+                    "teamId": "t-platform-c",
+                    "admin": false,
+                    "email": "dev.patel@example.com",
+                    "leftAt": null,
+                    "leftBy": null
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0028",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": null,
+                    "diffs": [
+                      {
+                        "field": "Import",
+                        "from": "Imported a spreadsheet: 3 rows",
+                        "to": "Undone"
+                      }
+                    ],
+                    "entity": "workspace",
+                    "entityId": "imp_c0023",
+                    "action": "undone",
+                    "importId": "imp_c0023",
+                    "summary": "Undid imported a spreadsheet: 3 rows put back"
+                  },
+                  {
+                    "id": "chg_c0025",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-canary-releases-live-c",
+                    "diffs": [],
+                    "entity": "goal",
+                    "entityId": "g-canary-releases-live-c",
+                    "action": "edited",
+                    "summary": "Put back as it was before an import",
+                    "importId": "imp_c0023"
+                  },
+                  {
+                    "id": "chg_c0026",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploys-rolled-back-c",
+                    "diffs": [],
+                    "entity": "goal",
+                    "entityId": "g-deploys-rolled-back-c",
+                    "action": "edited",
+                    "summary": "Put back as it was before an import",
+                    "importId": "imp_c0023"
+                  },
+                  {
+                    "id": "chg_c0027",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": null,
+                    "diffs": [],
+                    "entity": "person",
+                    "entityId": "p-dev-patel-c",
+                    "action": "edited",
+                    "summary": "Put Dev Patel back as they were before an import",
+                    "importId": "imp_c0023"
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "goals[].id",
+                "includes": [
+                  "g-canary-releases-live-c",
+                  "g-deploys-rolled-back-c"
+                ]
+              },
+              {
+                "select": "people[].id",
+                "includes": [
+                  "p-dev-patel-c"
+                ]
+              },
+              {
+                "select": "goals[id=g-canary-releases-live-c].removedAt",
+                "absent": true
+              },
+              {
+                "select": "goals[id=g-deploys-rolled-back-c].stoppedAt",
+                "absent": true
+              },
+              {
+                "select": "goals[id=g-deploys-rolled-back-c].stopReason",
+                "absent": true
+              },
+              {
+                "select": "people[id=p-dev-patel-c].leftAt",
+                "absent": true
+              },
+              {
+                "select": "people[id=p-dev-patel-c].email",
+                "equals": "dev.patel@example.com"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "issues an AI assistant token once, never keeps its secret, and revokes it",
+      "steps": [
+        {
+          "when": {
+            "op": "issueToken",
+            "args": [
+              "ws_contract",
+              {
+                "tokens": [
+                  {
+                    "id": "tok_c0029",
+                    "personId": "p-ben-ortiz-c",
+                    "name": "Claude on a laptop",
+                    "createdBy": "p-ana-silva-c",
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "lastUsedAt": null,
+                    "revokedAt": null
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0030",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": null,
+                    "entity": "person",
+                    "entityId": "p-ben-ortiz-c",
+                    "action": "created",
+                    "summary": "Gave Ben Ortiz an MCP token: “Claude on a laptop”",
+                    "diffs": [
+                      {
+                        "field": "MCP token",
+                        "from": "—",
+                        "to": "Claude on a laptop"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {
+            "matches": "^\\S{20,}$"
+          }
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "tokens[].id",
+                "equals": [
+                  "tok_c0029"
+                ]
+              },
+              {
+                "select": "tokens[0].secret",
+                "absent": true
+              },
+              {
+                "select": "tokens[0].token",
+                "absent": true
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "tokens": [
+                  {
+                    "id": "tok_c0029",
+                    "personId": "p-ben-ortiz-c",
+                    "name": "Claude on a laptop",
+                    "createdBy": "p-ana-silva-c",
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "lastUsedAt": null,
+                    "revokedAt": "2026-10-30T12:00:00.000Z"
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0031",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": null,
+                    "entity": "person",
+                    "entityId": "p-ben-ortiz-c",
+                    "action": "edited",
+                    "summary": "Revoked the MCP token “Claude on a laptop”",
+                    "diffs": [
+                      {
+                        "field": "MCP token",
+                        "from": "Claude on a laptop",
+                        "to": "Revoked"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "select": "tokens[id=tok_c0029].revokedAt",
+            "matches": "^\\d{4}-\\d\\d-\\d\\dT"
+          }
+        }
+      ]
+    },
+    {
+      "name": "deletes a workspace and everything in it",
+      "steps": [
+        {
+          "when": {
+            "op": "createWorkspace",
+            "args": [
+              {
+                "id": "ws_short",
+                "name": "Short-lived",
+                "kind": "own",
+                "createdAt": "2026-10-30T12:00:00.000Z"
+              },
+              {
+                "people": [
+                  {
+                    "id": "p-ana-silva-d",
+                    "name": "Ana Silva",
+                    "role": "VP Engineering",
+                    "initials": "AS",
+                    "teamId": "t-leadership-d",
+                    "admin": true,
+                    "email": "ana.silva@example.com"
+                  },
+                  {
+                    "id": "p-ben-ortiz-d",
+                    "name": "Ben Ortiz",
+                    "role": "Platform lead",
+                    "initials": "BO",
+                    "teamId": "t-platform-d",
+                    "admin": false,
+                    "email": "ben.ortiz@example.com"
+                  },
+                  {
+                    "id": "p-chloe-wu-d",
+                    "name": "Chloe Wu",
+                    "role": "Engineering manager",
+                    "initials": "CW",
+                    "teamId": "t-platform-d",
+                    "admin": false,
+                    "email": "chloe.wu@example.com"
+                  },
+                  {
+                    "id": "p-dev-patel-d",
+                    "name": "Dev Patel",
+                    "role": "Engineer",
+                    "initials": "DP",
+                    "teamId": "t-platform-d",
+                    "admin": false,
+                    "email": "dev.patel@example.com"
+                  }
+                ],
+                "teams": [
+                  {
+                    "id": "t-leadership-d",
+                    "name": "Leadership",
+                    "leadId": "",
+                    "objective": ""
+                  },
+                  {
+                    "id": "t-platform-d",
+                    "name": "Platform",
+                    "leadId": "",
+                    "objective": "Make every deploy safe and fast"
+                  }
+                ],
+                "cycles": [
+                  {
+                    "id": "cycle-d",
+                    "name": "2026",
+                    "startDate": "2025-12-29",
+                    "weeks": 53,
+                    "reviewDay": 3
+                  }
+                ],
+                "goals": [
+                  {
+                    "id": "g-deploy-lead-time-d",
+                    "cycleId": "cycle-d",
+                    "teamId": "t-platform-d",
+                    "ownerId": "p-ben-ortiz-d",
+                    "title": "Deploy lead time",
+                    "io": "input",
+                    "level": "north-star",
+                    "guardrail": false,
+                    "parentId": null,
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "kind": "metric",
+                    "unit": "days",
+                    "decimals": 0,
+                    "plan": {
+                      "start": 5,
+                      "target": 1,
+                      "shape": "back",
+                      "fromWeek": 43
+                    },
+                    "originalPlan": null,
+                    "rebaselinedWeek": null,
+                    "key": "G-1"
+                  },
+                  {
+                    "id": "g-deploys-rolled-back-d",
+                    "cycleId": "cycle-d",
+                    "teamId": "t-platform-d",
+                    "ownerId": "p-ben-ortiz-d",
+                    "title": "Deploys rolled back",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-d",
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.001Z",
+                    "kind": "range",
+                    "unit": "%",
+                    "decimals": 0,
+                    "range": {
+                      "bound": "atMost",
+                      "limit": 5,
+                      "margin": 1
+                    },
+                    "key": "G-2"
+                  },
+                  {
+                    "id": "g-canary-releases-live-d",
+                    "cycleId": "cycle-d",
+                    "teamId": "t-platform-d",
+                    "ownerId": "p-ben-ortiz-d",
+                    "title": "Canary releases live",
+                    "io": "input",
+                    "level": "team",
+                    "guardrail": false,
+                    "parentId": "g-deploy-lead-time-d",
+                    "effect": 1,
+                    "source": "Jira PLAT epics",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.002Z",
+                    "kind": "milestone",
+                    "stages": [
+                      {
+                        "id": "s1--1-d",
+                        "name": "Design",
+                        "dueWeek": 2
+                      },
+                      {
+                        "id": "s2--2-d",
+                        "name": "Pilot",
+                        "dueWeek": 6
+                      },
+                      {
+                        "id": "s3--3-d",
+                        "name": "All services",
+                        "dueWeek": 10
+                      }
+                    ],
+                    "key": "G-3"
+                  }
+                ],
+                "checkIns": [],
+                "decisions": [],
+                "changes": [
+                  {
+                    "id": "chg-weekly-review-d",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-d",
+                    "goalId": null,
+                    "entity": "review",
+                    "entityId": "rev-weekly-d",
+                    "action": "created",
+                    "summary": "Set up a review: “Weekly review”",
+                    "diffs": [
+                      {
+                        "field": "Review",
+                        "from": "—",
+                        "to": "Weekly review"
+                      }
+                    ]
+                  }
+                ],
+                "watches": [],
+                "reviews": [
+                  {
+                    "id": "rev-weekly-d",
+                    "name": "Weekly review",
+                    "everyWeeks": 1,
+                    "weekday": 3,
+                    "scope": {
+                      "goals": [],
+                      "trees": [],
+                      "levels": [
+                        "north-star",
+                        "svp",
+                        "team"
+                      ]
+                    },
+                    "people": [
+                      "p-ana-silva-d",
+                      "p-ben-ortiz-d",
+                      "p-chloe-wu-d",
+                      "p-dev-patel-d"
+                    ],
+                    "createdBy": "p-ana-silva-d",
+                    "createdAt": "2026-10-30T12:00:00.000Z"
+                  }
+                ],
+                "retros": [],
+                "requests": [],
+                "views": [
+                  {
+                    "id": "view-everything-at-a-glance-d",
+                    "personId": "p-ana-silva-d",
+                    "name": "Everything at a glance",
+                    "params": "show=levels&view=table",
+                    "pinned": true,
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "updatedAt": "2026-10-30T12:00:00.000Z",
+                    "deletedAt": null
+                  },
+                  {
+                    "id": "view-off-track-or-at-risk-d",
+                    "personId": "p-ana-silva-d",
+                    "name": "Off track or at risk",
+                    "params": "status=off,risk&sort=worst",
+                    "pinned": true,
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "updatedAt": "2026-10-30T12:00:00.000Z",
+                    "deletedAt": null
+                  },
+                  {
+                    "id": "view-no-update-for-2-weeks-or-more-d",
+                    "personId": "p-ana-silva-d",
+                    "name": "No update for 2 weeks or more",
+                    "params": "quiet=2&sort=last",
+                    "pinned": true,
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "updatedAt": "2026-10-30T12:00:00.000Z",
+                    "deletedAt": null
+                  }
+                ],
+                "keysIssued": 3
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "workspaces",
+            "args": []
+          },
+          "then": {
+            "select": "[].id",
+            "includes": [
+              "ws_short",
+              "ws_contract"
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "deleteWorkspace",
+            "args": [
+              "ws_short"
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "workspaces",
+            "args": []
+          },
+          "then": {
+            "all": [
+              {
+                "select": "[].id",
+                "excludes": [
+                  "ws_short"
+                ]
+              },
+              {
+                "select": "[].id",
+                "includes": [
+                  "ws_contract"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "narrows a load to a window: check-ins of cycles that overlap it, and entries from its start plus the anchors of any age",
+      "steps": [
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "cycles": [
+                  {
+                    "id": "cycle_c0032",
+                    "name": "Jan–Mar 2025",
+                    "startDate": "2025-01-06",
+                    "weeks": 13,
+                    "reviewDay": 3
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0034",
+                    "at": "2025-01-06T08:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": null,
+                    "entity": "cycle",
+                    "entityId": "cycle_c0032",
+                    "action": "created",
+                    "summary": "Started a cycle",
+                    "diffs": []
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "goals": [
+                  {
+                    "id": "goal_c0033",
+                    "cycleId": "cycle_c0032",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ben-ortiz-c",
+                    "title": "Deploy lead time",
+                    "io": "input",
+                    "level": "north-star",
+                    "guardrail": false,
+                    "parentId": null,
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "kind": "metric",
+                    "unit": "days",
+                    "decimals": 0,
+                    "plan": {
+                      "start": 5,
+                      "target": 1,
+                      "shape": "back",
+                      "fromWeek": 43
+                    },
+                    "originalPlan": null,
+                    "rebaselinedWeek": null,
+                    "key": "G-1",
+                    "alsoHelps": []
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0036",
+                    "at": "2025-02-01T10:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": null,
+                    "entity": "workspace",
+                    "entityId": "imp_c0035",
+                    "action": "imported",
+                    "summary": "Imported a spreadsheet: 0 rows",
+                    "diffs": [],
+                    "undo": {
+                      "goals": [],
+                      "checkIns": [],
+                      "people": [],
+                      "requests": []
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "checkIns": [
+                  {
+                    "id": "ci_c0042",
+                    "goalId": "goal_c0033",
+                    "authorId": "p-ana-silva-c",
+                    "week": 2,
+                    "postedAt": "2025-01-20T09:00:00.000Z",
+                    "value": null,
+                    "stages": null,
+                    "status": "on",
+                    "calculated": "on",
+                    "cause": null,
+                    "why": "",
+                    "greenerWhy": "",
+                    "proposeTarget": null,
+                    "pathToGreen": null,
+                    "next": "",
+                    "dataFlagged": false
+                  },
+                  {
+                    "id": "ci_c0043",
+                    "goalId": "g-deploy-lead-time-c",
+                    "authorId": "p-ana-silva-c",
+                    "week": 2,
+                    "postedAt": "2026-01-12T09:00:00.000Z",
+                    "value": null,
+                    "stages": null,
+                    "status": "on",
+                    "calculated": "on",
+                    "cause": null,
+                    "why": "",
+                    "greenerWhy": "",
+                    "proposeTarget": null,
+                    "pathToGreen": null,
+                    "next": "",
+                    "dataFlagged": false
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0037",
+                    "at": "2025-03-01T10:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "goal_c0033",
+                    "entity": "goal",
+                    "entityId": "goal_c0033",
+                    "action": "edited",
+                    "summary": "Edited",
+                    "diffs": []
+                  },
+                  {
+                    "id": "chg_c0039",
+                    "at": "2025-03-02T10:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "goal_c0033",
+                    "entity": "note",
+                    "entityId": "note_c0038",
+                    "action": "noted",
+                    "summary": "Commented",
+                    "diffs": [
+                      {
+                        "field": "Comment",
+                        "from": "—",
+                        "to": "An old comment"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "chg_c0040",
+                    "at": "2025-03-03T10:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "goal_c0033",
+                    "entity": "goal",
+                    "entityId": "goal_c0033",
+                    "action": "edited",
+                    "summary": "Edited",
+                    "diffs": []
+                  },
+                  {
+                    "id": "chg_c0041",
+                    "at": "2025-03-03T10:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "goal_c0033",
+                    "entity": "goal",
+                    "entityId": "goal_c0033",
+                    "action": "edited",
+                    "summary": "Edited",
+                    "diffs": []
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "changes": [
+                  {
+                    "id": "chg_c0044",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploy-lead-time-c",
+                    "entity": "note",
+                    "entityId": "note_c0045",
+                    "action": "noted",
+                    "summary": "Commented",
+                    "diffs": [
+                      {
+                        "field": "Comment",
+                        "from": "—",
+                        "to": "A recent comment"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract",
+              {
+                "from": "2026-06-01T00:00:00.000Z"
+              }
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "checkIns[].id",
+                "includes": [
+                  "ci_c0043"
+                ],
+                "excludes": [
+                  "ci_c0042"
+                ]
+              },
+              {
+                "select": "changes[].id",
+                "excludes": [
+                  "chg_c0037",
+                  "chg_c0040",
+                  "chg_c0041"
+                ],
+                "includes": [
+                  "chg_c0039",
+                  "chg_c0034",
+                  "chg_c0036"
+                ]
+              },
+              {
+                "select": "changes[id=chg_c0036].undo",
+                "equals": {
+                  "goals": [],
+                  "checkIns": [],
+                  "people": [],
+                  "requests": []
+                }
+              },
+              {
+                "select": "changes[].id",
+                "includes": [
+                  "chg-weekly-review-c",
+                  "chg_c0044"
+                ]
+              },
+              {
+                "select": "cycles[].id",
+                "length": 2,
+                "includes": [
+                  "cycle-c",
+                  "cycle_c0032"
+                ]
+              },
+              {
+                "select": "goals[].id",
+                "includes": [
+                  "goal_c0033"
+                ]
+              },
+              {
+                "select": "history",
+                "equals": {
+                  "from": "2026-06-01T00:00:00.000Z",
+                  "checkInCycles": [
+                    "cycle-c",
+                    "cycle_c0032"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "pages back through the change log newest first, with no skips or repeats, and narrows it to a goal",
+      "steps": [
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "cycles": [
+                  {
+                    "id": "cycle_c0032",
+                    "name": "Jan–Mar 2025",
+                    "startDate": "2025-01-06",
+                    "weeks": 13,
+                    "reviewDay": 3
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0034",
+                    "at": "2025-01-06T08:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": null,
+                    "entity": "cycle",
+                    "entityId": "cycle_c0032",
+                    "action": "created",
+                    "summary": "Started a cycle",
+                    "diffs": []
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "goals": [
+                  {
+                    "id": "goal_c0033",
+                    "cycleId": "cycle_c0032",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ben-ortiz-c",
+                    "title": "Deploy lead time",
+                    "io": "input",
+                    "level": "north-star",
+                    "guardrail": false,
+                    "parentId": null,
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "kind": "metric",
+                    "unit": "days",
+                    "decimals": 0,
+                    "plan": {
+                      "start": 5,
+                      "target": 1,
+                      "shape": "back",
+                      "fromWeek": 43
+                    },
+                    "originalPlan": null,
+                    "rebaselinedWeek": null,
+                    "key": "G-1",
+                    "alsoHelps": []
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0036",
+                    "at": "2025-02-01T10:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": null,
+                    "entity": "workspace",
+                    "entityId": "imp_c0035",
+                    "action": "imported",
+                    "summary": "Imported a spreadsheet: 0 rows",
+                    "diffs": [],
+                    "undo": {
+                      "goals": [],
+                      "checkIns": [],
+                      "people": [],
+                      "requests": []
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "checkIns": [
+                  {
+                    "id": "ci_c0042",
+                    "goalId": "goal_c0033",
+                    "authorId": "p-ana-silva-c",
+                    "week": 2,
+                    "postedAt": "2025-01-20T09:00:00.000Z",
+                    "value": null,
+                    "stages": null,
+                    "status": "on",
+                    "calculated": "on",
+                    "cause": null,
+                    "why": "",
+                    "greenerWhy": "",
+                    "proposeTarget": null,
+                    "pathToGreen": null,
+                    "next": "",
+                    "dataFlagged": false
+                  },
+                  {
+                    "id": "ci_c0043",
+                    "goalId": "g-deploy-lead-time-c",
+                    "authorId": "p-ana-silva-c",
+                    "week": 2,
+                    "postedAt": "2026-01-12T09:00:00.000Z",
+                    "value": null,
+                    "stages": null,
+                    "status": "on",
+                    "calculated": "on",
+                    "cause": null,
+                    "why": "",
+                    "greenerWhy": "",
+                    "proposeTarget": null,
+                    "pathToGreen": null,
+                    "next": "",
+                    "dataFlagged": false
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0037",
+                    "at": "2025-03-01T10:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "goal_c0033",
+                    "entity": "goal",
+                    "entityId": "goal_c0033",
+                    "action": "edited",
+                    "summary": "Edited",
+                    "diffs": []
+                  },
+                  {
+                    "id": "chg_c0039",
+                    "at": "2025-03-02T10:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "goal_c0033",
+                    "entity": "note",
+                    "entityId": "note_c0038",
+                    "action": "noted",
+                    "summary": "Commented",
+                    "diffs": [
+                      {
+                        "field": "Comment",
+                        "from": "—",
+                        "to": "An old comment"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "chg_c0040",
+                    "at": "2025-03-03T10:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "goal_c0033",
+                    "entity": "goal",
+                    "entityId": "goal_c0033",
+                    "action": "edited",
+                    "summary": "Edited",
+                    "diffs": []
+                  },
+                  {
+                    "id": "chg_c0041",
+                    "at": "2025-03-03T10:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "goal_c0033",
+                    "entity": "goal",
+                    "entityId": "goal_c0033",
+                    "action": "edited",
+                    "summary": "Edited",
+                    "diffs": []
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "changes": [
+                  {
+                    "id": "chg_c0044",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploy-lead-time-c",
+                    "entity": "note",
+                    "entityId": "note_c0045",
+                    "action": "noted",
+                    "summary": "Commented",
+                    "diffs": [
+                      {
+                        "field": "Comment",
+                        "from": "—",
+                        "to": "A recent comment"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "history",
+            "args": [
+              "ws_contract",
+              {
+                "size": 2
+              }
+            ]
+          },
+          "pages": {
+            "arg": 1,
+            "max": 100,
+            "key": "before",
+            "rows": "changes",
+            "each": {
+              "select": "changes",
+              "maxLength": 2
+            }
+          },
+          "then": {
+            "select": "rows[].id",
+            "equals": [
+              "chg_c0044",
+              "chg-weekly-review-c",
+              "chg_c0041",
+              "chg_c0040",
+              "chg_c0039",
+              "chg_c0037",
+              "chg_c0036",
+              "chg_c0034"
+            ],
+            "distinct": true
+          }
+        },
+        {
+          "when": {
+            "op": "history",
+            "args": [
+              "ws_contract",
+              {
+                "goalId": "goal_c0033",
+                "size": 500
+              }
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "changes[].id",
+                "equals": [
+                  "chg_c0041",
+                  "chg_c0040",
+                  "chg_c0039",
+                  "chg_c0037"
+                ]
+              },
+              {
+                "select": "next",
+                "absent": true
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "history",
+            "args": [
+              "ws_contract",
+              {
+                "size": 500
+              }
+            ]
+          },
+          "then": {
+            "select": "changes",
+            "length": 8
+          }
+        }
+      ]
+    },
+    {
+      "name": "loads the whole workspace when no window is asked for, and says nothing was left out",
+      "steps": [
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "cycles": [
+                  {
+                    "id": "cycle_c0032",
+                    "name": "Jan–Mar 2025",
+                    "startDate": "2025-01-06",
+                    "weeks": 13,
+                    "reviewDay": 3
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0034",
+                    "at": "2025-01-06T08:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": null,
+                    "entity": "cycle",
+                    "entityId": "cycle_c0032",
+                    "action": "created",
+                    "summary": "Started a cycle",
+                    "diffs": []
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "goals": [
+                  {
+                    "id": "goal_c0033",
+                    "cycleId": "cycle_c0032",
+                    "teamId": "t-platform-c",
+                    "ownerId": "p-ben-ortiz-c",
+                    "title": "Deploy lead time",
+                    "io": "input",
+                    "level": "north-star",
+                    "guardrail": false,
+                    "parentId": null,
+                    "effect": null,
+                    "source": "CI dashboard",
+                    "definition": "",
+                    "createdAt": "2026-10-30T12:00:00.000Z",
+                    "kind": "metric",
+                    "unit": "days",
+                    "decimals": 0,
+                    "plan": {
+                      "start": 5,
+                      "target": 1,
+                      "shape": "back",
+                      "fromWeek": 43
+                    },
+                    "originalPlan": null,
+                    "rebaselinedWeek": null,
+                    "key": "G-1",
+                    "alsoHelps": []
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0036",
+                    "at": "2025-02-01T10:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": null,
+                    "entity": "workspace",
+                    "entityId": "imp_c0035",
+                    "action": "imported",
+                    "summary": "Imported a spreadsheet: 0 rows",
+                    "diffs": [],
+                    "undo": {
+                      "goals": [],
+                      "checkIns": [],
+                      "people": [],
+                      "requests": []
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "checkIns": [
+                  {
+                    "id": "ci_c0042",
+                    "goalId": "goal_c0033",
+                    "authorId": "p-ana-silva-c",
+                    "week": 2,
+                    "postedAt": "2025-01-20T09:00:00.000Z",
+                    "value": null,
+                    "stages": null,
+                    "status": "on",
+                    "calculated": "on",
+                    "cause": null,
+                    "why": "",
+                    "greenerWhy": "",
+                    "proposeTarget": null,
+                    "pathToGreen": null,
+                    "next": "",
+                    "dataFlagged": false
+                  },
+                  {
+                    "id": "ci_c0043",
+                    "goalId": "g-deploy-lead-time-c",
+                    "authorId": "p-ana-silva-c",
+                    "week": 2,
+                    "postedAt": "2026-01-12T09:00:00.000Z",
+                    "value": null,
+                    "stages": null,
+                    "status": "on",
+                    "calculated": "on",
+                    "cause": null,
+                    "why": "",
+                    "greenerWhy": "",
+                    "proposeTarget": null,
+                    "pathToGreen": null,
+                    "next": "",
+                    "dataFlagged": false
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0037",
+                    "at": "2025-03-01T10:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "goal_c0033",
+                    "entity": "goal",
+                    "entityId": "goal_c0033",
+                    "action": "edited",
+                    "summary": "Edited",
+                    "diffs": []
+                  },
+                  {
+                    "id": "chg_c0039",
+                    "at": "2025-03-02T10:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "goal_c0033",
+                    "entity": "note",
+                    "entityId": "note_c0038",
+                    "action": "noted",
+                    "summary": "Commented",
+                    "diffs": [
+                      {
+                        "field": "Comment",
+                        "from": "—",
+                        "to": "An old comment"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "chg_c0040",
+                    "at": "2025-03-03T10:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "goal_c0033",
+                    "entity": "goal",
+                    "entityId": "goal_c0033",
+                    "action": "edited",
+                    "summary": "Edited",
+                    "diffs": []
+                  },
+                  {
+                    "id": "chg_c0041",
+                    "at": "2025-03-03T10:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "goal_c0033",
+                    "entity": "goal",
+                    "entityId": "goal_c0033",
+                    "action": "edited",
+                    "summary": "Edited",
+                    "diffs": []
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "changes": [
+                  {
+                    "id": "chg_c0044",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploy-lead-time-c",
+                    "entity": "note",
+                    "entityId": "note_c0045",
+                    "action": "noted",
+                    "summary": "Commented",
+                    "diffs": [
+                      {
+                        "field": "Comment",
+                        "from": "—",
+                        "to": "A recent comment"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "checkIns[].id",
+                "includes": [
+                  "ci_c0042",
+                  "ci_c0043"
+                ]
+              },
+              {
+                "select": "changes[].id",
+                "includes": [
+                  "chg_c0037",
+                  "chg_c0040",
+                  "chg_c0041",
+                  "chg_c0039"
+                ]
+              },
+              {
+                "select": "history",
+                "absent": true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -4,7 +4,7 @@
 
    | Action             | Input                                   | Gives back                       |
    |--------------------|-----------------------------------------|----------------------------------|
-   | `saveMetric`       | `MetricInput & { id? }`                 | `{ commit, metric }` (its id)    |
+   | `saveMetric`       | `MetricInput & { id?, confirm?, answers? }` | `{ commit, metric }`; refused while a Check is open |
    | `removeMetric`     | `{ metricId }`                          | the commit; says so, with Undo   |
    | `linkGoalMetric`   | `{ goalId, metricId, teamId, part?, reason? }` | the commit, or null (no change)  |
    | `unlinkGoalMetric` | `{ goalId }`                            | the commit, or null; with Undo   | */
@@ -13,8 +13,10 @@ import { NotAllowed } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import { findGoal } from '../../domain/goalKey';
 import type { Goal } from '../../domain/types';
-import { removeMetric, saveMetric, unlinkGoalMetric, type Metric, type MetricInput } from './rules';
-/* Rule 2's checks (rulesLink.ts, rulesParts.ts) load on the first link, not with the first download. */
+import { removeMetric, unlinkGoalMetric, type Metric } from './rules';
+import type { SaveMetricInput } from './rulesSave';
+/* Rule 2's checks (rulesLink.ts, rulesParts.ts) load on the first link, not with the first download; rule 1's Checks
+   (rulesSave.ts), which rulesLink.ts passes on, come in the same chunk on the first save. */
 type Link = typeof import('./rulesLink');
 let linking: Link | null = null;
 const loadLink = async () => { linking ??= await import('./rulesLink'); };
@@ -29,7 +31,7 @@ const goalOf = (x: RunContext, id: string): Goal =>
   findGoal(x.snapshot.goals, id) ?? (x.allGoals && findGoal(x.allGoals, id)) ?? (x.snapshot.archive && findGoal(x.snapshot.archive.goals, id)) ?? (() => { throw new NotAllowed('That goal no longer exists. Reload to see the latest.'); })();
 
 const actions = {
-  saveMetric: { run: (x, i: MetricInput & { id?: string; confirm?: boolean }) => saveMetric(x, i), tools: ['save_metric'] } satisfies ModuleAction<MetricInput & { id?: string; confirm?: boolean }, { commit: Commit | null; metric: Metric }>,
+  saveMetric: { ready: loadLink, run: (x, i: SaveMetricInput) => link().saveMetricAsked(x, i), tools: ['save_metric'] } satisfies ModuleAction<SaveMetricInput, { commit: Commit | null; metric: Metric }>,
   removeMetric: { run: (x, i: { metricId: string }) => removeMetric(x, i.metricId), said, tools: ['remove_metric', 'restore_removed'] } satisfies ModuleAction<{ metricId: string }, Commit>,
   linkGoalMetric: { ready: loadLink, run: (x, i: LinkInput) => link().linkGoalMetric(x, goalOf(x, i.goalId), i.metricId, i.teamId, i.part ?? '', i.reason ?? ''), tools: ['link_goal_metric'] } satisfies ModuleAction<LinkInput, Commit | null>,
   unlinkGoalMetric: { run: (x, i: { goalId: string }) => unlinkGoalMetric(x, goalOf(x, i.goalId)), said, tools: ['link_goal_metric'] } satisfies ModuleAction<{ goalId: string }, Commit | null>,

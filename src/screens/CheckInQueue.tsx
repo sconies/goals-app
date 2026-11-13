@@ -100,7 +100,7 @@ export function CheckInQueue() {
                     <span className="ciq-title">{g.title}</span>
                     <span className="hint ciq-said">{s.now}{on ? ` · Checked in ${on}` : ''}</span>
                   </span>
-                  <Link className="btn ghost ciq-go" to={`/check-in/${g.id}`} state={FROM_QUEUE} aria-label={`Correct it: ${g.title}`}>Correct it</Link>
+                  <Link className="btn ghost ciq-go" to={`/check-in/${g.id}?correct=1`} state={FROM_QUEUE} aria-label={`Correct it: ${g.title}`}>Correct it</Link>
                 </li>
               );
             })}

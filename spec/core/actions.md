@@ -16,9 +16,10 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | Action | Does | Who may | AI tools |
 |---|---|---|---|
 | [planChanges](#planchanges) | Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI); Add a goal, at any level, owned by anyone; Add someone; change their name, job title, team or admin rights | The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it; Anyone, for anyone (Lane, 11 Nov); Admins | — |
-| [postCheckIn](#postcheckin) | Post or correct a check-in (at the check-in screens, the one-table check-in or through the AI) | The goal’s owner only (Lane, 12 Nov), with exactly two exceptions, both for an admin: bringing check-ins in from a workbook (an import, or setting up from an export), and correcting one in Data’s tables. Each records the admin as author, with the route as its Via | [`post_check_in`](tools.md#post_check_in), [`bulk_change`](tools.md#bulk_change) |
+| [postCheckIn](#postcheckin) | Post or correct a check-in (at the check-in screens, the one-table check-in or through the AI) | The goal’s owner only (Lane, 12 Nov), with exactly two exceptions, both for an admin: bringing check-ins in from a workbook (an import, or setting up from an export: past weeks, or a correction of one already there; never this week’s new check-in, so one pasted row is not a workbook), and correcting one that exists in Data’s tables (never adding one). Each records the admin as author, with the route as its Via | [`post_check_in`](tools.md#post_check_in), [`bulk_change`](tools.md#bulk_change) |
 | [saveGoal](#savegoal) | Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI); Add a goal, at any level, owned by anyone | The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it; Anyone, for anyone (Lane, 11 Nov) | [`create_goal`](tools.md#create_goal), [`update_goal`](tools.md#update_goal), [`set_plan_numbers`](tools.md#set_plan_numbers), [`bulk_change`](tools.md#bulk_change) |
 | [activate](#activate) | Make a proposed goal active (GE10) | The goal’s owner, or an admin (not whoever proposed it, unless they are one) | — |
+| [backToProposed](#backtoproposed) | Make an active goal with no check-ins proposed again (GE10) | The goal’s owner, or an admin | — |
 | [stopGoal](#stopgoal) | Stop a goal that has check-ins (with a reason); delete one that has none (withdraw it, while it is proposed) | The goal’s owner, or an admin; a proposal also whoever proposed it | [`stop_goal`](tools.md#stop_goal) |
 | [deleteGoal](#deletegoal) | Stop a goal that has check-ins (with a reason); delete one that has none (withdraw it, while it is proposed) | The goal’s owner, or an admin; a proposal also whoever proposed it | [`delete_goal`](tools.md#delete_goal) |
 | [deleteCheckIn](#deletecheckin) | Delete a goal’s latest check-in (after a newer one it can only be corrected) | The goal’s owner only, whoever posted it (check-ins are the owner’s, Lane, 12 Nov) | [`delete_check_in`](tools.md#delete_check_in) |
@@ -130,7 +131,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 
 **Result:** `{ commit: Commit; checkIn: CheckIn; }` ([CheckIn](data-model.md#checkin))
 
-**Who may:** The goal’s owner only (Lane, 12 Nov), with exactly two exceptions, both for an admin: bringing check-ins in from a workbook (an import, or setting up from an export), and correcting one in Data’s tables. Each records the admin as author, with the route as its Via.
+**Who may:** The goal’s owner only (Lane, 12 Nov), with exactly two exceptions, both for an admin: bringing check-ins in from a workbook (an import, or setting up from an export: past weeks, or a correction of one already there; never this week’s new check-in, so one pasted row is not a workbook), and correcting one that exists in Data’s tables (never adding one). Each records the admin as author, with the route as its Via.
 
 **The rule:** `postCheckIn`, in `src/domain/changeset.ts`.
 
@@ -213,6 +214,31 @@ Every change a person makes, as the command port runs it ([the ports at company 
 - “From must be a week of this cycle before the plan’s To: week 0 to week ….”
 - “Not saved. Check with the person first: …”
 - ““…” can’t be made active yet: …”
+
+**AI tools that do the same:** none
+
+## backToProposed
+
+**Does:** Make an active goal with no check-ins proposed again (GE10).
+
+**Input**:
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `goalId` | `string` | yes |  |
+
+**Result:** `{ commit: Commit; goal: Goal; }` ([Goal](data-model.md#goal))
+
+**Who may:** The goal’s owner, or an admin.
+
+**The rule:** `backToProposed`, in `src/domain/proposedActions.ts`.
+
+**Refuses with:**
+
+- “That goal no longer exists. Reload to see the latest.”
+- ““…” is already proposed.”
+- ““…” is stopped.”
+- “Only … (its owner) or an admin can make it proposed again.”
 
 **AI tools that do the same:** none
 
@@ -1465,7 +1491,7 @@ From the [metrics](../modules/metrics/README.md) module.
 
 **Does:** Add a metric to the library; change or remove a metric.
 
-**Input**:
+**Input** (`SaveMetricInput`):
 
 | Field | Type | Needed | What it is |
 |---|---|---|---|
@@ -1481,17 +1507,20 @@ From the [metrics](../modules/metrics/README.md) module.
 | `caveats` | `string` | no | What to watch out for when reading it (a known gap, a change of method). |
 | `id` | `string` | no |  |
 | `confirm` | `boolean` | no |  |
+| `answers` | `Partial<Record<CheckField, string>>` | no |  |
 
 **Result:** `{ commit: Commit \| null; metric: Metric; }`
 
 **Who may:** Anyone; they own it unless they name another owner (to add a metric to the library); Its owner, or an admin (to change or remove a metric).
 
-**The rule:** `saveMetric`, in `src/modules/metrics/rules.ts`.
+**The rule:** `saveMetricAsked`, in `src/modules/metrics/rulesSave.ts`.
 
 **Refuses with:**
 
+- “Nothing saved: use that metric instead.”
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
 - “Only … or an admin can change this metric.”
+- “Answer … first: …”
 
 **AI tools that do the same:** [`save_metric`](tools.md#save_metric)
 
@@ -1576,7 +1605,7 @@ From the [metrics](../modules/metrics/README.md) module.
 
 ## The types the actions name
 
-Each type an action’s input or result names that isn’t a record in [the data model](data-model.md), as the code declares it (with its comments), in A to Z order. 37 types.
+Each type an action’s input or result names that isn’t a record in [the data model](data-model.md), as the code declares it (with its comments), in A to Z order. 39 types.
 
 ### Answers
 
@@ -1630,6 +1659,14 @@ export interface ChangeSet {
   /** Create mode: everything the new workspace starts with (set-up reads it). */
   created?: Pick<Snapshot, 'people' | 'teams' | 'goals' | 'checkIns' | 'requests' | 'keysIssued'>;
 }
+```
+
+### CheckField
+
+In `src/modules/metrics/rulesDefine.ts`.
+
+```ts
+export type CheckField = 'name' | 'unit' | 'meaning';
 ```
 
 ### CheckId
@@ -2034,6 +2071,14 @@ export interface SaveGoalInput {
       changed keeps its state: it is made active by domain/proposed activate, never by a save. */
   state?: 'active' | 'proposed';
 }
+```
+
+### SaveMetricInput
+
+In `src/modules/metrics/rulesSave.ts`.
+
+```ts
+export type SaveMetricInput = MetricInput & { id?: string; confirm?: boolean; answers?: Partial<Record<CheckField, string>> };
 ```
 
 ### Sheet

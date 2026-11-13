@@ -13,6 +13,7 @@
    Check is a question that blocks saving until it is answered (`answers`, by group id), and one answer covers every row
    with the same question; a note says how a row was read. A name or word one letter out is asked about ("Did you mean
    Platform?"), never guessed and never silently refused. */
+import { correctReasonAsk, correctReasonOk } from './correctReason';
 import type { Commit } from './commit';
 import type { ActionContext } from './actions';
 import { NotAllowed } from './actions';
@@ -24,6 +25,7 @@ import {
 } from './columns';
 import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planQuestion, replanned, stagesDoneAtSetUp, type GoalDraft } from './goal';
 import { goalChecks, type GoalCheckId, type GoalField, goalMustFix, type MustFixId } from './goalEntry';
+import { ADMIN_DOOR_LIMIT, mayPostCheckInRow } from './checkInDoors';
 import { MARKS_STAGES, mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { notNumberText, precisionProblem, sameAsWritten, typedDecimals } from './numbers';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
@@ -31,16 +33,17 @@ import { isProposed, measureEmpty, withProposed } from './proposed';
 import { mayActivate, NOTHING_TO_CHECK_IN } from './proposedActions';
 import { proposedMustFix, unsaidDraft } from './goalEntry';
 // Making a proposed goal active, or proposed again, loads with the engine (app/actions NEEDS_ENGINE).
-export { activate } from './proposedActions';
+export { activate, backToProposed } from './proposedActions';
 import { fmt } from './format';
 import { isEmail, normalEmail, personChange, personProblems, sameNameNote, sameTitleNote } from './people';
+import { cycleState } from './cycle';
 import { planAt, planEnd, weekDate } from './plan';
 import { readWeekCode, weekCode, weekUnknownText } from './weeks';
 import { checkInsFor } from './status';
 import { makesLoop } from './tree';
 import { asksOf, requestsAfterCheckIn } from './asks';
 import { deleteGoal, markPersonLeft, stopGoal } from './removal';
-import { stagesFromNow } from './templates';
+import { reportedIn, stagesFromNow } from './templates';
 import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
 import { goalMeasureOf, type ModuleRecords } from './records';
 import { CHUNK } from './importLimits';
@@ -269,6 +272,7 @@ export interface PlanProgress { done: number; total: number; added: number; chan
 const ADDS: ReadonlySet<ItemKind> = new Set<ItemKind>(['new goal', 'new person', 'check-in']);
 
 /** The engine, in one go: `planChangesInChunks` run to the end. Results are the same either way. */
+
 export function planChanges(input: ChangeInput): ChangeSet {
   const run = planChangesInChunks(input);
   for (;;) { const step = run.next(); if (step.done) return step.value; }
@@ -402,14 +406,14 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     return undefined;
   }
 
-  type Found = { p?: Person; byName?: boolean; kind?: IssueKind; problem?: string; extra?: Extra; left?: boolean };
+  type Found = { p?: Person; byName?: boolean; kind?: IssueKind; problem?: string; extra?: Extra; left?: boolean; /** Picked in answer to the cell ("Choose…"): it stands for the row's other person cells too. */ chosen?: boolean };
   /** Who a person-cell names: an email, an ID, or a name only one person has; a name or email one letter out is asked. */
   const personFrom = (sheet: Sheet, column: string, kind: 'email' | 'id' | 'name', v: string): Found => {
     const settle = (k: IssueKind, problem: string, extra: Extra, nearOne?: Person): Found => {
       const a = answerOf(k, sheet, extra.column, extra.found);
       if (a?.choice === 'leave') return { left: true };
       if (a?.choice === 'use' && nearOne) return { p: nearOne };
-      if (a?.choice === 'choose' && a.value) { const again = personFrom(sheet, column, a.value.includes('@') ? 'email' : 'name', a.value); if (again.p) return again; }
+      if (a?.choice === 'choose' && a.value) { const again = personFrom(sheet, column, a.value.includes('@') ? 'email' : 'name', a.value); if (again.p) return { ...again, chosen: true }; }
       return { kind: k, problem, extra };
     };
     if (kind === 'email' || (kind === 'name' && v.includes('@'))) {
@@ -425,7 +429,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
         const hit = sameDomain.find((x) => normalEmail(x.email).split('@')[0] === m.near)!;
         return settle('near-ref', `No one here has ${e}. Did you mean ${hit.email}?`, { column, found: e, suggest: hit.email ?? '', answers: ANSWERS.nearRef(hit.email ?? '', e, false, false) }, hit);
       }
-      return settle('unknown-ref', `No one here has the email ${e}. Add them on the People sheet, or check it.`, { column, found: e, answers: ANSWERS.unknownRef('person', e, false, false) });
+      return settle('unknown-ref', `No one here has the email ${e}. Add them on the People sheet, or check it.`, { column, found: e, answers: ANSWERS.unknownRef('person', e, false, false, create) });
     }
     if (kind === 'id') { const p = people.get(v); return p ? { p } : { kind: 'bad-key', problem: `There’s no person with ID ${v}.`, extra: { column: column + ' ID', found: v } }; }
     const list = named(v);
@@ -439,7 +443,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
       const hit = all.find((p) => p.name === m.near)!;
       return settle('near-ref', `“${v}” isn’t here. Did you mean ${hit.name}?`, { column, found: v, suggest: hit.name, answers: ANSWERS.nearRef(hit.name, v, false, false) }, hit);
     }
-    return settle('unknown-ref', `“${v}” isn’t in this workspace. Add them on the People sheet, or check the spelling.`, { column, found: v, answers: ANSWERS.unknownRef('person', v, false, false) });
+    return settle('unknown-ref', `“${v}” isn’t in this workspace. Add them on the People sheet, or check the spelling.`, { column, found: v, answers: ANSWERS.unknownRef('person', v, false, false, create) });
   };
   /**
    * The person a row's columns name (an email, an ID, a name), against who it is now. Only the columns that say someone
@@ -450,14 +454,21 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     const header = (k: 'email' | 'id' | 'name') => (k === 'email' ? (cols.name ? `${what} email` : what) : k === 'id' ? `${what} ID` : what);
     const given = (Object.entries(cols) as ['email' | 'id' | 'name', string][]).filter(([, c]) => has(r, c) && ref(r, c)).map(([k, c]) => [k, ref(r, c)] as const);
     const says = (k: 'email' | 'id' | 'name', v: string) => !!current && (k === 'email' ? normalEmail(current.email) === normalEmail(v) : k === 'id' ? current.id === v : fold(current.name) === fold(v) || current.id === v || (v.includes('@') && normalEmail(current.email) === normalEmail(v)));
-    let changed = given.filter(([k, v]) => !says(k, v));
+    const changed = given.filter(([k, v]) => !says(k, v));
     if (!changed.length) return {};
     // An email or ID is exact: a name beside it that's theirs agrees with it, even when others share that name.
-    const exact = changed.filter(([k]) => k !== 'name').map(([k, v]) => personFrom(sheet, header(k), k, v).p).find(Boolean);
-    if (exact) changed = changed.filter(([k, v]) => k !== 'name' || fold(v) !== fold(exact.name));
-    const found = changed.map(([k, v]) => ({ k, v, ...personFrom(sheet, header(k), k, v) }));
+    // Each cell read once (rule 10). A person chosen in answer to one cell ("Give it to someone here") is the row's
+    // person, whatever the others say.
+    const read = changed.map(([k, v]) => ({ k, v, ...personFrom(sheet, header(k), k, v) }));
+    const picked = read.find((x) => x.chosen && x.p);
+    if (picked) return { person: picked.p! };
+    const exact = read.find((x) => x.k !== 'name' && x.p)?.p;
+    const found = exact ? read.filter((x) => x.k !== 'name' || fold(x.v) !== fold(exact.name)) : read;
     if (found.some((x) => x.left)) return { left: true };
     const bad = found.find((x) => x.problem);
+    // At set-up, "Add {person}" says the name the row gives beside their email.
+    const nameCell = given.find(([k]) => k === 'name')?.[1];
+    if (bad && create && nameCell && !nameCell.includes('@') && bad.extra?.answers?.[0]?.choice === 'add') return { kind: bad.kind, problem: bad.problem, extra: { ...bad.extra, answers: [{ ...bad.extra.answers[0], label: `Add ${nameCell}` }, ...bad.extra.answers.slice(1)] } };
     if (bad) return { kind: bad.kind, problem: bad.problem, extra: bad.extra };
     const ids = new Set(found.map((x) => x.p!.id));
     if (ids.size > 1) { const order = ['name', 'email', 'id']; const said = [...found].sort((x, y) => order.indexOf(x.k) - order.indexOf(y.k)); return { kind: 'conflicting-refs', problem: `${[...new Set(said.map((x) => header(x.k)))].join(' and ')} name different people (${said.map((x) => x.p!.name).join(' and ')}). Change just one of them.`, extra: { column: what } }; }
@@ -741,6 +752,8 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
   }
   // From with no Start column beside it, in a file (not a tool, whose From is always a week): a bare number is asked about.
   const fromInDoubt = via !== 'mcp' && !(input.tables.goals ?? []).some((r) => has(r, 'start'));
+  /** A Goals row the file's Check-ins sheet reports on (create mode's stage question skips it). */
+  const reported = reportedIn(create ? input.tables.checkIns : undefined);
   const goalRows = (input.tables.goals ?? []).map((r, i) => ({ r, row: rowOf(r, i), i })).filter(({ r }) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, 'action')) !== 'example');
   examples += (input.tables.goals ?? []).filter((r) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, 'action')) === 'example').length;
   // A batch names its own rows (backlog BT): a Goals row's Ref lets Feeds into ref and Goal ref in the same file name
@@ -980,12 +993,14 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     }
     // A new goal's stages already due (C4; onboarding rule 3, in bulk): done, not done, or counted from this week.
     let doneIds: string[] = [];
-    if (!existing && !create && d.kind === 'milestone') {
+    // At set-up (create mode, IM8) it is asked with its own two answers, "Count them from this week" first (set-up chooses
+    // it unless changed); there a goal with check-ins in the file keeps its weeks, as they happened.
+    if (!existing && d.kind === 'milestone' && !(create && reported(r))) {
       const past = d.stages.filter((st) => { const w = parseNumber(st.dueWeek); return w != null && w < week; });
       if (past.length) {
         // Saying they're done is a check-in, so the owner's (R1): from anyone else it's asked, and said, but not recorded.
-        const marks = mayPostCheckIn({ id: actor.id, admin: admin() }, { ownerId: d.ownerId }, via) ? '' : ' ' + MARKS_STAGES(people.get(d.ownerId)?.name ?? 'Its owner');
-        const a = ask('past-stage', 'Goals', row, d.title, `${plural(past.length, 'stage')} of “${d.title}” ${past.length === 1 ? 'is' : 'are'} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(', ')}. ${past.length === 1 ? 'Is it' : 'Are they'} done?${marks}`, { column: 'Stages', answers: ANSWERS.pastStage });
+        const marks = create || mayPostCheckIn({ id: actor.id, admin: admin() }, { ownerId: d.ownerId }, via) ? '' : ' ' + MARKS_STAGES(people.get(d.ownerId)?.name ?? 'Its owner');
+        const a = ask('past-stage', 'Goals', row, d.title, `${plural(past.length, 'stage')} of “${d.title}” ${past.length === 1 ? 'is' : 'are'} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(', ')}${create ? ', so it would start late.' : `. ${past.length === 1 ? 'Is it' : 'Are they'} done?${marks}`}`, { column: 'Stages', answers: create ? ANSWERS.pastStageSetUp : ANSWERS.pastStage });
         if (a === 'leave') return;
         if (a?.choice === 'done' && !marks) doneIds = past.map((st) => st.id);
         if (a?.choice === 'from-now') {
@@ -1324,9 +1339,12 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     // Check-ins are the owner's (R1; goalRights mayPostCheckIn): an admin may bring others' in only from a workbook.
     // Asked of the owner before this file's own changes, so one change can't take a goal and check in on it at once.
     const owned = s.goals.find((x) => x.id === g.id) ?? g;
-    if (!create && !mayPostCheckIn({ id: actor.id, admin: admin() }, owned, via)) {
+    const who = { id: actor.id, admin: admin() };
+    if (!create && !mayPostCheckInRow(who, owned, via, { week: w, thisWeek: week, exists: !!existing })) {
       if (!post && answerOf('not-allowed', 'Check-ins')?.choice === 'leave') { leave('Check-ins', row); return; }
-      raise('not-allowed', 'Check-ins', row, g.title, `Only ${people.get(owned.ownerId)?.name ?? 'its owner'} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
+      // An admin at one of the two doors is told what that door is for.
+      const limit = mayPostCheckIn(who, owned, via) ? ' ' + ADMIN_DOOR_LIMIT(via) : '';
+      raise('not-allowed', 'Check-ins', row, g.title, `Only ${people.get(owned.ownerId)?.name ?? 'its owner'} (its owner) can check in on “${g.title}”.${limit}`, post ? {} : { answers: ANSWERS.leaveOnly });
       return;
     }
     // A screen's post answers what it was asked first (rule 2): an unlikely number is never posted unanswered.
@@ -1371,7 +1389,10 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     }
     // A correction from a screen keeps the time and the lateness of what it replaces: it is never an on-time check-in of
     // its own, and never takes one away (rule 12).
-    const keeps = post?.mode === 'correct' && existing;
+    // Data's tables and MCP replacing a week's check-in correct it, as the form does: one meaning for "correct", with a
+    // reason and the same words in History (review of #225, medium 6). A workbook's round trip keeps its own words.
+    const corrects = post?.mode === 'correct' || (!post && !!existing && CORRECTS_VIA.includes(via));
+    const keeps = corrects && existing;
     const backfilled = keeps ? !!existing.backfilled : w < week;
     const due = new Date(Date.parse(weekDate(cycle, w) + 'T09:00:00Z') + cycle.reviewDay * 86_400_000);
     const at = keeps ? new Date(existing.postedAt) : backfilled && due.toISOString() < now ? due : new Date(now);
@@ -1381,21 +1402,23 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     if (!ch) { same('Check-ins'); return; }
     if (again) ch.summary = ch.summary.replace('Checked in for week', 'Checked in again for week');
     ch.diffs.push(...answeredDiffs(asked, draft.answers));
-    if (post?.mode === 'correct') {
-      ch.summary = existing ? `Corrected week ${w}: ${headlineOf(existing, g)} is now ${headlineOf(c, g)}` : `Added week ${w} later: ${headlineOf(c, g)}`;
-      ch.diffs.unshift({ field: 'Why corrected', from: '—', to: reason });
+    const why = post ? reason : input.reason?.trim() ?? '';
+    if (corrects && !post && !correctReasonOk(why)) needsReason = true;
+    if (corrects) {
+      ch.summary = existing ? correctedSummary(w, existing, c, g, ch.diffs) : `Added week ${w} later: ${headlineOf(c, g)}`;
+      if (why) ch.diffs.unshift({ field: 'Why corrected', from: '—', to: why });
     }
     if (existing && existing.authorId !== actor.id && !post) {
       note('replaces', 'Check-ins', row, g.title, `Replaces ${people.get(existing.authorId)?.name ?? 'someone'}’s check-in for week ${w}.`);
       replacing.push({ row, ci: c, name: g.title });
     }
     ch.at = now;
-    if (backfilled && !post) ch.summary += ' (loaded later)';
+    if (backfilled && !post && !corrects) ch.summary += ' (loaded later)';
     ciBefore.set(c.id, existing);
     ciOut.push(c);
     imported.set(g.id, [...(imported.get(g.id) ?? []), c]);
     changes.push(ch);
-    items.push({ sheet: 'Check-ins', row, goalId: g.id, goal: g.title, kind: existing ? 'replaces check-in' : 'check-in', summary: ch.summary, diffs: ch.diffs, backfilled });
+    items.push({ sheet: 'Check-ins', row, goalId: g.id, goal: g.title, kind: existing ? 'replaces check-in' : 'check-in', summary: ch.summary, diffs: ch.diffs, backfilled, ...(corrects && !post && !correctReasonOk(why) ? { needsReason: true } : {}) });
   };
   for (const { r, row } of rows) {
     if (tick()) yield progress();
@@ -1501,10 +1524,12 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     if (w > week) { raise('week-wrong', 'Check-ins', row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`); continue; }
     const own = checkInsFor(g, s.checkIns);
     const newest = own.filter((c) => c.week === w).pop() ?? null;
+    // A cycle that has ended can't be corrected from the form (check-in design 2.7): its numbers are what the wrap-up read.
+    if (p.mode === 'correct' && ['ended', 'closed'].includes(cycleState(cycle, new Date(now)))) { raise('cant-change', 'Check-ins', row, g.title, `${cycle.name} has ended, so its check-ins can’t be corrected here.`); continue; }
     if (p.mode !== 'correct' && w < week) { raise('week-wrong', 'Check-ins', row, g.title, `Week ${w} has passed. Correct it, or add it, with a reason.`); continue; }
     if (p.mode === 'new' && newest) { raise('cant-change', 'Check-ins', row, g.title, `Week ${w} already has a check-in. Check in again, or correct it.`); continue; }
     const reason = (p.reason ?? '').trim();
-    if (p.mode === 'correct' && reason.length < MIN_CORRECT_REASON) { raise('required-empty', 'Check-ins', row, g.title, `Say why, in a sentence, so anyone reading week ${w} later knows.`); continue; }
+    if (p.mode === 'correct' && !correctReasonOk(reason)) { raise('required-empty', 'Check-ins', row, g.title, correctReasonAsk(w)); continue; }
     const ctx = [...own.filter((c) => c.week !== w), ...(imported.get(g.id) ?? [])];
     judge({ g, w, row, existing: p.mode === 'correct' ? newest : null, ctx, prev: checkInsFor(g, ctx).filter((c) => c.week < w).pop() ?? null, draft: p.draft, post: p, again: p.mode === 'again' && !!newest, reason });
   }
@@ -1652,7 +1677,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     const requestsBefore = asksOf(s);
     const summary: Change = {
       id: sumId, at: now, actorId: actor.id, goalId: null, entity: 'workspace', entityId: importId, action: 'imported', importId,
-      summary: `${via === 'spreadsheet' ? 'Loaded a spreadsheet' : via === 'mcp' ? 'Changes via MCP' : via === 'table' ? 'Edited the data tables' : via === 'form' ? 'Corrected a check-in' : 'Bulk edit'}: ${describe(result).toLowerCase()}`, diffs: via === 'form' ? [] : [{ field: 'Via', from: '—', to: VIA_LABEL[via] }, ...fileDiffs(input.file, items.length, unchanged, leftOut.length)],
+      summary: `${via === 'spreadsheet' ? 'Loaded a spreadsheet' : via === 'mcp' ? 'Changes via MCP' : via === 'table' ? 'Edited the data tables' : via === 'form' ? 'Corrected a check-in' : 'Bulk edit'}: ${via === 'form' && items.length === 1 ? `${items[0]!.goal} · ${items[0]!.summary.replace(/^Corrected /, '')}` : describe(result).toLowerCase()}`, diffs: via === 'form' ? [] : [{ field: 'Via', from: '—', to: VIA_LABEL[via] }, ...fileDiffs(input.file, items.length, unchanged, leftOut.length)],
       undo: {
         goals: ordered.map((g) => ({ id: g.id, before: touched.get(g.id)?.before ?? null })),
         checkIns: ciOut.map((c) => ({ id: c.id, before: ciBefore.get(c.id) ?? null })),
@@ -1693,6 +1718,19 @@ export function postCheckIn(x: Pick<ActionContext, 'snapshot' | 'cycle' | 'week'
   const problem = set.issues.find((i) => i.level === 'must' || i.level === 'check');
   if (problem || !set.commit) throw new NotAllowed(problem?.message ?? 'That check-in can’t be saved yet.');
   return { commit: set.commit, checkIn: set.commit.checkIns!.find((c) => c.goalId === post.goalId)! };
+}
+
+/** Where a replaced week is a correction that needs a reason: Data's tables and MCP (a workbook's round trip is not). */
+const CORRECTS_VIA: Via[] = ['table', 'mcp'];
+
+/** A correction in a sentence: the number, old and new; or, when the number stays, what did change (review of #225,
+ *  medium 4: never "37 hours is now 37 hours"). */
+export function correctedSummary(w: number, before: CheckIn, after: CheckIn, g: Goal, diffs: { field: string }[]): string {
+  const from = headlineOf(before, g), to = headlineOf(after, g);
+  if (from !== to) return `Corrected week ${w}: ${from} is now ${to}`;
+  const named: Record<string, string> = { 'Status call': 'status call', Stages: 'stage weeks', Cause: 'cause', Note: 'note', 'Why greener': 'why greener', 'Path to green': 'path to green', Needs: 'ask for help', 'Proposed target': 'proposed target', 'Next step': 'next step' };
+  const what = [...new Set(diffs.map((d) => named[d.field]).filter((f): f is string => !!f))];
+  return `Corrected week ${w}: still ${to}${what.length ? `, with a new ${what.length > 1 ? what.slice(0, -1).join(', ') + ' and ' + what[what.length - 1] : what[0]}` : ''}`;
 }
 
 /** A check-in's number in a sentence ("1.9%", "2 of 4 stages done"). */

@@ -235,6 +235,22 @@ select.input { padding-right: 28px; }
 .level-block { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s3); border: 1px solid var(--line-strong); border-radius: 10px; }
 .level-block.level-fix { background: var(--off-wash); border-color: var(--off-line); }
 .level-block.level-alert { border-color: var(--off-mark); }
+/* A level block's answers and rows (src/ui/IssueGroup: the import's preview and set-up's, IM8). */
+.import-group { gap: var(--s2); }
+.import-answers { display: flex; flex-direction: column; gap: var(--s1); margin: 0; padding: 0; border: 0; min-width: 0; }
+.import-answer { display: flex; align-items: center; gap: var(--s2); min-height: 44px; cursor: pointer; }
+.import-answer input { width: 18px; height: 18px; margin: 0; flex: none; }
+.import-value { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+.import-value > .input { flex: 1 1 200px; min-width: 0; min-height: 44px; }
+.import-value > .pick { flex: 1 1 260px; min-width: 0; }
+.import-value .btn { min-height: 44px; }
+.import-show { min-height: 44px; display: inline-flex; align-items: center; }
+.import-rows { overflow-x: auto; max-width: 100%; }
+.import-rows-table { border-collapse: collapse; font-size: var(--t-sm); width: 100%; }
+.import-rows-table th, .import-rows-table td { padding: 4px var(--s2); border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; }
+.import-rows-table .num { text-align: right; font-variant-numeric: tabular-nums; width: 4em; }
+.import-answered { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s2) var(--s3); border: 1px solid var(--line); border-radius: 10px; font-size: var(--t-sm); }
+.import-answered .btn { min-height: 44px; flex: none; }
 .level-head { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--fg-2); }
 .level-head svg { width: 14px; height: 14px; flex: none; }
 .level-word { font-weight: 600; }

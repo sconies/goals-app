@@ -71,9 +71,9 @@ describe('metric library tools', () => {
     // A name close to another's is a Check (rule 1): nothing is saved until the person answers it.
     const asked = await call('save_metric', { name: 'Build time', unit: 'min', direction: 'lower', refresh: 'daily' });
     expect(asked.isError).toBe(false);
-    expect(asked.structuredContent).toMatchObject({ saved: false, checks: [{ field: 'name', answers: [{ answer: 'use:metric_cache-hit' }, { answer: 'keep' }] }] });
+    expect(asked.structuredContent).toMatchObject({ saved: false, checks: [{ field: 'name', answers: [{ answer: 'use:metric_cache-hit' }, { answer: 'keep:metric_cache-hit' }] }] });
     expect(metricsOf(data()).some((x) => x.name === 'Build time')).toBe(false);
-    const r = await call('save_metric', { name: 'Build time', unit: 'min', direction: 'lower', refresh: 'daily', answers: { name: 'keep' } });
+    const r = await call('save_metric', { name: 'Build time', unit: 'min', direction: 'lower', refresh: 'daily', answers: { name: 'keep:metric_cache-hit' } });
     expect(r.isError, r.content[0]!.text).toBe(false);
     expect(r.content[0]!.text).toMatch(/Still to say: what it means, where the number comes from, who owns that source\.$/);
     const m = metricsOf(data()).find((x) => x.name === 'Build time')!;
@@ -85,6 +85,20 @@ describe('metric library tools', () => {
     expect(again).toMatchObject({ isError: true });
     expect(again.content[0]!.text).toMatch(/already a metric called Build time/);
     expect((await call('save_metric', { name: 'No unit' })).content[0]!.text).toMatch(/Say its unit/);
+  });
+
+  it('refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)', async () => {
+    const other = await setup('oskar');
+    // A name one letter from another's would be asked; Oskar may not change Rhea's metric, so he is refused first.
+    expect((await other.call('save_metric', { id: 'Flaky test rate', name: 'Flaky tests rate' })).content[0]!.text).toMatch(/Only Rhea Kapoor or an admin/);
+    const bad = await other.call('save_metric', { name: 'Build time', unit: 'min', direction: 'lower', answers: { name: 5 } });
+    expect(bad.isError).toBe(true);
+    expect(bad.content[0]!.text).toMatch(/The answer for name is one of the words the question offered/);
+    expect(bad.content[0]!.text).not.toMatch(/is not a function/);
+    // A bare “keep”, not tied to the question it answers, saves nothing.
+    expect((await other.call('save_metric', { name: 'Build time', unit: 'min', direction: 'lower', answers: { name: 'keep' } })).structuredContent).toMatchObject({ saved: false });
+    // A name the same as another's but for an accent is a Must fix.
+    expect((await other.call('save_metric', { name: 'Fláky test rate', unit: '%', direction: 'lower' })).content[0]!.text).toMatch(/already a metric called Flaky test rate/);
   });
 
   it('changes a metric only for its owner or an admin', async () => {

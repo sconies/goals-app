@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countLine, editsBetween, formerNames, meaningChecks, metricChecks, nameChecks, stillToSay, unansweredChecks, unitChecks, type CheckReads } from './rulesDefine';
+import { countLine, editsBetween, formerNames, meaningChecks, metricChecks, nameChecks, stillToSay, unansweredChecks, unitChecks, type CheckReads, answersFrom } from './rulesDefine';
 
 const full = { meaning: 'Hours from commit to production.', source: 'DORA dashboard', sourceOwner: 'SRE', refresh: 'daily' as const };
 
@@ -87,7 +87,7 @@ describe('metricChecks', () => {
     const cs = metricChecks(typed, null, r);
     expect(cs.map((c) => c.field)).toEqual(['name', 'meaning']);
     expect(cs[0]!.words).toBe('This is one letter from “Deploy success rate” (%, higher is better, owned by Rhea Kapoor, 2 goals).');
-    expect(cs[0]!.answers.map((a) => a.choice)).toEqual(['use:m1', 'keep']);
+    expect(cs[0]!.answers.map((a) => a.choice)).toEqual(['use:m1', 'keep:m1']);
   });
   it('asks about a unit spelt another way, and says no owner who has left', () => {
     const cs = metricChecks({ id: 'new', name: 'Queue waits', unit: 'mins', meaning: '' }, null, r);
@@ -98,8 +98,18 @@ describe('metricChecks', () => {
   });
   it('an answer covers its check only when it is one of its choices', () => {
     const cs = metricChecks(typed, null, r);
-    expect(unansweredChecks(cs, { name: 'keep', meaning: 'nope' }).map((c) => c.field)).toEqual(['meaning']);
+    expect(unansweredChecks(cs, { name: 'keep:m1', meaning: 'nope' }).map((c) => c.field)).toEqual(['meaning']);
+    // An answer is tied to the question it was given to: a bare “keep”, or one about another metric, covers nothing.
+    expect(unansweredChecks(cs, { name: 'keep', meaning: 'as-written' }).map((c) => c.field)).toEqual(['name']);
+    expect(unansweredChecks(cs, { name: 'keep:m2', meaning: 'as-written' }).map((c) => c.field)).toEqual(['name']);
     expect(unansweredChecks(cs, { name: 'use:m1', meaning: 'as-written' })).toEqual([]);
+  });
+  it('takes answers as words for name, unit and meaning only, and says so plainly otherwise', () => {
+    expect(answersFrom({ name: 'keep:m1', unit: 'use' })).toEqual({ name: 'keep:m1', unit: 'use' });
+    expect(answersFrom(undefined)).toEqual({});
+    expect(() => answersFrom({ name: 5 })).toThrow('The answer for name is one of the words the question offered');
+    expect(() => answersFrom({ colour: 'keep' })).toThrow('There’s no question about “colour”');
+    expect(() => answersFrom('keep')).toThrow('Answers are words for name, unit or meaning');
   });
   it('says the count line', () => {
     expect(countLine(1, 2)).toBe('1 to fix, 2 to check.');

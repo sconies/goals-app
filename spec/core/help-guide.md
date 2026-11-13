@@ -107,7 +107,7 @@ A projection only goes where the number can: a count of things (deploys, runbook
 
 `set-up`. A workspace holds one organisation’s people, teams, goals and history. Setting one up takes about three minutes.
 
-Routes: `/workspace/new`, `/ready`. Screens: `Onboarding`, `Start`. Requirements: `ONBOARDING`, `IDENTITY`, `WORKSPACES`, `CALENDAR-WEEKS`.
+Routes: `/workspace/new`, `/ready`. Screens: `Onboarding`, `Start`. Requirements: `ONBOARDING`, `IDENTITY`, `WORKSPACES`, `CALENDAR-WEEKS`, `SETUP-UPLOAD`.
 
 #### What it’s for
 
@@ -120,9 +120,9 @@ Start your own workspace from a template, your own spreadsheet, or nothing at al
 - Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.
 - Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.
 - A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.
-- Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and a problem is shown on its row before anything is created. A name or word one letter out (an owner typed “Ben Ortz”, a Type of “Numbr”) is a problem to fix here too: set-up doesn’t ask “Did you mean…?” yet, and never leaves a goal out without saying so.
+- Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and Check shows the same preview Import does before anything is created: how many goals and people the file adds (a goal still to fix counted too), what must be fixed, and its questions, each with its answers. A goal owned by someone nobody typed offers “Add {name}” (they join your people, with the row’s team) or “Give it to someone here”. Create workspace waits until every question is answered.
 - Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.
-- A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, has its stages counted from this week, as a template’s are, so it isn’t late on day one. Check says which goals moved; Keep the weeks as typed puts them back.
+- A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, is asked about on Check, already answered “Count them from this week” as a template’s are, so it isn’t late on day one. Change, then Keep the weeks as typed, puts them back.
 - Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.
 - The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.
 - Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.
@@ -220,7 +220,7 @@ Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`.
 #### Leaving a form
 
 - A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.
-- “Close without saving” (setting up or changing a review, wrapping up a goal) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it.
+- “Close without saving” (setting up or changing a review, wrapping up a goal, starting an import) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it.
 
 #### An address that leads nowhere
 
@@ -264,14 +264,15 @@ Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, qua
 
 - Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status. A second check-in in a week is compared with last week, not with your first one, and so is the goal’s “vs last week”.
 - Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.
-- Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back. An admin can also correct a past check-in in Data.
+- Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back, and History no longer says it was corrected. The form starts from what the check-in said, so you change only what was wrong. A cycle that has ended can’t be corrected here.
+- Changing a week’s check-in in Data’s tables, or through the AI assistant, corrects it the same way: it asks why first, and History says “Corrected week 45” with your reason. An admin can correct a past check-in in Data.
 - Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.
 - Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.
 - The first check-in sets where a goal stands today. If the goal was set up in the last four weeks and the number isn’t where its plan starts, you’re asked: start the plan from this number (same target, due week and shape; no reason needed, with Undo), or keep the plan and say why.
 
 #### Who can
 
-Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet. Anyone can ask the owner for an update from the goal’s page.
+Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. Anyone can ask the owner for an update from the goal’s page.
 
 ### Typing all your numbers in one table
 
@@ -663,6 +664,8 @@ Putting a goal in front of its would-be owner, or a leader, without committing t
 - Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.
 - Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.
 - Change it: the same page as any goal, with no reason ever asked. Withdraw it: it goes to Recently removed for 30 days, with Undo.
+- Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.
+- On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks.
 - Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. Find lists them with the word Proposed.
 - A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active. A goal with check-ins can’t go back to proposed: stop it instead.
 
@@ -1098,7 +1101,7 @@ Routes: `/metrics/new`, `/metrics/:metricId/edit`. Requirements: `METRIC-DEFINED
 
 #### What it needs
 
-- In Metrics, choose Add a metric. Three things are needed: the Name (3 to 120 characters, used by one metric whatever the case), the Unit as it follows a number (hours, %, USD, deploys), and Which way is better. Decimal places is optional: 0 if left.
+- In Metrics, choose Add a metric. Three things are needed: the Name (3 to 120 characters, used by one metric whatever the case or accents), the Unit as it follows a number (hours, %, USD, deploys), and Which way is better. Decimal places is optional: 0 if left.
 - Five more make it fully defined, and can be said later: what it means and how it’s calculated (what is counted, out of what or over what period, and what is left out); where the number comes from; who owns that source; how often it refreshes; and an owner here who answers for what it means.
 - A metric’s page says “Fully defined” under its title, or what is still to say: “Still to say: where the number comes from, how often it refreshes.” Its owner and admins can open the form at each item from there. It is never a score, a percentage or a bar, and nothing is sorted by it.
 
@@ -1108,6 +1111,7 @@ Routes: `/metrics/new`, `/metrics/:metricId/edit`. Requirements: `METRIC-DEFINED
 - A Check is a question to answer once. There are three: a name one letter or one word from another metric’s, or one a metric used to have (“This is one letter from “Deploy success rate” …”, with Use that one or Mine is different: keep it); a unit spelt differently from one in use (“Other metrics here use “min”.”); and a percentage whose meaning doesn’t say out of what (with It’s right as written).
 - The foot of the form counts them (“1 to fix, 2 to check.”) above the completeness line. Saving with a Check unanswered takes you to it. An answered Check closes to one line with Change; changing the field asks again.
 - Use that one opens the metric already in the library; what you typed is kept as a draft.
+- Adding a metric from a goal’s Measured by asks the same Checks, under the new metric’s fields, before Add this metric saves it.
 
 #### Changing or removing one
 
@@ -1115,7 +1119,7 @@ Routes: `/metrics/new`, `/metrics/:metricId/edit`. Requirements: `METRIC-DEFINED
 - Changing the unit or which way is better of a metric goals use asks first, here and through the AI assistant: their numbers and plans don’t change, and the goals that now differ say so under “Measured by” on their page.
 - Workspace → About tells admins how many metrics have no owner (someone who left owned them), with See them.
 - On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back.
-- An AI assistant asks the same questions: save_metric returns them and saves nothing until it calls again with your answers.
+- An AI assistant asks the same questions: save_metric returns them and saves nothing until it calls again with your answers to those questions. Someone who may not change a metric is told so before being asked anything.
 
 ### Measured by: choosing a goal’s metric
 

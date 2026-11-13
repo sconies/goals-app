@@ -1,5 +1,6 @@
 // @vitest-environment node
 /* One way to save a check-in (check-in spec, rule 13; CK1) and what a new number is compared with (rule 5). */
+import { cycleDates } from './cycle';
 import { applyCommit } from '../data/store';
 import { buildPlatformOrg } from '../data/platformOrg';
 import { NotAllowed } from './actions';
@@ -58,12 +59,17 @@ describe('one way to save a check-in (rule 13)', () => {
     expect(() => postCheckIn(x(), post({ week: pw, mode: 'correct', reason: 'The export was a day late', draft }))).toThrow(/Nothing is different from what week/);
     const changed = { ...draft, value: String(past.value! + 1) };
     // No reason: refused, in the spec's words.
-    expect(() => postCheckIn(x(), post({ week: pw, mode: 'correct', reason: 'oops', draft: changed }))).toThrow(`Say why, in a sentence, so anyone reading week ${pw} later knows.`);
+    expect(() => postCheckIn(x(), post({ week: pw, mode: 'correct', reason: 'oops', draft: changed }))).toThrow(`Say why, in a sentence of at least 10 characters (at most 500), so anyone reading week ${pw} later knows.`);
     const ok = postCheckIn(x(), post({ week: pw, mode: 'correct', reason: 'The export was a day late', draft: changed }));
     expect(ok.checkIn).toMatchObject({ id: past.id, postedAt: past.postedAt, value: past.value! + 1 });
     const entry = ok.commit.changes.find((c) => c.entity === 'check-in')!;
     expect(entry.summary).toBe(`Corrected week ${pw}: ${fmt(past.value!, goal)} is now ${fmt(past.value! + 1, goal)}`);
     expect(entry.diffs[0]).toEqual({ field: 'Why corrected', from: '—', to: 'The export was a day late' });
+    // A reason is words: ten full stops, or a pasted document, is not one (review of #225, lows).
+    for (const bad of ['..........', 'x'.repeat(501)]) expect(() => postCheckIn(x(), post({ week: pw, mode: 'correct', reason: bad, draft: changed }))).toThrow(/Say why, in a sentence of at least 10/);
+    // A cycle that has ended can't be corrected from the form (check-in design 2.7).
+    const late = { ...x(), now: new Date(Date.parse(cycleDates(cycle).wrapUpCloses) + 86_400_000 * 2).toISOString() };
+    expect(() => postCheckIn(late, post({ week: pw, mode: 'correct', reason: 'The export was a day late', draft: changed }))).toThrow(`${cycle.name} has ended, so its check-ins can’t be corrected here.`);
     expect(entry.importId).toBeTruthy();
     expect(ok.commit.changes.find((c) => c.action === 'imported')!.undo!.checkIns).toEqual([{ id: past.id, before: past }]);
   });
@@ -95,7 +101,15 @@ describe('one way to save a check-in (rule 13)', () => {
     for (const via of ['bulk', 'mcp', 'form'] as const) expect(refused(as('amara', via)), via).toBe(true);
     expect(refused(as('rhea', 'table')), 'a member in Data').toBe(true);
     // The two exceptions (Lane, 12 Nov), named in mayPostCheckIn: an admin's import and setting up, and an admin's correction in Data.
-    for (const via of ADMIN_CHECK_IN_DOORS) expect(refused(as('amara', via)), via).toBe(false);
+    // Each only for what it is (Lane, 13 Nov; backlog AD): this week's new check-in is neither, so one pasted row from an
+    // admin is refused for someone else's goal, at every door, with what that door is for.
+    for (const via of ADMIN_CHECK_IN_DOORS) expect(refused(as('amara', via)), via).toBe(true);
+    expect(as('amara', 'spreadsheet').issues.find((i) => i.kind === 'not-allowed')!.message).toMatch(/A workbook brings in past weeks, not this week’s new check-in\.$/);
+    expect(as('amara', 'table').issues.find((i) => i.kind === 'not-allowed')!.message).toMatch(/Data’s tables correct a check-in; they don’t add one\.$/);
+    // A past week from a workbook is brought in; Data's tables correct a check-in that exists, and add none.
+    const pastWeek = (via: Via) => planChanges({ tables: { checkIns: [{ ...row, week: String(week - 1) }] }, snapshot: { ...fresh, checkIns: fresh.checkIns.filter((c) => !(c.goalId === goal.id && c.week === week - 1)) }, cycle, week, actor: person('amara'), now: today.toISOString(), newId: (p) => `${p}_d${++n}`, via, reason: 'Loaded' });
+    for (const via of ['spreadsheet', 'setup'] as const) expect(refused(pastWeek(via)), via).toBe(false);
+    expect(refused(pastWeek('table')), 'Data adds a past week').toBe(true);
     expect(refused(as('mateo', 'mcp')), 'the owner').toBe(false);
   });
 
@@ -104,7 +118,7 @@ describe('one way to save a check-in (rule 13)', () => {
     const label = { spreadsheet: 'Spreadsheet', setup: 'Set-up', table: 'Data tables' } as const;
     for (const via of ADMIN_CHECK_IN_DOORS) {
       const row = { __row: '2', id: last.id, 'goal id': goal.id, week: String(last.week), value: String((last.value ?? 0) + 1), why: 'Corrected from the source data' };
-      const cs = planChanges({ tables: { checkIns: [row] }, snapshot: s, cycle, week, actor: person('amara'), now: today.toISOString(), newId: (p) => `${p}_w${++n}`, via, reason: 'Corrected' });
+      const cs = planChanges({ tables: { checkIns: [row] }, snapshot: s, cycle, week, actor: person('amara'), now: today.toISOString(), newId: (p) => `${p}_w${++n}`, via, reason: 'Corrected from the source data.' });
       expect(cs.commit!.checkIns!.map((c) => c.authorId), via).toEqual(['amara']);
       const changes = cs.commit!.changes!;
       expect(changes.length, via).toBeGreaterThan(0);
