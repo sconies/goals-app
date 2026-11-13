@@ -376,7 +376,7 @@ A goal can be proposed before anyone is held to it: it is visible and can be dis
 - **Copy:** build it as Faro does.
 - **Rule:** [Proposed goals](rules/proposed.md)
 - **Help:** “Proposed goals” (`goal-proposed`), screens `ProposedGoal`, `ProposedList`
-- **Journeys and checks:** U134, U148, U149, U150
+- **Journeys and checks:** U134, U148, U149, U150, U163
 
 ### NEW-GOAL-TRUTH
 
@@ -404,6 +404,7 @@ A goal can go in with a baseline and nothing else yet (GB). While a number goal 
 - **Copy:** build it as Faro does.
 - **Rule:** [Proposed goals](rules/proposed.md)
 - **Help:** “Proposed goals” (`goal-proposed`), screens `ProposedGoal`, `ProposedList`
+- **Journeys and checks:** U163
 
 ### GOAL-PAGE
 

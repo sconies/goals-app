@@ -2013,12 +2013,13 @@ function proposalAsks(goals, viewer, today, seen, nameOf = (id) => id, reviewOf 
 	}
 	return out;
 }
-var PROPOSED, isProposed, judged, withProposed, withdrawnSummary, weeksProposed, proposedInWords;
+var PROPOSED, isProposed, judged, withProposed, baselineOnly, withdrawnSummary, weeksProposed, proposedInWords;
 var init_proposed = __esmMin((() => {
 	PROPOSED = "Proposed";
 	isProposed = (g) => !!g.proposedAt && !g.removedAt && !g.stoppedAt;
 	judged = (goals) => goals.filter((g) => !g.stoppedAt && !g.proposedAt);
 	withProposed = (s) => s.proposed?.length ? [...s.goals, ...s.proposed] : s.goals;
+	baselineOnly = (d) => d.kind === "metric" && !!d.start.trim() && !d.target.trim();
 	withdrawnSummary = (title) => `Withdrew the proposal “${title}”`;
 	weeksProposed = (g, today) => g.proposedAt ? Math.floor((today.getTime() - new Date(g.proposedAt).getTime()) / 6048e5) : 0;
 	proposedInWords = (g, reviewOf) => {
@@ -2455,7 +2456,7 @@ function staysText(g) {
 	return bound === "between" ? `between ${fmt(lower, g)} and ${fmt(limit, g)}` : `${bound === "atMost" ? "at most" : "at least"} ${fmt(limit, g)}`;
 }
 function targetText(g) {
-	if (g.kind === "metric") return fmt(g.plan.target, g);
+	if (g.kind === "metric") return g.targetUnset ? "Target not set" : fmt(g.plan.target, g);
 	if (g.kind === "range") return g.range.bound === "between" ? `${fmt(g.range.lower, g)}–${fmt(g.range.limit, g)}` : (g.range.bound === "atMost" ? "≤ " : "≥ ") + fmt(g.range.limit, g);
 	const last = g.stages[g.stages.length - 1];
 	return last ? "All by week " + last.dueWeek : "No stages";
@@ -3608,7 +3609,7 @@ function draftOf(g) {
 		unit: g.unit,
 		decimals: String(g.decimals),
 		start: String(g.plan.start),
-		target: String(g.plan.target),
+		target: g.targetUnset ? "" : String(g.plan.target),
 		shape: g.plan.shape,
 		endWeek: g.plan.endWeek ? String(g.plan.endWeek) : "",
 		points: Object.fromEntries((g.plan.points ?? []).map((p) => [String(p.week), String(p.value)])),
@@ -3719,9 +3720,10 @@ function buildGoal(d, cycle, base, existing, checkInsStarted, week) {
 	if (d.kind === "metric") {
 		const from = d.fromWeek != null && d.fromWeek.trim() !== "" ? num(d.fromWeek) ? { fromWeek: num(d.fromWeek) } : {} : existing?.kind === "metric" ? existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {} : week > 0 ? { fromWeek: week } : {};
 		const end = parseNumber(d.endWeek) ?? defaultTo(cycle, from.fromWeek ?? 0);
+		const unset = !d.target.trim();
 		const plan = withPoints({
 			start: num(d.start),
-			target: num(d.target),
+			target: unset ? num(d.start) : num(d.target),
 			shape: d.shape,
 			...from,
 			...end !== cycle.weeks ? { endWeek: end } : {}
@@ -3738,7 +3740,8 @@ function buildGoal(d, cycle, base, existing, checkInsStarted, week) {
 			decimals: decimalsFor(d) ?? 0,
 			plan,
 			...history,
-			...baseline ? { baseline } : {}
+			...baseline ? { baseline } : {},
+			...unset ? { targetUnset: true } : {}
 		};
 	}
 	if (d.kind === "range") return {
@@ -4845,7 +4848,7 @@ function goalFields(g, l) {
 	}
 	if (g.kind === "metric") {
 		f.Start = fmt(g.plan.start, g);
-		f.Target = fmt(g.plan.target, g);
+		f.Target = g.targetUnset ? "Not set" : fmt(g.plan.target, g);
 		f["Plan shape"] = shapeName[g.plan.shape];
 		f["Plan from week"] = g.plan.fromWeek ? `Week ${g.plan.fromWeek}` : "—";
 		f["Target due"] = g.plan.endWeek ? `Week ${g.plan.endWeek}` : "—";
@@ -5408,7 +5411,10 @@ var init_columns = __esmMin((() => {
 				const b = metricOf$2(r.g)?.baseline;
 				return b ? FIRMNESS_WORDS.word[b.provisional ? "provisional" : "firm"] : null;
 			}),
-			e("Target", "Number goals: where the plan ends, by its due week.", (r) => metricOf$2(r.g)?.plan.target ?? null, "Changes the plan; needs a reason once check-ins have started"),
+			e("Target", "Number goals: where the plan ends, by its due week.", (r) => {
+				const m = metricOf$2(r.g);
+				return m && !m.targetUnset ? m.plan.target : null;
+			}, "Changes the plan; needs a reason once check-ins have started"),
 			e("Plan", `Number goals: the plan’s shape, ${oneOf(Object.values(SHAPE_WORDS.word))}.`, (r) => {
 				const g = metricOf$2(r.g);
 				return g ? SHAPE_WORDS.word[g.plan.shape] : null;
@@ -8581,7 +8587,8 @@ function lateShapeOf(d, start, target, ctx) {
 */
 function proposedMustFix(d, ctx) {
 	const all = goalMustFix(d, ctx);
-	return measureEmpty(d) ? all.filter((f) => !MEASURE_REQUIRED.has(f.id)) : all;
+	if (measureEmpty(d)) return all.filter((f) => !MEASURE_REQUIRED.has(f.id));
+	return baselineOnly(d) ? all.filter((f) => f.id !== "target-empty") : all;
 }
 var GOAL_FIELDS$1, withUnit, CHECK_IDS, capital, MEASURE_REQUIRED, unsaidDraft;
 var init_goalEntry = __esmMin((() => {
@@ -13445,7 +13452,7 @@ function goalsMeasuredBy(s, goals, metricId) {
 /** A goal's target in its metric: a metric goal's plan target, or a range goal's limit (between two numbers: the upper,
 with the lower beside it). Milestones have none. */
 function goalTarget(g) {
-	if (g.kind === "metric") return {
+	if (g.kind === "metric") return g.targetUnset ? null : {
 		value: g.plan.target,
 		kind: "target"
 	};
@@ -16578,14 +16585,14 @@ function toJson$1(x) {
 					decimals: g.decimals,
 					plan: {
 						start: g.plan.start,
-						target: g.plan.target,
+						target: g.targetUnset ? null : g.plan.target,
 						shape: g.plan.shape,
 						from: weekCode(x.cycle, g.plan.fromWeek ?? 0),
 						to: weekCode(x.cycle, planEnd(g.plan, x.cycle.weeks)),
 						fromWeek: g.plan.fromWeek ?? 0,
 						dueWeek: planEnd(g.plan, x.cycle.weeks),
 						setByHand: !!g.plan.points?.length,
-						byWeek: planCheckpoints(g.plan.fromWeek ?? 0, planEnd(g.plan, x.cycle.weeks)).map((w) => ({
+						byWeek: g.targetUnset ? [] : planCheckpoints(g.plan.fromWeek ?? 0, planEnd(g.plan, x.cycle.weeks)).map((w) => ({
 							week: w,
 							value: Number(planAt(g.plan, w, x.cycle.weeks).toFixed(g.decimals))
 						}))
@@ -19777,6 +19784,7 @@ var CORE_ARTICLES = [
 					"Propose one from New goal: on Check, answer “Is it under way?” with “Not yet: propose it”, then Propose goal. It gets a key and a page at once. How it’s measured may wait.",
 					"Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.",
 					"Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.",
+					"A number goal can be proposed with its Baseline and no Target yet, when the number is known but nobody has agreed where it should go. It says “Target not set” (in lists: “0.42 USD now, target not set”), has no status and nothing due, and needs a target before it can be made active: Set the target on its page opens Change it at the plan. Leaving out the Baseline and giving only a Target isn’t enough: the baseline is what such a goal is.",
 					"Change it: the same page as any goal, with no reason ever asked, and its type can still change. Withdraw it: it goes to Recently removed for 30 days, with Undo.",
 					"Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.",
 					"In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet. Only people in the review, or an admin, can propose one there.",
@@ -19793,10 +19801,14 @@ var CORE_ARTICLES = [
 		],
 		routes: ["/goals?state=proposed"],
 		screens: ["ProposedGoal", "ProposedList"],
-		reqs: ["GOAL-PROPOSED"],
+		reqs: ["GOAL-PROPOSED", "GOAL-NO-TARGET"],
 		keywords: [
 			"proposed",
 			"propose",
+			"target not set",
+			"no target",
+			"baseline only",
+			"register",
 			"proposal",
 			"not yet",
 			"make it active",
@@ -21102,6 +21114,18 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "target-not-set",
+		date: "2026-11-13",
+		title: "A goal can go in with its baseline and no target yet",
+		points: [
+			"When a number is known but nobody has agreed a target, propose the goal with its Baseline and leave Target empty.",
+			"It says “Target not set”, has no status and nothing due, and counts in nothing until it is made active.",
+			"Set the target on its page when one is agreed; it can be made active once it has one.",
+			"The Goals sheet and the AI tools take a proposed goal with a Start and no Target too."
+		],
+		articles: ["goal-proposed"]
+	},
 	{
 		id: "baseline-of-its-own",
 		date: "2026-11-13",
@@ -27326,7 +27350,7 @@ var GOAL_FIELDS = {
 	start: num$1("Move-a-number goals: where it starts."),
 	baseline_period: str("Move-a-number goals: the period the baseline (start) covers, when it is a figure you already have, e.g. \"June to September 2026\" (at most 60 characters). Given, start is shown as the goal’s number, marked as the baseline, until its first check-in. \"none\" removes it."),
 	baseline_is: str("Move-a-number goals with a baseline period: provisional (it may still be firmed up: changing start then isn’t a plan change and needs no reason) or firm.", { enum: ["provisional", "firm"] }),
-	target: num$1("Move-a-number goals: the target."),
+	target: num$1("Move-a-number goals: the target. A proposed goal may leave it out and keep only its start (a baseline and nothing else yet): it says \"Target not set\", and needs a target before it is made active."),
 	plan_shape: str("Move-a-number goals: how the plan moves from start to target.", { enum: [
 		"straight",
 		"back-loaded",
@@ -50460,7 +50484,7 @@ function goalToRows(ws, g) {
 			unit: g.kind === "milestone" ? null : g.unit,
 			decimals: g.kind === "milestone" ? null : g.decimals,
 			plan_start: g.kind === "metric" ? g.plan.start : null,
-			plan_target: g.kind === "metric" ? g.plan.target : null,
+			plan_target: g.kind === "metric" && !g.targetUnset ? g.plan.target : null,
 			plan_shape: g.kind === "metric" ? g.plan.shape : null,
 			plan_from_week: g.kind === "metric" ? g.plan.fromWeek ?? 0 : 0,
 			plan_end_week: g.kind === "metric" ? g.plan.endWeek ?? null : null,
@@ -50547,7 +50571,7 @@ function goalFromRows(r, stageRows) {
 			decimals: Number(r.decimals ?? 0),
 			plan: {
 				start: num(r.plan_start),
-				target: num(r.plan_target),
+				target: r.plan_target == null ? num(r.plan_start) : num(r.plan_target),
 				shape: r.plan_shape ?? "straight",
 				...r.plan_from_week ? { fromWeek: Number(r.plan_from_week) } : {},
 				...r.plan_end_week ? { endWeek: Number(r.plan_end_week) } : {},
@@ -50562,6 +50586,7 @@ function goalFromRows(r, stageRows) {
 				untilWeek: Number(v.untilWeek),
 				plan: planOf(v.plan)
 			})) } : {},
+			...r.plan_target == null ? { targetUnset: true } : {},
 			...r.baseline_value != null ? { baseline: {
 				value: Number(r.baseline_value),
 				period: r.baseline_period ?? "",

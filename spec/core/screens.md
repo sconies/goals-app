@@ -431,6 +431,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Start a new one” | button | `restored` and `!asking` |
 | “Discard it” | button | `asking` |
 | “Keep it” | button | `asking` |
+| “No target agreed yet? Propose it with just the baseline” | button | `step === 2` and `d.kind === 'metric'` and `!proposing && baselineOnly(d)` |
 | “Baseline known for a period?” | button | `step === 2` and `d.kind === 'metric'` and `!(baselineOpen \|\| d.baselinePeriod)` |
 | “At most” | button | `step === 2` and `d.kind === 'range'` |
 | “At least” | button | `step === 2` and `d.kind === 'range'` |
