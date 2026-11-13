@@ -170,6 +170,9 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #376 GE10: a goal proposed in a review; Propose in the action sheet on a phone | 2 | 0 | 5 | 4 |
 | #377 GE10: a proposed goal's type can still change | 2 | 0 | 0 | 0 |
 | #402 F2: a switched-off module adds no sheet to any export | 3 | 0 | 0 | 0 |
+| #403 AX2: every change through the dispatcher | 4 | 0 | 0 | 1 |
+| #378 GE10: Stopped in the State filter | 2 | 0 | 0 | 0 |
+| #392 U109: the week picker moves one week per key | 2 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -1729,3 +1732,15 @@ Read by me; no finding.
 **#402 (track 3).** Every export door (the Export sheet, Import's export, the "Nothing would change" comparison and the MCP export tool) takes `sheetsOn(ws)`, so a module that is off adds no sheet, and the tool says the sheet's module is off. Test added.
 
 #401 is a handover page.
+
+### #403, #378 and #392 (found by the 16:12 UTC check, 13 Nov)
+
+Read by me; no high or medium.
+
+**#403 AX2 (track 4).** The last three saves that went round the dispatcher now go through it: a goal saved with what measures it (`saveGoal` with `also`, one commit, `src/app/actions.ts:95-102`), a removal's Undo (`undoRemoval`, which now also asks that it is whoever removed it or an admin, `src/domain/removal.ts:849-851`) and the bulk apply, which sends the previewed plan again with `apply` so what is saved is worked out by the rule at save time and not trusted from the screen. The parity test now reads the dispatcher's table too. Low (read): a large file checked in the worker is now planned once more on the main thread when Save is pressed (`applyChanges` → `run('planChanges', …apply)`), where before the worker's commit was saved as it stood; for a file near the limit the page may hold still while it saves.
+
+**#378 (track 2).** State: Stopped lists this cycle's stopped goals in the chosen scope, with a life mark and the word, who stopped each, when and why; `find_goals` takes `state: stopped` with the same scope rule. Stopped goals stay out of every count.
+
+**#392 (track 2).** The week picker's keys read the highlighted week and shown year from refs, so keys pressed faster than a render each move one week. Test added.
+
+#405 (settings and CLAUDE.md) and #407 (a handover page) are not code. #410 and #371 are with first-pass reviewers.
