@@ -289,6 +289,10 @@ export function sheetCounts(cs: Pick<ChangeSet, 'items' | 'issues' | 'unchangedB
 
 /** The engine, in one go: `planChangesInChunks` run to the end. Results are the same either way. */
 
+/** The cells a person chosen for another cell of the row stands for (#336 review): ones that name no one here, someone one
+    letter out, or several people. A cell naming someone else, or an ID or email that can't be read, is still Must fix. */
+const COVERED_BY_PICK: IssueKind[] = ['unknown-ref', 'near-ref', 'ambiguous-ref'];
+
 export function planChanges(input: ChangeInput): ChangeSet {
   const run = planChangesInChunks(input);
   for (;;) { const step = run.next(); if (step.done) return step.value; }
@@ -473,11 +477,22 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     const changed = given.filter(([k, v]) => !says(k, v));
     if (!changed.length) return {};
     // An email or ID is exact: a name beside it that's theirs agrees with it, even when others share that name.
-    // Each cell read once (rule 10). A person chosen in answer to one cell ("Give it to someone here") is the row's
-    // person, whatever the others say.
+    // Each cell read once (rule 10). A person chosen in answer to one cell ("Give it to someone here") stands for the
+    // row's other person cells that name no one here (or someone one letter out, or several), so one owner is asked once.
+    // It never overrides a cell that names someone else, or an ID or email that can't be read: those stay Must fix
+    // (#336 review).
     const read = changed.map(([k, v]) => ({ k, v, ...personFrom(sheet, header(k), k, v) }));
+    const conflict = (said: typeof read) => { const order = ['name', 'email', 'id']; const sorted = [...said].sort((x, y) => order.indexOf(x.k) - order.indexOf(y.k)); return { kind: 'conflicting-refs' as IssueKind, problem: `${[...new Set(sorted.map((x) => header(x.k)))].join(' and ')} name different people (${sorted.map((x) => x.p!.name).join(' and ')}). Change just one of them.`, extra: { column: what } }; };
     const picked = read.find((x) => x.chosen && x.p);
-    if (picked) return { person: picked.p! };
+    if (picked) {
+      const rest = read.filter((x) => x !== picked);
+      if (rest.some((x) => x.left)) return { left: true };
+      const unread = rest.find((x) => x.problem && !COVERED_BY_PICK.includes(x.kind!));
+      if (unread) return { kind: unread.kind, problem: unread.problem, extra: unread.extra };
+      const other = rest.filter((x) => x.p && x.p.id !== picked.p!.id && !(x.k === 'name' && fold(x.v) === fold(picked.p!.name)));
+      if (other.length) return conflict([picked, ...other]);
+      return { person: picked.p! };
+    }
     const exact = read.find((x) => x.k !== 'name' && x.p)?.p;
     const found = exact ? read.filter((x) => x.k !== 'name' || fold(x.v) !== fold(exact.name)) : read;
     if (found.some((x) => x.left)) return { left: true };
@@ -487,7 +502,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     if (bad && create && nameCell && !nameCell.includes('@') && bad.extra?.answers?.[0]?.choice === 'add') return { kind: bad.kind, problem: bad.problem, extra: { ...bad.extra, answers: [{ ...bad.extra.answers[0], label: `Add ${nameCell}` }, ...bad.extra.answers.slice(1)] } };
     if (bad) return { kind: bad.kind, problem: bad.problem, extra: bad.extra };
     const ids = new Set(found.map((x) => x.p!.id));
-    if (ids.size > 1) { const order = ['name', 'email', 'id']; const said = [...found].sort((x, y) => order.indexOf(x.k) - order.indexOf(y.k)); return { kind: 'conflicting-refs', problem: `${[...new Set(said.map((x) => header(x.k)))].join(' and ')} name different people (${said.map((x) => x.p!.name).join(' and ')}). Change just one of them.`, extra: { column: what } }; }
+    if (ids.size > 1) return conflict(found);
     const byName = found.every((x) => x.byName) ? found[0]!.v : undefined;
     return { person: found[0]!.p!, byName };
   };
@@ -512,9 +527,11 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
   const teamFrom = (sheet: Sheet, row: number, name: string, v: string): Team | undefined => {
     const tm = teamNamed(v);
     if (tm) return tm;
-    if (create) return addTeam(v, row);
     const m = near(v, [...teams.values()].map((t) => t.name));
     const nearOne = 'near' in m ? [...teams.values()].find((t) => t.name === m.near) : undefined;
+    // Set-up adds every team its file names, but a Goals row's team one letter from one already named ("Depot" beside
+    // "Depots") is asked first, as an owner is (#336 review). The People sheet's are asked on set-up's people step.
+    if (create && (sheet === 'People' || !nearOne)) return addTeam(v, row);
     const kind: IssueKind = nearOne ? 'near-ref' : 'unknown-ref';
     const a = answerOf(kind, sheet, 'Team', v);
     if (a?.choice === 'leave') { leave(sheet, row); return undefined; }

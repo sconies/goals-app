@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'setup-preview-fixes',
+    date: '2026-11-13',
+    title: 'Setting up from a spreadsheet asks about near-miss teams and keeps your place',
+    points: [
+      'A goal’s team one letter from another (“Depot” beside “Depots”) is asked about at set-up, so a typo doesn’t make a second team.',
+      'A check-in’s “Choose a goal” at set-up finds your spreadsheet’s goals, and after each answer the next question takes the focus, on set-up and on Import.',
+      'A person you give a goal to never overrides another owner cell that names someone else: that row is still Must fix.',
+      'People marked Example or Left on the People sheet aren’t added, and the preview counts every goal still to settle.',
+    ],
+    articles: ['set-up', 'import'],
+  },
+  {
     id: 'older-changes-on-request',
     date: '2026-11-13',
     title: 'Faro opens with the last year of changes, and fetches older ones when asked',

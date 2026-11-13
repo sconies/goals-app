@@ -10144,7 +10144,6 @@ function namedHeaders(t, nearOk, whichOf) {
 	}
 	return out;
 }
-/** The engine, in one go: `planChangesInChunks` run to the end. Results are the same either way. */
 function planChanges(input) {
 	const run = planChangesInChunks(input);
 	for (;;) {
@@ -10443,8 +10442,33 @@ function* planChangesInChunks(input) {
 			v,
 			...personFrom(sheet, header(k), k, v)
 		}));
+		const conflict = (said) => {
+			const order = [
+				"name",
+				"email",
+				"id"
+			];
+			const sorted = [...said].sort((x, y) => order.indexOf(x.k) - order.indexOf(y.k));
+			return {
+				kind: "conflicting-refs",
+				problem: `${[...new Set(sorted.map((x) => header(x.k)))].join(" and ")} name different people (${sorted.map((x) => x.p.name).join(" and ")}). Change just one of them.`,
+				extra: { column: what }
+			};
+		};
 		const picked = read.find((x) => x.chosen && x.p);
-		if (picked) return { person: picked.p };
+		if (picked) {
+			const rest = read.filter((x) => x !== picked);
+			if (rest.some((x) => x.left)) return { left: true };
+			const unread = rest.find((x) => x.problem && !COVERED_BY_PICK.includes(x.kind));
+			if (unread) return {
+				kind: unread.kind,
+				problem: unread.problem,
+				extra: unread.extra
+			};
+			const other = rest.filter((x) => x.p && x.p.id !== picked.p.id && !(x.k === "name" && fold$1(x.v) === fold$1(picked.p.name)));
+			if (other.length) return conflict([picked, ...other]);
+			return { person: picked.p };
+		}
 		const exact = read.find((x) => x.k !== "name" && x.p)?.p;
 		const found = exact ? read.filter((x) => x.k !== "name" || fold$1(x.v) !== fold$1(exact.name)) : read;
 		if (found.some((x) => x.left)) return { left: true };
@@ -10466,19 +10490,7 @@ function* planChangesInChunks(input) {
 			problem: bad.problem,
 			extra: bad.extra
 		};
-		if (new Set(found.map((x) => x.p.id)).size > 1) {
-			const order = [
-				"name",
-				"email",
-				"id"
-			];
-			const said = [...found].sort((x, y) => order.indexOf(x.k) - order.indexOf(y.k));
-			return {
-				kind: "conflicting-refs",
-				problem: `${[...new Set(said.map((x) => header(x.k)))].join(" and ")} name different people (${said.map((x) => x.p.name).join(" and ")}). Change just one of them.`,
-				extra: { column: what }
-			};
-		}
+		if (new Set(found.map((x) => x.p.id)).size > 1) return conflict(found);
 		const byName = found.every((x) => x.byName) ? found[0].v : void 0;
 		return {
 			person: found[0].p,
@@ -10513,9 +10525,9 @@ function* planChangesInChunks(input) {
 	const teamFrom = (sheet, row, name, v) => {
 		const tm = teamNamed(v);
 		if (tm) return tm;
-		if (create) return addTeam(v, row);
 		const m = near(v, [...teams.values()].map((t) => t.name));
 		const nearOne = "near" in m ? [...teams.values()].find((t) => t.name === m.near) : void 0;
+		if (create && (sheet === "People" || !nearOne)) return addTeam(v, row);
 		const a = answerOf(nearOne ? "near-ref" : "unknown-ref", sheet, "Team", v);
 		if (a?.choice === "leave") {
 			leave(sheet, row);
@@ -12551,7 +12563,7 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, STOPS, showOf, CORRECTS_VIA, initialsOf, GoalSet;
+var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, STOPS, showOf, COVERED_BY_PICK, CORRECTS_VIA, initialsOf, GoalSet;
 var init_changeset = __esmMin((() => {
 	init_correctReason();
 	init_actions();
@@ -12704,6 +12716,11 @@ var init_changeset = __esmMin((() => {
 		"person left"
 	]);
 	showOf = (kind) => ADDS.has(kind) ? "added" : STOPS.has(kind) ? "stopped" : "changed";
+	COVERED_BY_PICK = [
+		"unknown-ref",
+		"near-ref",
+		"ambiguous-ref"
+	];
 	CORRECTS_VIA = ["table", "mcp"];
 	initialsOf = (name) => name.split(/\s+/).filter(Boolean).map((w) => w[0].toUpperCase()).slice(0, 2).join("") || "?";
 	oneOf(Object.values(CALL_WORDS.word));
@@ -16876,7 +16893,8 @@ var help$2 = [
 					"Some answers leave rows out (“Leave these rows out”): those rows aren’t saved, and the rest are.",
 					"Fix the rows in the file: Download the rows to fix gives just those rows, each with a Problem column saying what is wrong. Choose the corrected file and your answers still apply.",
 					"Or leave them out and save the rest: the sheet says which rows go, and the rows that go with them (a new goal’s check-ins, goals that feed into it). Put them back changes your mind.",
-					"An answered question closes to what was asked and your answer, with Change.",
+					"An answered question closes to what was asked and your answer, with Change. The focus moves to the next open question, or to the answer just given.",
+					"A person chosen for one owner cell (Choose a person) also stands for the row’s other owner cells that name no one here; a cell that names someone else here, or an Owner ID that can’t be read, is still Must fix.",
 					"An admin answering a team that isn’t here may add it as a new team. A new goal with no Type is read from the columns it fills in: Start and Target a number goal, Limit a range, Stages a stages goal."
 				]
 			},
@@ -17348,7 +17366,9 @@ var CORE_ARTICLES = [
 				"Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.",
 				"Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.",
 				"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.",
-				"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and Check shows the same preview Import does before anything is created: how many goals and people the file adds (a goal still to fix counted too), what must be fixed, and its questions, each with its answers. A goal owned by someone nobody typed offers “Add {name}” (they join your people, with the row’s team) or “Give it to someone here”. Create workspace waits until every question is answered.",
+				"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and Check shows the same preview Import does before anything is created: how many goals and people the file adds (a goal still to fix counted too), what must be fixed, and its questions, each with its answers. A goal owned by someone nobody typed offers “Add {name}” (they join your people, with the row’s team) or “Give it to someone here”; the person you give it to stands for the row’s other owner cells that name no one here, but never for one that names someone else here, which is still Must fix. A goal’s team one letter from a team already named (“Depot” beside “Depots”) is asked about, as a person’s is. A check-in’s “Choose a goal” finds the spreadsheet’s goals. After each answer the next question takes the focus. Create workspace waits until every question is answered.",
+				"On the People sheet, a row whose Action says Example (the template’s) is skipped, and someone marked Left isn’t added: a goal they own then asks who has it. The upload says how many were skipped, and the preview how many Example goal rows. A file with no goals sheet, uploaded after one with goals, keeps those goals; a new goals file drops anyone its predecessor’s answers added.",
+				"If the preview can’t load (a lost connection), Check says so and offers Try again; nothing you typed or answered is lost.",
 				"Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.",
 				"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, is asked about on Check, already answered “Count them from this week” as a template’s are, so it isn’t late on day one. Change, then Keep the weeks as typed, puts them back.",
 				"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
@@ -19785,6 +19805,18 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "setup-preview-fixes",
+		date: "2026-11-13",
+		title: "Setting up from a spreadsheet asks about near-miss teams and keeps your place",
+		points: [
+			"A goal’s team one letter from another (“Depot” beside “Depots”) is asked about at set-up, so a typo doesn’t make a second team.",
+			"A check-in’s “Choose a goal” at set-up finds your spreadsheet’s goals, and after each answer the next question takes the focus, on set-up and on Import.",
+			"A person you give a goal to never overrides another owner cell that names someone else: that row is still Must fix.",
+			"People marked Example or Left on the People sheet aren’t added, and the preview counts every goal still to settle."
+		],
+		articles: ["set-up", "import"]
+	},
 	{
 		id: "older-changes-on-request",
 		date: "2026-11-13",

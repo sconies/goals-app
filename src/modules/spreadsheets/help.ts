@@ -40,7 +40,8 @@ const help: Article[] = [
         'Some answers leave rows out (“Leave these rows out”): those rows aren’t saved, and the rest are.',
         'Fix the rows in the file: Download the rows to fix gives just those rows, each with a Problem column saying what is wrong. Choose the corrected file and your answers still apply.',
         'Or leave them out and save the rest: the sheet says which rows go, and the rows that go with them (a new goal’s check-ins, goals that feed into it). Put them back changes your mind.',
-        'An answered question closes to what was asked and your answer, with Change.',
+        'An answered question closes to what was asked and your answer, with Change. The focus moves to the next open question, or to the answer just given.',
+        'A person chosen for one owner cell (Choose a person) also stands for the row’s other owner cells that name no one here; a cell that names someone else here, or an Owner ID that can’t be read, is still Must fix.',
         'An admin answering a team that isn’t here may add it as a new team. A new goal with no Type is read from the columns it fills in: Start and Target a number goal, Limit a range, Stages a stages goal.',
       ] },
       { heading: 'Large files', list: [
