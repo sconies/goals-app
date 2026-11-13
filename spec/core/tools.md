@@ -5923,6 +5923,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 **Refuses with:**
 
+- “The … sheet’s module is switched off in …, so it isn’t exported there. An admin can switch it on in Workspace, under Features.”
 - “format should be json, brief or one of ….”
 
 **Does the same as:** no action: it reads, or does something only an assistant needs.

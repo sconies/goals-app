@@ -5,14 +5,12 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../../app/state';
 import { fileName, saveFile, saveFailed, type FileContent } from '../../app/files';
-import { sheetNamesWith } from '../../domain/columns';
-import { MODULE_SHEETS } from '../../core/records';
+import { andList, sheetNamesWith } from '../../domain/columns';
+import { sheetsOn } from '../../core/records';
 import { aiBrief, csvFiles, everythingCounts, sheetNamed, toCsv, toJson, workbook, type ExportInput } from '../../domain/export';
 import type { Goal } from '../../domain/types';
 import { Sheet } from '../../ui/bits';
 
-/** Every sheet's name after Start here: the core's, then each module's (the metric library's Metrics). */
-const SHEET_NAMES = sheetNamesWith(MODULE_SHEETS).slice(1);
 
 const count = (n: number, one: string, many: string) => `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
 
@@ -28,7 +26,12 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
   const [others, setOthers] = useState(false);
   // One table on its own, as a CSV.
   const [one, setOne] = useState<string>('Goals');
-  const input: ExportInput = { ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, goals: scope === 'view' ? goals : undefined, sheets: MODULE_SHEETS };
+  // The sheets of the modules switched on here (F2): one that's off adds none.
+  const sheets = sheetsOn(app.ws);
+  /** Every sheet’s name after Start here: the core’s, then each module’s that’s on (the metric library’s Metrics). A list
+      fixed by the build and the switches, not by the workspace’s records (the pickers lint). */
+  const SHEET_NAMES = sheetNamesWith(sheets).slice(1);
+  const input: ExportInput = { ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, goals: scope === 'view' ? goals : undefined, sheets };
   // Every file is named the same way (spec 2.9): workspace, what it holds, which goals (`all` or the view's name), the day.
   // `all` means everything: a filtered All tab is `as-shown`, never `all`.
   const which = viewName && viewName.trim().toLowerCase() !== 'all' ? viewName : 'as-shown';
@@ -56,7 +59,7 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
             </div>
           </fieldset>
         )}
-        <p>An Excel workbook: Goals, Plan, Check-ins and People, which load back, and Results, Asks, Notes and Metrics for reading. Its first sheet says what each column means and which are required.</p>
+        <p>An Excel workbook: Goals, Plan, Check-ins and People, which load back, and {andList(['Results', 'Asks', 'Notes', ...sheets.map((x) => x.spec.name)])} for reading. Its first sheet says what each column means and which are required.</p>
         <div>
           <button type="button" className="linkish tap export-others" aria-expanded={others} onClick={() => setOthers(!others)}>{others ? 'Fewer formats' : 'Other formats'}</button>
         </div>

@@ -7,7 +7,7 @@ import { Link, Navigate, useNavigate } from 'react-router';
 import { useApp } from '../../app/state';
 import { saveAndSay } from '../../app/files';
 import { readChanges } from '../../app/spreadsheet';
-import { MODULE_SHEETS } from '../../core/records';
+import { sheetsOn } from '../../core/records';
 import { describe, sheetCounts, type ChangeSet } from '../../domain/changeset';
 import { workbook } from '../../domain/export';
 import { leaveOut } from '../../domain/leaveOut';
@@ -271,7 +271,7 @@ function Counts({ cs, base, read }: { cs: ChangeSet; base: Tables; read: { name:
 /** "Nothing would change" (2.3), with the worked-out cells that differ from today's, when there are any. */
 function Nothing({ cs, base, names }: { cs: ChangeSet; base: Tables; names: Partial<Record<keyof Tables, string>> }) {
   const app = useApp();
-  const edits = useMemo(() => workedOutEdits(base, workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, sheets: MODULE_SHEETS }), names), [base, app, names]);
+  const edits = useMemo(() => workedOutEdits(base, workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, sheets: sheetsOn(app.ws) }), names), [base, app, names]);
   const rows = edits.reduce((k, e) => k + e.rows.length, 0);
   const cols = [...new Set(edits.flatMap((e) => e.columns))];
   return (
