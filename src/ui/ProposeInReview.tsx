@@ -11,12 +11,19 @@ import { Sheet } from './bits';
 import { PersonPick } from './PersonPick';
 import { PickOne } from './Pick';
 
-export function ProposeInReview({ goal, review, onClose }: { goal: Goal; review: Review; onClose: () => void }) {
+/** What was typed, kept while the page is open when the sheet is closed without Cancel (build review of #376). */
+const drafts = new Map<string, { title: string; owner: string | null; feeds: string | null }>();
+
+export function ProposeInReview({ goal, review, onClose, returnFocus }: { goal: Goal; review: Review; onClose: () => void; returnFocus?: () => HTMLElement | null }) {
   const app = useApp();
-  const [title, setTitle] = useState('');
+  const key = `${review.id}:${goal.id}`;
+  const kept = drafts.get(key);
+  const [title, setTitle] = useState(kept?.title ?? '');
   // Who would own it starts as the owner of the goal on screen; what it would feed, as that goal.
-  const [owner, setOwner] = useState<string | null>(goal.ownerId);
-  const [feeds, setFeeds] = useState<string | null>(goal.id);
+  const [owner, setOwner] = useState<string | null>(kept ? kept.owner : goal.ownerId);
+  const [feeds, setFeeds] = useState<string | null>(kept ? kept.feeds : goal.id);
+  const dismiss = () => { if (title.trim()) drafts.set(key, { title, owner, feeds }); onClose(); };
+  const cancel = () => { drafts.delete(key); onClose(); };
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const named = nameProblem(title, 'goal');
@@ -28,11 +35,12 @@ export function ProposeInReview({ goal, review, onClose }: { goal: Goal; review:
       const g = await app.saveGoal({ ...blankGoal(teamId, owner, feeds ?? ''), title: title.trim() }, null, { state: 'proposed', proposedIn: review.id });
       const who = owner === app.viewer.id ? 'You' : app.person(owner)?.name.split(' ')[0] ?? 'Its owner';
       app.toast(`Proposed “${g.title}”. ${who} can make it active once it’s set up.`);
+      drafts.delete(key);
       onClose();
     } catch { setBusy(false); } // the save already said what went wrong; what was typed stays
   };
   return (
-    <Sheet open onClose={onClose} title="Propose a new goal">
+    <Sheet open onClose={dismiss} title="Propose a new goal" returnFocus={returnFocus}>
       <form className="stack" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }}>
         <span className="hint">In {review.name}. It is saved as proposed: everyone can see it, and nothing is due on it. Its owner sets it up and makes it active.</span>
         <label className="field"><span className="field-label">What should the goal be called?</span>
@@ -46,7 +54,7 @@ export function ProposeInReview({ goal, review, onClose }: { goal: Goal; review:
         </span>
         <PickOne kind="goal" label="It will feed" none="Nothing: top of its own tree" value={feeds} onChange={setFeeds} first={[{ id: goal.id, note: 'the goal on screen' }]} />
         <div className="foot-row">
-          <button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn ghost big-btn" onClick={cancel}>Cancel</button>
           <button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : 'Propose it'}</button>
         </div>
       </form>

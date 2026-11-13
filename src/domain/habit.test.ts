@@ -2,7 +2,7 @@
    receipt's sentences (2.1) and the moment a check-in makes (rule 3). */
 import { describe, expect, it } from 'vitest';
 import { dueWords, forgivenIn, onTimeStreak, receiptFacts, receiptText, reviewDate, weekProgress, type ReceiptFacts } from './progress';
-import { moment, momentText } from './habit';
+import { beforeReviewText, checkInStanding, habit, type HabitRows, habitShown, habitWeeks, moment, momentText, weekWords } from './habit';
 import { weekDate } from './plan';
 import type { CheckIn, Cycle, Goal, Snapshot, Status } from './types';
 
@@ -120,5 +120,66 @@ describe('the moment (rule 3)', () => {
   it('is said in the receipt’s words', () => {
     expect(momentText({ kind: 'reached', behind: 0 }, g, at(46, 20), 53)).toEqual({ heading: 'Deploy lead time reached its target', line: '20 h, against a target of 20 h, in week 46 of 53. It started the year at 40 h.' });
     expect(momentText({ kind: 'back', behind: 3 }, g, at(46, 28), 53).heading).toBe('Deploy lead time is back on track');
+  });
+});
+
+describe('a check-in’s standing (rule 1)', () => {
+  const g = goal('g1');
+  const ask = (createdAt: string, answeredAt: string | null, kind: 'update' | 'question' = 'update'): HabitRows['asks'][number] => ({ kind, goalIds: ['g1'], createdAt, answeredAt, status: answeredAt ? 'answered' : 'open', updatedAt: answeredAt ?? createdAt });
+  const at = (day: string) => ci('g1', 46, false, { postedAt: `${day}T18:00:00Z` });
+  const due = '2026-11-12';
+  const st = (checkIns: CheckIn[], asks: ReturnType<typeof ask>[] = []) => checkInStanding(g, 46, { checkIns, asks }, due);
+  it('reads the spec’s table', () => {
+    expect(st([at('2026-11-10')])).toBe('unasked');
+    expect(st([at('2026-11-11')], [ask('2026-11-11T09:00:00Z', '2026-11-11T18:00:00Z')])).toBe('asked');
+    expect(st([at('2026-11-11')], [ask('2026-11-10T09:00:00Z', '2026-11-12T09:00:00Z', 'question')])).toBe('unasked');
+    expect(st([at('2026-11-10')], [ask('2026-11-03T09:00:00Z', '2026-11-04T09:00:00Z')])).toBe('unasked');
+    expect(st([at('2026-11-13')])).toBe('after');
+    expect(st([])).toBe('none');
+    // Checked in Tuesday, corrected Friday: the first check-in's time stands.
+    expect(st([at('2026-11-10'), at('2026-11-13')])).toBe('unasked');
+  });
+});
+
+describe('the measure (rule 2) and never a person (rule 4)', () => {
+  const owners = ['a', 'b', 'c', 'd'];
+  const set = (n: number) => Array.from({ length: n }, (_, i) => goal(`g${i}`, 0, { ownerId: owners[i % 4] } as Partial<Goal>));
+  const rows = (goals: Goal[], standing: ('unasked' | 'asked' | 'after' | 'none')[]) => {
+    const checkIns: CheckIn[] = [], asks: { kind: 'update'; goalIds: string[]; createdAt: string; answeredAt: string; status: 'answered'; updatedAt: string }[] = [];
+    goals.forEach((g, i) => {
+      const s = standing[i]!;
+      if (s === 'none') return;
+      checkIns.push(ci(g.id, 46, s === 'after', { postedAt: s === 'after' ? '2026-11-13T10:00:00Z' : '2026-11-11T10:00:00Z' }));
+      if (s === 'asked') asks.push({ kind: 'update', goalIds: [g.id], createdAt: '2026-11-10T10:00:00Z', answeredAt: '2026-11-11T10:00:00Z', status: 'answered', updatedAt: '2026-11-11T10:00:00Z' });
+    });
+    return { checkIns, asks };
+  };
+  const due = () => true;
+  it('counts the spec’s 17 goals', () => {
+    const goals = set(17);
+    const h = habit(goals, 46, rows(goals, [...Array(14).fill('unasked'), 'asked', 'none', 'none']), '2026-11-12', due);
+    expect([h.due, h.inTime, h.unasked, h.asked, h.after, h.none]).toEqual([17, 15, 14, 1, 0, 2]);
+    expect(beforeReviewText(h, true)).toBe('15 of 17 goals were checked in before it, 14 without being asked.');
+    expect(beforeReviewText(h, false)).toBe('15 of 17 goals are checked in so far.');
+    const all = habit(goals, 46, rows(goals, Array(17).fill('unasked')), '2026-11-12', due);
+    expect(beforeReviewText(all, true)).toBe('All 17 goals were checked in before it, without anyone asking.');
+    const some = habit(goals, 46, rows(goals, [...Array(10).fill('unasked'), ...Array(7).fill('none')]), '2026-11-12', due);
+    expect(beforeReviewText(some, true)).toBe('10 of 17 goals were checked in before it, all without being asked.');
+    // Reviews switched off: the due day is a deadline (RS1's words).
+    expect(beforeReviewText(all, true, false)).toBe('All 17 goals were checked in on time, without anyone asking.');
+  });
+  it('gives the row of weeks with words', () => {
+    const goals = set(4);
+    const r = rows(goals, ['unasked', 'after', 'none', 'asked']);
+    const weeks = habitWeeks(goals, 46, r, () => '2026-11-12', (_g, w) => w === 46, 3);
+    expect(weeks.map((w) => `${w.week} ${weekWords(w)}`)).toEqual(['44 Nothing due', '45 Nothing due', '46 2 after']);
+    expect(habitWeeks(goals, 46, rows(goals, Array(4).fill('unasked')), () => '2026-11-12', due, 1).map(weekWords)).toEqual(['All in']);
+    expect(habitWeeks(goals, 46, rows(goals, Array(4).fill('none')), () => '2026-11-12', due, 1).map(weekWords)).toEqual(['None in']);
+  });
+  it('is never shown for fewer than three owners, unless the viewer owns them all', () => {
+    expect(habitShown(set(4), 'z')).toBe(true);
+    expect(habitShown(set(2), 'z')).toBe(false);
+    expect(habitShown([goal('g1'), goal('g2')], 'tunde')).toBe(true);
+    expect(habitShown([], 'tunde')).toBe(false);
   });
 });

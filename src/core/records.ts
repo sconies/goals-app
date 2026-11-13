@@ -4,21 +4,27 @@
    (FARO_WITHOUT) declares nothing here, so its rows are neither read nor written, and none are deleted. */
 import PARTS from 'virtual:faro-modules/records';
 import type { ModuleRecords, ModuleSheet } from '../domain/records';
-import { isModuleOn } from './registry';
+import { isModuleOn, modulesOn } from './registry';
 
 /** Every module's records, in module id order. */
 export const MODULE_RECORDS: readonly ModuleRecords[] = PARTS.map((p) => ({ ...p.part, module: p.id }));
 
-/** The columns the modules add to Goals' rows (?metric=): the app's filters (core/app) and the AI's find_goals read them. */
-export const MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => m.goalColumns ?? []);
+/** The columns the modules add to Goals' rows (?metric=), each with its module: the app's filters (core/app) and the AI's
+    find_goals read them, and both leave out a switched-off module's column. */
+export const MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => (m.goalColumns ?? []).map((c) => ({ ...c, module: m.module })));
 
 /** The workbook's sheets the modules add (domain/export), in module id order: every module in this build. */
 export const MODULE_SHEETS: readonly ModuleSheet[] = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
 
-/** The records of the modules switched on in a workspace: what Recently removed lists and restores. A module that's off
-    keeps its rows untouched, and none of them is offered back until it is on again. */
+/** The records of the modules on in a workspace: what Recently removed lists and restores, and what a carried copy
+    carries. A module that's off, switched off itself or off because something it needs is (fix item F5), keeps its rows
+    untouched, and none of them is offered back until it is on again. */
 export const recordsOn = (ws: { modulesOff?: readonly string[] } | null | undefined): readonly ModuleRecords[] =>
-  MODULE_RECORDS.filter((m) => !(ws?.modulesOff ?? []).includes(m.module));
+  recordsOf(MODULE_RECORDS, modulesOn(ws).on);
+
+/** Of some modules' records, those of the modules on (resolveModules' `on`). */
+export const recordsOf = (records: readonly ModuleRecords[], on: ReadonlySet<string>): readonly ModuleRecords[] =>
+  records.filter((m) => on.has(m.module));
 
 /** The workbook's sheets of the modules switched on in a workspace (fix item F2): a module that's off adds no sheet to
     any export (the Export sheet, Data's downloads, the MCP export tool), as it adds nothing else. */

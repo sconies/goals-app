@@ -8,9 +8,10 @@ import { proposedSummary } from '../domain/proposedSummary';
 import { proposalAsks, withProposed } from '../domain/proposed';
 import { scopeToCycle, wrapUpCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
-import type { Ask, Cycle, Person, Snapshot } from '../domain/types';
+import type { Ask, Cycle, Goal, Person, Snapshot } from '../domain/types';
+import { checkInStanding, dueIn } from '../domain/standing';
 import type { ScopeFacts } from '../domain/goalsPage';
-import { agendaOf, heldOnDueDay, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
+import { agendaOf, goalsIn, heldOnDueDay, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
 import { waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession, type Waiting } from '../domain/home';
 import { handedFrom } from '../domain/askHandover';
 import { dueWords, onTimeStreak, receiptFacts, reviewDate, weekProgress, type DueWords } from '../domain/progress';
@@ -44,7 +45,12 @@ export const dueWordsHere = (reviews: boolean, s: Pick<Snapshot, 'reviews'>, cyc
 /** Every goal's summary row, with what the Goals filters need beyond it. */
 export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns']): GoalRows {
   const goals = live(s.goals).filter((g) => !g.stoppedAt);
-  return { kind: 'goal', summaries: summariseAll(goals, s, cycle, today, week), ctx: { goals, cycle, week, ...(columns ? { columns } : {}) } };
+  // This week's standing (habit rule 1) for `checkedin=`, and a review's goals for `inreview=` (HB2).
+  const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
+  const rows = { checkIns: s.checkIns, asks: s.requests ?? [] };
+  const standing = (g: Goal) => (week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null);
+  const inReview = (id: string) => { const r = s.reviews.find((x) => x.id === id && !x.removedAt); return r ? new Set(goalsIn(r.scope, goals).map((g) => g.id)) : null; };
+  return { kind: 'goal', summaries: summariseAll(goals, s, cycle, today, week), ctx: { goals, cycle, week, standing, inReview, ...(columns ? { columns } : {}) } };
 }
 
 export function personRows(s: Snapshot): PersonRows {

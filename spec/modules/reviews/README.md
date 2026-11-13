@@ -50,8 +50,8 @@ Module id `reviews`, in [src/modules/reviews/](../../../src/modules/reviews/modu
 | U80 | Watch and comments say what they do before you do them; an owner has no Watch, and About says why | `evals/journeys.cjs` |
 | U103 | Amara switches Reviews off: the read-back names what stays, then Reviews leaves the menu, Home and the goal page, its addresses say it is off, History keeps what was said, and Undo brings it all back | `evals/journeys.cjs` |
 | U104 | Reviews off, then back on: off, Home is Home without reviews; back on, every review is as it was, and none whose date passed while it was off says Not held yet | `evals/journeys.cjs` |
-| U152 | Reviews off, the clock without a review: the read-back says check-ins are still due by Thursday; then no page Rhea opens calls the deadline a review, and her check-in’s receipt says the week is in “by Thursday” | `evals/journeys.cjs` |
-| U153 | Reviews back on after a week off: switched off on Monday 2 Nov and on again on Friday 6 Nov, every session whose date passed while it was off moves to its next date, so neither Reviews nor Home says Not held yet | `evals/journeys.cjs` |
+| U154 | Reviews off, the clock without a review: the read-back says check-ins are still due by Thursday; then no page Rhea opens calls the deadline a review, and her check-in’s receipt says the week is in “by Thursday” | `evals/journeys.cjs` |
+| U155 | Reviews back on after a week off: switched off on Monday 2 Nov and on again on Friday 6 Nov, every session whose date passed while it was off moves to its next date, so neither Reviews nor Home says Not held yet | `evals/journeys.cjs` |
 | N1 | Review notes, reviews | `evals/notes/1-reviews.cjs` |
 | N21 | A switched-off module’s addresses say so, and who can switch it on; the read-back before switching Reviews off counts what stays | `evals/notes/21-switched-off.cjs` |
 

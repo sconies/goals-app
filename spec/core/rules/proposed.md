@@ -9,7 +9,7 @@ A goal can be proposed before anyone is held to it: visible to everyone, never j
 
 **The words.** *Proposed*: the goal's state, visible, not judged, nothing due. *Active*: every other goal that isn't stopped, said only where the two are set side by side. *Propose*: save a new goal as proposed. *Make it active*: the act that starts it (not "approve": nobody is asked for permission; not "start", which From already means). *Withdraw*: remove a proposed goal.
 
-**Data.** A goal is proposed while `proposedAt` is set (with `proposedBy`, who proposed it) and it is neither removed nor stopped (`isProposed`). Making it active clears both; History has when. A goal proposed in a review's walk also keeps the review in `proposedIn`, and keeps it once active.
+**Data.** A goal is proposed while `proposedAt` is set (with `proposedBy`, who proposed it) and it is neither removed nor stopped (`isProposed`). Making it active clears both; History has when. A goal proposed in a review's walk also keeps the review in `proposedIn`, and keeps it once active. Proposing in a review speaks for it, so only someone in the review, or an admin, may (`speakRefusal`); the new goal need not be in the review's scope. Every later save keeps `proposedIn` and `proposedBy`; made proposed again, or carried to the next year, the goal no longer names the review.
 
 **Never judged.** `judged(goals)` is those neither proposed nor stopped, and every rule that leaves a stopped goal out leaves a proposed one out the same way: the cycle's scope (`scopeToCycle`) keeps proposed goals beside its goals, never among them, so no status rule is ever run on one and it is in no count, health line, Needs attention, review agenda, check-in, wrap-up, streak or metric comparison. A proposed goal may name its metric: the metric's page lists it under its goals table as "Proposed · {n}" with no numbers (the metrics module's `proposedOfMetric`), and `get_metric` gives it apart as `proposed`. A check-in on one is refused at every door: "This goal is proposed, so there is nothing to check in. Make it active first." Its summary has the state `proposed` and the status word "Proposed", drawn as a word alone, with no shape.
 
@@ -86,6 +86,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 14: proposed goals › Rhea proposes a goal for Camille with only a name: nothing measured yet; Camille’s Home asks; she may make it active, Rhea may change it, Oskar neither
 - rule 14: proposed goals › Proposed, its type can still change: Tunde turns G-132 into stages; an active goal’s type is refused
 - rule 14: proposed goals › Rhea proposes a goal for Camille in Developer Productivity fortnightly: Camille’s Home says where; the next session’s Last time names it, then says when Camille made it active
+- rule 14: proposed goals › Proposed in a review (build review of #376): only someone in it may; once active it keeps the review on every save, a row included; proposed again or carried, it names none
 - rule 14: proposed goals › Tunde makes it active in week 48: From becomes 48, read back with its dates; Undo makes it proposed again
 - rule 14: proposed goals › GE10 review: From before this week is asked at every door; a From outside the plan is refused
 - rule 14: proposed goals › GE10 review: a stages goal proposed with a stage already done saves no check-in
