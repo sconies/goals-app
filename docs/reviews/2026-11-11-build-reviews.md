@@ -147,6 +147,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #344 GE10: a proposal leads Home; migration 0045 | 2 | 0 | 0 | 2 |
 | #355 GE10: proposed goals on the Map and the Board | 2 | 0 | 1 | 2 |
 | #335 #323 and #229 review mediums | 4 | 0 | 0 | 0 |
+| #351 MT3: a metric that changes tells its goals | metrics | 0 | 6 | 6 |
 | #360 A metric link always writes its part (#308's high) | metrics | 0 | 0 | 0 |
 | #352 A review speaks only for the goals it walks (#322's medium) | 1 | 0 | 0 | 0 |
 | #366 Data search finds what you typed (#234's mediums) | 1 | 0 | 0 | 0 |
@@ -1608,3 +1609,31 @@ A metric's page lists the proposed goals that name it apart, as "Proposed · n",
 ### #357, #361, #359 and #363 handovers
 
 Documents. Not reviewed.
+
+### #351 MT3: a metric that changes tells its goals (metrics, merged 05:32 UTC, 13 Nov)
+
+Changing a metric's unit, direction or meaning while goals are measured by it; marks on the goals' charts; retiring and deleting a metric. Read first by a reviewing session with the stores on PGlite, the MCP tools and the screens at 1440 and 390; I re-read `linkedGoals` and `marksFor` on main at `c39b342a`. No high finding.
+
+**The saved shape holds.** With every migration on PGlite, through the Postgres store and the Supabase stand-in, read back after each step and compared field by field: a workspace from the demo, add, change, both kinds of mark, retire with 300 characters, bring back, a hand-built batch of four metrics and three links of different shapes, relabel, delete and restore, merge, a link with a part, and the next year's carry all saved, and no row lost a value to another row's shape. This is #308's hazard, checked for `retired_why` and `marks` too.
+
+**1. Medium (ran). A metric change has no Undo, though Help, the spec and the rebuild stage promise one.** `saveMetric` gives `app.run` nothing to offer (`src/modules/metrics/actions.ts`), and the form shows a plain toast; Help says "Undo takes back the change, its marks and, for a new label, every goal's unit, as one" (`help.ts:135`). No tool or screen removes a mark, so a mistaken "The number itself changes" stays on every goal's chart. Retire does offer Undo.
+
+**2. Medium (ran in the rules; needs a second year). A change made next year marks last year's goals.** `marksFor` has a lower bound only (`rules.ts:70-72`) and `linkedGoals` reads every year. With 2027 started, a change on 10 Feb 2027 gave the 2026 goal `ns-ci` the mark "Definition changed, week 6" and a History line "…from week 6… Weeks before 6 were measured the old way", both false for a 2026 goal. Fix: bound marks by the goal's own year, and log only on goals of the year the change is made in.
+
+**3. Medium (ran). With only a stopped goal linked, unit and direction change with no question, reason or mark.** `linkedGoals` drops stopped goals (`rulesChange.ts:39`). After stopping a goal with 42 check-ins, its metric went from USD to EUR and to higher-is-better at once; the goal, restorable for 30 days, stays in USD on a EUR metric.
+
+**4. Medium (read). A range goal's chart never shows a mark,** though the read-back says each goal's chart will: `GoalScreen.tsx:658` passes the notes to the number chart only. Two of the demo's twelve linked goals are range goals.
+
+**5. Medium (ran). A retired metric cannot be found on screen again,** so "It can be brought back at any time" depends on knowing its address: the library never lists it, `/metrics?retired=1` is not built, and adding its name says "There's already a metric called…" with no word that it is retired and no link. MCP can list it.
+
+**6. Medium (ran; carried over from #308, still open). Unlinking first still gets round "a goal with check-ins must say why what measures it changes"** (`rulesParts.ts:107`).
+
+**Lows.**
+- A source-only change marks "was" and "now" with the same text.
+- The read-back is not a sheet, takes no focus, shows two primary buttons and is taller than a phone's screen.
+- Lowering decimals through `save_metric` says nothing about goals that show more places.
+- Help still says "Remove this metric" (`help.ts:57`).
+- Two marks in one week draw on top of each other, and marks have no cap.
+- Through the old names in `public`, part, retirement and marks save but do not read back (until 0c2).
+
+**Fine.** A unit change is refused as a different number without `relabel`; a relabel changes the goal's unit only and its History says who and what; a non-owner cannot change, retire, bring back or delete; a retired metric cannot be linked, relinked, merged or changed; "Retired" is plain words, not a badge.
