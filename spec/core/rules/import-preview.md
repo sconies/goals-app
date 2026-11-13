@@ -64,6 +64,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - one format: export, load back, no change › ${d.name}: the workbook loads back as no change at all
 - one format: export, load back, no change › ${d.name}: the zipped CSVs load back as no change at all
+- readings in the Check-ins sheet › fills the four columns, and loads back as no change at all
 - the round trip is exact, whatever the day and the decimals › the demo as opened on ${day} loads back with no change
 - the round trip is exact, whatever the day and the decimals › goals at 0, 1, 2 and 3 decimal places, in every plan shape, load back with no change
 - one format: an edited copy applies exactly its edits › through the workbook

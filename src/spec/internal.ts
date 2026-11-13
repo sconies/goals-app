@@ -20,8 +20,7 @@ import type { Ask, Goal, Person, Review, Snapshot } from '../domain/types';
 import { CYCLE } from './examples';
 import { cell, link, table } from './md';
 import { R10, R5, R7, R8, R9 } from './platform';
-import { differentNumbers, differentWords, fillsIn, fillsInWords, readingState } from '../modules/metrics/rulesReading';
-import type { NumberSource } from '../modules/metrics/source';
+import { readingHistoryLine, readingThisWeek } from '../domain/reading';
 
 export interface InternalExample {
   given: string;
@@ -130,9 +129,6 @@ const GOAL_OF_MAYA = { id: 'g-1', ownerId: MAYA.id } as Goal;
 /** What an action says: "allowed", or the words it refuses with. */
 const says = (f: () => unknown) => { try { f(); return 'allowed'; } catch (e) { if (e instanceof NotAllowed) return `refused: “${e.message}”`; throw e; } };
 const yes = (b: boolean) => (b ? 'yes' : 'no');
-
-/** R12's example source: reads CI pipeline time only for the whole company. */
-const COMPANY_SOURCE: NumberSource = { name: 'CI analytics', reads: (m, sl) => m.source === 'CI analytics' && (!sl || sl.teamId == null), read: async () => null };
 
 /* ---------- the requirements ---------- */
 
@@ -548,9 +544,9 @@ export const INTERNAL: InternalRequirement[] = [
       'There are no credentials anywhere: the demo’s sources need none.',
     ],
     examples: [
-      { given: 'Faro today: a source that reads CI pipeline time only for the whole company, for a goal measured by it for CI/CD.', then: 'Typed by hand: CI analytics has no number per team', run: () => fillsInWords(fillsIn([COMPANY_SOURCE], { id: 'm', source: 'CI analytics' }, { teamId: 'cicd', part: '' }, []), () => '') },
-      { given: 'Faro today: a reading measured nine days before the check-in opens.', then: 'old', run: () => readingState({ value: 12, at: '2026-11-03T09:00:00Z' }, null, 13, new Date('2026-11-12T10:00:00Z'), null, 0) },
-      { given: 'Faro today: in the last 8 weeks two check-ins were filled in from CI analytics, and one owner typed 15 over its 13.', then: 'In the last 8 weeks, 1 of 2 check-ins filled in from CI analytics used a different number.', run: () => differentWords(differentNumbers([{ goalId: 'g', week: 46, value: 12, reading: { source: 'CI analytics', value: 12, at: 'T' } }, { goalId: 'g', week: 45, value: 15, reading: { source: 'CI analytics', value: 13, at: 'T' } }], new Map([['g', 0]]), 46)[0]!) },
+      { given: 'Faro today: Rhea confirmed the 12 min CI analytics read at 09:02 on Thursday; her goal’s Measured by, read that day.', then: '12 min, from CI analytics, read 9:02 today. Confirmed by Rhea Kapoor.', run: () => readingThisWeek({ value: 12, reading: { source: 'CI analytics', value: 12, at: '2026-11-12T09:02:00Z' } }, { unit: 'min', decimals: 0 }, 'Rhea Kapoor', new Date('2026-11-12T10:00:00Z'), 'UTC') ?? '' },
+      { given: 'Faro today: Rhea typed 15 over CI analytics’ 13, because it counts something else; her goal’s History row.', then: 'Typed by Rhea Kapoor. CI analytics said 13 min. The source counts something else.', run: () => readingHistoryLine({ value: 15, reading: { source: 'CI analytics', value: 13, at: '2026-11-12T09:02:00Z', why: { kind: 'other-count' } } }, { unit: 'min', decimals: 0 }, 'Rhea Kapoor', new Date('2026-11-12T10:00:00Z'), { timeZone: 'UTC' }) ?? '' },
+      { given: 'Required: a goal measured for CI/CD by a metric whose source reads only the whole company.', then: 'Its check-in is typed by hand; the metric’s page says “Typed by hand: CI analytics has no number per team” (rule 4 of the metric library’s reading rule).' },
       { given: 'Required: the warehouse’s token is rotated.', then: 'Only the platform’s secret store changes; no metric, goal or browser holds it, and the next scheduled read uses the new one.' },
       { given: 'Required: the monitoring tool is down at 09:00 on Thursday, when twelve teams check in.', then: 'Each check-in opens on the last stored reading (or says it is too old), nobody waits on the tool, and the tool’s owner is told, not the goals’ owners.' },
       { given: 'Required: on Friday the warehouse restates Thursday’s 41 min as 45 min.', then: 'Both readings are kept; next week’s check-in asks whether to correct week 46 to 45 min, with the source’s reason.' },

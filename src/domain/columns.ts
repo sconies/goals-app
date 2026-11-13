@@ -556,6 +556,7 @@ const FIELDS: Record<FillKind, Record<string, Field>> = {
     'Goal ref': { required: { optional: 'none' }, format: 'The Ref of a row on Goals in this file', example: 'top', empty: 'Goal key, Goal ID or Goal says which goal' },
     Week: { required: 'required', format: 'A whole number from 1 to this week; a date in the cycle is read as its week', example: '46', empty: 'Must fix' },
     Value: { required: { for: ['metric', 'range'] }, format: 'A number, at the goal’s decimal places', example: '6', empty: 'Must fix for a number or range goal' },
+    'Reason for a different number': { required: 'reading', format: 'Text', example: 'The source counts something else: “It leaves out release branches.”', empty: 'Never read: a reason is given in the check-in' },
     Stages: { required: { for: ['milestone'] }, format: '“Pilot: done week 6; Rollout: expected week 9”', example: 'Pilot: done week 6', empty: 'Must fix for a stages goal' },
     Call: { required: { optional: 'the rules decide' }, format: wordList(CALL_WORDS), example: CALL_WORDS.word.risk, empty: 'The rules decide' },
     Cause: { required: { when: 'when it’s behind, or well ahead' }, format: oneOf(causeWords), example: causeWords[0] ?? '', empty: 'Must fix when it’s behind or well ahead', clears: true },

@@ -681,6 +681,10 @@ A **number source** (`NumberSource`, the module's port) reads a metric, optional
 
 **The read-back** (`readingLine`): the check-in's receipt gains "{value} {unit}, from {source}, read {when}. Confirmed by you." or "{typed} {unit}, typed. {source} said {value} {unit}: {reason in lower case}."
 
+**Where it shows elsewhere** (NR3; the words are the core's, `src/domain/reading.ts`, since the record is the core's `CheckIn.reading`; Faro keeps no series of readings, so each place says what a check-in recorded). The goal's **Measured by** gains "This week’s number" from its latest check-in (`readingThisWeek`): "{value} {unit}, from {source}, read {when}. Confirmed by {name}." or "{typed} {unit}, typed by {name}. {source} said {value} {unit}.", and nothing when it recorded none. Each **History** row's second line (`readingHistoryLine`): "From {source}, read {when}. {name} checked in." or "Typed by {name}. {source} said {value} {unit}. {Reason}: “{words}”", and "Typed by {name}." on a goal any of whose check-ins was filled in. A **review's agenda** row says " · from {source}" after a confirmed number, in the quiet ink, and nothing after a typed one (`readingFrom`: no mark, no flag). The **Check-ins sheet** gains Number from ("Typed", or the source), Source’s number, Measured at (ISO, UTC) and Reason for a different number after Value, worked out or for reading and never loaded back (`readingCells`). get_goal's check-ins carry `numberFrom` with History's line.
+
+**Rule 4. The metric's page** (`fillsIn`, `differentNumbers`). Under "Where the number comes from", for a metric that names a source, "In each goal’s check-in" lists its goals (Goal, For, In its check-in): **filled**, a registered source reads the metric for the goal's slice, "Filled in from {source} · last read {when}" (when the goal's latest recorded reading was measured; left out before any); **no-slice**, one reads it but not that slice, "Typed by hand: {source} has no number per team"; **none**, "Typed by hand: no source can be read". No source is asked. Under it, per source, the check-ins of the metric's goals in the last 8 weeks up to this week (removed ones aside) that recorded a reading from it are `n`, and those whose number isn't the reading's at the goal's decimals are `k`: "In the last 8 weeks, {k} of {n} check-ins filled in from {source} used a different number." with "See them", the goals and weeks (each opening that goal's History at the week). It names goals and weeks, never people; get_metric gives the same (`inItsCheckIn` on each goal, `differentNumbers`).
+
 **The one table** (the core's place `checkin.table`, `CheckInTableReadings`): a goal not yet checked in this week whose reading is fresh shows it in its cell in the quiet ink until the owner touches the row; under the table, "{n} numbers are from their sources; change any that are wrong."; posting the table confirms them; a cell changed from its reading asks "Why is it different from what {source} said ({value})?" in its row before it counts as ready. Nothing is posted that the owner did not post.
 
 **The demo's sources** (`demoSources`, made by `sourcesFrom` from the example as the demo built it, before this browser's saves; a workspace of your own has none). "CI analytics" reads CI pipeline time on main (p90) for the whole company; "CI runner metrics" reads Pipeline queue wait (p90) for CI/CD · main branch pipelines and Build & Release · release pipelines. Each is a seeded series made once from the example as it was seeded, never from later check-ins: the numbers of the goal it follows by week, continued one week, measured at 09:00 UTC on the review day; release pipelines has no reading in the last week, and an eval fixture can make every series two weeks behind (`?sources=behind` in the check-in's address). On the server, the AI tool's sources are made from the example's check-ins before this week.
@@ -702,24 +706,27 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Rule 3: CI analytics said 12; the owner posts 14 with no reason. | `CI analytics said 12. Say why your number is different.` |
 | Rule 3: the same, “Something else: moved”. | `Say more about why your number is different from what CI analytics said, in at least 10 characters.` |
 | The read-back: 14 min typed, CI analytics said 12 min, the source counts something else. | `14 min, typed. CI analytics said 12 min: the source counts something else.` |
+| Rule 4: a goal measured for CI/CD by a metric CI analytics reads only for the whole company. | `Typed by hand: CI analytics has no number per team` |
+| Rule 4: in the last 8 weeks, 12 and 15 typed over 12 and 13 from CI analytics. | `In the last 8 weeks, 1 of 2 check-ins filled in from CI analytics used a different number.` |
+| History: 15 min typed by Rhea Kapoor; CI analytics said 13 min; it counts something else. | `Typed by Rhea Kapoor. CI analytics said 13 min. The source counts something else.` |
 | Recorded: CI analytics said 12 at Thu 09:02; the owner used 14 because the source is behind. | `{"source":"CI analytics","value":12,"at":"2026-11-12T09:02:00Z","why":{"kind":"behind"}}` |
 
 ### Not self-explanatory
 
 - **Not self-explanatory:** NR’s table gives 120 against a last 13 as a jump; MT4’s Check, which NR keeps, is ten times or more, and 120 is 9.2 times, so it is fresh: the example here uses 130.
 - **Not self-explanatory:** On the server the demo’s sources are made from the example’s check-ins before this week, not the example as first built (the server can’t rebuild it); a correction of an earlier week there moves the series.
-- **Not self-explanatory:** Where the reading’s other places show it (“Measured by”, History, the metric’s page, the agenda, the export) is NR3.
+- **Not self-explanatory:** The 8-week count shows whenever a check-in was filled in from the source, “0 of n” included, and See them only when some used a different number. See them opens a list of goals and weeks, each linking to that goal’s History at the week, rather than one History across goals (none exists).
 - **Not self-explanatory:** The demo has one goal on each read slice; Build & Release · release pipelines is read but no goal is linked to it yet.
 
 ### Where it lives
 
-- [src/modules/metrics/rulesReading.ts](../../../src/modules/metrics/rulesReading.ts): `readingState`, `askSource`, `readingRevised`, `recordReading`, `sameAt`, `isJump`
+- [src/modules/metrics/rulesReading.ts](../../../src/modules/metrics/rulesReading.ts): `readingState`, `askSource`, `readingRevised`, `recordReading`, `sameAt`, `isJump`, `fillsIn`, `fillsInWords`, `differentNumbers`, `differentWords`, `READING_WEEKS`
 - [src/modules/metrics/source.ts](../../../src/modules/metrics/source.ts): `Slice`, `NumberSource`, `sliceOf`
 - [src/modules/metrics/numbers.ts](../../../src/modules/metrics/numbers.ts): `DEMO_SERIES`, `seededSeries`, `demoSources`
 - [src/modules/metrics/sources.ts](../../../src/modules/metrics/sources.ts): `sourcesFrom`, `demoBehindWeeks`
 - [src/modules/metrics/CheckInNumber.tsx](../../../src/modules/metrics/CheckInNumber.tsx): `CheckInNumber`, `CheckInTableReadings`
 - [src/modules/metrics/readingTool.ts](../../../src/modules/metrics/readingTool.ts): `readForTool`, `toolSources`
-- [src/domain/reading.ts](../../../src/domain/reading.ts): `readingProblem`, `keptReading`, `READING_WHY`, `readWhen`, `readingLine`
+- [src/domain/reading.ts](../../../src/domain/reading.ts): `readingProblem`, `keptReading`, `READING_WHY`, `readWhen`, `readingLine`, `readingThisWeek`, `readingHistoryLine`, `readingFrom`, `readingCells`
 - [src/domain/thresholds.ts](../../../src/domain/thresholds.ts): `RULES`
 
 ### Requirements
@@ -727,6 +734,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - `READING-PREFILL`: When a goal is measured by a metric that a registered number source reads for the link's own slice (its team and part), the check-in's number step asks the source once when it opens and fills the field with the latest reading: "From {source}, read {when}." (in the viewer's zone: "9:02 today", "16:40 yesterday", else "9:00 on Thu 5 Nov") and the step's primary names the number ("Confirm 12 min"). Nothing is ever posted for the owner: a week with a reading and no check-in has no check-in. A source that reads only the whole company never fills in a team's goal ("{source} measures this for the whole company, not for {team} on its own, so it isn't filled in."); no source, no number yet, nothing new since the last check-in and a source that can't be reached each say so, and the step is otherwise as without a source. With the Metric library off, the step is exactly as it was.
 - `READING-RECORDED-ONLY`: A number typed over a reading asks "Why is it different?" with four choices (the source is behind: I have a newer number; counts something else; is wrong this week; something else, which needs at least 10 characters of Say more) before "Use {typed} {unit}". The owner's number is the check-in's; the reading (source, value, when measured) and the reason are recorded beside it, by the same rule at every door (the form, the one table, post_check_in's reading_confirmed and different_because), and the read-back says "{value}, from {source}, read {when}. Confirmed by you." or "{typed}, typed. {source} said {value}: {reason}." Nothing reads the reason to decide a status, a flag, an attention count or an order: no review flag, no mark against the owner.
 - `READING-SEVEN-DAYS`: A reading more than 7 days old (RULES.readingMaxDays, one limit for every metric) is not filled in and its value is not shown anywhere on the step: "{source} last read this on {date}, {n} days ago. That is too old to fill in. Type this week's number, or say there isn't one." with the warning mark, the step's Continue and No new number this week.
+- `READING-SHOWN`: Where a check-in's number came from shows beyond the check-in, from what the check-in recorded (Faro keeps no series of readings): the goal's Measured by says "This week's number" from its latest check-in ("{value}, from {source}, read {when}. Confirmed by {name}." or "{typed}, typed by {name}. {source} said {value}.", nothing when it recorded none); each History row says "From {source}, read {when}. {name} checked in." or "Typed by {name}. {source} said {value}. {Reason}: “{words}”"; the metric's page lists its goals with "In its check-in" ("Filled in from {source} · last read {when}", "Typed by hand: {source} has no number per team" or "Typed by hand: no source can be read") and "In the last 8 weeks, {k} of {n} check-ins filled in from {source} used a different number." with See them (goals and weeks, never people); a review's agenda row says "· from {source}" in the quiet ink after a confirmed number, and nothing for a typed one; the Check-ins sheet has Number from, Source's number, Measured at and Reason for a different number, for reading, never loaded back; get_goal and get_metric say the same.
 
 ### Tests that check it
 
@@ -739,6 +747,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 2: what is recorded › keeps the reason only when the number differs, and nothing when nothing was read
 - rule 2: what is recorded › is read by no rule that judges a goal: nothing in src/domain but the types, the engine that records it and its words names a check-in’s reading
 - rule 2: the row › writes reading only when set, and reads it back
+- rule 4: where a reading shows on the metric’s page › says how each goal’s check-in gets its number, asking no source
+- rule 4: where a reading shows on the metric’s page › counts, over the last 8 weeks, the check-ins filled in from a source that used a different number
 
 #### [src/modules/metrics/numbers.test.ts](../../../src/modules/metrics/numbers.test.ts)
 
@@ -757,9 +767,13 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the read-back (2.3) › says a typed number beside what the source said, with the reason in lower case
 - the read-back (2.3) › says nothing when nothing was read
 - the read-back (2.3) › says when in the viewer’s zone: today, yesterday, or the day
+- where a reading shows elsewhere (2.4) › says this week’s number under Measured by, only from what the latest check-in recorded
+- where a reading shows elsewhere (2.4) › says a History row’s second line, with the reason and the owner’s words
+- where a reading shows elsewhere (2.4) › names the source on a review’s agenda only for a confirmed number
 
 #### [src/modules/metrics/readingTool.test.ts](../../../src/modules/metrics/readingTool.test.ts)
 
 - post_check_in reads the goal’s source (NR rule 3) › records a confirmed reading, the value taken from it
 - post_check_in reads the goal’s source (NR rule 3) › refuses a different number with no reason, and records it with one
 - post_check_in reads the goal’s source (NR rule 3) › reads nothing without them, and says the module-off sentence with the metric library off
+- the AI sees where a number came from, as the screens show it (NR 2.4) › get_goal says each check-in’s reading in History’s words; get_metric says how each goal fills in and how often it was typed over
