@@ -271,7 +271,7 @@ Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, qua
 
 #### Who can
 
-Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet. Anyone can ask the owner for an update from the goal’s page.
+Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. Anyone can ask the owner for an update from the goal’s page.
 
 ### Typing all your numbers in one table
 

@@ -434,7 +434,8 @@ export function changeCases(w: ConformanceWorkspace): ImportCase[] {
   const g1 = s.goals.find((x) => x.key === 'G-1') as Extract<Goal, { kind: 'metric' }>;
   return [
     ...importCases(w),
-    { case: 'saves-check-in', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-22', Week: String(week), Value: '85', 'Next step': 'Roll the runner image out to the last two teams' }] },
+    // This week's check-in is the owner's to load (backlog AD: an admin's workbook brings in past weeks).
+    { case: 'saves-check-in', actor: s.goals.find((x) => x.key === 'G-22')!.ownerId, sheet: 'checkIns', rows: [{ 'Goal key': 'G-22', Week: String(week), Value: '85', 'Next step': 'Roll the runner image out to the last two teams' }] },
     { case: 'saves-plan-with-reason', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', Target: String(g1.plan.target + (g1.plan.target >= g1.plan.start ? 1 : -1)), Reason: 'Agreed at the quarterly review' }] },
     { case: 'saves-new-goal', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'Runbooks for every paging service', Owner: 'Rhea Kapoor', Team: 'CI/CD', Unit: '%', Start: '40', Target: '90' }] },
     { case: 'saves-person', actor: 'amara', sheet: 'people', rows: [{ ID: 'rhea', Team: 'Build & Release' }] },

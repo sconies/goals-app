@@ -1960,15 +1960,18 @@ function mayChangeGoal(actor, goal) {
 * Whether `actor` may post or correct a check-in on `goal` (Lane, 12 Nov: check-ins are the owner's). Only its owner
 * at the check-in screens, the one-table check-in and through the AI tools. Two exceptions, both kept by Lane (12 Nov),
 * both for an admin: loading a workbook (a spreadsheet import, or setting up from an export) brings in everyone's
-* history, and Data's tables let an admin correct a past check-in. Each records the admin as author and actor, with
+* past weeks, and Data's tables let an admin correct a check-in that exists; neither adds this week's new one. Each records the admin as author and actor, with
 * the door as its Via (postCheckIn.test).
 */
-function mayPostCheckIn(actor, goal, via) {
+function mayPostCheckIn(actor, goal, via, row) {
 	if (goal.ownerId === actor.id) return true;
-	return !!actor.admin && ADMIN_CHECK_IN_DOORS.includes(via);
+	if (!actor.admin || !ADMIN_CHECK_IN_DOORS.includes(via)) return false;
+	if (!row) return true;
+	return row.exists || via !== "table" && row.week < row.thisWeek;
 }
-var MARKS_STAGES, ADMIN_CHECK_IN_DOORS;
+var ADMIN_DOOR_LIMIT, MARKS_STAGES, ADMIN_CHECK_IN_DOORS;
 var init_goalRights = __esmMin((() => {
+	ADMIN_DOOR_LIMIT = (via) => via === "table" ? "Data’s tables correct a check-in; they don’t add one." : "A workbook brings in past weeks, not this week’s new check-in.";
 	MARKS_STAGES = (ownerName) => `${ownerName} marks done stages at the first check-in.`;
 	ADMIN_CHECK_IN_DOORS = [
 		"spreadsheet",
@@ -11573,15 +11576,21 @@ function* planChangesInChunks(input) {
 			return;
 		}
 		const owned = s.goals.find((x) => x.id === g.id) ?? g;
-		if (!create && !mayPostCheckIn({
+		const who = {
 			id: actor.id,
 			admin: admin()
-		}, owned, via)) {
+		};
+		if (!create && !mayPostCheckIn(who, owned, via, {
+			week: w,
+			thisWeek: week,
+			exists: !!existing
+		})) {
 			if (!post && answerOf("not-allowed", "Check-ins")?.choice === "leave") {
 				leave("Check-ins", row);
 				return;
 			}
-			raise("not-allowed", "Check-ins", row, g.title, `Only ${people.get(owned.ownerId)?.name ?? "its owner"} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
+			const limit = mayPostCheckIn(who, owned, via) ? " " + ADMIN_DOOR_LIMIT(via) : "";
+			raise("not-allowed", "Check-ins", row, g.title, `Only ${people.get(owned.ownerId)?.name ?? "its owner"} (its owner) can check in on “${g.title}”.${limit}`, post ? {} : { answers: ANSWERS.leaveOnly });
 			return;
 		}
 		const asked = post ? checkInLevels(g, w, draft, ctx).checks : [];
@@ -16370,7 +16379,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet. Anyone can ask the owner for an update from the goal’s page."]
+				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. Anyone can ask the owner for an update from the goal’s page."]
 			}
 		],
 		routes: ["/check-in", "/check-in/:goalId"],
@@ -18582,6 +18591,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "admin-check-in-doors-narrow",
+		date: "2026-11-13",
+		title: "An admin’s two check-in exceptions, only for what they’re for",
+		points: ["An admin loading a workbook brings in past weeks and corrects check-ins that are there, but can’t add this week’s new check-in on someone else’s goal: one pasted row is refused, saying why.", "In Data’s tables, an admin corrects a check-in that exists; adding one is the owner’s."],
+		articles: ["check-in", "data"]
+	},
 	{
 		id: "metric-part",
 		date: "2026-11-13",

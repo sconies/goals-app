@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'admin-check-in-doors-narrow',
+    date: '2026-11-13',
+    title: 'An admin’s two check-in exceptions, only for what they’re for',
+    points: [
+      'An admin loading a workbook brings in past weeks and corrects check-ins that are there, but can’t add this week’s new check-in on someone else’s goal: one pasted row is refused, saying why.',
+      'In Data’s tables, an admin corrects a check-in that exists; adding one is the owner’s.',
+    ],
+    articles: ['check-in', 'data'],
+  },
+  {
     id: 'metric-part',
     date: '2026-11-13',
     title: 'Measure a goal by one part of a number',
