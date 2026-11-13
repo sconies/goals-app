@@ -25,7 +25,7 @@ import { PickOne } from '../../ui/Pick';
 import { useWidth } from '../../ui/useWidth';
 import { canEditMetric, DIRECTION_LABEL, everUsed, liveMetrics, linksOf, METRIC_LIMITS, metricFrom, metricProblems, metricsOf, REFRESH_LABEL, REFRESHES, type Metric, type MetricDirection, type MetricInput, type MetricRefresh } from './rules';
 import { decimalsWords, directionWords, findMetrics, goalsByStatus, LIBRARY_PAGE, LIBRARY_SORTS, metricAt, metricNeeds, metricPath, movedMetrics, needsLine, ownerName, summaryLine, unitsInUse, type LibraryAsk, type LibrarySort, type MetricGoalRow } from './rulesLibrary';
-import { checkReads, goalsOfMetric, libraryReads, lineOf } from './reads';
+import { checkReads, goalsOfMetric, libraryReads, lineOf, proposedOfMetric } from './reads';
 import { countLine, metricChecks, STILL_FIELD, stillToSay, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
 import { CheckSaid, FixLine } from '../../ui/Levels';
 import { changeKinds, linkedGoals } from './rulesChange';
@@ -218,6 +218,7 @@ export function MetricPage() {
   const owner = app.person(m.ownerId);
   const ownerLive = ownerName(reads.people, m);
   const rows = goalsOfMetric(app.snapshot, app.cycle, app.today, app.week, m.id);
+  const proposed = proposedOfMetric(app.snapshot, m.id);
   const line = summaryLine(rows);
   const needs = edit ? metricNeeds(m, reads) : [];
   const by = (id: string, at: string) => `by ${app.person(id)?.name ?? 'someone who has left'} on ${dateOf(at)}`;
@@ -250,6 +251,17 @@ export function MetricPage() {
       <section className="stack" id="goals" style={{ gap: 'var(--s2)' }} aria-labelledby="metric-goals">
         <h2 className="label" id="metric-goals">Goals measured by it · {rows.length}</h2>
         {rows.length ? <GoalsTable rows={rows} /> : <p className="hint">No goal uses this metric yet. A goal’s owner links it under “Measured by” when they make or change the goal.</p>}
+        {/* Proposed goals (GE10) that name it: apart, with no numbers, in no comparison. */}
+        {proposed.length > 0 && (
+          <div className="metric-proposed" data-part="Proposed goals measured by it">
+            <h3 className="label">Proposed · {proposed.length}</h3>
+            <ul>
+              {proposed.map((g) => (
+                <li key={g.id}><Link to={`/goals/${encodeURIComponent(g.id)}`}>{g.title}</Link> <span className="hint">{[g.key, app.person(g.ownerId)?.name].filter(Boolean).join(' · ')}</span></li>
+              ))}
+            </ul>
+          </div>
+        )}
         {line && <p className="small metric-summary">{line}</p>}
       </section>
       <dl className="metric-facts">

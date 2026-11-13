@@ -11,8 +11,9 @@ import { linksOf, metricsOf } from './rules';
 const today = new Date('2026-11-02T12:00:00Z');
 const built = buildPlatformOrg(today);
 
-async function setup(personId: string, modulesOff: string[] = []) {
+async function setup(personId: string, modulesOff: string[] = [], change: (s: Snapshot) => void = () => undefined) {
   let data: Snapshot = structuredClone(built);
+  change(data);
   const token = newToken();
   const t: ApiToken = { id: 'tok1', personId, name: 'Test', tokenHash: await hashToken(token), createdBy: 'grace', createdAt: today.toISOString(), lastUsedAt: null, revokedAt: null };
   const deps: Deps = {
@@ -185,5 +186,15 @@ describe('metric library tools', () => {
     expect(asked.content[0]!.text).toMatch(/1 goal is measured by Lead time for changes in hours\. A metric in days is a different number/);
     // A new label for the same numbers (MT3 rule 3, relabel): the goal's unit changes with it.
     expect((await call('save_metric', { id: 'metric_lead-time', unit: 'hrs', relabel: true })).isError).toBe(false);
+  });
+
+  it('lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)', async () => {
+    const goalId = linksOf(built).find((l) => l.metricId === 'metric_lead-time' && !l.removedAt)!.goalId;
+    const { call } = await setup('oskar', [], (s) => { const g = s.goals.find((x) => x.id === goalId)!; g.proposedAt = '2026-10-30T10:00:00Z'; g.proposedBy = 'rhea'; });
+    const one = await call('get_metric', { metric: 'metric_lead-time' });
+    const sc = one.structuredContent as { goals: { goalId: string }[]; proposed: { goalId: string }[] };
+    expect(sc.proposed.map((x) => x.goalId)).toEqual([goalId]);
+    expect(sc.goals.some((x) => x.goalId === goalId)).toBe(false);
+    expect(one.content[0]!.text).toMatch(/Proposed \(1\), not judged: /);
   });
 });

@@ -16324,6 +16324,7 @@ var help$3 = [
 					"Find a metric by its name, unit, owner or meaning: “min lower” finds those in minutes where lower is better. Unit and Used by narrow the list beside the search; Filters has Owner, Which way is better, No goals use it and Something to sort out. Sort by A to Z, Most goals first or Changed lately. The filter line says what is on, each with Remove.",
 					"A search that finds nothing offers to add it as a new metric.",
 					"Open a metric to see what it means and how it’s calculated, then every goal measured by it as a table: its status as a shape and a word, the goal, who it is for (a team, or the whole company), the latest number, the target with its week, and where it stands against plan (for a goal kept in range, its room to the limit). When two or more goals have a number, a line says the lowest and highest now.",
+					"A proposed goal that names the metric is listed under the table, apart, as “Proposed · 1”: its name, key and owner, with no numbers. It is in no comparison until it is made active.",
 					"Below them: where the number comes from, who owns that source, how often it refreshes, any caveats, and who added and last changed it. With one goal, See its goal opens it.",
 					"On a goal measured by a metric, its summary says “Measured by …”, and its page has a block with the metric’s meaning and a link to the other goals measured by it. A person’s page lists the metrics they own, and a team’s the metrics its goals use.",
 					"Old links to Metrics under Data still work: they open the library, a metric, or the form."
@@ -19520,6 +19521,13 @@ var WHATS_NEW = [
 			"A metric that has measured goals is retired, not deleted: its goals keep their numbers and say so, and Bring it back undoes it. Admins can merge two metrics in the same unit."
 		],
 		articles: ["metric-change"]
+	},
+	{
+		id: "metric-lists-proposed",
+		date: "2026-11-13",
+		title: "A metric’s page lists its proposed goals",
+		points: ["A proposed goal that names a metric is listed on the metric’s page under its goals, as “Proposed · 1”, with no numbers.", "It joins the comparison only once it is made active. The AI assistant’s get_metric gives them apart too."],
+		articles: ["metrics", "goal-proposed"]
 	},
 	{
 		id: "sidebar-fits-a-laptop",
@@ -25164,6 +25172,11 @@ function goalsOfMetric(s, cycle, today, week, metricId) {
 	const ids = new Set(links.map((l) => l.goalId));
 	return metricGoals(metricId, links, summariseAll(liveGoals(s).filter((g) => ids.has(g.id)), s, cycle, today, week), s.teams, cycle);
 }
+/** The cycle's proposed goals (GE10) a metric names, newest first: listed apart, with no numbers, in no comparison. */
+function proposedOfMetric(s, metricId) {
+	const ids = new Set(linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt).map((l) => l.goalId));
+	return (s.proposed ?? []).filter((g) => ids.has(g.id) && !g.removedAt).sort((a, b) => (b.proposedAt ?? "").localeCompare(a.proposedAt ?? ""));
+}
 /** Rule 1's line for a metric, its owner being someone here who hasn't left. */
 var lineOf = (s, m) => stillToSay(m, !!ownerName(s.people, m));
 // src/modules/metrics/tools.ts
@@ -25403,7 +25416,7 @@ var tools$1 = [
 	{
 		name: "get_metric",
 		title: "Read a metric",
-		description: "One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; and, for its owner and admins, what it still needs (rule 3).",
+		description: "One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -25429,6 +25442,12 @@ var tools$1 = [
 					owner: r.owner
 				}));
 				const summary = summaryLine(side);
+				const proposed = proposedOfMetric(ctx.snapshot, m.id).map((g) => ({
+					goalId: g.id,
+					key: g.key ?? null,
+					goal: g.title,
+					owner: ctx.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? null
+				}));
 				const needs = canEditMetric(ctx.actor, m) ? metricNeeds(m, libraryReads(ctx.snapshot, ctx.now)).map((x) => ({
 					id: x.id,
 					sentence: x.sentence
@@ -25450,6 +25469,7 @@ var tools$1 = [
 					`Caveats: ${d.caveats || "—"}`,
 					goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}`).join("\n")}` : "Measures no goal yet.",
 					...summary ? [summary] : [],
+					...proposed.length ? [`Proposed (${proposed.length}), not judged: ${proposed.map((x) => `${x.key ?? x.goalId} ${x.goal}${x.owner ? ` (${x.owner})` : ""}`).join("; ")}`] : [],
 					...needs.length ? [`To sort out: ${needs.map((x) => x.sentence).join("; ")}`] : []
 				];
 				const history = ctx.snapshot.changes.filter((c) => c.entity === "metric" && c.entityId === m.id && !c.goalId).slice(-20).reverse().map((c) => ({
@@ -25465,6 +25485,7 @@ var tools$1 = [
 						...d,
 						stillToSay,
 						goals,
+						proposed,
 						summary,
 						needs,
 						history
