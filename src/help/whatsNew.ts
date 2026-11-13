@@ -31,11 +31,33 @@ export const WHATS_NEW: NewsEntry[] = [
     date: '2026-11-13',
     title: 'Check-ins say plainly which day they’re due',
     points: [
-      'Once all your goals are in, the check-in says when against the deadline: “by Thursday”, or “before Thursday’s review” when a review is held that day. With Reviews off it never names a review.',
+      'The day check-ins are due is said one way everywhere: “by Thursday”, or “before Thursday’s review” only when you are in a review held that day. With Reviews off, the week’s receipt says “All 7 of your check-ins are in by Thursday.”',
       'Switching Reviews off now also says how many accepted risks stay on their goals, and that check-ins are still due by the same day.',
       'With Reviews off, an exported spreadsheet has no Notes sheet and no Review column on Asks, and an import that has them says once that they were not read.',
     ],
     articles: ['check-in', 'features'],
+  },
+  {
+    id: 'habit-receipt-and-moment',
+    date: '2026-11-13',
+    title: 'Your run forgives one missed week, and reaching a target is said, quietly',
+    points: [
+      'When your week’s check-ins are all in, the last screen says whether they were in before the deadline (or the review, if you are in one that day), and how many weeks in a row you have been on time.',
+      'One late week no longer ends your run: if the four weeks before it were on time, it is forgiven, and the next check-in says so once.',
+      'A check-in that takes a goal to its target says so in one quiet panel, with a way to copy the goal’s share image. One that brings a goal back on track after two weeks or more behind says that too.',
+      'The goal’s History marks those weeks “Reached its target” or “Back on track”.',
+    ],
+    articles: ['check-in', 'home'],
+  },
+  {
+    id: 'state-filter-stopped',
+    date: '2026-11-13',
+    title: 'Find the goals stopped this year',
+    points: [
+      'The Filters sheet’s State has a third choice, Stopped: the goals stopped this year, most recently stopped first.',
+      'Each says who stopped it, when and why, and opens its page as it stood.',
+    ],
+    articles: ['goals', 'goal-page'],
   },
   {
     id: 'reviews-switch',

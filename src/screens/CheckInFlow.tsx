@@ -14,7 +14,9 @@ import { forecastText } from '../domain/tree';
 import { currentWeek, weekDates } from '../domain/plan';
 import { fmt, gapText, staysText, targetText, weekLabel } from '../domain/format';
 import { isEveryday, levelName } from '../domain/levels';
-import { daysToReview, onTimeStreak, weekCompletion, weekDoneText, weekProgress } from '../domain/progress';
+import { receiptFacts, receiptText, weekCompletion, weekDoneText, weekProgress } from '../domain/progress';
+import { longDay } from '../domain/home';
+import { moment, momentText, type Moment } from '../domain/habit';
 import type { CheckIn, Goal, Ask, MilestoneGoal, Status, RecoveryState } from '../domain/types';
 import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
 import { cycleState } from '../domain/cycle';
@@ -138,7 +140,7 @@ function Flow({ goalId }: { goalId?: string }) {
         </span>
       </div>
       {justPosted ? (
-        <Posted goal={goal} c={justPosted} updated={updated} left={queue.length - index - 1} nextTitle={app.goal(queue[index + 1] ?? '')?.title} onNext={next} />
+        <Posted goal={goal} c={justPosted} updated={updated} fixing={fixing} left={queue.length - index - 1} nextTitle={app.goal(queue[index + 1] ?? '')?.title} onNext={next} />
       ) : (
         <GoalCheckIn key={goal.id + ':' + fresh} goal={goal} correct={correcting} onPosted={(c, updated) => { walked(goal.id); setUpdated(updated); setJustPosted(c); }} onSkip={goal.kind !== 'milestone' && !fixing ? () => setNoData(true) : undefined} onDiscarded={() => { setDrafting(false); setFresh((n) => n + 1); }} onDrafting={setDrafting} discardRef={discardRef} />
       )}
@@ -177,8 +179,6 @@ function AllDone({ first, fromTable }: { first?: boolean; fromTable?: FromTable 
   const app = useApp();
   const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
   const w = weekCompletion(p);
-  const streak = onTimeStreak(app.viewer.id, app.snapshot, app.cycle, app.week);
-  const clock = { late: daysToReview(app.cycle, app.week, app.today) < 0, words: dueWordsHere(reviewsOn(useModules().on), app.snapshot, app.cycle, app.week) };
   const ref = useRef<HTMLAnchorElement>(null);
   useEffect(() => ref.current?.focus(), []);
   return (
@@ -186,9 +186,8 @@ function AllDone({ first, fromTable }: { first?: boolean; fromTable?: FromTable 
       <div className="celebrate" role="status">
         <ProgressRing done={p.done.length} total={Math.max(1, p.goals.length)} size={96} counts="check-ins" label={`${p.done.length} of ${p.goals.length} check-ins done this week`} />
         <h1 className="title-xl">{!p.goals.length || (first && !p.done.length) ? 'Nothing to check in' : w.complete ? `Week ${app.week} is done` : `${w.done} of ${w.total} checked in`}</h1>
-        <p className="muted">{!p.goals.length ? `You don’t own any goals this ${periodWord(app.cycle)}.` : first && !p.done.length ? 'None of your goals is due this week.' : weekDoneText(p, app.week, clock)}</p>
+        {w.complete ? <Receipt /> : <p className="muted">{!p.goals.length ? `You don’t own any goals this ${periodWord(app.cycle)}.` : first && !p.done.length ? 'None of your goals is due this week.' : weekDoneText(p, app.week)}</p>}
         {fromTable && <TablePosted posted={fromTable.posted} kept={fromTable.kept} />}
-        {streak >= 2 && w.complete && <p className="streak big">{streak} weeks in a row on time</p>}
         <div className="row done-actions">
           {p.due.length > 0 && <Link className="btn primary big-btn" to={`/check-in/${p.due[0]!.id}`}>Check in on {p.due[0]!.title}</Link>}
           <Link ref={ref} className={'btn big-btn' + (p.due.length ? '' : ' primary')} to="/">Back to home</Link>
@@ -225,21 +224,61 @@ function TablePosted({ posted, kept }: FromTable) {
   );
 }
 
+/** The week's receipt (habit spec 2.1; HB1): whether every check-in was in by the deadline (dueWords), and the run. The heading
+    above it is unchanged. Never says a run was lost. */
+function Receipt() {
+  const app = useApp();
+  // The deadline in dueWords' words (RS1): "before Thursday’s review" only for someone in a review held that day while
+  // Reviews is on (T4, FT2); otherwise "by Thursday".
+  const words = dueWordsHere(reviewsOn(useModules().on), app.snapshot, app.cycle, app.week, app.viewer.id);
+  const f = receiptFacts(weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today), app.viewer.id, app.snapshot, app.cycle, app.week, words);
+  const r = receiptText({ ...f, nextDue: f.nextDue ? longDay(f.nextDue) : null });
+  return (
+    <div className="ci-receipt">
+      <p className="ci-week-done">{r.first}</p>
+      {r.second && <p className="muted small ci-run">{r.second}</p>}
+    </div>
+  );
+}
+
+/** A target reached, or back on track (habit spec 2.2): one panel above the week's lines, its shape and word, no
+    animation beyond the receipt's own fade. */
+function MomentPanel({ m, goal, c }: { m: Moment; goal: Goal; c: CheckIn }) {
+  const app = useApp();
+  const t = momentText(m, goal, c, app.cycle.weeks);
+  const share = async () => {
+    const { shareGoalImage } = await import('./goalShare');
+    await shareGoalImage(app, goal, c.value == null || goal.kind === 'milestone' ? '' : fmt(c.value, goal), goal.kind === 'metric' ? [`target ${fmt(goal.plan.target, goal)}`] : [], t.line, 'done');
+  };
+  return (
+    <section className="ci-moment" aria-label={t.heading}>
+      <Chip k={m.kind === 'reached' ? 'done' : 'on'} />
+      <h2 className="ci-moment-head">{t.heading}</h2>
+      <p>{t.line}</p>
+      <div className="row">
+        {m.kind === 'reached' && <button type="button" className="btn" onClick={() => void share()}>Copy the share image</button>}
+        <Link className="linkish" to={`/goals/${goal.id}?posted=1`}>See the goal</Link>
+      </div>
+    </section>
+  );
+}
+
 /** After posting: what was saved, and the one next thing. The last post of the week is the only confirmation; there's no second "done" screen. */
-function Posted({ goal, c, updated, left, nextTitle, onNext }: { goal: Goal; c: CheckIn; updated: boolean; left: number; nextTitle?: string; onNext: () => void }) {
+function Posted({ goal, c, updated, fixing, left, nextTitle, onNext }: { goal: Goal; c: CheckIn; updated: boolean; fixing: boolean; left: number; nextTitle?: string; onNext: () => void }) {
   const app = useApp();
   const btn = useRef<HTMLButtonElement & HTMLAnchorElement>(null);
   useEffect(() => btn.current?.focus(), []);
   const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
-  // The deadline in dueWords' words (RS1): "by Thursday", or "before Thursday’s review" when one is held that day.
-  const clock = { late: daysToReview(app.cycle, app.week, app.today) < 0, words: dueWordsHere(reviewsOn(useModules().on), app.snapshot, app.cycle, app.week) };
+  // Rule 3: a target reached, or back on track. Never on a correction or a second check-in in the same week.
+  const m = moment(app.checkInsOf(goal).filter((x) => x.id !== c.id), c, goal, !fixing && !updated);
   return (
     <div className="celebrate" role="status">
       <span className="tick" aria-hidden="true"><svg viewBox="0 0 48 48" width="64" height="64"><circle cx="24" cy="24" r="22" /><path d="m14 25 7 7 13-15" /></svg></span>
       <h1 className="title-xl">Check-in saved</h1>{updated && <p className="muted">Kept alongside your earlier check-in this week; this one is now the week’s status.</p>}
       <p className="muted">{goal.title}{goal.kind !== 'milestone' && c.value != null ? `: ${fmt(c.value, goal)}` : ''}. Its status <span className="nobr">is <Chip k={c.status} /></span></p>
       {c.pathToGreen?.needs && <p className="small">Asked for: {c.pathToGreen.needs}. It shows on the goal and on their Home.</p>}
-      {!left && p.goals.length > 0 && <p className="muted ci-week-done">{weekDoneText(p, app.week, clock)}</p>}
+      {m && <MomentPanel m={m} goal={goal} c={c} />}
+      {!left && p.goals.length > 0 && (weekCompletion(p).complete ? <Receipt /> : <p className="muted ci-week-done">{weekDoneText(p, app.week)}</p>)}
       <div className="row done-actions">
         {left
           ? <button ref={btn} className="btn primary big-btn" onClick={onNext}>Next: {nextTitle}</button>

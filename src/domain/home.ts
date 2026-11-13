@@ -2,7 +2,7 @@
    attention, and your next review. Worked out once, for Home and for the AI assistant's "what needs me". */
 import { attentionFor, needsAttention, type GoalAttention } from './attention';
 import { daysSince, hasEnded } from './plan';
-import { dueWordsOn, onTimeStreak, WEEKDAY } from './progress';
+import { dueWordsOn, onTimeStreak, receiptText, WEEKDAY, type DueWords } from './progress';
 import { daysPast, reviewSession, sessionDate, upcomingSessionWeek, watchedGoals } from './review';
 import { goalStatus } from './status';
 import { statusCounts } from './order';
@@ -114,7 +114,12 @@ export interface HomeFacts {
   ended: boolean;
   /** null: no set rhythm (round 2's FT1); nothing is then due or late. */
   rhythm: { dueDate: string; nextDueDate: string | null } | null;
-  checkIns: { total: number; done: number; due: { id: string; title: string; number: boolean }[]; draft: boolean; allInOnTimeToday: boolean; streak: number | null };
+  checkIns: { total: number; done: number; due: { id: string; title: string; number: boolean }[]; draft: boolean; allInOnTimeToday: boolean; streak: number | null;
+    /** The receipt's facts (habit spec 2.1), for the day the week is completed: whether its last check-in was today, how many
+        came after the due day, the forgiven week inside the run, and whether the due day is a review the viewer is in (T4). */
+    completedToday?: boolean; after?: number; forgiven?: number | null;
+    /** The deadline in dueWords' words for this person and week (RS1; app/reads dueWordsHere): "by Thursday", or "before Thursday’s review". */
+    words?: Pick<DueWords, 'by' | 'after'> };
   /** The wrap-up, while it is open: the cycle's last day, whether it has passed, the viewer's goals not yet wrapped up. */
   wrap: { name?: string; ends: string; ended: boolean; left: { id: string; title: string }[]; total: number } | null;
   sessions: HomeSession[];
@@ -258,10 +263,15 @@ export function quietLine(f: HomeFacts): Quiet {
   const c = f.checkIns;
   if (f.rhythm && c.due.length) return { sentence, line: `Check-ins for week ${f.week} are due by ${dueOn(f.rhythm.dueDate)}. You have ${c.due.length} to do.`, buttons: [{ label: 'Check in early', to: '/check-in' }] };
   if (f.rhythm && c.total > 0 && c.done >= c.total) {
+    const nextDue = f.rhythm.nextDueDate && f.week < f.lastWeek ? dueOn(f.rhythm.nextDueDate) : null;
+    const next = nextDue ? `The next ${c.total === 1 ? 'is' : 'are'} due by ${nextDue}.` : '';
+    // On the day the week is completed, the check-in's receipt, word for word (habit spec 2.1; HB1).
+    if (c.completedToday ?? c.allInOnTimeToday) {
+      const r = receiptText({ total: c.total, after: c.after ?? 0, week: f.week, words: c.words ?? dueWordsOn(false, f.rhythm.dueDate), run: c.streak ?? 0, forgiven: c.forgiven ?? null, nextDue });
+      return { sentence: r.first, line: (c.after ? r.second : [r.second, next].filter(Boolean).join(' ')) || null, buttons: [] };
+    }
     const allIn = c.total === 1 ? 'Your check-in is' : c.total === 2 ? 'Both check-ins are' : `All ${c.total} check-ins are`;
-    const streak = c.allInOnTimeToday && (c.streak ?? 0) >= 2 ? `That is ${c.streak} weeks in a row on time. ` : '';
-    const next = f.rhythm.nextDueDate && f.week < f.lastWeek ? `The next ${c.total === 1 ? 'is' : 'are'} due by ${dueOn(f.rhythm.nextDueDate)}.` : '';
-    return { sentence: `${allIn} in for week ${f.week}.`, line: (streak + next).trim() || null, buttons: [] };
+    return { sentence: `${allIn} in for week ${f.week}.`, line: next || null, buttons: [] };
   }
   if (!f.owns && !f.watches && !f.asks.length) return { sentence, line: `You don’t own or watch a goal in ${f.workspace} yet.`, buttons: [{ label: 'See the goals', to: '/goals?scope=all' }, { label: 'Set up a goal', to: '/goals/new' }] };
   // Set up after this week's deadline: the first check-in is next week's, said plainly.

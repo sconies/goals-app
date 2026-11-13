@@ -138,7 +138,8 @@ describe('progress', () => {
     expect([p.done.length, p.due.length]).toEqual([5, 2]);
   });
   it('counts consecutive weeks checked in on time', () => {
-    expect(onTimeStreak('bjorn', s, cycle, SEED_WEEK)).toBe(3);
+    // One late week is forgiven after four on time (CF4, HB1): Bjørn's late week no longer ends his run.
+    expect(onTimeStreak('bjorn', s, cycle, SEED_WEEK)).toBe(9);
     expect(onTimeStreak('kojo', s, cycle, SEED_WEEK)).toBe(0);
     expect(onTimeStreak('oskar', s, cycle, SEED_WEEK)).toBe(0);
   });

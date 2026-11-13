@@ -394,7 +394,8 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await h.fill(p.getByLabel('What happened'), 'The runner budget came through a week early.');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
   // The last post is the only confirmation: what was saved, that the week is done, and a way on.
-  await see(p, `checked in for week ${NOW}`, 'the last post says the week is done');
+  // The receipt (habit spec 2.1): every check-in in, before the review or after it.
+  await see(p, /(Your check-in is|Both of your check-ins are|All \d+ of your check-ins are) in/, 'the last post says the week is done');
   h.set('finish', await p.getByRole('link', { name: 'Back to home' }).isVisible() && await p.getByRole('link', { name: 'View the goal' }).isVisible(), 'no way on from the confirmation');
   await h.checkpoint('done');
   let s = await h.snapshot();
@@ -405,7 +406,8 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await p.reload();
   if (built('reviews')) {
     // Rhea is in no review this week (hers is on Tuesday), so Home says the week is done in one sentence (HM1).
-    await see(p, /(Your check-in is|Both check-ins are|All \d+ check-ins are) in for week/, 'posted check-ins survive a reload, and home says the week is done');
+    // On the day it is completed, Home says the check-in's receipt (habit spec 2.1); on a later day, the week.
+    await see(p, /(Your check-in is|Both (of your )?check-ins are|All \d+ (of your )?check-ins are) in( for week| before|\.)/, 'posted check-ins survive a reload, and home says the week is done');
   } else {
     // Without Reviews, Daniel's question waits by its own age, not for Tuesday's session: nine days, so it leads Home
     // (rule 3), and nothing is left to check in on.
@@ -1646,7 +1648,7 @@ journey('U122', ['HOME-OWNER'], 'The owner’s week on Home: on Monday nothing i
   await p.goto(day('2026-11-11'));
   await hero.waitFor();
   const done = await hero.innerText();
-  h.set('finish', /Both check-ins are in for week 46\./.test(done) && /The next are due by Thursday 19 Nov\./.test(done) && await p.locator('.page.home .btn.primary').count() === 0, `Wednesday’s Home said “${done.replace(/\s+/g, ' ')}”`);
+  h.set('finish', /Both (of your )?check-ins are in (for week 46|before Thursday’s review)/.test(done) && /The next are due by Thursday 19 Nov\./.test(done) && await p.locator('.page.home .btn.primary').count() === 0, `Wednesday’s Home said “${done.replace(/\s+/g, ' ')}”`);
   // Friday 13 Nov: the deadline he met is not said.
   await p.goto(day('2026-11-13'));
   await hero.waitFor();
@@ -4868,7 +4870,7 @@ const ownWords = (text, s) => {
   return t;
 };
 
-journey('U150', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews off, the clock without a review: the read-back says check-ins are still due by Thursday; then no page Rhea opens calls the deadline a review, and her check-in’s receipt says the week is in “by Thursday”', 14, async (h, device) => {
+journey('U152', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews off, the clock without a review: the read-back says check-ins are still due by Thursday; then no page Rhea opens calls the deadline a review, and her check-in’s receipt says the week is in “by Thursday”', 14, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/workspace/features'));
   const box = p.getByRole('checkbox', { name: /^Reviews/ });
@@ -4924,7 +4926,7 @@ journey('U150', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews off, the 
   await p.context().close();
 }, ['parity', 'budget']);
 
-journey('U151', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews back on after a week off: switched off on Monday 2 Nov and on again on Friday 6 Nov, every session whose date passed while it was off moves to its next date, so neither Reviews nor Home says Not held yet', 8, async (h, device) => {
+journey('U153', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews back on after a week off: switched off on Monday 2 Nov and on again on Friday 6 Nov, every session whose date passed while it was off moves to its next date, so neither Reviews nor Home says Not held yet', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   const on = (day, path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
   await p.goto(on('2026-11-02', '/workspace/features'));
@@ -5864,6 +5866,68 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
 }, []);
 
 /* Check reads the metric from the draft (build review of #202, findings 2 and 3): a reload keeps it, a new team re-slices it. */
+journey('U151', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the receipt: as Valentina on Thursday 5 Nov, her one check-in at 80 (Commitment coverage’s target) shows one panel “… reached its target” with “Copy the share image” and “See the goal”, and the receipt “Your check-in is in for week 45, before Thursday’s deadline.”; the goal’s History marks that week “Reached its target”; as Jonah on Friday 6 Nov (nothing posted for week 45), his check-in says “It came in after Thursday’s deadline.” and no run', 12, async (h, device) => {
+  const on = (path, day) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  const p = h.use(await newPage(device, 'valentina'));
+  await p.goto(on('/check-in/cost-commit', '2026-11-05'));
+  await h.fill(p.getByLabel('This week’s value'), '80');
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Check-in saved');
+  const panel = p.locator('.ci-moment');
+  await see(panel, 'reached its target', 'no panel says the goal reached its target');
+  await see(panel, 'against a target of', 'the panel does not say the target');
+  h.set('finish', await panel.getByRole('button', { name: 'Copy the share image' }).isVisible() && await panel.getByRole('link', { name: 'See the goal' }).isVisible() && await p.locator('.ci-moment').count() === 1, 'the panel has not one share button and one link to the goal');
+  // The due day is a review only for someone in a review held that day (deep review T4); otherwise it is the deadline.
+  await see(p, /Your check-in is in (before Thursday’s review|by Thursday)\./, 'the receipt does not say it was in before the due day');
+  const said = await p.locator('.celebrate').innerText();
+  h.set('errors', !/lost|broken|!/i.test(said), `the receipt said “${said.replace(/\s+/g, ' ')}”`);
+  await h.checkpoint('reached');
+  await h.click(panel.getByRole('link', { name: 'See the goal' }));
+  await p.waitForURL(/\/goals\//);
+  const result = p.locator('.ci-result').first();
+  await result.waitFor({ timeout: 5000 }).catch(() => undefined);
+  const word = (await result.count()) ? (await result.textContent())?.trim() : '';
+  h.set('logged', word === 'Reached its target', `History’s row says “${word}”`);
+  await h.checkpoint('history');
+  // Friday: the review has passed. The receipt says so, and mentions no run.
+  const q = h.use(await newPage(device, 'jonah'));
+  await q.goto(on('/check-in/cost-storage', '2026-11-06'));
+  await h.fill(q.getByLabel('This week’s value'), '72');
+  await h.click(q.getByRole('button', { name: 'Post check-in' }));
+  await see(q, /It came after Thursday(’s review)?\./, 'a check-in after the due day does not say it came after');
+  const late = await q.locator('.celebrate').innerText();
+  h.set('progress', !/in a row|lost|broken/i.test(late), `the late receipt said “${late.replace(/\s+/g, ' ')}”`);
+  await h.checkpoint('late');
+});
+
+journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, a goal stopped with a reason is gone from Goals and listed with the State filter on Stopped (“1 stopped goal, most recently stopped first.”), with the Stopped mark, who stopped it and when, and the reason; the Filters sheet’s State offers Active, Proposed and Stopped; Remove goes back to the active goals', 15, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  const on = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2026-11-11';
+  await p.goto(on('/goals/ci-docker'));
+  await p.locator('.goal-bar').first().waitFor();
+  await goalMenu(h, p, 'Stop this goal');
+  const dlg = p.getByRole('dialog', { name: 'Stop this goal' });
+  await h.fill(dlg.getByLabel('Why is it stopping?'), 'The platform team took base images over in October.');
+  await h.click(dlg.getByRole('button', { name: 'Stop the goal' }));
+  await see(p, 'Stopped Base image build time', 'no message that it stopped');
+  const snap = await h.snapshot();
+  const g = snap.goals.find((x) => x.id === 'ci-docker');
+  h.set('logged', !!g?.stoppedAt && g.stoppedBy === 'rhea' && g.stopReason === 'The platform team took base images over in October.', 'the stop wasn’t saved with who and why');
+  await p.goto(on('/goals?scope=all&state=stopped'));
+  await see(p, 'Filtered by: Stopped', 'the stopped list doesn’t say its filter');
+  await see(p, '1 stopped goal, most recently stopped first.', 'the stopped list doesn’t count the stopped goal');
+  const row = p.locator('[data-part="Stopped goals"] li').first();
+  const says = (await row.innerText().catch(() => '')).replace(/\s+/g, ' ');
+  h.set('finish', says.includes('Base image build time') && says.includes('stopped 11 Nov by Rhea') && says.includes('The platform team took base images over in October.'), `the stopped row reads “${says}”`);
+  h.set('a11y', (await row.locator('.life-mark').count()) === 1 && (await row.locator('.status-shape').count()) === 0, 'a stopped row doesn’t draw the Stopped mark, or draws a status shape');
+  await h.checkpoint('stopped list');
+  await h.click(p.getByRole('button', { name: 'Remove' }).first());
+  await p.waitForURL((u) => !u.search.includes('state=stopped'));
+  await p.locator('.goals-line').first().waitFor();
+  // The goal's rows, not the page's text: the toast that it stopped may still be showing.
+  h.set('finish', (await p.locator('main a[href$="/goals/ci-docker"]').count()) === 0, 'the stopped goal is listed among the active goals');
+});
+
 journey('U149', ['GOAL-PROPOSED', 'GOAL-EDIT-PAGE'], 'A proposed goal’s type: as Tunde, a goal proposed from New goal opens its edit page with Type under “It’s proposed, so its type can still change.”; choosing “Keep a number in range” shows the limit, and with one typed Save changes keeps it proposed as a range goal; his active “Contract tests between the top 40 service pairs” has no Type on its edit page', 25, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));
   const on = (path, day = '2026-11-11') => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;

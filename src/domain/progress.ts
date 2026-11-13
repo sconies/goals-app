@@ -2,7 +2,7 @@
    They count only what the owner did themselves, as the research recommends. */
 import { firstWeekFrom, hasEnded, weekDate } from './plan';
 import { goalStatus } from './status';
-import type { Cycle, Goal, Snapshot } from './types';
+import type { CheckIn, Cycle, Goal, Snapshot } from './types';
 
 export interface WeekProgress {
   goals: Goal[];
@@ -107,20 +107,102 @@ export function firstReview(cycle: Cycle, today: Date): { week: number; date: st
 }
 
 /**
- * Consecutive weeks, counting back from the latest finished one, in which every goal the
- * person owns was checked in by the owner on or before the review day.
+ * The on-time run (CF4, forgiving; HB1): weeks in a row, counting back from the latest finished one, in which every goal
+ * the person owns was checked in by the owner on or before the review day. One late week is forgiven when each of the
+ * four weeks before it in which the person had something due was on time: it isn't counted, and the walk goes on. A late
+ * week that isn't forgiven ends the run. "Checked in this week, but late" is a late week like any other.
+ *
+ * CF2's migration (the cycle's `streak` setting) isn't on main yet, so the forgiving run is the only one: when it lands,
+ * 'on' skips the forgiving step and 'off' returns null (docs/design/workspace-settings/spec.md 2.5).
  */
 export function onTimeStreak(personId: string, s: Snapshot, cycle: Cycle, week: number): number {
-  const goals = s.goals.filter((g) => g.ownerId === personId);
-  if (!goals.length) return 0;
+  return onTimeRun(personId, s.goals, s.checkIns, cycle, week).weeks;
+}
+
+/** The forgiven week inside the current run, so the receipt can say it once (habit spec, rule 5); null when none. */
+export function forgivenIn(personId: string, goals: readonly Goal[], checkIns: readonly CheckIn[], cycle: Cycle, week: number): number | null {
+  return onTimeRun(personId, goals, checkIns, cycle, week).forgiven[0] ?? null;
+}
+
+/** How many weeks before a late one must be on time for it to be forgiven (CF4). */
+export const FORGIVE_AFTER = 4;
+
+function onTimeRun(personId: string, all: readonly Goal[], checkIns: readonly CheckIn[], cycle: Cycle, week: number): { weeks: number; forgiven: number[] } {
+  const goals = all.filter((g) => g.ownerId === personId);
+  const s = { checkIns };
+  if (!goals.length) return { weeks: 0, forgiven: [] };
+  const due = (w: number) => goals.some((g) => firstDueWeek(g, cycle) <= w);
   const onTime = (w: number) =>
-    goals.some((g) => firstDueWeek(g, cycle) <= w) && goals.every((g) => firstDueWeek(g, cycle) > w || s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
-  // Checked in this week, but after the review: the streak is broken, whatever came before.
-  if (goals.every((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week)) && !onTime(week)) return 0;
-  let streak = 0;
-  // This week counts once it is complete; otherwise start from last week.
-  for (let w = onTime(week) ? week : week - 1; w >= 1 && onTime(w); w--) streak++;
-  return streak;
+    due(w) && goals.every((g) => firstDueWeek(g, cycle) > w || s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
+  const forgiven = (w: number) => {
+    let seen = 0;
+    for (let v = w - 1; v >= 1 && seen < FORGIVE_AFTER; v--) {
+      if (!due(v)) continue;
+      if (!onTime(v)) return false;
+      seen++;
+    }
+    return seen === FORGIVE_AFTER;
+  };
+  // This week counts once every goal is checked in; otherwise start from last week.
+  const complete = goals.every((g) => firstDueWeek(g, cycle) > week || s.checkIns.some((c) => c.goalId === g.id && c.week === week));
+  const out = { weeks: 0, forgiven: [] as number[] };
+  for (let w = complete && due(week) ? week : week - 1; w >= 1 && due(w); w--) {
+    if (onTime(w)) out.weeks++;
+    else if (forgiven(w)) out.forgiven.push(w);
+    else break;
+  }
+  return out;
+}
+
+/** What the week's receipt reads (habit spec 2.1): the person's goals this week, how many of their first check-ins came
+    after the due day, the deadline in dueWords' words (`words`: "before Thursday’s review" only for someone in a review
+    held that day with Reviews on, deep review T4; otherwise "by Thursday", Reviews switch spec 2.1), the run and its
+    forgiven week, and the next due day already in words ("Thursday 19 Nov"; null in the year's last week). */
+export interface ReceiptFacts {
+  total: number;
+  after: number;
+  week: number;
+  words: Pick<DueWords, 'by' | 'after'>;
+  run: number;
+  forgiven: number | null;
+  nextDue: string | null;
+}
+
+/**
+ * The receipt's facts for a person's week (habit spec 2.1), from the rules that already say each: weekProgress (`p`) for
+ * their goals, reviewDate for the due day, the run. A goal's week counts as after when its first check-in that week
+ * (theirs, or someone's checking in for them) was posted after the due day. `words` is dueWords' for the person and
+ * week (app/reads dueWordsHere): the habit never reads a review itself (Reviews switch spec 4).
+ * `nextDue` is the next due day as an ISO date: the caller says it in words before `receiptText`.
+ */
+export function receiptFacts(p: WeekProgress, personId: string, s: { goals: readonly Goal[]; checkIns: readonly CheckIn[] }, cycle: Cycle, week: number, words: Pick<DueWords, 'by' | 'after'>): ReceiptFacts {
+  const due = reviewDate(cycle, week);
+  const after = p.goals.filter((g) => {
+    const first = s.checkIns.filter((c) => c.goalId === g.id && c.week === week && !c.removedAt).map((c) => c.postedAt).sort()[0];
+    return first != null && first.slice(0, 10) > due;
+  }).length;
+  const run = onTimeRun(personId, s.goals, s.checkIns, cycle, week);
+  return { total: p.goals.length, after, week, words: { by: words.by, after: words.after }, run: run.weeks, forgiven: run.forgiven[0] ?? null, nextDue: week < cycle.weeks ? reviewDate(cycle, week + 1) : null };
+}
+
+/**
+ * The receipt's two sentences, once every check-in of the week is in (habit spec 2.1; HB1). Read by the check-in's last
+ * screen and by Home's quiet line on the day the week is completed. A late week is never called lost or broken, and no run
+ * is mentioned beside one. The deadline is dueWords' (rule RS1): "in before Thursday’s review" / "in by Thursday", and
+ * "came after Thursday’s review" / "came after Thursday" (Reviews switch spec 2.1).
+ */
+export function receiptText(r: ReceiptFacts): { first: string; second: string | null } {
+  const yours = r.total === 1 ? 'Your check-in is' : r.total === 2 ? 'Both of your check-ins are' : `All ${r.total} of your check-ins are`;
+  const next = r.nextDue ? `The next ${r.total === 1 ? 'is' : 'are'} due by ${r.nextDue}.` : null;
+  if (r.after > 0) {
+    const who = r.total === 1 ? 'It' : r.after === r.total ? (r.total === 2 ? 'Both' : 'All of them') : r.after === 1 ? 'One' : String(r.after);
+    return { first: `${yours} in. ${who} came ${r.words.after}.`, second: next };
+  }
+  const first = `${yours} in ${r.words.by}.`;
+  const run = r.run >= 2 ? `That is ${r.run} weeks in a row.` : null;
+  // Said once: on the first receipt after the forgiven week.
+  const kept = r.forgiven != null && r.forgiven === r.week - 1 && r.run >= 2 ? `Week ${r.forgiven} came in late; one late week doesn’t break a run.` : null;
+  return { first, second: [run, kept].filter(Boolean).join(' ') || null };
 }
 
 /** Days until this week's review (0 on the day, negative once it has passed). */
