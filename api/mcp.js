@@ -5866,7 +5866,7 @@ var init_query = __esmMin((() => {
 // src/domain/find.ts
 /**
 * Rule 1. True when every word of `q` starts a word of `words`, ignoring case and accents (words break at spaces and at
-* / - , . : ( )). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
+* / - , . : ( ), but a number keeps its point: 12.5). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
 * finds only that goal ("G-48" isn't G-4), while a bare number also matches as words. An empty search matches anything.
 */
 function textMatches(words, q, key) {
@@ -6109,7 +6109,7 @@ var init_find = __esmMin((() => {
 	init_levels();
 	init_goalKey();
 	init_query();
-	wordsOf = (s) => fold$2(s).split(/[\s/\-,.:()]+/).filter(Boolean);
+	wordsOf = (s) => fold$2(s).split(/[\s/\-:()]+|(?<!\d)[.,]+|[.,]+(?!\d)/).filter(Boolean);
 	MAX_PAGE = 200;
 	goalWords = (s) => [
 		s.goal.title,
@@ -6170,9 +6170,19 @@ function applyTable(rows, head, q, filters, sort, searched) {
 	const idx = (c) => head.indexOf(c);
 	const cols = (searched ?? head).map(idx).filter((i) => i >= 0);
 	const colsKey = cols.join(",");
-	const keyAt = idx("Key");
+	const keyAt = [
+		"Key",
+		"Goal key",
+		"Goal keys"
+	].map(idx).find((i) => i >= 0) ?? -1;
+	const keysOf = (r) => keyAt >= 0 ? (r.cells[keyAt] ?? "").split(";").map((k) => k.trim()).filter(Boolean) : [];
+	const found = (r) => {
+		const ks = keysOf(r);
+		const w = wordsFor(r, cols, colsKey);
+		return ks.length ? ks.some((k) => wordsMatch(w, typed, k)) : wordsMatch(w, typed, null);
+	};
 	const live = filters.filter((f) => idx(f.col) >= 0 && (NO_VALUE.includes(f.op) || f.value.trim() !== ""));
-	const out = rows.filter((r) => (!typed || wordsMatch(wordsFor(r, cols, colsKey), typed, keyAt >= 0 ? r.cells[keyAt] : null)) && live.every((f) => passes(r.cells[idx(f.col)] ?? "", f)));
+	const out = rows.filter((r) => (!typed || found(r)) && live.every((f) => passes(r.cells[idx(f.col)] ?? "", f)));
 	const si = sortIndex(head, sort);
 	if (sort && si >= 0) out.sort((a, b) => {
 		const x = a.cells[si] ?? "", y = b.cells[si] ?? "";
@@ -17509,7 +17519,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Pick a table. Search it (each word you type starts a word in a shown column, as on Goals; a key like G-48 finds its goal), sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.",
+					"Pick a table. Search it (each word you type starts a word in a shown column, as on Goals, and the line under it says so while columns are hidden; a number like 12.5 is one word; a key like G-48 finds its goal, and on Check-ins and Asks that goal’s rows), sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.",
 					"Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.",
 					"Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.",
 					"Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.",
@@ -18582,6 +18592,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "data-search-finds",
+		date: "2026-11-13",
+		title: "Searching Data finds what you typed",
+		points: [
+			"A goal’s key finds its check-ins and asks too: G-48 on Check-ins shows that goal’s rows, and on Asks every ask about it.",
+			"A number with a point is one word: 12.5 finds 12.5, not every row with a 12 and a 5.",
+			"Search looks only in the columns shown, and the line under it now says so while some are hidden, with Choose columns."
+		],
+		articles: ["data", "finding"]
+	},
 	{
 		id: "metric-part",
 		date: "2026-11-13",

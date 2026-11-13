@@ -54,7 +54,7 @@ export function passes(cell: string, f: PropFilter): boolean {
 
 /**
  * Rows (as header → value) that pass every filter and match the search, sorted. The search is find's rule 1 (each word
- * typed starts a word in the row, or a key typed finds its goal by its Key) over the shown columns only (`searched`;
+ * typed starts a word in the row, or a key typed finds its goal's rows by Key, Goal key or Goal keys) over the shown columns only (`searched`;
  * every column when not given), as Goals' list bar searches (find spec, 2.1).
  */
 /** Each row's words, split once per row and set of columns (a table of 30,000 rows is searched on every key: N12). */
@@ -72,9 +72,13 @@ export function applyTable<R extends { cells: string[] }>(rows: R[], head: strin
   const idx = (c: string) => head.indexOf(c);
   const cols = (searched ?? head).map(idx).filter((i) => i >= 0);
   const colsKey = cols.join(',');
-  const keyAt = idx('Key');
+  // A goal's key finds its rows wherever the table keeps it: Key on Goals and Plan, Goal key on Check-ins and Notes,
+  // Goal keys (several, split by ;) on Asks (build review of #234).
+  const keyAt = ['Key', 'Goal key', 'Goal keys'].map(idx).find((i) => i >= 0) ?? -1;
+  const keysOf = (r: R) => (keyAt >= 0 ? (r.cells[keyAt] ?? '').split(';').map((k) => k.trim()).filter(Boolean) : []);
+  const found = (r: R) => { const ks = keysOf(r); const w = wordsFor(r, cols, colsKey); return ks.length ? ks.some((k) => wordsMatch(w, typed, k)) : wordsMatch(w, typed, null); };
   const live = filters.filter((f) => idx(f.col) >= 0 && (NO_VALUE.includes(f.op) || f.value.trim() !== ''));
-  const out = rows.filter((r) => (!typed || wordsMatch(wordsFor(r, cols, colsKey), typed, keyAt >= 0 ? r.cells[keyAt] : null)) && live.every((f) => passes(r.cells[idx(f.col)] ?? '', f)));
+  const out = rows.filter((r) => (!typed || found(r)) && live.every((f) => passes(r.cells[idx(f.col)] ?? '', f)));
   const si = sortIndex(head, sort);
   if (sort && si >= 0) {
     out.sort((a, b) => {

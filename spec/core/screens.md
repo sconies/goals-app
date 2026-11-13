@@ -724,6 +724,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Filters · … / Filters” | button | always |
 | “Columns · … of …” | button | always |
 | “Remove the sort” | button | `sort` |
+| “Choose columns” | button | `q.trim() && cols.length < all.length + 1` |
 | “Show … more” | button | `shown.length > limit` |
 | “Discard” | button | `canEdit` and `total > 0` |
 | “Review changes” | primary | `canEdit` and `total > 0` |

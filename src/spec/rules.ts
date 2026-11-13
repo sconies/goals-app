@@ -59,7 +59,7 @@ import MODULE_SPEC from 'virtual:faro-modules/spec';
 import { backTo, litItem, menuGroups, menuRows, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
 import { movedGoals, ownGroup, scopesFor } from '../domain/goalsPage';
 import { watchedGoals } from '../domain/review';
-import { countLine, filterLine, findAll, keyOf, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
+import { countLine, filterLine, findAll, keyOf, nearMiss, noneFound, search, suggest, textMatches, wordsOf } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
 import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
@@ -1566,7 +1566,7 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
     tests: ['src/domain/find.test.ts', 'src/adapters/parts.test.ts', 'src/adapters/findAll.test.ts'],
     reqs: ['FIND-ANYWHERE'],
     body: `
-**What a search matches.** A row is found by its words, as one text; a search matches when every word typed starts a word of the row, ignoring case and accents. Words break at spaces and at \`/ - , . : ( )\`, so "CI/CD" is two words and "ci" finds it, "Lucía" is found by "lucia", and "back" doesn't find "Rollback". An empty search matches everything.
+**What a search matches.** A row is found by its words, as one text; a search matches when every word typed starts a word of the row, ignoring case and accents. Words break at spaces and at \`/ - , . : ( )\`, except a point or comma between two digits, which stays in its number ("12.5" is one word, so it doesn't find a row with a 12 and a 5); so "CI/CD" is two words and "ci" finds it, "Lucía" is found by "lucia", and "back" doesn't find "Rollback". An empty search matches everything.
 
 **A goal's key** finds it however it is typed: "G-48", "g48", "g-48" or a bare "48". A whole search that is one key finds only that goal ("G-48" isn't G-4); a bare number also matches as words.
 
@@ -1595,6 +1595,7 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
       return [
         { given: `The row “${row}”, searched for “rollback”, “roll min”, “back”, “off track”.`, then: 'yes, yes, no, yes', run: () => ['rollback', 'roll min', 'back', 'off track'].map((q) => (textMatches(row, q, 'G-48') ? 'yes' : 'no')).join(', ') },
         { given: 'The same row (key G-48), searched for “g-48”, “G48”, “48”; and “Canary halt G-4” (key G-4) for “G-48”.', then: 'yes, yes, yes; no', run: () => `${['g-48', 'G48', '48'].map((q) => (textMatches(row, q, 'G-48') ? 'yes' : 'no')).join(', ')}; ${textMatches('Canary halt G-4', 'G-48', 'G-4') ? 'yes' : 'no'}` },
+        { given: 'The words of “Down to 12.5, from 1,200. Then 3.”', then: 'down to 12.5 from 1,200 then 3', run: () => wordsOf('Down to 12.5, from 1,200. Then 3.').join(' ') },
         { given: '“Lucía Romero Staff Engineer CI/CD” searched for “lucia ci”; anything searched for “”.', then: 'yes; yes', run: () => `${textMatches('Lucía Romero Staff Engineer CI/CD', 'lucia ci') ? 'yes' : 'no'}; ${textMatches('Anything', '') ? 'yes' : 'no'}` },
         { given: 'Near misses: “rolback”, “kafak”, “piplin”, “rolbak” (list has rollback, kafka, pipeline); “qeue wait” (queue, wait); “cost” (costs); “G-480”.', then: 'rollback; kafka; none; none; queue wait; none; none', run: () => ([['rolback', ['rollback']], ['kafak', ['kafka']], ['piplin', ['pipeline']], ['rolbak', ['rollback']], ['qeue wait', ['queue', 'wait']], ['cost', ['costs']], ['G-480', ['G-48']]] as [string, string[]][]).map(([q, v]) => nearMiss(q, v) ?? 'none').join('; ') },
         { given: 'In the demo workspace: goals for “G-48”, “tunde”, “rolback” and “zzzz”.', then: '1: On-call engineers across all twelve rotations who had fewer than two out-of-hours pages in the week, not counting planned maintenance windows / 2: Contract tests between the top 40 service pairs, One-click rollback for every deployable service / 2 (near: rollback): Change failure rate, One-click rollback for every deployable service / 0: ', run: () => ['G-48', 'tunde', 'rolback', 'zzzz'].map((q) => find('goal', q)).join(' / ') },
