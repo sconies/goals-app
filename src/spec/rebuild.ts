@@ -377,8 +377,9 @@ const adapters = (browser: Record<string, BrowserState>) => GENERATED + [
 /** The actions the command port runs: every shared action R1's access table names, less the `can…` checks they call. */
 export function commandNames(): string[] {
   const helper = (fn: string) => /^(can|may)[A-Z]/.test(fn) || fn === 'reviewHeld' || fn === 'leaving';
-  // A rule whose action has another name: `planGoal` works out a goal's save, and the `saveGoal` action runs it.
-  const action: Record<string, string> = { planGoal: 'saveGoal' };
+  // A rule whose action has another name: `planGoal` works out a goal's save, and the `saveGoal` action runs it;
+  // `saveMetricAsked` asks rule 1's Checks before `saveMetric` saves, and the `saveMetric` action runs it.
+  const action: Record<string, string> = { planGoal: 'saveGoal', saveMetricAsked: 'saveMetric' };
   return [...new Set(ACCESS.flatMap((a) => a.code).map((r) => r.split('#')[1]!).filter((fn) => !helper(fn)).map((fn) => action[fn] ?? fn))];
 }
 

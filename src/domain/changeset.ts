@@ -40,7 +40,7 @@ import { checkInsFor } from './status';
 import { makesLoop } from './tree';
 import { asksOf, requestsAfterCheckIn } from './asks';
 import { deleteGoal, markPersonLeft, stopGoal } from './removal';
-import { stagesFromNow } from './templates';
+import { reportedIn, stagesFromNow } from './templates';
 import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
 import { goalMeasureOf, type ModuleRecords } from './records';
 import { CHUNK } from './importLimits';
@@ -402,14 +402,14 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     return undefined;
   }
 
-  type Found = { p?: Person; byName?: boolean; kind?: IssueKind; problem?: string; extra?: Extra; left?: boolean };
+  type Found = { p?: Person; byName?: boolean; kind?: IssueKind; problem?: string; extra?: Extra; left?: boolean; /** Picked in answer to the cell ("Choose…"): it stands for the row's other person cells too. */ chosen?: boolean };
   /** Who a person-cell names: an email, an ID, or a name only one person has; a name or email one letter out is asked. */
   const personFrom = (sheet: Sheet, column: string, kind: 'email' | 'id' | 'name', v: string): Found => {
     const settle = (k: IssueKind, problem: string, extra: Extra, nearOne?: Person): Found => {
       const a = answerOf(k, sheet, extra.column, extra.found);
       if (a?.choice === 'leave') return { left: true };
       if (a?.choice === 'use' && nearOne) return { p: nearOne };
-      if (a?.choice === 'choose' && a.value) { const again = personFrom(sheet, column, a.value.includes('@') ? 'email' : 'name', a.value); if (again.p) return again; }
+      if (a?.choice === 'choose' && a.value) { const again = personFrom(sheet, column, a.value.includes('@') ? 'email' : 'name', a.value); if (again.p) return { ...again, chosen: true }; }
       return { kind: k, problem, extra };
     };
     if (kind === 'email' || (kind === 'name' && v.includes('@'))) {
@@ -425,7 +425,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
         const hit = sameDomain.find((x) => normalEmail(x.email).split('@')[0] === m.near)!;
         return settle('near-ref', `No one here has ${e}. Did you mean ${hit.email}?`, { column, found: e, suggest: hit.email ?? '', answers: ANSWERS.nearRef(hit.email ?? '', e, false, false) }, hit);
       }
-      return settle('unknown-ref', `No one here has the email ${e}. Add them on the People sheet, or check it.`, { column, found: e, answers: ANSWERS.unknownRef('person', e, false, false) });
+      return settle('unknown-ref', `No one here has the email ${e}. Add them on the People sheet, or check it.`, { column, found: e, answers: ANSWERS.unknownRef('person', e, false, false, create) });
     }
     if (kind === 'id') { const p = people.get(v); return p ? { p } : { kind: 'bad-key', problem: `There’s no person with ID ${v}.`, extra: { column: column + ' ID', found: v } }; }
     const list = named(v);
@@ -439,7 +439,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
       const hit = all.find((p) => p.name === m.near)!;
       return settle('near-ref', `“${v}” isn’t here. Did you mean ${hit.name}?`, { column, found: v, suggest: hit.name, answers: ANSWERS.nearRef(hit.name, v, false, false) }, hit);
     }
-    return settle('unknown-ref', `“${v}” isn’t in this workspace. Add them on the People sheet, or check the spelling.`, { column, found: v, answers: ANSWERS.unknownRef('person', v, false, false) });
+    return settle('unknown-ref', `“${v}” isn’t in this workspace. Add them on the People sheet, or check the spelling.`, { column, found: v, answers: ANSWERS.unknownRef('person', v, false, false, create) });
   };
   /**
    * The person a row's columns name (an email, an ID, a name), against who it is now. Only the columns that say someone
@@ -450,14 +450,21 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     const header = (k: 'email' | 'id' | 'name') => (k === 'email' ? (cols.name ? `${what} email` : what) : k === 'id' ? `${what} ID` : what);
     const given = (Object.entries(cols) as ['email' | 'id' | 'name', string][]).filter(([, c]) => has(r, c) && ref(r, c)).map(([k, c]) => [k, ref(r, c)] as const);
     const says = (k: 'email' | 'id' | 'name', v: string) => !!current && (k === 'email' ? normalEmail(current.email) === normalEmail(v) : k === 'id' ? current.id === v : fold(current.name) === fold(v) || current.id === v || (v.includes('@') && normalEmail(current.email) === normalEmail(v)));
-    let changed = given.filter(([k, v]) => !says(k, v));
+    const changed = given.filter(([k, v]) => !says(k, v));
     if (!changed.length) return {};
     // An email or ID is exact: a name beside it that's theirs agrees with it, even when others share that name.
-    const exact = changed.filter(([k]) => k !== 'name').map(([k, v]) => personFrom(sheet, header(k), k, v).p).find(Boolean);
-    if (exact) changed = changed.filter(([k, v]) => k !== 'name' || fold(v) !== fold(exact.name));
-    const found = changed.map(([k, v]) => ({ k, v, ...personFrom(sheet, header(k), k, v) }));
+    // Each cell read once (rule 10). A person chosen in answer to one cell ("Give it to someone here") is the row's
+    // person, whatever the others say.
+    const read = changed.map(([k, v]) => ({ k, v, ...personFrom(sheet, header(k), k, v) }));
+    const picked = read.find((x) => x.chosen && x.p);
+    if (picked) return { person: picked.p! };
+    const exact = read.find((x) => x.k !== 'name' && x.p)?.p;
+    const found = exact ? read.filter((x) => x.k !== 'name' || fold(x.v) !== fold(exact.name)) : read;
     if (found.some((x) => x.left)) return { left: true };
     const bad = found.find((x) => x.problem);
+    // At set-up, "Add {person}" says the name the row gives beside their email.
+    const nameCell = given.find(([k]) => k === 'name')?.[1];
+    if (bad && create && nameCell && !nameCell.includes('@') && bad.extra?.answers?.[0]?.choice === 'add') return { kind: bad.kind, problem: bad.problem, extra: { ...bad.extra, answers: [{ ...bad.extra.answers[0], label: `Add ${nameCell}` }, ...bad.extra.answers.slice(1)] } };
     if (bad) return { kind: bad.kind, problem: bad.problem, extra: bad.extra };
     const ids = new Set(found.map((x) => x.p!.id));
     if (ids.size > 1) { const order = ['name', 'email', 'id']; const said = [...found].sort((x, y) => order.indexOf(x.k) - order.indexOf(y.k)); return { kind: 'conflicting-refs', problem: `${[...new Set(said.map((x) => header(x.k)))].join(' and ')} name different people (${said.map((x) => x.p!.name).join(' and ')}). Change just one of them.`, extra: { column: what } }; }
@@ -741,6 +748,8 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
   }
   // From with no Start column beside it, in a file (not a tool, whose From is always a week): a bare number is asked about.
   const fromInDoubt = via !== 'mcp' && !(input.tables.goals ?? []).some((r) => has(r, 'start'));
+  /** A Goals row the file's Check-ins sheet reports on (create mode's stage question skips it). */
+  const reported = reportedIn(create ? input.tables.checkIns : undefined);
   const goalRows = (input.tables.goals ?? []).map((r, i) => ({ r, row: rowOf(r, i), i })).filter(({ r }) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, 'action')) !== 'example');
   examples += (input.tables.goals ?? []).filter((r) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, 'action')) === 'example').length;
   // A batch names its own rows (backlog BT): a Goals row's Ref lets Feeds into ref and Goal ref in the same file name
@@ -980,12 +989,14 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     }
     // A new goal's stages already due (C4; onboarding rule 3, in bulk): done, not done, or counted from this week.
     let doneIds: string[] = [];
-    if (!existing && !create && d.kind === 'milestone') {
+    // At set-up (create mode, IM8) it is asked with its own two answers, "Count them from this week" first (set-up chooses
+    // it unless changed); there a goal with check-ins in the file keeps its weeks, as they happened.
+    if (!existing && d.kind === 'milestone' && !(create && reported(r))) {
       const past = d.stages.filter((st) => { const w = parseNumber(st.dueWeek); return w != null && w < week; });
       if (past.length) {
         // Saying they're done is a check-in, so the owner's (R1): from anyone else it's asked, and said, but not recorded.
-        const marks = mayPostCheckIn({ id: actor.id, admin: admin() }, { ownerId: d.ownerId }, via) ? '' : ' ' + MARKS_STAGES(people.get(d.ownerId)?.name ?? 'Its owner');
-        const a = ask('past-stage', 'Goals', row, d.title, `${plural(past.length, 'stage')} of “${d.title}” ${past.length === 1 ? 'is' : 'are'} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(', ')}. ${past.length === 1 ? 'Is it' : 'Are they'} done?${marks}`, { column: 'Stages', answers: ANSWERS.pastStage });
+        const marks = create || mayPostCheckIn({ id: actor.id, admin: admin() }, { ownerId: d.ownerId }, via) ? '' : ' ' + MARKS_STAGES(people.get(d.ownerId)?.name ?? 'Its owner');
+        const a = ask('past-stage', 'Goals', row, d.title, `${plural(past.length, 'stage')} of “${d.title}” ${past.length === 1 ? 'is' : 'are'} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(', ')}${create ? ', so it would start late.' : `. ${past.length === 1 ? 'Is it' : 'Are they'} done?${marks}`}`, { column: 'Stages', answers: create ? ANSWERS.pastStageSetUp : ANSWERS.pastStage });
         if (a === 'leave') return;
         if (a?.choice === 'done' && !marks) doneIds = past.map((st) => st.id);
         if (a?.choice === 'from-now') {

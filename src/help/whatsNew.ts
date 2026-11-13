@@ -33,6 +33,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['goal-proposed'],
   },
   {
+    id: 'setup-upload-preview',
+    date: '2026-11-13',
+    title: 'Set-up checks a spreadsheet as Import does',
+    points: [
+      'A spreadsheet given at set-up ends on Import’s preview: what it adds, what must be fixed, and its questions.',
+      'An owner nobody typed: “Add {name}”, or “Give it to someone here”.',
+      'Stages already due count from this week unless you change it.',
+    ],
+    articles: ['set-up', 'import'],
+  },
+  {
     id: 'proposals-on-home',
     date: '2026-11-13',
     title: 'Proposals for you show on Home',
@@ -42,6 +53,18 @@ export const WHATS_NEW: NewsEntry[] = [
       'Proposing a goal for someone else now says they will see it on their Home.',
     ],
     articles: ['goal-proposed', 'home'],
+  },
+  {
+    id: 'metric-checks-everywhere',
+    date: '2026-11-13',
+    title: 'New metrics checked everywhere',
+    points: [
+      'Adding a metric from a goal’s “Measured by” now asks the same questions as Add a metric: a name close to another’s, a unit spelt another way, a percentage that doesn’t say out of what.',
+      'A name that differs from another metric’s only by an accent, such as “Fláky test rate”, must be changed, as one differing only by case already did.',
+      'Answering a question on the form keeps your place: Change on the answered line takes the focus.',
+      '“Lower is better” and “Higher is better” are bigger to tap on a phone.',
+    ],
+    articles: ['metric-define', 'metric-measured-by'],
   },
   {
     id: 'range-between-both-limits',

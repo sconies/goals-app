@@ -7,6 +7,10 @@ import { canLinkGoal, linkProblems, linksOf, live, log, metricRows, metricsOf, n
 import { forWords, linkChecks, type LinkReads } from './rulesParts';
 import type { MetricLink } from './types';
 
+
+/** Saving a metric, rule 1's Checks asked first: loaded with linking, in one chunk (actions.ts). */
+export { saveMetricAsked } from './rulesSave';
+
 /**
  * Measure a goal by a metric, for a slice: a team (teamId) or the whole company (null), and optionally one part of that
  * number (`part`, MT2: "tier-1 services"; empty for all of it). The goal's owner or an admin. Rule 2 (rulesParts.ts,
