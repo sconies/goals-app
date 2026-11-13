@@ -27,7 +27,8 @@ export const WHATS_NEW: NewsEntry[] = [
     date: '2026-11-13',
     title: 'The whole sidebar fits on a laptop screen',
     points: [
-      'The sidebar’s rows are a little tighter, and the demo’s Demo button is one line, so everything down to your name shows on a 900-pixel-high screen without scrolling.',
+      'The sidebar’s rows are a little tighter, so everything down to your name shows on a 900-pixel-high screen without scrolling.',
+      'In the demo, the Demo button in the sidebar is one line: the word Demo, then who you’re viewing as.',
     ],
     articles: ['getting-around', 'demo'],
   },
