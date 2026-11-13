@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (157): build it as Faro does.
+- **Copy** (159): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -227,7 +227,7 @@ A check-in says which week it is for and where it is in the week's queue, even a
 Once a person's check-ins for the week are all in, the receipt says whether they were in before the deadline ("All 4 of your check-ins are in for week 46, before Thursday’s deadline."; the due day is called a review only for someone in a review held that day) and the run of weeks in a row on time, from two; or how many came in after it and when the next are due, with no run. One late week is forgiven when the four weeks before it were on time, and said once ("Week 45 came in late; one late week doesn’t break a run."). Never "lost", "broken", a nought or an exclamation mark. Home's quiet line says the same two sentences on the day the week is completed.
 
 - **Copy:** build it as Faro does.
-- **Rule:** [The habit: the run, the receipt and a moment](rules/habit.md)
+- **Rule:** [The habit: the run, the receipt, a moment and the measure](rules/habit.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U151
 
@@ -236,7 +236,7 @@ Once a person's check-ins for the week are all in, the receipt says whether they
 A check-in that reaches a goal's target, or brings it back on track after two weeks or more behind, shows one quiet panel on its receipt (the status's shape and word, what happened in one line, "Copy the share image" for a target reached) and its row in the goal's History says "Reached its target" or "Back on track" in small capitals. Never on a correction, a backfilled week or an import; no animation, confetti or banner on anyone else's screen.
 
 - **Copy:** build it as Faro does.
-- **Rule:** [The habit: the run, the receipt and a moment](rules/habit.md)
+- **Rule:** [The habit: the run, the receipt, a moment and the measure](rules/habit.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U151
 
@@ -294,6 +294,33 @@ Only the goal's owner checks in on the check-in screen: the owner's call is the 
 - **Copy:** build it as Faro does.
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U9, U141
+
+## Reviews
+
+### HABIT-MEASURE
+
+A review's page says how many of its goals were checked in before it, and how many without being asked (Faro's only nudge is an ask for an update), with links that open exactly the goals that came in after an ask and those with no check-in yet, and a row of the last 8 weeks (All in, {k} after, None in, Nothing due) drawn as squares with words. A team's page shows the same for its goals.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [The habit: the run, the receipt, a moment and the measure](rules/habit.md)
+- **Help:** “Teams” (`teams`)
+- **Journeys and checks:** U153
+
+### HABIT-NEVER-A-PERSON
+
+The measure is about weeks and goals, never people: no person is named, listed, counted or sorted in it, no team is ranked by it, and a set whose goals have fewer than three owners shows none of it, unless the viewer owns them all.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [The habit: the run, the receipt, a moment and the measure](rules/habit.md)
+- **Help:** “Teams” (`teams`)
+- **Journeys and checks:** U153
+
+### INSPECT-ACT
+
+On each goal in a review, a participant can mark it seen, add a note, ask the owner a question or add an action; saying anything covers the goal and moves on.
+
+- **Copy:** build it as Faro does.
+- **Journeys and checks:** U3
 
 ## Goals
 
@@ -803,15 +830,6 @@ Whatever is exported loads straight back as no change: every demo workspace as a
 - **Help:** “Data” (`data`), screens `DataTables`, `DataFilters`, `DataLayout`
 - **Tests:** `evals/format.eval.ts` (5)
 - **Journeys and checks:** U46, U89
-
-## Reviews
-
-### INSPECT-ACT
-
-On each goal in a review, a participant can mark it seen, add a note, ask the owner a question or add an action; saying anything covers the goal and moves on.
-
-- **Copy:** build it as Faro does.
-- **Journeys and checks:** U3
 
 ## Demo
 

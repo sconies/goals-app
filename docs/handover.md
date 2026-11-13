@@ -4,6 +4,31 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 
 
 
+## Track 1, Friday 13 November, 17:00 UTC (handing over at about two-thirds full; supersedes the 14:25 entry)
+
+Session: session_012kbr8zT29m9btyWCVyT2QG. Planning is now session_012kbr91eefh4gwCAztBncNT: report there once, with finished results and blockers only.
+
+**Merged:** #410 (HB1: the forgiving run, built unconditionally because CF2's `cycle.streak` isn't on main; the receipt; a target reached or back on track, `src/domain/habit.ts`; `post_check_in` answers with `moment`, `get_my_work` gives `weekReceipt`). #416 (HB2, merged 16:49: rules 1, 2 and 4 in `standing.ts` and `habit.ts`; "Before this review" and the last 8 weeks on a review's page and a team's page; Goals' `checkedin=no|asked` and `inreview=`; `get_review`'s `beforeThisReview`). **This PR:** F9 (the number source is the metric library's port: `src/modules/metrics/source.ts`, its contract `source.contract.ts`) and NR's migration `0047_check_in_reading.sql` (one nullable `reading jsonb` on `okr_check_ins`), shipped a merge ahead of the code (AX10). MS took 0046.
+
+**Decided since 14:25:** #369's medium 6 is track 2's (Lane chose a shorter label on a phone); leave it out.
+
+**Next, in order:**
+0. **#410's six mediums** (build reviewer, 16:47; lows in the build reviews file on the `build-reviews` branch, PR #134): (1) on time is judged on the UTC day of the stamp (`progress.ts` `onTimeRun`, `receiptFacts`) while Home's "due today" uses the viewer's day: one due day for Home, the receipt and the run; (2) owning a Done goal sets the run to 0 for good: the run must leave Done goals out as `weekProgress` does (Farah, Diego, Marcus read 0); (3) a backfilled week counts as on time, and a week never checked in is forgiven then called "came in late" (What's new says "missed"): count a backfilled week as not on time, and word a missed week as missed; (4) taking over a goal resets the new owner's run (it counts the goal from its first due week and only their own check-ins): count a goal only from when they owned it; (5) the receipt's share image says "Done" for a goal reached but On track (`CheckInFlow.tsx`, `MomentPanel` passes `'done'`; pass the check-in's own status) and its line is cut by the footer rule; (6) the kit: conformance rows for the run, the forgiven week and the moment (a `habit.csv`, or rows in `home.csv` and `checkin.csv`), the spec's sentence on why the habit has no switch (it is core: the status rules' check-ins), and the lines in README and `docs/handoff.md`. Put the reviewer's lows with them.
+1. **NR1's code** (`docs/design/round-4/readings/spec.md`, and MT4's 5.1–5.3 in `docs/design/metrics-2/spec.md`): the port's optional `Slice { teamId, part }` on `reads`/`read` and the contract's extra cases; the demo's seeded series (CI analytics reads `ci-time` for the whole company; CI runner metrics reads `queue-wait` per slice, one slice with no reading this week, an eval fixture two weeks behind); rule 1 `readingState` in the module, `RULES.readingMaxDays = 7` in `thresholds.ts`; rule 2 `CheckIn.reading` (core type; `src/data/rows.ts` writes it only when set). Conformance rows in the module's `metrics.csv` file. No What's new until NR2 (no visible change).
+2. **NR2, NR3** as the spec's build plan says (the `checkin.number` place is new and core; the block and its rule live in the metrics module's chunk).
+3. **HB3** only once HM7 exists (not on main at 17:00). Home must not import `habit.ts`; `standing.ts` is the small rule Home may read.
+4. **HM3/HM4** if not built, then **PF1–PF2** (`docs/design/round-4/portfolio/spec.md`).
+5. **N12** only if main's fixer (`fix/n12-data-search`) hasn't landed it; then #110's lows, HM1's lows, the 14:25 entry's lows batch, and #400's two lows: when one of several asks closes and the others move, the goal's change reads "Open asks (2): Old owner → —" because `openAsksDiff` takes only `handed.changes[0]` (`goalEntry.ts` ~636, `askHandover.ts`), so say the move and the close separately; and `unmark_reviewed` silently ignores IDs it doesn't find when at least one matches, so name the missing ones.
+
+**Habits, learned this session:**
+- Journey numbers collide between tracks: before pushing, `grep -o "^journey('U1[5-9][0-9]'" evals/journeys.cjs | sort | uniq -c` after merging main, and take the next free one. Migrations likewise (`ls supabase/migrations | tail`).
+- Deep review T4 (N3): Home never calls the workspace's due day a review unless the viewer is in a review held that day; `reviewOnDueDay` in `progress.ts` says which.
+- Nothing on Friday's Home may say "late" (U122), What's new's banner included.
+- `/check-in` opens the queue page; a journey that types a number opens `/check-in/<goal>`.
+- A new DB constraint must be listed in `src/spec/limits.ts` (`LIMITS` or `NOT_LIMITS`).
+- Reviews' Help and AI tools now live in `src/modules/reviews` (FT2); its switch is asked through `reviewsOn(useModules().on)` or `reviewsOn(modulesOn(ctx.ws).on)`.
+- Never run unit tests beside an eval run: the fence tests time out and an import timing check (N18) trips.
+
 ## Track 1, Friday 13 November, 14:25 UTC (context near full, handing over; supersedes the 05:45 entry)
 
 Session: session_012kbr8xrSzicJV6Yybqqzng. **Merged:** #400 (see below), #382 (an ended cycle refuses every correction in the engine, at every door; conformance case `ended-cycle` with `given.at`), #387 (Import's check and changes get `CheckClose`, "Close without saving" back to Import; U72 presses it).
