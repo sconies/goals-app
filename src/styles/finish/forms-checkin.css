@@ -173,3 +173,12 @@
   .ciq-go { grid-column: 2; grid-row: 1 / span 2; min-height: 44px; }
   .ciq-start .btn { width: 100%; }
 }
+
+/* The habit moment (habit spec 2.1, 2.2): the receipt's two lines, and one plain panel when a goal reaches its target or
+   comes back on track. A border all round, no stripe, no animation of its own. */
+.ci-receipt { display: flex; flex-direction: column; gap: 4px; max-width: 36rem; }
+.ci-receipt p { margin: 0; }
+.ci-moment { display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 32rem; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.ci-moment-head { font-size: 1.125rem; font-weight: 650; margin: 0; }
+.ci-moment p { margin: 0; }
+.ci-moment .row { justify-content: center; align-items: center; gap: 16px; }

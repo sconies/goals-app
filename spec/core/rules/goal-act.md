@@ -66,6 +66,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ### [src/domain/goalAct.test.ts](../../../src/domain/goalAct.test.ts)
 
 - next steps and asks (rule 2) › as Amara: the decision and her next step are for her, each with its one button; what was done is under Done lately
+- next steps and asks (rule 2) › with Reviews switched off (FT2): a question names no review; a next step still says in words where it was agreed
 - next steps and asks (rule 2) › as Rhea: nothing for her; she may withdraw her decision; Amara’s step has no button for her
 - next steps and asks (rule 2) › as Oskar: both rows, no buttons
 - next steps and asks (rule 2) › a decision raised for several goals is one row that says so

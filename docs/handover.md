@@ -4,6 +4,27 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 
 
 
+## Track 1, Friday 13 November, 14:25 UTC (context near full, handing over; supersedes the 05:45 entry)
+
+Session: session_012kbr8xrSzicJV6Yybqqzng. **Merged:** #400 (see below), #382 (an ended cycle refuses every correction in the engine, at every door; conformance case `ended-cycle` with `given.at`), #387 (Import's check and changes get `CheckClose`, "Close without saving" back to Import; U72 presses it).
+
+**#400** (`ask-handover-mediums`, merged 14:24): Lane's rule (only `update` and `question` asks follow a new owner, `FOLLOWS_OWNER` in `askHandover.ts`; a named ask stays; one the new owner asked closes as withdrawn); #369's mediums 1, 2, 4, 5, 7 (`askWaiting` in `app/reads.ts` is the one lateness rule for Home, `get_my_work` and `list_requests`; a question before its session reads "Due by Tue 24 Nov"; N26 now checks every ask's waiting line for five people over 14 days); MCP parity: `unmark_reviewed`, and `arrive` has a reason. Nothing of track 1's is in flight.
+
+**Open for Lane:** #369's medium 6 (a lone "this week" cell cuts a long review name at 390). Wrapping the name breaks #305's fold guarantee (N26: first goal at 775 px, fold 775), so it was reverted. Lane needs to choose: a shorter label, a taller cell, or keep the cut.
+
+**Next, in order** (planning, 13 Nov; follow `docs/architecture/module-map.md`, #388):
+1. **The habit moment**, `docs/design/round-4/habit/spec.md`: HB1, then HB2; HB3 once HM7 exists. HB is core, not a module; its words follow the `reviews` switch through a flag, as `readBack.ts` does (never import reviews), using RS1's "on time, without being asked" when reviews are off. CF2's migration is not on main (no `cycle.streak`), so HB1 builds the forgiving run unconditionally and says so in its PR. Home's cell (HB3) loads its rule after paint. Each ships its MCP tools in the same PR (`get_my_work` gets the streak).
+2. **NR1–NR3** (`docs/design/round-4/readings/spec.md`, replaces MT4): part of the metric library, no new switch. First move `NumberSource`/`SourcedMetric` out of the core ports into the metric library (a module-map fix item).
+3. **HM3/HM4** if not built, then **PF1–PF2** (the leader's week, `docs/design/round-4/portfolio/spec.md`): core, a view of Goals; its "This week, for these goals" entry belongs to reviews and shows only while `reviews` is on.
+4. N12's Find timing only if main's fixer (session_012kbr8zm5LkH575XFmikwtq, branch `fix/n12-data-search`) hasn't landed it; then #110's lows, HM1's lows and the lows batch (the 05:45 entry's list, plus #369's lows: `update_goal` is silent about moved asks; undoing an import logs nothing on the ask; marking someone as left can give "now yours" to a non-owner; `handedFrom` matches by name; meta lines two lines at 1440; a read-only metric edit page says "Close without saving"; a proposed goal's "waiting since" reads the UTC day; one kind's heading wraps at 390).
+
+**Habits, learned this session:**
+- What's new lists features only (Lane, #386): fixes, polish and wording get "[no news]" unless they change a number people rely on, restore something broken for many, or change who may do what. On a conflict in `whatsNew.ts`, take main's and re-add only feature entries.
+- Never `require('./evals/journeys.cjs')` to syntax-check it: it runs the whole suite. Use `node --check`.
+- `ONLY` and `FINISH` take comma-separated IDs (`ONLY=U3,U21`), and `FINISH` alone runs only F/N/P checks.
+- A new capitalised `.tsx` in a module is a "screen": add it to its guide article's `screens` and to `SCREENS` in `src/mcp/parity.ts`.
+- A status word ("Open", "Answered"…) written outside the vocabulary fails `vocabulary.eval`: log a field that isn't a status.
+
 ## Track 1, Friday 13 November, 05:45 UTC (session past half, handing over; supersedes the 02:00 entry)
 
 Session: session_012kbr91FiHKpcgaoQxfHX4a. **Merged:** #328 (Import's way out; F8's stale locator was fixed on main by #342 the same way), #326 (#225's review, with Lane's budget raise: first download 275 KB, the real app's 334 KB, `MARGIN_KB` still 3), #352 (`rv7-scope`: a review speaks only for the goals it walks, `maySpeak` in `actions.ts`, `scopeRefusal`; MCP `review_call` says the rule), #366 (`data-search-mediums`: #234's three mediums, F7's [S1]–[S3]).
@@ -462,6 +483,42 @@ Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this sessi
 - **Fence check (#125):** Supabase's own tables in extensions, cron and net, open to every role by default, are a warning; a direct grant to `faro_owner` still fails. 0038 is live.
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
+
+## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~15:25 UTC (session near 80% context, handing over; supersedes the 12:40 entry)
+
+Session: session_012kbr92MfjHTHVBgQp2nL52. Planning is session_012kbr939zneZWtAo7UQEHRP; track 4 is session_012kbr931R7QEqBrfxbNv2QV. The build freeze is lifted: Lane wants tiers 1–3 built before handoff. Since #386 the rules are: every self-contained feature is a module behind its own switch, What's new lists features only, and every feature ships its MCP tools in the same PR. Per the module map (docs/architecture/module-map.md, #388), GE10 is core, TG is a `tags` module, and SM1 adds `menu.waitsFor` to every module.json.
+
+| PR | What | State |
+|---|---|---|
+| #380 | The reviewer's mediums on #349, #355 and #319 | merged. It carries a fixes-only What's new entry, `proposed-fixes-review`; planning was asked to have the pruning session drop it |
+| #376 | "Propose a new goal" in reviews, `proposedIn`, Home's " in {review}", Last time's "Proposed: …"; on a phone the link sits in the next-step sheet (decide bar RV 4); U148 | merged |
+| #377 | A proposed goal's type can change (Type stacks on a phone); `TYPE_FIXED`; U149 | merged |
+| #378 | Stopped in the State filter; `find_goals` `state: "stopped"`; U150 | gate passed, auto-merge on |
+
+**Next, in order:**
+1. **The build reviewer's mediums on #376** (13 Nov ~14:45; full text in docs/reviews/2026-11-11-build-reviews.md on `build-reviews`, #134), in one PR:
+   - `planGoal` doesn't check `canSpeakFor` or the review's scope for `proposedIn` (goalEntry.ts ~590). Refuse it with `speakRefusal`, as actions.ts ~166 does, and state the scope rule.
+   - An ordinary edit of a goal drops `proposedIn` and `proposedBy` once it is active (goalEntry.ts ~614: `state` is only spread while proposing, and buildGoal doesn't copy them). Keep the existing goal's values on every save, and add a row test (a mixed batch can write NULL over the stored column).
+   - The carry (carry.ts ~161) keeps `proposedIn` with a new `createdAt`, so the next year's first Last time lists carried goals. Clear `proposedIn` on the carried copy, or have `lastTime` skip copies.
+   - `backToProposed` (proposedActions.ts ~85, and changeset.ts ~1113) sets `proposedBy` to the actor but keeps `proposedIn`. Clear `proposedIn` there.
+   - Closing the Propose sheet drops focus to body and loses the typed name. On a phone, "Propose a new goal instead" discards a next step already typed: keep the drafts (ProposeInReview.tsx, Inspect.tsx ~170).
+   - Also: track 4's reviews switch (#371) is on main now, so make `reviewName` (src/app/reads.ts) return null when `!reviewsOn(...)`, unless RS1 already has.
+   - The #380 low: Home's `proposalRows` (reads.ts ~123) should leave out the proposal the lead is about, as Home.tsx ~135 does.
+2. **MCP parity** (planning, 13 Nov): `backToProposed` has no tool, so add one. Map `activate` to `make_goal_active` in the spec's actions. For `recordStagesDone`, add a tool or state why not. Update parity.test.ts and run `npm run spec`.
+3. The rest of GE10 (F): `for-someone-else` for files and tools; what feeds a goal shows "Proposed · {n}" and "Feeds into {goal} · Proposed"; the start page's carry count, "{k} proposed goals carry as proposed".
+4. "Look around the demo": one calm line in the workspace switcher's list that opens /demo. Add it to docs/backlog.md in the PR that builds it.
+5. TG (tags on goals) as its own `tags` module and switch, with its own records that no rule reads. Then SM in four parts in the spec's order: SM4, SM2, SM3, SM1 (docs/design/round-4/small-workspaces/spec.md; Lane's answers 1a–5a).
+6. Lows carried: the "It has check-ins…" line on every goal's Change page; no layout switch with the State filter on; no journey for the proposal lead or the for-you row; supabase/README.md omits 0045; "Opened"/"Not yet" are per browser; the phone row's sentence is cut to one line. New journeys score 5–7 of 10 only for criteria they don't assert (entry, progress, errors).
+
+**Habits:**
+- Main moves constantly. Every merge conflicts in `api/mcp.js` (take main's, then run build:mcp), `src/help/whatsNew.ts` (keep both entries, ours first), `evals/journeys.cjs` and tests (keep both blocks), and the generated spec/ files (take main's, then run `npm run spec`).
+- Check the PR against the phone limits before the full run: the decide bar is at most 130px tall at 360px (F6, RV 4), and there is no sideways scroll (P9 a11y).
+- A What's new entry needs two to six lines (guide.test).
+- A new screen file needs an article's `screens` list and a parity.ts row.
+- A word the vocabulary defines comes from it (ONE-VOCABULARY).
+- `evals:changed` runs the full suite in about 19 minutes. P9, N6 and N18 flake under load and pass alone.
+
+**Prompt for the next track 2 session:** "You are track 2 of Faro's build (goal entry and set-up). Read CLAUDE.md (including #386's rules: modules behind switches, What's new for features only, MCP tools in the same PR), docs/architecture/module-map.md, then the track 2 section of docs/handover.md ('Track 2 … Friday 13 November, ~15:25 UTC'), and do its 'Next' list in order, one PR each. Check #378 first: if it hasn't merged, fix what blocks it. The first download is about 262 of 275 KB: keep anything new lazy; never raise budgets. Track 4 (session_012kbr931R7QEqBrfxbNv2QV) owns the feature-switch mechanism and the reviews switch. A migration that adds a check constraint adds its line to src/spec/limits.ts. Follow CLAUDE.md's gate (typecheck, npm test, npm run spec, evals:changed, build:mcp from a real node_modules via cp -al, never ln -s), one heavy run at a time. Build in a worktree, send eval runs to a subagent that returns only the scorecard, check mergeable_state, then enable auto-merge (MERGE) once the gate passes. Report to the planning session (session_012kbr939zneZWtAo7UQEHRP, or whichever session tells you planning has moved) once, when the list is done or blocked. Hand over only when the list is done, past ~80% context, or when losing track."
 
 ## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~12:40 UTC (session past half, handing over; supersedes the 04:30 entry)
 

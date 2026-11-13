@@ -86,6 +86,18 @@
       "use": "copy"
     },
     {
+      "id": "HABIT-RECEIPT",
+      "area": "Check-in",
+      "text": "Once a person's check-ins for the week are all in, the receipt says whether they were in before the deadline (\"All 4 of your check-ins are in for week 46, before Thursday’s deadline.\"; the due day is called a review only for someone in a review held that day) and the run of weeks in a row on time, from two; or how many came in after it and when the next are due, with no run. One late week is forgiven when the four weeks before it were on time, and said once (\"Week 45 came in late; one late week doesn’t break a run.\"). Never \"lost\", \"broken\", a nought or an exclamation mark. Home's quiet line says the same two sentences on the day the week is completed.",
+      "use": "copy"
+    },
+    {
+      "id": "HABIT-MOMENT",
+      "area": "Check-in",
+      "text": "A check-in that reaches a goal's target, or brings it back on track after two weeks or more behind, shows one quiet panel on its receipt (the status's shape and word, what happened in one line, \"Copy the share image\" for a target reached) and its row in the goal's History says \"Reached its target\" or \"Back on track\" in small capitals. Never on a correction, a backfilled week or an import; no animation, confetti or banner on anyone else's screen.",
+      "use": "copy"
+    },
+    {
       "id": "REASON-AHEAD",
       "area": "Check-in",
       "text": "A reason is required when 120% or more ahead, and the check-in asks whether the target should change.",
@@ -1119,6 +1131,12 @@
       "id": "MODULES",
       "area": "Architecture",
       "text": "Faro is a small core with named extension points (routes, navigation, Home blocks, goal-page sections, settings, places on core screens, database tables, AI tools, Help articles, requirements and journeys) and feature modules, one folder each with a module.json a generator can read, saying what it adds and what it needs. An admin switches each module on or off for a workspace on Workspace, Features (migration 0030): off, it leaves every screen, its AI tools refuse, and what needs it goes off too; nothing it saved is lost, and each switch is logged. CI builds Faro with each module left out and runs the core journeys, and a lint keeps src/domain free of database, screen and network code and the core from importing a module.",
+      "use": "copy"
+    },
+    {
+      "id": "REVIEWS-OPTIONAL",
+      "area": "Architecture",
+      "text": "An admin switches Reviews off for a workspace. Off, there is no Reviews in the menu, on Home, on a goal or in the AI’s tools; asks and next steps are unchanged; what was said in reviews stays in history. Nothing is deleted, and switching it on restores it.",
       "use": "copy"
     },
     {

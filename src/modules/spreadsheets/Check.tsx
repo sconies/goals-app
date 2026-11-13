@@ -7,7 +7,7 @@ import { Link, Navigate, useNavigate } from 'react-router';
 import { useApp } from '../../app/state';
 import { saveAndSay } from '../../app/files';
 import { readChanges } from '../../app/spreadsheet';
-import { MODULE_SHEETS } from '../../core/records';
+import { sheetsOn } from '../../core/records';
 import { describe, sheetCounts, type ChangeSet } from '../../domain/changeset';
 import { workbook } from '../../domain/export';
 import { leaveOut } from '../../domain/leaveOut';
@@ -156,8 +156,9 @@ export function Check() {
     setBusy(true);
     setSaving(cs);
     try {
-      const importId = final.commit.changes.find((c) => c.action === 'imported')?.entityId;
-      await app.applyChanges(final);
+      // The import's id is the saved one: the change set is worked out again when saved (AX2), with new ids.
+      const saved = await app.applyChanges(final);
+      const importId = saved.commit?.changes.find((c) => c.action === 'imported')?.entityId;
       // The file is forgotten when Import next opens: emptied here, the open preview would send the person back to Import.
       // Imported reads the import from the change log; the rows left out stay in memory for its download.
       if (importId) importStore.set({ done: { importId, tables: base, rows: leftRows } });
@@ -271,7 +272,7 @@ function Counts({ cs, base, read }: { cs: ChangeSet; base: Tables; read: { name:
 /** "Nothing would change" (2.3), with the worked-out cells that differ from today's, when there are any. */
 function Nothing({ cs, base, names }: { cs: ChangeSet; base: Tables; names: Partial<Record<keyof Tables, string>> }) {
   const app = useApp();
-  const edits = useMemo(() => workedOutEdits(base, workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, sheets: MODULE_SHEETS }), names), [base, app, names]);
+  const edits = useMemo(() => workedOutEdits(base, workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, sheets: sheetsOn(app.ws) }), names), [base, app, names]);
   const rows = edits.reduce((k, e) => k + e.rows.length, 0);
   const cols = [...new Set(edits.flatMap((e) => e.columns))];
   return (

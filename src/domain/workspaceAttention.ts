@@ -32,13 +32,14 @@ const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many
  * What an admin has to sort out in the open workspace (app redesign WR2, docs/design/workspace/spec.md rule 3), in
  * order: no goals in the running cycle; no review; the only admin of a workspace of five or more; people with no
  * email; people in no team; teams of three or more with no lead. Members get nothing: these are an admin's to fix.
- * The year ending is Home's and the Year fact's to say; feedback is the builders' business.
+ * The year ending is Home's and the Year fact's to say; feedback is the builders' business. With Reviews switched off
+ * (`reviews` false, FT2) no review is asked for.
  */
-export function workspaceNeeds(s: Pick<Snapshot, 'people' | 'teams' | 'goals' | 'reviews'>, cycle: Pick<Cycle, 'name'>, admin: boolean): WorkspaceNeed[] {
+export function workspaceNeeds(s: Pick<Snapshot, 'people' | 'teams' | 'goals' | 'reviews'>, cycle: Pick<Cycle, 'name'>, admin: boolean, opts: { reviews: boolean } = { reviews: true }): WorkspaceNeed[] {
   if (!admin) return [];
   const out: WorkspaceNeed[] = [];
   if (!s.goals.length) out.push({ id: 'no-goals', says: `No goals in ${cycle.name} yet`, why: 'Each owner adds theirs from New goal.', action: 'Add one', to: '/goals/new' });
-  if (!s.reviews.some((r) => !r.removedAt && !r.endedAt)) out.push({ id: 'no-review', says: 'No review is set up', why: 'A review is where the goals that need attention are talked about.', action: 'Set one up', to: '/reviews/new' });
+  if (opts.reviews && !s.reviews.some((r) => !r.removedAt && !r.endedAt)) out.push({ id: 'no-review', says: 'No review is set up', why: 'A review is where the goals that need attention are talked about.', action: 'Set one up', to: '/reviews/new' });
   if (s.people.filter((p) => p.admin).length === 1 && s.people.length >= ONLY_ADMIN_FROM) out.push({ id: 'only-admin', says: 'You’re the only admin', why: 'Make a second, so the workspace isn’t stuck when you’re away.', action: 'Choose someone', to: '/workspace/access' });
   const noEmail = s.people.filter((p) => !p.email).length;
   if (noEmail) out.push({ id: 'no-email', says: `${n(noEmail, 'person has', 'people have')} no email`, why: 'An email is how two people with one name are told apart.', action: 'Add them', to: '/people?emails=1' });
