@@ -461,6 +461,7 @@ A goal review on a cadence: which goals it walks, and who takes part. Anyone can
 | `keysIssued` | `number` | no | The highest goal key given in the workspace so far, across every cycle (set when a snapshot is scoped to one cycle), so a new goal's key is never one an earlier cycle used. |
 | `archive` | `Archive` | no | Set when a snapshot is scoped (domain/cycle scopeToCycle): records kept for history but out of every list, stat, picker, attention list and review. Stopped goals with their check-ins and notes, people who left, ended reviews. Deleted records are in neither; they're read from the whole snapshot (Recently removed). |
 | `proposed` | `Goal[]` | no | Set when a snapshot is scoped (domain/cycle scopeToCycle): this cycle's proposed goals (domain/proposed). Kept out of `goals`, as stopped goals are, so no count, status, check-in, review or wrap-up ever judges one; the places that list them (Goals with its filter, Find, their own page, the sheet and the tools) read them from here. |
+| `history` | `{ from: string; checkInCycles: string[] }` | no | Set only when the snapshot was loaded with a window (ports/store LoadWindow, AX5 part 2): what was left out. Check-ins of cycles that ended before `from`, and change-log entries before it other than the anchors (ports/window.ts), are not loaded; `checkInCycles` names every cycle with any check-in, in the whole workspace, so a rule asking whether a cycle has one needn't load them. Older entries come a page at a time from Store.history. |
 
 ### Archive
 
