@@ -74,6 +74,7 @@ export const LIMITS: Limit[] = [
 /** Check constraints that aren't a rule for the rebuild, and why. A table name stands for every constraint on it. */
 export const NOT_LIMITS: Record<string, string> = {
   okr_changes_undo_check: 'How Faro stores an undo; the change log’s shape is in the data model.',
+  okr_check_ins_reading_ok: 'How Faro stores a check-in’s reading (one jsonb value with its source, value and time); NR1 gives the check-in a `reading` (readings spec, rule 2).',
   okr_metrics_marks_array: 'How Faro stores a metric’s marks (a list); the data model gives `marks` as a list of changes.',
   okr_goal_metrics_check: 'How Faro stores a goal’s metric beside the goal (one row per goal); the data model has `metricId` on the goal.',
   okr_markups: 'Markups go to the builders’ inbox, which R1 replaces (MARKUP-INBOX is tagged replace).',
