@@ -65,7 +65,8 @@ describe('rule 10: a large file is checked in about the time it takes to read', 
     expect(cs!.items).toEqual([]);
     expect(Object.values(cs!.unchangedBy).reduce((a, b) => a + b, 0)).toBe(rows);
     expect(took).toBeLessThan(20_000);
-  });
+    // Its own budget is 20 s, so vitest's default 5 s must not cut it short on a loaded CI runner.
+  }, 30_000);
 
   it('costs about what its rows do: five times the rows, well under twenty-five times the time', () => {
     planChanges(input(s0, newRows(200)));
