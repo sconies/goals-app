@@ -31,6 +31,9 @@ import { useWidth } from '../ui/useWidth';
 import { CORE_SECTION_LABELS } from './workspaceSections';
 import { movedTo } from '../domain/directory';
 import { WORKSPACE_MEANS } from '../domain/vocabulary';
+import { reviewsOn } from '../app/reads';
+import { switchOffLines, switchOffReadBack } from '../domain/reviewsOff';
+import { asksOf } from '../domain/asks';
 
 /** Below this width, Workspace is About and then its other sections as a list, one section at a time (a phone). */
 const NARROW = 720;
@@ -41,7 +44,7 @@ const CORE: WorkspaceSection[] = [
   { id: 'overview', label: CORE_SECTION_LABELS.overview, summary: 'What needs sorting out, then the facts about this workspace.', element: <AboutSection /> },
   { id: 'cycles', label: CORE_SECTION_LABELS.cycles, summary: 'The workspace’s goal years: their dates, which one is running, and what can be done with each.', element: <CyclesSection /> },
   { id: 'access', label: CORE_SECTION_LABELS.access, summary: 'Who the admins are, and MCP access: the tokens that let Claude or another AI tool act as someone here.', admins: true, element: <AccessSection /> },
-  { id: 'features', label: CORE_SECTION_LABELS.features, summary: 'The optional parts of Faro, each switched on or off for everyone here. Goals, check-ins, reviews and people are always on.', admins: true, element: <FeaturesSection /> },
+  { id: 'features', label: CORE_SECTION_LABELS.features, summary: 'How this workspace works, and the optional parts of Faro.', admins: true, element: <FeaturesSection /> },
   // Everyone can read what is recorded about them; only admins switch it (re-review, 8 Nov, backlog T).
   { id: 'privacy', label: CORE_SECTION_LABELS.privacy, summary: 'What the app records about how it’s used here. Admins switch it on or off.', element: <PrivacySection /> },
   { id: 'removed', label: CORE_SECTION_LABELS.removed, summary: 'Anything removed in the last 30 days, with Restore. Anyone who isn’t an admin sees what they removed.', element: <RemovedSection /> },
@@ -220,13 +223,15 @@ function AboutSection() {
   const ws = workspaceName(app.ws, app.mode);
   // What an admin has to sort out (rule 3), then each module section's own, then what a module with no section raises
   // (AR2: toSortOut).
-  const needs = [...workspaceNeeds(app.snapshot, app.cycle, admin), ...sections.flatMap((s) => s.needs?.(app.snapshot, app.viewer) ?? []), ...screens.flatMap((m) => m.toSortOut?.(app.snapshot, app.viewer) ?? [])];
+  const needs = [...workspaceNeeds(app.snapshot, app.cycle, admin, { reviews: reviewsOn(on) }), ...sections.flatMap((s) => s.needs?.(app.snapshot, app.viewer) ?? []), ...screens.flatMap((m) => m.toSortOut?.(app.snapshot, app.viewer) ?? [])];
   const shownNeeds = all ? needs : needs.slice(0, NEEDS_SHOWN);
   const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
   const admins = adminsLine(app.snapshot.people);
   const named = (ids: string[]) => ids.map((id) => installed.find((m) => m.id === id)?.name ?? id);
-  const modOn = named(installed.filter((m) => on.has(m.id)).map((m) => m.id));
-  const modOff = named(installed.filter((m) => !on.has(m.id)).map((m) => m.id));
+  // How you work (Reviews) first, then the tools, as Features lists them.
+  const listed = [...installed].sort((a, b) => Number(reviewsOn(new Set([b.id]))) - Number(reviewsOn(new Set([a.id]))));
+  const modOn = named(listed.filter((m) => on.has(m.id)).map((m) => m.id));
+  const modOff = named(listed.filter((m) => !on.has(m.id)).map((m) => m.id));
   const teams = app.snapshot.teams.length;
   const fact = (label: string, body: ReactNode) => <><dt>{label}</dt><dd>{body}</dd></>;
   return (
@@ -398,9 +403,10 @@ function AddAdminSheet({ onClose, setAdmin }: { onClose: () => void; setAdmin: R
 }
 
 function FeaturesSection() {
+  const app = useApp();
   return (
     <>
-      <SectionHead id="features">The optional parts of Faro, for everyone here. Switching one off hides it and keeps what it saved.</SectionHead>
+      <SectionHead id="features">How {workspaceName(app.ws, app.mode).name} works, and the optional parts of Faro. They apply to everyone here.</SectionHead>
       <Features />
     </>
   );
@@ -515,13 +521,19 @@ function Recording() {
   );
 }
 
-/** For admins: the feature modules this workspace uses (docs/architecture.md), each switched on or off for everyone. */
+/**
+ * For admins: the feature modules this workspace uses (docs/architecture.md), each switched on or off for everyone. How
+ * you work (Reviews, FT2) comes first, then the tools. Switching Reviews off first says what will change and what stays
+ * (the read-back, spec 4.2); switching anything on, or a tool off, acts at once. Every switch says what it did, with Undo.
+ */
 function Features() {
   const app = useApp();
   const { installed, on, off } = useModules();
   const [busy, setBusy] = useState<string | null>(null);
+  const [asking, setAsking] = useState<string | null>(null);
   if (!installed.length) return <p className="hint">This build has no optional features.</p>;
   const nameOf = (id: string) => installed.find((m) => m.id === id)?.name ?? id;
+  const isReviews = (id: string) => reviewsOn(new Set([id]));
   const flip = async (id: string, next: boolean) => {
     if (busy) return;
     setBusy(id);
@@ -535,26 +547,65 @@ function Features() {
     } catch { /* the rule's message is shown */ }
     setBusy(null);
   };
+  const live = app.snapshot.reviews.filter((r) => !r.removedAt && !r.endedAt).length;
+  const row = (m: (typeof installed)[number]) => {
+    const why = off.get(m.id);
+    const switched = (app.ws.modulesOff ?? []).includes(m.id);
+    return (
+      <label key={m.id} className="switch-row feature-check">
+        <span className="stack" style={{ gap: 0, flex: 1, minWidth: 0 }}>
+          <span>{m.name}</span>
+          <span className="hint">{m.summary}</span>
+          {isReviews(m.id) && on.has(m.id) && live > 0 && <span className="hint">{live} {live === 1 ? 'review is' : 'reviews are'} set up.</span>}
+          {!switched && why?.kind === 'needs' && <span className="hint">Off until {why.missing.map(nameOf).join(' and ')} is on.</span>}
+        </span>
+        {/* The state in a word beside the switch, never only its position (WR4, P6). */}
+        <span className="switch-word" aria-hidden="true">{on.has(m.id) ? 'On' : 'Off'}</span>
+        <input type="checkbox" className="switch" checked={!switched} disabled={!!busy} aria-label={m.name}
+          onChange={(e) => { if (!e.target.checked && isReviews(m.id)) setAsking(m.id); else void flip(m.id, e.target.checked); }} />
+      </label>
+    );
+  };
+  const how = installed.filter((m) => isReviews(m.id));
+  const tools = installed.filter((m) => !isReviews(m.id));
   return (
     <section className="block features-block" aria-label="Features">
-      {installed.map((m) => {
-        const why = off.get(m.id);
-        const switched = (app.ws.modulesOff ?? []).includes(m.id);
-        return (
-          <label key={m.id} className="switch-row feature-check">
-            <span className="stack" style={{ gap: 0, flex: 1, minWidth: 0 }}>
-              <span>{m.name}</span>
-              <span className="hint">{m.summary}</span>
-              {!switched && why?.kind === 'needs' && <span className="hint">Off until {why.missing.map(nameOf).join(' and ')} is on.</span>}
-            </span>
-            {/* The state in a word beside the switch, never only its position (WR4, P6). */}
-            <span className="switch-word" aria-hidden="true">{on.has(m.id) ? 'On' : 'Off'}</span>
-            <input type="checkbox" className="switch" checked={!switched} disabled={!!busy} onChange={(e) => void flip(m.id, e.target.checked)} aria-label={m.name} />
-          </label>
-        );
-      })}
-      <p className="hint"><Link to="/help/features">About features</Link></p>
+      {how.length > 0 && (
+        <div className="stack features-group" aria-labelledby="features-how">
+          <h2 className="label" id="features-how">How you work</h2>
+          {how.map(row)}
+        </div>
+      )}
+      {tools.length > 0 && (
+        <div className="stack features-group" aria-labelledby="features-tools">
+          <h2 className="label" id="features-tools">Tools</h2>
+          {tools.map(row)}
+        </div>
+      )}
+      <p className="hint">Switching one off hides it and keeps what it saved. <Link to="/help/features">About features</Link></p>
+      {asking && <ReviewsOffSheet onClose={() => setAsking(null)} onSwitch={() => { const id = asking; setAsking(null); void flip(id, false); }} />}
     </section>
+  );
+}
+
+/** The read-back before switching Reviews off (FT2, spec 4.2): what leaves, and what stays, counted by the rule. */
+function ReviewsOffSheet({ onClose, onSwitch }: { onClose: () => void; onSwitch: () => void }) {
+  const app = useApp();
+  const ws = workspaceName(app.ws, app.mode).name;
+  const r = switchOffReadBack({ people: app.snapshot.people, reviews: app.snapshot.reviews, changes: app.snapshot.changes, asks: asksOf(app.snapshot) });
+  return (
+    <Sheet open onClose={onClose} title={`Switch off Reviews in ${ws}?`}>
+      <div className="stack readback" style={{ gap: 'var(--s3)' }}>
+        <p>For all {r.people} {r.people === 1 ? 'person' : 'people'} here:</p>
+        <ul className="readback-lines">
+          {switchOffLines(r).map((l) => <li key={l.strong + l.rest}>{l.strong && <strong>{l.strong}</strong>}{l.rest}</li>)}
+        </ul>
+        <div className="foot-row">
+          <button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn primary big-btn" onClick={onSwitch}>Switch off Reviews</button>
+        </div>
+      </div>
+    </Sheet>
   );
 }
 

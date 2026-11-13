@@ -80,7 +80,8 @@ export interface Dashboard {
   missed: MissedReview[];
 }
 
-export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): Dashboard {
+/** With Reviews switched off (`reviews` false, FT2) there is no next review and none missed. */
+export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { reviews: boolean } = { reviews: true }): Dashboard {
   const mine = s.goals.filter((g) => g.ownerId === personId);
   const goals: Goal[] = mine.length ? mine : s.goals;
   const watched = watchedGoals(personId, s);
@@ -90,8 +91,8 @@ export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: num
     total: goals.length,
     streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
     watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
-    ...(() => { const upcoming = nextReviews(personId, s, cycle, week, today); return { next: upcoming[0] ?? null, upcoming }; })(),
-    missed: missedReviews(personId, s, cycle, week, today),
+    ...(() => { const upcoming = opts.reviews ? nextReviews(personId, s, cycle, week, today) : []; return { next: upcoming[0] ?? null, upcoming }; })(),
+    missed: opts.reviews ? missedReviews(personId, s, cycle, week, today) : [],
   };
 }
 
@@ -122,6 +123,8 @@ export interface HomeFacts {
   sessions: HomeSession[];
   owns: number;
   watches: number;
+  /** With Reviews off (FT2), for someone who owns no goal: how many goals they watch need attention. Absent otherwise. */
+  watchNeeds?: number;
   /** Rule 3: the open asks waiting on the viewer, in rule 3's order. */
   asks: Waiting[];
   /** Goals proposed for the viewer by someone else, not yet opened (goal entry rule 14, `proposalAsks`'s `for-you`). */
@@ -133,7 +136,7 @@ export interface HomeFacts {
 /** A goal proposed for the viewer by someone else that they haven't opened, as the lead reads it. */
 export interface ProposedForYou { id: string; title: string; by: string; proposedOn: string; /** The review it was proposed in, by name: said as " in {review}". */ in?: string | null }
 
-export type LeadKind = 'check-in-late' | 'check-in' | 'wrap-up' | 'review' | 'ask';
+export type LeadKind = 'check-in-late' | 'check-in' | 'wrap-up' | 'review' | 'watching' | 'ask';
 export interface Lead {
   kind: LeadKind;
   eyebrow: string;
@@ -222,6 +225,8 @@ export function homeLead(f: HomeFacts): Lead | null {
   // 50: a review the viewer is in, on or past its day this week, not held.
   const session = f.sessions.filter((x) => x.date <= f.today && !x.held && x.done < x.total).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name))[0];
   if (session) return reviewLead(f, session);
+  // 50 with Reviews off (FT2): someone who owns no goal is led to the goals they watch that need attention.
+  if (f.watchNeeds) return { kind: 'watching', eyebrow: 'Goals you watch', warn: false, title: `${f.watchNeeds} need${f.watchNeeds === 1 ? 's' : ''} attention`, line: '', action: { label: 'See them', to: '/goals?scope=watching&attention=1' }, also: null, ring: null, about: null };
   // 60: the oldest or most pressing thing waiting on the viewer (rule 3's order puts it first); then a goal proposed for
   // them, which is an ask with no date, asked on the day it was proposed, and so after any ask that leads.
   return askLead(f.asks[0]) ?? proposalLead(f.proposals ?? [], f.today);

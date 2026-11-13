@@ -260,61 +260,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Send the report” | primary | `s` and `!sent` |
 | “End this session” | button | `s` |
 
-## Review
-
-[src/screens/Review.tsx](../../src/screens/Review.tsx)
-
-- `/review` (`ReviewRedirect`): A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said. Help: “Reviews” (`reviews`).
-- `/reviews` (`Reviews`): A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said. Help: “Reviews” (`reviews`).
-- `/reviews/new` (`ReviewEdit`): A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said. Help: “Reviews” (`reviews`).
-- `/reviews/:reviewId` (`ReviewHome`): A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said. Help: “Reviews” (`reviews`).
-- `/reviews/:reviewId/edit` (`ReviewEdit`): A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said. Help: “Reviews” (`reviews`).
-- `/reviews/:reviewId/summary` (`ReviewSummary`): A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said. Help: “Reviews” (`reviews`).
-
-- **Named parts:** “Reviews”, “You’re in”, “Other reviews”, “People”, “Decided”, “When”, “Which goals”, “Who takes part”
-- **Main action:** Walk the review’s goals worst first and mark each reviewed; on the list, open a review or set one up.
-- **Primary buttons in its markup:** “Set up the first review”
-- **AI tools:** `list_reviews`, `get_review`, `save_review`, `end_review`, `delete_review`
-
-**Pictures** (`/reviews/weekly` as amara): [390 wide](screens/review-390.jpg), [1440 wide](screens/review-1440.jpg)
-
-<img src="screens/review-390.jpg" alt="Review at 390 wide" width="195"> <img src="screens/review-1440.jpg" alt="Review at 1440 wide" width="480">
-
-**Fields**
-
-| Field | Kind | Shown when |
-|---|---|---|
-| “Name” | text | always |
-| “On …” | select | always |
-| “Single goals” | Pick | always |
-| “People” | Pick | always |
-
-**States**
-
-| State | What it says | Shown when |
-|---|---|---|
-| empty | “No reviews yet” | `!sessions.length` |
-| empty | “That review doesn’t exist” | `!review` |
-
-**Buttons, and who sees them**
-
-| Button | Kind | Shown when |
-|---|---|---|
-| “Set up a review” | link | always |
-| “Set up the first review” | primary | `!sessions.length` |
-| “All reviews” | link | always |
-| “Continue review · … left / Start review · …” | primary | `inIt` and `!done` and `first` |
-| “Finish review” | primary | `inIt` and `!done` and `!first` and `healthyLeft.length > 0` |
-| “Edit review setup” | link | `canChange` |
-| “Print or save as PDF” | link | always |
-| “Done?” | button | `last` and `a.state !== 'done' && canMarkDone(a.ask, app.viewer)` |
-| “Mark … reviewed” | button | `!done` and `!walkAll` and `exceptions.length > 0` and `healthyLeft.length > 0` and `inIt` and `first` |
-| “Walk them one at a time instead” | button | `!done` and `!walkAll` and `exceptions.length > 0` and `healthyLeft.length > 0` and `listHealthy` and `inIt` |
-| “Not yet” | button | always |
-| “Saving… / Finish the review / Mark … reviewed” | primary | always |
-| “Every week / Every … weeks” | button | always |
-| “Save changes / Set up the review” | primary | always |
-
 ## Watching
 
 [src/screens/Watching.tsx](../../src/screens/Watching.tsx)
@@ -414,6 +359,7 @@ None: nothing to type or choose here.
 
 | State | What it says | Shown when |
 |---|---|---|
+| whole screen | “Goals” | `params.get('state') === 'stopped'` |
 | whole screen | “Goals” | `stateOn` |
 | empty | “No goals yet” | `!app.snapshot.goals.length` |
 
@@ -582,14 +528,14 @@ None written in its markup beyond the screen itself: it draws what it has.
 |---|---|---|
 | “Why change it?” | textarea | `replanning` |
 | “Name …” | text | always |
-| “What it measures” | textarea | `goal.kind !== 'milestone'` |
-| “Baseline (…) …” | text | `goal.kind === 'metric'` |
-| “From” | WeekPick | `goal.kind === 'metric'` |
-| “Target (…) …” | text | `goal.kind === 'metric'` |
-| “To” | WeekPick | `goal.kind === 'metric'` |
-| “Lower limit …” | text | `goal.kind === 'range'` and `d.bound === 'between'` |
-| “Upper limit / Limit …” | text | `goal.kind === 'range'` |
-| “Warn this close …” | text | `goal.kind === 'range'` |
+| “What it measures” | textarea | `d.kind !== 'milestone'` |
+| “Baseline (…) …” | text | `d.kind === 'metric'` |
+| “From” | WeekPick | `d.kind === 'metric'` |
+| “Target (…) …” | text | `d.kind === 'metric'` |
+| “To” | WeekPick | `d.kind === 'metric'` |
+| “Lower limit …” | text | `d.kind === 'range'` and `d.bound === 'between'` |
+| “Upper limit / Limit …” | text | `d.kind === 'range'` |
+| “Warn this close …” | text | `d.kind === 'range'` |
 | “Owner” | PickOne | always |
 | “Team” | PickOne | always |
 | “Feeds into” | PickOne | always |
@@ -613,9 +559,9 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “All goals” | link | always |
 | “Back to the goal” | link | always |
 | “Discard them” | button | `restored` |
-| “At most” | button | `goal.kind === 'range'` |
-| “At least” | button | `goal.kind === 'range'` |
-| “Between” | button | `goal.kind === 'range'` |
+| “At most” | button | `d.kind === 'range'` |
+| “At least” | button | `d.kind === 'range'` |
+| “Between” | button | `d.kind === 'range'` |
 | “… (worked out when it shows)” | primary | always |
 
 ## Print
@@ -739,13 +685,13 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/workspace` (`WorkspaceHome`): Workspace opens on About: for admins, what needs sorting out; then the facts about this workspace, each leading to its section. Its other sections are Cycles, Privacy and Recently removed for everyone, and Access and Features for admins. Help: “Workspace: about this one” (`workspace`).
 - `/workspace/cycles` (`WorkspaceHome`): The workspace’s goal years, newest first, with their dates, which one is running and the wrap-up; admins can delete one nobody has checked in to yet. Help: “Workspace: Cycles” (`workspace-cycles`).
 - `/workspace/access` (`WorkspaceHome`): For admins: who the admins are, and MCP access: the MCP tokens Claude or another AI tool uses to act as someone in this workspace. Help: “Workspace: Access” (`workspace-access`).
-- `/workspace/features` (`WorkspaceHome`): Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus features an admin can switch on or off for a workspace, such as Spreadsheets. Help: “Features: switching parts of Faro on or off” (`features`).
+- `/workspace/features` (`WorkspaceHome`): Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace: how you work (Reviews) and tools such as the Metric library and Spreadsheets. Help: “Features: switching parts of Faro on or off” (`features`).
 - `/workspace/privacy` (`WorkspaceHome`): The app records how it is used, never what you type, so the people building it can see what is slow, broken or hard to use. Help: “What the app records” (`recording`).
 - `/workspace/removed` (`WorkspaceHome`): Anything you make can be taken away again: people leave, goals stop, check-ins, reviews, comments and views go, an import can be undone, and nothing is ever lost. Help: “Removing, stopping and undoing” (`removing`).
 
-- **Named parts:** “More in Workspace”, “About this workspace”, “Delete”, “Workspace sections (region)”, “Cycles (region)”, “What the app records (region)”, “Features (region)”
+- **Named parts:** “More in Workspace”, “About this workspace”, “How you work”, “Tools”, “Delete”, “Workspace sections (region)”, “Cycles (region)”, “What the app records (region)”, “Features (region)”
 - **Main action:** For an admin, sort out what About lists; for anyone, read the facts and open the section each leads to.
-- **Primary buttons in its markup:** none written as plain text
+- **Primary buttons in its markup:** “Switch off Reviews”
 - **AI tools:** `list_people`, `list_tokens`, `create_token`, `revoke_token`, `delete_workspace`, `rename_workspace`, `set_recording`, `set_feature`, `list_removed`, `restore_removed`, `delete_cycle`, `undo_start_cycle`, `start_next_cycle`
 
 **Pictures** (`/workspace` as amara): [390 wide](screens/workspace-390.jpg), [1440 wide](screens/workspace-1440.jpg)
@@ -759,7 +705,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Who” | PickOne | always |
 | “Workspace name” | text | always |
 | “Record how the app is used here” | checkbox | an admin |
-| “… Off until … is on. On / Off” | checkbox | always |
+| “… review is / reviews are set up. Off until … is on. On / Off” | checkbox | always |
 | “Type … to confirm” | text | `open` |
 
 **States**
@@ -792,6 +738,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Rename” | button | an admin |
 | “Yes, turn it on” | button | an admin and `asking` |
 | “Cancel” | button | an admin and `asking` |
+| “Switch off Reviews” | primary | always |
 | “Delete this workspace…” | button | `!open` |
 | “Cancel” | button | `open` |
 | “Deleting… / Delete it for good” | button | `open` |
@@ -1111,6 +1058,61 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Carry on” | primary | `back` and `draft` and `!discarding` |
 | “Set up a workspace” | primary | `!back` |
 
+## Review
+
+[src/screens/Review.tsx](../../src/screens/Review.tsx)
+
+- `/review` (`ReviewRedirect`)
+- `/reviews` (`Reviews`)
+- `/reviews/new` (`ReviewEdit`)
+- `/reviews/:reviewId` (`ReviewHome`)
+- `/reviews/:reviewId/edit` (`ReviewEdit`)
+- `/reviews/:reviewId/summary` (`ReviewSummary`)
+
+- **Named parts:** “Reviews”, “You’re in”, “Other reviews”, “People”, “Decided”, “When”, “Which goals”, “Who takes part”
+- **Main action:** Walk the review’s goals worst first and mark each reviewed; on the list, open a review or set one up.
+- **Primary buttons in its markup:** “Set up the first review”
+- **AI tools:** `list_reviews`, `get_review`, `save_review`, `end_review`, `delete_review`
+
+**Pictures** (`/reviews/weekly` as amara): [390 wide](screens/review-390.jpg), [1440 wide](screens/review-1440.jpg)
+
+<img src="screens/review-390.jpg" alt="Review at 390 wide" width="195"> <img src="screens/review-1440.jpg" alt="Review at 1440 wide" width="480">
+
+**Fields**
+
+| Field | Kind | Shown when |
+|---|---|---|
+| “Name” | text | always |
+| “On …” | select | always |
+| “Single goals” | Pick | always |
+| “People” | Pick | always |
+
+**States**
+
+| State | What it says | Shown when |
+|---|---|---|
+| empty | “No reviews yet” | `!sessions.length` |
+| empty | “That review doesn’t exist” | `!review` |
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “Set up a review” | link | always |
+| “Set up the first review” | primary | `!sessions.length` |
+| “All reviews” | link | always |
+| “Continue review · … left / Start review · …” | primary | `inIt` and `!done` and `first` |
+| “Finish review” | primary | `inIt` and `!done` and `!first` and `healthyLeft.length > 0` |
+| “Edit review setup” | link | `canChange` |
+| “Print or save as PDF” | link | always |
+| “Done?” | button | `last` and `a.state !== 'done' && canMarkDone(a.ask, app.viewer)` |
+| “Mark … reviewed” | button | `!done` and `!walkAll` and `exceptions.length > 0` and `healthyLeft.length > 0` and `inIt` and `first` |
+| “Walk them one at a time instead” | button | `!done` and `!walkAll` and `exceptions.length > 0` and `healthyLeft.length > 0` and `listHealthy` and `inIt` |
+| “Not yet” | button | always |
+| “Saving… / Finish the review / Mark … reviewed” | primary | always |
+| “Every week / Every … weeks” | button | always |
+| “Save changes / Set up the review” | primary | always |
+
 ## Views, overlays and pages with no route of their own
 
 Each is drawn inside a screen, over every screen, or when nothing else can be (`OTHER_VIEWS` in `src/spec/screens.ts`, its main action written by hand like a route’s; the rest read from its markup).
@@ -1320,6 +1322,28 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Tidy up” | button | `Object.keys(moved).length > 0` |
 | “(Close)” | button | always |
 | “Open the goal” | primary | always |
+
+### Goals: stopped goals
+
+[src/screens/StoppedList.tsx](../../src/screens/StoppedList.tsx)
+
+- **Where:** /goals?state=stopped (the State filter)
+- **Help:** “Goals and its layouts” (`goals`): Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look.
+- **Main action:** Read the goals stopped this year in the scope, most recently stopped first, with who stopped each, when and why, and open one.
+
+**Fields**
+
+None: nothing to type or choose here.
+
+**States**
+
+None written in its markup beyond the screen itself: it draws what it has.
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “Remove” | button | always |
 
 ### Goals: proposed goals
 
@@ -1684,7 +1708,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 ### Page not found
 
-[src/App.tsx](../../src/App.tsx) (`NotFound`)
+[src/screens/NotFound.tsx](../../src/screens/NotFound.tsx) (`NotFound`)
 
 - **Where:** Any address that leads nowhere.
 - **Main action:** Go to Home.

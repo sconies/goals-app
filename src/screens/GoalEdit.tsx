@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
-import { buildGoal, draftFor, planChanged, type GoalDraft } from '../domain/goal';
+import { buildGoal, draftFor, GOAL_KINDS, planChanged, type GoalDraft } from '../domain/goal';
 import { isProposed } from '../domain/proposed';
 import { HAS_CHECK_INS } from '../domain/proposedActions';
 import { checksContext, goalChecks, goalMustFix, proposedMustFix, openLine, planSpanOf, REASON_EMPTY, sameNamedIn, unanswered, type GoalAnswers, type GoalCheck, type GoalField } from '../domain/goalEntry';
@@ -95,7 +95,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   const form = useRef<HTMLFormElement>(null);
   const answers: GoalAnswers = d.answers ?? {};
   // What measures it: the choice made here, else what measures it now (the saving rule reads the same).
-  const metric = goal.kind !== 'metric' ? null : measure ? measure.metric ?? null : goalMeasureOf(MODULE_RECORDS, app.snapshot, goal.id);
+  const metric = d.kind !== 'metric' ? null : measure ? measure.metric ?? null : goalMeasureOf(MODULE_RECORDS, app.snapshot, goal.id);
   const checks = goalChecks(d, checksContext(d, { person: (id) => app.person(id), team: (id) => app.team(id), goal: (id) => app.goal(id), sameNamed: sameNamedIn(app.snapshot.goals) },
     { week, cycleWeeks: cycle.weeks, existing: goal, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric }));
   const open = unanswered(checks, answers);
@@ -114,7 +114,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   const span = planSpanOf(d, { week, cycleWeeks: cycle.weeks, existing: goal, startDate: cycle.startDate });
   const endChoice = span.to;
   const setFrom = (n: number) => set({ fromWeek: String(n), points: {}, ...(span.to <= n ? { endWeek: String(defaultTo(cycle, n)) } : {}) });
-  const shapedPlan = goal.kind === 'metric' && parseNumber(d.start) != null && parseNumber(d.target) != null && parseNumber(d.start) !== parseNumber(d.target)
+  const shapedPlan = d.kind === 'metric' && parseNumber(d.start) != null && parseNumber(d.target) != null && parseNumber(d.start) !== parseNumber(d.target)
     ? { start: parseNumber(d.start) as number, target: parseNumber(d.target) as number, shape: d.shape, ...(span.from ? { fromWeek: span.from } : {}), ...(endChoice !== cycle.weeks ? { endWeek: endChoice } : {}) }
     : null;
   const reasonOk = d.reason.trim().length >= MIN_REASON;
@@ -138,7 +138,7 @@ function EditSheet({ goal }: { goal: Goal }) {
       const { reason, answers: _a, ...draft } = d;
       // A changed goal and what measures it are one save, so the link is judged against the goal as changed.
       if (changed) await app.saveGoal(draft, goal, { ...(replanning ? { reason: reason.trim() } : {}), answers, metric, ...(measure ? { also: measure } : {}) });
-      else if (measure) await app.run(measure.action, measure.input(after));
+      else if (measure) await app.run(measure.action, { ...measure.input, goalId: goal.id });
       clear();
       // The goal's page, then the toast: never "Saved." beside a button still saying "Saving…".
       back();
@@ -175,18 +175,27 @@ function EditSheet({ goal }: { goal: Goal }) {
             {err('title')}
             {!errors.title && d.title.trim() !== goal.title && (() => { const twin = sameTitleNote(d.title, goal.id, app.snapshot.goals, (id) => app.team(id)?.name ?? ''); return twin ? <span className="hint tone-risk" role="status">{twin}</span> : null; })()}
           </label>
-          {goal.kind !== 'milestone' && (
+          {d.kind !== 'milestone' && (
             <label className="field"><span className="field-label">What it measures</span><textarea className="input" rows={3} value={d.definition} onChange={(e) => set({ definition: e.target.value })} placeholder="What counts, over what period, and anything left out" /></label>
           )}
-          <Place name="goal.measure" goal={goal} kind={goal.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure} kept={d.measureKept} onKeep={(k) => set({ measureKept: k })} />
+          <Place name="goal.measure" goal={goal} kind={d.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure} kept={d.measureKept} onKeep={(k) => set({ measureKept: k })} />
         </section>
 
         <section className="stack edit-part" id="plan" aria-labelledby="plan-h">
           <div className="stack" style={{ gap: 'var(--s1)' }}>
-            <h2 className="block-title" id="plan-h">{goal.kind === 'metric' ? 'Plan and target' : goal.kind === 'range' ? 'The limit' : 'Stages'}</h2>
+            <h2 className="block-title" id="plan-h">{d.kind === 'metric' ? 'Plan and target' : d.kind === 'range' ? 'The limit' : 'Stages'}</h2>
             {started && <span className="hint">Check-ins have started, so a change here needs a reason. Watchers see it flagged.</span>}
           </div>
-          {goal.kind === 'metric' && (
+          {/* Proposed, the type can still change (2.15): a stages goal with none yet keeps one empty row to fill in. */}
+          {isProposed(goal) && (
+            <div className="field"><span className="field-label" id="kind-l">Type</span>
+              <div className="seg full kind-seg" role="group" aria-labelledby="kind-l">
+                {GOAL_KINDS.map(([k, l]) => <button key={k} type="button" aria-pressed={d.kind === k} onClick={() => set({ kind: k, ...(k === 'milestone' && !d.stages.length ? { stages: [{ id: newId('st'), name: '', dueWeek: '' }] } : {}) })}>{l}</button>)}
+              </div>
+              <span className="hint">It’s proposed, so its type can still change.</span>
+            </div>
+          )}
+          {d.kind === 'metric' && (
             <>
               {/* Baseline with From, then Target with To: each a number and a week, picked (2.6, item 2; 2.13). */}
               <div className="week-rows">
@@ -218,7 +227,7 @@ function EditSheet({ goal }: { goal: Goal }) {
               {questions('points')}
             </>
           )}
-          {goal.kind === 'range' && (
+          {d.kind === 'range' && (
             <div className={'limits' + (d.bound === 'between' ? ' between' : '')}>
               <div className="field limits-bound"><span className="field-label" id="bound">Must stay</span>
                 <div className="seg full" role="group" aria-labelledby="bound">
@@ -232,12 +241,12 @@ function EditSheet({ goal }: { goal: Goal }) {
               <label className="field"><span className="field-label">Warn this close</span><input className="input" inputMode="decimal" data-field="margin" value={d.margin} onChange={(e) => set({ margin: e.target.value })} aria-invalid={tried && !!errors.margin} />{err('margin')}</label>
             </div>
           )}
-          {goal.kind === 'range' && <>{questions('unit')}{questions('lower')}{questions('limit')}{questions('margin')}</>}
-          {goal.kind === 'milestone' && (
+          {d.kind === 'range' && <>{questions('unit')}{questions('lower')}{questions('limit')}{questions('margin')}</>}
+          {d.kind === 'milestone' && (
             <StageFields stages={d.stages} cycle={cycle} week={week} labelClass="field-label" error={null} rowErrors={tried ? stageErrors(fix) : []}
               onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />
           )}
-          {goal.kind !== 'metric' && reasonField}
+          {d.kind !== 'metric' && reasonField}
         </section>
 
         <section className="stack edit-part" id="owner" aria-labelledby="owner-h">

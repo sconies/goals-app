@@ -66,11 +66,12 @@ export function faroModules(): Plugin {
         const f = path.join(m.dir, file);
         if (!fs.existsSync(f)) continue;
         this.addWatchFile(f);
-        /* The app's own build leaves out a module's rebuild stage: only the spec reads it (src/spec/rebuild.ts, run by
-           npm run spec and the tests, never the browser), and its prose would otherwise count in the first download. */
+        /* The app's own build leaves out a module's rebuild stage, and the lists only the spec and the checks read (its
+           requirements, journeys and the core files still holding its code, emptied): only src/spec and the tests read
+           them, never the browser, and they would otherwise count in the first download (FT2 kept it at nought). */
         if (file === 'module.json' && building && !options?.ssr) {
           const { rebuild: _, ...facts } = JSON.parse(fs.readFileSync(f, 'utf8')) as Record<string, unknown>;
-          lines.push(`const m${i} = ${JSON.stringify(facts)};`);
+          lines.push(`const m${i} = ${JSON.stringify({ ...facts, requirements: [], journeys: [], elsewhere: [] })};`);
         } else {
           lines.push(`import m${i} from ${JSON.stringify(f.split(path.sep).join('/'))};`);
         }

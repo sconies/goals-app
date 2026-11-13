@@ -11,7 +11,8 @@ import '../app/engineReady';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { Place } from '../core/app';
+import { Place, useModules } from '../core/app';
+import { reviewsOn } from '../app/reads';
 import { DIRECTORY_PAGE, personLine, teamSummary } from '../domain/directory';
 import { useFound } from '../app/search';
 import { historyStep } from '../domain/find';
@@ -215,6 +216,7 @@ function PersonRow({ p }: { p: Person }) {
 
 export function PersonPage() {
   const app = useApp();
+  const reviewsHere = reviewsOn(useModules().on);
   const { personId = '' } = useParams();
   const [editing, setEditing] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -237,7 +239,8 @@ export function PersonPage() {
   const counts = statusCounts(goals.map((g) => app.statusOf(g).status));
   const team = p.teamId ? app.team(p.teamId) : undefined;
   const leads = app.snapshot.teams.filter((t) => t.leadId === p.id && t.id !== p.teamId).sort((a, b) => a.name.localeCompare(b.name));
-  const reviews = app.snapshot.reviews.filter((r) => !r.endedAt);
+  // A person's reviews only while Reviews is on (FT2).
+  const reviews = reviewsHere ? app.snapshot.reviews.filter((r) => !r.endedAt) : [];
   const runs = reviews.filter((r) => r.createdBy === p.id);
   const inThem = reviews.filter((r) => r.createdBy !== p.id && r.people.includes(p.id));
   const reviewLink = (r: { id: string; name: string }) => <Link key={r.id} to={`/reviews/${encodeURIComponent(r.id)}`}>{r.name}</Link>;

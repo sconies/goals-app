@@ -17,10 +17,21 @@ import { onTimeStreak, receiptFacts, reviewDate, reviewOnDueDay, weekProgress } 
 import { hasEnded, weekDate, weekDates } from '../domain/plan';
 import { beforeStart, cycleDates, wrapUpOpenOn } from '../domain/cycle';
 import { openForPerson } from '../domain/asks';
+import { attentionFor, needsAttention } from '../domain/attention';
 import type { QueryContext } from '../domain/query';
 import type { LocalRows } from '../adapters/localSearch';
 
 const live = <T extends { removedAt?: string | null }>(xs: T[]) => xs.filter((x) => !x.removedAt);
+
+/**
+ * Whether Reviews is on (FT2): the one place that names the reviews module. Screens pass `useModules().on`, the MCP
+ * server and the dispatcher `modulesOn(ws).on`; the rules in src/domain take the answer as `reviews: boolean`. A build
+ * without the module (FARO_WITHOUT=reviews) answers false. FT3 moves Reviews' code into its folder and retires this.
+ */
+export const reviewsOn = (on: ReadonlySet<string>): boolean => on.has('reviews');
+
+/** What a review action says when Reviews is off (FT2, spec 1.2). */
+export const reviewsOffWords = (workspace: string) => `Reviews is off in ${workspace}.`;
 
 /** Every goal's summary row, with what the Goals filters need beyond it. */
 export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns']): GoalRows {
@@ -78,7 +89,9 @@ export function dayOneRows(s: Pick<Snapshot, 'people' | 'goals' | 'checkIns' | '
 /** A review's name, for " in {review}" (GE10): null when it isn't in the workspace to name. */
 export const reviewName = (s: Pick<Snapshot, 'reviews'>, id: string | null | undefined): string | null => (id ? s.reviews.find((r) => r.id === id)?.name ?? null : null);
 
-export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot }; opened?: ReadonlySet<string>; putOff?: ReadonlyMap<string, string> }): HomeFacts {
+export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot }; opened?: ReadonlySet<string>; putOff?: ReadonlyMap<string, string>; reviews?: boolean }): HomeFacts {
+  // Reviews switched off (FT2): no session leads or names a day, and no ask names a review.
+  const reviews = opts.reviews !== false;
   const day = today.toISOString().slice(0, 10);
   const p = weekProgress(viewerId, s, cycle, week, today);
   const mine = s.goals.filter((g) => g.ownerId === viewerId);
@@ -86,12 +99,12 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   const start = beforeStart(cycle, today);
   const thisWeek = s.checkIns.filter((c) => c.week === week && p.goals.some((g) => g.id === c.goalId));
   const allIn = p.goals.length > 0 && p.done.length >= p.goals.length;
-  // The receipt names the due day as a review only for someone in a review held that day (T4; FT2 isn't built, so reviews are on).
-  const hasReview = reviewOnDueDay(s.reviews, viewerId, cycle, true);
+  // The receipt names the due day as a review only for someone in a review held that day, while Reviews is on (T4, FT2).
+  const hasReview = reviewOnDueDay(s.reviews, viewerId, cycle, reviews);
   const receipt = allIn ? receiptFacts(p, viewerId, s, cycle, week, hasReview) : { after: 0, forgiven: null };
   const dueDate = reviewDate(cycle, Math.max(1, week));
   // Once the year has ended no session is held in it: a "Not held yet" lead would never go (HM1 review).
-  const sessions: HomeSession[] = ended ? [] : s.reviews.filter((r) => r.people.includes(viewerId)).map((r) => reviewSession(r, s, cycle, today, week))
+  const sessions: HomeSession[] = ended || !reviews ? [] : s.reviews.filter((r) => r.people.includes(viewerId)).map((r) => reviewSession(r, s, cycle, today, week))
     .filter((x) => x.week === Math.max(1, week) && x.week <= cycle.weeks).map((x) => {
       const { discuss, healthy } = agendaOf(x);
       const order = walkOrder(sessionPlan(x, s, cycle, today));
@@ -122,12 +135,13 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
     sessions,
     owns: mine.length,
     watches: watchedGoals(viewerId, s).filter((g) => g.ownerId !== viewerId).length,
-    asks: homeAsks(viewerId, s, cycle, week, today),
+    ...(!reviews && !mine.length ? { watchNeeds: watchedGoals(viewerId, s).filter((g) => needsAttention(attentionFor(g, s, cycle, today))).length } : {}),
+    asks: homeAsks(viewerId, s, cycle, week, today, reviews),
     // Goal entry rule 14: proposed for the viewer by someone else and not yet opened (what was opened is the Prefs port's).
     // Every row under "Proposed goals" (both kinds), so the quiet line never says nothing is asked beside them (#319's review).
     proposalRows: proposalAsks(s.proposed ?? [], { id: viewerId, admin: false }, today, { opened: opts.opened ?? new Set(), putOff: opts.putOff ?? new Map() }).length,
     proposals: proposalAsks(s.proposed ?? [], { id: viewerId, admin: false }, today, { opened: opts.opened ?? new Set(), putOff: new Map() }, (id) => s.people.find((p) => p.id === id)?.name ?? 'Someone')
-      .filter((a) => a.kind === 'for-you').map((a) => ({ id: a.goal.id, title: a.goal.title, by: s.people.find((p) => p.id === a.goal.proposedBy)?.name.split(' ')[0] ?? 'Someone', proposedOn: a.goal.proposedAt!.slice(0, 10), in: reviewName(s, a.goal.proposedIn) })),
+      .filter((a) => a.kind === 'for-you').map((a) => ({ id: a.goal.id, title: a.goal.title, by: s.people.find((p) => p.id === a.goal.proposedBy)?.name.split(' ')[0] ?? 'Someone', proposedOn: a.goal.proposedAt!.slice(0, 10), in: reviews ? reviewName(s, a.goal.proposedIn) : null })),
   };
 }
 
@@ -150,8 +164,8 @@ export function wrapUpScope(full: Snapshot, cycle: Cycle, snapshot: Snapshot, we
  */
 const localDay = (iso: string) => { const n = new Date(iso); return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10); };
 
-export function homeAsks(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): Waiting[] {
-  return openForPerson(viewerId, s).flatMap((r) => { const w = askWaiting(r, viewerId, s, cycle, week, today); return w ? [w] : []; }).sort(waitingOrder);
+export function homeAsks(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, reviews = true): Waiting[] {
+  return openForPerson(viewerId, s).flatMap((r) => { const w = askWaiting(r, viewerId, s, cycle, week, today, reviews); return w ? [w] : []; }).sort(waitingOrder);
 }
 
 /**
@@ -159,7 +173,7 @@ export function homeAsks(viewerId: string, s: Snapshot, cycle: Cycle, week: numb
  * `get_my_work` and `list_requests` all read `late` from here (build review of #369, medium 5). Null when none of its
  * goals is in the workspace.
  */
-export function askWaiting(r: Ask, viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): Waiting | null {
+export function askWaiting(r: Ask, viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, reviews = true): Waiting | null {
   const day = today.toISOString().slice(0, 10);
   const me = s.people.find((p) => p.id === viewerId)?.name ?? '';
   const first = (id: string) => s.people.find((p) => p.id === id)?.name.split(' ')[0] ?? 'Someone';
@@ -167,7 +181,8 @@ export function askWaiting(r: Ask, viewerId: string, s: Snapshot, cycle: Cycle, 
   // A proposed goal's asks stay on Home (build review of #349): asked while proposed, or before it went back to proposed.
   const goals = r.goalIds.map((id) => all.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({ id: g!.id, title: g!.title }));
   if (!goals.length) return null;
-  const rv = r.reviewId ? s.reviews.find((v) => v.id === r.reviewId) : undefined;
+  // With Reviews off an ask is late by its own age, waits for no session and names no review (FT2 4.4, RS 2).
+  const rv = r.reviewId && reviews ? s.reviews.find((v) => v.id === r.reviewId) : undefined;
   let session: AskFacts['session'] = null;
   if (r.dueWeek == null && r.kind === 'question' && rv) {
     const w = r.week != null ? nextSessionWeek(rv, r.week) : upcomingSessionWeek(rv, cycle, week, today);
