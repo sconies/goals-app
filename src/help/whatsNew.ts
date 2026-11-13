@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'proposed-on-map-and-board',
+    date: '2026-11-13',
+    title: 'Proposed goals on the Map and the Board',
+    points: [
+      'With the State filter on Proposed, the Board is one column, Proposed, and the Map draws each proposed goal in its tree with a dashed outline and the word.',
+      'They still have no status: none is on the critical path or counted in what is under a goal.',
+    ],
+    articles: ['goal-proposed', 'goals'],
+  },
+  {
     id: 'setup-upload-preview',
     date: '2026-11-13',
     title: 'Set-up checks a spreadsheet as Import does',

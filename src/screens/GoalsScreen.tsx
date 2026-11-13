@@ -213,13 +213,20 @@ export function GoalsScreen() {
   const stateOn = params.get('state') === 'proposed';
   const setState = (on: boolean) => { const p = latest(); if (on) p.set('state', 'proposed'); else p.delete('state'); setParams(p); };
   const proposedLink = proposedHere.length > 0 ? <> · <a className="linkish proposed-count" href="?state=proposed" onClick={(e) => { e.preventDefault(); setState(true); }}>{proposedHere.length} proposed</a></> : null;
+  // On the Map, each proposed goal is drawn in its tree, with the goals above it for context (GE10, 2.15).
+  const proposedMap = stateOn && layout === 'map' ? (() => {
+    const all = [...app.snapshot.goals, ...proposedHere];
+    const keep = withAncestors(all, new Set(proposedHere.map((g) => g.id)));
+    const ids = new Set(proposedHere.map((g) => g.id));
+    return <Suspense fallback={<MapWait />}><GoalMap goals={all.filter((g) => keep.has(g.id))} matches={ids} proposed={ids} /></Suspense>;
+  })() : null;
   if (stateOn) return (
-    <div className="page goals-page" data-part="Goals">
+    <div className={(layout === 'map' ? 'page full' : layout === 'board' ? 'page wide' : 'page') + ' goals-page'} data-part="Goals">
       <div className="page-head row between goals-head">
         <span className="goals-title"><h1 className="title-xl">Goals</h1><span className="hint goals-period">{periodNow(app.cycle, app.today)}</span></span>
         <span className="actions"><Link className="btn ghost sm new-goal-quiet" to="/goals/new">New goal</Link></span>
       </div>
-      <Suspense fallback={null}><ProposedList goals={proposedHere} onRemove={() => setState(false)} /></Suspense>
+      <Suspense fallback={null}><ProposedList goals={proposedHere} onRemove={() => setState(false)} layout={layout} map={proposedMap} /></Suspense>
     </div>
   );
   return (
