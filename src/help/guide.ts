@@ -748,6 +748,11 @@ const CORE_ARTICLES: Article[] = [
         'Finish review says what was decided (each person’s next steps, the risks accepted, the questions still open) before it records the session as held, and its message has Undo. The walk’s last goal finishes the same way.',
         'Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session.',
       ] },
+      { heading: 'Before this review', list: [
+        'At the top of a review’s page: how many of its goals were checked in before it, and how many of those without being asked (an ask for an update is the only nudge). Before the review’s day it says how many are in so far.',
+        'Under it, “came in after an ask” and “have no check-in yet” each open exactly those goals on Goals, worst first. Then the last 8 weeks, one square each: All in, how many came after, None in, or Nothing due.',
+        'It counts weeks and goals, never people: nobody is named in it, and a set of goals with fewer than three owners doesn’t show it.',
+      ] },
       { heading: 'Ending one', list: [
         'End this review, at the foot of its page: it stops showing as due and keeps its notes and actions on each goal and in exports. Its page says Ended, with Reopen. A review that was never held is deleted instead.',
         'A note said in a review can be removed by whoever said it, or an admin; the goal’s activity then says “Note removed” in its place. A corrected note says edited.',
@@ -756,8 +761,8 @@ const CORE_ARTICLES: Article[] = [
     ],
     routes: ['/reviews', '/reviews/new', '/reviews/:reviewId', '/reviews/:reviewId/edit', '/reviews/:reviewId/summary', '/review', '/goals/:goalId?review=*'],
     screens: ['Review', 'Inspect'],
-    reqs: ['REVIEW', 'REVIEW-SETUP', 'REVIEW-RUN', 'REVIEW-DECIDE', 'INSPECT-ACT', 'REVIEW-LIST-STATE', 'REVIEW-AGENDA', 'EXCEPTIONS-FIRST', 'REVIEW-SPEAK'],
-    keywords: ['review', 'meeting', 'agenda', 'walk', 'notes', 'questions', 'actions', 'summary', 'cadence', 'weekly review'],
+    reqs: ['REVIEW', 'REVIEW-SETUP', 'REVIEW-RUN', 'REVIEW-DECIDE', 'INSPECT-ACT', 'REVIEW-LIST-STATE', 'REVIEW-AGENDA', 'EXCEPTIONS-FIRST', 'REVIEW-SPEAK', 'HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'],
+    keywords: ['review', 'meeting', 'agenda', 'walk', 'notes', 'questions', 'actions', 'summary', 'cadence', 'weekly review', 'before this review', 'checked in before', 'last 8 weeks', 'without being asked'],
     related: ['needs-attention', 'goal-page', 'print', 'requests'],
   },
   {
@@ -986,6 +991,7 @@ const CORE_ARTICLES: Article[] = [
         'Teams is the second tab of People. Find a team by its name or its lead’s.',
         'Each row shows the team’s lead, or No lead (set-up doesn’t ask who leads a team), how many people are in it (its lead counts as one of them, even when their own team is another), and its goals this year counted by status, shape and word. The counts are the same numbers Goals shows by team.',
         'Open a team to see what it is here to do, its goals by status (each count opens those goals), and its people, lead first. See its goals opens Goals for just that team; Show all lists all its people in People.',
+        'A team’s page also says how many of its goals were checked in before this week’s review, without being asked, and the last 8 weeks, as a review’s page does. Only for a team whose goals have three or more owners: nobody is named.',
       ] },
       { heading: 'For admins', list: [
         'Add a team is the main action. On a team’s page, Change its name, lead or purpose; and, apart, Remove this team. An empty team goes at once; a team with people or goals first moves them to another team, in the same save, and each goal’s history says so.',
@@ -995,7 +1001,7 @@ const CORE_ARTICLES: Article[] = [
     ],
     routes: ['/teams', '/teams/:teamId', '/workspace/teams'],
     screens: [],
-    reqs: ['PEOPLE-DIRECTORY', 'WORKSPACE-ADMIN'],
+    reqs: ['PEOPLE-DIRECTORY', 'WORKSPACE-ADMIN', 'HABIT-MEASURE'],
     keywords: ['teams', 'team', 'team lead', 'add team', 'rename team', 'remove team', 'move goals', 'purpose', 'objective'],
     related: ['people', 'workspace', 'goals'],
   },

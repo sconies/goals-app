@@ -5,7 +5,11 @@
    Its own file so it loads with the screens that read it: Home is in the first download and must not import it (spec 9).
    The run and the receipt's sentences are progress.ts's (`onTimeStreak`, `forgivenIn`, `receiptText`). */
 import { fmt } from './format';
-import type { CheckIn, Goal } from './types';
+import { checkInStanding, dueIn, type HabitRows, type Standing } from './standing';
+import { reviewDate } from './progress';
+import type { CheckIn, Cycle, Goal } from './types';
+
+export { checkInStanding, dueIn, type HabitRows, type Standing };
 
 /** A moment a check-in can make (rule 3): the goal reached its target, or it is back on track after two weeks or more behind. */
 export interface Moment {
@@ -53,3 +57,77 @@ export function momentText(m: Moment, goal: Goal, c: CheckIn, weeks: number): { 
 
 /** History's result on the check-in's row, in small capitals (spec 2.2). */
 export const MOMENT_RESULT: Record<Moment['kind'], string> = { reached: 'Reached its target', back: 'Back on track' };
+
+/* ---------- rules 1, 2 and 4: the measure (HB2) ---------- */
+
+/** Rule 2's counts for a set of goals in a week. */
+export interface HabitCounts { due: number; inTime: number; unasked: number; asked: number; after: number; none: number }
+
+/**
+ * Rule 2: rule 1 over the goals due that week. `inTime = unasked + asked`; the measure is `unasked / due`. `isDue` is the
+ * caller's (live, not proposed, first due by then), so a rule here never decides who is due.
+ */
+export function habit(goals: readonly Goal[], week: number, rows: HabitRows, dueDay: string, isDue: (g: Goal, week: number) => boolean): HabitCounts & { goals: Record<Standing, string[]> } {
+  const out = { due: 0, inTime: 0, unasked: 0, asked: 0, after: 0, none: 0, goals: { unasked: [], asked: [], after: [], none: [] } as Record<Standing, string[]> };
+  for (const g of goals) {
+    if (!isDue(g, week)) continue;
+    const st = checkInStanding(g, week, rows, dueDay);
+    out.due++;
+    out[st]++;
+    out.goals[st].push(g.id);
+  }
+  out.inTime = out.unasked + out.asked;
+  return out;
+}
+
+/** One week in the row of weeks (spec 2.3): `all` in by the due day, `some` (and how many weren't), `none`, or nothing due. */
+export interface HabitWeek { week: number; mark: 'all' | 'some' | 'none' | 'nothing-due'; late: number }
+
+/** Rule 2's row of weeks: the `n` weeks up to `to`, oldest first. `dueDay(w)` is the week's review day. */
+export function habitWeeks(goals: readonly Goal[], to: number, rows: HabitRows, dueDay: (w: number) => string, isDue: (g: Goal, week: number) => boolean, n = 8): HabitWeek[] {
+  const out: HabitWeek[] = [];
+  for (let w = Math.max(1, to - n + 1); w <= to; w++) {
+    const h = habit(goals, w, rows, dueDay(w), isDue);
+    const late = h.after + h.none;
+    out.push({ week: w, late, mark: !h.due ? 'nothing-due' : !late ? 'all' : h.inTime ? 'some' : 'none' });
+  }
+  return out;
+}
+
+/** The words beside each mark in the row of weeks. */
+export function weekWords(x: HabitWeek): string {
+  return x.mark === 'all' ? 'All in' : x.mark === 'some' ? `${x.late} after` : x.mark === 'none' ? 'None in' : 'Nothing due';
+}
+
+/** Fewer owners than this and a set's measure is never shown (rule 4). */
+export const MIN_OWNERS = 3;
+
+/** Rule 4, never a person: false when the set's goals have fewer than three owners, unless the viewer owns all of them. */
+export function habitShown(goals: readonly Pick<Goal, 'ownerId'>[], viewerId: string): boolean {
+  const owners = new Set(goals.map((g) => g.ownerId));
+  if (!owners.size) return false;
+  return owners.size >= MIN_OWNERS || (owners.size === 1 && owners.has(viewerId));
+}
+
+/** Rule 2's sentences for "Before this review" (spec 2.3): the heading, in the past once the due day has passed. */
+export function beforeReviewText(h: HabitCounts, past: boolean): string {
+  if (!past) return `${h.inTime} of ${h.due} ${h.due === 1 ? 'goal is' : 'goals are'} checked in so far.`;
+  if (!h.inTime) return h.due === 1 ? 'Its one goal wasn’t checked in before it.' : `None of the ${h.due} goals was checked in before it.`;
+  if (h.inTime === h.due && h.unasked === h.due) return h.due === 1 ? 'Its one goal was checked in before it, without anyone asking.' : `All ${h.due} goals were checked in before it, without anyone asking.`;
+  return `${h.inTime} of ${h.due} goals were checked in before it, ${h.unasked === h.inTime ? 'all without being asked' : `${h.unasked} without being asked`}.`;
+}
+
+/** What "Before this review" says for a set of goals in a week (spec 2.3), as the review's page, a team's page and
+    `get_review` all read it; null when rule 4 hides it or nothing was due. `past`: the due day has gone by. */
+export interface BeforeReview { counts: HabitCounts; past: boolean; says: string; weeks: HabitWeek[] }
+
+export function beforeReview(goals: readonly Goal[], week: number, rows: HabitRows, cycle: Cycle, today: Date, viewerId: string): BeforeReview | null {
+  if (week < 1 || !habitShown(goals, viewerId)) return null;
+  const isDue = dueIn(cycle, rows.checkIns);
+  const dueDay = reviewDate(cycle, week);
+  const h = habit(goals, week, rows, dueDay, isDue);
+  if (!h.due) return null;
+  const past = today.toISOString().slice(0, 10) > dueDay;
+  const { goals: _ids, ...counts } = h;
+  return { counts, past, says: beforeReviewText(h, past), weeks: habitWeeks(goals, past ? week : week - 1, rows, (w) => reviewDate(cycle, w), isDue) };
+}

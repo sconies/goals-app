@@ -225,6 +225,7 @@ export function findRowsOf(w: ConformanceWorkspace): string[][] {
 export const GOAL_QUERIES = [
   '', 'status=off', 'status=off,risk', 'attention=1', 'attention=1&needs=stale', 'team=cicd', 'owner=rhea', 'level=north-star',
   'kind=milestone', 'q=tunde', 'q=rolback', 'q=zzzz', 'quiet=2', 'feeds=ns-lead', 'sort=title', 'sort=last', 'sort=due.desc', 'status=on&sort=gap',
+  'checkedin=no', 'checkedin=asked', 'inreview=devprod', 'inreview=devprod&checkedin=no', 'inreview=nope',
 ];
 export const GOALS_HEADER = ['query', 'total', 'near', ...STATUS_ORDER, 'attention', 'ids'];
 

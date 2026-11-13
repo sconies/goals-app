@@ -5663,6 +5663,38 @@ journey('U149', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the rece
   await h.checkpoint('late');
 });
 
+journey('U150', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: as Rhea on Developer Productivity fortnightly, the panel says how many goals are checked in so far, its “have no check-in for week 45 yet” link opens exactly that many goals, and “The last 8 weeks” has eight cells, each a week with words; no person’s name is in the panel; a team’s page shows the same panel for its goals, and a one-owner team’s page shows none', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/reviews/devprod'));
+  const panel = p.locator('section.habit');
+  await panel.waitFor({ timeout: 8000 });
+  const says = (await panel.locator('.habit-sum').innerText()).trim();
+  h.set('entry', /^\d+ of \d+ goals are checked in so far\.$/.test(says), `the panel said “${says}”`);
+  const cells = await panel.locator('.habit-week').allInnerTexts();
+  h.set('progress', cells.length === 8 && cells.every((t) => /Week \d+/.test(t) && /(All in|\d+ after|None in|Nothing due)/.test(t)), `the row of weeks: ${cells.map((t) => t.replace(/\s+/g, ' ')).join(' | ')}`);
+  // [HABIT-NEVER-A-PERSON] Weeks, not people: nobody's name is anywhere in the panel.
+  const s0 = await h.snapshot();
+  const text = await panel.innerText();
+  const named = s0.people.filter((x) => x.name && text.includes(x.name.split(' ')[0]) && x.name.split(' ')[0].length > 2).map((x) => x.name);
+  h.set('attention', !named.length, `the panel names ${named.join(', ')}`);
+  await h.checkpoint('panel');
+  const link = panel.getByRole('link', { name: /have no check-in for week \d+ yet|has no check-in for week \d+ yet/ });
+  const n = Number(((await link.innerText()).match(/^\d+/) ?? ['-1'])[0]);
+  await h.click(link);
+  await p.waitForURL(/\/goals\?.*inreview=devprod.*checkedin=no/);
+  await p.locator('.goals-line').first().waitFor();
+  const line = await p.locator('.goals-line').first().innerText();
+  h.set('finish', new RegExp(`^${n} goals? match`).test(line), `the link said ${n}, Goals said “${line}”`);
+  await h.checkpoint('goals');
+  // A team's page: the same panel for its goals; a team whose goals have one owner shows none (rule 4).
+  await p.goto(url('/teams/cicd'));
+  await see(p, 'Before this week’s review', 'a team’s page has no panel');
+  await p.goto(url('/teams/office'));
+  await p.locator('.team-page').waitFor();
+  h.set('errors', await p.locator('section.habit').count() === 0, 'a one-owner team’s page shows the panel');
+  await h.checkpoint('teams');
+});
+
 journey('U148', ['GOAL-PROPOSED'], 'Proposed in a review: as Rhea walking Developer Productivity fortnightly, “Propose a new goal” (on a phone, “Propose a new goal instead” in the next-step sheet) on Lead time for changes opens a sheet that starts with Rhea (the goal’s owner) and Lead time for changes; a name and Camille as owner saves a proposed goal for Camille in that review, not on the agenda; Camille’s Home says “Rhea proposed a goal for you in Developer Productivity fortnightly”; the review’s next session’s Last time reads “Proposed: … Camille hasn’t made it active yet.”', 30, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   const on = (path, day = '2026-11-11') => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;

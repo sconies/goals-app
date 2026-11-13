@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { useDraft } from '../app/drafts';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
+import { BeforeReview } from '../ui/BeforeReview';
 import { levelIds, levelName } from '../domain/levels';
 import { weekDates } from '../domain/plan';
 import { WEEKDAY } from '../domain/progress';
@@ -265,6 +266,8 @@ export function ReviewHome() {
           ))}</ul>
         </section>
       )}
+      {/* Before this review (habit spec 2.3): how many of its goals were checked in before it, and the last 8 weeks. */}
+      <BeforeReview goals={s.items.map((a) => a.goal)} week={s.week} link={`inreview=${encodeURIComponent(review.id)}`} heading="Before this review" />
       {/* Held: what was said comes first, with every goal reviewed. */}
       {done && <SessionRecord s={s} title="What was said" reviewed="open" />}
       {!done && remaining.length > 0 && (

@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (156): build it as Faro does.
+- **Copy** (158): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -227,7 +227,7 @@ A check-in says which week it is for and where it is in the week's queue, even a
 Once a person's check-ins for the week are all in, the receipt says whether they were in before the review ("All 4 of your check-ins are in before Thursday’s review.") and the run of weeks in a row on time, from two; or how many came after it and when the next are due, with no run. One late week is forgiven when the four weeks before it were on time, and said once ("Week 45 came in late; one late week doesn’t break a run."). Never "lost", "broken", a nought or an exclamation mark. Home's quiet line says the same two sentences on the day the week is completed.
 
 - **Copy:** build it as Faro does.
-- **Rule:** [The habit: the run, the receipt and a moment](rules/habit.md)
+- **Rule:** [The habit: the run, the receipt, a moment and the measure](rules/habit.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U149
 
@@ -236,7 +236,7 @@ Once a person's check-ins for the week are all in, the receipt says whether they
 A check-in that reaches a goal's target, or brings it back on track after two weeks or more behind, shows one quiet panel on its receipt (the status's shape and word, what happened in one line, "Copy the share image" for a target reached) and its row in the goal's History says "Reached its target" or "Back on track" in small capitals. Never on a correction, a backfilled week or an import; no animation, confetti or banner on anyone else's screen.
 
 - **Copy:** build it as Faro does.
-- **Rule:** [The habit: the run, the receipt and a moment](rules/habit.md)
+- **Rule:** [The habit: the run, the receipt, a moment and the measure](rules/habit.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U149
 
@@ -294,6 +294,95 @@ Only the goal's owner checks in on the check-in screen: the owner's call is the 
 - **Copy:** build it as Faro does.
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U9, U141
+
+## Reviews
+
+### HABIT-MEASURE
+
+A review's page says how many of its goals were checked in before it, and how many without being asked (Faro's only nudge is an ask for an update), with links that open exactly the goals that came in after an ask and those with no check-in yet, and a row of the last 8 weeks (All in, {k} after, None in, Nothing due) drawn as squares with words. A team's page shows the same for its goals.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [The habit: the run, the receipt, a moment and the measure](rules/habit.md)
+- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`; “Teams” (`teams`)
+- **Journeys and checks:** U150
+
+### HABIT-NEVER-A-PERSON
+
+The measure is about weeks and goals, never people: no person is named, listed, counted or sorted in it, no team is ranked by it, and a set whose goals have fewer than three owners shows none of it, unless the viewer owns them all.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [The habit: the run, the receipt, a moment and the measure](rules/habit.md)
+- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
+- **Journeys and checks:** U150
+
+### REVIEW
+
+A review walks its goals worst and stalest first, one goal page at a time, with next and previous.
+
+- **Copy:** build it as Faro does.
+- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
+- **Journeys and checks:** U3
+
+### INSPECT-ACT
+
+On each goal in a review, a participant can mark it seen, add a note, ask the owner a question or add an action; saying anything covers the goal and moves on.
+
+- **Copy:** build it as Faro does.
+- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
+- **Journeys and checks:** U3
+
+### REVIEW-SETUP
+
+Anyone can set up a review: a name, a cadence (every 1, 2 or 4 weeks on a weekday), the goals (levels, trees, single goals) and the people.
+
+- **Copy:** build it as Faro does.
+- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
+- **Journeys and checks:** U13
+
+### REVIEW-RUN
+
+What was said in a review is kept as its summary; owners see questions and actions on their goal page.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [Deciding in a review](rules/review-decide.md)
+- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
+- **Journeys and checks:** U3, U36
+
+### REVIEW-SPEAK
+
+Only someone in a review, or an admin, speaks for it: marking a goal reviewed, a note, accepting a risk, and a question or next step raised in it are refused for anyone else with one sentence, through the app and the AI tools alike. Everyone can still read it. Its page tells someone not in it who can add them, and never offers a Join it refuses.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [Deciding in a review](rules/review-decide.md)
+- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
+- **Journeys and checks:** N25
+
+### REVIEW-DECIDE
+
+A goal off track or at risk leaves a review's walk with a decision: a next step with an owner (chosen by searching, never from a list of everyone) and a week it's due by, or "We accept the risk" with a reason. The goal page shows next steps as dated rows with an owner, changed there, an overdue one flagged; anyone can add one. The next session opens with what the last one agreed and asks if it's done. Finish review says what was decided and who owns what, with Undo. A review isn't "to do" before anything is due.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [Deciding in a review](rules/review-decide.md)
+- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
+- **Tests:** `src/mcp/mcp.test.ts` (2)
+- **Journeys and checks:** N1, U3
+
+### REVIEW-LIST-STATE
+
+The Reviews page says, for every review, where this session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held and how many of its actions are open.
+
+- **Copy:** build it as Faro does.
+- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
+- **Tests:** `src/domain/review.test.ts` (7), `evals/review-notes.eval.ts` (4)
+- **Journeys and checks:** N1
+
+### REVIEW-AGENDA
+
+A review's agenda reads at a glance: one line per goal (status, name, number, gap) with nothing cut off at any width; the end of a review shows what was said and leads back to the review.
+
+- **Copy:** build it as Faro does.
+- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
+- **Journeys and checks:** N1
 
 ## Goals
 
@@ -711,77 +800,6 @@ Needs attention is one rule (domain/attention.ts): off track, at risk, no recent
 - **Rule:** [Flags, the trend and needs attention](rules/flags.md)
 - **Help:** “Needs attention, and being handled” (`needs-attention`)
 - **Tests:** `evals/vocabulary.eval.ts` (3)
-
-## Reviews
-
-### REVIEW
-
-A review walks its goals worst and stalest first, one goal page at a time, with next and previous.
-
-- **Copy:** build it as Faro does.
-- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Journeys and checks:** U3
-
-### INSPECT-ACT
-
-On each goal in a review, a participant can mark it seen, add a note, ask the owner a question or add an action; saying anything covers the goal and moves on.
-
-- **Copy:** build it as Faro does.
-- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Journeys and checks:** U3
-
-### REVIEW-SETUP
-
-Anyone can set up a review: a name, a cadence (every 1, 2 or 4 weeks on a weekday), the goals (levels, trees, single goals) and the people.
-
-- **Copy:** build it as Faro does.
-- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Journeys and checks:** U13
-
-### REVIEW-RUN
-
-What was said in a review is kept as its summary; owners see questions and actions on their goal page.
-
-- **Copy:** build it as Faro does.
-- **Rule:** [Deciding in a review](rules/review-decide.md)
-- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Journeys and checks:** U3, U36
-
-### REVIEW-SPEAK
-
-Only someone in a review, or an admin, speaks for it: marking a goal reviewed, a note, accepting a risk, and a question or next step raised in it are refused for anyone else with one sentence, through the app and the AI tools alike. Everyone can still read it. Its page tells someone not in it who can add them, and never offers a Join it refuses.
-
-- **Copy:** build it as Faro does.
-- **Rule:** [Deciding in a review](rules/review-decide.md)
-- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Journeys and checks:** N25
-
-### REVIEW-DECIDE
-
-A goal off track or at risk leaves a review's walk with a decision: a next step with an owner (chosen by searching, never from a list of everyone) and a week it's due by, or "We accept the risk" with a reason. The goal page shows next steps as dated rows with an owner, changed there, an overdue one flagged; anyone can add one. The next session opens with what the last one agreed and asks if it's done. Finish review says what was decided and who owns what, with Undo. A review isn't "to do" before anything is due.
-
-- **Copy:** build it as Faro does.
-- **Rule:** [Deciding in a review](rules/review-decide.md)
-- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Tests:** `src/mcp/mcp.test.ts` (2)
-- **Journeys and checks:** N1, U3
-
-### REVIEW-LIST-STATE
-
-The Reviews page says, for every review, where this session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held and how many of its actions are open.
-
-- **Copy:** build it as Faro does.
-- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Tests:** `src/domain/review.test.ts` (7), `evals/review-notes.eval.ts` (4)
-- **Journeys and checks:** N1
-
-### REVIEW-AGENDA
-
-A review's agenda reads at a glance: one line per goal (status, name, number, gap) with nothing cut off at any width; the end of a review shows what was said and leads back to the review.
-
-- **Copy:** build it as Faro does.
-- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Journeys and checks:** N1
 
 ## Focus
 

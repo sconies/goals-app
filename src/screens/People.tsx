@@ -11,6 +11,7 @@ import '../app/engineReady';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
+import { BeforeReview } from '../ui/BeforeReview';
 import { Place } from '../core/app';
 import { DIRECTORY_PAGE, personLine, teamSummary } from '../domain/directory';
 import { useFound } from '../app/search';
@@ -384,6 +385,8 @@ export function TeamPage() {
         <h2 className="label" id="team-goals">Goals</h2>
         {s.byStatus.length ? <Counts counts={s.byStatus} label={`${t.name}’s goals`} to={(k) => `/goals?team=${encodeURIComponent(t.id)}&status=${k}`} /> : <p className="hint">No goals this year.</p>}
       </section>
+      {/* Weeks, not people (habit spec 2.3): only for a team of three or more owners. */}
+      <BeforeReview goals={app.snapshot.goals.filter((g) => g.teamId === t.id && !g.removedAt && !g.stoppedAt)} week={app.week} link={`team=${encodeURIComponent(t.id)}`} heading="Before this week’s review" />
       <section className="stack" style={{ gap: 'var(--s2)' }} aria-labelledby="team-people">
         <h2 className="label" id="team-people">People · {people.length}</h2>
         {!people.length ? <p className="hint">No one is in {t.name} yet.</p> : (

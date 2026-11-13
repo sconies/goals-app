@@ -47,9 +47,14 @@ export interface GoalQuery {
    * with the column the module fills for each goal (QueryContext.columns). Measured by a metric: `{ metric: <id> }`.
    */
   cols: Record<string, string>;
+  /** This week's check-in (habit spec 1; HM7, HB2): `no`, due and not checked in yet; `asked`, checked in after an ask
+      for an update. Only goals due this week match either. */
+  checkedin?: 'no' | 'asked' | null;
+  /** Only the goals a review walks (its id): the habit panel's links (HB2). An unknown review matches nothing. */
+  inreview?: string | null;
 }
 
-export const EMPTY_QUERY: GoalQuery = { q: '', status: [], level: [], team: [], owner: [], kind: [], attention: false, needs: [], due: null, quiet: null, quarter: null, result: [], feeds: null, helps: false, sort: null, dir: 1, cols: {} };
+export const EMPTY_QUERY: GoalQuery = { q: '', status: [], level: [], team: [], owner: [], kind: [], attention: false, needs: [], due: null, quiet: null, quarter: null, result: [], feeds: null, helps: false, sort: null, dir: 1, cols: {}, checkedin: null, inreview: null };
 
 export const STATUS_OPTIONS: [QStatus, string][] = (['off', 'risk', 'stale', 'on', 'done', 'none', 'planned'] as const).map((k) => [k, LABEL[k]]);
 /** "Needs attention because …": each flag that makes a goal need attention, in its vocabulary words. */
@@ -94,6 +99,8 @@ export function parseQuery(p: URLSearchParams): GoalQuery {
     sort: SORT_OPTIONS.some(([k]) => k === sortKey) ? (sortKey as SortKey) : null,
     dir: dir === 'desc' ? -1 : 1,
     cols: Object.fromEntries(COLUMN_PARAMS.map((k) => [k, (p.get(k) ?? '').slice(0, 200)]).filter(([, v]) => v)),
+    checkedin: p.get('checkedin') === 'no' || p.get('checkedin') === 'asked' ? (p.get('checkedin') as 'no' | 'asked') : null,
+    inreview: (p.get('inreview') ?? '').slice(0, 200) || null,
   };
 }
 
@@ -121,12 +128,14 @@ export function queryEntries(q: GoalQuery): [string, string][] {
   if (q.result.length) out.push(['result', q.result.join(',')]);
   if (q.feeds) out.push(['feeds', q.feeds]);
   if (q.helps) out.push(['helps', '1']);
+  if (q.checkedin) out.push(['checkedin', q.checkedin]);
+  if (q.inreview) out.push(['inreview', q.inreview]);
   for (const k of Object.keys(q.cols ?? {}).sort()) if (q.cols[k]) out.push([k, q.cols[k]!]);
   if (q.sort) out.push(['sort', q.sort + (q.dir === -1 ? '.desc' : '')]);
   return out;
 }
 /** Every parameter a goals query reads: the core's, then modules' (addColumnParams). */
-export const QUERY_KEYS = ['q', 'status', 'level', 'team', 'owner', 'kind', 'attention', 'needs', 'due', 'quiet', 'qtr', 'result', 'feeds', 'helps', 'sort'];
+export const QUERY_KEYS = ['q', 'status', 'level', 'team', 'owner', 'kind', 'attention', 'needs', 'due', 'quiet', 'qtr', 'result', 'feeds', 'helps', 'checkedin', 'inreview', 'sort'];
 
 /** Does the query narrow the goals at all? (Sorting alone doesn't.) */
 export const filters = (q: GoalQuery) => queryEntries({ ...q, sort: null }).length > 0;
@@ -136,6 +145,10 @@ export interface QueryContext {
   goals: Goal[]; cycle: Cycle; week: number;
   /** Each module filter's column, by its parameter: the value it holds for a goal (a metric's id), or null. A filter whose column isn't here (its module is off) narrows nothing. */
   columns?: Record<string, (goal: Goal) => string | null>;
+  /** A goal's standing this week (habit rule 1, `standing.ts`), null when it isn't due: what `checkedin=` reads. */
+  standing?: (goal: Goal) => 'unasked' | 'asked' | 'after' | 'none' | null;
+  /** The goals a review walks, by the review's id; null for no such review: what `inreview=` reads. */
+  inReview?: (reviewId: string) => ReadonlySet<string> | null;
 }
 
 /** The goal and every goal that feeds it, all the way down. */
@@ -175,6 +188,11 @@ export function matches(s: GoalSummary, q: GoalQuery, ctx: QueryContext, tree?: 
   }
   // A done goal has nothing left to report, so it never counts as quiet (demo review, 8 Nov, item 6).
   if (q.quiet != null && (s.status === 'done' || s.quietDays < q.quiet * 7)) return false;
+  if (q.checkedin) {
+    const st = ctx.standing?.(g);
+    if (q.checkedin === 'no' ? st !== 'none' : st !== 'asked') return false;
+  }
+  if (q.inreview && !ctx.inReview?.(q.inreview)?.has(g.id)) return false;
   if (q.quarter) {
     const last = [...s.story.quarters].reverse().find((x) => x.kind === 'met' || x.kind === 'missed');
     if (last?.kind !== q.quarter) return false;
@@ -215,6 +233,8 @@ export function applyQuery(sums: GoalSummary[], q: GoalQuery, ctx: QueryContext)
 /** Names for what a query holds by id; `col` words a module filter's value ("Measured by", "Lead time"), null when no module that's on reads it. */
 export interface QueryNames {
   team: (id: string) => string; person: (id: string) => string; goal: (id: string) => string;
+  /** A review's name, for `inreview=`. */
+  review?: (id: string) => string;
   col?: (param: string, value: string) => { label: string; value: string } | null;
 }
 
@@ -235,6 +255,8 @@ export function describeQuery(q: GoalQuery, names: QueryNames): { key: string; t
   if (q.result.length) out.push({ key: 'result', text: q.result.map((r) => label(RESULT_OPTIONS, r)).join(' or ') });
   if (q.feeds) out.push({ key: 'feeds', text: `In the tree of ${names.goal(q.feeds)}` });
   if (q.helps) out.push({ key: 'helps', text: 'With “also helps” links' });
+  if (q.checkedin) out.push({ key: 'checkedin', text: q.checkedin === 'no' ? 'No check-in this week yet' : 'Checked in after an ask' });
+  if (q.inreview) out.push({ key: 'inreview', text: `In ${names.review?.(q.inreview) ?? 'a review'}` });
   for (const [k, v] of Object.entries(q.cols ?? {})) { const c = names.col?.(k, v); if (c) out.push({ key: k, text: `${c.label} ${c.value}` }); }
   return out;
 }
@@ -258,13 +280,15 @@ export function queryParts(q: GoalQuery, names: QueryNames): FilterPart[] {
   if (q.result.length) out.push({ key: 'result', label: 'Result', values: q.result.map((r) => label(RESULT_OPTIONS, r)) });
   if (q.feeds) out.push({ key: 'feeds', label: 'In the tree of', values: [names.goal(q.feeds)] });
   if (q.helps) out.push({ key: 'helps', label: 'With', values: ['“also helps” links'] });
+  if (q.checkedin) out.push({ key: 'checkedin', label: 'This week', values: [q.checkedin === 'no' ? 'no check-in yet' : 'checked in after an ask'] });
+  if (q.inreview) out.push({ key: 'inreview', label: 'In', values: [names.review?.(q.inreview) ?? 'a review'] });
   for (const [k, v] of Object.entries(q.cols ?? {})) { const c = names.col?.(k, v); if (c) out.push({ key: k, label: c.label, values: [c.value] }); }
   return out;
 }
 
 /** Remove one filter (by its describeQuery key). */
 export function without(q: GoalQuery, key: string): GoalQuery {
-  const map: Record<string, Partial<GoalQuery>> = { q: { q: '' }, status: { status: [] }, level: { level: [] }, team: { team: [] }, owner: { owner: [] }, kind: { kind: [] }, needs: { needs: [], attention: false }, due: { due: null }, quiet: { quiet: null }, qtr: { quarter: null }, result: { result: [] }, feeds: { feeds: null }, helps: { helps: false } };
+  const map: Record<string, Partial<GoalQuery>> = { q: { q: '' }, status: { status: [] }, level: { level: [] }, team: { team: [] }, owner: { owner: [] }, kind: { kind: [] }, needs: { needs: [], attention: false }, due: { due: null }, quiet: { quiet: null }, qtr: { quarter: null }, result: { result: [] }, feeds: { feeds: null }, helps: { helps: false }, checkedin: { checkedin: null }, inreview: { inreview: null } };
   if (key in (q.cols ?? {})) { const { [key]: _, ...cols } = q.cols; return { ...q, cols }; }
   return { ...q, ...(map[key] ?? {}) };
 }
