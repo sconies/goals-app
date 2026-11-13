@@ -27,6 +27,38 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'empty-pages-say-when',
+    date: '2026-11-13',
+    title: 'Empty pages say when you’d want them',
+    points: [
+      'Metrics, Watching and Activity, while empty, say what is true and when you would want them, with a plain button rather than a big one.',
+      'A tab or a menu row with nothing in it no longer shows a 0.',
+    ],
+    articles: ['watching', 'metrics', 'activity'],
+  },
+  {
+    id: 'readings-fill-in-check-ins',
+    date: '2026-11-13',
+    title: 'Check-ins start with the number, where a source can be read',
+    points: [
+      'A goal measured by a metric whose source Faro can read opens its check-in with the latest reading filled in, and says where it came from and when: “From CI analytics, read 9:02 today.”',
+      'The button names the number (“Confirm 12 min”). Nothing is posted until you finish the check-in.',
+      'Type a different number and you’re asked why it differs. Your number counts; the reading and your reason are kept beside it, and nobody is flagged.',
+      'A reading more than a week old isn’t filled in, and a company-wide number never fills in a team’s goal.',
+    ],
+    articles: ['check-in', 'metric-slices'],
+  },
+  {
+    id: 'switch-from-the-narrow-menu',
+    date: '2026-11-13',
+    title: 'Switch workspace from the narrow menu',
+    points: [
+      'With the narrow menu of icons, the Faro mark at its top opens the workspace switcher.',
+      'Nothing is added to the menu, so the rest of it keeps its room on a small screen.',
+    ],
+    articles: ['workspace'],
+  },
+  {
     id: 'look-around-the-demo',
     date: '2026-11-13',
     title: 'Look around the demo from any workspace',

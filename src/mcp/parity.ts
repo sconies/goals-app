@@ -74,6 +74,7 @@ export const ACTIONS: Record<string, Entry> = {
   createWorkspace: { notForAssistants: 'A token belongs to one workspace; a new workspace is set up in the app.' },
   switchWorkspace: { notForAssistants: 'A token belongs to one workspace: switching is choosing another token.' },
   resetExample: { notForAssistants: 'Only the demo has an example to reset, and tokens are for real workspaces.' },
+  exampleSeed: { notForAssistants: 'The demo’s example as it was built is what its number sources are made from, read by the check-in’s number step; post_check_in reads the same source with reading_confirmed.' },
   setViewer: { notForAssistants: 'Saying who you are: a token already acts as one person.' },
 };
 

@@ -141,6 +141,8 @@ export interface PlaceNames {
   module?(path: string): string | null;
   /** The goal a goal feeds, for a Back link up the tree. */
   parent?(goalId: string): string | null;
+  /** Whether the address is a switched-off module's (Reviews' included): its page is the not-found page, and so is its name. */
+  off?(path: string): boolean;
 }
 
 
@@ -157,9 +159,11 @@ const FIXED: Record<string, string> = {
  * "Opened lately": a module's page names itself; the fixed places by name (Goals is "Goals" on every tab); a goal, a
  * review, a person, a team and a Help article by their own name, with what the page does to it ("Change {goal}",
  * "Check in: {goal}", "{goal}, to print", "{goal} · {review}" in a review's walk); a Workspace section as
- * "{section} · Workspace"; something that isn't there as "Goal not found" (and so on); any other address "Page not found".
+ * "{section} · Workspace"; something that isn't there as "Goal not found" (and so on); any other address, and a
+ * switched-off module's address, "Page not found" (what its page says: no review is named while Reviews is off).
  */
 export function pageName(path: string, search: string, names: PlaceNames): string {
+  if (names.off?.(path)) return 'Page not found';
   const sp = new URLSearchParams(search);
   const mod = names.module?.(path);
   if (mod) return mod;
