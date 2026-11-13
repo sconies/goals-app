@@ -86,6 +86,8 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const [d, set, clear, restored] = useDraft<WizardDraft>(goalDraftKey(app.ws.id, null), () => ({ ...blankGoal(viewerTeam, app.viewer.id, defaultParent), step: 0 }));
   const [tried, setTried] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
+  // The baseline's period (BL) starts folded into one link on the plan's line, so the step still fits two phone screens.
+  const [baselineOpen, setBaselineOpen] = useState(false);
   // The goal this draft was published as: from then on nothing here asks again or says what's missing; the goal's page
   // opens with the toast (the wizard stays drawn while that page loads).
   const [published, setPublished] = useState<string | null>(null);
@@ -426,8 +428,8 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
                     {showErr('endWeek')}{questions('endWeek')}
                   </div>
                 </div>
-                <p className="small muted span-says" role="status">{spanSays(cycle, span.from, endChoice, week)}</p>
-                <BaselineFields period={d.baselinePeriod ?? ''} provisional={!!d.baselineProvisional} onChange={set} invalid={invalid('start')} compact />
+                <p className="small muted span-says" role="status">{spanSays(cycle, span.from, endChoice, week)}{!(baselineOpen || d.baselinePeriod) && <> <button type="button" className="linkish baseline-open" onClick={() => setBaselineOpen(true)}>Baseline known for a period?</button></>}</p>
+                {(baselineOpen || !!d.baselinePeriod) && <BaselineFields period={d.baselinePeriod ?? ''} provisional={!!d.baselineProvisional} onChange={set} invalid={invalid('start')} focus={baselineOpen && !d.baselinePeriod} />}
                 {questions('start')}
                 {questions('target')}
                 {decimalsLine}
