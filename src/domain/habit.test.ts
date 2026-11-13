@@ -51,7 +51,7 @@ describe('the forgiving run (CF4, built unconditionally until CF2 adds cycle.str
 });
 
 describe('the receipt (spec 2.1)', () => {
-  const r = (p: Partial<ReceiptFacts>): ReceiptFacts => ({ total: 2, after: 0, week: 46, reviewDay: 'Thursday', run: 0, forgiven: null, nextDue: 'Thursday 19 Nov', ...p });
+  const r = (p: Partial<ReceiptFacts>): ReceiptFacts => ({ total: 2, after: 0, week: 46, dueDay: 'Thursday', review: true, run: 0, forgiven: null, nextDue: 'Thursday 19 Nov', ...p });
   it('says every check-in is in before the review, and the run from two weeks', () => {
     expect(receiptText(r({ total: 1 }))).toEqual({ first: 'Your check-in is in before Thursday’s review.', second: null });
     expect(receiptText(r({ run: 5 }))).toEqual({ first: 'Both of your check-ins are in before Thursday’s review.', second: 'That is 5 weeks in a row.' });
@@ -66,8 +66,9 @@ describe('the receipt (spec 2.1)', () => {
     expect(receiptText(r({ total: 1, after: 1 })).first).toBe('Your check-in is in. It came after Thursday’s review.');
     expect(receiptText(r({ total: 3, after: 2 })).first).toBe('All 3 of your check-ins are in. 2 came after Thursday’s review.');
   });
-  it('says the week when the workspace has no review', () => {
-    expect(receiptText(r({ reviewDay: null })).first).toBe('Both of your check-ins are in for week 46.');
+  it('says the deadline, not a review, to someone in no review that day (deep review T4)', () => {
+    expect(receiptText(r({ review: false })).first).toBe('Both of your check-ins are in for week 46, before Thursday’s deadline.');
+    expect(receiptText(r({ review: false, total: 1, after: 1 })).first).toBe('Your check-in is in. It came in after Thursday’s deadline.');
   });
   it('never says a run was lost or broken', () => {
     for (const p of [{ after: 1, run: 0 }, { after: 2, run: 9 }, { run: 0 }, { run: 7, forgiven: 45 }]) {
@@ -78,7 +79,7 @@ describe('the receipt (spec 2.1)', () => {
   it('reads its facts from the week (receiptFacts)', () => {
     const s = weeks(41, 46, [46], 41);
     const f = receiptFacts(weekProgress('tunde', s, cycle, 46, new Date('2026-11-13T12:00:00Z')), 'tunde', s, cycle, 46, true);
-    expect(f).toMatchObject({ total: 1, after: 1, week: 46, reviewDay: 'Thursday', run: 5, nextDue: '2026-11-19' });
+    expect(f).toMatchObject({ total: 1, after: 1, week: 46, dueDay: 'Thursday', review: true, run: 5, nextDue: '2026-11-19' });
   });
 });
 

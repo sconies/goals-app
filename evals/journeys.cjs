@@ -1627,7 +1627,7 @@ journey('U122', ['HOME-OWNER'], 'The owner’s week on Home: on Monday nothing i
   await p.goto(day('2026-11-11'));
   await hero.waitFor();
   const done = await hero.innerText();
-  h.set('finish', /Both (of your )?check-ins are in (for week 46|before Thursday’s review)\./.test(done) && /The next are due by Thursday 19 Nov\./.test(done) && await p.locator('.page.home .btn.primary').count() === 0, `Wednesday’s Home said “${done.replace(/\s+/g, ' ')}”`);
+  h.set('finish', /Both (of your )?check-ins are in (for week 46|before Thursday’s review)/.test(done) && /The next are due by Thursday 19 Nov\./.test(done) && await p.locator('.page.home .btn.primary').count() === 0, `Wednesday’s Home said “${done.replace(/\s+/g, ' ')}”`);
   // Friday 13 Nov: the deadline he met is not said.
   await p.goto(day('2026-11-13'));
   await hero.waitFor();
@@ -5630,10 +5630,10 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
 }, []);
 
 /* Check reads the metric from the draft (build review of #202, findings 2 and 3): a reload keeps it, a new team re-slices it. */
-journey('U149', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the receipt: as Valentina on Thursday 5 Nov, her one check-in at 80 (Commitment coverage’s target) shows one panel “… reached its target” with “Copy the share image” and “See the goal”, and the receipt “Your check-in is in before Thursday’s review.”; the goal’s History marks that week “Reached its target”; as Mohammed on Friday 6 Nov, his check-in says “It came after Thursday’s review.” and no run', 12, async (h, device) => {
+journey('U149', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the receipt: as Valentina on Thursday 5 Nov, her one check-in at 80 (Commitment coverage’s target) shows one panel “… reached its target” with “Copy the share image” and “See the goal”, and the receipt “Your check-in is in for week 45, before Thursday’s deadline.”; the goal’s History marks that week “Reached its target”; as Mohammed on Friday 6 Nov, his check-in says “It came in after Thursday’s deadline.” and no run', 12, async (h, device) => {
   const on = (path, day) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
   const p = h.use(await newPage(device, 'valentina'));
-  await p.goto(on('/check-in', '2026-11-05'));
+  await p.goto(on('/check-in/cost-commit', '2026-11-05'));
   await h.fill(p.getByLabel('This week’s value'), '80');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
   await see(p, 'Check-in saved');
@@ -5641,7 +5641,8 @@ journey('U149', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the rece
   await see(panel, 'reached its target', 'no panel says the goal reached its target');
   await see(panel, 'against a target of', 'the panel does not say the target');
   h.set('finish', await panel.getByRole('button', { name: 'Copy the share image' }).isVisible() && await panel.getByRole('link', { name: 'See the goal' }).isVisible() && await p.locator('.ci-moment').count() === 1, 'the panel has not one share button and one link to the goal');
-  await see(p, 'Your check-in is in before Thursday’s review.', 'the receipt does not say it was in before the review');
+  // The due day is a review only for someone in a review held that day (deep review T4); otherwise it is the deadline.
+  await see(p, /Your check-in is in (before Thursday’s review|for week 45, before Thursday’s deadline)\./, 'the receipt does not say it was in before the due day');
   const said = await p.locator('.celebrate').innerText();
   h.set('errors', !/lost|broken|!/i.test(said), `the receipt said “${said.replace(/\s+/g, ' ')}”`);
   await h.checkpoint('reached');
@@ -5654,10 +5655,10 @@ journey('U149', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the rece
   await h.checkpoint('history');
   // Friday: the review has passed. The receipt says so, and mentions no run.
   const q = h.use(await newPage(device, 'mohammed'));
-  await q.goto(on('/check-in', '2026-11-06'));
+  await q.goto(on('/check-in/slo-edge', '2026-11-06'));
   await h.fill(q.getByLabel('This week’s value'), '95');
   await h.click(q.getByRole('button', { name: 'Post check-in' }));
-  await see(q, 'It came after Thursday’s review.', 'a check-in after the review does not say it came after');
+  await see(q, /It came (after Thursday’s review|in after Thursday’s deadline)\./, 'a check-in after the due day does not say it came after');
   const late = await q.locator('.celebrate').innerText();
   h.set('progress', !/in a row|lost|broken/i.test(late), `the late receipt said “${late.replace(/\s+/g, ' ')}”`);
   await h.checkpoint('late');

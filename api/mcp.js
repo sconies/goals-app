@@ -2158,12 +2158,11 @@ function onTimeRun(personId, all, checkIns, cycle, week) {
 }
 /**
 * The receipt's facts for a person's week (habit spec 2.1), from the rules that already say each: weekProgress (`p`) for
-* their goals, reviewDate for the due day, the run. A goal's week counts as after when its first check-in that week (theirs, or
-* someone's checking in for them) was posted after the due day. `hasReview` is false when reviews are switched off or the
-* workspace has none, so the sentence says the week instead of the review (the flag, as readBack.ts takes `reviewsOn`).
+* their goals, reviewDate for the due day, the run. A goal's week counts as after when its first check-in that week
+* (theirs, or someone's checking in for them) was posted after the due day. `review` is `reviewOnDueDay`'s.
 * `nextDue` is the next due day as an ISO date: the caller says it in words before `receiptText`.
 */
-function receiptFacts(p, personId, s, cycle, week, hasReview) {
+function receiptFacts(p, personId, s, cycle, week, review) {
 	const due = reviewDate(cycle, week);
 	const after = p.goals.filter((g) => {
 		const first = s.checkIns.filter((c) => c.goalId === g.id && c.week === week && !c.removedAt).map((c) => c.postedAt).sort()[0];
@@ -2174,7 +2173,8 @@ function receiptFacts(p, personId, s, cycle, week, hasReview) {
 		total: p.goals.length,
 		after,
 		week,
-		reviewDay: hasReview ? WEEKDAY[cycle.reviewDay] : null,
+		dueDay: WEEKDAY[cycle.reviewDay],
+		review,
 		run: run.weeks,
 		forgiven: run.forgiven[0] ?? null,
 		nextDue: week < cycle.weeks ? reviewDate(cycle, week + 1) : null
@@ -2183,19 +2183,25 @@ function receiptFacts(p, personId, s, cycle, week, hasReview) {
 /**
 * The receipt's two sentences, once every check-in of the week is in (habit spec 2.1; HB1). Read by the check-in's last
 * screen and by Home's quiet line on the day the week is completed. A late week is never called lost or broken, and no run
-* is mentioned beside one.
+* is mentioned beside one. The due day is a review only for someone in a review held that day (T4).
 */
 function receiptText(r) {
 	const yours = r.total === 1 ? "Your check-in is" : r.total === 2 ? "Both of your check-ins are" : `All ${r.total} of your check-ins are`;
 	const next = r.nextDue ? `The next ${r.total === 1 ? "is" : "are"} due by ${r.nextDue}.` : null;
 	if (r.after > 0) return {
-		first: `${yours} in. ${r.total === 1 ? "It" : r.after === r.total ? r.total === 2 ? "Both" : "All of them" : r.after === 1 ? "One" : String(r.after)} came after ${r.reviewDay ? `${r.reviewDay}’s review` : "the due day"}.`,
+		first: `${yours} in. ${r.total === 1 ? "It" : r.after === r.total ? r.total === 2 ? "Both" : "All of them" : r.after === 1 ? "One" : String(r.after)} came ${r.review ? `after ${r.dueDay}’s review` : `in after ${r.dueDay}’s deadline`}.`,
 		second: next
 	};
 	return {
-		first: r.reviewDay ? `${yours} in before ${r.reviewDay}’s review.` : `${yours} in for week ${r.week}.`,
+		first: r.review ? `${yours} in before ${r.dueDay}’s review.` : `${yours} in for week ${r.week}, before ${r.dueDay}’s deadline.`,
 		second: [r.run >= 2 ? `That is ${r.run} weeks in a row.` : null, r.forgiven != null && r.forgiven === r.week - 1 && r.run >= 2 ? `Week ${r.forgiven} came in late; one late week doesn’t break a run.` : null].filter(Boolean).join(" ") || null
 	};
+}
+/** Whether the person is in a review held on the workspace's due day (live, not ended): only then is the due day said
+as a review (deep review T4). `reviewsOn` is the reviews switch's flag, as readBack.ts takes it; FT2 isn't built, so
+every caller passes true for now. */
+function reviewOnDueDay(reviews, personId, cycle, reviewsOn) {
+	return reviewsOn && reviews.some((r) => !r.removedAt && !r.endedAt && r.weekday === cycle.reviewDay && r.people.includes(personId));
 }
 var firstDueWeek, WEEKDAY;
 var init_progress = __esmMin((() => {
@@ -17582,7 +17588,7 @@ var CORE_ARTICLES = [
 				heading: "When Home has no button",
 				list: [
 					"Before the day your check-ins are due, Home says “Nothing is asked of you today.” and when they are due, with Check in early if you want to get ahead. When asks or proposed goals wait for you, it says so instead (“A proposed goal waits for your response.”).",
-					"Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in, it says what the check-in’s last screen said: whether they were in before the review, and how many weeks in a row you have been on time, from two weeks.",
+					"Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in, it says what the check-in’s last screen said: whether they were in before the deadline, and how many weeks in a row you have been on time, from two weeks.",
 					"If you own and watch nothing, it says so, with a way to see the goals and to set one up.",
 					"It never tells you about a deadline you met."
 				]
@@ -17968,7 +17974,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "When the week’s are all in",
 				text: [
-					"The last screen says whether your check-ins were in before the review (“All 4 of your check-ins are in before Thursday’s review.”) and, from two weeks, how many weeks in a row you have been on time. If some came after the review it says how many, and when the next are due.",
+					"The last screen says whether your check-ins were in before the deadline (“All 4 of your check-ins are in for week 46, before Thursday’s deadline.”; if you are in a review that day, “… before Thursday’s review.”) and, from two weeks, how many weeks in a row you have been on time. If some came after it, it says how many, and when the next are due.",
 					"One late week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. Only you see your run.",
 					"When a check-in takes a goal to its target, the last screen says so quietly, with a way to copy the goal’s share image; when it brings a goal back on track after two weeks or more behind, it says that. The goal’s History marks the week “Reached its target” or “Back on track”. A correction never does."
 				]
@@ -20234,9 +20240,9 @@ var WHATS_NEW = [
 	{
 		id: "habit-receipt-and-moment",
 		date: "2026-11-13",
-		title: "A late week no longer resets your run, and reaching a target is said, quietly",
+		title: "Your run forgives one missed week, and reaching a target is said, quietly",
 		points: [
-			"When your week’s check-ins are all in, the last screen says whether they were in before the review, and how many weeks in a row you have been on time.",
+			"When your week’s check-ins are all in, the last screen says whether they were in before the deadline (or the review, if you are in one that day), and how many weeks in a row you have been on time.",
 			"One late week no longer ends your run: if the four weeks before it were on time, it is forgiven, and the next check-in says so once.",
 			"A check-in that takes a goal to its target says so in one quiet panel, with a way to copy the goal’s share image. One that brings a goal back on track after two weeks or more behind says that too.",
 			"The goal’s History marks those weeks “Reached its target” or “Back on track”."
@@ -22305,7 +22311,7 @@ var WORK_TOOLS = [
 			});
 			const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today);
 			const wp = weekProgress(me, s, ctx.cycle, ctx.week, ctx.today);
-			const rf = weekCompletion(wp).complete ? receiptFacts(wp, me, s, ctx.cycle, ctx.week, s.reviews.some((r) => !r.removedAt && !r.endedAt)) : null;
+			const rf = weekCompletion(wp).complete ? receiptFacts(wp, me, s, ctx.cycle, ctx.week, reviewOnDueDay(s.reviews, me, ctx.cycle, true)) : null;
 			const weekReceipt = rf ? {
 				...receiptText({
 					...rf,

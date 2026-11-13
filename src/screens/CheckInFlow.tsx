@@ -14,7 +14,7 @@ import { forecastText } from '../domain/tree';
 import { currentWeek, weekDates } from '../domain/plan';
 import { fmt, gapText, staysText, targetText, weekLabel } from '../domain/format';
 import { isEveryday, levelName } from '../domain/levels';
-import { daysToReview, receiptFacts, receiptText, weekCompletion, weekDoneText, weekProgress } from '../domain/progress';
+import { daysToReview, receiptFacts, receiptText, reviewOnDueDay, weekCompletion, weekDoneText, weekProgress } from '../domain/progress';
 import { longDay } from '../domain/home';
 import { moment, momentText, type Moment } from '../domain/habit';
 import type { CheckIn, Goal, Ask, MilestoneGoal, Status, RecoveryState } from '../domain/types';
@@ -226,9 +226,9 @@ function TablePosted({ posted, kept }: FromTable) {
     above it is unchanged. Never says a run was lost. */
 function Receipt() {
   const app = useApp();
-  // The review's day is named only while reviews are on and the workspace holds one (the flag readBack.ts takes); the
-  // reviews switch (FT2) isn't built yet, so reviews are on.
-  const hasReview = app.snapshot.reviews.some((r) => !r.removedAt && !r.endedAt);
+  // The due day is named as a review only for someone in a review held that day (deep review T4); the reviews switch
+  // (FT2) isn't built yet, so reviews are on.
+  const hasReview = reviewOnDueDay(app.snapshot.reviews, app.viewer.id, app.cycle, true);
   const f = receiptFacts(weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today), app.viewer.id, app.snapshot, app.cycle, app.week, hasReview);
   const r = receiptText({ ...f, nextDue: f.nextDue ? longDay(f.nextDue) : null });
   return (
