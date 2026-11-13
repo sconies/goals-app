@@ -675,7 +675,15 @@ A **number source** (`NumberSource`, the module's port) reads a metric, optional
 
 **Rule 2. What is recorded** (`recordReading`, the core's `CheckIn.reading`). `{ source, value, at, why? }`: the source's name, what it said and when it measured it; `why` (`behind`, `other-count`, `wrong` or `else` with words) only when the check-in's number differs. The check-in's `value` is always the owner's number. Nothing that judges a goal (its status, flags, attention or order) reads it. Saved only when set (migration 0047's nullable `reading`).
 
-**The demo's sources** (`demoSources`). "CI analytics" reads CI pipeline time on main (p90) for the whole company; "CI runner metrics" reads Pipeline queue wait (p90) for CI/CD · main branch pipelines and Build & Release · release pipelines. Each is a seeded series made once from the example as it was seeded, never from later check-ins: the numbers of the goal it follows by week, continued one week, measured at 09:00 UTC on the review day; release pipelines has no reading in the last week, and an eval fixture can make every series two weeks behind.
+**The number step** (the core's place `checkin.number`, drawn by `CheckInNumber` in the module's own chunk; nothing in the first download). Drawn when the goal is measured by a metric a registered source reads; the source is asked once when the step opens, never on Home. Each state of rule 1 is one row: **fresh**, the field holds the reading, "From {source}, read {when}." and "Week {w}: {last}. Change the number if it’s wrong, and you’ll be asked why. You still say what changed: that is the next step.", the primary "Confirm {value} {unit}", and "No new number this week"; **changed**, the owner's number, "You typed {typed}. {source} said {value}, read {when}." with "Put {value} back", "Why is it different?" (the four reasons of `READING_WHY`; "Say more" is needed only with "Something else", at least 10 characters) and "Kept with this check-in, beside what {source} said. It doesn’t change the goal’s status and nobody is told.", the primary "Use {typed} {unit}", waiting until a reason is chosen; **same**, empty, "No new reading since your last check-in: {source} still says {value}, read {when}.", the primary "No new number this week" and "Type a different number"; **old**, empty, the warning mark and "{source} last read this on {date}, {n} days ago. That is too old to fill in. Type this week’s number, or say there isn’t one.", with no old value anywhere; **no-slice**, empty, "{source} measures this for the whole company, not for {team} on its own, so it isn’t filled in." and the goal's "Where to get it"; **missing**, "{source} has no number for this yet. Type this week’s number."; **unreachable**, "{source} couldn’t be reached just now. Type the number, or try again." with Try again; **jump**, a Check: "{source} says {value}. That is ten times (a tenth of) week {w}’s {last}. Is it right?", "Yes, confirm {value}" or "Type a different number". "Read {when}" is in the viewer's zone (`readWhen`): "9:02 today", "16:40 yesterday", otherwise "9:00 on Thu 5 Nov". With a source involved the step drops "Typed in by hand."; with the module off the step is as it always was. A confirmed reading answers the step's own "the same as last week?".
+
+**Rule 3. The same rule everywhere** (`readingProblem`, `keptReading`: the core engine's, in `planChanges`). A reading goes with a check-in from the form (`CheckInPost.reading`), the one table (each row's) and the AI tool (`readings` beside its row); the engine refuses one whose number differs from the check-in's with no reason ("{source} said {value}. Say why your number is different."), or "Something else" with under 10 characters, and keeps the reason only when the numbers differ. post_check_in takes `reading_confirmed` (the owner confirmed the number the source reads now; `value` may then be left out) and `different_because` (`{ kind, text }`): the server asks the same source (`readForTool`) and records what rule 1 calls fresh or changed; without them nothing is read or recorded, as with the import. With the module off it says the module-off sentence.
+
+**The read-back** (`readingLine`): the check-in's receipt gains "{value} {unit}, from {source}, read {when}. Confirmed by you." or "{typed} {unit}, typed. {source} said {value} {unit}: {reason in lower case}."
+
+**The one table** (the core's place `checkin.table`, `CheckInTableReadings`): a goal not yet checked in this week whose reading is fresh shows it in its cell in the quiet ink until the owner touches the row; under the table, "{n} numbers are from their sources; change any that are wrong."; posting the table confirms them; a cell changed from its reading asks "Why is it different from what {source} said ({value})?" in its row before it counts as ready. Nothing is posted that the owner did not post.
+
+**The demo's sources** (`demoSources`, made by `sourcesFrom` from the example as the demo built it, before this browser's saves; a workspace of your own has none). "CI analytics" reads CI pipeline time on main (p90) for the whole company; "CI runner metrics" reads Pipeline queue wait (p90) for CI/CD · main branch pipelines and Build & Release · release pipelines. Each is a seeded series made once from the example as it was seeded, never from later check-ins: the numbers of the goal it follows by week, continued one week, measured at 09:00 UTC on the review day; release pipelines has no reading in the last week, and an eval fixture can make every series two weeks behind (`?sources=behind` in the check-in's address). On the server, the AI tool's sources are made from the example's check-ins before this week.
 
 ### Worked examples
 
@@ -691,12 +699,16 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | 13 min at Thu 5 Nov 09:00, which week 45’s check-in recorded (7 days and an hour). | `old` |
 | The link is for CI/CD; the source reads the whole company only. | `no-slice` |
 | 130 at Thu 09:02; the last number 13. | `jump` |
+| Rule 3: CI analytics said 12; the owner posts 14 with no reason. | `CI analytics said 12. Say why your number is different.` |
+| Rule 3: the same, “Something else: moved”. | `Say more about why your number is different from what CI analytics said, in at least 10 characters.` |
+| The read-back: 14 min typed, CI analytics said 12 min, the source counts something else. | `14 min, typed. CI analytics said 12 min: the source counts something else.` |
 | Recorded: CI analytics said 12 at Thu 09:02; the owner used 14 because the source is behind. | `{"source":"CI analytics","value":12,"at":"2026-11-12T09:02:00Z","why":{"kind":"behind"}}` |
 
 ### Not self-explanatory
 
 - **Not self-explanatory:** NR’s table gives 120 against a last 13 as a jump; MT4’s Check, which NR keeps, is ten times or more, and 120 is 9.2 times, so it is fresh: the example here uses 130.
-- **Not self-explanatory:** NR2 draws the states in the number step and records the reading; until then nothing reads a source on screen and no check-in carries a reading.
+- **Not self-explanatory:** On the server the demo’s sources are made from the example’s check-ins before this week, not the example as first built (the server can’t rebuild it); a correction of an earlier week there moves the series.
+- **Not self-explanatory:** Where the reading’s other places show it (“Measured by”, History, the metric’s page, the agenda, the export) is NR3.
 - **Not self-explanatory:** The demo has one goal on each read slice; Build & Release · release pipelines is read but no goal is linked to it yet.
 
 ### Where it lives
@@ -704,10 +716,17 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - [src/modules/metrics/rulesReading.ts](../../../src/modules/metrics/rulesReading.ts): `readingState`, `askSource`, `readingRevised`, `recordReading`, `sameAt`, `isJump`
 - [src/modules/metrics/source.ts](../../../src/modules/metrics/source.ts): `Slice`, `NumberSource`, `sliceOf`
 - [src/modules/metrics/numbers.ts](../../../src/modules/metrics/numbers.ts): `DEMO_SERIES`, `seededSeries`, `demoSources`
+- [src/modules/metrics/sources.ts](../../../src/modules/metrics/sources.ts): `sourcesFrom`, `demoBehindWeeks`
+- [src/modules/metrics/CheckInNumber.tsx](../../../src/modules/metrics/CheckInNumber.tsx): `CheckInNumber`, `CheckInTableReadings`
+- [src/modules/metrics/readingTool.ts](../../../src/modules/metrics/readingTool.ts): `readForTool`, `toolSources`
+- [src/domain/reading.ts](../../../src/domain/reading.ts): `readingProblem`, `keptReading`, `READING_WHY`, `readWhen`, `readingLine`
 - [src/domain/thresholds.ts](../../../src/domain/thresholds.ts): `RULES`
 
 ### Requirements
 
+- `READING-PREFILL`: When a goal is measured by a metric that a registered number source reads for the link's own slice (its team and part), the check-in's number step asks the source once when it opens and fills the field with the latest reading: "From {source}, read {when}." (in the viewer's zone: "9:02 today", "16:40 yesterday", else "9:00 on Thu 5 Nov") and the step's primary names the number ("Confirm 12 min"). Nothing is ever posted for the owner: a week with a reading and no check-in has no check-in. A source that reads only the whole company never fills in a team's goal ("{source} measures this for the whole company, not for {team} on its own, so it isn't filled in."); no source, no number yet, nothing new since the last check-in and a source that can't be reached each say so, and the step is otherwise as without a source. With the Metric library off, the step is exactly as it was.
+- `READING-RECORDED-ONLY`: A number typed over a reading asks "Why is it different?" with four choices (the source is behind: I have a newer number; counts something else; is wrong this week; something else, which needs at least 10 characters of Say more) before "Use {typed} {unit}". The owner's number is the check-in's; the reading (source, value, when measured) and the reason are recorded beside it, by the same rule at every door (the form, the one table, post_check_in's reading_confirmed and different_because), and the read-back says "{value}, from {source}, read {when}. Confirmed by you." or "{typed}, typed. {source} said {value}: {reason}." Nothing reads the reason to decide a status, a flag, an attention count or an order: no review flag, no mark against the owner.
+- `READING-SEVEN-DAYS`: A reading more than 7 days old (RULES.readingMaxDays, one limit for every metric) is not filled in and its value is not shown anywhere on the step: "{source} last read this on {date}, {n} days ago. That is too old to fill in. Type this week's number, or say there isn't one." with the warning mark, the step's Continue and No new number this week.
 
 ### Tests that check it
 
@@ -718,7 +737,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - asking a source › never gives a team the company’s number
 - asking a source › says unreachable when the source throws, and nothing when no source reads the metric
 - rule 2: what is recorded › keeps the reason only when the number differs, and nothing when nothing was read
-- rule 2: what is recorded › is read by no rule that judges a goal: nothing in src/domain but the types names a check-in’s reading
+- rule 2: what is recorded › is read by no rule that judges a goal: nothing in src/domain but the types, the engine that records it and its words names a check-in’s reading
 - rule 2: the row › writes reading only when set, and reads it back
 
 #### [src/modules/metrics/numbers.test.ts](../../../src/modules/metrics/numbers.test.ts)
@@ -726,3 +745,21 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the demo’s seeded series (NR section 5) › reads CI pipeline time for the whole company only, measured at 09:00 on the review day
 - the demo’s seeded series (NR section 5) › doesn’t change when a check-in is posted later: its numbers are the seeded example’s
 - the demo’s seeded series (NR section 5) › gives two slices of queue wait different numbers, one with no reading in the last week, and a series two weeks behind
+
+#### [src/domain/reading.test.ts](../../../src/domain/reading.test.ts)
+
+- rule 3: a reading is recorded only as the rule allows › records a confirmed reading with the check-in, and the owner’s number stays the check-in’s
+- rule 3: a reading is recorded only as the rule allows › refuses a different number with no reason, and an else with fewer than 10 characters
+- rule 3: a reading is recorded only as the rule allows › records a different number with its reason, and drops a reason the numbers don’t need
+- rule 3: a reading is recorded only as the rule allows › applies the same rule to a sheet’s or a tool’s row (the readings beside the rows)
+- rule 3: a reading is recorded only as the rule allows › asks nothing when the numbers are one at the goal’s decimals
+- the read-back (2.3) › says a confirmed reading, read today in the viewer’s zone
+- the read-back (2.3) › says a typed number beside what the source said, with the reason in lower case
+- the read-back (2.3) › says nothing when nothing was read
+- the read-back (2.3) › says when in the viewer’s zone: today, yesterday, or the day
+
+#### [src/modules/metrics/readingTool.test.ts](../../../src/modules/metrics/readingTool.test.ts)
+
+- post_check_in reads the goal’s source (NR rule 3) › records a confirmed reading, the value taken from it
+- post_check_in reads the goal’s source (NR rule 3) › refuses a different number with no reason, and records it with one
+- post_check_in reads the goal’s source (NR rule 3) › reads nothing without them, and says the module-off sentence with the metric library off

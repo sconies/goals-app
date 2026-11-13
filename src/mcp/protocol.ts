@@ -8,6 +8,9 @@ import { isStale, STALE_RERUNS } from '../ports/store';
 export type McpContextOf = (fresh?: boolean) => Promise<McpContext>;
 /** A tool whose save is refused as stale every time it runs again: said plainly, not as the store's error. */
 export const STALE_TOOL = 'Someone else changed this a moment ago, so it wasn’t saved. Read it again (get_goal or get_review) and try again.';
+/** Said before a tool's reply when it ran again on the latest after a stale refusal and was saved: never silent, so the
+    assistant can tell the person, who may have confirmed a dry run of what has since changed. */
+export const RAN_AGAIN = 'Someone else changed this a moment ago, so it ran again on the latest and was saved as follows. If you checked it first with a dry run, check what it says now.';
 
 /** Wraps each tool call, for the server's own telemetry: the context loading and the tool itself, in one span. */
 export type TraceTool = (tool: string, run: () => Promise<ToolResult>) => Promise<ToolResult>;
@@ -62,12 +65,16 @@ export async function handle(msg: unknown, context: McpContextOf, trace?: TraceT
       if (!TOOLS.some((t) => t.name === name)) return fail(m.id, -32602, `Unknown tool: ${name}`);
       const args = (m.params?.arguments ?? {}) as Record<string, unknown>;
       // A save refused as stale (someone else changed the same goal or review since this request loaded it) runs the tool
-      // again on the workspace as it is now, as the app's dispatcher does (AX6): each tool is one action and one save,
-      // and a refused save saved nothing. Only if every run is refused is the assistant told.
+      // again on the workspace as it is now (AX6): each tool is one action and one save, and a refused save saved nothing.
+      // Unlike the app, every tool runs again: a tool's arguments name only what it changes (fields, rows, ids), never a
+      // whole record as last read, so a re-run can't put back the other person's change. A re-run that saved says so
+      // first (RAN_AGAIN), as the assistant may have read back a dry run of it; one refused every time says that.
       const run = async () => {
         let r = await callTool(name, args, await context());
-        for (let n = 0; n < STALE_RERUNS && r.isError && isStale(r.cause); n++) r = await callTool(name, args, await context(true));
-        return r.isError && isStale(r.cause) ? { ...r, text: STALE_TOOL } : r;
+        let reran = 0;
+        for (; reran < STALE_RERUNS && r.isError && isStale(r.cause); reran++) r = await callTool(name, args, await context(true));
+        if (r.isError && isStale(r.cause)) return { ...r, text: STALE_TOOL };
+        return reran && !r.isError ? { ...r, text: `${RAN_AGAIN}\n\n${r.text}` } : r;
       };
       const r = trace ? await trace(name, run) : await run();
       return ok(m.id, {

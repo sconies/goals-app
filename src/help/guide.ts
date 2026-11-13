@@ -278,6 +278,12 @@ const CORE_ARTICLES: Article[] = [
         'The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned.',
         'A number that looks wrong (ten times last week’s, say) is a question you answer before posting: “Yes, it’s right” or change it. The same number as last week asks whether you measured it again. Your answer is kept in the goal’s History. A number that can’t be used says what to fix.',
       ] },
+      { heading: 'A number filled in from its source', list: [
+        'With the Metric library on, a goal measured by a metric whose source Faro can read opens its number step with the latest reading already in the field: “From CI analytics, read 9:02 today.” The button says the number (“Confirm 12 min”), so confirming is something you read, not a reflex. Nothing is posted until you finish the check-in, and a week you don’t check in stays a week with no check-in.',
+        'If the number is wrong, type yours. Faro then asks why it’s different: the source is behind, it counts something else, it’s wrong this week, or something else (say more, in at least 10 characters). Your number is the check-in’s; the reading and your reason are kept beside it. It doesn’t change the goal’s status and nobody is told. Put 12 min back undoes it.',
+        'A reading more than 7 days old isn’t filled in, and its value isn’t shown: type this week’s number, or say there isn’t one. A source that measures only the whole company never fills in a team’s goal. A source with nothing new since your last check-in, nothing yet, or that can’t be reached just now says so, with Try again.',
+        'After posting, the check-in says where its number came from: “12 min, from CI analytics, read 9:02 today. Confirmed by you.”, or “14 min, typed. CI analytics said 12 min: the source counts something else.”',
+      ] },
       { heading: 'Ad hoc check-ins and corrections', list: [
         'Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status. A second check-in in a week is compared with last week, not with your first one, and so is the goal’s “vs last week”.',
         'Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.',
@@ -295,9 +301,9 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'Who can', text: ['Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. Anyone can ask the owner for an update from the goal’s page.'] },
     ],
     routes: ['/check-in', '/check-in/:goalId'],
-    screens: ['CheckInFlow', 'CheckInQueue'],
+    screens: ['CheckInFlow', 'CheckInQueue', 'CheckInNumber'],
     reqs: ['CHECK-IN-QUEUE', 'NO-SILENT-ROUNDING', 'CARRY-OVER', 'GREENER', 'REASON-BEHIND', 'REASON-AHEAD', 'PATH-TO-GREEN', 'CHECKIN-STATUS-VS-PLAN', 'ONE-PER-WEEK', 'UPDATE-ANYTIME', 'OWNER-ONLY', 'ONE-ACCOUNT', 'OTHER-CAUSE', 'NO-DOUBLE-POST', 'DRAFTS', 'FIRST-CHECKIN', 'HONEST-CHECKIN', 'HABIT-RECEIPT', 'HABIT-MOMENT'],
-    keywords: ['update', 'weekly', 'number', 'post', 'list', 'queue', 'streak', 'in a row', 'forgiven', 'target reached', 'back on track', 'start with', 'draft kept', 'cause', 'reason', 'path to green', 'recovery', 'still true', 'correct', 'ad hoc', 'stages', 'milestone', 'behind', 'ahead'],
+    keywords: ['update', 'weekly', 'number', 'post', 'list', 'queue', 'source', 'reading', 'filled in', 'confirm', 'streak', 'in a row', 'forgiven', 'target reached', 'back on track', 'start with', 'draft kept', 'cause', 'reason', 'path to green', 'recovery', 'still true', 'correct', 'ad hoc', 'stages', 'milestone', 'behind', 'ahead'],
     related: ['check-in-table', 'requests', 'status', 'goal-page'],
   },
   {
@@ -754,7 +760,11 @@ const CORE_ARTICLES: Article[] = [
         'An import or bulk edit has Undo this import on its entry, for whoever made it or an admin. It puts every row back as it was; rows changed since are skipped and listed on the entry that says it was undone. An import over a year old can no longer be undone.',
         'The app opens with about the last year of changes, plus every comment, ask and import whatever its age. Show older changes, at the end of the list, fetches older ones a page at a time; a goal’s History has the same.',
       ] },
-      { heading: 'Safe saves', text: ['If someone else changed the same goal, review or week since you opened it, your save is refused whole, you’re told, and shown the latest. Nothing is half-saved.'] },
+      { heading: 'When someone else saved first', list: [
+        'If someone else changed the same goal or review since you opened it, nothing is half-saved, and nothing of theirs is lost.',
+        'A simple change, such as restoring something or ending a review, is made again on the latest and saved. If it no longer applies, you’re told why; if it was already done, you’re told that.',
+        'A goal’s form, a review’s settings, a table of changes, and anything you confirmed against what you were shown (making a goal active, stopping or deleting it, marking someone as left, removing a team, undoing an import) is not saved: you’re told, and shown the latest to check and save again. On a goal’s form, the fields you changed stay as you typed them and the rest show the latest.',
+      ] },
     ],
     routes: ['/activity'],
     screens: ['Activity'],
