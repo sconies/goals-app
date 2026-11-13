@@ -1556,7 +1556,7 @@ journey('U115', ['CARRY-GOALS'], 'Start 2027 only prepares it: on 21 Dec 2026 th
   h.set('finish', /2027 · week 1 · Q1/.test(jan) && s.cycles.filter((c) => c.name === '2027' && !c.removedAt).length === 1, `on 4 Jan 2027 the frame said “${(jan.match(/20\d\d[^\n]{0,30}/) || [''])[0]}”`);
   h.set('logged', s.changes.filter((c) => c.entity === 'cycle' && c.summary.startsWith('Started 2027')).length === 2);
   // What came with the goals (CY4): watches and open asks follow; no stage is due after week 52; no number plan starts late.
-  // A module's records that follow (metric links) are the module's own journey's to check (U150; fix item F6).
+  // A module's records that follow (metric links) are the module's own journey's to check (U152; fix item F6).
   const y27 = s.cycles.find((c) => c.name === '2027' && !c.removedAt);
   const ids27 = new Set(s.goals.filter((g) => g.cycleId === y27.id).map((g) => g.id));
   const came = (s.watches || []).some((w) => !w.removedAt && ids27.has(w.ref)) && (s.requests || []).some((r) => r.status === 'open' && r.goalIds.some((id) => ids27.has(id)));
@@ -1576,7 +1576,7 @@ journey('U115', ['CARRY-GOALS'], 'Start 2027 only prepares it: on 21 Dec 2026 th
   await p.context().close();
 }, ['budget']);
 
-journey('U150', ['METRICS-MEASURED-BY'], 'Metric links carry over: as Amara, on 21 Dec 2026 Start 2027 on Cycles; every goal carried into 2027 that was measured by a metric in 2026 is measured by the same metric, for the same team and part, in 2027', 4, async (h, device) => {
+journey('U152', ['METRICS-MEASURED-BY'], 'Metric links carry over: as Amara, on 21 Dec 2026 Start 2027 on Cycles; every goal carried into 2027 that was measured by a metric in 2026 is measured by the same metric, for the same team and part, in 2027', 4, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/'));
   await p.locator('.hero').waitFor();

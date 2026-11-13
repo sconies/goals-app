@@ -23,14 +23,14 @@ It keeps records of its own, which the core stores without knowing what they are
 ## Exit criteria
 
 1. Its requirements hold: `METRICS-LIBRARY`, `METRICS-MEASURED-BY`, `METRICS-CARE`, `METRIC-DEFINED`, `METRIC-PARTS`, `METRIC-CHANGE` (words in [its section](../modules/metrics/README.md#requirements)).
-2. Its journeys and checks can be done: U81, U82, U83, U145, U105, U146, U106, U150, F15, N16 ([its section](../modules/metrics/README.md#journeys-and-checks)).
+2. Its journeys and checks can be done: U81, U82, U83, U145, U105, U146, U106, U152, F15, N16 ([its section](../modules/metrics/README.md#journeys-and-checks)).
 3. A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.
 4. Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.
 5. A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.
 6. A metric that has measured a goal can’t be deleted (“Retire it instead.”); one that never has is deleted, and Undo or Recently removed brings it back.
 7. The demo workspace’s 13 metrics and 12 links load (two of them for one part: CI/CD · main branch pipelines, CI/CD · main pipelines), and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).
 8. Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there.
-9. Starting the next year carries every goal’s metric link to its copy: the same metric, team and part (journey U150; the core’s carry journey, U115, checks nothing of the module’s).
+9. Starting the next year carries every goal’s metric link to its copy: the same metric, team and part (journey U152; the core’s carry journey, U115, checks nothing of the module’s).
 10. The library finds what each of rule 1’s worked examples says, a metric’s goals are rule 2’s rows in its order, and what a metric needs is rule 3’s, in order: every row of spec/conformance/metrics.csv matches.
 11. The library is in the menu after People (under More on a phone); the old addresses of Metrics under Data lead to the library, a metric or the form; a metric’s row in the library counts the same goals by status as its page’s table lists (journey U81, checks F15 and N16).
 12. In New goal, “Measured by” comes first on the measure step: a metric found by typing shows its meaning, fills in the unit, decimals and which way is better on a goal nobody typed them for, measures it for the goal’s team or the whole company, and Check says so; one added there is chosen; a goal with dated stages has none (journey U82, rule 5’s worked examples).
