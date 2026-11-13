@@ -9,7 +9,7 @@
    Pure: the page, the chart and the AI assistant's get_goal read the same words. */
 import { fixed } from './numbers';
 import { fmt, NO_VALUE, staysText } from './format';
-import { rangeSide } from './range';
+import { rangeRoom, rangeSide, rangeSides } from './range';
 import { planEnd, projectionFor, valueSeries } from './plan';
 import { assessMilestone, assessPosted, checkInsFor, doneCheckIn, projects } from './status';
 import { summaryFacts } from './summaryFacts';
@@ -21,6 +21,8 @@ type Numeric = Pick<MetricGoal | RangeGoal, 'unit' | 'decimals'>;
 /* ---------- will it hit the target? ---------- */
 
 export type Likelihood = 'likely' | 'possible' | 'unlikely' | 'very-unlikely';
+/** Best first. */
+const LIKELIHOOD_ORDER: Likelihood[] = ['likely', 'possible', 'unlikely', 'very-unlikely'];
 export const LIKELIHOOD_WORD: Record<Likelihood, string> = { likely: 'Likely', possible: 'Possible', unlikely: 'Unlikely', 'very-unlikely': 'Very unlikely' };
 
 /**
@@ -101,15 +103,19 @@ export function byWeekWords(cycle: Cycle, due: number): string {
 }
 
 /** Vs last week: the latest check-in against the one before it with a number (summaryFacts' "since"). */
-function sinceCell(goal: MetricGoal | RangeGoal, cycle: Cycle, checkIns: CheckIn[], week: number, stale: boolean, better: 1 | -1): ScoreCell {
+/** gain: how much better a move from one number to another is (a number goal: along its direction; a range goal: room gained). */
+function sinceCell(goal: MetricGoal | RangeGoal, cycle: Cycle, checkIns: CheckIn[], week: number, stale: boolean, gain: (from: number, to: number) => number): ScoreCell {
   const f = summaryFacts(goal, cycle, checkIns, week, stale).facts.find((x) => x.key === 'since');
   const label = stale ? 'Last change' : 'Vs last week';
   if (!f) return { key: 'since', label, value: LABEL.none, sub: 'nothing to compare', tone: 'flat' };
   if (f.delta == null || !f.from) return { key: 'since', label, value: f.value, sub: f.value === 'First check-in' ? 'nothing to compare yet' : 'no number to compare', tone: 'flat' };
   const was = `was ${fmt(f.from.value, goal)} in week ${f.from.week}`;
   if (f.delta === 0) return { key: 'since', label, value: 'No change', sub: was, tone: 'flat' };
-  const good = f.delta * better > 0;
-  return { key: 'since', label, value: `${amount(f.delta, goal)} ${good ? 'better' : 'worse'}`, sub: was, tone: good ? 'good' : 'bad', move: f.delta > 0 ? 'up' : 'down' };
+  const g = round(gain(f.from.value, f.from.value + f.delta), goal.decimals);
+  const move: 'up' | 'down' = f.delta > 0 ? 'up' : 'down';
+  // Between two numbers a move can leave the room as it was (from just inside one bound to just inside the other).
+  if (g === 0) return { key: 'since', label, value: `${amount(f.delta, goal)} ${move}`, sub: was, tone: 'flat', move };
+  return { key: 'since', label, value: `${amount(f.delta, goal)} ${g > 0 ? 'better' : 'worse'}`, sub: was, tone: g > 0 ? 'good' : 'bad', move };
 }
 
 function metricCard(goal: MetricGoal, cycle: Cycle, checkIns: CheckIn[], week: number, stale: boolean): Scorecard {
@@ -135,7 +141,7 @@ function metricCard(goal: MetricGoal, cycle: Cycle, checkIns: CheckIn[], week: n
     now = { week: a.week, actual: a.actual, plan: a.plan, text: value, tone };
   }
 
-  cells.push(sinceCell(goal, cycle, checkIns, week, stale, better));
+  cells.push(sinceCell(goal, cycle, checkIns, week, stale, (from, to) => (to - from) * better));
 
   // To target: what's left to go, in the goal's units.
   const by = due !== cycle.weeks ? ` by week ${due}` : '';
@@ -184,7 +190,7 @@ function rangeCard(goal: RangeGoal, cycle: Cycle, checkIns: CheckIn[], week: num
     cells.push({ key: 'room', label: 'Room to the limit', value: room > 0 ? `${amount(room, goal)} of room` : room === 0 ? 'None: at the limit' : `${amount(room, goal)} ${over}`, sub: `warning within ${amount(margin, goal)}`, tone: room < 0 ? 'bad' : a.near || a.out ? 'flat' : 'good' }); // near as the status says it (strictly within the margin), so this cell and Vs the limit agree at room = margin
     gap = room >= 0 ? `${amount(room, goal)} inside the limit` : `${amount(room, goal)} ${over} the limit`;
   }
-  cells.splice(1, 0, sinceCell(goal, cycle, checkIns, week, stale, better));
+  cells.splice(1, 0, sinceCell(goal, cycle, checkIns, week, stale, (from, to) => rangeRoom(goal.range, to) - rangeRoom(goal.range, from)));
   // Will it stay within (or get back within) the limit by the end of the cycle?
   const label = a.out ? 'Back within by the end?' : 'Will it stay within?';
   const own = checkInsFor(goal, checkIns).filter((c) => c.week <= week);
@@ -192,8 +198,11 @@ function rangeCard(goal: RangeGoal, cycle: Cycle, checkIns: CheckIn[], week: num
   if (stale) cells.push({ key: 'hit', label, value: 'Can’t say', sub: `${lower(STATUS.stale)} to go on`, tone: 'flat' });
   else if (!pr) cells.push({ key: 'hit', label, value: 'Too early to say', sub: 'needs three weeks of numbers', tone: 'flat' });
   else {
-    // Staying within is the same question as reaching a target: ending on the limit's safe side.
-    const stay = likelihood(limit, { value: pr.value, low: pr.low, high: pr.high }, better, likelihoodFloor(margin || limit * 0.1, goal.decimals));
+    // Staying within is the same question as reaching a target: ending on the limit's safe side. Between two numbers,
+    // on both bounds' safe sides: the worse of the two answers.
+    const stay = rangeSides(goal.range)
+      .map((s) => likelihood(s.limit, { value: pr.value, low: pr.low, high: pr.high }, s.bound === 'atLeast' ? 1 : -1, likelihoodFloor(margin || s.limit * 0.1, goal.decimals)))
+      .reduce((w, l) => (LIKELIHOOD_ORDER.indexOf(l) > LIKELIHOOD_ORDER.indexOf(w) ? l : w));
     cells.push({ key: 'hit', label, value: LIKELIHOOD_WORD[stay], sub: `likely ${fmt(pr.value, goal)} ${byWeekWords(cycle, cycle.weeks)}`, tone: stay === 'likely' ? 'good' : stay === 'possible' ? 'flat' : 'bad', likelihood: stay });
   }
   return { cells, gap, marks: null };

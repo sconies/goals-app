@@ -169,6 +169,34 @@ module.exports = {
       await c.close();
     }
 
+    // A range between two numbers (#300 review): Between asks a lower and an upper limit and refuses them the wrong way
+    // round; the read-back says both; published, the chart's two labels on a narrow band (1.6% to 1.8%) stay apart.
+    for (const w of [1280, 390]) {
+      const [c, p] = await open(w, 900, 'mateo', '/goals/new');
+      await name(p, 'Share of builds retried'); await p.getByRole('button', { name: /Keep a number in range/ }).click(); await cont(p); await team(p); await cont(p);
+      await p.locator('.limits .seg').getByRole('button', { name: 'Between' }).click();
+      if (!(await p.getByLabel('Lower limit').count()) || !(await p.getByLabel('Upper limit').count())) { f(`(#300) at ${w} Between doesn’t ask a lower and an upper limit`); await c.close(); continue; }
+      await p.getByLabel(/^Unit/).fill('%');
+      await p.getByLabel('Lower limit').fill('1.8'); await p.getByLabel('Upper limit').fill('1.6');
+      await cont(p);
+      if (!(await p.getByRole('alert').filter({ hasText: 'must be below the upper one' }).count())) f(`(#300) at ${w} a lower limit above the upper one isn’t refused under its field`);
+      await p.getByLabel('Lower limit').fill('1.6'); await p.getByLabel('Upper limit').fill('1.8');
+      await cont(p);
+      const what = (await p.locator('.review-rows li[data-row="what"]').textContent().catch(() => '')) || '';
+      if (!/between 1\.6\s?% and 1\.8\s?%/i.test(what)) f(`(#300) at ${w} the read-back says “${what.trim()}”, not both limits`);
+      if (w > 600) {
+        await p.getByRole('button', { name: 'Publish goal' }).click();
+        await p.waitForURL(/\/goals\/[^/?]+\?published=1/, { timeout: 10000 }).catch(() => {});
+        const labels = p.locator('.goal-chart .c-target-t');
+        await labels.first().waitFor({ timeout: 5000 }).catch(() => {});
+        const ls = await labels.evaluateAll((es) => es.map((e) => { const r = e.getBoundingClientRect(); return { t: e.textContent || '', y: r.top, b: r.bottom }; }));
+        const up = ls.find((l) => /^Upper/.test(l.t)), lo = ls.find((l) => /^Lower/.test(l.t));
+        if (!up || !lo) f(`(#300) the published goal’s chart doesn’t label both limits (${ls.map((l) => l.t).join(' / ') || 'no labels'})`);
+        else if (up.b > lo.y) f(`(#300) on a narrow band the chart’s labels overlap: Upper ends at ${Math.round(up.b)}, Lower starts at ${Math.round(lo.y)}`);
+      }
+      await c.close();
+    }
+
     // Stages (12, 13, 14) at 1280 and 390.
     for (const w of [1280, 390]) {
       const [c, p] = await open(w, 900, 'mateo', '/goals/new');

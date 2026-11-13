@@ -298,15 +298,28 @@ var init_thresholds = __esmMin((() => {
 	];
 }));
 // src/domain/range.ts
-var rangeSide, rangeOut, rangeNear;
+var same$1, rangeSide, rangeRoom, rangeSides, rangeOut, rangeNear;
 var init_range = __esmMin((() => {
-	rangeSide = (r, v) => r.bound !== "between" ? r : v != null && v < (r.lower + r.limit) / 2 ? {
+	same$1 = (a, b, scale) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(scale));
+	rangeSide = (r, v) => {
+		if (r.bound !== "between") return r;
+		const toLower = v == null ? Infinity : v - r.lower, toUpper = v == null ? Infinity : r.limit - v;
+		return toLower < toUpper && !same$1(toLower, toUpper, r.limit) ? {
+			bound: "atLeast",
+			limit: r.lower
+		} : {
+			bound: "atMost",
+			limit: r.limit
+		};
+	};
+	rangeRoom = (r, v) => r.bound === "atMost" ? r.limit - v : r.bound === "atLeast" ? v - r.limit : Math.min(v - r.lower, r.limit - v);
+	rangeSides = (r) => r.bound === "between" ? [{
 		bound: "atLeast",
 		limit: r.lower
-	} : {
+	}, {
 		bound: "atMost",
 		limit: r.limit
-	};
+	}] : [r];
 	rangeOut = ({ bound, limit, lower }, v) => bound !== "atLeast" && v > limit || bound !== "atMost" && v < (bound === "between" ? lower : limit);
 	rangeNear = ({ bound, limit, lower, margin }, v) => bound !== "atLeast" && v > limit - margin || bound !== "atMost" && v < (bound === "between" ? lower : limit) + margin;
 }));
@@ -2705,9 +2718,8 @@ function goalTrend(goal, cycle, checkIns) {
 	}
 	if (goal.kind === "range") {
 		const v = own.filter((c) => c.value != null).map((c) => c.value).slice(-3);
-		const { bound, limit } = rangeSide(goal.range, v[v.length - 1]);
-		const safe = bound === "atMost" ? -1 : 1;
-		const word = gapTrend(v.map((x) => (x - limit) * safe));
+		const { limit } = rangeSide(goal.range, v[v.length - 1]);
+		const word = gapTrend(v.map((x) => rangeRoom(goal.range, x)));
 		if (word !== "worse") return {
 			word,
 			detail: null
@@ -3667,7 +3679,8 @@ function quarterResult(g, c, checkIns, q, week) {
 	const v = last?.value;
 	if (v == null) return r("missed", "no number reported");
 	const out = rangeOut(g.range, v);
-	return r(out ? "missed" : "met", `${fmt(v, g)} at the end, ${out ? "outside" : "inside"} the ${fmt(rangeSide(g.range, v).limit, g)} limit`);
+	const lim = fmt(rangeSide(g.range, v).limit, g);
+	return r(out ? "missed" : "met", `${fmt(v, g)} at the end, ${out ? `outside the ${lim} limit` : g.range.bound === "between" ? staysText(g) : `inside the ${lim} limit`}`);
 }
 function quarterResults(g, c, checkIns, week) {
 	if (!isYear(c)) return [];
@@ -10967,6 +10980,19 @@ function* planChangesInChunks(input) {
 		else if (val(r, "limit")) d.limit = val(r, "limit");
 		const bound = readWord(BOUND_WORDS, val(r, "must stay"), "Goals", row, d.title);
 		if (bound === void 0) return;
+		if (two && bound && bound !== "between") {
+			const found = val(r, "must stay").trim();
+			const a = ask("near-word", "Goals", row, d.title, `Limit has two numbers (${two.lower}–${two.upper}) and Must stay says “${found}”. Read it as between?`, {
+				column: BOUND_WORDS.what,
+				found,
+				suggest: BOUND_WORDS.word.between,
+				answers: [{
+					choice: "use",
+					label: `Read it as ${BOUND_WORDS.word.between}`
+				}, LEAVE]
+			});
+			if (a === null || a === "leave" || a.choice !== "use") return;
+		}
 		if (two) d.bound = "between";
 		else if (bound) d.bound = bound;
 		if (val(r, "margin")) d.margin = val(r, "margin");
@@ -14550,6 +14576,7 @@ function metricFacts(goal, cycle, all, own, week, stale) {
 }
 /** What changed since the week before the latest check-in's (rule 5, `previousFor`): a second check-in in the same week
 is compared with last week, never with the first. The number, and the call if it moved. */
+/** better: the sign of a gain (a number goal), or how much better a move from one number to another is (a range goal's room). */
 function sinceFact(goal, own, better) {
 	const latest = own[own.length - 1];
 	const prev = previousFor(own, latest.week).number;
@@ -14569,6 +14596,7 @@ function sinceFact(goal, own, better) {
 		tone: "flat"
 	};
 	const delta = round$1(latest.value - prev.value, goal.decimals);
+	const gain = typeof better === "number" ? delta * better : round$1(better(prev.value, latest.value), goal.decimals);
 	return {
 		key: "since",
 		label: "Since last update",
@@ -14579,7 +14607,7 @@ function sinceFact(goal, own, better) {
 		},
 		value: delta === 0 ? "No change" : `${delta > 0 ? "Up" : "Down"} ${fmtDiff(delta, goal)}`,
 		detail: `${fmt(prev.value, goal)} in week ${prev.week} → ${fmt(latest.value, goal)} in week ${latest.week}${callMoved(prev)}`,
-		tone: delta === 0 ? "flat" : delta * better > 0 ? "good" : "bad"
+		tone: gain === 0 ? "flat" : gain > 0 ? "good" : "bad"
 	};
 }
 function rangeFacts(goal, cycle, own, stale) {
@@ -14616,7 +14644,7 @@ function rangeFacts(goal, cycle, own, stale) {
 		direction: "flat"
 	});
 	else {
-		const word = gapTrend(span.map((c) => (c.value - limit) * safe));
+		const word = gapTrend(span.map((c) => rangeRoom(goal.range, c.value)));
 		out.push({
 			key: "trend",
 			label: "Trend",
@@ -14626,7 +14654,7 @@ function rangeFacts(goal, cycle, own, stale) {
 			direction: DIRECTION[word]
 		});
 	}
-	out.push(sinceFact(goal, own, safe));
+	out.push(sinceFact(goal, own, (from, to) => rangeRoom(goal.range, to) - rangeRoom(goal.range, from)));
 	const due = cycle.weeks;
 	const pr = stale ? null : projectionFor(goal, valued.map((c) => ({
 		week: c.week,
@@ -14649,11 +14677,12 @@ function rangeFacts(goal, cycle, own, stale) {
 	else {
 		const outside = rangeOut(goal.range, pr.value);
 		const near = fmt(rangeSide(goal.range, pr.value).limit, goal);
+		const where = outside ? `Outside the ${near} limit` : goal.range.bound === "between" ? `Inside, ${staysText(goal)}` : `Inside the ${near} limit`;
 		out.push({
 			key: "projection",
 			label: "Projection",
 			value: `${rangeText(pr, goal, isShare(goal))} by week ${due}`,
-			detail: `${outside ? "Outside" : "Inside"} the ${near} limit. Projected by the app from the last ${pr.to - pr.from + 1} weeks`,
+			detail: `${where}. Projected by the app from the last ${pr.to - pr.from + 1} weeks`,
 			tone: outside ? "bad" : "good",
 			projection: pr
 		});
@@ -14757,6 +14786,13 @@ init_range();
 init_plan();
 init_status();
 init_vocabulary();
+/** Best first. */
+var LIKELIHOOD_ORDER = [
+	"likely",
+	"possible",
+	"unlikely",
+	"very-unlikely"
+];
 var LIKELIHOOD_WORD = {
 	likely: "Likely",
 	possible: "Possible",
@@ -14805,7 +14841,8 @@ function byWeekWords(cycle, due) {
 	return due >= cycle.weeks ? cycle.weeks >= 48 ? "by year end" : "by cycle end" : `by week ${due}`;
 }
 /** Vs last week: the latest check-in against the one before it with a number (summaryFacts' "since"). */
-function sinceCell(goal, cycle, checkIns, week, stale, better) {
+/** gain: how much better a move from one number to another is (a number goal: along its direction; a range goal: room gained). */
+function sinceCell(goal, cycle, checkIns, week, stale, gain) {
 	const f = summaryFacts(goal, cycle, checkIns, week, stale).facts.find((x) => x.key === "since");
 	const label = stale ? "Last change" : "Vs last week";
 	if (!f) return {
@@ -14830,14 +14867,23 @@ function sinceCell(goal, cycle, checkIns, week, stale, better) {
 		sub: was,
 		tone: "flat"
 	};
-	const good = f.delta * better > 0;
+	const g = round(gain(f.from.value, f.from.value + f.delta), goal.decimals);
+	const move = f.delta > 0 ? "up" : "down";
+	if (g === 0) return {
+		key: "since",
+		label,
+		value: `${amount(f.delta, goal)} ${move}`,
+		sub: was,
+		tone: "flat",
+		move
+	};
 	return {
 		key: "since",
 		label,
-		value: `${amount(f.delta, goal)} ${good ? "better" : "worse"}`,
+		value: `${amount(f.delta, goal)} ${g > 0 ? "better" : "worse"}`,
 		sub: was,
-		tone: good ? "good" : "bad",
-		move: f.delta > 0 ? "up" : "down"
+		tone: g > 0 ? "good" : "bad",
+		move
 	};
 }
 function metricCard(goal, cycle, checkIns, week, stale) {
@@ -14880,7 +14926,7 @@ function metricCard(goal, cycle, checkIns, week, stale) {
 			tone
 		};
 	}
-	cells.push(sinceCell(goal, cycle, checkIns, week, stale, better));
+	cells.push(sinceCell(goal, cycle, checkIns, week, stale, (from, to) => (to - from) * better));
 	const by = due !== cycle.weeks ? ` by week ${due}` : "";
 	if (a.actual == null) cells.push({
 		key: "target",
@@ -14993,7 +15039,7 @@ function rangeCard(goal, cycle, checkIns, week, stale) {
 		});
 		gap = room >= 0 ? `${amount(room, goal)} inside the limit` : `${amount(room, goal)} ${over} the limit`;
 	}
-	cells.splice(1, 0, sinceCell(goal, cycle, checkIns, week, stale, better));
+	cells.splice(1, 0, sinceCell(goal, cycle, checkIns, week, stale, (from, to) => rangeRoom(goal.range, to) - rangeRoom(goal.range, from)));
 	const label = a.out ? "Back within by the end?" : "Will it stay within?";
 	const own = checkInsFor(goal, checkIns).filter((c) => c.week <= week);
 	const pr = stale ? null : projectionFor(goal, valueSeries(own), cycle.weeks);
@@ -15012,11 +15058,11 @@ function rangeCard(goal, cycle, checkIns, week, stale) {
 		tone: "flat"
 	});
 	else {
-		const stay = likelihood(limit, {
+		const stay = rangeSides(goal.range).map((s) => likelihood(s.limit, {
 			value: pr.value,
 			low: pr.low,
 			high: pr.high
-		}, better, likelihoodFloor(margin || limit * .1, goal.decimals));
+		}, s.bound === "atLeast" ? 1 : -1, likelihoodFloor(margin || s.limit * .1, goal.decimals))).reduce((w, l) => LIKELIHOOD_ORDER.indexOf(l) > LIKELIHOOD_ORDER.indexOf(w) ? l : w);
 		cells.push({
 			key: "hit",
 			label,
@@ -16893,7 +16939,7 @@ var CORE_ARTICLES = [
 				"Decimals follow what you type: 12.5 is kept to 1 decimal place, and the line under the numbers says so, with Change to choose whole numbers or 1, 2 or 3 places. Once chosen, a start, target, limit or plan number typed with more is refused, not rounded (with “Keep 1 decimal place” to keep them), so what you see is what was saved.",
 				"A number has only the number in it: “12 days” in a goal that counts % is a problem to fix (“the unit goes in Unit”); in a goal that counts days it’s 12. A target the same as the start offers to make it a number to keep in range instead. Each stage needs its own name and a week; two stages with one name, or one with no week, are each said under their own row.",
 				"A warning margin for a range is optional: left empty, it warns only once the limit is crossed.",
-				"A range keeps a number at most a limit, at least it, or between two numbers: Must stay has At most, At least and Between. Between asks for a lower and an upper limit (“between 99.5% and 99.95%”); the lower must be below the upper. The number is out of range above the upper or below the lower, and at risk within the warning margin of either; the chart shows both limits.",
+				"A range keeps a number at most a limit, at least it, or between two numbers: Must stay has At most, At least and Between. Between asks for a lower and an upper limit (“between 99.5% and 99.95%”); the lower must be below the upper. The number is out of range above the upper or below the lower, and at risk within the warning margin of either; the chart shows both limits, Upper above its line and Lower below it. Its trend, “Vs last week” and “Will it stay within?” weigh both limits: a number moving back towards the middle is getting better from either side, and “Will it stay within?” answers for whichever limit it is likelier to cross. In a spreadsheet, two numbers in Limit (99.5–99.95) make a range between them; if Must stay says At most or At least, you’re asked whether to read it as Between.",
 				"Some things are possible but unlikely, so they are asked about, never refused. A question sits under the field it is about, marked Check, with two answers: the first keeps what you typed, the second changes it. Asked: a number with no unit (is it a plain count?), a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), a billion or more, a target on the worse side of the start for the metric that measures it, a warning margin as wide as the limit, weeks set by hand that leave most of the change to the end, a goal with the same name in the same team, an owner in another team than the goal’s (“Move it to …” moves it), and a goal feeding one at a lower level (“No, it feeds nothing” removes the link).",
 				"A question asked while you type is brought into view, on a phone too, and the cursor stays in the field. Continue waits for the questions on its step: focus goes to the first, and the line above the button says “Answer the question above, under Target.” Answered, a question folds to one line, “You said 150% is right.”, with Change. Your answer holds for the values it was about: change the number and it asks again. Each answer is kept in the goal’s History, as Checked.",
 				"Two goals can have the same name (two teams can both “Reduce latency”). You’re told which other goal has it, with its key, team and owner, and wherever both could be on screen each shows its key beside the title.",
@@ -18335,6 +18381,18 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "range-between-both-limits",
+		date: "2026-11-13",
+		title: "A range between two numbers weighs both its limits",
+		points: [
+			"A number moving back towards the middle of its range now reads as getting better, from either side, in its trend, “Vs last week” and the attention flags.",
+			"“Will it stay within?” answers for whichever limit the number is likelier to cross, not only the nearer one.",
+			"On a narrow range the chart’s Upper and Lower labels no longer sit on each other, and a quarter ended inside the range names both limits.",
+			"In a spreadsheet, two numbers in Limit with Must stay saying At most or At least now ask whether you meant Between."
+		],
+		articles: ["new-goal"]
+	},
 	{
 		id: "review-who-speaks",
 		date: "2026-11-13",

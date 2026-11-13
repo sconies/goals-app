@@ -11,7 +11,8 @@ import { directionLabel, fmt, gapText, targetText } from './format';
 import { blankGoal, buildGoal, draftOf, type GoalDraft } from './goal';
 import { goalMustFix, type MustFixContext } from './goalEntry';
 import { currentWeek } from './plan';
-import { rangeNear, rangeOut, rangeSide } from './range';
+import { groupId, type Answers } from './problemLevels';
+import { rangeNear, rangeOut, rangeRoom, rangeSide } from './range';
 import { parseDelimited, readTables } from './sheets';
 import { assessRange } from './status';
 import type { RangeGoal, Snapshot } from './types';
@@ -30,6 +31,12 @@ describe('the range rule between two numbers', () => {
     expect([99.6, 99.725, 99.9, null].map((v) => rangeSide(UPTIME.range, v))).toEqual([
       { bound: 'atLeast', limit: 99.5 }, { bound: 'atMost', limit: 99.95 }, { bound: 'atMost', limit: 99.95 }, { bound: 'atMost', limit: 99.95 },
     ]);
+  });
+  it('weighs the two bounds by distance, not a floating-point midpoint', () => {
+    const band = { bound: 'between' as const, lower: 1.6, limit: 1.8, margin: 0 };
+    expect(rangeSide(band, 1.7)).toEqual({ bound: 'atMost', limit: 1.8 });
+    expect([1.65, 1.7, 1.75, 1.9, 1.5].map((v) => Number(rangeRoom(band, v).toFixed(2)))).toEqual([0.05, 0.1, 0.05, -0.1, -0.1]);
+    expect([rangeRoom({ bound: 'atMost', limit: 12, margin: 1 }, 10), rangeRoom({ bound: 'atLeast', limit: 99, margin: 1 }, 99.5)]).toEqual([2, 0.5]);
   });
   it('reads naturally', () => {
     expect(directionLabel(UPTIME)).toBe('between 99.50% and 99.95%');
@@ -88,13 +95,13 @@ describe('the Limit cell', () => {
   const base = full.goals.find((g): g is RangeGoal => g.kind === 'range' && g.cycleId === cycle.id)!;
   let n = 0;
   const newId = (p: string) => `${p}_rb${++n}`;
-  const load = (snap: Snapshot, edit?: (rows: (string | number | null)[][]) => void) => {
+  const load = (snap: Snapshot, edit?: (rows: (string | number | null)[][]) => void, answers?: Answers) => {
     const s = scopeToCycle(snap, cycle);
     const book = workbook({ ws: { id: 'ws', name: 'x' }, snapshot: s, cycle, week, today });
     const goals = book.find((t) => t.name === 'Goals')!;
     edit?.(goals.rows as (string | number | null)[][]);
     const read = readTables(csvFiles(book).map((f) => ({ name: f.name, rows: parseDelimited(f.text) })));
-    return planChanges({ tables: read.tables, snapshot: s, cycle, week, actor: s.people.find((p) => p.admin)!, now: today.toISOString(), newId, via: 'spreadsheet', full: snap });
+    return planChanges({ tables: read.tables, snapshot: s, cycle, week, actor: s.people.find((p) => p.admin)!, now: today.toISOString(), newId, via: 'spreadsheet', full: snap, answers });
   };
 
   it('exports a range between two numbers and loads it back as no change', () => {
@@ -111,17 +118,29 @@ describe('the Limit cell', () => {
     expect(cs.items).toEqual([]);
   }, 30_000);
 
-  it('changes a one-sided range to between when Limit gives two numbers', () => {
+  it('changes a one-sided range to between when Limit gives two numbers, asking first when Must stay says one side', () => {
     const lower = base.range.limit - 2;
-    const cs = load(full, (rows) => {
+    const edit = (mustStay: string) => (rows: (string | number | null)[][]) => {
       const h = rows[0]!.map(String);
       const r = rows.find((x) => x[h.indexOf('ID')] === base.id)!;
       r[h.indexOf('Limit')] = `${lower} to ${base.range.limit}`;
-    });
-    expect(cs.issues.filter((i) => i.severity === 'error')).toEqual([]);
-    expect(cs.items.map((x) => x.goal)).toEqual([base.title]);
-    expect(cs.items[0]!.diffs.find((x) => x.field === 'Limit')).toMatchObject({ to: `Between ${fmt(lower, base)} and ${fmt(base.range.limit, base)}` });
-  }, 30_000);
+      r[h.indexOf('Must stay')] = mustStay;
+    };
+    const changed = (cs: ReturnType<typeof load>) => {
+      expect(cs.issues.filter((i) => i.severity === 'error' || i.level === 'check')).toEqual([]);
+      expect(cs.items.map((x) => x.goal)).toEqual([base.title]);
+      expect(cs.items[0]!.diffs.find((x) => x.field === 'Limit')).toMatchObject({ to: `Between ${fmt(lower, base)} and ${fmt(base.range.limit, base)}` });
+    };
+    changed(load(full, edit('between')));
+    changed(load(full, edit('')));
+    // The export's "at most", left as it was: asked, not overridden quietly (#300 review).
+    const asked = load(full, edit('at most'));
+    expect(asked.items).toEqual([]);
+    expect(asked.issues.map((i) => `${i.level} ${i.kind}: ${i.message}`)).toEqual([`check near-word: Limit has two numbers (${lower}–${base.range.limit}) and Must stay says “at most”. Read it as between?`]);
+    changed(load(full, edit('at most'), { [groupId('near-word', 'Goals', 'Must stay', 'at most')]: { choice: 'use' } }));
+    const left = load(full, edit('at most'), { [groupId('near-word', 'Goals', 'Must stay', 'at most')]: { choice: 'leave' } });
+    expect([left.items, left.issues.filter((i) => i.level !== 'note')]).toEqual([[], []]);
+  }, 60_000);
 });
 
 describe('the database row', () => {
