@@ -331,7 +331,7 @@ A goal can be proposed before anyone is held to it: it is visible and can be dis
 - **Copy:** build it as Faro does.
 - **Rule:** [Proposed goals](rules/proposed.md)
 - **Help:** “Proposed goals” (`goal-proposed`), screens `ProposedGoal`, `ProposedList`
-- **Journeys and checks:** U134
+- **Journeys and checks:** U134, U150
 
 ### NEW-GOAL-TRUTH
 
@@ -1529,7 +1529,7 @@ The owner or an admin stops a goal with check-ins, with a required reason: it le
 - **Copy:** build it as Faro does.
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`; “Removing, stopping and undoing” (`removing`)
 - **Tests:** `evals/remove.eval.ts` (1)
-- **Journeys and checks:** U44
+- **Journeys and checks:** U44, U150
 
 ## Architecture
 

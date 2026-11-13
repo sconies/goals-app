@@ -5594,6 +5594,30 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
 }, []);
 
 /* Check reads the metric from the draft (build review of #202, findings 2 and 3): a reload keeps it, a new team re-slices it. */
+journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, a goal stopped with a reason is gone from Goals and listed with the State filter on Stopped (“1 stopped goal, most recently stopped first.”), with the Stopped mark, who stopped it and when, and the reason; the Filters sheet’s State offers Active, Proposed and Stopped; Remove goes back to the active goals', 15, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  const on = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2026-11-11';
+  await p.goto(on('/goals/ci-docker'));
+  await p.locator('.goal-bar').first().waitFor();
+  await goalMenu(h, p, 'Stop this goal');
+  const dlg = p.getByRole('dialog', { name: 'Stop this goal' });
+  await h.fill(dlg.getByLabel('Why is it stopping?'), 'The platform team took base images over in October.');
+  await h.click(dlg.getByRole('button', { name: 'Stop the goal' }));
+  await see(p, 'Stopped Base image build time', 'no message that it stopped');
+  await p.goto(on('/goals?scope=all&state=stopped'));
+  await see(p, 'Filtered by: Stopped', 'the stopped list doesn’t say its filter');
+  await see(p, '1 stopped goal, most recently stopped first.', 'the stopped list doesn’t count the stopped goal');
+  const row = p.locator('[data-part="Stopped goals"] li').first();
+  const says = (await row.innerText().catch(() => '')).replace(/\s+/g, ' ');
+  h.set('finish', says.includes('Base image build time') && says.includes('stopped 11 Nov by Rhea') && says.includes('The platform team took base images over in October.'), `the stopped row reads “${says}”`);
+  h.set('a11y', (await row.locator('.life-mark').count()) === 1 && (await row.locator('.status-shape').count()) === 0, 'a stopped row doesn’t draw the Stopped mark, or draws a status shape');
+  await h.checkpoint('stopped list');
+  await h.click(p.getByRole('button', { name: 'Remove' }).first());
+  await p.waitForURL((u) => !u.search.includes('state=stopped'));
+  await p.locator('.goals-line').first().waitFor();
+  h.set('finish', !(await p.locator('main').innerText()).includes('Base image build time'), 'the stopped goal is listed among the active goals');
+});
+
 journey('U145', ['METRICS-MEASURED-BY', 'NEW-GOAL-STEPS'], 'The metric chosen survives Check: as Rhea, a goal measured by Pipeline queue wait (p90) for CI/CD; a reload on Check still reads “Pipeline queue wait (p90), for CI/CD.”; “Change” on Who and where puts focus on its first field, and choosing Build & Release then Continue reads “for Build & Release.”; Publish saves the goal measured by it for Build & Release', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals/new'));

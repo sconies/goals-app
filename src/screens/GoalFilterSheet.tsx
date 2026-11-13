@@ -41,9 +41,9 @@ export function FilterSheet({ open = true, onClose, sortOff }: { open?: boolean;
             {SORT_OPTIONS.filter(([k]) => k === 'title' || k === 'due').map(([k, l]) => <option key={k + '.desc'} value={k + '.desc'}>{l}, reversed</option>)}
           </select>
         </fieldset>}
-        {/* State (GE10): active goals by default; proposed goals are listed apart, never mixed with them. */}
+        {/* State (GE10): active goals by default; proposed and stopped goals are listed apart, never mixed with them. */}
         <fieldset className="filter-group"><legend className="field-label">State</legend>
-          <span className="filter-options">{([['', 'Active'], ['proposed', 'Proposed']] as const).map(([k, l]) => (
+          <span className="filter-options">{([['', 'Active'], ['proposed', 'Proposed'], ['stopped', 'Stopped']] as const).map(([k, l]) => (
             <label key={k} className="check"><input type="radio" name="goal-state" checked={(params.get('state') ?? '') === k} onChange={() => setParams((p) => { if (k) p.set('state', k); else p.delete('state'); return p; })} /> {l}</label>
           ))}</span>
         </fieldset>

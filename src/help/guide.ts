@@ -545,7 +545,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'A stopped goal', list: [
         'A goal stopped mid-year keeps its page, marked Stopped (a ring with a bar across, and the word), with who stopped it, when and why. Its chart, check-ins and activity stay as they were; it has no main button, and Restart it is there for an admin or whoever stopped it.',
         'A stopped goal makes no forecast: its scorecard keeps Vs plan, Vs last week and To target as they stood, without Will it hit the target, and its chart has no projection.',
-        'It is out of every list, count, review and Home, but still in exports (Status: Stopped) and Activity.',
+        'It is out of every list, count, review and Home, but still in exports (Status: Stopped) and Activity. Goals lists the year’s stopped goals with the State filter on Stopped, most recently stopped first, with who stopped each, when and why.',
       ] },
       { heading: 'Sharing it', list: [
         'Share image copies a picture of the summary bar and a small chart, with the goal’s link. Where the browser can’t copy a picture, it saves one instead and copies the link.',

@@ -23,6 +23,15 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'state-filter-stopped',
+    date: '2026-11-13',
+    title: 'Find the goals stopped this year',
+    points: [
+      'The Filters sheet’s State has a third choice, Stopped: the goals stopped this year, most recently stopped first, with who stopped each, when and why.',
+    ],
+    articles: ['goals', 'goal-page'],
+  },
+  {
     id: 'sidebar-fits-a-laptop',
     date: '2026-11-13',
     title: 'The whole sidebar fits on a laptop screen',
