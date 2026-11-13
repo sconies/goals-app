@@ -3,6 +3,12 @@
 import type { Snapshot } from '../domain/types';
 import { mergeModuleRows, type ModuleRows } from '../domain/records';
 
+/** The week's turn at company size (KT gap 9, spec/rebuild/scale.md): done within `minutes` of midnight in the home
+    zone and never later than `readyBy`; the stage 1 rules' share for 30,000 goals at most `rulesSeconds` of one core,
+    projected from the ten-times workspace by src/spec/scale.test.ts. Lower them as the rules get leaner; never raise
+    them to make a change pass. 9.6 s of rule time on 12 Nov 2026. */
+export const TURN = { minutes: 15, readyBy: '06:00', rulesSeconds: 30, goals: 30_000 } as const;
+
 /** Every string in `v` that is one of `ids`, with `suffix` added. Walks objects and arrays; leaves the rest. */
 function rename<T>(v: T, ids: Set<string>, suffix: string): T {
   if (typeof v === 'string') return (ids.has(v) ? v + suffix : v) as T;
