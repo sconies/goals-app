@@ -8288,13 +8288,21 @@ function deleteNote(x, id) {
 		})]
 	};
 }
+/** Whether a windowed load (Snapshot.history) left a cycle's check-ins out: it has some, and it ended before the window. */
+function checkInsLeftOut(s, cycleId) {
+	const h = s.history;
+	if (!h || !h.checkInCycles.includes(cycleId)) return false;
+	const c = s.cycles.find((v) => v.id === cycleId);
+	return !c || cycleDates(c).lastDay < h.from.slice(0, 10);
+}
 /** What a person has left a mark on: goals they owned (in any cycle), check-ins, notes and comments, and asks. */
 function personHistory(s, id) {
 	return {
 		goals: s.goals.filter((g) => g.ownerId === id && !g.removedAt).length,
 		checkIns: s.checkIns.filter((c) => c.authorId === id).length,
 		notes: s.decisions.filter((d) => d.byId === id).length + liveNotes(s.changes).filter((c) => c.actorId === id).length,
-		asks: asksOf(s).filter((r) => r.askedBy === id || r.recipientId === id || r.answeredBy === id).length
+		asks: asksOf(s).filter((r) => r.askedBy === id || r.recipientId === id || r.answeredBy === id).length,
+		unknown: s.cycles.some((c) => checkInsLeftOut(s, c.id))
 	};
 }
 /**
@@ -8528,7 +8536,7 @@ function detach(x, g, how) {
 function stopGoal(x, goalId, reason) {
 	const g = liveGoal(x, goalId);
 	if (!ownsOrAdmin$1(x, g)) no$1("Only the goal’s owner or an admin can stop it.");
-	if (!goalHasCheckIns(x.snapshot, g.id)) no$1("It has no check-ins yet: delete it instead.");
+	if (!goalHasCheckIns(fullOf(x), g.id)) no$1("It has no check-ins yet: delete it instead.");
 	const why = reason.trim();
 	if (why.length < 10) no$1(`Say why it’s stopping, in a sentence (10 characters or more).`);
 	const d = detach(x, g, "stopped");
@@ -8562,7 +8570,7 @@ function stopGoal(x, goalId, reason) {
 function deleteGoal(x, goalId) {
 	const g = liveGoal(x, goalId);
 	if (!ownsOrAdmin$1(x, g)) no$1("Only the goal’s owner or an admin can delete it.");
-	if (goalHasCheckIns(x.snapshot, g.id)) no$1("It has check-ins: stop it instead, with a reason, so its history stays.");
+	if (goalHasCheckIns(fullOf(x), g.id)) no$1("It has check-ins: stop it instead, with a reason, so its history stays.");
 	const d = detach(x, g, "deleted");
 	return {
 		goals: [{
@@ -8696,6 +8704,13 @@ function cycleStanding(s, cycleId) {
 	const checkIns = s.checkIns.filter((c) => ids.has(c.goalId) && !c.removedAt).length;
 	const only = !s.cycles.some((c) => c.id !== cycleId && !c.removedAt);
 	const goals = `${ids.size.toLocaleString("en-GB")} ${ids.size === 1 ? "goal" : "goals"}`;
+	if (!checkIns && checkInsLeftOut(s, cycleId)) return {
+		goals: ids.size,
+		checkIns,
+		only,
+		deletable: false,
+		says: `${goals} and check-ins: it stays`
+	};
 	const says = checkIns ? `${goals}, ${checkIns.toLocaleString("en-GB")} ${checkIns === 1 ? "check-in" : "check-ins"}: it stays` : only ? `${ids.size ? goals + ", no" : "No goals and no"} check-ins yet; it’s the only cycle, so it stays` : `${ids.size ? goals + ", no" : "No goals and no"} check-ins yet: it can be deleted`;
 	return {
 		goals: ids.size,
@@ -8853,6 +8868,7 @@ function undoPlan(x, importId) {
 	if (!entry) no$1("There’s no import with that ID.");
 	if (!entry.undo) no$1("That import was saved before imports could be undone.");
 	if (importUndone(full, importId)) no$1("That import has already been undone.");
+	if (changesLeftOut(full, entry.at)) no$1(IMPORT_TOO_OLD);
 	if (entry.actorId !== x.actor.id && !x.actor.admin) no$1("Only whoever made the import, or an admin, can undo it.");
 	const u = entry.undo;
 	const own = new Set(full.changes.filter((c) => c.importId === importId).map((c) => c.id));
@@ -9338,7 +9354,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 	}
 }
-var no$1, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
+var no$1, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, IMPORT_TOO_OLD, changesLeftOut, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
 	init_goalRights();
 	init_proposed();
@@ -9349,6 +9365,7 @@ var init_removal = __esmMin((() => {
 	init_tableLayout();
 	init_via();
 	init_vocabulary();
+	init_cycle();
 	init_records();
 	no$1 = (msg) => {
 		throw new NotAllowed(msg);
@@ -9370,7 +9387,9 @@ var init_removal = __esmMin((() => {
 		if (!k) no$1("There’s no comment with that ID.");
 		return k;
 	};
-	hasHistory = (h) => h.goals + h.checkIns + h.notes + h.asks > 0;
+	IMPORT_TOO_OLD = "That import is over a year old, so it can’t be undone: too much may have changed since.";
+	changesLeftOut = (s, at) => !!s.history && Date.parse(at) < Date.parse(s.history.from);
+	hasHistory = (h) => h.goals + h.checkIns + h.notes + h.asks > 0 || h.unknown;
 	livePerson = (x, id) => {
 		const p = x.snapshot.people.find((v) => v.id === id);
 		if (!p) no$1("There’s no one with that ID in this workspace.");
@@ -9385,7 +9404,7 @@ var init_removal = __esmMin((() => {
 		if (!g) no$1("There’s no goal with that ID in this cycle.");
 		return g;
 	};
-	goalHasCheckIns = (s, goalId) => s.checkIns.some((c) => c.goalId === goalId && !c.removedAt);
+	goalHasCheckIns = (s, goalId) => s.checkIns.some((c) => c.goalId === goalId && !c.removedAt) || checkInsLeftOut(s, s.goals.find((g) => g.id === goalId)?.cycleId ?? "");
 	ownersCheckIns = (x, g, what) => `Only ${x.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? "its owner"} (its owner) can ${what} its check-ins.`;
 	liveReview = (x, id) => {
 		const r = x.snapshot.reviews.find((v) => v.id === id);
@@ -9395,7 +9414,7 @@ var init_removal = __esmMin((() => {
 	};
 	importEntry = (s, importId) => s.changes.find((c) => c.action === "imported" && c.entityId === importId);
 	importUndone = (s, importId) => s.changes.some((c) => c.action === "undone" && c.entityId === importId);
-	canUndoImport = (s, entry, actor) => !!entry.undo && !importUndone(s, entry.entityId) && (entry.actorId === actor.id || actor.admin);
+	canUndoImport = (s, entry, actor) => !!entry.undo && !importUndone(s, entry.entityId) && (entry.actorId === actor.id || actor.admin) && !changesLeftOut(s, entry.at);
 	onDay = (iso) => new Date(iso).toLocaleDateString("en-GB", {
 		day: "numeric",
 		month: "short",
@@ -13542,6 +13561,14 @@ var windowDay = (w) => new Date(w.from).toISOString().slice(0, 10);
 In SQL: start_date + ((weeks + 1) * 7 - 1) >= the window's day. */
 var overlaps = (c, w) => cycleDates(c).lastDay >= windowDay(w);
 var historySize = (ask) => Math.max(1, Math.min(100, Math.floor(ask.size ?? 50)));
+/** Said when a workspace would be made from a windowed load: what the window left out would be lost for good. */
+var PARTIAL_SNAPSHOT = "A workspace can only be made from a whole one: this copy leaves out older check-ins and changes.";
+/** A new workspace is written from a whole snapshot only (#323's review): a windowed one would store a part as the whole,
+and call itself partial for ever. Every store's createWorkspace calls this first. */
+function wholeOnly(s) {
+	if (s.history) throw new Error(PARTIAL_SNAPSHOT);
+	return s;
+}
 // src/data/store.ts
 init_asks();
 init_goalKey();
@@ -49288,6 +49315,7 @@ var SupabaseStore = class {
 	}
 	/** A new workspace and everything in it, in one transaction (okr_create_workspace). */
 	async createWorkspace(w, data) {
+		wholeOnly(data);
 		const payload = {
 			...commitPayload(w.id, data, this.records),
 			teams: data.teams.map((t) => teamToRow(w.id, t)),

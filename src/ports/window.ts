@@ -67,3 +67,12 @@ export function historyPage(changes: Change[], ask: HistoryAsk): HistoryPage {
   const last = page.at(-1);
   return { changes: page, next: older.length > size && last ? { at: last.at, id: last.id } : null };
 }
+
+/** Said when a workspace would be made from a windowed load: what the window left out would be lost for good. */
+export const PARTIAL_SNAPSHOT = 'A workspace can only be made from a whole one: this copy leaves out older check-ins and changes.';
+/** A new workspace is written from a whole snapshot only (#323's review): a windowed one would store a part as the whole,
+    and call itself partial for ever. Every store's createWorkspace calls this first. */
+export function wholeOnly(s: Snapshot): Snapshot {
+  if (s.history) throw new Error(PARTIAL_SNAPSHOT);
+  return s;
+}
