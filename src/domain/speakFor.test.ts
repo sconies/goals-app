@@ -5,7 +5,7 @@ import { buildPlatformOrg } from '../data/platformOrg';
 import { acceptRisk, addAction, askQuestion, markReviewed, NotAllowed, reviewCall, type ActionContext } from './actions';
 import { currentCycle, scopeToCycle } from './cycle';
 import { currentWeek } from './plan';
-import { canSpeakFor, joinLine, reviewSession, speakRefusal } from './review';
+import { canSpeakFor, goalsIn, joinLine, reviewSession, scopeRefusal, speakRefusal } from './review';
 
 const day = new Date('2026-11-11T12:00:00Z');
 const full = buildPlatformOrg(day);
@@ -50,5 +50,16 @@ describe('who may speak for a review (RV7)', () => {
     expect(joinLine({ people: ['a'], createdBy: 'a' }, (id) => names[id] ?? null)).toBe('You’re not in this review. Ana or an admin can add you.');
     expect(joinLine({ people: ['a', 'b'], createdBy: 'c' }, (id) => names[id] ?? null)).toBe('You’re not in this review. Ana, Ben, Cy or an admin can add you.');
     expect(joinLine({ people: ['a', 'b', 'c', 'd', 'e', 'f', 'g'], createdBy: 'a' }, (id) => names[id] ?? null)).toBe('You’re not in this review. Ana, Ben, Cy, Di, Ed, Flo and 1 more or an admin can add you.');
+  });
+  it('refuses anything said in it about a goal it doesn’t walk, from a member and an admin alike (build review of #322)', () => {
+    const outside = snap.goals.find((g) => !goalsIn(review.scope, snap.goals).some((v) => v.id === g.id) && g.ownerId !== member && g.ownerId !== admin)!;
+    const say = scopeRefusal(review, outside);
+    expect(say).toBe(`Developer Productivity fortnightly doesn’t cover ${outside.title}, so nothing can be said about it there.`);
+    for (const who of [member, admin]) {
+      expect(refused(() => reviewCall(x(who), outside, review, 'acknowledge', ''))).toBe(say);
+      expect(refused(() => acceptRisk(x(who), outside, review, 'The vendor fix lands next week, so we wait.', wk))).toBe(say);
+      expect(refused(() => askQuestion(x(who), outside, 'What blocks it?', { reviewId: review.id, week: wk }))).toBe(say);
+      expect(refused(() => addAction(x(who), outside, 'Pair with SRE', { reviewId: review.id, week: wk }))).toBe(say);
+    }
   });
 });

@@ -35,6 +35,27 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['metric-change'],
   },
   {
+    id: 'data-search-finds',
+    date: '2026-11-13',
+    title: 'Searching Data finds what you typed',
+    points: [
+      'A goal’s key finds its check-ins and asks too: G-48 on Check-ins shows that goal’s rows, and on Asks every ask about it.',
+      'A number with a point is one word: 12.5 finds 12.5, not every row with a 12 and a 5.',
+      'Search looks only in the columns shown, and the line under it now says so while some are hidden, with Choose columns.',
+    ],
+    articles: ['data', 'finding'],
+  },
+  {
+    id: 'review-speaks-for-its-goals',
+    date: '2026-11-13',
+    title: 'A review speaks only for the goals it walks',
+    points: [
+      'In a review, marking a goal reviewed, a note, accepting a risk, a question or a next step is only for a goal the review covers: its goals, trees and levels. Anything else is refused, in the app and through the AI tools, with a sentence that says why.',
+      'Anyone can still ask a question or agree a next step on the goal’s own page.',
+    ],
+    articles: ['reviews'],
+  },
+  {
     id: 'metric-lists-proposed',
     date: '2026-11-13',
     title: 'A metric’s page lists its proposed goals',
