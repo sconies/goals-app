@@ -6,6 +6,8 @@
    What feeds it opens with how the goals feeding it stand; and every section says in one line what it answers.
    The words come from the domain (domain/goalPage and the modules it asks); this file lays them out. */
 import { Place } from '../core/app';
+import { MODULE_RECORDS } from '../core/records';
+import { goalMarksOf } from '../domain/records';
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
@@ -654,7 +656,7 @@ function GoalChart({ goal, status, landed, hit, card }: { goal: Goal; status: Di
     <section className="block goal-chart-block" id="chart" aria-label="Chart" data-part="Chart">
       {goal.kind === 'metric' && a.kind === 'metric' && (
         <figure className="card goal-chart" style={{ margin: 0 }}>
-          <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={ahead ? a.forecast : null} projection={ahead ? a.projection : null} ptgBy={ahead ? ptg?.byWeek ?? null : null} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} hit={hit} marks={stale ? null : card.marks} />
+          <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={ahead ? a.forecast : null} projection={ahead ? a.projection : null} ptgBy={ahead ? ptg?.byWeek ?? null : null} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} hit={hit} marks={stale ? null : card.marks} notes={goalMarksOf(MODULE_RECORDS, app.snapshot, goal.id, cycle.startDate)} />
           {(caption || goal.originalPlan) && <figcaption className="small">{caption}{goal.originalPlan ? <PlanChanges goal={goal} /> : null}</figcaption>}
         </figure>
       )}

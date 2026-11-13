@@ -92,7 +92,9 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`list_metrics`](#list_metrics) (metrics) | List the metric library | reads | — |
 | [`get_metric`](#get_metric) (metrics) | Read a metric | reads | — |
 | [`save_metric`](#save_metric) (metrics) | Add or change a metric | changes | [saveMetric](actions.md#savemetric) |
-| [`remove_metric`](#remove_metric) (metrics) | Remove a metric | changes; removes something | [removeMetric](actions.md#removemetric) |
+| [`remove_metric`](#remove_metric) (metrics) | Delete a metric no goal has used | changes; removes something | [removeMetric](actions.md#removemetric) |
+| [`retire_metric`](#retire_metric) (metrics) | Retire a metric, or bring one back | changes | [retireMetric](actions.md#retiremetric), [unretireMetric](actions.md#unretiremetric) |
+| [`merge_metrics`](#merge_metrics) (metrics) | Merge one metric into another | changes | [mergeMetrics](actions.md#mergemetrics) |
 | [`link_goal_metric`](#link_goal_metric) (metrics) | Say which metric measures a goal | changes | [linkGoalMetric](actions.md#linkgoalmetric), [unlinkGoalMetric](actions.md#unlinkgoalmetric) |
 | [`export`](#export) (spreadsheets) | Export the goals | reads | — |
 | [`export_table`](#export_table) (spreadsheets) | Export a data table as shown | reads | — |
@@ -1570,7 +1572,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 ## get_my_work
 
-**What needs me.** What needs the person this week, as their Home shows it: their goals with a check-in due this week or that need attention (flagged for something new that nobody has picked up yet), those behind but already being handled, every open ask waiting on them (decisions or help, questions, asks for an update, actions, grouped by kind, overdue ones marked), and the reviews they’re in. Statuses are said as people see them, with the code: “Off track (off)”.
+**What needs me.** What needs the person this week, as their Home shows it: their goals with a check-in due this week or that need attention (flagged for something new that nobody has picked up yet), those behind but already being handled, every open ask waiting on them (decisions or help, questions, asks for an update, actions, grouped by kind, each in Home’s order with Home’s line for how long it has waited or when it is due, whether it is late, and who it was asked of when it came with a goal they now own), and the reviews they’re in. Statuses are said as people see them, with the code: “Off track (off)”.
 
 **Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
 
@@ -1644,13 +1646,15 @@ No arguments.
         why: string[];
     }[];
     requestsForYou: {
+        waiting: string;
+        late: boolean;
+        handedFrom: string | null;
         id: string;
         kind: AskKind;
         ask: string;
         status: AskStatus;
         statusLabel: string;
         dueWeek: number | null;
-        overdue: boolean;
         review: string | null;
         askedBy: string;
         askedOf: string;
@@ -1672,20 +1676,28 @@ No arguments.
         question: string;
         by: string;
         review: string | null;
+        waiting: string;
+        late: boolean;
+        handedFrom: string | null;
     }[];
     asksForAnUpdate: {
         id: string;
         goalId: string | undefined;
         by: string;
         at: string;
+        waiting: string;
+        late: boolean;
+        handedFrom: string | null;
     }[];
     yourActions: {
         id: string;
         goalId: string | undefined;
         action: string;
         dueWeek: number | null;
-        overdue: boolean;
+        waiting: string;
+        late: boolean;
         agreedBy: string;
+        handedFrom: string | null;
     }[];
     yourReviews: {
         id: string;
@@ -2597,7 +2609,7 @@ No arguments.
 
 ## review_call
 
-**Say something in a review.** In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.
+**Say something in a review.** In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. Only someone in the review, or an admin, can, and only about a goal the review covers (its goals, trees and levels). A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.
 
 **Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
 
@@ -5035,6 +5047,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `owner` | string | no | Only metrics this person owns, by ID, email or name. |
 | `direction` | one of `higher`, `lower` | no | Only metrics where this way is better. |
 | `unused` | boolean | no | Only metrics no live goal uses. |
+| `retired` | boolean | no | Retired metrics only (left out otherwise). |
 | `sort_out` | boolean | no | Only metrics with something to sort out: no owner (or one who has left), no meaning, no source, or no goal after 14 days. |
 | `sort` | one of `name`, `goals`, `changed` | no | A to Z (name, the default), most goals first (goals), or the latest change first (changed). |
 | `page` | integer | no | Which page of 50. |
@@ -5073,6 +5086,10 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
     "unused": {
       "type": "boolean",
       "description": "Only metrics no live goal uses."
+    },
+    "retired": {
+      "type": "boolean",
+      "description": "Retired metrics only (left out otherwise)."
     },
     "sort_out": {
       "type": "boolean",
@@ -5113,7 +5130,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 ## get_metric
 
-**Read a metric.** One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; and, for its owner and admins, what it still needs (rule 3).
+**Read a metric.** One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).
 
 From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
@@ -5180,7 +5197,10 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `refresh` | one of `live`, `hourly`, `daily`, `weekly`, `monthly`, `quarterly`, `` | no | How often the source refreshes. Empty for not said. |
 | `owner` | string | no | Who answers for the definition, by ID, email or name. Whoever adds it, when left out. |
 | `caveats` | string | no | What to watch out for when reading it. |
-| `confirm` | boolean | no | Yes to changing the unit or direction of a metric goals use, once the person has said so. |
+| `confirm` | boolean | no | Kept for older callers; the questions below replace it. |
+| `comparable` | boolean | no | When the meaning or source of a metric goals use changes: true if it is still the same number (better words; nothing is marked), false if the number itself changes from this week (its goals’ charts and History say so; give reason). |
+| `reason` | string | no | Why, in a line (up to 300 characters): required when the number itself changes (comparable false) or the direction changes. Every goal measured by it shows this. |
+| `relabel` | boolean | no | When the unit of a metric goals use changes: true if the new unit is only a new label for the same numbers (its goals’ unit changes too). A different scale is refused: add a new metric instead. |
 | `answers` | object | no | The person’s answers to the checks a previous call returned. |
 | `answers.name` | string | no | “keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave. |
 | `answers.unit` | one of `keep`, `use` | no | “keep” the unit as typed, or “use” the one in use. |
@@ -5254,7 +5274,19 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
     },
     "confirm": {
       "type": "boolean",
-      "description": "Yes to changing the unit or direction of a metric goals use, once the person has said so."
+      "description": "Kept for older callers; the questions below replace it."
+    },
+    "comparable": {
+      "type": "boolean",
+      "description": "When the meaning or source of a metric goals use changes: true if it is still the same number (better words; nothing is marked), false if the number itself changes from this week (its goals’ charts and History say so; give reason)."
+    },
+    "reason": {
+      "type": "string",
+      "description": "Why, in a line (up to 300 characters): required when the number itself changes (comparable false) or the direction changes. Every goal measured by it shows this."
+    },
+    "relabel": {
+      "type": "boolean",
+      "description": "When the unit of a metric goals use changes: true if the new unit is only a new label for the same numbers (its goals’ unit changes too). A different scale is refused: add a new metric instead."
     },
     "answers": {
       "type": "object",
@@ -5303,14 +5335,20 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 - “The answer for … is one of the words the question offered, such as “keep:<id>”, “use” or “as-written”.”
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
 - “Only … or an admin can change this metric.”
+- ““…” is retired. Bring it back before changing it.”
 - “Nothing saved: use that metric instead.”
 - “Answer … first: …”
+- “… … measured by … in …. A metric in … is a different number: add it as a new metric and move goals to it, or retire this one. If “…” is only a new label for the same numbers, say so (relabel).”
+- “Say whether it is still the same number.”
+- “Say why the direction changes, in a line. Every goal measured by it will show this.”
+- “Say why, in a line. Every goal measured by it will show this.”
+- “Keep the reason to 300 characters or fewer.”
 
 **Does the same as:** [saveMetric](actions.md#savemetric), so it refuses with their words too.
 
 ## remove_metric
 
-**Remove a metric.** Remove a metric from the library: its owner or an admin. Every goal it measures is unlinked by the same save; the goals themselves don’t change. It can be restored for 30 days with restore_removed (kind metric), with the links it had.
+**Delete a metric no goal has used.** Delete a metric that has never measured a goal: its owner or an admin. One that has measured a goal is refused: retire it instead (retire_metric). It can be restored for 30 days with restore_removed (kind metric).
 
 From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
@@ -5352,9 +5390,143 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
 - “Only … or an admin can remove this metric.”
+- “… has measured goals, so it can’t be deleted. Retire it instead.”
 - “There’s no metric called or with the ID …. Use list_metrics.”
 
 **Does the same as:** [removeMetric](actions.md#removemetric), so it refuses with their words too.
+
+## retire_metric
+
+**Retire a metric, or bring one back.** Retire a metric (its owner or an admin), with a reason: it leaves the pickers and the library’s list, its goals keep their numbers and plans and say it was retired, and nothing is lost. Name replaced_by (a metric in the same unit) to offer its goals’ owners another. Or give bring_back true to bring a retired metric back as it was.
+
+From the [metrics](../modules/metrics/README.md) module: switched off with it.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `metric` | string | yes | The metric’s ID or name. |
+| `why` | string | no | Why it is retired, in a line (up to 300 characters). Required unless bringing it back. |
+| `replaced_by` | string | no | The metric its goals’ owners are offered instead, by ID or name: one in use, in the same unit. |
+| `bring_back` | boolean | no | Bring a retired metric back. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "metric"
+  ],
+  "properties": {
+    "metric": {
+      "type": "string",
+      "description": "The metric’s ID or name."
+    },
+    "why": {
+      "type": "string",
+      "description": "Why it is retired, in a line (up to 300 characters). Required unless bringing it back."
+    },
+    "replaced_by": {
+      "type": "string",
+      "description": "The metric its goals’ owners are offered instead, by ID or name: one in use, in the same unit."
+    },
+    "bring_back": {
+      "type": "boolean",
+      "description": "Bring a retired metric back."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:**
+
+- “There’s no metric called or with the ID …. Use list_metrics.”
+- “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
+- “Only … or an admin can retire or bring back this metric.”
+- ““…” isn’t retired.”
+- ““…” is already retired.”
+- “Say why it is retired, in a line. Its goals will show this.”
+- “Keep the reason to 300 characters or fewer.”
+- “The metric it is replaced by must be one in use.”
+- “… is in … and … is in …. It can only be replaced by a metric in the same unit.”
+
+**Does the same as:** [retireMetric](actions.md#retiremetric), [unretireMetric](actions.md#unretiremetric), so it refuses with their words too.
+
+## merge_metrics
+
+**Merge one metric into another.** Merge a metric into another in the same unit (admins only): every goal it measures moves to the other, keeping its slice and part, and it is retired pointing to the other. One save; Undo in the app takes it all back.
+
+From the [metrics](../modules/metrics/README.md) module: switched off with it.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `from` | string | yes | The metric to merge away, by ID or name. |
+| `into` | string | yes | The metric to keep, by ID or name: one in use, in the same unit. |
+| `why` | string | no | Why, in a line. “The same number as {into}.” when left out. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "from",
+    "into"
+  ],
+  "properties": {
+    "from": {
+      "type": "string",
+      "description": "The metric to merge away, by ID or name."
+    },
+    "into": {
+      "type": "string",
+      "description": "The metric to keep, by ID or name: one in use, in the same unit."
+    },
+    "why": {
+      "type": "string",
+      "description": "Why, in a line. “The same number as {into}.” when left out."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:**
+
+- “Only admins can merge metrics: it changes what other people’s goals are measured by.”
+- “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
+- “Choose another metric to merge it into.”
+- ““…” is retired. Bring it back first, or merge into another.”
+- ““…” is already retired.”
+- “… is in … and … is in …. Only metrics in the same unit can be merged.”
+- “Keep the reason to 300 characters or fewer.”
+- “There’s no metric called or with the ID …. Use list_metrics.”
+
+**Does the same as:** [mergeMetrics](actions.md#mergemetrics), so it refuses with their words too.
 
 ## link_goal_metric
 

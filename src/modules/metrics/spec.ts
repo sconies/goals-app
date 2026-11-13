@@ -8,6 +8,7 @@ import * as LIB from './rulesLibrary';
 import * as MEAS from './rulesMeasure';
 import * as DEF from './rulesDefine';
 import * as PARTS from './rulesParts';
+import * as CHG from './rulesChange';
 import { checkReads, lineOf } from './reads';
 import * as SAVE from './rulesSave';
 import { goalsOfMetric, libraryReads } from './reads';
@@ -36,7 +37,7 @@ A **metric** is one number defined once per workspace, so every goal about it me
 
 **Measuring a goal.** A goal is measured by at most one metric, for one **slice**: a team’s number, or the whole company’s. The goal’s own target is the target in that metric (a number to move: its plan’s target; a number to keep in range: its limit); nothing is copied. A goal with dated stages has no number, so no metric measures it. The goal and the metric must have the same unit, any case. A goal aiming the other way from the metric’s better direction (planned to go up when lower is better, or kept at least a level when lower is better) is linked with a warning, since a guardrail may mean it. So is a goal that keeps more decimal places than its metric. The goal's target in the metric is shown as every number is ([numbers and names](../../core/rules/numbers-and-names.md)): at the goal's decimals, digits grouped, with its unit. Linking again with the same metric and slice changes nothing; another metric or slice is a change.
 
-**Logged, never lost.** Every change is in the change log as a metric change (adding, changing field by field, removing, restoring; linking and unlinking on the goal it measures). Removing a metric keeps its row, unlinks every goal it measured in the same save, and leaves the goals as they were. Undo straight after puts the metric and its links back; restoring it later from Recently removed brings the metric back with the links it had, to goals still there that nothing else measures since. Unlinking keeps the link’s row too, and Undo puts it back.`,
+**Logged, never lost.** Every change is in the change log as a metric change (adding, changing field by field, removing, restoring; linking and unlinking on the goal it measures). Only a metric no goal has ever been measured by can be removed (deleted); one that has is retired instead (MT3, rule 10). Removing keeps its row; Undo straight after puts it back, and so does restoring it later from Recently removed. Unlinking keeps the link’s row too, and Undo puts it back.`,
   examples: [
     { given: 'Oskar adds a metric named “Build time” with no unit or direction.', then: 'refused: Say its unit: %, min, hours, USD, deploys… Say which way is better: higher or lower.', run: () => summaryOf(asPerson('oskar', (x) => MET.saveMetric(x, { name: 'Build time' }).commit)) },
     { given: 'Oskar adds “Build time”, in min, lower is better.', then: 'Added the metric “Build time”', run: () => summaryOf(asPerson('oskar', (x) => MET.saveMetric(x, { name: 'Build time', unit: 'min', direction: 'lower' }).commit)) },
@@ -52,7 +53,7 @@ A **metric** is one number defined once per workspace, so every goal about it me
     { given: 'Grace measures the merge queue goal (lead-mq, dated stages) by Lead time for changes.', then: 'refused: A goal with dated stages has no number, so a metric can’t measure it.', run: () => summaryOf(asPerson('grace', (x) => LINK.linkGoalMetric(x, goalIn('lead-mq'), 'metric_lead-time'))) },
     { given: 'Oskar measures ns-ci, which Daniel owns, by CI pipeline time on main (p90).', then: 'refused: Only the goal’s owner or an admin can choose what measures it.', run: () => summaryOf(asPerson('oskar', (x) => LINK.linkGoalMetric(x, goalIn('ns-ci'), 'metric_ci-time'))) },
     { given: 'Rhea measures ns-lead by Lead time for changes for the whole company, as it already is.', then: 'nothing to save', run: () => summaryOf(asPerson('rhea', (x) => LINK.linkGoalMetric(x, goalIn('ns-lead'), 'metric_lead-time', null))) },
-    { given: 'Rhea removes Lead time for changes, which measures one goal.', then: 'Removed the metric “Lead time for changes”, unlinking 1 goal / No longer measured by “Lead time for changes”, as the metric was removed', run: () => summaryOf(asPerson('rhea', (x) => MET.removeMetric(x, 'metric_lead-time'))) },
+    { given: 'Rhea removes Lead time for changes, which measures one goal.', then: 'refused: Lead time for changes has measured goals, so it can’t be deleted. Retire it instead.', run: () => summaryOf(asPerson('rhea', (x) => MET.removeMetric(x, 'metric_lead-time'))) },
   ],
   unclear: ['Two people changing the same metric at once: the later save wins (metrics carry no version yet, unlike goals and reviews).', 'The words for a slice are the team’s name, or “The whole company”; the change log says “for the whole company” or “for <team>”.'],
 },
@@ -226,6 +227,31 @@ A goal measured by a metric takes two things from it: its **unit** and **which w
     { given: 'The same, with the reason “Release builds queue apart from main now”.', then: 'Measured by “Pipeline queue wait (p90)” for CI/CD · release builds: Release builds queue apart from main now', run: () => summaryOf(asPerson('rhea', (x) => LINK.linkGoalMetric(x, goalIn('lead-ci-time'), 'metric_queue-wait', 'cicd', 'release builds', 'Release builds queue apart from main now'))) },
   ],
   unclear: ['The demo has no metric measuring several goals yet: its two parts are on existing links (Pipeline queue wait for CI/CD · main branch pipelines; Flaky test rate for CI/CD · main pipelines). MT5’s comparison adds goals that share a metric.', '“Use different ones” (round 1) is kept on a new goal: the spec drops it, but taking it out changes round 1’s journeys; MT3 or MT7 can.'],
+});
+
+rules.push({
+  id: 'metric-change',
+  title: 'Changing, retiring and merging a metric',
+  summary: 'What kind of change a save is (rule 8), the marks a change of meaning or direction leaves on its goals (rule 9), and retiring, bringing back and merging (rule 10): a metric that changes tells its goals.',
+  code: [{ file: 'src/modules/metrics/rulesChange.ts', names: ['changeKinds', 'linkedGoals', 'aimingWrong', 'saveMetricChange', 'retireMetric', 'unretireMetric', 'mergeMetrics', 'retiredWords'] }, { file: 'src/modules/metrics/rules.ts', names: ['everUsed', 'marksFor', 'markLabel', 'liveMetrics', 'removeMetric'] }],
+  tests: ['src/modules/metrics/rulesChange.test.ts', 'src/modules/metrics/rules.test.ts', 'src/modules/metrics/tools.test.ts'],
+  reqs: ['METRIC-CHANGE'],
+  body: `
+**Rule 8. What kind of change** (\`changeKinds(before, after, linkedGoals, { relabel })\`). Every kind that applies, in this order: \`scale\` (the unit differs, goals are linked, and it isn't said to be a new label: refused), \`relabel\` (the same, said to be a new label: every linked goal's unit changes in the same save), \`direction\` (needs a reason), \`meaning\` (the meaning or the source differs: asks whether it is still the same number, \`comparable\`; when it isn't, a reason), \`decimals\` (fewer places than a linked goal shows: named, nothing asked). Anything else, or any change to a metric no live goal uses, is \`words\` and saves at once; nothing different is \`none\`. A reason is at most 300 characters. The form reads the change back before saving (title, Was and Will be, the goals named, the six first then “and {k} more”); \`save_metric\` takes \`comparable\`, \`reason\` and \`relabel\`.
+
+**Rule 9. Marks** (\`marksFor(metric, link, since)\`). A save with the number changed (\`comparable: false\`) or a new direction keeps a mark on the metric: \`{ week, at, by, kind: definition | direction, why, was, now }\`, oldest first. A goal shows the marks made at or after it was linked, and since its cycle began: on its chart a dashed hairline at the week labelled beside it (“Definition changed, week {w}”, “Direction changed, week {w}”, through the core's \`goal.marks\` point), in its History the entry with the reason, and under About the line with “See both definitions”. Undo takes the mark back with the change.
+
+**Rule 10. Retire, bring back, merge** (\`retireMetric\`, \`unretireMetric\`, \`mergeMetrics\`, \`everUsed\`). A metric that has ever measured a goal (\`everUsed\`) can't be deleted: “{name} has measured goals, so it can’t be deleted. Retire it instead.” Its owner or an admin retires it with a reason (and optionally a live metric in the same unit that replaces it): its links stay, its goals keep their numbers and say “Measured by {metric}, retired {date}”, it leaves \`liveMetrics\` (the pickers and the library's list) but \`measureOf\` and \`findMetric\` still find it, and no new goal can be linked to it. Bring it back clears the four fields. Admins merge a live metric into another live one in the same unit: every live link moves (same slice and part), the first is retired pointing to the second, and each moved goal's History says so. Each is one save with one Undo.`,
+  examples: [
+    { given: 'Lead time for changes (1 goal): its caveats reworded.', then: 'words', run: () => CHG.changeKinds(LIB_METRIC('metric_lead-time'), { ...LIB_METRIC('metric_lead-time'), caveats: 'Counts only services on the paved road.' }, CHG.linkedGoals(demo(), 'metric_lead-time')).join(', ') },
+    { given: 'Lead time for changes: its meaning changed.', then: 'meaning', run: () => CHG.changeKinds(LIB_METRIC('metric_lead-time'), { ...LIB_METRIC('metric_lead-time'), meaning: 'From merge to production, p50.' }, CHG.linkedGoals(demo(), 'metric_lead-time')).join(', ') },
+    { given: 'Lead time for changes: hours to min, not said to be a label.', then: 'scale', run: () => CHG.changeKinds(LIB_METRIC('metric_lead-time'), { ...LIB_METRIC('metric_lead-time'), unit: 'min' }, CHG.linkedGoals(demo(), 'metric_lead-time')).join(', ') },
+    { given: 'Rhea changes what Lead time for changes means and says the number itself changes, with no reason.', then: 'refused: Say why, in a line. Every goal measured by it will show this.', run: () => summaryOf(asPerson('rhea', (x) => CHG.saveMetricChange(x, { id: 'metric_lead-time', meaning: 'From merge to production, p50.', comparable: false }).commit)) },
+    { given: 'Rhea deletes Lead time for changes, which measures a goal.', then: 'refused: Lead time for changes has measured goals, so it can’t be deleted. Retire it instead.', run: () => summaryOf(asPerson('rhea', (x) => MET.removeMetric(x, 'metric_lead-time'))) },
+    { given: 'Rhea retires Flaky test rate: “The test platform reports it now.”', then: 'Retired the metric “Flaky test rate”: The test platform reports it now. / Its metric “Flaky test rate” was retired: The test platform reports it now.', run: () => summaryOf(asPerson('rhea', (x) => CHG.retireMetric(x, 'metric_flaky-rate', 'The test platform reports it now.'))) },
+    { given: 'Rhea, not an admin, merges Flaky test rate into Remote build cache hit rate.', then: 'refused: Only admins can merge metrics: it changes what other people’s goals are measured by.', run: () => summaryOf(asPerson('rhea', (x) => CHG.mergeMetrics(x, 'metric_flaky-rate', 'metric_cache-hit'))) },
+  ],
+  unclear: ['The mark’s week is the cycle week the change is saved in; a change saved between cycles marks week 0 of the next.', 'Merging two metrics in different directions is a Check on the form (“Merge anyway”), not a rule: the rule merges either way.', 'The library lists retired metrics only through list_metrics (retired: true) and a metric’s own page; a Retired filter on the page itself is left for MT5 or later.'],
 });
 
 const LIB_METRIC = (id: string) => MET.metricsOf(demo()).find((m) => m.id === id)!;

@@ -23,7 +23,7 @@ Home is where you start each day. It answers one question first: what is asked o
 - With two or more number goals to check in on, a quiet link under the button opens the table, to type all your numbers at once.
 - This week, above the lead, shows a review you’re in, or one that has passed its day without being held, as one cell. It is left out when the lead is that review; with two reviews on one day, the lead takes one and the cell the other. Once the year has ended, no review is said to be not held.
 - While someone waits for your response, Home doesn’t say nothing is asked of you: it says how many asks wait. If you’re an admin, a note says when the year is ending or has ended, with Start for the next one.
-- Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions. Each says who asked, where and on what day, and how long it has waited or when it is due; a late one says so first, with the warning mark. Five show, then Show all. Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.
+- Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions. Each says first how long it has waited or when it is due (a late one with the warning mark), then who asked, where and on what day; one that came to you with a goal you now own also says “Asked of Tunde, now yours”. Five show, then Show all. Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.
 - When an ask is late, due this week, or has waited a week or more, and nothing comes before it, it is the lead, with its one button (Respond, Answer, Check in or Mark done); the rest are under Also needs your response. A goal someone proposed for you is asked of you like an ask with no date: once a week has passed and no ask comes first, it is the lead, with Open it.
 - Your goals come next, counted once: how many there are by status, each count opening exactly those goals in Goals (“1 at risk” lists the one). Then the ones that need attention, worst first, each with Check in when that is what it needs; what is being handled, folded away; and the rest, five at a time. Each row opens its goal. Goals you watch follow.
 - On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.
@@ -322,6 +322,7 @@ An ask names what’s needed, who must respond and, if it matters, by when, so i
 - On a goal’s page, Next steps and asks lists every ask and next step on it once: the kind and its words, who and when, and whether it’s open, overdue (with by how much), answered or done. Each row has at most one button for you: Respond, Answer, Mark done, Check in or Withdraw.
 - Waiting on a decision already asked for another goal? Say so in the check-in: link to that request instead of asking again, and one answer covers both goals.
 - Still true in the next check-in carries an open request forward; dropping the ask withdraws it.
+- When a goal changes owner, its open asks of the old owner go to the new one, who sees them on Home (“Asked of Tunde, now yours”). The ask’s history says so, for whoever asked; answered asks stay as they were. An ask about another goal the old owner keeps stays with them.
 
 #### Who can
 
@@ -739,7 +740,7 @@ A regular look at the goals that need it, with notes, questions and actions that
 
 #### Who can
 
-Anyone can set up a review, and everyone can read every review. Only people in a review, or an admin, speak for it: mark goals reviewed, add a note, accept a risk, and ask a question or agree a next step in it. Anyone can still ask a question or agree a next step on a goal’s own page. Someone not in a review is told who can add them: someone in it, whoever set it up, or an admin, who can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it.
+Anyone can set up a review, and everyone can read every review. Only people in a review, or an admin, speak for it: mark goals reviewed, add a note, accept a risk, and ask a question or agree a next step in it, and only about the goals it covers. Anyone can still ask a question or agree a next step on a goal’s own page. Someone not in a review is told who can add them: someone in it, whoever set it up, or an admin, who can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it.
 
 ### The activity log
 
@@ -812,7 +813,7 @@ Routes: `/data`. Screens: `DataTables`, `DataFilters`, `DataLayout`. Requirement
 
 #### How to use it
 
-- Pick a table. Search it (each word you type starts a word in a shown column, as on Goals; a key like G-48 finds its goal), sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.
+- Pick a table. Search it (each word you type starts a word in a shown column, as on Goals, and the line under it says so while columns are hidden; a number like 12.5 is one word; a key like G-48 finds its goal, and on Check-ins and Asks that goal’s rows), sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.
 - Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.
 - Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.
 - Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.
@@ -1087,6 +1088,7 @@ A metric says exactly what a number means (what is counted, over what, its unit 
 - Find a metric by its name, unit, owner or meaning: “min lower” finds those in minutes where lower is better. Unit and Used by narrow the list beside the search; Filters has Owner, Which way is better, No goals use it and Something to sort out. Sort by A to Z, Most goals first or Changed lately. The filter line says what is on, each with Remove.
 - A search that finds nothing offers to add it as a new metric.
 - Open a metric to see what it means and how it’s calculated, then every goal measured by it as a table: its status as a shape and a word, the goal, who it is for (a team, or the whole company), the latest number, the target with its week, and where it stands against plan (for a goal kept in range, its room to the limit). When two or more goals have a number, a line says the lowest and highest now.
+- A proposed goal that names the metric is listed under the table, apart, as “Proposed · 1”: its name, key and owner, with no numbers. It is in no comparison until it is made active.
 - Below them: where the number comes from, who owns that source, how often it refreshes, any caveats, and who added and last changed it. With one goal, See its goal opens it.
 - On a goal measured by a metric, its summary says “Measured by …”, and its page has a block with the metric’s meaning and a link to the other goals measured by it. A person’s page lists the metrics they own, and a team’s the metrics its goals use.
 - Old links to Metrics under Data still work: they open the library, a metric, or the form.
@@ -1165,6 +1167,34 @@ Requirements: `METRIC-PARTS`.
 #### On the goal’s page
 
 - About lists Measured by: For, what it means, From the metric, where the number comes from, caveats, the goal’s own target, and its own definition when that says more than the metric’s.
+
+### Changing, retiring and merging a metric
+
+`metric-change`, from the metrics module. Which changes save at once, the ones that tell a metric’s goals first, and retiring, bringing back and merging.
+
+Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-CHANGE`.
+
+#### What saves at once
+
+- A new name, owner, source owner, refresh or caveats saves at once, as does any change to a metric no goal uses.
+
+#### What reads back first
+
+- Changing what a metric means, or where its number comes from, shows the goals it measures and asks “Is it still the same number?”. Same number, better words: nothing is marked. The number itself changes: say why, in a line, and each goal’s chart and History say “Definition changed, week {w}” with your reason. Their numbers and plans don’t change.
+- Changing which way is better needs a reason too, names the goals whose target now lies the wrong way, and marks each goal.
+- A new unit is either a new label for the same numbers (every goal’s unit changes with it) or a different scale. A different scale is a different metric: add it as a new metric and move goals to it, or retire this one.
+- Fewer decimal places names the goals that show more; they keep theirs until their owners change them.
+- Undo takes back the change, its marks and, for a new label, every goal’s unit, as one.
+
+#### Retire, not delete
+
+- A metric that has measured a goal is retired, not deleted: its goals keep their numbers and plans and say “Measured by {metric}, retired {date}”. It leaves the pickers and the library’s list (Retired metrics are listed apart), and it can be brought back at any time with Bring it back.
+- Say why it is retired. Name what replaces it, in the same unit, and its goals’ owners are offered it on the goal’s page.
+- A metric no goal has ever used is deleted instead, and can be put back from Recently removed for 30 days.
+
+#### Merge (admins)
+
+- An admin merges a metric into another in the same unit: every goal it measures moves to the other, keeping its For and part, and it is retired pointing there. One Undo puts it all back.
 
 ### Teams
 

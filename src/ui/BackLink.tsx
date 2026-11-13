@@ -59,6 +59,12 @@ export function useFirsts(): string[] {
   return useMemo(() => screens.flatMap((m) => (m.navigation ?? []).map((n) => n.to)), [screens]);
 }
 
+/** The modules' pages drawn in focus mode: forms, to the one rule (navigation spec 2.5). */
+export function useForms(): string[] {
+  const { screens } = useModules();
+  return useMemo(() => screens.flatMap((m) => (m.routes ?? []).filter((r) => r.focus).map((r) => r.path)), [screens]);
+}
+
 /**
  * The Shell calls this on every page, so a Back link knows where each earlier page in the tab was. The browser's Back
  * (or Forward) onto a form you had left steps over it, and over this page's other copies, to where the link would go.
@@ -67,17 +73,18 @@ export function useTrail() {
   const loc = useLocation();
   const type = useNavigationType();
   const nav = useNavigate();
+  const forms = useForms();
   useEffect(() => {
     const now = here();
     const t = trail();
     const from = last;
     last = now;
-    if (type === 'POP' && from != null && from !== now && isForm(loc.pathname, loc.search)) {
+    if (type === 'POP' && from != null && from !== now && isForm(loc.pathname, loc.search, forms)) {
       const came = t[from];
-      if (came && !isForm(came.path)) {
+      if (came && !isForm(came.path, '', forms)) {
         const dir = now < from ? -1 : 1;
         let j = now;
-        while (t[j] && (isForm(t[j]!.path) || (dir < 0 && bare(t[j]!.path) === bare(came.path)))) j += dir;
+        while (t[j] && (isForm(t[j]!.path, '', forms) || (dir < 0 && bare(t[j]!.path) === bare(came.path)))) j += dir;
         if (t[j] && j !== now) { last = j; void nav(j - now); return; }
       }
     }
@@ -86,7 +93,7 @@ export function useTrail() {
     while (next.length < now) next.push(null);
     next[now] = { key: loc.key, path: loc.pathname + loc.search };
     keep(next);
-  }, [loc.key, loc.pathname, loc.search, type, nav]);
+  }, [loc.key, loc.pathname, loc.search, type, nav, forms]);
 }
 
 /** This tab's pages, oldest first, ending with this one: the known earlier entries, then this page. */
@@ -108,7 +115,8 @@ export function BackLink(_old: { to?: string; label?: string; same?: (path: stri
   const { pathname, search } = useLocation();
   const names = usePlaceNames();
   const firsts = useFirsts();
-  const b = backTo(pathname, search, knownTrail(pathname + search), names, firsts);
+  const forms = useForms();
+  const b = backTo(pathname, search, knownTrail(pathname + search), names, firsts, forms);
   if (!b) return null;
   return (
     <Link className="backlink" to={b.to} aria-label={`Back to ${b.label}`} onClick={(e) => { if (b.steps > 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); void nav(-b.steps); } }}>

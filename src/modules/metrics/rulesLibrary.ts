@@ -104,6 +104,8 @@ export interface LibraryAsk {
   dir?: MetricDirection;
   unused?: boolean;
   sortout?: boolean;
+  /** Retired metrics only (MT3); by default they are left out. */
+  retired?: boolean;
   sort?: LibrarySort;
   page?: number;
   size?: number;
@@ -122,7 +124,7 @@ export interface LibraryPage { total: number; page: number; pages: number; from:
  */
 export function findMetrics(r: LibraryReads, ask: LibraryAsk = {}): LibraryPage {
   const size = ask.size ?? LIBRARY_PAGE;
-  const rows: LibraryRow[] = r.metrics.filter((m) => !m.removedAt).map((m) => {
+  const rows: LibraryRow[] = r.metrics.filter((m) => !m.removedAt && (ask.retired ? !!m.retiredAt : !m.retiredAt)).map((m) => {
     const links = liveLinks(r, m.id);
     return { metric: m, owner: ownerName(r.people, m), goalIds: links.map((l) => l.goalId), needs: metricNeeds(m, r), links };
   }).filter(({ metric: m, owner, links, needs }) => {
