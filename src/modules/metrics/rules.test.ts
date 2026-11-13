@@ -182,43 +182,31 @@ describe('linking a goal to a metric', () => {
 });
 
 describe('removing a metric', () => {
-  it('its owner or an admin; it unlinks its goals, and Undo brings both back', () => {
+  it('a metric that has measured a goal is retired, not deleted (MT3 rule 5)', () => {
     const w = world();
-    refused(() => M.removeMetric(w.x('oskar'), 'metric_lead-time'), /Only Rhea Kapoor or an admin can remove/);
+    refused(() => M.removeMetric(w.x('rhea'), 'metric_lead-time'), /Lead time for changes has measured goals, so it can’t be deleted\. Retire it instead\./);
+  });
+  it('one never used: its owner or an admin; Undo and Recently removed bring it back', () => {
+    const w = world();
+    refused(() => M.removeMetric(w.x('oskar'), 'metric_ci-cost'), /Only Ethan .* or an admin can remove/);
     const before = w.full;
-    const c = M.removeMetric(w.x('rhea'), 'metric_lead-time');
-    expect(c.changes.map((v) => v.summary)).toEqual(['Removed the metric “Lead time for changes”, unlinking 1 goal', 'No longer measured by “Lead time for changes”, as the metric was removed']);
+    const c = M.removeMetric(w.x('amara'), 'metric_ci-cost');
+    expect(c.changes.map((v) => v.summary)).toEqual(['Removed the metric “CI compute cost per pipeline run”']);
     w.apply(c);
-    expect(M.findMetric(w.scoped, 'metric_lead-time')).toBeUndefined();
-    expect(M.metricsOf(w.full).find((m) => m.id === 'metric_lead-time')!.removedAt).toBeTruthy();
-    expect(M.measureOf(w.scoped, w.goal('ns-lead'))).toBeNull();
-    w.apply(R.undoRemoval(w.x('rhea'), c, before));
-    expect(M.measureOf(w.scoped, w.goal('ns-lead'))!.metric.name).toBe('Lead time for changes');
-  });
-  it('is on Recently removed, and restoring brings the metric back with the links it had (spec 2.2)', () => {
-    const w = world();
-    w.apply(M.removeMetric(w.x('rhea'), 'metric_lead-time'));
+    expect(M.findMetric(w.scoped, 'metric_ci-cost')).toBeUndefined();
+    w.apply(R.undoRemoval(w.x('amara'), c, before));
+    expect(M.findMetric(w.scoped, 'metric_ci-cost')).toBeTruthy();
+    w.apply(M.removeMetric(w.x('amara'), 'metric_ci-cost'));
     const item = R.recentlyRemoved(w.full, today, undefined, MINE).find((r) => r.kind === 'metric')!;
-    expect(item).toMatchObject({ id: 'metric_lead-time', label: 'Metric', name: 'Lead time for changes', by: 'rhea' });
-    w.apply(R.restoreRemoved(w.x('rhea'), 'metric', item.id, MINE));
-    expect(M.findMetric(w.scoped, 'metric_lead-time')).toBeTruthy();
-    expect(M.measureOf(w.scoped, w.goal('ns-lead'))!.metric.name).toBe('Lead time for changes');
-  });
-  it('restoring leaves out a link whose goal was measured by another metric since', () => {
-    const w = world();
-    w.apply(M.removeMetric(w.x('rhea'), 'metric_lead-time'));
-    w.apply(M.saveMetric(w.x('grace'), { name: 'Lead time, merge to production', unit: 'hours', direction: 'lower' }).commit);
-    const other = M.metricsOf(w.full).find((m) => m.name === 'Lead time, merge to production')!;
-    w.apply(linkGoalMetric(w.x('grace'), w.goal('ns-lead'), other.id, null));
-    const item = R.recentlyRemoved(w.full, today, undefined, MINE).find((r) => r.kind === 'metric')!;
-    w.apply(R.restoreRemoved(w.x('rhea'), 'metric', item.id, MINE));
-    expect(M.measureOf(w.scoped, w.goal('ns-lead'))!.metric.name).toBe('Lead time, merge to production');
+    expect(item).toMatchObject({ id: 'metric_ci-cost', label: 'Metric', name: 'CI compute cost per pipeline run' });
+    w.apply(R.restoreRemoved(w.x('amara'), 'metric', item.id, MINE));
+    expect(M.findMetric(w.scoped, 'metric_ci-cost')).toBeTruthy();
   });
   it('can’t come back under a name another metric took since', () => {
     const w = world();
-    w.apply(M.removeMetric(w.x('rhea'), 'metric_lead-time'));
-    w.apply(M.saveMetric(w.x('oskar'), { name: 'Lead time for changes', unit: 'hours', direction: 'lower' }).commit);
-    refused(() => R.restoreRemoved(w.x('grace'), 'metric', 'metric_lead-time', MINE), /There’s a metric called Lead time for changes again/);
+    w.apply(M.removeMetric(w.x('amara'), 'metric_ci-cost'));
+    w.apply(M.saveMetric(w.x('oskar'), { name: 'CI compute cost per pipeline run', unit: 'USD', direction: 'lower' }).commit);
+    refused(() => R.restoreRemoved(w.x('amara'), 'metric', 'metric_ci-cost', MINE), /There’s a metric called CI compute cost per pipeline run again/);
   });
 });
 
@@ -250,15 +238,6 @@ describe('the build review’s findings on ML2 and ML3 (11 Nov)', () => {
     expect(M.saveMetric(w.x('rhea'), { id: m.id, unit: 'days', confirm: true }).commit).not.toBeNull();
     // Other fields, or a metric no goal uses, ask nothing.
     expect(M.metricChangeQuestion(m, { ...m, caveats: 'x' }, w.full.goals, M.linksOf(w.full))).toBeNull();
-  });
-  it('removing a metric unlinks a stopped goal too, and putting it back links it again', () => {
-    const w = world();
-    w.apply(R.stopGoal(w.x('rhea'), 'ns-lead', 'Folded into the delivery north star for the rest of the year.'));
-    expect(w.goal('ns-lead').stoppedAt).toBeTruthy();
-    w.apply(M.removeMetric(w.x('rhea'), 'metric_lead-time'));
-    expect(M.linksOf(w.full).find((l) => l.goalId === 'ns-lead')!.removedAt).toBeTruthy();
-    w.apply(R.restoreRemoved(w.x('rhea'), 'metric', 'metric_lead-time', MINE));
-    expect(M.linksOf(w.full).find((l) => l.goalId === 'ns-lead')!.removedAt).toBeNull();
   });
 });
 

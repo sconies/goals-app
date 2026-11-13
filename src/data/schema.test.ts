@@ -3,7 +3,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildPlatformOrg } from './platformOrg';
-import { metricLinkToRow } from '../modules/metrics/records';
+import { metricLinkToRow, metricToRow } from '../modules/metrics/records';
 
 const dir = join(__dirname, '../../supabase/migrations');
 const sql = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort().map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
@@ -99,6 +99,18 @@ describe('database schema', () => {
     expect(cols.rows.length).toBe(6);
     await db.exec(readFileSync(join(dir, '0043_metric_parts_and_retirement.sql'), 'utf8'));
     expect((await db.query<{ n: number }>(`select count(*)::int as n from pg_constraint where conname in ('okr_goal_metrics_part_len', 'okr_metrics_retired_why_len', 'okr_metrics_marks_array')`)).rows[0]!.n).toBe(3);
+  });
+  it('saves retired and live metrics in one batch: a live one is written with an empty reason and no marks, never null (MT3)', async () => {
+    const at = '2026-10-30T12:00:00.000Z';
+    const base = { name: '', meaning: '', unit: '%', decimals: 0, direction: 'lower' as const, source: '', sourceOwner: '', refresh: null, ownerId: 'rhea', caveats: '', createdBy: 'rhea', createdAt: at, updatedAt: at };
+    const rows = [
+      metricToRow('example', { ...base, id: 'm-retired', name: 'Retired one', retiredAt: at, retiredBy: 'rhea', retiredWhy: 'Gone', replacedBy: null, marks: [{ week: 44, at, by: 'rhea', kind: 'definition', why: 'Changed', was: 'a', now: 'b' }] }),
+      metricToRow('example', { ...base, id: 'm-live', name: 'Live one' }),
+    ];
+    expect(rows[1]).toMatchObject({ retired_why: '', marks: [] });
+    await db.query(`select okr_upsert('okr_metrics', $1::jsonb, 'id')`, [JSON.stringify(rows)]);
+    const saved = await db.query<{ id: string; retired_why: string; marks: unknown[] }>(`select id, retired_why, marks from okr_metrics where id in ('m-retired', 'm-live') order by id`);
+    expect(saved.rows.map((r) => [r.id, r.retired_why, (r.marks as unknown[]).length])).toEqual([['m-live', '', 0], ['m-retired', 'Gone', 1]]);
   });
   it('saves links with and without a part in one batch: a link with no part is written as empty, never null (build review of #308)', async () => {
     await db.query(`insert into okr_metrics (id, workspace_id, name, unit, direction, owner_id, created_by) values ('m-mixed', 'example', 'Mixed batch', '%', 'lower', 'rhea', 'rhea')`);

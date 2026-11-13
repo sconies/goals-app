@@ -11,6 +11,8 @@
    - Rule 7, `planGoal`: who may (domain/goalRights), and the commit a save makes, with each answer kept as "Checked".
 
    Pure: no screen, network or database code. No rule takes the workspace: each lists what it reads. */
+import { asksFollowOwner, openAsksDiff } from './askHandover';
+import { asksOf } from './asks';
 import { NotAllowed, type ActionContext } from './actions';
 import { goalChange, checkInChange, type Lookup } from './changes';
 import { answeredDiffs, MIN_REASON, stepState as fixLine, unanswered } from './checkin';
@@ -630,7 +632,10 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   // owner marks any already done at the first check-in.
   const done = !existing && !proposing && doneIds.length && mayPostCheckIn(x.actor, goal, 'form') ? stagesDoneAtSetUp(goal, doneIds, x.actor.id, x.now, x.newId('ci')) : null;
   const doneChange = done ? checkInChange(null, done, goal, x.actor.id, x.newId('chg')) : null;
-  return { commit: { goals: [goal], changes: [change, ...(doneChange ? [doneChange] : [])], ...(done ? { checkIns: [done] } : {}) }, goal };
+  // A new owner takes the goal's open asks of the old one (Lane, 13 Nov; domain/askHandover), said on the goal's change too.
+  const handed = existing ? asksFollowOwner({ goals: s.goals, people: s.people, asks: asksOf(s) }, [goal], { actorId: x.actor.id, now: x.now, newId: x.newId }) : null;
+  if (handed?.requests.length) change.diffs.push(openAsksDiff(handed.requests.length, handed.changes[0]!));
+  return { commit: { goals: [goal], changes: [change, ...(doneChange ? [doneChange] : []), ...(handed?.changes ?? [])], ...(done ? { checkIns: [done] } : {}), ...(handed?.requests.length ? { requests: handed.requests } : {}) }, goal };
 }
 
 /* ---------- rule 14: a proposed goal (GE10; domain/proposed) ---------- */

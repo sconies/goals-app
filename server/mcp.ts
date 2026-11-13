@@ -3,6 +3,7 @@
    Each tool call is recorded as a SERVER span (src/telemetry/server.ts), joined to the caller's trace when the request
    carries a W3C traceparent header, with CLIENT spans for the database work inside it. They're sent at the end of the
    request, only when the workspace records, and a failure to send never changes the answer. */
+import type { HistoryAsk, HistoryPage } from '../src/ports/store';
 import { logFailure } from './log';
 import type { Commit } from '../src/data/store';
 import { applyCommit, EXAMPLE, newId, withExpectations } from '../src/data/store';
@@ -26,6 +27,8 @@ export interface Deps {
   workspaceName(id: string): Promise<string>;
   load(workspaceId: string): Promise<Snapshot>;
   commit(workspaceId: string, c: Commit): Promise<void>;
+  /** Older change-log entries a page at a time, newest first (Store.history): get_activity pages with it. */
+  history?(workspaceId: string, ask: HistoryAsk): Promise<HistoryPage>;
   /** The keys the database settled for these goals (migration 0021 gives a new goal the next free key when the one the
       save asked for was taken at the same moment). Read after a save, so an answer names the key the goal holds (#242's
       review). Without it, the key the save asked for stands. */
@@ -168,6 +171,7 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
         ctx!.full = all;
         return secret;
       },
+      ...(deps.history ? { history: (ask: HistoryAsk) => db('select', () => deps.history!(found.workspaceId, ask)) } : {}),
       ...(deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace!(found.workspaceId) } : {}),
       // The inbox's tools work with any token: Faro's inbox is open on purpose (backlog O, migration 0031).
       ...(deps.markups ? { markups: deps.markups(hash) } : {}),

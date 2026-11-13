@@ -5,13 +5,14 @@ import type { GoalRows, PersonRows, TeamRows } from '../domain/find';
 import { creatorOf, type DayOneRows } from '../domain/dayOne';
 import { summariseAll } from '../domain/summary';
 import { proposedSummary } from '../domain/proposedSummary';
-import { proposalAsks } from '../domain/proposed';
+import { proposalAsks, withProposed } from '../domain/proposed';
 import { scopeToCycle, wrapUpCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
 import type { Cycle, Person, Snapshot } from '../domain/types';
 import type { ScopeFacts } from '../domain/goalsPage';
 import { agendaOf, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
 import { waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession, type Waiting } from '../domain/home';
+import { handedFrom } from '../domain/askHandover';
 import { onTimeStreak, reviewDate, weekProgress } from '../domain/progress';
 import { hasEnded, weekDate, weekDates } from '../domain/plan';
 import { beforeStart, cycleDates, wrapUpOpenOn } from '../domain/cycle';
@@ -74,7 +75,7 @@ export function dayOneRows(s: Pick<Snapshot, 'people' | 'goals' | 'checkIns' | '
  * Home's facts (docs/design/home/spec.md rule 1): what the lead and the quiet line read, from the rules that already
  * say each thing (weekProgress, onTimeStreak, reviewSession, the wrap-up's dates). `draft` says a check-in draft is kept.
  */
-export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot }; opened?: ReadonlySet<string> }): HomeFacts {
+export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot }; opened?: ReadonlySet<string>; putOff?: ReadonlyMap<string, string> }): HomeFacts {
   const day = today.toISOString().slice(0, 10);
   const p = weekProgress(viewerId, s, cycle, week, today);
   const mine = s.goals.filter((g) => g.ownerId === viewerId);
@@ -115,6 +116,8 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
     watches: watchedGoals(viewerId, s).filter((g) => g.ownerId !== viewerId).length,
     asks: homeAsks(viewerId, s, cycle, week, today),
     // Goal entry rule 14: proposed for the viewer by someone else and not yet opened (what was opened is the Prefs port's).
+    // Every row under "Proposed goals" (both kinds), so the quiet line never says nothing is asked beside them (#319's review).
+    proposalRows: proposalAsks(s.proposed ?? [], { id: viewerId, admin: false }, today, { opened: opts.opened ?? new Set(), putOff: opts.putOff ?? new Map() }).length,
     proposals: proposalAsks(s.proposed ?? [], { id: viewerId, admin: false }, today, { opened: opts.opened ?? new Set(), putOff: new Map() }, (id) => s.people.find((p) => p.id === id)?.name ?? 'Someone')
       .filter((a) => a.kind === 'for-you').map((a) => ({ id: a.goal.id, title: a.goal.title, by: s.people.find((p) => p.id === a.goal.proposedBy)?.name.split(' ')[0] ?? 'Someone', proposedOn: a.goal.proposedAt!.slice(0, 10) })),
   };
@@ -132,11 +135,21 @@ export function wrapUpScope(full: Snapshot, cycle: Cycle, snapshot: Snapshot, we
  * Rule 3's facts for each open ask waiting on the viewer, in its order. A question raised in a review is due before the
  * first session after the one it was raised in, fixed when asked: it doesn't move on when that session passes.
  */
+/**
+ * The day a stamp falls on where the person is: today is their wall-clock day (app/state), so the day an ask was made is
+ * read on the same clock, not in UTC (build review of #310: "Asked yesterday" for an ask made half an hour ago at UTC+10).
+ * On a server, whose zone is UTC, it is the stamp's UTC day.
+ */
+const localDay = (iso: string) => { const n = new Date(iso); return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10); };
+
 export function homeAsks(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): Waiting[] {
   const day = today.toISOString().slice(0, 10);
+  const me = s.people.find((p) => p.id === viewerId)?.name ?? '';
   const first = (id: string) => s.people.find((p) => p.id === id)?.name.split(' ')[0] ?? 'Someone';
+  const all = withProposed(s);
   return openForPerson(viewerId, s).flatMap((r) => {
-    const goals = r.goalIds.map((id) => s.goals.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({ id: g!.id, title: g!.title }));
+    // A proposed goal's asks stay on Home (build review of #349): asked while proposed, or before it went back to proposed.
+    const goals = r.goalIds.map((id) => all.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({ id: g!.id, title: g!.title }));
     if (!goals.length) return [];
     const rv = r.reviewId ? s.reviews.find((v) => v.id === r.reviewId) : undefined;
     let session: AskFacts['session'] = null;
@@ -146,7 +159,7 @@ export function homeAsks(viewerId: string, s: Snapshot, cycle: Cycle, week: numb
     }
     const sunday = (w: number) => new Date(Date.parse(weekDate(cycle, w) + 'T00:00:00Z') + 6 * 86_400_000).toISOString().slice(0, 10);
     const facts: AskFacts = {
-      id: r.id, kind: r.kind, by: r.askedBy === viewerId ? null : first(r.askedBy), goals, said: r.ask, askedOn: r.createdAt.slice(0, 10),
+      id: r.id, kind: r.kind, by: r.askedBy === viewerId ? null : first(r.askedBy), goals, said: r.ask, askedOn: localDay(r.createdAt), was: handedFrom(r.id, me, s.changes ?? []),
       dueWeek: r.dueWeek != null ? { week: r.dueWeek, sunday: sunday(r.dueWeek), dates: weekDates(cycle, r.dueWeek) } : null, session, where: rv?.name ?? null,
     };
     return [waiting(facts, day)];

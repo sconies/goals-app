@@ -5,6 +5,7 @@ import { sheetKindOf } from './columns';
 import { toCsv, workbook } from './export';
 import { parseTable } from './importer';
 import { currentWeek, planAt } from './plan';
+import { cycleDates } from './cycle';
 import { goalStatus } from './status';
 import { buildPlatformOrg } from '../data/platformOrg';
 import type { MetricGoal } from './types';
@@ -176,6 +177,31 @@ describe('bulk changes', () => {
     // Fine, and said on the change (C18): one row replacing someone else's check-in isn't a question.
     expect(cs.issues.find((i) => i.kind === 'replaces')).toMatchObject({ level: 'note', message: expect.stringMatching(/Replaces Tariq Haddad’s check-in for week 6/) });
     expect(cs.commit).not.toBeNull();
+  });
+
+  it('refuses to replace a check-in once the cycle has ended, through every door (review of #326)', () => {
+    const g = s.goals.find((x) => x.id === 'ns-ai') as MetricGoal;
+    const v = String(Math.ceil(planAt(g.planHistory?.[0]?.plan ?? g.plan, 6, cycle.weeks)));
+    const row = rec({ 'Goal ID': 'ns-ai', Week: '6', Value: v, Call: 'On track', Why: 'Recounted from the review tool.' });
+    const { lastDay, wrapUpCloses } = cycleDates(cycle);
+    const ended = new Date(Date.parse(lastDay) + 2 * 86_400_000).toISOString();
+    const closed = new Date(Date.parse(wrapUpCloses) + 2 * 86_400_000).toISOString();
+    const why = 'Recounted from the review tool.';
+    // Tariq owns the goal, so every door lets him check in on it.
+    for (const via of ['spreadsheet', 'table', 'mcp', 'bulk'] as const) {
+      // While the cycle runs, the same row replaces week 6.
+      expect(planChanges(base('tariq', { checkIns: [row] }, { via, reason: why })).counts.replaced).toBe(1);
+      for (const now of [ended, closed]) {
+        const cs = planChanges(base('tariq', { checkIns: [row] }, { via, now, reason: why }));
+        expect(cs.counts.replaced).toBe(0);
+        expect(cs.issues.find((i) => i.severity === 'error')).toMatchObject({ kind: 'cant-change', message: `${cycle.name} has ended, so its check-ins can’t be corrected.` });
+        expect(cs.commit).toBeNull();
+      }
+    }
+    // A workbook loaded later that carries the ended cycle's check-ins unchanged is fine: nothing is replaced.
+    const wb = workbook({ ws: { id: 'ws', name: 'P' }, snapshot: s, cycle, week, today });
+    const same = planChanges(base('amara', { goals: records(tsvOf(wb[1]!.rows)), plan: records(tsvOf(wb[2]!.rows)), checkIns: records(tsvOf(wb[3]!.rows)) }, { now: closed }));
+    expect(same.issues.filter((i) => i.severity === 'error')).toEqual([]);
   });
 
   it('reads milestone stages in words', () => {

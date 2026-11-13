@@ -14,12 +14,15 @@ import type { DisplayStatus, Person, Team } from './types';
 /** Lower case, accents gone: "Lucía" reads as "lucia" (domain/fold.ts). */
 export { fold };
 
-/** The words of a text: broken at spaces and at / - , . : ( ), folded. */
-export const wordsOf = (s: string) => fold(s).split(/[\s/\-,.:()]+/).filter(Boolean);
+/**
+ * The words of a text: broken at spaces and at / - , . : ( ), folded. A point or comma between two digits stays in its
+ * number, so 12.5 is one word and finds 12.5, not every row with a 12 and a 5 (build review of #234).
+ */
+export const wordsOf = (s: string) => fold(s).split(/[\s/\-:()]+|(?<!\d)[.,]+|[.,]+(?!\d)/).filter(Boolean);
 
 /**
  * Rule 1. True when every word of `q` starts a word of `words`, ignoring case and accents (words break at spaces and at
- * / - , . : ( )). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
+ * / - , . : ( ), but a number keeps its point: 12.5). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
  * finds only that goal ("G-48" isn't G-4), while a bare number also matches as words. An empty search matches anything.
  */
 export function textMatches(words: string, q: string, key?: string | null): boolean {
@@ -28,13 +31,17 @@ export function textMatches(words: string, q: string, key?: string | null): bool
 
 /** Rule 1 over words already split by `wordsOf` (a long list splits each row once, not on every key). */
 export function wordsMatch(have: readonly string[], q: string, key?: string | null): boolean {
+  return wordsMatcher(q)(have, key);
+}
+
+/** `wordsMatch` with `q` read once: for a long list, where the same search is tried against every row (N12). */
+export function wordsMatcher(q: string): (have: readonly string[], key?: string | null) => boolean {
   const asked = wordsOf(q);
-  if (!asked.length) return true;
+  if (!asked.length) return () => true;
   const typedKey = normalKey(q.trim());
-  if (typedKey) return !!key && typedKey === key;
+  if (typedKey) return (_, key) => !!key && typedKey === key;
   const bare = /^\d{1,9}$/.test(q.trim()) ? formatKey(Number(q.trim())) : null;
-  if (bare && key && bare === key) return true;
-  return asked.every((w) => have.some((h) => h.startsWith(w)));
+  return (have, key) => (!!bare && !!key && bare === key) || asked.every((w) => have.some((h) => h.startsWith(w)));
 }
 
 /* ---------- Rule 5: a near miss ---------- */

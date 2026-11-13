@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { goalsIn } from '../domain/review';
 import { serve, type Deps } from '../../server/mcp';
 import { applyCommit } from '../data/store';
 import { buildPlatformOrg } from '../data/platformOrg';
@@ -327,6 +328,13 @@ describe('MCP server', () => {
     expect(refused.isError).toBe(true);
     await call('review_call', { review_id: 'devprod', goal_id: 'lead-mq', kind: 'accept', text: 'The vendor fix lands next release; nothing we can do sooner.' });
     expect(data().decisions.at(-1)!.note).toBe('We accept the risk: The vendor fix lands next release; nothing we can do sooner.');
+    // Only about a goal the review walks (build review of #322): one outside it is refused, and nothing is saved.
+    const outside = data().goals.find((g) => !goalsIn(data().reviews.find((r) => r.id === 'devprod')!.scope, data().goals).some((v) => v.id === g.id))!;
+    const before = data().decisions.length;
+    const off = await call('review_call', { review_id: 'devprod', goal_id: outside.id, kind: 'acknowledge' });
+    expect(off.isError).toBe(true);
+    expect(off.content[0]!.text).toContain('doesn’t cover');
+    expect(data().decisions.length).toBe(before);
     await call('add_action', { goal_id: 'lead-review-rota', text: 'Audit CODEOWNERS for payments', who: 'Rhea Kapoor', due_week: 48 });
     const a = data().requests!.at(-1)!;
     expect(a).toMatchObject({ kind: 'action', recipientId: 'rhea', dueWeek: 48, ask: 'Audit CODEOWNERS for payments' });

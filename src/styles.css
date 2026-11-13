@@ -435,6 +435,8 @@ svg.chart { display: block; overflow: visible; }
 .c-target { stroke: var(--on-mark); stroke-width: 1.5; stroke-dasharray: 2 3; }
 .c-target-t { fill: var(--on-fg); font-size: 0.75rem; font-weight: 600; }
 .c-today { stroke: var(--line-strong); stroke-dasharray: 2 2; }
+.c-note line { stroke: var(--muted); stroke-dasharray: 4 3; stroke-width: 1; }
+.c-note text { font-size: 11px; fill: var(--muted); }
 .c-area { fill: var(--risk-bg); }
 .spark { display: block; }
 .legend { display: flex; flex-wrap: wrap; gap: 16px; padding-top: 8px; font-size: 0.75rem; color: var(--fg-2); }

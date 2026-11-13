@@ -59,4 +59,17 @@ describe('property filters on a data table', () => {
     expect(keys('rhea', ['Key', 'Goal'])).toEqual([]);
     expect(keys('rhea')).toEqual(['G-48']);
   });
+  it('finds a goal\'s rows by Goal key on Check-ins and by any of Goal keys on Asks; a decimal is one word (build review of #234)', () => {
+    const checkIns = [{ cells: ['G-48', 'Rollback', '12.5'] }, { cells: ['G-7', 'Fallback', '12'] }, { cells: ['G-9', 'Runner', '5'] }];
+    const ci = (q: string) => applyTable(checkIns, ['Goal key', 'Goal', 'Number'], q, [], null).map((r) => r.cells[0]);
+    expect(ci('G-48')).toEqual(['G-48']);
+    expect(ci('g7')).toEqual(['G-7']);
+    expect(ci('12.5')).toEqual(['G-48']);
+    expect(ci('12')).toEqual(['G-48', 'G-7']);
+    const asks = [{ cells: ['Can we ship?', 'G-48; G-7'] }, { cells: ['Who owns it?', 'G-9'] }, { cells: ['Nothing linked', ''] }];
+    const ak = (q: string) => applyTable(asks, ['Ask', 'Goal keys'], q, [], null).map((r) => r.cells[0]);
+    expect(ak('G-7')).toEqual(['Can we ship?']);
+    expect(ak('G-9')).toEqual(['Who owns it?']);
+    expect(ak('owns')).toEqual(['Who owns it?']);
+  });
 });

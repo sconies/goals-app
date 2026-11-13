@@ -228,6 +228,9 @@
   /* The ask itself is the one thing to read: it wraps to two lines at word breaks rather than being cut mid-word (U27). */
   .needs-you .need-quote { white-space: normal; text-overflow: clip; overflow-wrap: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.1875rem; }
 }
+/* Stacked: 8px under the titles of Needs your response and Your goals, not 12, so the first of your goals that needs
+   attention starts on the first screen on review days too (build review of #305: 5 of 70 person-days). */
+@container page (max-width: 959px) { .page.home .needs-you, .page.home .home-mine { gap: 8px; } }
 /* The lead's line and the quiet line are sentences now (HM1), so they wrap on a phone rather than being cut. */
 /* The hero's buttons sit 8px under its words (4px on a phone, below). */
 .home-hero .hero-body > .row { margin-top: 8px; }
@@ -246,6 +249,8 @@
 .home-counts .dash-count { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; color: var(--fg); text-decoration: none; }
 .home-counts .dash-count:hover { text-decoration: underline; text-underline-offset: 2px; }
 .home-mine .home-sub > .need-group-title.linkish { display: inline-block; margin-bottom: 4px; }
+/* On a touch screen its 44px tap area already spaces it from the list (build review of #305). */
+@media (pointer: coarse) { .home-mine .home-sub > .need-group-title.linkish { margin-bottom: -8px; } }
 .home-news-foot { margin-top: var(--s4); padding-top: var(--s3); border-top: 1px solid var(--line); }
 @media (pointer: coarse) { .home-counts .dash-count { min-height: 44px; } }
 /* The warning mark in the lead's eyebrow ("Not held yet", a late ask): the eyebrow's own size, never the SVG's default. */

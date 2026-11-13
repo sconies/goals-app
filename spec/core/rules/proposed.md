@@ -11,7 +11,7 @@ A goal can be proposed before anyone is held to it: visible to everyone, never j
 
 **Data.** A goal is proposed while `proposedAt` is set (with `proposedBy`, who proposed it) and it is neither removed nor stopped (`isProposed`). Making it active clears both; History has when.
 
-**Never judged.** `judged(goals)` is those neither proposed nor stopped, and every rule that leaves a stopped goal out leaves a proposed one out the same way: the cycle's scope (`scopeToCycle`) keeps proposed goals beside its goals, never among them, so no status rule is ever run on one and it is in no count, health line, Needs attention, review agenda, check-in, wrap-up, streak or metric comparison. A check-in on one is refused at every door: "This goal is proposed, so there is nothing to check in. Make it active first." Its summary has the state `proposed` and the status word "Proposed", drawn as a word alone, with no shape.
+**Never judged.** `judged(goals)` is those neither proposed nor stopped, and every rule that leaves a stopped goal out leaves a proposed one out the same way: the cycle's scope (`scopeToCycle`) keeps proposed goals beside its goals, never among them, so no status rule is ever run on one and it is in no count, health line, Needs attention, review agenda, check-in, wrap-up, streak or metric comparison. A proposed goal may name its metric: the metric's page lists it under its goals table as "Proposed · {n}" with no numbers (the metrics module's `proposedOfMetric`), and `get_metric` gives it apart as `proposed`. A check-in on one is refused at every door: "This goal is proposed, so there is nothing to check in. Make it active first." Its summary has the state `proposed` and the status word "Proposed", drawn as a word alone, with no shape.
 
 **Counted apart.** `goalCounts` gives active and proposed apart, and a count line adds "{n} proposed": "2 goals, worst first. 1 proposed". With the State filter on Proposed (`state=proposed`), Goals lists them newest first; the Board is one column, "Proposed"; the Map draws each in its tree with the goals above it for context, as a node with a dashed outline and the word, on no critical path and in no "Under it", and opening one goes to its page. Without the filter neither draws one.
 
@@ -86,6 +86,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 14: proposed goals › GE10 review: a stages goal proposed with a stage already done saves no check-in
 - rule 14: proposed goals › GE10 review: marking an owner as left hands over their proposed goals too
 - rule 14: proposed goals › a goal with a check-in can’t go back to proposed, by the menu or by a file
+- rule 14: proposed goals › build review of #349: a goal from another year can’t go back to proposed; an ask on a goal sent back to proposed stays on Home
 - rule 14: proposed goals › a goal proposed 9 weeks ago asks its owner on Home
 - rule 14: proposed goals › it carries into the next year as proposed
 - rule 14: proposed goals › New goal’s last step: the question and “After you propose it”
