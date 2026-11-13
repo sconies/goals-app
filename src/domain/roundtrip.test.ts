@@ -76,6 +76,30 @@ describe('one format: export, load back, no change', () => {
   }
 });
 
+/* NR3 (spec 2.4): the Check-ins sheet says where each number came from in four columns that are only for reading. A
+   workbook with readings in it, confirmed and typed over with a reason, loads back as no change, and a reader sees them. */
+describe('readings in the Check-ins sheet', () => {
+  it('fills the four columns, and loads back as no change at all', async () => {
+    const d = demos()[0]!;
+    const ci = [...d.full.checkIns].filter((c) => c.goalId === 'ns-ci' && c.value != null).sort((a, b) => a.week - b.week).slice(-2);
+    const [typed, confirmed] = ci as [typeof ci[number], typeof ci[number]];
+    const full = { ...d.full, checkIns: d.full.checkIns.map((c) => c.id === confirmed.id ? { ...c, reading: { source: 'CI analytics', value: c.value!, at: '2026-11-05T09:00:00.000Z' } } : c.id === typed.id ? { ...c, reading: { source: 'CI analytics', value: c.value! + 2, at: '2026-10-29T09:00:00.000Z', why: { kind: 'other-count' as const, text: 'It leaves out release branches.' } } } : c) };
+    const grids = await asXlsx(bookOf(d, full));
+    const sheet = grids.find((g) => g.name === 'Check-ins')!;
+    const head = sheet.rows[0]!.map(String);
+    const col = (h: string) => head.indexOf(h);
+    expect(head.slice(col('Value'), col('Value') + 5)).toEqual(['Value', 'Number from', 'Source’s number', 'Measured at', 'Reason for a different number']);
+    const row = (id: string) => sheet.rows.find((r) => r[col('ID')] === id)!;
+    expect([row(confirmed.id)[col('Number from')], row(confirmed.id)[col('Source’s number')], row(confirmed.id)[col('Measured at')]]).toEqual(['CI analytics', String(confirmed.value), '2026-11-05T09:00:00.000Z']);
+    expect([row(typed.id)[col('Number from')], row(typed.id)[col('Reason for a different number')]]).toEqual(['Typed', 'The source counts something else: “It leaves out release branches.”']);
+    const read = readTables(grids);
+    expect(read.unknownColumns).toEqual([]);
+    const cs = load({ ...d, full }, read.tables);
+    expect(errors(cs)).toEqual([]);
+    expect(cs.items).toEqual([]);
+  }, 30_000);
+});
+
 /* IM0 (import spec rule 9, N18 a): the round trip is exact on any day. The demo is rebuilt for the day it is opened, so
    its plans fall on different numbers each week: on 11 Nov a plan week of 0.405 USD was written 0.41 and read back as a
    change ("1 plan changed"), and in September a stage moved later read back as a new order of stages. */

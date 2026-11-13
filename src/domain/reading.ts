@@ -78,3 +78,53 @@ export function readingLine(c: { value: number | null; reading?: CheckInReading 
   if (sameAtPlaces(c.value, r.value, g.decimals)) return `${fmt(r.value, g)}, from ${r.source}, read ${readWhen(r.at, today, timeZone)}. Confirmed by you.`;
   return `${fmt(c.value, g)}, typed. ${r.source} said ${fmt(r.value, g)}${r.why ? `: ${reasonWords(r.why).replace(/\.$/, '')}` : ''}.`;
 }
+
+/* ---------- where a reading's source shows elsewhere (NR3, spec 2.4) ---------- */
+
+type Read = { value: number | null; reading?: CheckInReading | null };
+
+/** Whether a check-in used its source's number (confirmed it), rather than typing another. False when nothing was read. */
+export const readingConfirmed = (c: Read, decimals: number): boolean => !!c.reading && c.value != null && sameAtPlaces(c.value, c.reading.value, decimals);
+
+/** The reason in a sentence: "The source counts something else: “It leaves out…”", or the choice alone, ending in a stop. */
+export function readingReason(w: NonNullable<CheckInReading['why']>): string {
+  const words = w.text?.trim();
+  return words ? `${readingWhyLabel(w.kind)}: “${words}”` : `${readingWhyLabel(w.kind).replace(/\.$/, '')}.`;
+}
+
+/**
+ * A goal's "This week’s number" under Measured by (2.4): what its latest check-in recorded. "12 min, from CI analytics,
+ * read 9:02 today. Confirmed by Rhea Kapoor." or "14 min, typed by Rhea Kapoor. CI analytics said 12 min." Null when
+ * that check-in recorded no reading: Faro keeps no series of readings.
+ */
+export function readingThisWeek(c: Read | null | undefined, g: Numeric, name: string, today: Date, timeZone?: string): string | null {
+  const r = c?.reading;
+  if (!c || !r || c.value == null) return null;
+  if (readingConfirmed(c, g.decimals)) return `${fmt(r.value, g)}, from ${r.source}, read ${readWhen(r.at, today, timeZone)}. Confirmed by ${name}.`;
+  return `${fmt(c.value, g)}, typed by ${name}. ${r.source} said ${fmt(r.value, g)}.`;
+}
+
+/**
+ * A History row's second line for a check-in (2.4, MT4 5.3 with the reason): "From CI analytics, read 9:02 on Thu 12 Nov.
+ * Rhea Kapoor checked in." or "Typed by Rhea Kapoor. CI analytics said 13 min. The source counts something else: “…”".
+ * A check-in with no reading says "Typed by {name}." only beside one that has (`nearSourced`); otherwise null.
+ */
+export function readingHistoryLine(c: Read, g: Numeric, name: string, today: Date, opts: { nearSourced?: boolean; timeZone?: string } = {}): string | null {
+  const r = c.reading;
+  if (!r || c.value == null) return opts.nearSourced && c.value != null ? `Typed by ${name}.` : null;
+  if (readingConfirmed(c, g.decimals)) return `From ${r.source}, read ${readWhen(r.at, today, opts.timeZone)}. ${name} checked in.`;
+  return `Typed by ${name}. ${r.source} said ${fmt(r.value, g)}.${r.why ? ` ${readingReason(r.why)}` : ''}`;
+}
+
+/** A review's agenda row (2.4): the source a confirmed number came from, said after the number in the quiet ink; null for
+    a typed number, which says nothing (answer d). */
+export const readingFrom = (c: Read | null | undefined, decimals: number): string | null => (c && readingConfirmed(c, decimals) ? c.reading!.source : null);
+
+/** The Check-ins sheet's columns for a check-in's reading (MT4 3.3, NR 2.4), worked out and never loaded back: Number
+    from ("Typed", or the source's name), Source’s number, Measured at (ISO, UTC) and Reason for a different number.
+    All empty when nothing was read. */
+export function readingCells(c: Read, decimals: number): { from: string | null; value: number | null; at: string | null; reason: string | null } {
+  const r = c.reading;
+  if (!r) return { from: null, value: null, at: null, reason: null };
+  return { from: readingConfirmed(c, decimals) ? r.source : 'Typed', value: r.value, at: new Date(r.at).toISOString(), reason: r.why ? readingReason(r.why) : null };
+}

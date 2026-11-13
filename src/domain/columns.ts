@@ -11,6 +11,7 @@ import { EVERYDAY_WORD, LEVEL_WORDS } from './levels';
 export { LEVEL_WORDS };
 import { ASK_KIND_LABEL, ASK_STATUS_LABEL, asksOf } from './asks';
 import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, MIN_PATH, MIN_REASON } from './checkin';
+import { readingCells } from './reading';
 import { planAsOf, planAt, planEnd, weekDate } from './plan';
 import { weekCode } from './weeks';
 import { answerOf, saidIn, type Said } from './review';
@@ -263,6 +264,9 @@ export const planWeekValue = (r: PlanRow, week: number): Cell => {
   return week <= from || week > end ? null : Number(planAt(r.g.plan, week, r.c.x.cycle.weeks).toFixed(r.g.decimals));
 };
 
+/** A check-in's reading, as the sheet's four columns say it. */
+const cellsOf = (r: CheckInRow) => readingCells(r.ci, r.g.kind === 'milestone' ? 0 : r.g.decimals);
+
 export const CHECK_INS: SheetSpec<CheckInRow> = {
   kind: 'checkIns', name: 'Check-ins', rowIs: 'check-in', loaded: true,
   about: 'Every check-in: the number or stages reported each week, the owner’s call and their account of it. Add a row with no ID for a new check-in, a past week included.',
@@ -275,6 +279,11 @@ export const CHECK_INS: SheetSpec<CheckInRow> = {
     m('Week', 'The week it reports on, counted from the cycle’s start (week 1 onwards).', (r) => r.ci.week, 'Matches the week; a check-in’s week never changes'),
     w('Week starting', 'The date that week starts.', (r) => weekDate(r.c.x.cycle, r.ci.week)),
     e('Value', 'Number and range goals: the number that week.', (r) => r.ci.value),
+    // Where the number came from (MT4 3.3, NR 2.4): facts about the check-in, worked out and never loaded back.
+    w('Number from', '“Typed”, or the name of the source the number was filled in from. Empty when no source was read.', (r) => cellsOf(r).from),
+    w('Source’s number', 'What the source said, when one was read.', (r) => cellsOf(r).value),
+    w('Measured at', 'When the source measured it (ISO, UTC).', (r) => cellsOf(r).at),
+    sh('Reason for a different number', 'Why the owner’s number differs from the source’s, in their words.', (r) => cellsOf(r).reason),
     e('Stages', 'Milestone goals: each stage as “Pilot: done week 6”, “Pilot: expected week 8” or “Pilot: due week 7”, separated by semicolons.', (r) => or(stagesText(r.g, r.ci))),
     e('Call', `The owner’s status call: ${oneOf(Object.values(CALL_WORDS.word))}. Empty: the rules decide.`, (r) => CALL_WORDS.word[r.ci.status]),
     e('Cause', `Why it’s ahead or behind: ${oneOf([...new Set(Object.values(CAUSE_WORDS.word))])}.`, (r) => or(r.ci.cause ? causeLabel(r.ci.cause) : null), 'Required when behind or well ahead, as in the app'),

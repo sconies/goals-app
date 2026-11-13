@@ -5,7 +5,7 @@ import { NotAllowed } from './actions';
 import { planChanges, postCheckIn, type CheckInPost } from './changeset';
 import { emptyDraft } from './checkin';
 import { currentWeek, planAt } from './plan';
-import { readingLine, readingProblem, readWhen } from './reading';
+import { readingFrom, readingHistoryLine, readingLine, readingProblem, readingThisWeek, readWhen } from './reading';
 import type { CheckInReading, MetricGoal, Snapshot } from './types';
 
 const today = new Date('2026-11-05T12:00:00Z');
@@ -74,5 +74,30 @@ describe('the read-back (2.3)', () => {
     expect(readWhen('2026-10-29T09:00:00.000Z', today, 'UTC')).toBe('9:00 on Thu 29 Oct');
     // 23:30 UTC on the 4th is 10:30 on the 5th in Sydney: today there.
     expect(readWhen('2026-11-04T23:30:00.000Z', today, 'Australia/Sydney')).toBe('10:30 today');
+  });
+});
+
+describe('where a reading shows elsewhere (2.4)', () => {
+  const g = { unit: 'min', decimals: 0 };
+  const at = '2026-11-05T09:02:00.000Z';
+  const confirmed = { value: 12, reading: { source: 'CI analytics', value: 12, at } };
+  const typed = { value: 15, reading: { source: 'CI analytics', value: 13, at, why: { kind: 'other-count' as const, text: 'It leaves out the release branch pipelines we moved on Monday.' } } };
+  it('says this week’s number under Measured by, only from what the latest check-in recorded', () => {
+    expect(readingThisWeek(confirmed, g, 'Rhea Kapoor', today, 'UTC')).toBe('12 min, from CI analytics, read 9:02 today. Confirmed by Rhea Kapoor.');
+    expect(readingThisWeek(typed, g, 'Rhea Kapoor', today, 'UTC')).toBe('15 min, typed by Rhea Kapoor. CI analytics said 13 min.');
+    expect(readingThisWeek({ value: 15, reading: null }, g, 'Rhea Kapoor', today, 'UTC')).toBe(null);
+    expect(readingThisWeek(undefined, g, 'Rhea Kapoor', today, 'UTC')).toBe(null);
+  });
+  it('says a History row’s second line, with the reason and the owner’s words', () => {
+    expect(readingHistoryLine(confirmed, g, 'Rhea Kapoor', today, { timeZone: 'UTC' })).toBe('From CI analytics, read 9:02 today. Rhea Kapoor checked in.');
+    expect(readingHistoryLine(typed, g, 'Rhea Kapoor', today, { timeZone: 'UTC' })).toBe('Typed by Rhea Kapoor. CI analytics said 13 min. The source counts something else: “It leaves out the release branch pipelines we moved on Monday.”');
+    expect(readingHistoryLine({ value: 15, reading: { ...typed.reading, why: { kind: 'behind' } } }, g, 'Rhea Kapoor', today, { timeZone: 'UTC' })).toBe('Typed by Rhea Kapoor. CI analytics said 13 min. The source is behind: I have a newer number.');
+    expect(readingHistoryLine({ value: 15, reading: null }, g, 'Rhea Kapoor', today, { nearSourced: true })).toBe('Typed by Rhea Kapoor.');
+    expect(readingHistoryLine({ value: 15, reading: null }, g, 'Rhea Kapoor', today)).toBe(null);
+  });
+  it('names the source on a review’s agenda only for a confirmed number', () => {
+    expect(readingFrom(confirmed, 0)).toBe('CI analytics');
+    expect(readingFrom(typed, 0)).toBe(null);
+    expect(readingFrom({ value: 12, reading: null }, 0)).toBe(null);
   });
 });

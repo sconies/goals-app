@@ -4,7 +4,7 @@
    `CheckIn.reading`, which no rule that judges a goal reads. */
 import { sameAtPlaces } from '../../domain/reading';
 import { RULES } from '../../domain/thresholds';
-import type { CheckInReading } from '../../domain/types';
+import type { CheckIn, CheckInReading } from '../../domain/types';
 import type { NumberSource, Reading, Slice, SourcedMetric } from './source';
 
 export type ReadingState = 'no-slice' | 'unreachable' | 'missing' | 'old' | 'same' | 'jump' | 'changed' | 'fresh';
@@ -70,3 +70,58 @@ export function recordReading(source: string | null, reading: Reading | null, va
   const differs = value != null && !sameAt(value, reading.value, decimals);
   return { source, value: reading.value, at: reading.at, ...(differs && why ? { why } : {}) };
 }
+
+/* ---------- rule 4: where a reading shows on the metric's page (NR3, spec 2.4) ---------- */
+
+/** Whether a goal's check-in is filled in from a source: a source reads the metric for the goal's slice; one reads the
+    metric but not this slice (a company-wide number is never a team's); or no source reads it. `lastAt` is when the
+    goal's latest recorded reading was measured, null when none has been recorded yet. */
+export type FillsIn = { kind: 'filled'; source: string; lastAt: string | null } | { kind: 'no-slice'; source: string } | { kind: 'none' };
+
+/** Rule 4a: how a goal's check-in gets its number, from the sources that are registered, without asking any of them. */
+export function fillsIn(sources: readonly NumberSource[], metric: SourcedMetric, slice: Slice, checkIns: readonly Pick<CheckIn, 'reading' | 'removedAt'>[]): FillsIn {
+  const forSlice = sources.find((s) => s.reads(metric, slice));
+  if (forSlice) {
+    const read = checkIns.filter((c) => !c.removedAt && c.reading?.source === forSlice.name).map((c) => c.reading!.at).sort();
+    return { kind: 'filled', source: forSlice.name, lastAt: read.at(-1) ?? null };
+  }
+  const any = sources.find((s) => s.reads(metric));
+  return any ? { kind: 'no-slice', source: any.name } : { kind: 'none' };
+}
+
+/** Rule 4a's words, in the table's "In its check-in" column. `when` says a time as the check-in does ("9:02 today"). */
+export function fillsInWords(f: FillsIn, when: (at: string) => string): string {
+  if (f.kind === 'filled') return `Filled in from ${f.source}${f.lastAt ? ` · last read ${when(f.lastAt)}` : ''}`;
+  if (f.kind === 'no-slice') return `Typed by hand: ${f.source} has no number per team`;
+  return 'Typed by hand: no source can be read';
+}
+
+/** How many weeks back rule 4b counts. */
+export const READING_WEEKS = 8;
+
+/** Rule 4b for one source: of the check-ins filled in from it (`n`), how many used a different number (`k`), and which
+    goals and weeks those were, newest first. Goals and weeks, never people. */
+export interface DifferentNumbers { source: string; n: number; k: number; weeks: { goalId: string; week: number }[] }
+
+/**
+ * Rule 4b: across a metric's goals (`decimals` by goal id), the check-ins of the last READING_WEEKS weeks up to `week`
+ * that recorded a reading, by source; a check-in "used a different number" when its own number isn't the source's at the
+ * goal's decimals. Removed check-ins don't count. A source no check-in was filled in from isn't listed.
+ */
+export function differentNumbers(checkIns: readonly Pick<CheckIn, 'goalId' | 'week' | 'value' | 'reading' | 'removedAt'>[], decimals: ReadonlyMap<string, number>, week: number): DifferentNumbers[] {
+  const by = new Map<string, DifferentNumbers>();
+  for (const c of checkIns) {
+    const d = decimals.get(c.goalId);
+    if (d == null || c.removedAt || !c.reading || c.value == null || c.week > week || c.week <= week - READING_WEEKS) continue;
+    const row = by.get(c.reading.source) ?? { source: c.reading.source, n: 0, k: 0, weeks: [] };
+    row.n++;
+    if (!sameAt(c.value, c.reading.value, d)) { row.k++; row.weeks.push({ goalId: c.goalId, week: c.week }); }
+    by.set(row.source, row);
+  }
+  for (const r of by.values()) r.weeks.sort((a, b) => b.week - a.week || a.goalId.localeCompare(b.goalId));
+  return [...by.values()].sort((a, b) => a.source.localeCompare(b.source));
+}
+
+/** Rule 4b's line under the table. */
+export const differentWords = (d: Pick<DifferentNumbers, 'source' | 'n' | 'k'>): string =>
+  `In the last ${READING_WEEKS} weeks, ${d.k} of ${d.n} ${d.n === 1 ? 'check-in' : 'check-ins'} filled in from ${d.source} used a different number.`;
