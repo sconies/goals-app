@@ -266,8 +266,9 @@ export function ReviewHome() {
           ))}</ul>
         </section>
       )}
-      {/* Before this review (habit spec 2.3): how many of its goals were checked in before it, and the last 8 weeks. */}
-      <BeforeReview goals={s.items.map((a) => a.goal)} week={s.week} link={`inreview=${encodeURIComponent(review.id)}`} heading="Before this review" />
+      {/* Before this review (habit spec 2.3): how many of its goals were checked in before it, and the last 8 weeks. A
+          session in a later week is counted as this week so far: nothing can be in for a week that hasn't started. */}
+      <BeforeReview goals={s.items.map((a) => a.goal)} week={Math.min(s.week, app.week)} link={`inreview=${encodeURIComponent(review.id)}`} heading="Before this review" />
       {/* Held: what was said comes first, with every goal reviewed. */}
       {done && <SessionRecord s={s} title="What was said" reviewed="open" />}
       {!done && remaining.length > 0 && (

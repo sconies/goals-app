@@ -33,7 +33,8 @@ export function BeforeReview({ goals, week, link, heading, reviews = true }: { g
     <section className="block habit" data-part={heading} aria-labelledby="habit-head">
       <span className="field-label" id="habit-head">{heading}</span>
       <p className="habit-sum">{b.says}</p>
-      {(h.asked > 0 || h.none > 0) && (
+      {/* Goals' checkedin= reads this week, so the links are offered only for it (a past session's counts stand alone). */}
+      {week === app.week && (h.asked > 0 || h.none > 0) && (
         <p className="small habit-links">
           {h.asked > 0 && <Link className="linkish" data-n={h.asked} to={to('asked')}>{h.asked} came in after an ask</Link>}
           {h.asked > 0 && h.none > 0 && <span className="muted" aria-hidden="true"> · </span>}

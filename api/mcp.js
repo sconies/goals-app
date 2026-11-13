@@ -25564,7 +25564,7 @@ var tools$1 = [
 					answer: answerOf(d)?.text ?? null
 				} : {}
 			}));
-			const b = beforeReview(x.items.map((i) => i.goal), x.week, {
+			const b = beforeReview(x.items.map((i) => i.goal), Math.min(x.week, ctx.week), {
 				checkIns: ctx.snapshot.checkIns,
 				asks: ctx.snapshot.requests ?? []
 			}, ctx.cycle, ctx.today, ctx.actor.id);
