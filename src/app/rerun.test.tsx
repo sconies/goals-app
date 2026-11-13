@@ -4,7 +4,7 @@
    saves that. Only a rule that now says no is shown, in its own words; two more stale refusals give up with the message
    from before. The store here is the browser store, with someone else's save slipped in just before the app's. */
 import { act, render, waitFor } from '@testing-library/react';
-import { AppProvider, STALE_SAVE, useApp, useToasts, type AppState } from './state';
+import { AppProvider, NOBODY, STALE_SAVE, useApp, useToasts, type AppState } from './state';
 import { saveRerunning } from './rerun';
 import { BrowserStore, StaleError, withExpectations, type Commit } from '../data/store';
 import { contractWorkspace } from '../ports/contracts/store';
@@ -42,6 +42,12 @@ describe('saveRerunning', () => {
     expect(saves).toBe(1 + STALE_RERUNS);
   });
 
+  it('throws the stale refusal when the reload after it fails, so it is said not to have been saved', async () => {
+    const stale = new StaleError('goal g');
+    await expect(saveRerunning(s0, () => ({ out: 0, commit: c(0) }), async () => { throw stale; }, async () => { throw new Error('offline'); }))
+      .rejects.toBe(stale);
+  });
+
   it('doesn’t run again when told not to (a whole-record input), or when the failure isn’t stale', async () => {
     let saves = 0;
     await expect(saveRerunning(s0, () => ({ out: 0, commit: c(0) }), async () => { saves++; throw new StaleError('goal g'); }, async () => s1, 0)).rejects.toBeInstanceOf(StaleError);
@@ -64,11 +70,13 @@ describe('a save refused as stale, in the app', () => {
     await store.createWorkspace({ id: 'ws_r', name: 'R', kind: 'own', createdAt: today().toISOString() }, s);
     const inner = store.commit.bind(store);
     const others: ((now: Snapshot) => Commit)[] = [];
-    let saves = 0;
+    let saves = 0, failLoads = 0;
+    const load = store.load.bind(store);
+    store.load = (async (...a: Parameters<typeof store.load>) => { if (failLoads > 0) { failLoads--; throw new Error('offline'); } return load(...a); }) as typeof store.load;
     store.commit = async (ws, c) => {
       saves++;
       const other = others.shift();
-      if (other) { const now = await store.load(ws); await inner(ws, withExpectations(other(now), now)); }
+      if (other) { const now = await load(ws); await inner(ws, withExpectations(other(now), now)); }
       return inner(ws, c);
     };
     let app: AppState | null = null;
@@ -82,52 +90,79 @@ describe('a save refused as stale, in the app', () => {
     await waitFor(() => expect(app?.viewer.id).toBe(admin));
     // A goal with no check-ins, so its owner or an admin may delete it.
     const goal = s.goals.find((g) => !s.checkIns.some((c) => c.goalId === g.id))!;
-    return { store, s, goal, others, saves: () => saves, app: () => app!, toasts: () => toasts };
+    return { store, s, goal, admin, others, saves: () => saves, failLoads: (n: number) => { failLoads = n; }, app: () => app!, toasts: () => toasts };
   }
   const renamed = (id: string, title: string) => (now: Snapshot): Commit => ({ goals: [{ ...now.goals.find((g) => g.id === id)!, title }], changes: [] });
+  /** The goal deleted (nothing slipped in first), so putting it back (Restore: a plain action, no confirm step) can be run. */
+  async function deleted(key: string) {
+    const t = await open(key);
+    await act(async () => { await t.app().run('deleteGoal', { goalId: t.goal.id }); });
+    expect((await t.store.load('ws_r')).goals.find((x) => x.id === t.goal.id)!.removedAt).toBeTruthy();
+    return { ...t, saves: ((n) => () => t.saves() - n)(t.saves()) };
+  }
+  const restore = (t: Awaited<ReturnType<typeof open>>) => t.app().run('restoreRemoved', { kind: 'goal', id: t.goal.id }).then(() => null, (e: unknown) => e);
 
   it('runs again on the latest and saves that: someone else’s change stays, and so does the person’s', async () => {
-    const t = await open('rerun1');
+    const t = await deleted('rerun1');
     t.others.push(renamed(t.goal.id, 'Renamed by someone else'));
-    await act(async () => { await t.app().run('deleteGoal', { goalId: t.goal.id }); });
+    let err: unknown;
+    await act(async () => { err = await restore(t); });
+    expect(err).toBeNull();
     const g = (await t.store.load('ws_r')).goals.find((x) => x.id === t.goal.id)!;
     expect(g.title).toBe('Renamed by someone else');
-    expect(g.removedAt).toBeTruthy();
+    expect(g.removedAt).toBeFalsy();
     expect(t.saves()).toBe(2);
-    // The success says what it did, with Undo, as a save that wasn't refused does; no "try again".
-    await waitFor(() => expect(t.toasts().some((x) => x.kind === 'success' && x.action?.label === 'Undo')).toBe(true));
     expect(t.toasts().some((x) => x.text === STALE_SAVE)).toBe(false);
   });
 
   it('shows the rule’s own words when it now says no, and saves nothing', async () => {
-    const t = await open('rerun2');
-    // Someone else gives the goal a check-in first (and touches it), so it can't be deleted now, only stopped.
-    t.others.push((now) => {
-      const g = now.goals.find((x) => x.id === t.goal.id)!;
-      return { goals: [{ ...g }], checkIns: [{ id: 'ci_other', goalId: g.id, week: 1, value: 1, status: 'on', at: today().toISOString(), authorId: g.ownerId } as unknown as Snapshot['checkIns'][number]], changes: [] };
-    });
-    const before = (await t.store.load('ws_r')).changes.length;
+    const t = await deleted('rerun2');
+    // Someone else puts it back first, so there's nothing removed to restore now.
+    t.others.push((now) => ({ goals: [{ ...now.goals.find((x) => x.id === t.goal.id)!, removedAt: null, removedBy: null }], changes: [] }));
     let err: unknown;
-    await act(async () => { err = await t.app().run('deleteGoal', { goalId: t.goal.id }).then(() => null, (e: unknown) => e); });
-    expect((err as Error).message).toMatch(/It has check-ins: stop it instead/);
-    await waitFor(() => expect(t.toasts().some((x) => x.kind === 'error' && /It has check-ins: stop it instead/.test(x.text))).toBe(true));
-    const after = await t.store.load('ws_r');
-    expect(after.goals.find((x) => x.id === t.goal.id)!.removedAt).toBeFalsy();
-    expect(after.changes.length).toBe(before);
+    await act(async () => { err = await restore(t); });
+    expect((err as Error).message).toMatch(/nothing removed with that ID/);
+    await waitFor(() => expect(t.toasts().some((x) => x.kind === 'error' && /nothing removed with that ID/.test(x.text))).toBe(true));
+    expect(t.saves()).toBe(1);
     expect(t.toasts().some((x) => x.text === STALE_SAVE)).toBe(false);
   });
 
   it('gives up after two re-runs refused as stale, with the message from before', async () => {
-    const t = await open('rerun3');
+    const t = await deleted('rerun3');
     for (let i = 0; i <= STALE_RERUNS; i++) t.others.push(renamed(t.goal.id, `Renamed ${i}`));
     let err: unknown;
-    await act(async () => { err = await t.app().run('deleteGoal', { goalId: t.goal.id }).then(() => null, (e: unknown) => e); });
+    await act(async () => { err = await restore(t); });
     expect(err).toBeInstanceOf(StaleError);
     expect(t.saves()).toBe(1 + STALE_RERUNS);
     await waitFor(() => expect(t.toasts().some((x) => x.text === STALE_SAVE)).toBe(true));
-    // And they're shown the latest.
-    await waitFor(() => expect(t.app().goal(t.goal.id)?.title).toBe(`Renamed ${STALE_RERUNS}`));
-    expect((await t.store.load('ws_r')).goals.find((x) => x.id === t.goal.id)!.removedAt).toBeFalsy();
+    expect((await t.store.load('ws_r')).goals.find((x) => x.id === t.goal.id)!.removedAt).toBeTruthy();
+  });
+
+  it('refuses, as for anyone not signed in, when the person was marked as left before it ran again', async () => {
+    const t = await deleted('rerun5');
+    // Someone else marks the admin as left, and touches the goal, before her Restore lands.
+    t.others.push((now) => ({
+      goals: [{ ...now.goals.find((x) => x.id === t.goal.id)!, title: 'Touched' }],
+      people: [{ ...now.people.find((p) => p.id === t.admin)!, leftAt: today().toISOString(), leftBy: 'someone' }],
+      changes: [],
+    }));
+    let err: unknown;
+    await act(async () => { err = await restore(t); });
+    expect((err as Error).message).toBe(NOBODY);
+    await waitFor(() => expect(t.toasts().some((x) => x.kind === 'error' && x.text === NOBODY)).toBe(true));
+    expect(t.saves()).toBe(1);
+    expect((await t.store.load('ws_r')).goals.find((x) => x.id === t.goal.id)!.removedAt).toBeTruthy();
+  });
+
+  it('says it wasn’t saved when the reload after a stale refusal fails', async () => {
+    const t = await deleted('rerun6');
+    t.others.push(renamed(t.goal.id, 'Renamed by someone else'));
+    t.failLoads(1);
+    let err: unknown;
+    await act(async () => { err = await restore(t); });
+    expect(err).toBeInstanceOf(StaleError);
+    expect(t.saves()).toBe(1);
+    await waitFor(() => expect(t.toasts().some((x) => x.text === STALE_SAVE)).toBe(true));
   });
 
   it('doesn’t run a whole goal form again: it would put back what someone else just changed', async () => {
