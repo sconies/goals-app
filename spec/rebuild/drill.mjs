@@ -257,6 +257,10 @@ export async function runContract(contract, call, only = null) {
           if (s.pages.each) for (const p of checkThen(s.pages.each, o)) problems.push(`${where}page ${pages}: ${p}`);
           rows.push(...(o.ok?.rows ?? []));
           if (!o.ok?.next) break;
+          if (pages === 1 && s.pages.between) {
+            const b = await call({ port: contract.port, op: s.pages.between.op, args: s.pages.between.args ?? [] });
+            if ('error' in b) { problems.push(`${where}between pages (${s.pages.between.op}): refused: ${b.error}`); failed = true; break; }
+          }
           args[s.pages.arg] = { ...(args[s.pages.arg] ?? {}), after: o.ok.next };
         }
         if (!failed) for (const p of checkThen(s.then, { ok: { pages, rows } })) problems.push(where + p);
