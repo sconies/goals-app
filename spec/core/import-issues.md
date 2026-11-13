@@ -32,6 +32,7 @@ Faro can’t record it truthfully. Nothing is saved while one is left, unless an
 | `not-allowed` | The person loading the file may not make the change: a goal they don’t own and aren’t an admin for, people when they aren’t an admin, a goal at a level only its owner may set. | 1 row changes a goal you don’t own | Leave these rows out | `not-allowed` |
 | `removal-refused` | Stop with no reason, Delete on a goal with check-ins, or Left with no one to take over. | 1 row can’t be stopped or deleted as it stands | — | `removal-refused` |
 | `loop` | A goal that would feed itself, directly or round a loop of Feeds into links. | 1 goal would feed itself | — | `loop` |
+| `text-length` | A text cell shorter or longer than its column takes: a metric’s name under 3 or over 120 characters, a unit over 20, a meaning over 2,000. | — | — | None. A module sheet’s reader, through the engine: the metric library’s Metrics sheet (src/modules/metrics/sheetRead.ts; its cases are in spec/conformance/metrics.csv). The core’s sheets have no length limit. |
 
 ## Check (`check`)
 
@@ -59,6 +60,9 @@ Possible but unlikely: a question. The change saves once it is answered; one ans
 | `totals-row` | A row called Total, Totals or Sum with no owner. | Row 2 is called “TOTAL” and has no owner. It looks like a totals row. | Leave it out · It’s a goal | `totals-row` |
 | `big-removal` | Five or more rows say Stop, Delete or Left. | This file stops 5 goals. Is that right? | That’s right · Leave these rows out | `big-removal` |
 | `feeds-lower` | A goal that feeds a goal at a lower level than its own. | A north star usually feeds nothing, and “Pipeline queue wait (p90)” is an SVP goal. Is this link right? | Yes, it feeds that goal · Leave these rows out | `feeds-lower` |
+| `changes-goals` | A row changes a record other goals are measured by in a way they would show: a metric’s meaning or source (is it still the same number?), its direction (goals would aim the wrong way), fewer decimals than its goals show. | — | — | None. A module sheet’s reader, through the engine: the metric library’s Metrics sheet (src/modules/metrics/sheetRead.ts). |
+| `out-of-what` | A percentage (or a rate, share or ratio) whose meaning doesn’t say out of what: one answer covers every such row. | — | — | None. A module sheet’s reader, through the engine: the metric library’s Metrics sheet (src/modules/metrics/sheetRead.ts, rule 1’s meaningChecks). |
+| `no-owner` | Two or more new rows name no owner, so whoever loads the file will own them. | — | — | None. A module sheet’s reader, through the engine: the metric library’s Metrics sheet (src/modules/metrics/sheetRead.ts). |
 
 ## Read as (`note`)
 

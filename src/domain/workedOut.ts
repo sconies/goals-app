@@ -4,9 +4,9 @@
    goal stands, post a check-in." Pure: no screen, network or database code. */
 import { isWorkedOut, KEY_COLUMNS, type SheetKind } from './columns';
 import type { Table } from './export';
-import type { Tables } from './sheets';
+import type { TableKey, Tables } from './sheets';
 
-const KIND: Record<keyof Tables, SheetKind> = { goals: 'goals', plan: 'plan', checkIns: 'checkIns', people: 'people' };
+const KIND: Record<TableKey, SheetKind> = { goals: 'goals', plan: 'plan', checkIns: 'checkIns', people: 'people' };
 const norm = (v: unknown) => String(v ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
 /** The same cell as written: equal text, or equal numbers once grouping commas are taken off. */
 const sameCell = (a: unknown, b: unknown) => {
@@ -21,9 +21,9 @@ export interface WorkedOutEdits { sheet: string; columns: string[]; rows: number
  * Rule 9. For each row that matches a record by its key columns, the worked-out columns whose cell differs from what an
  * export would write today (`book`, the workbook as Faro writes it now). Sheets with none are left out.
  */
-export function workedOutEdits(tables: Tables, book: readonly Table[], names: Partial<Record<keyof Tables, string>> = {}): WorkedOutEdits[] {
+export function workedOutEdits(tables: Tables, book: readonly Table[], names: Partial<Record<TableKey, string>> = {}): WorkedOutEdits[] {
   const out: WorkedOutEdits[] = [];
-  for (const key of Object.keys(KIND) as (keyof Tables)[]) {
+  for (const key of Object.keys(KIND) as (TableKey)[]) {
     const rows = tables[key];
     const kind = KIND[key];
     const sheet = book.find((t) => t.name.toLowerCase() === (names[key] ?? '').toLowerCase()) ?? book.find((t) => norm(t.name) === norm(kind === 'checkIns' ? 'Check-ins' : kind));

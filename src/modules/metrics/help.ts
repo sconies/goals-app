@@ -149,6 +149,40 @@ const help: Article[] = [
     keywords: ['retire', 'retired', 'bring back', 'merge', 'delete', 'definition changed', 'same number', 'new label', 'scale', 'direction changed'],
     related: ['metric-define', 'metric-slices', 'metrics'],
   },
+  {
+    id: 'metric-sheet',
+    title: 'The Metrics sheet',
+    summary: 'Add, change, retire and bring back many metrics at once from the workbook’s Metrics sheet, with every change shown first and one Undo.',
+    group: 'data',
+    after: 'import',
+    sections: [
+      { heading: 'How a row finds its metric', list: [
+        'By its ID when the row has one (a retired metric included); otherwise by its name in Metric, any case, spaces trimmed; otherwise the row adds a new metric.',
+        'A row whose ID matches and whose name differs renames the metric.',
+        'Other headers it reads: Name for Metric, Description or Definition for Meaning, Better for Direction, Owner e-mail for Owner email. A sheet is the Metrics sheet when it has Metric (or Name, with Unit and Direction) and one of Unit, Direction and Measures.',
+      ] },
+      { heading: 'Each column', list: [
+        'A new metric needs Metric (3 to 120 characters, a name no other metric has), Unit (up to 20 characters, as it follows a number: %, min, deploys) and Direction (Higher is better or Lower is better; higher, lower, up and down are read too).',
+        'Meaning, Source, Source owner and Caveats are text up to 2,000 characters; Decimals a whole number from 0 to 4; Refresh one of Live, Hourly, Daily, Weekly, Monthly or Quarterly. An empty cell clears what it says, except Decimals, which keeps its own on a metric already here.',
+        'Owner email says who owns it (Owner, a name only one person has, when there is no email). Left empty, a new metric is yours and one already here keeps its owner. Two or more new rows with no owner ask once: “You will own those metrics.”',
+        'Action: Retire, with why in Reason, or Bring back. Reason is also needed when a change of meaning, source or direction changes the number the goals measured by it show.',
+        'Still to say, Retired on, Measures and Goal keys are worked out when it is exported, and never read back.',
+      ] },
+      { heading: 'What it asks, and what it can’t do', list: [
+        'The same questions as adding a metric in the app: a name one letter or a word from another’s, a unit spelt another way (“percent” where others use %), a percentage whose meaning doesn’t say out of what. One answer covers every row with the same question.',
+        'Changing the meaning or source of a metric goals use asks “Is it still the same number?” once for it; changing its direction, or giving it fewer decimals than its goals show, asks first too. Retiring metrics that goals use says how many goals that leaves on a retired metric.',
+        'A file can’t change the unit of a metric goals use: change it on the metric’s page, where its goals are shown first.',
+        'Only a metric’s owner or an admin can change, retire or bring it back; loading an export back unchanged is fine for anyone.',
+        'Saving ends on Imported, and one Undo puts every metric back as it was: one the file added is removed, one it changed or retired is as it was. A metric changed since, or linked to a goal since, stays and is said.',
+        'With the metric library switched off, exports have no Metrics sheet, and a file that has one says it wasn’t read.',
+      ] },
+    ],
+    routes: [],
+    screens: [],
+    reqs: ['METRIC-SHEET'],
+    keywords: ['metrics sheet', 'metric library', 'spreadsheet', 'import metrics', 'load metrics', 'retire', 'bring back', 'bulk'],
+    related: ['import', 'metric-define', 'metric-change'],
+  },
 ];
 
 export default help;

@@ -197,4 +197,32 @@ describe('metric library tools', () => {
     expect(sc.goals.some((x) => x.goalId === goalId)).toBe(false);
     expect(one.content[0]!.text).toMatch(/Proposed \(1\), not judged: /);
   });
+
+  it('bulk_change takes a metrics sheet through the same engine: a dry run, its questions by group, then a save Undo takes back (MI)', async () => {
+    const { call, data } = await setup('rhea');
+    const rows = [{ Metric: 'Runner busy rate', Unit: 'percent', Direction: 'Lower is better', Owner_email: 'rhea.kapoor@example.com' }, { ID: 'metric_lead-time', Metric: 'Lead time for changes', Caveats: 'Squashed merges count once.' }];
+    const dry = await call('bulk_change', { metrics: rows });
+    expect(dry.isError).toBe(true);
+    const sc = dry.structuredContent as { check: { id: string; kind: string; sheet: string; answers: { choice: string }[] }[] };
+    const unit = sc.check.find((g) => g.kind === 'near-word' && g.sheet === 'Metrics')!;
+    expect(unit.answers.map((a) => a.choice)).toEqual(['use', 'keep']);
+    const checked = await call('bulk_change', { metrics: rows, answers: { [unit.id]: 'use' } });
+    expect(checked.isError).toBe(false);
+    expect(checked.content[0]!.text).toMatch(/Would save: 1 new metric, 1 metric changed/);
+    const saved = await call('bulk_change', { metrics: rows, answers: { [unit.id]: 'use' }, apply: true });
+    expect(saved.content[0]!.text).toMatch(/^Saved as Rhea Kapoor: 1 new metric, 1 metric changed/);
+    expect(metricsOf(data()).find((m) => m.name === 'Runner busy rate')?.unit).toBe('%');
+    const importId = data().changes.filter((c) => c.action === 'imported').at(-1)!.entityId;
+    expect((await call('undo_import', { import_id: importId })).isError).toBe(false);
+    expect(metricsOf(data()).find((m) => m.name === 'Runner busy rate')?.removedAt).toBeTruthy();
+    expect(metricsOf(data()).find((m) => m.id === 'metric_lead-time')?.caveats).not.toBe('Squashed merges count once.');
+  });
+
+  it('bulk_change says once that a metrics sheet was not read while the metric library is off', async () => {
+    const { call, data } = await setup('rhea', ['metrics']);
+    const before = metricsOf(data()).length;
+    const r = await call('bulk_change', { metrics: [{ Metric: 'Runner busy rate', Unit: '%', Direction: 'Lower is better' }], apply: true });
+    expect(r.content[0]!.text).toMatch(/^Metric library is switched off in Platform Engineering: the Metrics sheet was not read\./);
+    expect(metricsOf(data())).toHaveLength(before);
+  });
 });

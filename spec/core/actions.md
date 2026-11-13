@@ -1787,7 +1787,9 @@ export interface ChangeSet {
   needsConfirm: boolean;
   /** Ready to save: null while a Must fix or an unanswered Check remains, or a reason is missing. */
   commit: Commit | null;
-  counts: { newGoals: number; goals: number; plans: number; checkIns: number; backfilled: number; replaced: number; people: number; newPeople: number; teams: number; stopped: number; deleted: number; left: number };
+  counts: { newGoals: number; goals: number; plans: number; checkIns: number; backfilled: number; replaced: number; people: number; newPeople: number; teams: number; stopped: number; deleted: number; left: number;
+    /** A module sheet's rows, by sheet: what one record is called, and how many are added, changed, retired, brought back. */
+    records?: { sheet: Sheet; noun: [string, string]; added: number; changed: number; retired: number; back: number }[] };
   /** Create mode: everything the new workspace starts with (set-up reads it). */
   created?: Pick<Snapshot, 'people' | 'teams' | 'goals' | 'checkIns' | 'requests' | 'keysIssued'>;
 }
@@ -1992,6 +1994,8 @@ export interface Issue {
   answers?: Choice[];
   /** The cell's own text, where the group's `found` is a kind of value (an unlikely number): what an answer covers. */
   value?: string;
+  /** The group's title in the words of a module sheet's reader, `{n}` standing for its count of rows. */
+  title?: string;
   group: string;
   goal: string;
   severity: 'error' | 'warning' | 'note';
@@ -2063,6 +2067,8 @@ export interface Item {
   question?: { text: string; confirm: string };
   /** Every question the row asks and nobody has answered yet (goal entry, rule 3): its id, the column, the words. */
   questions?: { id: string; field: string; text: string }[];
+  /** A module sheet's row: what one of its records is called, and many ("metric", "metrics"). */
+  noun?: [string, string];
 }
 ```
 
@@ -2071,7 +2077,9 @@ export interface Item {
 In `src/domain/changeset.ts`.
 
 ```ts
-export type ItemKind = 'new goal' | 'goal' | 'plan' | 'check-in' | 'replaces check-in' | 'person' | 'new person' | 'team' | 'stop goal' | 'delete goal' | 'person left';
+export type ItemKind = 'new goal' | 'goal' | 'plan' | 'check-in' | 'replaces check-in' | 'person' | 'new person' | 'team' | 'stop goal' | 'delete goal' | 'person left'
+  /* A module sheet's rows (domain/records SheetItem): a record added, changed, retired or brought back. */
+  | 'new record' | 'record' | 'retire record' | 'bring back record';
 ```
 
 ### KeptRow
@@ -2255,7 +2263,7 @@ export type SaveMetricInput = MetricInput & { id?: string; confirm?: boolean; an
 In `src/domain/problemLevels.ts`.
 
 ```ts
-export type Sheet = 'Goals' | 'Plan' | 'Check-ins' | 'People';
+export type Sheet = CoreSheet | (string & {});
 ```
 
 ### TableLayout
@@ -2280,7 +2288,11 @@ export interface TableLayout {
 In `src/domain/sheets.ts`.
 
 ```ts
-export interface Tables { goals?: Rec[]; plan?: Rec[]; checkIns?: Rec[]; people?: Rec[] }
+export interface Tables {
+  goals?: Rec[]; plan?: Rec[]; checkIns?: Rec[]; people?: Rec[];
+  /** Module sheets that load back (domain/records ModuleSheet: the metric library's Metrics), by the sheet's name. */
+  modules?: Record<string, Rec[]>;
+}
 ```
 
 ### TableSort

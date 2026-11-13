@@ -108,6 +108,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
+- metric library tools › bulk_change takes a metrics sheet through the same engine: a dry run, its questions by group, then a save Undo takes back (MI)
+- metric library tools › bulk_change says once that a metrics sheet was not read while the metric library is off
 
 ## The library as a place
 
@@ -203,6 +205,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
+- metric library tools › bulk_change takes a metrics sheet through the same engine: a dry run, its questions by group, then a save Undo takes back (MI)
+- metric library tools › bulk_change says once that a metrics sheet was not read while the metric library is off
 
 ## “Measured by”, found by typing
 
@@ -394,7 +398,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ### Where it lives
 
 - [src/modules/metrics/edits.ts](../../../src/modules/metrics/edits.ts): `editsBetween`
-- [src/modules/metrics/rulesDefine.ts](../../../src/modules/metrics/rulesDefine.ts): `stillToSay`, `nameChecks`, `formerNames`, `unitChecks`, `meaningChecks`, `metricChecks`, `unansweredChecks`, `answersFrom`, `countLine`
+- [src/modules/metrics/rulesStill.ts](../../../src/modules/metrics/rulesStill.ts): `stillToSay`
+- [src/modules/metrics/rulesDefine.ts](../../../src/modules/metrics/rulesDefine.ts): `nameChecks`, `formerNames`, `unitChecks`, `meaningChecks`, `metricChecks`, `unansweredChecks`, `answersFrom`, `countLine`
 - [src/modules/metrics/reads.ts](../../../src/modules/metrics/reads.ts): `lineOf`
 - [src/modules/metrics/checkReads.ts](../../../src/modules/metrics/checkReads.ts): `checkReads`
 - [src/modules/metrics/rulesSave.ts](../../../src/modules/metrics/rulesSave.ts): `openChecks`, `saveMetricAsked`
@@ -443,6 +448,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
+- metric library tools › bulk_change takes a metrics sheet through the same engine: a dry run, its questions by group, then a save Undo takes back (MI)
+- metric library tools › bulk_change says once that a metrics sheet was not read while the metric library is off
 
 ## For, which part, and what a goal takes from its metric
 
@@ -549,6 +556,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
+- metric library tools › bulk_change takes a metrics sheet through the same engine: a dry run, its questions by group, then a save Undo takes back (MI)
+- metric library tools › bulk_change says once that a metrics sheet was not read while the metric library is off
 
 ## Changing, retiring and merging a metric
 
@@ -644,3 +653,5 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › says the library is off where an admin has switched it off
 - metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
 - metric library tools › lists a proposed goal that names a metric apart, with no numbers, and not among the goals it measures (GE10)
+- metric library tools › bulk_change takes a metrics sheet through the same engine: a dry run, its questions by group, then a save Undo takes back (MI)
+- metric library tools › bulk_change says once that a metrics sheet was not read while the metric library is off

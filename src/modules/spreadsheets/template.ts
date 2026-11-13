@@ -3,8 +3,9 @@
    faro-template.xlsx. */
 import { saveAndSay } from '../../app/files';
 import type { AppState } from '../../app/state';
+import { sheetsOn } from '../../core/records';
 import { templateWorkbook } from '../../domain/export';
 
 export function saveTemplate(app: Pick<AppState, 'toast' | 'ws' | 'cycle' | 'week' | 'today'>): Promise<boolean> {
-  return saveAndSay(app.toast, { workspace: app.ws.name, what: 'template', date: app.today, as: 'faro-template' }, { kind: 'xlsx', sheets: templateWorkbook({ ws: app.ws, cycle: app.cycle, week: app.week, today: app.today }) }, 'Template saved');
+  return saveAndSay(app.toast, { workspace: app.ws.name, what: 'template', date: app.today, as: 'faro-template' }, { kind: 'xlsx', sheets: templateWorkbook({ ws: app.ws, cycle: app.cycle, week: app.week, today: app.today, sheets: sheetsOn(app.ws) }) }, 'Template saved');
 }

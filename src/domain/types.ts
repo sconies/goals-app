@@ -268,6 +268,8 @@ export interface ImportUndo {
       carried goals. */
   watches?: Id[];
   modules?: { module: string; key: string; ids: Id[] }[];
+  /** A module sheet's rows an import wrote (the metric library's metrics), each as it was before: null, it added it. */
+  moduleRows?: import('./records').ModuleRowsBefore[];
 }
 
 /**

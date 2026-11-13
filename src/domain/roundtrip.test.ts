@@ -16,9 +16,9 @@ import { csvFiles, workbook, type Table } from './export';
 import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE } from './importer';
 import { currentWeek } from './plan';
 import { sameAsWritten } from './numbers';
-import { parseDelimited, readTables, type NamedGrid } from './sheets';
+import { parseDelimited, readLine, readTables, type NamedGrid } from './sheets';
 import type { Cycle, MetricGoal, Snapshot } from './types';
-import { MODULE_SHEETS } from '../core/records';
+import { loadSheetReaders, MODULE_SHEETS, readersNow, sheetsOn, sheetsToRead } from '../core/records';
 
 const today = new Date('2026-11-05T12:00:00Z');
 let n = 0;
@@ -232,5 +232,66 @@ describe('worked-out cells a file edited (rule 9, C19)', () => {
     const read = readTables(await asXlsx(edited));
     expect(workedOutEdits(read.tables, book)).toEqual([{ sheet: 'Goals', columns: ['Status'], rows: [2, 3] }]);
     expect(load(d, read.tables).items).toEqual([]);
+  }, 30_000);
+});
+
+/* MI (docs/design/metrics-2/spec.md 3.4): the Metrics sheet loads back too, through the change engine and the metric
+   library's reader. Unedited, it plans no change; retired metrics are in it and stay retired; a workbook exported with
+   the library switched off loads into a workspace with it on and changes nothing. */
+describe.skipIf(!MODULE_SHEETS.some((m) => m.spec.name === 'Metrics' && m.reader))('the Metrics sheet, out and back in (MI)', () => {
+  const d = demos()[0]!;
+  const loadAll = async (book: Table[], full = d.full, answers?: import('./problemLevels').Answers) => {
+    const read = readTables(await asXlsx(book), sheetsToRead(null));
+    const s = scopeToCycle(full, d.cycle);
+    const cs = planChanges({ tables: read.tables, snapshot: s, cycle: d.cycle, week: d.week, actor: s.people.find((p) => p.id === 'amara')!, now: today.toISOString(), newId, via: 'spreadsheet', full, readers: await loadSheetReaders(), workspace: d.name, answers });
+    return { read, cs };
+  };
+  const metricRows = (full: Snapshot) => (full.modules?.metrics?.metrics ?? []) as { id: string; name: string; removedAt?: string | null; retiredAt?: string | null }[];
+
+  it('the workbook with its Metrics sheet loads back as no change at all', async () => {
+    const { read, cs } = await loadAll(bookOf(d));
+    expect(read.read.map((x) => x.kind)).toContain('Metrics');
+    expect(read.unknownColumns).toEqual([]);
+    expect(errors(cs)).toEqual([]);
+    expect(cs.issues.filter((i) => i.sheet === 'Metrics')).toEqual([]);
+    expect(cs.items).toEqual([]);
+    expect(cs.unchangedBy.Metrics).toBe(metricRows(d.full).filter((m) => !m.removedAt).length);
+  }, 30_000);
+
+  it('a retired metric is in it, with Retired on and no Action, and is not brought back', async () => {
+    const used = metricRows(d.full).find((m) => m.id === 'metric_lead-time')!;
+    // Retired through the same engine: a one-row Metrics sheet whose Action says Retire.
+    const s = scopeToCycle(d.full, d.cycle);
+    const plan = (answers?: import('./problemLevels').Answers) => planChanges({ tables: { modules: { Metrics: [{ __row: '2', id: used.id, metric: used.name, action: 'Retire', reason: 'Replaced by the four keys.' }] } }, snapshot: s, cycle: d.cycle, week: d.week, actor: s.people.find((p) => p.id === 'amara')!, now: today.toISOString(), newId, via: 'spreadsheet', full: d.full, readers: readersNow(), workspace: d.name, answers });
+    await loadSheetReaders();
+    const asked = plan().groups.find((g) => g.kind === 'big-removal')!;
+    const retire = plan({ [asked.id]: { choice: 'right' } });
+    expect(retire.commit).not.toBeNull();
+    const full = applyCommit(d.full, retire.commit!);
+    expect(metricRows(full).find((m) => m.id === used.id)!.retiredAt).toBeTruthy();
+    const book = bookOf(d, full);
+    const sheet = book.find((t) => t.name === 'Metrics')!;
+    const row = sheet.rows.find((r) => r[0] === used.id)!;
+    expect(row[sheet.rows[0]!.indexOf('Action')]).toBeNull();
+    expect(row[sheet.rows[0]!.indexOf('Retired on')]).toBe(today.toISOString().slice(0, 10));
+    const { cs } = await loadAll(book, full);
+    expect(errors(cs)).toEqual([]);
+    expect(cs.items).toEqual([]);
+  }, 30_000);
+
+  it('a workbook exported with the metric library off loads into a workspace with it on and changes nothing', async () => {
+    const off = workbook({ ws: { id: 'ws', name: d.name, modulesOff: ['metrics'] } as never, snapshot: scopeToCycle(d.full, d.cycle), cycle: d.cycle, week: d.week, today, sheets: sheetsOn({ modulesOff: ['metrics'] }) });
+    expect(off.map((t) => t.name)).not.toContain('Metrics');
+    const { read, cs } = await loadAll(off);
+    expect(read.read.map((x) => x.kind)).not.toContain('Metrics');
+    expect(errors(cs)).toEqual([]);
+    expect(cs.items).toEqual([]);
+  }, 30_000);
+
+  it('a workspace with the library off skips a file’s Metrics sheet, and says so once', async () => {
+    const read = readTables(await asXlsx(bookOf(d)), sheetsToRead({ modulesOff: ['metrics'] }, () => 'Metric library'));
+    expect(read.tables.modules).toBeUndefined();
+    expect(read.skipped).toContainEqual({ name: 'Metrics', why: 'switched-off', module: 'Metric library' });
+    expect(readLine(read)).toMatch(/Metrics \(Metric library is switched off here\)/);
   }, 30_000);
 });

@@ -7,6 +7,7 @@
    measures a goal, so that comes as a table by goal id. */
 import { planChangesInChunks, type ChangeSet } from '../../domain/changeset';
 import { CHANGES_SAVE_MAX } from '../../domain/importLimits';
+import { loadSheetReaders } from '../../core/records';
 import { inputOf, SLICE, type CheckReply, type CheckRequest } from './workerInput';
 
 const post = (r: CheckReply) => (self as unknown as { postMessage(m: CheckReply): void }).postMessage(r);
@@ -22,9 +23,11 @@ function send(cs: ChangeSet) {
   post({ type: 'done', cs: { ...rest, items: [], issues: [], commit: items.length > CHANGES_SAVE_MAX ? null : rest.commit } });
 }
 
-self.onmessage = (e: MessageEvent<CheckRequest>) => {
+self.onmessage = async (e: MessageEvent<CheckRequest>) => {
   try {
-    const run = planChangesInChunks(inputOf(e.data));
+    // A module's sheet (Metrics) is read by its module's reader: loaded here, as the page loaded it (core/records).
+    const readers = e.data.input.tables.modules ? await loadSheetReaders() : {};
+    const run = planChangesInChunks({ ...inputOf(e.data), readers });
     for (;;) {
       const step = run.next();
       if (step.done) { send(step.value); return; }

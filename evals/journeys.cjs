@@ -1189,6 +1189,57 @@ journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first imp
   await p.context().close();
 });
 
+journey('U155', ['METRIC-SHEET', 'IMPORT-PREVIEW', 'IMPORT-UNDO'], 'The Metrics sheet comes back in (MI, U108’s second half): as Rhea, a Metrics file of 15 rows, two with a Must fix and twelve with the same two questions, says each in section 3’s words; one answer covers twelve rows; leaving the two rows out, Save says “Add 12 metrics, change 1”; the library has them; one Undo removes all twelve and puts the changed one back', 16, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  const head = 'ID,Metric,Unit,Direction,Meaning,Owner,Caveats\n';
+  // Twelve names unlike each other and the library's, each a rate in "percent" whose meaning doesn't say out of what.
+  const names = ['Runner busy', 'Disk full', 'Image pull', 'Lint warning', 'Cold start', 'Canary abort', 'Ticket reopen', 'Docs miss', 'Badge scan', 'Login retry', 'Pager wake', 'Webhook drop'];
+  const many = names.map((x) => `,${x} rate,percent,Lower is better,Runners busy.,Rhea Kapoor,\n`).join('');
+  const bad = ',No unit yet,,Lower is better,,Rhea Kapoor,\n,Odd way round,min,sideways,,Rhea Kapoor,\n';
+  // Lead time's caveats change; its meaning is written as it is, so nothing else does.
+  const changed = 'metric_lead-time,Lead time for changes,hours,Lower is better,"Median hours from a change’s first commit to running in production, over the last 28 days. Counts every change to a deployable service; reverts count as changes.",Rhea Kapoor,Squashed merges count once.\n';
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('metrics-u148.csv', head + many + bad + changed));
+  await p.waitForURL(/\/data\/import\/check$/);
+  await see(p, 'Check this import');
+  await see(p, 'Read metrics-u148.csv', 'the Metrics sheet is not read');
+  // Must fix, in 3.1's words; then the two questions, each once for its twelve rows.
+  await see(p, 'Say its unit: %, min, hours, USD, deploys…', 'the missing unit is not said in its words');
+  await see(p, 'Direction says “sideways”. Use Higher is better or Lower is better.', 'the unknown direction is not said in its words');
+  await see(p, '2 questions cover 24 rows', 'the questions are not counted once each');
+  h.set('attention', !(await p.getByRole('button', { name: /^(Save|Add)/ }).count()) && await p.getByRole('button', { name: 'Choose the corrected file' }).isVisible(), 'Save is offered while rows must be fixed');
+  await h.checkpoint('preview');
+  // Leave the two rows out; one answer covers twelve rows, twice.
+  await h.click(p.getByRole('button', { name: 'Leave these 2 rows out and save the rest' }));
+  await h.click(p.getByRole('dialog').getByRole('button', { name: /^Leave/ }).last());
+  await h.click(p.getByRole('radio', { name: 'Use “%”' }));
+  await h.click(p.getByRole('radio', { name: 'It’s right as written' }));
+  // Each answered question closes to what was asked and its answer, with Change.
+  h.set('progress', await p.getByRole('button', { name: 'Change' }).first().isVisible().catch(() => false), 'an answered question has no Change');
+  await see(p, 'Metrics: 12 new metrics · 1 changes a metric that exists', 'the Metrics count line is not said');
+  const save = p.getByRole('button', { name: 'Add 12 metrics, change 1' });
+  await save.waitFor({ timeout: 5000 }).catch(() => {});
+  h.set('errors', await save.isEnabled().catch(() => false), 'Save does not say “Add 12 metrics, change 1”, or is not ready once every question is answered');
+  await h.checkpoint('answered');
+  (await designProblems(p)).forEach((x) => fail('the Metrics preview breaks a design rule: ' + x));
+  await h.click(save);
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
+  const s = await h.snapshot();
+  const metrics = (s.modules?.metrics?.metrics ?? []);
+  const added = metrics.filter((m) => names.some((x) => m.name === `${x} rate`) && !m.removedAt);
+  const lead = metrics.find((m) => m.id === 'metric_lead-time');
+  h.set('finish', added.length === 12 && added.every((m) => m.unit === '%' && m.ownerId === 'rhea') && lead?.caveats === 'Squashed merges count once.' && !metrics.some((m) => m.name === 'No unit yet'), `${added.length} metrics added (units ${[...new Set(added.map((m) => m.unit))].join(', ')}), Lead time’s caveats: ${lead?.caveats}`);
+  // One Undo takes the whole load back.
+  await h.click(p.getByRole('button', { name: 'Undo this import' }).first());
+  await see(p.getByRole('dialog'), '13 rows go back to how they were on', 'Undo does not say it puts the 13 metrics back');
+  await h.click(p.getByRole('dialog').getByRole('button', { name: 'Undo 13 rows' }));
+  await see(p, 'Undone: 13 rows put back.', 'Undo does not put the 13 metrics back');
+  const after = await h.snapshot();
+  const now = after.modules?.metrics?.metrics ?? [];
+  h.set('logged', now.filter((m) => names.some((x) => m.name === `${x} rate`) && !m.removedAt).length === 0 && now.find((m) => m.id === 'metric_lead-time')?.caveats !== 'Squashed merges count once.' && after.changes.some((c) => c.action === 'undone'), 'Undo left metrics the import added, or did not put Lead time back');
+  await p.context().close();
+}, ['parity', 'entry']);
+
 journey('U12', ['DEMO-MODE'], 'Demo: switch person, look around, start over', 4, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/'));
@@ -4632,7 +4683,8 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await see(p, 'Add or change goals, plans, check-ins and people from a spreadsheet.');
   await p.getByLabel('Choose a spreadsheet').setInputFiles(edited);
   await see(p, '1 goal changed, 1 goal stopped', 'the preview does not say exactly the two changes');
-  await see(p, 'Read Goals, Plan, Check-ins and People', 'the preview does not say which sheets it read');
+  // With the metric library on, its Metrics sheet is read too (MI).
+  await see(p, /Read Goals, Plan, Check-ins(,| and) People/, 'the preview does not say which sheets it read');
   await h.checkpoint('import preview');
   await h.click(p.getByRole('link', { name: 'Show the 2 changes' }));
   await p.waitForURL(/\/data\/import\/check\/changes/);
@@ -6309,7 +6361,7 @@ journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already pa
   await p.context().close();
 }, ['progress']);
 
-journey('U87', ['FIELD-TABLE', 'SPREADSHEETS-ON-DATA'], 'What a file needs, before uploading: Import says what a new goal, check-in and person must have; Help’s table says Goal and Owner are Required, Start is Required for a number goal and Status is worked out; the template’s first sheet is the same table, its example rows say Example, and loaded back unchanged it changes nothing, with 3 example rows left out', 8, async (h, device) => {
+journey('U87', ['FIELD-TABLE', 'SPREADSHEETS-ON-DATA'], 'What a file needs, before uploading: Import says what a new goal, check-in and person must have; Help’s table says Goal and Owner are Required, Start is Required for a number goal and Status is worked out; the template’s first sheet is the same table, its example rows say Example, and loaded back unchanged it changes nothing, with its example rows (3, and one on Metrics while the metric library is on) left out', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/data/import'));
   await see(p, 'What a new row must have');
@@ -6337,7 +6389,9 @@ journey('U87', ['FIELD-TABLE', 'SPREADSHEETS-ON-DATA'], 'What a file needs, befo
   // Loaded back unchanged, it changes nothing and says it left its example rows out.
   await p.goto(url('/data/import'));
   await p.getByLabel('Choose a spreadsheet').setInputFiles(file);
-  await see(p, '3 example rows left out', 'the preview does not count the example rows');
+  // Goals' two and People's one, and a module sheet's own (the metric library's Metrics, while it is on).
+  const more = book.filter((s) => !['Start here', 'Goals', 'Plan', 'Check-ins', 'People'].includes(s.name)).reduce((k, s) => k + Math.max(0, s.rows.length - 1), 0);
+  await see(p, `${3 + more} example rows left out`, 'the preview does not count the example rows');
   await see(p, 'Nothing would change', 'the template loaded back would change something');
   await h.checkpoint('template loaded back');
   await p.context().close();

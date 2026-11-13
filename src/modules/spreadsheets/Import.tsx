@@ -45,7 +45,7 @@ export function Import() {
   // A file read goes to the preview (/data/import/check); a new file starts afresh (answers to the last one still apply).
   const pick = async (f: File | undefined) => {
     setProblem(null);
-    if (await chooseFile(f, (text, template) => setProblem({ text, template }))) nav('/data/import/check');
+    if (await chooseFile(f, (text, template) => setProblem({ text, template }), app.ws)) nav('/data/import/check');
   };
   const paste = () => {
     setProblem(null);

@@ -17,8 +17,10 @@
    Plain TypeScript, like the rest of src/domain: no database, screen or network code. */
 import type { Commit } from './commit';
 import type { ActionContext } from './actions';
-import type { Cell, Ctx, ExportInput, SheetSpec } from './columns';
-import type { Goal } from './types';
+import type { Cell, Ctx, ExportInput, Field, SheetSpec, Words } from './columns';
+import type { Answer, Choice, IssueKind } from './problemLevels';
+import type { Rec } from './sheets';
+import type { Change, Diff, Goal } from './types';
 
 /** Every module's rows, by module id and then by the key its records are filed under. */
 export type ModuleRows = { [moduleId: string]: { [key: string]: unknown[] } };
@@ -75,14 +77,77 @@ export interface RecordDef<T extends ModuleRow = ModuleRow> {
   };
 }
 
-/** A sheet a module adds to the workbook (domain/export), after the core's and before the README. For reading only. */
+/**
+ * A sheet a module adds to the workbook (domain/export), after the core's and before the README. Written for reading
+ * unless its spec says `loaded` and it declares a `reader`: then a file's sheet comes back through the change engine
+ * (domain/changeset), as the core's sheets do (the `sheets` extension point; docs/design/metrics-2/spec.md section 7).
+ */
 export interface ModuleSheet<C = unknown> {
   spec: SheetSpec<C, string>;
   /** The columns that say which record a row is (always written by a table from Data). */
   keys: string[];
   /** Its rows: what the export carries, for the goals it exports. */
   rows(x: ExportInput, c: Ctx, goalIds: ReadonlySet<string>): C[];
+  /** Other names its columns are read by: a header (lower case) to the column it is (lower case). */
+  also?: Record<string, string>;
+  /** Whether a header row (lower case, other names already read as their columns) is this sheet. Left out: it has every
+      column the export writes. */
+  is?(headers: ReadonlySet<string>): boolean;
+  /** For a sheet that loads back, each column a person fills in: what a new row needs, its format and an example, as the
+      core's field table says it (Start here, Help, the template). */
+  fields?: Record<string, Field>;
+  /** The template's example row for it (its Action says Example, so it is never loaded). */
+  example?: Record<string, string>;
+  /** Its reader, loaded with the import rather than the first download (core/records loadSheetReaders). */
+  reader?: () => Promise<SheetReader>;
+  /** The preview's count line for its rows (2.9), from what they would do; empty when nothing. */
+  countLine?(c: SheetCounts): string;
+  /** What bulk_change says its rows take, for the sheet's argument. */
+  toolHelp?: string;
 }
+
+/** What a module sheet's rows would do, counted for its count line. */
+export interface SheetCounts { added: number; changed: number; retired: number; back: number; unchanged: number }
+
+/** What an issue on a module sheet's row may carry besides its words (domain/problemLevels Issue). */
+export interface SheetExtra { column?: string; found?: string; suggest?: string; answers?: Choice[]; value?: string; title?: string }
+
+/** What the change engine gives a module sheet's reader: the workspace as the file has changed it so far, and the engine's
+    own ways to raise a problem, ask a question once per group and read a word, so a module raises nothing its own way. */
+export interface SheetReadContext {
+  /** The sheet's name, as its issues name it. */
+  sheet: string;
+  /** The rules' context: the workspace with the people this file adds, the actor, now and new ids. */
+  x: ActionContext;
+  /** The workspace's name for messages ("isn’t a metric in Platform Engineering"). */
+  workspace: string;
+  /** A problem, question or note on one row: its level comes from its kind. */
+  raise(kind: IssueKind, row: number, name: string, message: string, x?: SheetExtra): void;
+  /** A Check: its answer, 'leave' when answered "Leave these rows out" (the row is left out), or null while unanswered. */
+  ask(kind: IssueKind, row: number, name: string, message: string, x: SheetExtra): Answer | 'leave' | null;
+  /** The answer given to a group, if any. */
+  answerOf(kind: IssueKind, column?: string, found?: string): Answer | undefined;
+  /** A word cell, read with its column's words: its code, null when empty, undefined when it raised a problem. */
+  readWord<C extends string>(w: Words<C>, raw: string, row: number, name: string): C | null | undefined;
+}
+
+/** One row's change, as a module sheet's reader reports it: what it does, in the engine's words. */
+export interface SheetItem { row: number; name: string; does: 'added' | 'changed' | 'retired' | 'back'; summary: string; diffs: Diff[]; noun: [string, string] }
+
+/** What a module sheet's rows come to: the changes, the rows saved, and what each was before, for the import's Undo. */
+export interface SheetRead {
+  items: SheetItem[];
+  unchanged: number;
+  examples: number;
+  changes: Change[];
+  modules?: ModuleRows;
+  before: ModuleRowsBefore[];
+}
+/** A module's rows an import wrote, each as it was before (null: the import added it). */
+export interface ModuleRowsBefore { module: string; key: string; rows: { id: string; before: ModuleRow | null }[] }
+
+/** A module sheet's reader: its rows (records keyed by lower-case header, other names read as their columns). */
+export type SheetReader = (rows: Rec[], c: SheetReadContext) => SheetRead;
 
 /**
  * The demo workspace as it is being built (src/data/platformOrg/generate.ts), for a module to add its own rows the way

@@ -2,7 +2,7 @@
    the app. `npm run export-format` writes it; evals/format.eval.ts fails when the file isn't current. */
 import {
   CALL_WORDS, CAUSE_WORDS, emptyText, fieldTable, GOAL_ACTION_WORDS, KEY_COLUMNS, LEVEL_WORDS, PERSON_ACTION_WORDS, RECOVERY_WORDS, requiredLine, requiredText, ROLE_WORD, roleLoaded, SHAPE_WORDS, SHEETS, START_HERE,
-  TYPE_WORDS, BOUND_WORDS, WEEK_COLUMN, type FillKind, type Words,
+  TYPE_WORDS, BOUND_WORDS, WEEK_COLUMN, andList, moduleFieldTable, type FillKind, type Words,
 } from './columns';
 import { STATUS, withCode } from './vocabulary';
 import type { ModuleSheet } from './records';
@@ -50,9 +50,12 @@ export function exportFormatMarkdown(modules: readonly ModuleSheet[] = []): stri
     out.push(`## ${sheet.name}`, '', `One row per ${sheet.rowIs}. ${sheet.about}${sheet.loaded ? '' : ' Not loaded back.'}`, '');
     if (sheet.loaded) {
       // The field table: what a new row needs, the format, an example and what an empty cell does, then the meaning.
+      // A module's sheet that loads back (the metric library's Metrics) has its own field table.
+      const own = modules.find((m) => m.spec === sheet);
       const kind = sheet.kind as FillKind;
-      const table = fieldTable(kind);
-      if (kind !== 'plan') out.push(`A new row needs ${requiredLine(kind)}`, '');
+      const table = own ? moduleFieldTable(own) : fieldTable(kind);
+      if (own) out.push(`A new row needs ${andList(table.filter((c) => c.required === 'required').map((c) => c.header))}.`, '');
+      else if (kind !== 'plan') out.push(`A new row needs ${requiredLine(kind)}`, '');
       out.push('| Column | A new row | Format | Example | If it’s left empty | What it means | When loaded back |', '|---|---|---|---|---|---|---|');
       for (const c of table) {
         const col = sheet.columns.find((v) => v.header === c.header);

@@ -13,37 +13,9 @@ import { closeNames, directionWords } from './names';
 export { editsBetween };
 import type { Metric, MetricDirection } from './types';
 
-/* ---------- what a metric still needs ---------- */
-
-/** The four things that make a metric fully defined beyond its name, unit and direction, in the order they are said. */
-export const STILL_TO_SAY = [
-  ['what it means', 'meaning'],
-  ['where the number comes from', 'source'],
-  ['who owns that source', 'sourceOwner'],
-  ['how often it refreshes', 'refresh'],
-] as const;
-export type StillItem = (typeof STILL_TO_SAY)[number][0];
-/** The form field each missing item opens (`/metrics/<id>/edit?field=…`). */
-export const STILL_FIELD: Record<StillItem, string> = Object.fromEntries(STILL_TO_SAY) as Record<StillItem, string>;
-export const FULLY_DEFINED = 'Fully defined';
-export const OWNER_LEFT = 'Its owner has left.';
-
-export interface StillToSay { usable: true; full: boolean; missing: StillItem[]; ownerLeft: boolean; line: string }
-
-/**
- * Rule 1. What a metric still needs to say. A metric with a name, a unit and a direction is usable; `missing` lists, in
- * order, what it means (meaning empty), where the number comes from (source empty), who owns that source (empty) and how
- * often it refreshes (not said). The line is “Fully defined” when nothing is missing and its owner is here; “Its owner
- * has left.” alone when only that; otherwise “Still to say: {missing, commas}.”, with “ Its owner has left.” after it.
- */
-export function stillToSay(m: Pick<Metric, 'meaning' | 'source' | 'sourceOwner' | 'refresh'>, ownerIsHere: boolean): StillToSay {
-  const empty = (k: (typeof STILL_TO_SAY)[number][1]) => (k === 'refresh' ? m.refresh == null : !(m[k] ?? '').trim());
-  const missing = STILL_TO_SAY.filter(([, k]) => empty(k)).map(([w]) => w);
-  const left = !ownerIsHere;
-  const said = missing.length ? `Still to say: ${missing.join(', ')}.` : '';
-  const line = !missing.length && !left ? FULLY_DEFINED : [said, left ? OWNER_LEFT : ''].filter(Boolean).join(' ');
-  return { usable: true, full: !missing.length && !left, missing, ownerLeft: left, line };
-}
+/* What a metric still needs (rule 1's line) lives in rulesStill.ts, small enough to ride with the workbook's Metrics
+   sheet on the first download; it is the same rule, said once. */
+export { FULLY_DEFINED, OWNER_LEFT, STILL_FIELD, STILL_TO_SAY, stillToSay, type StillItem, type StillToSay } from './rulesStill';
 
 /* ---------- a name close to another ---------- */
 

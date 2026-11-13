@@ -27,6 +27,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'metrics-sheet-in',
+    date: '2026-11-13',
+    title: 'Import metrics from a spreadsheet',
+    points: [
+      'The Metrics sheet now loads back: add or change hundreds of metrics at once, with every change shown first.',
+      'A row finds its metric by ID, else by its name; Action retires a metric, with a reason, or brings one back.',
+      'The same questions as the metric form are asked once for every row they cover, and one Undo takes the whole load back.',
+      'With the metric library switched off, exports have no Metrics sheet.',
+    ],
+    articles: ['metric-sheet'],
+  },
+  {
     id: 'reviews-switch',
     date: '2026-11-13',
     title: 'Reviews can be switched off, and nothing they saved is lost',

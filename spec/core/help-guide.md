@@ -859,7 +859,7 @@ Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/cha
 - What a new row must have is on the Import page and in Every column, and what it needs: a goal needs Goal, and Owner or Owner email. A number goal also needs Start and Target; a range goal, Limit; a stages goal, Stages. A check-in, Goal key (or Goal), Week, and Value or Stages. A person, Name and Email.
 - Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.
 - A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once, and so are two columns that mean the same one (Goal and Goal name): you choose which is read.
-- Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.
+- Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks and Notes are for reading, and left out; a feature’s own sheet, such as Metrics, loads back while that feature is on, and is said not to be read while it is off. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.
 - Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.
 - To build a whole tree in one file, give each new goal’s row a Ref of your own (top, a1, anything, each row its own). Another row then names it in Feeds into ref, and a check-in in Goal ref, before it has a key. Refs belong to the file: they are never kept, and an export leaves them empty.
 - Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.
@@ -975,6 +975,35 @@ Routes: `/goals/:goalId/print`. Screens: `Print`. Requirements: `PRINT-EXPORT`.
 - A goal prints on one A4 page: status, the number against plan and target, the facts, chart, path to green, latest check-in, requests, the three latest review notes, quarters and contributing goals. The reason is printed once, under Why.
 - A review prints its session worst first, with what was said.
 - Print uses black on white with the status shapes kept, and no navigation.
+
+### The Metrics sheet
+
+`metric-sheet`, from the metrics module. Add, change, retire and bring back many metrics at once from the workbook’s Metrics sheet, with every change shown first and one Undo.
+
+Requirements: `METRIC-SHEET`.
+
+#### How a row finds its metric
+
+- By its ID when the row has one (a retired metric included); otherwise by its name in Metric, any case, spaces trimmed; otherwise the row adds a new metric.
+- A row whose ID matches and whose name differs renames the metric.
+- Other headers it reads: Name for Metric, Description or Definition for Meaning, Better for Direction, Owner e-mail for Owner email. A sheet is the Metrics sheet when it has Metric (or Name, with Unit and Direction) and one of Unit, Direction and Measures.
+
+#### Each column
+
+- A new metric needs Metric (3 to 120 characters, a name no other metric has), Unit (up to 20 characters, as it follows a number: %, min, deploys) and Direction (Higher is better or Lower is better; higher, lower, up and down are read too).
+- Meaning, Source, Source owner and Caveats are text up to 2,000 characters; Decimals a whole number from 0 to 4; Refresh one of Live, Hourly, Daily, Weekly, Monthly or Quarterly. An empty cell clears what it says, except Decimals, which keeps its own on a metric already here.
+- Owner email says who owns it (Owner, a name only one person has, when there is no email). Left empty, a new metric is yours and one already here keeps its owner. Two or more new rows with no owner ask once: “You will own those metrics.”
+- Action: Retire, with why in Reason, or Bring back. Reason is also needed when a change of meaning, source or direction changes the number the goals measured by it show.
+- Still to say, Retired on, Measures and Goal keys are worked out when it is exported, and never read back.
+
+#### What it asks, and what it can’t do
+
+- The same questions as adding a metric in the app: a name one letter or a word from another’s, a unit spelt another way (“percent” where others use %), a percentage whose meaning doesn’t say out of what. One answer covers every row with the same question.
+- Changing the meaning or source of a metric goals use asks “Is it still the same number?” once for it; changing its direction, or giving it fewer decimals than its goals show, asks first too. Retiring metrics that goals use says how many goals that leaves on a retired metric.
+- A file can’t change the unit of a metric goals use: change it on the metric’s page, where its goals are shown first.
+- Only a metric’s owner or an admin can change, retire or bring it back; loading an export back unchanged is fine for anyone.
+- Saving ends on Imported, and one Undo puts every metric back as it was: one the file added is removed, one it changed or retired is as it was. A metric changed since, or linked to a goal since, stays and is said.
+- With the metric library switched off, exports have no Metrics sheet, and a file that has one says it wasn’t read.
 
 ## People, workspace and settings
 

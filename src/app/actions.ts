@@ -51,7 +51,7 @@ import type { TableLayout } from '../domain/tableLayout';
 import type { Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
 import type { Commit } from '../domain/commit';
 import MODULE_PARTS from 'virtual:faro-modules/actions';
-import { recordsOn } from '../core/records';
+import { readersNow, recordsOn } from '../core/records';
 import { isModuleOn, moduleById, modulesOn } from '../core/registry';
 import { reviewsOffWords, reviewsOn } from './reads';
 
@@ -84,7 +84,9 @@ export type SaveGoalWith = SaveGoalInput & { also?: { action: string; input: Rec
 export const ACTIONS = {
   /* Goals, plans and check-ins. planChanges previews; the dispatcher saves it only with `apply`. */
   planChanges: (x: RunContext, i: { tables: Tables; via: Via; reason?: string; confirm?: boolean; answers?: Answers; apply?: boolean; file?: { name: string; leftOut?: number }; posts?: CheckInPost[] }) =>
-    eng().planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, answers: i.answers, full: x.full, records: x.records, file: i.file, ...(i.posts?.length ? { posts: i.posts } : {}) }),
+    eng().planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, answers: i.answers, full: x.full, records: x.records, file: i.file, ...(i.posts?.length ? { posts: i.posts } : {}),
+      // A module sheet's reader, once the import has loaded it (core/records), and the workspace's name for its words.
+      ...(i.tables.modules ? { readers: readersNow(), ...(x.workspace ? { workspace: x.workspace.name } : {}) } : {}) }),
   /* One check-in from its screen, through the same engine (check-in spec, rule 13). The week defaults to this one. */
   postCheckIn: (x: RunContext, i: { goalId: string; draft: Draft; mode: PostMode; week?: number; reason?: string }) => {
     const goalId = goalOf(x, i.goalId).id;

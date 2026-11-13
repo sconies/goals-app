@@ -7,13 +7,13 @@ import { Link, Navigate, useNavigate } from 'react-router';
 import { useApp } from '../../app/state';
 import { saveAndSay } from '../../app/files';
 import { readChanges } from '../../app/spreadsheet';
-import { sheetsOn } from '../../core/records';
+import { loadSheetReaders, MODULE_SHEETS, sheetsOn } from '../../core/records';
 import { describe, sheetCounts, type ChangeSet } from '../../domain/changeset';
 import { workbook } from '../../domain/export';
 import { leaveOut } from '../../domain/leaveOut';
-import { questionsLine, type Answer, type IssueGroup, type Sheet } from '../../domain/problemLevels';
+import { questionsLine, type Answer, type CoreSheet, type IssueGroup, type Sheet } from '../../domain/problemLevels';
 import { CHANGES_SAVE_MAX, tooLarge } from '../../domain/importLimits';
-import { headerRowsLine, parseDelimited, readLine, readTables, type ReadTables, type Tables } from '../../domain/sheets';
+import { headerRowsLine, parseDelimited, readLine, readTables, type ReadTables, type TableKey, type Tables } from '../../domain/sheets';
 import { workedOutEdits } from '../../domain/workedOut';
 import { useMark } from '../../telemetry/react';
 import { Sheet as SheetBox, WarnMark } from '../../ui/bits';
@@ -30,8 +30,8 @@ import { CheckClose } from './CheckClose';
 import './import.css';
 
 
-const SHEETS: Sheet[] = ['Goals', 'Plan', 'Check-ins', 'People'];
-const KEY: Record<Sheet, keyof Tables> = { Goals: 'goals', Plan: 'plan', 'Check-ins': 'checkIns', People: 'people' };
+const SHEETS: CoreSheet[] = ['Goals', 'Plan', 'Check-ins', 'People'];
+const KEY: Record<CoreSheet, TableKey> = { Goals: 'goals', Plan: 'plan', 'Check-ins': 'checkIns', People: 'people' };
 const n = (k: number, one: string, many = one + 's') => `${k.toLocaleString('en-GB')} ${k === 1 ? one : many}`;
 const blank = (r: Record<string, string>) => Object.entries(r).every(([k, v]) => k === '__row' || !String(v).trim());
 /** While a save runs, the page that asked for it: the plan worked out again against what was just saved would flash
@@ -55,12 +55,16 @@ function take(got: ReadTables, name: string, onProblem: (text: string, template?
 }
 
 /** Reads a chosen file into the import, staying on the preview. Shared by Import and the preview's own "Choose…". */
-export async function chooseFile(f: File | undefined, onProblem: (text: string, template?: boolean) => void): Promise<boolean> {
+export async function chooseFile(f: File | undefined, onProblem: (text: string, template?: boolean) => void, ws?: { name: string; modulesOff?: string[] }): Promise<boolean> {
   if (!f) return false;
   const big = tooLarge(f.name, { bytes: f.size });
   if (big) { onProblem(big); return false; }
   let got: ReadTables;
-  try { got = await readChanges(f); } catch {
+  try {
+    got = await readChanges(f, ws);
+    // A module's sheet (Metrics) is read by its module's reader, which loads with it, before the preview's first render.
+    if (got.tables.modules) await loadSheetReaders(sheetsOn(ws));
+  } catch {
     onProblem(`Faro can’t read ${f.name}. Save it as .xlsx or .csv and try again.`);
     return false;
   }
@@ -92,7 +96,7 @@ export function Check() {
   useMark(cs ? 'import.read' : null);
 
   const choose = () => { if (file.current) file.current.value = ''; file.current?.click(); };
-  const picker = <input ref={file} type="file" accept=".xlsx,.zip,.csv,.tsv,.txt" className="sr" tabIndex={-1} aria-label="Choose a spreadsheet" onChange={(e) => void chooseFile(e.target.files?.[0], setProblem).then((ok) => ok && setProblem(''))} />;
+  const picker = <input ref={file} type="file" accept=".xlsx,.zip,.csv,.tsv,.txt" className="sr" tabIndex={-1} aria-label="Choose a spreadsheet" onChange={(e) => void chooseFile(e.target.files?.[0], setProblem, app.ws).then((ok) => ok && setProblem(''))} />;
 
   // A reload loses the file (it was only ever in memory): back to Import, which says so.
   if (!st.read || !base) return <Navigate to="/data/import" replace state={{ lost: true }} />;
@@ -237,7 +241,7 @@ export function Check() {
       {rechecking && <p className="hint preview-hint" role="status">Checking your answers…</p>}
       {total > CHANGES_SAVE_MAX && tables
         ? <TooManyChanges changes={total} name={st.name} read={read} tables={tables} workspace={app.ws.name} today={app.today} toast={app.toast} onChoose={choose} />
-        : <Foot mustRows={mustRows.length} questions={checks.length} total={total} nothing={nothing} ready={!rechecking && (!!cs.commit || (onlyReason && !!st.reason.trim()))} onlyReason={onlyReason && !st.reason.trim()} tried={tried} busy={busy} onSave={() => void save()} onChoose={choose} />}
+        : <Foot mustRows={mustRows.length} questions={checks.length} total={total} nothing={nothing} ready={!rechecking && (!!cs.commit || (onlyReason && !!st.reason.trim()))} onlyReason={onlyReason && !st.reason.trim()} tried={tried} busy={busy} onSave={() => void save()} onChoose={choose} label={ownLabel(cs)} />}
 
       <LeaveSheet open={leaving} onClose={() => setLeaving(false)} rows={mustRows.map((i) => ({ sheet: i.sheet, row: i.row, name: i.name, problem: i.message }))} onDownload={() => void download(toFix, 'left-out', 'Rows left out saved')}
         dependants={leaving ? leaveOut(base, [...st.leftOut, ...mustRows.map((i) => ({ sheet: i.sheet, row: i.row }))], isNewIn(app.snapshot)).also.filter((x) => !left.some((y) => rowKey(y) === rowKey(x))) : []}
@@ -246,14 +250,33 @@ export function Check() {
   );
 }
 
+/** The primary button for a file of one module sheet alone (2.9): "Add 12 metrics, change 3", the parts at zero left out.
+    A file with other sheets too says "Save {n} changes". */
+function ownLabel(cs: ChangeSet): string | undefined {
+  const r = cs.counts.records;
+  if (r?.length !== 1 || cs.items.some((x) => !x.noun)) return undefined;
+  const [one, many] = r[0]!.noun;
+  const parts = [r[0]!.added && `Add ${n(r[0]!.added, one, many)}`, r[0]!.changed + r[0]!.back && `change ${r[0]!.changed + r[0]!.back}`, r[0]!.retired && `retire ${r[0]!.retired}`].filter(Boolean) as string[];
+  return parts.length ? parts.join(', ').replace(/^\w/, (ch) => ch.toUpperCase()) : undefined;
+}
+
 /** Counts by sheet (2.3, item 2; domain/changeset sheetCounts): a table from 700 px; below, one sentence per sheet with
     the zero parts left out. */
 function Counts({ cs, base, read }: { cs: ChangeSet; base: Tables; read: { name: string; kind: string }[] }) {
-  const rows = SHEETS.filter((sh) => read.some((r) => r.kind === KEY[sh])).map((sh) => ({
-    sheet: read.find((r) => r.kind === KEY[sh])!.name,
-    read: (base[KEY[sh]] ?? []).filter((r) => !blank(r)).length,
-    ...sheetCounts(cs, sh),
-  }));
+  const rows = [
+    ...SHEETS.filter((sh) => read.some((r) => r.kind === KEY[sh])).map((sh) => ({
+      sheet: read.find((r) => r.kind === KEY[sh])!.name,
+      read: (base[KEY[sh]] ?? []).filter((r) => !blank(r)).length,
+      ...sheetCounts(cs, sh),
+    })),
+    // A module's own sheet (Metrics), by its name.
+    ...Object.entries(base.modules ?? {}).filter(([name]) => read.some((r) => r.kind === name)).map(([name, recs]) => ({ sheet: read.find((r) => r.kind === name)!.name, read: recs.filter((r) => !blank(r)).length, ...sheetCounts(cs, name) })),
+  ];
+  // Its own count line (2.9), in the module's words: "2 new metrics · 3 change a metric that exists · 40 unchanged, left alone".
+  const own = (cs.counts.records ?? []).flatMap((r) => {
+    const line = MODULE_SHEETS.find((m) => m.spec.name === r.sheet)?.countLine?.({ added: r.added, changed: r.changed, retired: r.retired, back: r.back, unchanged: cs.unchangedBy[r.sheet] ?? 0 });
+    return line ? [{ sheet: r.sheet, line }] : [];
+  });
   const sentence = (r: (typeof rows)[number]) => {
     const parts = [r.added && `${r.added.toLocaleString('en-GB')} added`, r.changed && `${r.changed.toLocaleString('en-GB')} changed`, r.stopped && `${r.stopped.toLocaleString('en-GB')} stopped or left`, r.unchanged && `${r.unchanged.toLocaleString('en-GB')} unchanged`, r.must && `${r.must.toLocaleString('en-GB')} must be fixed`, r.check && `${r.check.toLocaleString('en-GB')} to check`].filter(Boolean);
     return `${r.sheet}: ${n(r.read, 'row')} read${parts.length ? `; ${parts.join(', ')}` : ''}.`;
@@ -265,12 +288,13 @@ function Counts({ cs, base, read }: { cs: ChangeSet; base: Tables; read: { name:
         <tbody>{rows.map((r) => <tr key={r.sheet}><th scope="row">{r.sheet}</th>{[r.read, r.added, r.changed, r.stopped, r.unchanged, r.must, r.check].map((v, i) => <td key={i} className="num">{v.toLocaleString('en-GB')}</td>)}</tr>)}</tbody>
       </table>
       <ul className="import-counts-lines">{rows.map((r) => <li key={r.sheet}>{sentence(r)}</li>)}</ul>
+      {own.map((o) => <p key={o.sheet} className="small import-own-count">{o.sheet}: {o.line}</p>)}
     </section>
   );
 }
 
 /** "Nothing would change" (2.3), with the worked-out cells that differ from today's, when there are any. */
-function Nothing({ cs, base, names }: { cs: ChangeSet; base: Tables; names: Partial<Record<keyof Tables, string>> }) {
+function Nothing({ cs, base, names }: { cs: ChangeSet; base: Tables; names: Partial<Record<TableKey, string>> }) {
   const app = useApp();
   const edits = useMemo(() => workedOutEdits(base, workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, sheets: sheetsOn(app.ws) }), names), [base, app, names]);
   const rows = edits.reduce((k, e) => k + e.rows.length, 0);
@@ -315,8 +339,8 @@ function GroupBlock({ g, cs, prior }: { g: IssueGroup; cs: ChangeSet; prior?: An
 }
 
 /** The foot (2.3, item 7): what still stands in the way, and the one primary action. */
-function Foot({ mustRows, questions, total, nothing, ready, onlyReason, tried, busy, onSave, onChoose }: { mustRows: number; questions: number; total: number; nothing: boolean; ready: boolean; onlyReason: boolean; tried: boolean; busy: boolean; onSave: () => void; onChoose: () => void }) {
-  const saveLabel = busy ? 'Saving…' : `Save ${n(total, 'change')}`;
+function Foot({ mustRows, questions, total, nothing, ready, onlyReason, tried, busy, onSave, onChoose, label }: { mustRows: number; questions: number; total: number; nothing: boolean; ready: boolean; onlyReason: boolean; tried: boolean; busy: boolean; onSave: () => void; onChoose: () => void; label?: string }) {
+  const saveLabel = busy ? 'Saving…' : label || `Save ${n(total, 'change')}`;
   if (nothing) return <div className="foot-row import-foot"><button type="button" className="btn primary big-btn" onClick={onChoose}>Choose another file</button></div>;
   if (mustRows) {
     return (

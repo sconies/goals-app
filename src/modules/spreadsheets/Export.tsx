@@ -59,7 +59,7 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
             </div>
           </fieldset>
         )}
-        <p>An Excel workbook: Goals, Plan, Check-ins and People, which load back, and {andList(['Results', 'Asks', 'Notes', ...sheets.map((x) => x.spec.name)])} for reading. Its first sheet says what each column means and which are required.</p>
+        <p>An Excel workbook: {andList(['Goals', 'Plan', 'Check-ins', 'People', ...sheets.filter((x) => x.spec.loaded).map((x) => x.spec.name)])}, which load back, and {andList(['Results', 'Asks', 'Notes', ...sheets.filter((x) => !x.spec.loaded).map((x) => x.spec.name)])} for reading. Its first sheet says what each column means and which are required.</p>
         <div>
           <button type="button" className="linkish tap export-others" aria-expanded={others} onClick={() => setOthers(!others)}>{others ? 'Fewer formats' : 'Other formats'}</button>
         </div>

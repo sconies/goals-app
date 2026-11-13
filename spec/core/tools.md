@@ -1457,7 +1457,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 ## bulk_change
 
-**Change many goals at once.** Add or change many people, goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export and export_table (e.g. goals: [{"Key": "G-12", "Target": 90}], check_ins: [{"Goal key": "G-12", "Week": 3, "Value": 41}], plan: [{"Key": "G-12", "Week 5": 45}], people: [{"Email": "ana@example.com", "Job title": "Staff engineer"}]). A goal is found by its Key, then its ID (a key works wherever an ID does: Goal key, Feeds into key, Feeds into ID); a goal this same call adds, by its row's Ref: give each new goal a "Ref" of your own and name it in "Feeds into ref" or a check-in's "Goal ref", so one dry run builds a whole tree with its first numbers (goals: [{"Ref": "top", "Goal": "…"}, {"Ref": "a", "Goal": "…", "Feeds into ref": "top"}], check_ins: [{"Goal ref": "a", "Week": 46, "Value": 12}]); a person by Email, then a name only one person has (Owner email is exact). Columns a row leaves out stay as they are; worked-out columns (Status, Calculated…) are ignored. An Action column does what the app does: Stop (with a Reason) or Delete on a goal, Left (with Takes over, by email) on a person. Checks every row and returns what would change, and every problem by kind: must_fix (fix the rows) and check (questions: ask the person, then call again with "answers" by group id; one answer covers every row in its group); nothing is saved unless "apply" is true and every row is valid, and it can be undone (undo_import).
+**Change many goals at once.** Add or change many people, goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export and export_table (e.g. goals: [{"Key": "G-12", "Target": 90}], check_ins: [{"Goal key": "G-12", "Week": 3, "Value": 41}], plan: [{"Key": "G-12", "Week 5": 45}], people: [{"Email": "ana@example.com", "Job title": "Staff engineer"}]). A goal is found by its Key, then its ID (a key works wherever an ID does: Goal key, Feeds into key, Feeds into ID); a goal this same call adds, by its row's Ref: give each new goal a "Ref" of your own and name it in "Feeds into ref" or a check-in's "Goal ref", so one dry run builds a whole tree with its first numbers (goals: [{"Ref": "top", "Goal": "…"}, {"Ref": "a", "Goal": "…", "Feeds into ref": "top"}], check_ins: [{"Goal ref": "a", "Week": 46, "Value": 12}]); a person by Email, then a name only one person has (Owner email is exact). Columns a row leaves out stay as they are; worked-out columns (Status, Calculated…) are ignored. A feature module's sheet loads the same way, while the module is on: metrics (the Metrics sheet, e.g. metrics: [{"Metric": "Deploy frequency", "Unit": "deploys", "Direction": "Higher is better"}] to add one; a row with its ID changes, retires or brings back one). An Action column does what the app does: Stop (with a Reason) or Delete on a goal, Left (with Takes over, by email) on a person. Checks every row and returns what would change, and every problem by kind: must_fix (fix the rows) and check (questions: ask the person, then call again with "answers" by group id; one answer covers every row in its group); nothing is saved unless "apply" is true and every row is valid, and it can be undone (undo_import).
 
 **Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
 
@@ -1469,6 +1469,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `plan` | list of object | no | Rows for the Plan sheet: Key (or ID), Start and "Week N" columns. |
 | `check_ins` | list of object | no | Rows for the Check-ins sheet: Goal key (or Goal ID), Week, Value or Stages, Call, Cause, Why, Why greener, Path to green, Recovery, Back on plan by week, Needs, Next step; ID to correct one check-in. |
 | `people` | list of object | no | Rows for the People sheet (admins): Email (or ID) to change someone; a new Email, Name and Team to add someone; Action and Takes over to mark someone as left. |
+| `metrics` | list of object | no | Rows for the Metrics sheet (the metric library): ID or Metric (its name) to change a metric, neither ID nor a name in use to add one; Meaning, Unit, Decimals, Direction (Higher is better or Lower is better), Source, Source owner, Refresh, Owner email, Caveats; Action Retire (with a Reason) or Bring back; Reason when a change of meaning, source or direction changes the number goals show. |
 | `reason` | string | no | Why plans are changing, for any plan change that needs one. |
 | `confirm` | boolean | no | True once the person has said yes to every question a goal was asked (Check: a number that looks unlikely, no unit, a link to a lower level, a plan change that flips which way is better or is far outside the old plan). |
 | `answers` | object | no | Answers to the questions (Check) a dry run asked, by the group id it gave: {"<id>": "<choice>"} or {"<id>": {"choice": "choose", "value": "Platform"}}. One answer covers every row in its group. Ask the person; never answer for them. |
@@ -1508,6 +1509,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
         "type": "object"
       },
       "description": "Rows for the People sheet (admins): Email (or ID) to change someone; a new Email, Name and Team to add someone; Action and Takes over to mark someone as left."
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Rows for the Metrics sheet (the metric library): ID or Metric (its name) to change a metric, neither ID nor a name in use to add one; Meaning, Unit, Decimals, Direction (Higher is better or Lower is better), Source, Source owner, Refresh, Owner email, Caveats; Action Retire (with a Reason) or Bring back; Reason when a change of meaning, source or direction changes the number goals show."
     },
     "reason": {
       "type": "string",
@@ -1560,6 +1568,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 **Refuses with:**
 
+- “… should be a list of rows.”
 - “Not checked. …”
 - “Not saved. Must fix:
 …”
@@ -1567,7 +1576,6 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
 - “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
-- “… should be a list of rows.”
 
 **Does the same as:** [planChanges](actions.md#planchanges), [postCheckIn](actions.md#postcheckin), [saveGoal](actions.md#savegoal), so it refuses with their words too.
 

@@ -65,7 +65,8 @@
     "metric-define",
     "metric-measured-by",
     "metric-slices",
-    "metric-change"
+    "metric-change",
+    "metric-sheet"
   ],
   "requirements": [
     "METRICS-LIBRARY",
@@ -73,7 +74,8 @@
     "METRICS-CARE",
     "METRIC-DEFINED",
     "METRIC-PARTS",
-    "METRIC-CHANGE"
+    "METRIC-CHANGE",
+    "METRIC-SHEET"
   ],
   "journeys": [
     "U81",
@@ -83,16 +85,18 @@
     "U105",
     "U146",
     "U106",
+    "U155",
     "F15",
     "N16"
   ],
   "elsewhere": [],
   "rebuild": {
     "status": "outline",
-    "builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric. Defining one well: three things to be usable, the rest said later and named in words (“Fully defined” or “Still to say: …”, never a score), and three questions answered once before saving (a close name, a unit spelt another way, a percentage that doesn’t say out of what), with each Must fix and Check under its field. For, and which part: a link is for a team or the whole company and optionally one part of that number (“tier-1 services”), the parts in use offered under the field; the goal takes the metric’s unit and direction, its target stays its own; another goal on the same number, or a part spelt like one in use, is asked about once; and a goal with check-ins says why it is measured differently, in its History. Looking after one: what it still needs, a confirm before changing a unit or direction goals use, and on Workspace → About how many metrics have no owner.",
+    "builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric. Defining one well: three things to be usable, the rest said later and named in words (“Fully defined” or “Still to say: …”, never a score), and three questions answered once before saving (a close name, a unit spelt another way, a percentage that doesn’t say out of what), with each Must fix and Check under its field. For, and which part: a link is for a team or the whole company and optionally one part of that number (“tier-1 services”), the parts in use offered under the field; the goal takes the metric’s unit and direction, its target stays its own; another goal on the same number, or a part spelt like one in use, is asked about once; and a goal with check-ins says why it is measured differently, in its History. Looking after one: what it still needs, a confirm before changing a unit or direction goals use, and on Workspace → About how many metrics have no owner. The workbook’s Metrics sheet comes back in: a row finds its metric by ID, else by its name, else adds one, and Action retires or brings one back; every row goes through the change engine with the library’s own rules, so a file of metrics gets the same preview, Must fix, grouped questions, Save and one Undo as a file of goals, and bulk_change takes a metrics sheet. With the library switched off, exports have no Metrics sheet and an import that has one says it was not read.",
     "entry": [
       "The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.",
-      "Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice."
+      "Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice.",
+      "The change engine reads a module’s own sheet through the reader the module declares (the `sheets` point: a sheet, the other names its columns are read by, how its header row is told, its field table, and its reader), and the import’s Undo puts a module’s rows back as they were."
     ],
     "exit": [
       "A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.",
@@ -107,7 +111,8 @@
       "Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first (the read-back, MT3); admins see on Workspace → About how many metrics have no owner (journey U83).",
       "Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105).",
       "A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146).",
-      "Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples)."
+      "Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples).",
+      "The workbook exported and loaded straight back, Metrics sheet included (retired metrics too, with Retired on and an empty Action), plans no change; a workbook exported with the library off loads into a workspace with it on and changes nothing. A Metrics row with a missing name, unit or direction, a direction or refresh word it doesn’t know, decimals outside 0 to 4, an ID that isn’t here, a name or ID on two rows, an owner who isn’t here, or a new unit on a metric goals use is Must fix in 3.1’s words; a name one letter from another’s, a unit spelt another way, a percentage that doesn’t say out of what, a new meaning, source, direction or fewer decimals on a metric goals use, two new rows with no owner, and retiring metrics goals use are each asked once per group; a row whose ID matches and whose name differs renames the metric; Retire needs a Reason; one Undo removes what the file added and puts back what it changed (journey U155)."
     ],
     "gaps": [
       "Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).",
@@ -147,9 +152,9 @@
       "how": "A workspace setting that makes every number goal need a metric, a flag (like the other attention flags) on goals that have none, and a count on Home for admins."
     },
     {
-      "idea": "Loading the Metrics sheet back, and numbers from the source",
-      "why": "The Metrics sheet is written for reading, like Asks and Notes; metrics are added in the app or by an AI assistant. A goal’s numbers still come from its check-ins.",
-      "how": "Give the Metrics sheet match and edit columns and read it through the change engine (stage 2), as People is. Later, read each metric’s number from its source on its refresh cadence and offer it in the check-in."
+      "idea": "Numbers from the source",
+      "why": "A goal’s numbers come from its check-ins; the library says where each number comes from, in words.",
+      "how": "Read each metric’s number from its source on its refresh cadence and offer it in the check-in (round 2’s MT4)."
     }
   ],
   "finders": [

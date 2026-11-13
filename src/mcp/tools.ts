@@ -28,7 +28,8 @@ import type { FeedbackOps } from '../markup/feedback';
 import { REMOVE_TOOLS } from './removeTools';
 import MODULE_TOOLS from 'virtual:faro-modules/tools';
 import { isModuleOn, moduleById } from '../core/registry';
-import { MODULE_GOAL_COLUMNS, recordsOn } from '../core/records';
+import { loadSheetReaders, MODULE_GOAL_COLUMNS, MODULE_RECORDS, MODULE_SHEETS, recordsOn, sheetsOn } from '../core/records';
+import { moduleRecs, rowsInTables } from '../domain/sheets';
 import { addColumnParams } from '../domain/query';
 import { commentsOf } from '../domain/removal';
 import { findGoal, isKey } from '../domain/goalKey';
@@ -143,13 +144,29 @@ const answersOf = (a: unknown): Answers => Object.fromEntries(Object.entries((a 
 /** find_goals' page: how many goals it lists unless asked, and the most it lists at once. */
 const FIND_PAGE = 50, FIND_MAX = 200;
 
-async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown }): Promise<ToolResult> {
+async function change(ctx: McpContext, given: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown }): Promise<ToolResult> {
   // The size limits every door keeps (domain/importLimits): rows read in one call, then changes saved at once.
-  const big = tooLarge('This call', { rows: (tables.goals?.length ?? 0) + (tables.plan?.length ?? 0) + (tables.checkIns?.length ?? 0) + (tables.people?.length ?? 0) }, 'call');
+  const big = tooLarge('This call', { rows: rowsInTables(given) }, 'call');
   if (big) return { isError: true, text: `Not checked. ${big}` };
+  // A module's sheet (Metrics) is read by its module's reader while the module is on here; switched off, its rows are
+  // not read, and that is said once (the module map's one line per import).
+  const on = sheetsOn(ctx.ws);
+  const offSaid = Object.keys(given.modules ?? {}).filter((name) => !on.some((m) => m.spec.name === name)).map((name) => {
+    const mod = MODULE_RECORDS.find((m) => m.sheets?.some((x) => x.spec.name === name))?.module ?? '';
+    return `${moduleById(mod)?.name ?? mod} is switched off in ${ctx.ws.name}: the ${name} sheet was not read.`;
+  }).join(' ');
+  const kept = Object.fromEntries(Object.entries(given.modules ?? {}).filter(([name]) => on.some((m) => m.spec.name === name)));
+  const tables: Tables = { ...given, ...(given.modules ? { modules: kept } : {}) };
+  if (!Object.keys(kept).length) delete tables.modules;
+  const readers = tables.modules ? await loadSheetReaders(on) : undefined;
+  const said = (r: ToolResult): ToolResult => (offSaid ? { ...r, text: `${offSaid}\n${r.text}` } : r);
+  return said(await changeChecked(ctx, tables, opts, readers));
+}
+
+async function changeChecked(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown }, readers: Awaited<ReturnType<typeof loadSheetReaders>> | undefined): Promise<ToolResult> {
   // A goal's key: as saved once it is, as the change gives it before (a dry run's key is the one it would get).
   const keyOf = (id: string): string | null => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
-  const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason, confirm: opts.confirm, answers: answersOf(opts.answers), records: recordsOn(ctx.ws) });
+  const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason, confirm: opts.confirm, answers: answersOf(opts.answers), records: recordsOn(ctx.ws), ...(readers ? { readers, workspace: ctx.ws.name } : {}) });
   // Every problem has a kind and a level (domain/problemLevels): Must fix, Check (a question), or how a row was read.
   const errors = cs.issues.filter((x) => x.level === 'must');
   // Goal entry's questions (rule 3) are listed goal by goal and answered by "confirm"; the import's other questions by
@@ -161,7 +178,7 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
     saved: false,
     summary: describe(cs),
     // Every goal a change is to, by its ID and key: a new goal's key is the one it is given (MCP load, 12 Nov).
-    changes: cs.items.map((x) => ({ goalId: x.goalId as string | null, ...(x.goalId ? { key: keyOf(x.goalId) } : {}), goal: x.goal, kind: x.kind, summary: x.summary, fields: x.diffs.filter((d) => d.field !== 'Via').map((d) => ({ field: d.field, from: d.from, to: d.to })), pastWeek: !!x.backfilled })),
+    changes: cs.items.map((x) => ({ goalId: (x.goalId || null) as string | null, ...(x.goalId ? { key: keyOf(x.goalId) } : {}), ...(x.noun ? { sheet: x.sheet } : {}), goal: x.goal, kind: x.kind, summary: x.summary, fields: x.diffs.filter((d) => d.field !== 'Via').map((d) => ({ field: d.field, from: d.from, to: d.to })), pastWeek: !!x.backfilled })),
     unchanged: cs.unchanged,
     examples: cs.examples,
     problems: errors.map((x) => ({ sheet: x.sheet, row: x.row, goal: x.name, kind: x.kind, message: x.message })),
@@ -472,12 +489,14 @@ const CORE_TOOLS: ToolDef[] = [
   {
     name: 'bulk_change',
     title: 'Change many goals at once',
-    description: `Add or change many people, goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export and export_table (e.g. goals: [{"Key": "G-12", "Target": 90}], check_ins: [{"Goal key": "G-12", "Week": 3, "Value": 41}], plan: [{"Key": "G-12", "Week 5": 45}], people: [{"Email": "ana@example.com", "Job title": "Staff engineer"}]). A goal is found by its Key, then its ID (a key works wherever an ID does: Goal key, Feeds into key, Feeds into ID); a goal this same call adds, by its row's Ref: give each new goal a "Ref" of your own and name it in "Feeds into ref" or a check-in's "Goal ref", so one dry run builds a whole tree with its first numbers (goals: [{"Ref": "top", "Goal": "…"}, {"Ref": "a", "Goal": "…", "Feeds into ref": "top"}], check_ins: [{"Goal ref": "a", "Week": 46, "Value": 12}]); a person by Email, then a name only one person has (Owner email is exact). Columns a row leaves out stay as they are; worked-out columns (Status, Calculated…) are ignored. An Action column does what the app does: ${GOAL_ACTION_WORDS.word.stop} (with a Reason) or ${GOAL_ACTION_WORDS.word.delete} on a goal, ${PERSON_ACTION_WORDS.word.left} (with Takes over, by email) on a person. Checks every row and returns what would change, and every problem by kind: must_fix (fix the rows) and check (questions: ask the person, then call again with "answers" by group id; one answer covers every row in its group); nothing is saved unless "apply" is true and every row is valid, and it can be undone (undo_import).`,
+    description: `Add or change many people, goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export and export_table (e.g. goals: [{"Key": "G-12", "Target": 90}], check_ins: [{"Goal key": "G-12", "Week": 3, "Value": 41}], plan: [{"Key": "G-12", "Week 5": 45}], people: [{"Email": "ana@example.com", "Job title": "Staff engineer"}]). A goal is found by its Key, then its ID (a key works wherever an ID does: Goal key, Feeds into key, Feeds into ID); a goal this same call adds, by its row's Ref: give each new goal a "Ref" of your own and name it in "Feeds into ref" or a check-in's "Goal ref", so one dry run builds a whole tree with its first numbers (goals: [{"Ref": "top", "Goal": "…"}, {"Ref": "a", "Goal": "…", "Feeds into ref": "top"}], check_ins: [{"Goal ref": "a", "Week": 46, "Value": 12}]); a person by Email, then a name only one person has (Owner email is exact). Columns a row leaves out stay as they are; worked-out columns (Status, Calculated…) are ignored.${MODULE_SHEETS.some((m) => m.spec.loaded && m.reader) ? ` A feature module's sheet loads the same way, while the module is on: ${MODULE_SHEETS.filter((m) => m.spec.loaded && m.reader).map((m) => `${m.spec.kind} (the ${m.spec.name} sheet, e.g. ${m.spec.kind}: [{"Metric": "Deploy frequency", "Unit": "deploys", "Direction": "Higher is better"}] to add one; a row with its ID changes, retires or brings back one)`).join('; ')}.` : ''} An Action column does what the app does: ${GOAL_ACTION_WORDS.word.stop} (with a Reason) or ${GOAL_ACTION_WORDS.word.delete} on a goal, ${PERSON_ACTION_WORDS.word.left} (with Takes over, by email) on a person. Checks every row and returns what would change, and every problem by kind: must_fix (fix the rows) and check (questions: ask the person, then call again with "answers" by group id; one answer covers every row in its group); nothing is saved unless "apply" is true and every row is valid, and it can be undone (undo_import).`,
     inputSchema: { type: 'object', additionalProperties: false, properties: {
       goals: { type: 'array', items: { type: 'object' }, description: 'Rows for the Goals sheet. Key (or ID) to change a goal; neither to add one.' },
       plan: { type: 'array', items: { type: 'object' }, description: 'Rows for the Plan sheet: Key (or ID), Start and "Week N" columns.' },
       check_ins: { type: 'array', items: { type: 'object' }, description: 'Rows for the Check-ins sheet: Goal key (or Goal ID), Week, Value or Stages, Call, Cause, Why, Why greener, Path to green, Recovery, Back on plan by week, Needs, Next step; ID to correct one check-in.' },
       people: { type: 'array', items: { type: 'object' }, description: 'Rows for the People sheet (admins): Email (or ID) to change someone; a new Email, Name and Team to add someone; Action and Takes over to mark someone as left.' },
+      // Each feature module's sheet that loads back (the metric library's Metrics), by its kind.
+      ...Object.fromEntries(MODULE_SHEETS.filter((m) => m.spec.loaded && m.reader).map((m) => [m.spec.kind, { type: 'array', items: { type: 'object' }, description: m.toolHelp ?? `Rows for the ${m.spec.name} sheet.` }])),
       reason: str('Why plans are changing, for any plan change that needs one.'),
       confirm: CONFIRM,
       answers: ANSWERS_ARG,
@@ -485,7 +504,8 @@ const CORE_TOOLS: ToolDef[] = [
     } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
-      return change(ctx, { goals: rows(a.goals, 'goals'), plan: rows(a.plan, 'plan'), checkIns: rows(a.check_ins, 'check_ins'), people: rows(a.people, 'people') }, { dry: !a.apply, reason: a.reason as string | undefined, confirm: a.confirm === true, answers: a.answers });
+      const own = MODULE_SHEETS.filter((m) => m.spec.loaded && m.reader && a[m.spec.kind] != null).map((m) => [m.spec.name, moduleRecs(m, rows(a[m.spec.kind], m.spec.kind))] as const);
+      return change(ctx, { goals: rows(a.goals, 'goals'), plan: rows(a.plan, 'plan'), checkIns: rows(a.check_ins, 'check_ins'), people: rows(a.people, 'people'), ...(own.length ? { modules: Object.fromEntries(own) } : {}) }, { dry: !a.apply, reason: a.reason as string | undefined, confirm: a.confirm === true, answers: a.answers });
     },
   },
 ];

@@ -9,7 +9,7 @@ import type { ChangeSet } from '../../domain/changeset';
 import { CHUNK } from '../../domain/importLimits';
 import { leaveOut, type DependentRow, type IsNew, type RowRef } from '../../domain/leaveOut';
 import { normalEmail } from '../../domain/people';
-import type { Rec, Tables } from '../../domain/sheets';
+import { rowsInTables, type Rec, type Tables } from '../../domain/sheets';
 import type { Snapshot } from '../../domain/types';
 import { startCheck } from './checkRun';
 import { useImport, type CheckRun, type ImportState } from './importStore';
@@ -20,6 +20,8 @@ export const asNewTables = (t: Tables): Tables => ({
   ...(t.goals ? { goals: drop(t.goals, ['key', 'id', 'feeds into key']) } : {}),
   ...(t.checkIns ? { checkIns: drop(t.checkIns, ['id', 'goal key', 'goal id']) } : {}),
   ...(t.people ? { people: drop(t.people, ['id']) } : {}),
+  // A module's sheet (Metrics): its rows found again by name, or added.
+  ...(t.modules ? { modules: Object.fromEntries(Object.entries(t.modules).map(([k, v]) => [k, drop(v, ['id'])!])) } : {}),
 });
 
 /** Which rows add a record here: a goal with no Key or ID, a person no one here is (by ID or email). */
@@ -52,7 +54,7 @@ export interface ImportPlan {
 }
 
 /** Every row in a file's tables. */
-export const rowsIn = (t: Tables) => (t.goals?.length ?? 0) + (t.plan?.length ?? 0) + (t.checkIns?.length ?? 0) + (t.people?.length ?? 0);
+export const rowsIn = rowsInTables;
 
 export function useImportPlan(): ImportPlan {
   const app = useApp();

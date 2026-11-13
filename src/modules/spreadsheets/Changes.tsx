@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useApp } from '../../app/state';
 import { describe, showOf, type ChangeSet, type ChangeShow, type Item } from '../../domain/changeset';
-import { fold, SHEET_ORDER } from '../../domain/problemLevels';
+import { fold, sheetRank } from '../../domain/problemLevels';
 import { LEFT, STOPPED } from '../../domain/vocabulary';
 import { ListBar, ListSearch } from '../../ui/ListBar';
 import { PlanDiff, planWeeks } from '../../ui/Preview';
@@ -22,6 +22,7 @@ const SHOW_OF = (x: Item): Show => showOf(x.kind);
 const WHAT: Record<Item['kind'], string> = {
   'new goal': 'added', goal: 'changed', plan: 'plan changed', 'check-in': 'added', 'replaces check-in': 'replaces a check-in', person: 'changed', 'new person': 'added', team: 'changed',
   'stop goal': STOPPED.toLowerCase(), 'delete goal': 'deleted', 'person left': LEFT.toLowerCase(),
+  'new record': 'added', record: 'changed', 'retire record': 'retired', 'bring back record': 'brought back',
 };
 const n = (k: number, one: string, many = one + 's') => `${k.toLocaleString('en-GB')} ${k === 1 ? one : many}`;
 
@@ -39,7 +40,7 @@ export function Changes() {
   const show = (params.get('show') ?? 'all') as Show;
   const q = params.get('q') ?? '';
   const [count, setCount] = useState(PAGE);
-  const items = useMemo(() => [...(cs?.items ?? [])].sort((a, b) => SHEET_ORDER.indexOf(a.sheet) - SHEET_ORDER.indexOf(b.sheet) || a.row - b.row), [cs]);
+  const items = useMemo(() => [...(cs?.items ?? [])].sort((a, b) => sheetRank(a.sheet) - sheetRank(b.sheet) || a.sheet.localeCompare(b.sheet) || a.row - b.row), [cs]);
   const keyOf = (x: Item) => {
     const g = x.goalId ? app.goal(x.goalId) ?? cs?.commit?.goals?.find((y) => y.id === x.goalId) : undefined;
     return x.kind === 'new goal' ? (g?.key ? `new, will be ${g.key}` : 'new') : g?.key ?? '';

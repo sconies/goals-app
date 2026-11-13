@@ -6,7 +6,7 @@ import { saveAndSay, type SheetOut } from '../../app/files';
 import type { PlanProgress } from '../../domain/changeset';
 import { toCsv } from '../../domain/export';
 import { CHANGES_SAVE_MAX, count } from '../../domain/importLimits';
-import type { ReadTables, Tables } from '../../domain/sheets';
+import type { ReadTables, TableKey, Tables } from '../../domain/sheets';
 import { partName, splitTables } from '../../domain/splitFile';
 import { WarnMark } from '../../ui/bits';
 import { rowsIn } from './importPlan';
@@ -53,7 +53,7 @@ export function Reading({ name, read, progress, onStop }: { name: string; read: 
 
 /** The parts' files: one sheet read as a CSV stays a CSV; a workbook stays a workbook with the same sheets. */
 function partFiles(read: ReadTables, tables: Tables) {
-  const keys = (Object.keys(tables) as (keyof Tables)[]).filter((k) => tables[k]);
+  const keys = (Object.keys(tables) as (TableKey)[]).filter((k) => tables[k]);
   const csv = read.read.length === 1 && /\.(csv|tsv|txt)$/i.test(read.read[0]!.name);
   return (part: Tables) => {
     const sheets: SheetOut[] = keys.flatMap((k) => {

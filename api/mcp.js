@@ -1,4 +1,5 @@
 // \0rolldown/runtime.js
+var __defProp = Object.defineProperty;
 var __esmMin = (fn, res, err) => () => {
 	if (err) throw err[0];
 	try {
@@ -6,6 +7,15 @@ var __esmMin = (fn, res, err) => () => {
 	} catch (e) {
 		throw err = [e], e;
 	}
+};
+var __exportAll = (all, no_symbols) => {
+	let target = {};
+	for (var name in all) __defProp(target, name, {
+		get: all[name],
+		enumerable: true
+	});
+	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
+	return target;
 };
 // server/log.ts
 /** Writes the failure to standard error and returns its reference. Never throws. */
@@ -1809,6 +1819,18 @@ function applyModuleRows(s, c) {
 	for (const [mod, keys] of Object.entries(c)) {
 		const mine = { ...out[mod] ?? {} };
 		for (const [key, rows] of Object.entries(keys)) if (rows.length || mine[key]) mine[key] = upsert$1(mine[key] ?? [], rows);
+		out[mod] = mine;
+	}
+	return out;
+}
+/** Two commits' module rows together, in order (a goal's save and its link, made in one form). */
+function mergeModuleRows(a, b) {
+	if (!a) return b;
+	if (!b) return a;
+	const out = { ...a };
+	for (const [mod, keys] of Object.entries(b)) {
+		const mine = { ...out[mod] ?? {} };
+		for (const [key, rows] of Object.entries(keys)) mine[key] = [...mine[key] ?? [], ...rows];
 		out[mod] = mine;
 	}
 	return out;
@@ -4764,12 +4786,33 @@ function fieldTable(kind) {
 		role: WEEK_COLUMN.role,
 		means: WEEK_COLUMN.means
 	}] : []].map((c) => {
-		const f = FIELDS$1[kind][c.header];
+		const f = FIELDS$2[kind][c.header];
 		return f ? {
 			...c,
 			...f
 		} : {
 			...c,
+			required: null,
+			format: "",
+			example: "",
+			empty: "Worked out by Faro: never read"
+		};
+	});
+}
+/** A module sheet's columns as the field table (domain/columns fieldTable): each with its field facts, a worked-out one
+with none. */
+function moduleFieldTable(m) {
+	return m.spec.columns.map((c) => {
+		const f = m.fields?.[c.header];
+		return f ? {
+			header: c.header,
+			role: c.role,
+			means: c.means,
+			...f
+		} : {
+			header: c.header,
+			role: c.role,
+			means: c.means,
 			required: null,
 			format: "",
 			example: "",
@@ -4804,7 +4847,7 @@ function requiredLine(kind) {
 	if (kind === "checkIns") return `${req("Goal key")} (or ${req("Goal")}), ${req("Week")}, and ${req("Value")} or ${req("Stages")}.`;
 	return `${req("Name")} and ${req("Email")}.`;
 }
-var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$2, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
+var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, act$1, moduleColumn, cellOr, blank, or$1, metricOf$2, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, START_HERE, sheetNamesWith, specOf, headersOf, columnOf$1, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$2, emptyText, isFillIn;
 var init_columns = __esmMin((() => {
 	init_levels();
 	init_asks();
@@ -4991,8 +5034,17 @@ var init_columns = __esmMin((() => {
 		means,
 		write
 	});
+	act$1 = (header, means, write) => ({
+		header,
+		role: "action",
+		means,
+		write
+	});
 	moduleColumn = {
 		match: m$1,
+		edit: e,
+		action: act$1,
+		worked: w,
 		shown: sh$1
 	};
 	cellOr = (v) => v == null || v === "" ? null : v;
@@ -5262,8 +5314,8 @@ var init_columns = __esmMin((() => {
 	];
 	specOf = (kind) => SHEETS.find((x) => x.kind === kind);
 	headersOf = (kind) => specOf(kind).columns.map((c) => c.header);
-	columnOf = (kind, header) => specOf(kind).columns.find((c) => c.header.toLowerCase() === header.toLowerCase());
-	isWorkedOut = (kind, header) => ["worked", "shown"].includes(columnOf(kind, header)?.role ?? "");
+	columnOf$1 = (kind, header) => specOf(kind).columns.find((c) => c.header.toLowerCase() === header.toLowerCase());
+	isWorkedOut = (kind, header) => ["worked", "shown"].includes(columnOf$1(kind, header)?.role ?? "");
 	KEY_COLUMNS = {
 		goals: ["Key", "ID"],
 		plan: ["Key", "ID"],
@@ -5298,7 +5350,7 @@ var init_columns = __esmMin((() => {
 	];
 	wordList = (w) => oneOf(Object.values(w.word));
 	causeWords = [...new Set(Object.values(CAUSE_WORDS.word))];
-	FIELDS$1 = {
+	FIELDS$2 = {
 		goals: {
 			Key: {
 				required: "leave-empty",
@@ -8569,8 +8621,8 @@ function departs(x, p, to, summary) {
 	};
 	const goalsTo = handTo(to.goalsTo, "goals");
 	const asksTo = handTo(to.asksTo, "asks");
-	if (l.goals.length && !goalsTo) no$1(`${p.name} owns ${plural$3(l.goals.length, "goal", "goals")}: choose who takes them over.`);
-	if ((l.asked.length || l.asking.length) && !asksTo) no$1(`${p.name} has ${plural$3((/* @__PURE__ */ new Set([...l.asked, ...l.asking])).size, "open ask", "open asks")}: choose who takes them over.`);
+	if (l.goals.length && !goalsTo) no$1(`${p.name} owns ${plural$4(l.goals.length, "goal", "goals")}: choose who takes them over.`);
+	if ((l.asked.length || l.asking.length) && !asksTo) no$1(`${p.name} has ${plural$4((/* @__PURE__ */ new Set([...l.asked, ...l.asking])).size, "open ask", "open asks")}: choose who takes them over.`);
 	const goals = l.goals.map((g) => ({
 		...g,
 		ownerId: goalsTo.id
@@ -8610,12 +8662,12 @@ function departs(x, p, to, summary) {
 				},
 				...goals.length ? [{
 					field: "Goals handed over",
-					from: plural$3(goals.length, "goal", "goals"),
+					from: plural$4(goals.length, "goal", "goals"),
 					to: goalsTo.name
 				}] : [],
 				...asks.size ? [{
 					field: "Open asks handed over",
-					from: plural$3(asks.size, "ask", "asks"),
+					from: plural$4(asks.size, "ask", "asks"),
 					to: asksTo.name
 				}] : [],
 				...reviews.length ? [{
@@ -8993,14 +9045,14 @@ function canUndoStart(full, cycleId) {
 	const checkIns = full.checkIns.filter((ci) => ids.has(ci.goalId) && !ci.removedAt).length;
 	if (checkIns) return {
 		ok: false,
-		why: `${plural$3(checkIns, "check-in is", "check-ins are")} in it`
+		why: `${plural$4(checkIns, "check-in is", "check-ins are")} in it`
 	};
 	const made = new Set((start.undo?.goals ?? []).map((g) => g.id));
 	const changed = new Set([...ids].filter((id) => !made.has(id) && !full.changes.some((ch) => ch.goalId === id && /carries on into /.test(ch.summary))));
 	for (const ch of full.changes) if (ch.at >= start.at && ch.id !== start.id && ch.goalId && ids.has(ch.goalId) && !byRecarry(ch.summary)) changed.add(ch.goalId);
 	if (changed.size) return {
 		ok: false,
-		why: `${plural$3(changed.size, "goal in it has", "goals in it have")} been changed`
+		why: `${plural$4(changed.size, "goal in it has", "goals in it have")} been changed`
 	};
 	if (full.cycles.some((v) => !v.removedAt && v.startDate > c.startDate)) return {
 		ok: false,
@@ -9351,13 +9403,39 @@ function undoPlan(x, importId) {
 		} : null);
 		if (back) requests.push(back);
 	}
-	const restored = goalsBack + checkIns.length + people.length + reviews.length + teams.length + removeTeams.length + requests.filter((r) => ownAsks.has(r.id)).length;
+	const modules = {};
+	let moduleBack = 0;
+	for (const m of u.moduleRows ?? []) for (const { id, before } of m.rows) {
+		const cur = moduleRows(full, m.module, m.key).find((r) => r.id === id);
+		if (!cur || cur.removedAt && !before) continue;
+		const def = recordOf(x.records ?? [], m.module, m.key);
+		const what = `the ${def?.name ?? "record"} “${def?.removed?.name(cur) ?? cur.name ?? id}”`;
+		const by = latest((c) => c.entityId === id);
+		if (by) {
+			keep(what.replace(/^the/, "The"), by, "other");
+			continue;
+		}
+		((modules[m.module] ??= {})[m.key] ??= []).push(before ? asBefore(cur, before) : {
+			...cur,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		});
+		moduleBack++;
+		changes.push(log$1(x, {
+			entity: "workspace",
+			entityId: id,
+			action: before ? "edited" : "removed",
+			summary: before ? `Put ${what} back as it was before an import` : `Removed ${what}: an import that added it was undone`,
+			importId
+		}));
+	}
+	const restored = goalsBack + checkIns.length + people.length + reviews.length + teams.length + removeTeams.length + moduleBack + requests.filter((r) => ownAsks.has(r.id)).length;
 	changes.unshift(log$1(x, {
 		entity: "workspace",
 		entityId: importId,
 		action: "undone",
 		importId,
-		summary: `Undid ${undoneWhat(entry)}: ${plural$3(restored, "row", "rows")} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ""}`,
+		summary: `Undid ${undoneWhat(entry)}: ${plural$4(restored, "row", "rows")} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ""}`,
 		diffs: [{
 			field: "Import",
 			from: entry.summary,
@@ -9379,6 +9457,7 @@ function undoPlan(x, importId) {
 			...reviews.length ? { reviews } : {},
 			...teams.length ? { teams } : {},
 			...removeTeams.length ? { removeTeams } : {},
+			...moduleBack ? { modules } : {},
 			changes
 		}
 	};
@@ -9428,7 +9507,7 @@ function undoneWhat(entry) {
 }
 /** "Nothing to undo: it changed no rows." or "Nothing left to undo: all 3 rows have changed since.": rule 9's line when Undo would put back nothing. */
 function nothingToUndo(skipped) {
-	return skipped ? `Nothing left to undo: ${skipped === 1 ? "its one row has" : `all ${plural$3(skipped, "row", "rows")} have`} changed since.` : "Nothing to undo: it changed no rows.";
+	return skipped ? `Nothing left to undo: ${skipped === 1 ? "its one row has" : `all ${plural$4(skipped, "row", "rows")} have`} changed since.` : "Nothing to undo: it changed no rows.";
 }
 /** Everything removed, stopped, ended or marked as left in the last 30 days, newest first. After that it drops off this list; the row stays. */
 function recentlyRemoved(full, now, days = 30, records = []) {
@@ -9600,7 +9679,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 	}
 }
-var no$1, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, IMPORT_TOO_OLD, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay$1, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
+var no$1, fullOf, plural$4, ownsOrAdmin$1, log$1, nameIn, commentOf, IMPORT_TOO_OLD, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay$1, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
 	init_goalRights();
 	init_proposed();
@@ -9617,7 +9696,7 @@ var init_removal = __esmMin((() => {
 		throw new NotAllowed(msg);
 	};
 	fullOf = (x) => x.full ?? x.snapshot;
-	plural$3 = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+	plural$4 = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 	ownsOrAdmin$1 = (x, g) => mayChangeGoal(x.actor, g);
 	log$1 = (x, v) => ({
 		id: x.newId("chg"),
@@ -9765,7 +9844,8 @@ function issueOf(kind, sheet, row, name, message, x = {}) {
 		...x.found != null && x.found !== "" ? { found: x.found } : {},
 		...x.suggest ? { suggest: x.suggest } : {},
 		...x.answers?.length ? { answers: x.answers } : {},
-		...x.value != null ? { value: x.value } : {}
+		...x.value != null ? { value: x.value } : {},
+		...x.title ? { title: x.title } : {}
 	};
 }
 /** "Goals, row 5"; "Goals, rows 18 to 31"; "Goals, rows 2 to 4 and 9"; over three runs, the first three and "and 12 more". */
@@ -9786,6 +9866,7 @@ function whereText(sheet, rows) {
 }
 /** A group's title: section 4's "Title of the group" for a Must fix, its question for a Check. */
 function groupTitle(kind, sheet, count, first) {
+	if (first.title) return first.title.replace(/\{n\}/g, String(count));
 	const v = first.found ?? "";
 	const col = first.column ?? "";
 	const things = sheet === "Check-ins" ? n$1(count, "check-in") : sheet === "People" ? n$1(count, "row") : sheet === "Plan" ? n$1(count, "plan row") : n$1(count, "row");
@@ -9800,7 +9881,7 @@ function groupTitle(kind, sheet, count, first) {
 		case "ambiguous-ref": return `${n$1(count, "row")} say “${v}”, and more than one ${THING[col] ?? "record"} is called that`;
 		case "conflicting-refs": return `${n$1(count, "row")} name${count === 1 ? "s" : ""} two different ${THING[col] === "goal" ? "goals" : "people"}`;
 		case "bad-key": return /look like/.test(first.message) ? `${n$1(count, "key")} ${count === 1 ? "doesn’t" : "don’t"} look like G-12` : `${n$1(count, col === "ID" || col === "Goal ID" ? "ID" : "key")} ${count === 1 ? "isn’t" : "aren’t"} here`;
-		case "duplicate": return sheet === "People" ? `${n$1(count, "person", "people")} appear on more than one row` : sheet === "Check-ins" ? `${n$1(count, "check-in")} appear on more than one row` : `${n$1(count, "goal")} appear on more than one row`;
+		case "duplicate": return !isCoreSheet(sheet) ? `${n$1(count, "row")} say the same ${col === "ID" ? "ID" : col.toLowerCase() || "thing"} as another row` : sheet === "People" ? `${n$1(count, "person", "people")} appear on more than one row` : sheet === "Check-ins" ? `${n$1(count, "check-in")} appear on more than one row` : `${n$1(count, "goal")} appear on more than one row`;
 		case "type-unclear": return `${n$1(count, "new goal")} ${count === 1 ? "doesn’t" : "don’t"} say what type ${count === 1 ? "it is" : "they are"}`;
 		case "plan-order": return `${n$1(count, "plan")} ${count === 1 ? "ends" : "end"} before ${count === 1 ? "it starts" : "they start"}, or ${count === 1 ? "has" : "have"} weeks outside ${count === 1 ? "it" : "them"}`;
 		case "stage-format": return `${n$1(count, "row")} ${count === 1 ? "has" : "have"} stages that can’t be read`;
@@ -9828,6 +9909,10 @@ function groupTitle(kind, sheet, count, first) {
 		case "totals-row": return first.message;
 		case "big-removal": return first.message;
 		case "feeds-lower": return count === 1 ? first.message : `${n$1(count, "goal")} feed${count === 1 ? "s" : ""} a goal at a lower level. Is that right?`;
+		case "text-length": return `${n$1(count, "row")} ${count === 1 ? "has" : "have"} ${col ? `a ${col} ` : "text "}of the wrong length`;
+		case "changes-goals": return first.message;
+		case "out-of-what": return count === 1 ? first.message : `${n$1(count, "row")}: ${first.message}`;
+		case "no-owner": return first.message;
 		default: return first.message;
 	}
 }
@@ -9863,7 +9948,7 @@ function groupIssues(issues) {
 		};
 	}).sort((a, b) => LEVEL_RANK[a.level] - LEVEL_RANK[b.level] || b.count - a.count);
 }
-var fold$1, MUST_KINDS, CHECK_KINDS, levelOf, SEVERITY, SHEET_ORDER, groupId, LEAVE, RIGHT, ANSWERS, n$1, THING, LEVEL_RANK;
+var fold$1, MUST_KINDS, CHECK_KINDS, levelOf, SEVERITY, SHEET_ORDER, sheetRank, isCoreSheet, groupId, LEAVE, RIGHT, ANSWERS, n$1, THING, LEVEL_RANK;
 var init_problemLevels = __esmMin((() => {
 	init_find();
 	fold$1 = (s) => fold$2(s).replace(/&/g, " and ").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
@@ -9887,7 +9972,8 @@ var init_problemLevels = __esmMin((() => {
 		"cant-change",
 		"not-allowed",
 		"removal-refused",
-		"loop"
+		"loop",
+		"text-length"
 	];
 	CHECK_KINDS = [
 		"near-ref",
@@ -9909,7 +9995,10 @@ var init_problemLevels = __esmMin((() => {
 		"many-admins",
 		"totals-row",
 		"big-removal",
-		"feeds-lower"
+		"feeds-lower",
+		"changes-goals",
+		"out-of-what",
+		"no-owner"
 	];
 	levelOf = (kind) => MUST_KINDS.includes(kind) ? "must" : CHECK_KINDS.includes(kind) ? "check" : "note";
 	SEVERITY = {
@@ -9923,6 +10012,11 @@ var init_problemLevels = __esmMin((() => {
 		"Check-ins",
 		"People"
 	];
+	sheetRank = (sheet) => {
+		const i = SHEET_ORDER.indexOf(sheet);
+		return i < 0 ? SHEET_ORDER.length : i;
+	};
+	isCoreSheet = (sheet) => SHEET_ORDER.includes(sheet);
 	groupId = (kind, sheet, column, found) => [
 		kind,
 		sheet,
@@ -10153,10 +10247,16 @@ function headerMatch(kind, header) {
 		as: null
 	};
 }
-var LOADED, ALSO_READ, ALL_KINDS, NAMES, alsoOf;
+var asColumn, moduleRecs, rowsInTables, LOADED, ALSO_READ, ALL_KINDS, NAMES, alsoOf;
 var init_sheets = __esmMin((() => {
 	init_columns();
 	init_problemLevels();
+	asColumn = (m, h) => {
+		const l = h.trim().toLowerCase();
+		return m.also?.[l] ?? l;
+	};
+	moduleRecs = (m, recs) => m.also ? recs.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k === "__row" ? k : asColumn(m, k), v]))) : recs;
+	rowsInTables = (t) => (t.goals?.length ?? 0) + (t.plan?.length ?? 0) + (t.checkIns?.length ?? 0) + (t.people?.length ?? 0) + Object.values(t.modules ?? {}).reduce((k, l) => k + l.length, 0);
 	LOADED = {
 		goals: "goals",
 		plan: "plan",
@@ -10209,17 +10309,23 @@ var init_importLimits = __esmMin((() => {
 function describe(cs) {
 	const c = cs.counts;
 	const parts = [
-		c.newPeople && plural$2(c.newPeople, "new person", "new people"),
-		c.people && `${plural$2(c.people, "person", "people")} changed`,
-		c.teams && `${plural$2(c.teams, "team")} changed`,
-		c.newGoals && plural$2(c.newGoals, "new goal"),
-		c.goals && `${plural$2(c.goals, "goal")} changed`,
-		c.plans && `${plural$2(c.plans, "plan")} changed`,
-		c.checkIns && `${plural$2(c.checkIns, "check-in")}${c.backfilled ? ` (${c.backfilled} for past weeks)` : ""}`,
+		c.newPeople && plural$3(c.newPeople, "new person", "new people"),
+		c.people && `${plural$3(c.people, "person", "people")} changed`,
+		c.teams && `${plural$3(c.teams, "team")} changed`,
+		c.newGoals && plural$3(c.newGoals, "new goal"),
+		c.goals && `${plural$3(c.goals, "goal")} changed`,
+		c.plans && `${plural$3(c.plans, "plan")} changed`,
+		c.checkIns && `${plural$3(c.checkIns, "check-in")}${c.backfilled ? ` (${c.backfilled} for past weeks)` : ""}`,
 		c.replaced && `${c.replaced} replaced`,
-		c.stopped && `${plural$2(c.stopped, "goal")} ${lower({ label: STOPPED })}`,
-		c.deleted && `${plural$2(c.deleted, "goal")} deleted`,
-		c.left && `${plural$2(c.left, "person", "people")} ${lower({ label: LEFT })}`
+		c.stopped && `${plural$3(c.stopped, "goal")} ${lower({ label: STOPPED })}`,
+		c.deleted && `${plural$3(c.deleted, "goal")} deleted`,
+		c.left && `${plural$3(c.left, "person", "people")} ${lower({ label: LEFT })}`,
+		...(c.records ?? []).flatMap((r) => [
+			r.added && `${r.added} new ${r.added === 1 ? r.noun[0] : r.noun[1]}`,
+			r.changed && `${plural$3(r.changed, r.noun[0], r.noun[1])} changed`,
+			r.retired && `${plural$3(r.retired, r.noun[0], r.noun[1])} retired`,
+			r.back && `${plural$3(r.back, r.noun[0], r.noun[1])} brought back`
+		])
 	].filter(Boolean);
 	return parts.length ? parts.join(", ") : "No changes";
 }
@@ -10335,7 +10441,7 @@ function* planChangesInChunks(input) {
 	const note = (kind, sheet, row, name, message, x = {}) => raise(kind, sheet, row, name, message, x);
 	/** The answer given to a group, if any (rule 7). */
 	const answerOf = (kind, sheet, column, found) => answers[groupId(kind, sheet, column, found)];
-	const total = (input.tables.goals?.length ?? 0) + (input.tables.plan?.length ?? 0) + (input.tables.checkIns?.length ?? 0) + (input.tables.people?.length ?? 0);
+	const total = rowsInTables(input.tables);
 	let done = 0, seenItems = 0, seenIssues = 0;
 	const so = {
 		added: 0,
@@ -10575,7 +10681,7 @@ function* planChangesInChunks(input) {
 	*/
 	const pickPerson = (sheet, r, cols, current, what) => {
 		const header = (k) => k === "email" ? cols.name ? `${what} email` : what : k === "id" ? `${what} ID` : what;
-		const given = Object.entries(cols).filter(([, c]) => has(r, c) && ref(r, c)).map(([k, c]) => [k, ref(r, c)]);
+		const given = Object.entries(cols).filter(([, c]) => has$1(r, c) && ref(r, c)).map(([k, c]) => [k, ref(r, c)]);
 		const says = (k, v) => !!current && (k === "email" ? normalEmail(current.email) === normalEmail(v) : k === "id" ? current.id === v : fold$1(current.name) === fold$1(v) || current.id === v || v.includes("@") && normalEmail(current.email) === normalEmail(v));
 		const changed = given.filter(([k, v]) => !says(k, v));
 		if (!changed.length) return {};
@@ -10692,38 +10798,38 @@ function* planChangesInChunks(input) {
 	};
 	const personRows = (input.tables.people ?? []).map((r, i) => ({
 		r,
-		row: rowOf(r, i)
-	})).filter(({ r }) => !blankRow(r) && codeOf(PERSON_ACTION_WORDS, val(r, "action")) !== "example");
+		row: rowOf$1(r, i)
+	})).filter(({ r }) => !blankRow$1(r) && codeOf(PERSON_ACTION_WORDS, val$1(r, "action")) !== "example");
 	const skipPeople = twice("People", personRows.map(({ r, row }) => {
-		const id = create ? "" : val(r, "id");
-		const email = normalEmail(val(r, "email"));
+		const id = create ? "" : val$1(r, "id");
+		const email = normalEmail(val$1(r, "email"));
 		const p = id ? people.get(id) : email ? byEmail(email) : void 0;
 		return {
 			row,
-			name: val(r, "name") || email,
-			id: p ? "p:" + p.id : email ? "e:" + email : id ? "i:" + id : val(r, "name") ? "n:" + fold$1(val(r, "name")) : ""
+			name: val$1(r, "name") || email,
+			id: p ? "p:" + p.id : email ? "e:" + email : id ? "i:" + id : val$1(r, "name") ? "n:" + fold$1(val$1(r, "name")) : ""
 		};
 	}), (rows) => `${rows.name} is on rows ${rows.list}. Give each person one row.`, "Email");
-	const newAdminRows = create ? [] : personRows.filter(({ r }) => codeOf(YES_WORDS, val(r, "admin")) === "yes" && (() => {
-		const id = val(r, "id");
-		return !(id ? people.get(id) : val(r, "email") ? byEmail(normalEmail(val(r, "email"))) : void 0)?.admin;
+	const newAdminRows = create ? [] : personRows.filter(({ r }) => codeOf(YES_WORDS, val$1(r, "admin")) === "yes" && (() => {
+		const id = val$1(r, "id");
+		return !(id ? people.get(id) : val$1(r, "email") ? byEmail(normalEmail(val$1(r, "email"))) : void 0)?.admin;
 	})());
 	const adminsAnswer = newAdminRows.length >= 3 ? answerOf("many-admins", "People", "Admin") : void 0;
 	const leaving = [];
 	const personRow = ({ r, row }) => {
 		if (skipPeople.has(row)) return;
-		const name = val(r, "name");
-		const email = normalEmail(val(r, "email"));
-		const action = readWord(PERSON_ACTION_WORDS, val(r, "action"), "People", row, name || email, ", or leave it empty");
+		const name = val$1(r, "name");
+		const email = normalEmail(val$1(r, "email"));
+		const action = readWord(PERSON_ACTION_WORDS, val$1(r, "action"), "People", row, name || email, ", or leave it empty");
 		if (action === void 0) return;
 		if (newAdminRows.some((x) => x.row === row) && newAdminRows.length >= 3) {
 			if (adminsAnswer?.choice === "leave") return leave("People", row);
-			if (!adminsAnswer) raise("many-admins", "People", row, name || email, `${plural$2(newAdminRows.length, "person", "people")} would become admins. Is that right?`, {
+			if (!adminsAnswer) raise("many-admins", "People", row, name || email, `${plural$3(newAdminRows.length, "person", "people")} would become admins. Is that right?`, {
 				column: "Admin",
 				answers: ANSWERS.sure
 			});
 		}
-		const id = create ? "" : val(r, "id");
+		const id = create ? "" : val$1(r, "id");
 		let before;
 		let emailSets = false;
 		if (id) {
@@ -10746,13 +10852,13 @@ function* planChangesInChunks(input) {
 			}
 		}
 		if (create && email && byEmail(email)) return raise("duplicate", "People", row, name, `${byEmail(email).name} already has the email ${email}: each person needs their own.`, { column: "Email" });
-		const teamName = has(r, "team") ? ref(r, "team") : null;
+		const teamName = has$1(r, "team") ? ref(r, "team") : null;
 		const tm = teamName ? teamFrom("People", row, name || before?.name || "", teamName) : void 0;
 		if (teamName && !tm) return;
-		const adminWord = has(r, "admin") && val(r, "admin") ? codeOf(YES_WORDS, val(r, "admin")) : null;
-		if (adminWord === void 0) return raise("unknown-word", "People", row, name || before?.name || "", `Admin should be yes or no, not “${val(r, "admin")}”.`, {
+		const adminWord = has$1(r, "admin") && val$1(r, "admin") ? codeOf(YES_WORDS, val$1(r, "admin")) : null;
+		if (adminWord === void 0) return raise("unknown-word", "People", row, name || before?.name || "", `Admin should be yes or no, not “${val$1(r, "admin")}”.`, {
 			column: "Admin",
-			found: val(r, "admin"),
+			found: val$1(r, "admin"),
 			answers: ANSWERS.unknownWord(Object.values(YES_WORDS.word))
 		});
 		if (action === "left") {
@@ -10808,7 +10914,7 @@ function* planChangesInChunks(input) {
 			const p = {
 				id: newId("p", name),
 				name,
-				role: val(r, "job title"),
+				role: val$1(r, "job title"),
 				initials: initialsOf(name),
 				teamId: tm?.id ?? null,
 				admin: adminWord === "yes",
@@ -10832,17 +10938,17 @@ function* planChangesInChunks(input) {
 			return;
 		}
 		if (peopleTouched.has(before.id)) return raise("duplicate", "People", row, before.name, `${before.name} has another row in this file. Give each person one row.`, { column: "Email" });
-		const nextName = has(r, "name") && name ? name : before.name;
+		const nextName = has$1(r, "name") && name ? name : before.name;
 		const after = {
 			...before,
 			name: nextName,
 			initials: nextName === before.name ? before.initials : initialsOf(nextName),
-			role: has(r, "job title") ? val(r, "job title") : before.role,
+			role: has$1(r, "job title") ? val$1(r, "job title") : before.role,
 			teamId: teamName == null ? before.teamId : tm?.id ?? null,
 			admin: adminWord == null ? before.admin : adminWord === "yes",
-			...emailSets && has(r, "email") && email ? { email } : {}
+			...emailSets && has$1(r, "email") && email ? { email } : {}
 		};
-		if (emailSets && has(r, "email") && !email && before.email) return raise("cant-change", "People", row, before.name, "Their email can be changed, not taken away. Type it back in.", { column: "Email" });
+		if (emailSets && has$1(r, "email") && !email && before.email) return raise("cant-change", "People", row, before.name, "Their email can be changed, not taken away. Type it back in.", { column: "Email" });
 		objective(r, row, after);
 		if (JSON.stringify(after) === JSON.stringify(before)) {
 			same("People");
@@ -10864,9 +10970,9 @@ function* planChangesInChunks(input) {
 	}
 	/** A Team objective cell: the team's objective, said on its lead's row (where empty clears it); any other row may set it. */
 	function objective(r, row, p) {
-		if (!has(r, "team objective") || !p.teamId) return;
+		if (!has$1(r, "team objective") || !p.teamId) return;
 		const t = teams.get(p.teamId);
-		const v = val(r, "team objective");
+		const v = val$1(r, "team objective");
 		if (!t || t.leadId !== p.id && !v || t.objective === v) return;
 		if (!admin()) {
 			if (answerOf("not-allowed", "People")?.choice === "leave") leave("People", row);
@@ -10891,6 +10997,58 @@ function* planChangesInChunks(input) {
 		}
 	}
 	if (create && !people.size && (input.tables.people ?? []).length && !issues.some((x) => x.level === "must")) raise("required-empty", "People", 1, "", "Add at least one person.", { column: "Name" });
+	let moduleRows;
+	const moduleBefore = [];
+	for (const [sheet, recs] of Object.entries(input.tables.modules ?? {})) {
+		if (!recs.length) continue;
+		const reader = input.readers?.[sheet];
+		if (!reader || create) {
+			note("left-alone", sheet, 1, sheet, create ? `The ${sheet} sheet isn’t read when setting up a workspace: load it on Import once the workspace is made.` : `The ${sheet} sheet was not read: its feature is switched off in ${input.workspace ?? "this workspace"}.`);
+			continue;
+		}
+		unchangedBy[sheet] = 0;
+		const got = reader(recs, {
+			sheet,
+			x: {
+				snapshot: {
+					...s,
+					people: [...people.values()],
+					teams: [...teams.values()]
+				},
+				cycle,
+				week,
+				actor,
+				now,
+				newId,
+				...input.full ? { full: {
+					...input.full,
+					people: [...new Map([...input.full.people, ...people.values()].map((p) => [p.id, p])).values()]
+				} } : {},
+				...input.records ? { records: input.records } : {}
+			},
+			workspace: input.workspace ?? "this workspace",
+			raise: (kind, row, name, message, x = {}) => raise(kind, sheet, row, name, message, x),
+			ask: (kind, row, name, message, x) => ask(kind, sheet, row, name, message, x),
+			answerOf: (kind, column, found) => answerOf(kind, sheet, column, found),
+			readWord: (w, raw, row, name) => readWord(w, raw, sheet, row, name)
+		});
+		for (let i = 0; i < got.unchanged; i++) same(sheet);
+		examples += got.examples;
+		for (const it of got.items) items.push({
+			sheet,
+			row: it.row,
+			goalId: "",
+			goal: it.name,
+			kind: RECORD_KIND[it.does],
+			summary: it.summary,
+			diffs: it.diffs,
+			noun: it.noun
+		});
+		changes.push(...got.changes);
+		moduleRows = mergeModuleRows(moduleRows, got.modules);
+		moduleBefore.push(...got.before);
+		done += recs.length;
+	}
 	const work = new GoalSet(withProposed(s));
 	const fileIds = /* @__PURE__ */ new Map();
 	const goalByRef = (r) => r ? work.get(fileIds.get(r) ?? r) ?? work.byRef(r) : void 0;
@@ -10994,7 +11152,7 @@ function* planChangesInChunks(input) {
 			note("left-alone", sheet, row, g.title, `“${g.title}” is ${lower({ label: STOPPED })}, so its rows are left as they are.`);
 		}
 	};
-	const fileKeys = create ? (input.tables.goals ?? []).map((r) => normalKey(val(r, "key"))).filter((k) => !!k) : [];
+	const fileKeys = create ? (input.tables.goals ?? []).map((r) => normalKey(val$1(r, "key"))).filter((k) => !!k) : [];
 	let lastKeyGiven = Math.max(lastKey(s.goals, s.keysIssued), ...fileKeys.map((k) => Number(k.replace(/\D/g, ""))), 0);
 	const touched = /* @__PURE__ */ new Map();
 	goalsSoFar = () => {
@@ -11040,26 +11198,26 @@ function* planChangesInChunks(input) {
 		}
 		return skip;
 	}
-	const fromInDoubt = via !== "mcp" && !(input.tables.goals ?? []).some((r) => has(r, "start"));
+	const fromInDoubt = via !== "mcp" && !(input.tables.goals ?? []).some((r) => has$1(r, "start"));
 	/** A Goals row the file's Check-ins sheet reports on (create mode's stage question skips it). */
 	const reported = reportedIn(create ? input.tables.checkIns : void 0);
 	const goalRows = (input.tables.goals ?? []).map((r, i) => ({
 		r,
-		row: rowOf(r, i),
+		row: rowOf$1(r, i),
 		i
-	})).filter(({ r }) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, "action")) !== "example");
-	examples += (input.tables.goals ?? []).filter((r) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, "action")) === "example").length;
+	})).filter(({ r }) => !blankRow$1(r) && codeOf(GOAL_ACTION_WORDS, val$1(r, "action")) !== "example");
+	examples += (input.tables.goals ?? []).filter((r) => !blankRow$1(r) && codeOf(GOAL_ACTION_WORDS, val$1(r, "action")) === "example").length;
 	const refRows = /* @__PURE__ */ new Map();
 	for (const { r, row } of goalRows) {
-		const x = fold$1(val(r, "ref"));
+		const x = fold$1(val$1(r, "ref"));
 		if (x) refRows.set(x, [...refRows.get(x) ?? [], row]);
 	}
 	const refGoal = /* @__PURE__ */ new Map();
 	for (const { r, row } of goalRows) {
-		const x = fold$1(val(r, "ref")), at = refRows.get(x);
-		if (at && at.length > 1) raise("duplicate", "Goals", row, val(r, "goal") || val(r, "ref"), `Ref “${val(r, "ref")}” is on rows ${at.join(" and ")}. Give each row its own Ref.`, {
+		const x = fold$1(val$1(r, "ref")), at = refRows.get(x);
+		if (at && at.length > 1) raise("duplicate", "Goals", row, val$1(r, "goal") || val$1(r, "ref"), `Ref “${val$1(r, "ref")}” is on rows ${at.join(" and ")}. Give each row its own Ref.`, {
 			column: "Ref",
-			found: val(r, "ref")
+			found: val$1(r, "ref")
 		});
 	}
 	/** The goal a Ref names, or why it names none: a ref no row has, or a row that isn't saved. */
@@ -11070,31 +11228,31 @@ function* planChangesInChunks(input) {
 		const g = refGoal.has(x) ? work.get(refGoal.get(x)) : void 0;
 		return g ? { g } : { problem: `Ref “${v}” names Goals row ${at[0]}, which isn’t saved: fix that row first.` };
 	};
-	examples += (input.tables.people ?? []).filter((r) => !blankRow(r) && codeOf(PERSON_ACTION_WORDS, val(r, "action")) === "example").length;
+	examples += (input.tables.people ?? []).filter((r) => !blankRow$1(r) && codeOf(PERSON_ACTION_WORDS, val$1(r, "action")) === "example").length;
 	const skipGoals = twice("Goals", goalRows.map(({ r, row }) => {
-		const keyRef = val(r, "key"), id = val(r, "id");
+		const keyRef = val$1(r, "key"), id = val$1(r, "id");
 		const g = create ? void 0 : goalOfRow(keyRef, id).g;
 		const k = normalKey(keyRef);
 		return {
 			row,
-			name: val(r, "goal") || keyRef || id,
-			id: g ? "g:" + g.id : k ? "k:" + k : id ? "i:" + id : refRows.get(fold$1(val(r, "ref")))?.length === 1 ? "r:" + fold$1(val(r, "ref")) : val(r, "goal") ? `n:${fold$1(val(r, "goal"))}|${fold$1(ref(r, "team"))}` : ""
+			name: val$1(r, "goal") || keyRef || id,
+			id: g ? "g:" + g.id : k ? "k:" + k : id ? "i:" + id : refRows.get(fold$1(val$1(r, "ref")))?.length === 1 ? "r:" + fold$1(val$1(r, "ref")) : val$1(r, "goal") ? `n:${fold$1(val$1(r, "goal"))}|${fold$1(ref(r, "team"))}` : ""
 		};
 	}), (x) => /^G-/i.test(x.name) ? `Key ${x.name} is on rows ${x.list}. Give each goal one row.` : `“${x.name}” is on rows ${x.list}. Give each goal one row.`, "Key");
-	const removalRows = [...goalRows.filter(({ r }) => ["stop", "delete"].includes(codeOf(GOAL_ACTION_WORDS, val(r, "action")) ?? "")).map(({ row }) => ({
+	const removalRows = [...goalRows.filter(({ r }) => ["stop", "delete"].includes(codeOf(GOAL_ACTION_WORDS, val$1(r, "action")) ?? "")).map(({ row }) => ({
 		sheet: "Goals",
 		row
-	})), ...personRows.filter(({ r }) => codeOf(PERSON_ACTION_WORDS, val(r, "action")) === "left").map(({ row }) => ({
+	})), ...personRows.filter(({ r }) => codeOf(PERSON_ACTION_WORDS, val$1(r, "action")) === "left").map(({ row }) => ({
 		sheet: "People",
 		row
 	}))];
 	const goalRow = ({ r, row, i }) => {
 		if (skipGoals.has(row)) return;
-		if ((refRows.get(fold$1(val(r, "ref"))) ?? []).length > 1) return;
-		const id = val(r, "id");
-		let keyRef = val(r, "key");
-		const title = val(r, "goal");
-		const action = readWord(GOAL_ACTION_WORDS, val(r, "action"), "Goals", row, title || keyRef || id, ", or leave it empty");
+		if ((refRows.get(fold$1(val$1(r, "ref"))) ?? []).length > 1) return;
+		const id = val$1(r, "id");
+		let keyRef = val$1(r, "key");
+		const title = val$1(r, "goal");
+		const action = readWord(GOAL_ACTION_WORDS, val$1(r, "action"), "Goals", row, title || keyRef || id, ", or leave it empty");
 		if (action === void 0) return;
 		if (keyRef && !isKey(keyRef)) return raise("bad-key", "Goals", row, title || keyRef, `Key “${keyRef}” should look like G-12.`, {
 			column: "Key",
@@ -11206,10 +11364,10 @@ function* planChangesInChunks(input) {
 		if (owner) d.ownerId = owner.id;
 		if (!existing && !tm && owner?.teamId && teams.get(owner.teamId)) note("default", "Goals", row, title, `Team: ${teams.get(owner.teamId).name} (the owner’s team; the row gave none).`, { column: "Team" });
 		if (tm) d.teamId = tm.id;
-		const lvl = readWord(LEVEL_WORDS, val(r, "level"), "Goals", row, label);
+		const lvl = readWord(LEVEL_WORDS, val$1(r, "level"), "Goals", row, label);
 		if (lvl === void 0) return;
 		if (lvl) d.level = lvl;
-		const kind = readWord(TYPE_WORDS, val(r, "type"), "Goals", row, label);
+		const kind = readWord(TYPE_WORDS, val$1(r, "type"), "Goals", row, label);
 		if (kind === void 0) return;
 		if (kind) {
 			if (existing && kind !== existing.kind) return raise("cant-change", "Goals", row, d.title, "A goal’s type can’t change. Add a new goal instead.", { column: "Type" });
@@ -11217,9 +11375,9 @@ function* planChangesInChunks(input) {
 		}
 		if (!existing && !kind) {
 			const filled = [
-				["metric", !!(val(r, "start") || val(r, "target"))],
-				["range", !!val(r, "limit")],
-				["milestone", !!val(r, "stages")]
+				["metric", !!(val$1(r, "start") || val$1(r, "target"))],
+				["range", !!val$1(r, "limit")],
+				["milestone", !!val$1(r, "stages")]
 			].filter(([, on]) => on).map(([k]) => k);
 			const a = answerOf("type-unclear", "Goals", "Type");
 			const chosen = a?.choice === "choose" && a.value ? codeOf(TYPE_WORDS, a.value) : void 0;
@@ -11244,8 +11402,8 @@ function* planChangesInChunks(input) {
 				});
 			}
 		}
-		if (!existing && d.kind !== "milestone") d.unit = has(r, "unit") ? val(r, "unit") : "";
-		else if (has(r, "unit") && d.kind !== "milestone") d.unit = val(r, "unit");
+		if (!existing && d.kind !== "milestone") d.unit = has$1(r, "unit") ? val$1(r, "unit") : "";
+		else if (has$1(r, "unit") && d.kind !== "milestone") d.unit = val$1(r, "unit");
 		if ((!existing || existing.kind !== "milestone" && !!existing.unit.trim()) && d.kind !== "milestone" && !d.unit.trim() && ask("no-unit", "Goals", row, d.title, "This number has no unit. Is it a plain count?", {
 			column: "Unit",
 			answers: ANSWERS.noUnit
@@ -11256,7 +11414,7 @@ function* planChangesInChunks(input) {
 			["limit", "Limit"],
 			["margin", "Margin"]
 		]) {
-			const raw = val(r, col);
+			const raw = val$1(r, col);
 			if (!raw) continue;
 			if (isFormula(raw)) return raise("formula", "Goals", row, d.title, `${head} holds a formula (“${raw}”), not a number. In Excel, copy the column and paste it as values.`, { column: head });
 			if (commaDecimal(raw) && ask("decimal-comma", "Goals", row, d.title, `“${raw}” was read as ${parseNumber(raw)}: a comma as the decimal mark.`, {
@@ -11265,15 +11423,15 @@ function* planChangesInChunks(input) {
 				found: ""
 			}) === "leave") return;
 		}
-		if (val(r, "decimals")) d.decimals = val(r, "decimals");
+		if (val$1(r, "decimals")) d.decimals = val$1(r, "decimals");
 		else if (!existing && d.kind !== "milestone") d.decimals = String(Math.min(3, Math.max(0, ...[
 			"start",
 			"target",
 			"limit"
-		].map((k) => typedDecimals(val(r, k))))));
-		if (val(r, "start")) d.start = val(r, "start");
-		if (val(r, "target")) d.target = val(r, "target");
-		const shape = readWord(SHAPE_WORDS, val(r, "plan"), "Goals", row, d.title);
+		].map((k) => typedDecimals(val$1(r, k))))));
+		if (val$1(r, "start")) d.start = val$1(r, "start");
+		if (val$1(r, "target")) d.target = val$1(r, "target");
+		const shape = readWord(SHAPE_WORDS, val$1(r, "plan"), "Goals", row, d.title);
 		if (shape === void 0) return;
 		if (shape && shape !== d.shape) {
 			d.shape = shape;
@@ -11285,8 +11443,8 @@ function* planChangesInChunks(input) {
 			const pair = (col, old, head, oldHead, cur) => {
 				const said = [];
 				for (const [c, h] of [[col, head], [old, oldHead]]) {
-					const raw = has(r, c) ? val(r, c) : "";
-					if (!raw && !(c === "due week" && has(r, c) && !val(r, "to"))) continue;
+					const raw = has$1(r, c) ? val$1(r, c) : "";
+					if (!raw && !(c === "due week" && has$1(r, c) && !val$1(r, "to"))) continue;
 					if (c === "from" && fromInDoubt && /^-?\d+(?:[.,]\d+)?$/.test(raw)) {
 						raise("week-wrong", "Goals", row, d.title, `From says “${raw}”: a starting number, or a week? Put a starting number under Start, or write the week as a year and a week, like ${weekCode(cycle, Math.max(week, 1))}.`, { column: head });
 						return false;
@@ -11320,7 +11478,7 @@ function* planChangesInChunks(input) {
 			const from = pair("from", "plan from week", "From", "Plan from week", was ? was.fromWeek ?? 0 : null);
 			if (from === false) return;
 			if (from != null) d.fromWeek = String(from);
-			if (has(r, "to") || has(r, "due week")) {
+			if (has$1(r, "to") || has$1(r, "due week")) {
 				const to = pair("to", "due week", "To", "Due week", was ? planEnd(was, cycle.weeks) : null);
 				if (to === false) return;
 				if (to != null) {
@@ -11338,16 +11496,16 @@ function* planChangesInChunks(input) {
 				answers: ANSWERS.pastPlan
 			}) === "leave") return;
 		}
-		const two = twoNumbers(val(r, "limit"));
+		const two = twoNumbers(val$1(r, "limit"));
 		if (two) Object.assign(d, {
 			lower: two.lower,
 			limit: two.upper
 		});
-		else if (val(r, "limit")) d.limit = val(r, "limit");
-		const bound = readWord(BOUND_WORDS, val(r, "must stay"), "Goals", row, d.title);
+		else if (val$1(r, "limit")) d.limit = val$1(r, "limit");
+		const bound = readWord(BOUND_WORDS, val$1(r, "must stay"), "Goals", row, d.title);
 		if (bound === void 0) return;
 		if (two && bound && bound !== "between") {
-			const found = val(r, "must stay").trim();
+			const found = val$1(r, "must stay").trim();
 			const a = ask("near-word", "Goals", row, d.title, `Limit has two numbers and Must stay says “${found}”. Read it as between?`, {
 				column: BOUND_WORDS.what,
 				found,
@@ -11358,10 +11516,10 @@ function* planChangesInChunks(input) {
 		}
 		if (two) d.bound = "between";
 		else if (bound) d.bound = bound;
-		if (val(r, "margin")) d.margin = val(r, "margin");
+		if (val$1(r, "margin")) d.margin = val$1(r, "margin");
 		else if (!existing && d.kind === "range") d.margin = "0";
-		if (val(r, "stages")) {
-			const parts = val(r, "stages").split(/;|\n/).map((x) => x.trim()).filter(Boolean);
+		if (val$1(r, "stages")) {
+			const parts = val$1(r, "stages").split(/;|\n/).map((x) => x.trim()).filter(Boolean);
 			const stages = [];
 			for (const [k, x] of parts.entries()) {
 				const m = /^(.*?)\s*@\s*(?:wk|week)?\s*(.+?)\s*$/i.exec(x);
@@ -11391,7 +11549,7 @@ function* planChangesInChunks(input) {
 					id: actor.id,
 					admin: admin()
 				}, { ownerId: d.ownerId }, via) ? "" : " " + MARKS_STAGES(people.get(d.ownerId)?.name ?? "Its owner");
-				const a = ask("past-stage", "Goals", row, d.title, `${plural$2(past.length, "stage")} of “${d.title}” ${past.length === 1 ? "is" : "are"} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(", ")}${create ? ", so it would start late." : `. ${past.length === 1 ? "Is it" : "Are they"} done?${marks}`}`, {
+				const a = ask("past-stage", "Goals", row, d.title, `${plural$3(past.length, "stage")} of “${d.title}” ${past.length === 1 ? "is" : "are"} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(", ")}${create ? ", so it would start late." : `. ${past.length === 1 ? "Is it" : "Are they"} done?${marks}`}`, {
 					column: "Stages",
 					answers: create ? ANSWERS.pastStageSetUp : ANSWERS.pastStage
 				});
@@ -11406,23 +11564,23 @@ function* planChangesInChunks(input) {
 				}
 			}
 		}
-		if (has(r, "why it helps")) d.whyHelps = val(r, "why it helps");
-		if (has(r, "effect")) d.effect = val(r, "effect");
-		if (has(r, "source")) d.source = val(r, "source");
-		if (has(r, "definition")) d.definition = val(r, "definition");
+		if (has$1(r, "why it helps")) d.whyHelps = val$1(r, "why it helps");
+		if (has$1(r, "effect")) d.effect = val$1(r, "effect");
+		if (has$1(r, "source")) d.source = val$1(r, "source");
+		if (has$1(r, "definition")) d.definition = val$1(r, "definition");
 		const wasProposed = !!existing && isProposed(existing);
 		let proposing = wasProposed;
-		if (has(r, "state") && val(r, "state")) {
-			const w = fold$1(val(r, "state"));
+		if (has$1(r, "state") && val$1(r, "state")) {
+			const w = fold$1(val$1(r, "state"));
 			if (["active", "live"].includes(w)) proposing = false;
 			else if ([
 				"proposed",
 				"draft",
 				"proposal"
 			].includes(w)) proposing = true;
-			else if (!(w === "stopped" && existing?.stoppedAt)) return raise("unknown-word", "Goals", row, label, `State says “${val(r, "state")}”. Use active or proposed.`, {
+			else if (!(w === "stopped" && existing?.stoppedAt)) return raise("unknown-word", "Goals", row, label, `State says “${val$1(r, "state")}”. Use active or proposed.`, {
 				column: "State",
-				found: val(r, "state")
+				found: val$1(r, "state")
 			});
 		}
 		if (existing && proposing && !wasProposed && started(existing.id)) return raise("cant-change", "Goals", row, existing.title, `“${existing.title}” has check-ins, so it can’t go back to proposed. Stop it instead.`, {
@@ -11443,7 +11601,7 @@ function* planChangesInChunks(input) {
 			"feeds into key",
 			"feeds into id",
 			"feeds into"
-		].filter((c) => has(r, c) && (c !== "feeds into ref" || !!ref(r, c)));
+		].filter((c) => has$1(r, c) && (c !== "feeds into ref" || !!ref(r, c)));
 		const feeds = feedsCols.length ? feedsCols.some((c) => !!ref(r, c)) : !!d.parentId;
 		const fix = (proposing ? proposedMustFix : goalMustFix)({
 			...d,
@@ -11486,12 +11644,12 @@ function* planChangesInChunks(input) {
 				column: FIELD_COLUMN[c.field] ?? "Goal",
 				found: c.id,
 				answers: ANSWERS.odd,
-				...kind === "odd-number" ? { value: val(r, (FIELD_COLUMN[c.field] ?? "").toLowerCase()) } : {}
+				...kind === "odd-number" ? { value: val$1(r, (FIELD_COLUMN[c.field] ?? "").toLowerCase()) } : {}
 			}) === "leave") return;
 		}
 		const gid = existing?.id ?? newId("goal", d.title);
 		if (create && id) fileIds.set(id, gid);
-		if (val(r, "ref")) refGoal.set(fold$1(val(r, "ref")), gid);
+		if (val$1(r, "ref")) refGoal.set(fold$1(val$1(r, "ref")), gid);
 		const key = existing ? existing.key : create && normalKey(keyRef) || formatKey(++lastKeyGiven);
 		parentLinks.push({
 			id: gid,
@@ -11536,7 +11694,7 @@ function* planChangesInChunks(input) {
 			removals.push({
 				g: existing,
 				how: action,
-				reason: val(r, "reason"),
+				reason: val$1(r, "reason"),
 				row
 			});
 			return;
@@ -11551,7 +11709,7 @@ function* planChangesInChunks(input) {
 			before: existing,
 			row,
 			sheet: "Goals",
-			reason: val(r, "reason") || val(r, "reason for change"),
+			reason: val$1(r, "reason") || val$1(r, "reason for change"),
 			plan: !!existing && planChanged(existing, built)
 		});
 	};
@@ -11567,13 +11725,13 @@ function* planChangesInChunks(input) {
 		};
 	}
 	function bigRemoval() {
-		const stops = goalRows.filter(({ r }) => codeOf(GOAL_ACTION_WORDS, val(r, "action")) === "stop").length;
-		const deletes = goalRows.filter(({ r }) => codeOf(GOAL_ACTION_WORDS, val(r, "action")) === "delete").length;
+		const stops = goalRows.filter(({ r }) => codeOf(GOAL_ACTION_WORDS, val$1(r, "action")) === "stop").length;
+		const deletes = goalRows.filter(({ r }) => codeOf(GOAL_ACTION_WORDS, val$1(r, "action")) === "delete").length;
 		const lefts = removalRows.length - stops - deletes;
 		const parts = [
-			stops && `stops ${plural$2(stops, "goal")}`,
-			deletes && `deletes ${plural$2(deletes, "goal")}`,
-			lefts && `marks ${plural$2(lefts, "person", "people")} as left`
+			stops && `stops ${plural$3(stops, "goal")}`,
+			deletes && `deletes ${plural$3(deletes, "goal")}`,
+			lefts && `marks ${plural$3(lefts, "person", "people")} as left`
 		].filter(Boolean);
 		return `This file ${parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0]}. Is that right?`;
 	}
@@ -11586,7 +11744,7 @@ function* planChangesInChunks(input) {
 			"feeds into key",
 			"feeds into id",
 			"feeds into"
-		].filter((c) => has(l.r, c) && (c !== "feeds into ref" || !!ref(l.r, c)));
+		].filter((c) => has$1(l.r, c) && (c !== "feeds into ref" || !!ref(l.r, c)));
 		const says = (c, v) => !current ? v === "" : c === "feeds into ref" ? refGoal.get(fold$1(v)) === current.id : c === "feeds into key" ? normalKey(v) === current.key : c === "feeds into id" ? v === current.id || fileIds.get(v) === current.id : fold$1(v) === fold$1(current.title);
 		const changed = cols.map((c) => [c, ref(l.r, c)]).filter(([c, v]) => !(before && says(c, v)) && (before || v));
 		if (!changed.length) continue;
@@ -11686,28 +11844,28 @@ function* planChangesInChunks(input) {
 			next.effect = null;
 			delete next.whyHelps;
 		} else {
-			const why = has(l.r, "why it helps") ? val(l.r, "why it helps") : g.whyHelps ?? "";
+			const why = has$1(l.r, "why it helps") ? val$1(l.r, "why it helps") : g.whyHelps ?? "";
 			if (why) next.whyHelps = why;
 			else delete next.whyHelps;
-			if (has(l.r, "effect")) next.effect = parseNumber(val(l.r, "effect"));
+			if (has$1(l.r, "effect")) next.effect = parseNumber(val$1(l.r, "effect"));
 		}
 		work.set(l.id, next);
 	}
 	const planRow = (r, i) => {
-		const row = rowOf(r, i);
-		if (blankRow(r)) return;
-		const keyRef = val(r, "key"), idRef = val(r, "id");
+		const row = rowOf$1(r, i);
+		if (blankRow$1(r)) return;
+		const keyRef = val$1(r, "key"), idRef = val$1(r, "id");
 		if (!keyRef && !idRef) {
-			if (val(r, "goal")) raise("required-empty", "Plan", row, val(r, "goal"), "Add the goal’s key or ID so the plan can be matched to it.", { column: "Key" });
+			if (val$1(r, "goal")) raise("required-empty", "Plan", row, val$1(r, "goal"), "Add the goal’s key or ID so the plan can be matched to it.", { column: "Key" });
 			return;
 		}
 		const found = goalOfRow(keyRef, idRef);
-		if (found.problem) return raise("cant-change", "Plan", row, val(r, "goal") || keyRef, found.problem, { column: "Key" });
+		if (found.problem) return raise("cant-change", "Plan", row, val$1(r, "goal") || keyRef, found.problem, { column: "Key" });
 		const g = found.g;
 		if (!g) {
 			const stopped = stoppedByRef(keyRef) ?? stoppedByRef(idRef);
 			if (stopped) return leftAlone("Plan", row, stopped);
-			return raise("bad-key", "Plan", row, val(r, "goal") || keyRef || idRef, keyRef ? `There’s no goal with key ${normalKey(keyRef) ?? keyRef}.` : `There’s no goal with ID ${idRef}.`, {
+			return raise("bad-key", "Plan", row, val$1(r, "goal") || keyRef || idRef, keyRef ? `There’s no goal with key ${normalKey(keyRef) ?? keyRef}.` : `There’s no goal with ID ${idRef}.`, {
 				column: keyRef ? "Key" : "ID",
 				found: keyRef || idRef
 			});
@@ -11733,7 +11891,7 @@ function* planChangesInChunks(input) {
 			}
 			return n;
 		};
-		const startTyped = val(r, "start") ? numberAt("Start", val(r, "start")) : null;
+		const startTyped = val$1(r, "start") ? numberAt("Start", val$1(r, "start")) : null;
 		if (startTyped === void 0) return;
 		const typed = /* @__PURE__ */ new Map();
 		for (const [k, v] of Object.entries(r)) {
@@ -11785,7 +11943,7 @@ function* planChangesInChunks(input) {
 			before,
 			row: t?.row ?? row,
 			sheet: t?.sheet ?? "Plan",
-			reason: t?.reason || val(r, "reason"),
+			reason: t?.reason || val$1(r, "reason"),
 			plan: !!before
 		});
 	};
@@ -11796,20 +11954,20 @@ function* planChangesInChunks(input) {
 	}
 	const ciRows = (input.tables.checkIns ?? []).map((r, i) => ({
 		r,
-		row: rowOf(r, i)
-	})).filter(({ r }) => !blankRow(r));
+		row: rowOf$1(r, i)
+	})).filter(({ r }) => !blankRow$1(r));
 	const byTitle = (t) => {
 		const l = titled(t);
 		return l.length === 1 ? l[0] : void 0;
 	};
-	const goalFor = (r) => val(r, "goal key") || val(r, "goal id") ? goalOf(val(r, "goal key"), val(r, "goal id")) : byTitle(val(r, "goal"));
+	const goalFor = (r) => val$1(r, "goal key") || val$1(r, "goal id") ? goalOf(val$1(r, "goal key"), val$1(r, "goal id")) : byTitle(val$1(r, "goal"));
 	const precise = /* @__PURE__ */ new Map();
 	/** The first check-in row naming each goal. */
 	const firstRow = /* @__PURE__ */ new Map();
 	for (const { r, row } of ciRows) {
 		const g = goalFor(r);
 		if (g && !firstRow.has(g.id)) firstRow.set(g.id, row);
-		const raw = val(r, "value");
+		const raw = val$1(r, "value");
 		if (!g || g.kind === "milestone" || !raw) continue;
 		const n = parseNumber(raw);
 		if (n != null && precisionProblem(raw, n, g.decimals)) precise.set(g.id, Math.max(precise.get(g.id) ?? 0, Math.min(3, typedDecimals(raw))));
@@ -11922,24 +12080,24 @@ function* planChangesInChunks(input) {
 	}
 	const imported = /* @__PURE__ */ new Map();
 	const answeredGoal = (r) => {
-		const v = val(r, "goal");
-		if (!v || val(r, "goal key") || val(r, "goal id")) return void 0;
+		const v = val$1(r, "goal");
+		if (!v || val$1(r, "goal key") || val$1(r, "goal id")) return void 0;
 		const a = answerOf("near-ref", "Check-ins", "Goal", v) ?? answerOf("unknown-ref", "Check-ins", "Goal", v);
 		if (a?.choice === "use") return work.nearTitle(v);
 		if (a?.choice === "choose" && a.value) return goalByRef(normalKey(a.value) ?? a.value) ?? byTitle(a.value);
 	};
 	const skipCheckIns = twice("Check-ins", ciRows.map(({ r, row }) => {
-		const g = (val(r, "goal ref") ? goalOfRef(val(r, "goal ref")).g : void 0) ?? goalFor(r) ?? answeredGoal(r);
-		const w = weekCell(val(r, "week"), "Check-ins", row, "", false).n;
-		const cid = create ? "" : val(r, "id");
+		const g = (val$1(r, "goal ref") ? goalOfRef(val$1(r, "goal ref")).g : void 0) ?? goalFor(r) ?? answeredGoal(r);
+		const w = weekCell(val$1(r, "week"), "Check-ins", row, "", false).n;
+		const cid = create ? "" : val$1(r, "id");
 		return {
 			row,
-			name: g?.title ?? val(r, "goal"),
+			name: g?.title ?? val$1(r, "goal"),
 			id: cid ? "c:" + cid : g && w != null ? `${g.id}:${w}` : ""
 		};
 	}), (x) => `“${x.name}” has the same week on rows ${x.list}. Give each goal one row a week.`, "Week");
 	const replacing = [];
-	const rows = [...ciRows].sort((a, b) => (goalFor(a.r)?.id ?? "").localeCompare(goalFor(b.r)?.id ?? "") || (parseNumber(val(a.r, "week")) ?? 0) - (parseNumber(val(b.r, "week")) ?? 0));
+	const rows = [...ciRows].sort((a, b) => (goalFor(a.r)?.id ?? "").localeCompare(goalFor(b.r)?.id ?? "") || (parseNumber(val$1(a.r, "week")) ?? 0) - (parseNumber(val$1(b.r, "week")) ?? 0));
 	const judge = ({ g, w, row, existing, ctx, prev, draft, post, again, reason = "" }) => {
 		if (existing && sameCheckIn(existing, draft, g)) {
 			if (post) {
@@ -12082,20 +12240,20 @@ function* planChangesInChunks(input) {
 	for (const { r, row } of rows) {
 		if (tick()) yield progress();
 		if (skipCheckIns.has(row)) continue;
-		const refText = val(r, "goal key") || val(r, "goal id");
-		const clash = refText ? goalOfRow(val(r, "goal key"), val(r, "goal id")).problem : void 0;
+		const refText = val$1(r, "goal key") || val$1(r, "goal id");
+		const clash = refText ? goalOfRow(val$1(r, "goal key"), val$1(r, "goal id")).problem : void 0;
 		if (clash) {
-			raise("cant-change", "Check-ins", row, val(r, "goal") || refText, clash.replace(/^Key/, "Goal key"), { column: "Goal key" });
+			raise("cant-change", "Check-ins", row, val$1(r, "goal") || refText, clash.replace(/^Key/, "Goal key"), { column: "Goal key" });
 			continue;
 		}
-		const name = val(r, "goal") || refText || val(r, "goal ref");
+		const name = val$1(r, "goal") || refText || val$1(r, "goal ref");
 		let g = goalFor(r);
-		if (val(r, "goal ref")) {
-			const x = goalOfRef(val(r, "goal ref"));
+		if (val$1(r, "goal ref")) {
+			const x = goalOfRef(val$1(r, "goal ref"));
 			if (!x.g) {
 				raise("bad-key", "Check-ins", row, name, `Goal ref: ${x.problem}`, {
 					column: "Goal ref",
-					found: val(r, "goal ref")
+					found: val$1(r, "goal ref")
 				});
 				continue;
 			}
@@ -12105,31 +12263,31 @@ function* planChangesInChunks(input) {
 			}
 			g = x.g;
 		}
-		const stopped = !g ? stoppedByRef(val(r, "goal key")) ?? stoppedByRef(val(r, "goal id")) ?? (s.archive?.goals ?? []).find((x) => fold$1(x.title) === fold$1(val(r, "goal"))) : void 0;
+		const stopped = !g ? stoppedByRef(val$1(r, "goal key")) ?? stoppedByRef(val$1(r, "goal id")) ?? (s.archive?.goals ?? []).find((x) => fold$1(x.title) === fold$1(val$1(r, "goal"))) : void 0;
 		if (stopped) {
 			leftAlone("Check-ins", row, stopped);
 			continue;
 		}
 		if (!g && refText) {
-			raise("bad-key", "Check-ins", row, name, `There’s no goal with ${val(r, "goal key") ? `key ${val(r, "goal key")}` : `ID ${refText}`}.`, {
-				column: val(r, "goal key") ? "Goal key" : "Goal ID",
+			raise("bad-key", "Check-ins", row, name, `There’s no goal with ${val$1(r, "goal key") ? `key ${val$1(r, "goal key")}` : `ID ${refText}`}.`, {
+				column: val$1(r, "goal key") ? "Goal key" : "Goal ID",
 				found: refText
 			});
 			continue;
 		}
 		if (!g) {
-			if (!val(r, "goal")) {
+			if (!val$1(r, "goal")) {
 				raise("required-empty", "Check-ins", row, "", "Say which goal: Goal key, or Goal.", { column: "Goal key" });
 				continue;
 			}
-			g = goalNamed("Check-ins", row, name, "Goal", val(r, "goal"), "", `There’s no goal called “${val(r, "goal")}”. Add the Goal key column to be exact.`, `There’s no goal called “${val(r, "goal")}” that only one goal has. Add the Goal key column to be exact.`);
+			g = goalNamed("Check-ins", row, name, "Goal", val$1(r, "goal"), "", `There’s no goal called “${val$1(r, "goal")}”. Add the Goal key column to be exact.`, `There’s no goal called “${val$1(r, "goal")}” that only one goal has. Add the Goal key column to be exact.`);
 			if (!g) continue;
 		}
 		if (isProposed(g)) {
 			raise("cant-change", "Check-ins", row, g.title, NOTHING_TO_CHECK_IN, { column: "Goal key" });
 			continue;
 		}
-		const weekRaw = val(r, "week");
+		const weekRaw = val$1(r, "week");
 		const read = weekRaw ? weekCell(weekRaw, "Check-ins", row, g.title) : { n: null };
 		if (read.problem) {
 			raise("week-wrong", "Check-ins", row, g.title, read.problem, { column: "Week" });
@@ -12144,7 +12302,7 @@ function* planChangesInChunks(input) {
 			raise("week-wrong", "Check-ins", row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`, { column: "Week" });
 			continue;
 		}
-		const cid = create ? "" : val(r, "id");
+		const cid = create ? "" : val$1(r, "id");
 		const byId = cid ? savedCheckIn.get(cid) : void 0;
 		if (cid && (!byId || byId.goalId !== g.id)) {
 			raise("bad-key", "Check-ins", row, g.title, `There’s no check-in with ID ${cid} on this goal. Leave ID empty to add a check-in.`, {
@@ -12163,13 +12321,13 @@ function* planChangesInChunks(input) {
 		let stages = [];
 		if (g.kind === "milestone") {
 			const goal = g;
-			stages = has(r, "stages") || !existing?.stages ? goal.stages.map((st) => prev?.stages?.find((u) => u.stageId === st.id) ?? {
+			stages = has$1(r, "stages") || !existing?.stages ? goal.stages.map((st) => prev?.stages?.find((u) => u.stageId === st.id) ?? {
 				stageId: st.id,
 				doneWeek: null,
 				forecastWeek: null
 			}) : existing.stages;
 			let bad = false;
-			for (const part of (has(r, "stages") ? val(r, "stages") : "").split(/;|\n/).map((x) => x.trim()).filter(Boolean)) {
+			for (const part of (has$1(r, "stages") ? val$1(r, "stages") : "").split(/;|\n/).map((x) => x.trim()).filter(Boolean)) {
 				const m = /^(.*?):\s*(done|expected|due)\s*(?:week|wk)?\s*(\d+)$/i.exec(part);
 				let st = m ? goal.stages.find((x) => fold$1(x.name) === fold$1(m[1])) : void 0;
 				if (m && !st) {
@@ -12215,21 +12373,21 @@ function* planChangesInChunks(input) {
 			}
 			if (bad) continue;
 		}
-		const call = readWord(CALL_WORDS, val(r, "call"), "Check-ins", row, g.title, ", or leave it empty to let the rules decide");
+		const call = readWord(CALL_WORDS, val$1(r, "call"), "Check-ins", row, g.title, ", or leave it empty to let the rules decide");
 		if (call === void 0) continue;
-		const cause = has(r, "cause") ? readWord(CAUSE_WORDS, val(r, "cause"), "Check-ins", row, g.title) : existing?.cause ?? null;
+		const cause = has$1(r, "cause") ? readWord(CAUSE_WORDS, val$1(r, "cause"), "Check-ins", row, g.title) : existing?.cause ?? null;
 		if (cause === void 0) continue;
-		const givesWeek = has(r, "back on plan by week") && !!val(r, "back on plan by week");
-		const rec = has(r, "recovery") ? readWord(RECOVERY_WORDS, val(r, "recovery"), "Check-ins", row, g.title) : givesWeek ? null : existing?.pathToGreen?.state ?? null;
+		const givesWeek = has$1(r, "back on plan by week") && !!val$1(r, "back on plan by week");
+		const rec = has$1(r, "recovery") ? readWord(RECOVERY_WORDS, val$1(r, "recovery"), "Check-ins", row, g.title) : givesWeek ? null : existing?.pathToGreen?.state ?? null;
 		if (rec === void 0) continue;
-		const pick = (col, was) => has(r, col) ? val(r, col) : (was ?? "").trim();
-		const byRaw = has(r, "back on plan by week") ? val(r, "back on plan by week") : "";
-		const by = has(r, "back on plan by week") ? byRaw ? weekCell(byRaw, "Check-ins", row, g.title).n : null : existing?.pathToGreen?.byWeek ?? null;
+		const pick = (col, was) => has$1(r, col) ? val$1(r, col) : (was ?? "").trim();
+		const byRaw = has$1(r, "back on plan by week") ? val$1(r, "back on plan by week") : "";
+		const by = has$1(r, "back on plan by week") ? byRaw ? weekCell(byRaw, "Check-ins", row, g.title).n : null : existing?.pathToGreen?.byWeek ?? null;
 		if (byRaw && by == null) {
 			raise("week-wrong", "Check-ins", row, g.title, `Back on plan by week: “${byRaw}” isn’t a week.`, { column: "Back on plan by week" });
 			continue;
 		}
-		const valueRaw = g.kind === "milestone" ? "" : has(r, "value") ? val(r, "value") : existing?.value != null ? String(existing.value) : "";
+		const valueRaw = g.kind === "milestone" ? "" : has$1(r, "value") ? val$1(r, "value") : existing?.value != null ? String(existing.value) : "";
 		if (g.kind !== "milestone" && isFormula(valueRaw)) {
 			raise("formula", "Check-ins", row, g.title, `Value holds a formula (“${valueRaw}”), not a number. In Excel, copy the column and paste it as values.`, { column: "Value" });
 			continue;
@@ -12246,7 +12404,7 @@ function* planChangesInChunks(input) {
 			ptgBy: by,
 			ptgState: rec ?? "plan",
 			needs: pick("needs", existing?.pathToGreen?.needs),
-			next: has(r, "next step") ? val(r, "next step") : has(r, "next") ? val(r, "next") : (existing?.next ?? "").trim(),
+			next: has$1(r, "next step") ? val$1(r, "next step") : has$1(r, "next") ? val$1(r, "next") : (existing?.next ?? "").trim(),
 			dataFlagged: false
 		};
 		judge({
@@ -12320,7 +12478,7 @@ function* planChangesInChunks(input) {
 			for (let k = ciOut.length - 1; k >= 0; k--) if (ids.has(ciOut[k].id)) ciOut.splice(k, 1);
 			for (let k = items.length - 1; k >= 0; k--) if (items[k].sheet === "Check-ins" && replacing.some((x) => x.row === items[k].row)) items.splice(k, 1);
 			for (let k = changes.length - 1; k >= 0; k--) if (changes[k].entity === "check-in" && ids.has(changes[k].entityId)) changes.splice(k, 1);
-		} else if (!a) for (const x of replacing) raise("replaces-others", "Check-ins", x.row, x.name, `${plural$2(replacing.length, "row")} replace check-ins other people posted.`, { answers: ANSWERS.replaces });
+		} else if (!a) for (const x of replacing) raise("replaces-others", "Check-ins", x.row, x.name, `${plural$3(replacing.length, "row")} replace check-ins other people posted.`, { answers: ANSWERS.replaces });
 	}
 	const reqOut = /* @__PURE__ */ new Map();
 	const requestsNow = () => [...(s.requests ?? []).filter((x) => !reqOut.has(x.id)), ...reqOut.values()];
@@ -12517,7 +12675,7 @@ function* planChangesInChunks(input) {
 		to: VIA_LABEL[via]
 	});
 	const corrects = (input.posts ?? []).some((p) => p.mode === "correct");
-	issues.sort((a, b) => SHEET_ORDER.indexOf(a.sheet) - SHEET_ORDER.indexOf(b.sheet) || a.row - b.row);
+	issues.sort((a, b) => sheetRank(a.sheet) - sheetRank(b.sheet) || a.sheet.localeCompare(b.sheet) || a.row - b.row);
 	const counts = {
 		newGoals: items.filter((x) => x.kind === "new goal").length,
 		goals: items.filter((x) => x.kind === "goal").length,
@@ -12530,7 +12688,19 @@ function* planChangesInChunks(input) {
 		teams: items.filter((x) => x.kind === "team").length,
 		stopped: items.filter((x) => x.kind === "stop goal").length,
 		deleted: items.filter((x) => x.kind === "delete goal").length,
-		left: items.filter((x) => x.kind === "person left").length
+		left: items.filter((x) => x.kind === "person left").length,
+		...items.some((x) => x.noun) ? { records: [...new Set(items.filter((x) => x.noun).map((x) => x.sheet))].map((sheet) => {
+			const mine = items.filter((x) => x.sheet === sheet && x.noun);
+			const k = (kind) => mine.filter((x) => x.kind === kind).length;
+			return {
+				sheet,
+				noun: mine[0].noun,
+				added: k("new record"),
+				changed: k("record"),
+				retired: k("retire record"),
+				back: k("bring back record")
+			};
+		}) } : {}
 	};
 	const needsConfirm = issues.some((x) => x.kind === "plan-question");
 	const ok = !issues.some((x) => x.level === "must" || x.level === "check") && !needsReason && items.length > 0;
@@ -12617,7 +12787,8 @@ function* planChangesInChunks(input) {
 				...teamsOut.size ? { teams: [...teamsOut.keys()].map((id) => ({
 					id,
 					before: savedTeam.get(id) ?? null
-				})) } : {}
+				})) } : {},
+				...moduleBefore.length ? { moduleRows: moduleBefore } : {}
 			}
 		};
 		result.commit = {
@@ -12627,6 +12798,7 @@ function* planChangesInChunks(input) {
 			checkIns: ciOut,
 			...reqOut.size ? { requests: [...reqOut.values()] } : {},
 			...reviewsOut.size ? { reviews: [...reviewsOut.values()] } : {},
+			...moduleRows ? { modules: moduleRows } : {},
 			changes: [...changes, summary]
 		};
 	}
@@ -12709,7 +12881,7 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, STOPS, showOf, COVERED_BY_PICK, CORRECTS_VIA, initialsOf, GoalSet;
+var ASKS_NUMBERS, TYPED_ON_SCREEN, RECORD_KIND, has$1, val$1, ref, rowOf$1, blankRow$1, plural$3, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, STOPS, showOf, COVERED_BY_PICK, CORRECTS_VIA, initialsOf, GoalSet;
 var init_changeset = __esmMin((() => {
 	init_correctReason();
 	init_actions();
@@ -12747,19 +12919,25 @@ var init_changeset = __esmMin((() => {
 		"table"
 	];
 	TYPED_ON_SCREEN = ["bulk", "form"];
-	has = (r, k) => Object.prototype.hasOwnProperty.call(r, k);
-	val = (r, k) => (r[k] ?? "").trim();
+	RECORD_KIND = {
+		added: "new record",
+		changed: "record",
+		retired: "retire record",
+		back: "bring back record"
+	};
+	has$1 = (r, k) => Object.prototype.hasOwnProperty.call(r, k);
+	val$1 = (r, k) => (r[k] ?? "").trim();
 	ref = (r, k) => {
-		const v = val(r, k);
+		const v = val$1(r, k);
 		return /^[—–-]$/.test(v) ? "" : v;
 	};
-	rowOf = (r, i) => Number(r.__row ?? i + 2);
-	blankRow = (r) => Object.entries(r).every(([k, v]) => k === "__row" || !String(v).trim());
-	plural$2 = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+	rowOf$1 = (r, i) => Number(r.__row ?? i + 2);
+	blankRow$1 = (r) => Object.entries(r).every(([k, v]) => k === "__row" || !String(v).trim());
+	plural$3 = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 	commaDecimal = (raw) => /^[-+]?\d+,\d{1,2}(\s*(%|[a-z]+))?$/i.test(raw.trim());
 	isFormula = (raw) => raw.trim().startsWith("=");
 	oddKind = (text) => /below zero/i.test(text) ? "below zero" : /100 ?times|th of/.test(text) ? "far from the start" : /100%/.test(text) ? "over 100%" : /billion/.test(text) ? "a billion" : /far outside/.test(text) ? "far outside the plan" : /past the target/.test(text) ? "past the target" : /Last week was/.test(text) ? "far from the last number" : /margin/.test(text) ? "margin" : text;
-	examplesLine = (n) => n ? `${plural$2(n, "example row")} left out.` : "";
+	examplesLine = (n) => n ? `${plural$3(n, "example row")} left out.` : "";
 	FIELD_COLUMN = {
 		title: "Goal",
 		teamId: "Team",
@@ -12854,12 +13032,14 @@ var init_changeset = __esmMin((() => {
 	ADDS = /* @__PURE__ */ new Set([
 		"new goal",
 		"new person",
-		"check-in"
+		"check-in",
+		"new record"
 	]);
 	STOPS = /* @__PURE__ */ new Set([
 		"stop goal",
 		"delete goal",
-		"person left"
+		"person left",
+		"retire record"
 	]);
 	showOf = (kind) => ADDS.has(kind) ? "added" : STOPS.has(kind) ? "stopped" : "changed";
 	COVERED_BY_PICK = [
@@ -13467,7 +13647,7 @@ var init_names = __esmMin((() => {
 	]);
 	nameWords = (name) => new Set(fold$2(name.replace(/\([^)]*\)|\[[^\]]*\]/g, " ")).split(/[^\p{L}\p{N}%]+/u).filter((w) => w && !FILLER.has(w)));
 }));
-// src/modules/metrics/rulesDefine.ts
+// src/modules/metrics/rulesStill.ts
 /**
 * Rule 1. What a metric still needs to say. A metric with a name, a unit and a direction is usable; `missing` lists, in
 * order, what it means (meaning empty), where the number comes from (source empty), who owns that source (empty) and how
@@ -13488,6 +13668,19 @@ function stillToSay(m, ownerIsHere) {
 		line
 	};
 }
+var STILL_TO_SAY, FULLY_DEFINED, OWNER_LEFT;
+var init_rulesStill = __esmMin((() => {
+	STILL_TO_SAY = [
+		["what it means", "meaning"],
+		["where the number comes from", "source"],
+		["who owns that source", "sourceOwner"],
+		["how often it refreshes", "refresh"]
+	];
+	Object.fromEntries(STILL_TO_SAY);
+	FULLY_DEFINED = "Fully defined";
+	OWNER_LEFT = "Its owner has left.";
+}));
+// src/modules/metrics/rulesDefine.ts
 /**
 * Rule 1. Up to two names close to `name`, closest first. **former**: `name` is a name a metric in use used to have
 * (its rename in the change log). **letters**: the two names, bared, differ by one edit for names up to 12 characters and
@@ -13660,21 +13853,13 @@ function answersFrom(raw) {
 	}
 	return out;
 }
-var STILL_TO_SAY, FULLY_DEFINED, OWNER_LEFT, bare$1, UNIT_SPELLINGS, unitBare, TIME_UNIT, PER_TIME, OUT_OF, OUT_OF_WHAT, unansweredChecks;
+var bare$1, UNIT_SPELLINGS, unitBare, TIME_UNIT, PER_TIME, OUT_OF, OUT_OF_WHAT, unansweredChecks;
 var init_rulesDefine = __esmMin((() => {
 	init_actions();
 	init_fold();
 	init_edits();
 	init_names();
-	STILL_TO_SAY = [
-		["what it means", "meaning"],
-		["where the number comes from", "source"],
-		["who owns that source", "sourceOwner"],
-		["how often it refreshes", "refresh"]
-	];
-	Object.fromEntries(STILL_TO_SAY);
-	FULLY_DEFINED = "Fully defined";
-	OWNER_LEFT = "Its owner has left.";
+	init_rulesStill();
 	bare$1 = (s) => fold$2(s).replace(/[^\p{L}\p{N}%]+/gu, " ").trim();
 	UNIT_SPELLINGS = {
 		percent: "%",
@@ -13788,7 +13973,7 @@ function saveMetricChange(x, input) {
 	const kinds = changeKinds(before, after, linked, { relabel });
 	const why = (reason ?? "").trim();
 	const n = linked.length;
-	if (kinds.includes("scale")) no(`${goalsWord(n)} ${n === 1 ? "is" : "are"} measured by ${before.name} in ${before.unit}. A metric in ${after.unit} is a different number: add it as a new metric and move goals to it, or retire this one. If “${after.unit}” is only a new label for the same numbers, say so (relabel).`);
+	if (kinds.includes("scale")) no(`${goalsWord$1(n)} ${n === 1 ? "is" : "are"} measured by ${before.name} in ${before.unit}. A metric in ${after.unit} is a different number: add it as a new metric and move goals to it, or retire this one. If “${after.unit}” is only a new label for the same numbers, say so (relabel).`);
 	if (kinds.includes("meaning") && comparable === void 0) no("Say whether it is still the same number.");
 	const marked = [...kinds.includes("meaning") && comparable === false ? ["definition"] : [], ...kinds.includes("direction") ? ["direction"] : []];
 	if (marked.length && !why) no(marked.includes("direction") ? "Say why the direction changes, in a line. Every goal measured by it will show this." : "Say why, in a line. Every goal measured by it will show this.");
@@ -13811,7 +13996,7 @@ function saveMetricChange(x, input) {
 		unit: after.unit
 	}) : [];
 	const head = dry.commit.changes[0];
-	const said = marks.length ? `${head.summary}${why ? `: ${why}` : ""}` : kinds.includes("relabel") ? `Changed the unit of “${after.name}” from “${before.unit}” to “${after.unit}” on it and its ${goalsWord(n)}` : head.summary;
+	const said = marks.length ? `${head.summary}${why ? `: ${why}` : ""}` : kinds.includes("relabel") ? `Changed the unit of “${after.name}” from “${before.unit}” to “${after.unit}” on it and its ${goalsWord$1(n)}` : head.summary;
 	const perGoal = marks.length || goals.length ? linked.map((g) => log(x, {
 		entityId: after.id,
 		goalId: g.id,
@@ -13941,7 +14126,7 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 			log(x, {
 				entityId: into.id,
 				action: "edited",
-				summary: `Merged “${from.name}” into “${into.name}”, moving ${goalsWord(moved.length)}: ${w}`,
+				summary: `Merged “${from.name}” into “${into.name}”, moving ${goalsWord$1(moved.length)}: ${w}`,
 				diffs: [{
 					field: "Merged in",
 					from: "—",
@@ -13972,7 +14157,7 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 		]
 	};
 }
-var same$1, onDay, goalsWord, metricOf$1, mayChange, retiredWords;
+var same$1, onDay, goalsWord$1, aimingWrong, metricOf$1, mayChange, retiredWords;
 var init_rulesChange = __esmMin((() => {
 	init_rules();
 	same$1 = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -13981,7 +14166,8 @@ var init_rulesChange = __esmMin((() => {
 		month: "short",
 		timeZone: "UTC"
 	});
-	goalsWord = (n) => `${n} ${n === 1 ? "goal" : "goals"}`;
+	goalsWord$1 = (n) => `${n} ${n === 1 ? "goal" : "goals"}`;
+	aimingWrong = (linked, direction) => linked.filter((g) => g.aimsUp != null && (g.aimsUp ? "higher" : "lower") !== direction);
 	metricOf$1 = (x, id) => {
 		const m = metricsOf(x.snapshot).find((v) => v.id === id && !v.removedAt);
 		if (!m) no("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
@@ -14461,31 +14647,698 @@ var SKIP = /* @__PURE__ */ new Set([
 	"createdAt",
 	"updatedAt"
 ]);
+// src/modules/metrics/sheetWords.ts
+var DIRECTION_WORDS, REFRESH_WORDS, METRIC_ACTION_WORDS, METRIC_HEADER_ALSO;
+var init_sheetWords = __esmMin((() => {
+	init_rules();
+	DIRECTION_WORDS = {
+		what: "Direction",
+		word: DIRECTION_LABEL,
+		also: {
+			higher: [
+				"higher",
+				"up",
+				"more is better",
+				"higher better"
+			],
+			lower: [
+				"lower",
+				"down",
+				"less is better",
+				"lower better"
+			]
+		}
+	};
+	REFRESH_WORDS = {
+		what: "Refresh",
+		word: REFRESH_LABEL,
+		also: {
+			live: ["real time", "realtime"],
+			hourly: ["every hour"],
+			daily: ["every day", "day"],
+			weekly: ["every week", "week"],
+			monthly: ["every month", "month"],
+			quarterly: ["every quarter", "quarter"]
+		}
+	};
+	METRIC_ACTION_WORDS = {
+		what: "Action",
+		word: {
+			retire: "Retire",
+			back: "Bring back",
+			example: "Example"
+		},
+		also: {
+			retire: ["retired"],
+			back: [
+				"bring it back",
+				"unretire",
+				"restore"
+			]
+		}
+	};
+	METRIC_HEADER_ALSO = {
+		name: "metric",
+		"metric name": "metric",
+		description: "meaning",
+		definition: "meaning",
+		better: "direction",
+		"owner e-mail": "owner email",
+		"owner email address": "owner email"
+	};
+}));
+// src/modules/metrics/sheetRead.ts
+var sheetRead_exports = /* @__PURE__ */ __exportAll({ default: () => readMetricsSheet });
+/** The column a rule's sentence is about (metricProblems, saveMetric, saveMetricChange), and its kind. */
+function columnOf(message) {
+	const kind = /^Only .* can /.test(message) ? "not-allowed" : /already a metric called/.test(message) ? "duplicate" : /^(Give|Say)\b/.test(message) ? "required-empty" : /^Keep the/.test(message) ? "text-length" : /^Decimals/.test(message) ? "not-a-number" : /owner isn’t in/.test(message) ? "unknown-ref" : "cant-change";
+	return {
+		column: /reason|Say why/i.test(message) ? "Reason" : /retired|retire/i.test(message) ? "Action" : /\bname\b|called/.test(message) ? "Metric" : /\bunit\b/.test(message) ? "Unit" : /which way|direction/i.test(message) ? "Direction" : /^Decimals/.test(message) ? "Decimals" : /owner isn’t/.test(message) ? "Owner email" : /meaning/.test(message) ? "Meaning" : /source’s owner/.test(message) ? "Source owner" : /source/.test(message) ? "Source" : /caveats/.test(message) ? "Caveats" : "Metric",
+		kind
+	};
+}
+/** A person in the workspace (the file's new people included) by an email, then by a name only one person has. */
+function personBy(people, cell) {
+	const t = cell.trim().toLowerCase();
+	const byEmail = people.find((p) => (p.email ?? "").trim().toLowerCase() === t);
+	if (byEmail) return { one: byEmail };
+	const named = people.filter((p) => fold$1(p.name) === fold$1(cell.replace(/\s*\(left\)$/i, "")));
+	return named.length === 1 ? { one: named[0] } : named.length ? { many: named.length } : {};
+}
+/** The Metrics sheet's rows read through the metric library's rules: what they add and change, with every problem raised. */
+function readMetricsSheet(rows, c) {
+	const { x } = c;
+	const fullAtStart = x.full ?? x.snapshot;
+	let snap = x.snapshot;
+	let full = fullAtStart;
+	const xNow = () => ({
+		...x,
+		snapshot: snap,
+		full
+	});
+	const apply = (cm) => {
+		snap = {
+			...snap,
+			modules: applyModuleRows(snap.modules, cm.modules) ?? {}
+		};
+		full = {
+			...full,
+			modules: applyModuleRows(full.modules, cm.modules) ?? {}
+		};
+	};
+	const items = [];
+	const changes = [];
+	const touched = /* @__PURE__ */ new Map();
+	let unchanged = 0, examples = 0;
+	const bad = /* @__PURE__ */ new Set();
+	const must = (kind, row, name, message, column, found) => {
+		bad.add(row);
+		c.raise(kind, row, name, message, {
+			column,
+			...found ? { found } : {}
+		});
+	};
+	const refused = (row, name, e) => {
+		if (!(e instanceof NotAllowed)) throw e;
+		const { column, kind } = columnOf(e.message);
+		must(kind, row, name, e.message, column);
+	};
+	const kept = (cm, row, name, does) => {
+		if (!cm) return;
+		for (const m of cm.modules?.["metrics"]?.["metrics"] ?? []) if (!touched.has(m.id)) touched.set(m.id, metricsOf(fullAtStart).find((v) => v.id === m.id) ?? null);
+		apply(cm);
+		changes.push(...cm.changes);
+		const head = cm.changes[0];
+		items.push({
+			row,
+			name,
+			does,
+			summary: head.summary,
+			diffs: head.diffs,
+			noun: NOUN
+		});
+	};
+	const known = metricsOf(fullAtStart).filter((m) => !m.removedAt);
+	const unitReads = checkReads(x.snapshot);
+	const questions = (next, was, reads) => [...metricChecks(next, was, reads).filter((q) => q.field !== "unit"), ...metricChecks(next, was, unitReads).filter((q) => q.field === "unit")];
+	const list = rows.map((r, i) => ({
+		r,
+		row: rowOf(r, i)
+	})).filter(({ r }) => !blankRow(r));
+	const read = [];
+	for (const { r, row } of list) {
+		const action = has(r, "action") ? c.readWord(METRIC_ACTION_WORDS, val(r, "action"), row, val(r, "metric") || val(r, "id")) : null;
+		if (action === "example") {
+			examples++;
+			continue;
+		}
+		const id = val(r, "id");
+		const name = val(r, "metric");
+		let before = null;
+		if (id) {
+			before = known.find((m) => m.id === id) ?? null;
+			if (!before) {
+				must("bad-key", row, name || id, `ID “${id}” isn’t a metric in ${c.workspace}. Leave ID empty to add a new metric, or use an ID from an export.`, "ID", id);
+				continue;
+			}
+		} else if (name) before = known.find((m) => m.name.trim().toLowerCase() === name.toLowerCase()) ?? null;
+		if (action === void 0) bad.add(row);
+		read.push({
+			r,
+			row,
+			name: name || before?.name || "",
+			id,
+			before,
+			action: action === void 0 ? null : action
+		});
+	}
+	const twice = (key, column, words) => {
+		const by = /* @__PURE__ */ new Map();
+		for (const x of read) {
+			const k = key(x);
+			if (k) by.set(k, [...by.get(k) ?? [], x]);
+		}
+		for (const same of by.values()) if (same.length > 1) for (const x of same) must("duplicate", x.row, x.name, words(same[0].row, same[1].row, column === "ID" ? x.id : val(x.r, "metric")), column, column === "ID" ? x.id : val(x.r, "metric"));
+	};
+	twice((x) => x.id, "ID", (a, b) => `Rows ${a} and ${b} have the same ID.`);
+	twice((x) => val(x.r, "metric") && !(x.id && x.before && fold$1(x.before.name) === fold$1(val(x.r, "metric"))) ? fold$1(val(x.r, "metric")) : x.before && !x.id ? `id:${x.before.id}` : "", "Metric", (a, b, found) => `Rows ${a} and ${b} are both called “${found}”. A metric’s name is used once.`);
+	const ownerless = read.filter((x) => !x.before && !bad.has(x.row) && !val(x.r, "owner email") && !val(x.r, "owner"));
+	const retiring = [];
+	for (const it of read) {
+		const { r, row } = it;
+		if (bad.has(row)) continue;
+		let before = it.before;
+		const people = snap.people;
+		const input = {};
+		if (has(r, "metric") && (val(r, "metric") || !before)) input.name = val(r, "metric");
+		if (has(r, "meaning")) input.meaning = val(r, "meaning");
+		if (has(r, "unit") && (val(r, "unit") || !before)) input.unit = val(r, "unit");
+		if (has(r, "source")) input.source = val(r, "source");
+		if (has(r, "source owner")) input.sourceOwner = val(r, "source owner");
+		if (has(r, "caveats")) input.caveats = val(r, "caveats");
+		if (has(r, "decimals") && val(r, "decimals")) {
+			const d = val(r, "decimals");
+			const n = /^\d+(\.0+)?$/.test(d) ? Number(d) : NaN;
+			if (!Number.isInteger(n) || n < 0 || n > METRIC_LIMITS.decimals) {
+				must("not-a-number", row, it.name, `Decimals says “${d}”. Use a whole number from 0 to ${METRIC_LIMITS.decimals}.`, "Decimals", d);
+				continue;
+			}
+			input.decimals = n;
+		}
+		if (has(r, "direction") && (val(r, "direction") || !before)) {
+			const d = c.readWord(DIRECTION_WORDS, val(r, "direction"), row, it.name);
+			if (d === void 0) {
+				bad.add(row);
+				continue;
+			}
+			if (d) input.direction = d;
+		}
+		if (has(r, "refresh")) {
+			const f = c.readWord(REFRESH_WORDS, val(r, "refresh"), row, it.name);
+			if (f === void 0) {
+				bad.add(row);
+				continue;
+			}
+			input.refresh = f;
+		}
+		const email = val(r, "owner email");
+		const ownerName = email ? "" : val(r, "owner");
+		if (email || ownerName) {
+			const col = email ? "Owner email" : "Owner";
+			const cell = email || ownerName;
+			const answer = c.answerOf("unknown-ref", col, cell);
+			const got = answer?.choice === "choose" && answer.value ? personBy(people, answer.value) : personBy(people, cell);
+			if (got.many) {
+				must("ambiguous-ref", row, it.name, `Owner “${cell}” matches ${got.many} people. Give the Owner email.`, col, cell);
+				continue;
+			}
+			if (!got.one) {
+				c.raise("unknown-ref", row, it.name, `${col} “${cell}” isn’t a person in ${c.workspace}. Add them on the People sheet, or leave it empty to own it yourself.`, {
+					column: col,
+					found: cell,
+					answers: [{
+						choice: "choose",
+						label: "Choose a person",
+						needsValue: true
+					}]
+				});
+				bad.add(row);
+				continue;
+			}
+			if (got.one.id !== before?.ownerId && (got.one.leftAt || got.one.removedAt)) {
+				must("unknown-ref", row, it.name, `${got.one.name} has left ${c.workspace}. Choose someone else.`, col, cell);
+				continue;
+			}
+			input.ownerId = got.one.id;
+		} else if (!before && ownerless.length >= 2) {
+			const k = ownerless.length;
+			if (c.ask("no-owner", row, it.name, `${k} rows give no Owner email. You will own those ${k} metrics.`, {
+				column: "Owner email",
+				answers: [{
+					choice: "right",
+					label: "I’ll own them"
+				}, {
+					choice: "leave",
+					label: `Leave these ${k} rows out`
+				}]
+			}) === "leave") continue;
+		}
+		const reason = val(r, "reason");
+		const reads = checkReads(snap);
+		if (!before) {
+			if (it.action === "retire" || it.action === "back") {
+				must("cant-change", row, it.name, it.action === "back" ? `Bring back: ${it.name || "this row"} isn’t a metric here yet, so it isn’t retired.` : `Retire: ${it.name || "this row"} isn’t a metric here yet. Leave Action empty to add it.`, "Action", val(r, "action"));
+				continue;
+			}
+			const m = metricFrom(input, null, xNow());
+			const problems = metricProblems(m, snap);
+			if (problems.length) {
+				for (const p of problems) {
+					const { column, kind } = columnOf(p);
+					must(kind, row, it.name, p, column, column === "Metric" && kind === "duplicate" ? m.name : void 0);
+				}
+				continue;
+			}
+			let as = null;
+			let left = false;
+			for (const q of questions(m, null, reads)) if (q.field === "name") {
+				const other = q.answers[0].choice.slice(4);
+				const otherName = reads.metrics.find((v) => v.id === other)?.name ?? "";
+				const a = c.ask("near-ref", row, m.name, q.words, {
+					column: "Metric",
+					found: m.name,
+					suggest: otherName,
+					title: q.words,
+					answers: [{
+						choice: `use:${other}`,
+						label: `Change “${otherName}” with this row`
+					}, {
+						choice: "keep",
+						label: `Add “${m.name}” as a new metric`
+					}]
+				});
+				if (a === "leave") left = true;
+				else if (a && a.choice === `use:${other}`) as = metricsOf(snap).find((v) => v.id === other) ?? null;
+			} else if (q.field === "unit") {
+				const use = /“([^”]+)”/.exec(q.words)[1];
+				const a = c.ask("near-word", row, m.name, q.words, {
+					column: "Unit",
+					found: m.unit,
+					suggest: use,
+					answers: [{
+						choice: "use",
+						label: `Use “${use}”`
+					}, {
+						choice: "keep",
+						label: `Keep “${m.unit}”`
+					}]
+				});
+				if (a === "leave") left = true;
+				else if (a?.choice === "use") input.unit = use;
+			} else if (c.ask("out-of-what", row, m.name, q.words, {
+				column: "Meaning",
+				answers: [{
+					choice: "as-written",
+					label: "It’s right as written"
+				}, {
+					choice: "leave",
+					label: "Leave these rows out"
+				}]
+			}) === "leave") left = true;
+			if (left) continue;
+			if (as) {
+				before = as;
+				delete input.name;
+			} else {
+				try {
+					kept(saveMetric(xNow(), input).commit, row, m.name, "added");
+				} catch (e) {
+					refused(row, m.name, e);
+				}
+				continue;
+			}
+		}
+		const name = before.name;
+		if (it.action === "back") {
+			if (!before.retiredAt) {
+				must("cant-change", row, name, `Bring back: ${name} isn’t retired.`, "Action", val(r, "action"));
+				continue;
+			}
+			try {
+				kept(unretireMetric(xNow(), before.id), row, name, "back");
+				before = metricsOf(snap).find((v) => v.id === before.id);
+			} catch (e) {
+				refused(row, name, e);
+				continue;
+			}
+		}
+		const after = metricFrom(input, before, xNow());
+		const diffs = diffFields(metricFields(before, snap), metricFields(after, snap));
+		if (diffs.length) {
+			if (!canEditMetric(x.actor, before)) {
+				must("not-allowed", row, name, `Only ${people.find((p) => p.id === before.ownerId)?.name ?? "the metric’s owner"} or an admin can change ${name}.`, diffs[0].field === "Name" ? "Metric" : diffs[0].field);
+				continue;
+			}
+			if (before.retiredAt) {
+				must("cant-change", row, name, `“${name}” is retired. Bring it back before changing it: say Bring back in Action.`, "Action");
+				continue;
+			}
+			const problems = metricProblems(after, snap);
+			if (problems.length) {
+				for (const p of problems) {
+					const { column, kind } = columnOf(p);
+					must(kind, row, name, p, column);
+				}
+				continue;
+			}
+			const linked = linkedGoals(full, before.id);
+			const n = linked.length;
+			const kinds = changeKinds(before, after, linked);
+			if (kinds.includes("scale")) {
+				must("cant-change", row, name, `It is in ${before.unit} and ${goalsWord(n)} ${n === 1 ? "is" : "are"} measured by it. A file can’t change its unit: change it on the metric’s page, where its goals are shown first.`, "Unit", after.unit);
+				continue;
+			}
+			let left = false;
+			for (const q of questions(after, before, reads)) if (q.field === "unit") {
+				const use = /“([^”]+)”/.exec(q.words)[1];
+				const a = c.ask("near-word", row, name, q.words, {
+					column: "Unit",
+					found: after.unit,
+					suggest: use,
+					answers: [{
+						choice: "use",
+						label: `Use “${use}”`
+					}, {
+						choice: "keep",
+						label: `Keep “${after.unit}”`
+					}]
+				});
+				if (a === "leave") left = true;
+				else if (a?.choice === "use") input.unit = use;
+			} else if (q.field === "name") {
+				if (c.ask("near-ref", row, after.name, q.words, {
+					column: "Metric",
+					found: after.name,
+					suggest: /“([^”]+)”\s*\(|now called “([^”]+)”/.exec(q.words)?.slice(1).find(Boolean) ?? "",
+					title: q.words,
+					answers: [{
+						choice: "keep",
+						label: `Rename it “${after.name}”`
+					}, {
+						choice: "leave",
+						label: "Leave this row out"
+					}]
+				}) === "leave") left = true;
+			} else if (c.ask("out-of-what", row, name, q.words, {
+				column: "Meaning",
+				answers: [{
+					choice: "as-written",
+					label: "It’s right as written"
+				}, {
+					choice: "leave",
+					label: "Leave these rows out"
+				}]
+			}) === "leave") left = true;
+			let comparable;
+			let needsWhy = false;
+			if (kinds.includes("meaning")) {
+				const column = before.meaning.trim() !== after.meaning.trim() ? "Meaning" : "Source";
+				const a = c.ask("changes-goals", row, name, `${name}: ${goalsWord(n)} ${n === 1 ? "is" : "are"} measured by it. Is it still the same number?`, {
+					column,
+					found: name,
+					title: `${name}: ${goalsWord(n)} ${n === 1 ? "is" : "are"} measured by it. Is it still the same number?`,
+					answers: [
+						{
+							choice: "same",
+							label: "Same number, better words"
+						},
+						{
+							choice: "changes",
+							label: "The number changes from this week"
+						},
+						{
+							choice: "leave",
+							label: "Leave this row out"
+						}
+					]
+				});
+				if (a === "leave") left = true;
+				comparable = a && a !== "leave" ? a.choice !== "changes" : true;
+				if (a && a !== "leave" && a.choice === "changes") needsWhy = true;
+			}
+			if (kinds.includes("direction")) {
+				const k = aimingWrong(linked, after.direction).length;
+				if (k && c.ask("changes-goals", row, name, `${name}: ${k} of its ${goalsWord(n)} would aim the wrong way.`, {
+					column: "Direction",
+					found: name,
+					title: `${name}: ${k} of its ${goalsWord(n)} would aim the wrong way.`,
+					answers: [{
+						choice: "change",
+						label: "Change it"
+					}, {
+						choice: "leave",
+						label: "Leave this row out"
+					}]
+				}) === "leave") left = true;
+				needsWhy = true;
+			}
+			if (kinds.includes("decimals")) {
+				const k = linked.filter((g) => g.decimals > after.decimals).length;
+				if (c.ask("changes-goals", row, name, `${goalsWord(k)} show${k === 1 ? "s" : ""} more decimal places than ${name} will.`, {
+					column: "Decimals",
+					found: name,
+					title: `${goalsWord(k)} show${k === 1 ? "s" : ""} more decimal places than ${name} will.`,
+					answers: [{
+						choice: "change",
+						label: "Change it"
+					}, {
+						choice: "leave",
+						label: "Leave this row out"
+					}]
+				}) === "leave") left = true;
+			}
+			if (left) continue;
+			if (needsWhy && !reason) {
+				must("required-empty", row, name, `Say why, in the Reason column: ${goalsWord(n)} measured by ${name} will show it.`, "Reason");
+				continue;
+			}
+			try {
+				kept(saveMetricChange(xNow(), {
+					id: before.id,
+					...input,
+					comparable,
+					...needsWhy ? { reason } : {}
+				}).commit, row, name, "changed");
+			} catch (e) {
+				refused(row, name, e);
+				continue;
+			}
+		} else if (it.action !== "back" && it.action !== "retire") unchanged++;
+		if (it.action === "retire") {
+			if (before.retiredAt) {
+				must("cant-change", row, name, `“${name}” is already retired.`, "Action", val(r, "action"));
+				continue;
+			}
+			retiring.push({
+				x: it,
+				why: reason
+			});
+		}
+	}
+	const goalsLeft = retiring.reduce((k, { x: it }) => k + linkedGoals(full, it.before.id).length, 0);
+	for (const { x: it, why } of retiring) {
+		const name = it.before.name;
+		if (goalsLeft && c.ask("big-removal", it.row, name, `Retiring ${plural$2(retiring.length, "metric")} leaves ${goalsWord(goalsLeft)} measured by a retired metric.`, {
+			column: "Action",
+			answers: [{
+				choice: "right",
+				label: "Retire them"
+			}, {
+				choice: "leave",
+				label: "Leave these rows out"
+			}]
+		}) === "leave") continue;
+		try {
+			kept(retireMetric(xNow(), it.before.id, why), it.row, name, "retired");
+		} catch (e) {
+			refused(it.row, name, e);
+		}
+	}
+	const latest = [...touched.keys()].map((id) => metricsOf(full).find((m) => m.id === id));
+	const modules = latest.length ? metricRows({ metrics: latest }).modules : void 0;
+	return {
+		items,
+		unchanged,
+		examples,
+		changes,
+		...modules ? { modules } : {},
+		before: touched.size ? [{
+			module: MODULE,
+			key: METRICS_KEY,
+			rows: [...touched].map(([id, b]) => ({
+				id,
+				before: b
+			}))
+		}] : []
+	};
+}
+var NOUN, has, val, rowOf, blankRow, plural$2, goalsWord;
+var init_sheetRead = __esmMin((() => {
+	init_actions();
+	init_changes();
+	init_records();
+	init_problemLevels();
+	init_checkReads();
+	init_rules();
+	init_rulesChange();
+	init_rulesDefine();
+	init_sheetWords();
+	NOUN = ["metric", "metrics"];
+	has = (r, k) => Object.prototype.hasOwnProperty.call(r, k);
+	val = (r, k) => (r[k] ?? "").trim();
+	rowOf = (r, i) => Number(r.__row ?? i + 2);
+	blankRow = (r) => Object.entries(r).every(([k, v]) => k === "__row" || !String(v).trim());
+	plural$2 = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+	goalsWord = (n) => plural$2(n, "goal");
+}));
 // src/modules/metrics/sheet.ts
 init_columns();
 init_rules();
-var { match: m, shown: sh } = moduleColumn;
+init_rulesStill();
+init_sheetWords();
+var { match: m, edit: ed, action: act, worked: wk, shown: sh } = moduleColumn;
 var or = cellOr;
+var LONG = METRIC_LIMITS.text.toLocaleString("en-GB");
+/** Each column a person fills in, as the field table says it (3.1): Start here, Help and the template read these. */
+var FIELDS$1 = {
+	ID: {
+		required: "leave-empty",
+		format: "Text, as exported",
+		example: "metric_deploys",
+		empty: "Found by Metric instead, or added as a new metric"
+	},
+	Metric: {
+		required: "required",
+		format: `Text, 3 to ${METRIC_LIMITS.name} characters; used by one metric (any case)`,
+		example: "Deploy frequency",
+		empty: "Must fix: a new metric needs a name",
+		also: ["name", "metric name"]
+	},
+	Action: {
+		required: { optional: "none" },
+		format: oneOf([METRIC_ACTION_WORDS.word.retire, METRIC_ACTION_WORDS.word.back]),
+		example: METRIC_ACTION_WORDS.word.retire,
+		empty: "The row adds or changes the metric"
+	},
+	Meaning: {
+		required: { optional: "not said yet" },
+		format: `Text, up to ${LONG} characters: what is counted, out of what or over what period, what is left out`,
+		example: "Production deploys finished, per day, averaged over the last 7 days. Rollbacks are left out.",
+		empty: "Not said yet",
+		clears: true,
+		also: ["description", "definition"]
+	},
+	Unit: {
+		required: "required",
+		format: `Text, up to ${METRIC_LIMITS.unit} characters, as it follows a number`,
+		example: "deploys",
+		empty: "Must fix: a new metric needs a unit"
+	},
+	Decimals: {
+		required: { optional: "0" },
+		format: `A whole number, 0 to ${METRIC_LIMITS.decimals}`,
+		example: "1",
+		empty: "0 on a new metric; on one already here, it keeps its own"
+	},
+	Direction: {
+		required: "required",
+		format: `${oneOf(Object.values(DIRECTION_LABEL))} (also higher, lower, up, down)`,
+		example: DIRECTION_LABEL.higher,
+		empty: "Must fix: a new metric needs a direction",
+		also: ["better"]
+	},
+	Source: {
+		required: { optional: "not said" },
+		format: `Text, up to ${LONG} characters: a dashboard, a query, a report`,
+		example: "DORA dashboard (Four Keys)",
+		empty: "Not said",
+		clears: true
+	},
+	"Source owner": {
+		required: { optional: "not said" },
+		format: "Text: a team or a person",
+		example: "Site Reliability Engineering",
+		empty: "Not said",
+		clears: true
+	},
+	Refresh: {
+		required: { optional: "not said" },
+		format: oneOf(Object.values(REFRESH_LABEL)),
+		example: REFRESH_LABEL.daily,
+		empty: "Not said",
+		clears: true
+	},
+	Owner: {
+		required: { optional: "Owner email says who" },
+		oneOf: "owner",
+		format: "A name only one person has",
+		example: "Daniel Okafor",
+		empty: "Owner email says who"
+	},
+	"Owner email": {
+		required: { optional: "whoever loads it" },
+		oneOf: "owner",
+		format: "An email of someone in the workspace",
+		example: "daniel.okafor@example.com",
+		empty: "Whoever loads the file owns a new metric; one already here keeps its owner",
+		also: ["owner e-mail", "owner email address"]
+	},
+	Caveats: {
+		required: { optional: "none" },
+		format: `Text, up to ${LONG} characters`,
+		example: "Deploys by the release train count once per service.",
+		empty: "None",
+		clears: true
+	},
+	Reason: {
+		required: { when: "when the row changes the meaning, source or direction of a metric goals use, and the number changes" },
+		format: "Text, up to 300 characters",
+		example: "Commit time was unreliable for squashed merges.",
+		empty: "The preview asks for it where it is needed"
+	}
+};
+/** The preview's count line (2.9): "2 new metrics · 3 change a metric that exists · 1 retired · 40 unchanged, left alone". */
+var countLine = (c) => [
+	c.added && `${c.added} new ${c.added === 1 ? "metric" : "metrics"}`,
+	c.changed && `${c.changed} change${c.changed === 1 ? "s" : ""} a metric that exists`,
+	c.retired && `${c.retired} retired`,
+	c.back && `${c.back} brought back`,
+	c.unchanged && `${c.unchanged} unchanged, left alone`
+].filter(Boolean).join(" · ");
 var METRICS_SHEET = {
 	spec: {
 		kind: "metrics",
 		name: "Metrics",
 		rowIs: "metric in the library",
-		loaded: false,
-		about: "The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Metrics are added and changed in the app.",
+		loaded: true,
+		about: "The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Add or change metrics here and load the file back; a row finds its metric by ID, else by its name.",
 		columns: [
-			m("ID", "The metric’s identity.", (r) => r.m.id),
-			sh("Metric", "Its name.", (r) => r.m.name),
-			sh("Meaning", "What it means and how it’s calculated.", (r) => or(r.m.meaning)),
-			sh("Unit", "Its unit.", (r) => r.m.unit),
-			sh("Decimals", "Places after the decimal point it’s shown with.", (r) => r.m.decimals),
-			sh("Direction", `${oneOf(Object.values(DIRECTION_LABEL))}.`, (r) => DIRECTION_LABEL[r.m.direction]),
-			sh("Source", "Where the number comes from.", (r) => or(r.m.source)),
-			sh("Source owner", "Who owns that source.", (r) => or(r.m.sourceOwner)),
-			sh("Refresh", `How often the source refreshes: ${oneOf(Object.values(REFRESH_LABEL))}, or empty when nobody has said.`, (r) => r.m.refresh ? REFRESH_LABEL[r.m.refresh] : null),
-			sh("Owner", "Who answers for the definition.", (r) => or(r.c.name(r.m.ownerId))),
-			sh("Owner email", "Who answers for it, by email.", (r) => r.c.email(r.m.ownerId)),
-			sh("Caveats", "What to watch out for when reading it.", (r) => or(r.m.caveats)),
+			m("ID", "The metric’s identity: leave it empty on a new metric.", (r) => r.m.id),
+			ed("Metric", "Its name.", (r) => r.m.name),
+			act("Action", `${METRIC_ACTION_WORDS.word.retire} or ${METRIC_ACTION_WORDS.word.back}, or empty to add or change it.`, () => null),
+			ed("Meaning", "What it means and how it’s calculated.", (r) => or(r.m.meaning)),
+			ed("Unit", "Its unit. A file can’t change the unit of a metric goals use.", (r) => r.m.unit),
+			ed("Decimals", "Places after the decimal point it’s shown with.", (r) => r.m.decimals),
+			ed("Direction", `${oneOf(Object.values(DIRECTION_LABEL))}.`, (r) => DIRECTION_LABEL[r.m.direction]),
+			ed("Source", "Where the number comes from.", (r) => or(r.m.source)),
+			ed("Source owner", "Who owns that source.", (r) => or(r.m.sourceOwner)),
+			ed("Refresh", `How often the source refreshes: ${oneOf(Object.values(REFRESH_LABEL))}, or empty when nobody has said.`, (r) => r.m.refresh ? REFRESH_LABEL[r.m.refresh] : null),
+			ed("Owner", "Who answers for the definition, by name: read when Owner email is empty.", (r) => or(r.c.name(r.m.ownerId))),
+			ed("Owner email", "Who answers for it, by email.", (r) => r.c.email(r.m.ownerId)),
+			ed("Caveats", "What to watch out for when reading it.", (r) => or(r.m.caveats)),
+			ed("Reason", "Why its meaning, source or direction changes, when goals use it and the number changes: they show it.", () => null),
+			wk("Still to say", "“Fully defined”, or what it still needs to say.", (r) => stillToSay(r.m, ownerName(r.c.x.snapshot.people, r.m) != null).line),
+			wk("Retired on", "When it was retired; empty while it is in use.", (r) => r.m.retiredAt ? r.m.retiredAt.slice(0, 10) : null),
 			sh("Measures", "The goals it measures, each with its slice: a team, or the whole company.", (r) => or(r.measures.map((x) => `${x.g.title} (${x.slice})`).join("; "))),
 			sh("Goal keys", "Their keys.", (r) => or(r.measures.map((x) => x.g.key ?? "").filter(Boolean).join("; ")))
 		]
@@ -14493,7 +15346,7 @@ var METRICS_SHEET = {
 	keys: ["ID"],
 	rows: (x, c, ids) => {
 		const s = x.snapshot;
-		return liveMetrics(s).map((mt) => ({
+		return liveMetrics(s, { retired: true }).map((mt) => ({
 			c,
 			m: mt,
 			measures: linksOf(s).filter((l) => l.metricId === mt.id && !l.removedAt && ids.has(l.goalId)).flatMap((l) => {
@@ -14504,7 +15357,26 @@ var METRICS_SHEET = {
 				}] : [];
 			})
 		}));
-	}
+	},
+	also: METRIC_HEADER_ALSO,
+	is: (h) => (h.has("metric") || false) && (h.has("unit") || h.has("direction") || h.has("measures")),
+	fields: FIELDS$1,
+	example: {
+		Metric: "Deploy frequency",
+		Action: METRIC_ACTION_WORDS.word.example,
+		Meaning: "Production deploys finished, per day, averaged over the last 7 days. Rollbacks are left out.",
+		Unit: "deploys",
+		Decimals: "1",
+		Direction: DIRECTION_LABEL.higher,
+		Source: "DORA dashboard (Four Keys)",
+		"Source owner": "Site Reliability Engineering",
+		Refresh: REFRESH_LABEL.daily,
+		"Owner email": "daniel.okafor@example.com",
+		Caveats: "Deploys by the release train count once per service."
+	},
+	reader: async () => (await Promise.resolve().then(() => (init_sheetRead(), sheetRead_exports))).default,
+	countLine,
+	toolHelp: "Rows for the Metrics sheet (the metric library): ID or Metric (its name) to change a metric, neither ID nor a name in use to add one; Meaning, Unit, Decimals, Direction (Higher is better or Lower is better), Source, Source owner, Refresh, Owner email, Caveats; Action Retire (with a Reason) or Bring back; Reason when a change of meaning, source or direction changes the number goals show."
 };
 // src/modules/metrics/records.ts
 init_actions();
@@ -14703,6 +15575,14 @@ var recordsOn = (ws) => MODULE_RECORDS.filter((m) => !(ws?.modulesOff ?? []).inc
 /** The workbook's sheets of the modules switched on in a workspace (fix item F2): a module that's off adds no sheet to
 any export (the Export sheet, Data's downloads, the MCP export tool), as it adds nothing else. */
 var sheetsOn = (ws) => recordsOn(ws).flatMap((m) => m.sheets ?? []);
+var readers = /* @__PURE__ */ new Map();
+/** Loads the readers of these sheets (every module sheet in this build, unless given), once each. */
+async function loadSheetReaders(sheets = MODULE_SHEETS) {
+	await Promise.all(sheets.filter((s) => s.reader && !readers.has(s.spec.name)).map(async (s) => {
+		readers.set(s.spec.name, await s.reader());
+	}));
+	return Object.fromEntries(sheets.filter((s) => readers.has(s.spec.name)).map((s) => [s.spec.name, readers.get(s.spec.name)]));
+}
 // src/domain/summary.ts
 init_checkin();
 init_format();
@@ -15394,6 +16274,19 @@ function startHere(x, opts = {}) {
 		const table = fieldTable(kind);
 		const line = kind === "plan" ? null : requiredLine(kind);
 		rows.push([], [`The ${sheet.name} sheet`, `One row per ${sheet.rowIs}. ${sheet.about}${line ? ` A new row needs: ${line}` : ""}`], FIELD_TABLE_HEAD);
+		for (const c of table.filter((v) => !opts.template || isFillIn(v))) rows.push([
+			c.header,
+			requiredText(c, table),
+			c.format || null,
+			c.example || null,
+			emptyText(c),
+			c.means
+		]);
+	}
+	for (const m of (x.sheets ?? []).filter((v) => v.spec.loaded && v.fields)) {
+		const table = moduleFieldTable(m);
+		const need = table.filter((c) => c.required === "required").map((c) => c.header);
+		rows.push([], [`The ${m.spec.name} sheet`, `One row per ${m.spec.rowIs}. ${m.spec.about}${need.length ? ` A new row needs: ${andList(need)}.` : ""}`], FIELD_TABLE_HEAD);
 		for (const c of table.filter((v) => !opts.template || isFillIn(v))) rows.push([
 			c.header,
 			requiredText(c, table),
@@ -17020,6 +17913,62 @@ var help$5 = [
 			"metric-slices",
 			"metrics"
 		]
+	},
+	{
+		id: "metric-sheet",
+		title: "The Metrics sheet",
+		summary: "Add, change, retire and bring back many metrics at once from the workbook’s Metrics sheet, with every change shown first and one Undo.",
+		group: "data",
+		after: "import",
+		sections: [
+			{
+				heading: "How a row finds its metric",
+				list: [
+					"By its ID when the row has one (a retired metric included); otherwise by its name in Metric, any case, spaces trimmed; otherwise the row adds a new metric.",
+					"A row whose ID matches and whose name differs renames the metric.",
+					"Other headers it reads: Name for Metric, Description or Definition for Meaning, Better for Direction, Owner e-mail for Owner email. A sheet is the Metrics sheet when it has Metric (or Name, with Unit and Direction) and one of Unit, Direction and Measures."
+				]
+			},
+			{
+				heading: "Each column",
+				list: [
+					"A new metric needs Metric (3 to 120 characters, a name no other metric has), Unit (up to 20 characters, as it follows a number: %, min, deploys) and Direction (Higher is better or Lower is better; higher, lower, up and down are read too).",
+					"Meaning, Source, Source owner and Caveats are text up to 2,000 characters; Decimals a whole number from 0 to 4; Refresh one of Live, Hourly, Daily, Weekly, Monthly or Quarterly. An empty cell clears what it says, except Decimals, which keeps its own on a metric already here.",
+					"Owner email says who owns it (Owner, a name only one person has, when there is no email). Left empty, a new metric is yours and one already here keeps its owner. Two or more new rows with no owner ask once: “You will own those metrics.”",
+					"Action: Retire, with why in Reason, or Bring back. Reason is also needed when a change of meaning, source or direction changes the number the goals measured by it show.",
+					"Still to say, Retired on, Measures and Goal keys are worked out when it is exported, and never read back."
+				]
+			},
+			{
+				heading: "What it asks, and what it can’t do",
+				list: [
+					"The same questions as adding a metric in the app: a name one letter or a word from another’s, a unit spelt another way (“percent” where others use %), a percentage whose meaning doesn’t say out of what. One answer covers every row with the same question.",
+					"Changing the meaning or source of a metric goals use asks “Is it still the same number?” once for it; changing its direction, or giving it fewer decimals than its goals show, asks first too. Retiring metrics that goals use says how many goals that leaves on a retired metric.",
+					"A file can’t change the unit of a metric goals use: change it on the metric’s page, where its goals are shown first.",
+					"Only a metric’s owner or an admin can change, retire or bring it back; loading an export back unchanged is fine for anyone.",
+					"Saving ends on Imported, and one Undo puts every metric back as it was: one the file added is removed, one it changed or retired is as it was. A metric changed since, or linked to a goal since, stays and is said.",
+					"With the metric library switched off, exports have no Metrics sheet, and a file that has one says it wasn’t read."
+				]
+			}
+		],
+		routes: [],
+		screens: [],
+		reqs: ["METRIC-SHEET"],
+		keywords: [
+			"metrics sheet",
+			"metric library",
+			"spreadsheet",
+			"import metrics",
+			"load metrics",
+			"retire",
+			"bring back",
+			"bulk"
+		],
+		related: [
+			"import",
+			"metric-define",
+			"metric-change"
+		]
 	}
 ];
 // src/modules/reviews/help.ts
@@ -17121,7 +18070,7 @@ var help$3 = [
 					`What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine("goals")} A check-in, ${requiredLine("checkIns")} A person, ${requiredLine("people")}`,
 					"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.",
 					"A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once, and so are two columns that mean the same one (Goal and Goal name): you choose which is read.",
-					"Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.",
+					"Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks and Notes are for reading, and left out; a feature’s own sheet, such as Metrics, loads back while that feature is on, and is said not to be read while it is off. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.",
 					"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
 					"To build a whole tree in one file, give each new goal’s row a Ref of your own (top, a1, anything, each row its own). Another row then names it in Feeds into ref, and a check-in in Goal ref, before it has a key. Refs belong to the file: they are never kept, and an export leaves them empty.",
 					"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.",
@@ -20008,6 +20957,18 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "metrics-sheet-in",
+		date: "2026-11-13",
+		title: "Import metrics from a spreadsheet",
+		points: [
+			"The Metrics sheet now loads back: add or change hundreds of metrics at once, with every change shown first.",
+			"A row finds its metric by ID, else by its name; Action retires a metric, with a reason, or brings one back.",
+			"The same questions as the metric form are asked once for every row they cover, and one Undo takes the whole load back.",
+			"With the metric library switched off, exports have no Metrics sheet."
+		],
+		articles: ["metric-sheet"]
+	},
+	{
 		id: "reviews-switch",
 		date: "2026-11-13",
 		title: "Reviews can be switched off, and nothing they saved is lost",
@@ -21377,7 +22338,8 @@ var _virtual_faro_modules_default = [
 			"metric-define",
 			"metric-measured-by",
 			"metric-slices",
-			"metric-change"
+			"metric-change",
+			"metric-sheet"
 		],
 		requirements: [
 			"METRICS-LIBRARY",
@@ -21385,7 +22347,8 @@ var _virtual_faro_modules_default = [
 			"METRICS-CARE",
 			"METRIC-DEFINED",
 			"METRIC-PARTS",
-			"METRIC-CHANGE"
+			"METRIC-CHANGE",
+			"METRIC-SHEET"
 		],
 		journeys: [
 			"U81",
@@ -21395,14 +22358,19 @@ var _virtual_faro_modules_default = [
 			"U105",
 			"U146",
 			"U106",
+			"U155",
 			"F15",
 			"N16"
 		],
 		elsewhere: [],
 		rebuild: {
 			"status": "outline",
-			"builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric. Defining one well: three things to be usable, the rest said later and named in words (“Fully defined” or “Still to say: …”, never a score), and three questions answered once before saving (a close name, a unit spelt another way, a percentage that doesn’t say out of what), with each Must fix and Check under its field. For, and which part: a link is for a team or the whole company and optionally one part of that number (“tier-1 services”), the parts in use offered under the field; the goal takes the metric’s unit and direction, its target stays its own; another goal on the same number, or a part spelt like one in use, is asked about once; and a goal with check-ins says why it is measured differently, in its History. Looking after one: what it still needs, a confirm before changing a unit or direction goals use, and on Workspace → About how many metrics have no owner.",
-			"entry": ["The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.", "Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice."],
+			"builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric. Defining one well: three things to be usable, the rest said later and named in words (“Fully defined” or “Still to say: …”, never a score), and three questions answered once before saving (a close name, a unit spelt another way, a percentage that doesn’t say out of what), with each Must fix and Check under its field. For, and which part: a link is for a team or the whole company and optionally one part of that number (“tier-1 services”), the parts in use offered under the field; the goal takes the metric’s unit and direction, its target stays its own; another goal on the same number, or a part spelt like one in use, is asked about once; and a goal with check-ins says why it is measured differently, in its History. Looking after one: what it still needs, a confirm before changing a unit or direction goals use, and on Workspace → About how many metrics have no owner. The workbook’s Metrics sheet comes back in: a row finds its metric by ID, else by its name, else adds one, and Action retires or brings one back; every row goes through the change engine with the library’s own rules, so a file of metrics gets the same preview, Must fix, grouped questions, Save and one Undo as a file of goals, and bulk_change takes a metrics sheet. With the library switched off, exports have no Metrics sheet and an import that has one says it was not read.",
+			"entry": [
+				"The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.",
+				"Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice.",
+				"The change engine reads a module’s own sheet through the reader the module declares (the `sheets` point: a sheet, the other names its columns are read by, how its header row is told, its field table, and its reader), and the import’s Undo puts a module’s rows back as they were."
+			],
 			"exit": [
 				"A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.",
 				"Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.",
@@ -21416,7 +22384,8 @@ var _virtual_faro_modules_default = [
 				"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first (the read-back, MT3); admins see on Workspace → About how many metrics have no owner (journey U83).",
 				"Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105).",
 				"A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146).",
-				"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples)."
+				"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples).",
+				"The workbook exported and loaded straight back, Metrics sheet included (retired metrics too, with Retired on and an empty Action), plans no change; a workbook exported with the library off loads into a workspace with it on and changes nothing. A Metrics row with a missing name, unit or direction, a direction or refresh word it doesn’t know, decimals outside 0 to 4, an ID that isn’t here, a name or ID on two rows, an owner who isn’t here, or a new unit on a metric goals use is Must fix in 3.1’s words; a name one letter from another’s, a unit spelt another way, a percentage that doesn’t say out of what, a new meaning, source, direction or fewer decimals on a metric goals use, two new rows with no owner, and retiring metrics goals use are each asked once per group; a row whose ID matches and whose name differs renames the metric; Retire needs a Reason; one Undo removes what the file added and puts back what it changed (journey U155)."
 			],
 			"gaps": [
 				"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).",
@@ -21456,9 +22425,9 @@ var _virtual_faro_modules_default = [
 				"how": "A workspace setting that makes every number goal need a metric, a flag (like the other attention flags) on goals that have none, and a count on Home for admins."
 			},
 			{
-				"idea": "Loading the Metrics sheet back, and numbers from the source",
-				"why": "The Metrics sheet is written for reading, like Asks and Notes; metrics are added in the app or by an AI assistant. A goal’s numbers still come from its check-ins.",
-				"how": "Give the Metrics sheet match and edit columns and read it through the change engine (stage 2), as People is. Later, read each metric’s number from its source on its refresh cadence and offer it in the check-in."
+				"idea": "Numbers from the source",
+				"why": "A goal’s numbers come from its check-ins; the library says where each number comes from, in words.",
+				"how": "Read each metric’s number from its source on its refresh cadence and offer it in the check-in (round 2’s MT4)."
 			}
 		],
 		finders: ["metric"],
@@ -25609,6 +26578,7 @@ init_columns();
 init_status();
 init_attention();
 init_vocabulary();
+init_sheets();
 init_removal();
 init_goalKey();
 init_proposed();
@@ -25712,12 +26682,31 @@ var answersOf = (a) => Object.fromEntries(Object.entries(a ?? {}).map(([k, v]) =
 /** find_goals' page: how many goals it lists unless asked, and the most it lists at once. */
 var FIND_PAGE = 50;
 var FIND_MAX = 200;
-async function change(ctx, tables, opts) {
-	const big = tooLarge("This call", { rows: (tables.goals?.length ?? 0) + (tables.plan?.length ?? 0) + (tables.checkIns?.length ?? 0) + (tables.people?.length ?? 0) }, "call");
+async function change(ctx, given, opts) {
+	const big = tooLarge("This call", { rows: rowsInTables(given) }, "call");
 	if (big) return {
 		isError: true,
 		text: `Not checked. ${big}`
 	};
+	const on = sheetsOn(ctx.ws);
+	const offSaid = Object.keys(given.modules ?? {}).filter((name) => !on.some((m) => m.spec.name === name)).map((name) => {
+		const mod = MODULE_RECORDS.find((m) => m.sheets?.some((x) => x.spec.name === name))?.module ?? "";
+		return `${moduleById(mod)?.name ?? mod} is switched off in ${ctx.ws.name}: the ${name} sheet was not read.`;
+	}).join(" ");
+	const kept = Object.fromEntries(Object.entries(given.modules ?? {}).filter(([name]) => on.some((m) => m.spec.name === name)));
+	const tables = {
+		...given,
+		...given.modules ? { modules: kept } : {}
+	};
+	if (!Object.keys(kept).length) delete tables.modules;
+	const readers = tables.modules ? await loadSheetReaders(on) : void 0;
+	const said = (r) => offSaid ? {
+		...r,
+		text: `${offSaid}\n${r.text}`
+	} : r;
+	return said(await changeChecked(ctx, tables, opts, readers));
+}
+async function changeChecked(ctx, tables, opts, readers) {
 	const keyOf = (id) => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
 	const cs = planChanges({
 		tables,
@@ -25731,7 +26720,11 @@ async function change(ctx, tables, opts) {
 		reason: opts.reason,
 		confirm: opts.confirm,
 		answers: answersOf(opts.answers),
-		records: recordsOn(ctx.ws)
+		records: recordsOn(ctx.ws),
+		...readers ? {
+			readers,
+			workspace: ctx.ws.name
+		} : {}
 	});
 	const errors = cs.issues.filter((x) => x.level === "must");
 	const checks = cs.groups.filter((g) => g.level === "check" && !(GOAL_QUESTION.includes(g.kind) && g.sheet !== "Check-ins"));
@@ -25757,8 +26750,9 @@ async function change(ctx, tables, opts) {
 		saved: false,
 		summary: describe(cs),
 		changes: cs.items.map((x) => ({
-			goalId: x.goalId,
+			goalId: x.goalId || null,
 			...x.goalId ? { key: keyOf(x.goalId) } : {},
+			...x.noun ? { sheet: x.sheet } : {},
 			goal: x.goal,
 			kind: x.kind,
 			summary: x.summary,
@@ -26502,7 +27496,7 @@ var CORE_TOOLS = [
 	{
 		name: "bulk_change",
 		title: "Change many goals at once",
-		description: `Add or change many people, goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export and export_table (e.g. goals: [{"Key": "G-12", "Target": 90}], check_ins: [{"Goal key": "G-12", "Week": 3, "Value": 41}], plan: [{"Key": "G-12", "Week 5": 45}], people: [{"Email": "ana@example.com", "Job title": "Staff engineer"}]). A goal is found by its Key, then its ID (a key works wherever an ID does: Goal key, Feeds into key, Feeds into ID); a goal this same call adds, by its row's Ref: give each new goal a "Ref" of your own and name it in "Feeds into ref" or a check-in's "Goal ref", so one dry run builds a whole tree with its first numbers (goals: [{"Ref": "top", "Goal": "…"}, {"Ref": "a", "Goal": "…", "Feeds into ref": "top"}], check_ins: [{"Goal ref": "a", "Week": 46, "Value": 12}]); a person by Email, then a name only one person has (Owner email is exact). Columns a row leaves out stay as they are; worked-out columns (Status, Calculated…) are ignored. An Action column does what the app does: ${GOAL_ACTION_WORDS.word.stop} (with a Reason) or ${GOAL_ACTION_WORDS.word.delete} on a goal, ${PERSON_ACTION_WORDS.word.left} (with Takes over, by email) on a person. Checks every row and returns what would change, and every problem by kind: must_fix (fix the rows) and check (questions: ask the person, then call again with "answers" by group id; one answer covers every row in its group); nothing is saved unless "apply" is true and every row is valid, and it can be undone (undo_import).`,
+		description: `Add or change many people, goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export and export_table (e.g. goals: [{"Key": "G-12", "Target": 90}], check_ins: [{"Goal key": "G-12", "Week": 3, "Value": 41}], plan: [{"Key": "G-12", "Week 5": 45}], people: [{"Email": "ana@example.com", "Job title": "Staff engineer"}]). A goal is found by its Key, then its ID (a key works wherever an ID does: Goal key, Feeds into key, Feeds into ID); a goal this same call adds, by its row's Ref: give each new goal a "Ref" of your own and name it in "Feeds into ref" or a check-in's "Goal ref", so one dry run builds a whole tree with its first numbers (goals: [{"Ref": "top", "Goal": "…"}, {"Ref": "a", "Goal": "…", "Feeds into ref": "top"}], check_ins: [{"Goal ref": "a", "Week": 46, "Value": 12}]); a person by Email, then a name only one person has (Owner email is exact). Columns a row leaves out stay as they are; worked-out columns (Status, Calculated…) are ignored.${MODULE_SHEETS.some((m) => m.spec.loaded && m.reader) ? ` A feature module's sheet loads the same way, while the module is on: ${MODULE_SHEETS.filter((m) => m.spec.loaded && m.reader).map((m) => `${m.spec.kind} (the ${m.spec.name} sheet, e.g. ${m.spec.kind}: [{"Metric": "Deploy frequency", "Unit": "deploys", "Direction": "Higher is better"}] to add one; a row with its ID changes, retires or brings back one)`).join("; ")}.` : ""} An Action column does what the app does: ${GOAL_ACTION_WORDS.word.stop} (with a Reason) or ${GOAL_ACTION_WORDS.word.delete} on a goal, ${PERSON_ACTION_WORDS.word.left} (with Takes over, by email) on a person. Checks every row and returns what would change, and every problem by kind: must_fix (fix the rows) and check (questions: ask the person, then call again with "answers" by group id; one answer covers every row in its group); nothing is saved unless "apply" is true and every row is valid, and it can be undone (undo_import).`,
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -26527,6 +27521,11 @@ var CORE_TOOLS = [
 					items: { type: "object" },
 					description: "Rows for the People sheet (admins): Email (or ID) to change someone; a new Email, Name and Team to add someone; Action and Takes over to mark someone as left."
 				},
+				...Object.fromEntries(MODULE_SHEETS.filter((m) => m.spec.loaded && m.reader).map((m) => [m.spec.kind, {
+					type: "array",
+					items: { type: "object" },
+					description: m.toolHelp ?? `Rows for the ${m.spec.name} sheet.`
+				}])),
 				reason: str("Why plans are changing, for any plan change that needs one."),
 				confirm: CONFIRM,
 				answers: ANSWERS_ARG,
@@ -26540,11 +27539,13 @@ var CORE_TOOLS = [
 			openWorldHint: false
 		},
 		async run(a, ctx) {
+			const own = MODULE_SHEETS.filter((m) => m.spec.loaded && m.reader && a[m.spec.kind] != null).map((m) => [m.spec.name, moduleRecs(m, rows$1(a[m.spec.kind], m.spec.kind))]);
 			return change(ctx, {
 				goals: rows$1(a.goals, "goals"),
 				plan: rows$1(a.plan, "plan"),
 				checkIns: rows$1(a.check_ins, "check_ins"),
-				people: rows$1(a.people, "people")
+				people: rows$1(a.people, "people"),
+				...own.length ? { modules: Object.fromEntries(own) } : {}
 			}, {
 				dry: !a.apply,
 				reason: a.reason,

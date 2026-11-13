@@ -38,6 +38,7 @@ export const ISSUE_KINDS: Record<IssueKind, KindRule> = {
   'not-allowed': { when: 'The person loading the file may not make the change: a goal they don’t own and aren’t an admin for, people when they aren’t an admin, a goal at a level only its owner may set.' },
   'removal-refused': { when: 'Stop with no reason, Delete on a goal with check-ins, or Left with no one to take over.' },
   loop: { when: 'A goal that would feed itself, directly or round a loop of Feeds into links.' },
+  'text-length': { when: 'A text cell shorter or longer than its column takes: a metric’s name under 3 or over 120 characters, a unit over 20, a meaning over 2,000.', raisedBy: 'A module sheet’s reader, through the engine: the metric library’s Metrics sheet (src/modules/metrics/sheetRead.ts; its cases are in spec/conformance/metrics.csv). The core’s sheets have no length limit.' },
   // Check
   'near-ref': { when: 'A person, team, goal or stage name within reach of exactly one that is here (one edit under 8 folded characters, two from 8).' },
   'near-word': { when: 'A word column’s word within reach of exactly one of its words or their other spellings.' },
@@ -59,6 +60,9 @@ export const ISSUE_KINDS: Record<IssueKind, KindRule> = {
   'totals-row': { when: 'A row called Total, Totals or Sum with no owner.' },
   'big-removal': { when: 'Five or more rows say Stop, Delete or Left.' },
   'feeds-lower': { when: 'A goal that feeds a goal at a lower level than its own.' },
+  'changes-goals': { when: 'A row changes a record other goals are measured by in a way they would show: a metric’s meaning or source (is it still the same number?), its direction (goals would aim the wrong way), fewer decimals than its goals show.', raisedBy: 'A module sheet’s reader, through the engine: the metric library’s Metrics sheet (src/modules/metrics/sheetRead.ts).' },
+  'out-of-what': { when: 'A percentage (or a rate, share or ratio) whose meaning doesn’t say out of what: one answer covers every such row.', raisedBy: 'A module sheet’s reader, through the engine: the metric library’s Metrics sheet (src/modules/metrics/sheetRead.ts, rule 1’s meaningChecks).' },
+  'no-owner': { when: 'Two or more new rows name no owner, so whoever loads the file will own them.', raisedBy: 'A module sheet’s reader, through the engine: the metric library’s Metrics sheet (src/modules/metrics/sheetRead.ts).' },
   // Said
   'by-name': { when: 'An owner or person given by name alone, matched to exactly one person (an email column is exact).' },
   default: { when: 'A cell left empty on a new goal, filled with its default: the owner’s team, or the type read from the columns filled in.' },

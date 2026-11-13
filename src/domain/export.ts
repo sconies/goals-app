@@ -17,12 +17,12 @@ import {
   ASK_STATUS, ATTENTION, FLAG, GROUPS, LABEL, lower, MEANING, QUARTER, RESULT_MEANING, RESULT_TEXT, STATUS, STOPPED, withCode, type GroupKey, type Term,
 } from './vocabulary';
 import {
-  ASKS, asksFor, CHECK_INS, contextOf, emptyText, EXAMPLE_ROWS, fieldTable, FILL_SHEETS, GOALS, isFillIn, isRequiredHeader, isWorkedOut, NOTES, notesFor, PEOPLE, PLAN,
+  andList, ASKS, asksFor, moduleFieldTable, CHECK_INS, contextOf, emptyText, EXAMPLE_ROWS, fieldTable, FILL_SHEETS, GOALS, isFillIn, isRequiredHeader, isWorkedOut, NOTES, notesFor, PEOPLE, PLAN,
   planWeekValue, requiredLine, requiredText, RESULTS, ROLE_WORD, rowsOf, SHEETS, specOf, START_HERE, WEEK_COLUMN,
   type Cell, type Ctx, type ExportInput, type FillKind, type SheetKind,
 } from './columns';
 import type { Archive, CheckIn, Decision, Goal, Person } from './types';
-import { moduleSheetRows } from './records';
+import { moduleSheetRows, type ModuleSheet } from './records';
 import { NO_REASON } from './checkin';
 
 export type { Cell, ExportInput } from './columns';
@@ -104,6 +104,13 @@ export function startHere(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today'
     rows.push([], [`The ${sheet.name} sheet`, `One row per ${sheet.rowIs}. ${sheet.about}${line ? ` A new row needs: ${line}` : ''}`], FIELD_TABLE_HEAD);
     for (const c of table.filter((v) => !opts.template || isFillIn(v))) rows.push([c.header, requiredText(c, table), c.format || null, c.example || null, emptyText(c), c.means]);
   }
+  // A module's sheet that loads back (the metric library's Metrics), with its own field table.
+  for (const m of (x.sheets ?? []).filter((v) => v.spec.loaded && v.fields)) {
+    const table = moduleFieldTable(m);
+    const need = table.filter((c) => c.required === 'required').map((c) => c.header);
+    rows.push([], [`The ${m.spec.name} sheet`, `One row per ${m.spec.rowIs}. ${m.spec.about}${need.length ? ` A new row needs: ${andList(need)}.` : ''}`], FIELD_TABLE_HEAD);
+    for (const c of table.filter((v) => !opts.template || isFillIn(v))) rows.push([c.header, requiredText(c, table), c.format || null, c.example || null, emptyText(c), c.means]);
+  }
   if (opts.template) return rows;
   for (const sheet of [...SHEETS, ...(x.sheets ?? []).map((m) => m.spec)].filter((v) => !v.loaded)) {
     rows.push([], [`The ${sheet.name} sheet`, `One row per ${sheet.rowIs}. ${sheet.about} For reading only: not loaded back.`], ['Column', 'Kind', null, null, null, 'What it means']);
@@ -154,15 +161,22 @@ export function workbook(x: ExportInput): Table[] {
  * columns a person fills in, the headers a new row must have in bold, and example rows whose Action says Example, which
  * are never imported. Filled in and loaded back, it adds what it says, as any workbook would.
  */
-export function templateWorkbook(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today'>): Table[] {
+export function templateWorkbook(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today' | 'sheets'>): Table[] {
   const sheet = (kind: FillKind): Table => {
     const head = fieldTable(kind).filter(isFillIn).map((c) => c.header)
       .flatMap((h) => (h === WEEK_COLUMN.header ? Array.from({ length: x.cycle.weeks }, (_, i) => `Week ${i + 1}`) : [h]));
     const examples = (EXAMPLE_ROWS[kind] ?? []).map((r) => head.map((h) => r[h] ?? null));
     return { name: specOf(kind).name, rows: [head, ...examples], bold: head.filter((h) => isRequiredHeader(kind, h)) };
   };
-  return [{ name: START_HERE, rows: startHere(x, { template: true }) }, ...FILL_SHEETS.map(sheet)];
+  // A module's sheet that loads back: the columns a person fills in, the required ones in bold, and its example row.
+  const own = (m: ModuleSheet): Table => {
+    const fill = moduleFieldTable(m).filter(isFillIn);
+    const head = fill.map((c) => c.header);
+    return { name: m.spec.name, rows: [head, ...(m.example ? [head.map((h) => m.example![h] ?? null)] : [])], bold: fill.filter((c) => c.required === 'required').map((c) => c.header) };
+  };
+  return [{ name: START_HERE, rows: startHere(x, { template: true }) }, ...FILL_SHEETS.map(sheet), ...(x.sheets ?? []).filter((m) => m.spec.loaded && m.fields).map(own)];
 }
+
 
 /** One sheet of a workbook, by name (Goals, Plan, Check-ins…). */
 export const sheetNamed = (book: Table[], name: string): Table => book.find((t) => t.name === name) ?? { name, rows: [] };

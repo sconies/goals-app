@@ -359,6 +359,7 @@ What an import or bulk edit replaced, so "Undo this import" can put every row ba
 | `teams` | `{ id: Id; before: Team \| null }[]` | no |  |
 | `watches` | `Id[]` | no | Starting a year (domain/carry carryExtras): the watches, and the modules' rows (a metric link), it added for the carried goals. |
 | `modules` | `{ module: string; key: string; ids: Id[] }[]` | no |  |
+| `moduleRows` | `import('./records').ModuleRowsBefore[]` | no | A module sheet's rows an import wrote (the metric library's metrics), each as it was before: null, it added it. |
 
 ### Comment
 
