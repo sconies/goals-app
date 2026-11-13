@@ -29,13 +29,16 @@ const url = (p) => BASE + '/demo' + p + (p.includes('?') ? '&' : '?') + 'today='
 /** The real app, with its data kept in this browser (the eval build has no Supabase). */
 const live = (p) => BASE + p + (p.includes('?') ? '&' : '?') + 'store=browser&today=' + TODAY;
 const consoleErrors = [];
-/** Whether this build has a feature module: FARO_WITHOUT leaves modules out, and those that need them (vite.modules.ts).
+/** Whether this build has a feature module on: FARO_WITHOUT leaves modules out, and those that need them (vite.modules.ts);
+    FARO_MODULES_OFF switches them off in the example at runtime.
     A core journey that reads a module's part of a screen expects the core's own words without it. */
 const LEFT_OUT = (() => {
-  const left = new Set((process.env.FARO_WITHOUT || '').split(',').map((x) => x.trim()).filter(Boolean));
-  if (!left.size) return left;
   const dir = path.join(__dirname, '..', 'src', 'modules');
   const all = fs.readdirSync(dir).filter((d) => fs.existsSync(path.join(dir, d, 'module.json'))).map((d) => JSON.parse(fs.readFileSync(path.join(dir, d, 'module.json'), 'utf8')));
+  // FARO_MODULES_OFF (all, or ids): built whole, but the example has them switched off, so the core's words are expected.
+  const off = (process.env.FARO_MODULES_OFF || '').trim();
+  const left = new Set([...(process.env.FARO_WITHOUT || '').split(','), ...(off === 'all' ? all.map((m) => m.id) : off.split(','))].map((x) => x.trim()).filter(Boolean));
+  if (!left.size) return left;
   for (let changed = true; changed;) { changed = false; for (const m of all) if (!left.has(m.id) && (m.needs || []).some((n) => left.has(n))) { left.add(m.id); changed = true; } }
   return left;
 })();
@@ -404,7 +407,7 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   if (built('reviews')) {
     // Rhea is in no review this week (hers is on Tuesday), so Home says the week is done in one sentence (HM1).
     // On the day it is completed, Home says the check-in's receipt (habit spec 2.1); on a later day, the week.
-    await see(p, /(Your check-in is|Both (of your )?check-ins are|All \d+ (of your )?check-ins are) in( for week| before|\.)/, 'posted check-ins survive a reload, and home says the week is done');
+    await see(p, /(Your check-in is|Both (of your )?check-ins are|All \d+ (of your )?check-ins are) in( for week| before| by|\.)/, 'posted check-ins survive a reload, and home says the week is done');
   } else {
     // Without Reviews, Daniel's question waits by its own age, not for Tuesday's session: nine days, so it leads Home
     // (rule 3), and nothing is left to check in on.
@@ -1681,7 +1684,7 @@ journey('U122', ['HOME-OWNER'], 'The owner’s week on Home: on Monday nothing i
   await p.goto(day('2026-11-11'));
   await hero.waitFor();
   const done = await hero.innerText();
-  h.set('finish', /Both (of your )?check-ins are in (for week 46|before Thursday’s review)/.test(done) && /The next are due by Thursday 19 Nov\./.test(done) && await p.locator('.page.home .btn.primary').count() === 0, `Wednesday’s Home said “${done.replace(/\s+/g, ' ')}”`);
+  h.set('finish', /Both (of your )?check-ins are in (for week 46|before Thursday’s review|by Thursday)/.test(done) && /The next are due by Thursday 19 Nov\./.test(done) && await p.locator('.page.home .btn.primary').count() === 0, `Wednesday’s Home said “${done.replace(/\s+/g, ' ')}”`);
   // Friday 13 Nov: the deadline he met is not said.
   await p.goto(day('2026-11-13'));
   await hero.waitFor();
@@ -5006,6 +5009,106 @@ journey('U102', ['RHYTHM-OPTIONAL', 'UPDATE-ANYTIME'], 'Rhea checks in with noth
   await p.context().close();
 }, ['parity']);
 
+/* REVIEWS-OFF-WORDS (RS1, docs/design/round-4/reviews-switch/spec.md 2 and 7): with Reviews off, the app's own words name
+   no review outside Workspace, Features, History's unlinked names and the closed page's sentence. What people wrote
+   (goal titles such as "Time to first review", asks, notes) is data, not the app's words, so it is taken out first. */
+const ownWords = (text, s) => {
+  const theirs = [...s.goals.map((g) => g.title), ...(s.requests || []).flatMap((r) => [r.ask, r.answer]), ...s.decisions.map((d) => d.note), ...s.reviews.map((r) => r.name), ...(s.checkIns || []).flatMap((c) => [c.note, c.why, c.pathToGreen && c.pathToGreen.needs, c.pathToGreen && c.pathToGreen.plan])]
+    .filter((x) => typeof x === 'string' && x.length > 2).sort((a, b) => b.length - a.length);
+  let t = text.replace(/“[^”]*”/g, '');
+  for (const x of theirs) t = t.split(x).join('');
+  return t;
+};
+
+journey('U154', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews off, the clock without a review: the read-back says check-ins are still due by Thursday; then no page Rhea opens calls the deadline a review, and her check-in’s receipt says the week is in “by Thursday”', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/workspace/features'));
+  const box = p.getByRole('checkbox', { name: /^Reviews/ });
+  await box.scrollIntoViewIfNeeded();
+  await h.click(box);
+  const sheet = p.getByRole('dialog', { name: /Switch off Reviews in/ });
+  await sheet.waitFor();
+  const says = (await sheet.innerText()).replace(/\s+/g, ' ');
+  const s0 = await h.snapshot();
+  const risks = s0.decisions.filter((d) => d.kind === 'note' && !d.removedAt && /^We accept the risk: /.test(d.note) && s0.goals.some((g) => g.id === d.goalId && !g.removedAt)).length;
+  h.set('attention', says.includes('Check-ins are still due by Thursday. “Before the review” becomes “by Thursday” on Home, in the check-in and in the count of goals checked in on time.')
+    && (risks ? says.includes(`${risks} accepted risk`) : !/accepted risk/.test(says)), `the read-back does not say when check-ins are due, or miscounts the ${risks} accepted risks: ${says.slice(0, 500)}`);
+  await h.checkpoint('read-back');
+  await h.click(sheet.getByRole('button', { name: 'Switch off Reviews' }));
+  await see(p, 'Reviews is off in');
+  h.set('one-action', true);
+  // Rhea, who owns goals, on the pages she uses: none names a review in the app's own words.
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+  const s = await h.snapshot();
+  const named = [];
+  for (const route of ['/', '/check-in', '/goals', '/goals?scope=mine', '/goals/ci-docker', '/watching', '/people/rhea', '/teams/cicd', '/data']) {
+    await p.goto(url(route));
+    await p.locator('main').first().waitFor();
+    await p.waitForTimeout(300);
+    // History's names of past reviews are words, not links, and stay (spec 2.3): History is left out.
+    const text = await p.locator('main').evaluate((m) => { const c = m.cloneNode(true); c.querySelectorAll('#history, [data-part="History"]').forEach((e) => e.remove()); return c.innerText; });
+    const hit = ownWords(text, s).match(/[^\n]{0,40}\breview(s|ed|ing)?\b[^\n]{0,40}/i);
+    if (hit) named.push(`${route}: “${hit[0].trim()}”`);
+  }
+  h.set('finish', !named.length, `with Reviews off a page names a review: ${named.join('; ')}`);
+  // Her check-in: both due goals, as in U1; HB1's receipt says the week is in by Thursday (Reviews switch spec 2.1).
+  await p.goto(url('/check-in?start=1'));
+  const before = await h.snapshot();
+  const plan = (id) => before.goals.find((g) => g.id === id).plan;
+  await h.fill(p.getByLabel('This week’s value'), String(Math.round(planAt(plan('ci-docker'), NOW)) - 2));
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Check-in saved');
+  await h.click(p.getByRole('button', { name: /Next: / }));
+  await h.fill(p.getByLabel('This week’s value'), '0.40');
+  await h.click(p.getByRole('button', { name: /^Keep .* and say why$/ }));
+  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await h.click(p.getByRole('button', { name: 'Change landed early' }));
+  await h.fill(p.getByLabel('What happened'), 'The runner budget came through a week early.');
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, /(Your check-in is|of your check-ins are) in/);
+  const receipt = (await p.locator('.ci-receipt').innerText()).trim();
+  h.set('progress', /(Your check-in is|of your check-ins are) in by Thursday\./.test(receipt) && !/review/i.test(receipt), `the receipt says “${receipt}”, not “…are in by Thursday.”`);
+  await h.checkpoint('receipt');
+  const after = await h.snapshot();
+  h.set('logged', after.changes.some((c) => c.entity === 'workspace' && c.summary === 'Switched off Reviews') && after.changes.filter((c) => c.actorId === 'rhea' && c.action === 'posted' && new RegExp(`week ${NOW}:`).test(c.summary)).length >= 2, 'switching off or the two check-ins were not logged');
+  h.set('errors', true);
+  h.set('entry', true);
+  await p.context().close();
+}, ['parity', 'budget']);
+
+journey('U155', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews back on after a week off: switched off on Monday 2 Nov and on again on Friday 6 Nov, every session whose date passed while it was off moves to its next date, so neither Reviews nor Home says Not held yet', 8, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  const on = (day, path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  await p.goto(on('2026-11-02', '/workspace/features'));
+  const box = p.getByRole('checkbox', { name: /^Reviews/ });
+  await box.scrollIntoViewIfNeeded();
+  await h.click(box);
+  await h.click(p.getByRole('dialog', { name: /Switch off Reviews in/ }).getByRole('button', { name: 'Switch off Reviews' }));
+  await see(p, 'Reviews is off in');
+  // Friday: Monday's to Thursday's sessions all passed while it was off.
+  await p.goto(on('2026-11-06', '/workspace/features'));
+  await box.scrollIntoViewIfNeeded();
+  if (await box.isChecked()) fail('Reviews came back on by itself on Friday (the switch was not kept)');
+  h.set('entry', true);
+  await h.click(box);
+  await see(p, 'Reviews is on in');
+  h.set('one-action', true);
+  await p.goto(on('2026-11-06', '/reviews'));
+  await p.locator('.reviews-list').first().waitFor();
+  const list = await p.locator('main').innerText();
+  await h.checkpoint('reviews back on');
+  await p.goto(on('2026-11-06', '/'));
+  await p.locator('.page.home').waitFor();
+  const home = await p.locator('[data-part="Home"]').innerText();
+  h.set('finish', /Platform leadership weekly/.test(list) && !/Not held yet/.test(list) && !/Not held yet/.test(home), `back on Friday: ${/Not held yet/.test(list) ? 'Reviews says a session is Not held yet' : ''}${/Not held yet/.test(home) ? ' Home says Not held yet' : ''}${/Platform leadership weekly/.test(list) ? '' : ' the weekly is missing'}`);
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.summary === 'Switched off Reviews') && s.changes.some((c) => c.summary === 'Switched on Reviews'), 'switching off and on was not logged');
+  h.set('attention', true);
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['parity', 'budget']);
+
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals?scope=all'));
@@ -5913,7 +6016,7 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
 }, []);
 
 /* Check reads the metric from the draft (build review of #202, findings 2 and 3): a reload keeps it, a new team re-slices it. */
-journey('U151', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the receipt: as Valentina on Thursday 5 Nov, her one check-in at 80 (Commitment coverage’s target) shows one panel “… reached its target” with “Copy the share image” and “See the goal”, and the receipt “Your check-in is in for week 45, before Thursday’s deadline.”; the goal’s History marks that week “Reached its target”; as Jonah on Friday 6 Nov (nothing posted for week 45), his check-in says “It came in after Thursday’s deadline.” and no run', 12, async (h, device) => {
+journey('U151', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the receipt: as Valentina on Thursday 5 Nov, her one check-in at 80 (Commitment coverage’s target) shows one panel “… reached its target” with “Copy the share image” and the check-in’s own status (View the goal is the page’s), and the receipt “Your check-in is in by Thursday.”; the goal’s History marks that week “Reached its target”; as Jonah on Friday 6 Nov (nothing posted for week 45), his check-in says “It came in after Thursday’s deadline.” and no run', 12, async (h, device) => {
   const on = (path, day) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
   const p = h.use(await newPage(device, 'valentina'));
   await p.goto(on('/check-in/cost-commit', '2026-11-05'));
@@ -5923,13 +6026,16 @@ journey('U151', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the rece
   const panel = p.locator('.ci-moment');
   await see(panel, 'reached its target', 'no panel says the goal reached its target');
   await see(panel, 'against a target of', 'the panel does not say the target');
-  h.set('finish', await panel.getByRole('button', { name: 'Copy the share image' }).isVisible() && await panel.getByRole('link', { name: 'See the goal' }).isVisible() && await p.locator('.ci-moment').count() === 1, 'the panel has not one share button and one link to the goal');
+  // #410 review: one share button and no second link to the goal (the page's View the goal is the one), and the panel's
+  // status is the check-in's own, the same word the line above says.
+  const status = (await p.locator('.celebrate .nobr').first().innerText()).replace(/^is\s*/, '').trim();
+  h.set('finish', await panel.getByRole('button', { name: 'Copy the share image' }).isVisible() && await panel.getByRole('link').count() === 0 && await p.locator('.ci-moment').count() === 1 && (await panel.innerText()).includes(status), `the panel has not one share button, no link and the check-in’s status (${status})`);
   // The due day is a review only for someone in a review held that day (deep review T4); otherwise it is the deadline.
-  await see(p, /Your check-in is in (before Thursday’s review|for week 45, before Thursday’s deadline)\./, 'the receipt does not say it was in before the due day');
+  await see(p, /Your check-in is in (before Thursday’s review|by Thursday)\./, 'the receipt does not say it was in before the due day');
   const said = await p.locator('.celebrate').innerText();
   h.set('errors', !/lost|broken|!/i.test(said), `the receipt said “${said.replace(/\s+/g, ' ')}”`);
   await h.checkpoint('reached');
-  await h.click(panel.getByRole('link', { name: 'See the goal' }));
+  await h.click(p.getByRole('link', { name: 'View the goal' }));
   await p.waitForURL(/\/goals\//);
   const result = p.locator('.ci-result').first();
   await result.waitFor({ timeout: 5000 }).catch(() => undefined);
@@ -5941,11 +6047,161 @@ journey('U151', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the rece
   await q.goto(on('/check-in/cost-storage', '2026-11-06'));
   await h.fill(q.getByLabel('This week’s value'), '72');
   await h.click(q.getByRole('button', { name: 'Post check-in' }));
-  await see(q, /It came (after Thursday’s review|in after Thursday’s deadline)\./, 'a check-in after the due day does not say it came after');
+  await see(q, /It came after Thursday(’s review)?\./, 'a check-in after the due day does not say it came after');
   const late = await q.locator('.celebrate').innerText();
   h.set('progress', !/in a row|lost|broken/i.test(late), `the late receipt said “${late.replace(/\s+/g, ' ')}”`);
   await h.checkpoint('late');
 });
+
+/* Readings fill in the check-in (NR2, docs/design/round-4/readings/spec.md 2.1 to 2.3). The demo's "CI analytics" reads
+   CI pipeline time on main (p90) for the whole company, measured at 09:00 UTC on Thursday 5 Nov (src/modules/metrics/numbers.ts). */
+journey('U156', ['READING-PREFILL', 'READING-RECORDED-ONLY'], 'A number filled in from its source: as Daniel on Thursday 5 Nov, CI pipeline time’s check-in opens with 20 already in the field, “From CI analytics, read 9:00 today.” and the primary “Confirm 20 min”; confirming posts it, and the read-back says “20 min, from CI analytics, read 9:00 today. Confirmed by you.”; the check-in records the reading with no reason', 2, async (h, device) => {
+  const p = h.use(await newPage(device, 'daniel'));
+  await p.goto(url('/check-in/ns-ci'));
+  await see(p, 'What’s the number this week?');
+  const block = p.locator('.ci-reading-block');
+  await see(block, 'From CI analytics', 'the step does not say where the number came from');
+  const field = p.getByLabel('This week’s value');
+  const filled = await field.inputValue();
+  h.set('entry', filled === '20', `the field opened with “${filled}”, not the reading`);
+  h.set('attention', /read \d{1,2}:\d{2} today\./.test(await block.innerText()) && !/Typed in by hand/.test(await p.locator('main, .focus').first().innerText()), 'the step does not say when it was read, or still says “Typed in by hand.”');
+  await h.checkpoint('filled in');
+  const confirm = p.getByRole('button', { name: 'Confirm 20 min' });
+  h.set('progress', await confirm.isVisible(), 'the primary does not name the number');
+  await h.click(confirm);
+  await see(p, 'Check-in saved');
+  const line = (await p.locator('.ci-reading').innerText().catch(() => '')).trim();
+  h.set('finish', /^20 min, from CI analytics, read \d{1,2}:\d{2} today\. Confirmed by you\.$/.test(line), `the read-back says “${line}”`);
+  await h.checkpoint('posted');
+  const s = await h.snapshot();
+  const c = s.checkIns.filter((x) => x.goalId === 'ns-ci').sort((a, b) => a.postedAt.localeCompare(b.postedAt)).at(-1);
+  h.set('logged', c?.value === 20 && c?.reading?.source === 'CI analytics' && c.reading.value === 20 && !c.reading.why, `the check-in recorded ${JSON.stringify(c?.reading)}`);
+  h.set('errors', true);
+  await p.context().close();
+});
+
+journey('U157', ['READING-RECORDED-ONLY'], 'A different number, and why: as Daniel, typing 19 over CI analytics’ 20 says “You typed 19 min. CI analytics said 20 min…”, holds “Use 19 min” until a reason is chosen (Something else needs 10 characters), then posts 19; the read-back says “19 min, typed. CI analytics said 20 min: the source is behind: I have a newer number.”, and nothing is flagged: the check-in is on plan, not flagged for its data', 5, async (h, device) => {
+  const p = h.use(await newPage(device, 'daniel'));
+  await p.goto(url('/check-in/ns-ci'));
+  const field = p.getByLabel('This week’s value');
+  await see(p.locator('.ci-reading-block'), 'From CI analytics');
+  h.set('entry', (await field.inputValue()) === '20', 'the field did not open filled in');
+  await h.fill(field, '19');
+  const block = p.locator('.ci-reading-block');
+  await see(block, 'You typed 19 min.', 'typing another number does not say so');
+  await see(block, 'Why is it different?');
+  const use = p.getByRole('button', { name: 'Use 19 min' });
+  await h.click(use);
+  await see(block, 'Choose why it’s different.', 'Use went on without a reason');
+  await h.click(block.getByRole('radio', { name: 'Something else', exact: true }));
+  await use.click();
+  const held = await see(block, 'at least 10 characters', 'Something else went on without words').then(() => true, () => false);
+  h.set('progress', held && /\/check-in\//.test(p.url()), 'a reason was not asked before posting');
+  await h.checkpoint('why');
+  await h.click(block.getByRole('radio', { name: 'The source is behind: I have a newer number' }));
+  await h.click(use);
+  await see(p, 'Check-in saved');
+  const line = (await p.locator('.ci-reading').innerText().catch(() => '')).trim();
+  h.set('finish', line === '19 min, typed. CI analytics said 20 min: the source is behind: I have a newer number.', `the read-back says “${line}”`);
+  await h.checkpoint('posted');
+  const s = await h.snapshot();
+  const c = s.checkIns.filter((x) => x.goalId === 'ns-ci').sort((a, b) => a.postedAt.localeCompare(b.postedAt)).at(-1);
+  h.set('logged', c?.value === 19 && c?.reading?.value === 20 && c.reading.why?.kind === 'behind', `the check-in recorded ${c?.value} and ${JSON.stringify(c?.reading)}`);
+  // Recorded only: no flag, no other status for a number the owner typed over the source's (answer d).
+  h.set('attention', c?.dataFlagged === false && c?.status === 'on', `the check-in is ${c?.status}, flagged ${c?.dataFlagged}`);
+  h.set('errors', true);
+  await p.context().close();
+});
+
+journey('U158', ['READING-SEVEN-DAYS', 'READING-PREFILL'], 'Too old to fill in: with the demo’s sources two weeks behind (?sources=behind), Daniel’s check-in on CI pipeline time opens with the field empty and the warning “CI analytics last read this on Thu 29 Oct, 7 days ago.” and “That is too old to fill in.”; the old reading is not on the page, the primary is the step’s own and No new number this week is offered', 1, async (h, device) => {
+  const p = h.use(await newPage(device, 'daniel'));
+  await p.goto(url('/check-in/ns-ci?sources=behind'));
+  const block = p.locator('.ci-reading-block');
+  await see(block, 'That is too old to fill in.', 'a reading more than 7 days old is not said to be too old');
+  const field = p.getByLabel('This week’s value');
+  h.set('entry', (await field.inputValue()) === '', `the field opened with “${await field.inputValue()}”`);
+  const said = (await block.innerText()).replace(/\s+/g, ' ');
+  h.set('attention', /CI analytics last read this on \w{3} \d{1,2} \w{3}, \d+ days ago\./.test(said) && (await block.locator('svg').count()) > 0, `the block says “${said}”, or has no warning mark`);
+  // The old value is never offered: nothing says what the source read, and nothing confirms it.
+  h.set('finish', !/From CI analytics|said \d|Confirm/.test(said) && (await p.getByRole('button', { name: /^Confirm/ }).count()) === 0, `the old reading is on the page: “${said}”`);
+  h.set('progress', await block.getByRole('button', { name: 'No new number this week' }).isVisible(), 'No new number this week is not offered');
+  await h.checkpoint('too old');
+  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await see(p, 'Type this week’s number.', 'Continue with an empty field does not ask for the number');
+  h.set('errors', true);
+  h.set('logged', true);
+  await p.context().close();
+});
+
+journey('U159', ['READING-PREFILL'], 'A company-wide number never fills in a team’s goal: as Rhea, Main-branch queue wait is measured by CI pipeline time on main (p90) for CI/CD (with a reason, as it has check-ins); its check-in opens with the field empty and “CI analytics measures this for the whole company, not for CI/CD on its own, so it isn’t filled in.”', 7, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/lead-ci-time/edit'));
+  const field = p.locator('.measured-by');
+  await field.waitFor();
+  await h.click(field.getByRole('button', { name: /^Measured by/ }));
+  const panel = p.locator('.pick.open');
+  await h.fill(panel.getByRole('combobox'), 'CI pipeline time');
+  await h.click(panel.getByRole('option', { name: /CI pipeline time on main/ }));
+  const part = p.getByLabel(/^Which part/);
+  if (await part.count() && (await part.inputValue())) await h.fill(part, '');
+  await h.fill(p.getByLabel(/^Why$/), 'Measure the team’s pipelines by CI time now');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/goals\/(lead-ci-time|G-\d+)(\?|$)/);
+  h.set('entry', true);
+  await p.goto(url('/check-in/lead-ci-time'));
+  const block = p.locator('.ci-reading-block');
+  await see(block, 'CI analytics measures this for the whole company, not for CI/CD on its own, so it isn’t filled in.', 'a team’s goal on a company-wide source does not say why it is not filled in');
+  const value = await p.getByLabel('This week’s value').inputValue();
+  h.set('finish', value === '', `the field was filled in with “${value}”`);
+  h.set('attention', !/From CI analytics|Confirm/.test(await block.innerText()), 'the company’s number is offered to the team');
+  await h.checkpoint('not filled in');
+  h.set('progress', true);
+  h.set('errors', true);
+  h.set('logged', true);
+  await p.context().close();
+});
+journey('U160', ['READING-PREFILL', 'READING-RECORDED-ONLY'], 'The one table fills in from sources: as Rhea, Base image build time measured by Pipeline queue wait (p90) for CI/CD · main branch pipelines shows CI runner metrics’ 8 in its cell in the quiet ink, “1 number is from its source; change it if it’s wrong.” under the table and nothing in the rows already checked in this week; changing it to 10 asks why in the row before Post counts it, and posting records 10 with the reading and the reason', 11, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/ci-docker/edit'));
+  const field = p.locator('.measured-by');
+  await field.waitFor();
+  await h.click(field.getByRole('button', { name: /^Measured by/ }));
+  const panel = p.locator('.pick.open');
+  await h.fill(panel.getByRole('combobox'), 'queue');
+  await h.click(panel.getByRole('option', { name: /Pipeline queue wait \(p90\)/ }));
+  await h.click(field.getByRole('button', { name: 'main branch pipelines' }));
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  const twin = field.locator('[data-check="part"]');
+  if (await twin.count()) { await h.click(twin.getByRole('button', { name: 'Carry on' })); await h.click(p.getByRole('button', { name: 'Save changes' })); }
+  await p.waitForURL(/\/demo\/goals\/(ci-docker|G-\d+)(\?|$)/);
+  h.set('entry', true);
+  await p.goto(url('/quick-check-in'));
+  await see(p, '1 number is from its source; change it if it’s wrong.', 'the table does not say a number is from its source');
+  const row = p.locator('.qrow').filter({ hasText: 'Base image build time' });
+  const cell = row.getByRole('textbox').first();
+  const quiet = await cell.evaluate((el) => el.classList.contains('qsuggested'));
+  const others = await p.locator('.qrow').filter({ hasText: 'Pipeline queue wait (p90)' }).getByRole('textbox').first().inputValue();
+  h.set('attention', (await cell.inputValue()) === '8' && quiet && others === '', `the cell says “${await cell.inputValue()}” (quiet ink: ${quiet}); a goal already checked in this week says “${others}”`);
+  await h.checkpoint('filled in');
+  await h.fill(cell, '10');
+  const why = row.getByLabel(/^Why is it different from what CI runner metrics said \(8 min\)\?/);
+  await why.waitFor({ timeout: 5000 }).catch(async () => fail(`no reason asked in the row: “${(await row.innerText()).replace(/\s+/g, ' ')}”`));
+  const postLabel = (await p.locator('.qfoot .btn.primary').innerText()).trim();
+  h.set('progress', postLabel === 'Post check-ins', `before a reason, the button says “${postLabel}”`);
+  await why.selectOption('wrong');
+  // 10 is also last week's number: measured again, as the one-by-one check-in asks.
+  await h.click(row.getByRole('button', { name: 'Yes, measured again' }));
+  await see(p.locator('.qfoot .btn.primary'), 'Post 1 check-in', 'a reason does not make the row ready');
+  await h.click(p.locator('.qfoot .btn.primary'));
+  await p.waitForURL(/\/check-in/);
+  const s = await h.snapshot();
+  const c = s.checkIns.filter((x) => x.goalId === 'ci-docker').sort((a, b) => a.postedAt.localeCompare(b.postedAt)).at(-1);
+  h.set('logged', c?.value === 10 && c?.reading?.source === 'CI runner metrics' && c.reading.value === 8 && c.reading.why?.kind === 'wrong', `the check-in recorded ${c?.value} and ${JSON.stringify(c?.reading)}`);
+  h.set('finish', !s.checkIns.some((x) => x.goalId === 'lead-ci-time' && x.week === 45 && x.reading), 'a row nobody posted was posted');
+  h.set('errors', true);
+  await p.context().close();
+});
+
 
 journey('U153', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: as Rhea on Developer Productivity fortnightly, the panel says how many goals are checked in so far, its “have no check-in for week 45 yet” link opens exactly that many goals, and “The last 8 weeks” has eight cells, each a week with words; no person’s name is in the panel; a team’s page shows the same panel for its goals, and a one-owner team’s page shows none', 10, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
@@ -6325,8 +6581,12 @@ journey('U146', ['METRIC-PARTS'], 'Which part: as Grace, Base image build time i
   await see(twin, /Another goal already measures this for CI\/CD, main branch pipelines: “Pipeline queue wait \(p90\)” \(G-\d+, .+\)\. Two goals on one number is unusual\./, 'another goal on the same number is not asked about');
   h.set('attention', (await twin.locator('svg[data-status]').count()) === 0 && /Check/.test(await twin.innerText()), 'the question is not a Check, or uses a status shape');
   await h.checkpoint('asked');
+  // An open Check holds the save, as link_goal_metric does, and focus goes to it, not Save (#308's review).
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForTimeout(300);
+  const heldAtCheck = /\/edit/.test(p.url()) && await twin.evaluate((el) => el === document.activeElement || el.contains(document.activeElement));
   await h.click(twin.getByRole('button', { name: 'Carry on' }));
-  h.set('errors', (await field.locator('[data-check="part"]').count()) === 0 && (await p.getByLabel(/^Why$/).count()) === 0, 'Carry on did not close the question, or a goal with no metric yet is asked why');
+  h.set('errors', heldAtCheck && (await field.locator('[data-check="part"]').count()) === 0 && (await p.getByLabel(/^Why$/).count()) === 0, heldAtCheck ? 'Carry on did not close the question, or a goal with no metric yet is asked why' : 'Save went past an open Check, or focus stayed on Save');
   await h.click(p.getByRole('button', { name: 'Save changes' }));
   await p.waitForURL(/\/demo\/goals\/(ci-docker|G-\d+)(\?|$)/);
   const about = p.locator('.metric-block');
@@ -6339,7 +6599,8 @@ journey('U146', ['METRIC-PARTS'], 'Which part: as Grace, Base image build time i
   h.set('parity', (await p.getByLabel(/^Which part/).inputValue()) === 'main branch pipelines', 'the form does not show the goal’s part');
   await h.fill(p.getByLabel(/^Which part/), 'release builds');
   const why = field.locator('[data-check="why"]');
-  await see(why, 'Say why this goal is measured differently now. It shows in its History.', 'a goal with check-ins is not asked why');
+  await see(why, 'Say why this goal is measured differently now.', 'a goal with check-ins is not asked why');
+  h.set('errors', /^Why Required$/.test((await field.locator('label[for="measured-why"]').innerText()).replace(/\s+/g, ' ').trim()) && ((await field.innerText()).match(/It shows in its History\./g) ?? []).length === 1, 'Why is not marked Required, or “It shows in its History.” is said twice');
   await see(why, 'Must fix', 'Why is not a Must fix');
   await h.click(p.getByRole('button', { name: 'Save changes' }));
   const held = /\/edit/.test(p.url());

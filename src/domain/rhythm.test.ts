@@ -90,7 +90,7 @@ describe('progress with and without a rhythm (2.3)', () => {
   it('nothing is due or upcoming with no set rhythm, and the sentence owes nothing', () => {
     const p = weekProgress('p', s, NONE, 4, THU_8_OCT);
     expect([p.due.length, p.upcoming.length, p.goals.length]).toEqual([0, 0, 1]);
-    expect(weekDoneText(p, 4, false, NONE)).toBe('0 of 1 have a check-in for week 4.');
+    expect(weekDoneText(p, 4, null, NONE)).toBe('0 of 1 have a check-in for week 4.');
     expect(weekProgress('p', s, CYCLE, 4, THU_8_OCT).due.length).toBe(1);
   });
   it('no streak, no due date and no first due week with no set rhythm', () => {

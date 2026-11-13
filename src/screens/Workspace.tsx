@@ -33,6 +33,7 @@ import { movedTo } from '../domain/directory';
 import { WORKSPACE_MEANS } from '../domain/vocabulary';
 import { reviewsOn } from '../app/reads';
 import { switchOffLines, switchOffReadBack } from '../domain/reviewsOff';
+import { dueWords } from '../domain/progress';
 import { asksOf } from '../domain/asks';
 import { rhythmAbout, rhythmChoiceOf, rhythmFact, rhythmLine, rhythmReadBack, rhythmReadBackLines, rhythmToast, type RhythmChoice } from '../domain/rhythm';
 import { WEEKDAY } from '../domain/progress';
@@ -658,7 +659,7 @@ function RhythmSheet({ onClose }: { onClose: () => void }) {
 function ReviewsOffSheet({ onClose, onSwitch }: { onClose: () => void; onSwitch: () => void }) {
   const app = useApp();
   const ws = workspaceName(app.ws, app.mode).name;
-  const r = switchOffReadBack({ people: app.snapshot.people, reviews: app.snapshot.reviews, changes: app.snapshot.changes, asks: asksOf(app.snapshot) });
+  const r = switchOffReadBack({ people: app.snapshot.people, reviews: app.snapshot.reviews, changes: app.snapshot.changes, asks: asksOf(app.snapshot), decisions: app.snapshot.decisions, goals: app.snapshot.goals, dueDay: dueWords(false, app.cycle, app.week).day });
   return (
     <Sheet open onClose={onClose} title={`Switch off Reviews in ${ws}?`}>
       <div className="stack readback" style={{ gap: 'var(--s3)' }}>

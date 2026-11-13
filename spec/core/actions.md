@@ -133,6 +133,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | `mode` | `PostMode` | yes |  |
 | `week` | `number` | no |  |
 | `reason` | `string` | no |  |
+| `reading` | `CheckInReading \| null` ([CheckInReading](data-model.md#checkinreading)) | no |  |
 
 **Result:** `{ commit: Commit; checkIn: CheckIn; }` ([CheckIn](data-model.md#checkin))
 
@@ -1842,7 +1843,12 @@ export type CheckId = NumberCheckId | 'same-as-last';
 In `src/domain/changeset.ts`.
 
 ```ts
-export interface CheckInPost { goalId: string; week: number; draft: Draft; mode: PostMode; reason?: string }
+export interface CheckInPost {
+  goalId: string; week: number; draft: Draft; mode: PostMode; reason?: string;
+  /** What the metric's source said, when the number step read one (NR rule 3): recorded with the check-in, once
+      `readingProblem` has nothing to say. Left out or null: the number was typed, with nothing read. */
+  reading?: CheckInReading | null;
+}
 ```
 
 ### Choice

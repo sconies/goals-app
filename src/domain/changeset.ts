@@ -49,7 +49,8 @@ import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from '.
 import { goalMeasureOf, type ModuleRecords } from './records';
 import { CHUNK } from './importLimits';
 import { ANSWERS, fold, LEAVE, groupId, groupIssues, issueOf, levelOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
-import type { Ask, Change, CheckIn, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, Review, Snapshot, StageUpdate, Status, Team } from './types';
+import type { Ask, Change, CheckIn, CheckInReading, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, Review, Snapshot, StageUpdate, Status, Team } from './types';
+import { keptReading, readingProblem } from './reading';
 import { FLAG, LEFT, lower, STOPPED } from './vocabulary';
 
 export type { Rec, Tables } from './sheets';
@@ -63,7 +64,12 @@ export { VIA_LABEL, VIA_MCP, VIA_MCP_BEFORE, type Via } from './via';
  */
 export type PostMode = 'new' | 'again' | 'correct';
 /** One check-in as a screen posts it: the draft the form holds, not a spreadsheet row. */
-export interface CheckInPost { goalId: string; week: number; draft: Draft; mode: PostMode; reason?: string }
+export interface CheckInPost {
+  goalId: string; week: number; draft: Draft; mode: PostMode; reason?: string;
+  /** What the metric's source said, when the number step read one (NR rule 3): recorded with the check-in, once
+      `readingProblem` has nothing to say. Left out or null: the number was typed, with nothing read. */
+  reading?: CheckInReading | null;
+}
 /** Why a check-in is corrected or added later, in a sentence (rule 13). */
 export { MIN_CORRECT_REASON };
 /** The doors where a check-in's unlikely number is asked about here (C6). The bulk check-in grid asks it beside the cell. */
@@ -139,6 +145,9 @@ export interface ChangeInput {
   full?: Snapshot;
   /** Check-ins posted from a screen, judged by the same loop as a sheet's rows (rule 13). */
   posts?: CheckInPost[];
+  /** What a source said for a sheet's or a tool's check-in row, by goal id and week (NR rule 3: the MCP tool's
+      `reading_confirmed` and `different_because`): recorded with that row's check-in under the same rule as a post's. */
+  readings?: { goalId: string; week: number; reading: CheckInReading }[];
   /** The feature modules' records in this build (core/records): what measures a goal, for goal entry's wrong-side question. */
   records?: readonly ModuleRecords[];
   /** The file the rows came from, and how many of its rows the person left out before the engine saw them: the import's
@@ -216,7 +225,7 @@ const ENGINE_CHECK: Partial<Record<GoalCheckId, IssueKind>> = {
   'below-zero': 'odd-number', 'over-100': 'odd-number', 'wrong-side': 'odd-number', hundredfold: 'odd-number', billion: 'odd-number', 'margin-wide': 'odd-number', 'late-plan': 'odd-number', 'long-plan': 'odd-number',
 };
 /** The kinds that are goal entry's questions: said on their item, and answered yes, all of them, by `confirm`. */
-export const GOAL_QUESTION: readonly IssueKind[] = ['odd-number', 'feeds-lower', 'no-unit', 'plan-question'];
+export const GOAL_QUESTION: readonly IssueKind[] = ['odd-number', 'feeds-lower', 'no-unit', 'plan-question', 'for-someone-else'];
 /** What `confirm` (the tools' and older screens' one switch) answers yes: every question of rule 3 the engine asks here. */
 const CONFIRMED: IssueKind[] = ['odd-number', 'feeds-lower', 'no-unit'];
 
@@ -378,7 +387,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     // Only an answer the question offers counts ("banana" answers nothing), and one given for some numbers covers only
     // those numbers: a different number, in this file or the next, is asked again (IM2 review).
     const fits = given && (!x.answers?.length || x.answers.some((c) => c.choice === given.choice)) && (!given.covers || x.value == null || given.covers.includes(x.value));
-    const a = (fits ? given : undefined) ?? (input.confirm && CONFIRMED.includes(kind) ? { choice: 'right' } : input.confirm && kind === 'other-goal' ? { choice: 'change' } : undefined);
+    const a = (fits ? given : undefined) ?? (input.confirm && CONFIRMED.includes(kind) ? { choice: 'right' } : input.confirm && kind === 'other-goal' ? { choice: 'change' } : input.confirm && kind === 'for-someone-else' ? { choice: 'active' } : undefined);
     if (a?.choice === 'leave') { leave(sheet, row); return 'leave'; }
     if (a) return a;
     raise(kind, sheet, row, name, message, x);
@@ -1065,6 +1074,13 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
       else if (['proposed', 'draft', 'proposal'].includes(w)) proposing = true;
       else if (!(w === 'stopped' && existing?.stoppedAt)) return raise('unknown-word', 'Goals', row, label, `State says “${val(r, 'state')}”. Use active or proposed.`, { column: 'State', found: val(r, 'state') });
     }
+    // A new goal for someone else, with no State, is asked about once per file (GE10, decision 16): the form starts such a
+    // goal on "Not yet: propose it". Set-up loads a new workspace's goals as they are, unasked; `confirm` answers active.
+    if (!existing && !create && !admin() && !proposing && !(has(r, 'state') && val(r, 'state')) && d.ownerId && d.ownerId !== actor.id) {
+      const a = ask('for-someone-else', 'Goals', row, d.title, `“${d.title}” is for ${people.get(d.ownerId)?.name ?? 'someone else'} and would start as active. Is that what you mean?`, { column: 'State', found: 'for-someone-else', answers: ANSWERS.forSomeoneElse });
+      if (a === 'leave') return;
+      if (a?.choice === 'proposed') proposing = true;
+    }
     if (existing && proposing && !wasProposed && started(existing.id)) return raise('cant-change', 'Goals', row, existing.title, `“${existing.title}” has check-ins, so it can’t go back to proposed. Stop it instead.`, { column: 'State', found: 'state-has-check-ins' });
     if (existing && proposing && !wasProposed && !canChange(existing)) return raise('not-allowed', 'Goals', row, existing.title, notYours(existing), { answers: ANSWERS.leaveOnly });
     if (wasProposed && !proposing && !mayActivate({ id: actor.id, admin: admin() }, existing!)) return raise('not-allowed', 'Goals', row, existing!.title, `${people.get(existing!.ownerId)?.name ?? 'Its owner'} or an admin can make this active.`, { column: 'State', answers: ANSWERS.leaveOnly });
@@ -1442,7 +1458,13 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     const due = new Date(Date.parse(weekDate(cycle, w) + 'T09:00:00Z') + cycle.reviewDay * 86_400_000);
     const at = keeps ? new Date(existing.postedAt) : backfilled && due.toISOString() < now ? due : new Date(now);
     const made = asRecorded ? asWritten(asOf, w, draft, e, actor.id, at.toISOString(), existing?.id ?? newId('ci')) : toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId('ci'));
-    const c: CheckIn = { ...made, ...(backfilled ? { backfilled: true } : {}) };
+    // NR rule 3: a reading is recorded only as the rule allows, at every door; the owner's number stays the check-in's.
+    const read = post ? post.reading : input.readings?.find((x) => x.goalId === g.id && x.week === w)?.reading;
+    if (read && g.kind !== 'milestone') {
+      const problem = readingProblem(read, made.value, g.decimals);
+      if (problem) { raise('checkin-incomplete', 'Check-ins', row, g.title, problem); return; }
+    }
+    const c: CheckIn = { ...made, ...(backfilled ? { backfilled: true } : {}), ...(read && g.kind !== 'milestone' ? { reading: keptReading(read, made.value, g.decimals) } : {}) };
     const ch = checkInChange(existing, c, g, actor.id, newId('chg'));
     if (!ch) { same('Check-ins'); return; }
     if (again) ch.summary = ch.summary.replace('Checked in for week', 'Checked in again for week');

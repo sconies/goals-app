@@ -16,6 +16,11 @@ describe('partKey: the same part however it is spelt', () => {
     expect(partKey('Région EU')).toBe('region eu');
     expect(partKey('')).toBe('');
   });
+  it('keeps the s of a short word: “US” is not “U”, “gas” is not “ga” (#308’s review)', () => {
+    expect(partKey('US')).not.toBe(partKey('U'));
+    expect(partKey('gas')).toBe('gas');
+    expect(partKey('jobs')).toBe('job');
+  });
 });
 
 describe('partsOf: the parts a metric’s live links use', () => {
@@ -33,6 +38,11 @@ describe('partsOf: the parts a metric’s live links use', () => {
 });
 
 describe('closePart: a part in use the typed one probably means', () => {
+  it('never asks about a part whose numbers differ: “Region 2” is not “Region 1” (#308’s review)', () => {
+    expect(closePart('Region 2', ['Region 1'])).toBeNull();
+    expect(closePart('Tier 2 services', ['tier-1 services'])).toBeNull();
+    expect(closePart('Regon 2', ['Region 2'])).toBe('Region 2');
+  });
   it('finds the same part spelt differently', () => expect(closePart('Tier 1 service', ['tier-1 services'])).toBe('tier-1 services'));
   it('finds one a single edit away', () => expect(closePart('release bilds', ['release builds'])).toBe('release builds'));
   it('never matches parts of two characters: “EU” is not “US”', () => expect(closePart('EU', ['US', 'APAC'])).toBeNull());
@@ -63,7 +73,7 @@ describe('linkChecks: what measuring a goal by a metric asks', () => {
   it('needs a reason when a goal with check-ins changes its metric, team or part; not before its first check-in', () => {
     const present = { metricId: 'metric_flaky-old', teamId: 'cicd', part: '' };
     const flaky = { id: 'metric_flaky-rate', name: 'Flaky test rate' };
-    expect(linkChecks(goal, flaky, { teamId: 'cicd', part: '' }, none, reads({ present, hasCheckIns: true }), '')).toEqual([{ field: 'why', kind: 'fix', words: 'Say why this goal is measured differently now. It shows in its History.', answers: [] }]);
+    expect(linkChecks(goal, flaky, { teamId: 'cicd', part: '' }, none, reads({ present, hasCheckIns: true }), '')).toEqual([{ field: 'why', kind: 'fix', words: 'Say why this goal is measured differently now.', answers: [] }]);
     expect(linkChecks(goal, flaky, { teamId: 'cicd', part: '' }, none, reads({ present, hasCheckIns: true }), 'The old rate counted retries')).toEqual([]);
     expect(linkChecks(goal, flaky, { teamId: 'cicd', part: '' }, none, reads({ present, hasCheckIns: false }), '')).toEqual([]);
   });
@@ -85,5 +95,22 @@ describe('the words around it', () => {
     expect(linkChanges(present, 'm', null, 'Tier 1 service')).toBe(false);
     expect(linkChanges(present, 'm', null, 'EU')).toBe(true);
     expect(linkChanges(null, 'm', null, 'EU')).toBe(false);
+  });
+});
+
+describe('linkReads: what linking reads, the same at every door', () => {
+  it('reads other goals in the goal’s own cycle only, and the goal’s last link even once removed (#308’s review)', async () => {
+    const { buildPlatformOrg } = await import('../../data/platformOrg');
+    const { linkReads } = await import('./rulesLink');
+    const { linksOf, LINKS_KEY, MODULE } = await import('./rules');
+    const s = buildPlatformOrg(new Date('2026-11-02T12:00:00Z'));
+    const g = s.goals.find((x) => x.id === 'lead-ci-time')!;
+    const old = { ...g, id: 'lead-ci-time-2025', cycleId: 'cycle-2025' };
+    const links = linksOf(s);
+    const was = links.find((l) => l.goalId === g.id)!;
+    const full = { ...s, goals: [...s.goals, old], modules: { ...s.modules, [MODULE]: { ...s.modules![MODULE], [LINKS_KEY]: [...links.filter((l) => l.goalId !== 'ns-ci'), { ...was, id: old.id, goalId: old.id }, { ...links.find((l) => l.goalId === 'ns-ci')!, removedAt: '2026-11-01T00:00:00Z' }] } } };
+    const r = linkReads({ snapshot: s, full }, { id: 'ns-ci' }, 'metric_queue-wait');
+    expect(r.others.map((o) => o.goalId)).toEqual(['lead-ci-time']);
+    expect(r.present).toMatchObject({ metricId: 'metric_ci-time' });
   });
 });

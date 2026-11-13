@@ -3,7 +3,7 @@
    doubled inside them, line breaks inside a cell, a byte-order mark), and each grid is recognised by its header row,
    never its name (domain/columns sheetKindOf). The apostrophe the export puts before a cell that would otherwise run as
    a formula (=, +, -, @) is taken off again here, so a file loaded back says exactly what was exported. */
-import { andList, fieldTable, FILL_SHEETS, headersOf, isWeekHeader, sheetKindOf, START_HERE, type FillKind, type SheetKind } from './columns';
+import { andList, fieldTable, FILL_SHEETS, headersOf, isWeekHeader, REVIEWS_COLUMN, REVIEWS_SHEET, sheetKindOf, START_HERE, type FillKind, type SheetKind } from './columns';
 import { fold, near } from './problemLevels';
 
 export type Grid = string[][];
@@ -109,7 +109,7 @@ export interface ReadTables {
   /** The sheets loaded, by the name they had. */
   read: { name: string; kind: SheetKind }[];
   /** Sheets left out, and why. */
-  skipped: { name: string; why: SkipWhy }[];
+  skipped: { name: string; why: SkipWhy; kind?: SheetKind }[];
   /** Columns on a sheet that was read that nothing reads (C19): named in the file line, never dropped silently. */
   unknownColumns: { sheet: string; headers: string[] }[];
   /** Each table's headers as the file wrote them, in order: the rows-to-fix file writes them back. */
@@ -122,6 +122,8 @@ export interface ReadTables {
   firstHeaders: string[];
   /** Rows in the file's loaded sheets, for Import's size limit. */
   rowCount: number;
+  /** The file has what is Reviews' (RS, spec 5): a Notes sheet, or a Review column on Asks. Neither is ever loaded. */
+  reviews?: boolean;
 }
 
 /** Headers the change engine reads besides each sheet's own columns. */
@@ -231,7 +233,10 @@ export function readTables(grids: NamedGrid[], moduleSheets: readonly { name: st
     const kind = head.kind;
     const key = kind ? LOADED[kind] : undefined;
     if (!kind) { out.skipped.push({ name: g.name, why: 'not-faro' }); if (!out.firstHeaders.length) out.firstHeaders = first.map((h) => h.trim()).filter(Boolean).slice(0, 5); }
-    else if (!key) out.skipped.push({ name: g.name, why: 'reading-only' });
+    else if (!key) {
+      out.skipped.push({ name: g.name, why: 'reading-only', kind });
+      if (kind === 'notes' || (kind === 'asks' && head.columns.some((c) => c.header.toLowerCase() === REVIEWS_COLUMN.toLowerCase()))) out.reviews = true;
+    }
     else if (out.tables[key]) out.skipped.push({ name: g.name, why: 'second' });
     else {
       out.rowCount += g.rows.slice(head.row).filter((r) => !isBlank(r)).length;
@@ -256,19 +261,24 @@ export function readTables(grids: NamedGrid[], moduleSheets: readonly { name: st
 export const headerRowsLine = (read: Pick<ReadTables, 'headerRows'>): string =>
   read.headerRows.map((h) => `Row ${h.row} of ${h.sheet} is the header row; ${h.row - 1} ${h.row === 2 ? 'row' : 'rows'} above it ${h.row === 2 ? 'was' : 'were'} skipped.`).join(' ');
 
+/** What the preview says once when Reviews is off and the file has what is Reviews' (RS, spec 5). */
+export const reviewsOffReadLine = (workspace: string) => `Reviews is off in ${workspace}: the ${REVIEWS_SHEET} sheet and the ${REVIEWS_COLUMN} column were not read.`;
+
 /**
  * Rule 5. What was read, in one sentence (the preview's file line, 2.3): "Read Goals and Check-ins. Not read: Results
  * (for reading only); Budget (not a Faro sheet); the column Notes on Goals." Parts with nothing are left out; the Start
  * here sheet is never mentioned. Then the example rows left out, when there are any.
  */
-export function readLine(read: Pick<ReadTables, 'read' | 'skipped' | 'unknownColumns'>, examples = 0): string {
-  const by = (why: SkipWhy) => read.skipped.filter((x) => x.why === why).map((x) => x.name);
+export function readLine(read: Pick<ReadTables, 'read' | 'skipped' | 'unknownColumns' | 'reviews'>, examples = 0, opts: { reviewsOff?: string } = {}): string {
+  // With Reviews off (RS, spec 5) the Notes sheet is said once, in its own sentence at the end, not as a sheet for reading.
+  const off = opts.reviewsOff != null && !!read.reviews;
+  const by = (why: SkipWhy) => read.skipped.filter((x) => x.why === why && !(off && x.kind === 'notes')).map((x) => x.name);
   const not = [
     by('reading-only').length ? `${andList(by('reading-only'))} (for reading only)` : '',
     by('not-faro').length ? `${andList(by('not-faro'))} (not a Faro sheet)` : '',
     by('second').length ? `${andList(by('second'))} (a second sheet of the same kind; only the first is read)` : '',
     ...read.unknownColumns.map((u) => `the column${u.headers.length === 1 ? '' : 's'} ${andList(u.headers)} on ${u.sheet}`),
   ].filter(Boolean);
-  const parts = [read.read.length ? `Read ${andList(read.read.map((x) => x.name))}.` : 'Nothing was read.', not.length ? `Not read: ${not.join('; ')}.` : '', examples ? `${examples} example row${examples === 1 ? '' : 's'} left out.` : ''];
+  const parts = [read.read.length ? `Read ${andList(read.read.map((x) => x.name))}.` : 'Nothing was read.', not.length ? `Not read: ${not.join('; ')}.` : '', examples ? `${examples} example row${examples === 1 ? '' : 's'} left out.` : '', off ? reviewsOffReadLine(opts.reviewsOff!) : ''];
   return parts.filter(Boolean).join(' ');
 }

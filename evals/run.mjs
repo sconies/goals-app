@@ -17,7 +17,10 @@
 
    FARO_WITHOUT=spreadsheets[,other] builds Faro with those feature modules left out (vite.modules.ts), and anything
    that needs them, and leaves out the journeys and checks their module.json lists: CI runs the smoke gate this way
-   for each module, to prove the core works without it. */
+   for each module, to prove the core works without it.
+   FARO_MODULES_OFF=all (or ids) builds Faro whole but starts the example workspace with those modules switched off at
+   runtime (its modulesOff), and leaves out their journeys and checks the same way: CI runs the smoke gate with every
+   module switched off, to prove the switches leave a working core (RS1, Lane 13 Nov). */
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
@@ -57,12 +60,22 @@ const find = (dir, re) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((
 /** The journeys in journeys.cjs, in order: the same ids the shards are planned from. */
 const journeyIds = () => [...fs.readFileSync(path.join(root, 'evals', 'journeys.cjs'), 'utf8').matchAll(/^journey\('(U\d+)'/gm)].map((m) => m[1]);
 
-/** The journeys and checks of the modules this build leaves out (FARO_WITHOUT, and whatever needs those). */
-function leftOutChecks() {
-  const without = (process.env.FARO_WITHOUT || '').split(',').map((x) => x.trim()).filter(Boolean);
-  if (!without.length) return { modules: [], ids: new Set() };
+/** Every module's module.json in src/modules. */
+const allModules = () => {
   const dir = path.join(root, 'src', 'modules');
-  const all = fs.readdirSync(dir).filter((d) => fs.existsSync(path.join(dir, d, 'module.json'))).map((d) => read(path.join(dir, d, 'module.json')));
+  return fs.readdirSync(dir).filter((d) => fs.existsSync(path.join(dir, d, 'module.json'))).map((d) => read(path.join(dir, d, 'module.json')));
+};
+/** The modules the demo workspace has switched off at runtime (FARO_MODULES_OFF=all, or ids): the app is built whole. */
+const MODULES_OFF = (() => {
+  const v = (process.env.FARO_MODULES_OFF || '').trim();
+  return v === 'all' ? allModules().map((m) => m.id) : v.split(',').map((x) => x.trim()).filter(Boolean);
+})();
+/** The journeys and checks of the modules this build leaves out (FARO_WITHOUT, and whatever needs those), or the demo
+    switches off at runtime (FARO_MODULES_OFF). */
+function leftOutChecks() {
+  const without = [...(process.env.FARO_WITHOUT || '').split(',').map((x) => x.trim()).filter(Boolean), ...MODULES_OFF];
+  if (!without.length) return { modules: [], ids: new Set() };
+  const all = allModules();
   const left = new Set(without);
   for (let changed = true; changed;) { changed = false; for (const m of all) if (!left.has(m.id) && (m.needs || []).some((n) => left.has(n))) { left.add(m.id); changed = true; } }
   return { modules: [...left], ids: new Set(all.filter((m) => left.has(m.id)).flatMap((m) => m.journeys || [])) };
@@ -80,7 +93,12 @@ const EXAMPLE_AT = '2026-11-05T12:00:00.000Z';
 function build({ down }) {
   console.log(`\n▸ Building the app${down ? ', and a copy whose database never answers' : ''}`);
   // FARO_DEMO_RHYTHM=0 (FT1): the example with no set check-in rhythm, for CI's "Core journeys with no rhythm".
-  const saved = { VITE_EXAMPLE_SNAPSHOT: EXAMPLE_AT, ...(process.env.FARO_DEMO_RHYTHM ? { VITE_DEMO_RHYTHM: process.env.FARO_DEMO_RHYTHM } : {}) };
+  // FARO_MODULES_OFF: the example workspace starts with these modules switched off (src/data/examples.ts).
+  const saved = {
+    VITE_EXAMPLE_SNAPSHOT: EXAMPLE_AT,
+    ...(process.env.FARO_DEMO_RHYTHM ? { VITE_DEMO_RHYTHM: process.env.FARO_DEMO_RHYTHM } : {}),
+    ...(MODULES_OFF.length ? { VITE_EXAMPLE_MODULES_OFF: MODULES_OFF.join(',') } : {}),
+  };
   if (sh('npx', ['vite', 'build', '--logLevel', 'error'], saved).status !== 0) process.exit(2);
   // The copy talks to a local server that accepts connections and never answers: a dead database that
   // behaves the same on every machine (an unroutable address fails fast behind some proxies and hangs on others).
@@ -282,8 +300,10 @@ if (quick && NO_RHYTHM.size) {
 }
 if (quick && LEFT_OUT.modules.length) {
   const skipped = [...quick.journeys, ...quick.checks].filter((id) => LEFT_OUT.ids.has(id));
-  console.log(`▸ Without ${LEFT_OUT.modules.join(', ')}: leaving out ${skipped.join(' ') || 'no journeys or checks of this run'}`);
-  quick = { ...quick, name: `${quick.name} without ${LEFT_OUT.modules.join(', ')}`, journeys: quick.journeys.filter((id) => !LEFT_OUT.ids.has(id)), checks: quick.checks.filter((id) => !LEFT_OUT.ids.has(id)) };
+  const how = MODULES_OFF.length && !process.env.FARO_WITHOUT ? 'with every module switched off' : `without ${LEFT_OUT.modules.join(', ')}`;
+  const what = MODULES_OFF.length && !process.env.FARO_WITHOUT && MODULES_OFF.length < allModules().length ? `with ${MODULES_OFF.join(', ')} switched off` : how;
+  console.log(`▸ ${what[0].toUpperCase() + what.slice(1)}: leaving out ${skipped.join(' ') || 'no journeys or checks of this run'}`);
+  quick = { ...quick, name: `${quick.name} ${what}`, journeys: quick.journeys.filter((id) => !LEFT_OUT.ids.has(id)), checks: quick.checks.filter((id) => !LEFT_OUT.ids.has(id)) };
 }
 
 if (quick) {

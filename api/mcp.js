@@ -306,7 +306,9 @@ var init_thresholds = __esmMin((() => {
 		/** The wrap-up opens this many weeks before a cycle's last day (its last two weeks). */
 		wrapUpWeeksBefore: 2,
 		/** …and stays open this many weeks after it, for the last numbers and the owners' words. */
-		wrapUpWeeksAfter: 4
+		wrapUpWeeksAfter: 4,
+		/** A metric's reading older than this many days is never filled into a check-in (NR rule 1; Lane, 13 Nov). */
+		readingMaxDays: 7
 	};
 	NUMBER_WORDS = [
 		"no",
@@ -2147,6 +2149,31 @@ function weekCompletion(p) {
 		complete: p.goals.length > 0 && p.done.length >= p.goals.length
 	};
 }
+/**
+* Rule RS1 (docs/design/round-4/reviews-switch/spec.md 4): one phrase for the clock. The day check-ins are due
+* (`Cycle.reviewDay`) never needed a review, so a screen never writes "review" in a deadline itself: it asks here.
+* With Reviews on and a review held on the due day (`held`, from review.ts heldOnDueDay) the deadline is "before
+* Thursday’s review"; with no review set up on that day, or Reviews off, it is "by Thursday". The `due` flag says
+* "Due by Thu 12 Nov." either way. With no set rhythm (FT1) there is no deadline, so nothing says one: no goal is
+* due (firstDueWeek), receiptFacts and the habit panel (habit.ts beforeReview) are null, and Home has no due line.
+*/
+function dueWords$1(reviewsOn, cycle, week, held = false) {
+	return dueWordsOn(reviewsOn, reviewDate(cycle, Math.max(1, week)), held);
+}
+/** dueWords for a due date already worked out (yyyy-mm-dd), as Home's facts carry it. */
+function dueWordsOn(reviewsOn, iso, held = false) {
+	const d = /* @__PURE__ */ new Date(iso.slice(0, 10) + "T00:00:00Z");
+	const day = WEEKDAY[(d.getUTCDay() + 6) % 7] ?? "";
+	const review = reviewsOn && held;
+	return {
+		by: review ? `before ${day}’s review` : `by ${day}`,
+		after: review ? `after ${day}’s review` : `after ${day}`,
+		onTime: review ? "before the review" : "on time",
+		day,
+		date: `${day} ${d.getUTCDate()} ${SHORT_MONTH[d.getUTCMonth()]}`,
+		flag: `Due by ${day.slice(0, 3)} ${d.getUTCDate()} ${SHORT_MONTH[d.getUTCMonth()]}.`
+	};
+}
 /** The day a week's check-ins are due by, as an ISO date. Check-ins posted by the end of it count as on time. Callers
 that may have no set rhythm ask `dueDate`, which says null then. */
 function reviewDate(cycle, week) {
@@ -2175,15 +2202,40 @@ function onTimeStreak(personId, s, cycle, week) {
 	if (!rhythmOf(cycle)) return null;
 	return onTimeRun(personId, s.goals, s.checkIns, cycle, week).weeks;
 }
-function onTimeRun(personId, all, checkIns, cycle, week) {
-	const goals = all.filter((g) => g.ownerId === personId);
-	const s = { checkIns };
+/** Whether a check-in came in by its week's due day (`postedDay` on or before it), and was posted in its week rather than
+added later: a backfilled week is never on time (#410 review, medium 3). */
+function inByDueDay(c, cycle, week) {
+	return !c.backfilled && postedDay(c.postedAt) <= reviewDate(cycle, week);
+}
+/** The first week a goal counts for its present owner in the run: its first due week, or, when someone else checked it in
+later (it was theirs, or handed over), the week after the last of those, so taking over a goal never costs the new
+owner the weeks before it was theirs (#410 review, medium 4). */
+function ownedFrom(g, personId, checkIns, cycle) {
+	const others = checkIns.filter((c) => c.goalId === g.id && c.authorId !== personId).map((c) => c.week);
+	return Math.max(firstDueWeek(g, cycle), others.length ? Math.max(...others) + 1 : 0);
+}
+/** The week a goal was closed as Done, if it was (its first check-in with the status Done): it isn't due after that week,
+as weekProgress leaves Done goals out (#410 review, medium 2). */
+function doneWeek(g, checkIns) {
+	const w = checkIns.filter((c) => c.goalId === g.id && c.status === "done").map((c) => c.week);
+	return w.length ? Math.min(...w) : Infinity;
+}
+/** The run's walk, and the weeks inside it that were forgiven, each as late (checked in after the due day) or missed. */
+function onTimeRun(personId, all, allCheckIns, cycle, week) {
+	const checkIns = allCheckIns.filter((c) => !c.removedAt);
+	const goals = all.filter((g) => g.ownerId === personId).map((g) => ({
+		g,
+		from: ownedFrom(g, personId, checkIns, cycle),
+		to: doneWeek(g, checkIns)
+	}));
 	if (!goals.length || !rhythmOf(cycle)) return {
 		weeks: 0,
 		forgiven: []
 	};
-	const due = (w) => goals.some((g) => firstDueWeek(g, cycle) <= w);
-	const onTime = (w) => due(w) && goals.every((g) => firstDueWeek(g, cycle) > w || s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
+	const dueIn = (w) => goals.filter((x) => x.from <= w && w <= x.to);
+	const due = (w) => dueIn(w).length > 0;
+	const mine = (gid, w) => checkIns.filter((c) => c.goalId === gid && c.week === w && c.authorId === personId);
+	const onTime = (w) => due(w) && dueIn(w).every((x) => mine(x.g.id, w).some((c) => inByDueDay(c, cycle, w)));
 	const forgiven = (w) => {
 		let seen = 0;
 		for (let v = w - 1; v >= 1 && seen < 4; v--) {
@@ -2193,63 +2245,67 @@ function onTimeRun(personId, all, checkIns, cycle, week) {
 		}
 		return seen === 4;
 	};
-	const complete = goals.every((g) => firstDueWeek(g, cycle) > week || s.checkIns.some((c) => c.goalId === g.id && c.week === week));
+	const complete = dueIn(week).every((x) => checkIns.some((c) => c.goalId === x.g.id && c.week === week));
 	const out = {
 		weeks: 0,
 		forgiven: []
 	};
 	for (let w = complete && due(week) ? week : week - 1; w >= 1 && due(w); w--) if (onTime(w)) out.weeks++;
-	else if (forgiven(w)) out.forgiven.push(w);
+	else if (forgiven(w)) out.forgiven.push({
+		week: w,
+		missed: dueIn(w).some((x) => !mine(x.g.id, w).some((c) => !c.backfilled))
+	});
 	else break;
 	return out;
 }
 /**
 * The receipt's facts for a person's week (habit spec 2.1), from the rules that already say each: weekProgress (`p`) for
 * their goals, reviewDate for the due day, the run. A goal's week counts as after when its first check-in that week
-* (theirs, or someone's checking in for them) was posted after the due day. `review` is `reviewOnDueDay`'s.
-* `nextDue` is the next due day as an ISO date: the caller says it in words before `receiptText`.
+* (theirs, or someone's checking in for them) was posted after the due day. `words` is dueWords' for the person and
+* week (app/reads dueWordsHere): the habit never reads a review itself (Reviews switch spec 4).
+* `nextDue` is the next due day as an ISO date: the caller says it in words before `receiptText`. With no set rhythm
+* (FT1) there is no receipt (null): nothing was due, so there is no deadline to be in by and no run.
 */
-function receiptFacts(p, personId, s, cycle, week, review) {
-	const due = reviewDate(cycle, week);
+function receiptFacts(p, personId, s, cycle, week, words) {
+	if (!rhythmOf(cycle)) return null;
 	const after = p.goals.filter((g) => {
 		const first = s.checkIns.filter((c) => c.goalId === g.id && c.week === week && !c.removedAt).map((c) => c.postedAt).sort()[0];
-		return first != null && first.slice(0, 10) > due;
+		return first != null && !inByDueDay({ postedAt: first }, cycle, week);
 	}).length;
 	const run = onTimeRun(personId, s.goals, s.checkIns, cycle, week);
 	return {
 		total: p.goals.length,
 		after,
 		week,
-		dueDay: WEEKDAY[cycle.reviewDay],
-		review,
+		words: {
+			by: words.by,
+			after: words.after
+		},
 		run: run.weeks,
-		forgiven: run.forgiven[0] ?? null,
+		forgiven: run.forgiven[0]?.week ?? null,
+		forgivenMissed: run.forgiven[0]?.missed ?? false,
 		nextDue: week < cycle.weeks ? reviewDate(cycle, week + 1) : null
 	};
 }
 /**
 * The receipt's two sentences, once every check-in of the week is in (habit spec 2.1; HB1). Read by the check-in's last
 * screen and by Home's quiet line on the day the week is completed. A late week is never called lost or broken, and no run
-* is mentioned beside one. The due day is a review only for someone in a review held that day (T4).
+* is mentioned beside one. The deadline is dueWords' (rule RS1): "in before Thursday’s review" / "in by Thursday", and
+* "came after Thursday’s review" / "came after Thursday" (Reviews switch spec 2.1).
 */
 function receiptText(r) {
 	const yours = r.total === 1 ? "Your check-in is" : r.total === 2 ? "Both of your check-ins are" : `All ${r.total} of your check-ins are`;
 	const next = r.nextDue ? `The next ${r.total === 1 ? "is" : "are"} due by ${r.nextDue}.` : null;
 	if (r.after > 0) return {
-		first: `${yours} in. ${r.total === 1 ? "It" : r.after === r.total ? r.total === 2 ? "Both" : "All of them" : r.after === 1 ? "One" : String(r.after)} came ${r.review ? `after ${r.dueDay}’s review` : `in after ${r.dueDay}’s deadline`}.`,
+		first: `${yours} in. ${r.total === 1 ? "It" : r.after === r.total ? r.total === 2 ? "Both" : "All of them" : r.after === 1 ? "One" : String(r.after)} came ${r.words.after}.`,
 		second: next
 	};
 	return {
-		first: r.review ? `${yours} in before ${r.dueDay}’s review.` : `${yours} in for week ${r.week}, before ${r.dueDay}’s deadline.`,
-		second: [r.run >= 2 ? `That is ${r.run} weeks in a row.` : null, r.forgiven != null && r.forgiven === r.week - 1 && r.run >= 2 ? `Week ${r.forgiven} came in late; one late week doesn’t break a run.` : null].filter(Boolean).join(" ") || null
+		first: `${yours} in ${r.words.by}.`,
+		second: [r.run >= 2 ? `That is ${r.run} weeks in a row.` : null, r.forgiven != null && r.forgiven === r.week - 1 && r.run >= 2 ? r.forgivenMissed ? `Week ${r.forgiven} was missed; one missed week doesn’t break a run.` : `Week ${r.forgiven} came in late; one late week doesn’t break a run.` : null].filter(Boolean).join(" ") || null
 	};
 }
-/** Whether the person is in a review held on the workspace's due day (live, not ended): only then is the due day said
-as a review (deep review T4). `reviewsOn` is the reviews switch's flag (FT2), as readBack.ts takes it. */
-function reviewOnDueDay(reviews, personId, cycle, reviewsOn) {
-	return reviewsOn && reviews.some((r) => !r.removedAt && !r.endedAt && r.weekday === cycle.reviewDay && r.people.includes(personId));
-}
-var firstDueWeek, WEEKDAY;
+var firstDueWeek, SHORT_MONTH, postedDay, WEEKDAY;
 var init_progress = __esmMin((() => {
 	init_plan();
 	init_status();
@@ -2258,6 +2314,24 @@ var init_progress = __esmMin((() => {
 		const rhythm = rhythmOf(cycle);
 		if (!rhythm) return Infinity;
 		return Math.max(firstWeekFrom(cycle, g.createdAt, rhythm.dueDay), g.kind === "metric" ? g.plan?.fromWeek ?? 0 : 0, cycle.rhythmFrom ? firstWeekFrom(cycle, rhythm.from, rhythm.dueDay) : 0);
+	};
+	SHORT_MONTH = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec"
+	];
+	postedDay = (iso) => {
+		const n = new Date(iso);
+		return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10);
 	};
 	WEEKDAY = [
 		"Monday",
@@ -2947,7 +3021,7 @@ function flagsFor(goal, s, cycle, today) {
 	const trend = status.status === "done" ? null : worseningTrend(goal, cycle, s.checkIns);
 	if (trend) add("trend", trend, "risk");
 	if (status.greener && latest && status.status !== "stale" && status.status !== "done") add("greener", `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, "risk");
-	if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== "done" && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", `Due by ${dayText(reviewDate(cycle, week))}.`, "info");
+	if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== "done" && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", dueWords$1(false, cycle, week).flag, "info");
 	flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
 	return {
 		status,
@@ -3085,7 +3159,6 @@ var WEIGHT, HANDLED_ORDER, LOOKS, byGoal, needsAttention, onAttentionList, atten
 var init_attention = __esmMin((() => {
 	init_status();
 	init_progress();
-	init_format();
 	init_plan();
 	init_trend();
 	init_vocabulary();
@@ -3152,6 +3225,16 @@ function sessionDate(r, cycle, week) {
 	const d = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
 	d.setUTCDate(d.getUTCDate() + r.weekday);
 	return d.toISOString().slice(0, 10);
+}
+/**
+* Whether a review is held on a week's due day (RS1): a review not ended or removed whose session falls in that week, on
+* the day check-ins are due (a review with no date it was set up counts from week 1). With `personId`, only a review
+* that person is in: the due day is a review only for someone in one held that day (deep review T4; HB1's receipt).
+* dueWords then says "before Thursday’s review"; otherwise "by Thursday".
+*/
+function heldOnDueDay(reviews, cycle, week, personId) {
+	const w = Math.max(1, week);
+	return reviews.some((r) => !r.removedAt && !r.endedAt && r.weekday === cycle.reviewDay && (personId == null || r.people.includes(personId)) && sessionWeek(r, w, r.createdAt ? cycle : void 0) === w);
 }
 /**
 * What a session still has to do: goals to discuss one at a time, and goals on track to cover together. Discuss keeps
@@ -4270,7 +4353,8 @@ function startReadBack(ctx) {
 			retro
 		}).kind);
 	}
-	const of = (wrapped, ...ks) => ctx.goals.filter((g) => done.has(g.id) === wrapped && ks.includes(kinds.get(g.id))).length;
+	const judgedGoals = ctx.goals.filter((g) => !isProposed(g));
+	const of = (wrapped, ...ks) => judgedGoals.filter((g) => done.has(g.id) === wrapped && ks.includes(kinds.get(g.id))).length;
 	const going = ctx.goals.filter((g) => carries(kinds.get(g.id)));
 	const stageGoals = going.filter((g) => g.kind === "milestone");
 	const stagesLeft = stageGoals.reduce((n, g) => {
@@ -4286,7 +4370,7 @@ function startReadBack(ctx) {
 		keep: of(true, "keep"),
 		finish: of(true, "finish"),
 		stop: of(true, "stop"),
-		open: ctx.goals.filter((g) => !done.has(g.id)).length,
+		open: judgedGoals.filter((g) => !done.has(g.id)).length,
 		openCarry: of(false, "carry", "keep"),
 		openFinish: of(false, "finish"),
 		carried: going.length,
@@ -4294,7 +4378,8 @@ function startReadBack(ctx) {
 		stagesLeft,
 		loseParent: going.filter((g) => g.parentId && ids.has(g.parentId) && !carries(kinds.get(g.parentId))).length,
 		handSet: going.filter((g) => g.kind === "metric" && kinds.get(g.id) === "carry" && !!g.plan.points?.length).length,
-		total: ctx.goals.length
+		total: judgedGoals.length,
+		proposed: going.filter(isProposed).length
 	};
 }
 /**
@@ -4421,6 +4506,7 @@ function carryExtras(map, s, newId, records = []) {
 var carries;
 var init_carry = __esmMin((() => {
 	init_status();
+	init_proposed();
 	init_story();
 	carries = (k) => k === "carry" || k === "keep";
 }));
@@ -4944,7 +5030,7 @@ function requiredLine(kind) {
 	if (kind === "checkIns") return `${req("Goal key")} (or ${req("Goal")}), ${req("Week")}, and ${req("Value")} or ${req("Stages")}.`;
 	return `${req("Name")} and ${req("Email")}.`;
 }
-var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$2, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
+var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$2, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, REVIEWS_COLUMN, sheetsFor, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
 var init_columns = __esmMin((() => {
 	init_levels();
 	init_asks();
@@ -5393,11 +5479,17 @@ var init_columns = __esmMin((() => {
 		ASKS,
 		NOTES
 	];
+	NOTES.name;
+	REVIEWS_COLUMN = "Review";
+	sheetsFor = (reviews) => reviews ? [...SHEETS] : SHEETS.filter((v) => v !== NOTES).map((v) => v === ASKS ? {
+		...ASKS,
+		columns: ASKS.columns.filter((c) => c.header !== REVIEWS_COLUMN)
+	} : v);
 	START_HERE = "Start here";
 	[...SHEETS.map((x) => x.name)];
-	sheetNamesWith = (sheets = []) => [
+	sheetNamesWith = (sheets = [], reviews = true) => [
 		START_HERE,
-		...SHEETS.map((x) => x.name),
+		...sheetsFor(reviews).map((x) => x.name),
 		...sheets.map((x) => x.spec.name)
 	];
 	specOf = (kind) => SHEETS.find((x) => x.kind === kind);
@@ -10000,6 +10092,7 @@ function groupTitle(kind, sheet, count, first) {
 		case "same-goal": return `${n$1(count, "new goal")} ${count === 1 ? "has a name its team already uses" : "have names their teams already use"}: “${v}”. Are they new?`;
 		case "other-goal": return first.message;
 		case "past-stage": return first.answers?.[0]?.choice === "from-now" ? `${n$1(count, "new goal")} ${count === 1 ? "has" : "have"} stages due before this week, so ${count === 1 ? "it" : "they"} would start late` : `${n$1(count, "new goal")} ${count === 1 ? "has" : "have"} stages due before this week. Are they done?`;
+		case "for-someone-else": return `${count === 1 ? "One of these goals is" : `${count} of these goals are`} for other people and would start as active. Is that what you mean?`;
 		case "past-plan": return `${n$1(count, "new goal")} ${count === 1 ? "has a plan" : "have plans"} that ${count === 1 ? "has" : "have"} already ended`;
 		case "odd-number": return count === 1 ? first.message : `${n$1(count, "number")} look${count === 1 ? "s" : ""} unlikely: ${first.message}`;
 		case "plan-question": return count === 1 ? first.message : `${n$1(count, "plan change")} to check: ${first.message}`;
@@ -10091,7 +10184,8 @@ var init_problemLevels = __esmMin((() => {
 		"many-admins",
 		"totals-row",
 		"big-removal",
-		"feeds-lower"
+		"feeds-lower",
+		"for-someone-else"
 	];
 	levelOf = (kind) => MUST_KINDS.includes(kind) ? "must" : CHECK_KINDS.includes(kind) ? "check" : "note";
 	SEVERITY = {
@@ -10272,7 +10366,15 @@ var init_problemLevels = __esmMin((() => {
 			choice: "right",
 			label: "Yes, it feeds that goal"
 		}, LEAVE],
-		leaveOnly: [LEAVE]
+		leaveOnly: [LEAVE],
+		/** GE10, decision 16: new goals for other people with no State, asked once per file. */
+		forSomeoneElse: [{
+			choice: "active",
+			label: "Yes, active"
+		}, {
+			choice: "proposed",
+			label: "No, start them as proposed"
+		}]
 	};
 	n$1 = (k, one, many = one + "s") => `${k} ${k === 1 ? one : many}`;
 	THING = {
@@ -10385,6 +10487,46 @@ var init_importLimits = __esmMin((() => {
 	count = (n) => n.toLocaleString("en-GB");
 	limitHelp = () => `up to ${count(ROWS_READ_MAX)} rows or 20 MB a file, and ${count(CHANGES_SAVE_MAX)} changes at a time; up to ${count(ROWS_COMFORT)} rows is checked in a second or two`;
 	tooManyChanges = (changes) => changes > 5e3 ? `This would change ${count(changes)} rows. Faro saves up to ${count(CHANGES_SAVE_MAX)} at a time.` : null;
+}));
+// src/domain/reading.ts
+/**
+* Rule 3: what a reading needs before a check-in records it, the same at every door. The owner's number is always the
+* check-in's; a reading whose number differs from it needs a reason (one of 2.2's four), and "Something else" needs at
+* least MIN_CORRECT_REASON characters of the owner's words. Null when it can be recorded.
+*/
+function readingProblem(r, value, decimals) {
+	if (value == null || sameAtPlaces(value, r.value, decimals)) return null;
+	if (!r.why || !READING_WHY.some(([k]) => k === r.why.kind)) return `${r.source} said ${r.value}. Say why your number is different.`;
+	if (r.why.kind === "else" && (r.why.text ?? "").trim().length < 10) return `Say more about why your number is different from what ${r.source} said, in at least 10 characters.`;
+	return null;
+}
+/** What a check-in keeps of a reading: the reason only when the numbers differ, its words trimmed. */
+function keptReading(r, value, decimals) {
+	const why = value != null && !sameAtPlaces(value, r.value, decimals) && r.why ? {
+		kind: r.why.kind,
+		...r.why.text?.trim() ? { text: r.why.text.trim() } : {}
+	} : void 0;
+	return {
+		source: r.source,
+		value: r.value,
+		at: r.at,
+		...why ? { why } : {}
+	};
+}
+var READING_WHY, sameAtPlaces;
+var init_reading = __esmMin((() => {
+	init_checkin();
+	init_format();
+	READING_WHY = [
+		["behind", "The source is behind: I have a newer number"],
+		["other-count", "The source counts something else"],
+		["wrong", "The source is wrong this week"],
+		["else", "Something else"]
+	];
+	sameAtPlaces = (a, b, decimals) => {
+		const p = Math.max(0, decimals);
+		return Number(a.toFixed(p)) === Number(b.toFixed(p));
+	};
 }));
 // src/domain/changeset.ts
 /** "4 new goals, 2 goals changed, 38 check-ins (36 for past weeks), 1 goal stopped" */
@@ -10593,7 +10735,7 @@ function* planChangesInChunks(input) {
 	*/
 	const ask = (kind, sheet, row, name, message, x) => {
 		const given = answerOf(kind, sheet, x.column, x.found);
-		const a = (given && (!x.answers?.length || x.answers.some((c) => c.choice === given.choice)) && (!given.covers || x.value == null || given.covers.includes(x.value)) ? given : void 0) ?? (input.confirm && CONFIRMED.includes(kind) ? { choice: "right" } : input.confirm && kind === "other-goal" ? { choice: "change" } : void 0);
+		const a = (given && (!x.answers?.length || x.answers.some((c) => c.choice === given.choice)) && (!given.covers || x.value == null || given.covers.includes(x.value)) ? given : void 0) ?? (input.confirm && CONFIRMED.includes(kind) ? { choice: "right" } : input.confirm && kind === "other-goal" ? { choice: "change" } : input.confirm && kind === "for-someone-else" ? { choice: "active" } : void 0);
 		if (a?.choice === "leave") {
 			leave(sheet, row);
 			return "leave";
@@ -11607,6 +11749,15 @@ function* planChangesInChunks(input) {
 				found: val(r, "state")
 			});
 		}
+		if (!existing && !create && !admin() && !proposing && !(has(r, "state") && val(r, "state")) && d.ownerId && d.ownerId !== actor.id) {
+			const a = ask("for-someone-else", "Goals", row, d.title, `“${d.title}” is for ${people.get(d.ownerId)?.name ?? "someone else"} and would start as active. Is that what you mean?`, {
+				column: "State",
+				found: "for-someone-else",
+				answers: ANSWERS.forSomeoneElse
+			});
+			if (a === "leave") return;
+			if (a?.choice === "proposed") proposing = true;
+		}
 		if (existing && proposing && !wasProposed && started(existing.id)) return raise("cant-change", "Goals", row, existing.title, `“${existing.title}” has check-ins, so it can’t go back to proposed. Stop it instead.`, {
 			column: "State",
 			found: "state-has-check-ins"
@@ -12215,9 +12366,19 @@ function* planChangesInChunks(input) {
 		const backfilled = keeps ? !!existing.backfilled : w < week;
 		const due = new Date(Date.parse(weekDate(cycle, w) + "T09:00:00Z") + cycle.reviewDay * 864e5);
 		const at = keeps ? new Date(existing.postedAt) : backfilled && due.toISOString() < now ? due : new Date(now);
+		const made = asRecorded ? asWritten(asOf, w, draft, e, actor.id, at.toISOString(), existing?.id ?? newId("ci")) : toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId("ci"));
+		const read = post ? post.reading : input.readings?.find((x) => x.goalId === g.id && x.week === w)?.reading;
+		if (read && g.kind !== "milestone") {
+			const problem = readingProblem(read, made.value, g.decimals);
+			if (problem) {
+				raise("checkin-incomplete", "Check-ins", row, g.title, problem);
+				return;
+			}
+		}
 		const c = {
-			...asRecorded ? asWritten(asOf, w, draft, e, actor.id, at.toISOString(), existing?.id ?? newId("ci")) : toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId("ci")),
-			...backfilled ? { backfilled: true } : {}
+			...made,
+			...backfilled ? { backfilled: true } : {},
+			...read && g.kind !== "milestone" ? { reading: keptReading(read, made.value, g.decimals) } : {}
 		};
 		const ch = checkInChange(existing, c, g, actor.id, newId("chg"));
 		if (!ch) {
@@ -12922,6 +13083,7 @@ var init_changeset = __esmMin((() => {
 	init_records();
 	init_importLimits();
 	init_problemLevels();
+	init_reading();
 	init_vocabulary();
 	init_via();
 	ASKS_NUMBERS = [
@@ -13005,7 +13167,8 @@ var init_changeset = __esmMin((() => {
 		"odd-number",
 		"feeds-lower",
 		"no-unit",
-		"plan-question"
+		"plan-question",
+		"for-someone-else"
 	];
 	CONFIRMED = [
 		"odd-number",
@@ -13521,7 +13684,8 @@ function partsOf(links) {
 }
 /**
 * A part in use that the typed one probably means: the same `partKey` spelt differently, or one edit away from one
-* (never for parts of two characters or fewer: "EU" is not "US"). Null when it is a part in use as typed, or new.
+* (never for parts of two characters or fewer: "EU" is not "US"; never when their numbers differ: "Region 2" is not
+* "Region 1"). Null when it is a part in use as typed, or new.
 */
 function closePart(part, parts) {
 	const p = part.trim();
@@ -13530,7 +13694,7 @@ function closePart(part, parts) {
 	const same = parts.find((x) => partKey(x) === k);
 	if (same) return same;
 	if (k.length <= 2) return null;
-	return parts.find((x) => partKey(x).length > 2 && editsBetween(partKey(x), k, 1) === 1) ?? null;
+	return parts.find((x) => partKey(x).length > 2 && numbersIn(partKey(x)) === numbersIn(k) && editsBetween(partKey(x), k, 1) === 1) ?? null;
 }
 /**
 * Rule 2. What measuring `goal` by `metric`, for `teamId` and `part`, asks. `problems` are linkProblems' (rules.ts:
@@ -13592,7 +13756,7 @@ function linkChecks(goal, metric, slice, problems, r, reason) {
 	if (!problems.errors.length && r.hasCheckIns && linkChanges(r.present, metric.id, slice.teamId, part) && !reason.trim()) out.push({
 		field: "why",
 		kind: "fix",
-		words: "Say why this goal is measured differently now. It shows in its History.",
+		words: "Say why this goal is measured differently now.",
 		answers: []
 	});
 	if (reason.trim().length > 300) out.push({
@@ -13603,11 +13767,12 @@ function linkChecks(goal, metric, slice, problems, r, reason) {
 	});
 	return out;
 }
-var partKey, linkChanges, forWords;
+var partKey, numbersIn, linkChanges, forWords;
 var init_rulesParts = __esmMin((() => {
 	init_fold();
 	init_edits();
-	partKey = (part) => fold$2(part).replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(" ").filter(Boolean).map((w) => w.length > 1 && w.endsWith("s") ? w.slice(0, -1) : w).join(" ");
+	partKey = (part) => fold$2(part).replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(" ").filter(Boolean).map((w) => w.length > 3 && w.endsWith("s") ? w.slice(0, -1) : w).join(" ");
+	numbersIn = (key) => (key.match(/\p{N}+/gu) ?? []).join(" ");
 	linkChanges = (present, metricId, teamId, part) => !!present && (present.metricId !== metricId || present.teamId !== teamId || partKey(present.part ?? "") !== partKey(part));
 	forWords = (sliceName, part) => `${sliceName === "The whole company" ? "the whole company" : sliceName}${(part ?? "").trim() ? ` · ${(part ?? "").trim()}` : ""}`;
 }));
@@ -14283,15 +14448,16 @@ function linkGoalMetric(x, goal, metricId, teamId = null, part = "", reason = ""
 		})]
 	};
 }
-/** What rule 2 reads for a goal and a metric: its present link, the metric's other live links (with each goal's title,
-key and owner), whether the goal has check-ins, and slices in words. */
+/** What rule 2 reads for a goal and a metric: its last link (removed or not), the metric's other live links on goals
+of the same cycle (with each goal's title, key and owner), whether the goal has check-ins, and slices in words. */
 function linkReads(x, goal, metricId) {
 	const s = x.full ?? x.snapshot;
-	const present = linksOf(s).find((l) => l.id === goal.id && !l.removedAt);
+	const present = linksOf(s).find((l) => l.id === goal.id);
 	const goals = new Map(s.goals.map((g) => [g.id, g]));
+	const cycle = goal.cycleId ?? goals.get(goal.id)?.cycleId ?? x.cycle?.id;
 	const others = linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt && l.goalId !== goal.id).flatMap((l) => {
 		const g = goals.get(l.goalId);
-		if (!g || g.removedAt || g.stoppedAt) return [];
+		if (!g || g.removedAt || g.stoppedAt || cycle && g.cycleId !== cycle) return [];
 		return [{
 			goalId: l.goalId,
 			teamId: l.teamId,
@@ -14319,11 +14485,15 @@ var init_rulesLink = __esmMin((() => {
 	init_rulesChange();
 }));
 // src/data/examples.ts
+/** The modules an eval build starts the example with switched off (FARO_MODULES_OFF, evals/run.mjs): CI's smoke run with
+every module switched off at runtime. Empty in every other build. */
+var MODULES_OFF = "".split(",").map((x) => x.trim()).filter(Boolean);
 var EXAMPLE = {
 	id: "platform-org",
 	name: "Example: Platform Engineering",
 	kind: "example",
-	createdAt: "2026-01-01T00:00:00.000Z"
+	createdAt: "2026-01-01T00:00:00.000Z",
+	...MODULES_OFF.length ? { modulesOff: MODULES_OFF } : {}
 };
 // src/ports/store.ts
 /** A save refused because someone else changed the same thing first. */
@@ -14892,7 +15062,9 @@ var _virtual_faro_modules_default = [
 			"goal.measure",
 			"goal.sections",
 			"people.person",
-			"people.team"
+			"people.team",
+			"checkin.number",
+			"checkin.table"
 		],
 		tables: [{
 			"name": "okr_metrics",
@@ -14936,7 +15108,10 @@ var _virtual_faro_modules_default = [
 			"METRICS-CARE",
 			"METRIC-DEFINED",
 			"METRIC-PARTS",
-			"METRIC-CHANGE"
+			"METRIC-CHANGE",
+			"READING-PREFILL",
+			"READING-RECORDED-ONLY",
+			"READING-SEVEN-DAYS"
 		],
 		journeys: [
 			"U81",
@@ -14947,6 +15122,12 @@ var _virtual_faro_modules_default = [
 			"U146",
 			"U106",
 			"U152",
+			"U156",
+			"U157",
+			"U158",
+			"U159",
+			"U160",
+			"N28",
 			"F15",
 			"N16"
 		],
@@ -14969,7 +15150,9 @@ var _virtual_faro_modules_default = [
 				"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first (the read-back, MT3); admins see on Workspace → About how many metrics have no owner (journey U83).",
 				"Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105).",
 				"A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146).",
-				"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples)."
+				"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples).",
+				"A number source reads a metric for a link’s slice (a team or the whole company, and a part) or says it doesn’t, and passes the source contract; a reading’s state in a check-in is rule 1’s (no-slice, unreachable, missing, old after 7 days, same, jump, changed, fresh), and what a check-in records of it is rule 2’s, which nothing that judges a goal reads (the reading rule’s worked examples; the `reading` rows of spec/conformance/metrics.csv).",
+				"The check-in’s number step (the core’s place checkin.number) opens with a fresh reading in the field, “From {source}, read {when}.” and “Confirm {value} {unit}”; a different number asks why from four reasons before “Use {typed} {unit}”; a reading more than 7 days old is neither filled in nor shown; a company-wide source never fills in a team’s goal; the read-back says where the number came from; the one table fills fresh readings in the quiet ink and asks why in a changed row; and rule 3 (a differing number needs a reason) holds at the form, the table and post_check_in’s reading_confirmed and different_because alike (journeys U156 to U160). With the module off the step is as it was."
 			],
 			"gaps": [
 				"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).",
@@ -15016,7 +15199,32 @@ var _virtual_faro_modules_default = [
 		],
 		finders: ["metric"],
 		filters: ["metric"],
-		toSortOut: true
+		toSortOut: true,
+		parity: {
+			"Metrics": [
+				"list_metrics",
+				"get_metric",
+				"save_metric",
+				"remove_metric",
+				"restore_removed"
+			],
+			"MetricPlaces": [
+				"get_goal",
+				"get_metric",
+				"list_metrics"
+			],
+			"MeasuredBy": [
+				"list_metrics",
+				"save_metric",
+				"link_goal_metric"
+			],
+			"GoalFilterSheet": ["list_metrics"],
+			"CheckInNumber": [
+				"post_check_in",
+				"get_goal",
+				"get_metric"
+			]
+		}
 	},
 	{
 		id: "reviews",
@@ -15054,7 +15262,8 @@ var _virtual_faro_modules_default = [
 			"REVIEW-DECIDE",
 			"REVIEW-LIST-STATE",
 			"REVIEW-AGENDA",
-			"REVIEWS-OPTIONAL"
+			"REVIEWS-OPTIONAL",
+			"REVIEWS-SWITCH-CLOCK"
 		],
 		journeys: [
 			"U3",
@@ -15069,6 +15278,8 @@ var _virtual_faro_modules_default = [
 			"U80",
 			"U103",
 			"U104",
+			"U154",
+			"U155",
 			"N1",
 			"N21"
 		],
@@ -15082,13 +15293,34 @@ var _virtual_faro_modules_default = [
 				"Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and the six review actions and tools refuse with “Reviews is off in {workspace}.” or the switched-off module's sentence (check N21).",
 				"Switched off, Home has no Next review cell and no review lead: someone who owns no goal is led to the goals they watch that need attention (“Goals you watch · {n} need attention · See them”), or to nothing; a question waits by its own age and names no session; the due flag says “Due by Thu 12 Nov.”, on or off.",
 				"Switching off first reads back what stays (the reviews, what was said in them, the open next steps and questions raised in one) from the rule switchOffReadBack, and Undo brings Reviews back (journey U103).",
-				"Back on, every review, its people, its cadence and what was said are as they were (journey U104)."
+				"Back on, every review, its people, its cadence and what was said are as they were (journey U104).",
+				"The clock's words come from one rule, dueWords (rule RS1), and match every row of spec/conformance/reviews.csv: “before Thursday’s review” only with Reviews on and a review held on the due day, otherwise “by Thursday”; switched off, no page names a review in its own words outside Workspace, Features, History's unlinked names and the closed page's sentence, and the check-in's receipt says “…are in by Thursday.” (journey U154).",
+				"A closed page says “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and every review tool, and edit_call on a note said in a review, answers “Reviews is switched off in {workspace}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features.”, the one sentence every switched-off module's tools use (check N30).",
+				"The read-back before switching off adds, after the questions line, “{n} accepted risks stay on their goals, as they were said. No new one can be accepted while Reviews is off.” (left out at nought) and “Check-ins are still due by Thursday. “Before the review” becomes “by Thursday” on Home, in the check-in and in the count of goals checked in on time.” (rule RS2; the readback row of reviews.csv).",
+				"Switched off, the workbook has no Notes sheet and no Review column on Asks; a workbook that has them loads as usual, and the preview says once “Reviews is off in {workspace}: the Notes sheet and the Review column were not read.”.",
+				"Switched back on after a week off, every session whose date passed while it was off moves to its next date: neither Reviews nor Home says “Not held yet” (journey U155)."
 			],
 			"gaps": [
 				"Reviews is a switch, not yet a folder of its own (FT3 moves it): its screens (src/screens/Review.tsx, src/screens/Inspect.tsx, ReviewPrint in src/screens/Print.tsx), its rules (src/domain/review.ts, with offSpell for a session passed while it was off; src/domain/reviewsOff.ts, the read-back's switchOffReadBack; src/domain/decide.ts, the review half of src/domain/onePager.ts, lastTalked in src/domain/goalPage.ts), its actions (saveReview, reviewCall, acceptRisk, markReviewed, unmarkReviewed, endReview and deleteReview in src/domain/actions.ts and src/domain/removal.ts), its menu row (src/domain/navigation.ts) and its table (okr_reviews, migration 0006, with review_id on okr_decisions and okr_requests) are still the core's. Its review actions refuse while it is off in src/app/actions.ts (performAny), and the read-back sheet is drawn by src/screens/Workspace.tsx. This folder holds its routes, its Help article and its AI tools; src/app/reads.ts reviewsOn is the one place that asks whether it is on.",
 				"A review's own records (reviews and what was said in them) are not yet declared as the module's (AS part 2's records extension point is FT3's), so a build without the module still loads and saves them as the core's.",
 				"The walk on a goal's page, Home's review lead and its Next review cell are drawn by core screens, not through places; FT3 adds the places (home.lead, home.glance) and a count for a module's menu item."
 			]
+		},
+		parity: {
+			"Review": [
+				"list_reviews",
+				"get_review",
+				"save_review",
+				"end_review",
+				"delete_review"
+			],
+			"Inspect": [
+				"get_review",
+				"review_call",
+				"edit_call",
+				"delete_comment"
+			],
+			"Print": ["get_review"]
 		}
 	},
 	{
@@ -15166,6 +15398,23 @@ var _virtual_faro_modules_default = [
 				"A file of 6,000 new goals shows Reading with progress and Stop; Stop saves nothing; checked, it offers Download as 2 files of 5,000 rows instead of Save, and the parts load one after the other; while it is checked, the page never stops for more than 200 ms and the preview has fewer than 3,000 elements."
 			],
 			"gaps": ["The format is in the kit: the field table (a core rule page), how each column is read (spec/core/export-format.md), and every kind of issue with its trigger, sentence and answers and every column’s other spellings (spec/core/import-issues.md).", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
+		},
+		parity: {
+			"Import": ["bulk_change"],
+			"Check": ["bulk_change"],
+			"CheckClose": ["bulk_change"],
+			"Large": ["bulk_change"],
+			"Changes": ["bulk_change"],
+			"Imported": ["get_activity", "undo_import"],
+			"PastImports": ["get_activity", "undo_import"],
+			"Export": ["export"],
+			"ExportButton": ["export"],
+			"DataMenu": [
+				"export",
+				"export_table",
+				"bulk_change"
+			],
+			"ColumnsHelp": ["get_help", "export"]
 		}
 	}
 ];
@@ -15231,6 +15480,17 @@ var recordsOf = (records, on) => records.filter((m) => on.has(m.module));
 /** The workbook's sheets of the modules switched on in a workspace (fix item F2): a module that's off adds no sheet to
 any export (the Export sheet, Data's downloads, the MCP export tool), as it adds nothing else. */
 var sheetsOn = (ws) => recordsOn(ws).flatMap((m) => m.sheets ?? []);
+/** What a workspace's exports hold, for every door that writes one (the Export sheet, Import's "Export everything", the
+preview's worked-out check, the Data tables, the MCP export tool): the sheets of the modules switched on there (F2),
+and whether Reviews is on (RS1, Reviews switch spec 5): with it off the workbook has no Notes sheet and Asks no Review
+column. Spread into workbook()'s input, so the rule lives here once. */
+var exportOn = (ws) => ({
+	sheets: sheetsOn(ws),
+	reviews: isModuleOn(ws, "reviews")
+});
+// src/mcp/moduleOff.ts
+/** "Reviews is switched off in {ws}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features." */
+var moduleOffSentence = (module, workspace, tool) => `${module} is switched off in ${workspace}, so ${tool} can’t be used there. An admin can switch it on in Workspace, under Features.`;
 // src/domain/summary.ts
 init_checkin();
 init_format();
@@ -15608,6 +15868,12 @@ var live = (xs) => xs.filter((x) => !x.removedAt);
 * without the module (FARO_WITHOUT=reviews) answers false. FT3 moves Reviews' code into its folder and retires this.
 */
 var reviewsOn = (on) => on.has("reviews");
+/**
+* This week's deadline in dueWords' words (RS1), from what the rule reads: whether Reviews is on, and whether a review is
+* held on the due day (with `personId`, one that person is in: deep review T4). The check-in's receipt, Home and the AI's
+* get_my_work say it; no screen writes "review" in a deadline itself.
+*/
+var dueWordsHere = (reviews, s, cycle, week, personId) => dueWords$1(reviews, cycle, week, reviews && heldOnDueDay(s.reviews, cycle, week, personId));
 /** Every goal's summary row, with what the Goals filters need beyond it. */
 function goalRows(s, cycle, today, week, columns) {
 	const goals = live(s.goals).filter((g) => !g.stoppedAt);
@@ -15696,10 +15962,7 @@ function scopeFacts(s, viewer) {
 * read on the same clock, not in UTC (build review of #310: "Asked yesterday" for an ask made half an hour ago at UTC+10).
 * On a server, whose zone is UTC, it is the stamp's UTC day.
 */
-var localDay = (iso) => {
-	const n = new Date(iso);
-	return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10);
-};
+var localDay = postedDay;
 function homeAsks(viewerId, s, cycle, week, today, reviews = true) {
 	return openForPerson(viewerId, s).flatMap((r) => {
 		const w = askWaiting(r, viewerId, s, cycle, week, today, reviews);
@@ -15982,7 +16245,7 @@ function startHere(x, opts = {}) {
 		]);
 	}
 	if (opts.template) return rows;
-	for (const sheet of [...SHEETS, ...(x.sheets ?? []).map((m) => m.spec)].filter((v) => !v.loaded)) {
+	for (const sheet of [...sheetsFor(x.reviews !== false), ...(x.sheets ?? []).map((m) => m.spec)].filter((v) => !v.loaded)) {
 		rows.push([], [`The ${sheet.name} sheet`, `One row per ${sheet.rowIs}. ${sheet.about} For reading only: not loaded back.`], [
 			"Column",
 			"Kind",
@@ -16028,7 +16291,7 @@ function planRows(x, sums, c) {
 	}, w))])];
 }
 /** Every sheet of the one format, in order: Start here, Goals, Plan, Check-ins, People, Results, Asks, Notes, each module's (the
-metric library’s Metrics). */
+metric library’s Metrics). With Reviews off (`reviews` false) there is no Notes sheet and Asks has no Review column. */
 function workbook(x) {
 	const { goals, sums, s, c } = prepare(x, true);
 	const ids = new Set(goals.map((g) => g.id));
@@ -16042,6 +16305,8 @@ function workbook(x) {
 		g: v.goal,
 		ci
 	}))).sort((a, b) => a.g.title.localeCompare(b.g.title) || a.ci.week - b.ci.week || a.ci.postedAt.localeCompare(b.ci.postedAt));
+	const reviews = x.reviews !== false;
+	const asks = sheetsFor(reviews).find((v) => v.kind === "asks");
 	const book = [
 		["goals", rowsOf(GOALS, goalRows)],
 		["plan", planRows(x, sums, c)],
@@ -16051,14 +16316,14 @@ function workbook(x) {
 			p
 		})))],
 		["results", rowsOf(RESULTS, goalRows)],
-		["asks", rowsOf(ASKS, asksFor(x.snapshot, ids).map((a) => ({
+		["asks", rowsOf(asks, asksFor(x.snapshot, ids).map((a) => ({
 			c,
 			a
 		})))],
-		["notes", rowsOf(NOTES, notesFor(s, ids).map((d) => ({
+		...reviews ? [["notes", rowsOf(NOTES, notesFor(s, ids).map((d) => ({
 			c,
 			d
-		})))]
+		})))]] : []
 	];
 	return [
 		{
@@ -17707,21 +17972,36 @@ var help$2 = [
 					"For says whose number it is: the goal’s team, or the whole company.",
 					"Which part is optional: one part of that number, such as tier-1 services, a region or release builds, up to 60 characters. Leave it empty for all of it.",
 					"Parts other goals on the metric already use are listed under the field; choose one rather than typing it again, so goals on the same part line up on the metric’s page. A part spelt like one in use is asked about (“Use tier-1 services”, or keep yours).",
-					"If another goal already measures the same metric for the same team and part, you are asked, as two goals on one number is unusual; Carry on keeps it."
+					"If another goal this year already measures the same metric for the same team and part, you are asked, as two goals on one number is unusual; Carry on keeps it.",
+					"A question here is answered before the goal saves: Save takes you to it."
 				]
 			},
 			{
 				heading: "After check-ins",
-				list: ["Once a goal has check-ins, changing its metric, For or part asks Why. It shows in the goal’s History, so anyone reading its chart knows the number was measured differently from then on."]
+				list: ["Once a goal has check-ins, changing its metric, For or part asks Why, even if it stopped being measured by a metric in between. It shows in the goal’s History, so anyone reading its chart knows the number was measured differently from then on."]
 			},
 			{
 				heading: "On the goal’s page",
 				list: ["About lists Measured by: For, what it means, From the metric, where the number comes from, caveats, the goal’s own target, and its own definition when that says more than the metric’s."]
+			},
+			{
+				heading: "In the check-in",
+				list: [
+					"When Faro can read a metric’s source for the goal’s own For and part, the goal’s check-in opens with the latest reading in the field and “From {source}, read {when}.”, and its button names the number: “Confirm 12 min”. A source that measures only the whole company never fills in a team’s goal.",
+					"Typing a different number asks why it’s different (the source is behind, counts something else, is wrong this week, or something else in your words). Your number is the check-in’s; what the source said and why are kept beside it, and never change the goal’s status or flag anything.",
+					"A reading more than 7 days old isn’t filled in or shown. Nothing is ever posted for you: a week you don’t check in has no check-in.",
+					"The AI assistant’s post_check_in does the same with reading_confirmed, or different_because when the number differs."
+				]
 			}
 		],
 		routes: [],
 		screens: [],
-		reqs: ["METRIC-PARTS"],
+		reqs: [
+			"METRIC-PARTS",
+			"READING-PREFILL",
+			"READING-RECORDED-ONLY",
+			"READING-SEVEN-DAYS"
+		],
 		keywords: [
 			"which part",
 			"part",
@@ -17731,7 +18011,11 @@ var help$2 = [
 			"region",
 			"from the metric",
 			"why",
-			"measured differently"
+			"measured differently",
+			"reading",
+			"filled in",
+			"source",
+			"confirm"
 		],
 		related: [
 			"metric-measured-by",
@@ -18609,6 +18893,7 @@ var CORE_ARTICLES = [
 					"Start with walks through every goal due this week, one after another, as Start check-in on Home does. Or pick any goal on the list: Check in does just that one, and so does Check in on a goal’s page.",
 					"Close a check-in you opened from the list and you’re back on it; what you typed is kept, and that goal’s row says Draft kept, with Carry on.",
 					"With nothing left to do it says you’re all set for the week. Before the first check-ins are due it says when they are; if you own no goal it says so, with the goals you watch one click away.",
+					"Once all your goals are in, the receipt says when against the deadline: “All 3 of your goals are checked in for week 46, by Thursday.”, or “after Thursday” once the day has passed. When Reviews is on and a review is held on that day it says “before Thursday’s review” instead; with Reviews off, or no review that day, it never names a review.",
 					"The top of the check-in says which week it is for and where you are in the week’s goals (“Week 46 check-in · 1 of 2”). A reload keeps your place.",
 					"Type the number. The app shows it against this week’s plan, the gap and the status the numbers suggest, as you type. The plan written to the goal’s decimals is always on plan, even when the exact plan has more decimals than you can type.",
 					`On plan, that’s it: post. Behind (under ${pct$1(RULES.onTrack)} of the planned progress) it asks for a cause and a sentence; well ahead (${pct$1(RULES.wellAhead)} or more) it asks why, and whether the target should change.`,
@@ -18636,6 +18921,15 @@ var CORE_ARTICLES = [
 				]
 			},
 			{
+				heading: "A number filled in from its source",
+				list: [
+					"With the Metric library on, a goal measured by a metric whose source Faro can read opens its number step with the latest reading already in the field: “From CI analytics, read 9:02 today.” The button says the number (“Confirm 12 min”), so confirming is something you read, not a reflex. Nothing is posted until you finish the check-in, and a week you don’t check in stays a week with no check-in.",
+					"If the number is wrong, type yours. Faro then asks why it’s different: the source is behind, it counts something else, it’s wrong this week, or something else (say more, in at least 10 characters). Your number is the check-in’s; the reading and your reason are kept beside it. It doesn’t change the goal’s status and nobody is told. Put 12 min back undoes it.",
+					"A reading more than 7 days old isn’t filled in, and its value isn’t shown: type this week’s number, or say there isn’t one. A source that measures only the whole company never fills in a team’s goal. A source with nothing new since your last check-in, nothing yet, or that can’t be reached just now says so, with Try again.",
+					"After posting, the check-in says where its number came from: “12 min, from CI analytics, read 9:02 today. Confirmed by you.”, or “14 min, typed. CI analytics said 12 min: the source counts something else.”"
+				]
+			},
+			{
 				heading: "Ad hoc check-ins and corrections",
 				list: [
 					"Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status. A second check-in in a week is compared with last week, not with your first one, and so is the goal’s “vs last week”.",
@@ -18650,8 +18944,8 @@ var CORE_ARTICLES = [
 			{
 				heading: "When the week’s are all in",
 				text: [
-					"The last screen says whether your check-ins were in before the deadline (“All 4 of your check-ins are in for week 46, before Thursday’s deadline.”; if you are in a review that day, “… before Thursday’s review.”) and, from two weeks, how many weeks in a row you have been on time. If some came after it, it says how many, and when the next are due.",
-					"One late week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. Only you see your run.",
+					"The last screen says whether your check-ins were in before the deadline (“All 4 of your check-ins are in by Thursday.”; if you are in a review held that day, “… before Thursday’s review.”) and, from two weeks, how many weeks in a row you have been on time. If some came after it, it says how many, and when the next are due.",
+					"One late or missed week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. On time means by the deadline day on your own clock. A week added later never counts as on time, a goal called Done leaves your run, and a goal you take over counts only from when it became yours. Only you see your run.",
 					"When a check-in takes a goal to its target, the last screen says so quietly, with a way to copy the goal’s share image; when it brings a goal back on track after two weeks or more behind, it says that. The goal’s History marks the week “Reached its target” or “Back on track”. A correction never does."
 				]
 			},
@@ -18661,7 +18955,11 @@ var CORE_ARTICLES = [
 			}
 		],
 		routes: ["/check-in", "/check-in/:goalId"],
-		screens: ["CheckInFlow", "CheckInQueue"],
+		screens: [
+			"CheckInFlow",
+			"CheckInQueue",
+			"CheckInNumber"
+		],
 		reqs: [
 			"CHECK-IN-QUEUE",
 			"NO-SILENT-ROUNDING",
@@ -18690,6 +18988,10 @@ var CORE_ARTICLES = [
 			"post",
 			"list",
 			"queue",
+			"source",
+			"reading",
+			"filled in",
+			"confirm",
 			"streak",
 			"in a row",
 			"forgiven",
@@ -19515,9 +19817,10 @@ var CORE_ARTICLES = [
 					"Change it: the same page as any goal, with no reason ever asked, and its type can still change. Withdraw it: it goes to Recently removed for 30 days, with Undo.",
 					"Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.",
 					"In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet. Only people in the review, or an admin, can propose one there.",
+					"On a goal’s page, What feeds it lists any goals proposed to feed it under “Proposed” with how many, with no status and counted in nothing; a goal that feeds a proposed goal says “· Proposed” after its name. When the next year starts, proposed goals carry as proposed, counted apart on the start page.",
 					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).",
 					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. With the filter on, the Board is one column, Proposed, and the Map draws each in its tree with a dashed outline and the word, the goals above it shown for context; opening one goes to its page. Find lists them with the word Proposed.",
-					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active, and make_goal_proposed makes an active one proposed again. A goal with check-ins can’t go back to proposed: stop it instead."
+					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active, and make_goal_proposed makes an active one proposed again. A file or an assistant adding goals for other people with no State is asked once whether they start active or proposed (an admin’s file and set-up aren’t asked). A goal with check-ins can’t go back to proposed: stop it instead."
 				]
 			},
 			{
@@ -19920,7 +20223,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "Switching, and setting one up",
 				list: [
-					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow.",
+					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: Look around the demo (outside the demo: it opens the example workspace, which you can change freely without touching yours), About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow. With the narrow menu of icons, the Faro mark at its top is the switcher.",
 					"Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.” A workspace you can’t open yet still lists the others, to open one of them.",
 					"A workspace is one organisation’s goals and the people who share them: its own people and teams, its own goal year and check-in day, and its own admins. About says so, under its name.",
 					"Switching is a page move: Back takes you to the workspace you came from. You land on the same page in the other workspace when it has one (Home, Goals, Reviews, People, a Workspace section), otherwise on Home; from a person’s or a team’s page, on People or Teams. While it opens, the page says so.",
@@ -19962,7 +20265,8 @@ var CORE_ARTICLES = [
 			"WORKSPACES",
 			"WORKSPACE-SECTIONS",
 			"WORKSPACE-ABOUT",
-			"WORKSPACE-ONE-PLACE"
+			"WORKSPACE-ONE-PLACE",
+			"RAIL-SWITCH"
 		],
 		keywords: [
 			"admin",
@@ -20318,9 +20622,10 @@ var CORE_ARTICLES = [
 					"How you work starts with the check-in rhythm: “Every week, due by Thursday” (a goal with no check-in for 14 days reads No recent update) or “No set rhythm” (owners check in when there’s news; nothing is due or late for want of a check-in). Change opens a sheet with the two choices and, with Every week, the day check-ins are due by.",
 					"Before you save, the sheet says what changes for everyone here, counted: how many goals have nothing due, how many stop reading No recent update and what each would show instead, and that dates people chose and every check-in already posted stay as they are. Switched back on, nothing is late that day: the rhythm counts from today, and the sheet says when the first check-ins are due. Save says what it did, with Undo.",
 					"Then Reviews: walking a set of goals together on a cadence. While it is on, it says how many reviews are set up. Tools holds the rest, such as the Metric library and Spreadsheets. Each has a switch with On or Off beside it.",
-					"Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching a tool off, or anything on, acts at once.",
+					"Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, how many accepted risks stay on their goals (no new one can be accepted while it is off), that check-ins are still due by the same day, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching a tool off, or anything on, acts at once.",
 					"Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.",
-					"With Reviews off, asks and next steps stay on their goals and on Home, each goal’s History and Activity keep what was said in reviews, and check-ins are still due by the same day.",
+					"With Reviews off, asks and next steps stay on their goals and on Home, each goal’s History and Activity keep what was said in reviews, and check-ins are still due by the same day. “Before the review” becomes “by Thursday” (or whichever day it is) on Home, in the check-in and in the count of goals checked in on time.",
+					"With Reviews off, a spreadsheet you export has no Notes sheet and no Review column on Asks. A workbook that has them still loads; the preview says once that they were not read. An AI assistant’s review tools answer that Reviews is switched off here, in the same words as any switched-off tool.",
 					"Nothing a feature saved is deleted. Switch it back on and everything is as it was: every review, its people, its cadence and what was said. A session whose date passed while Reviews was off isn’t said to be not held.",
 					"Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.",
 					"Spreadsheets is one of the tools: Export and Import on Data, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says."
@@ -20340,6 +20645,7 @@ var CORE_ARTICLES = [
 		reqs: [
 			"MODULES",
 			"REVIEWS-OPTIONAL",
+			"REVIEWS-SWITCH-CLOCK",
 			"RHYTHM-OPTIONAL"
 		],
 		keywords: [
@@ -20354,7 +20660,9 @@ var CORE_ARTICLES = [
 			"how you work",
 			"tools",
 			"optional",
-			"workspace settings"
+			"workspace settings",
+			"due day",
+			"accepted risk"
 		],
 		related: [
 			"workspace",
@@ -20841,6 +21149,58 @@ var WHATS_NEW = [
 		articles: ["features", "check-in"]
 	},
 	{
+		id: "readings-fill-in-check-ins",
+		date: "2026-11-13",
+		title: "Check-ins start with the number, where a source can be read",
+		points: [
+			"A goal measured by a metric whose source Faro can read opens its check-in with the latest reading filled in, and says where it came from and when: “From CI analytics, read 9:02 today.”",
+			"The button names the number (“Confirm 12 min”). Nothing is posted until you finish the check-in.",
+			"Type a different number and you’re asked why it differs. Your number counts; the reading and your reason are kept beside it, and nobody is flagged.",
+			"A reading more than a week old isn’t filled in, and a company-wide number never fills in a team’s goal."
+		],
+		articles: ["check-in", "metric-slices"]
+	},
+	{
+		id: "switch-from-the-narrow-menu",
+		date: "2026-11-13",
+		title: "Switch workspace from the narrow menu",
+		points: ["With the narrow menu of icons, the Faro mark at its top opens the workspace switcher.", "Nothing is added to the menu, so the rest of it keeps its room on a small screen."],
+		articles: ["workspace"]
+	},
+	{
+		id: "look-around-the-demo",
+		date: "2026-11-13",
+		title: "Look around the demo from any workspace",
+		points: ["The workspace switcher has Look around the demo: the example workspace, which you can change freely without touching yours.", "On a phone, Home’s review cell uses a shorter label, so the review’s name fits."],
+		articles: ["workspace"]
+	},
+	{
+		id: "reviews-switch-clock",
+		date: "2026-11-13",
+		title: "Check-ins say plainly which day they’re due",
+		points: [
+			"The day check-ins are due is said one way everywhere: “by Thursday”, or “before Thursday’s review” only when you are in a review held that day. With Reviews off, the week’s receipt says “All 7 of your check-ins are in by Thursday.”",
+			"Switching Reviews off now also says how many accepted risks stay on their goals, and that check-ins are still due by the same day.",
+			"With Reviews off, an exported spreadsheet has no Notes sheet and no Review column on Asks, and an import that has them says once that they were not read."
+		],
+		articles: ["check-in", "features"]
+	},
+	{
+		id: "goals-for-others-asked-in-files",
+		date: "2026-11-13",
+		title: "Proposed goals in What feeds it, the year’s start and files",
+		points: [
+			"A goal’s What feeds it lists the goals proposed to feed it under “Proposed”, counted in nothing.",
+			"When the next year starts, proposed goals carry as proposed, counted apart on the start page.",
+			"A spreadsheet or an AI assistant that adds goals for other people, with no State, asks once whether they start active or proposed. An admin’s file and set-up aren’t asked."
+		],
+		articles: [
+			"goal-proposed",
+			"goal-page",
+			"data"
+		]
+	},
+	{
 		id: "habit-before-this-review",
 		date: "2026-11-13",
 		title: "A review says how many goals were ready for it",
@@ -20858,7 +21218,7 @@ var WHATS_NEW = [
 		title: "Your run forgives one missed week, and reaching a target is said, quietly",
 		points: [
 			"When your week’s check-ins are all in, the last screen says whether they were in before the deadline (or the review, if you are in one that day), and how many weeks in a row you have been on time.",
-			"One late week no longer ends your run: if the four weeks before it were on time, it is forgiven, and the next check-in says so once.",
+			"One late or missed week no longer ends your run: if the four weeks before it were on time, it is forgiven, and the next check-in says so once. A goal called Done leaves your run, and a goal you take over counts only from when it became yours.",
 			"A check-in that takes a goal to its target says so in one quiet panel, with a way to copy the goal’s share image. One that brings a goal back on track after two weeks or more behind says that too.",
 			"The goal’s History marks those weeks “Reached its target” or “Back on track”."
 		],
@@ -22122,9 +22482,13 @@ function startPage(s, cycle, today) {
 		}
 	];
 	const startsWith = [
-		...rb.carried ? [{
-			bold: n(rb.carried, "goal", "goals"),
+		...rb.carried - rb.proposed ? [{
+			bold: n(rb.carried - rb.proposed, "goal", "goals"),
 			rest: `, each with its key, owner, team, level and metric. A number goal starts from its final number, from week 1; its target is unchanged and due at the end of ${shape.name}.`
+		}] : [],
+		...rb.proposed ? [{
+			bold: `${n(rb.proposed, "proposed goal carries", "proposed goals carry")} as proposed`,
+			rest: `, with nothing due until ${rb.proposed === 1 ? "its owner makes it" : "their owners make them"} active.`
 		}] : [],
 		...rb.stageGoals ? [{
 			bold: n(rb.stageGoals, "goal with stages", "goals with stages"),
@@ -22548,7 +22912,8 @@ var sheetOf = (ctx, t) => workbook({
 	snapshot: ctx.snapshot,
 	cycle: ctx.cycle,
 	week: ctx.week,
-	today: ctx.today
+	today: ctx.today,
+	reviews: reviewsOn(modulesOn(ctx.ws).on)
 }).find((x) => x.name === TABLES[t].sheet);
 var headOf = (ctx, t) => (sheetOf(ctx, t).rows[0] ?? []).map((c) => String(c ?? ""));
 /** A table layout from a tool's arguments: a saved table view by name, or a table with columns, widths and a query. */
@@ -22572,7 +22937,7 @@ function layoutFrom(ctx, a) {
 	return layout;
 }
 /** What a switched-off module's tool answers (callTool's sentence), for a core tool that is partly Reviews' (FT2). */
-var offSentence = (ctx, tool) => `Reviews is switched off in ${ctx.ws.name}, so ${tool} can't be used there. An admin can switch it on in Workspace, under Features.`;
+var offSentence = (ctx, tool) => moduleOffSentence("Reviews", ctx.ws.name, tool);
 /** A sentence as part of a longer line: without its closing full stop, so the line never ends in two. */
 var clause = (t) => t.trim().replace(/\.+$/, "");
 /** The newest n changes that pass `keep`. A whole snapshot (the server loads whole today) already holds every entry, so
@@ -22703,13 +23068,14 @@ var WORK_TOOLS = [
 			});
 			const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today, { reviews: reviewsHere });
 			const wp = weekProgress(me, s, ctx.cycle, ctx.week, ctx.today);
-			const rf = weekCompletion(wp).complete ? receiptFacts(wp, me, s, ctx.cycle, ctx.week, reviewOnDueDay(s.reviews, me, ctx.cycle, reviewsHere)) : null;
+			const rf = weekCompletion(wp).complete ? receiptFacts(wp, me, s, ctx.cycle, ctx.week, dueWordsHere(reviewsHere, s, ctx.cycle, ctx.week, me)) : null;
 			const weekReceipt = rf ? {
 				...receiptText({
 					...rf,
 					nextDue: rf.nextDue ? longDay(rf.nextDue) : null
 				}),
-				forgivenWeek: rf.forgiven
+				forgivenWeek: rf.forgiven,
+				forgivenWeekWas: rf.forgiven == null ? null : rf.forgivenMissed ? "missed" : "late"
 			} : null;
 			const glance = {
 				goals: {
@@ -22767,7 +23133,7 @@ var WORK_TOOLS = [
 				},
 				text: [
 					`Week ${ctx.week} for ${ctx.actor.name}.`,
-					`${d.scope === "mine" ? "Your goals" : "All goals"}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(", ") || "none"}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? "week" : "weeks"}.` : ""}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ""}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ""}`,
+					`${d.scope === "mine" ? "Your goals" : "All goals"}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(", ") || "none"}.${d.streak ? ` On-time streak: ${d.streak} ${d.streak === 1 ? "week" : "weeks"}.` : ""}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ""}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ""}`,
 					...weekReceipt ? [[weekReceipt.first, weekReceipt.second].filter(Boolean).join(" ")] : [],
 					rhythm ? `Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.` : `No set check-in rhythm: nothing is due. No check-in this week: ${noCheckInThisWeek.length ? noCheckInThisWeek.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.`,
 					`Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask}${when(r)} (${r.id})`).join("; ") : "none"}.`,
@@ -25118,6 +25484,220 @@ function proposedOfMetric(s, metricId) {
 }
 /** Rule 1's line for a metric, its owner being someone here who hasn't left. */
 var lineOf = (s, m) => stillToSay(m, !!ownerName(s.people, m));
+// src/mcp/checkInReaders.ts
+var READERS = [];
+/** Registers a module's reader, once. */
+function addCheckInReader(r) {
+	if (!READERS.some((x) => x.module === r.module)) READERS.push(r);
+}
+/** The readers registered by the modules in this build. */
+var checkInReaders = () => READERS;
+// src/modules/metrics/rulesReading.ts
+init_reading();
+init_thresholds();
+/** Ask the source that reads `metric` for the link's slice, once (the step opens). A source that reads the metric but not
+this slice is `no-slice`, and is never asked for another slice's number: a company-wide number is never a team's. */
+async function askSource(sources, metric, slice, now) {
+	const forSlice = sources.find((s) => s.reads(metric, slice));
+	if (!forSlice) {
+		const any = sources.find((s) => s.reads(metric));
+		return any ? {
+			source: any.name,
+			reading: "no-slice"
+		} : {
+			source: null,
+			reading: null
+		};
+	}
+	try {
+		return {
+			source: forSlice.name,
+			reading: await forSlice.read(metric, now, slice)
+		};
+	} catch {
+		return {
+			source: forSlice.name,
+			reading: "unreachable"
+		};
+	}
+}
+/** Whether `a` and `b` are one number at the metric's decimals (12 and 12.0 are; 12 and 14 aren't): the core's, so the
+engine's rule 3 and this rule compare one way. */
+var sameAt = sameAtPlaces;
+/** Whether a reading is ten times or a tenth of the last number, by size (MT4's Check, kept by NR). */
+function isJump(value, lastValue) {
+	if (lastValue == null) return false;
+	if (lastValue === 0) return Math.abs(value) >= 10;
+	const r = Math.abs(value) / Math.abs(lastValue);
+	return r >= 10 || r <= .1;
+}
+/**
+* Rule 1: the first state that applies. `reading` is what asking gave (`Asked.reading`); `lastReading` what the goal's
+* latest check-in recorded (or null); `lastValue` that check-in's number; `typed` the owner's number in the field, if
+* they typed one; `decimals` the metric's. `old` comes before `same`, so a reading recorded last week and now ten days old
+* reads as too old, not as "no new reading".
+*/
+function readingState(reading, lastReading, lastValue, now, typed, decimals) {
+	if (reading === "no-slice") return "no-slice";
+	if (reading === "unreachable") return "unreachable";
+	if (reading == null) return "missing";
+	if (now.getTime() - Date.parse(reading.at) > RULES.readingMaxDays * 864e5) return "old";
+	if (lastReading && Date.parse(reading.at) <= Date.parse(lastReading.at)) return "same";
+	if (isJump(reading.value, lastValue)) return "jump";
+	if (typed != null && !sameAt(typed, reading.value, decimals)) return "changed";
+	return "fresh";
+}
+/** What a check-in records (rule 2): the source, its value and when it measured it, and the reason only when the owner's
+number differs. Null when nothing was read. */
+function recordReading(source, reading, value, decimals, why) {
+	if (!source || !reading) return null;
+	const differs = value != null && !sameAt(value, reading.value, decimals);
+	return {
+		source,
+		value: reading.value,
+		at: reading.at,
+		...differs && why ? { why } : {}
+	};
+}
+// src/modules/metrics/source.ts
+/** The slice of a link: its team, or the whole company, and its part ('' for all of it). */
+var sliceOf$1 = (l) => ({
+	teamId: l.teamId,
+	part: l.part ?? ""
+});
+// src/modules/metrics/numbers.ts
+init_progress();
+var DEMO_SOURCE = "CI analytics";
+var DEMO_RUNNER_SOURCE = "CI runner metrics";
+var DEMO_SERIES = [
+	{
+		source: DEMO_SOURCE,
+		metric: "metric_ci-time",
+		slice: {
+			teamId: null,
+			part: ""
+		},
+		from: "ns-ci"
+	},
+	{
+		source: DEMO_RUNNER_SOURCE,
+		metric: "metric_queue-wait",
+		slice: {
+			teamId: "cicd",
+			part: "main branch pipelines"
+		},
+		from: "lead-ci-time"
+	},
+	{
+		source: DEMO_RUNNER_SOURCE,
+		metric: "metric_queue-wait",
+		slice: {
+			teamId: "build",
+			part: "release pipelines"
+		},
+		from: "lead-ci-time",
+		add: 3,
+		short: 1
+	}
+];
+var key = (p) => p.trim().toLowerCase();
+var sameSlice = (a, b) => a.teamId === b.teamId && key(a.part) === key(b.part);
+/** A series' readings, oldest first: the goal's latest check-in of each week, then one more week, continued by the mean
+step of its last four numbers (rounded to whole numbers), each measured at 09:00 UTC on its week's review day. */
+function seededSeries(d, seed, cycle, behindWeeks = 0) {
+	const byWeek = /* @__PURE__ */ new Map();
+	for (const c of seed.checkIns.filter((x) => x.goalId === d.from && x.value != null && !x.removedAt).sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt))) byWeek.set(c.week, c.value);
+	const weeks = [...byWeek.keys()].sort((a, b) => a - b);
+	if (!weeks.length) return [];
+	const last = weeks.at(-1);
+	const tail = weeks.slice(-4).map((w) => byWeek.get(w));
+	const step = tail.length > 1 ? (tail.at(-1) - tail[0]) / (tail.length - 1) : 0;
+	if (last < cycle.weeks) byWeek.set(last + 1, Math.round(byWeek.get(last) + step));
+	const all = [...byWeek.keys()].sort((a, b) => a - b);
+	return all.slice(0, Math.max(0, all.length - (d.short ?? 0) - behindWeeks)).map((w) => ({
+		value: byWeek.get(w) + (d.add ?? 0),
+		at: `${reviewDate(cycle, w)}T09:00:00.000Z`
+	}));
+}
+/** The demo's two sources, their series made once from the seeded example (`seed`). */
+function demoSources(seed, cycle, opts = {}) {
+	const series = DEMO_SERIES.map((d) => ({
+		d,
+		readings: seededSeries(d, seed, cycle, opts.behindWeeks ?? 0)
+	}));
+	return [DEMO_SOURCE, DEMO_RUNNER_SOURCE].map((name) => {
+		const mine = (m, slice) => m.source === name && !m.removedAt ? series.filter((x) => x.d.source === name && x.d.metric === m.id && (!slice || sameSlice(x.d.slice, slice))) : [];
+		return {
+			name,
+			reads: (m, slice) => mine(m, slice).length > 0,
+			async read(m, at, slice) {
+				const s = mine(m, slice)[0];
+				if (!s) return null;
+				return s.readings.filter((r) => Date.parse(r.at) <= at.getTime()).at(-1) ?? null;
+			}
+		};
+	});
+}
+// src/modules/metrics/sources.ts
+var made = /* @__PURE__ */ new WeakMap();
+/** The sources for a workspace: the demo's, made from its seeded snapshot (`seed`, null when the workspace isn't the
+example: then none). Made once per seed, cycle and lateness. */
+function sourcesFrom(seed, cycle, behindWeeks = 0) {
+	if (!seed) return [];
+	const byKey = made.get(seed) ?? /* @__PURE__ */ new Map();
+	made.set(seed, byKey);
+	const key = `${cycle.id}:${behindWeeks}`;
+	let out = byKey.get(key);
+	if (!out) {
+		out = demoSources(seed, cycle, { behindWeeks });
+		byKey.set(key, out);
+	}
+	return out;
+}
+// src/modules/metrics/readingTool.ts
+init_status();
+init_rules();
+/** The sources an assistant's check-in reads: the demo's in the example, none elsewhere. */
+function toolSources(ctx) {
+	if (ctx.ws.kind !== "example") return [];
+	const s = ctx.full ?? ctx.snapshot;
+	return sourcesFrom({
+		...s,
+		checkIns: s.checkIns.filter((c) => c.week < ctx.week && !c.removedAt)
+	}, ctx.cycle);
+}
+async function readForTool(ctx, goal, ask) {
+	const m = goal.kind === "milestone" ? null : measureOf(ctx.snapshot, goal);
+	if (!m) return {
+		reading: null,
+		says: `“${goal.title}” isn’t measured by a metric with a number source, so no reading was recorded.`
+	};
+	const asked = await askSource(toolSources(ctx), m.metric, sliceOf$1(m.link), ctx.today);
+	if (!asked.source) return {
+		reading: null,
+		says: `No source can read ${m.metric.name}, so no reading was recorded.`
+	};
+	const last = checkInsFor(goal, ctx.snapshot.checkIns).at(-1) ?? null;
+	const value = ask.value ?? (ask.confirmed && asked.reading && typeof asked.reading === "object" ? asked.reading.value : null);
+	const state = readingState(asked.reading, last?.reading ?? null, last?.value ?? null, ctx.today, value, m.metric.decimals);
+	const r = asked.reading && typeof asked.reading === "object" ? asked.reading : null;
+	const says = {
+		"no-slice": `${asked.source} doesn’t read ${m.metric.name} for this goal’s team or part, so no reading was recorded.`,
+		unreachable: `${asked.source} couldn’t be reached just now, so no reading was recorded.`,
+		missing: `${asked.source} has no number for this yet, so no reading was recorded.`,
+		old: `${asked.source}’s latest reading is more than a week old, so it wasn’t recorded.`,
+		same: `${asked.source} has no new reading since the last check-in, so none was recorded.`
+	};
+	if (!r || says[state]) return {
+		reading: null,
+		says: says[state]
+	};
+	return { reading: recordReading(asked.source, r, value, m.metric.decimals, ask.why) ?? null };
+}
+var metricReader = {
+	module: "metrics",
+	read: readForTool
+};
 // src/modules/metrics/tools.ts
 init_actions();
 init_goalKey();
@@ -25129,6 +25709,7 @@ init_rulesParts();
 init_status();
 init_vocabulary();
 init_via();
+addCheckInReader(metricReader);
 var str$3 = (description, extra = {}) => ({
 	type: "string",
 	description,
@@ -25355,7 +25936,7 @@ var tools$2 = [
 	{
 		name: "get_metric",
 		title: "Read a metric",
-		description: "One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).",
+		description: "One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the parts its goals use (`parts`, most used first); the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -25387,6 +25968,7 @@ var tools$2 = [
 					goal: g.title,
 					owner: ctx.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? null
 				}));
+				const parts = partsOf(linksOf(ctx.snapshot).filter((l) => l.metricId === m.id));
 				const needs = canEditMetric(ctx.actor, m) ? metricNeeds(m, libraryReads(ctx.snapshot, ctx.now)).map((x) => ({
 					id: x.id,
 					sentence: x.sentence
@@ -25408,6 +25990,7 @@ var tools$2 = [
 					`Caveats: ${d.caveats || "—"}`,
 					goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}`).join("\n")}` : "Measures no goal yet.",
 					...summary ? [summary] : [],
+					...parts.length ? [`Parts in use: ${parts.join(", ")}`] : [],
 					...proposed.length ? [`Proposed (${proposed.length}), not judged: ${proposed.map((x) => `${x.key ?? x.goalId} ${x.goal}${x.owner ? ` (${x.owner})` : ""}`).join("; ")}`] : [],
 					...needs.length ? [`To sort out: ${needs.map((x) => x.sentence).join("; ")}`] : []
 				];
@@ -25424,6 +26007,7 @@ var tools$2 = [
 						...d,
 						stillToSay,
 						goals,
+						parts,
 						proposed,
 						summary,
 						needs,
@@ -25656,8 +26240,8 @@ var tools$2 = [
 				goal: str$3("The goal’s ID or key (G-12)."),
 				metric: str$3("The metric’s ID or name. Required unless unlinking."),
 				team: str$3("The slice: a team by ID or name. Leave out for the whole company."),
-				part: str$3("Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them."),
-				reason: str$3("Why the goal is measured differently now. Required when a goal with check-ins changes its metric, team or part; it shows in the goal’s History."),
+				part: str$3("Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them under parts."),
+				reason: str$3("Why the goal is measured differently now. Required when a goal with check-ins is measured differently from its last link (another metric, team or part, even after unlinking); it shows in the goal’s History."),
 				answers: {
 					type: "object",
 					additionalProperties: false,
@@ -25755,6 +26339,7 @@ function meets(goal, v) {
 */
 function moment(earlier, after, goal, fresh = true) {
 	if (!fresh || after.backfilled || after.removedAt) return null;
+	if (earlier.some((c) => c.id !== after.id && c.goalId === after.goalId && c.week === after.week && !c.removedAt)) return null;
 	const byWeek = /* @__PURE__ */ new Map();
 	for (const c of [...earlier].sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt))) if (c.week < after.week && !c.removedAt) byWeek.set(c.week, c);
 	const prior = [...byWeek.values()].sort((a, b) => b.week - a.week);
@@ -25764,11 +26349,12 @@ function moment(earlier, after, goal, fresh = true) {
 		behind: 0
 	};
 	if (after.status !== "on" || !before || before.status !== "risk" && before.status !== "off") return null;
-	let behind = 0;
+	let from = after.week;
 	for (const c of prior) {
 		if (c.status !== "risk" && c.status !== "off") break;
-		behind++;
+		from = c.week;
 	}
+	const behind = after.week - from;
 	return behind >= 2 ? {
 		kind: "back",
 		behind
@@ -26184,7 +26770,9 @@ var READ = {
 	openWorldHint: false
 };
 /** Each sheet of the workbook as a CSV format the export tool offers: goals_csv, plan_csv, check_ins_csv… */
-var csvFormats = (sheets) => sheetNamesWith(sheets).filter((n) => n !== START_HERE).map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, "_")}_csv`, n]);
+var csvFormats = (sheets, reviews = true) => sheetNamesWith(sheets, reviews).filter((n) => n !== START_HERE).map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, "_")}_csv`, n]);
+/** Every format this build has, for the tool's schema; a workspace with a module (or Reviews) switched off has fewer (F2, RS1). */
+var CSV_FORMATS = csvFormats(MODULE_SHEETS);
 var tools = [{
 	name: "export",
 	title: "Export the goals",
@@ -26196,7 +26784,7 @@ var tools = [{
 		properties: { format: str$1("Which export.", { enum: [
 			"json",
 			"brief",
-			...csvFormats(MODULE_SHEETS).map(([f]) => f)
+			...CSV_FORMATS.map(([f]) => f)
 		] }) }
 	},
 	annotations: {
@@ -26204,16 +26792,16 @@ var tools = [{
 		openWorldHint: false
 	},
 	async run(a, ctx) {
-		const sheets = sheetsOn(ctx.ws);
+		const on = exportOn(ctx.ws);
 		const x = {
 			ws: ctx.ws,
 			snapshot: ctx.snapshot,
 			cycle: ctx.cycle,
 			week: ctx.week,
 			today: ctx.today,
-			sheets
+			...on
 		};
-		const formats = csvFormats(sheets);
+		const formats = csvFormats(on.sheets, on.reviews);
 		if (a.format === "json") {
 			const j = toJson$1(x);
 			return {
@@ -26224,10 +26812,10 @@ var tools = [{
 		if (a.format === "brief") return { text: aiBrief(x) };
 		const sheet = formats.find(([f]) => f === a.format)?.[1];
 		if (sheet) return { text: toCsv(sheetNamed(workbook(x), sheet).rows) };
-		const off = MODULE_SHEETS.find((m) => !sheets.includes(m) && csvFormats([m]).at(-1)?.[0] === a.format);
+		const off = CSV_FORMATS.find(([f]) => f === a.format && !formats.some(([g]) => g === f))?.[1];
 		if (off) return {
 			isError: true,
-			text: `The ${off.spec.name} sheet’s module is switched off in ${ctx.ws.name}, so it isn’t exported there. An admin can switch it on in Workspace, under Features.`
+			text: `The ${off} sheet’s module is switched off in ${ctx.ws.name}, so it isn’t exported there. An admin can switch it on in Workspace, under Features.`
 		};
 		return {
 			isError: true,
@@ -26483,7 +27071,8 @@ async function change(ctx, tables, opts) {
 		reason: opts.reason,
 		confirm: opts.confirm,
 		answers: answersOf(opts.answers),
-		records: recordsOn(ctx.ws)
+		records: recordsOn(ctx.ws),
+		...opts.readings?.length ? { readings: opts.readings } : {}
 	});
 	const errors = cs.issues.filter((x) => x.level === "must");
 	const checks = cs.groups.filter((g) => g.level === "check" && !(GOAL_QUESTION.includes(g.kind) && g.sheet !== "Check-ins"));
@@ -27011,6 +27600,22 @@ var CORE_TOOLS = [
 				needs: str("A decision or help needed, and from whom."),
 				next_step: str("The next step."),
 				reason: str(`If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”.`),
+				reading_confirmed: bool("True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded."),
+				different_because: {
+					type: "object",
+					additionalProperties: false,
+					required: ["kind"],
+					description: `When the owner’s value differs from what the source reads now, why: the reading and the reason are recorded beside their number (never a flag). kind: behind (the source is behind: they have a newer number), other-count (it counts something else), wrong (it is wrong this week) or else (something else, with text of at least 10 characters).`,
+					properties: {
+						kind: str("Why it differs.", { enum: [
+							"behind",
+							"other-count",
+							"wrong",
+							"else"
+						] }),
+						text: str("In the owner’s words; needed for else.")
+					}
+				},
 				answers: ANSWERS_ARG,
 				dry_run: DRY
 			}
@@ -27023,6 +27628,37 @@ var CORE_TOOLS = [
 		},
 		async run(a, ctx) {
 			const g = goalRef(ctx, a.goal_id);
+			const diff = a.different_because;
+			const asksReading = a.reading_confirmed === true || !!diff;
+			let readings;
+			let readSays = "";
+			if (asksReading) {
+				const reader = checkInReaders()[0];
+				if (reader && !isModuleOn(ctx.ws, reader.module)) return {
+					isError: true,
+					text: moduleOffSentence(moduleById(reader.module)?.name ?? reader.module, ctx.ws.name, "post_check_in with reading_confirmed or different_because")
+				};
+				const got = reader ? await reader.read(ctx, g, {
+					value: typeof a.value === "number" ? a.value : null,
+					confirmed: a.reading_confirmed === true,
+					...diff ? { why: diff } : {}
+				}) : {
+					reading: null,
+					says: "No number source can be read here, so no reading was recorded."
+				};
+				if (got.reading) {
+					readings = [{
+						goalId: g.id,
+						week: a.week ?? ctx.week,
+						reading: got.reading
+					}];
+					if (a.value == null && a.reading_confirmed === true) a = {
+						...a,
+						value: got.reading.value
+					};
+				}
+				readSays = got.says ?? "";
+			}
 			const r = row({
 				...a,
 				goal_id: g.id,
@@ -27058,12 +27694,17 @@ var CORE_TOOLS = [
 					text: `${t.heading}. ${t.line}`
 				};
 			};
-			return change(ctx, { checkIns: [r] }, {
+			const out = await change(ctx, { checkIns: [r] }, {
 				dry: !!a.dry_run,
 				reason: a.reason,
 				answers: a.answers,
+				readings,
 				saved
 			});
+			return readSays && !out.isError ? {
+				...out,
+				text: `${out.text}\n${readSays}`
+			} : out;
 		}
 	},
 	{
@@ -27229,7 +27870,7 @@ var CORE_TOOLS = [
 	{
 		name: "create_goal",
 		title: "Add a goal",
-		description: "Add a goal to the current cycle. Type \"metric\" moves a number from start to target; \"range\" keeps a number inside a limit; \"milestone\" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with \"confirm\": true (a name another goal in its team has is asked through \"answers\").",
+		description: "Add a goal to the current cycle. Type \"metric\" moves a number from start to target; \"range\" keeps a number inside a limit; \"milestone\" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. A goal for someone else with no state is asked about once (start it active, or proposed): ask the person, or give state. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with \"confirm\": true (a name another goal in its team has is asked through \"answers\").",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -27431,7 +28072,7 @@ async function callTool(name, args, ctx) {
 	const from = TOOL_MODULE.get(name);
 	if (from && !isModuleOn(ctx.ws, from)) return {
 		isError: true,
-		text: `${moduleById(from)?.name ?? from} is switched off in ${ctx.ws.name}, so ${name} can't be used there. An admin can switch it on in Workspace, under Features.`
+		text: moduleOffSentence(moduleById(from)?.name ?? from, ctx.ws.name, name)
 	};
 	try {
 		return await t.run(args ?? {}, ctx);
@@ -49881,6 +50522,7 @@ var checkInToRow = (ws, c) => ({
 	next: c.next,
 	data_flagged: c.dataFlagged,
 	backfilled: !!c.backfilled,
+	...c.reading ? { reading: c.reading } : {},
 	...set({
 		removed_at: c.removedAt,
 		removed_by: c.removedBy
@@ -49909,6 +50551,7 @@ var checkInFromRow = (r) => ({
 	next: r.next,
 	dataFlagged: r.data_flagged,
 	...r.backfilled ? { backfilled: true } : {},
+	...r.reading ? { reading: r.reading } : {},
 	...when("removedAt", r.removed_at),
 	...who("removedBy", r.removed_by)
 });

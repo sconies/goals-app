@@ -3,6 +3,7 @@
    goals, admins any; reasons when behind; a reason for plan changes) and is logged as that person, via MCP. */
 import { rhythmOf } from '../domain/thresholds';
 import { WEEKDAY } from '../domain/progress';
+import { moduleOffSentence } from './moduleOff';
 import type { HistoryAsk, HistoryPage } from '../ports/store';
 import { LEVEL_WORDS, levelIds } from '../domain/levels';
 import { addNote, NotAllowed } from '../domain/actions';
@@ -12,7 +13,7 @@ import { scopesFor, SCOPES, type Scope } from '../domain/goalsPage';
 import { localSearch } from '../adapters/localSearch';
 import type { FoundRow, Search, SearchAsk } from '../ports/search';
 import type { Commit } from '../data/store';
-import { describe, examplesLine, GOAL_QUESTION, MIN_CORRECT_REASON, planChanges, VIA_MCP, type Answers, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
+import { describe, examplesLine, GOAL_QUESTION, MIN_CORRECT_REASON, planChanges, VIA_MCP, type Answers, type ChangeInput, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
 import { tooLarge, tooManyChanges } from '../domain/importLimits';
 import { aiBrief, toJson } from '../domain/export';
 import { GOAL_ACTION_WORDS, PERSON_ACTION_WORDS } from '../domain/columns';
@@ -42,7 +43,8 @@ import { activeReadBack } from '../domain/readBack';
 import { readWeekCode } from '../domain/weeks';
 import { isTableView } from '../domain/tableLayout';
 import { moment, momentText } from '../domain/habit';
-import type { Cycle, DisplayStatus, Goal, Level, Person, Snapshot } from '../domain/types';
+import type { Cycle, DisplayStatus, Goal, Level, Person, ReadingWhyKind, Snapshot } from '../domain/types';
+import { checkInReaders } from './checkInReaders';
 
 export interface McpContext {
   /** The workspace; `recording` is its recording switch (on unless false); `modulesOff`, the feature modules an admin
@@ -147,13 +149,13 @@ const answersOf = (a: unknown): Answers => Object.fromEntries(Object.entries((a 
 /** find_goals' page: how many goals it lists unless asked, and the most it lists at once. */
 const FIND_PAGE = 50, FIND_MAX = 200;
 
-async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown; saved?: (cs: ChangeSet, before: McpContext['snapshot']) => { data: Record<string, unknown>; text: string } | null }): Promise<ToolResult> {
+async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown; readings?: ChangeInput['readings']; saved?: (cs: ChangeSet, before: McpContext['snapshot']) => { data: Record<string, unknown>; text: string } | null }): Promise<ToolResult> {
   // The size limits every door keeps (domain/importLimits): rows read in one call, then changes saved at once.
   const big = tooLarge('This call', { rows: (tables.goals?.length ?? 0) + (tables.plan?.length ?? 0) + (tables.checkIns?.length ?? 0) + (tables.people?.length ?? 0) }, 'call');
   if (big) return { isError: true, text: `Not checked. ${big}` };
   // A goal's key: as saved once it is, as the change gives it before (a dry run's key is the one it would get).
   const keyOf = (id: string): string | null => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
-  const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason, confirm: opts.confirm, answers: answersOf(opts.answers), records: recordsOn(ctx.ws) });
+  const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason, confirm: opts.confirm, answers: answersOf(opts.answers), records: recordsOn(ctx.ws), ...(opts.readings?.length ? { readings: opts.readings } : {}) });
   // Every problem has a kind and a level (domain/problemLevels): Must fix, Check (a question), or how a row was read.
   const errors = cs.issues.filter((x) => x.level === 'must');
   // Goal entry's questions (rule 3) are listed goal by goal and answered by "confirm"; the import's other questions by
@@ -411,12 +413,29 @@ const CORE_TOOLS: ToolDef[] = [
       needs: str('A decision or help needed, and from whom.'),
       next_step: str('The next step.'),
       reason: str(`If the week already has a check-in, this corrects it: why, in a sentence (${MIN_CORRECT_REASON} to 500 characters), kept as “Why corrected”.`),
+      reading_confirmed: bool('True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded.'),
+      different_because: { type: 'object', additionalProperties: false, required: ['kind'], description: `When the owner’s value differs from what the source reads now, why: the reading and the reason are recorded beside their number (never a flag). kind: behind (the source is behind: they have a newer number), other-count (it counts something else), wrong (it is wrong this week) or else (something else, with text of at least ${MIN_CORRECT_REASON} characters).`, properties: { kind: str('Why it differs.', { enum: ['behind', 'other-count', 'wrong', 'else'] }), text: str('In the owner’s words; needed for else.') } },
       answers: ANSWERS_ARG,
       dry_run: DRY,
     } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
+      // NR rule 3: the goal's source is read only when the call says the owner confirmed it or why theirs differs.
+      const diff = a.different_because as { kind: ReadingWhyKind; text?: string } | undefined;
+      const asksReading = a.reading_confirmed === true || !!diff;
+      let readings: ChangeInput['readings'];
+      let readSays = '';
+      if (asksReading) {
+        const reader = checkInReaders()[0];
+        if (reader && !isModuleOn(ctx.ws, reader.module)) return { isError: true, text: moduleOffSentence(moduleById(reader.module)?.name ?? reader.module, ctx.ws.name, 'post_check_in with reading_confirmed or different_because') };
+        const got = reader ? await reader.read(ctx, g, { value: typeof a.value === 'number' ? a.value : null, confirmed: a.reading_confirmed === true, ...(diff ? { why: diff } : {}) }) : { reading: null, says: 'No number source can be read here, so no reading was recorded.' };
+        if (got.reading) {
+          readings = [{ goalId: g.id, week: (a.week as number | undefined) ?? ctx.week, reading: got.reading }];
+          if (a.value == null && a.reading_confirmed === true) a = { ...a, value: got.reading.value };
+        }
+        readSays = got.says ?? '';
+      }
       const r = row({ ...a, goal_id: g.id, week: a.week ?? ctx.week, call: a.call == null || a.call === '' ? undefined : statusIn(a.call, CALLS) }, { goal_id: 'goal id', week: 'week', value: 'value', stages: 'stages', call: 'call', cause: 'cause', why: 'why', why_greener: 'why greener', path_to_green: 'path to green', recovery: 'recovery', back_on_plan_by_week: 'back on plan by week', needs: 'needs', next_step: 'next step' });
       // A target reached, or back on track (habit rule 3), said as the receipt says it. Never on a correction.
       const saved = (cs: ChangeSet, before: McpContext['snapshot']) => {
@@ -427,7 +446,8 @@ const CORE_TOOLS: ToolDef[] = [
         const t = momentText(m, g, c, ctx.cycle.weeks);
         return { data: { moment: { kind: m.kind, heading: t.heading, line: t.line } }, text: `${t.heading}. ${t.line}` };
       };
-      return change(ctx, { checkIns: [r] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, answers: a.answers, saved });
+      const out = await change(ctx, { checkIns: [r] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, answers: a.answers, readings, saved });
+      return readSays && !out.isError ? { ...out, text: `${out.text}\n${readSays}` } : out;
     },
   },
   {
@@ -477,7 +497,7 @@ const CORE_TOOLS: ToolDef[] = [
   {
     name: 'create_goal',
     title: 'Add a goal',
-    description: 'Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with "confirm": true (a name another goal in its team has is asked through "answers").',
+    description: 'Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. A goal for someone else with no state is asked about once (start it active, or proposed): ask the person, or give state. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with "confirm": true (a name another goal in its team has is asked through "answers").',
     inputSchema: { type: 'object', additionalProperties: false, required: ['title', 'type'], properties: { type: str('What kind of goal.', { enum: ['metric', 'range', 'milestone'] }), ...GOAL_FIELDS, confirm: CONFIRM, answers: ANSWERS_ARG, dry_run: DRY } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     async run(a, ctx) {
@@ -553,7 +573,7 @@ export async function callTool(name: string, args: Record<string, unknown>, ctx:
   const t = TOOLS.find((x) => x.name === name);
   if (!t) return { isError: true, text: `There's no tool called ${name}.` };
   const from = TOOL_MODULE.get(name);
-  if (from && !isModuleOn(ctx.ws, from)) return { isError: true, text: `${moduleById(from)?.name ?? from} is switched off in ${ctx.ws.name}, so ${name} can't be used there. An admin can switch it on in Workspace, under Features.` };
+  if (from && !isModuleOn(ctx.ws, from)) return { isError: true, text: moduleOffSentence(moduleById(from)?.name ?? from, ctx.ws.name, name) };
   try {
     return await t.run(args ?? {}, ctx);
   } catch (e) {

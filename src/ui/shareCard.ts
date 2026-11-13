@@ -82,7 +82,6 @@ function chartSvg(ch: NonNullable<ShareCard['chart']>, x: number, y: number, w: 
 export function shareCardSvg(c: ShareCard): string {
   const font = `font-family="Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif"`;
   const title = wrap(c.title, c.chart ? 30 : 46, 2);
-  const why = wrap(c.why, c.chart ? 52 : 80, 3);
   const left = 72;
   let y = 96;
   let body = `<rect width="${CARD_W}" height="${CARD_H}" fill="#FFFFFF"/>`;
@@ -98,7 +97,9 @@ export function shareCardSvg(c: ShareCard): string {
   y += 46;
   body += `<text x="${left}" y="${y}" ${font} font-size="28" fill="#344054">${esc(c.against)}</text>`;
   y += 54;
-  for (const t of why) { body += `<text x="${left}" y="${y}" ${font} font-size="26" fill="#475467">${esc(t)}</text>`; y += 36; }
+  // As many lines of the why as fit above the footer's rule (a long title once pushed it through the rule: #410 review).
+  const room = Math.max(1, Math.min(3, Math.floor((CARD_H - 70 - 20 - y) / 36) + 1));
+  for (const t of wrap(c.why, c.chart ? 52 : 80, room)) { body += `<text x="${left}" y="${y}" ${font} font-size="26" fill="#475467">${esc(t)}</text>`; y += 36; }
   if (c.chart) body += chartSvg(c.chart, 700, 210, 430, 300);
   body += `<line x1="${left}" x2="${CARD_W - left}" y1="${CARD_H - 70}" y2="${CARD_H - 70}" stroke="#E4E7EC" stroke-width="2"/>`;
   body += `<text x="${left}" y="${CARD_H - 32}" ${font} font-size="22" fill="#475467">${esc(c.when)}</text>`;

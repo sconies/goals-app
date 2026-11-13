@@ -44,13 +44,16 @@ module.exports = {
               const r = document.createRange(); r.setStart(node, 0); r.setEnd(node, node.textContent.indexOf(' · '));
               return r.getBoundingClientRect().right > e.getBoundingClientRect().right + 0.5 ? (e.textContent || '').trim() : null;
             }).filter(Boolean),
+            // A lone review cell on a phone uses the short label, so the review's name has the room (Lane, 13 Nov; #369's medium 6).
+            loneLong: (() => { const l = home?.querySelector('.dash > .dash-cell:only-child .dash-label-long'); return l && l.getClientRects().length ? l.textContent : null; })(),
           };
         });
+        if (touch) check(!seen.loneLong, `${at}: Home's lone review cell shows the long label “${seen.loneLong}” on a phone`);
         check(seen.lead !== 'missing', `${at}: Home has neither a lead nor the quiet line`);
         check(seen.primaries <= 1, `${at}: ${seen.primaries} primary buttons`);
         if (seen.lead === 'none') {
           check(seen.primaries === 0, `${at}: nothing is asked, but Home has a primary button`);
-          check(/Nothing is asked of you today\.| in for week \d+\.| in before \w+’s review\.| came after \w+’s review\.| in for week \d+, before \w+’s deadline\.| came in after \w+’s deadline\.|(One ask waits|\d+ asks wait) for your response\./.test(seen.text), `${at}: the quiet line is not one of its sentences`);
+          check(/Nothing is asked of you today\.| in for week \d+\.| in before \w+’s review\.| came after \w+’s review\.| in by \w+\.| came after \w+\.|(One ask waits|\d+ asks wait) for your response\./.test(seen.text), `${at}: the quiet line is not one of its sentences`);
         } else check(seen.primaries === 1 && seen.bottom != null && seen.bottom <= seen.fold, `${at}: the lead’s button (${seen.lead}) is not in the first screen (${Math.round(seen.bottom ?? -1)}px, fold ${Math.round(seen.fold)}px)`);
         check(!/\b0 weeks\b|None you’re in|You’re all set/.test(seen.text), `${at}: Home says something it no longer says`);
         // [HOME-OWNER] On every day, not U2's one (build review of #305): your first goal that needs attention starts on a phone's first screen.

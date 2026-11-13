@@ -9,7 +9,7 @@ What a goal needs, what can’t be saved and who may save it: one rule for New g
 
 Every way a goal comes in asks the same rule, in the same words: New goal, the edit page, set-up's goal cards, a Goals row of a spreadsheet, Data or a bulk edit (the change engine, `planChanges`), and the AI tools (which use the change engine). The form saves through `planGoal`, run by the `saveGoal` action, so it can't save what the engine would refuse.
 
-**Who may (rule 7).** Anyone may add a goal for anyone, at any level, at every door (Lane, 11 Nov: `mayAddGoal` is always yes, and is the one place that is said). Changing a goal stays with its owner and admins (`mayChangeGoal`), whoever made it; New goal says so as soon as someone else is chosen as owner: “Amara will own it. After it is published, only Amara or an admin can change it.”
+**Who may (rule 7).** Anyone may add a goal for anyone, at any level, at every door (Lane, 11 Nov: `mayAddGoal` is always yes, and is the one place that is said). A goal for someone else starts proposed unless said otherwise (GE10, decision 16): the form's last step starts on "Not yet: propose it", and a file or a tool with new goals for other people and no State asks once (`for-someone-else`): "{n} of these goals are for other people and would start as active. Is that what you mean?", answered "Yes, active" or "No, start them as proposed". Set-up and an admin's file aren't asked; a tool's `confirm` answers active. Changing a goal stays with its owner and admins (`mayChangeGoal`), whoever made it; New goal says so as soon as someone else is chosen as owner: “Amara will own it. After it is published, only Amara or an admin can change it.”
 
 **What a field needs (rule 1).** Read from the spreadsheet's field table (`fieldNeed`): required, optional, worked out, or not asked for this type. In the form, a field that always shows a value (the type, the team, the level, which side a range keeps to) is required. Optional fields say “· optional” after their label; a step with two or more required fields and at least one optional says “Everything here is needed unless it says optional.” under its heading. The unit is optional and starts empty: a number has no unit by default, never “%”.
 
@@ -36,6 +36,8 @@ Faro’s database holds these as well as the rule; a rebuild holds them wherever
 - A range goal kept between two numbers has a lower number below its limit; any other range goal has no lower number. (`okr_goals_range_lower_ok`)
 - A range goal’s warning margin is 0 or more. (`okr_goals_range_margin_check`)
 - A headline goal feeds nothing. (`okr_goals_check2`)
+- The period a goal’s baseline covers has at most 60 characters. (`okr_goals_baseline_period_len`)
+- A baseline’s period and its “provisional” flag only go with a baseline figure. (`okr_goals_baseline_whole`)
 
 ## Worked examples
 
@@ -66,7 +68,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | The questions goal entry asks, in their order. | `stage-past, no-unit, below-zero, over-100, hundredfold, billion, wrong-side, same-name, owner-other-team, feeds-lower, margin-wide, late-plan, from-past, to-past, long-plan, direction, far-from-plan` |
 | In the demo’s 2026, week 46: baseline 42 min, target 30, From week 40, To week 66; then From 30, To 93 (week 40 of 2027). | `Week 40 was 6 weeks ago. Has this been running since then? The plan would expect 39 min by this week. / This plan runs 63 weeks, to week 40 of 2027. Is that right?` |
 | A file’s From 2026-W46 and To 2026-W40, read as weeks 46 and 40. | `to-before-from: To (week 40, 28 Sep–4 Oct 2026) isn’t after From (week 46, 9–15 Nov 2026). The plan has to run forwards.` |
-| Tunde (not an admin) saves a new north star owned by Amara through the saveGoal action; then a spreadsheet row of the same; then Tunde changes a goal Amara owns. | `saved, G-127 owned by amara / no problems / refused: Only Rhea Kapoor (its owner) or an admin can change` |
+| Tunde (not an admin) saves a new north star owned by Amara through the saveGoal action; then a spreadsheet row of the same, which asks once whether it starts active (GE10, decision 16); then Tunde changes a goal Amara owns. | `saved, G-127 owned by amara / warning: “A north star for Amara” is for Amara Nwosu and would start as active. Is that what you mean? / refused: Only Rhea Kapoor (its owner) or an admin can change` |
 
 ## Where it lives
 

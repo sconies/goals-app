@@ -7,7 +7,7 @@ import { loadEngine, loadGoalEntry, perform, type RunContext } from '../app/acti
 import { attentionList } from './attention';
 import { carryCopy, carryKind } from './carry';
 import { planChanges } from './changeset';
-import { currentCycle, scopeToCycle } from './cycle';
+import { currentCycle, cycleDates, scopeToCycle } from './cycle';
 import { countLine } from './find';
 import { blankGoal, draftFor, type GoalDraft } from './goal';
 import { TYPE_FIXED } from './goalEntry';
@@ -23,6 +23,7 @@ import { markPersonLeft, undoRemoval } from './removal';
 import { agendaOf, reviewSession } from './review';
 import { lastTime, proposedLine } from './decide';
 import { workbook } from './export';
+import { startPage } from './startYear';
 import { goalToRows } from '../data/rows';
 import { proposedSummary } from './proposedSummary';
 import { readTables, type NamedGrid } from './sheets';
@@ -144,6 +145,17 @@ describe('rule 14: proposed goals', () => {
     expect([again.proposedBy, again.proposedIn]).toEqual(['camille', null]);
     // Carried to the next year: a new goal there, proposed in no review of it.
     expect(carryCopy(made, { old: { weeks: 53 }, next: { id: 'n', weeks: 52 }, checkIns: [], id: 'g2', parentId: null, now: '' }).proposedIn).toBeNull();
+  });
+
+  it('The start page counts a proposed goal apart: “1 proposed goal carries as proposed”, and in none of the four counts', () => {
+    const { w, goal } = proposed();
+    const after = new Date(cycleDates(w.cycle).lastDay + 'T12:00:00Z');
+    after.setUTCDate(after.getUTCDate() + 1);
+    const p = startPage(w.full, w.cycle, after);
+    expect(p.readBack!.proposed).toBe(1);
+    expect(p.counts.reduce((t, c) => t + c.n, 0)).toBe(p.readBack!.total);
+    expect(p.readBack!.total).toBe(w.full.goals.filter((g) => g.cycleId === w.cycle.id && !g.removedAt && !g.stoppedAt && g.id !== goal.id).length);
+    expect(p.startsWith.map((x) => x.bold + x.rest)).toContain('1 proposed goal carries as proposed, with nothing due until its owner makes it active.');
   });
 
   it('Tunde makes it active in week 48: From becomes 48, read back with its dates; Undo makes it proposed again', () => {

@@ -19,12 +19,24 @@ export interface SourcedMetric {
   removedAt?: string | null;
 }
 
+/** Whose number, and which part of it: a link's slice (MT4 5.1; NR). `teamId` null is the whole company; `part` '' is
+    all of it. */
+export interface Slice {
+  teamId: string | null;
+  part: string;
+}
+
 /** Where a metric's numbers come from (a dashboard, a warehouse, a monitoring tool), so it can fill itself in. */
 export interface NumberSource {
   /** Its name as a metric's `source` names it (e.g. "CI analytics"). */
   readonly name: string;
-  /** Whether it can read this metric. */
-  reads(metric: SourcedMetric): boolean;
-  /** The latest reading at or before `at`; null when it has none yet. */
-  read(metric: SourcedMetric, at: Date): Promise<Reading | null>;
+  /** Whether it can read this metric; given a slice, whether it reads that slice (left out: any slice). A company-wide
+      number is never a team's: a source that reads only the whole company says false for a team's slice. */
+  reads(metric: SourcedMetric, slice?: Slice): boolean;
+  /** The latest reading at or before `at` (of the slice, when given); null when it has none yet. Throws only when it
+      can't be reached: "no number" is null. */
+  read(metric: SourcedMetric, at: Date, slice?: Slice): Promise<Reading | null>;
 }
+
+/** The slice of a link: its team, or the whole company, and its part ('' for all of it). */
+export const sliceOf = (l: { teamId: string | null; part?: string }): Slice => ({ teamId: l.teamId, part: l.part ?? '' });

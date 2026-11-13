@@ -3,7 +3,7 @@
 import { firstWeekFrom, hasEnded, weekDate } from './plan';
 import { goalStatus } from './status';
 import { rhythmOf } from './thresholds';
-import type { CheckIn, Cycle, Goal, Review, Snapshot } from './types';
+import type { CheckIn, Cycle, Goal, Snapshot } from './types';
 
 export interface WeekProgress {
   goals: Goal[];
@@ -44,14 +44,61 @@ export function weekCompletion(p: WeekProgress): { done: number; total: number; 
   return { done: p.done.length, total: p.goals.length, complete: p.goals.length > 0 && p.done.length >= p.goals.length };
 }
 
-/** The confirmation's sentence, from weekCompletion: all of them in, what's still due, or what isn't due yet. */
-export function weekDoneText(p: WeekProgress, week: number, late = false, cycle?: Cycle): string {
+/** What dueWords says about one week's deadline. */
+export interface DueWords {
+  /** By the deadline: "before Thursday’s review", or "by Thursday" (the receipt; the habit measure's "under the row"). */
+  by: string;
+  /** Past it: "after Thursday’s review", or "after Thursday". */
+  after: string;
+  /** In time, as a label or a heading says it: "before the review", or "on time" (the habit measure's panel and cell). */
+  onTime: string;
+  /** The due day's name: "Thursday". */
+  day: string;
+  /** The due date, named in full as a deadline: "Thursday 12 Nov" (Home names the deadline as a deadline, never a review). */
+  date: string;
+  /** The `due` flag's sentence: "Due by Thu 12 Nov.", with Reviews on or off. */
+  flag: string;
+}
+
+const SHORT_MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * Rule RS1 (docs/design/round-4/reviews-switch/spec.md 4): one phrase for the clock. The day check-ins are due
+ * (`Cycle.reviewDay`) never needed a review, so a screen never writes "review" in a deadline itself: it asks here.
+ * With Reviews on and a review held on the due day (`held`, from review.ts heldOnDueDay) the deadline is "before
+ * Thursday’s review"; with no review set up on that day, or Reviews off, it is "by Thursday". The `due` flag says
+ * "Due by Thu 12 Nov." either way. With no set rhythm (FT1) there is no deadline, so nothing says one: no goal is
+ * due (firstDueWeek), receiptFacts and the habit panel (habit.ts beforeReview) are null, and Home has no due line.
+ */
+export function dueWords(reviewsOn: boolean, cycle: Cycle, week: number, held = false): DueWords {
+  return dueWordsOn(reviewsOn, reviewDate(cycle, Math.max(1, week)), held);
+}
+
+/** dueWords for a due date already worked out (yyyy-mm-dd), as Home's facts carry it. */
+export function dueWordsOn(reviewsOn: boolean, iso: string, held = false): DueWords {
+  const d = new Date(iso.slice(0, 10) + 'T00:00:00Z');
+  const day = WEEKDAY[(d.getUTCDay() + 6) % 7] ?? '';
+  const review = reviewsOn && held;
+  return {
+    by: review ? `before ${day}’s review` : `by ${day}`,
+    after: review ? `after ${day}’s review` : `after ${day}`,
+    onTime: review ? 'before the review' : 'on time',
+    day,
+    date: `${day} ${d.getUTCDate()} ${SHORT_MONTH[d.getUTCMonth()]}`,
+    flag: `Due by ${day.slice(0, 3)} ${d.getUTCDate()} ${SHORT_MONTH[d.getUTCMonth()]}.`,
+  };
+}
+
+/**
+ * The confirmation's sentence, from weekCompletion: all of them in, what's still due, or what isn't due yet. All in, it
+ * says when against the deadline in dueWords' words (`clock`): "…checked in for week 46, by Thursday." or "…, after
+ * Thursday’s review." With no set rhythm (`cycle` says so) there is no deadline to say, and nothing is still due.
+ */
+export function weekDoneText(p: WeekProgress, week: number, clock?: { late: boolean; words: DueWords } | null, cycle?: Cycle): string {
   const w = weekCompletion(p);
-  const rhythm = cycle ? rhythmOf(cycle) : { weeks: 1, dueDay: 3, from: '' };
-  // With no set rhythm nothing is owed: say what is in, and nothing about what is still due (FT1).
-  if (!rhythm) return `${w.done} of ${w.total} have a check-in for week ${week}.`;
-  const after = cycle ? `, after ${WEEKDAY[rhythm.dueDay]}` : ', after the due day';
-  if (w.complete) return `${w.total === 1 ? 'Your goal is' : w.total === 2 ? 'Both your goals are' : `All ${w.total} of your goals are`} checked in for week ${week}${late ? after : ''}.`;
+  // With no set rhythm nothing is owed: say what is in, and no deadline, nothing still due (FT1).
+  if (cycle && !rhythmOf(cycle)) return `${w.done} of ${w.total} have a check-in for week ${week}.`;
+  if (w.complete) return `${w.total === 1 ? 'Your goal is' : w.total === 2 ? 'Both your goals are' : `All ${w.total} of your goals are`} checked in for week ${week}${clock ? `, ${clock.late ? clock.words.after : clock.words.by}` : ''}.`;
   if (p.due.length) return `${w.done} of ${w.total} checked in for week ${week}. Still due this week: ${p.due.map((g) => g.title).join(', ')}.`;
   const rest = w.total - w.done;
   return `${w.done} of ${w.total} checked in for week ${week}. ${rest === 1 ? 'The other one isn’t' : `The other ${rest} aren’t`} due until next week.`;
@@ -91,19 +138,53 @@ export function onTimeStreak(personId: string, s: Snapshot, cycle: Cycle, week: 
 
 /** The forgiven week inside the current run, so the receipt can say it once (habit spec, rule 5); null when none. */
 export function forgivenIn(personId: string, goals: readonly Goal[], checkIns: readonly CheckIn[], cycle: Cycle, week: number): number | null {
+  return onTimeRun(personId, goals, checkIns, cycle, week).forgiven[0]?.week ?? null;
+}
+
+/** The forgiven week inside the current run, and whether it was missed (nothing of theirs posted in it) or late. */
+export function forgivenWeek(personId: string, goals: readonly Goal[], checkIns: readonly CheckIn[], cycle: Cycle, week: number): { week: number; missed: boolean } | null {
   return onTimeRun(personId, goals, checkIns, cycle, week).forgiven[0] ?? null;
 }
 
 /** How many weeks before a late one must be on time for it to be forgiven (CF4). */
 export const FORGIVE_AFTER = 4;
 
-function onTimeRun(personId: string, all: readonly Goal[], checkIns: readonly CheckIn[], cycle: Cycle, week: number): { weeks: number; forgiven: number[] } {
-  const goals = all.filter((g) => g.ownerId === personId);
-  const s = { checkIns };
+/** The day a check-in was posted, on the clock of whoever reads it: the same clock Home's "today" is read on (the app's
+    `today` is the device's own date and time), so Home's "due today", the receipt and the run name one due day for the
+    same person (#410 review, medium 1). On the server, whose clock is UTC, it is the UTC day. */
+export const postedDay = (iso: string): string => { const n = new Date(iso); return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10); };
+
+/** Whether a check-in came in by its week's due day (`postedDay` on or before it), and was posted in its week rather than
+    added later: a backfilled week is never on time (#410 review, medium 3). */
+export function inByDueDay(c: Pick<CheckIn, 'postedAt' | 'backfilled'>, cycle: Cycle, week: number): boolean {
+  return !c.backfilled && postedDay(c.postedAt) <= reviewDate(cycle, week);
+}
+
+/** The first week a goal counts for its present owner in the run: its first due week, or, when someone else checked it in
+    later (it was theirs, or handed over), the week after the last of those, so taking over a goal never costs the new
+    owner the weeks before it was theirs (#410 review, medium 4). */
+function ownedFrom(g: Goal, personId: string, checkIns: readonly CheckIn[], cycle: Cycle): number {
+  const others = checkIns.filter((c) => c.goalId === g.id && c.authorId !== personId).map((c) => c.week);
+  return Math.max(firstDueWeek(g, cycle), others.length ? Math.max(...others) + 1 : 0);
+}
+
+/** The week a goal was closed as Done, if it was (its first check-in with the status Done): it isn't due after that week,
+    as weekProgress leaves Done goals out (#410 review, medium 2). */
+function doneWeek(g: Goal, checkIns: readonly CheckIn[]): number {
+  const w = checkIns.filter((c) => c.goalId === g.id && c.status === 'done').map((c) => c.week);
+  return w.length ? Math.min(...w) : Infinity;
+}
+
+/** The run's walk, and the weeks inside it that were forgiven, each as late (checked in after the due day) or missed. */
+function onTimeRun(personId: string, all: readonly Goal[], allCheckIns: readonly CheckIn[], cycle: Cycle, week: number): { weeks: number; forgiven: { week: number; missed: boolean }[] } {
+  const checkIns = allCheckIns.filter((c) => !c.removedAt);
+  const goals = all.filter((g) => g.ownerId === personId).map((g) => ({ g, from: ownedFrom(g, personId, checkIns, cycle), to: doneWeek(g, checkIns) }));
+  // No set rhythm, no run (FT1).
   if (!goals.length || !rhythmOf(cycle)) return { weeks: 0, forgiven: [] };
-  const due = (w: number) => goals.some((g) => firstDueWeek(g, cycle) <= w);
-  const onTime = (w: number) =>
-    due(w) && goals.every((g) => firstDueWeek(g, cycle) > w || s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
+  const dueIn = (w: number) => goals.filter((x) => x.from <= w && w <= x.to);
+  const due = (w: number) => dueIn(w).length > 0;
+  const mine = (gid: string, w: number) => checkIns.filter((c) => c.goalId === gid && c.week === w && c.authorId === personId);
+  const onTime = (w: number) => due(w) && dueIn(w).every((x) => mine(x.g.id, w).some((c) => inByDueDay(c, cycle, w)));
   const forgiven = (w: number) => {
     let seen = 0;
     for (let v = w - 1; v >= 1 && seen < FORGIVE_AFTER; v--) {
@@ -114,70 +195,69 @@ function onTimeRun(personId: string, all: readonly Goal[], checkIns: readonly Ch
     return seen === FORGIVE_AFTER;
   };
   // This week counts once every goal is checked in; otherwise start from last week.
-  const complete = goals.every((g) => firstDueWeek(g, cycle) > week || s.checkIns.some((c) => c.goalId === g.id && c.week === week));
-  const out = { weeks: 0, forgiven: [] as number[] };
+  const complete = dueIn(week).every((x) => checkIns.some((c) => c.goalId === x.g.id && c.week === week));
+  const out = { weeks: 0, forgiven: [] as { week: number; missed: boolean }[] };
   for (let w = complete && due(week) ? week : week - 1; w >= 1 && due(w); w--) {
     if (onTime(w)) out.weeks++;
-    else if (forgiven(w)) out.forgiven.push(w);
+    // Missed: some goal due that week has no check-in of theirs posted in its week at all.
+    else if (forgiven(w)) out.forgiven.push({ week: w, missed: dueIn(w).some((x) => !mine(x.g.id, w).some((c) => !c.backfilled)) });
     else break;
   }
   return out;
 }
 
 /** What the week's receipt reads (habit spec 2.1): the person's goals this week, how many of their first check-ins came
-    after the due day, the due day's weekday, whether to name it as a review (`review`: the person is in a review held
-    that day; otherwise it is the workspace's deadline, deep review T4), the run and its forgiven week, and the next due
-    day already in words ("Thursday 19 Nov"; null in the year's last week). */
+    after the due day, the deadline in dueWords' words (`words`: "before Thursday’s review" only for someone in a review
+    held that day with Reviews on, deep review T4; otherwise "by Thursday", Reviews switch spec 2.1), the run and its
+    forgiven week, and the next due day already in words ("Thursday 19 Nov"; null in the year's last week). */
 export interface ReceiptFacts {
   total: number;
   after: number;
   week: number;
-  dueDay: string;
-  review: boolean;
+  words: Pick<DueWords, 'by' | 'after'>;
   run: number;
   forgiven: number | null;
+  /** The forgiven week had no check-in of theirs in it at all (missed), rather than one after the due day (late). */
+  forgivenMissed?: boolean;
   nextDue: string | null;
 }
 
 /**
  * The receipt's facts for a person's week (habit spec 2.1), from the rules that already say each: weekProgress (`p`) for
  * their goals, reviewDate for the due day, the run. A goal's week counts as after when its first check-in that week
- * (theirs, or someone's checking in for them) was posted after the due day. `review` is `reviewOnDueDay`'s.
- * `nextDue` is the next due day as an ISO date: the caller says it in words before `receiptText`.
+ * (theirs, or someone's checking in for them) was posted after the due day. `words` is dueWords' for the person and
+ * week (app/reads dueWordsHere): the habit never reads a review itself (Reviews switch spec 4).
+ * `nextDue` is the next due day as an ISO date: the caller says it in words before `receiptText`. With no set rhythm
+ * (FT1) there is no receipt (null): nothing was due, so there is no deadline to be in by and no run.
  */
-export function receiptFacts(p: WeekProgress, personId: string, s: { goals: readonly Goal[]; checkIns: readonly CheckIn[] }, cycle: Cycle, week: number, review: boolean): ReceiptFacts {
-  const due = reviewDate(cycle, week);
+export function receiptFacts(p: WeekProgress, personId: string, s: { goals: readonly Goal[]; checkIns: readonly CheckIn[] }, cycle: Cycle, week: number, words: Pick<DueWords, 'by' | 'after'>): ReceiptFacts | null {
+  if (!rhythmOf(cycle)) return null;
   const after = p.goals.filter((g) => {
     const first = s.checkIns.filter((c) => c.goalId === g.id && c.week === week && !c.removedAt).map((c) => c.postedAt).sort()[0];
-    return first != null && first.slice(0, 10) > due;
+    return first != null && !inByDueDay({ postedAt: first }, cycle, week);
   }).length;
   const run = onTimeRun(personId, s.goals, s.checkIns, cycle, week);
-  return { total: p.goals.length, after, week, dueDay: WEEKDAY[cycle.reviewDay]!, review, run: run.weeks, forgiven: run.forgiven[0] ?? null, nextDue: week < cycle.weeks ? reviewDate(cycle, week + 1) : null };
+  return { total: p.goals.length, after, week, words: { by: words.by, after: words.after }, run: run.weeks, forgiven: run.forgiven[0]?.week ?? null, forgivenMissed: run.forgiven[0]?.missed ?? false, nextDue: week < cycle.weeks ? reviewDate(cycle, week + 1) : null };
 }
 
 /**
  * The receipt's two sentences, once every check-in of the week is in (habit spec 2.1; HB1). Read by the check-in's last
  * screen and by Home's quiet line on the day the week is completed. A late week is never called lost or broken, and no run
- * is mentioned beside one. The due day is a review only for someone in a review held that day (T4).
+ * is mentioned beside one. The deadline is dueWords' (rule RS1): "in before Thursday’s review" / "in by Thursday", and
+ * "came after Thursday’s review" / "came after Thursday" (Reviews switch spec 2.1).
  */
 export function receiptText(r: ReceiptFacts): { first: string; second: string | null } {
   const yours = r.total === 1 ? 'Your check-in is' : r.total === 2 ? 'Both of your check-ins are' : `All ${r.total} of your check-ins are`;
   const next = r.nextDue ? `The next ${r.total === 1 ? 'is' : 'are'} due by ${r.nextDue}.` : null;
   if (r.after > 0) {
     const who = r.total === 1 ? 'It' : r.after === r.total ? (r.total === 2 ? 'Both' : 'All of them') : r.after === 1 ? 'One' : String(r.after);
-    return { first: `${yours} in. ${who} came ${r.review ? `after ${r.dueDay}’s review` : `in after ${r.dueDay}’s deadline`}.`, second: next };
+    return { first: `${yours} in. ${who} came ${r.words.after}.`, second: next };
   }
-  const first = r.review ? `${yours} in before ${r.dueDay}’s review.` : `${yours} in for week ${r.week}, before ${r.dueDay}’s deadline.`;
+  const first = `${yours} in ${r.words.by}.`;
   const run = r.run >= 2 ? `That is ${r.run} weeks in a row.` : null;
   // Said once: on the first receipt after the forgiven week.
-  const kept = r.forgiven != null && r.forgiven === r.week - 1 && r.run >= 2 ? `Week ${r.forgiven} came in late; one late week doesn’t break a run.` : null;
+  const kept = r.forgiven != null && r.forgiven === r.week - 1 && r.run >= 2 ? (r.forgivenMissed ? `Week ${r.forgiven} was missed; one missed week doesn’t break a run.` : `Week ${r.forgiven} came in late; one late week doesn’t break a run.`) : null;
   return { first, second: [run, kept].filter(Boolean).join(' ') || null };
-}
-
-/** Whether the person is in a review held on the workspace's due day (live, not ended): only then is the due day said
-    as a review (deep review T4). `reviewsOn` is the reviews switch's flag (FT2), as readBack.ts takes it. */
-export function reviewOnDueDay(reviews: readonly Pick<Review, 'people' | 'weekday' | 'removedAt' | 'endedAt'>[], personId: string, cycle: Cycle, reviewsOn: boolean): boolean {
-  return reviewsOn && reviews.some((r) => !r.removedAt && !r.endedAt && r.weekday === cycle.reviewDay && r.people.includes(personId));
 }
 
 /** Days until this week's review (0 on the day, negative once it has passed). */

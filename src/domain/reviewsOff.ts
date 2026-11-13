@@ -1,7 +1,8 @@
 /* Switching Reviews off (FT2: docs/design/feature-toggles/spec.md 4.2): what the read-back an admin sees first counts
    and says. Its own file, not review.ts (where the spec placed it until FT3 moves it into the module), because review.ts
    is in the first download and this is read only by Workspace, which loads when it is opened. */
-import type { Ask, Review } from './types';
+import type { Ask, Decision, Review } from './types';
+import { acceptedReason } from './decide';
 
 /** What switching Reviews off keeps, counted for the read-back an admin sees first. */
 export interface ReviewsReadBack {
@@ -15,14 +16,24 @@ export interface ReviewsReadBack {
   steps: number;
   /** Open questions raised in a review: they stay open and no longer name a session. */
   questions: number;
+  /** Risks a review accepted on goals not removed (RS2): they stay on their goals, as they were said. */
+  risks: number;
+  /** The day check-ins are due, by name ("Thursday", dueWords' `day`): it doesn't change (RS2). */
+  dueDay: string;
 }
 
 /**
  * Rule (FT2). What the read-back before switching Reviews off counts, from what it reads: everyone here; reviews not
  * removed or ended; the changes with entity review or decision (the number Activity shows under Reviews); and the open
- * next steps and open questions raised in a review. Nothing here is changed by switching off: the counts are what stays.
+ * next steps and open questions raised in a review. Rule RS2 adds two: the risks a review accepted on goals not removed
+ * (a note that starts "We accept the risk:", not itself removed), and the due day's name, from dueWords.
+ * Nothing here is changed by switching off: the counts are what stays.
  */
-export function switchOffReadBack(reads: { people: readonly { removedAt?: string | null }[]; reviews: readonly Pick<Review, 'endedAt' | 'removedAt'>[]; changes: readonly { entity: string }[]; asks: readonly Pick<Ask, 'kind' | 'status' | 'reviewId'>[] }): ReviewsReadBack {
+export function switchOffReadBack(reads: {
+  people: readonly { removedAt?: string | null }[]; reviews: readonly Pick<Review, 'endedAt' | 'removedAt'>[]; changes: readonly { entity: string }[]; asks: readonly Pick<Ask, 'kind' | 'status' | 'reviewId'>[];
+  decisions: readonly Pick<Decision, 'goalId' | 'kind' | 'note' | 'removedAt'>[]; goals: readonly { id: string; removedAt?: string | null }[]; dueDay: string;
+}): ReviewsReadBack {
+  const live = new Set(reads.goals.filter((g) => !g.removedAt).map((g) => g.id));
   const open = (kind: Ask['kind']) => reads.asks.filter((a) => a.kind === kind && a.status === 'open' && !!a.reviewId).length;
   return {
     people: reads.people.filter((p) => !p.removedAt).length,
@@ -30,6 +41,8 @@ export function switchOffReadBack(reads: { people: readonly { removedAt?: string
     said: reads.changes.filter((c) => c.entity === 'review' || c.entity === 'decision').length,
     steps: open('action'),
     questions: open('question'),
+    risks: reads.decisions.filter((d) => d.kind === 'note' && !d.removedAt && live.has(d.goalId) && acceptedReason(d.note) != null).length,
+    dueDay: reads.dueDay,
   };
 }
 
@@ -41,6 +54,9 @@ export function switchOffLines(r: ReviewsReadBack): { strong: string; rest: stri
     ...(r.reviews ? [{ strong: `${n(r.reviews, 'review stays', 'reviews stay')} in the record`, rest: `${r.said ? `, with the ${n(r.said, 'thing', 'things')} said or marked in ${r.reviews === 1 ? 'it' : 'them'}` : ''}. Each goal’s History still shows ${r.reviews === 1 ? 'it' : 'them'}.` }] : []),
     ...(r.steps ? [{ strong: `${n(r.steps, 'open next step', 'open next steps')} agreed in a review ${r.steps === 1 ? 'stays' : 'stay'} open`, rest: ' on their goals and on Home.' }] : []),
     ...(r.questions ? [{ strong: `${n(r.questions, 'question', 'questions')} waiting for a review`, rest: ` ${r.questions === 1 ? 'stays' : 'stay'} open; ${r.questions === 1 ? 'it no longer names' : 'they no longer name'} a session.` }] : []),
+    // RS2 (docs/design/round-4/reviews-switch/spec.md 2.2): after the questions line.
+    ...(r.risks ? [{ strong: `${n(r.risks, 'accepted risk stays on its goal', 'accepted risks stay on their goals')}`, rest: ', as ' + (r.risks === 1 ? 'it was' : 'they were') + ' said. No new one can be accepted while Reviews is off.' }] : []),
+    { strong: `Check-ins are still due by ${r.dueDay}.`, rest: ` “Before the review” becomes “by ${r.dueDay}” on Home, in the check-in and in the count of goals checked in on time.` },
     { strong: '', rest: 'Nothing is deleted. Switch Reviews back on and every review is as it was.' },
   ];
 }

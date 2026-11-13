@@ -660,6 +660,10 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `needs` | string | no | A decision or help needed, and from whom. |
 | `next_step` | string | no | The next step. |
 | `reason` | string | no | If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”. |
+| `reading_confirmed` | boolean | no | True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded. |
+| `different_because` | object | no | When the owner’s value differs from what the source reads now, why: the reading and the reason are recorded beside their number (never a flag). kind: behind (the source is behind: they have a newer number), other-count (it counts something else), wrong (it is wrong this week) or else (something else, with text of at least 10 characters). |
+| `different_because.kind` | one of `behind`, `other-count`, `wrong`, `else` | yes | Why it differs. |
+| `different_because.text` | string | no | In the owner’s words; needed for else. |
 | `answers` | object | no | Answers to the questions (Check) a dry run asked, by the group id it gave: {"<id>": "<choice>"} or {"<id>": {"choice": "choose", "value": "Platform"}}. One answer covers every row in its group. Ask the person; never answer for them. |
 | `dry_run` | boolean | no | Check the change without saving it. Use it to see what would change, or what is missing. |
 
@@ -744,6 +748,34 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
     "reason": {
       "type": "string",
       "description": "If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”."
+    },
+    "reading_confirmed": {
+      "type": "boolean",
+      "description": "True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded."
+    },
+    "different_because": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "description": "When the owner’s value differs from what the source reads now, why: the reading and the reason are recorded beside their number (never a flag). kind: behind (the source is behind: they have a newer number), other-count (it counts something else), wrong (it is wrong this week) or else (something else, with text of at least 10 characters).",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "Why it differs.",
+          "enum": [
+            "behind",
+            "other-count",
+            "wrong",
+            "else"
+          ]
+        },
+        "text": {
+          "type": "string",
+          "description": "In the owner’s words; needed for else."
+        }
+      }
     },
     "answers": {
       "type": "object",
@@ -1145,7 +1177,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 ## create_goal
 
-**Add a goal.** Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with "confirm": true (a name another goal in its team has is asked through "answers").
+**Add a goal.** Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. A goal for someone else with no state is asked about once (start it active, or proposed): ask the person, or give state. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with "confirm": true (a name another goal in its team has is asked through "answers").
 
 **Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
 
@@ -1680,6 +1712,7 @@ No arguments.
         onTimeStreakWeeks: number | null;
         weekReceipt: {
             forgivenWeek: number | null;
+            forgivenWeekWas: string | null;
             first: string;
             second: string | null;
         } | null;
@@ -4902,7 +4935,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 ## get_metric
 
-**Read a metric.** One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).
+**Read a metric.** One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the parts its goals use (`parts`, most used first); the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).
 
 From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
@@ -5315,8 +5348,8 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `goal` | string | yes | The goal’s ID or key (G-12). |
 | `metric` | string | no | The metric’s ID or name. Required unless unlinking. |
 | `team` | string | no | The slice: a team by ID or name. Leave out for the whole company. |
-| `part` | string | no | Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them. |
-| `reason` | string | no | Why the goal is measured differently now. Required when a goal with check-ins changes its metric, team or part; it shows in the goal’s History. |
+| `part` | string | no | Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them under parts. |
+| `reason` | string | no | Why the goal is measured differently now. Required when a goal with check-ins is measured differently from its last link (another metric, team or part, even after unlinking); it shows in the goal’s History. |
 | `answers` | object | no | Answers to the checks a first call returned: part ("keep" or "use:<part>"), others ("carry-on": another goal already measures the same number). |
 | `answers.part` | string | no |  |
 | `answers.others` | string | no |  |
@@ -5346,11 +5379,11 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
     },
     "part": {
       "type": "string",
-      "description": "Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them."
+      "description": "Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them under parts."
     },
     "reason": {
       "type": "string",
-      "description": "Why the goal is measured differently now. Required when a goal with check-ins changes its metric, team or part; it shows in the goal’s History."
+      "description": "Why the goal is measured differently now. Required when a goal with check-ins is measured differently from its last link (another metric, team or part, even after unlinking); it shows in the goal’s History."
     },
     "answers": {
       "type": "object",

@@ -55,6 +55,9 @@ export interface ExampleStore extends Store {
   readonly hasExample: boolean;
   /** Starts an example workspace again from its demo data. */
   resetExample(id?: string): Promise<Snapshot>;
+  /** The example as it was built, before any save of this browser's: what the demo's number sources are made from
+      (NR, the metric module's numbers.ts), so a check-in posted here never fills in its own number. */
+  seeded?(id: string): Promise<Snapshot>;
 }
 /** The store's example plumbing, when it holds the example (the demo); null for the real app's store. */
 export const examplesOf = (s: Store): ExampleStore | null => ('hasExample' in s && (s as ExampleStore).hasExample ? (s as ExampleStore) : null);
@@ -181,7 +184,8 @@ export class BrowserStore implements ExampleStore {
     // …and the feature modules switched off there.
     const mods = this.modulesOff();
     const withSwitch = (w: Workspace): Workspace => {
-      const m = mods[w.id] ?? [];
+      // The example starts from its own switches (an eval build's FARO_MODULES_OFF), until changed here.
+      const m = mods[w.id] ?? w.modulesOff ?? [];
       return { ...w, ...(off.includes(w.id) ? { recording: false } : {}), ...(m.length ? { modulesOff: m } : {}) };
     };
     return (this.hasExample ? [names[EXAMPLE.id] ? { ...EXAMPLE, name: names[EXAMPLE.id]! } : EXAMPLE, ...own] : own).map(withSwitch);
@@ -201,7 +205,8 @@ export class BrowserStore implements ExampleStore {
   private modulesOff(): Record<string, string[]> { return this.get<Record<string, string[]>>(this.key + ':modules-off') ?? this.modsMemory; }
   private setModulesOff(id: string, off: string[]) {
     this.modsMemory = { ...this.modulesOff(), [id]: off };
-    if (!off.length) delete this.modsMemory[id];
+    // Every module back on is kept as [] where the example starts with some off, so it isn't read as the start again.
+    if (!off.length && !(id === EXAMPLE.id && EXAMPLE.modulesOff?.length)) delete this.modsMemory[id];
     this.put(this.key + ':modules-off', this.modsMemory);
   }
 
@@ -237,6 +242,14 @@ export class BrowserStore implements ExampleStore {
     this.memory.set(id, s);
     this.saved.set(id, saved ?? { v: 1, builtAt, commits: [] });
     return s;
+  }
+
+  async seeded(id: string): Promise<Snapshot> {
+    if (!this.hasExample || !isExample(id)) throw new Error('Only the demo has an example as it was built.');
+    const builtAt = this.savedOf(id)?.builtAt ?? this.today().toISOString();
+    let base = this.built.get(builtAt);
+    if (!base) { base = await buildExample(new Date(builtAt)); this.built.set(builtAt, base); }
+    return base;
   }
 
   /* ---------- workspaces of the visitor's own: kept whole (they're small) ---------- */
