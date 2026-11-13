@@ -34,7 +34,7 @@ export const sameAtPlaces = (a: number, b: number, decimals: number) => {
 export function readingProblem(r: CheckInReading, value: number | null, decimals: number): string | null {
   if (value == null || sameAtPlaces(value, r.value, decimals)) return null;
   if (!r.why || !READING_WHY.some(([k]) => k === r.why!.kind)) return `${r.source} said ${r.value}. Say why your number is different.`;
-  if (r.why.kind === 'else' && (r.why.text ?? '').trim().length < MIN_CORRECT_REASON) return `Say more about why your number is different from ${r.source}’s, in at least ${MIN_CORRECT_REASON} characters.`;
+  if (r.why.kind === 'else' && (r.why.text ?? '').trim().length < MIN_CORRECT_REASON) return `Say more about why your number is different from what ${r.source} said, in at least ${MIN_CORRECT_REASON} characters.`;
   return null;
 }
 

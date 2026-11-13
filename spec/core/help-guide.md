@@ -240,7 +240,7 @@ Screens: `NotFound`. Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`.
 
 `check-in`. A check-in is the owner’s weekly word on a goal: the number or stages, the status, and, when something changed, why and what happens next.
 
-Routes: `/check-in`, `/check-in/:goalId`. Screens: `CheckInFlow`, `CheckInQueue`. Requirements: `CHECK-IN-QUEUE`, `NO-SILENT-ROUNDING`, `CARRY-OVER`, `GREENER`, `REASON-BEHIND`, `REASON-AHEAD`, `PATH-TO-GREEN`, `CHECKIN-STATUS-VS-PLAN`, `ONE-PER-WEEK`, `UPDATE-ANYTIME`, `OWNER-ONLY`, `ONE-ACCOUNT`, `OTHER-CAUSE`, `NO-DOUBLE-POST`, `DRAFTS`, `FIRST-CHECKIN`, `HONEST-CHECKIN`, `HABIT-RECEIPT`, `HABIT-MOMENT`.
+Routes: `/check-in`, `/check-in/:goalId`. Screens: `CheckInFlow`, `CheckInQueue`, `CheckInNumber`. Requirements: `CHECK-IN-QUEUE`, `NO-SILENT-ROUNDING`, `CARRY-OVER`, `GREENER`, `REASON-BEHIND`, `REASON-AHEAD`, `PATH-TO-GREEN`, `CHECKIN-STATUS-VS-PLAN`, `ONE-PER-WEEK`, `UPDATE-ANYTIME`, `OWNER-ONLY`, `ONE-ACCOUNT`, `OTHER-CAUSE`, `NO-DOUBLE-POST`, `DRAFTS`, `FIRST-CHECKIN`, `HONEST-CHECKIN`, `HABIT-RECEIPT`, `HABIT-MOMENT`.
 
 #### What it’s for
 
@@ -268,6 +268,13 @@ Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, qua
 - Letters in a number get the same message on every screen, sheet and AI tool: type digits only, with an example at the goal’s decimal places (like 29 for a goal of whole numbers). Every number Faro shows has its thousands grouped: 1,250.
 - The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned.
 - A number that looks wrong (ten times last week’s, say) is a question you answer before posting: “Yes, it’s right” or change it. The same number as last week asks whether you measured it again. Your answer is kept in the goal’s History. A number that can’t be used says what to fix.
+
+#### A number filled in from its source
+
+- With the Metric library on, a goal measured by a metric whose source Faro can read opens its number step with the latest reading already in the field: “From CI analytics, read 9:02 today.” The button says the number (“Confirm 12 min”), so confirming is something you read, not a reflex. Nothing is posted until you finish the check-in, and a week you don’t check in stays a week with no check-in.
+- If the number is wrong, type yours. Faro then asks why it’s different: the source is behind, it counts something else, it’s wrong this week, or something else (say more, in at least 10 characters). Your number is the check-in’s; the reading and your reason are kept beside it. It doesn’t change the goal’s status and nobody is told. Put 12 min back undoes it.
+- A reading more than 7 days old isn’t filled in, and its value isn’t shown: type this week’s number, or say there isn’t one. A source that measures only the whole company never fills in a team’s goal. A source with nothing new since your last check-in, nothing yet, or that can’t be reached just now says so, with Try again.
+- After posting, the check-in says where its number came from: “12 min, from CI analytics, read 9:02 today. Confirmed by you.”, or “14 min, typed. CI analytics said 12 min: the source counts something else.”
 
 #### Ad hoc check-ins and corrections
 
@@ -1180,7 +1187,7 @@ Screens: `MeasuredBy`. Requirements: `METRICS-MEASURED-BY`.
 
 `metric-slices`, from the metrics module. What a goal takes from its metric and what stays its own, whose number it is, and one part of that number.
 
-Requirements: `METRIC-PARTS`.
+Requirements: `METRIC-PARTS`, `READING-PREFILL`, `READING-RECORDED-ONLY`, `READING-SEVEN-DAYS`.
 
 #### What a goal takes from its metric
 
@@ -1202,6 +1209,13 @@ Requirements: `METRIC-PARTS`.
 #### On the goal’s page
 
 - About lists Measured by: For, what it means, From the metric, where the number comes from, caveats, the goal’s own target, and its own definition when that says more than the metric’s.
+
+#### In the check-in
+
+- When Faro can read a metric’s source for the goal’s own For and part, the goal’s check-in opens with the latest reading in the field and “From {source}, read {when}.”, and its button names the number: “Confirm 12 min”. A source that measures only the whole company never fills in a team’s goal.
+- Typing a different number asks why it’s different (the source is behind, counts something else, is wrong this week, or something else in your words). Your number is the check-in’s; what the source said and why are kept beside it, and never change the goal’s status or flag anything.
+- A reading more than 7 days old isn’t filled in or shown. Nothing is ever posted for you: a week you don’t check in has no check-in.
+- The AI assistant’s post_check_in does the same with reading_confirmed, or different_because when the number differs.
 
 ### Changing, retiring and merging a metric
 

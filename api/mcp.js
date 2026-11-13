@@ -10432,6 +10432,46 @@ var init_importLimits = __esmMin((() => {
 	limitHelp = () => `up to ${count(ROWS_READ_MAX)} rows or 20 MB a file, and ${count(CHANGES_SAVE_MAX)} changes at a time; up to ${count(ROWS_COMFORT)} rows is checked in a second or two`;
 	tooManyChanges = (changes) => changes > 5e3 ? `This would change ${count(changes)} rows. Faro saves up to ${count(CHANGES_SAVE_MAX)} at a time.` : null;
 }));
+// src/domain/reading.ts
+/**
+* Rule 3: what a reading needs before a check-in records it, the same at every door. The owner's number is always the
+* check-in's; a reading whose number differs from it needs a reason (one of 2.2's four), and "Something else" needs at
+* least MIN_CORRECT_REASON characters of the owner's words. Null when it can be recorded.
+*/
+function readingProblem(r, value, decimals) {
+	if (value == null || sameAtPlaces(value, r.value, decimals)) return null;
+	if (!r.why || !READING_WHY.some(([k]) => k === r.why.kind)) return `${r.source} said ${r.value}. Say why your number is different.`;
+	if (r.why.kind === "else" && (r.why.text ?? "").trim().length < 10) return `Say more about why your number is different from what ${r.source} said, in at least 10 characters.`;
+	return null;
+}
+/** What a check-in keeps of a reading: the reason only when the numbers differ, its words trimmed. */
+function keptReading(r, value, decimals) {
+	const why = value != null && !sameAtPlaces(value, r.value, decimals) && r.why ? {
+		kind: r.why.kind,
+		...r.why.text?.trim() ? { text: r.why.text.trim() } : {}
+	} : void 0;
+	return {
+		source: r.source,
+		value: r.value,
+		at: r.at,
+		...why ? { why } : {}
+	};
+}
+var READING_WHY, sameAtPlaces;
+var init_reading = __esmMin((() => {
+	init_checkin();
+	init_format();
+	READING_WHY = [
+		["behind", "The source is behind: I have a newer number"],
+		["other-count", "The source counts something else"],
+		["wrong", "The source is wrong this week"],
+		["else", "Something else"]
+	];
+	sameAtPlaces = (a, b, decimals) => {
+		const p = Math.max(0, decimals);
+		return Number(a.toFixed(p)) === Number(b.toFixed(p));
+	};
+}));
 // src/domain/changeset.ts
 /** "4 new goals, 2 goals changed, 38 check-ins (36 for past weeks), 1 goal stopped" */
 function describe(cs) {
@@ -12270,9 +12310,19 @@ function* planChangesInChunks(input) {
 		const backfilled = keeps ? !!existing.backfilled : w < week;
 		const due = new Date(Date.parse(weekDate(cycle, w) + "T09:00:00Z") + cycle.reviewDay * 864e5);
 		const at = keeps ? new Date(existing.postedAt) : backfilled && due.toISOString() < now ? due : new Date(now);
+		const made = asRecorded ? asWritten(asOf, w, draft, e, actor.id, at.toISOString(), existing?.id ?? newId("ci")) : toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId("ci"));
+		const read = post ? post.reading : input.readings?.find((x) => x.goalId === g.id && x.week === w)?.reading;
+		if (read && g.kind !== "milestone") {
+			const problem = readingProblem(read, made.value, g.decimals);
+			if (problem) {
+				raise("checkin-incomplete", "Check-ins", row, g.title, problem);
+				return;
+			}
+		}
 		const c = {
-			...asRecorded ? asWritten(asOf, w, draft, e, actor.id, at.toISOString(), existing?.id ?? newId("ci")) : toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId("ci")),
-			...backfilled ? { backfilled: true } : {}
+			...made,
+			...backfilled ? { backfilled: true } : {},
+			...read && g.kind !== "milestone" ? { reading: keptReading(read, made.value, g.decimals) } : {}
 		};
 		const ch = checkInChange(existing, c, g, actor.id, newId("chg"));
 		if (!ch) {
@@ -12977,6 +13027,7 @@ var init_changeset = __esmMin((() => {
 	init_records();
 	init_importLimits();
 	init_problemLevels();
+	init_reading();
 	init_vocabulary();
 	init_via();
 	ASKS_NUMBERS = [
@@ -14955,7 +15006,9 @@ var _virtual_faro_modules_default = [
 			"goal.measure",
 			"goal.sections",
 			"people.person",
-			"people.team"
+			"people.team",
+			"checkin.number",
+			"checkin.table"
 		],
 		tables: [{
 			"name": "okr_metrics",
@@ -14999,7 +15052,10 @@ var _virtual_faro_modules_default = [
 			"METRICS-CARE",
 			"METRIC-DEFINED",
 			"METRIC-PARTS",
-			"METRIC-CHANGE"
+			"METRIC-CHANGE",
+			"READING-PREFILL",
+			"READING-RECORDED-ONLY",
+			"READING-SEVEN-DAYS"
 		],
 		journeys: [
 			"U81",
@@ -15010,6 +15066,11 @@ var _virtual_faro_modules_default = [
 			"U146",
 			"U106",
 			"U152",
+			"U156",
+			"U157",
+			"U158",
+			"U159",
+			"U160",
 			"F15",
 			"N16"
 		],
@@ -15033,7 +15094,8 @@ var _virtual_faro_modules_default = [
 				"Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105).",
 				"A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146).",
 				"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples).",
-				"A number source reads a metric for a link’s slice (a team or the whole company, and a part) or says it doesn’t, and passes the source contract; a reading’s state in a check-in is rule 1’s (no-slice, unreachable, missing, old after 7 days, same, jump, changed, fresh), and what a check-in records of it is rule 2’s, which nothing that judges a goal reads (the reading rule’s worked examples; the `reading` rows of spec/conformance/metrics.csv)."
+				"A number source reads a metric for a link’s slice (a team or the whole company, and a part) or says it doesn’t, and passes the source contract; a reading’s state in a check-in is rule 1’s (no-slice, unreachable, missing, old after 7 days, same, jump, changed, fresh), and what a check-in records of it is rule 2’s, which nothing that judges a goal reads (the reading rule’s worked examples; the `reading` rows of spec/conformance/metrics.csv).",
+				"The check-in’s number step (the core’s place checkin.number) opens with a fresh reading in the field, “From {source}, read {when}.” and “Confirm {value} {unit}”; a different number asks why from four reasons before “Use {typed} {unit}”; a reading more than 7 days old is neither filled in nor shown; a company-wide source never fills in a team’s goal; the read-back says where the number came from; the one table fills fresh readings in the quiet ink and asks why in a changed row; and rule 3 (a differing number needs a reason) holds at the form, the table and post_check_in’s reading_confirmed and different_because alike (journeys U156 to U160). With the module off the step is as it was."
 			],
 			"gaps": [
 				"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).",
@@ -15099,7 +15161,12 @@ var _virtual_faro_modules_default = [
 				"save_metric",
 				"link_goal_metric"
 			],
-			"GoalFilterSheet": ["list_metrics"]
+			"GoalFilterSheet": ["list_metrics"],
+			"CheckInNumber": [
+				"post_check_in",
+				"get_goal",
+				"get_metric"
+			]
 		}
 	},
 	{
@@ -17652,11 +17719,25 @@ var help$2 = [
 			{
 				heading: "On the goal’s page",
 				list: ["About lists Measured by: For, what it means, From the metric, where the number comes from, caveats, the goal’s own target, and its own definition when that says more than the metric’s."]
+			},
+			{
+				heading: "In the check-in",
+				list: [
+					"When Faro can read a metric’s source for the goal’s own For and part, the goal’s check-in opens with the latest reading in the field and “From {source}, read {when}.”, and its button names the number: “Confirm 12 min”. A source that measures only the whole company never fills in a team’s goal.",
+					"Typing a different number asks why it’s different (the source is behind, counts something else, is wrong this week, or something else in your words). Your number is the check-in’s; what the source said and why are kept beside it, and never change the goal’s status or flag anything.",
+					"A reading more than 7 days old isn’t filled in or shown. Nothing is ever posted for you: a week you don’t check in has no check-in.",
+					"The AI assistant’s post_check_in does the same with reading_confirmed, or different_because when the number differs."
+				]
 			}
 		],
 		routes: [],
 		screens: [],
-		reqs: ["METRIC-PARTS"],
+		reqs: [
+			"METRIC-PARTS",
+			"READING-PREFILL",
+			"READING-RECORDED-ONLY",
+			"READING-SEVEN-DAYS"
+		],
 		keywords: [
 			"which part",
 			"part",
@@ -17666,7 +17747,11 @@ var help$2 = [
 			"region",
 			"from the metric",
 			"why",
-			"measured differently"
+			"measured differently",
+			"reading",
+			"filled in",
+			"source",
+			"confirm"
 		],
 		related: [
 			"metric-measured-by",
@@ -18563,6 +18648,15 @@ var CORE_ARTICLES = [
 				]
 			},
 			{
+				heading: "A number filled in from its source",
+				list: [
+					"With the Metric library on, a goal measured by a metric whose source Faro can read opens its number step with the latest reading already in the field: “From CI analytics, read 9:02 today.” The button says the number (“Confirm 12 min”), so confirming is something you read, not a reflex. Nothing is posted until you finish the check-in, and a week you don’t check in stays a week with no check-in.",
+					"If the number is wrong, type yours. Faro then asks why it’s different: the source is behind, it counts something else, it’s wrong this week, or something else (say more, in at least 10 characters). Your number is the check-in’s; the reading and your reason are kept beside it. It doesn’t change the goal’s status and nobody is told. Put 12 min back undoes it.",
+					"A reading more than 7 days old isn’t filled in, and its value isn’t shown: type this week’s number, or say there isn’t one. A source that measures only the whole company never fills in a team’s goal. A source with nothing new since your last check-in, nothing yet, or that can’t be reached just now says so, with Try again.",
+					"After posting, the check-in says where its number came from: “12 min, from CI analytics, read 9:02 today. Confirmed by you.”, or “14 min, typed. CI analytics said 12 min: the source counts something else.”"
+				]
+			},
+			{
 				heading: "Ad hoc check-ins and corrections",
 				list: [
 					"Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status. A second check-in in a week is compared with last week, not with your first one, and so is the goal’s “vs last week”.",
@@ -18588,7 +18682,11 @@ var CORE_ARTICLES = [
 			}
 		],
 		routes: ["/check-in", "/check-in/:goalId"],
-		screens: ["CheckInFlow", "CheckInQueue"],
+		screens: [
+			"CheckInFlow",
+			"CheckInQueue",
+			"CheckInNumber"
+		],
 		reqs: [
 			"CHECK-IN-QUEUE",
 			"NO-SILENT-ROUNDING",
@@ -18617,6 +18715,10 @@ var CORE_ARTICLES = [
 			"post",
 			"list",
 			"queue",
+			"source",
+			"reading",
+			"filled in",
+			"confirm",
 			"streak",
 			"in a row",
 			"forgiven",
@@ -20758,6 +20860,18 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "readings-fill-in-check-ins",
+		date: "2026-11-13",
+		title: "Check-ins start with the number, where a source can be read",
+		points: [
+			"A goal measured by a metric whose source Faro can read opens its check-in with the latest reading filled in, and says where it came from and when: “From CI analytics, read 9:02 today.”",
+			"The button names the number (“Confirm 12 min”). Nothing is posted until you finish the check-in.",
+			"Type a different number and you’re asked why it differs. Your number counts; the reading and your reason are kept beside it, and nobody is flagged.",
+			"A reading more than a week old isn’t filled in, and a company-wide number never fills in a team’s goal."
+		],
+		articles: ["check-in", "metric-slices"]
+	},
 	{
 		id: "look-around-the-demo",
 		date: "2026-11-13",
@@ -25014,6 +25128,220 @@ function proposedOfMetric(s, metricId) {
 }
 /** Rule 1's line for a metric, its owner being someone here who hasn't left. */
 var lineOf = (s, m) => stillToSay(m, !!ownerName(s.people, m));
+// src/mcp/checkInReaders.ts
+var READERS = [];
+/** Registers a module's reader, once. */
+function addCheckInReader(r) {
+	if (!READERS.some((x) => x.module === r.module)) READERS.push(r);
+}
+/** The readers registered by the modules in this build. */
+var checkInReaders = () => READERS;
+// src/modules/metrics/rulesReading.ts
+init_reading();
+init_thresholds();
+/** Ask the source that reads `metric` for the link's slice, once (the step opens). A source that reads the metric but not
+this slice is `no-slice`, and is never asked for another slice's number: a company-wide number is never a team's. */
+async function askSource(sources, metric, slice, now) {
+	const forSlice = sources.find((s) => s.reads(metric, slice));
+	if (!forSlice) {
+		const any = sources.find((s) => s.reads(metric));
+		return any ? {
+			source: any.name,
+			reading: "no-slice"
+		} : {
+			source: null,
+			reading: null
+		};
+	}
+	try {
+		return {
+			source: forSlice.name,
+			reading: await forSlice.read(metric, now, slice)
+		};
+	} catch {
+		return {
+			source: forSlice.name,
+			reading: "unreachable"
+		};
+	}
+}
+/** Whether `a` and `b` are one number at the metric's decimals (12 and 12.0 are; 12 and 14 aren't): the core's, so the
+engine's rule 3 and this rule compare one way. */
+var sameAt = sameAtPlaces;
+/** Whether a reading is ten times or a tenth of the last number, by size (MT4's Check, kept by NR). */
+function isJump(value, lastValue) {
+	if (lastValue == null) return false;
+	if (lastValue === 0) return Math.abs(value) >= 10;
+	const r = Math.abs(value) / Math.abs(lastValue);
+	return r >= 10 || r <= .1;
+}
+/**
+* Rule 1: the first state that applies. `reading` is what asking gave (`Asked.reading`); `lastReading` what the goal's
+* latest check-in recorded (or null); `lastValue` that check-in's number; `typed` the owner's number in the field, if
+* they typed one; `decimals` the metric's. `old` comes before `same`, so a reading recorded last week and now ten days old
+* reads as too old, not as "no new reading".
+*/
+function readingState(reading, lastReading, lastValue, now, typed, decimals) {
+	if (reading === "no-slice") return "no-slice";
+	if (reading === "unreachable") return "unreachable";
+	if (reading == null) return "missing";
+	if (now.getTime() - Date.parse(reading.at) > RULES.readingMaxDays * 864e5) return "old";
+	if (lastReading && Date.parse(reading.at) <= Date.parse(lastReading.at)) return "same";
+	if (isJump(reading.value, lastValue)) return "jump";
+	if (typed != null && !sameAt(typed, reading.value, decimals)) return "changed";
+	return "fresh";
+}
+/** What a check-in records (rule 2): the source, its value and when it measured it, and the reason only when the owner's
+number differs. Null when nothing was read. */
+function recordReading(source, reading, value, decimals, why) {
+	if (!source || !reading) return null;
+	const differs = value != null && !sameAt(value, reading.value, decimals);
+	return {
+		source,
+		value: reading.value,
+		at: reading.at,
+		...differs && why ? { why } : {}
+	};
+}
+// src/modules/metrics/source.ts
+/** The slice of a link: its team, or the whole company, and its part ('' for all of it). */
+var sliceOf$1 = (l) => ({
+	teamId: l.teamId,
+	part: l.part ?? ""
+});
+// src/modules/metrics/numbers.ts
+init_progress();
+var DEMO_SOURCE = "CI analytics";
+var DEMO_RUNNER_SOURCE = "CI runner metrics";
+var DEMO_SERIES = [
+	{
+		source: DEMO_SOURCE,
+		metric: "metric_ci-time",
+		slice: {
+			teamId: null,
+			part: ""
+		},
+		from: "ns-ci"
+	},
+	{
+		source: DEMO_RUNNER_SOURCE,
+		metric: "metric_queue-wait",
+		slice: {
+			teamId: "cicd",
+			part: "main branch pipelines"
+		},
+		from: "lead-ci-time"
+	},
+	{
+		source: DEMO_RUNNER_SOURCE,
+		metric: "metric_queue-wait",
+		slice: {
+			teamId: "build",
+			part: "release pipelines"
+		},
+		from: "lead-ci-time",
+		add: 3,
+		short: 1
+	}
+];
+var key = (p) => p.trim().toLowerCase();
+var sameSlice = (a, b) => a.teamId === b.teamId && key(a.part) === key(b.part);
+/** A series' readings, oldest first: the goal's latest check-in of each week, then one more week, continued by the mean
+step of its last four numbers (rounded to whole numbers), each measured at 09:00 UTC on its week's review day. */
+function seededSeries(d, seed, cycle, behindWeeks = 0) {
+	const byWeek = /* @__PURE__ */ new Map();
+	for (const c of seed.checkIns.filter((x) => x.goalId === d.from && x.value != null && !x.removedAt).sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt))) byWeek.set(c.week, c.value);
+	const weeks = [...byWeek.keys()].sort((a, b) => a - b);
+	if (!weeks.length) return [];
+	const last = weeks.at(-1);
+	const tail = weeks.slice(-4).map((w) => byWeek.get(w));
+	const step = tail.length > 1 ? (tail.at(-1) - tail[0]) / (tail.length - 1) : 0;
+	if (last < cycle.weeks) byWeek.set(last + 1, Math.round(byWeek.get(last) + step));
+	const all = [...byWeek.keys()].sort((a, b) => a - b);
+	return all.slice(0, Math.max(0, all.length - (d.short ?? 0) - behindWeeks)).map((w) => ({
+		value: byWeek.get(w) + (d.add ?? 0),
+		at: `${reviewDate(cycle, w)}T09:00:00.000Z`
+	}));
+}
+/** The demo's two sources, their series made once from the seeded example (`seed`). */
+function demoSources(seed, cycle, opts = {}) {
+	const series = DEMO_SERIES.map((d) => ({
+		d,
+		readings: seededSeries(d, seed, cycle, opts.behindWeeks ?? 0)
+	}));
+	return [DEMO_SOURCE, DEMO_RUNNER_SOURCE].map((name) => {
+		const mine = (m, slice) => m.source === name && !m.removedAt ? series.filter((x) => x.d.source === name && x.d.metric === m.id && (!slice || sameSlice(x.d.slice, slice))) : [];
+		return {
+			name,
+			reads: (m, slice) => mine(m, slice).length > 0,
+			async read(m, at, slice) {
+				const s = mine(m, slice)[0];
+				if (!s) return null;
+				return s.readings.filter((r) => Date.parse(r.at) <= at.getTime()).at(-1) ?? null;
+			}
+		};
+	});
+}
+// src/modules/metrics/sources.ts
+var made = /* @__PURE__ */ new WeakMap();
+/** The sources for a workspace: the demo's, made from its seeded snapshot (`seed`, null when the workspace isn't the
+example: then none). Made once per seed, cycle and lateness. */
+function sourcesFrom(seed, cycle, behindWeeks = 0) {
+	if (!seed) return [];
+	const byKey = made.get(seed) ?? /* @__PURE__ */ new Map();
+	made.set(seed, byKey);
+	const key = `${cycle.id}:${behindWeeks}`;
+	let out = byKey.get(key);
+	if (!out) {
+		out = demoSources(seed, cycle, { behindWeeks });
+		byKey.set(key, out);
+	}
+	return out;
+}
+// src/modules/metrics/readingTool.ts
+init_status();
+init_rules();
+/** The sources an assistant's check-in reads: the demo's in the example, none elsewhere. */
+function toolSources(ctx) {
+	if (ctx.ws.kind !== "example") return [];
+	const s = ctx.full ?? ctx.snapshot;
+	return sourcesFrom({
+		...s,
+		checkIns: s.checkIns.filter((c) => c.week < ctx.week && !c.removedAt)
+	}, ctx.cycle);
+}
+async function readForTool(ctx, goal, ask) {
+	const m = goal.kind === "milestone" ? null : measureOf(ctx.snapshot, goal);
+	if (!m) return {
+		reading: null,
+		says: `“${goal.title}” isn’t measured by a metric with a number source, so no reading was recorded.`
+	};
+	const asked = await askSource(toolSources(ctx), m.metric, sliceOf$1(m.link), ctx.today);
+	if (!asked.source) return {
+		reading: null,
+		says: `No source can read ${m.metric.name}, so no reading was recorded.`
+	};
+	const last = checkInsFor(goal, ctx.snapshot.checkIns).at(-1) ?? null;
+	const value = ask.value ?? (ask.confirmed && asked.reading && typeof asked.reading === "object" ? asked.reading.value : null);
+	const state = readingState(asked.reading, last?.reading ?? null, last?.value ?? null, ctx.today, value, m.metric.decimals);
+	const r = asked.reading && typeof asked.reading === "object" ? asked.reading : null;
+	const says = {
+		"no-slice": `${asked.source} doesn’t read ${m.metric.name} for this goal’s team or part, so no reading was recorded.`,
+		unreachable: `${asked.source} couldn’t be reached just now, so no reading was recorded.`,
+		missing: `${asked.source} has no number for this yet, so no reading was recorded.`,
+		old: `${asked.source}’s latest reading is more than a week old, so it wasn’t recorded.`,
+		same: `${asked.source} has no new reading since the last check-in, so none was recorded.`
+	};
+	if (!r || says[state]) return {
+		reading: null,
+		says: says[state]
+	};
+	return { reading: recordReading(asked.source, r, value, m.metric.decimals, ask.why) ?? null };
+}
+var metricReader = {
+	module: "metrics",
+	read: readForTool
+};
 // src/modules/metrics/tools.ts
 init_actions();
 init_goalKey();
@@ -25025,6 +25353,7 @@ init_rulesParts();
 init_status();
 init_vocabulary();
 init_via();
+addCheckInReader(metricReader);
 var str$3 = (description, extra = {}) => ({
 	type: "string",
 	description,
@@ -26384,7 +26713,8 @@ async function change(ctx, tables, opts) {
 		reason: opts.reason,
 		confirm: opts.confirm,
 		answers: answersOf(opts.answers),
-		records: recordsOn(ctx.ws)
+		records: recordsOn(ctx.ws),
+		...opts.readings?.length ? { readings: opts.readings } : {}
 	});
 	const errors = cs.issues.filter((x) => x.level === "must");
 	const checks = cs.groups.filter((g) => g.level === "check" && !(GOAL_QUESTION.includes(g.kind) && g.sheet !== "Check-ins"));
@@ -26909,6 +27239,22 @@ var CORE_TOOLS = [
 				needs: str("A decision or help needed, and from whom."),
 				next_step: str("The next step."),
 				reason: str(`If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”.`),
+				reading_confirmed: bool("True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded."),
+				different_because: {
+					type: "object",
+					additionalProperties: false,
+					required: ["kind"],
+					description: `When the owner’s value differs from what the source reads now, why: the reading and the reason are recorded beside their number (never a flag). kind: behind (the source is behind: they have a newer number), other-count (it counts something else), wrong (it is wrong this week) or else (something else, with text of at least 10 characters).`,
+					properties: {
+						kind: str("Why it differs.", { enum: [
+							"behind",
+							"other-count",
+							"wrong",
+							"else"
+						] }),
+						text: str("In the owner’s words; needed for else.")
+					}
+				},
 				answers: ANSWERS_ARG,
 				dry_run: DRY
 			}
@@ -26921,6 +27267,37 @@ var CORE_TOOLS = [
 		},
 		async run(a, ctx) {
 			const g = goalRef(ctx, a.goal_id);
+			const diff = a.different_because;
+			const asksReading = a.reading_confirmed === true || !!diff;
+			let readings;
+			let readSays = "";
+			if (asksReading) {
+				const reader = checkInReaders()[0];
+				if (reader && !isModuleOn(ctx.ws, reader.module)) return {
+					isError: true,
+					text: moduleOffSentence(moduleById(reader.module)?.name ?? reader.module, ctx.ws.name, "post_check_in with reading_confirmed or different_because")
+				};
+				const got = reader ? await reader.read(ctx, g, {
+					value: typeof a.value === "number" ? a.value : null,
+					confirmed: a.reading_confirmed === true,
+					...diff ? { why: diff } : {}
+				}) : {
+					reading: null,
+					says: "No number source can be read here, so no reading was recorded."
+				};
+				if (got.reading) {
+					readings = [{
+						goalId: g.id,
+						week: a.week ?? ctx.week,
+						reading: got.reading
+					}];
+					if (a.value == null && a.reading_confirmed === true) a = {
+						...a,
+						value: got.reading.value
+					};
+				}
+				readSays = got.says ?? "";
+			}
 			const r = row({
 				...a,
 				goal_id: g.id,
@@ -26956,12 +27333,17 @@ var CORE_TOOLS = [
 					text: `${t.heading}. ${t.line}`
 				};
 			};
-			return change(ctx, { checkIns: [r] }, {
+			const out = await change(ctx, { checkIns: [r] }, {
 				dry: !!a.dry_run,
 				reason: a.reason,
 				answers: a.answers,
+				readings,
 				saved
 			});
+			return readSays && !out.isError ? {
+				...out,
+				text: `${out.text}\n${readSays}`
+			} : out;
 		}
 	},
 	{
