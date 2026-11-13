@@ -24,7 +24,7 @@ export interface NewsEntry {
 export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'review-who-speaks',
-    date: '2026-11-12',
+    date: '2026-11-13',
     title: 'Only people in a review, or an admin, decide in it',
     points: [
       'Marking goals reviewed, notes, accepting a risk, and questions and next steps raised in a review are for the people in it, or an admin, in the app and through AI assistants alike.',
