@@ -319,8 +319,8 @@ export function Home() {
   const first = app.viewer.name.split(' ')[0];
   const draft = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.some((g) => hasDraft(checkInDraftKey(app.ws.id, g.id, app.week)));
   const prefs = usePrefs();
-  const opened = proposalSeen(prefs, app.ws.id, app.viewer.id).opened;
-  const plan = homeFor(homeFacts(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { workspace: workspaceName(app.ws, app.mode).name, draft, wrap: wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today), opened }));
+  const { opened, putOff: later } = proposalSeen(prefs, app.ws.id, app.viewer.id);
+  const plan = homeFor(homeFacts(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { workspace: workspaceName(app.ws, app.mode).name, draft, wrap: wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today), opened, putOff: later }));
   return (
     <div className="page home" data-part="Home">
       <div className="page-head">

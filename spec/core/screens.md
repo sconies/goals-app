@@ -1305,7 +1305,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Field | Kind | Shown when |
 |---|---|---|
-| “Troubled trees only Troubled trees” | checkbox | always |
+| “Troubled trees only Troubled trees” | checkbox | `!proposed?.size` |
 
 **States**
 

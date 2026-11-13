@@ -23,6 +23,28 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'import-check-close',
+    date: '2026-11-13',
+    title: 'Checking an import has a way out on a phone',
+    points: [
+      'Check this import and its list of changes have Close without saving at the top: the file is forgotten and you are back on Import.',
+      'If you answered a question or gave a reason, it asks first.',
+    ],
+    articles: ['import'],
+  },
+  {
+    id: 'proposed-fixes-review',
+    date: '2026-11-13',
+    title: 'Proposed goals: Home, the Map and the AI assistant',
+    points: [
+      'Home no longer says “Nothing is asked of you today.” beside proposed goals waiting for you: it says they wait for your response.',
+      'An ask on a goal that went back to proposed stays on Home.',
+      'With the State filter on Proposed, the Map shows every proposed goal, whatever Troubled trees says.',
+      'The AI assistant’s summary of your work lists the proposed goals waiting for you.',
+    ],
+    articles: ['goal-proposed', 'home'],
+  },
+  {
     id: 'ended-cycle-stays-as-read',
     date: '2026-11-13',
     title: 'A year that has ended keeps its check-ins as the wrap-up read them',

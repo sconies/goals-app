@@ -26,6 +26,7 @@ import { stopCheck } from './checkRun';
 import { importStore } from './importStore';
 import { Reading, TooManyChanges, useReadingDue } from './Large';
 import { baseName, leftRowsOf, rowsSheets, type RowProblem } from './rowsFile';
+import { CheckClose } from './CheckClose';
 import './import.css';
 
 
@@ -101,6 +102,7 @@ export function Check() {
     const from = read.origin!.workspaceName ? `“${read.origin!.workspaceName}”` : 'another workspace';
     return (
       <div className="page narrow import-check">
+        <CheckClose />
         <div className="page-head"><h1 className="title-xl">Check this import</h1><span className="hint">Nothing has been saved.</span></div>
         <p className="small">{st.name} · {readLine(read)}</p>
         <div className="level-block level-check" role="group" aria-labelledby="other-ws">
@@ -121,6 +123,7 @@ export function Check() {
       return (
         <div className="page narrow import-check">
           {picker}
+          <CheckClose />
           <div className="page-head"><h1 className="title-xl">Check this import</h1><span className="hint">Nothing has been saved.</span></div>
           <p className="hint tone-off" role="alert">Faro couldn’t check {st.name}: {run.error}. Split it and import each part.</p>
           <div className="foot-row import-foot"><button type="button" className="btn primary big-btn" onClick={choose}>Choose another file</button></div>
@@ -173,6 +176,7 @@ export function Check() {
   return (
     <div className="page narrow import-check">
       {picker}
+      <CheckClose />
       <div className="page-head">
         <h1 className="title-xl">Check this import</h1>
         <span className="hint">{saving ? SAVING : 'Nothing has been saved.'}</span>
