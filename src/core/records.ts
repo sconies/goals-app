@@ -18,10 +18,12 @@ export const MODULE_SHEETS: readonly ModuleSheet[] = MODULE_RECORDS.flatMap((m) 
 /** The records of the modules on in a workspace: what Recently removed lists and restores, and what a carried copy
     carries. A module that's off, switched off itself or off because something it needs is (fix item F5), keeps its rows
     untouched, and none of them is offered back until it is on again. */
-export const recordsOn = (ws: { modulesOff?: readonly string[] } | null | undefined): readonly ModuleRecords[] => {
-  const { on } = modulesOn(ws);
-  return MODULE_RECORDS.filter((m) => on.has(m.module));
-};
+export const recordsOn = (ws: { modulesOff?: readonly string[] } | null | undefined): readonly ModuleRecords[] =>
+  recordsOf(MODULE_RECORDS, modulesOn(ws).on);
+
+/** Of some modules' records, those of the modules on (resolveModules' `on`). */
+export const recordsOf = (records: readonly ModuleRecords[], on: ReadonlySet<string>): readonly ModuleRecords[] =>
+  records.filter((m) => on.has(m.module));
 
 /** The workbook's sheets of the modules switched on in a workspace (fix item F2): a module that's off adds no sheet to
     any export (the Export sheet, Data's downloads, the MCP export tool), as it adds nothing else. */
