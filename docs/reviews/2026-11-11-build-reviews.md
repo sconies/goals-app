@@ -138,6 +138,8 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #317 Import and Export: the four mediums on #257 and #248 | 3 | 0 | 0 | 0 |
 | #331 #300 review: a range between weighs both limits | 2 | 0 | 0 | 0 |
 | #327 Migration 0044: history paging indexes | 4 | 0 | 0 | 0 |
+| #335 #323 and #229 review mediums | 4 | 0 | 0 | 0 |
+| #340 MT1 review: the two mediums from #281 | metrics | 0 | 0 | 0 |
 | #313 FS1 review: three mediums from #111 | 1 | 0 | 0 | 0 |
 | #291, #295, #296, #304, #307 KT9, KT10 and KT6: the kit | 6 | 0 | 0 | 0 |
 | #244, #246, #254, #260 Backlog and handovers | planning, 6, 7 | 0 | 0 | 0 |
@@ -1468,3 +1470,15 @@ A goal can be measured by a part of a metric's number ("CI/CD · release builds"
 - Through the old names in `public`, a saved part is not read back (until 0c2).
 
 **Fine.** Single-link saves write `''`; 60 characters saves and 61 is refused at both doors; a member cannot name a part on someone else's goal; existing links read as before; main needs 0043 only for a link with a part, and 0043 merged first.
+
+### #335 #323 and #229 review mediums (track 4, merged 04:18 UTC, 13 Nov)
+
+Fixes all three, ahead of any caller passing a window. `goalHasCheckIns`, `cycleStanding`, `deleteCycle` and `personHistory` read `Snapshot.history` through one function, `checkInsLeftOut` (`src/domain/removal.ts`): a year whose check-ins a window left out counts as having some, so its goals are stopped, not deleted, the year stays, and someone whose marks can't be seen is marked as left, never deleted outright; an import older than the window can't be undone. Every store's `createWorkspace` refuses a windowed snapshot (`wholeOnly`, `src/ports/window.ts`). The goals port is keyed on the workspace's modules-off list and fills its columns inside the shared port, with a test that every hook in a render gets one port. Read, with `window.test.ts` and `goals.test.tsx` run on main at `241d8a06`. The app's loader keeping whichever load lands last (#323's medium 2, second half) is not taken, and still cannot happen while nothing passes a window. No finding.
+
+### #340 MT1 review: the two mediums from #281 (metrics, merged 03:14 UTC, 13 Nov)
+
+Fixes both and five of the lows. The `saveMetric` action itself asks rule 1's Checks (`src/modules/metrics/rulesSave.ts`, `saveMetricAsked`), so a goal's "Add this metric" asks them too and shows them in place; a name that differs only by accents is the same name, a Must fix; `save_metric` checks rights before it asks anything, ties a name answer to the metric it answers and reads answers as text; the form keeps focus on an answered Check; the direction buttons are 44 px on touch. Read, with the module's rule and tool tests run. No finding.
+
+### #337 KT13: the store contract as data; #339, #333 and #345 handover and round 4 design
+
+The store contract's cases moved to data, run on all three stores and by the drill; skimmed. The rest are documents and design notes. Not reviewed.
