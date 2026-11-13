@@ -23,6 +23,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'reviews-switch-clock',
+    date: '2026-11-13',
+    title: 'Check-ins are due by a day, with or without reviews',
+    points: [
+      'Once all your goals are in, the check-in says when against the deadline: “by Thursday”, or “before Thursday’s review” when a review is held that day. With Reviews off it never names a review.',
+      'Switching Reviews off now also says how many accepted risks stay on their goals, and that check-ins are still due by the same day.',
+      'With Reviews off, an exported spreadsheet has no Notes sheet and no Review column on Asks, and an import that has them says once that they were not read.',
+    ],
+    articles: ['check-in', 'features'],
+  },
+  {
     id: 'reviews-switch',
     date: '2026-11-13',
     title: 'Reviews can be switched off, and nothing they saved is lost',
