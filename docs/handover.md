@@ -3,7 +3,36 @@
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
 
+## Track 3 (import), Friday 13 November, 01:10 UTC: handover after item 0 (supersedes the 12 Nov 21:20 entry's list)
+
+The track 3 session that built item 0 is at half its context. A fresh track 3 session picks up here. The 12 Nov 19:40 section below still holds the open findings word for word.
+
+**Done in that session (PR `im-review-fixes`; merge it once CI is green if it hasn't been)**
+- The reviewer's four mediums on #257 and #248:
+  - `importSpeed.test.ts`'s ~30,000-row test gives each copy its own keys (G-1001…), titles, names and emails, and asserts no issue and every row unchanged.
+  - A new Goals row whose Action is Stop or Delete is a `removal-refused` Must fix ("Stop needs the goal’s Key…"; `changeset.ts`, beside the other not-found keys).
+  - A filtered All tab exports as `as-shown`, never `all` (`Export.tsx`); U19 covers it (its step budget went from 16 to 19 for the second export).
+  - Export's Everything counts read `everything()` / `everythingCounts()` in `export.ts`, the same set the workbook writes. `export.ts` no longer takes the whole workspace and is off `scripts/whole-workspace.json`.
+- Planning's U46 finding (and U19's phone miss), two primaries in view: Export opened from the phone's View sheet hides that sheet meanwhile (`ExportButton.tsx`, `.sheet-wrap.under-sheet` in `styles.css`). U19 and U46 score 10. **U29 (8.3, the import walkthrough's first step on a phone) is not looked at yet**: it goes with item 2.
+- Full suite before the last merge of main: every journey passed except U19 (since fixed); U12 8.8 and U31 9 (budget) were below 10 and are not import's.
+
+**Next, in this order**
+1. **IM8** (track 2 said on 13 Nov 00:24 that it has nothing open in `Onboarding.tsx`; its next session works in `App.tsx`, `dayOne.ts` and `state.tsx`). What I found:
+   - `buildWorkspace` (`src/domain/importer.ts`, about line 100) runs `planChanges` with `mode: 'create'` and **no answers**. A Check that stopped its row blocks set-up; the rest become notes beside rows. IM8 passes answers through and returns `cs.groups` for the preview.
+   - `past-stage` is skipped in create mode (`!existing && !create && d.kind === 'milestone'` in `changeset.ts`, about line 975). Set-up instead moves stages itself: `keepFileWeeks` and `stagesFromNow` in `Onboarding.tsx` (line 157; the toggle at about line 502). IM8 asks it in create mode with "Count them from this week" first and chosen, and drops the toggle.
+   - An owner the People sheet lacks: `personFrom`'s `unknown-ref` (`changeset.ts`, about lines 428 and 442) offers `ANSWERS.unknownRef('person', v, false, false)`. In create mode, add "Add {person}" (adds them to the people) and "Give it to someone here".
+   - The upload is `upload()` in `Onboarding.tsx` (about line 255), which fills `fileTables` for template `file`; the read-back is at about line 490. The groups-with-answers UI is in `src/modules/spreadsheets/Check.tsx`: load it lazily from set-up (first download ~264.7 of 265 KB).
+   - Journey numbers: U99 is SETUP-UPLOAD's in `docs/design/setup/spec.md`. U92's second half needs its own number: U105 and U109 are taken; grep again after merging main.
+2. **The IM3 findings, the IM4/IM5 lows and the #257/#248 lows** (19:40 section below), plus **U29**'s cause.
+
+**Gotchas (new)**
+- From planning: a migration that adds a check constraint adds its line to `src/spec/limits.ts` in the same PR.
+- A container restart kills a background eval run without a result: rerun it, with its log in the scratchpad.
+- Item 0's changes touch `changeset.ts` and `export.ts`, so `evals:changed` runs the full suite (about 17 minutes in four shards).
+
 ## Planning state, Thursday 12 November, 21:55 UTC (planning session handing over)
+
+**Update, Friday 13 November, 02:10 UTC.** Current sessions (these replace the IDs below): track 1 session_012kbr8zenZxEHT6rv4yLzHG; track 2 session_012kbr8zJcP8xenTkLS4rV4P; track 3 session_012kbr8yuAExZc7Qwjdwi7Ew; track 4 session_012kbr8y3UGvoeUMdAQ8yaJ8; track 6 session_012kbr91nEq272Y9HvKNhm98 (the store contract, the kit's last gap); track 7b session_012kbr92c7taPQJmK4jDJU9E; reviewer session_012kbr8y4Bh3MudNC1bdo3RN. Main has a branch protection rule since 02:05 (a PR, the smoke check, up to date with main; no approvals), so auto-merge works: enable_pr_auto_merge (MERGE) once the gate passes. Lane decided (13 Nov): when a goal's owner changes, its open asks move to the new owner and the asker is told (track 1 builds it). The first download is about 264 of 265 KB.
 
 The planning session session_012kbr939zneZWtAo7UQEHRP is about half full and hands over. Everything below this section still holds; this is what changed since 18:30.
 

@@ -6,7 +6,7 @@ import { useApp } from '../../app/state';
 import type { PlaceProps } from '../../core/app';
 import { canLinkGoal, linkProblems, measureOf } from './rules';
 import { WarnMark } from '../../ui/bits';
-import { directionWords, findMetrics, liveLinks, metricPath, type LibraryRow } from './rulesLibrary';
+import { decimalsWords, directionWords, findMetrics, liveLinks, metricPath, type LibraryRow } from './rulesLibrary';
 import { libraryReads } from './reads';
 import './metrics.css';
 
@@ -42,12 +42,23 @@ export function GoalMetric({ goal }: PlaceProps['goal.sections']) {
     return <p className="hint goal-no-metric">No metric yet. <Link to={`/goals/${encodeURIComponent(goal.id)}/edit#definition`}>Choose one</Link></p>;
   }
   const others = liveLinks(libraryReads(app.snapshot, app.stamp()), m.metric.id).filter((l) => l.goalId !== goal.id).length;
+  // "{source} ({source owner}), refreshed {refresh}", each part left out when empty (MT2, spec 2.7).
+  const where = [m.metric.source.trim() ? `${m.metric.source.trim()}${m.metric.sourceOwner.trim() ? ` (${m.metric.sourceOwner.trim()})` : ''}` : '', m.metric.refresh ? `refreshed ${m.metric.refresh}` : ''].filter(Boolean).join(', ');
+  // The goal's own definition, only when it says something the metric's meaning doesn't.
+  const squash = (t: string) => t.toLowerCase().replace(/\s+/g, '');
+  const own = goal.definition?.trim() && squash(goal.definition) !== squash(m.metric.meaning) ? goal.definition.trim() : '';
   return (
     <section className="stack metric-block" aria-labelledby="g-metric" data-part="Measured by">
-      <h3 className="label" id="g-metric">Measured by {m.metric.name}, for {m.slice === 'The whole company' ? 'the whole company' : m.slice}</h3>
-      {m.metric.meaning ? <p>{m.metric.meaning}</p> : <p className="hint">Its meaning hasn’t been written yet.</p>}
-      {m.metric.source && <p className="small">Where the number comes from: {m.metric.source}</p>}
-      {m.metric.caveats && <p className="small">Caveats: {m.metric.caveats}</p>}
+      <h3 className="label" id="g-metric">Measured by {m.metric.name}</h3>
+      <dl className="metric-facts">
+        <dt>For</dt><dd>{m.slice}{m.part ? ` · ${m.part}` : ''}</dd>
+        <dt>What it means</dt><dd>{m.metric.meaning || <span className="hint">Its meaning hasn’t been written yet.</span>}</dd>
+        <dt>From the metric</dt><dd>{m.metric.unit}, {decimalsWords(m.metric.decimals)}, {directionWords(m.metric.direction)}</dd>
+        {where && <><dt>Where the number comes from</dt><dd>{where}</dd></>}
+        {m.metric.caveats && <><dt>Caveats</dt><dd>{m.metric.caveats}</dd></>}
+        {m.targetText && <><dt>This goal’s own</dt><dd>{m.targetText}</dd></>}
+        {own && <><dt>For this goal</dt><dd>{own}</dd></>}
+      </dl>
       {others > 0 && <p className="small"><Link to={`${metricPath(m.metric)}#goals`}>See the {others} other {others === 1 ? 'goal' : 'goals'} measured by it</Link></p>}
     </section>
   );
