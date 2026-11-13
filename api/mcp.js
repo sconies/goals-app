@@ -19452,7 +19452,8 @@ var CORE_ARTICLES = [
 		reqs: [
 			"PEOPLE-DIRECTORY",
 			"WORKSPACE-ADMIN",
-			"HABIT-MEASURE"
+			"HABIT-MEASURE",
+			"HABIT-NEVER-A-PERSON"
 		],
 		keywords: [
 			"teams",
