@@ -4,6 +4,27 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 
 
 
+## Track 1, Friday 13 November, 14:25 UTC (context near full, handing over; supersedes the 05:45 entry)
+
+Session: session_012kbr8xrSzicJV6Yybqqzng. **Merged:** #382 (an ended cycle refuses every correction in the engine, at every door; conformance case `ended-cycle` with `given.at`), #387 (Import's check and changes get `CheckClose`, "Close without saving" back to Import; U72 presses it).
+
+**In flight:** #400 (`ask-handover-mediums`, auto-merge on): Lane's rule (only `update` and `question` asks follow a new owner, `FOLLOWS_OWNER` in `askHandover.ts`; a named ask stays; one the new owner asked closes as withdrawn); #369's mediums 1, 2, 4, 5, 7 (`askWaiting` in `app/reads.ts` is the one lateness rule for Home, `get_my_work` and `list_requests`; a question before its session reads "Due by Tue 24 Nov"; N26 now checks every ask's waiting line for five people over 14 days); MCP parity: `unmark_reviewed`, and `arrive` has a reason. If CI fails, fix it there.
+
+**Open for Lane:** #369's medium 6 (a lone "this week" cell cuts a long review name at 390). Wrapping the name breaks #305's fold guarantee (N26: first goal at 775 px, fold 775), so it was reverted. Lane needs to choose: a shorter label, a taller cell, or keep the cut.
+
+**Next, in order** (planning, 13 Nov; follow `docs/architecture/module-map.md`, #388):
+1. **The habit moment**, `docs/design/round-4/habit/spec.md`: HB1, then HB2; HB3 once HM7 exists. HB is core, not a module; its words follow the `reviews` switch through a flag, as `readBack.ts` does (never import reviews), using RS1's "on time, without being asked" when reviews are off. CF2's migration is not on main (no `cycle.streak`), so HB1 builds the forgiving run unconditionally and says so in its PR. Home's cell (HB3) loads its rule after paint. Each ships its MCP tools in the same PR (`get_my_work` gets the streak).
+2. **NR1–NR3** (`docs/design/round-4/readings/spec.md`, replaces MT4): part of the metric library, no new switch. First move `NumberSource`/`SourcedMetric` out of the core ports into the metric library (a module-map fix item).
+3. **HM3/HM4** if not built, then **PF1–PF2** (the leader's week, `docs/design/round-4/portfolio/spec.md`): core, a view of Goals; its "This week, for these goals" entry belongs to reviews and shows only while `reviews` is on.
+4. N12's Find timing only if main's fixer (session_012kbr8zm5LkH575XFmikwtq, branch `fix/n12-data-search`) hasn't landed it; then #110's lows, HM1's lows and the lows batch (the 05:45 entry's list, plus #369's lows: `update_goal` is silent about moved asks; undoing an import logs nothing on the ask; marking someone as left can give "now yours" to a non-owner; `handedFrom` matches by name; meta lines two lines at 1440; a read-only metric edit page says "Close without saving"; a proposed goal's "waiting since" reads the UTC day; one kind's heading wraps at 390).
+
+**Habits, learned this session:**
+- What's new lists features only (Lane, #386): fixes, polish and wording get "[no news]" unless they change a number people rely on, restore something broken for many, or change who may do what. On a conflict in `whatsNew.ts`, take main's and re-add only feature entries.
+- Never `require('./evals/journeys.cjs')` to syntax-check it: it runs the whole suite. Use `node --check`.
+- `ONLY` and `FINISH` take comma-separated IDs (`ONLY=U3,U21`), and `FINISH` alone runs only F/N/P checks.
+- A new capitalised `.tsx` in a module is a "screen": add it to its guide article's `screens` and to `SCREENS` in `src/mcp/parity.ts`.
+- A status word ("Open", "Answered"…) written outside the vocabulary fails `vocabulary.eval`: log a field that isn't a status.
+
 ## Track 1, Friday 13 November, 05:45 UTC (session past half, handing over; supersedes the 02:00 entry)
 
 Session: session_012kbr91FiHKpcgaoQxfHX4a. **Merged:** #328 (Import's way out; F8's stale locator was fixed on main by #342 the same way), #326 (#225's review, with Lane's budget raise: first download 275 KB, the real app's 334 KB, `MARGIN_KB` still 3), #352 (`rv7-scope`: a review speaks only for the goals it walks, `maySpeak` in `actions.ts`, `scopeRefusal`; MCP `review_call` says the rule), #366 (`data-search-mediums`: #234's three mediums, F7's [S1]–[S3]).
