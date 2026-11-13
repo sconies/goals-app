@@ -162,12 +162,12 @@ export function ReviewCallBar({ goal }: { goal: Goal }) {
         {mustDecide && <button type="button" className="linkish" onClick={() => setMode('note')}>Add a note</button>}
         {!own && <button type="button" className="linkish" onClick={() => setMode('ask')}>Ask {owner} a question</button>}
         {!mustDecide && <button type="button" className="linkish" onClick={() => setMode('action')}>Add an action</button>}
-        <button type="button" className="linkish" onClick={() => setProposing(true)}>Propose a new goal</button>
+        <button type="button" className="linkish propose-now" onClick={() => setProposing(true)}>Propose a new goal</button>
         {/* On a phone the review bar's next arrow does this; the row keeps to what the review says. */}
         {!reviewed && <button type="button" className="linkish skip-now" onClick={rv.next}>Skip for now</button>}
       </div>
       {proposing && <Suspense fallback={null}><ProposeInReview goal={goal} review={rv.review} onClose={() => setProposing(false)} /></Suspense>}
-      {mode && <SayComposer goal={goal} mode={mode} existing={editing} needDate={needsDecision(status)} onClose={() => { setMode(null); setEditing(null); }} onSaved={() => { const m = mode; setMode(null); setEditing(null); app.toast(m === 'accept' ? `The review accepts the risk on ${goal.title}` : `${label[m][0]!.toUpperCase() + label[m].slice(1)} saved on ${goal.title}`); }} />}
+      {mode && <SayComposer goal={goal} mode={mode} existing={editing} needDate={needsDecision(status)} onPropose={() => { setMode(null); setEditing(null); setProposing(true); }} onClose={() => { setMode(null); setEditing(null); }} onSaved={() => { const m = mode; setMode(null); setEditing(null); app.toast(m === 'accept' ? `The review accepts the risk on ${goal.title}` : `${label[m][0]!.toUpperCase() + label[m].slice(1)} saved on ${goal.title}`); }} />}
     </div>
   );
 }
@@ -178,7 +178,7 @@ export function CarriedState({ state }: { state: 'open' | 'done' | 'overdue' }) 
 }
 
 /** A focused composer that names the goal and the review, with Save right under the field so it stays in reach with the keyboard open. */
-function SayComposer({ goal, mode, existing, needDate, onClose, onSaved }: { goal: Goal; mode: Say; existing?: Decision | null; needDate: boolean; onClose: () => void; onSaved: () => void }) {
+function SayComposer({ goal, mode, existing, needDate, onClose, onSaved, onPropose }: { goal: Goal; mode: Say; existing?: Decision | null; needDate: boolean; onClose: () => void; onSaved: () => void; onPropose?: () => void }) {
   const app = useApp();
   const rv = useReview(goal.id);
   const [text, setText] = useState(existing ? (mode === 'accept' ? acceptedReason(existing.note) ?? '' : existing.note) : '');
@@ -222,6 +222,8 @@ function SayComposer({ goal, mode, existing, needDate, onClose, onSaved }: { goa
             </label>
           </div>
         )}
+        {/* A new goal the room agrees on is proposed, not an action (GE10, decision 15): here too, so a phone has it. */}
+        {mode === 'action' && !existing && onPropose && <button type="button" className="linkish small" onClick={onPropose}>Propose a new goal instead</button>}
         <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : mode === 'accept' ? 'Save the decision' : mode === 'action' && needDate ? 'Save the next step' : `Save ${mode === 'ask' ? 'question' : mode}`}</button></div>
       </form>
     </Sheet>
