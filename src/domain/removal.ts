@@ -18,6 +18,7 @@ import { isTableView } from './tableLayout';
 import { VIA_LABEL, type Via } from './via';
 import { COMMENT_REMOVED, ENDED, LEFT, MIN_STOP_REASON, RESTORE_DAYS, STOPPED } from './vocabulary';
 import type { Ask, Change, CheckIn, Comment, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
+import { cycleDates } from './cycle';
 import { asBefore, hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsLeaving, rowsUndone, applyModuleRows, type ModuleRecords } from './records';
 
 const no = (msg: string): never => { throw new NotAllowed(msg); };
@@ -106,6 +107,20 @@ export function unmarkReviewed(x: ActionContext, made: Decision[]): Commit {
   return { decisions: after, changes: after.map((d) => log(x, { entity: 'decision', entityId: d.id, goalId: d.goalId, action: 'undone', summary: 'Undid marking it reviewed' })) };
 }
 
+/* ---------- a narrower load (AX5 part 2b) ---------- */
+
+const IMPORT_TOO_OLD = 'That import is over a year old, so it can’t be undone: too much may have changed since.';
+
+/** Whether a windowed load (Snapshot.history) left a cycle's check-ins out: it has some, and it ended before the window. */
+export function checkInsLeftOut(s: Pick<Snapshot, 'cycles' | 'history'>, cycleId: string): boolean {
+  const h = s.history;
+  if (!h || !h.checkInCycles.includes(cycleId)) return false;
+  const c = s.cycles.find((v) => v.id === cycleId);
+  return !c || cycleDates(c).lastDay < h.from.slice(0, 10);
+}
+/** Whether a windowed load left change-log entries from before this time out (anchors stay whatever their age). */
+export const changesLeftOut = (s: Pick<Snapshot, 'history'>, at: string) => !!s.history && Date.parse(at) < Date.parse(s.history.from);
+
 /* ---------- people ---------- */
 
 /** What a person has left a mark on: goals they owned (in any cycle), check-ins, notes and comments, and asks. */
@@ -115,9 +130,12 @@ export function personHistory(s: Snapshot, id: string) {
     checkIns: s.checkIns.filter((c) => c.authorId === id).length,
     notes: s.decisions.filter((d) => d.byId === id).length + liveNotes(s.changes).filter((c) => c.actorId === id).length,
     asks: asksOf(s).filter((r) => r.askedBy === id || r.recipientId === id || r.answeredBy === id).length,
+    // A windowed load leaves out the check-ins of cycles that ended before it, so whether this person posted one there
+    // isn't known here: they count as having a mark (marked as left, never deleted outright).
+    unknown: s.cycles.some((c) => checkInsLeftOut(s, c.id)),
   };
 }
-export const hasHistory = (h: ReturnType<typeof personHistory>) => h.goals + h.checkIns + h.notes + h.asks > 0;
+export const hasHistory = (h: ReturnType<typeof personHistory>) => h.goals + h.checkIns + h.notes + h.asks > 0 || h.unknown;
 
 /**
  * What marking someone as left hands over: the goals they own in this cycle (and any later one), the open asks they
@@ -243,7 +261,10 @@ const liveGoal = (x: ActionContext, id: string) => {
   return g!;
 };
 /** Whether a goal has history: any check-in. With none it's deleted; with some it's stopped, with a reason. */
-export const goalHasCheckIns = (s: Pick<Snapshot, 'checkIns'>, goalId: string) => s.checkIns.some((c) => c.goalId === goalId && !c.removedAt);
+/** Whether a goal has check-ins: one loaded, or its year's left out by a windowed load (Snapshot.history), which may hold
+    some. Read it on the whole load (fullOf), which has every goal and year. */
+export const goalHasCheckIns = (s: Pick<Snapshot, 'checkIns' | 'goals' | 'cycles' | 'history'>, goalId: string) =>
+  s.checkIns.some((c) => c.goalId === goalId && !c.removedAt) || checkInsLeftOut(s, s.goals.find((g) => g.id === goalId)?.cycleId ?? '');
 
 /** What leaving the tree takes: the goals feeding it move up to what it fed, other goals stop listing it, its open asks are withdrawn. */
 function detach(x: ActionContext, g: Goal, how: 'stopped' | 'deleted') {
@@ -282,7 +303,7 @@ function detach(x: ActionContext, g: Goal, how: 'stopped' | 'deleted') {
 export function stopGoal(x: ActionContext, goalId: string, reason: string): Commit {
   const g = liveGoal(x, goalId);
   if (!ownsOrAdmin(x, g)) no('Only the goal’s owner or an admin can stop it.');
-  if (!goalHasCheckIns(x.snapshot, g.id)) no('It has no check-ins yet: delete it instead.');
+  if (!goalHasCheckIns(fullOf(x), g.id)) no('It has no check-ins yet: delete it instead.');
   const why = reason.trim();
   if (why.length < MIN_STOP_REASON) no(`Say why it’s stopping, in a sentence (${MIN_STOP_REASON} characters or more).`);
   const d = detach(x, g, 'stopped');
@@ -297,7 +318,7 @@ export function stopGoal(x: ActionContext, goalId: string, reason: string): Comm
 export function deleteGoal(x: ActionContext, goalId: string): Commit {
   const g = liveGoal(x, goalId);
   if (!ownsOrAdmin(x, g)) no('Only the goal’s owner or an admin can delete it.');
-  if (goalHasCheckIns(x.snapshot, g.id)) no('It has check-ins: stop it instead, with a reason, so its history stays.');
+  if (goalHasCheckIns(fullOf(x), g.id)) no('It has check-ins: stop it instead, with a reason, so its history stays.');
   const d = detach(x, g, 'deleted');
   return {
     goals: [{ ...g, removedAt: x.now, removedBy: x.actor.id }, ...d.goals],
@@ -385,6 +406,8 @@ export function cycleStanding(s: Snapshot, cycleId: string): { goals: number; ch
   const checkIns = s.checkIns.filter((c) => ids.has(c.goalId) && !c.removedAt).length;
   const only = !s.cycles.some((c) => c.id !== cycleId && !c.removedAt);
   const goals = `${ids.size.toLocaleString('en-GB')} ${ids.size === 1 ? 'goal' : 'goals'}`;
+  // A cycle that ended before a windowed load has its check-ins left out: it has some, so it stays.
+  if (!checkIns && checkInsLeftOut(s, cycleId)) return { goals: ids.size, checkIns, only, deletable: false, says: `${goals} and check-ins: it stays` };
   const says = checkIns
     ? `${goals}, ${checkIns.toLocaleString('en-GB')} ${checkIns === 1 ? 'check-in' : 'check-ins'}: it stays`
     : only ? `${ids.size ? goals + ', no' : 'No goals and no'} check-ins yet; it’s the only cycle, so it stays`
@@ -464,7 +487,7 @@ export const importEntry = (s: Pick<Snapshot, 'changes'>, importId: string) => s
 /** Whether an import has been undone. */
 export const importUndone = (s: Pick<Snapshot, 'changes'>, importId: string) => s.changes.some((c) => c.action === 'undone' && c.entityId === importId);
 /** Whether this person may undo an import now: one that can be undone, not undone yet, and theirs (or they're an admin). */
-export const canUndoImport = (s: Pick<Snapshot, 'changes'>, entry: Change, actor: Person) => !!entry.undo && !importUndone(s, entry.entityId) && (entry.actorId === actor.id || actor.admin);
+export const canUndoImport = (s: Pick<Snapshot, 'changes' | 'history'>, entry: Change, actor: Person) => !!entry.undo && !importUndone(s, entry.entityId) && (entry.actorId === actor.id || actor.admin) && !changesLeftOut(s, entry.at);
 
 const onDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
@@ -488,6 +511,8 @@ function undoPlan(x: ActionContext, importId: string): { commit: Commit; restore
   if (!entry) no('There’s no import with that ID.');
   if (!entry!.undo) no('That import was saved before imports could be undone.');
   if (importUndone(full, importId)) no('That import has already been undone.');
+  // What changed since an import older than a windowed load isn't all loaded, so undoing it could overwrite later edits.
+  if (changesLeftOut(full, entry!.at)) no(IMPORT_TOO_OLD);
   if (entry!.actorId !== x.actor.id && !x.actor.admin) no('Only whoever made the import, or an admin, can undo it.');
   const u = entry!.undo!;
   const own = new Set(full.changes.filter((c) => c.importId === importId).map((c) => c.id));

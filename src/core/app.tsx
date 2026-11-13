@@ -193,14 +193,19 @@ export function useModules() {
 }
 
 /** The filters of the modules that are on, for Goals: each column by its parameter, and its words for the filter line. */
+const goalFilters = (screens: ReturnType<typeof useModules>['screens']) => screens.flatMap((m) => m.filters ?? []).filter((f) => f.list === 'goals');
+/** The goal list's module columns (Measured by …), filled from a snapshot: what the query port narrows by. */
+export const goalColumns = (screens: ReturnType<typeof useModules>['screens'], s: Snapshot): NonNullable<QueryContext['columns']> =>
+  Object.fromEntries(goalFilters(screens).map((f) => [f.param, f.fill(s)]));
+
 export function useGoalColumns(): { columns: NonNullable<QueryContext['columns']>; col: NonNullable<QueryNames['col']>; filters: ModuleFilter[] } {
   const { screens } = useModules();
   const app = useApp();
   return useMemo(() => {
-    const filters = screens.flatMap((m) => m.filters ?? []).filter((f) => f.list === 'goals');
+    const filters = goalFilters(screens);
     return {
       filters,
-      columns: Object.fromEntries(filters.map((f) => [f.param, f.fill(app.snapshot)])),
+      columns: goalColumns(screens, app.snapshot),
       col: (param, value) => { const f = filters.find((x) => x.param === param); const v = f?.says(app.snapshot, value); return f && v ? { label: f.label, value: v } : null; },
     };
   }, [screens, app.snapshot]);
