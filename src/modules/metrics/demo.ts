@@ -6,7 +6,8 @@
    The demo's builder (src/data/platformOrg/generate.ts) calls addDemoMetrics through records.ts once the year has been
    played, so a build without this module has a demo with no metric library and nothing else changed. */
 import type { DemoBuild } from '../../domain/records';
-import { linkGoalMetric, saveMetric, type MetricInput } from './rules';
+import { saveMetric, type MetricInput } from './rules';
+import { linkGoalMetric } from './rulesLink';
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
@@ -15,8 +16,8 @@ export interface MetricSpec extends MetricInput {
   /** A short, fixed id: metric_<slug>. */
   slug: string;
   ownerId: string;
-  /** The goals it measures, each for the whole company (null) or a team's slice. */
-  measures: [goalId: string, teamId: string | null][];
+  /** The goals it measures, each for the whole company (null) or a team's slice, and optionally one part of it (MT2). */
+  measures: [goalId: string, teamId: string | null, part?: string][];
 }
 
 export const METRICS: MetricSpec[] = [
@@ -39,14 +40,14 @@ export const METRICS: MetricSpec[] = [
     meaning: '90th percentile of minutes a pipeline job waits for a runner, over the last 7 days.',
     source: 'CI runner metrics', sourceOwner: 'CI/CD team',
     caveats: '',
-    measures: [['lead-ci-time', 'cicd']],
+    measures: [['lead-ci-time', 'cicd', 'main branch pipelines']],
   },
   {
     slug: 'flaky-rate', name: 'Flaky test rate', unit: '%', decimals: 1, direction: 'lower', ownerId: 'rhea', refresh: 'daily',
     meaning: 'Share of test runs on main that fail and then pass on a retry of the same commit, over the last 7 days.',
     source: 'CI test analytics', sourceOwner: 'CI/CD team',
     caveats: 'Quarantined tests are left out, so quarantining lowers the number without fixing the test.',
-    measures: [['lead-flaky', 'cicd']],
+    measures: [['lead-flaky', 'cicd', 'main pipelines']],
   },
   {
     slug: 'cache-hit', name: 'Remote build cache hit rate', unit: '%', decimals: 0, direction: 'higher', ownerId: 'rhea', refresh: 'daily',
@@ -125,10 +126,10 @@ export function addDemoMetrics(b: DemoBuild) {
     const mid = (p: string) => (p === 'metric' ? `metric_${m.slug}` : `${p}_metric_${m.slug}_${++k}`);
     const when = new Date(startMs - 3 * DAY + i * HOUR);
     b.save(saveMetric(b.act(m.ownerId, when, mid), m).commit!);
-    for (const [goalId, teamId] of m.measures) {
+    for (const [goalId, teamId, part] of m.measures) {
       const { goal, createdAt } = b.goal(goalId);
       const linkedAt = new Date(Math.max(when.getTime(), Date.parse(createdAt)) + HOUR);
-      b.save(linkGoalMetric(b.act(goal.ownerId, linkedAt, mid), goal, `metric_${m.slug}`, teamId)!);
+      b.save(linkGoalMetric(b.act(goal.ownerId, linkedAt, mid), goal, `metric_${m.slug}`, teamId, part ?? '')!);
     }
   });
 }

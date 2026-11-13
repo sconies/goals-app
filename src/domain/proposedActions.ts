@@ -18,9 +18,6 @@ export const NOTHING_TO_CHECK_IN = 'This goal is proposed, so there is nothing t
 /** Who may make a proposed goal active: its owner, or an admin (not whoever proposed it, unless they are one of those). */
 export const mayActivate = (actor: Actor, goal: Pick<Goal, 'ownerId'>): boolean => !!actor.admin || goal.ownerId === actor.id;
 
-/** A proposal still waiting this many weeks is asked about on Home (never a status or a flag). */
-export const PROPOSED_ASK_WEEKS = 8;
-
 /** Rule 2's full list for the goal as it stands, as if it were made active from `fromWeek` (this week by default). */
 export function readyToActivate(goal: Goal, ctx: Pick<MustFixContext, 'cycleWeeks' | 'week' | 'startDate'> & { fromWeek?: number }): MustFix[] {
   const d = draftFor(goal);
@@ -86,28 +83,5 @@ export function backToProposed(x: ActionContext, i: { goalId: string }): { commi
   return { commit: { goals: [goal], changes: [change(x, goal, 'Made it proposed again', [{ field: 'State', from: 'Active', to: PROPOSED }])] }, goal };
 }
 
-/** Whole weeks since a goal was proposed. */
-export const weeksProposed = (g: Pick<Goal, 'proposedAt'>, today: Date): number => (g.proposedAt ? Math.floor((today.getTime() - new Date(g.proposedAt).getTime()) / (7 * 86_400_000)) : 0);
-
-export interface ProposalAsk { kind: 'for-you' | 'stale'; goal: Goal; says: string }
-
-/**
- * Home's rows (rule 14): `for-you`, a goal proposed for the viewer by someone else that they haven't opened; `stale`, a
- * goal proposed PROPOSED_ASK_WEEKS weeks ago or more that the viewer may make active (an admin only for their own), not
- * put off. `seen` is what the viewer has opened, and until when each stale ask is put off (the Prefs port).
- */
-export function proposalAsks(goals: readonly Goal[], viewer: Actor, today: Date, seen: { opened: ReadonlySet<string>; putOff: ReadonlyMap<string, string> }, nameOf: (id: string) => string = (id) => id): ProposalAsk[] {
-  const out: ProposalAsk[] = [];
-  for (const g of goals.filter(isProposed)) {
-    if (g.ownerId === viewer.id && g.proposedBy && g.proposedBy !== viewer.id && !seen.opened.has(g.id)) {
-      out.push({ kind: 'for-you', goal: g, says: `${nameOf(g.proposedBy).split(' ')[0]} proposed a goal for you: “${g.title}”.` });
-      continue;
-    }
-    const n = weeksProposed(g, today);
-    const until = seen.putOff.get(g.id);
-    if (g.ownerId === viewer.id && n >= PROPOSED_ASK_WEEKS && !(until && until > today.toISOString().slice(0, 10))) {
-      out.push({ kind: 'stale', goal: g, says: `“${g.title}” has been proposed for ${n} weeks. Make it active, or withdraw it.` });
-    }
-  }
-  return out;
-}
+// Home's rows live with the proposed state (src/domain/proposed.ts), so Home loads without the actions here.
+export { proposalAsks, weeksProposed, PROPOSED_ASK_WEEKS, type ProposalAsk } from './proposed';

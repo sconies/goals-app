@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (152): build it as Faro does.
+- **Copy** (153): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -893,7 +893,7 @@ Setting up takes one question per screen: the workspace, who you are, your team 
 - **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R6a. The organisation](../requirements/internal/r6a-organisation.md).
 - **Rule:** [Day one: set-up’s steps and “Getting started”](rules/day-one.md)
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`
-- **Journeys and checks:** N10, U5, U11, U49, U54, U61, U86, U97, U146
+- **Journeys and checks:** N10, U5, U11, U49, U54, U61, U86, U97, U147
 
 ### DAY-ONE
 
@@ -929,7 +929,7 @@ A spreadsheet given at set-up is checked before the read-back, not after it: eve
 - **Copy:** build it as Faro does.
 - **Rule:** [The workspace: cycles, teams, names, leaving and what needs attention](rules/workspace.md)
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`
-- **Journeys and checks:** U146
+- **Journeys and checks:** U147
 
 ## Watching
 

@@ -104,7 +104,7 @@ export const ACCESS: Access[] = [
   { area: 'People, teams and the workspace', what: 'Change the status of a markup or of feedback (In hand, Fixed, Won’t fix, New again)', who: 'Admins (Lane, 12 Nov); anyone reads the inbox and sends feedback', code: ['src/markup/model.ts#mayTriage'] },
   { area: 'Metrics', what: 'Add a metric to the library', who: 'Anyone; they own it unless they name another owner', code: [`${MX}saveMetric`] },
   { area: 'Metrics', what: 'Change or remove a metric', who: 'Its owner, or an admin', code: [`${MX}saveMetric`, `${MX}removeMetric`, `${MX}canEditMetric`] },
-  { area: 'Metrics', what: 'Say which metric measures a goal, or stop', who: 'The goal’s owner, or an admin', code: [`${MX}linkGoalMetric`, `${MX}unlinkGoalMetric`, `${MX}canLinkGoal`] },
+  { area: 'Metrics', what: 'Say which metric measures a goal, or stop', who: 'The goal’s owner, or an admin', code: ['src/modules/metrics/rulesLink.ts#linkGoalMetric', `${MX}unlinkGoalMetric`, `${MX}canLinkGoal`] },
 ];
 
 /* ---------- the people the examples use ---------- */

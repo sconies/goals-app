@@ -2,7 +2,7 @@
 
 # Metric library: its rules
 
-The module’s 5 rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.
+The module’s 6 rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.
 
 | Rule | What it decides |
 |---|---|
@@ -11,6 +11,7 @@ The module’s 5 rules, in order. Each is a section of its own below, with its w
 | [“Measured by”, found by typing](#measured-by-found-by-typing) | What choosing a metric in a goal form fills in (rule 5), what stops the goal being saved with it, and the words the metric finder gives each metric. |
 | [Looking after metrics](#looking-after-metrics) | A name close to one already in the library (rule 4), and what an admin is told on Workspace → About. |
 | [Defining a metric well](#defining-a-metric-well) | What a metric still needs to say, in words and never as a score (rule 6), and the three questions adding or changing one may ask before it is saved: a close name, a unit spelt another way, a percentage that doesn’t say out of what. |
+| [For, which part, and what a goal takes from its metric](#for-which-part-and-what-a-goal-takes-from-its-metric) | Which part of a team’s or the company’s number a goal is measured by (rule 7), the parts other goals on the metric use, what linking asks, and why a goal with check-ins says why it is measured differently. |
 
 ## The metric library
 
@@ -54,7 +55,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ### Where it lives
 
-- [src/modules/metrics/rules.ts](../../../src/modules/metrics/rules.ts): `metricProblems`, `metricChangeQuestion`, `saveMetric`, `removeMetric`, `linkProblems`, `linkGoalMetric`, `unlinkGoalMetric`, `measureOf`, `goalTarget`
+- [src/modules/metrics/rules.ts](../../../src/modules/metrics/rules.ts): `metricProblems`, `metricChangeQuestion`, `saveMetric`, `removeMetric`, `linkProblems`, `unlinkGoalMetric`, `measureOf`, `goalTarget`
 - [src/domain/removal.ts](../../../src/domain/removal.ts): `undoRemoval`, `restoreRemoved`
 - [src/modules/metrics/records.ts](../../../src/modules/metrics/records.ts): `metricToRow`, `metricFromRow`
 
@@ -133,7 +134,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | No goals use it. | `CI compute cost per pipeline run` |
 | Most goals first. | `the last is CI compute cost per pipeline run` |
 | Lead time for changes’ goals. | `Off track · Lead time for changes · The whole company · 37 hours · 24 hours by year end · 9 hours behind plan · Rhea Kapoor; no summary line` |
-| Flaky test rate’s goal, kept at most 2.0%. | `At risk · CI/CD · ≤ 2.0% by year end · Near the 2.0% limit` |
+| Flaky test rate’s goal, kept at most 2.0%. | `At risk · CI/CD · main pipelines · ≤ 2.0% by year end · Near the 2.0% limit` |
 | CI compute cost per pipeline run’s goals. | `none` |
 | What Lead time for changes needs (owner, meaning, source, one goal). | `nothing` |
 | What CI compute cost per pipeline run needs: added before the year, complete, no goal. | `unused: No goal uses it → See goals in USD` |
@@ -381,7 +382,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ### Where it lives
 
-- [src/modules/metrics/rulesDefine.ts](../../../src/modules/metrics/rulesDefine.ts): `stillToSay`, `nameChecks`, `editsBetween`, `formerNames`, `unitChecks`, `meaningChecks`, `metricChecks`, `unansweredChecks`, `countLine`
+- [src/modules/metrics/edits.ts](../../../src/modules/metrics/edits.ts): `editsBetween`
+- [src/modules/metrics/rulesDefine.ts](../../../src/modules/metrics/rulesDefine.ts): `stillToSay`, `nameChecks`, `formerNames`, `unitChecks`, `meaningChecks`, `metricChecks`, `unansweredChecks`, `countLine`
 - [src/modules/metrics/reads.ts](../../../src/modules/metrics/reads.ts): `checkReads`, `lineOf`
 
 ### Requirements
@@ -412,6 +414,108 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metricChecks › asks only about what changed
 - metricChecks › an answer covers its check only when it is one of its choices
 - metricChecks › says the count line
+
+#### [src/modules/metrics/tools.test.ts](../../../src/modules/metrics/tools.test.ts)
+
+- metric library tools › lists the library and reads one metric in full, with the goals it measures
+- metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
+- metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › changes a metric only for its owner or an admin
+- metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
+- metric library tools › removes a metric, unlinking its goals, and restore_removed brings it back
+- metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)
+- metric library tools › says the library is off where an admin has switched it off
+- metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)
+
+## For, which part, and what a goal takes from its metric
+
+Which part of a team’s or the company’s number a goal is measured by (rule 7), the parts other goals on the metric use, what linking asks, and why a goal with check-ins says why it is measured differently.
+
+### The rule
+
+A goal measured by a metric takes two things from it: its **unit** and **which way is better** (“From the metric”: “{unit}, {decimals in words}, {lower|higher} is better.”, then “ From {source}, refreshed {refresh}.” when the metric says them). Its start, target, plan and due week stay the goal's own. A link says whose number: **For** a team or the whole company, and optionally **Which part** of it (“tier-1 services”, a region, “release builds”; at most 60 characters; empty for all of it).
+
+**Rule 7. Parts** (`partKey`, `partsOf`, `closePart`). Two parts are one when they match lower case, without accents and punctuation, with spaces collapsed and a trailing “s” dropped from each word. `partsOf` lists the distinct parts a metric's live links use, most used first, each in its most used spelling; the form offers up to five under the field (“Parts other goals on this metric use: …”, each filling the field). `closePart` finds a part in use that a typed one probably means: the same part spelt differently, or one edit away (never for parts of two characters or fewer).
+
+**What linking asks** (`linkChecks`, in `linkGoalMetric` and `link_goal_metric`). Must fix, which refuses the link: what the library already refuses (dated stages; a different unit), a part over 60 characters, and, on a goal with check-ins whose metric, team or part changes, an empty **Why** (“Say why this goal is measured differently now. It shows in its History.”; at most 300 characters). Checks, each answered once: another live goal on the same metric, team and part (“Another goal already measures this for {slice}: “{goal}” ({key}, {owner}). Two goals on one number is unusual.” → Carry on), and, when there is none, a part spelt like one in use (“{metric} already has a part called “{other}”.” → Use “{other}” / Keep “{typed}”). Aim and decimals stay warnings, as before. The History entry says “Measured by “{metric}” for {slice} · {part}: {why}”, with a row for each of Measured by, Slice and Which part that changed.
+
+**Shown** on a goal's About as “Measured by {metric}”, a list: For ({slice}{ · part}), What it means, From the metric, Where the number comes from (“{source} ({source owner}), refreshed {refresh}”, parts left out when empty), Caveats, This goal's own (its target), and For this goal (its own definition, only when it differs from the metric's meaning). On a metric's page each goal's For reads “{slice} · {part}”. Through the AI tools, `link_goal_metric` takes `part` and `reason`, returns `checks` and saves nothing until it gets `answers` (`part`: “keep” or “use:{part}”; `others`: “carry-on”).
+
+### Worked examples
+
+Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
+
+| Given | The rule gives |
+|---|---|
+| Parts “Tier 1 service” and “tier-1 services”. | `the same part` |
+| Part “EU” when the parts in use are “US” and “APAC”. | `nothing` |
+| Part “release bilds” when “release builds” is in use. | `release builds` |
+| Pipeline queue wait (p90): what a goal takes from it. | `min, whole numbers, lower is better. From CI runner metrics, refreshed hourly.` |
+| Rhea measures Base image build time (ci-docker, in min, 43 check-ins) by Pipeline queue wait (p90) for CI/CD, part “main branch pipelines”, as Pipeline queue wait already is. | `Check: Another goal already measures this for CI/CD, main branch pipelines: “Pipeline queue wait (p90)” (G-14, Rhea Kapoor). Two goals on one number is unusual.` |
+| Rhea moves Pipeline queue wait (p90) (lead-ci-time, with check-ins) to the part “release builds” and gives no reason. | `refused: Say why this goal is measured differently now. It shows in its History.` |
+| The same, with the reason “Release builds queue apart from main now”. | `Measured by “Pipeline queue wait (p90)” for CI/CD · release builds: Release builds queue apart from main now` |
+
+### Not self-explanatory
+
+- **Not self-explanatory:** The demo has no metric measuring several goals yet: its two parts are on existing links (Pipeline queue wait for CI/CD · main branch pipelines; Flaky test rate for CI/CD · main pipelines). MT5’s comparison adds goals that share a metric.
+- **Not self-explanatory:** “Use different ones” (round 1) is kept on a new goal: the spec drops it, but taking it out changes round 1’s journeys; MT3 or MT7 can.
+
+### Where it lives
+
+- [src/modules/metrics/rulesParts.ts](../../../src/modules/metrics/rulesParts.ts): `partKey`, `partsOf`, `closePart`, `linkChecks`, `linkChanges`, `forWords`, `PART_MAX`, `LINK_REASON_MAX`
+- [src/modules/metrics/rulesLink.ts](../../../src/modules/metrics/rulesLink.ts): `linkGoalMetric`, `linkReads`
+- [src/modules/metrics/rulesMeasure.ts](../../../src/modules/metrics/rulesMeasure.ts): `fromMetricWords`, `FROM_METRIC_NOTE`
+
+### Requirements
+
+- `METRIC-PARTS`: A goal is measured by a metric for a team or the whole company and optionally one part of that number, takes the metric's unit and direction, and says why when what measures it changes after check-ins (MT2). "Measured by" shows "From the metric" ({unit}, {decimals in words}, {direction}, and where the number comes from) and, under For, "Which part" (optional, at most 60 characters), with the parts other goals on the metric use offered under it. A part spelt like one in use (the same once case, accents, punctuation and a trailing s are set aside, or one edit away; never for two characters) is a Check (Use it / Keep yours); another live goal on the same metric, team and part is a Check (Carry on). On a goal with check-ins, changing its metric, For or part needs Why, which its History entry gives. A goal's About lists Measured by: For, What it means, From the metric, Where the number comes from, Caveats, This goal's own and, when it differs from the metric's meaning, For this goal. A metric's page shows each goal's For with its part. link_goal_metric takes part and reason, returns checks and saves nothing until it gets answers.
+
+### Tests that check it
+
+#### [src/modules/metrics/rulesParts.test.ts](../../../src/modules/metrics/rulesParts.test.ts)
+
+- partKey: the same part however it is spelt › folds case, accents, punctuation, spaces and a trailing s per word
+- partsOf: the parts a metric’s live links use › lists distinct parts, most used first, each in its most used spelling, leaving out all-of-it and removed links
+- closePart: a part in use the typed one probably means › finds the same part spelt differently
+- closePart: a part in use the typed one probably means › finds one a single edit away
+- closePart: a part in use the typed one probably means › never matches parts of two characters: “EU” is not “US”
+- closePart: a part in use the typed one probably means › says nothing for a part in use as typed, a new one, or none
+- linkChecks: what measuring a goal by a metric asks › passes linkProblems’ errors through as Must fix under Measured by, and its warnings as Checks
+- linkChecks: what measuring a goal by a metric asks › asks when another goal already measures the same number: for Build & Release, part “release builds”, when G-61 has the same
+- linkChecks: what measuring a goal by a metric asks › asks to reuse a part spelt differently: “Tier 1 service” when “tier-1 services” is in use
+- linkChecks: what measuring a goal by a metric asks › is fine with “EU” when the parts in use are “US” and “APAC”
+- linkChecks: what measuring a goal by a metric asks › needs a reason when a goal with check-ins changes its metric, team or part; not before its first check-in
+- linkChecks: what measuring a goal by a metric asks › holds the part to 60 characters
+- linkChecks: what measuring a goal by a metric asks › leaves out the goal’s own link and removed links when looking for another goal
+- the words around it › says a slice and its part
+- the words around it › a part spelt differently is no change; another part is
+
+#### [src/modules/metrics/rules.test.ts](../../../src/modules/metrics/rules.test.ts)
+
+- the demo’s library › has 13 metrics, 12 of them measuring a goal, and every link passes the rules
+- the demo’s library › says what a goal is measured by, for which slice, with the goal’s own target
+- the demo’s library › one metric can sit in the library measuring nothing yet
+- what a metric needs › a name, a unit and a direction; everything else is optional
+- what a metric needs › a name no other metric here has, any case
+- what a metric needs › decimals 0 to 4, a known refresh, an owner in the workspace, text in bounds
+- what a metric needs › trims what it keeps
+- adding and changing a metric › anyone adds one, owns it, and it’s logged field by field
+- adding and changing a metric › its owner or an admin changes it; anyone else is told who can
+- adding and changing a metric › the owner can hand it on; saving it unchanged saves nothing
+- linking a goal to a metric › the goal’s owner or an admin, for the company or a team
+- linking a goal to a metric › the same metric and slice again changes nothing; another slice is a logged edit
+- linking a goal to a metric › refuses a milestone goal, a different unit, a team that isn’t here and a removed metric
+- linking a goal to a metric › warns, without refusing, when the goal aims the other way from the metric
+- linking a goal to a metric › warns when the goal keeps more decimal places than the metric (one number, two precisions)
+- linking a goal to a metric › unlinking keeps the row, logs it, and Undo puts it back
+- removing a metric › its owner or an admin; it unlinks its goals, and Undo brings both back
+- removing a metric › is on Recently removed, and restoring brings the metric back with the links it had (spec 2.2)
+- removing a metric › restoring leaves out a link whose goal was measured by another metric since
+- removing a metric › can’t come back under a name another metric took since
+- one form, one save › mergeCommits puts a goal’s save and its link together, in order
+- the build review’s findings on ML2 and ML3 (11 Nov) › a goal being made for someone else can be measured in the same save, by whoever makes it
+- the build review’s findings on ML2 and ML3 (11 Nov) › changing a unit goals use is asked at every door: refused without confirm, saved with it
+- the build review’s findings on ML2 and ML3 (11 Nov) › removing a metric unlinks a stopped goal too, and putting it back links it again
 
 #### [src/modules/metrics/tools.test.ts](../../../src/modules/metrics/tools.test.ts)
 

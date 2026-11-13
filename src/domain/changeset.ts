@@ -44,7 +44,7 @@ import { reportedIn, stagesFromNow } from './templates';
 import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
 import { goalMeasureOf, type ModuleRecords } from './records';
 import { CHUNK } from './importLimits';
-import { ANSWERS, fold, groupId, groupIssues, issueOf, levelOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
+import { ANSWERS, fold, LEAVE, groupId, groupIssues, issueOf, levelOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
 import type { Ask, Change, CheckIn, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, Review, Snapshot, StageUpdate, Status, Team } from './types';
 import { FLAG, LEFT, lower, STOPPED } from './vocabulary';
 
@@ -465,15 +465,16 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     const header = (k: 'email' | 'id' | 'name') => (k === 'email' ? (cols.name ? `${what} email` : what) : k === 'id' ? `${what} ID` : what);
     const given = (Object.entries(cols) as ['email' | 'id' | 'name', string][]).filter(([, c]) => has(r, c) && ref(r, c)).map(([k, c]) => [k, ref(r, c)] as const);
     const says = (k: 'email' | 'id' | 'name', v: string) => !!current && (k === 'email' ? normalEmail(current.email) === normalEmail(v) : k === 'id' ? current.id === v : fold(current.name) === fold(v) || current.id === v || (v.includes('@') && normalEmail(current.email) === normalEmail(v)));
-    let changed = given.filter(([k, v]) => !says(k, v));
+    const changed = given.filter(([k, v]) => !says(k, v));
     if (!changed.length) return {};
     // An email or ID is exact: a name beside it that's theirs agrees with it, even when others share that name.
-    // A person chosen in answer to one cell ("Give it to someone here") is the row's person, whatever the others say.
-    const picked = changed.map(([k, v]) => personFrom(sheet, header(k), k, v)).find((x) => x.chosen && x.p);
+    // Each cell read once (rule 10). A person chosen in answer to one cell ("Give it to someone here") is the row's
+    // person, whatever the others say.
+    const read = changed.map(([k, v]) => ({ k, v, ...personFrom(sheet, header(k), k, v) }));
+    const picked = read.find((x) => x.chosen && x.p);
     if (picked) return { person: picked.p! };
-    const exact = changed.filter(([k]) => k !== 'name').map(([k, v]) => personFrom(sheet, header(k), k, v).p).find(Boolean);
-    if (exact) changed = changed.filter(([k, v]) => k !== 'name' || fold(v) !== fold(exact.name));
-    const found = changed.map(([k, v]) => ({ k, v, ...personFrom(sheet, header(k), k, v) }));
+    const exact = read.find((x) => x.k !== 'name' && x.p)?.p;
+    const found = exact ? read.filter((x) => x.k !== 'name' || fold(x.v) !== fold(exact.name)) : read;
     if (found.some((x) => x.left)) return { left: true };
     const bad = found.find((x) => x.problem);
     // At set-up, "Add {person}" says the name the row gives beside their email.
@@ -979,6 +980,12 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     else if (val(r, 'limit')) d.limit = val(r, 'limit');
     const bound = readWord(BOUND_WORDS, val(r, 'must stay'), 'Goals', row, d.title);
     if (bound === undefined) return;
+    // Two numbers with Must stay saying one side (an "at most" left from the export): asked, not overridden quietly.
+    if (two && bound && bound !== 'between') {
+      const found = val(r, 'must stay').trim();
+      const a = ask('near-word', 'Goals', row, d.title, `Limit has two numbers and Must stay says “${found}”. Read it as between?`, { column: BOUND_WORDS.what, found, suggest: 'between', answers: [ANSWERS.nearWord('between', [])[0]!, LEAVE] });
+      if (a === null || a === 'leave' || a.choice !== 'use') return;
+    }
     if (two) d.bound = 'between';
     else if (bound) d.bound = bound;
     if (val(r, 'margin')) d.margin = val(r, 'margin');
@@ -1003,23 +1010,14 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     }
     // A new goal's stages already due (C4; onboarding rule 3, in bulk): done, not done, or counted from this week.
     let doneIds: string[] = [];
-    // At set-up (create mode, IM8) the same question is asked with its own two answers, "Count them from this week" first
-    // (set-up chooses it unless changed); a goal with check-ins in the file keeps its weeks, as they happened.
-    if (!existing && d.kind === 'milestone' && create && !reported(r)) {
-      const past = d.stages.filter((st) => { const w = parseNumber(st.dueWeek); return w != null && w < week; });
-      const a = past.length ? ask('past-stage', 'Goals', row, d.title, `${plural(past.length, 'stage')} of “${d.title}” ${past.length === 1 ? 'is' : 'are'} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(', ')}, so it would start late.`, { column: 'Stages', answers: ANSWERS.pastStageSetUp }) : null;
-      if (a === 'leave') return;
-      if (a?.choice === 'from-now') {
-        const moved = stagesFromNow(d.stages.map((st) => `${st.name}@${st.dueWeek}`).join('; '), week, cycle.weeks).split(';').map((x) => x.trim());
-        d.stages = d.stages.map((st, k) => ({ ...st, dueWeek: /@\s*(\d+)$/.exec(moved[k] ?? '')?.[1] ?? st.dueWeek }));
-      }
-    }
-    if (!existing && !create && d.kind === 'milestone') {
+    // At set-up (create mode, IM8) it is asked with its own two answers, "Count them from this week" first (set-up chooses
+    // it unless changed); there a goal with check-ins in the file keeps its weeks, as they happened.
+    if (!existing && d.kind === 'milestone' && !(create && reported(r))) {
       const past = d.stages.filter((st) => { const w = parseNumber(st.dueWeek); return w != null && w < week; });
       if (past.length) {
         // Saying they're done is a check-in, so the owner's (R1): from anyone else it's asked, and said, but not recorded.
-        const marks = mayPostCheckIn({ id: actor.id, admin: admin() }, { ownerId: d.ownerId }, via) ? '' : ' ' + MARKS_STAGES(people.get(d.ownerId)?.name ?? 'Its owner');
-        const a = ask('past-stage', 'Goals', row, d.title, `${plural(past.length, 'stage')} of “${d.title}” ${past.length === 1 ? 'is' : 'are'} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(', ')}. ${past.length === 1 ? 'Is it' : 'Are they'} done?${marks}`, { column: 'Stages', answers: ANSWERS.pastStage });
+        const marks = create || mayPostCheckIn({ id: actor.id, admin: admin() }, { ownerId: d.ownerId }, via) ? '' : ' ' + MARKS_STAGES(people.get(d.ownerId)?.name ?? 'Its owner');
+        const a = ask('past-stage', 'Goals', row, d.title, `${plural(past.length, 'stage')} of “${d.title}” ${past.length === 1 ? 'is' : 'are'} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(', ')}${create ? ', so it would start late.' : `. ${past.length === 1 ? 'Is it' : 'Are they'} done?${marks}`}`, { column: 'Stages', answers: create ? ANSWERS.pastStageSetUp : ANSWERS.pastStage });
         if (a === 'leave') return;
         if (a?.choice === 'done' && !marks) doneIds = past.map((st) => st.id);
         if (a?.choice === 'from-now') {

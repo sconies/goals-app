@@ -22,22 +22,14 @@ export function ExportTheseGoals({ goals, viewName, inMenu }: { goals: Goal[]; v
     return () => under.classList.remove('under-sheet');
   }, [open, inMenu]);
   if (!app.snapshot.goals.length) return null;
-  // It's an item in Goals' Views menu on every width (goals spec, 2.1; GL2), and in the phone's View sheet. The sheet opens in the page, outside the menu, which
-  // closes as it opens: the same place as the button's sheet, so it's laid out the same.
-  if (inMenu) return (
+  // An item in Goals' Views menu on every width (goals spec, 2.1; GL2), and in the phone's View sheet. The sheet opens in
+  // the page, outside the menu, which closes as it opens.
+  return (
     <>
       <button type="button" className="menuitem export-these-item" ref={item} onClick={() => setOpen(true)}>
         <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M8 2v8m0 0 3-3m-3 3L5 7M3 12.5h10" /></svg>Export these goals
       </button>
       {open && createPortal(<Suspense fallback={null}><ExportSheet goals={goals} viewName={viewName} onClose={() => setOpen(false)} /></Suspense>, item.current?.closest('.page') ?? document.body)}
-    </>
-  );
-  return (
-    <>
-      <button type="button" className="btn ghost sm export-these" aria-label="Export these goals" title="Export these goals" onClick={() => setOpen(true)}>
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M8 2v8m0 0 3-3m-3 3L5 7M3 12.5h10" /></svg><span className="btn-label">Export these goals</span>
-      </button>
-      {open && <Suspense fallback={null}><ExportSheet goals={goals} viewName={viewName} onClose={() => setOpen(false)} /></Suspense>}
     </>
   );
 }

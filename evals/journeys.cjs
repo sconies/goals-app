@@ -1107,7 +1107,7 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   await p.context().close();
 }, ['budget']);
 
-journey('U146', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first import (U92’s second half): at /?store=browser, set-up with a spreadsheet whose goals name an owner nobody typed ends on the import’s preview, not a dead end: Must fix offers “Add {name}” and “Give it to someone here”, the stage question is already answered “Count them from this week” and can be changed, Create waits for the answers, and nothing is saved before it; afterwards the person added owns their goal and no stage is due before this week', 18, async (h, device) => {
+journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first import (U92’s second half): at /?store=browser, set-up with a spreadsheet whose goals name an owner nobody typed ends on the import’s preview, not a dead end: Must fix offers “Add {name}” and “Give it to someone here”, the stage question is already answered “Count them from this week” and can be changed, Create waits for the answers, and nothing is saved before it; afterwards the person added owns their goal and no stage is due before this week', 18, async (h, device) => {
   const p = h.use(await newPage(device, 'grace'));
   await p.goto(live('/workspace/new'));
   await p.locator('.steps').first().waitFor();
@@ -5522,6 +5522,14 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
   await p.goto(on('/goals/' + id, '2026-11-25'));
   await page.waitFor();
   h.set('finish', (await page.locator('.proposed-word').innerText()).trim() === 'Proposed', 'a fortnight later it no longer says Proposed');
+  // Nine weeks after it was proposed, Tunde's Home asks about it once, under Needs your response; Not yet puts it off.
+  const later = new Date(Date.parse(made.proposedAt) + 63 * 86_400_000).toISOString().slice(0, 10);
+  await p.goto(on('/', later));
+  const stale = p.locator('.needs-you [data-proposal="stale"]');
+  await stale.first().waitFor({ timeout: 5000 }).catch(() => fail('nine weeks on, Home has no row for the proposal'));
+  h.set('attention', /“Signed artifacts in staging” has been proposed for 9 weeks\. Make it active, or withdraw it\./.test(await stale.first().innerText()) && await stale.first().getByRole('link', { name: 'Open it' }).isVisible(), 'the stale proposal row reads: ' + (await stale.first().innerText()).replace(/\s+/g, ' '));
+  await stale.first().getByRole('button', { name: 'Not yet' }).click();
+  h.set('attention', (await stale.count()) === 0, '“Not yet” left the proposal row on Home');
   // As Oskar: comment, ask and watch, and who can make it active.
   await p.goto(on('/'));
   await viewAs(p, 'Oskar', h);
@@ -5766,6 +5774,52 @@ journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI 
   await h.click(row.getByRole('link', { name: 'See them' }));
   await a.waitForURL(/\/metrics\?sortout=1/);
   await a.context().close();
+}, []);
+
+/* For, which part, and what a goal takes from its metric (MT2, docs/design/metrics-2/spec.md 2.6, 2.7, rule 2). */
+journey('U146', ['METRIC-PARTS'], 'Which part: as Grace, Base image build time is measured by Pipeline queue wait (p90): the form says what the goal takes “From the metric” and offers “main branch pipelines”, the part another goal uses; choosing it asks “Another goal already measures this for CI/CD, main branch pipelines…”, answered Carry on; the goal’s About lists For “CI/CD · main branch pipelines”, What it means, From the metric and where the number comes from. Then Pipeline queue wait, with check-ins, moved to “release builds” asks Why as a Must fix, and once said, its History gives it', 24, async (h, device) => {
+  const p = h.use(await newPage(device, 'grace'));
+  await p.goto(url('/goals/ci-docker/edit'));
+  const field = p.locator('.measured-by');
+  await field.waitFor();
+  h.set('entry', true);
+  await h.click(field.getByRole('button', { name: /^Measured by/ }));
+  const panel = p.locator('.pick.open');
+  await h.fill(panel.getByRole('combobox'), 'queue');
+  await h.click(panel.getByRole('option', { name: /Pipeline queue wait \(p90\)/ }));
+  await see(field.locator('.from-metric'), 'min, whole numbers, lower is better. From CI runner metrics, refreshed hourly.', 'the form does not say what the goal takes from its metric');
+  await see(field, 'Parts other goals on this metric use: main branch pipelines', 'the parts in use are not offered');
+  await h.click(field.getByRole('button', { name: 'main branch pipelines' }));
+  h.set('progress', (await p.getByLabel(/^Which part/).inputValue()) === 'main branch pipelines', 'choosing a part in use does not fill the field');
+  const twin = field.locator('[data-check="part"]');
+  await see(twin, /Another goal already measures this for CI\/CD, main branch pipelines: “Pipeline queue wait \(p90\)” \(G-\d+, .+\)\. Two goals on one number is unusual\./, 'another goal on the same number is not asked about');
+  h.set('attention', (await twin.locator('svg[data-status]').count()) === 0 && /Check/.test(await twin.innerText()), 'the question is not a Check, or uses a status shape');
+  await h.checkpoint('asked');
+  await h.click(twin.getByRole('button', { name: 'Carry on' }));
+  h.set('errors', (await field.locator('[data-check="part"]').count()) === 0 && (await p.getByLabel(/^Why$/).count()) === 0, 'Carry on did not close the question, or a goal with no metric yet is asked why');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/goals\/(ci-docker|G-\d+)(\?|$)/);
+  const about = p.locator('.metric-block');
+  await about.waitFor();
+  const facts = (await about.innerText()).replace(/\s+/g, ' ');
+  h.set('finish', /For CI\/CD · main branch pipelines/.test(facts) && /What it means/.test(facts) && /From the metric min, whole numbers, lower is better/.test(facts) && /Where the number comes from CI runner metrics \(CI\/CD team\), refreshed hourly/.test(facts), `About says “${facts}”`);
+  // The goal that had the part, with check-ins, moved to another part: Why is a Must fix until said.
+  await p.goto(url('/goals/lead-ci-time/edit'));
+  await field.waitFor();
+  h.set('parity', (await p.getByLabel(/^Which part/).inputValue()) === 'main branch pipelines', 'the form does not show the goal’s part');
+  await h.fill(p.getByLabel(/^Which part/), 'release builds');
+  const why = field.locator('[data-check="why"]');
+  await see(why, 'Say why this goal is measured differently now. It shows in its History.', 'a goal with check-ins is not asked why');
+  await see(why, 'Must fix', 'Why is not a Must fix');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  const held = /\/edit/.test(p.url());
+  await h.fill(p.getByLabel(/^Why$/), 'Release builds queue apart from main now');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/goals\/(lead-ci-time|G-\d+)(\?|$)/);
+  const s = await h.snapshot();
+  const said = (s.changes ?? []).filter((c) => c.entity === 'metric' && c.goalId === 'lead-ci-time').map((c) => c.summary).pop() ?? '';
+  h.set('logged', held && said === 'Measured by “Pipeline queue wait (p90)” for CI/CD · release builds: Release builds queue apart from main now', held ? `the History entry says “${said}”` : 'it saved without a reason');
+  await p.context().close();
 }, []);
 
 journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {

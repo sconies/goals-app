@@ -60,6 +60,7 @@ A goal measured by a metric, for one slice: a team's number (teamId), or the who
 | `goalId` | `Id` | yes |  |
 | `metricId` | `Id` | yes |  |
 | `teamId` | `Id \| null` | yes |  |
+| `part` | `string` | no | Which part of the team's or the company's number (“tier-1 services”, a region); empty or absent for all of it (MT2). Absent on a link that never had one, so its row doesn't name the column; '' when a part was cleared. |
 | `linkedBy` | `Id` | yes |  |
 | `linkedAt` | `string` | yes |  |
 | `removedAt` | `string \| null` | no |  |

@@ -12,7 +12,7 @@ import { DemoEntry, DemoPanel } from './Demo';
 import { ResearchBar } from './ResearchBar';
 import { setAppearance, useAppearance } from '../app/appearance';
 import { usePlaceNames, useTrail } from './BackLink';
-import { useViews, viewParams } from '../screens/GoalFilters';
+import { useViews, viewParams } from '../screens/savedViews';
 import { Icon } from './Icon';
 import { FaroLogo, FaroMark } from './Brand';
 import { ProfileSheet } from './ProfileSheet';
