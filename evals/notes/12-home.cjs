@@ -44,8 +44,11 @@ module.exports = {
               const r = document.createRange(); r.setStart(node, 0); r.setEnd(node, node.textContent.indexOf(' · '));
               return r.getBoundingClientRect().right > e.getBoundingClientRect().right + 0.5 ? (e.textContent || '').trim() : null;
             }).filter(Boolean),
+            // A lone review cell on a phone uses the short label, so the review's name has the room (Lane, 13 Nov; #369's medium 6).
+            loneLong: (() => { const l = home?.querySelector('.dash > .dash-cell:only-child .dash-label-long'); return l && l.getClientRects().length ? l.textContent : null; })(),
           };
         });
+        if (touch) check(!seen.loneLong, `${at}: Home's lone review cell shows the long label “${seen.loneLong}” on a phone`);
         check(seen.lead !== 'missing', `${at}: Home has neither a lead nor the quiet line`);
         check(seen.primaries <= 1, `${at}: ${seen.primaries} primary buttons`);
         if (seen.lead === 'none') {
