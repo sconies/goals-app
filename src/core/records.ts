@@ -8,8 +8,9 @@ import type { ModuleRecords, ModuleSheet } from '../domain/records';
 /** Every module's records, in module id order. */
 export const MODULE_RECORDS: readonly ModuleRecords[] = PARTS.map((p) => ({ ...p.part, module: p.id }));
 
-/** The columns the modules add to Goals' rows (?metric=): the app's filters (core/app) and the AI's find_goals read them. */
-export const MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => m.goalColumns ?? []);
+/** The columns the modules add to Goals' rows (?metric=), each with its module: the app's filters (core/app) and the AI's
+    find_goals read them, and both leave out a switched-off module's column. */
+export const MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => (m.goalColumns ?? []).map((c) => ({ ...c, module: m.module })));
 
 /** The workbook's sheets the modules add (domain/export), in module id order: every module in this build. */
 export const MODULE_SHEETS: readonly ModuleSheet[] = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
