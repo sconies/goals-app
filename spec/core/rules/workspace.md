@@ -112,3 +112,6 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - set-up’s upload through the preview (IM8) › keeps the weeks of a goal with check-ins in the file, unasked: its history happened
 - set-up’s upload through the preview (IM8) › offers “Add {person}” and “Give it to someone here” for an owner the People sheet lacks, and blocks set-up until answered
 - set-up’s upload through the preview (IM8) › names an owner given by name only as typed
+- set-up’s upload through the preview (IM8) › asks about a Goals row’s team one letter from a team already named, instead of making a second team (#336 review)
+- set-up’s upload through the preview (IM8) › a person chosen for one owner cell stands for the row’s unknown ones, never over one naming someone else or a bad ID (#336 review)
+- set-up’s upload through the preview (IM8) › “Choose a goal” for a check-in row finds the file’s goals (#336 review)

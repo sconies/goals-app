@@ -787,12 +787,14 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | State | What it says | Shown when |
 |---|---|---|
+| error | “Couldn’t show what … would add: part of Faro didn’t load. Check your connection and try again. Nothing is los…” | always |
 | error | “Couldn’t create the workspace:” | always |
 
 **Buttons, and who sees them**
 
 | Button | Kind | Shown when |
 |---|---|---|
+| “Try again” | button | always |
 | “Start over” | button | `restored` |
 | “Change” | button | `d.step === 0` and `!cycleOpen` |
 | “Same as above (…)” | button | `d.step === 2` and `!r.team.trim() && above && above !== d.me.team.trim()` |
@@ -1617,7 +1619,9 @@ None: nothing to type or choose here.
 | “Add a note” | button | `mustDecide` |
 | “Ask … a question” | button | `!own` |
 | “Add an action” | button | `!mustDecide` |
+| “Propose a new goal” | button | always |
 | “Skip for now” | button | `!reviewed` |
+| “Propose a new goal instead” | button | `mode === 'action'` and `!existing` and `onPropose` |
 | “Cancel” | button | always |
 | “Saving… / Save the decision / Save the next step / Save …” | primary | always |
 

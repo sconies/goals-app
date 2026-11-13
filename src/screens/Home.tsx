@@ -10,7 +10,7 @@ import { EMPTY_QUERY } from '../domain/query';
 import { countList } from '../domain/order';
 import { gettingStarted, inviteLink, type DayOneFacts } from '../domain/dayOne';
 import { workspaceName } from '../domain/workspaceAttention';
-import { dayOneRows, homeFacts, reviewsOn, wrapUpScope } from '../app/reads';
+import { dayOneRows, homeFacts, reviewName, reviewsOn, wrapUpScope } from '../app/reads';
 import { useApp } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
@@ -131,8 +131,10 @@ function NeedsYou({ asks, also, leadAbout }: { asks: Waiting[]; also: boolean; l
   const [all, setAll] = useState(false);
   // Proposals (goal entry rule 14): one proposed for you by someone else, not yet opened, and one waiting 8 weeks or more.
   const [seen, setSeen] = useState(() => proposalSeen(prefs, app.ws.id, app.viewer.id));
+  // With Reviews switched off (FT2) no proposal says which review it came from.
+  const reviewsHere = reviewsOn(useModules().on);
   // The one the lead says (a goal proposed for you a week or more ago) isn't listed again.
-  const proposals = proposalAsks(app.snapshot.proposed ?? [], app.viewer, app.today, seen, (id) => app.person(id)?.name ?? id).filter((p) => p.goal.id !== leadAbout);
+  const proposals = proposalAsks(app.snapshot.proposed ?? [], app.viewer, app.today, seen, (id) => app.person(id)?.name ?? id, (id) => (reviewsHere ? reviewName(app.snapshot, id) : null)).filter((p) => p.goal.id !== leadAbout);
   const notYet = (p: ProposalAsk) => { putOff(prefs, app.ws.id, app.viewer.id, p.goal.id, app.today); setSeen(proposalSeen(prefs, app.ws.id, app.viewer.id)); };
   if (!asks.length && !proposals.length) return null;
   const shown = all ? asks : asks.slice(0, 5);
