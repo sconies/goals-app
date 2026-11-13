@@ -123,6 +123,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #281 MT1: defining a metric well | metrics | 0 | 2 | 6 |
 | #299 MT2: migration 0043 | metrics | 0 | 0 | 2 |
 | #300 A range between two numbers (with #292, migration 0042) | 2 | 0 | 3 | 4 |
+| #277 IM6 part 2: the import's worker, Stop, and files in parts | 3 | 0 | 3 | 7 |
 | #293 GE10 review: the four findings from #270 | 2 | 0 | 0 | 1 |
 | #294 Track 7 review fixes (#242, #249, #239) | MCP load | 0 | 0 | 0 |
 | #291, #295, #296, #304, #307 KT9, KT10 and KT6: the kit | 6 | 0 | 0 | 0 |
@@ -1318,3 +1319,22 @@ The status rule is in one place (`rangeOut`, `rangeNear`). The three mediums com
 - Wording names only the nearer bound where the range is meant: "1.2% at the end, inside the 0.5% limit" (`year.ts:123`), "Inside the 99.50% limit".
 - No journey or finish check covers the between form, page or chart (read).
 - A between row read without `range_lower` (the public fallback only) becomes "at most" and would be saved so; not live while `faro` is exposed (read).
+
+### #277 IM6 part 2: the import's worker, progress and Stop, and files too large to save split into parts (track 3, merged 22:09 UTC, 12 Nov)
+
+Read first by a reviewing session with probes and large files on screen at 1440 and 390; I re-read where the limit and the split's refs live on main at `b753ef19`. No high finding. The worker's result equals `planChanges` byte for byte for an edited demo workbook with 300 new goals and check-ins, as an admin and as a member, with and without answers; the worker and the fallback both run the one engine. Stop ends the worker, saves nothing and can be started again; a second file chosen during the first check wins cleanly. A split by name or key puts every row out once, cell for cell; the parts saved in order give the whole file's result, each as its own import with its own Undo.
+
+**1. Medium (ran). The 5,000-change limit can be got round from the changes list.** `CHANGES_SAVE_MAX` is read only in `worker.ts:22` and `Check.tsx:221`; `Changes.tsx:48-51` and `toSave` (`importPlan.ts:76`) plan again on the page's thread with a full commit. A file of 5,100 new goals plus one target change: type the reason, open "Show the 5,101 changes", and "Save 5,101 changes" is enabled and saves them. Without a worker the list saves 6,000. Fix: enforce the limit once, in the plan's save path.
+
+**2. Medium (ran). The split ignores Ref, Feeds into ref and Goal ref (#259), so such a file's later parts can never be saved.** `src/domain/splitFile.ts:19` knows a goal by key, ID and name only. A workbook of 2,600 new goals with Ref and 2,600 check-ins, half by Goal ref: part 1 saves, part 2 is 1,300 Must fix ("No row on Goals has the Ref “B2”") with no Save, and the file is left half imported. Fix: treat Ref as a goal's ref in the split and keep rows joined by one in the same part, or rewrite them to the key.
+
+**3. Medium (ran in the engine, parts of 50). Rules that look at the whole file stop applying once it is in parts,** and the parts are offered even while a Must fix remains (`Check.tsx:221`). Eight Stop rows spread across parts: the whole file asks the big-removal question once, the parts never ask and all eight stop. Two rows for one existing goal in different parts: Must fix in the whole file; in parts both save, the later over the earlier. Fix: don't offer parts while the whole file has a Must fix, and carry file-wide questions into each part.
+
+**Lows.**
+- Import still says "Up to 5,000 rows a file" (#257's low; Help has it right).
+- Size limits are still checked only on the import's screens; `bulk_change` has no cap (read).
+- Coming back to the tab restarts the check from nothing, because the run is keyed on the snapshot's identity and the app reloads on focus.
+- A worker that fails says "The check stopped.. Split it and import each part." with no fallback.
+- "2 files of 5,000 rows" when the second has 1,000; the hint reads as if the split were by hand; focus stays on `body` when Reading appears and when the check ends; the whole progress card is one live region (read).
+- The changes list can save while a re-check runs (read; the store refuses a stale goal version).
+- U98 checks the two file names and does not load the parts back (read).
