@@ -31,13 +31,17 @@ export function textMatches(words: string, q: string, key?: string | null): bool
 
 /** Rule 1 over words already split by `wordsOf` (a long list splits each row once, not on every key). */
 export function wordsMatch(have: readonly string[], q: string, key?: string | null): boolean {
+  return wordsMatcher(q)(have, key);
+}
+
+/** `wordsMatch` with `q` read once: for a long list, where the same search is tried against every row (N12). */
+export function wordsMatcher(q: string): (have: readonly string[], key?: string | null) => boolean {
   const asked = wordsOf(q);
-  if (!asked.length) return true;
+  if (!asked.length) return () => true;
   const typedKey = normalKey(q.trim());
-  if (typedKey) return !!key && typedKey === key;
+  if (typedKey) return (_, key) => !!key && typedKey === key;
   const bare = /^\d{1,9}$/.test(q.trim()) ? formatKey(Number(q.trim())) : null;
-  if (bare && key && bare === key) return true;
-  return asked.every((w) => have.some((h) => h.startsWith(w)));
+  return (have, key) => (!!bare && !!key && bare === key) || asked.every((w) => have.some((h) => h.startsWith(w)));
 }
 
 /* ---------- Rule 5: a near miss ---------- */
