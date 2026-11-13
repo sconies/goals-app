@@ -40,8 +40,8 @@ What the metric library deliberately leaves out, so a rebuild knows these are ch
 
 **How it could grow:** A workspace setting that makes every number goal need a metric, a flag (like the other attention flags) on goals that have none, and a count on Home for admins.
 
-## Loading the Metrics sheet back, and numbers from the source
+## Numbers from the source
 
-**Why it was left out:** The Metrics sheet is written for reading, like Asks and Notes; metrics are added in the app or by an AI assistant. A goal’s numbers still come from its check-ins.
+**Why it was left out:** A goal’s numbers come from its check-ins; the library says where each number comes from, in words.
 
-**How it could grow:** Give the Metrics sheet match and edit columns and read it through the change engine (stage 2), as People is. Later, read each metric’s number from its source on its refresh cadence and offer it in the check-in.
+**How it could grow:** Read each metric’s number from its source on its refresh cadence and offer it in the check-in (round 2’s MT4).

@@ -4,7 +4,7 @@
    problems as the Import screen, with every row new. Nothing is saved until every row is right. */
 import { levelIds } from './levels';
 import { planChanges, type Tables } from './changeset';
-import type { Answer, Answers, Issue, IssueGroup } from './problemLevels';
+import type { Answer, Answers, CoreSheet, Issue, IssueGroup } from './problemLevels';
 import { WEEKLY_REVIEW } from './via';
 export { initials, WEEKLY_REVIEW } from './via';
 import { GOALS, PEOPLE } from './columns';
@@ -117,7 +117,7 @@ export function buildWorkspace(input: { name: string; startDate: string; people:
   const built = new Set(cs.items.map(rowOf));
   const mustRows = new Set(cs.issues.filter((i) => i.level === 'must').map(rowOf));
   const blocks = (i: (typeof cs.issues)[number]) => i.level === 'must' || (i.level === 'check' && !built.has(rowOf(i)) && !mustRows.has(rowOf(i)));
-  for (const i of cs.issues) (blocks(i) ? issues : notes).push({ table: i.sheet, row: i.row, message: i.name && !i.message.includes(i.name) ? `“${i.name}”: ${i.message}` : i.message });
+  for (const i of cs.issues) (blocks(i) ? issues : notes).push({ table: i.sheet as CoreSheet, row: i.row, message: i.name && !i.message.includes(i.name) ? `“${i.name}”: ${i.message}` : i.message });
   if (!people.length && !issues.length) issues.push({ table: 'People', row: 1, message: 'Add at least one person.' });
   const c = cs.created!;
   // The weekly review and the pinned views, set up by the first person (you).

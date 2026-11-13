@@ -158,7 +158,7 @@ rules.push({
   id: 'metric-defined',
   title: 'Defining a metric well',
   summary: 'What a metric still needs to say, in words and never as a score (rule 6), and the three questions adding or changing one may ask before it is saved: a close name, a unit spelt another way, a percentage that doesn’t say out of what.',
-  code: [{ file: 'src/modules/metrics/edits.ts', names: ['editsBetween'] }, { file: 'src/modules/metrics/rulesDefine.ts', names: ['stillToSay', 'nameChecks', 'formerNames', 'unitChecks', 'meaningChecks', 'metricChecks', 'unansweredChecks', 'answersFrom', 'countLine'] }, { file: 'src/modules/metrics/reads.ts', names: ['lineOf'] }, { file: 'src/modules/metrics/checkReads.ts', names: ['checkReads'] }, { file: 'src/modules/metrics/rulesSave.ts', names: ['openChecks', 'saveMetricAsked'] }],
+  code: [{ file: 'src/modules/metrics/edits.ts', names: ['editsBetween'] }, { file: 'src/modules/metrics/rulesStill.ts', names: ['stillToSay'] }, { file: 'src/modules/metrics/rulesDefine.ts', names: ['nameChecks', 'formerNames', 'unitChecks', 'meaningChecks', 'metricChecks', 'unansweredChecks', 'answersFrom', 'countLine'] }, { file: 'src/modules/metrics/reads.ts', names: ['lineOf'] }, { file: 'src/modules/metrics/checkReads.ts', names: ['checkReads'] }, { file: 'src/modules/metrics/rulesSave.ts', names: ['openChecks', 'saveMetricAsked'] }],
   tests: ['src/modules/metrics/rulesDefine.test.ts', 'src/modules/metrics/tools.test.ts'],
   reqs: ['METRIC-DEFINED'],
   body: `

@@ -73,3 +73,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - one reader › knows each sheet by its header, whatever the file is called
 - a module’s own sheet in a file loaded back (AS part 3) › is named as written for reading, not called unknown
 - worked-out cells a file edited (rule 9, C19) › an unedited workbook has none; Status edited on two rows is named, and still changes nothing
+- the Metrics sheet, out and back in (MI) › the workbook with its Metrics sheet loads back as no change at all
+- the Metrics sheet, out and back in (MI) › a retired metric is in it, with Retired on and no Action, and is not brought back
+- the Metrics sheet, out and back in (MI) › a workbook exported with the metric library off loads into a workspace with it on and changes nothing
+- the Metrics sheet, out and back in (MI) › a workspace with the library off skips a file’s Metrics sheet, and says so once

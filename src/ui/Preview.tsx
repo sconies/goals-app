@@ -174,4 +174,5 @@ export function PlanDiff({ d, goal, weeks }: { d: Diff; goal?: Goal; weeks: numb
 const KIND: Record<Item['kind'], string> = {
   'new goal': 'New goal', goal: 'Details', plan: 'Plan', 'check-in': 'Check-in', 'replaces check-in': 'Replaces a check-in', person: 'Person', 'new person': 'New person', team: 'Team',
   'stop goal': STOPPED, 'delete goal': 'Deleted', 'person left': LEFT,
+  'new record': 'Added', record: 'Changed', 'retire record': 'Retired', 'bring back record': 'Brought back',
 };

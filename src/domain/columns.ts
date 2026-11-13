@@ -154,8 +154,10 @@ const m = <C,>(header: string, means: string, write: (c: C) => Cell, loaded?: st
 const e = <C,>(header: string, means: string, write: (c: C) => Cell, loaded?: string): Column<C> => ({ header, role: 'edit', means, write, ...(loaded ? { loaded } : {}) });
 const w = <C,>(header: string, means: string, write: (c: C) => Cell): Column<C> => ({ header, role: 'worked', means, write });
 const sh = <C,>(header: string, means: string, write: (c: C) => Cell): Column<C> => ({ header, role: 'shown', means, write });
-/** Columns for a module's sheet (domain/records ModuleSheet): one that says which record a row is, and one only shown. */
-export const moduleColumn = { match: m, shown: sh };
+const act = <C,>(header: string, means: string, write: (c: C) => Cell): Column<C> => ({ header, role: 'action', means, write });
+/** Columns for a module's sheet (domain/records ModuleSheet): one that says which record a row is, one a person changes,
+    one that says what to do with the row, one worked out, and one only shown. */
+export const moduleColumn = { match: m, edit: e, action: act, worked: w, shown: sh };
 /** A cell: empty for nothing. */
 export const cellOr = (v: string | number | null | undefined): Cell => (v == null || v === '' ? null : v);
 const blank = () => null;
@@ -576,6 +578,15 @@ export function fieldTable(kind: FillKind): FieldRow[] {
   return cols.map((c) => {
     const f = FIELDS[kind][c.header];
     return f ? { ...c, ...f } : { ...c, required: null, format: '', example: '', empty: 'Worked out by Faro: never read' };
+  });
+}
+
+/** A module sheet's columns as the field table (domain/columns fieldTable): each with its field facts, a worked-out one
+    with none. */
+export function moduleFieldTable(m: ModuleSheet): FieldRow[] {
+  return m.spec.columns.map((c) => {
+    const f = m.fields?.[c.header];
+    return f ? { header: c.header, role: c.role, means: c.means, ...f } : { header: c.header, role: c.role, means: c.means, required: null, format: '', example: '', empty: 'Worked out by Faro: never read' };
   });
 }
 

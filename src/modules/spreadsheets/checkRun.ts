@@ -4,6 +4,7 @@
    in the import's store (./importStore.ts), for the inputs it was made for. */
 import { planChangesInChunks, type ChangeInput, type ChangeSet, type PlanProgress } from '../../domain/changeset';
 import { goalMeasureOf, type GoalMeasure } from '../../domain/records';
+import { readersNow } from '../../core/records';
 import { importStore, NO_RUN, onCancelRun, type RunFor } from './importStore';
 import type { CheckReply, CheckRequest } from './workerInput';
 
@@ -15,7 +16,7 @@ const same = (a: RunFor | null, b: RunFor) => !!a && a.tables === b.tables && a.
 
 /** What the engine's input becomes to cross to the worker: plain data, what measures each goal worked out here. */
 export function requestOf(input: ChangeInput): CheckRequest {
-  const { newId: _n, records, ...rest } = input;
+  const { newId: _n, records, readers: _r, ...rest } = input;
   const measures: Record<string, GoalMeasure> = {};
   for (const g of input.snapshot.goals) { const m = goalMeasureOf(records, input.snapshot, g.id); if (m) measures[g.id] = m; }
   return { input: rest, measures };
@@ -54,7 +55,7 @@ export function startCheck(key: RunFor, input: () => ChangeInput): void {
   // No workers: the same engine here, a chunk at a time.
   let stopped = false;
   stop = () => { stopped = true; };
-  const gen = planChangesInChunks(input());
+  const gen = planChangesInChunks({ ...input(), readers: readersNow() });
   const step = () => {
     if (stopped) return;
     try {

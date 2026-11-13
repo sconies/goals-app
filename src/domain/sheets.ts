@@ -12,7 +12,32 @@ export interface NamedGrid { name: string; rows: Grid }
 
 /** A row as a header → value map (lower-case headers), with its row number in the sheet. */
 export type Rec = Record<string, string> & { __row?: string };
-export interface Tables { goals?: Rec[]; plan?: Rec[]; checkIns?: Rec[]; people?: Rec[] }
+/** A core sheet's table in Tables. */
+export type TableKey = 'goals' | 'plan' | 'checkIns' | 'people';
+export interface Tables {
+  goals?: Rec[]; plan?: Rec[]; checkIns?: Rec[]; people?: Rec[];
+  /** Module sheets that load back (domain/records ModuleSheet: the metric library's Metrics), by the sheet's name. */
+  modules?: Record<string, Rec[]>;
+}
+
+/** A module sheet as the reader knows it (domain/records ModuleSheet): its name and columns, the other names its columns
+    are read by, how its header row is told, and, when its module is switched off here, that module's name. */
+export interface ReadableSheet {
+  name: string;
+  columns: readonly { header: string; role?: string }[];
+  loaded?: boolean;
+  also?: Record<string, string>;
+  is?(headers: ReadonlySet<string>): boolean;
+  off?: string;
+}
+
+/** A header as a module sheet reads it: lower case, another name read as its column. */
+const asColumn = (m: Pick<ReadableSheet, 'also'>, h: string) => { const l = h.trim().toLowerCase(); return m.also?.[l] ?? l; };
+/** Rows of a module sheet, other names read as their columns (a file, or bulk_change's rows). */
+export const moduleRecs = (m: Pick<ReadableSheet, 'also'>, recs: Rec[]): Rec[] =>
+  m.also ? recs.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k === '__row' ? k : asColumn(m, k), v])) as Rec) : recs;
+/** Every row in a file's tables, the modules' sheets too. */
+export const rowsInTables = (t: Tables) => (t.goals?.length ?? 0) + (t.plan?.length ?? 0) + (t.checkIns?.length ?? 0) + (t.people?.length ?? 0) + Object.values(t.modules ?? {}).reduce((k, l) => k + l.length, 0);
 
 /** The separator a delimited text uses, judged on its first ten lines (a title row above the headers says nothing): the
     one the line with the most separators has most of, a tab first (a paste from a spreadsheet), then a comma, then a
@@ -94,26 +119,27 @@ export function recordsOf(grid: Grid): Rec[] {
 /** Delimited text straight to records. */
 export const records = (text: string) => recordsOf(parseDelimited(text));
 
-const LOADED: Partial<Record<SheetKind, keyof Tables>> = { goals: 'goals', plan: 'plan', checkIns: 'checkIns', people: 'people' };
+const LOADED: Partial<Record<SheetKind, TableKey>> = { goals: 'goals', plan: 'plan', checkIns: 'checkIns', people: 'people' };
 /** The sheets a file loads back (the rest are written for reading): every column a person fills in on them is in the field table. */
 export const LOADED_SHEETS = Object.keys(LOADED) as SheetKind[];
 
 /** Why a sheet wasn't read (rule 5): one written for reading only, one that isn't a Faro sheet, a second of a kind, or
     the workbook's own Start here (or README) sheet, which says what the file is and is never a table. */
-export type SkipWhy = 'reading-only' | 'not-faro' | 'second' | 'start-here';
+export type SkipWhy = 'reading-only' | 'not-faro' | 'second' | 'start-here' | 'switched-off';
 /** Where a workbook came from: its Start here sheet's "File of" row (the workspace's and cycle's ids). */
 export interface FileOrigin { workspaceId: string; workspaceName: string | null; cycleId: string | null }
 
 export interface ReadTables {
   tables: Tables;
-  /** The sheets loaded, by the name they had. */
-  read: { name: string; kind: SheetKind }[];
-  /** Sheets left out, and why. */
-  skipped: { name: string; why: SkipWhy }[];
+  /** The sheets loaded, by the name they had: a core sheet's kind, or a module sheet's own name. */
+  read: { name: string; kind: SheetKind | (string & {}) }[];
+  /** Sheets left out, and why (a module switched off here: its name). */
+  skipped: { name: string; why: SkipWhy; module?: string }[];
   /** Columns on a sheet that was read that nothing reads (C19): named in the file line, never dropped silently. */
   unknownColumns: { sheet: string; headers: string[] }[];
-  /** Each table's headers as the file wrote them, in order: the rows-to-fix file writes them back. */
-  headers: Partial<Record<keyof Tables, string[]>>;
+  /** Each table's headers as the file wrote them, in order: the rows-to-fix file writes them back (a module sheet's by
+      its name). */
+  headers: Partial<Record<TableKey, string[]>> & { modules?: Record<string, string[]> };
   /** The Start here sheet's origin, when the file has one. */
   origin: FileOrigin | null;
   /** Sheets whose header row isn't row 1 (rule 3): the rows above it were skipped. */
@@ -214,19 +240,35 @@ function originOf(rows: Grid): FileOrigin | null {
 }
 
 /** Named grids (a workbook's sheets, a zip's files, one CSV) as the tables the engine reads, each by its header. */
-export function readTables(grids: NamedGrid[], moduleSheets: readonly { name: string; columns: readonly { header: string }[] }[] = []): ReadTables {
+export function readTables(grids: NamedGrid[], moduleSheets: readonly ReadableSheet[] = []): ReadTables {
   const out: ReadTables = { tables: {}, read: [], skipped: [], unknownColumns: [], headers: {}, origin: null, headerRows: [], firstHeaders: [], rowCount: 0 };
-  // A module's own sheet (Metrics), known by its header: the same columns the export writes, in any order.
-  const ownSheet = (head: readonly string[]) => {
-    const h = new Set(head.map((x) => x.trim().toLowerCase()).filter(Boolean));
-    return moduleSheets.find((m) => m.columns.length && m.columns.every((c) => h.has(c.header.toLowerCase())));
-  };
+  // A module's own sheet (Metrics), known by its header: its own test (other names read as its columns), or the same
+  // columns the export writes, in any order.
+  const ownSheet = (head: readonly string[]) => moduleSheets.find((m) => {
+    const h = new Set(head.map((x) => asColumn(m, x)).filter(Boolean));
+    return m.is ? m.is(h) : m.columns.length > 0 && m.columns.every((c) => h.has(c.header.toLowerCase()));
+  });
   for (const g of grids) {
     const first = g.rows.find((r) => !isBlank(r));
     if (!first) continue;
     const bare = g.name.replace(/\.(csv|tsv|txt)$/i, '').trim().toLowerCase();
     if (bare === START_HERE.toLowerCase() || bare === 'readme') { out.origin ??= originOf(g.rows); out.skipped.push({ name: g.name, why: 'start-here' }); continue; }
-    if (ownSheet(first)) { out.skipped.push({ name: g.name, why: 'reading-only' }); continue; }
+    const own = ownSheet(first);
+    if (own) {
+      // Read back when its module says so (and is on here); otherwise written for reading, or switched off, and said.
+      if (own.off) { out.skipped.push({ name: g.name, why: 'switched-off', module: own.off }); continue; }
+      if (!own.loaded) { out.skipped.push({ name: g.name, why: 'reading-only' }); continue; }
+      if (out.tables.modules?.[own.name]) { out.skipped.push({ name: g.name, why: 'second' }); continue; }
+      const rows = g.rows.slice(g.rows.indexOf(first));
+      out.rowCount += rows.slice(1).filter((r) => !isBlank(r)).length;
+      (out.tables.modules ??= {})[own.name] = moduleRecs(own, recordsOf(rows)).map((r) => ({ ...r, __row: String(Number(r.__row) + g.rows.indexOf(first)) }) as Rec);
+      out.read.push({ name: g.name, kind: own.name });
+      (out.headers.modules ??= {})[own.name] = rows[0]!.map((h) => h.trim());
+      const known = new Set([...own.columns.map((c) => c.header.toLowerCase()), 'reason']);
+      const unknown = rows[0]!.map((h) => h.trim()).filter((h) => h && !known.has(asColumn(own, h)));
+      if (unknown.length) out.unknownColumns.push({ sheet: g.name, headers: unknown });
+      continue;
+    }
     const head = readHeader(g.rows);
     const kind = head.kind;
     const key = kind ? LOADED[kind] : undefined;
@@ -267,6 +309,8 @@ export function readLine(read: Pick<ReadTables, 'read' | 'skipped' | 'unknownCol
     by('reading-only').length ? `${andList(by('reading-only'))} (for reading only)` : '',
     by('not-faro').length ? `${andList(by('not-faro'))} (not a Faro sheet)` : '',
     by('second').length ? `${andList(by('second'))} (a second sheet of the same kind; only the first is read)` : '',
+    // A module switched off here (the module map's one line per file): "Metrics (the Metric library is switched off here)".
+    ...read.skipped.filter((x) => x.why === 'switched-off').map((x) => `${x.name} (${x.module} is switched off here)`),
     ...read.unknownColumns.map((u) => `the column${u.headers.length === 1 ? '' : 's'} ${andList(u.headers)} on ${u.sheet}`),
   ].filter(Boolean);
   const parts = [read.read.length ? `Read ${andList(read.read.map((x) => x.name))}.` : 'Nothing was read.', not.length ? `Not read: ${not.join('; ')}.` : '', examples ? `${examples} example row${examples === 1 ? '' : 's'} left out.` : ''];

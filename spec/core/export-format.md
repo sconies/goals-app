@@ -232,24 +232,30 @@ Always written by a table from Data: Goal key, Goal ID.
 
 ## Metrics
 
-One row per metric in the library. The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Metrics are added and changed in the app. Not loaded back.
+One row per metric in the library. The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Add or change metrics here and load the file back; a row finds its metric by ID, else by its name.
 
-| Column | Kind | What it means | When loaded back |
-|---|---|---|---|
-| ID | Matches the row | The metric’s identity. | Not loaded back |
-| Metric | For reading | Its name. | Not loaded back |
-| Meaning | For reading | What it means and how it’s calculated. | Not loaded back |
-| Unit | For reading | Its unit. | Not loaded back |
-| Decimals | For reading | Places after the decimal point it’s shown with. | Not loaded back |
-| Direction | For reading | Higher is better or Lower is better. | Not loaded back |
-| Source | For reading | Where the number comes from. | Not loaded back |
-| Source owner | For reading | Who owns that source. | Not loaded back |
-| Refresh | For reading | How often the source refreshes: Live, Hourly, Daily, Weekly, Monthly or Quarterly, or empty when nobody has said. | Not loaded back |
-| Owner | For reading | Who answers for the definition. | Not loaded back |
-| Owner email | For reading | Who answers for it, by email. | Not loaded back |
-| Caveats | For reading | What to watch out for when reading it. | Not loaded back |
-| Measures | For reading | The goals it measures, each with its slice: a team, or the whole company. | Not loaded back |
-| Goal keys | For reading | Their keys. | Not loaded back |
+A new row needs Metric, Unit and Direction.
+
+| Column | A new row | Format | Example | If it’s left empty | What it means | When loaded back |
+|---|---|---|---|---|---|---|
+| ID | Leave empty | Text, as exported | `metric_deploys` | Found by Metric instead, or added as a new metric | The metric’s identity: leave it empty on a new metric. | Matches the row to its record; it never changes |
+| Metric | Required | Text, 3 to 120 characters; used by one metric (any case) | `Deploy frequency` | Must fix: a new metric needs a name | Its name. | Changed when loaded back |
+| Action | Optional | Retire or Bring back | `Retire` | The row adds or changes the metric | Retire or Bring back, or empty to add or change it. | Done when loaded back, with the same rules and preview as the app |
+| Meaning | Optional | Text, up to 2,000 characters: what is counted, out of what or over what period, what is left out | `Production deploys finished, per day, averaged over the last 7 days. Rollbacks are left out.` | Not said yet. On a row already here, empty clears it | What it means and how it’s calculated. | Changed when loaded back |
+| Unit | Required | Text, up to 20 characters, as it follows a number | `deploys` | Must fix: a new metric needs a unit | Its unit. A file can’t change the unit of a metric goals use. | Changed when loaded back |
+| Decimals | Optional | A whole number, 0 to 4 | `1` | 0 on a new metric; on one already here, it keeps its own | Places after the decimal point it’s shown with. | Changed when loaded back |
+| Direction | Required | Higher is better or Lower is better (also higher, lower, up, down) | `Higher is better` | Must fix: a new metric needs a direction | Higher is better or Lower is better. | Changed when loaded back |
+| Source | Optional | Text, up to 2,000 characters: a dashboard, a query, a report | `DORA dashboard (Four Keys)` | Not said. On a row already here, empty clears it | Where the number comes from. | Changed when loaded back |
+| Source owner | Optional | Text: a team or a person | `Site Reliability Engineering` | Not said. On a row already here, empty clears it | Who owns that source. | Changed when loaded back |
+| Refresh | Optional | Live, Hourly, Daily, Weekly, Monthly or Quarterly | `Daily` | Not said. On a row already here, empty clears it | How often the source refreshes: Live, Hourly, Daily, Weekly, Monthly or Quarterly, or empty when nobody has said. | Changed when loaded back |
+| Owner | Optional (or Owner email) | A name only one person has | `Daniel Okafor` | Owner email says who | Who answers for the definition, by name: read when Owner email is empty. | Changed when loaded back |
+| Owner email | Optional (or Owner) | An email of someone in the workspace | `daniel.okafor@example.com` | Whoever loads the file owns a new metric; one already here keeps its owner | Who answers for it, by email. | Changed when loaded back |
+| Caveats | Optional | Text, up to 2,000 characters | `Deploys by the release train count once per service.` | None. On a row already here, empty clears it | What to watch out for when reading it. | Changed when loaded back |
+| Reason | Required when the row changes the meaning, source or direction of a metric goals use, and the number changes | Text, up to 300 characters | `Commit time was unreliable for squashed merges.` | The preview asks for it where it is needed | Why its meaning, source or direction changes, when goals use it and the number changes: they show it. | Changed when loaded back |
+| Still to say | Worked out |  |  | Worked out by Faro: never read | “Fully defined”, or what it still needs to say. | Worked out by the app; ignored when loaded back |
+| Retired on | Worked out |  |  | Worked out by Faro: never read | When it was retired; empty while it is in use. | Worked out by the app; ignored when loaded back |
+| Measures | Worked out |  |  | Worked out by Faro: never read | The goals it measures, each with its slice: a team, or the whole company. | For reading; not loaded back from this sheet |
+| Goal keys | Worked out |  |  | Worked out by Faro: never read | Their keys. | For reading; not loaded back from this sheet |
 
 Always written by a table from Data: ID.
 

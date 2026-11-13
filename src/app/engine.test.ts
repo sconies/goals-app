@@ -12,6 +12,8 @@ const ALLOWED = new Set([
   'src/domain/importer.ts',
   'src/mcp/tools.ts',
   'src/spec/conformance.ts',
+  // A module's conformance rows (the metric library's Metrics sheet read back), loaded only by the spec.
+  'src/modules/metrics/conformance.ts',
   'src/spec/rules.ts',
   'src/data/platformOrg/generate.ts',
   'src/ui/Preview.tsx',
