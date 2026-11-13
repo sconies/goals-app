@@ -7,6 +7,7 @@
    SHARD=k/n              run shard k of n: journeys by position, platform checks as evals/shards.cjs places them; writes
                           out/journeys-k.json (P5 is left to the merge, which has every shard's console errors) */
 const { chromium } = require('playwright');
+const { withPhoneCpu, PHONE_CPU, PHONE_MAX_WIDTH } = require('./phoneCpu.cjs');
 const fs = require('fs');
 const path = require('path');
 
@@ -6088,6 +6089,80 @@ journey('U160', ['READING-PREFILL', 'READING-RECORDED-ONLY'], 'The one table fil
   await p.context().close();
 });
 
+/* Where a reading's source shows beyond the check-in (NR3, docs/design/round-4/readings/spec.md 2.4). Each part starts a
+   fresh browser, so each check-in is week 45's first: a confirmed one, then (in the second) a different one and why. */
+journey('U161', ['READING-SHOWN'], 'Where a number came from shows elsewhere: as Daniel, after confirming CI analytics’ 20 on CI pipeline time on main (p90), its Measured by says “This week’s number 20 min, from CI analytics, read 9:00 today. Confirmed by Daniel Okafor.”, its History row “From CI analytics, read 9:00 today. Daniel Okafor checked in.” and Developer Productivity fortnightly’s agenda row “· from CI analytics”; after typing 19 over it because the source counts something else, Measured by says “19 min, typed by Daniel Okafor. CI analytics said 20 min.”, History “Typed by Daniel Okafor. CI analytics said 20 min. The source counts something else: “…””, the agenda says no source, and the metric’s page lists the goal as “Filled in from CI analytics · last read 9:00 today” with “In the last 8 weeks, 1 of 1 check-in filled in from CI analytics used a different number.” and See them opening that week', 16, async (h, device) => {
+  const agendaRow = async (p) => {
+    await p.goto(url('/reviews/devprod'));
+    await p.locator('.review-home').waitFor();
+    const row = p.locator('.agenda-row').filter({ hasText: 'CI pipeline time on main (p90)' }).first();
+    if (!(await row.isVisible().catch(() => false))) {
+      const show = p.locator('summary').filter({ hasText: /^Show \d+ goals?$/ });
+      if (await show.count()) await h.click(show.first());
+    }
+    await row.waitFor({ timeout: 5000 }).catch(() => {});
+    return (await row.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  };
+  const about = async (p) => {
+    await p.goto(url('/goals/ns-ci?about=1'));
+    const said = p.locator('[data-part="Measured by"] .metric-this-week');
+    await said.waitFor({ timeout: 8000 }).catch(() => {});
+    return (await said.innerText().catch(() => '')).trim();
+  };
+  const historyLine = async (p) => (await p.locator('#history .ci-read-from').first().innerText().catch(() => '')).trim();
+
+  // Confirmed.
+  let p = h.use(await newPage(device, 'daniel'));
+  await p.goto(url('/check-in/ns-ci'));
+  await see(p.locator('.ci-reading-block'), 'From CI analytics');
+  await h.click(p.getByRole('button', { name: 'Confirm 20 min' }));
+  await see(p, 'Check-in saved');
+  const said1 = await about(p);
+  h.set('entry', /^20 min, from CI analytics, read 9:00 today\. Confirmed by Daniel Okafor\.$/.test(said1), `Measured by says “${said1}”`);
+  await h.checkpoint('measured by');
+  const hist1 = await historyLine(p);
+  h.set('progress', /^From CI analytics, read 9:00 today\. Daniel Okafor checked in\.$/.test(hist1), `History says “${hist1}”`);
+  const row1 = await agendaRow(p);
+  h.set('attention', /20 min · from CI analytics/.test(row1), `the agenda row says “${row1}”`);
+  await h.checkpoint('agenda');
+  await p.context().close();
+
+  // Typed over it, and why.
+  p = h.use(await newPage(device, 'daniel'));
+  await p.goto(url('/check-in/ns-ci'));
+  const block = p.locator('.ci-reading-block');
+  await see(block, 'From CI analytics');
+  await h.fill(p.getByLabel('This week’s value'), '19');
+  await h.click(block.getByRole('radio', { name: 'The source counts something else' }));
+  await h.fill(block.getByLabel(/^Say more/), 'It leaves out the release branch pipelines.');
+  await h.click(p.getByRole('button', { name: 'Use 19 min' }));
+  await see(p, 'Check-in saved');
+  const said2 = await about(p);
+  const hist2 = await historyLine(p);
+  h.set('finish', said2 === '19 min, typed by Daniel Okafor. CI analytics said 20 min.' && hist2 === 'Typed by Daniel Okafor. CI analytics said 20 min. The source counts something else: “It leaves out the release branch pipelines.”', `Measured by says “${said2}”; History says “${hist2}”`);
+  await h.checkpoint('typed');
+  const row2 = await agendaRow(p);
+  h.set('attention', /19 min/.test(row2) && !/from CI analytics/.test(row2), `a typed number's agenda row says “${row2}”`);
+
+  // The metric's page: goals and weeks, never people.
+  await p.goto(url('/metrics/ci-time'));
+  const part = p.locator('[data-part="In each goal’s check-in"]');
+  await part.waitFor({ timeout: 8000 }).catch(() => {});
+  const cell = (await part.locator('tr').filter({ hasText: 'CI pipeline time on main (p90)' }).locator('.mg-read').innerText().catch(() => '')).trim();
+  const line = (await part.locator('.metric-different').innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  const people = (await h.snapshot()).people.map((x) => x.name).filter((n) => n && (cell + line).includes(n));
+  h.set('logged', cell === 'Filled in from CI analytics · last read 9:00 today' && line.startsWith('In the last 8 weeks, 1 of 1 check-in filled in from CI analytics used a different number.') && !people.length, `the table says “${cell}”, under it “${line}”${people.length ? `, naming ${people.join(', ')}` : ''}`);
+  await h.checkpoint('metric page');
+  await h.click(part.getByRole('button', { name: 'See them' }));
+  const week = part.getByRole('link', { name: /^CI pipeline time on main \(p90\), week \d+$/ });
+  await h.click(week.first());
+  await p.waitForURL(/\/goals\/[^?]+\?history=checkins&week=\d+/, { timeout: 5000 }).catch(() => {});
+  const there = await historyLine(p);
+  h.set('finish', /Typed by Daniel Okafor\. CI analytics said 20 min\./.test(there), `See them opened ${p.url()}, whose History says “${there}”`);
+  h.set('errors', true);
+  await p.context().close();
+});
+
 
 journey('U153', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: as Rhea on Developer Productivity fortnightly, the panel says how many goals are checked in so far, its “have no check-in for week 45 yet” link opens exactly that many goals, and “The last 8 weeks” has eight cells, each a week with words; no person’s name is in the panel; a team’s page shows the same panel for its goals, and a one-owner team’s page shows none', 10, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
@@ -6129,6 +6204,81 @@ journey('U153', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: 
   // It reads and saves nothing: 'logged' is not this journey's.
 }, ['logged']);
 
+journey('U162', ['GOAL-BASELINE'], 'A baseline of its own (BL): as Rhea, CI cost per run (no check-ins yet) is given the period its baseline covers, “June to September 2026”, ticked Provisional, and saved; its page shows the baseline as its number with “Baseline, June to September 2026, provisional” beside it, the Goals list says “(baseline)”, and the goal keeps it', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/ci-cost/edit'));
+  const period = p.getByLabel(/^Period the baseline covers/);
+  await period.waitFor();
+  h.set('entry', true);
+  await h.fill(period, 'June to September 2026');
+  const prov = p.getByLabel(/^Provisional/);
+  h.set('errors', (await prov.count()) === 1, 'Provisional is not offered once a period is given');
+  await prov.check();
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/goals\/ci-cost(\?|#|$)/);
+  h.set('progress', true);
+  const bar = p.locator('.goal-bar');
+  await see(bar, 'Baseline, June to September 2026, provisional', 'the goal’s page does not say its number is the baseline');
+  h.set('attention', (await bar.locator('.bar-now').textContent() ?? '').trim() !== 'No value yet', 'the page still says No value yet');
+  await h.checkpoint('baseline shown');
+  const after = await h.snapshot();
+  const g = (after.goals ?? []).find((x) => x.id === 'ci-cost');
+  h.set('logged', !!g?.baseline && g.baseline.period === 'June to September 2026' && g.baseline.provisional === true && g.baseline.value === g.plan.start, 'the goal did not keep its baseline');
+  await p.goto(url('/goals?q=CI+cost'));
+  await see(p, '(baseline)', 'the Goals list does not mark the number as the baseline');
+  h.set('finish', true);
+  await p.context().close();
+}, []);
+
+journey('U163', ['GOAL-NO-TARGET', 'GOAL-PROPOSED'], 'A baseline and nothing else yet (GB): as Tunde, New goal’s measure step with a Baseline of 0.42 USD and no Target offers “No target agreed yet? Propose it with just the baseline”; Check reads “A number at 0.42 USD now. No target is set yet”, and Propose goal saves it with no target; its page says “Target not set” with Set the target as its one primary and no status shape; Set the target opens Change it, and once 0.30 is saved it can be made active', 22, async (h, device) => {
+  const p = h.use(await newPage(device, 'tunde'));
+  const on = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2026-11-11';
+  await p.goto(on('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await h.fill(p.getByLabel(/Name it the way/), 'Cost per pipeline run');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await h.fill(p.getByLabel(/^Unit/), 'USD');
+  await h.fill(p.getByLabel(/^Baseline$/), '0.42');
+  const offer = p.getByRole('button', { name: 'No target agreed yet? Propose it with just the baseline' });
+  h.set('entry', await offer.isVisible().catch(() => false), 'the measure step with a Baseline and no Target doesn’t offer to propose it without one');
+  await h.click(offer);
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await see(p, 'A number at 0.42 USD now. No target is set yet', 'Check doesn’t read back that no target is set');
+  h.set('errors', (await p.getByRole('radio', { name: /Not yet: propose it/ }).isChecked().catch(() => false)), '“Is it under way?” isn’t on “Not yet: propose it” after choosing to propose it');
+  await h.checkpoint('check');
+  await h.click(p.getByRole('button', { name: 'Propose goal' }));
+  await p.waitForURL(/\/goals\/[^/?]+\?.*published=1/);
+  const id = new URL(p.url()).pathname.split('/').pop();
+  const page = p.locator('.goal-proposed');
+  await page.waitFor();
+  h.set('progress', true);
+  await see(page, 'Target not set', 'the proposed goal’s page doesn’t say “Target not set”');
+  h.set('a11y', (await page.locator('.status-shape').count()) === 0, 'a goal with no target draws a status shape');
+  const snap = await h.snapshot();
+  const made = (snap.goals ?? []).find((g) => g.id === id);
+  h.set('logged', !!made && !!made.proposedAt && made.kind === 'metric' && made.targetUnset === true && made.plan.start === 0.42 && made.unit === 'USD', 'the goal wasn’t saved proposed, as a number goal with its baseline and no target');
+  const primary = page.locator('.proposed-actions .btn.primary');
+  h.set('attention', (await primary.count()) === 1 && (await primary.innerText()).trim() === 'Set the target', `the one primary reads “${(await primary.first().innerText().catch(() => '')).trim()}”, not “Set the target”`);
+  await h.checkpoint('target not set');
+  await h.click(primary);
+  await p.waitForURL(/\/edit/);
+  const target = p.locator('[data-field="target"]').first();
+  await target.waitFor();
+  await h.fill(target, '0.30');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL((u) => !u.pathname.endsWith('/edit'));
+  await page.waitFor();
+  const active = page.getByRole('button', { name: 'Make it active' });
+  h.set('finish', (await active.isVisible().catch(() => false)) && !(await page.innerText()).includes('Target not set'), 'once its target is set, the page doesn’t offer Make it active');
+  const after = (await h.snapshot()).goals.find((g) => g.id === id);
+  h.set('logged', !!after && !after.targetUnset && after.plan.target === 0.3, 'the target wasn’t saved');
+  await p.context().close();
+}, []);
+
 journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, a goal stopped with a reason is gone from Goals and listed with the State filter on Stopped (“1 stopped goal, most recently stopped first.”), with the Stopped mark, who stopped it and when, and the reason; the Filters sheet’s State offers Active, Proposed and Stopped; Remove goes back to the active goals', 15, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   const on = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2026-11-11';
@@ -6136,9 +6286,15 @@ journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, 
   await p.locator('.goal-bar').first().waitFor();
   await goalMenu(h, p, 'Stop this goal');
   const dlg = p.getByRole('dialog', { name: 'Stop this goal' });
+  h.set('entry', await dlg.isVisible(), 'Stop this goal, in the goal’s menu, opens no dialog');
+  // Without a reason it doesn't stop: it says why it needs one, and the goal is as it was.
+  await h.click(dlg.getByRole('button', { name: 'Stop the goal' }));
+  const refused = await dlg.getByRole('alert').filter({ hasText: 'Say why, in a sentence' }).isVisible().catch(() => false);
+  h.set('errors', refused && !(await h.snapshot()).goals.find((x) => x.id === 'ci-docker')?.stoppedAt, 'stopping without a reason isn’t refused in words, or stops the goal anyway');
   await h.fill(dlg.getByLabel('Why is it stopping?'), 'The platform team took base images over in October.');
   await h.click(dlg.getByRole('button', { name: 'Stop the goal' }));
   await see(p, 'Stopped Base image build time', 'no message that it stopped');
+  h.set('progress', true);
   const snap = await h.snapshot();
   const g = snap.goals.find((x) => x.id === 'ci-docker');
   h.set('logged', !!g?.stoppedAt && g.stoppedBy === 'rhea' && g.stopReason === 'The platform team took base images over in October.', 'the stop wasn’t saved with who and why');
@@ -6146,6 +6302,7 @@ journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, 
   await see(p, 'Filtered by: Stopped', 'the stopped list doesn’t say its filter');
   await see(p, '1 stopped goal, most recently stopped first.', 'the stopped list doesn’t count the stopped goal');
   const row = p.locator('[data-part="Stopped goals"] li').first();
+  await h.inView(row, 'attention', 'the stopped goal’s row');
   const says = (await row.innerText().catch(() => '')).replace(/\s+/g, ' ');
   h.set('finish', says.includes('Base image build time') && says.includes('stopped 11 Nov by Rhea') && says.includes('The platform team took base images over in October.'), `the stopped row reads “${says}”`);
   h.set('a11y', (await row.locator('.life-mark').count()) === 1 && (await row.locator('.status-shape').count()) === 0, 'a stopped row doesn’t draw the Stopped mark, or draws a status shape');
@@ -6153,6 +6310,9 @@ journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, 
   await h.click(p.getByRole('button', { name: 'Remove' }).first());
   await p.waitForURL((u) => !u.search.includes('state=stopped'));
   await p.locator('.goals-line').first().waitFor();
+  // The address changes before the list is drawn again, and the count line is on both, so wait for the stopped list to
+  // go; reading at once counted the old list's row (U150 at 9/10, 13 Nov).
+  await p.locator('[data-part="Stopped goals"]').waitFor({ state: 'detached', timeout: 10000 }).catch(() => {});
   // The goal's rows, not the page's text: the toast that it stopped may still be showing.
   h.set('finish', (await p.locator('main a[href$="/goals/ci-docker"]').count()) === 0, 'the stopped goal is listed among the active goals');
 });
@@ -6407,7 +6567,7 @@ journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI 
   await p.goto(url('/metrics/queue-wait/edit'));
   await h.fill(p.getByLabel('Unit', { exact: true }), 's');
   await h.click(p.getByRole('button', { name: 'Save changes' }));
-  const confirm = p.getByRole('alertdialog');
+  const confirm = p.getByRole('dialog');
   await see(confirm, /1 goal is measured by Pipeline queue wait \(p90\) in min\. Is “s” a new label for the same numbers, or a different scale\?/, 'changing a unit goals use is not asked first');
   await h.click(confirm.getByRole('button', { name: 'Keep it as it was' }));
   h.set('finish', (await p.getByLabel('Unit', { exact: true }).inputValue()) === 'min', 'Keep it as it was did not put the unit back');
@@ -6520,6 +6680,8 @@ journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Le
   await h.click(p.getByRole('button', { name: 'Save changes' }));
   const rb = p.locator('.metric-readback');
   await see(rb, 'Is it still the same number?', 'a new meaning is not read back with the question');
+  // The read-back is a sheet: it takes the focus, and its own button is the one primary action (#351 review).
+  h.set('attention', await p.evaluate(() => !!document.activeElement?.closest('[role="dialog"]')), 'the read-back does not take the focus');
   await see(rb, /1 goal is measured by it/, 'the read-back does not name the goals');
   await h.checkpoint('read back');
   await h.click(rb.getByLabel(/The number itself changes/));
@@ -6529,6 +6691,8 @@ journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Le
   await h.fill(rb.getByLabel(/^Why/), 'The DORA dashboard counts from merge now.');
   await h.click(rb.getByRole('button', { name: 'Change the meaning' }));
   await p.waitForURL(/\/demo\/metrics\/lead-time(\?|#|$)/);
+  // A change offers Undo, which would take its mark back with it (#351 review).
+  h.set('progress', (await p.locator('.toast-action').filter({ hasText: 'Undo' }).count()) > 0, 'a metric change offers no Undo');
   await p.goto(url('/goals/ns-lead'));
   const note = p.locator('.c-note text').first();
   await note.waitFor({ timeout: 8000 }).catch(() => {});
@@ -6541,6 +6705,10 @@ journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Le
   await h.click(p.getByRole('button', { name: 'Retire the metric' }));
   await see(p.locator('.metric-retired'), /Retired on .*: “The test platform reports it now\.”/, 'the retired metric’s page does not say so');
   h.set('errors', (await p.getByRole('link', { name: 'Change this metric' }).count()) === 0, 'a retired metric still offers Change this metric');
+  // It can be found again: the library links to the retired ones, which lists it (#351 review).
+  await p.goto(url('/metrics'));
+  await h.click(p.getByRole('link', { name: /^See the (\d+ )?retired metrics?$/ }));
+  await h.click(p.getByRole('list', { name: 'Metrics' }).getByRole('link', { name: /Flaky test rate/ }));
   await h.click(p.getByRole('button', { name: 'Bring it back' }));
   await p.locator('.metric-retired').waitFor({ state: 'detached' });
   const s = await h.snapshot();
@@ -7267,6 +7435,9 @@ async function platformChecks() {
       await r.goto(url(route));
       await r.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
       await r.reload();
+      // Measured once the screen has loaded (its heading is there), not while the loading skeleton shows: on a slow
+      // phone the skeleton lasts about a second, and a fixed 300 ms measured it instead of the page (phone CPU, 13 Nov).
+      await r.locator('h1').first().waitFor({ timeout: 15000 }).catch(() => {});
       await r.waitForTimeout(300);
       const m = await r.evaluate(() => {
         const W = window.innerWidth;
@@ -7340,7 +7511,9 @@ async function platformChecks() {
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
-  browser = await chromium.launch();
+  // A phone runs as a slow phone, on every run (evals/phoneCpu.cjs).
+  browser = withPhoneCpu(await chromium.launch());
+  console.log(PHONE_CPU > 1 ? `Phone pages (up to ${PHONE_MAX_WIDTH} px) run with the CPU slowed ${PHONE_CPU}×.` : 'Phone pages run at full speed (PHONE_CPU=1).');
   const journeys = [];
   const only = (process.env.ONLY || '').split(',').filter(Boolean);
   const ids = J.map((x) => x.id);

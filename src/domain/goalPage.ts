@@ -7,6 +7,7 @@
    Each fact has one home on it (the plan's "one home for each fact" table). */
 import type { GoalAttention } from './attention';
 import { fmt, NO_VALUE, staysText } from './format';
+import { baselineShown, baselineWords } from './baseline';
 import { currentWeek, daysSince, weekDate, goalAsOf, planAt, planEnd, projectionFor, valueSeries } from './plan';
 import { onTimeStreak, reviewDate, WEEKDAY } from './progress';
 import { asksOf, canAnswer, canMarkDone, canWithdraw, isOverdue, isResolved, liveNotes, openAsksFor, writtenNotes } from './asks';
@@ -36,6 +37,9 @@ export interface BarFigures {
   direction: Direction | null;
   /** The arrow in words, for its label: "1 → 2 → 3 pts behind plan. Falling further behind, weeks 42–44". */
   directionText: string | null;
+  /** When the number is a baseline of its own, before the first check-in (domain/baseline rule 2): "Baseline, June to
+      September 2026, provisional", said beside it. */
+  baseline?: string;
 }
 
 export function barFigures(goal: Goal, s: Snapshot, cycle: Cycle, week: number, stale: boolean): BarFigures {
@@ -46,6 +50,9 @@ export function barFigures(goal: Goal, s: Snapshot, cycle: Cycle, week: number, 
   if (goal.kind === 'metric' && a.kind === 'metric') {
     const due = planEnd(goal.plan, cycle.weeks);
     const target = `target ${fmt(goal.plan.target, goal)}${due !== cycle.weeks ? ` by week ${due}` : ''}`;
+    const base = baselineShown(goal, a.actual != null);
+    // Before the first check-in, a baseline of its own is the number, marked as the baseline (domain/baseline rule 2).
+    if (base) return { now: fmt(base.value, goal), nowValue: base.value, against: [baselineWords(base), target], direction: null, directionText: null, baseline: baselineWords(base) };
     if (a.actual == null) return { now: NO_VALUE, nowValue: null, against: [`plan ${fmt(planAt(goal.plan, Math.max(0, week), cycle.weeks), goal)}`, target], direction: null, directionText: null };
     // Gone quiet: the last number is dated, against the plan for now.
     if (stale) return { now: fmt(a.actual, goal), nowValue: a.actual, against: [`in week ${a.week}`, `plan now ${fmt(planAt(goal.plan, week, cycle.weeks), goal)}`, target], direction: null, directionText: null };

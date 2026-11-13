@@ -88,6 +88,19 @@ describe('metric library tools', () => {
     expect((await call('save_metric', { name: 'No unit' })).content[0]!.text).toMatch(/Say its unit/);
   });
 
+  it('fewer decimal places names the goals that show more, which keep theirs (#351 review)', async () => {
+    const { call, data } = await setup('amara');
+    const link = linksOf(data()).find((l) => !l.removedAt && data().goals.some((g) => g.id === l.goalId && g.kind !== 'milestone' && g.decimals > 0))!;
+    const goal = data().goals.find((g) => g.id === link.goalId)!;
+    const metric = metricsOf(data()).find((m) => m.id === link.metricId)!;
+    if (metric.decimals === 0) await call('save_metric', { id: metric.id, decimals: 1 });
+    const r = await call('save_metric', { id: metric.id, decimals: 0 });
+    expect(r.isError, r.content[0]!.text).toBe(false);
+    expect(r.content[0]!.text).toContain(`more decimal places than ${metric.name} now does: `);
+    expect(r.content[0]!.text).toContain(goal.title);
+    expect((r.structuredContent as { moreDecimals: string[] }).moreDecimals).toContain(goal.id);
+  });
+
   it('refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)', async () => {
     const other = await setup('oskar');
     // A name one letter from another's would be asked; Oskar may not change Rhea's metric, so he is refused first.

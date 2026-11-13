@@ -5,6 +5,7 @@ import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { fmt, gapBeside, nowText } from '../domain/format';
+import { readingFrom } from '../domain/reading';
 import { isEveryday, levelName } from '../domain/levels';
 import { daysSince, notStarted, resultWeek } from '../domain/plan';
 import { startsSays } from '../domain/weeks';
@@ -75,12 +76,14 @@ export function GoalRow({ g, density = 'full', showOwner = true, why, whyTitle, 
   }
 
   if (density === 'brief') {
+    // Where a confirmed number came from, after it in the quiet ink (NR 2.4); a typed number says nothing.
+    const from = g.kind === 'milestone' ? null : readingFrom(app.checkInsOf(g).filter((c) => c.week <= app.week).at(-1), g.decimals);
     return (
       <Link to={to} className={'agenda-row' + (className ? ' ' + className : '')} data-tone={st.status}>
         <StatusWord k={st.status} className="agenda-status" />
         <span className="agenda-name"><span className="agenda-title">{g.title}</span><TitleTell goal={g} /><LevelTag level={g.level} /></span>
         <span className="agenda-now">
-          <span className="agenda-num">{now}</span>
+          <span className="agenda-num">{now}{from && <span className="muted agenda-from"> · from {from}</span>}</span>
           {stale ? (asOf ? <span className="agenda-gap muted">{asOf}</span> : null) : gap && <span className={'agenda-gap tone-' + gap.tone}>{gap.short}</span>}
         </span>
       </Link>

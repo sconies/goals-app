@@ -30,6 +30,8 @@ export interface GoalRow extends W, Removal {
   range_lower?: number | null;
   range_margin: number | null; created_at: string; pending?: Goal['pending']; version?: number; also_helps?: string[] | null;
   plan_history?: { untilWeek: number; plan: MetricPlan }[] | null;
+  /** A baseline of its own (migration 0049, BL): its figure, period and flag; all null when there is none. */
+  baseline_value?: number | null; baseline_period?: string | null; baseline_provisional?: boolean | null;
 }
 export interface CheckInRow extends W, Removal {
   id: string; goal_id: string; author_id: string; week: number; posted_at: string; value: number | null; stages: CheckIn['stages'];
@@ -68,9 +70,12 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
     id: g.id, key: g.key ?? null, cycle_id: g.cycleId, team_id: g.teamId, owner_id: g.ownerId, parent_id: g.parentId, title: g.title, kind: g.kind, io: g.io,
     headline: false, level: g.level, guardrail: g.guardrail, effect: g.effect, why_helps: g.whyHelps ?? null, source: g.source, definition: g.definition,
     unit: g.kind === 'milestone' ? null : g.unit, decimals: g.kind === 'milestone' ? null : g.decimals,
-    plan_start: g.kind === 'metric' ? g.plan.start : null, plan_target: g.kind === 'metric' ? g.plan.target : null, plan_shape: g.kind === 'metric' ? g.plan.shape : null, plan_from_week: g.kind === 'metric' ? g.plan.fromWeek ?? 0 : 0, plan_end_week: g.kind === 'metric' ? g.plan.endWeek ?? null : null, plan_points: g.kind === 'metric' && g.plan.points?.length ? g.plan.points : null,
+    plan_start: g.kind === 'metric' ? g.plan.start : null, plan_target: g.kind === 'metric' && !g.targetUnset ? g.plan.target : null, plan_shape: g.kind === 'metric' ? g.plan.shape : null, plan_from_week: g.kind === 'metric' ? g.plan.fromWeek ?? 0 : 0, plan_end_week: g.kind === 'metric' ? g.plan.endWeek ?? null : null, plan_points: g.kind === 'metric' && g.plan.points?.length ? g.plan.points : null,
     original_plan: g.kind === 'metric' ? g.originalPlan : null, rebaselined_week: g.kind === 'metric' ? g.rebaselinedWeek : null,
     plan_history: g.kind === 'metric' && g.planHistory?.length ? g.planHistory : null,
+    // BL (0049): written on every row, null when there's no baseline, so a batch mixing goals with and without one
+    // never gives a goal another row's columns (okr_upsert fills a missing key with null).
+    baseline_value: g.kind === 'metric' && g.baseline ? g.baseline.value : null, baseline_period: g.kind === 'metric' && g.baseline ? g.baseline.period : null, baseline_provisional: g.kind === 'metric' && g.baseline ? g.baseline.provisional : null,
     range_bound: g.kind === 'range' ? g.range.bound : null, range_limit: g.kind === 'range' ? g.range.limit : null, range_margin: g.kind === 'range' ? g.range.margin : null,
     // Range goals only (migration 0042): the lower bound of a range between two numbers, null for a one-sided range so a
     // range changed from between to one side clears it. Metric and milestone rows look exactly as before.
@@ -104,10 +109,13 @@ export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
     const op = r.original_plan;
     return {
       ...common, kind: 'metric', unit: r.unit ?? '', decimals: Number(r.decimals ?? 0),
-      plan: { start: num(r.plan_start) as number, target: num(r.plan_target) as number, shape: r.plan_shape ?? 'straight', ...(r.plan_from_week ? { fromWeek: Number(r.plan_from_week) } : {}), ...(r.plan_end_week ? { endWeek: Number(r.plan_end_week) } : {}), ...(r.plan_points?.length ? { points: r.plan_points.map((p) => ({ week: Number(p.week), value: Number(p.value) })) } : {}) },
+      plan: { start: num(r.plan_start) as number, target: (r.plan_target == null ? num(r.plan_start) : num(r.plan_target)) as number, shape: r.plan_shape ?? 'straight', ...(r.plan_from_week ? { fromWeek: Number(r.plan_from_week) } : {}), ...(r.plan_end_week ? { endWeek: Number(r.plan_end_week) } : {}), ...(r.plan_points?.length ? { points: r.plan_points.map((p) => ({ week: Number(p.week), value: Number(p.value) })) } : {}) },
       // Whole earlier plans, so weeks before a re-plan are judged against exactly what applied then.
       originalPlan: op ? planOf(op) : null, rebaselinedWeek: r.rebaselined_week,
       ...(r.plan_history?.length ? { planHistory: r.plan_history.map((v) => ({ untilWeek: Number(v.untilWeek), plan: planOf(v.plan) })) } : {}),
+      // A proposed goal with its target not set yet (GB): the plan holds the start in its place.
+      ...(r.plan_target == null ? { targetUnset: true as const } : {}),
+      ...(r.baseline_value != null ? { baseline: { value: Number(r.baseline_value), period: r.baseline_period ?? '', provisional: !!r.baseline_provisional } } : {}),
     };
   }
   if (r.kind === 'range') {
@@ -131,7 +139,8 @@ export const checkInToRow = (ws: string, c: CheckIn): CheckInRow => ({
   next: c.next, data_flagged: c.dataFlagged, backfilled: !!c.backfilled,
   // Written only when it holds something (NR rule 2): 0035's public views don't have the column, so a row without it saves
   // through either; one with it needs the app to read and write through faro (0047).
-  ...(c.reading ? { reading: c.reading } : {}),
+  // Always written (0047 is applied; okr_commit writes faro's table): a check-in re-saved without a reading clears it.
+  reading: c.reading ?? null,
   ...set({ removed_at: c.removedAt, removed_by: c.removedBy }),
 });
 

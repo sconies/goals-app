@@ -12,6 +12,8 @@ import * as M from './rules';
 import { linkGoalMetric } from './rulesLink';
 import * as C from './rulesChange';
 import RECORDS from './records';
+import { libraryReads } from './reads';
+import { findMetrics } from './rulesLibrary';
 
 /** This module's records, as the registry gives them to the core. */
 const MINE = [{ ...RECORDS, module: M.MODULE }];
@@ -40,7 +42,7 @@ const refused = (f: () => unknown, msg: RegExp) => { expect(f).toThrow(NotAllowe
 const lead = (w: ReturnType<typeof world>) => M.metricsOf(w.full).find((m) => m.id === 'metric_lead-time')!;
 
 describe('rule 3: what kind of change', () => {
-  const g = (decimals = 0, aimsUp: boolean | null = false): C.LinkedGoal => ({ id: 'g', title: 'G', unit: 'hours', decimals, aimsUp, ownerId: 'p' });
+  const g = (decimals = 0, aimsUp: boolean | null = false): C.LinkedGoal => ({ id: 'g', title: 'G', cycleId: 'c', unit: 'hours', decimals, aimsUp, ownerId: 'p', stopped: false });
   it('follows the spec’s table', () => {
     const w = world();
     const m = lead(w);
@@ -71,6 +73,35 @@ describe('rule 3: what kind of change', () => {
     // A goal linked after the change was never measured the old way.
     expect(C.marksFor(m, { linkedAt: '2099-01-01T00:00:00Z' })).toEqual([]);
   });
+  it('a mark belongs to the year it was made in: a goal of another year neither shows it nor is told (#351 review)', () => {
+    const w = world();
+    const c = C.saveMetricChange(w.x('rhea'), { id: 'metric_lead-time', meaning: 'Merge to production, p50.', comparable: false, reason: 'Counts from merge now.' });
+    w.apply(c.commit);
+    const m = lead(w);
+    const link = M.linksOf(w.full).find((l) => l.goalId === 'ns-lead')!;
+    // Bounded by the goal's own cycle: before its start, or from the day after its last week, it shows nothing.
+    expect(C.marksFor(m, link, '2026-01-01', '2026-11-05')).toEqual([]);
+    expect(C.marksFor(m, link, '2027-01-04', '2028-01-10')).toEqual([]);
+    expect(C.marksFor(m, link, '2026-01-01', '2027-01-10')).toHaveLength(1);
+    // Only this cycle's goals are told in History.
+    const cycleId = w.x('rhea').cycle.id;
+    expect(c.commit!.changes.filter((v) => v.goalId).every((v) => w.goal(v.goalId!).cycleId === cycleId)).toBe(true);
+  });
+  it('a source changed alone marks the two sources, not the meaning twice (#351 review)', () => {
+    const w = world();
+    const before = lead(w);
+    const c = C.saveMetricChange(w.x('rhea'), { id: 'metric_lead-time', source: 'The DORA dashboard', comparable: false, reason: 'A new source.' });
+    expect(c.metric.marks).toMatchObject([{ was: before.source || before.meaning, now: 'The DORA dashboard' }]);
+  });
+  it('a stopped goal still counts: its metric’s unit and direction are asked about, and it is told (#351 review)', () => {
+    const w = world();
+    w.apply({ goals: [{ ...w.goal('ns-lead'), stoppedAt: '2026-11-01T00:00:00Z' }], changes: [] } as unknown as Commit);
+    expect(C.linkedGoals(w.full, 'metric_lead-time').map((v) => [v.id, v.stopped])).toEqual([['ns-lead', true]]);
+    refused(() => C.saveMetricChange(w.x('rhea'), { id: 'metric_lead-time', unit: 'min' }), /A metric in min is a different number/);
+    refused(() => C.saveMetricChange(w.x('rhea'), { id: 'metric_lead-time', direction: 'higher' }), /Say why the direction changes/);
+    const c = C.saveMetricChange(w.x('rhea'), { id: 'metric_lead-time', unit: 'hrs', relabel: true });
+    expect(c.commit!.goals!.map((v) => v.id)).toEqual(['ns-lead']);
+  });
   it('a change of direction needs a reason; a new unit is a label or refused; a relabel changes the goals’ unit too', () => {
     const w = world();
     refused(() => C.saveMetricChange(w.x('rhea'), { id: 'metric_lead-time', direction: 'higher' }), /Say why the direction changes/);
@@ -96,6 +127,11 @@ describe('rule 5: retiring, bringing back, merging', () => {
     expect(M.measureOf(w.scoped, w.goal(linked.goalId))!.retired).toMatchObject({ why: 'The test platform reports it now.' });
     const other = w.full.goals.find((g) => g.kind === 'metric' && g.unit === '%' && !M.linksOf(w.full).some((l) => l.goalId === g.id && !l.removedAt));
     if (other) refused(() => linkGoalMetric(w.x('amara'), other, 'metric_flaky-rate'), /“Flaky test rate” was retired on \d+ \w+\. Choose another, or bring it back\./);
+    // It can be found again: the name says it is retired, and the library's ?retired=1 lists it (#351 review).
+    expect(M.metricProblems(M.metricFrom({ name: 'flaky test rate', unit: '%', direction: 'lower' }, null, w.x('rhea')), w.scoped)[0]).toMatch(/^There’s already a metric called Flaky test rate, retired on \d+ \w+ \d{4}\. Bring it back from its page, or give this one a different name\.$/);
+    const reads = libraryReads(w.scoped, '2026-11-05T13:00:00Z');
+    expect(findMetrics(reads).rows.some((r) => r.metric.id === 'metric_flaky-rate')).toBe(false);
+    expect(findMetrics(reads, { retired: true }).rows.map((r) => r.metric.id)).toEqual(['metric_flaky-rate']);
     w.apply(C.unretireMetric(w.x('rhea'), 'metric_flaky-rate'));
     expect(M.liveMetrics(w.scoped).some((m) => m.id === 'metric_flaky-rate')).toBe(true);
   });

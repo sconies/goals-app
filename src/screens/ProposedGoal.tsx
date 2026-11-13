@@ -11,6 +11,7 @@ import { usePrefs } from '../app/search';
 import { markOpened } from '../app/proposalSeen';
 import { activeReadBack } from '../domain/readBack';
 import { MEASURE_UNSAID, measureUnsaid } from '../domain/proposedSummary';
+import { targetNotSet } from '../domain/proposed';
 import { mayActivate, readyToActivate } from '../domain/proposedActions';
 import { mayChangeGoal } from '../domain/goalRights';
 import { fmt, staysText, targetText } from '../domain/format';
@@ -32,6 +33,8 @@ const plural = (n: number, one: string) => `${n} ${n === 1 ? one : one + 's'}`;
 export function wouldSay(goal: Goal, parent: Goal | undefined, weeks: number): string {
   if (measureUnsaid(goal)) return MEASURE_UNSAID;
   const feeds = parent ? `, and feed “${parent.title}”${parent.key ? ` (${parent.key})` : ''}` : '';
+  // A baseline and nothing else yet (GB): where it is now, and that no target is agreed.
+  if (targetNotSet(goal) && goal.kind === 'metric') return `It is at ${fmt(goal.plan.start, goal)} now; no target is set yet${feeds}.`;
   const what = goal.kind === 'metric'
     ? `move from ${fmt(goal.plan.start, goal)} to ${fmt(goal.plan.target, goal)} over ${plural(planEnd(goal.plan, weeks) - (goal.plan.fromWeek ?? 0), 'week')}`
     : goal.kind === 'range' ? (goal.range.bound === 'between' ? `stay ${staysText(goal)}` : `stay at or ${goal.range.bound === 'atMost' ? 'under' : 'over'} ${fmt(goal.range.limit, goal)}`) : `hit ${plural(goal.stages.length, 'stage')}`;
@@ -84,7 +87,7 @@ function ProposedPage({ goal }: { goal: Goal }) {
       {canActivate ? (
         <div className="row proposed-actions" data-part="Actions">
           {missing.length
-            ? <Link className="btn primary" to={edit + '#definition'}>Finish it</Link>
+            ? <Link className="btn primary" to={edit + (targetNotSet(goal) ? '#plan' : '#definition')}>{targetNotSet(goal) ? 'Set the target' : 'Finish it'}</Link>
             : <button type="button" className="btn primary" aria-expanded={activating} onClick={() => setActivating(true)}>Make it active</button>}
           <Link className="btn" to={edit}>Change it</Link>
           <button type="button" className="linkish" onClick={() => setWithdrawing(true)}>Withdraw it</button>
@@ -130,7 +133,7 @@ function ProposedPage({ goal }: { goal: Goal }) {
         <dl className="details">
           <dt>Level</dt><dd>{levelName(app.cycle, goal.level)}</dd>
           <dt>Feeds into</dt><dd>{parent ? <Link to={'/goals/' + parent.id}>{parent.title}</Link> : 'Nothing: the top of its own tree'}</dd>
-          {!measureUnsaid(goal) && <><dt>Target</dt><dd>{targetText(goal)}</dd></>}
+          {!measureUnsaid(goal) && <><dt>Target</dt><dd>{targetText(goal)}{targetNotSet(goal) && canChange && <> · <Link to={edit + '#plan'}>Set the target</Link></>}</dd></>}
           {goal.definition && <><dt>What it measures</dt><dd>{goal.definition}</dd></>}
         </dl>
       </section>

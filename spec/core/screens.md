@@ -267,7 +267,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 - `/watching` (`Watching`): Watch the goals you care about but don’t own, and see what changed in them without opening each one. Help: “Watching goals” (`watching`).
 
-- **Named parts:** “What changed this week”, “What you watch”, “You’re not watching anything yet”, “What changed (region)”
+- **Named parts:** “What changed this week”, “What you watch”, “You’re not watching anything”, “What changed (region)”
 - **Main action:** Open a goal you watch that needs attention.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_watching`, `find_goals`, `watch`, `unwatch`
@@ -292,8 +292,8 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Show all …” | button | `!open` |
 | “Stop” | button | `managing` |
 | “Watch …” | button | always |
-| “Watch every … goal (…)” | primary | always |
-| “Pick goals from the list” | primary | always |
+| “Pick goals from the list” | link | `!allMine` |
+| “Watch every … goal (…)” | button | `!allMine` |
 
 ## Retro
 
@@ -431,6 +431,8 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Start a new one” | button | `restored` and `!asking` |
 | “Discard it” | button | `asking` |
 | “Keep it” | button | `asking` |
+| “No target agreed yet? Propose it with just the baseline” | button | `step === 2` and `d.kind === 'metric'` and `!proposing && baselineOnly(d)` |
+| “Baseline known for a period?” | button | `step === 2` and `d.kind === 'metric'` and `!(baselineOpen \|\| d.baselinePeriod)` |
 | “At most” | button | `step === 2` and `d.kind === 'range'` |
 | “At least” | button | `step === 2` and `d.kind === 'range'` |
 | “Between” | button | `step === 2` and `d.kind === 'range'` |
@@ -1389,7 +1391,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “Finish it” | primary | `canActivate` and `missing.length` |
+| “Set the target / Finish it” | primary | `canActivate` and `missing.length` |
 | “Make it active” | primary | `canActivate` and `!missing.length` |
 | “Change it” | link | `canActivate` |
 | “Withdraw it” | button | `canActivate` |
