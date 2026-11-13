@@ -19763,7 +19763,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "Switching, and setting one up",
 				list: [
-					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: Look around the demo (outside the demo: it opens the example workspace, which you can change freely without touching yours), About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow.",
+					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: Look around the demo (outside the demo: it opens the example workspace, which you can change freely without touching yours), About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow. With the narrow menu of icons, the Faro mark at its top is the switcher.",
 					"Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.” A workspace you can’t open yet still lists the others, to open one of them.",
 					"A workspace is one organisation’s goals and the people who share them: its own people and teams, its own goal year and check-in day, and its own admins. About says so, under its name.",
 					"Switching is a page move: Back takes you to the workspace you came from. You land on the same page in the other workspace when it has one (Home, Goals, Reviews, People, a Workspace section), otherwise on Home; from a person’s or a team’s page, on People or Teams. While it opens, the page says so.",
@@ -19805,7 +19805,8 @@ var CORE_ARTICLES = [
 			"WORKSPACES",
 			"WORKSPACE-SECTIONS",
 			"WORKSPACE-ABOUT",
-			"WORKSPACE-ONE-PLACE"
+			"WORKSPACE-ONE-PLACE",
+			"RAIL-SWITCH"
 		],
 		keywords: [
 			"admin",
@@ -20673,6 +20674,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "switch-from-the-narrow-menu",
+		date: "2026-11-13",
+		title: "Switch workspace from the narrow menu",
+		points: ["With the narrow menu of icons, the Faro mark at its top opens the workspace switcher.", "Nothing is added to the menu, so the rest of it keeps its room on a small screen."],
+		articles: ["workspace"]
+	},
 	{
 		id: "look-around-the-demo",
 		date: "2026-11-13",
