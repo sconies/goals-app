@@ -380,7 +380,8 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await h.fill(p.getByLabel('What happened'), 'The runner budget came through a week early.');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
   // The last post is the only confirmation: what was saved, that the week is done, and a way on.
-  await see(p, `checked in for week ${NOW}`, 'the last post says the week is done');
+  // The receipt (habit spec 2.1): every check-in in, before the review or after it.
+  await see(p, /(Your check-in is|Both of your check-ins are|All \d+ of your check-ins are) in/, 'the last post says the week is done');
   h.set('finish', await p.getByRole('link', { name: 'Back to home' }).isVisible() && await p.getByRole('link', { name: 'View the goal' }).isVisible(), 'no way on from the confirmation');
   await h.checkpoint('done');
   let s = await h.snapshot();
@@ -390,7 +391,8 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await p.goto(url('/'));
   await p.reload();
   // Rhea is in no review this week (hers is on Tuesday), so Home says the week is done in one sentence (HM1).
-  await see(p, /(Your check-in is|Both check-ins are|All \d+ check-ins are) in for week/, 'posted check-ins survive a reload, and home says the week is done');
+  // On the day it is completed, Home says the check-in's receipt (habit spec 2.1); on a later day, the week.
+  await see(p, /(Your check-in is|Both (of your )?check-ins are|All \d+ (of your )?check-ins are) in( for week| before|\.)/, 'posted check-ins survive a reload, and home says the week is done');
   // An ad hoc check-in, any time, from the goal page: kept alongside the first, and the latest is the week's status.
   await p.goto(url('/goals/ci-docker'));
   // Checked in already: the owner's check-in is no longer the page's main action; "Check in again" is beside it.
@@ -1625,7 +1627,7 @@ journey('U122', ['HOME-OWNER'], 'The owner’s week on Home: on Monday nothing i
   await p.goto(day('2026-11-11'));
   await hero.waitFor();
   const done = await hero.innerText();
-  h.set('finish', /Both check-ins are in for week 46\./.test(done) && /The next are due by Thursday 19 Nov\./.test(done) && await p.locator('.page.home .btn.primary').count() === 0, `Wednesday’s Home said “${done.replace(/\s+/g, ' ')}”`);
+  h.set('finish', /Both (of your )?check-ins are in (for week 46|before Thursday’s review)\./.test(done) && /The next are due by Thursday 19 Nov\./.test(done) && await p.locator('.page.home .btn.primary').count() === 0, `Wednesday’s Home said “${done.replace(/\s+/g, ' ')}”`);
   // Friday 13 Nov: the deadline he met is not said.
   await p.goto(day('2026-11-13'));
   await hero.waitFor();
@@ -5628,6 +5630,39 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
 }, []);
 
 /* Check reads the metric from the draft (build review of #202, findings 2 and 3): a reload keeps it, a new team re-slices it. */
+journey('U149', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the receipt: as Valentina on Thursday 5 Nov, her one check-in at 80 (Commitment coverage’s target) shows one panel “… reached its target” with “Copy the share image” and “See the goal”, and the receipt “Your check-in is in before Thursday’s review.”; the goal’s History marks that week “Reached its target”; as Mohammed on Friday 6 Nov, his check-in says “It came after Thursday’s review.” and no run', 12, async (h, device) => {
+  const on = (path, day) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  const p = h.use(await newPage(device, 'valentina'));
+  await p.goto(on('/check-in', '2026-11-05'));
+  await h.fill(p.getByLabel('This week’s value'), '80');
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Check-in saved');
+  const panel = p.locator('.ci-moment');
+  await see(panel, 'reached its target', 'no panel says the goal reached its target');
+  await see(panel, 'against a target of', 'the panel does not say the target');
+  h.set('finish', await panel.getByRole('button', { name: 'Copy the share image' }).isVisible() && await panel.getByRole('link', { name: 'See the goal' }).isVisible() && await p.locator('.ci-moment').count() === 1, 'the panel has not one share button and one link to the goal');
+  await see(p, 'Your check-in is in before Thursday’s review.', 'the receipt does not say it was in before the review');
+  const said = await p.locator('.celebrate').innerText();
+  h.set('errors', !/lost|broken|!/i.test(said), `the receipt said “${said.replace(/\s+/g, ' ')}”`);
+  await h.checkpoint('reached');
+  await h.click(panel.getByRole('link', { name: 'See the goal' }));
+  await p.waitForURL(/\/goals\//);
+  const result = p.locator('.ci-result').first();
+  await result.waitFor({ timeout: 5000 }).catch(() => undefined);
+  const word = (await result.count()) ? (await result.textContent())?.trim() : '';
+  h.set('logged', word === 'Reached its target', `History’s row says “${word}”`);
+  await h.checkpoint('history');
+  // Friday: the review has passed. The receipt says so, and mentions no run.
+  const q = h.use(await newPage(device, 'mohammed'));
+  await q.goto(on('/check-in', '2026-11-06'));
+  await h.fill(q.getByLabel('This week’s value'), '95');
+  await h.click(q.getByRole('button', { name: 'Post check-in' }));
+  await see(q, 'It came after Thursday’s review.', 'a check-in after the review does not say it came after');
+  const late = await q.locator('.celebrate').innerText();
+  h.set('progress', !/in a row|lost|broken/i.test(late), `the late receipt said “${late.replace(/\s+/g, ' ')}”`);
+  await h.checkpoint('late');
+});
+
 journey('U148', ['GOAL-PROPOSED'], 'Proposed in a review: as Rhea walking Developer Productivity fortnightly, “Propose a new goal” (on a phone, “Propose a new goal instead” in the next-step sheet) on Lead time for changes opens a sheet that starts with Rhea (the goal’s owner) and Lead time for changes; a name and Camille as owner saves a proposed goal for Camille in that review, not on the agenda; Camille’s Home says “Rhea proposed a goal for you in Developer Productivity fortnightly”; the review’s next session’s Last time reads “Proposed: … Camille hasn’t made it active yet.”', 30, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   const on = (path, day = '2026-11-11') => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;

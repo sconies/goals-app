@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (154): build it as Faro does.
+- **Copy** (156): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -221,6 +221,24 @@ A check-in says which week it is for and where it is in the week's queue, even a
 - **Rule:** [What a check-in must say](rules/check-in.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`
 - **Journeys and checks:** U57, U111
+
+### HABIT-RECEIPT
+
+Once a person's check-ins for the week are all in, the receipt says whether they were in before the review ("All 4 of your check-ins are in before Thursday’s review.") and the run of weeks in a row on time, from two; or how many came after it and when the next are due, with no run. One late week is forgiven when the four weeks before it were on time, and said once ("Week 45 came in late; one late week doesn’t break a run."). Never "lost", "broken", a nought or an exclamation mark. Home's quiet line says the same two sentences on the day the week is completed.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [The habit: the run, the receipt and a moment](rules/habit.md)
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Journeys and checks:** U149
+
+### HABIT-MOMENT
+
+A check-in that reaches a goal's target, or brings it back on track after two weeks or more behind, shows one quiet panel on its receipt (the status's shape and word, what happened in one line, "Copy the share image" for a target reached) and its row in the goal's History says "Reached its target" or "Back on track" in small capitals. Never on a correction, a backfilled week or an import; no animation, confetti or banner on anyone else's screen.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [The habit: the run, the receipt and a moment](rules/habit.md)
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Journeys and checks:** U149
 
 ### REASON-AHEAD
 

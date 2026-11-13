@@ -156,6 +156,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Save and skip” | primary | always |
 | “Check in on …” | primary | `p.due.length > 0` |
 | “Back to home” | primary | always |
+| “Copy the share image” | button | `m.kind === 'reached'` |
 | “Next: …” | primary | `left` |
 | “Back to home” | primary | `!left` |
 | “View the goal” | link | always |
@@ -523,7 +524,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | empty | “This goal doesn’t exist” | `!goal` |
 | error | “Type the question.” | `tried and bad` |
 | error | “Write a few words.” | always |
-| error | “Couldn’t make the image:” | always |
 
 **Buttons, and who sees them**
 

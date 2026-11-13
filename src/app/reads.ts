@@ -13,7 +13,7 @@ import type { ScopeFacts } from '../domain/goalsPage';
 import { agendaOf, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
 import { waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession, type Waiting } from '../domain/home';
 import { handedFrom } from '../domain/askHandover';
-import { onTimeStreak, reviewDate, weekProgress } from '../domain/progress';
+import { onTimeStreak, receiptFacts, reviewDate, weekProgress } from '../domain/progress';
 import { hasEnded, weekDate, weekDates } from '../domain/plan';
 import { beforeStart, cycleDates, wrapUpOpenOn } from '../domain/cycle';
 import { openForPerson } from '../domain/asks';
@@ -86,6 +86,9 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   const start = beforeStart(cycle, today);
   const thisWeek = s.checkIns.filter((c) => c.week === week && p.goals.some((g) => g.id === c.goalId));
   const allIn = p.goals.length > 0 && p.done.length >= p.goals.length;
+  // The receipt's review is named while reviews are on (FT2 isn't built, so they are) and the workspace holds one.
+  const hasReview = s.reviews.some((r) => !r.removedAt && !r.endedAt);
+  const receipt = allIn ? receiptFacts(p, viewerId, s, cycle, week, hasReview) : { after: 0, forgiven: null };
   const dueDate = reviewDate(cycle, Math.max(1, week));
   // Once the year has ended no session is held in it: a "Not held yet" lead would never go (HM1 review).
   const sessions: HomeSession[] = ended ? [] : s.reviews.filter((r) => r.people.includes(viewerId)).map((r) => reviewSession(r, s, cycle, today, week))
@@ -112,6 +115,8 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
       due: p.due.map((g) => ({ id: g.id, title: g.title, number: g.kind !== 'milestone' })), draft: opts.draft,
       allInOnTimeToday: allIn && thisWeek.some((c) => c.postedAt.slice(0, 10) === day) && thisWeek.every((c) => c.postedAt.slice(0, 10) <= dueDate),
       streak: mine.length ? onTimeStreak(viewerId, s, cycle, week) : null,
+      completedToday: allIn && thisWeek.some((c) => c.postedAt.slice(0, 10) === day),
+      after: receipt.after, forgiven: receipt.forgiven, hasReview,
     },
     wrap: wrapUpOpenOn(wc, today) ? { name: wc.name, ends: cycleDates(wc).lastDay, ended: hasEnded(wc, today), left: wrapMine.filter((g) => !ws.retros.some((r) => r.goalId === g.id)).map((g) => ({ id: g.id, title: g.title })), total: wrapMine.length } : null,
     sessions,

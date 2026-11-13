@@ -27,6 +27,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'habit-receipt-and-moment',
+    date: '2026-11-13',
+    title: 'A late week no longer resets your run, and reaching a target is said, quietly',
+    points: [
+      'When your week’s check-ins are all in, the last screen says whether they were in before the review, and how many weeks in a row you have been on time.',
+      'One late week no longer ends your run: if the four weeks before it were on time, it is forgiven, and the next check-in says so once.',
+      'A check-in that takes a goal to its target says so in one quiet panel, with a way to copy the goal’s share image. One that brings a goal back on track after two weeks or more behind says that too.',
+      'The goal’s History marks those weeks “Reached its target” or “Back on track”.',
+    ],
+    articles: ['check-in', 'home'],
+  },
+  {
     id: 'asks-follow-owner-by-role',
     date: '2026-11-13',
     title: 'Asks that follow a goal’s new owner are the ones put to the owner',

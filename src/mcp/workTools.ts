@@ -9,7 +9,7 @@ import * as A from '../domain/actions';
 import { activityFilter, parseActivity } from '../domain/activity';
 import { attentionList, splitAttention } from '../domain/attention';
 import { cycleDates, cycleState, dayWithYear, wrapUpOpenOn } from '../domain/cycle';
-import { dashboard } from '../domain/home';
+import { dashboard, longDay } from '../domain/home';
 import { askWaiting, homeAsks } from '../app/reads';
 import { ASK_STATUS, ATTENTION, choices, HANDLED_LINE, codeFrom, LABEL, lower, STATUS, withCode } from '../domain/vocabulary';
 import type { Change, DisplayStatus } from '../domain/types';
@@ -21,7 +21,7 @@ const said = (k: DisplayStatus) => withCode(STATUS[k]);
 /** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
 import { ASK_KIND_LABEL, askText, asksOf, canAnswer, canMarkDone, isOverdue, openForPerson, openUpdateAsk } from '../domain/asks';
 import { agendaOf, answerOf, lastHeld, openActions, reviewSession, sessionState, sessionStateText, sessionWeek, watchedGoals } from '../domain/review';
-import { weekProgress } from '../domain/progress';
+import { receiptFacts, receiptText, weekCompletion, weekProgress } from '../domain/progress';
 import { workbook } from '../domain/export';
 import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { findGoal, isKey } from '../domain/goalKey';
@@ -180,9 +180,14 @@ export const WORK_TOOLS: ToolDef[] = [
       const reviews = s.reviews.filter((r) => r.people.includes(me)).map((r) => { const x = reviewSession(r, s, ctx.cycle, ctx.today, ctx.week); return { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total }; });
       // The strip at the top of Home: their goals by status, their on-time streak, what they watch, their next review.
       const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today);
+      const wp = weekProgress(me, s, ctx.cycle, ctx.week, ctx.today);
+      const rf = weekCompletion(wp).complete ? receiptFacts(wp, me, s, ctx.cycle, ctx.week, s.reviews.some((r) => !r.removedAt && !r.endedAt)) : null;
+      const weekReceipt = rf ? { ...receiptText({ ...rf, nextDue: rf.nextDue ? longDay(rf.nextDue) : null }), forgivenWeek: rf.forgiven } : null;
       const glance = {
         goals: { whose: d.scope, total: d.total, byStatus: d.counts.map((c) => ({ status: c.status, statusLabel: LABEL[c.status], n: c.n })) },
         onTimeStreakWeeks: d.streak,
+        // The check-in's receipt, once every check-in of the week is in (habit spec 2.1): the same two sentences.
+        weekReceipt,
         watching: d.watching ? { goals: d.watching.all.length, needAttention: d.watching.needs.map((a) => a.goal.title), beingHandled: d.watching.handled.map((a) => ({ title: a.goal.title, inHand: a.handled!.text })), noRecentUpdate: d.watching.quiet.length } : null,
         nextReview: d.next ? { id: d.next.id, name: d.next.name, date: d.next.date, day: d.next.weekday } : null,
       };
@@ -190,6 +195,7 @@ export const WORK_TOOLS: ToolDef[] = [
       const text = [
         `Week ${ctx.week} for ${ctx.actor.name}.`,
         `${d.scope === 'mine' ? 'Your goals' : 'All goals'}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(', ') || 'none'}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? 'week' : 'weeks'}.` : ''}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ''}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ''}`,
+        ...(weekReceipt ? [[weekReceipt.first, weekReceipt.second].filter(Boolean).join(' ')] : []),
         `Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(', ') : 'none'}.`,
         `Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask}${when(r)} (${r.id})`).join('; ') : 'none'}.`,
         `Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question}${when(q)} (${q.id})`).join('; ') : 'none'}.`,
