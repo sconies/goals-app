@@ -121,15 +121,19 @@ export function beforeReviewText(h: HabitCounts, past: boolean, reviews = true):
 }
 
 /** What "Before this review" says for a set of goals in a week (spec 2.3), as the review's page, a team's page and
-    `get_review` all read it; null when rule 4 hides it or nothing was due. `past`: the due day has gone by. */
+    `get_review` all read it; null when rule 4 hides it or nothing was due. `past`: the due day has gone by. It is judged
+    against the workspace's due day, so `reviews` (say "before it") is true only for a review held on that day; any
+    other review, and a team's page with Reviews off, says "on time" (build review of #416). */
 export interface BeforeReview { counts: HabitCounts; past: boolean; says: string; weeks: HabitWeek[] }
 
 export function beforeReview(goals: readonly Goal[], week: number, rows: HabitRows, cycle: Cycle, today: Date, viewerId: string, reviews = true): BeforeReview | null {
-  if (week < 1 || !habitShown(goals, viewerId)) return null;
+  if (week < 1) return null;
   const isDue = dueIn(cycle, rows.checkIns);
   const dueDay = reviewDate(cycle, week);
   const h = habit(goals, week, rows, dueDay, isDue);
-  if (!h.due) return null;
+  // Rule 4 over the goals counted, not the whole set: three owners in a set but one with every goal due would single
+  // that person out (build review of #416).
+  if (!h.due || !habitShown(goals.filter((g) => isDue(g, week)), viewerId)) return null;
   const past = today.toISOString().slice(0, 10) > dueDay;
   const { goals: _ids, ...counts } = h;
   return { counts, past, says: beforeReviewText(h, past, reviews), weeks: habitWeeks(goals, past ? week : week - 1, rows, (w) => reviewDate(cycle, w), isDue) };

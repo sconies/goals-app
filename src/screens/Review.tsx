@@ -267,8 +267,9 @@ export function ReviewHome() {
         </section>
       )}
       {/* Before this review (habit spec 2.3): how many of its goals were checked in before it, and the last 8 weeks. A
-          session in a later week is counted as this week so far: nothing can be in for a week that hasn't started. */}
-      <BeforeReview goals={s.items.map((a) => a.goal)} week={Math.min(s.week, app.week)} link={`inreview=${encodeURIComponent(review.id)}`} heading="Before this review" />
+          session in a later week is counted as this week so far: nothing can be in for a week that hasn't started. It is
+          judged against the workspace's due day, so a review held on another day says "on time", never "before it". */}
+      <BeforeReview goals={s.items.map((a) => a.goal)} week={Math.min(s.week, app.week)} link={`inreview=${encodeURIComponent(review.id)}`} heading={review.weekday === app.cycle.reviewDay ? 'Before this review' : `On time for ${WEEKDAY[app.cycle.reviewDay]}’s deadline`} reviews={review.weekday === app.cycle.reviewDay} />
       {/* Held: what was said comes first, with every goal reviewed. */}
       {done && <SessionRecord s={s} title="What was said" reviewed="open" />}
       {!done && remaining.length > 0 && (
