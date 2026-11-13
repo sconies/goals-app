@@ -53,19 +53,27 @@ describe('people in the data tables', () => {
 });
 
 describe('an admin correcting a past check-in in the data tables', () => {
-  it('replaces that week’s check-in, logged with the old and new words, no reason asked', () => {
+  it('corrects that week’s check-in as the form does: a reason first, then logged with the old and new words and why', () => {
     const rows = book.find((t) => t.name === 'Check-ins')!.rows;
     const head = rows[0]!.map(String);
     const row = rows.filter((r) => r[head.indexOf('Goal ID')] === 'ns-ai' && Number(r[head.indexOf('Week')]) <= week - 3).at(-1)!;
     const rec: Rec = { __row: '2' };
     head.forEach((h, i) => { rec[h.toLowerCase()] = row[i] == null ? '' : String(row[i]); });
     rec.why = rec.why! + ' Checked with Lucía.';
-    const cs = planChanges(base('amara', { checkIns: [rec] }));
+    // One meaning for "correct" (review of #225, medium 6): without a reason nothing is saved, and the item says why.
+    const asked = planChanges(base('amara', { checkIns: [rec] }));
+    expect(asked.needsReason).toBe(true);
+    expect(asked.commit).toBeNull();
+    expect(asked.items[0]!.needsReason).toBe(true);
+    const cs = planChanges({ ...base('amara', { checkIns: [rec] }), reason: 'Lucía checked the source again.' });
     expect(cs.issues.filter((i) => i.severity === 'error')).toEqual([]);
     expect(cs.counts.replaced).toBe(1);
     expect(cs.needsReason).toBe(false);
     const ch = cs.commit!.changes.find((c) => c.entity === 'check-in')!;
     expect(ch.diffs.some((d) => /Checked with Lucía/.test(d.to))).toBe(true);
+    expect(ch.diffs[0]).toEqual({ field: 'Why corrected', from: '—', to: 'Lucía checked the source again.' });
+    // Only the words changed: History names what did, never "37 hours is now 37 hours" (medium 4).
+    expect(ch.summary).toMatch(/^Corrected week \d+: still .+, with a new note$/);
     // The rules still apply: a number that makes the owner's call greener than the numbers needs that explained.
     const greener = planChanges(base('amara', { checkIns: [{ ...rec, value: '19' }] }));
     expect(greener.issues.some((i) => i.severity === 'error' && /Why greener/.test(i.message))).toBe(true);
@@ -86,7 +94,7 @@ describe('every record keeps its own ID', () => {
   it('corrects exactly the check-in its ID names, and refuses an unknown ID or a changed week', () => {
     const r = rows.filter((x) => x[head.indexOf('Goal ID')] === 'ns-lead' && Number(x[head.indexOf('Week')]) <= week - 2).at(-1)!;
     const rec = recOf(r);
-    const ok = planChanges(base('amara', { checkIns: [{ ...rec, why: rec.why + ' (checked)' }] }));
+    const ok = planChanges({ ...base('amara', { checkIns: [{ ...rec, why: rec.why + ' (checked)' }] }), reason: 'The note was missing a check.' });
     expect(ok.issues.filter((i) => i.severity === 'error')).toEqual([]);
     expect(ok.commit!.checkIns![0]!.id).toBe(rec.id);
     const unknown = planChanges(base('amara', { checkIns: [{ ...rec, id: 'ci_nope' }] }));

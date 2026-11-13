@@ -7500,6 +7500,14 @@ var init_actions = __esmMin((() => {
 		return ((w[0]?.[0] ?? "") + (w.length > 1 ? w[w.length - 1][0] : "")).toUpperCase();
 	};
 	liveView = (x, id) => (x.snapshot.views ?? []).find((v) => v.id === id && !v.deletedAt);
+})), correctReasonOk, correctReasonAsk;
+var init_correctReason = __esmMin((() => {
+	init_checkin();
+	correctReasonOk = (text) => {
+		const t = text.trim();
+		return t.length >= 10 && t.length <= 500 && (t.match(/\p{L}/gu) ?? []).length >= 3;
+	};
+	correctReasonAsk = (week) => `Say why, in a sentence of at least 10 characters (at most 500), so anyone reading week ${week} later knows.`;
 }));
 // src/domain/goalEntry.ts
 /**
@@ -9107,7 +9115,7 @@ function undoPlan(x, importId) {
 		entityId: importId,
 		action: "undone",
 		importId,
-		summary: `Undid ${entry.summary.replace(/:.*$/, "").toLowerCase()}: ${plural$3(restored, "row", "rows")} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ""}`,
+		summary: `Undid ${/^Corrected a check-in\b/.test(entry.summary) ? "a correction" : entry.summary.replace(/:.*$/, "").toLowerCase()}: ${plural$3(restored, "row", "rows")} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ""}`,
 		diffs: [{
 			field: "Import",
 			from: entry.summary,
@@ -11713,7 +11721,8 @@ function* planChangesInChunks(input) {
 				value: String(draft.value)
 			}) === "leave") return;
 		}
-		const keeps = post?.mode === "correct" && existing;
+		const corrects = post?.mode === "correct" || !post && !!existing && CORRECTS_VIA.includes(via);
+		const keeps = corrects && existing;
 		const backfilled = keeps ? !!existing.backfilled : w < week;
 		const due = new Date(Date.parse(weekDate(cycle, w) + "T09:00:00Z") + cycle.reviewDay * 864e5);
 		const at = keeps ? new Date(existing.postedAt) : backfilled && due.toISOString() < now ? due : new Date(now);
@@ -11728,12 +11737,14 @@ function* planChangesInChunks(input) {
 		}
 		if (again) ch.summary = ch.summary.replace("Checked in for week", "Checked in again for week");
 		ch.diffs.push(...answeredDiffs(asked, draft.answers));
-		if (post?.mode === "correct") {
-			ch.summary = existing ? `Corrected week ${w}: ${headlineOf(existing, g)} is now ${headlineOf(c, g)}` : `Added week ${w} later: ${headlineOf(c, g)}`;
-			ch.diffs.unshift({
+		const why = post ? reason : input.reason?.trim() ?? "";
+		if (corrects && !post && !correctReasonOk(why)) needsReason = true;
+		if (corrects) {
+			ch.summary = existing ? correctedSummary(w, existing, c, g, ch.diffs) : `Added week ${w} later: ${headlineOf(c, g)}`;
+			if (why) ch.diffs.unshift({
 				field: "Why corrected",
 				from: "—",
-				to: reason
+				to: why
 			});
 		}
 		if (existing && existing.authorId !== actor.id && !post) {
@@ -11745,7 +11756,7 @@ function* planChangesInChunks(input) {
 			});
 		}
 		ch.at = now;
-		if (backfilled && !post) ch.summary += " (loaded later)";
+		if (backfilled && !post && !corrects) ch.summary += " (loaded later)";
 		ciBefore.set(c.id, existing);
 		ciOut.push(c);
 		imported.set(g.id, [...imported.get(g.id) ?? [], c]);
@@ -11758,7 +11769,8 @@ function* planChangesInChunks(input) {
 			kind: existing ? "replaces check-in" : "check-in",
 			summary: ch.summary,
 			diffs: ch.diffs,
-			backfilled
+			backfilled,
+			...corrects && !post && !correctReasonOk(why) ? { needsReason: true } : {}
 		});
 	};
 	for (const { r, row } of rows) {
@@ -11963,6 +11975,10 @@ function* planChangesInChunks(input) {
 		}
 		const own = checkInsFor(g, s.checkIns);
 		const newest = own.filter((c) => c.week === w).pop() ?? null;
+		if (p.mode === "correct" && ["ended", "closed"].includes(cycleState(cycle, new Date(now)))) {
+			raise("cant-change", "Check-ins", row, g.title, `${cycle.name} has ended, so its check-ins can’t be corrected here.`);
+			continue;
+		}
 		if (p.mode !== "correct" && w < week) {
 			raise("week-wrong", "Check-ins", row, g.title, `Week ${w} has passed. Correct it, or add it, with a reason.`);
 			continue;
@@ -11972,8 +11988,8 @@ function* planChangesInChunks(input) {
 			continue;
 		}
 		const reason = (p.reason ?? "").trim();
-		if (p.mode === "correct" && reason.length < 10) {
-			raise("required-empty", "Check-ins", row, g.title, `Say why, in a sentence, so anyone reading week ${w} later knows.`);
+		if (p.mode === "correct" && !correctReasonOk(reason)) {
+			raise("required-empty", "Check-ins", row, g.title, correctReasonAsk(w));
 			continue;
 		}
 		const ctx = [...own.filter((c) => c.week !== w), ...imported.get(g.id) ?? []];
@@ -12248,7 +12264,7 @@ function* planChangesInChunks(input) {
 			entityId: importId,
 			action: "imported",
 			importId,
-			summary: `${via === "spreadsheet" ? "Loaded a spreadsheet" : via === "mcp" ? "Changes via MCP" : via === "table" ? "Edited the data tables" : via === "form" ? "Corrected a check-in" : "Bulk edit"}: ${describe(result).toLowerCase()}`,
+			summary: `${via === "spreadsheet" ? "Loaded a spreadsheet" : via === "mcp" ? "Changes via MCP" : via === "table" ? "Edited the data tables" : via === "form" ? "Corrected a check-in" : "Bulk edit"}: ${via === "form" && items.length === 1 ? `${items[0].goal} · ${items[0].summary.replace(/^Corrected /, "")}` : describe(result).toLowerCase()}`,
 			diffs: via === "form" ? [] : [{
 				field: "Via",
 				from: "—",
@@ -12302,6 +12318,25 @@ function unrelated(a, b) {
 	const wa = words(a), wb = words(b);
 	return ![...wa].some((w) => wb.has(w)) && !("near" in near(a, [b])) && fold$1(a) !== fold$1(b);
 }
+/** A correction in a sentence: the number, old and new; or, when the number stays, what did change (review of #225,
+*  medium 4: never "37 hours is now 37 hours"). */
+function correctedSummary(w, before, after, g, diffs) {
+	const from = headlineOf(before, g), to = headlineOf(after, g);
+	if (from !== to) return `Corrected week ${w}: ${from} is now ${to}`;
+	const named = {
+		"Status call": "status call",
+		Stages: "stage weeks",
+		Cause: "cause",
+		Note: "note",
+		"Why greener": "why greener",
+		"Path to green": "path to green",
+		Needs: "ask for help",
+		"Proposed target": "proposed target",
+		"Next step": "next step"
+	};
+	const what = [...new Set(diffs.map((d) => named[d.field]).filter((f) => !!f))];
+	return `Corrected week ${w}: still ${to}${what.length ? `, with a new ${what.length > 1 ? what.slice(0, -1).join(", ") + " and " + what[what.length - 1] : what[0]}` : ""}`;
+}
 /** A check-in's number in a sentence ("1.9%", "2 of 4 stages done"). */
 function headlineOf(c, g) {
 	if (g.kind === "milestone") return `${(c.stages ?? []).filter((u) => u.doneWeek != null).length} of ${g.stages.length} stages done`;
@@ -12351,8 +12386,9 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, initialsOf, GoalSet;
+var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, CORRECTS_VIA, initialsOf, GoalSet;
 var init_changeset = __esmMin((() => {
+	init_correctReason();
 	init_actions();
 	init_changes();
 	init_checkin();
@@ -12367,6 +12403,7 @@ var init_changeset = __esmMin((() => {
 	init_proposedActions();
 	init_format();
 	init_people();
+	init_cycle();
 	init_plan();
 	init_weeks();
 	init_status();
@@ -12495,6 +12532,7 @@ var init_changeset = __esmMin((() => {
 		"new person",
 		"check-in"
 	]);
+	CORRECTS_VIA = ["table", "mcp"];
 	initialsOf = (name) => name.split(/\s+/).filter(Boolean).map((w) => w[0].toUpperCase()).slice(0, 2).join("") || "?";
 	oneOf(Object.values(CALL_WORDS.word));
 	GoalSet = class extends Map {
@@ -16801,7 +16839,8 @@ var CORE_ARTICLES = [
 				list: [
 					"Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status. A second check-in in a week is compared with last week, not with your first one, and so is the goal’s “vs last week”.",
 					"Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.",
-					"Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back. An admin can also correct a past check-in in Data.",
+					"Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back, and History no longer says it was corrected. The form starts from what the check-in said, so you change only what was wrong. A cycle that has ended can’t be corrected here.",
+					"Changing a week’s check-in in Data’s tables, or through the AI assistant, corrects it the same way: it asks why first, and History says “Corrected week 45” with your reason. An admin can correct a past check-in in Data.",
 					"Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.",
 					"Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.",
 					"The first check-in sets where a goal stands today. If the goal was set up in the last four weeks and the number isn’t where its plan starts, you’re asked: start the plan from this number (same target, due week and shape; no reason needed, with Undo), or keep the plan and say why."
@@ -17651,6 +17690,7 @@ var CORE_ARTICLES = [
 					"Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.",
 					"Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.",
 					"Change it: the same page as any goal, with no reason ever asked. Withdraw it: it goes to Recently removed for 30 days, with Undo.",
+					"Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.",
 					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks.",
 					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. With the filter on, the Board is one column, Proposed, and the Map draws each in its tree with a dashed outline and the word, the goals above it shown for context; opening one goes to its page. Find lists them with the word Proposed.",
 					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active. A goal with check-ins can’t go back to proposed: stop it instead."
@@ -19028,6 +19068,25 @@ var WHATS_NEW = [
 		title: "Proposed goals on the Map and the Board",
 		points: ["With the State filter on Proposed, the Board is one column, Proposed, and the Map draws each proposed goal in its tree with a dashed outline and the word.", "They still have no status: none is on the critical path or counted in what is under a goal."],
 		articles: ["goal-proposed", "goals"]
+	},
+	{
+		id: "correct-means-one-thing",
+		date: "2026-11-13",
+		title: "Correcting a check-in means one thing everywhere",
+		points: [
+			"Correct it, from the week’s list or the receipt, opens the correction with what the check-in said, so you change only what was wrong.",
+			"Changing a week’s check-in in Data’s tables or through the AI assistant asks why first, as the form does, and History says “Corrected week 45” with your reason.",
+			"A correction that changes only the words says what it changed, never “37 hours is now 37 hours”. After Undo, History no longer says the week was corrected.",
+			"A half-written correction keeps its reason when you come back to it. A cycle that has ended can’t be corrected from the form."
+		],
+		articles: ["check-in"]
+	},
+	{
+		id: "make-it-proposed-again",
+		date: "2026-11-13",
+		title: "Make a goal proposed again",
+		points: ["A goal made active too soon can go back to proposed while it has no check-ins: Make it proposed again, in the goal’s “…” menu.", "It then has no status and nothing is due until it is made active again. The message has Undo."],
+		articles: ["goal-proposed"]
 	},
 	{
 		id: "admin-check-in-doors-narrow",
@@ -25495,7 +25554,7 @@ async function change(ctx, tables, opts) {
 	if (cs.needsReason) return {
 		isError: true,
 		data,
-		text: "Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with \"reason\"."
+		text: `Not saved: ${[cs.items.some((x) => x.needsReason && x.kind !== "replaces check-in") && "check-ins have started, so a plan change needs a reason", cs.items.some((x) => x.needsReason && x.kind === "replaces check-in") && `changing a week’s check-in corrects it, which needs a reason of at least 10 characters`].filter(Boolean).join("; and ")}. Ask the person why, then call again with "reason".`
 	};
 	const asked = data.questions.length ? `Not saved. Check with the person first:\n${lines(data.questions.map((x) => ({
 		goal: x.goal,
@@ -25896,6 +25955,7 @@ var CORE_TOOLS = [
 				back_on_plan_by_week: int("With a plan: the week it is back on plan by."),
 				needs: str("A decision or help needed, and from whom."),
 				next_step: str("The next step."),
+				reason: str(`If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”.`),
 				answers: ANSWERS_ARG,
 				dry_run: DRY
 			}
@@ -25929,6 +25989,7 @@ var CORE_TOOLS = [
 				next_step: "next step"
 			})] }, {
 				dry: !!a.dry_run,
+				reason: a.reason,
 				answers: a.answers
 			});
 		}

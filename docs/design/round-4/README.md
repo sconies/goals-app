@@ -8,6 +8,7 @@
 | 2 | **NR** Readings fill in the check-in | Backlog row NR, with Lane's four answers | [readings/spec.md](readings/spec.md) | M |
 | 3 | **The habit moment** | The evaluation's item 12 and decision 4; backlog L (1), (3), (4); round 3's CF4 | [habit/spec.md](habit/spec.md) | S–M, in three parts |
 | 4 | **A leader's week** (the VP portfolio view) | Backlog "Ideas, not yet placed"; product review of 8 Nov | [portfolio/spec.md](portfolio/spec.md) | M |
+| 5 | **RS** Reviews as a feature switch (added 13 Nov) | Lane, 13 Nov; round 2's FT2 | [reviews-switch/spec.md](reviews-switch/spec.md) | S on top of FT2 |
 
 The mock-ups are rendered from one file (`node docs/design/round-4/build.cjs`) at 1440 and 390 px into each item's `wireframes/`. They show layout, order and wording; they are not app code, and the numbers in them are illustrative. The live demo was read on 13 November at 390, 1024 and 1440 px for what is there today.
 
@@ -34,6 +35,7 @@ The mock-ups are rendered from one file (`node docs/design/round-4/build.cjs`) a
 - **No new menu row and no new page.** SM takes rows away; NR adds a block to a step; the habit adds sentences; a leader's week is a view of a page that exists. One new address parameter value (`view=week`) and one changed route count (set-up's steps).
 - **Goals and teams are counted; people are not.** The habit measure, the row of weeks and "Where the red is" are all sets of goals. R5's rule 5 ("never shame") is the test each was held to, and each spec has a "must never become" list for the rebuild to copy with it.
 - **A count is a link to exactly those goals,** as HM1 made the rule on Home.
+- **Nothing round 4 adds reads a review's records.** The habit measure, the streak and the week view count against the day check-ins are due, so Reviews can be switched off (item 5) without any of them changing its rule.
 - **A nought is not printed** (SM's rule 2): "Watching", never "Watching 0"; a section with nothing in it is not drawn.
 - **Status stays a shape plus a word.** The week marks in the habit's row are squares, so a circle still means a goal's status and only that; the warning mark is used for "now forecast to miss" and for a reading that is too old, neither of which is a status.
 
@@ -136,6 +138,31 @@ One batch. The recommended answer is first each time; each spec's "If Lane decid
     - (a) Only teams with three or more goals off track that are a third or more of their goals, most first, with what those goals lack. *Recommended.*
     - (b) Every team, worst first.
     - (c) Leave it out; Home's "Teams, worst first" is enough.
+
+**Reviews as a feature switch** (added 13 Nov)
+
+**Decided by Lane, 13 Nov: 18a–22a,** as relayed by the planning session.
+
+Round 2's FT2 already designs Reviews as a switch, and Lane took its answers on 11 November; it is not built. The recommendation is to build FT2 as approved, then one small part (RS1) that gives round 4's additions their words with Reviews off.
+
+18. **How much of this is new?**
+    - (a) FT2 as approved, plus a short addendum for what round 4 added; built as FT2, then RS1. *Recommended.*
+    - (b) Start again, and design "no reviews" as its own way of working.
+    - (c) FT2 only; the build settles the rest as it meets it.
+19. **The habit measure when there are no reviews.**
+    - (a) Kept, on the same clock (the day check-ins are due), in plainer words: "on time, without being asked". *Recommended: the rule never read a review, only its day.*
+    - (b) Not shown while Reviews is off.
+    - (c) A separate "team check-in day" setting.
+20. **"Accept the risk" with Reviews off.**
+    - (a) It goes with Reviews; risks already accepted stay on their goals. *Recommended: it is a decision made together, and it never changed a status or a count.*
+    - (b) It moves to the goal's page, for an admin or a leader.
+21. **Past reviews while the switch is off.**
+    - (a) Their record stays on each goal's History and in Activity; the review's own pages are closed (FT2). *Recommended.*
+    - (b) A read-only "Past reviews" list.
+22. **Should a small workspace start with Reviews off?**
+    - (a) No: on, weekly, and a short review is one page (answer 4a); "No reviews" stays under "Change how you'll work" at set-up. *Recommended: the weekly loop is the idea most worth copying.*
+    - (b) Off at eight people or fewer, and Home offers a review in week 3.
+    - (c) Set-up asks everyone, "Do you look at the goals together?"
 
 **The order**
 
