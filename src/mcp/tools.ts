@@ -339,8 +339,9 @@ const CORE_TOOLS: ToolDef[] = [
       const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
       const found = await allPages(localSearch(rows), 'goal', { q: words, filters: Object.fromEntries(queryEntries({ ...asked, sort: null })), sort: asked.sort ? asked.sort + (asked.dir === -1 ? '.desc' : '') : null });
       const byId = new Map(rows.goal!().summaries.map((s) => [s.goal.id, s]));
-      // A module's column in the link (?metric=, Measured by): matched as Goals matches it (core/records goalColumns).
-      const cols = Object.entries(asked.cols ?? {}).flatMap(([k, v]) => { const c = MODULE_GOAL_COLUMNS.find((x) => x.param === k); return c && v ? [{ fill: c.fill(ctx.full ?? ctx.snapshot), v }] : []; });
+      // A module's column in the link (?metric=, Measured by): matched as Goals matches it (core/records goalColumns), and
+      // like Goals, a switched-off module's column is no filter at all (module map F4).
+      const cols = Object.entries(asked.cols ?? {}).flatMap(([k, v]) => { const c = MODULE_GOAL_COLUMNS.find((x) => x.param === k && isModuleOn(ctx.ws, x.module)); return c && v ? [{ fill: c.fill(ctx.full ?? ctx.snapshot), v }] : []; });
       // Proposed goals (GE10) are left out unless asked for, and then only they are listed; their scope is worked out as the
       // Goals screen's count line does, by owner or team.
       // Stopped goals (GE10's State filter): this year's, most recently stopped first, in the same scope.
