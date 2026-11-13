@@ -32,6 +32,8 @@ The track 3 session that built item 0 is at half its context. A fresh track 3 se
 
 ## Planning state, Thursday 12 November, 21:55 UTC (planning session handing over)
 
+**Update, Friday 13 November, 02:10 UTC.** Current sessions (these replace the IDs below): track 1 session_012kbr8zenZxEHT6rv4yLzHG; track 2 session_012kbr8zJcP8xenTkLS4rV4P; track 3 session_012kbr8yuAExZc7Qwjdwi7Ew; track 4 session_012kbr8y3UGvoeUMdAQ8yaJ8; track 6 session_012kbr91nEq272Y9HvKNhm98 (the store contract, the kit's last gap); track 7b session_012kbr92c7taPQJmK4jDJU9E; reviewer session_012kbr8y4Bh3MudNC1bdo3RN. Main has a branch protection rule since 02:05 (a PR, the smoke check, up to date with main; no approvals), so auto-merge works: enable_pr_auto_merge (MERGE) once the gate passes. Lane decided (13 Nov): when a goal's owner changes, its open asks move to the new owner and the asker is told (track 1 builds it). The first download is about 264 of 265 KB.
+
 The planning session session_012kbr939zneZWtAo7UQEHRP is about half full and hands over. Everything below this section still holds; this is what changed since 18:30.
 
 - **Open sessions** (each reports once, when done or blocked):
