@@ -10,6 +10,7 @@ import { currentWeek } from '../../domain/plan';
 import * as R from '../../domain/removal';
 import type { Goal, Snapshot } from '../../domain/types';
 import * as M from './rules';
+import { linkGoalMetric } from './rulesLink';
 import RECORDS from './records';
 
 /** This module's records, as the registry gives them to the core. */
@@ -119,27 +120,27 @@ describe('linking a goal to a metric', () => {
   it('the goal’s owner or an admin, for the company or a team', () => {
     const w = world();
     const g = w.goal('lead-quarantine');
-    refused(() => M.linkGoalMetric(w.x('oskar'), g, 'metric_cache-hit'), /Only the goal’s owner or an admin/);
-    const c = M.linkGoalMetric(w.x(g.ownerId), g, 'metric_cache-hit', 'cicd')!;
+    refused(() => linkGoalMetric(w.x('oskar'), g, 'metric_cache-hit'), /Only the goal’s owner or an admin/);
+    const c = linkGoalMetric(w.x(g.ownerId), g, 'metric_cache-hit', 'cicd')!;
     expect(M.linksOf(c)[0]).toMatchObject({ id: g.id, goalId: g.id, metricId: 'metric_cache-hit', teamId: 'cicd' });
     expect(c.changes[0]).toMatchObject({ entity: 'metric', goalId: g.id, action: 'linked', summary: 'Measured by “Remote build cache hit rate” for CI/CD', diffs: [{ field: 'Measured by', from: '—', to: 'Remote build cache hit rate' }, { field: 'Slice', from: '—', to: 'CI/CD' }] });
   });
   it('the same metric and slice again changes nothing; another slice is a logged edit', () => {
     const w = world();
     const g = w.goal('ns-lead');
-    expect(M.linkGoalMetric(w.x('rhea'), g, 'metric_lead-time', null)).toBeNull();
-    refused(() => M.linkGoalMetric(w.x('rhea'), g, 'metric_lead-time', 'cicd'), /Say why this goal is measured differently now/);
-    const c = M.linkGoalMetric(w.x('rhea'), g, 'metric_lead-time', 'cicd', '', 'CI/CD owns the number now')!;
+    expect(linkGoalMetric(w.x('rhea'), g, 'metric_lead-time', null)).toBeNull();
+    refused(() => linkGoalMetric(w.x('rhea'), g, 'metric_lead-time', 'cicd'), /Say why this goal is measured differently now/);
+    const c = linkGoalMetric(w.x('rhea'), g, 'metric_lead-time', 'cicd', '', 'CI/CD owns the number now')!;
     expect(c.changes[0]).toMatchObject({ action: 'edited', summary: 'Measured by “Lead time for changes” for CI/CD: CI/CD owns the number now', diffs: [{ field: 'Slice', from: M.COMPANY, to: 'CI/CD' }] });
   });
   it('refuses a milestone goal, a different unit, a team that isn’t here and a removed metric', () => {
     const w = world();
     const milestone = w.goal('lead-mq');
-    refused(() => M.linkGoalMetric(w.x('grace'), milestone, 'metric_lead-time'), /dated stages has no number/);
-    refused(() => M.linkGoalMetric(w.x('grace'), w.goal('ns-ci'), 'metric_lead-time'), /The goal is in min and the metric is in hours/);
-    refused(() => M.linkGoalMetric(w.x('grace'), w.goal('ns-lead'), 'metric_lead-time', 'nope'), /no team with that ID/);
+    refused(() => linkGoalMetric(w.x('grace'), milestone, 'metric_lead-time'), /dated stages has no number/);
+    refused(() => linkGoalMetric(w.x('grace'), w.goal('ns-ci'), 'metric_lead-time'), /The goal is in min and the metric is in hours/);
+    refused(() => linkGoalMetric(w.x('grace'), w.goal('ns-lead'), 'metric_lead-time', 'nope'), /no team with that ID/);
     w.apply(M.removeMetric(w.x('grace'), 'metric_ci-cost'));
-    refused(() => M.linkGoalMetric(w.x('grace'), w.goal('ns-cost'), 'metric_ci-cost'), /no metric with that ID/);
+    refused(() => linkGoalMetric(w.x('grace'), w.goal('ns-cost'), 'metric_ci-cost'), /no metric with that ID/);
   });
   it('warns, without refusing, when the goal aims the other way from the metric', () => {
     const up = { ...w0().goal('lead-cache') } as Goal;
@@ -191,7 +192,7 @@ describe('removing a metric', () => {
     w.apply(M.removeMetric(w.x('rhea'), 'metric_lead-time'));
     w.apply(M.saveMetric(w.x('grace'), { name: 'Lead time, merge to production', unit: 'hours', direction: 'lower' }).commit);
     const other = M.metricsOf(w.full).find((m) => m.name === 'Lead time, merge to production')!;
-    w.apply(M.linkGoalMetric(w.x('grace'), w.goal('ns-lead'), other.id, null));
+    w.apply(linkGoalMetric(w.x('grace'), w.goal('ns-lead'), other.id, null));
     const item = R.recentlyRemoved(w.full, today, undefined, MINE).find((r) => r.kind === 'metric')!;
     w.apply(R.restoreRemoved(w.x('rhea'), 'metric', item.id, MINE));
     expect(M.measureOf(w.scoped, w.goal('ns-lead'))!.metric.name).toBe('Lead time, merge to production');
@@ -218,8 +219,8 @@ describe('the build review’s findings on ML2 and ML3 (11 Nov)', () => {
     const w = world();
     const x = w.x('rhea');
     const g = { ...w.goal('ns-lead'), id: 'goal_new', key: undefined, ownerId: 'oskar' } as Goal;
-    refused(() => M.linkGoalMetric(x, { ...w.goal('ns-lead'), ownerId: 'oskar' } as Goal, 'metric_lead-time'), /Only the goal’s owner or an admin/);
-    const c = M.linkGoalMetric({ ...x, snapshot: { ...x.snapshot, goals: [...x.snapshot.goals, g] } }, g, 'metric_lead-time', null);
+    refused(() => linkGoalMetric(x, { ...w.goal('ns-lead'), ownerId: 'oskar' } as Goal, 'metric_lead-time'), /Only the goal’s owner or an admin/);
+    const c = linkGoalMetric({ ...x, snapshot: { ...x.snapshot, goals: [...x.snapshot.goals, g] } }, g, 'metric_lead-time', null);
     expect(c!.changes[0]!.summary).toBe('Measured by “Lead time for changes” for the whole company');
   });
   it('changing a unit goals use is asked at every door: refused without confirm, saved with it', () => {

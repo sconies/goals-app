@@ -1540,7 +1540,7 @@ From the [metrics](../modules/metrics/README.md) module.
 
 **Who may:** The goal’s owner, or an admin.
 
-**The rule:** `linkGoalMetric`, in `src/modules/metrics/rules.ts`.
+**The rule:** `linkGoalMetric`, in `src/modules/metrics/rulesLink.ts`.
 
 **Refuses with:**
 

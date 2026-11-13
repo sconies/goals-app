@@ -3,6 +3,7 @@
    every example runs against the module's own rules (rules.ts) in the demo workspace, so it can't drift from the code. */
 import { exampleKit, type Rule } from '../../spec/rules';
 import * as MET from './rules';
+import * as LINK from './rulesLink';
 import * as LIB from './rulesLibrary';
 import * as MEAS from './rulesMeasure';
 import * as DEF from './rulesDefine';
@@ -24,7 +25,7 @@ const rules: Rule[] = [
   id: 'metrics',
   title: 'The metric library',
   summary: 'What a metric must say, who may add, change, remove, link and unlink one, and which metric measures a goal, for which slice.',
-  code: [{ file: 'src/modules/metrics/rules.ts', names: ['metricProblems', 'metricChangeQuestion', 'saveMetric', 'removeMetric', 'linkProblems', 'linkGoalMetric', 'unlinkGoalMetric', 'measureOf', 'goalTarget'] }, { file: 'src/domain/removal.ts', names: ['undoRemoval', 'restoreRemoved'] }, { file: 'src/modules/metrics/records.ts', names: ['metricToRow', 'metricFromRow'] }],
+  code: [{ file: 'src/modules/metrics/rules.ts', names: ['metricProblems', 'metricChangeQuestion', 'saveMetric', 'removeMetric', 'linkProblems', 'unlinkGoalMetric', 'measureOf', 'goalTarget'] }, { file: 'src/domain/removal.ts', names: ['undoRemoval', 'restoreRemoved'] }, { file: 'src/modules/metrics/records.ts', names: ['metricToRow', 'metricFromRow'] }],
   tests: ['src/modules/metrics/rules.test.ts', 'src/modules/metrics/tools.test.ts'],
   reqs: [],
   body: `
@@ -43,12 +44,12 @@ A **metric** is one number defined once per workspace, so every goal about it me
     { given: 'Rhea changes Flaky test rate to 2 decimals.', then: 'Changed the metric “Flaky test rate”', run: () => summaryOf(asPerson('rhea', (x) => MET.saveMetric(x, { id: 'metric_flaky-rate', decimals: 2 }).commit)) },
     { given: 'What measures the lead time north star (ns-lead), and its target in it.', then: 'Lead time for changes, The whole company, target 24', run: () => { const m = MET.measureOf(demo(), goalIn('ns-lead'))!; return `${m.metric.name}, ${m.slice}, ${m.target!.kind} ${m.target!.value}`; } },
     { given: 'What measures the flaky test goal (lead-flaky, keep it at most 2%).', then: 'Flaky test rate, CI/CD, at most 2', run: () => { const m = MET.measureOf(demo(), goalIn('lead-flaky'))!; return `${m.metric.name}, ${m.slice}, ${m.target!.kind} ${m.target!.value}`; } },
-    { given: 'Rhea measures her test-sharding goal (ci-shard, in %, planned 20 to 90) by Remote build cache hit rate (%, higher is better) for CI/CD.', then: 'Measured by “Remote build cache hit rate” for CI/CD', run: () => summaryOf(asPerson('rhea', (x) => MET.linkGoalMetric(x, goalIn('ci-shard'), 'metric_cache-hit', 'cicd'))) },
+    { given: 'Rhea measures her test-sharding goal (ci-shard, in %, planned 20 to 90) by Remote build cache hit rate (%, higher is better) for CI/CD.', then: 'Measured by “Remote build cache hit rate” for CI/CD', run: () => summaryOf(asPerson('rhea', (x) => LINK.linkGoalMetric(x, goalIn('ci-shard'), 'metric_cache-hit', 'cicd'))) },
     { given: 'Rhea measures ci-shard (planned to go up) by Flaky test rate (lower is better).', then: 'error: none; warning: The goal aims up, but for Flaky test rate lower is better. Check it’s meant.', run: () => { const p = MET.linkProblems(goalIn('ci-shard'), MET.metricsOf(demo()).find((m) => m.id === 'metric_flaky-rate')!); return `error: ${p.errors.join(' ') || 'none'}; warning: ${p.warnings.join(' ') || 'none'}`; } },
-    { given: 'Grace (an admin) measures the CI pipeline time north star (ns-ci, in min) by Lead time for changes (in hours).', then: 'refused: The goal is in min and the metric is in hours. Use the same unit for both.', run: () => summaryOf(asPerson('grace', (x) => MET.linkGoalMetric(x, goalIn('ns-ci'), 'metric_lead-time'))) },
-    { given: 'Grace measures the merge queue goal (lead-mq, dated stages) by Lead time for changes.', then: 'refused: A goal with dated stages has no number, so a metric can’t measure it.', run: () => summaryOf(asPerson('grace', (x) => MET.linkGoalMetric(x, goalIn('lead-mq'), 'metric_lead-time'))) },
-    { given: 'Oskar measures ns-ci, which Daniel owns, by CI pipeline time on main (p90).', then: 'refused: Only the goal’s owner or an admin can choose what measures it.', run: () => summaryOf(asPerson('oskar', (x) => MET.linkGoalMetric(x, goalIn('ns-ci'), 'metric_ci-time'))) },
-    { given: 'Rhea measures ns-lead by Lead time for changes for the whole company, as it already is.', then: 'nothing to save', run: () => summaryOf(asPerson('rhea', (x) => MET.linkGoalMetric(x, goalIn('ns-lead'), 'metric_lead-time', null))) },
+    { given: 'Grace (an admin) measures the CI pipeline time north star (ns-ci, in min) by Lead time for changes (in hours).', then: 'refused: The goal is in min and the metric is in hours. Use the same unit for both.', run: () => summaryOf(asPerson('grace', (x) => LINK.linkGoalMetric(x, goalIn('ns-ci'), 'metric_lead-time'))) },
+    { given: 'Grace measures the merge queue goal (lead-mq, dated stages) by Lead time for changes.', then: 'refused: A goal with dated stages has no number, so a metric can’t measure it.', run: () => summaryOf(asPerson('grace', (x) => LINK.linkGoalMetric(x, goalIn('lead-mq'), 'metric_lead-time'))) },
+    { given: 'Oskar measures ns-ci, which Daniel owns, by CI pipeline time on main (p90).', then: 'refused: Only the goal’s owner or an admin can choose what measures it.', run: () => summaryOf(asPerson('oskar', (x) => LINK.linkGoalMetric(x, goalIn('ns-ci'), 'metric_ci-time'))) },
+    { given: 'Rhea measures ns-lead by Lead time for changes for the whole company, as it already is.', then: 'nothing to save', run: () => summaryOf(asPerson('rhea', (x) => LINK.linkGoalMetric(x, goalIn('ns-lead'), 'metric_lead-time', null))) },
     { given: 'Rhea removes Lead time for changes, which measures one goal.', then: 'Removed the metric “Lead time for changes”, unlinking 1 goal / No longer measured by “Lead time for changes”, as the metric was removed', run: () => summaryOf(asPerson('rhea', (x) => MET.removeMetric(x, 'metric_lead-time'))) },
   ],
   unclear: ['Two people changing the same metric at once: the later save wins (metrics carry no version yet, unlike goals and reviews).', 'The words for a slice are the team’s name, or “The whole company”; the change log says “for the whole company” or “for <team>”.'],
@@ -197,7 +198,7 @@ rules.push({
   id: 'metric-parts',
   title: 'For, which part, and what a goal takes from its metric',
   summary: 'Which part of a team’s or the company’s number a goal is measured by (rule 7), the parts other goals on the metric use, what linking asks, and why a goal with check-ins says why it is measured differently.',
-  code: [{ file: 'src/modules/metrics/rulesParts.ts', names: ['partKey', 'partsOf', 'closePart', 'linkChecks', 'linkChanges', 'forWords', 'PART_MAX', 'LINK_REASON_MAX'] }, { file: 'src/modules/metrics/rules.ts', names: ['linkGoalMetric', 'linkReads'] }, { file: 'src/modules/metrics/rulesMeasure.ts', names: ['fromMetricWords', 'FROM_METRIC_NOTE'] }],
+  code: [{ file: 'src/modules/metrics/rulesParts.ts', names: ['partKey', 'partsOf', 'closePart', 'linkChecks', 'linkChanges', 'forWords', 'PART_MAX', 'LINK_REASON_MAX'] }, { file: 'src/modules/metrics/rulesLink.ts', names: ['linkGoalMetric', 'linkReads'] }, { file: 'src/modules/metrics/rulesMeasure.ts', names: ['fromMetricWords', 'FROM_METRIC_NOTE'] }],
   tests: ['src/modules/metrics/rulesParts.test.ts', 'src/modules/metrics/rules.test.ts', 'src/modules/metrics/tools.test.ts'],
   reqs: ['METRIC-PARTS'],
   body: `
@@ -214,12 +215,12 @@ A goal measured by a metric takes two things from it: its **unit** and **which w
     { given: 'Part “release bilds” when “release builds” is in use.', then: 'release builds', run: () => PARTS.closePart('release bilds', ['release builds']) ?? 'nothing' },
     { given: 'Pipeline queue wait (p90): what a goal takes from it.', then: 'min, whole numbers, lower is better. From CI runner metrics, refreshed hourly.', run: () => MEAS.fromMetricWords(queue()) },
     { given: 'Rhea measures Base image build time (ci-docker, in min, 43 check-ins) by Pipeline queue wait (p90) for CI/CD, part “main branch pipelines”, as Pipeline queue wait already is.', then: 'Check: Another goal already measures this for CI/CD, main branch pipelines: “Pipeline queue wait (p90)” (G-14, Rhea Kapoor). Two goals on one number is unusual.', run: () => {
-      const x = { snapshot: demo(), full: demo() } as Parameters<typeof MET.linkReads>[0];
+      const x = { snapshot: demo(), full: demo() } as Parameters<typeof LINK.linkReads>[0];
       const g = demo().goals.find((v) => v.id === 'ci-docker')!;
-      return PARTS.linkChecks(g, queue(), { teamId: 'cicd', part: 'main branch pipelines' }, MET.linkProblems(g, queue()), MET.linkReads(x, g, queue().id), '').map((c) => `${c.kind === 'fix' ? 'Must fix' : 'Check'}: ${c.words}`).join(' ') || 'nothing';
+      return PARTS.linkChecks(g, queue(), { teamId: 'cicd', part: 'main branch pipelines' }, MET.linkProblems(g, queue()), LINK.linkReads(x, g, queue().id), '').map((c) => `${c.kind === 'fix' ? 'Must fix' : 'Check'}: ${c.words}`).join(' ') || 'nothing';
     } },
-    { given: 'Rhea moves Pipeline queue wait (p90) (lead-ci-time, with check-ins) to the part “release builds” and gives no reason.', then: 'refused: Say why this goal is measured differently now. It shows in its History.', run: () => summaryOf(asPerson('rhea', (x) => MET.linkGoalMetric(x, goalIn('lead-ci-time'), 'metric_queue-wait', 'cicd', 'release builds'))) },
-    { given: 'The same, with the reason “Release builds queue apart from main now”.', then: 'Measured by “Pipeline queue wait (p90)” for CI/CD · release builds: Release builds queue apart from main now', run: () => summaryOf(asPerson('rhea', (x) => MET.linkGoalMetric(x, goalIn('lead-ci-time'), 'metric_queue-wait', 'cicd', 'release builds', 'Release builds queue apart from main now'))) },
+    { given: 'Rhea moves Pipeline queue wait (p90) (lead-ci-time, with check-ins) to the part “release builds” and gives no reason.', then: 'refused: Say why this goal is measured differently now. It shows in its History.', run: () => summaryOf(asPerson('rhea', (x) => LINK.linkGoalMetric(x, goalIn('lead-ci-time'), 'metric_queue-wait', 'cicd', 'release builds'))) },
+    { given: 'The same, with the reason “Release builds queue apart from main now”.', then: 'Measured by “Pipeline queue wait (p90)” for CI/CD · release builds: Release builds queue apart from main now', run: () => summaryOf(asPerson('rhea', (x) => LINK.linkGoalMetric(x, goalIn('lead-ci-time'), 'metric_queue-wait', 'cicd', 'release builds', 'Release builds queue apart from main now'))) },
   ],
   unclear: ['The demo has no metric measuring several goals yet: its two parts are on existing links (Pipeline queue wait for CI/CD · main branch pipelines; Flaky test rate for CI/CD · main pipelines). MT5’s comparison adds goals that share a metric.', '“Use different ones” (round 1) is kept on a new goal: the spec drops it, but taking it out changes round 1’s journeys; MT3 or MT7 can.'],
 });

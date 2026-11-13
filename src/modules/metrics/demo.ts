@@ -6,7 +6,8 @@
    The demo's builder (src/data/platformOrg/generate.ts) calls addDemoMetrics through records.ts once the year has been
    played, so a build without this module has a demo with no metric library and nothing else changed. */
 import type { DemoBuild } from '../../domain/records';
-import { linkGoalMetric, saveMetric, type MetricInput } from './rules';
+import { saveMetric, type MetricInput } from './rules';
+import { linkGoalMetric } from './rulesLink';
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;

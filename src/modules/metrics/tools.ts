@@ -6,6 +6,7 @@ import { NotAllowed, type ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import { findGoal, isKey } from '../../domain/goalKey';
 import * as M from './rules';
+import { linkGoalMetric, linkReads } from './rulesLink';
 import * as L from './rulesLibrary';
 import { checkReads, goalsOfMetric, libraryReads, lineOf } from './reads';
 import { metricChecks, unansweredChecks, unitChecks, type CheckField } from './rulesDefine';
@@ -236,11 +237,11 @@ const tools: ToolDef[] = [
         const { warnings } = M.linkProblems(g, m);
         // The questions rule 2 asks about the part (a Must fix refuses in linkGoalMetric; aim and decimals stay warnings).
         const answered = (c: LinkCheck) => (/already measures/.test(c.words) ? ans.others === 'carry-on' : !!ans.part);
-        const all = linkChecks(g, m, { teamId, part }, { errors: M.linkProblems(g, m).errors, warnings: [] }, M.linkReads(ax(ctx), g, m.id), reason);
+        const all = linkChecks(g, m, { teamId, part }, { errors: M.linkProblems(g, m).errors, warnings: [] }, linkReads(ax(ctx), g, m.id), reason);
         // A Must fix refuses first (linkGoalMetric says it); questions are asked only of a link that could be saved.
         const open = all.some((c) => c.kind === 'fix') ? [] : all.filter((c) => c.kind === 'check' && !answered(c));
         if (open.length) return { data: { saved: false, checks: open.map(({ field, words, answers }) => ({ field, words, answers: answers.map((x) => x.choice) })) }, text: ['Nothing saved yet. Answer these, then call again with answers:', ...open.map((c) => `${c.field}: ${c.words} (${c.answers.map((x) => x.choice).join(' / ')})`)].join('\n') };
-        const c = M.linkGoalMetric(ax(ctx), g, m.id, teamId, part, reason);
+        const c = linkGoalMetric(ax(ctx), g, m.id, teamId, part, reason);
         if (!c) return { data: { saved: false, warnings }, text: `${g.title} is already measured by ${m.name} for ${forWords(M.sliceName(ctx.snapshot, teamId), part)}.` };
         await save(ctx, c);
         return { data: { saved: true, warnings }, text: [`${g.title}: ${c.changes[0]!.summary.charAt(0).toLowerCase()}${c.changes[0]!.summary.slice(1)} (as ${ctx.actor.name}).`, ...warnings.map((w) => `Warning: ${w}`)].join('\n') };

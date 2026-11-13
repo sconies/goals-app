@@ -55,7 +55,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ### Where it lives
 
-- [src/modules/metrics/rules.ts](../../../src/modules/metrics/rules.ts): `metricProblems`, `metricChangeQuestion`, `saveMetric`, `removeMetric`, `linkProblems`, `linkGoalMetric`, `unlinkGoalMetric`, `measureOf`, `goalTarget`
+- [src/modules/metrics/rules.ts](../../../src/modules/metrics/rules.ts): `metricProblems`, `metricChangeQuestion`, `saveMetric`, `removeMetric`, `linkProblems`, `unlinkGoalMetric`, `measureOf`, `goalTarget`
 - [src/domain/removal.ts](../../../src/domain/removal.ts): `undoRemoval`, `restoreRemoved`
 - [src/modules/metrics/records.ts](../../../src/modules/metrics/records.ts): `metricToRow`, `metricFromRow`
 
@@ -463,7 +463,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ### Where it lives
 
 - [src/modules/metrics/rulesParts.ts](../../../src/modules/metrics/rulesParts.ts): `partKey`, `partsOf`, `closePart`, `linkChecks`, `linkChanges`, `forWords`, `PART_MAX`, `LINK_REASON_MAX`
-- [src/modules/metrics/rules.ts](../../../src/modules/metrics/rules.ts): `linkGoalMetric`, `linkReads`
+- [src/modules/metrics/rulesLink.ts](../../../src/modules/metrics/rulesLink.ts): `linkGoalMetric`, `linkReads`
 - [src/modules/metrics/rulesMeasure.ts](../../../src/modules/metrics/rulesMeasure.ts): `fromMetricWords`, `FROM_METRIC_NOTE`
 
 ### Requirements

@@ -12483,140 +12483,6 @@ var init_changeset = __esmMin((() => {
 		}
 	};
 }));
-// src/modules/metrics/edits.ts
-/** Edits (insert, delete, change one character) between two strings, stopping once past `max`. */
-function editsBetween(a, b, max) {
-	if (Math.abs(a.length - b.length) > max) return max + 1;
-	let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
-	for (let i = 1; i <= a.length; i++) {
-		const row = [i];
-		let least = i;
-		for (let j = 1; j <= b.length; j++) {
-			const v = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-			row.push(v);
-			if (v < least) least = v;
-		}
-		if (least > max) return max + 1;
-		prev = row;
-	}
-	return prev[b.length];
-}
-var init_edits = __esmMin((() => {}));
-// src/modules/metrics/rulesParts.ts
-/**
-* The distinct parts a metric's live links use, by `partKey`, most used first (ties by name), each in its most used
-* spelling (ties: the first seen). Empty parts (all of it) aren't parts.
-*/
-function partsOf(links) {
-	const byKey = /* @__PURE__ */ new Map();
-	links.forEach((l, i) => {
-		const p = (l.part ?? "").trim();
-		if (l.removedAt || !p) return;
-		const k = partKey(p);
-		const e = byKey.get(k) ?? {
-			n: 0,
-			first: i,
-			spellings: /* @__PURE__ */ new Map()
-		};
-		e.n++;
-		e.spellings.set(p, (e.spellings.get(p) ?? 0) + 1);
-		byKey.set(k, e);
-	});
-	const best = (s) => [...s.entries()].reduce((a, b) => b[1] > a[1] ? b : a)[0];
-	return [...byKey.values()].sort((a, b) => b.n - a.n || a.first - b.first).map((e) => best(e.spellings));
-}
-/**
-* A part in use that the typed one probably means: the same `partKey` spelt differently, or one edit away from one
-* (never for parts of two characters or fewer: "EU" is not "US"). Null when it is a part in use as typed, or new.
-*/
-function closePart(part, parts) {
-	const p = part.trim();
-	if (!p || parts.includes(p)) return null;
-	const k = partKey(p);
-	const same = parts.find((x) => partKey(x) === k);
-	if (same) return same;
-	if (k.length <= 2) return null;
-	return parts.find((x) => partKey(x).length > 2 && editsBetween(partKey(x), k, 1) === 1) ?? null;
-}
-/**
-* Rule 2. What measuring `goal` by `metric`, for `teamId` and `part`, asks. `problems` are linkProblems' (rules.ts:
-* dated stages and unit are Must fix; aim and decimals are Checks). It adds: the part over 60 characters (Must fix);
-* another live goal with the same metric, team and part (Check); a part close to one in use (Check); and, on a goal
-* with check-ins whose metric, team or part changes, an empty reason (Must fix).
-*/
-function linkChecks(goal, metric, slice, problems, r, reason) {
-	const out = [];
-	for (const w of problems.errors) out.push({
-		field: "measuredBy",
-		kind: "fix",
-		words: w,
-		answers: []
-	});
-	for (const w of problems.warnings) out.push({
-		field: /keeps/.test(w) ? "decimals" : "target",
-		kind: "check",
-		words: w,
-		answers: [{
-			choice: "meant",
-			label: "Yes, it’s meant"
-		}]
-	});
-	const part = slice.part.trim();
-	if (part.length > 60) out.push({
-		field: "part",
-		kind: "fix",
-		words: `Keep the part to 60 characters or fewer.`,
-		answers: []
-	});
-	const live = r.others.filter((o) => !o.removedAt && o.goalId !== goal.id);
-	const twin = live.find((o) => o.teamId === slice.teamId && partKey(o.part ?? "") === partKey(part));
-	const close = twin ? null : closePart(part, partsOf(live));
-	if (close) out.push({
-		field: "part",
-		kind: "check",
-		words: `${metric.name} already has a part called “${close}”.`,
-		answers: [{
-			choice: `use:${close}`,
-			label: `Use “${close}”`
-		}, {
-			choice: "keep",
-			label: `Keep “${part}”`
-		}]
-	});
-	if (twin) {
-		const who = `${r.sliceName(slice.teamId) === "The whole company" ? "the whole company" : r.sliceName(slice.teamId)}${part ? `, ${part}` : ""}`;
-		out.push({
-			field: "part",
-			kind: "check",
-			words: `Another goal already measures this for ${who}: “${twin.title}” (${twin.key}, ${twin.ownerName}). Two goals on one number is unusual.`,
-			answers: [{
-				choice: "carry-on",
-				label: "Carry on"
-			}]
-		});
-	}
-	if (!problems.errors.length && r.hasCheckIns && linkChanges(r.present, metric.id, slice.teamId, part) && !reason.trim()) out.push({
-		field: "why",
-		kind: "fix",
-		words: "Say why this goal is measured differently now. It shows in its History.",
-		answers: []
-	});
-	if (reason.trim().length > 300) out.push({
-		field: "why",
-		kind: "fix",
-		words: `Keep the reason to 300 characters or fewer.`,
-		answers: []
-	});
-	return out;
-}
-var partKey, linkChanges, forWords;
-var init_rulesParts = __esmMin((() => {
-	init_fold();
-	init_edits();
-	partKey = (part) => fold$2(part).replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(" ").filter(Boolean).map((w) => w.length > 1 && w.endsWith("s") ? w.slice(0, -1) : w).join(" ");
-	linkChanges = (present, metricId, teamId, part) => !!present && (present.metricId !== metricId || present.teamId !== teamId || partKey(present.part ?? "") !== partKey(part));
-	forWords = (sliceName, part) => `${sliceName === "The whole company" ? "the whole company" : sliceName}${(part ?? "").trim() ? ` · ${(part ?? "").trim()}` : ""}`;
-}));
 // src/modules/metrics/rules.ts
 /** A live metric by id, or by name (any case). */
 function findMetric(s, ref) {
@@ -12853,6 +12719,237 @@ function linkProblems(goal, m) {
 		warnings
 	};
 }
+/** Stop measuring a goal by its metric: the goal's owner or an admin. Kept, so it can be undone. Null when it has none. */
+function unlinkGoalMetric(x, goal) {
+	if (!canLinkGoal(x.actor, goal)) no("Only the goal’s owner or an admin can choose what measures it.");
+	const l = linksOf(x.snapshot).find((v) => v.goalId === goal.id && !v.removedAt);
+	if (!l) return null;
+	const name = metricsOf(x.full ?? x.snapshot).find((v) => v.id === l.metricId)?.name ?? "its metric";
+	return {
+		...metricRows({ metricLinks: [{
+			...l,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		}] }),
+		changes: [log(x, {
+			entityId: l.metricId,
+			goalId: goal.id,
+			action: "removed",
+			summary: `No longer measured by “${name}”`,
+			diffs: [{
+				field: "Measured by",
+				from: name,
+				to: "—"
+			}]
+		})]
+	};
+}
+var MODULE, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, sliceName, clean$1, log, live$1, ownsOrAdmin, canEditMetric, canLinkGoal;
+var init_rules = __esmMin((() => {
+	init_actions();
+	init_changes();
+	init_format();
+	init_numbers();
+	init_records();
+	MODULE = "metrics";
+	METRICS_KEY = "metrics";
+	LINKS_KEY = "metricLinks";
+	metricsOf = (s) => moduleRows(s, MODULE, METRICS_KEY);
+	linksOf = (s) => moduleRows(s, MODULE, LINKS_KEY);
+	metricRows = (rows) => withModuleRows(MODULE, {
+		[METRICS_KEY]: rows.metrics,
+		[LINKS_KEY]: rows.metricLinks
+	});
+	no = (msg) => {
+		throw new NotAllowed(msg);
+	};
+	DIRECTION_LABEL = {
+		higher: "Higher is better",
+		lower: "Lower is better"
+	};
+	REFRESHES = [
+		"live",
+		"hourly",
+		"daily",
+		"weekly",
+		"monthly",
+		"quarterly"
+	];
+	REFRESH_LABEL = {
+		live: "Live",
+		hourly: "Hourly",
+		daily: "Daily",
+		weekly: "Weekly",
+		monthly: "Monthly",
+		quarterly: "Quarterly"
+	};
+	COMPANY = "The whole company";
+	ownerName = (people, m) => {
+		const p = people.find((x) => x.id === m.ownerId);
+		return p && !p.leftAt ? p.name : null;
+	};
+	METRIC_LIMITS = {
+		name: 120,
+		unit: 20,
+		text: 2e3,
+		decimals: 4
+	};
+	liveMetrics = (s) => metricsOf(s).filter((m) => !m.removedAt).sort((a, b) => a.name.localeCompare(b.name));
+	sliceName = (s, teamId) => teamId == null ? COMPANY : s.teams.find((t) => t.id === teamId)?.name ?? "A removed team";
+	clean$1 = (v) => (v ?? "").trim().replace(/[ \t]+/g, " ");
+	log = (x, v) => ({
+		id: x.newId("chg"),
+		at: x.now,
+		actorId: x.actor.id,
+		goalId: null,
+		entity: "metric",
+		diffs: [],
+		...v
+	});
+	live$1 = (x, id) => {
+		const m = metricsOf(x.snapshot).find((v) => v.id === id);
+		if (!m || m.removedAt) no("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
+		return m;
+	};
+	ownsOrAdmin = (x, m) => x.actor.admin || m.ownerId === x.actor.id;
+	canEditMetric = (actor, m) => actor.admin || m.ownerId === actor.id;
+	canLinkGoal = (actor, g) => actor.admin || g.ownerId === actor.id;
+}));
+// src/modules/metrics/edits.ts
+/** Edits (insert, delete, change one character) between two strings, stopping once past `max`. */
+function editsBetween(a, b, max) {
+	if (Math.abs(a.length - b.length) > max) return max + 1;
+	let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+	for (let i = 1; i <= a.length; i++) {
+		const row = [i];
+		let least = i;
+		for (let j = 1; j <= b.length; j++) {
+			const v = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+			row.push(v);
+			if (v < least) least = v;
+		}
+		if (least > max) return max + 1;
+		prev = row;
+	}
+	return prev[b.length];
+}
+var init_edits = __esmMin((() => {}));
+// src/modules/metrics/rulesParts.ts
+/**
+* The distinct parts a metric's live links use, by `partKey`, most used first (ties by name), each in its most used
+* spelling (ties: the first seen). Empty parts (all of it) aren't parts.
+*/
+function partsOf(links) {
+	const byKey = /* @__PURE__ */ new Map();
+	links.forEach((l, i) => {
+		const p = (l.part ?? "").trim();
+		if (l.removedAt || !p) return;
+		const k = partKey(p);
+		const e = byKey.get(k) ?? {
+			n: 0,
+			first: i,
+			spellings: /* @__PURE__ */ new Map()
+		};
+		e.n++;
+		e.spellings.set(p, (e.spellings.get(p) ?? 0) + 1);
+		byKey.set(k, e);
+	});
+	const best = (s) => [...s.entries()].reduce((a, b) => b[1] > a[1] ? b : a)[0];
+	return [...byKey.values()].sort((a, b) => b.n - a.n || a.first - b.first).map((e) => best(e.spellings));
+}
+/**
+* A part in use that the typed one probably means: the same `partKey` spelt differently, or one edit away from one
+* (never for parts of two characters or fewer: "EU" is not "US"). Null when it is a part in use as typed, or new.
+*/
+function closePart(part, parts) {
+	const p = part.trim();
+	if (!p || parts.includes(p)) return null;
+	const k = partKey(p);
+	const same = parts.find((x) => partKey(x) === k);
+	if (same) return same;
+	if (k.length <= 2) return null;
+	return parts.find((x) => partKey(x).length > 2 && editsBetween(partKey(x), k, 1) === 1) ?? null;
+}
+/**
+* Rule 2. What measuring `goal` by `metric`, for `teamId` and `part`, asks. `problems` are linkProblems' (rules.ts:
+* dated stages and unit are Must fix; aim and decimals are Checks). It adds: the part over 60 characters (Must fix);
+* another live goal with the same metric, team and part (Check); a part close to one in use (Check); and, on a goal
+* with check-ins whose metric, team or part changes, an empty reason (Must fix).
+*/
+function linkChecks(goal, metric, slice, problems, r, reason) {
+	const out = [];
+	for (const w of problems.errors) out.push({
+		field: "measuredBy",
+		kind: "fix",
+		words: w,
+		answers: []
+	});
+	for (const w of problems.warnings) out.push({
+		field: /keeps/.test(w) ? "decimals" : "target",
+		kind: "check",
+		words: w,
+		answers: [{
+			choice: "meant",
+			label: "Yes, it’s meant"
+		}]
+	});
+	const part = slice.part.trim();
+	if (part.length > 60) out.push({
+		field: "part",
+		kind: "fix",
+		words: `Keep the part to 60 characters or fewer.`,
+		answers: []
+	});
+	const live = r.others.filter((o) => !o.removedAt && o.goalId !== goal.id);
+	const twin = live.find((o) => o.teamId === slice.teamId && partKey(o.part ?? "") === partKey(part));
+	const close = twin ? null : closePart(part, partsOf(live));
+	if (close) out.push({
+		field: "part",
+		kind: "check",
+		words: `${metric.name} already has a part called “${close}”.`,
+		answers: [{
+			choice: `use:${close}`,
+			label: `Use “${close}”`
+		}, {
+			choice: "keep",
+			label: `Keep “${part}”`
+		}]
+	});
+	if (twin) {
+		const who = `${r.sliceName(slice.teamId) === "The whole company" ? "the whole company" : r.sliceName(slice.teamId)}${part ? `, ${part}` : ""}`;
+		out.push({
+			field: "part",
+			kind: "check",
+			words: `Another goal already measures this for ${who}: “${twin.title}” (${twin.key}, ${twin.ownerName}). Two goals on one number is unusual.`,
+			answers: [{
+				choice: "carry-on",
+				label: "Carry on"
+			}]
+		});
+	}
+	if (!problems.errors.length && r.hasCheckIns && linkChanges(r.present, metric.id, slice.teamId, part) && !reason.trim()) out.push({
+		field: "why",
+		kind: "fix",
+		words: "Say why this goal is measured differently now. It shows in its History.",
+		answers: []
+	});
+	if (reason.trim().length > 300) out.push({
+		field: "why",
+		kind: "fix",
+		words: `Keep the reason to 300 characters or fewer.`,
+		answers: []
+	});
+	return out;
+}
+var partKey, linkChanges, forWords;
+var init_rulesParts = __esmMin((() => {
+	init_fold();
+	init_edits();
+	partKey = (part) => fold$2(part).replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(" ").filter(Boolean).map((w) => w.length > 1 && w.endsWith("s") ? w.slice(0, -1) : w).join(" ");
+	linkChanges = (present, metricId, teamId, part) => !!present && (present.metricId !== metricId || present.teamId !== teamId || partKey(present.part ?? "") !== partKey(part));
+	forWords = (sliceName, part) => `${sliceName === "The whole company" ? "the whole company" : sliceName}${(part ?? "").trim() ? ` · ${(part ?? "").trim()}` : ""}`;
+}));
+// src/modules/metrics/rulesLink.ts
 /**
 * Measure a goal by a metric, for a slice: a team (teamId) or the whole company (null), and optionally one part of that
 * number (`part`, MT2: "tier-1 services"; empty for all of it). The goal's owner or an admin. Rule 2 (rulesParts.ts,
@@ -12946,102 +13043,9 @@ function linkReads(x, goal, metricId) {
 		sliceName: (t) => sliceName(x.snapshot, t)
 	};
 }
-/** Stop measuring a goal by its metric: the goal's owner or an admin. Kept, so it can be undone. Null when it has none. */
-function unlinkGoalMetric(x, goal) {
-	if (!canLinkGoal(x.actor, goal)) no("Only the goal’s owner or an admin can choose what measures it.");
-	const l = linksOf(x.snapshot).find((v) => v.goalId === goal.id && !v.removedAt);
-	if (!l) return null;
-	const name = metricsOf(x.full ?? x.snapshot).find((v) => v.id === l.metricId)?.name ?? "its metric";
-	return {
-		...metricRows({ metricLinks: [{
-			...l,
-			removedAt: x.now,
-			removedBy: x.actor.id
-		}] }),
-		changes: [log(x, {
-			entityId: l.metricId,
-			goalId: goal.id,
-			action: "removed",
-			summary: `No longer measured by “${name}”`,
-			diffs: [{
-				field: "Measured by",
-				from: name,
-				to: "—"
-			}]
-		})]
-	};
-}
-var MODULE, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, sliceName, clean$1, log, live$1, ownsOrAdmin, canEditMetric, canLinkGoal;
-var init_rules = __esmMin((() => {
-	init_actions();
-	init_changes();
-	init_format();
-	init_numbers();
-	init_records();
+var init_rulesLink = __esmMin((() => {
+	init_rules();
 	init_rulesParts();
-	MODULE = "metrics";
-	METRICS_KEY = "metrics";
-	LINKS_KEY = "metricLinks";
-	metricsOf = (s) => moduleRows(s, MODULE, METRICS_KEY);
-	linksOf = (s) => moduleRows(s, MODULE, LINKS_KEY);
-	metricRows = (rows) => withModuleRows(MODULE, {
-		[METRICS_KEY]: rows.metrics,
-		[LINKS_KEY]: rows.metricLinks
-	});
-	no = (msg) => {
-		throw new NotAllowed(msg);
-	};
-	DIRECTION_LABEL = {
-		higher: "Higher is better",
-		lower: "Lower is better"
-	};
-	REFRESHES = [
-		"live",
-		"hourly",
-		"daily",
-		"weekly",
-		"monthly",
-		"quarterly"
-	];
-	REFRESH_LABEL = {
-		live: "Live",
-		hourly: "Hourly",
-		daily: "Daily",
-		weekly: "Weekly",
-		monthly: "Monthly",
-		quarterly: "Quarterly"
-	};
-	COMPANY = "The whole company";
-	ownerName = (people, m) => {
-		const p = people.find((x) => x.id === m.ownerId);
-		return p && !p.leftAt ? p.name : null;
-	};
-	METRIC_LIMITS = {
-		name: 120,
-		unit: 20,
-		text: 2e3,
-		decimals: 4
-	};
-	liveMetrics = (s) => metricsOf(s).filter((m) => !m.removedAt).sort((a, b) => a.name.localeCompare(b.name));
-	sliceName = (s, teamId) => teamId == null ? COMPANY : s.teams.find((t) => t.id === teamId)?.name ?? "A removed team";
-	clean$1 = (v) => (v ?? "").trim().replace(/[ \t]+/g, " ");
-	log = (x, v) => ({
-		id: x.newId("chg"),
-		at: x.now,
-		actorId: x.actor.id,
-		goalId: null,
-		entity: "metric",
-		diffs: [],
-		...v
-	});
-	live$1 = (x, id) => {
-		const m = metricsOf(x.snapshot).find((v) => v.id === id);
-		if (!m || m.removedAt) no("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
-		return m;
-	};
-	ownsOrAdmin = (x, m) => x.actor.admin || m.ownerId === x.actor.id;
-	canEditMetric = (actor, m) => actor.admin || m.ownerId === actor.id;
-	canLinkGoal = (actor, g) => actor.admin || g.ownerId === actor.id;
 }));
 // src/data/examples.ts
 var EXAMPLE = {
@@ -23914,6 +23918,7 @@ var REMOVE_TOOLS = [
 	}
 ];
 // src/modules/metrics/rulesLibrary.ts
+init_rulesLink();
 init_find();
 init_numbers();
 init_status();
