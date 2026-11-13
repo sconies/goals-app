@@ -22,7 +22,7 @@ import { MenuButton } from '../ui/MenuButton';
 import { ColumnsSheet, readLocal, SaveLayoutSheet, useColumnMoves, writeLocal, type Local } from './DataLayout';
 import { FilterEditor } from './DataFilters';
 import {
-  applyTable, columnKind, describeFilter, filterEntries, parseFilters, parseSort, sortIndex,
+  applyTable, columnKind, warmTableWords, describeFilter, filterEntries, parseFilters, parseSort, sortIndex,
   type ColumnKind, type PropFilter, type TableSort,
 } from '../domain/tableFilter';
 import {
@@ -159,6 +159,16 @@ export function DataTables() {
   const [choosing, setChoosing] = useState(false);
   // The search reads the columns shown, as Goals' does (find spec, 2.1); a filter may name any column.
   const shown = applyTable(rows, head, q, filters, sort, order);
+  // The words the search reads, split while nothing else is happening, so the first key on a large table is as quick
+  // as the rest (N12).
+  const orderKey = order.join('\u0001');
+  useEffect(() => {
+    let at = 0;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const slice = () => { at = warmTableWords(rows, head, order, at, 2000); if (at >= 0) t = setTimeout(slice, 0); };
+    t = setTimeout(slice, 0);
+    return () => clearTimeout(t);
+  }, [rows, head, orderKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const kinds = useMemo(() => Object.fromEntries(head.map((c, i) => [c, columnKind(rows.map((r) => r.cells[i] ?? ''))])) as Record<string, ColumnKind>, [head, rows]);
   const narrowed = !!q.trim() || filters.length > 0;
 

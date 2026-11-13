@@ -1,7 +1,7 @@
 /* Property filters for a table of records: pick a column, a condition and a value; every filter must match.
    The kind of column (number, a fixed set of values, or free text) decides which conditions make sense.
    Filters and the sort live in the link, so a filtered table can be shared. */
-import { wordsMatch, wordsOf } from './find';
+import { wordsMatcher, wordsOf } from './find';
 import { normalKey } from './goalKey';
 
 export type ColumnKind = 'number' | 'choice' | 'text';
@@ -68,6 +68,18 @@ const wordsFor = (r: { cells: string[] }, idx: number[], cols: string) => {
   return words;
 };
 
+/**
+ * Splits rows' words ahead of the first search, a slice at a time (`from` to `from + count`), so the first key on a large
+ * table doesn't pay for all of them (N12). The same cache `applyTable` reads; gives where the next slice starts, or -1.
+ */
+export function warmTableWords(rows: readonly { cells: string[] }[], head: string[], searched: readonly string[] | undefined, from: number, count: number): number {
+  const cols = (searched ?? head).map((c) => head.indexOf(c)).filter((i) => i >= 0);
+  const colsKey = cols.join(',');
+  const end = Math.min(rows.length, from + count);
+  for (let i = from; i < end; i++) wordsFor(rows[i]!, cols, colsKey);
+  return end < rows.length ? end : -1;
+}
+
 export function applyTable<R extends { cells: string[] }>(rows: R[], head: string[], q: string, filters: PropFilter[], sort: TableSort | null, searched?: readonly string[]): R[] {
   const typed = q.trim();
   const idx = (c: string) => head.indexOf(c);
@@ -79,7 +91,8 @@ export function applyTable<R extends { cells: string[] }>(rows: R[], head: strin
   // A key matters only when what's typed is one, or a bare number (find's rule 1): else no row's keys are read (N12).
   const keyTyped = keyAt >= 0 && (!!normalKey(typed) || /^\d{1,9}$/.test(typed));
   const keysOf = (r: R) => (keyTyped ? (r.cells[keyAt] ?? '').split(';').map((k) => k.trim()).filter(Boolean) : []);
-  const found = (r: R) => { const ks = keysOf(r); const w = wordsFor(r, cols, colsKey); return ks.length ? ks.some((k) => wordsMatch(w, typed, k)) : wordsMatch(w, typed, null); };
+  const matches = wordsMatcher(typed);
+  const found = (r: R) => { const ks = keysOf(r); const w = wordsFor(r, cols, colsKey); return ks.length ? ks.some((k) => matches(w, k)) : matches(w, null); };
   const live = filters.filter((f) => idx(f.col) >= 0 && (NO_VALUE.includes(f.op) || f.value.trim() !== ''));
   const out = rows.filter((r) => (!typed || found(r)) && live.every((f) => passes(r.cells[idx(f.col)] ?? '', f)));
   const si = sortIndex(head, sort);
