@@ -8881,7 +8881,8 @@ function undoPlan(x, importId) {
 	if (entry.actorId !== x.actor.id && !x.actor.admin) no$1("Only whoever made the import, or an admin, can undo it.");
 	const u = entry.undo;
 	const own = new Set(full.changes.filter((c) => c.importId === importId).map((c) => c.id));
-	const since = full.changes.filter((c) => c.at > entry.at && !own.has(c.id) && c.id !== entry.id);
+	const undoneImports = new Set(full.changes.filter((c) => c.action === "undone" && c.entity === "workspace").map((c) => c.entityId));
+	const since = full.changes.filter((c) => c.at > entry.at && !own.has(c.id) && c.id !== entry.id && !(c.importId && undoneImports.has(c.importId)));
 	const latest = (f) => {
 		for (let i = since.length - 1; i >= 0; i--) if (f(since[i])) return since[i];
 	};
@@ -9140,7 +9141,7 @@ function undoPlan(x, importId) {
 		entityId: importId,
 		action: "undone",
 		importId,
-		summary: `Undid ${/^Corrected a check-in\b/.test(entry.summary) ? "a correction" : entry.summary.replace(/:.*$/, "").toLowerCase()}: ${plural$3(restored, "row", "rows")} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ""}`,
+		summary: `Undid ${undoneWhat(entry)}: ${plural$3(restored, "row", "rows")} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ""}`,
 		diffs: [{
 			field: "Import",
 			from: entry.summary,
@@ -9188,6 +9189,26 @@ function undoPreview(x, importId) {
 function viaOf(entry) {
 	const label = entry.diffs.find((d) => d.field === "Via")?.to;
 	return Object.keys(VIA_LABEL).find((k) => VIA_LABEL[k] === label) ?? (/^Corrected a check-in\b/.test(entry.summary) ? "form" : "spreadsheet");
+}
+/** An import's name, as Past imports and Activity say it (spec 2.7): the file's, or where the bulk change was made. */
+function importName(entry) {
+	const file = entry.diffs.find((d) => d.field === "File")?.to;
+	if (file) return file;
+	const via = entry.diffs.find((d) => d.field === "Via")?.to;
+	if (via === VIA_LABEL.form || !via && /^Corrected a check-in\b/.test(entry.summary)) return entry.summary.includes(" · ") ? `A corrected check-in: ${entry.summary.replace(/^Corrected a check-in: /, "")}` : "A corrected check-in";
+	if (via === VIA_LABEL.bulk) {
+		const u = entry.undo;
+		if (u && !u.goals.length && u.people.length) return "Bulk edit on People";
+		if (u && !u.goals.length && !u.people.length && u.checkIns.length) return "Quick check-in";
+		return "Bulk edit on Goals";
+	}
+	return via === VIA_LABEL.table ? "Bulk edit on Data" : via === VIA_LABEL.mcp ? "Changes through MCP" : "A spreadsheet";
+}
+/** What Undo undid, as its log line says it: "the import of goals.xlsx", "the bulk edit on Data", "the changes through MCP". */
+function undoneWhat(entry) {
+	if (/^Corrected a check-in\b/.test(entry.summary)) return "a correction";
+	const file = entry.diffs.find((d) => d.field === "File")?.to;
+	return file ? `the import of ${file}` : `the ${importName(entry).replace(/^A /, "").replace(/^\w/, (c) => c.toLowerCase())}`;
 }
 /** "Nothing to undo: it changed no rows." or "Nothing left to undo: all 3 rows have changed since.": rule 9's line when Undo would put back nothing. */
 function nothingToUndo(skipped) {
@@ -9951,7 +9972,23 @@ var init_sheets = __esmMin((() => {
 	alsoOf = (kind, header) => NAMES.get(kind).has(fold$1(header)) && fold$1(NAMES.get(kind).get(fold$1(header))) !== fold$1(header);
 }));
 // src/domain/importLimits.ts
-var init_importLimits = __esmMin((() => {}));
+/** Why a file (or, through the AI tools, one call's rows) is refused for its size (spec 2.1): too many rows, or too many
+bytes. Every door checks it: Import, set-up's upload and the MCP tools. */
+function tooLarge(name, got, door = "file") {
+	const then = door === "file" ? "Split it and import each part." : "Send them in parts.";
+	if (got.bytes != null && got.bytes > 20971520) return `${name} is larger than 20 MB. Faro reads up to ${count(ROWS_READ_MAX)} rows in one file. ${then}`;
+	if (got.rows != null && got.rows > 3e4) return `${name} has ${count(got.rows)} rows. Faro reads up to ${count(ROWS_READ_MAX)} in one ${door}. ${then}`;
+	return null;
+}
+var ROWS_COMFORT, ROWS_READ_MAX, CHANGES_SAVE_MAX, count, limitHelp, tooManyChanges;
+var init_importLimits = __esmMin((() => {
+	ROWS_COMFORT = 5e3;
+	ROWS_READ_MAX = 3e4;
+	CHANGES_SAVE_MAX = 5e3;
+	count = (n) => n.toLocaleString("en-GB");
+	limitHelp = () => `up to ${count(ROWS_READ_MAX)} rows or 20 MB a file, and ${count(CHANGES_SAVE_MAX)} changes at a time; up to ${count(ROWS_COMFORT)} rows is checked in a second or two`;
+	tooManyChanges = (changes) => changes > 5e3 ? `This would change ${count(changes)} rows. Faro saves up to ${count(CHANGES_SAVE_MAX)} at a time.` : null;
+}));
 // src/domain/changeset.ts
 /** "4 new goals, 2 goals changed, 38 check-ins (36 for past weeks), 1 goal stopped" */
 function describe(cs) {
@@ -10093,7 +10130,7 @@ function* planChangesInChunks(input) {
 	/** Goals read but not yet made into changes (they are, once every row is read): added, and changed. */
 	let goalsSoFar = () => [0, 0];
 	const progress = () => {
-		for (; seenItems < items.length; seenItems++) if (ADDS.has(items[seenItems].kind)) so.added++;
+		for (; seenItems < items.length; seenItems++) if (showOf(items[seenItems].kind) === "added") so.added++;
 		else so.changed++;
 		for (; seenIssues < issues.length; seenIssues++) if (issues[seenIssues].level === "must") so.mustFix++;
 		const [a, c] = goalsSoFar();
@@ -10900,10 +10937,18 @@ function* planChangesInChunks(input) {
 				});
 				if (a === "leave") return;
 				if (a && a.choice === "same") {
-					if (touched.has(same.id)) return raise("duplicate", "Goals", row, same.title, `“${same.title}” has another row in this file. Give each goal one row.`, {
-						column: "Key",
-						answers: ANSWERS.duplicate
-					});
+					const first = touched.get(same.id);
+					if (first) {
+						const say = `“${same.title}” is on rows ${first.row} and ${row}. Give each goal one row.`;
+						if (!(issuesAt.get(`Goals|${first.row}`) ?? []).some((x) => x.kind === "duplicate")) raise("duplicate", "Goals", first.row, same.title, say, {
+							column: "Goal",
+							found: title
+						});
+						return raise("duplicate", "Goals", row, same.title, say, {
+							column: "Goal",
+							found: title
+						});
+					}
 					existing = same;
 				}
 			} else if (same && create) return raise("duplicate", "Goals", row, title, `“${title}” is on two rows. Give each goal one row.`, { column: "Goal" });
@@ -12414,7 +12459,7 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, CORRECTS_VIA, initialsOf, GoalSet;
+var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, STOPS, showOf, CORRECTS_VIA, initialsOf, GoalSet;
 var init_changeset = __esmMin((() => {
 	init_correctReason();
 	init_actions();
@@ -12560,6 +12605,12 @@ var init_changeset = __esmMin((() => {
 		"new person",
 		"check-in"
 	]);
+	STOPS = /* @__PURE__ */ new Set([
+		"stop goal",
+		"delete goal",
+		"person left"
+	]);
+	showOf = (kind) => ADDS.has(kind) ? "added" : STOPS.has(kind) ? "stopped" : "changed";
 	CORRECTS_VIA = ["table", "mcp"];
 	initialsOf = (name) => name.split(/\s+/).filter(Boolean).map((w) => w[0].toUpperCase()).slice(0, 2).join("") || "?";
 	oneOf(Object.values(CALL_WORDS.word));
@@ -12578,7 +12629,10 @@ var init_changeset = __esmMin((() => {
 			if (old) this.unindex(id, old);
 			if (!this.order.has(id)) this.order.set(id, this.order.size);
 			super.set(id, g);
-			if (g.key && !this.byKey.has(g.key)) this.byKey.set(g.key, id);
+			if (g.key) {
+				const holder = this.byKey.get(g.key);
+				if (holder === void 0 || this.order.get(id) < this.order.get(holder)) this.byKey.set(g.key, id);
+			}
 			const f = fold$1(g.title);
 			this.folded.set(id, f);
 			const list = this.titles.get(f);
@@ -13954,7 +14008,7 @@ var metricLinkToRow = (ws, l) => ({
 	goal_id: l.goalId,
 	metric_id: l.metricId,
 	team_id: l.teamId,
-	...l.part != null ? { part: String(l.part).trim() } : {},
+	part: String(l.part ?? "").trim(),
 	linked_by: l.linkedBy,
 	linked_at: l.linkedAt,
 	...set$1({
@@ -15971,6 +16025,7 @@ var help$3 = [
 					"Find a metric by its name, unit, owner or meaning: “min lower” finds those in minutes where lower is better. Unit and Used by narrow the list beside the search; Filters has Owner, Which way is better, No goals use it and Something to sort out. Sort by A to Z, Most goals first or Changed lately. The filter line says what is on, each with Remove.",
 					"A search that finds nothing offers to add it as a new metric.",
 					"Open a metric to see what it means and how it’s calculated, then every goal measured by it as a table: its status as a shape and a word, the goal, who it is for (a team, or the whole company), the latest number, the target with its week, and where it stands against plan (for a goal kept in range, its room to the limit). When two or more goals have a number, a line says the lowest and highest now.",
+					"A proposed goal that names the metric is listed under the table, apart, as “Proposed · 1”: its name, key and owner, with no numbers. It is in no comparison until it is made active.",
 					"Below them: where the number comes from, who owns that source, how often it refreshes, any caveats, and who added and last changed it. With one goal, See its goal opens it.",
 					"On a goal measured by a metric, its summary says “Measured by …”, and its page has a block with the metric’s meaning and a link to the other goals measured by it. A person’s page lists the metrics they own, and a team’s the metrics its goals use.",
 					"Old links to Metrics under Data still work: they open the library, a metric, or the form."
@@ -16152,6 +16207,7 @@ var help$3 = [
 ];
 // src/modules/spreadsheets/help.ts
 init_columns();
+init_importLimits();
 var help$2 = [
 	{
 		id: "import",
@@ -16164,7 +16220,7 @@ var help$2 = [
 				heading: "How to use it",
 				list: [
 					"On Data, choose Import, beside Export. Export everything first to start from what is already in the app, or download the template from the Import page to start from nothing.",
-					"Drop a file or choose one (up to 5,000 rows a file is comfortable, and checked in a second or two; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.",
+					`Drop a file or choose one (${limitHelp()}). Or choose “or paste rows from a spreadsheet”, paste the cells straight from Excel or Sheets with their header row, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.`,
 					`What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine("goals")} A check-in, ${requiredLine("checkIns")} A person, ${requiredLine("people")}`,
 					"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.",
 					"A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once, and so are two columns that mean the same one (Goal and Goal name): you choose which is read.",
@@ -16179,7 +16235,7 @@ var help$2 = [
 					"A file exported from another workspace is asked about first: its keys and IDs belong there, so its rows can be added as new goals, or not at all.",
 					"A number goal’s weeks are From and To, written as a year and a week (2026-W46, 2027-W13). Plan from week and Due week, counted from the cycle’s start, are still written and still load: where a row has both, the one you changed counts, and two that disagree are Must fix; a Due week left empty beside a To says nothing. In a file with no Start column, a bare number under From (“52”) is Must fix: it may be the starting number, so put that under Start, or write the week as 2026-W46. A week a year doesn’t have says so (“2027 has 52 weeks. Use 2027-W52, or 2028-W01.”). A stage may be written Design@48 or Design@2026-W48.",
 					"Past weeks are marked as loaded later, so history never looks like a fresh update. Rows that change nothing are left alone, and so are a stopped goal’s rows.",
-					"Saving ends on Imported: how many changes were saved from which file, what they were, and the rows left out to download. See the goals, or Undo this import.",
+					"Saving ends on Imported: how many rows were saved from which file (counted as Undo counts them), what they were, and the rows left out to download. See the goals, or Undo this import.",
 					"Loaded the wrong file? Undo this import, on Imported, on Data under Past imports, or on its entry in Activity, puts every row back as it was, stopped goals and people who left included. It says first which rows have changed since and will stay."
 				]
 			},
@@ -16287,8 +16343,8 @@ var help$2 = [
 			{
 				heading: "The list",
 				list: [
-					"On Data, choose Import, then All past imports at the foot of the page. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.",
-					"Find one by its file, by who made it or by what it changed. Open one to see what it saved.",
+					"On Data, choose Import, then the link to past imports at the foot of the page. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.",
+					"Find one by its file, by who made it or by what it changed; a search that finds nothing says so. Open one to see what it saved.",
 					"In Activity an import is one entry too, with its rows folded under it: Show the changes lists them. Search still finds each row, and each goal’s history still shows its own."
 				]
 			},
@@ -16299,6 +16355,7 @@ var help$2 = [
 					"A goal that fed one Undo deletes moves up to what that goal fed. Someone the import added stays while they lead a team, sit in a review or have an ask.",
 					"Before anything is undone, it says how many rows go back and which stay as they are because they changed after the import, each with why: “Rhea Kapoor posted a check-in for week 45 on 12 Nov”, “Its target was changed on 10 Nov”.",
 					"When every row has changed since, there is nothing left to undo, and it says so.",
+					"Two imports of the same rows can be undone newest first: once the newer one is undone, the older one puts back everything it wrote.",
 					"Once undone, the line says when and by whom, and Undo is gone."
 				]
 			},
@@ -16333,7 +16390,8 @@ var help$2 = [
 			heading: "How to use it",
 			list: [
 				"On Goals, choose Export these goals. When the goals are filtered, it starts from the ones shown now; Everything in the cycle is one click away, with how many goals, check-ins and people that is: stopped and proposed goals count, as the workbook holds them.",
-				"Export .xlsx is the one button. The file’s name is at the foot of the sheet before you press it, and the message after says it again: Exported platform-goals-all-2026-11-05.xlsx.",
+				"Export .xlsx is the one button. The file’s name is at the foot of the sheet before you press it, with how many goals it holds as of this week, and the message after says it again: Exported platform-goals-all-2026-11-05.xlsx. Import’s Download the workbook saves the same file, by the same name.",
+				"A view that shows no goals has nothing of its own to export: the sheet starts from everything, and None shown now can’t be chosen. On Data, a table that shows no rows says so instead of saving a file of headers.",
 				"On Data, Export saves the open table exactly as laid out, as .xlsx or .csv, with the columns that say which record each row is added so it loads back; the menu says how many rows and columns that is. Everything… opens the same Export as Goals. Import is beside it.",
 				"Excel workbook, the usual choice: a first sheet, Start here, that says for every column what it means, whether a new row must have it, its format and an example; then Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks, Notes and Metrics. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.",
 				"Other formats: CSV files, zipped (the same sheets, one CSV each with the same headers); one sheet as CSV, chosen in its row; JSON; and the brief for an AI chat.",
@@ -19104,6 +19162,36 @@ var WHATS_NEW = [
 		title: "A review speaks only for the goals it walks",
 		points: ["In a review, marking a goal reviewed, a note, accepting a risk, a question or a next step is only for a goal the review covers: its goals, trees and levels. Anything else is refused, in the app and through the AI tools, with a sentence that says why.", "Anyone can still ask a question or agree a next step on the goal’s own page."],
 		articles: ["reviews"]
+	},
+	{
+		id: "metric-lists-proposed",
+		date: "2026-11-13",
+		title: "A metric’s page lists its proposed goals",
+		points: ["A proposed goal that names a metric is listed on the metric’s page under its goals, as “Proposed · 1”, with no numbers.", "It joins the comparison only once it is made active. The AI assistant’s get_metric gives them apart too."],
+		articles: ["metrics", "goal-proposed"]
+	},
+	{
+		id: "sidebar-fits-a-laptop",
+		date: "2026-11-13",
+		title: "The whole sidebar fits on a laptop screen",
+		points: ["The sidebar’s rows are a little tighter, so everything down to your name shows on a 900-pixel-high screen without scrolling.", "In the demo, the Demo button in the sidebar is one line: the word Demo, then who you’re viewing as."],
+		articles: ["getting-around", "demo"]
+	},
+	{
+		id: "import-review-lows",
+		date: "2026-11-13",
+		title: "Import, Undo and Export, smaller fixes",
+		points: [
+			"Import says what Faro reads: up to 30,000 rows a file, and 5,000 changes at a time. Set-up and the AI assistant keep the same limits.",
+			"Row numbers count blank lines, so row 7 is row 7 in your file.",
+			"Imported counts the rows saved as Undo does, and two imports undone newest first both undo in full.",
+			"Export’s foot note says how many goals the file holds, and an empty view can’t be exported empty."
+		],
+		articles: [
+			"import",
+			"past-imports",
+			"export"
+		]
 	},
 	{
 		id: "proposed-on-map-and-board",
@@ -24719,6 +24807,11 @@ function goalsOfMetric(s, cycle, today, week, metricId) {
 	const ids = new Set(links.map((l) => l.goalId));
 	return metricGoals(metricId, links, summariseAll(liveGoals(s).filter((g) => ids.has(g.id)), s, cycle, today, week), s.teams, cycle);
 }
+/** The cycle's proposed goals (GE10) a metric names, newest first: listed apart, with no numbers, in no comparison. */
+function proposedOfMetric(s, metricId) {
+	const ids = new Set(linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt).map((l) => l.goalId));
+	return (s.proposed ?? []).filter((g) => ids.has(g.id) && !g.removedAt).sort((a, b) => (b.proposedAt ?? "").localeCompare(a.proposedAt ?? ""));
+}
 /** Rule 1's line for a metric, its owner being someone here who hasn't left. */
 var lineOf = (s, m) => stillToSay(m, !!ownerName(s.people, m));
 // src/modules/metrics/tools.ts
@@ -24937,7 +25030,7 @@ var tools$1 = [
 	{
 		name: "get_metric",
 		title: "Read a metric",
-		description: "One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; and, for its owner and admins, what it still needs (rule 3).",
+		description: "One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -24963,6 +25056,12 @@ var tools$1 = [
 					owner: r.owner
 				}));
 				const summary = summaryLine(side);
+				const proposed = proposedOfMetric(ctx.snapshot, m.id).map((g) => ({
+					goalId: g.id,
+					key: g.key ?? null,
+					goal: g.title,
+					owner: ctx.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? null
+				}));
 				const needs = canEditMetric(ctx.actor, m) ? metricNeeds(m, libraryReads(ctx.snapshot, ctx.now)).map((x) => ({
 					id: x.id,
 					sentence: x.sentence
@@ -24984,6 +25083,7 @@ var tools$1 = [
 					`Caveats: ${d.caveats || "—"}`,
 					goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}`).join("\n")}` : "Measures no goal yet.",
 					...summary ? [summary] : [],
+					...proposed.length ? [`Proposed (${proposed.length}), not judged: ${proposed.map((x) => `${x.key ?? x.goalId} ${x.goal}${x.owner ? ` (${x.owner})` : ""}`).join("; ")}`] : [],
 					...needs.length ? [`To sort out: ${needs.map((x) => x.sentence).join("; ")}`] : []
 				];
 				return {
@@ -24991,6 +25091,7 @@ var tools$1 = [
 						...d,
 						stillToSay,
 						goals,
+						proposed,
 						summary,
 						needs
 					},
@@ -25398,6 +25499,7 @@ function activeReadBack(goal, c) {
 init_levels();
 init_actions();
 init_query();
+init_importLimits();
 init_columns();
 init_status();
 init_attention();
@@ -25506,6 +25608,11 @@ var answersOf = (a) => Object.fromEntries(Object.entries(a ?? {}).map(([k, v]) =
 var FIND_PAGE = 50;
 var FIND_MAX = 200;
 async function change(ctx, tables, opts) {
+	const big = tooLarge("This call", { rows: (tables.goals?.length ?? 0) + (tables.plan?.length ?? 0) + (tables.checkIns?.length ?? 0) + (tables.people?.length ?? 0) }, "call");
+	if (big) return {
+		isError: true,
+		text: `Not checked. ${big}`
+	};
 	const keyOf = (id) => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
 	const cs = planChanges({
 		tables,
@@ -25629,6 +25736,12 @@ async function change(ctx, tables, opts) {
 		goal: x.name,
 		message: x.message
 	})))}` : ""}${cs.leftOut.length ? `\nLeft out at the person's answer: ${cs.leftOut.length} row(s).` : ""}${examples ? `\n${examples.trim()}` : ""}`;
+	const tooMany = tooManyChanges(cs.items.length);
+	if (tooMany && !opts.dry) return {
+		isError: true,
+		data,
+		text: `Not saved. ${tooMany} Send the rows in parts, a goal's plan and check-ins with it.`
+	};
 	if (opts.dry || !cs.commit) {
 		data.created = added.map((x) => ({
 			id: null,

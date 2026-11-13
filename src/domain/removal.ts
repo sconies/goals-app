@@ -516,7 +516,10 @@ function undoPlan(x: ActionContext, importId: string): { commit: Commit; restore
   if (entry!.actorId !== x.actor.id && !x.actor.admin) no('Only whoever made the import, or an admin, can undo it.');
   const u = entry!.undo!;
   const own = new Set(full.changes.filter((c) => c.importId === importId).map((c) => c.id));
-  const since = full.changes.filter((c) => c.at > entry!.at && !own.has(c.id) && c.id !== entry!.id);
+  // What another import wrote, and its undoing wrote back, cancel out once it is undone: undoing two imports newest
+  // first leaves the older one free to undo (IM4 review), not stuck on rows only the newer one touched.
+  const undoneImports = new Set(full.changes.filter((c) => c.action === 'undone' && c.entity === 'workspace').map((c) => c.entityId));
+  const since = full.changes.filter((c) => c.at > entry!.at && !own.has(c.id) && c.id !== entry!.id && !(c.importId && undoneImports.has(c.importId)));
   const latest = (f: (c: Change) => boolean) => { for (let i = since.length - 1; i >= 0; i--) if (f(since[i]!)) return since[i]; return undefined; };
   const touchedBy = (entity: Change['entity'], id: string) => latest((c) => c.entity === entity && c.entityId === id);
   const skipped: KeptRow[] = [];
@@ -655,7 +658,7 @@ function undoPlan(x: ActionContext, importId: string): { commit: Commit; restore
     + requests.filter((r) => ownAsks.has(r.id)).length;
   changes.unshift(log(x, {
     entity: 'workspace', entityId: importId, action: 'undone', importId,
-    summary: `Undid ${/^Corrected a check-in\b/.test(entry!.summary) ? 'a correction' : entry!.summary.replace(/:.*$/, '').toLowerCase()}: ${plural(restored, 'row', 'rows')} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ''}`,
+    summary: `Undid ${undoneWhat(entry!)}: ${plural(restored, 'row', 'rows')} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ''}`,
     diffs: [{ field: 'Import', from: entry!.summary, to: 'Undone' }, ...(skipped.length ? [{ field: 'Skipped', from: '—', to: skipped.map(keptText).join('; ') }] : [])],
   }));
   return { restored, skipped, commit: { ...(goals.length ? { goals } : {}), ...(checkIns.length ? { checkIns } : {}), ...(people.length ? { people } : {}), ...(requests.length ? { requests } : {}), ...(reviews.length ? { reviews } : {}), ...(teams.length ? { teams } : {}), ...(removeTeams.length ? { removeTeams } : {}), changes } };
@@ -707,6 +710,13 @@ export function importName(entry: Change): string {
     return 'Bulk edit on Goals';
   }
   return via === VIA_LABEL.table ? 'Bulk edit on Data' : via === VIA_LABEL.mcp ? 'Changes through MCP' : 'A spreadsheet';
+}
+
+/** What Undo undid, as its log line says it: "the import of goals.xlsx", "the bulk edit on Data", "the changes through MCP". */
+function undoneWhat(entry: Change): string {
+  if (/^Corrected a check-in\b/.test(entry.summary)) return 'a correction';
+  const file = entry.diffs.find((d) => d.field === 'File')?.to;
+  return file ? `the import of ${file}` : `the ${importName(entry).replace(/^A /, '').replace(/^\w/, (c) => c.toLowerCase())}`;
 }
 
 /** "Nothing to undo: it changed no rows." or "Nothing left to undo: all 3 rows have changed since.": rule 9's line when Undo would put back nothing. */

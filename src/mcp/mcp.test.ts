@@ -199,6 +199,13 @@ describe('MCP server', () => {
     expect((data().goals.find((x) => x.id === 'mttr-pir') as MetricGoal).plan.target).toBe(flipped);
   });
 
+  it('keeps Import’s size limit: more rows than one file may have are refused before they are checked (#257 review)', async () => {
+    const { call } = await setup('amara');
+    const out = await call('bulk_change', { check_ins: Array.from({ length: 30_001 }, () => ({ 'Goal ID': 'mttr-pir', Week: 1, Value: 1 })) });
+    expect(out.isError).toBe(true);
+    expect(out.content[0]!.text).toBe('Not checked. This call has 30,001 rows. Faro reads up to 30,000 in one call. Send them in parts.');
+  });
+
   it('checks a bulk change first and saves only with apply', async () => {
     const { call, data } = await setup('amara');
     const rows = { goals: [{ ID: 'mttr-pir', Level: 'svp' }, { Goal: 'Runbooks with an owner', Owner: 'Mateo Fernández', Type: 'metric', Unit: '%', Start: 20, Target: 90, 'Feeds into ID': 'ns-cfr' }] };

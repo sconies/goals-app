@@ -837,7 +837,7 @@ Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/cha
 #### How to use it
 
 - On Data, choose Import, beside Export. Export everything first to start from what is already in the app, or download the template from the Import page to start from nothing.
-- Drop a file or choose one (up to 5,000 rows a file is comfortable, and checked in a second or two; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.
+- Drop a file or choose one (up to 30,000 rows or 20 MB a file, and 5,000 changes at a time; up to 5,000 rows is checked in a second or two). Or choose “or paste rows from a spreadsheet”, paste the cells straight from Excel or Sheets with their header row, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.
 - What a new row must have is on the Import page and in Every column, and what it needs: a goal needs Goal, and Owner or Owner email. A number goal also needs Start and Target; a range goal, Limit; a stages goal, Stages. A check-in, Goal key (or Goal), Week, and Value or Stages. A person, Name and Email.
 - Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.
 - A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once, and so are two columns that mean the same one (Goal and Goal name): you choose which is read.
@@ -852,7 +852,7 @@ Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/cha
 - A file exported from another workspace is asked about first: its keys and IDs belong there, so its rows can be added as new goals, or not at all.
 - A number goal’s weeks are From and To, written as a year and a week (2026-W46, 2027-W13). Plan from week and Due week, counted from the cycle’s start, are still written and still load: where a row has both, the one you changed counts, and two that disagree are Must fix; a Due week left empty beside a To says nothing. In a file with no Start column, a bare number under From (“52”) is Must fix: it may be the starting number, so put that under Start, or write the week as 2026-W46. A week a year doesn’t have says so (“2027 has 52 weeks. Use 2027-W52, or 2028-W01.”). A stage may be written Design@48 or Design@2026-W48.
 - Past weeks are marked as loaded later, so history never looks like a fresh update. Rows that change nothing are left alone, and so are a stopped goal’s rows.
-- Saving ends on Imported: how many changes were saved from which file, what they were, and the rows left out to download. See the goals, or Undo this import.
+- Saving ends on Imported: how many rows were saved from which file (counted as Undo counts them), what they were, and the rows left out to download. See the goals, or Undo this import.
 - Loaded the wrong file? Undo this import, on Imported, on Data under Past imports, or on its entry in Activity, puts every row back as it was, stopped goals and people who left included. It says first which rows have changed since and will stay.
 
 #### Must fix, and Check
@@ -886,7 +886,8 @@ Screens: `Export`, `ExportButton`, `DataMenu`. Requirements: `EXPORT`, `SHARED-D
 #### How to use it
 
 - On Goals, choose Export these goals. When the goals are filtered, it starts from the ones shown now; Everything in the cycle is one click away, with how many goals, check-ins and people that is: stopped and proposed goals count, as the workbook holds them.
-- Export .xlsx is the one button. The file’s name is at the foot of the sheet before you press it, and the message after says it again: Exported platform-goals-all-2026-11-05.xlsx.
+- Export .xlsx is the one button. The file’s name is at the foot of the sheet before you press it, with how many goals it holds as of this week, and the message after says it again: Exported platform-goals-all-2026-11-05.xlsx. Import’s Download the workbook saves the same file, by the same name.
+- A view that shows no goals has nothing of its own to export: the sheet starts from everything, and None shown now can’t be chosen. On Data, a table that shows no rows says so instead of saving a file of headers.
 - On Data, Export saves the open table exactly as laid out, as .xlsx or .csv, with the columns that say which record each row is added so it loads back; the menu says how many rows and columns that is. Everything… opens the same Export as Goals. Import is beside it.
 - Excel workbook, the usual choice: a first sheet, Start here, that says for every column what it means, whether a new row must have it, its format and an example; then Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks, Notes and Metrics. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.
 - Other formats: CSV files, zipped (the same sheets, one CSV each with the same headers); one sheet as CSV, chosen in its row; JSON; and the brief for an AI chat.
@@ -925,8 +926,8 @@ Routes: `/data/imports`. Screens: `PastImports`. Requirements: `IMPORT-UNDO`, `C
 
 #### The list
 
-- On Data, choose Import, then All past imports at the foot of the page. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.
-- Find one by its file, by who made it or by what it changed. Open one to see what it saved.
+- On Data, choose Import, then the link to past imports at the foot of the page. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.
+- Find one by its file, by who made it or by what it changed; a search that finds nothing says so. Open one to see what it saved.
 - In Activity an import is one entry too, with its rows folded under it: Show the changes lists them. Search still finds each row, and each goal’s history still shows its own.
 
 #### What Undo puts back
@@ -935,6 +936,7 @@ Routes: `/data/imports`. Screens: `PastImports`. Requirements: `IMPORT-UNDO`, `C
 - A goal that fed one Undo deletes moves up to what that goal fed. Someone the import added stays while they lead a team, sit in a review or have an ask.
 - Before anything is undone, it says how many rows go back and which stay as they are because they changed after the import, each with why: “Rhea Kapoor posted a check-in for week 45 on 12 Nov”, “Its target was changed on 10 Nov”.
 - When every row has changed since, there is nothing left to undo, and it says so.
+- Two imports of the same rows can be undone newest first: once the newer one is undone, the older one puts back everything it wrote.
 - Once undone, the line says when and by whom, and Undo is gone.
 
 #### Who can
@@ -1084,6 +1086,7 @@ A metric says exactly what a number means (what is counted, over what, its unit 
 - Find a metric by its name, unit, owner or meaning: “min lower” finds those in minutes where lower is better. Unit and Used by narrow the list beside the search; Filters has Owner, Which way is better, No goals use it and Something to sort out. Sort by A to Z, Most goals first or Changed lately. The filter line says what is on, each with Remove.
 - A search that finds nothing offers to add it as a new metric.
 - Open a metric to see what it means and how it’s calculated, then every goal measured by it as a table: its status as a shape and a word, the goal, who it is for (a team, or the whole company), the latest number, the target with its week, and where it stands against plan (for a goal kept in range, its room to the limit). When two or more goals have a number, a line says the lowest and highest now.
+- A proposed goal that names the metric is listed under the table, apart, as “Proposed · 1”: its name, key and owner, with no numbers. It is in no comparison until it is made active.
 - Below them: where the number comes from, who owns that source, how often it refreshes, any caveats, and who added and last changed it. With one goal, See its goal opens it.
 - On a goal measured by a metric, its summary says “Measured by …”, and its page has a block with the metric’s meaning and a link to the other goals measured by it. A person’s page lists the metrics they own, and a team’s the metrics its goals use.
 - Old links to Metrics under Data still work: they open the library, a metric, or the form.

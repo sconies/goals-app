@@ -33,6 +33,38 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['reviews'],
   },
   {
+    id: 'metric-lists-proposed',
+    date: '2026-11-13',
+    title: 'A metric’s page lists its proposed goals',
+    points: [
+      'A proposed goal that names a metric is listed on the metric’s page under its goals, as “Proposed · 1”, with no numbers.',
+      'It joins the comparison only once it is made active. The AI assistant’s get_metric gives them apart too.',
+    ],
+    articles: ['metrics', 'goal-proposed'],
+  },
+  {
+    id: 'sidebar-fits-a-laptop',
+    date: '2026-11-13',
+    title: 'The whole sidebar fits on a laptop screen',
+    points: [
+      'The sidebar’s rows are a little tighter, so everything down to your name shows on a 900-pixel-high screen without scrolling.',
+      'In the demo, the Demo button in the sidebar is one line: the word Demo, then who you’re viewing as.',
+    ],
+    articles: ['getting-around', 'demo'],
+  },
+  {
+    id: 'import-review-lows',
+    date: '2026-11-13',
+    title: 'Import, Undo and Export, smaller fixes',
+    points: [
+      'Import says what Faro reads: up to 30,000 rows a file, and 5,000 changes at a time. Set-up and the AI assistant keep the same limits.',
+      'Row numbers count blank lines, so row 7 is row 7 in your file.',
+      'Imported counts the rows saved as Undo does, and two imports undone newest first both undo in full.',
+      'Export’s foot note says how many goals the file holds, and an empty view can’t be exported empty.',
+    ],
+    articles: ['import', 'past-imports', 'export'],
+  },
+  {
     id: 'proposed-on-map-and-board',
     date: '2026-11-13',
     title: 'Proposed goals on the Map and the Board',

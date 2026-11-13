@@ -783,11 +783,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
 - ““…” isn’t a status here. Use one of: ….”
+- “Not checked. …”
 - “Not saved. Must fix:
 …”
 - “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 
 **Does the same as:** [postCheckIn](actions.md#postcheckin), so it refuses with their words too.
 
@@ -1010,11 +1012,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 **Refuses with:**
 
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
+- “Not checked. …”
 - “Not saved. Must fix:
 …”
 - “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 - “A range between two numbers needs limit, the upper number, as well as lower.”
 
 **Does the same as:** [saveGoal](actions.md#savegoal), so it refuses with their words too.
@@ -1300,11 +1304,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 **Refuses with:**
 
+- “Not checked. …”
 - “Not saved. Must fix:
 …”
 - “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 - “A range between two numbers needs limit, the upper number, as well as lower.”
 
 **Does the same as:** [saveGoal](actions.md#savegoal), so it refuses with their words too.
@@ -1390,11 +1396,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 **Refuses with:**
 
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
+- “Not checked. …”
 - “Not saved. Must fix:
 …”
 - “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 
 **Does the same as:** [saveGoal](actions.md#savegoal), so it refuses with their words too.
 
@@ -1549,11 +1557,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 **Refuses with:**
 
+- “Not checked. …”
 - “Not saved. Must fix:
 …”
 - “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 - “… should be a list of rows.”
 
 **Does the same as:** [postCheckIn](actions.md#postcheckin), [saveGoal](actions.md#savegoal), so it refuses with their words too.
@@ -5103,7 +5113,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 ## get_metric
 
-**Read a metric.** One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; and, for its owner and admins, what it still needs (rule 3).
+**Read a metric.** One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).
 
 From the [metrics](../modules/metrics/README.md) module: switched off with it.
 

@@ -3,6 +3,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildPlatformOrg } from './platformOrg';
+import { metricLinkToRow } from '../modules/metrics/records';
 
 const dir = join(__dirname, '../../supabase/migrations');
 const sql = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort().map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
@@ -98,6 +99,19 @@ describe('database schema', () => {
     expect(cols.rows.length).toBe(6);
     await db.exec(readFileSync(join(dir, '0043_metric_parts_and_retirement.sql'), 'utf8'));
     expect((await db.query<{ n: number }>(`select count(*)::int as n from pg_constraint where conname in ('okr_goal_metrics_part_len', 'okr_metrics_retired_why_len', 'okr_metrics_marks_array')`)).rows[0]!.n).toBe(3);
+  });
+  it('saves links with and without a part in one batch: a link with no part is written as empty, never null (build review of #308)', async () => {
+    await db.query(`insert into okr_metrics (id, workspace_id, name, unit, direction, owner_id, created_by) values ('m-mixed', 'example', 'Mixed batch', '%', 'lower', 'rhea', 'rhea')`);
+    const [a, b] = s.goals.slice(0, 2);
+    const at = '2026-10-30T12:00:00.000Z';
+    const rows = [
+      metricLinkToRow('example', { id: a!.id, goalId: a!.id, metricId: 'm-mixed', teamId: null, part: 'EU', linkedBy: 'rhea', linkedAt: at }),
+      metricLinkToRow('example', { id: b!.id, goalId: b!.id, metricId: 'm-mixed', teamId: null, linkedBy: 'rhea', linkedAt: at }),
+    ];
+    expect(rows[1]).toHaveProperty('part', '');
+    await db.query(`select okr_upsert('okr_goal_metrics', $1::jsonb, 'id')`, [JSON.stringify(rows)]);
+    const saved = await db.query<{ id: string; part: string }>(`select id, part from okr_goal_metrics where metric_id = 'm-mixed' order by part desc`);
+    expect(saved.rows.map((r) => r.part)).toEqual(['EU', '']);
   });
 });
 
