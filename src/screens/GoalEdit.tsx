@@ -25,6 +25,7 @@ import { spanSays } from '../domain/weekChoices';
 import { parseNumber } from '../domain/checkin';
 import { FormClose } from '../ui/FormClose';
 import { Place, type MeasurePick } from '../core/app';
+import { BaselineFields } from '../ui/BaselineFields';
 import { Pick, PickOne } from '../ui/Pick';
 
 /** The page's sections that an address can open at. */
@@ -230,6 +231,7 @@ function EditSheet({ goal }: { goal: Goal }) {
               {questions('target')}
               {questions('endWeek')}
               {reasonField}
+              <BaselineFields period={d.baselinePeriod ?? ''} provisional={!!d.baselineProvisional} onChange={set} invalid={tried && !!errors.start} />
               <div className="field"><span className="field-label" id="shape-l">How progress comes</span>
                 <div className="seg full" role="group" aria-labelledby="shape-l">
                   {SHAPES.map(([k, l]) => <button key={k} type="button" aria-pressed={d.shape === k} onClick={() => set({ shape: k })}>{l}</button>)}

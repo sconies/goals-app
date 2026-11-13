@@ -740,10 +740,12 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         const review = sc.reviews.find((r) => r.id === (input as ActionInput<'markReviewed'>).reviewId);
         toast(opts.said ?? `${n} ${n === 1 ? 'goal' : 'goals'} marked reviewed in ${review?.name ?? 'the review'}`, 'success', { label: 'Undo', run: unmark((c.decisions ?? []).map((d) => d.id)) });
       } else {
-        // A module's removal says what it did, with Undo, as the core's do (its actions.ts `said`).
+        // A module's removal or change says what it did, with Undo, as the core's do (its actions.ts `said`); a `said`
+        // that gives back nothing leaves the toast to the screen (adding a metric, say).
         const say = (said[name] ?? MODULE_ACTIONS[name]?.said) as ((o: unknown, i: unknown) => string) | undefined;
         // Undo puts back the workspace the saved run was based on: the latest, when it ran again.
-        if (say) toast(opts.said ?? say(out, input), 'success', { label: 'Undo', run: undoBy(c, before) });
+        const words = say ? opts.said ?? say(out, input) : '';
+        if (words) toast(words, 'success', { label: 'Undo', run: undoBy(c, before) });
       }
       return out as RunResult<N>;
     }

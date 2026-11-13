@@ -92,6 +92,8 @@ A header is read as its column when it is the column’s name or one of these, i
 | Goals | Type | `goal type` |
 | Goals | Unit | `units` |
 | Goals | Start | `baseline` |
+| Goals | Baseline period | `baseline covers`, `baseline window` |
+| Goals | Baseline is | `provisional` |
 | Goals | Target | `target value`, `goal value` |
 | Goals | From | `from week` |
 | Goals | To | `to week` |

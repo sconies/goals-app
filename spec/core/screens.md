@@ -90,7 +90,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Show the … with nothing flagged” | button | `rest.length > 0` and `rest.length > shown.length` |
 | “Show all …” | button | `asks.length > shown.length` |
 | “Check in” | link | `a.goal.ownerId === app.viewer.id && a.flags.some((f) => f.kind === 'due' \|\| f.kind === 'stale' \|\| f.kind === …` |
-| “See the wrap-up” | link | `wrapUpOpenOn(app.cycle, app.today)` |
+| “See the wrap-up” | link | `wrapping` |
 | “See Cycles / Start …” | link | always |
 | “… (worked out when it shows)” | button | `r.id === 'invite'` |
 | “… (worked out when it shows)” | link | `!(r.id === 'invite')` and `r.to` |
@@ -261,82 +261,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Send the report” | primary | `s` and `!sent` |
 | “End this session” | button | `s` |
 
-## Watching
-
-[src/screens/Watching.tsx](../../src/screens/Watching.tsx)
-
-- `/watching` (`Watching`): Watch the goals you care about but don’t own, and see what changed in them without opening each one. Help: “Watching goals” (`watching`).
-
-- **Named parts:** “What changed this week”, “What you watch”, “You’re not watching anything”, “What changed (region)”
-- **Main action:** Open a goal you watch that needs attention.
-- **Primary buttons in its markup:** none written as plain text
-- **AI tools:** `list_watching`, `find_goals`, `watch`, `unwatch`
-
-**Pictures** (`/goals?scope=watching` as rhea): [390 wide](screens/watching-390.jpg), [1440 wide](screens/watching-1440.jpg)
-
-<img src="screens/watching-390.jpg" alt="Watching at 390 wide" width="195"> <img src="screens/watching-1440.jpg" alt="Watching at 1440 wide" width="480">
-
-**Fields**
-
-None: nothing to type or choose here.
-
-**States**
-
-None written in its markup beyond the screen itself: it draws what it has.
-
-**Buttons, and who sees them**
-
-| Button | Kind | Shown when |
-|---|---|---|
-| “Done / Change” | button | always |
-| “Show all …” | button | `!open` |
-| “Stop” | button | `managing` |
-| “Watch …” | button | always |
-| “Pick goals from the list” | link | `!allMine` |
-| “Watch every … goal (…)” | button | `!allMine` |
-
-## Retro
-
-[src/screens/Retro.tsx](../../src/screens/Retro.tsx)
-
-- `/retro` (`WrapUp`): In the last two weeks of the year, owners wrap up each goal; then an admin starts the next year. Help: “Wrapping up the year, and the next one” (`wrap-up`).
-- `/retro/:goalId` (`RetroGoal`): In the last two weeks of the year, owners wrap up each goal; then an admin starts the next year. Help: “Wrapping up the year, and the next one” (`wrap-up`).
-
-- **Named parts:** none written as plain text
-- **Main action:** Wrap up each goal you own: how it landed, what you learned, and carry it on or stop it.
-- **Primary buttons in its markup:** none written as plain text
-- **AI tools:** `get_wrap_up`, `wrap_up_goal`, `start_next_cycle`
-
-**Pictures** (`/retro` as rhea): [390 wide](screens/retro-390.jpg), [1440 wide](screens/retro-1440.jpg)
-
-<img src="screens/retro-390.jpg" alt="Retro at 390 wide" width="195"> <img src="screens/retro-1440.jpg" alt="Retro at 1440 wide" width="480">
-
-**Fields**
-
-| Field | Kind | Shown when |
-|---|---|---|
-| “What did you learn?” | textarea | always |
-
-**States**
-
-| State | What it says | Shown when |
-|---|---|---|
-| empty | “No goals this …” | `!all.length` |
-| empty | “This goal isn’t in this …” | `!goal` |
-| empty | “Only its owner wraps up this goal” | `goal.ownerId !== app.viewer.id && !app.viewer.admin` |
-| error | “Write a sentence about what you learned.” | `tried and !ok` |
-
-**Buttons, and who sees them**
-
-| Button | Kind | Shown when |
-|---|---|---|
-| “Wrap up …” | primary | `open` and `mine.length > 0` and `myLeft.length > 0` |
-| “See Cycles / Start …” | link | `app.viewer.admin && !app.earlier && cycleState(app.cycle, app.today) !== 'before' && cycleState(app.cycle, ap…` |
-| “Back to the wrap-up” | link | always |
-| “Carry it on” | button | always |
-| “Stop it here” | button | always |
-| “Saving… / Save changes / Save and continue” | primary | always |
-
 ## GoalsScreen
 
 [src/screens/GoalsScreen.tsx](../../src/screens/GoalsScreen.tsx)
@@ -370,7 +294,7 @@ None: nothing to type or choose here.
 |---|---|---|
 | “… · …” | button | always |
 | “New goal” | link | always |
-| “Wrap up” | link | `wrapUpOpenOn(app.cycle, app.today)` |
+| “Wrap up” | link | `wrapUpOn(modules.on) && wrapUpOpenOn(app.cycle, app.today)` |
 | “… (worked out when it shows)” | button | `app.snapshot.goals.length > 0` |
 | “Set up the first goal” | primary | `!app.snapshot.goals.length` |
 | “Save this view…” | button | `canSave` |
@@ -431,6 +355,8 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Start a new one” | button | `restored` and `!asking` |
 | “Discard it” | button | `asking` |
 | “Keep it” | button | `asking` |
+| “No target agreed yet? Propose it with just the baseline” | button | `step === 2` and `d.kind === 'metric'` and `!proposing && baselineOnly(d)` |
+| “Baseline known for a period?” | button | `step === 2` and `d.kind === 'metric'` and `!(baselineOpen \|\| d.baselinePeriod)` |
 | “At most” | button | `step === 2` and `d.kind === 'range'` |
 | “At least” | button | `step === 2` and `d.kind === 'range'` |
 | “Between” | button | `step === 2` and `d.kind === 'range'` |
@@ -686,11 +612,11 @@ None written in its markup beyond the screen itself: it draws what it has.
 - `/workspace` (`WorkspaceHome`): Workspace opens on About: for admins, what needs sorting out; then the facts about this workspace, each leading to its section. Its other sections are Cycles, Privacy and Recently removed for everyone, and Access and Features for admins. Help: “Workspace: about this one” (`workspace`).
 - `/workspace/cycles` (`WorkspaceHome`): The workspace’s goal years, newest first, with their dates, which one is running and the wrap-up; admins can delete one nobody has checked in to yet. Help: “Workspace: Cycles” (`workspace-cycles`).
 - `/workspace/access` (`WorkspaceHome`): For admins: who the admins are, and MCP access: the MCP tokens Claude or another AI tool uses to act as someone in this workspace. Help: “Workspace: Access” (`workspace-access`).
-- `/workspace/features` (`WorkspaceHome`): Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace: how you work (Reviews) and tools such as the Metric library and Spreadsheets. Help: “Features: switching parts of Faro on or off” (`features`).
+- `/workspace/features` (`WorkspaceHome`): Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace, in three groups: working together, tools, and beyond this workspace. Help: “Features: switching parts of Faro on or off” (`features`).
 - `/workspace/privacy` (`WorkspaceHome`): The app records how it is used, never what you type, so the people building it can see what is slow, broken or hard to use. Help: “What the app records” (`recording`).
 - `/workspace/removed` (`WorkspaceHome`): Anything you make can be taken away again: people leave, goals stop, check-ins, reviews, comments and views go, an import can be undone, and nothing is ever lost. Help: “Removing, stopping and undoing” (`removing`).
 
-- **Named parts:** “More in Workspace”, “About this workspace”, “How you work”, “Tools”, “Delete”, “Workspace sections (region)”, “Cycles (region)”, “What the app records (region)”, “Features (region)”
+- **Named parts:** “More in Workspace”, “About this workspace”, “Delete”, “Workspace sections (region)”, “Cycles (region)”, “What the app records (region)”, “Features (region)”
 - **Main action:** For an admin, sort out what About lists; for anyone, read the facts and open the section each leads to.
 - **Primary buttons in its markup:** “Switch off Reviews”
 - **AI tools:** `list_people`, `list_tokens`, `create_token`, `revoke_token`, `delete_workspace`, `rename_workspace`, `set_recording`, `set_feature`, `list_removed`, `restore_removed`, `delete_cycle`, `undo_start_cycle`, `start_next_cycle`
@@ -706,7 +632,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Who” | PickOne | always |
 | “Workspace name” | text | always |
 | “Record how the app is used here” | checkbox | an admin |
-| “… review is / reviews are set up. Off until … is on. On / Off” | checkbox | always |
+| “… Off until … is on. On / Off” | checkbox | always |
 | “Type … to confirm” | text | `open` |
 
 **States**
@@ -728,7 +654,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Undo” | button | `admin && can?.ok && c.id !== later?.id` |
 | “Open the wrap-up” | link | `!current` and `open` |
 | “Open the wrap-up” | link | `current` and `open` |
-| “See the wrap-up” | link | `current` and `!open` and `anyCheckIn` |
+| “See the wrap-up” | link | `current` and `!open` and `wrapUp` and `anyCheckIn` |
 | “Delete…” | button | an admin and `st.deletable` and `!start` and `asking !== c.id` |
 | “Yes, delete it” | button | `asking === c.id` |
 | “Cancel” | button | `asking === c.id` |
@@ -739,6 +665,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Rename” | button | an admin |
 | “Yes, turn it on” | button | an admin and `asking` |
 | “Cancel” | button | an admin and `asking` |
+| “… (worked out when it shows)” | primary | always |
 | “Switch off Reviews” | primary | always |
 | “Delete this workspace…” | button | `!open` |
 | “Cancel” | button | `open` |
@@ -896,35 +823,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Saving… / Save … / Save emails” | button | always |
 | “Save / Add” | primary | always |
 
-## Feedback
-
-[src/screens/Feedback.tsx](../../src/screens/Feedback.tsx)
-
-- `/feedback` (`Feedback`): Every markup and piece of feedback people send, from every workspace and the demo, on its own page, Feedback, beside Help. Open to anyone with no sign-in: work through it like an inbox, from New to In hand to Closed. Help: “The inbox” (`inbox`).
-
-- **Named parts:** “Feedback”
-- **Main action:** Handle the open markup or feedback (in hand, fixed or won’t fix) and go on to the next.
-- **Primary buttons in its markup:** none written as plain text
-- **AI tools:** `list_markups`, `get_markup`, `update_markup`, `list_feedback`, `get_feedback`, `update_feedback`, `review_inbox`, `send_feedback`
-
-**Pictures** (`/feedback` as amara): [390 wide](screens/feedback-390.jpg), [1440 wide](screens/feedback-1440.jpg)
-
-<img src="screens/feedback-390.jpg" alt="Feedback at 390 wide" width="195"> <img src="screens/feedback-1440.jpg" alt="Feedback at 1440 wide" width="480">
-
-**Fields**
-
-None: nothing to type or choose here.
-
-**States**
-
-None written in its markup beyond the screen itself: it draws what it has.
-
-**Buttons, and who sees them**
-
-| Button | Kind | Shown when |
-|---|---|---|
-| “Send feedback” | button | `onSend` |
-
 ## StartNext
 
 [src/screens/StartNext.tsx](../../src/screens/StartNext.tsx)
@@ -1059,6 +957,35 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Carry on” | primary | `back` and `draft` and `!discarding` |
 | “Set up a workspace” | primary | `!back` |
 
+## Feedback
+
+[src/screens/Feedback.tsx](../../src/screens/Feedback.tsx)
+
+- `/feedback` (`Feedback`)
+
+- **Named parts:** “Feedback”
+- **Main action:** Handle the open markup or feedback (in hand, fixed or won’t fix) and go on to the next.
+- **Primary buttons in its markup:** none written as plain text
+- **AI tools:** `list_markups`, `get_markup`, `update_markup`, `list_feedback`, `get_feedback`, `update_feedback`, `review_inbox`, `send_feedback`
+
+**Pictures** (`/feedback` as amara): [390 wide](screens/feedback-390.jpg), [1440 wide](screens/feedback-1440.jpg)
+
+<img src="screens/feedback-390.jpg" alt="Feedback at 390 wide" width="195"> <img src="screens/feedback-1440.jpg" alt="Feedback at 1440 wide" width="480">
+
+**Fields**
+
+None: nothing to type or choose here.
+
+**States**
+
+None written in its markup beyond the screen itself: it draws what it has.
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “Send feedback” | button | `onSend` |
+
 ## Review
 
 [src/screens/Review.tsx](../../src/screens/Review.tsx)
@@ -1113,6 +1040,82 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Saving… / Finish the review / Mark … reviewed” | primary | always |
 | “Every week / Every … weeks” | button | always |
 | “Save changes / Set up the review” | primary | always |
+
+## Watching
+
+[src/screens/Watching.tsx](../../src/screens/Watching.tsx)
+
+- `/watching` (`Watching`)
+
+- **Named parts:** “What changed this week”, “What you watch”, “You’re not watching anything”, “What changed (region)”
+- **Main action:** Open a goal you watch that needs attention.
+- **Primary buttons in its markup:** none written as plain text
+- **AI tools:** `list_watching`, `find_goals`, `watch`, `unwatch`
+
+**Pictures** (`/goals?scope=watching` as rhea): [390 wide](screens/watching-390.jpg), [1440 wide](screens/watching-1440.jpg)
+
+<img src="screens/watching-390.jpg" alt="Watching at 390 wide" width="195"> <img src="screens/watching-1440.jpg" alt="Watching at 1440 wide" width="480">
+
+**Fields**
+
+None: nothing to type or choose here.
+
+**States**
+
+None written in its markup beyond the screen itself: it draws what it has.
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “Done / Change” | button | always |
+| “Show all …” | button | `!open` |
+| “Stop” | button | `managing` |
+| “Watch …” | button | always |
+| “Pick goals from the list” | link | `!allMine` |
+| “Watch every … goal (…)” | button | `!allMine` |
+
+## Retro
+
+[src/screens/Retro.tsx](../../src/screens/Retro.tsx)
+
+- `/retro` (`WrapUp`)
+- `/retro/:goalId` (`RetroGoal`)
+
+- **Named parts:** none written as plain text
+- **Main action:** Wrap up each goal you own: how it landed, what you learned, and carry it on or stop it.
+- **Primary buttons in its markup:** none written as plain text
+- **AI tools:** `get_wrap_up`, `wrap_up_goal`, `start_next_cycle`
+
+**Pictures** (`/retro` as rhea): [390 wide](screens/retro-390.jpg), [1440 wide](screens/retro-1440.jpg)
+
+<img src="screens/retro-390.jpg" alt="Retro at 390 wide" width="195"> <img src="screens/retro-1440.jpg" alt="Retro at 1440 wide" width="480">
+
+**Fields**
+
+| Field | Kind | Shown when |
+|---|---|---|
+| “What did you learn?” | textarea | always |
+
+**States**
+
+| State | What it says | Shown when |
+|---|---|---|
+| empty | “No goals this …” | `!all.length` |
+| empty | “This goal isn’t in this …” | `!goal` |
+| empty | “Only its owner wraps up this goal” | `goal.ownerId !== app.viewer.id && !app.viewer.admin` |
+| error | “Write a sentence about what you learned.” | `tried and !ok` |
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “Wrap up …” | primary | `open` and `mine.length > 0` and `myLeft.length > 0` |
+| “See Cycles / Start …” | link | `app.viewer.admin && !app.earlier && cycleState(app.cycle, app.today) !== 'before' && cycleState(app.cycle, ap…` |
+| “Back to the wrap-up” | link | always |
+| “Carry it on” | button | always |
+| “Stop it here” | button | always |
+| “Saving… / Save changes / Save and continue” | primary | always |
 
 ## Views, overlays and pages with no route of their own
 
@@ -1258,7 +1261,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 |---|---|---|
 | “Change owner” | button | always |
 | “Change level” | button | always |
-| “Watch” | button | always |
+| “Watch” | button | `watching` |
 | “Clear” | button | always |
 | “Cancel” | button | always |
 | “Saving… / Save” | primary | always |
@@ -1389,7 +1392,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “Finish it” | primary | `canActivate` and `missing.length` |
+| “Set the target / Finish it” | primary | `canActivate` and `missing.length` |
 | “Make it active” | primary | `canActivate` and `!missing.length` |
 | “Change it” | link | `canActivate` |
 | “Withdraw it” | button | `canActivate` |

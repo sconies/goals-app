@@ -25,6 +25,11 @@ export const LAYOUT_ABOUT: Record<Layout, string> = {
 const KEY = 'goals-app-layout';
 const isLayout = (v: string | null): v is Layout => !!v && LAYOUTS.some(([k]) => k === v);
 
+/** The layouts a workspace has: the Map only while the Goal map is on (SW1; src/app/reads.ts goalMapOn). */
+export const layoutsOn = (map: boolean): [Layout, string][] => (map ? LAYOUTS : LAYOUTS.filter(([k]) => k !== 'map'));
+/** What Goals says once when a link, saved view or remembered choice asked for the Map while the Goal map is off. */
+export const MAP_OFF_NOTE = 'The Goal map is off here, so this is the List.';
+
 /** The layout that went (Lane, 9 Nov): a link, saved view or remembered choice naming it opens the list. */
 export const GONE_LAYOUT = 'cards';
 export const GONE_LAYOUT_NOTE = 'Cards has gone, so these goals are in List, which shows everything Cards did.';
@@ -39,13 +44,15 @@ export function forgetGoneLayout(): boolean {
 }
 
 /** The layout from the address, else this person's last choice, else the list. */
-export function useLayout(): [Layout, (l: Layout) => void] {
+export function useLayout(map = true): [Layout, (l: Layout) => void] {
   const [params, setParams] = useSearchParams();
   const latest = useLatestParams();
   let saved: string | null = null;
   try { saved = localStorage.getItem(KEY); } catch { /* storage blocked */ }
   const fromUrl = params.get('view');
-  const layout: Layout = isLayout(fromUrl) ? fromUrl : isLayout(saved) ? saved : 'list';
+  // With the Goal map off (SW1), a Map asked for opens the List (Goals says so once, MAP_OFF_NOTE).
+  const known = (v: string | null): v is Layout => isLayout(v) && (map || v !== 'map');
+  const layout: Layout = known(fromUrl) ? fromUrl : known(saved) ? saved : 'list';
   // Each layout is a step Back can return to (outside review, 9 Nov): a new history entry, never a replaced one. The
   // list is the address without a layout, unless the layout came from this person's last choice: then the address
   // says view=list, so the step is a real change of address and Back after it shows the layout it left.
@@ -65,10 +72,10 @@ export function useLayout(): [Layout, (l: Layout) => void] {
  * The layouts are one choice on every width (goals spec, 2.1, item 3.6; GL2): the button says the open layout, and the
  * menu says what each one is. On a phone it is the View sheet's first group instead.
  */
-export function LayoutMenu({ layout, onChange }: { layout: Layout; onChange: (l: Layout) => void }) {
+export function LayoutMenu({ layout, onChange, layouts = LAYOUTS }: { layout: Layout; onChange: (l: Layout) => void; layouts?: [Layout, string][] }) {
   return (
     <MenuButton className="layout-menu" label="Layout" summary="" markCurrent display={`Layout: ${layoutName(layout)}`}
-      items={LAYOUTS.map(([k, label]) => ({ label, hint: layoutLine(k), icon: <LayoutIcon k={k} />, current: k === layout, onClick: () => onChange(k) }))} />
+      items={layouts.map(([k, label]) => ({ label, hint: layoutLine(k), icon: <LayoutIcon k={k} />, current: k === layout, onClick: () => onChange(k) }))} />
   );
 }
 

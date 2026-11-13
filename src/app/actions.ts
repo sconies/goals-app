@@ -53,7 +53,7 @@ import type { Commit } from '../domain/commit';
 import MODULE_PARTS from 'virtual:faro-modules/actions';
 import { recordsOn } from '../core/records';
 import { isModuleOn, moduleById, modulesOn } from '../core/registry';
-import { reviewsOffWords, reviewsOn, reviewWriteRows, switchedOffWords } from './reads';
+import { moduleOffWords, reviewsOffWords, reviewsOn, reviewWriteRows, SWITCHED_ACTIONS, switchedOffWords } from './reads';
 import { writesReviews } from '../domain/reviewWrites';
 
 /** What the dispatcher hands each action: the rules' context, and the workspace itself for the few that change it. */
@@ -178,13 +178,14 @@ export type ActionResult<N extends ActionName> = ReturnType<(typeof ACTIONS)[N]>
 
 /**
  * A feature module's action (AS part 2): registered in the same table by the module's actions.ts, read through the
- * registry (virtual:faro-modules/actions), so app/state.tsx carries no method for it. `said` is what a removal says,
- * with Undo, as the core's removals do.
+ * registry (virtual:faro-modules/actions), so app/state.tsx carries no method for it. `said` is what a removal or a
+ * change says, with Undo, as the core's removals do.
  */
 export interface ModuleAction<I = any, O = any> {
   run(x: RunContext, input: I): O;
   /** The AI tools that do the same, so an assistant can do whatever a person can (src/mcp/parity.test.ts). */
   tools: string[];
+  /** What the toast says, with Undo; an empty string: no toast (the screen says its own). */
   said?(out: NonNullable<O>, input: I): string;
   /** Loads what `run` needs, when that is too large for the first download: the dispatcher awaits it first (`ready`). */
   ready?(): Promise<void>;
@@ -218,6 +219,9 @@ export function performAny(x: RunContext, name: string, input: unknown): unknown
   const fn = (ACTIONS as Record<string, (x: RunContext, i: unknown) => unknown>)[name];
   const mod = fn ? null : MODULE_ACTIONS[name];
   if (!fn && !mod) throw new Error(`There’s no action called ${String(name)}.`);
+  // Watching, the Wrap-up and Feedback (SW1) are switches whose actions are still the core's: each refuses while off.
+  const switched = SWITCHED_ACTIONS[name];
+  if (switched && !isModuleOn(x.workspace, switched)) throw new A.NotAllowed(moduleOffWords(moduleById(switched)?.name ?? switched, x.workspace.name));
   // A module switched off in the workspace runs nothing, as its AI tools say it's off.
   if (mod && !isModuleOn(x.workspace, mod.module)) throw new A.NotAllowed(switchedOffWords(moduleById(mod.module)?.name ?? mod.module, x.workspace.name));
   // Reviews' records are still the core's until FT3. While Reviews is off, whatever touches them is refused, by what it

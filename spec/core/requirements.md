@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (165): build it as Faro does.
+- **Copy** (174): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -376,7 +376,7 @@ A goal can be proposed before anyone is held to it: it is visible and can be dis
 - **Copy:** build it as Faro does.
 - **Rule:** [Proposed goals](rules/proposed.md)
 - **Help:** “Proposed goals” (`goal-proposed`), screens `ProposedGoal`, `ProposedList`
-- **Journeys and checks:** U134, U148, U149, U150
+- **Journeys and checks:** U134, U148, U149, U150, U163
 
 ### NEW-GOAL-TRUTH
 
@@ -387,6 +387,24 @@ A goal is never late or behind because of when it was typed in: a date already p
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Tests:** `evals/onboarding.eval.ts` (1)
 - **Journeys and checks:** U85
+
+### GOAL-BASELINE
+
+A baseline can be a figure of its own (BL). A number goal's Baseline can say the period it covers ("June to September 2026", at most 60 characters) and whether it is provisional, in New goal, Change a goal, the Goals sheet (Baseline period, Baseline is) and the tools (baseline_period, baseline_is). Until the goal's first check-in, it is shown as the goal's number, marked as the baseline: "41.5 min (baseline)" in lists, and the number with "Baseline, {period}, provisional" on its page; its status is worked out as before. Firming up a provisional baseline, moving the start it is, is not a plan change: it asks for no reason and keeps no earlier plan.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [A baseline of its own](rules/baseline.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Journeys and checks:** U162
+
+### GOAL-NO-TARGET
+
+A goal can go in with a baseline and nothing else yet (GB). While a number goal is proposed, its target may be left out: it keeps its baseline and unit, has no status, nothing due and is in no count, says "Target not set" (on its page, with Set the target, and in lists as "{baseline} now, target not set"), and is made active only once a target is set. New goal, Change a goal, the Goals sheet and the tools all allow it; an active goal still needs a target.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [Proposed goals](rules/proposed.md)
+- **Help:** “Proposed goals” (`goal-proposed`), screens `ProposedGoal`, `ProposedList`
+- **Journeys and checks:** U163
 
 ### GOAL-PAGE
 
@@ -507,7 +525,7 @@ Watching and commenting say who will see what before you do them.
 
 - **Copy:** build it as Faro does.
 - **Rule:** [Who a comment reaches](rules/comment-reach.md)
-- **Help:** “Watching goals” (`watching`), screens `Watching`; “A goal’s page” (`goal-page`), screens `GoalScreen`
+- **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** U80
 
 ### GOAL-PAGE-SCORECARD
@@ -905,80 +923,6 @@ A spreadsheet given at set-up is checked before the read-back, not after it: eve
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`
 - **Journeys and checks:** U147
 
-## Watching
-
-### WATCHING
-
-Anyone can watch a goal, a whole tree or a level. Watching shows those goals curated: needs attention, gone quiet, what changed this week, then on track, with a level filter.
-
-- **Copy:** build it as Faro does.
-- **Help:** “Watching goals” (`watching`), screens `Watching`
-- **Journeys and checks:** U7, U8, U9, U16, U31
-
-### ASK-UNDO
-
-Asking a quiet goal's owner for an update shows next to its status as asked, and when, until they check in. Whoever asked can undo it; undoing is logged and takes it off the owner's Home. Asking twice before they check in asks once.
-
-- **Copy:** build it as Faro does.
-- **Help:** “Watching goals” (`watching`), screens `Watching`; “A goal’s page” (`goal-page`), screens `GoalScreen`
-- **Journeys and checks:** U38
-
-### ONE-WATCHING
-
-Watching is one place: a Goals scope (/goals?show=watching, with /watching going there) with the full toolbar (filters, sort, layouts, export) and the What changed side column; levels are the ordinary Level filter. There is no four-tab navigation trial, and Home has one watching block.
-
-- **Copy:** build it as Faro does.
-- **Help:** “Watching goals” (`watching`), screens `Watching`
-- **Tests:** `evals/demo-storage.eval.ts` (2)
-- **Journeys and checks:** U8, U9, U16, U31
-
-## Cycles
-
-### RETRO
-
-From the last two weeks of a cycle, each owner wraps up their goals: how it landed (suggested from where it ended), one thing learned, carry on or stop. An admin then starts the next cycle; carried goals start from where they ended, stopped goals stay in the old cycle, and both are logged.
-
-- **Copy:** build it as Faro does.
-- **Help:** “Wrapping up the year, and the next one” (`wrap-up`), screens `Retro`
-- **Journeys and checks:** U10
-
-### YEAR
-
-Goals are set for the year: a goal year starting in the month each workspace picks, in four quarters. Quarter targets, and any week in between, are read off the owner’s own plan; each ended quarter shows met or missed against it, a missed quarter is flagged in the goal’s story, and history can be seen for this quarter or the whole year.
-
-- **Copy:** build it as Faro does.
-- **Rule:** [Weeks and plans](rules/weeks-and-plans.md), [A year’s end](rules/year-end.md)
-- **Help:** “History: quarter results and weekly status” (`history`), screens `GoalHistory`; “Wrapping up the year, and the next one” (`wrap-up`), screens `Retro`
-- **Journeys and checks:** U18, U23, U117
-
-### RESULTS
-
-A cycle ends on its last day (its last week's Sunday) whether or not the next is started: results and the last quarter close on the numbers there are, and nothing in it is due, late or out of date afterwards. Every place that says where the year stands gives its real first and last days: running, ending (the wrap-up's weeks), ended or not begun.
-
-- **Copy:** build it as Faro does.
-- **Rule:** [A year’s end](rules/year-end.md), [Starting the next year](rules/start-next-year.md)
-- **Help:** “Wrapping up the year, and the next one” (`wrap-up`), screens `Retro`; “Starting the next year” (`start-next-year`), screens `StartNext`; “Workspace: Cycles” (`workspace-cycles`)
-- **Journeys and checks:** U117
-
-### CARRY-GOALS
-
-An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on from their final number, from week 1, with their key, metric, watchers, open asks and place in reviews; no carried plan changes direction, starts late or has a stage after the year's end. Until someone uses a carried goal, a later final number or wrap-up keeps it true.
-
-- **Copy:** build it as Faro does.
-- **Rule:** [Starting the next year](rules/start-next-year.md), [The carry rule, and what comes with a goal](rules/carry.md)
-- **Help:** “Starting the next year” (`start-next-year`), screens `StartNext`
-- **Journeys and checks:** U115
-
-### CALENDAR-WEEKS
-
-A goal year's weeks follow the calendar: week 1 is the week with the first Thursday of the month the year starts in, so in a January year week n is ISO week n, and the year runs to the week before the next year's week 1 (52 or 53 weeks). Week 0, the week before, is for starting numbers. Setting up in the last days of December sets up next year. Shorter cycles count from their own start. Years stored under the old numbering are moved once, keeping every check-in, stage and plan on its date. The demo is set in the real calendar year, so its week is today's.
-
-- **Copy:** build it as Faro does.
-- **Rule:** [Weeks and plans](rules/weeks-and-plans.md)
-- **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`; “History: quarter results and weekly status” (`history`), screens `GoalHistory`
-- **Tests:** `evals/scenarios.eval.ts` (6)
-- **Journeys and checks:** U49
-
 ## Views
 
 ### VIEWS
@@ -988,15 +932,6 @@ The same goals can be seen as a list, a sortable table, a board by status, or a 
 - **Copy:** build it as Faro does.
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
 - **Journeys and checks:** N10, U19
-
-### GOAL-MAP
-
-A goal map shows every goal on a canvas that can be panned, zoomed and rearranged: north stars at the top, solid lines for feeds into, dotted lines for also helps, branches that fold and unfold, the list bar's Needs attention switch, and the critical path (the inputs most likely to make each top goal miss) drawn bold. It works at the size of a division (126 goals): it opens folded to the top goals with only the critical path beneath them; the trees wrap into rows so Fit all shows every goal; the list bar's search, on the Map, lists the goals it finds by name or key (G-48), and choosing one opens its tree, outlines it and moves to it without narrowing the Map (Enter with nothing chosen narrows, as on every layout); each goal shows its number, target and gap, and a goal others feed shows the worst status of everything under it (the List's roll-up, by the group-status rule); Troubled trees only keeps the trees with anything off track, at risk or without a recent update; the map refits whenever what it shows changes, and draws at once, with no staged wait. Selecting a goal shows its story beside the map. The map never removes a goal: Delete and Backspace do nothing on it. On a phone the same map is indented, one goal per row.
-
-- **Copy:** build it as Faro does.
-- **Rule:** [The goal map](rules/map.md)
-- **Help:** “The goal map” (`goal-map`), screens `GoalMap`
-- **Journeys and checks:** U26, U30, U135
 
 ## AI assistants
 
@@ -1047,6 +982,55 @@ Weekly status can be seen one quarter at a time (Q1 to Q4) or for the whole year
 
 - **Copy:** build it as Faro does.
 - **Help:** “History: quarter results and weekly status” (`history`), screens `GoalHistory`
+- **Journeys and checks:** U38
+
+## Cycles
+
+### YEAR
+
+Goals are set for the year: a goal year starting in the month each workspace picks, in four quarters. Quarter targets, and any week in between, are read off the owner’s own plan; each ended quarter shows met or missed against it, a missed quarter is flagged in the goal’s story, and history can be seen for this quarter or the whole year.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [Weeks and plans](rules/weeks-and-plans.md), [A year’s end](rules/year-end.md)
+- **Help:** “History: quarter results and weekly status” (`history`), screens `GoalHistory`
+- **Journeys and checks:** U18, U23, U117
+
+### RESULTS
+
+A cycle ends on its last day (its last week's Sunday) whether or not the next is started: results and the last quarter close on the numbers there are, and nothing in it is due, late or out of date afterwards. Every place that says where the year stands gives its real first and last days: running, ending (the wrap-up's weeks), ended or not begun.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [A year’s end](rules/year-end.md), [Starting the next year](rules/start-next-year.md)
+- **Help:** “Starting the next year” (`start-next-year`), screens `StartNext`; “Workspace: Cycles” (`workspace-cycles`)
+- **Journeys and checks:** U117
+
+### CARRY-GOALS
+
+An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on from their final number, from week 1, with their key, metric, watchers, open asks and place in reviews; no carried plan changes direction, starts late or has a stage after the year's end. Until someone uses a carried goal, a later final number or wrap-up keeps it true.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [Starting the next year](rules/start-next-year.md), [The carry rule, and what comes with a goal](rules/carry.md)
+- **Help:** “Starting the next year” (`start-next-year`), screens `StartNext`
+- **Journeys and checks:** U115
+
+### CALENDAR-WEEKS
+
+A goal year's weeks follow the calendar: week 1 is the week with the first Thursday of the month the year starts in, so in a January year week n is ISO week n, and the year runs to the week before the next year's week 1 (52 or 53 weeks). Week 0, the week before, is for starting numbers. Setting up in the last days of December sets up next year. Shorter cycles count from their own start. Years stored under the old numbering are moved once, keeping every check-in, stage and plan on its date. The demo is set in the real calendar year, so its week is today's.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [Weeks and plans](rules/weeks-and-plans.md)
+- **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`; “History: quarter results and weekly status” (`history`), screens `GoalHistory`
+- **Tests:** `evals/scenarios.eval.ts` (6)
+- **Journeys and checks:** U49
+
+## Watching
+
+### ASK-UNDO
+
+Asking a quiet goal's owner for an update shows next to its status as asked, and when, until they check in. Whoever asked can undo it; undoing is logged and takes it off the owner's Home. Asking twice before they check in asks once.
+
+- **Copy:** build it as Faro does.
+- **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** U38
 
 ## Research
@@ -1195,14 +1179,6 @@ Workspace is one place (backlog WS). The sidebar's header (and a phone's top bar
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`
 - **Journeys and checks:** U53
 
-### FEEDBACK-PAGE
-
-The inbox of markups and feedback is its own page, Feedback (/feedback), beside Help in the sidebar and in More on a phone, labelled "From every workspace and the demo". It is open to everyone, with every status change recorded and undoable, and names people, never their email. /workspace/inbox and older inbox links lead there. The MCP inbox tools are unchanged.
-
-- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R5. Notifications and the weekly habit](../requirements/internal/r5-notifications-and-habits.md).
-- **Help:** “The inbox” (`inbox`), screens `Feedback`
-- **Journeys and checks:** U53
-
 ### LEAVE-WORKSPACE
 
 Anyone can leave a workspace from Settings (last, after a rule), with a confirm that first asks who takes over their goals and open asks; the only admin sees the button disabled and why. Resetting the example is the demo's Start over, for everyone, and says it only touches this browser; deleting a workspace of your own is for admins, at the foot of About. Set-up asks whether to record how the app is used (off unless ticked), its "Who are you?" step starts as the person you are, and steps skipped on the "Set goals up later" path say so.
@@ -1268,7 +1244,6 @@ On the icon rail the Faro mark is the workspace switcher: it opens the same pane
 No count of nought beside a tab, a menu row or a section's name (a sentence may still say none), and an empty page says what is true, then when you'd want it, with a plain button rather than the page's primary.
 
 - **Copy:** build it as Faro does.
-- **Help:** “Watching goals” (`watching`), screens `Watching`
 - **Journeys and checks:** N28
 
 ## Finding
@@ -1420,69 +1395,6 @@ One ask model: a decision or help, an update, a question and an action are each 
 - **Tests:** `src/mcp/mcp.test.ts` (1), `evals/asks.eval.ts` (8), `evals/review-notes.eval.ts` (1)
 - **Journeys and checks:** U3, U8, U16, U33, U36, U37, U38, U78
 
-## Feedback
-
-### MARKUP
-
-Send feedback's first choice, Mark up this screen (and Ctrl+Shift+M or Cmd+Shift+M anywhere), takes the visible screen as a still picture, loaded only when a markup starts, and gives a slim toolbar: Pen, Arrow, Box, Note (a numbered pin with a few words), Undo, Clear, Cancel and Next, in one high-contrast ink, with the page frozen, by mouse, touch or the keyboard alone, and Escape cancelling. Next asks one required line (What should change?), the Send feedback moods and shows the exact picture that will be sent; Include my last 20 steps on this visit is ticked, with a link to Help. Send says “Sent. You’ll hear when it’s fixed.” A markup carries the screen and the drawing as separate pictures, the strokes and pins as vectors, the named screen parts (data-part) under each, the route, the goal or review, viewport, theme, accent, app version, the steps (if ticked) and the visit's errors and failed saves. Markups from the demo are kept too, marked demo; the public key can only add a markup, under an id the database issued, and upload its pictures to a bucket anyone can read a picture from by its address but nobody can list. A What’s new entry that lists (or was marked as fixing) a markup says “You raised this” to its sender.
-
-- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
-- **Help:** “Send feedback, and marking up a screen” (`feedback`)
-- **Journeys and checks:** U41, U42
-
-### MARKUP-INBOX
-
-Workspace has an Inbox, open to anyone with no sign-in, in the live app and the demo (backlog O, migration 0031: Faro never holds real data; the internal app keeps it restricted, spec R1 rule 6). It lists every markup, newest first, grouped by page and part with a count, each with a thumbnail, its line, its page, who sent it, when, and its status as a shape plus a word (New, In hand, Fixed, Won’t fix). A markup opens with its picture (the drawing can be hidden), the named parts, the steps as a timeline, errors and where it came from. Anyone marks it in hand, opens a pre-filled GitHub issue and pastes its address back, marks it fixed in a What’s new entry, or says why it won’t be fixed, through the one status rule; each change is recorded as the person using the app (who and when, shown on the markup) and offers Undo, which puts back the status it replaced through the same rule. The public key reads markups and changes only their triage columns. With any token, the MCP tools list_markups, get_markup and update_markup do the same through security-definer functions, with no new secret.
-
-- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
-- **Help:** “The inbox” (`inbox`), screens `Feedback`
-- **Journeys and checks:** U42, U47, U52
-
-### CONNECT-CLAUDE
-
-Connect Claude sits at the top of the inbox (backlog -2, opened up by backlog O): any Faro token works, so an admin makes an ordinary token for themselves there (in the app, not the demo; the same action as Workspace’s AI assistants), anyone else is told who can, and the demo says tokens are made in the real app. It gives the exact set-up for a Claude cloud session (the host, and where the token goes) and for Claude Code, and says whether the server can send pictures (GET /api/mcp?check) and, if not, why. There is no email sign-in and no builder token: tokens are listed and revoked on Workspace and in Settings. A markup records the address it was sent from, so the inbox and the tools say when it came from a preview build or a laptop.
-
-- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
-- **Help:** “The inbox” (`inbox`), screens `Feedback`
-- **Journeys and checks:** U47
-
-### MCP-PICTURES
-
-A markup's picture comes back inside get_markup as MCP image content (the screen with the drawing, or the screen alone, or none), not as a link. review_inbox returns everything new (or with a given status) in one step: markups grouped by screen part, newest first, each group's newest with its picture, within a size budget, and feedback grouped by page; the server also offers it as the review_inbox prompt. Pictures are in a public-read bucket that nobody can list (migration 0031), so the inbox shows them by their address and the server reads them itself with either key; when the bucket isn't open, get_markup, review_inbox, the picture address and GET /api/mcp?check say so plainly, and a check after each deploy fails.
-
-- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
-- **Help:** “The inbox” (`inbox`), screens `Feedback`
-
-### FEEDBACK-INBOX
-
-Feedback sent with a mood and a few words joins the inbox (migration 0026): it is listed among the markups, newest first, each with its status as a shape plus a word (New, In hand, Fixed, Won’t fix), its words, its mood and page, who sent it, from which workspace and when. Anyone opens it and triages it with the markups’ rules: mark it in hand, fixed in a What’s new entry, won’t fix with a reason, or new again, each change recorded as the person using the app and undoable. Feedback always arrives New: the public key can only add feedback’s own columns, and reads every workspace’s feedback (okr_feedback_inbox) and changes its status (okr_feedback_triage) only through those functions (migration 0031). With no database, the inbox shows this workspace’s feedback, its statuses kept in the browser.
-
-- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R5. Notifications and the weekly habit](../requirements/internal/r5-notifications-and-habits.md).
-- **Help:** “The inbox” (`inbox`), screens `Feedback`
-- **Journeys and checks:** U42, U52, U92
-
-### INBOX-TRIAGE
-
-The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. Only an admin changes a status, refused by the rule otherwise; everyone reads and sends feedback. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox.
-
-- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R5. Notifications and the weekly habit](../requirements/internal/r5-notifications-and-habits.md).
-- **Help:** “The inbox” (`inbox`), screens `Feedback`
-- **Journeys and checks:** U42, U52
-
-### MCP-FEEDBACK
-
-The AI triages feedback as it does markups (migrations 0028 and 0031). With any token, list_feedback lists every workspace’s feedback, newest first, each with its status (New, In hand, Fixed, Won’t fix), filtered by status or workspace; get_feedback opens one; update_feedback changes its status with the inbox’s rules (fixed names a What’s new entry, won’t fix needs a reason), recorded as the token’s person via the assistant. They go through security-definer functions for tokens (okr_feedback_for_token, okr_feedback_triage_for_token), which refuse a revoked or unknown token and share one change with the inbox (okr_feedback_patch, callable by no key on its own), so no new secret is needed.
-
-- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
-- **Help:** “The inbox” (`inbox`), screens `Feedback`
-
-### FEEDBACK-RAISED
-
-What’s new says “You raised this” to whoever sent feedback that an entry fixed, as it does for markups: the entry names the feedback’s id in its fixes, or a builder marked the feedback fixed in that entry. It is matched by person and feedback id, so nobody else’s feedback counts. The database tells a person which of their own feedback was fixed where (okr_feedback_raised, ids and statuses only, as okr_markups_raised does for markups); with no database, the inbox in this browser does.
-
-- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R5. Notifications and the weekly habit](../requirements/internal/r5-notifications-and-habits.md).
-- **Help:** “Send feedback, and marking up a screen” (`feedback`)
-
 ## Removing
 
 ### REMOVE-ANYTHING
@@ -1530,7 +1442,15 @@ Faro is a small core with named extension points (routes, navigation, Home block
 - **Copy:** build it as Faro does.
 - **Help:** “Features: switching parts of Faro on or off” (`features`)
 - **Tests:** `evals/modules.eval.ts` (4)
-- **Journeys and checks:** N21, U48, U103, U104
+- **Journeys and checks:** N21, N22, U48, U103, U104, U164, U165, U166
+
+### FEATURE-GROUPS
+
+Workspace, Features lists the optional features in groups: Working together (Reviews, Watching, the Wrap-up), Tools (the Metric library, Spreadsheets, the Goal map) and Beyond this workspace (Feedback); a group with nothing installed is not shown. A feature on that holds something says so in a third line (how many reviews are set up, how many people watch goals, when the wrap-up opens). About lists what is on in the same order.
+
+- **Copy:** build it as Faro does.
+- **Help:** “Features: switching parts of Faro on or off” (`features`)
+- **Journeys and checks:** N22, U164
 
 ## Numbers
 

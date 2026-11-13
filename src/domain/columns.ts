@@ -11,6 +11,7 @@ import { EVERYDAY_WORD, LEVEL_WORDS } from './levels';
 export { LEVEL_WORDS };
 import { ASK_KIND_LABEL, ASK_STATUS_LABEL, asksOf } from './asks';
 import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, MIN_PATH, MIN_REASON } from './checkin';
+import { readingCells } from './reading';
 import { planAsOf, planAt, planEnd, weekDate } from './plan';
 import { weekCode } from './weeks';
 import { answerOf, saidIn, type Said } from './review';
@@ -118,6 +119,8 @@ export const andList = (list: string[]) => (list.length < 2 ? list.join('') : `$
 
 export const TYPE_WORDS: Words<Goal['kind']> = { what: 'Type', word: { metric: 'metric', range: 'range', milestone: 'milestone' }, also: { metric: ['move a number', 'number'], range: ['keep a number in range', 'keep in range'], milestone: ['hit dated stages', 'stages'] }, prefix: { metric: ['metric', 'move'], range: ['range', 'keep'], milestone: ['mile', 'hit'] } };
 export const SHAPE_WORDS: Words<PlanShape> = { what: 'Plan', word: { straight: 'straight', back: 'back-loaded', stepped: 'stepped' }, also: { straight: ['linear', 'straight line'], back: ['back', 'backloaded', 'back loaded'], stepped: ['steps', 'step'] } };
+/** A baseline's firmness (BL): provisional, or firm. */
+export const FIRMNESS_WORDS: Words<'provisional' | 'firm'> = { what: 'Baseline is', word: { provisional: 'provisional', firm: 'firm' }, also: { provisional: ['yes', 'y', 'true', 'draft', 'estimate'], firm: ['no', 'n', 'false', 'final', 'confirmed'] } };
 export const BOUND_WORDS: Words<'atMost' | 'atLeast' | 'between'> = { what: 'Must stay', word: { atMost: 'at most', atLeast: 'at least', between: 'between' }, also: { atMost: ['atmost', 'max', 'maximum', '<=', '≤', 'below'], atLeast: ['atleast', 'min', 'minimum', '>=', '≥', 'above'] } };
 export const YES_WORDS: Words<'yes' | 'no'> = { what: 'Admin', word: { yes: 'yes', no: 'no' }, also: { yes: ['y', 'true', '1', 'x', 'admin'], no: ['n', 'false', '0'] } };
 export const CALL_WORDS: Words<Status> = {
@@ -208,7 +211,9 @@ export const GOALS: SheetSpec<GoalRow> = {
     e('Unit', 'Number and range goals: what the number counts (%, days, ms).', (r) => (r.g.kind === 'milestone' ? null : or(r.g.unit))),
     e('Decimals', 'Number and range goals: how many decimal places the number has (0 to 3).', (r) => (r.g.kind === 'milestone' ? null : r.g.decimals)),
     e('Start', 'Number goals: where the plan starts.', (r) => metricOf(r.g)?.plan.start ?? null, 'Changes the plan; needs a reason once check-ins have started'),
-    e('Target', 'Number goals: where the plan ends, by its due week.', (r) => metricOf(r.g)?.plan.target ?? null, 'Changes the plan; needs a reason once check-ins have started'),
+    e('Baseline period', 'Number goals: the period the baseline (Start) covers, when it is a figure you already have (June to September 2026). Shown as the goal’s number until its first check-in.', (r) => metricOf(r.g)?.baseline?.period ?? null),
+    e('Baseline is', `Number goals with a baseline period: ${oneOf(Object.values(FIRMNESS_WORDS.word))}. Firming up a provisional baseline isn’t a plan change.`, (r) => { const b = metricOf(r.g)?.baseline; return b ? FIRMNESS_WORDS.word[b.provisional ? 'provisional' : 'firm'] : null; }),
+    e('Target', 'Number goals: where the plan ends, by its due week.', (r) => { const m = metricOf(r.g); return m && !m.targetUnset ? m.plan.target : null; }, 'Changes the plan; needs a reason once check-ins have started'),
     e('Plan', `Number goals: the plan’s shape, ${oneOf(Object.values(SHAPE_WORDS.word))}.`, (r) => { const g = metricOf(r.g); return g ? SHAPE_WORDS.word[g.plan.shape] : null; }, 'Changes the plan; needs a reason once check-ins have started'),
     e('From', 'Number goals: the week the plan starts from (2026-W46).', (r) => { const g = metricOf(r.g); return g ? weekCode(r.c.x.cycle, g.plan.fromWeek ?? 0) : null; }, 'Changes the plan; needs a reason once check-ins have started'),
     e('Plan from week', 'Number goals: the week the plan starts from (0 for the cycle’s start, later for a goal set up mid-cycle).', (r) => { const g = metricOf(r.g); return g ? g.plan.fromWeek ?? 0 : null; }, 'Changes the plan; needs a reason once check-ins have started'),
@@ -263,6 +268,9 @@ export const planWeekValue = (r: PlanRow, week: number): Cell => {
   return week <= from || week > end ? null : Number(planAt(r.g.plan, week, r.c.x.cycle.weeks).toFixed(r.g.decimals));
 };
 
+/** A check-in's reading, as the sheet's four columns say it. */
+const cellsOf = (r: CheckInRow) => readingCells(r.ci, r.g.kind === 'milestone' ? 0 : r.g.decimals);
+
 export const CHECK_INS: SheetSpec<CheckInRow> = {
   kind: 'checkIns', name: 'Check-ins', rowIs: 'check-in', loaded: true,
   about: 'Every check-in: the number or stages reported each week, the owner’s call and their account of it. Add a row with no ID for a new check-in, a past week included.',
@@ -275,6 +283,11 @@ export const CHECK_INS: SheetSpec<CheckInRow> = {
     m('Week', 'The week it reports on, counted from the cycle’s start (week 1 onwards).', (r) => r.ci.week, 'Matches the week; a check-in’s week never changes'),
     w('Week starting', 'The date that week starts.', (r) => weekDate(r.c.x.cycle, r.ci.week)),
     e('Value', 'Number and range goals: the number that week.', (r) => r.ci.value),
+    // Where the number came from (MT4 3.3, NR 2.4): facts about the check-in, worked out and never loaded back.
+    w('Number from', '“Typed”, or the name of the source the number was filled in from. Empty when no source was read.', (r) => cellsOf(r).from),
+    w('Source’s number', 'What the source said, when one was read.', (r) => cellsOf(r).value),
+    w('Measured at', 'When the source measured it (ISO, UTC).', (r) => cellsOf(r).at),
+    sh('Reason for a different number', 'Why the owner’s number differs from the source’s, in their words.', (r) => cellsOf(r).reason),
     e('Stages', 'Milestone goals: each stage as “Pilot: done week 6”, “Pilot: expected week 8” or “Pilot: due week 7”, separated by semicolons.', (r) => or(stagesText(r.g, r.ci))),
     e('Call', `The owner’s status call: ${oneOf(Object.values(CALL_WORDS.word))}. Empty: the rules decide.`, (r) => CALL_WORDS.word[r.ci.status]),
     e('Cause', `Why it’s ahead or behind: ${oneOf([...new Set(Object.values(CAUSE_WORDS.word))])}.`, (r) => or(r.ci.cause ? causeLabel(r.ci.cause) : null), 'Required when behind or well ahead, as in the app'),
@@ -512,6 +525,8 @@ const FIELDS: Record<FillKind, Record<string, Field>> = {
     Unit: { required: { optional: 'no unit' }, format: 'Text', example: 'days', empty: 'No unit, never “%” by default: a Check asks once a file whether the numbers are plain counts', clears: true, also: ['units'] },
     Decimals: { required: { optional: 'from the numbers typed' }, format: '0, 1, 2 or 3', example: '1', empty: 'The most decimal places typed in Start, Target or Limit, up to 3' },
     Start: { required: { for: ['metric'] }, format: 'A number', example: '5', empty: 'Must fix for a number goal', also: ['baseline'] },
+    'Baseline period': { required: { optional: 'no baseline of its own' }, format: 'Text, at most 60 characters; none to remove it', example: 'June to September 2026', empty: 'As it is', also: ['baseline covers', 'baseline window'] },
+    'Baseline is': { required: { optional: FIRMNESS_WORDS.word.firm }, format: wordList(FIRMNESS_WORDS), example: FIRMNESS_WORDS.word.provisional, empty: 'As it is', also: ['provisional'] },
     Target: { required: { for: ['metric'] }, format: 'A number, different from Start', example: '1', empty: 'Must fix for a number goal', also: ['target value', 'goal value'] },
     Plan: { required: { optional: SHAPE_WORDS.word.straight }, format: wordList(SHAPE_WORDS), example: SHAPE_WORDS.word.back, empty: SHAPE_WORDS.word.straight },
     From: { required: { optional: 'this week' }, format: 'A year and a week', example: '2026-W46', empty: 'This week', also: ['from week'] },
@@ -547,6 +562,7 @@ const FIELDS: Record<FillKind, Record<string, Field>> = {
     'Goal ref': { required: { optional: 'none' }, format: 'The Ref of a row on Goals in this file', example: 'top', empty: 'Goal key, Goal ID or Goal says which goal' },
     Week: { required: 'required', format: 'A whole number from 1 to this week; a date in the cycle is read as its week', example: '46', empty: 'Must fix' },
     Value: { required: { for: ['metric', 'range'] }, format: 'A number, at the goal’s decimal places', example: '6', empty: 'Must fix for a number or range goal' },
+    'Reason for a different number': { required: 'reading', format: 'Text', example: 'The source counts something else: “It leaves out release branches.”', empty: 'Never read: a reason is given in the check-in' },
     Stages: { required: { for: ['milestone'] }, format: '“Pilot: done week 6; Rollout: expected week 9”', example: 'Pilot: done week 6', empty: 'Must fix for a stages goal' },
     Call: { required: { optional: 'the rules decide' }, format: wordList(CALL_WORDS), example: CALL_WORDS.word.risk, empty: 'The rules decide' },
     Cause: { required: { when: 'when it’s behind, or well ahead' }, format: oneOf(causeWords), example: causeWords[0] ?? '', empty: 'Must fix when it’s behind or well ahead', clears: true },

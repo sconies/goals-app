@@ -6,7 +6,7 @@
    What feeds it opens with how the goals feeding it stand; and every section says in one line what it answers.
    The words come from the domain (domain/goalPage and the modules it asks); this file lays them out. */
 import { Place, useModules } from '../core/app';
-import { reviewsOn } from '../app/reads';
+import { reviewsOn, watchingOn } from '../app/reads';
 import { MODULE_RECORDS } from '../core/records';
 import { goalMarksOf } from '../domain/records';
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
@@ -17,6 +17,7 @@ import { useSeen } from '../app/goalSeen';
 import { useDraft } from '../app/drafts';
 import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt } from '../domain/format';
+import { readingHistoryLine } from '../domain/reading';
 import { isEveryday, levelName } from '../domain/levels';
 import { notStarted, planHistoryOf, resultWeek, valueSeries, weekDates } from '../domain/plan';
 import { weekSays } from '../domain/weeks';
@@ -56,6 +57,7 @@ import { effectOn, landedMoment, openMotionLab, storyOn, storyPace } from '../ap
 import { copyGoalLink, shareGoalImage } from './goalShare';
 import { ArchivedGoalScope } from '../app/state';
 import { isProposed } from '../domain/proposed';
+import { isUnmeasured, UNMEASURED_MEANING } from '../domain/unmeasured';
 
 const ProposedGoal = lazy(() => import('./ProposedGoal').then((m) => ({ default: m.ProposedGoal })));
 /* The goals proposed to feed this one, under What feeds it (GE10): loaded only when there are some. */
@@ -144,7 +146,9 @@ function GoalView({ goal }: { goal: Goal }) {
   const parent = goal.parentId ? app.goal(goal.parentId) : undefined;
   const updateAsk = openUpdateAsk(goal.id, app.snapshot);
   const due = att.flags.some((f) => f.kind === 'due');
-  const watching = !isOwner && watchOf(app.viewer.id, goal, app.snapshot) !== null;
+  // Watching switched off (SW1): no Watch button and no “Watched by”.
+  const watchingHere = watchingOn(useModules().on);
+  const watching = !watchingHere ? null : !isOwner && watchOf(app.viewer.id, goal, app.snapshot) !== null;
   const openSteps = [...steps.forYou, ...steps.open].filter((x) => x.kind === 'action').length;
   const primary = primaryAction({ goal, viewer: app.viewer, owner, status, due, week, asked, updateAsked: !!updateAsk, openSteps, firstDue: own.length === 0 });
   const standing = standingAction({ goal, viewer: app.viewer, primary, watching, status });
@@ -354,13 +358,16 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
         {/* A fact a module adds, such as what measures it (the goal.facts place). */}
         <Place name="goal.facts" goal={goal} />
         <div className="bar-2">
-          {goal.stoppedAt ? <LifeMark k="stopped" className="bar-status bar-life" /> : <span className="bar-status-tap" onClick={secretTap}><Chip k={status} className={'bar-status' + (statusMoved ? ' moved' : '')} /></span>}
+          {goal.stoppedAt ? <LifeMark k="stopped" className="bar-status bar-life" /> : isUnmeasured(goal) ? <LifeMark k="unmeasured" className="bar-status bar-life" /> : <span className="bar-status-tap" onClick={secretTap}><Chip k={status} className={'bar-status' + (statusMoved ? ' moved' : '')} /></span>}
           <span className="bar-dot" aria-hidden="true">·</span>
           <span className="bar-now">{num}</span>
           {/* Only in the one-line bar: the gap to plan, which the scorecard says in full. */}
           {card.gap && <span className="bar-gap"><span aria-hidden="true">· </span>{card.gap}</span>}
+          {/* Before the first check-in, a baseline of its own is the number: said as one (domain/baseline rule 2). */}
+          {figures.baseline && <span className="bar-baseline">{figures.baseline}</span>}
         </div>
         {firstDue && !goal.stoppedAt ? <p className="small muted sc-none" data-part="Scorecard">The scorecard starts with the first check-in.</p> : card.cells.length > 0 && <ScoreGrid cells={card.cells} />}
+        {isUnmeasured(goal) && <p className="small muted bar-unmeasured" data-part="Not measured yet">{UNMEASURED_MEANING}</p>}
         {askedLine && <div className="bar-note">{askedLine}</div>}
         {actions && <div className="bar-actions">{actions}</div>}
       </header>
@@ -622,17 +629,19 @@ function GoalChart({ goal, status, landed, hit, card }: { goal: Goal; status: Di
     : projected ? (goal.kind === 'metric' ? 'Likely end projected from the last eight weeks, not the owner’s date.' : 'Likely end projected from the last eight weeks.')
     : null;
   const caption = foot ? <span className="chart-say chart-foot">{foot}</span> : null;
+  // Modules' marks (MT3's “Definition changed, week 6”), on a number's chart and a range's alike.
+  const notes = goalMarksOf(MODULE_RECORDS, app.snapshot, goal.id, cycle);
   return (
     <section className="block goal-chart-block" id="chart" aria-label="Chart" data-part="Chart">
       {goal.kind === 'metric' && a.kind === 'metric' && (
         <figure className="card goal-chart" style={{ margin: 0 }}>
-          <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={ahead ? a.forecast : null} projection={ahead ? a.projection : null} ptgBy={ahead ? ptg?.byWeek ?? null : null} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} hit={hit} marks={stale ? null : card.marks} notes={goalMarksOf(MODULE_RECORDS, app.snapshot, goal.id, cycle.startDate)} />
+          <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={ahead ? a.forecast : null} projection={ahead ? a.projection : null} ptgBy={ahead ? ptg?.byWeek ?? null : null} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} hit={hit} marks={stale ? null : card.marks} notes={notes} />
           {(caption || goal.originalPlan) && <figcaption className="small">{caption}{goal.originalPlan ? <PlanChanges goal={goal} /> : null}</figcaption>}
         </figure>
       )}
       {goal.kind === 'range' && (
         <figure className="card goal-chart" style={{ margin: 0 }}>
-          <RangeChart goal={goal} weeks={cycle.weeks} week={week} series={series} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} />
+          <RangeChart goal={goal} weeks={cycle.weeks} week={week} series={series} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} notes={notes} />
           {caption && <figcaption className="small">{caption}</figcaption>}
         </figure>
       )}
@@ -941,7 +950,9 @@ export function NoteComposer({ goal, startOpen }: { goal: Goal; startOpen?: bool
   const [open, setOpen] = useState(() => !!startOpen || !!text.trim());
   const [saving, setSaving] = useState(false);
   const ownerFirst = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'The owner';
-  const watcherIds = app.snapshot.people.filter((p) => goalsIn(watchScope(p.id, app.snapshot.watches), app.snapshot.goals).some((g) => g.id === goal.id)).map((p) => p.id);
+  // With Watching off (SW1) a comment reaches the owner only: nobody is shown as watching.
+  const watchingHere = watchingOn(useModules().on);
+  const watcherIds = !watchingHere ? [] : app.snapshot.people.filter((p) => goalsIn(watchScope(p.id, app.snapshot.watches), app.snapshot.goals).some((g) => g.id === goal.id)).map((p) => p.id);
   const reach = commentReach({ goal, viewerId: app.viewer.id, ownerFirst, watcherIds, workspace: app.ws.name.replace(/^Example:\s*/, '') });
   const post = async () => {
     if (text.trim().length < 2 || saving) return;
@@ -980,6 +991,8 @@ function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere, above, latestWeek }: 
   // The moment it made (habit rule 3), in small capitals beside its status: never on a correction or an import.
   const imported = app.snapshot.changes.some((x) => x.entity === 'check-in' && x.entityId === c.id && x.importId);
   const m = moment(app.checkInsOf(goal).filter((x) => x.id !== c.id), c, goal, !fix && !imported);
+  // Where its number came from (NR 2.4): from the source, or typed over it and why; "Typed by" only beside a sourced one.
+  const said = goal.kind === 'milestone' ? null : readingHistoryLine(c, goal, app.person(c.authorId)?.name ?? 'someone who has left', app.today, { nearSourced: app.checkInsOf(goal).some((x) => !!x.reading) });
   return (
     <li className={isOpen ? 'is-open' : undefined}>
       <button type="button" className="ci-row" aria-expanded={isOpen} aria-controls={'ci-' + c.id} onClick={() => setOpen(!isOpen)}>
@@ -989,6 +1002,7 @@ function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere, above, latestWeek }: 
         <span className="ci-tail">{above && c.why && c.why !== NO_REASON ? <span className="small muted cilist-why">The reason is above, under Why.</span> : quiet ? <span className="small muted cilist-why">Same reason</span> : sameAs != null ? <span className="small muted cilist-why">{sameAs === latestWeek ? `The same reason as week ${sameAs}, under Why` : sameReasonText(sameAs, sameAsWhere)}</span> : c.why && c.why !== NO_REASON ? <span className="small cilist-why">{c.why}</span> : <span className="small muted cilist-why">{GAP['on-plan'].label}</span>}<Icon name={isOpen ? 'chevron-up' : 'chevron-down'} className="muted ci-chev" /></span>
       </button>
       {fix && <span className="small muted ci-corrected" style={{ display: 'block', gridColumn: '1 / -1', minWidth: 0, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{fix.summary}, by {app.person(fix.actorId)?.name ?? 'someone'}{why ? `: “${why}”` : ''}</span>}
+      {said && <span className="small muted ci-read-from" style={{ display: 'block', gridColumn: '1 / -1', minWidth: 0, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{said}</span>}
       {isOpen && <CheckInFull goal={goal} c={c} id={'ci-' + c.id} />}
     </li>
   );
@@ -1047,12 +1061,13 @@ function AboutSection({ goal, open, onToggle, detailsRef }: { goal: Goal; open: 
   const team = app.team(goal.teamId);
   const fed = app.snapshot.goals.filter((g) => g.parentId === goal.id).length;
   const canEdit = goal.ownerId === app.viewer.id || app.viewer.admin;
+  const watchingHere = watchingOn(useModules().on);
   const watchers = app.snapshot.people.filter((p) => p.id !== goal.ownerId && goalsIn(watchScope(p.id, app.snapshot.watches), app.snapshot.goals).some((g) => g.id === goal.id));
   const history = goal.kind === 'metric' ? planHistoryOf(goal) : [];
   const own = app.checkInsOf(goal);
   return (
     <details className="block about goal-section" id="about" data-part="About this goal" ref={detailsRef} open={open} onToggle={(e) => onToggle((e.target as HTMLDetailsElement).open)}>
-      <summary><span className="section-head"><h2 className="block-title">About this goal</h2><span className="section-purpose">Its definition, its plan week by week, and who watches it.</span></span></summary>
+      <summary><span className="section-head"><h2 className="block-title">About this goal</h2><span className="section-purpose">{watchingHere ? 'Its definition, its plan week by week, and who watches it.' : 'Its definition and its plan week by week.'}</span></span></summary>
       <dl className="details">
         {goal.kind !== 'milestone' && <><dt>What it measures</dt><dd>{goal.definition || <><span className="muted">Not described yet.</span>{canEdit && !goal.stoppedAt && <> <Link className="linkish" to={`/goals/${goal.id}/edit#definition`}>Describe it</Link></>}</>}{goal.source ? <span className="muted"> Source: {goal.source}.</span> : null}</dd></>}
         {goal.kind === 'metric' && <><dt>Measure</dt><dd>{capitalFirst(planSays(cycle, goal.plan.fromWeek ?? 0, goal.plan.endWeek ?? cycle.weeks, fmt(goal.plan.start, goal), fmt(goal.plan.target, goal)))}{(goal.plan.endWeek ?? 0) > cycle.weeks ? ', past this cycle' : ''}, {directionLabel(goal)}{notStarted(goal, app.week) ? `. It starts in ${weekSays(cycle, goal.plan.fromWeek!, 'sentence')}; nothing is due until then` : ''}</dd></>}
@@ -1062,7 +1077,7 @@ function AboutSection({ goal, open, onToggle, detailsRef }: { goal: Goal; open: 
         <dt>Team</dt><dd>{team?.name ?? '—'}</dd>
         <dt>Feeds into</dt><dd>{parent ? <><Link className="linkish" to={'/goals/' + parent.id}>{parent.title}</Link>{goal.whyHelps ? <span className="muted">. {goal.whyHelps}</span> : null}</> : fed ? 'Nothing: it sits at the top of its tree' : 'Nothing yet (not linked)'}</dd>
         {fed > 0 && <><dt>Fed by</dt><dd><Link className="linkish" to={`/goals?feeds=${goal.id}`}>{fed === 1 ? '1 goal' : `${fed} goals`}</Link></dd></>}
-        <dt>Watched by</dt><dd>{watchers.length ? watchers.map((p) => p.name).join(', ') : 'Nobody yet'}{goal.ownerId === app.viewer.id && <span className="muted block-line">You own this goal, so it is always on your Home. Owners don’t need to watch their own goals.</span>}</dd>
+        {watchingHere && <><dt>Watched by</dt><dd>{watchers.length ? watchers.map((p) => p.name).join(', ') : 'Nobody yet'}{goal.ownerId === app.viewer.id && <span className="muted block-line">You own this goal, so it is always on your Home. Owners don’t need to watch their own goals.</span>}</dd></>}
         {goal.key && <><dt>Key</dt><dd><span className="gkey-plain">{goal.key}</span> <span className="muted">· it never changes, and /goals/{goal.key} opens it</span></dd></>}
         {history.length > 0 && goal.kind === 'metric' && <><dt>Plan changes</dt><dd><ul className="plan-history">{history.map((v, i) => <li key={i}>Until week {v.untilWeek}: {fmt(v.plan.start, goal)} → {fmt(v.plan.target, goal)}</li>)}<li>Since: {fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)}</li></ul></dd></>}
       </dl>

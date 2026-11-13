@@ -2,7 +2,66 @@
 
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
+## Track 7c (metrics, baselines), Friday 13 November, 23:00 UTC (context near full, handing over)
 
+**Merged:** #384 (#308's review mediums and lows), #404 (#351's review mediums and five lows; the sixth waits for 0c2), #411 (F5 `recordsOn` through `resolveModules`; F6 metric carry-over moved to journey U152), #413 (MS migration 0046), #430 (BL migration), #449 (BL: a baseline's period and "provisional"), #451 (GB migration 0050).
+
+**Open, auto-merge on:**
+- **#428 MS** (branch `ms-status`, worktree `../wt-ms`): conflicted with main again after BL merged. Its journey is being renumbered to U165, because main took U160; the track's fork is pushing that with the spec and `api/mcp.js` rebuilt. Check it landed and CI is green.
+- **#452 GB** (branch `gb-baseline-only`): a proposed goal may have a baseline and no target. Waiting on CI.
+
+**Next, in planning's order** (session_012kbr91eefh4gwCAztBncNT):
+1. **MC**, monthly cadence: a core setting, not a switch.
+2. **GR**: the limit and its status rule are core goal fields; naming a metric is the metrics module's optional part.
+3. **MQ**: part of the metric library, no new switch.
+
+Follow `docs/architecture/module-map.md`. MI is track 3's, TG is track 2's, and WM is dropped.
+
+**Decisions for planning or Lane (from the builds):**
+- MS: Partly still holds a goal to its plan; only Gap holds it to no number.
+- MS: lists show a held goal as "No check-in yet", and only its page says "Not measured yet". A list status of its own needs a design call.
+- BL: range goals get no baseline yet. New goal folds the period into one "Baseline known for a period?" link, so F16's two phone screens still hold.
+- GB closes MS's gap: a goal on a Gap metric can go in as proposed with only its unit and baseline.
+
+**Gotchas learned:**
+- **Journey ids collide between tracks.** U150, U153, U160 and U161 all clashed today, and a duplicate stops every CI job. Take the next id above main's highest at push time, and recheck after every merge of main.
+- **A conflicted PR gets no CI at all.** Main moves fast: after merging main, push quickly, then refetch and check `mergeable`.
+- **One eval run at a time on the machine.** Parallel runs fail P9, N4, N6, N12, N18, F6 and unit-test timeouts. Forks wait on `pgrep -f evals` first.
+- **Rebuild `api/mcp.js` after any journey renumber;** it embeds the module's journey ids.
+- **Row mappers must write every NOT NULL column on every row,** with a PGlite mixed-batch test.
+- **U31, U134 and U148–U151 score below 10 on main itself.**
+
+## Main's full evals, Friday 13 November, 16:30 UTC (main-fix session: done)
+
+- **Fixed and merged:** U109 (#392, the week picker's keys outran a render on a slow phone), U98 (#389, Stop clicked after a 6,000-row check had already ended), N12 (#385, Data search re-read the query for every row), the rolling issue for full-eval failures (#390). F8 was already fixed (#336). The 67 per-commit failure issues are closed.
+- **Phone CPU:** `evals:changed` and `evals:smoke` slow phone-sized pages 4× and run their journey processes one after another (`evals/phoneCpu.cjs`, Lane, 13 Nov), so a race that only a slow phone shows turns up before the merge. The full suite after the merge runs at full speed. `PHONE_CPU=1` turns it off, to tell a slow phone from a broken one; `PHONE_CPU=4` slows a single `ONLY=`/`FINISH=` run.
+- Chromium slows a page by keeping its core busy: never run slowed browsers side by side (the full suite slowed, 4 shards on 4 cores, took 70 minutes and failed 38 requirements that pass alone).
+
+**Gotchas**
+- `api/mcp.js` bundles more than `server/`: `src/domain` and `src/help/whatsNew.ts` too. Run `npm run build:mcp` after changing either, or the smoke gate fails on the bundle (#385 and #392 both did).
+- A PR with a merge conflict gets no CI at all (no merge ref), not a failed run: #383 sat for 25 minutes with only Vercel's check. Read `mergeable_state`; on `dirty`, merge main in.
+
+## Track 1, Friday 13 November, ~21:00 UTC (context near 80%, handing over; supersedes the 17:00 entry)
+
+Session: session_012kbr8y3FdWxxDaqeRvJw4c. Planning: session_012kbr91eefh4gwCAztBncNT (report there once, finished results and blockers only).
+
+**Merged:** #429 (#410's six mediums: `inByDueDay`/`postedDay`, the posted day on the reader's clock; Done goals leave the run; backfilled weeks never on time; a forgiven week is "missed" or "late"; a goal taken over counts from when it was the owner's; the moment panel and share image carry the check-in's own status; `home.csv` `run`/`forgiven`, `checkin.csv` `moment`). #434 (NR1: `Slice` on the port, the demo's seeded series `DEMO_SERIES`, `readingState`, `CheckIn.reading`). #437 (NR2: the number step's block in core place `checkin.number`, rule 3 in `src/domain/reading.ts`, `post_check_in`'s `reading_confirmed`/`different_because`, the table's `checkin.table`, U156–U160, N29, renumbered from N28: SM2 took that id).
+
+Also merged: #446 (NR3: "This week's number" in Measured by, History's second line, the metric's page table and the 8-week count, the agenda's "· from {source}", four sheet columns, R12 Number sources, MCP `numberFrom`/`inItsCheckIn`; and the build reviewer's three NR mediums: `reading` always written, `readingProblem` enforces rule 2, `askSource` times out at 5 s; U161). **This PR:** NR2's check renumbered N28 → N29 (SM2's `23-small-quiet` also said N28, so the shard plan ran it four times and the full suite failed on main).
+
+**Open, not this session's:** #432 (the previous track 1 session's fix for the reviewer's **HIGH on #416**: "Before this review" said "before it" for a review not held on the due day). It is ready; check it merges. This session built another fix (judging against the session's own date) and dropped it for #432's.
+
+**Next, in order:**
+1. **HM3** (Your team, teams worst first) and **HM4** (Changed since you last looked), `docs/design/home/spec.md` section on the build plan (rules 4 and 5). Neither is built. Then **PF1–PF2** (`docs/design/round-4/portfolio/spec.md`).
+2. **HB3** only once HM7 exists (it needs HM3 and HM5 first; not on main).
+3. N12 landed on main (#385): skip it. Then #110's lows, HM1's lows, the 14:25 entry's lows batch, #400's two lows (the 17:00 entry's item 5), and #410's two lows left: the evals accept "review" or "deadline" for one person, and a reload on the receipt returns to the form.
+
+**Habits, learned this session:**
+- Builder subagents worked well for NR2 and NR3: a fresh general-purpose agent with a full brief (spec section, what is built, the gate, "don't push, don't run the full suite"), in its own worktree branched from the previous item's branch; then one eval subagent runs `evals:changed` and returns only the scorecard. Keep one heavy run at a time.
+- `evals:changed` runs the whole suite whenever a changed file isn't named in `evals/touches.cjs` (habit.ts, reading.ts): budget ~18 minutes.
+- N6 (review notes' motion) and N18 (import's 30,000 rows) can fail under a full run's load and pass alone (`FINISH=N6`): run them alone before calling it.
+- A journey scoring 8/10 with "missed: entry, attention" (U151) never sets those criteria: it's its normal score.
+- Track 2's RS1 replaced `reviewOnDueDay` with `dueWords`/`dueWordsHere` (`heldOnDueDay` handles every-two-weeks reviews).
 
 ## Track 1, Friday 13 November, 17:00 UTC (handing over at about two-thirds full; supersedes the 14:25 entry)
 

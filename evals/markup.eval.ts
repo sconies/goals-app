@@ -12,6 +12,9 @@ import { commitPayload, tokenFromRow, type TokenRow } from '../src/data/rows';
 import { applyCommit } from '../src/data/store';
 import { buildPlatformOrg } from '../src/data/platformOrg';
 import type { Snapshot } from '../src/domain/types';
+import { isModuleOn } from '../src/core/registry';
+/** Built without Feedback (FARO_WITHOUT=feedback, SW1): its AI tools aren't there, so their scenarios skip. */
+const noFeedback = !isModuleOn(null, 'feedback');
 import { hashToken } from '../src/mcp/protocol';
 import { WHATS_NEW } from '../src/help/whatsNew';
 import { feedbackOps } from '../src/markup/feedback';
@@ -214,7 +217,7 @@ describe('The AI triages feedback, as it does markups (migration 0028)', () => {
     expect((await db.query<{ status: string }>(`select status from okr_feedback where id = 'fb_m1'`)).rows[0]!.status).toBe('new');
   });
 
-  it(MF('the MCP server’s list_feedback, get_feedback and update_feedback reach it with any token, on the public key, with the inbox’s rules'), async () => {
+  it.skipIf(noFeedback)(MF('the MCP server’s list_feedback, get_feedback and update_feedback reach it with any token, on the public key, with the inbox’s rules'), async () => {
     const secret = await anySecret();
     let data: Snapshot = buildPlatformOrg(new Date('2026-11-05T12:00:00Z'));
     const deps: Deps = {
@@ -233,7 +236,7 @@ describe('The AI triages feedback, as it does markups (migration 0028)', () => {
     expect((await db.query<{ status: string; fixed_in: string; status_by: string }>(`select status, fixed_in, status_by from okr_feedback where id = 'fb_m1'`)).rows[0]).toMatchObject({ status: 'fixed', fixed_in: WHATS_NEW[0]!.id, status_by: expect.stringMatching(/via MCP/) });
   });
 
-  it(R('a sender sees “You raised this” on the entry that fixed their feedback: the database gives a person their own feedback’s statuses only, and What’s new matches by person and id'), async () => {
+  it.skipIf(noFeedback)(R('a sender sees “You raised this” on the entry that fixed their feedback: the database gives a person their own feedback’s statuses only, and What’s new matches by person and id'), async () => {
     const mine = (await as<{ id: string; status: string; fixed_in: string | null }>('anon', `select * from okr_feedback_raised('acme', 'mateo')`)).rows;
     expect(mine.find((r) => r.id === 'fb_m1')).toMatchObject({ status: 'fixed', fixed_in: WHATS_NEW[0]!.id });
     expect(Object.keys(mine[0]!).sort()).toEqual(['fixed_in', 'id', 'status']);
@@ -250,7 +253,7 @@ describe('The AI triages feedback, as it does markups (migration 0028)', () => {
 describe('Pictures for the assistant (backlog -2, opened by O)', () => {
   const P = (t: string) => `[MCP-PICTURES] ${t}`;
 
-  it(P('get_markup and review_inbox send any token the markup’s picture as image content, read by its public address; when the bucket isn’t open, they say why'), async () => {
+  it.skipIf(noFeedback)(P('get_markup and review_inbox send any token the markup’s picture as image content, read by its public address; when the bucket isn’t open, they say why'), async () => {
     const { markupOps } = await import('../src/markup/ops');
     const { tokenMarkups } = await import('../src/adapters/supabase/markups');
     const secret = (await as<{ s: string }>('anon', 'select okr_token_create($1, $2) as s', ['acme', JSON.stringify({ id: 'tok_pics', person_id: 'mateo', name: 'Claude, pictures', created_by: 'amara' })])).rows[0]!.s;

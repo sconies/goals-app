@@ -18,7 +18,7 @@
 import type { Commit } from './commit';
 import type { ActionContext } from './actions';
 import type { Cell, Ctx, ExportInput, SheetSpec } from './columns';
-import type { Goal } from './types';
+import type { Cycle, Goal } from './types';
 
 /** Every module's rows, by module id and then by the key its records are filed under. */
 export type ModuleRows = { [moduleId: string]: { [key: string]: unknown[] } };
@@ -114,16 +114,33 @@ export interface ModuleRecords {
       goal entry's wrong-side question (rule 3) at the doors that don't draw the module's own field (a file, the AI tools). */
   measures?(s: { modules?: ModuleRows }, goalId: string): GoalMeasure | null;
   /** Marks a goal's chart and History show for the module (the metric library's “Definition changed, week 46”, MT3's
-      `goal.marks`): each a week of the cycle and its label, made since `since` (the cycle's start, yyyy-mm-dd). */
-  goalMarks?(s: { modules?: ModuleRows }, goalId: string, since: string): GoalMark[];
+      `goal.marks`): each a week of the cycle and its label, made in the goal's own cycle: since `since` (its start,
+      yyyy-mm-dd) and before `until` (the day after its last week), so a change made next year never marks this year's goals. */
+  goalMarks?(s: { modules?: ModuleRows }, goalId: string, since: string, until: string): GoalMark[];
 }
 
 /** A module's mark on a goal's chart: a dashed hairline at a week, its label beside it. The core knows nothing more. */
 export interface GoalMark { week: number; label: string }
 
-/** Every module's marks for a goal, in week order. */
-export function goalMarksOf(records: readonly ModuleRecords[] | undefined, s: { modules?: ModuleRows }, goalId: string, since: string): GoalMark[] {
-  return (records ?? []).flatMap((m) => m.goalMarks?.(s, goalId, since) ?? []).sort((a, b) => a.week - b.week);
+/** The day after a cycle's last week (yyyy-mm-dd): a goal's marks are made before it. */
+export const cycleUntil = (cycle: Pick<Cycle, 'startDate' | 'weeks'>): string => new Date(Date.parse(cycle.startDate + 'T00:00:00Z') + (cycle.weeks + 1) * 7 * 86_400_000).toISOString().slice(0, 10);
+
+/** The most marks a chart draws: the latest, so a metric changed every week doesn't bury the goal's line. */
+export const MAX_GOAL_MARKS = 3;
+
+/**
+ * Every module's marks for a goal in its own cycle, in week order: two in the same week drawn as one line with both
+ * labels (“Definition changed, week 6 · Direction changed, week 6”), and only the latest MAX_GOAL_MARKS weeks.
+ */
+export function goalMarksOf(records: readonly ModuleRecords[] | undefined, s: { modules?: ModuleRows }, goalId: string, cycle: Pick<Cycle, 'startDate' | 'weeks'>): GoalMark[] {
+  const until = cycleUntil(cycle);
+  const byWeek = new Map<number, string[]>();
+  for (const m of (records ?? []).flatMap((r) => r.goalMarks?.(s, goalId, cycle.startDate, until) ?? [])) {
+    const labels = byWeek.get(m.week) ?? [];
+    if (!labels.includes(m.label)) labels.push(m.label);
+    byWeek.set(m.week, labels);
+  }
+  return [...byWeek].sort(([a], [b]) => a - b).slice(-MAX_GOAL_MARKS).map(([week, labels]) => ({ week, label: labels.join(' · ') }));
 }
 
 /** What measures a goal, for goal entry's questions: a name, and which way is better. */

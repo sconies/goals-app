@@ -108,7 +108,7 @@ const ALL_FLOWS: Flow[] = [
     ],
   },
   {
-    id: 'wrap-up', title: 'Wrap up the year', article: 'wrap-up',
+    id: 'wrap-up', title: 'Wrap up the year', article: 'wrap-up', module: 'wrap-up',
     steps: [
       { id: 'list', title: 'Open the wrap-up', routes: ['/retro'] },
       { id: 'goal', title: 'Wrap up a goal', routes: ['/retro/:goalId'], entry: true },

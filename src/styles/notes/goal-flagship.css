@@ -27,6 +27,8 @@
 .goal-page .bar-now { font-size: 2rem; line-height: 2.5rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--fg); }
 .goal-page .bar-dot { display: none; color: var(--muted); }
 .goal-page .bar-gap { display: none; font-size: 0.9375rem; color: var(--fg-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.goal-page .bar-baseline { font-size: 0.9375rem; color: var(--fg-2); }
+.goal-page .goal-bar.compact .bar-baseline { display: none; }
 .goal-page .bar-note { grid-area: note; font-size: 0.875rem; line-height: 1.25rem; color: var(--fg-2); max-width: 72ch; }
 
 /* The scorecard: four labelled cells under the number (two by two on a phone). Words on the bar, no boxes or fills;
