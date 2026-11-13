@@ -125,13 +125,14 @@ const GROUP_ORDER: AskKind[] = ['decision', 'question', 'update', 'action'];
  * kind. Each says what it's about, what was asked, who asked, where and when, and how long it has waited or when it is
  * due (rule 3's line; a late one with the warning mark, first). Five, then "Show all {n}". One button each.
  */
-function NeedsYou({ asks, also }: { asks: Waiting[]; also: boolean }) {
+function NeedsYou({ asks, also, leadAbout }: { asks: Waiting[]; also: boolean; leadAbout: string | null }) {
   const app = useApp();
   const prefs = usePrefs();
   const [all, setAll] = useState(false);
   // Proposals (goal entry rule 14): one proposed for you by someone else, not yet opened, and one waiting 8 weeks or more.
   const [seen, setSeen] = useState(() => proposalSeen(prefs, app.ws.id, app.viewer.id));
-  const proposals = proposalAsks(app.snapshot.proposed ?? [], app.viewer, app.today, seen, (id) => app.person(id)?.name ?? id);
+  // The one the lead says (a goal proposed for you a week or more ago) isn't listed again.
+  const proposals = proposalAsks(app.snapshot.proposed ?? [], app.viewer, app.today, seen, (id) => app.person(id)?.name ?? id).filter((p) => p.goal.id !== leadAbout);
   const notYet = (p: ProposalAsk) => { putOff(prefs, app.ws.id, app.viewer.id, p.goal.id, app.today); setSeen(proposalSeen(prefs, app.ws.id, app.viewer.id)); };
   if (!asks.length && !proposals.length) return null;
   const shown = all ? asks : asks.slice(0, 5);
@@ -309,7 +310,9 @@ export function Home() {
   const app = useApp();
   const first = app.viewer.name.split(' ')[0];
   const draft = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.some((g) => hasDraft(checkInDraftKey(app.ws.id, g.id, app.week)));
-  const plan = homeFor(homeFacts(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { workspace: workspaceName(app.ws, app.mode).name, draft, wrap: wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today) }));
+  const prefs = usePrefs();
+  const opened = proposalSeen(prefs, app.ws.id, app.viewer.id).opened;
+  const plan = homeFor(homeFacts(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { workspace: workspaceName(app.ws, app.mode).name, draft, wrap: wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today), opened }));
   return (
     <div className="page home" data-part="Home">
       <div className="page-head">
@@ -320,7 +323,7 @@ export function Home() {
       <ThisWeek d={useDashboard()} leadAbout={plan.lead?.about ?? null} />
       <div className="home-grid split">
         <LeadOrQuiet plan={plan} />
-        <aside className="home-side split-side" aria-label="For you"><NeedsYou asks={plan.asks} also={plan.lead?.kind === 'ask'} /><AdminCard /></aside>
+        <aside className="home-side split-side" aria-label="For you"><NeedsYou asks={plan.asks} also={plan.lead?.kind === 'ask'} leadAbout={plan.lead?.about ?? null} /><AdminCard /></aside>
         <div className="home-main split-b">
           <YourGoals />
           <WatchedGoals />
