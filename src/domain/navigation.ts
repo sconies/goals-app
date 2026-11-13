@@ -34,15 +34,17 @@ export const GROUP_NAMES: Record<keyof MenuGroups, string> = { work: 'Your work'
  * Rule 1. The menu in its groups: your work (Home; Check-in for someone with a goal to check in on; Goals; Reviews),
  * things to look up (People, then the modules' items in the order they register, then Activity and Data), New goal, and
  * this workspace and you (Workspace, Settings, Help, Feedback). A module's item in the work group follows Reviews.
- * With Reviews switched off (`reviews` false, FT2) it has no row.
+ * With Reviews switched off (`reviews` false, FT2) it has no row; with Feedback off (`feedback` false, SW1), neither has
+ * Feedback.
  */
-export function menuGroups(checksIn: boolean, modules: ModuleNavItem[] = [], reviews = true): MenuGroups {
+export function menuGroups(checksIn: boolean, modules: ModuleNavItem[] = [], reviews = true, feedback = true): MenuGroups {
   const id = (m: ModuleNavItem) => `module:${m.id}`;
   return {
     work: ['home', ...(checksIn ? ['checkin'] : []), 'goals', ...(reviews ? ['reviews'] : []), ...modules.filter((m) => m.group === 'work').map(id)],
     lookup: ['people', ...modules.filter((m) => m.group !== 'work').map(id), 'activity', 'data'],
     make: ['new'],
-    you: ['workspace', 'settings', 'help', 'feedback'],
+    // With Feedback switched off (`feedback` false, SW1) the last group is Workspace, Settings, Help.
+    you: ['workspace', 'settings', 'help', ...(feedback ? ['feedback'] : [])],
   };
 }
 

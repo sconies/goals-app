@@ -18,7 +18,6 @@ const Activity = lazy(() => import('./screens/Activity').then((m) => ({ default:
 const CheckInFlow = lazy(() => import('./screens/CheckInFlow').then((m) => ({ default: m.CheckInFlow })));
 const GoalScreen = lazy(() => import('./screens/GoalScreen').then((m) => ({ default: m.GoalScreen })));
 const GoalsScreen = lazy(() => import('./screens/GoalsScreen').then((m) => ({ default: m.GoalsScreen })));
-const Watching = lazy(() => import('./screens/Watching').then((m) => ({ default: m.Watching })));
 const PeopleList = lazy(() => import('./screens/People').then((m) => ({ default: m.PeopleList })));
 const PersonPage = lazy(() => import('./screens/People').then((m) => ({ default: m.PersonPage })));
 const TeamPage = lazy(() => import('./screens/People').then((m) => ({ default: m.TeamPage })));
@@ -43,15 +42,12 @@ const HelpArticle = lazy(() => import('./screens/Help').then((m) => ({ default: 
 const WhatsNew = lazy(() => import('./screens/Help').then((m) => ({ default: m.WhatsNew })));
 const DataTables = lazy(() => import('./screens/DataTables').then((m) => ({ default: m.DataTables })));
 const WorkspaceHome = lazy(() => import('./screens/Workspace').then((m) => ({ default: m.WorkspaceHome })));
-const Feedback = lazy(() => import('./screens/Feedback').then((m) => ({ default: m.Feedback })));
 // Changing a goal is opened by its owner now and then, never on a first visit.
 const GoalEdit = lazy(() => import('./screens/GoalEdit').then((m) => ({ default: m.GoalEdit })));
 const GoalWizard = lazy(() => import('./screens/GoalWizard').then((m) => ({ default: m.GoalWizard })));
 const GoalPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.GoalPrint })));
-const WrapUp = lazy(() => import('./screens/Retro').then((m) => ({ default: m.WrapUp })));
 const StartNext = lazy(() => import('./screens/StartNext').then((m) => ({ default: m.StartNext })));
 const NotFound = lazy(() => import('./screens/NotFound').then((m) => ({ default: m.NotFound })));
-const RetroGoal = lazy(() => import('./screens/Retro').then((m) => ({ default: m.RetroGoal })));
 
 export function Routed() {
   const app = useApp();
@@ -82,9 +78,6 @@ export function Routed() {
         <Route path="/research" element={<Research />} />
         <Route path="/check-in/:goalId" element={<CheckInFlow />} />
         {/* Watching is a scope of Goals (goals spec, section 1): the old address keeps its other parts. */}
-        <Route path="/watching" element={<Watching />} />
-        <Route path="/retro" element={<WrapUp />} />
-        <Route path="/retro/:goalId" element={<RetroGoal />} />
         <Route path="/goals" element={<GoalsScreen />} />
         <Route path="/goals/new" element={<GoalWizard />} />
         <Route path="/goals/new/:step" element={<GoalWizard />} />
@@ -104,11 +97,6 @@ export function Routed() {
         <Route path="/people/:personId" element={<PersonPage />} />
         <Route path="/teams" element={<TeamsList />} />
         <Route path="/teams/:teamId" element={<TeamPage />} />
-        {/* The inbox moved out of Workspace to Feedback (backlog WS): its old address, with the markup it named, leads there. */}
-        <Route path="/workspace/inbox" element={<Moved to="/feedback" />} />
-        {/* An inbox link someone guessed or kept (/demo/inbox gave Page not found, 12 Nov): the same place. */}
-        <Route path="/inbox" element={<Moved to="/feedback" />} />
-        <Route path="/feedback" element={<Feedback onSend={() => window.dispatchEvent(new Event('faro:send-feedback'))} />} />
         <Route path="/workspace/cycles/next" element={<StartNext />} />
         <Route path="/workspace/cycles" element={<WorkspaceHome section="cycles" />} />
         <Route path="/workspace/access" element={<WorkspaceHome section="access" />} />
@@ -202,4 +190,3 @@ function MovedFrom() {
   return <Navigate to={movedTo(pathname, search, hash) ?? '/'} replace />;
 }
 
-/** /watching → /goals?scope=watching, keeping the rest of the address (the demo's date, a level). */

@@ -1,0 +1,78 @@
+{
+  "id": "feedback",
+  "name": "Feedback",
+  "summary": "Send feedback about Faro, or mark up a screen. It goes to the people who build Faro.",
+  "group": "beyond",
+  "needs": [],
+  "routes": [
+    "/feedback"
+  ],
+  "redirects": [
+    [
+      "/workspace/inbox",
+      "/feedback"
+    ],
+    [
+      "/inbox",
+      "/feedback"
+    ]
+  ],
+  "navigation": [],
+  "places": [],
+  "tables": [],
+  "aiTools": [
+    "list_markups",
+    "get_markup",
+    "review_inbox",
+    "update_markup",
+    "list_feedback",
+    "get_feedback",
+    "update_feedback",
+    "send_feedback"
+  ],
+  "help": [
+    "feedback",
+    "inbox"
+  ],
+  "requirements": [
+    "MARKUP",
+    "FEEDBACK-RAISED",
+    "MARKUP-INBOX",
+    "FEEDBACK-INBOX",
+    "MCP-FEEDBACK",
+    "CONNECT-CLAUDE",
+    "MCP-PICTURES",
+    "INBOX-TRIAGE",
+    "FEEDBACK-PAGE",
+    "FEEDBACK-OPTIONAL"
+  ],
+  "journeys": [
+    "U40",
+    "U41",
+    "U42",
+    "U47",
+    "U51",
+    "U52",
+    "U53",
+    "U165",
+    "N22"
+  ],
+  "elsewhere": [],
+  "rebuild": {
+    "status": "outline",
+    "builds": "Feedback, as a feature a workspace can switch off. Anyone can send feedback about Faro (a mood and a few words) or mark up the screen they are on (a still picture with marks and a line, from Send feedback or Ctrl+Shift+M), and everything sent goes to the builders' inbox, the page Feedback, which the people who build Faro work through from New to In hand to Closed, and which an AI tool can review. Off, Feedback leaves the menu, Send feedback and Mark up this screen go, Ctrl+Shift+M does nothing, /feedback says it is switched off and who can switch it on, and the inbox's tools and send_feedback refuse. What was sent stays in the builders' inbox.",
+    "entry": [
+      "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2).",
+      "The menu's last group (Workspace, Settings, Help) is the core's (stage 3); Feedback's row follows Help while it is on."
+    ],
+    "exit": [
+      "Switched off, the menu's last group is Workspace, Settings, Help (desktop and More on a phone), and Ctrl+Shift+M opens nothing (journey U165).",
+      "Switched off, /feedback, /workspace/inbox and /inbox show Page not found with “Feedback is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and the eight tools answer the switched-off module's sentence (check N22).",
+      "Switched off, sending feedback refuses with “Feedback is off in {workspace}.”; what was sent before stays in the builders' inbox, and switching it back on brings the row, the page and the key back."
+    ],
+    "gaps": [
+      "Feedback is a switch, not yet a folder of its own (SW4 moves it): its screens (src/screens/Feedback.tsx, the sheet and the markup in src/ui/Shell.tsx and src/markup), its tools' code (src/mcp/markupTools.ts, src/mcp/feedbackTools.ts), its ports (src/markup/ops.ts, src/markup/feedback.ts), its action (sendFeedback in src/domain/actions.ts) and its menu row (src/domain/navigation.ts menuGroups, which takes whether Feedback is on) are still the core's, as are its tables (okr_markups, okr_feedback). The send action refuses while it is off in src/app/actions.ts. This folder holds its route and old addresses, its Help articles and its AI tools; src/app/reads.ts feedbackOn is the one place that asks whether it is on.",
+      "Switching Feedback off acts at once: the read-back the design describes (how many things sent from here stay in the builders' inbox) needs the builders' store counted per workspace, which SW4 adds."
+    ]
+  }
+}

@@ -2,6 +2,7 @@ import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from '
 import { Icon } from '../ui/Icon';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
+import { countWords } from '../domain/format';
 import { periodNow, wrapUpOpenOn } from '../domain/cycle';
 import { attentionGroup, attentionList, splitAttention } from '../domain/attention';
 import { levelIds, levelName } from '../domain/levels';
@@ -15,19 +16,19 @@ import { WatchingBody } from './Watching';
 import { watchedGoals } from '../domain/review';
 import type { Goal } from '../domain/types';
 import type { TreeNode } from '../domain/tree';
-import { forgetGoneLayout, GONE_LAYOUT, GONE_LAYOUT_NOTE, LAYOUTS, LayoutMenu, layoutLine, layoutName, useLayout, type Layout, type ViewGroup } from './GoalViews';
+import { forgetGoneLayout, GONE_LAYOUT, GONE_LAYOUT_NOTE, LAYOUTS, LayoutMenu, layoutLine, layoutName, layoutsOn, MAP_OFF_NOTE, useLayout, type Layout, type ViewGroup } from './GoalViews';
 import { GoalTable } from './GoalTable';
 import { GoalBoard } from './GoalBoard';
 import { HistoryGrid } from './GoalHistory';
 import { StatusLegend } from '../ui/StatusLegend';
-import { Place } from '../core/app';
+import { Place, useModules } from '../core/app';
 import { FilterBar, useGoalQuery, useLatestParams, useViewActions } from './GoalFilters';
 import { MenuButton } from '../ui/MenuButton';
 import { EMPTY_QUERY, filters, SORT_OPTIONS } from '../domain/query';
 import { useGoalCounts, useGoalList } from '../app/goals';
 import { NoneFound } from '../ui/ListBar';
 import { usePrefs } from '../app/search';
-import { scopeFacts } from '../app/reads';
+import { goalMapOn, scopeFacts, watchingOn, wrapUpOn } from '../app/reads';
 import { goalsLine, GROUPS, movedGoals, ownGroup, scopesFor, type Group, type Scope } from '../domain/goalsPage';
 
 const GOAL_WORDS = { thing: 'goal', things: 'goals' };
@@ -55,7 +56,9 @@ export function GoalsScreen() {
   const prefs = usePrefs();
   // The facts the scope rule reads, from the one place find_goals reads them too.
   const facts = useMemo(() => scopeFacts(app.snapshot, app.viewer), [app.snapshot, app.viewer]);
-  const { tabs: drawnTabs, every: everyScope, opens } = scopesFor(facts, prefs.get<Scope>(app.ws.id, app.viewer.id, 'goals-scope'));
+  const modules = useModules();
+  const mapHere = goalMapOn(modules.on);
+  const { tabs: drawnTabs, every: everyScope, opens } = scopesFor(facts, prefs.get<Scope>(app.ws.id, app.viewer.id, 'goals-scope'), { watching: watchingOn(modules.on) });
   // Every address still opens (SM1): a tab that waits is drawn while it is the one open, except My team, which goes to
   // All when it isn't drawn (it is the same list).
   const hasScope = (x: Scope) => (x === 'team' ? drawnTabs : everyScope).some((t) => t.id === x);
@@ -71,6 +74,8 @@ export function GoalsScreen() {
     let next = latest();
     // Cards has gone: a link or a remembered layout that says it opens in List, said once.
     if (next.get('view') === GONE_LAYOUT) { next.delete('view'); said.push(GONE_LAYOUT_NOTE); }
+    // The Goal map switched off (SW1, spec 2.6): a link or saved view that asked for the Map opens the List, said once.
+    else if (next.get('view') === 'map' && !mapHere) { next.delete('view'); said.push(MAP_OFF_NOTE); }
     else if (forgetGoneLayout()) said.push(GONE_LAYOUT_NOTE);
     const old = movedGoals(next.toString(), opens, hasScope);
     if (old) { next = new URLSearchParams(old.search); if (old.note) said.push(old.note); }
@@ -92,7 +97,7 @@ export function GoalsScreen() {
     if (said.length) setMoved({ text: said.join(' '), at: next.toString(), from: params.toString() });
     if (next.toString() !== params.toString()) setParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params, opens, loaded]);
+  }, [params, opens, loaded, mapHere]);
   const scope: Scope = hasScope(params.get('scope') as Scope) ? (params.get('scope') as Scope) : opens;
   useEffect(() => { if (params.get('scope')) prefs.set(app.ws.id, app.viewer.id, 'goals-scope', scope); }, [scope, params, prefs, app.ws.id, app.viewer.id]);
   const scopeTab = everyScope.find((t) => t.id === scope)!;
@@ -102,7 +107,7 @@ export function GoalsScreen() {
   const switchOn = params.get('attention') === '1' || !!params.get('needs');
   const show: Show = switchOn ? 'attention' : group === 'tree' ? 'outcomes' : group === 'team' ? 'teams' : group === 'level' ? 'levels' : scope === 'watching' ? 'watching' : 'mine';
   const { trees, loose } = outcomeTrees(app.snapshot.goals, worstFirst(app));
-  const [layout, setLayout] = useLayout();
+  const [layout, setLayout] = useLayout(mapHere);
   const flat = (n: TreeNode, depth = 0): { goal: Goal; depth: number }[] => [{ goal: n.goal, depth }, ...n.children.flatMap((c) => flat(c, depth + 1))];
   const one = (key: string, title: string, goals: Goal[]): ViewGroup => ({ key, title, rows: goals.map((goal) => ({ goal, depth: 0 })) });
   // Built once per change to the goals, so the views' summaries aren't recomputed on every render.
@@ -119,6 +124,8 @@ export function GoalsScreen() {
   const [query, setQuery] = useGoalQuery();
   const narrowed = filters(query);
   const refined = narrowed || !!query.sort || scope !== 'all';
+  // Watching nothing, with nothing narrowed: the empty Watching page (small workspaces 2.4), never "No goals match".
+  const watchingNothing = scope === 'watching' && !narrowed && !app.snapshot.watches.some((w) => w.personId === app.viewer.id);
   const attentionOn = query.attention || query.needs.length > 0;
   // A search that finds nothing tries a near miss (find rule 5): the goals that match it are shown, and said so.
   // Through the query port (AX5): the scope's goals that match, in the query's order, or its near miss's.
@@ -259,7 +266,7 @@ export function GoalsScreen() {
           <span className="hint goals-period">{periodNow(app.cycle, app.today).split(' · ').map((part, i) => <Fragment key={i}>{i > 0 && ' · '}<span className="nb">{part}</span></Fragment>)}</span>
         </span>
         {/* New goal is a quiet link here (Lane, 9 Nov): people seldom make one, so it isn't the page's big button. The sidebar's New goal is one step from anywhere. */}
-        <span className="actions">{wrapUpOpenOn(app.cycle, app.today) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn ghost sm new-goal-quiet" to="/goals/new">New goal</Link></span>
+        <span className="actions">{wrapUpOn(modules.on) && wrapUpOpenOn(app.cycle, app.today) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn ghost sm new-goal-quiet" to="/goals/new">New goal</Link></span>
       </div>
       {/* Whose goals, as tabs; at the right of the same row, the Views menu (one meaning on every width). */}
       <div className="goals-toolbar">
@@ -267,7 +274,7 @@ export function GoalsScreen() {
           <div className="seg tabs one-row" role="tablist" aria-label="Whose goals" ref={tabRow}>
             {scopeTabs.map((t) => (
               <button key={t.id} role="tab" aria-selected={scope === t.id && !activeView} onClick={() => pickScope(t.id)}>
-                {t.label}<span className="tabcount">{t.ids.length}</span>
+                {t.label}{/* A nought isn't printed (small workspaces rule 2). */}{countWords(t.ids.length) && <span className="tabcount">{countWords(t.ids.length)}</span>}
               </button>
             ))}
             {/* A saved view is a tab only while it's open; the rest wait in the Views menu. */}
@@ -298,7 +305,7 @@ export function GoalsScreen() {
         trail={<>
           <MenuButton className="group-menu" label="Group" summary="" markCurrent display={switchOn && !onMap ? 'Group: needs attention first' : `Group: ${onMap ? GROUPS.find(([k]) => k === 'tree')![1] : groupWord}`}
             items={groupOff ? [{ label: groupOff, note: true }] : GROUPS.map(([k, l]) => ({ label: l, hint: GROUP_LINE[k], current: group === k, onClick: () => pickGroup(k) }))} />
-          <LayoutMenu layout={layout} onChange={setLayout} />
+          <LayoutMenu layout={layout} onChange={setLayout} layouts={layoutsOn(mapHere)} />
         </>}
         after={<>
           {/* On a phone (goals spec, 2.4): the switch at the left, how the goals are seen at the right, in one sheet. */}
@@ -311,16 +318,16 @@ export function GoalsScreen() {
         </>} />}
       </div>
       {actions.sheets}
-      {sheetOpen && <ViewSheet layout={layout} onLayout={setLayout} group={group} groupOff={groupOff} onGroup={pickGroup} items={viewItems}
+      {sheetOpen && <ViewSheet layouts={layoutsOn(mapHere)} layout={layout} onLayout={setLayout} group={group} groupOff={groupOff} onGroup={pickGroup} items={viewItems}
         canSave={actions.canSave} onSave={() => { setSheetOpen(false); actions.save(); }} onCopy={() => void actions.copyLink()}
         manage={actions.manage} tools={<Place name="goals.tools" goals={shown} viewName={viewName} inMenu />} onClose={() => setSheetOpen(false)} />}
 
       {linkNote && <p className="hint link-note" role="status">{linkNote}</p>}
       {/* Until every goal has had its first check-in, the switch says how far that has got (goals spec, 2.1, item 6). */}
       {switchOn && <FirstReports />}
-      {refined && (shown.length === 0 || near) && <NoneFound things={GOAL_WORDS} q={query.q} filtered={filters({ ...query, q: '' })} near={near} onClearSearch={() => setQuery((cur) => ({ ...cur, q: '' }))} onClearFilters={() => setQuery((cur) => ({ ...EMPTY_QUERY, q: cur.q, sort: cur.sort, dir: cur.dir }))} />}
+      {refined && !watchingNothing && (shown.length === 0 || near) && <NoneFound things={GOAL_WORDS} q={query.q} filtered={filters({ ...query, q: '' })} near={near} onClearSearch={() => setQuery((cur) => ({ ...cur, q: '' }))} onClearFilters={() => setQuery((cur) => ({ ...EMPTY_QUERY, q: cur.q, sort: cur.sort, dir: cur.dir }))} />}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
-      {alt && !refined && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody goals={shown} /> : <div className="calm"><Icon name="check-circle" size={15} /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
+      {alt && (!refined || watchingNothing) && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody goals={shown} /> : <div className="calm"><Icon name="check-circle" size={15} /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
       {alt && shown.length > 0 && layout === 'table' && <GoalTable groups={groups} />}
       {alt && shown.length > 0 && layout === 'board' && <GoalBoard groups={groups} />}
       {alt && shown.length > 0 && layout === 'history' && <HistoryGrid groups={groups} />}
@@ -393,7 +400,7 @@ export function GoalsScreen() {
         );
       })}
 
-      {watchingList && (shown.length > 0 || !refined) && <WatchingBody goals={shown} />}
+      {watchingList && (shown.length > 0 || !refined || watchingNothing) && <WatchingBody goals={shown} />}
 
       {!alt && !refined && show === 'mine' && <ul className="tree">{[...mine].sort(worstFirst(app)).map((g) => <li key={g.id}><GoalRow g={g} showOwner={false} /></li>)}</ul>}
       {/* The key sits after the goals: every row already shows its status in words. */}
@@ -420,8 +427,8 @@ const GROUP_LINE: Record<Group, string> = {
  * The phone's View sheet (goals spec, 2.4): Layout, Group (not on the Map), Saved views, then saving, the link and the
  * modules' tools. Each choice applies at once; Done closes it.
  */
-function ViewSheet({ layout, onLayout, group, groupOff, onGroup, items, canSave, onSave, onCopy, manage, tools, onClose }: {
-  layout: Layout; onLayout: (l: Layout) => void; group: Group; groupOff: string | null; onGroup: (g: Group) => void;
+function ViewSheet({ layouts = LAYOUTS, layout, onLayout, group, groupOff, onGroup, items, canSave, onSave, onCopy, manage, tools, onClose }: {
+  layouts?: [Layout, string][]; layout: Layout; onLayout: (l: Layout) => void; group: Group; groupOff: string | null; onGroup: (g: Group) => void;
   items: { label: string; current: boolean; onClick: () => void }[]; canSave: boolean; onSave: () => void; onCopy: () => void;
   manage: { label: string; onClick?: () => void }[]; tools: React.ReactNode; onClose: () => void;
 }) {
@@ -429,7 +436,7 @@ function ViewSheet({ layout, onLayout, group, groupOff, onGroup, items, canSave,
     <Sheet open onClose={onClose} title="View">
       <div className="view-sheet stack">
         <fieldset className="filter-group"><legend className="field-label">Layout</legend>
-          {LAYOUTS.map(([k, l]) => (
+          {layouts.map(([k, l]) => (
             <label key={k} className="check view-choice"><input type="radio" name="view-layout" checked={layout === k} onChange={() => onLayout(k)} />
               <span className="menu-text"><span>{l}</span><span className="hint">{layoutLine(k)}</span></span></label>
           ))}

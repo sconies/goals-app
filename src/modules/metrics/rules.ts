@@ -18,6 +18,7 @@ import { fmt } from '../../domain/format';
 import { placesText } from '../../domain/numbers';
 import { mergeModuleRows, moduleRows, withModuleRows, type ModuleRows } from '../../domain/records';
 import type { Change, Goal, Person, Team } from '../../domain/types';
+import { heldByLink, measurementProblems, measurementWords } from './rulesMeasured';
 import type { Metric, MetricDirection, MetricLink, MetricRefresh } from './types';
 
 export type { Metric, MetricDirection, MetricLink, MetricMark, MetricRefresh } from './types';
@@ -55,20 +56,21 @@ export const ownerlessMetrics = (r: { metrics: readonly Metric[]; people: readon
 export const METRIC_LIMITS = { name: 120, unit: 20, text: 2000, decimals: 4 } as const;
 /** The fields a metric must have, and the ones it may leave empty. */
 export const REQUIRED_FIELDS = ['name', 'unit', 'direction'] as const;
-export const OPTIONAL_FIELDS = ['meaning', 'decimals', 'source', 'sourceOwner', 'refresh', 'ownerId', 'caveats'] as const;
+export const OPTIONAL_FIELDS = ['meaning', 'decimals', 'source', 'sourceOwner', 'refresh', 'ownerId', 'caveats', 'measurement', 'measurementNote'] as const;
 
 /** What someone gives to add or change a metric: everything but the bookkeeping. Left out, a field keeps its value
     (a new metric: empty text, 0 decimals, no refresh, owned by whoever adds it). */
-export type MetricInput = Partial<Pick<Metric, 'name' | 'meaning' | 'unit' | 'decimals' | 'direction' | 'source' | 'sourceOwner' | 'refresh' | 'ownerId' | 'caveats'>>;
+export type MetricInput = Partial<Pick<Metric, 'name' | 'meaning' | 'unit' | 'decimals' | 'direction' | 'source' | 'sourceOwner' | 'refresh' | 'ownerId' | 'caveats' | 'measurement' | 'measurementNote'>>;
 
 /* ---------- reading ---------- */
 
 /** The metrics in use: not removed, by name. A retired one (MT3) is left out of pickers and lists unless asked for. */
 export const liveMetrics = (s: Rows, o: { retired?: boolean } = {}): Metric[] => metricsOf(s).filter((m) => !m.removedAt && (o.retired || !m.retiredAt)).sort((a, b) => a.name.localeCompare(b.name));
-/** The marks a goal shows (MT3 rule 4): its metric's marks made at or after the goal was linked to it, and since `since`
-    (the cycle's start), oldest first. A goal linked after a change was never measured the old way. */
-export function marksFor(metric: Pick<Metric, 'marks'>, link: Pick<MetricLink, 'linkedAt'>, since?: string): NonNullable<Metric['marks']> {
-  return (metric.marks ?? []).filter((m) => m.at >= link.linkedAt && (!since || m.at >= since));
+/** The marks a goal shows (MT3 rule 4): its metric's marks made at or after the goal was linked to it, in the goal's own
+    cycle (since `since`, its start, and before `until`, the day after its last week), oldest first. A goal linked after a
+    change was never measured the old way, and a change made next year leaves this year's goals as they were. */
+export function marksFor(metric: Pick<Metric, 'marks'>, link: Pick<MetricLink, 'linkedAt'>, since?: string, until?: string): NonNullable<Metric['marks']> {
+  return (metric.marks ?? []).filter((m) => m.at >= link.linkedAt && (!since || m.at >= since) && (!until || m.at < until));
 }
 /** A chart's label for a mark (spec 2.7). */
 export const markLabel = (m: { kind: 'definition' | 'direction'; week: number }) => `${m.kind === 'direction' ? 'Direction' : 'Definition'} changed, week ${m.week}`;
@@ -94,7 +96,7 @@ export function goalsMeasuredBy(s: Rows, goals: readonly Goal[], metricId: strin
 /** A goal's target in its metric: a metric goal's plan target, or a range goal's limit (between two numbers: the upper,
     with the lower beside it). Milestones have none. */
 export function goalTarget(g: Goal): { value: number; kind: 'target' | 'at most' | 'at least' | 'between'; lower?: number } | null {
-  if (g.kind === 'metric') return { value: g.plan.target, kind: 'target' };
+  if (g.kind === 'metric') return g.targetUnset ? null : { value: g.plan.target, kind: 'target' };
   if (g.kind === 'range') return g.range.bound === 'between' ? { value: g.range.limit, kind: 'between', lower: g.range.lower! } : { value: g.range.limit, kind: g.range.bound === 'atMost' ? 'at most' : 'at least' };
   return null;
 }
@@ -115,6 +117,8 @@ export const sliceName = (s: { teams: Team[] }, teamId: string | null) => (teamI
 
 /* ---------- what a metric needs ---------- */
 
+const measured = (k: Metric['measurement'] | null, note: string | null | undefined): Pick<Metric, 'measurement' | 'measurementNote'> =>
+  k && k !== 'measured' ? { measurement: k, measurementNote: (note ?? '').trim() } : {};
 const clean = (v: string | undefined | null) => (v ?? '').trim().replace(/[ \t]+/g, ' ');
 
 /** The metric as it would be saved: text trimmed, defaults filled in. Throws nothing; metricProblems says what's wrong. */
@@ -132,6 +136,8 @@ export function metricFrom(input: MetricInput, before: Metric | null, x: Pick<Ac
     refresh: pick('refresh', null) ?? null,
     ownerId: pick('ownerId', x.actor.id) || x.actor.id,
     caveats: (pick('caveats', '') ?? '').trim(),
+    // MS (rulesMeasured.ts): left out while measured, so a metric never said otherwise reads as it always has.
+    ...measured(pick('measurement', null), pick('measurementNote', '')),
     createdBy: before?.createdBy ?? x.actor.id,
     createdAt: before?.createdAt ?? x.now,
     updatedAt: x.now,
@@ -154,7 +160,9 @@ export function metricProblems(m: Metric, s: Rows & { people: Person[] }): strin
   else if (m.name.length > METRIC_LIMITS.name) out.push(`Keep the name to ${METRIC_LIMITS.name} characters or fewer.`);
   else {
     const same = liveMetrics(s, { retired: true }).find((v) => v.id !== m.id && !v.name.localeCompare(m.name, 'en', { sensitivity: 'base' }));
-    if (same) out.push(`There’s already a metric called ${same.name}. Use it, or give this one a different name.`);
+    // A retired one says so, or someone looking for it would never think to bring it back (MT3, rule 5).
+    if (same?.retiredAt) out.push(`There’s already a metric called ${same.name}, retired on ${new Date(same.retiredAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}. Bring it back from its page, or give this one a different name.`);
+    else if (same) out.push(`There’s already a metric called ${same.name}. Use it, or give this one a different name.`);
   }
   if (!m.unit) out.push('Say its unit: %, min, hours, USD, deploys…');
   else if (m.unit.length > METRIC_LIMITS.unit) out.push(`Keep the unit to ${METRIC_LIMITS.unit} characters or fewer.`);
@@ -162,6 +170,7 @@ export function metricProblems(m: Metric, s: Rows & { people: Person[] }): strin
   if (!Number.isInteger(m.decimals) || m.decimals < 0 || m.decimals > METRIC_LIMITS.decimals) out.push(`Decimals is a whole number from 0 to ${METRIC_LIMITS.decimals}.`);
   if (m.refresh != null && !REFRESHES.includes(m.refresh)) out.push(`Refresh is one of ${REFRESHES.join(', ')}, or left empty.`);
   if (!s.people.some((p) => p.id === m.ownerId)) out.push('The metric’s owner isn’t in this workspace.');
+  out.push(...measurementProblems(m));
   for (const [k, label] of [['meaning', 'meaning'], ['source', 'source'], ['sourceOwner', 'source’s owner'], ['caveats', 'caveats']] as const) {
     if (m[k].length > METRIC_LIMITS.text) out.push(`Keep the ${label} to ${METRIC_LIMITS.text.toLocaleString('en-GB')} characters or fewer.`);
   }
@@ -183,6 +192,7 @@ export function metricFields(m: Metric, s: { people: Person[] }): Record<string,
     Refresh: m.refresh ? REFRESH_LABEL[m.refresh] : '—',
     Owner: s.people.find((p) => p.id === m.ownerId)?.name ?? '—',
     Caveats: m.caveats || '—',
+    Measured: measurementWords(m),
   };
 }
 
@@ -281,7 +291,9 @@ export function unlinkGoalMetric(x: ActionContext, goal: Goal): Commit | null {
   const l = linksOf(x.snapshot).find((v) => v.goalId === goal.id && !v.removedAt);
   if (!l) return null;
   const name = metricsOf(x.full ?? x.snapshot).find((v) => v.id === l.metricId)?.name ?? 'its metric';
-  return { ...metricRows({ metricLinks: [{ ...l, removedAt: x.now, removedBy: x.actor.id }] }), changes: [log(x, { entityId: l.metricId, goalId: goal.id, action: 'removed', summary: `No longer measured by “${name}”`, diffs: [{ field: 'Measured by', from: name, to: '—' }] })] };
+  // MS: measured by nothing, a goal held to no number is held to its plan again.
+  const hold = heldByLink(x, goal, null);
+  return { ...metricRows({ metricLinks: [{ ...l, removedAt: x.now, removedBy: x.actor.id }] }), ...(hold ? { goals: [hold.goal] } : {}), changes: [log(x, { entityId: l.metricId, goalId: goal.id, action: 'removed', summary: `No longer measured by “${name}”`, diffs: [{ field: 'Measured by', from: name, to: '—' }] }), ...(hold ? [hold.change] : [])] };
 }
 
 /** Two saves as one (a new goal and its link, made in one form): records and change-log entries together, in order. */

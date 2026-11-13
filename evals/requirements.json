@@ -194,6 +194,18 @@
       "use": "copy"
     },
     {
+      "id": "GOAL-BASELINE",
+      "area": "Goals",
+      "text": "A baseline can be a figure of its own (BL). A number goal's Baseline can say the period it covers (\"June to September 2026\", at most 60 characters) and whether it is provisional, in New goal, Change a goal, the Goals sheet (Baseline period, Baseline is) and the tools (baseline_period, baseline_is). Until the goal's first check-in, it is shown as the goal's number, marked as the baseline: \"41.5 min (baseline)\" in lists, and the number with \"Baseline, {period}, provisional\" on its page; its status is worked out as before. Firming up a provisional baseline, moving the start it is, is not a plan change: it asks for no reason and keeps no earlier plan.",
+      "use": "copy"
+    },
+    {
+      "id": "GOAL-NO-TARGET",
+      "area": "Goals",
+      "text": "A goal can go in with a baseline and nothing else yet (GB). While a number goal is proposed, its target may be left out: it keeps its baseline and unit, has no status, nothing due and is in no count, says \"Target not set\" (on its page, with Set the target, and in lists as \"{baseline} now, target not set\"), and is made active only once a target is set. New goal, Change a goal, the Goals sheet and the tools all allow it; an active goal still needs a target.",
+      "use": "copy"
+    },
+    {
       "id": "GOAL-PAGE",
       "area": "Goals",
       "text": "The goal page leads with its summary bar, then the chart (plan, actual, projection range, path to green), why, what's being done, the last review, what feeds it, the year by quarter, one activity stream and About this goal.",
@@ -837,9 +849,21 @@
       "use": "copy"
     },
     {
+      "id": "READING-SHOWN",
+      "area": "Metrics",
+      "text": "Where a check-in's number came from shows beyond the check-in, from what the check-in recorded (Faro keeps no series of readings): the goal's Measured by says \"This week's number\" from its latest check-in (\"{value}, from {source}, read {when}. Confirmed by {name}.\" or \"{typed}, typed by {name}. {source} said {value}.\", nothing when it recorded none); each History row says \"From {source}, read {when}. {name} checked in.\" or \"Typed by {name}. {source} said {value}. {Reason}: “{words}”\"; the metric's page lists its goals with \"In its check-in\" (\"Filled in from {source} · last read {when}\", \"Typed by hand: {source} has no number per team\" or \"Typed by hand: no source can be read\") and \"In the last 8 weeks, {k} of {n} check-ins filled in from {source} used a different number.\" with See them (goals and weeks, never people); a review's agenda row says \"· from {source}\" in the quiet ink after a confirmed number, and nothing for a typed one; the Check-ins sheet has Number from, Source's number, Measured at and Reason for a different number, for reading, never loaded back; get_goal and get_metric say the same.",
+      "use": "copy"
+    },
+    {
       "id": "METRIC-CHANGE",
       "area": "Metrics",
       "text": "A metric that changes tells its goals (MT3). Changing a metric goals use reads back what it does to them first: a new meaning or source asks \"Is it still the same number?\"; \"The number itself changes\" and a new direction each need a reason, and leave a mark on every goal's chart (\"Definition changed, week {w}\", a dashed hairline labelled beside it) and History; a new unit is a new label (every goal's unit changes too) or a different scale, refused. A metric that has measured a goal is retired, not deleted: its goals keep their links and numbers and say \"Measured by {metric}, retired {date}\", it leaves the pickers, and Bring it back undoes it. Admins merge a metric into another in the same unit, moving its goals and retiring it pointing there. Every one of these saves with one Undo, and retire_metric, merge_metrics and save_metric's comparable, reason and relabel do the same through MCP.",
+      "use": "copy"
+    },
+    {
+      "id": "METRIC-MEASUREMENT",
+      "area": "Metrics",
+      "text": "A gap in measurement is visible and owned, not faked (MS). Each metric says whether it is measured today, Measured, Partly or Gap, always as a shape (a filled, half-filled or broken square) and its word, with an optional line on what is missing (at most 300 characters). A metric with a gap or measured only in part is listed under To sort out on its page and in the library (\"Not measured yet: {n} goals held to no number\", \"Only partly measured\") with Say how it's measured. A goal measured by a metric with a gap is held to no number: it says Not measured yet (a broken ring and the words) instead of a status, nothing on it is due, late or quiet, and it projects nothing; linking it to a measured metric, unlinking it, or its metric being measured holds it to its plan again, in the same save, with one Undo and a line in its History. save_metric takes measurement and measurement_note, and get_metric and the export say so.",
       "use": "copy"
     },
     {
@@ -1176,6 +1200,36 @@
       "use": "copy"
     },
     {
+      "id": "WATCHING-OPTIONAL",
+      "area": "Architecture",
+      "text": "An admin switches Watching off for a workspace. Off, there is no Watching tab, no “Goals you watch”, no Watch button and no watching tool; someone who owns no goal is led to the goals that need attention. Switching it off first says how many people’s watches are kept. Every watch is kept, and switching it on restores each person’s.",
+      "use": "copy"
+    },
+    {
+      "id": "FEEDBACK-OPTIONAL",
+      "area": "Architecture",
+      "text": "An admin switches Feedback off for a workspace. Off, there is no Feedback in the menu, no way to send feedback or mark up a screen (Ctrl+Shift+M does nothing), and no inbox tool; its addresses say it is switched off. What was sent stays in the builders’ inbox.",
+      "use": "copy"
+    },
+    {
+      "id": "MAP-OPTIONAL",
+      "area": "Architecture",
+      "text": "An admin switches the Goal map off for a workspace. Off, Goals offers no Map, and a link or saved view that asked for it opens the List and says so.",
+      "use": "copy"
+    },
+    {
+      "id": "WRAP-UP-OPTIONAL",
+      "area": "Architecture",
+      "text": "An admin switches the Wrap-up off for a workspace. Off, nobody is asked how a goal landed (no wrap-up on Home, Goals, a goal or Cycles, no wrap-up page or tool); results are worked out as before and an admin still starts the next year from Cycles. Switching it off first says how many wrap-ups stay. Wrap-ups already written stay in History.",
+      "use": "copy"
+    },
+    {
+      "id": "FEATURE-GROUPS",
+      "area": "Architecture",
+      "text": "Workspace, Features lists the optional features in groups: Working together (Reviews, Watching, the Wrap-up), Tools (the Metric library, Spreadsheets, the Goal map) and Beyond this workspace (Feedback); a group with nothing installed is not shown. A feature on that holds something says so in a third line (how many reviews are set up, how many people watch goals, when the wrap-up opens). About lists what is on in the same order.",
+      "use": "copy"
+    },
+    {
       "id": "NO-SILENT-ROUNDING",
       "area": "Numbers",
       "text": "A number is never rounded quietly: one typed with more decimal places than its goal keeps is refused, with what it would show as, in the check-in, New goal, goal edit, the import and the AI tools. Letters in a number get one message everywhere, every number shown has its thousands grouped, and numbers far outside the plan are questioned, never refused.",
@@ -1197,6 +1251,12 @@
       "id": "SMALL-MENU",
       "area": "Navigation",
       "text": "A module's menu row, a Goals tab and a Home section wait until they have something in them (a tab also waits while it is the same list as one drawn before it; All is always drawn). Hiding is only drawing: every address still opens.",
+      "use": "copy"
+    },
+    {
+      "id": "SMALL-QUIET",
+      "area": "Navigation",
+      "text": "No count of nought beside a tab, a menu row or a section's name (a sentence may still say none), and an empty page says what is true, then when you'd want it, with a plain button rather than the page's primary.",
       "use": "copy"
     }
   ],

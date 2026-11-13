@@ -47,6 +47,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the menu, the lit item and a page’s name (AR2, NV1) › places a module’s items by their group, in the order they register
 - the menu, the lit item and a page’s name (AR2, NV1) › gives a phone four tabs and puts the rest in More, in its groups
 - the menu, the lit item and a page’s name (AR2, NV1) › has no Reviews row or tab with Reviews switched off (FT2): People and Activity take the tabs
+- the menu, the lit item and a page’s name (AR2, NV1) › has no Feedback row with Feedback switched off (SW1): the last group is Workspace, Settings, Help, on a phone too
 - the menu, the lit item and a page’s name (AR2, NV1) › lists up to four saved views: pinned A to Z, then yours, the latest opened first
 - the menu, the lit item and a page’s name (AR2, NV1) › lights one item for an address (rule 3)
 - the menu, the lit item and a page’s name (AR2, NV1) › lights the tab that holds the lit row, or More

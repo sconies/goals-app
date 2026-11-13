@@ -2,6 +2,7 @@
    brief in Markdown (to paste into any AI chat). Pure functions; the app turns them into files.
    The workbook and the CSVs are the one spreadsheet format (domain/columns.ts): every sheet and column is defined there
    once, so whatever is exported can be edited and loaded back, and loads back unedited as no change at all. */
+import { isUnmeasured, UNMEASURED } from './unmeasured';
 import { proposedSummary } from './proposedSummary';
 import { isProposed } from './proposed';
 import { planHistoryOf } from './goal';
@@ -24,6 +25,7 @@ import {
 import type { Archive, CheckIn, Decision, Goal, Person } from './types';
 import { moduleSheetRows } from './records';
 import { NO_REASON } from './checkin';
+import { readingCells, readingHistoryLine } from './reading';
 
 export type { Cell, ExportInput } from './columns';
 /** A sheet: its name, its rows (the header first), and the columns set apart in grey: worked out, or only for reading.
@@ -190,6 +192,13 @@ export const csvFiles = (book: Table[]) => book.map((t) => ({ name: `${t.name}.c
 
 /* ---------- JSON ---------- */
 
+/** A check-in's reading in the JSON export and get_goal: the sheet's four columns, and History's line. */
+function numberFrom(c: CheckIn, g: Goal, who: string, today: Date) {
+  const dec = g.kind === 'milestone' ? 0 : g.decimals;
+  const r = readingCells(c, dec);
+  return r.from ? { from: r.from, sourceSaid: r.value, measuredAt: r.at, reason: r.reason, says: g.kind === 'milestone' ? null : readingHistoryLine(c, g, who, today, { timeZone: 'UTC' }) } : null;
+}
+
 export function toJson(x: ExportInput) {
   const { sums, name, c } = prepare(x, true);
   const team = (id: string | null) => x.snapshot.teams.find((t) => t.id === id)?.name ?? null;
@@ -210,15 +219,17 @@ export function toJson(x: ExportInput) {
         feedsIntoId: g.parentId, whyItHelps: g.whyHelps || null, source: g.source || null, definition: g.definition || null,
         ...(g.kind === 'metric' ? {
           unit: g.unit, decimals: g.decimals,
-          plan: { start: g.plan.start, target: g.plan.target, shape: g.plan.shape, from: weekCode(x.cycle, g.plan.fromWeek ?? 0), to: weekCode(x.cycle, planEnd(g.plan, x.cycle.weeks)), fromWeek: g.plan.fromWeek ?? 0, dueWeek: planEnd(g.plan, x.cycle.weeks), setByHand: !!g.plan.points?.length,
-            byWeek: planCheckpoints(g.plan.fromWeek ?? 0, planEnd(g.plan, x.cycle.weeks)).map((w) => ({ week: w, value: Number(planAt(g.plan, w, x.cycle.weeks).toFixed(g.decimals)) })) },
+          plan: { start: g.plan.start, target: g.targetUnset ? null : g.plan.target, shape: g.plan.shape, from: weekCode(x.cycle, g.plan.fromWeek ?? 0), to: weekCode(x.cycle, planEnd(g.plan, x.cycle.weeks)), fromWeek: g.plan.fromWeek ?? 0, dueWeek: planEnd(g.plan, x.cycle.weeks), setByHand: !!g.plan.points?.length,
+            byWeek: g.targetUnset ? [] : planCheckpoints(g.plan.fromWeek ?? 0, planEnd(g.plan, x.cycle.weeks)).map((w) => ({ week: w, value: Number(planAt(g.plan, w, x.cycle.weeks).toFixed(g.decimals)) })) },
           earlierPlans: planHistoryOf(g).map((v) => ({ untilWeek: v.untilWeek, start: v.plan.start, target: v.plan.target, shape: v.plan.shape })),
         } : {}),
         ...(g.kind === 'range' ? { unit: g.unit, decimals: g.decimals, range: { mustStay: g.range.bound, ...(g.range.bound === 'between' ? { lower: g.range.lower } : {}), limit: g.range.limit, margin: g.range.margin } } : {}),
         ...(g.kind === 'milestone' ? { stages: g.stages.map((st) => ({ id: st.id, name: st.name, dueWeek: st.dueWeek })) } : {}),
         ...(g.stoppedAt ? { stopped: { at: g.stoppedAt, by: name(g.stoppedBy ?? '') || null, reason: g.stopReason ?? null } } : {}),
         ...(s.state === 'proposed' ? { state: 'proposed' } : {}),
-        now: { status: s.status, statusLabel: g.stoppedAt ? STOPPED : s.statusLabel, statusMeaning: MEANING[s.status], value: s.nowValue, text: s.now, planThisWeek: s.planNow, gap: s.gap, lastCheckInWeek: s.lastWeek, forecast: s.forecast,
+        // Held to no number (MS; domain/unmeasured): its status says nothing about its plan, and nothing on it is due.
+        ...(isUnmeasured(g) ? { unmeasured: { since: g.unmeasuredSince! } } : {}),
+        now: { status: s.status, statusLabel: g.stoppedAt ? STOPPED : isUnmeasured(g) ? UNMEASURED : s.statusLabel, statusMeaning: MEANING[s.status], value: s.nowValue, text: s.now, planThisWeek: s.planNow, gap: s.gap, lastCheckInWeek: s.lastWeek, forecast: s.forecast,
           projection: s.projection && g.kind === 'metric' ? { likeliest: Number(s.projection.value.toFixed(g.decimals)), low: Number(s.projection.low.toFixed(g.decimals)), high: Number(s.projection.high.toFixed(g.decimals)), byWeek: s.projection.week, fittedWeeks: [s.projection.from, s.projection.to] } : null },
         story: { since: s.story.since, where: s.story.where, outlook: s.story.outlook, whyItsOff: s.story.why, recoveryPlan: s.story.doing, byWhen: s.story.byWhen, needs: s.story.needs, nextStep: s.story.next, warnings: s.story.warnings, warningKinds: s.story.flags, feeds: s.story.feeds },
         needsAttention: { needs: needsAttention(s.attention), beingHandled: s.attention.handled?.text ?? null, flags: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => ({ kind: f.kind, label: f.label, detail: f.detail })) },
@@ -230,6 +241,8 @@ export function toJson(x: ExportInput) {
           call: c.status, callLabel: LABEL[c.status], calculated: c.calculated, calculatedLabel: LABEL[c.calculated], cause: c.cause, why: c.why || null, whyGreener: c.greenerWhy || null,
           pathToGreen: c.pathToGreen ? { what: c.pathToGreen.what, byWeek: c.pathToGreen.byWeek, needs: c.pathToGreen.needs || null, state: c.pathToGreen.state ?? 'plan' } : null,
           next: c.next || null, postedAt: c.postedAt, postedBy: name(c.authorId) || null, backfilled: !!c.backfilled,
+          // Where its number came from (NR 2.4), as History says it; null when no source was read.
+          numberFrom: numberFrom(c, g, name(c.authorId) || 'someone who has left', x.today),
         })),
       };
     }),

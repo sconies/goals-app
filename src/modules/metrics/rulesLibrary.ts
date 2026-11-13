@@ -6,6 +6,7 @@
    Pure, as src/domain is: each takes only the rows it reads (the metrics, the links, the cycle's live goal ids, the
    people), never the whole workspace, and no clock (`now` is given). Statuses, "now", targets and the gap to plan come
    from the core's goal summary (domain/summary, domain/scorecard), never worked out again here. */
+import { measurementOf } from './rulesMeasured';
 import { fold, textMatches } from '../../domain/find';
 import { placesText } from '../../domain/numbers';
 import { byWeekWords } from '../../domain/scorecard';
@@ -66,17 +67,23 @@ export { ownerName } from './rules';
 
 /* ---------- rule 3: what a metric needs ---------- */
 
-export type NeedId = 'no-owner' | 'no-meaning' | 'no-source' | 'unused';
+export type NeedId = 'gap' | 'partly' | 'no-owner' | 'no-meaning' | 'no-source' | 'unused';
 export interface MetricNeed { id: NeedId; sentence: string; button: string; to: string }
 
 /**
- * Rule 3. What a metric still needs, in this order: an owner (unset, or they have left), a meaning, a source, and a goal
+ * Rule 3. What a metric still needs, in this order: to be measured (a gap, or measured only in part: MS), an owner (unset, or they have left), a meaning, a source, and a goal
  * that uses it (once it was added more than 14 days ago). Each with the sentence the page and the library say, and one
  * button that opens the form at that field, or Goals in its unit.
  */
 export function metricNeeds(m: Metric, r: Omit<LibraryReads, 'metrics'>): MetricNeed[] {
   const out: MetricNeed[] = [];
   const edit = (field: string) => `${metricPath(m)}/edit?field=${field}`;
+  // MS: a gap, or a metric measured only in part, is sorted out here rather than as late check-ins on its goals.
+  const k = measurementOf(m);
+  if (k !== 'measured') {
+    const held = k === 'gap' ? liveLinks(r, m.id).length : 0;
+    out.push({ id: k, sentence: k === 'gap' ? `Not measured yet${held ? `: ${held} ${held === 1 ? 'goal' : 'goals'} held to no number` : ''}` : 'Only partly measured', button: 'Say how it’s measured', to: edit('measurement') });
+  }
   const owner = r.people.find((p) => p.id === m.ownerId);
   if (!owner || owner.leftAt) out.push({ id: 'no-owner', sentence: owner ? 'Its owner has left' : 'It has no owner', button: 'Choose an owner', to: edit('owner') });
   if (!m.meaning.trim()) out.push({ id: 'no-meaning', sentence: 'No meaning yet', button: 'Say what it means', to: edit('meaning') });

@@ -38,12 +38,13 @@ export interface ScopeTab { id: Scope; label: string; ids: string[] }
  * drawn or not, since every address still opens. Opens on the scope last used when it is still drawn; otherwise Mine,
  * else Watching when it has goals, else All.
  */
-export function scopesFor(f: ScopeFacts, last: Scope | null): { tabs: ScopeTab[]; every: ScopeTab[]; opens: Scope } {
+export function scopesFor(f: ScopeFacts, last: Scope | null, opts: { watching: boolean } = { watching: true }): { tabs: ScopeTab[]; every: ScopeTab[]; opens: Scope } {
   const every: ScopeTab[] = [];
   const mine = scopeIds(f, 'mine');
   every.push({ id: 'mine', label: 'Mine', ids: mine });
   if (f.teams.length) every.push({ id: 'team', label: f.teams.length === 1 ? 'My team' : 'My teams', ids: scopeIds(f, 'team') });
-  every.push({ id: 'watching', label: 'Watching', ids: scopeIds(f, 'watching') });
+  // With Watching switched off (SW1, spec 2.3) there is no Watching scope; a remembered Watching falls through below.
+  if (opts.watching) every.push({ id: 'watching', label: 'Watching', ids: scopeIds(f, 'watching') });
   every.push({ id: 'all', label: 'All', ids: scopeIds(f, 'all') });
   const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
   const tabs: ScopeTab[] = [];
@@ -51,7 +52,7 @@ export function scopesFor(f: ScopeFacts, last: Scope | null): { tabs: ScopeTab[]
   const all = every.find((t) => t.id === 'all')!;
   for (const t of every) if (t === all || (t.ids.length && !same(t.ids, all.ids) && !tabs.some((d) => same(d.ids, t.ids)))) tabs.push(t);
   const has = (s: Scope | null) => !!s && tabs.some((t) => t.id === s);
-  const opens: Scope = has(last) ? last! : mine.length ? 'mine' : (every.find((t) => t.id === 'watching')!.ids.length ? 'watching' : 'all');
+  const opens: Scope = has(last) ? last! : mine.length ? 'mine' : (every.find((t) => t.id === 'watching')?.ids.length ? 'watching' : 'all');
   return { tabs, every, opens };
 }
 

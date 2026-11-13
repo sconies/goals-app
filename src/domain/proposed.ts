@@ -33,6 +33,17 @@ export function measureEmpty(d: Pick<GoalDraft, 'kind' | 'start' | 'target' | 'l
   return !d.stages.some((s) => s.name.trim() || s.dueWeek.trim());
 }
 
+/**
+ * A goal with a baseline and nothing else yet (backlog GB, Lane 12 Nov; core, inside this proposed state). While a number
+ * goal is proposed, its target may be left unset: it keeps its baseline (the plan's start) and unit, says "Target not
+ * set", and is made active only once a target is set, since making it active runs rule 2's full list. Like any proposal it
+ * has no status, nothing due and is in no count.
+ */
+export const TARGET_NOT_SET = 'Target not set';
+/** Whether a goal is a number goal whose target isn't set yet (only ever while proposed). */
+export const targetNotSet = (g: Goal): boolean => g.kind === 'metric' && !!g.targetUnset;
+/** Whether a draft is a number goal with a baseline and no target: what a proposal may save (GB). */
+export const baselineOnly = (d: Pick<GoalDraft, 'kind' | 'start' | 'target'>): boolean => d.kind === 'metric' && !!d.start.trim() && !d.target.trim();
 
 /** What withdrawing a proposal says (it is domain/removal's deleteGoal: Recently removed for 30 days, with Undo). */
 export const withdrawnSummary = (title: string) => `Withdrew the proposal “${title}”`;

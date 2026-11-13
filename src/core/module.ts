@@ -24,12 +24,28 @@
 export const PLACES = ['home.blocks', 'goal.facts', 'goal.sections', 'data.tools', 'goals.tools', 'goal.measure', 'people.person', 'people.team', 'help.article', 'checkin.number', 'checkin.table'] as const;
 export type PlaceName = (typeof PLACES)[number];
 
+/** The Features page's groups of switches, in order (SW1, feature-switches spec 4.1), after "How you work", which holds
+    settings and no switch. */
+export const FEATURE_GROUPS = [
+  { id: 'together', label: 'Working together' },
+  { id: 'tools', label: 'Tools' },
+  { id: 'beyond', label: 'Beyond this workspace' },
+] as const;
+export type FeatureGroup = (typeof FEATURE_GROUPS)[number]['id'];
+
+/** The modules in the Features page's order: by group, then as installed (id order). */
+export const byFeatureGroup = <T extends { group?: FeatureGroup }>(ms: readonly T[]): T[] =>
+  FEATURE_GROUPS.flatMap((g) => ms.filter((m) => (m.group ?? 'tools') === g.id));
+
 /** A module's module.json: what it is, what it needs and what it adds, as data. */
 export interface ModuleFacts {
   /** The folder's name: lower case, words joined by hyphens. Never changes; workspaces switch modules off by it. */
   id: string;
   /** What people see on Workspace, Features. */
   name: string;
+  /** Its group on Workspace, Features (SW1): Working together, Tools (the default) or Beyond this workspace. A word for
+      that page only. */
+  group?: FeatureGroup;
   /** One sentence: what it lets people do. */
   summary: string;
   /** The modules it can't work without. It's off whenever one of them is off or left out. */

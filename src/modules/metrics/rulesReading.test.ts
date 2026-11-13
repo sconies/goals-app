@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { askSource, readingRevised, readingState, recordReading } from './rulesReading';
+import { askSource, differentNumbers, differentWords, fillsIn, fillsInWords, readingRevised, readingState, recordReading } from './rulesReading';
 import type { NumberSource } from './source';
 
 const now = new Date('2026-11-12T10:00:00Z');
@@ -45,6 +45,24 @@ describe('asking a source', () => {
   });
 });
 
+describe('asking a source that misbehaves (review of NR2, medium 3)', () => {
+  const m = { id: 'm', source: 'CI analytics' };
+  const slice = { teamId: null, part: '' };
+  const answering = (read: NumberSource['read'], reads: NumberSource['reads'] = () => true): NumberSource => ({ name: 'CI analytics', reads, read });
+  it('is unreachable when reads() throws, when it takes too long, or when its answer isn’t a reading', async () => {
+    expect((await askSource([answering(async () => r(12, 'T'), () => { throw new Error('bad config'); })], m, slice, now)).reading).toBe('unreachable');
+    expect((await askSource([answering(() => new Promise(() => undefined))], m, slice, now, 20)).reading).toBe('unreachable');
+    expect((await askSource([answering(async () => ({ value: '12' as unknown as number, at: '2026-11-12T09:02:00Z' }))], m, slice, now)).reading).toBe('unreachable');
+    expect((await askSource([answering(async () => r(Number.POSITIVE_INFINITY, '2026-11-12T09:02:00Z'))], m, slice, now)).reading).toBe('unreachable');
+    expect((await askSource([answering(async () => r(12, 'last Thursday'))], m, slice, now)).reading).toBe('unreachable');
+    expect((await askSource([answering(async () => r(12, '2027-11-12T09:02:00Z'))], m, slice, now)).reading).toBe('unreachable');
+  });
+  it('still gives a good answer, and none when the source has none', async () => {
+    expect((await askSource([answering(async () => r(12, '2026-11-12T09:02:00Z'))], m, slice, now)).reading).toEqual(r(12, '2026-11-12T09:02:00Z'));
+    expect((await askSource([answering(async () => null)], m, slice, now)).reading).toBe(null);
+  });
+});
+
 describe('rule 2: what is recorded', () => {
   it('keeps the reason only when the number differs, and nothing when nothing was read', () => {
     const why = { kind: 'behind' as const };
@@ -65,9 +83,40 @@ describe('rule 2: the row', () => {
   it('writes reading only when set, and reads it back', async () => {
     const { checkInToRow, checkInFromRow } = await import('../../data/rows');
     const c = { id: 'c', goalId: 'g', authorId: 'p', week: 46, postedAt: '2026-11-12T10:00:00Z', value: 14, stages: null, status: 'on', calculated: 'on', cause: null, why: '', greenerWhy: '', proposeTarget: null, pathToGreen: null, next: '', dataFlagged: false } as const;
-    expect('reading' in checkInToRow('ws', c)).toBe(false);
+    expect(checkInToRow('ws', c).reading).toBe(null);
     const reading = { source: 'CI analytics', value: 12, at: '2026-11-12T09:02:00Z', why: { kind: 'behind' as const } };
     expect(checkInFromRow(checkInToRow('ws', { ...c, reading })).reading).toEqual(reading);
     expect('reading' in checkInFromRow(checkInToRow('ws', c))).toBe(false);
+  });
+});
+
+describe('rule 4: where a reading shows on the metric’s page', () => {
+  const m = { id: 'm', source: 'CI analytics' };
+  const company: NumberSource = { name: 'CI analytics', reads: (x, sl) => x.source === 'CI analytics' && (!sl || sl.teamId == null), read: async () => null };
+  const when = (at: string) => `${at.slice(11, 16)} today`;
+  it('says how each goal’s check-in gets its number, asking no source', () => {
+    const read = [{ reading: { source: 'CI analytics', value: 12, at: '2026-11-12T09:02:00Z' } }, { reading: { source: 'CI analytics', value: 13, at: '2026-11-05T09:00:00Z' } }, { reading: null }];
+    expect(fillsInWords(fillsIn([company], m, { teamId: null, part: '' }, read), when)).toBe('Filled in from CI analytics · last read 09:02 today');
+    expect(fillsInWords(fillsIn([company], m, { teamId: null, part: '' }, []), when)).toBe('Filled in from CI analytics');
+    expect(fillsInWords(fillsIn([company], m, { teamId: 'cicd', part: '' }, read), when)).toBe('Typed by hand: CI analytics has no number per team');
+    expect(fillsInWords(fillsIn([], m, { teamId: null, part: '' }, read), when)).toBe('Typed by hand: no source can be read');
+  });
+  it('counts, over the last 8 weeks, the check-ins filled in from a source that used a different number', () => {
+    const rd = (value: number) => ({ source: 'CI analytics', value, at: 'T' });
+    const ci = [
+      { goalId: 'a', week: 46, value: 12, reading: rd(12) },
+      { goalId: 'a', week: 45, value: 15, reading: rd(13), removedAt: null },
+      { goalId: 'b', week: 44, value: 9.04, reading: rd(9) }, // one number at b's 1 decimal place
+      { goalId: 'b', week: 43, value: 8, reading: null }, // typed, nothing read: not counted
+      { goalId: 'a', week: 38, value: 20, reading: rd(10) }, // nine weeks back: outside
+      { goalId: 'a', week: 47, value: 20, reading: rd(10) }, // after this week
+      { goalId: 'a', week: 44, value: 30, reading: rd(10), removedAt: '2026-11-01' }, // removed
+      { goalId: 'z', week: 46, value: 30, reading: rd(10) }, // not measured by this metric
+    ];
+    const out = differentNumbers(ci, new Map([['a', 0], ['b', 1]]), 46);
+    expect(out).toEqual([{ source: 'CI analytics', n: 3, k: 1, weeks: [{ goalId: 'a', week: 45 }] }]);
+    expect(differentWords(out[0]!)).toBe('In the last 8 weeks, 1 of 3 check-ins filled in from CI analytics used a different number.');
+    expect(differentWords({ source: 'CI analytics', n: 1, k: 1 })).toBe('In the last 8 weeks, 1 of 1 check-in filled in from CI analytics used a different number.');
+    expect(differentNumbers(ci, new Map([['b', 0]]), 30)).toEqual([]);
   });
 });
