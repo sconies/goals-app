@@ -23,18 +23,6 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
-    id: 'which-part-holds',
-    date: '2026-11-13',
-    title: 'Which part: questions are answered before a goal saves',
-    points: [
-      'A question under Which part (another goal on the same number, or a part spelt like one in use) now holds Save until it is answered, as the AI tools do, and Save takes you to it.',
-      'A goal with check-ins that stops being measured by a metric and is then measured another way is asked Why, as any other change is.',
-      'Another goal on the same number means one this year: last year’s copy of a goal is no longer asked about.',
-      '“US” is no longer taken for “U”, nor “Region 2” for “Region 1”.',
-    ],
-    articles: ['metric-slices'],
-  },
-  {
     id: 'older-changes-on-request',
     date: '2026-11-13',
     title: 'Faro opens with the last year of changes, and fetches older ones when asked',
