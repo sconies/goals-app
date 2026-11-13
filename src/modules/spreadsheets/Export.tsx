@@ -15,6 +15,8 @@ import { Sheet } from '../../ui/bits';
 
 /** Every sheet's name after Start here: the core's, then each module's (the metric library's Metrics). */
 const SHEET_NAMES = sheetNamesWith(MODULE_SHEETS).slice(1);
+/** Them with Reviews on, and off (RS, spec 5: no Notes sheet). */
+const SHEETS_SHOWN = { on: SHEET_NAMES, off: SHEET_NAMES.filter((n) => n !== REVIEWS_SHEET) };
 
 const count = (n: number, one: string, many: string) => `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
 
@@ -22,7 +24,6 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
   const app = useApp();
   // With Reviews off (RS, spec 5) the workbook has no Notes sheet and no Review column on Asks.
   const reviews = reviewsOn(useModules().on);
-  const sheetNames = reviews ? SHEET_NAMES : SHEET_NAMES.filter((n) => n !== REVIEWS_SHEET);
   const all = app.snapshot.goals;
   const partial = goals.length < all.length;
   // A view that shows nothing has nothing to export: it can't be chosen, and the export starts from everything (#248 review).
@@ -77,7 +78,7 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
             <div className="opt static">
               <span className="stack" style={{ gap: 2 }}><span className="strong">One sheet as CSV</span>
                 <span className="row" style={{ gap: 'var(--s2)' }}><label className="hint" htmlFor="export-one">Sheet</label>
-                  <select id="export-one" className="input sm" value={one} onChange={(e) => setOne(e.target.value)}>{sheetNames.map((n) => <option key={n} value={n}>{n}</option>)}</select></span></span>
+                  <select id="export-one" className="input sm" value={one} onChange={(e) => setOne(e.target.value)}>{SHEETS_SHOWN[reviews ? 'on' : 'off'].map((n) => <option key={n} value={n}>{n}</option>)}</select></span></span>
               <span className="export-actions">
                 <button type="button" className="btn sm" aria-label={`Save .csv: ${one}`} disabled={!!busy} onClick={() => void run('csv', () => save(one, { kind: 'csv', text: toCsv(sheetNamed(workbook(input), one).rows) }))}>Save .csv</button>
               </span>
