@@ -60,10 +60,11 @@ export interface Access {
 const A = 'src/domain/actions.ts#', R = 'src/domain/removal.ts#', C = 'src/domain/changeset.ts#planChanges', G = 'src/domain/goalEntry.ts#planGoal', MX = 'src/modules/metrics/rules.ts#';
 
 export const ACCESS: Access[] = [
-  { area: 'Goals, plans and check-ins', what: 'Post or correct a check-in (at the check-in screens, the one-table check-in or through the AI)', who: 'The goal’s owner only (Lane, 12 Nov), with exactly two exceptions, both for an admin: bringing check-ins in from a workbook (an import, or setting up from an export), and correcting one in Data’s tables. Each records the admin as author, with the route as its Via', code: ['src/domain/changeset.ts#postCheckIn', 'src/domain/goalRights.ts#mayPostCheckIn'] },
+  { area: 'Goals, plans and check-ins', what: 'Post or correct a check-in (at the check-in screens, the one-table check-in or through the AI)', who: 'The goal’s owner only (Lane, 12 Nov), with exactly two exceptions, both for an admin: bringing check-ins in from a workbook (an import, or setting up from an export: past weeks, or a correction of one already there; never this week’s new check-in, so one pasted row is not a workbook), and correcting one that exists in Data’s tables (never adding one). Each records the admin as author, with the route as its Via', code: ['src/domain/changeset.ts#postCheckIn', 'src/domain/goalRights.ts#mayPostCheckIn', 'src/domain/checkInDoors.ts#mayPostCheckInRow'] },
   { area: 'Goals, plans and check-ins', what: 'Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)', who: 'The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it', code: [C, G, 'src/domain/goalRights.ts#mayChangeGoal'] },
   { area: 'Goals, plans and check-ins', what: 'Add a goal, at any level, owned by anyone', who: 'Anyone, for anyone (Lane, 11 Nov)', code: [C, G, 'src/domain/goalRights.ts#mayAddGoal'] },
   { area: 'Goals, plans and check-ins', what: 'Stop a goal that has check-ins (with a reason); delete one that has none (withdraw it, while it is proposed)', who: 'The goal’s owner, or an admin; a proposal also whoever proposed it', code: [`${R}stopGoal`, `${R}deleteGoal`] },
+  { area: 'Goals, plans and check-ins', what: 'Make an active goal with no check-ins proposed again (GE10)', who: 'The goal’s owner, or an admin', code: ['src/domain/proposedActions.ts#backToProposed', 'src/domain/goalRights.ts#mayChangeGoal'] },
   { area: 'Goals, plans and check-ins', what: 'Make a proposed goal active (GE10)', who: 'The goal’s owner, or an admin (not whoever proposed it, unless they are one)', code: ['src/domain/proposedActions.ts#activate', 'src/domain/proposedActions.ts#mayActivate'] },
   { area: 'Goals, plans and check-ins', what: 'Delete a goal’s latest check-in (after a newer one it can only be corrected)', who: 'The goal’s owner only, whoever posted it (check-ins are the owner’s, Lane, 12 Nov)', code: [`${R}deleteCheckIn`, `${R}canDeleteCheckIn`] },
   { area: 'Goals, plans and check-ins', what: 'Wrap up a goal at the end of the cycle', who: 'The goal’s owner, or an admin', code: [`${A}saveRetro`] },
@@ -102,8 +103,8 @@ export const ACCESS: Access[] = [
   { area: 'People, teams and the workspace', what: 'Send feedback about the app', who: 'Anyone', code: [`${A}sendFeedback`] },
   { area: 'People, teams and the workspace', what: 'Start over: reset the shared example in this browser, or remove a workspace of your own', who: 'Anyone in the example; admins in a workspace of their own', code: [`${A}mayStartOver`] },
   { area: 'People, teams and the workspace', what: 'Change the status of a markup or of feedback (In hand, Fixed, Won’t fix, New again)', who: 'Admins (Lane, 12 Nov); anyone reads the inbox and sends feedback', code: ['src/markup/model.ts#mayTriage'] },
-  { area: 'Metrics', what: 'Add a metric to the library', who: 'Anyone; they own it unless they name another owner', code: [`${MX}saveMetric`] },
-  { area: 'Metrics', what: 'Change or remove a metric', who: 'Its owner, or an admin', code: [`${MX}saveMetric`, `${MX}removeMetric`, `${MX}canEditMetric`] },
+  { area: 'Metrics', what: 'Add a metric to the library', who: 'Anyone; they own it unless they name another owner', code: [`${MX}saveMetric`, 'src/modules/metrics/rulesSave.ts#saveMetricAsked'] },
+  { area: 'Metrics', what: 'Change or remove a metric', who: 'Its owner, or an admin', code: [`${MX}saveMetric`, 'src/modules/metrics/rulesSave.ts#saveMetricAsked', `${MX}removeMetric`, `${MX}canEditMetric`] },
   { area: 'Metrics', what: 'Say which metric measures a goal, or stop', who: 'The goal’s owner, or an admin', code: ['src/modules/metrics/rulesLink.ts#linkGoalMetric', `${MX}unlinkGoalMetric`, `${MX}canLinkGoal`] },
 ];
 

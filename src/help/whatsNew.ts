@@ -34,6 +34,82 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['data', 'finding'],
   },
   {
+    id: 'make-it-proposed-again',
+    date: '2026-11-13',
+    title: 'Make a goal proposed again',
+    points: [
+      'A goal made active too soon can go back to proposed while it has no check-ins: Make it proposed again, in the goal’s “…” menu.',
+      'It then has no status and nothing is due until it is made active again. The message has Undo.',
+    ],
+    articles: ['goal-proposed'],
+  },
+  {
+    id: 'admin-check-in-doors-narrow',
+    date: '2026-11-13',
+    title: 'Only owners add this week’s check-in',
+    points: [
+      'An admin’s workbook brings in past weeks and corrections, not this week’s new check-in for someone else.',
+      'In Data, an admin corrects a check-in; adding one is the owner’s.',
+    ],
+    articles: ['check-in', 'data'],
+  },
+  {
+    id: 'import-way-out',
+    date: '2026-11-13',
+    title: 'Import has a way out again',
+    points: [
+      'Import has “Close without saving” at the top right, as every form does, so on a phone it no longer leaves you with no way back to Data.',
+      'Rows you pasted are asked about first.',
+    ],
+    articles: ['getting-around', 'import'],
+  },
+  {
+    id: 'setup-upload-preview',
+    date: '2026-11-13',
+    title: 'Set-up checks a spreadsheet as Import does',
+    points: [
+      'A spreadsheet given at set-up ends on Import’s preview: what it adds, what must be fixed, and its questions.',
+      'An owner nobody typed: “Add {name}”, or “Give it to someone here”.',
+      'Stages already due count from this week unless you change it.',
+    ],
+    articles: ['set-up', 'import'],
+  },
+  {
+    id: 'proposals-on-home',
+    date: '2026-11-13',
+    title: 'Proposals for you show on Home',
+    points: [
+      'A goal someone proposes for you shows on your Home, under Needs your response, until you open it.',
+      'A proposal that has waited 8 weeks or more asks once whether to make it active or withdraw it; Not yet puts it off for 8 more weeks.',
+      'Proposing a goal for someone else now says they will see it on their Home.',
+    ],
+    articles: ['goal-proposed', 'home'],
+  },
+  {
+    id: 'metric-checks-everywhere',
+    date: '2026-11-13',
+    title: 'New metrics checked everywhere',
+    points: [
+      'Adding a metric from a goal’s “Measured by” now asks the same questions as Add a metric: a name close to another’s, a unit spelt another way, a percentage that doesn’t say out of what.',
+      'A name that differs from another metric’s only by an accent, such as “Fláky test rate”, must be changed, as one differing only by case already did.',
+      'Answering a question on the form keeps your place: Change on the answered line takes the focus.',
+      '“Lower is better” and “Higher is better” are bigger to tap on a phone.',
+    ],
+    articles: ['metric-define', 'metric-measured-by'],
+  },
+  {
+    id: 'range-between-both-limits',
+    date: '2026-11-13',
+    title: 'A range between two numbers weighs both its limits',
+    points: [
+      'A number moving back towards the middle of its range now reads as getting better, from either side, in its trend, “Vs last week” and the attention flags.',
+      '“Will it stay within?” answers for whichever limit the number is likelier to cross, not only the nearer one.',
+      'On a narrow range the chart’s Upper and Lower labels no longer sit on each other, and a quarter ended inside the range names both limits.',
+      'In a spreadsheet, two numbers in Limit with Must stay saying At most or At least now ask whether you meant Between.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
     id: 'metric-part',
     date: '2026-11-13',
     title: 'Measure a goal by one part of a number',

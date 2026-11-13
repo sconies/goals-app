@@ -20,7 +20,9 @@ function RangeSvg({ goal, weeks, week, series, scrub, draw, landed, W, H }: Rang
   // Each bound with its shaded warning margin: one, or the upper and lower of a range between two numbers.
   const sides: RangeSide[] = two ? [{ bound: 'atMost', limit }, { bound: 'atLeast', limit: r.lower! }] : [r as RangeSide];
   const k = (s: RangeSide) => (s.bound === 'atMost' ? 1 : -1);
-  const m = Math.max(margin, 1);
+  // Room beyond each bound: for one bound, at least a unit; between two numbers, a share of the band, so a narrow band
+  // (1.6% to 1.8%) still fills the chart and its two labels, Upper above its line and Lower below, never meet.
+  const m = two ? Math.max(margin, (limit - r.lower!) / 2) : Math.max(margin, 1);
   const { X, Y } = looseScales(f, weeks, [...series.map((p) => p.value), ...sides.flatMap((s) => [s.limit + 1.5 * k(s) * m, ...(two ? [] : [s.limit - 3 * k(s) * m])])]);
   const out = (v: number) => rangeOut(r, v);
   const last = series[series.length - 1];
@@ -33,7 +35,7 @@ function RangeSvg({ goal, weeks, week, series, scrub, draw, landed, W, H }: Rang
       {series.length > 0 && <polyline className="c-act" points={line(series.map((p) => [X(p.week), Y(p.value)]))} />}
       {series.map((p) => <circle key={p.week} cx={X(p.week)} cy={Y(p.value)} r={out(p.value) ? 5 : 3} className={(out(p.value) ? 'c-breach' : 'c-dot') + (p === last ? ' c-last' : '') + (landed && p === last ? ' landed' : '')} />)}
       {draw && last && <circle className="c-dot-ring" cx={X(last.week)} cy={Y(last.value)} r={4} aria-hidden="true" />}
-      {sides.map((s, i) => <TargetLabel key={s.bound} f={f} y={Y(s.limit)}>{two ? (i ? 'Lower ' : 'Upper ') : 'Limit '}{fmt(s.limit, goal)}{compact || i ? '' : ' · shaded: warning margin'}</TargetLabel>)}
+      {sides.map((s, i) => <TargetLabel key={s.bound} f={f} y={Y(s.limit)} below={two && i === 1}>{two ? (i ? 'Lower ' : 'Upper ') : 'Limit '}{fmt(s.limit, goal)}{compact || i ? '' : ' · shaded: warning margin'}</TargetLabel>)}
       {!two && <Better up={bound === 'atLeast'} x={f.padL} />}
       {sc.at != null && (
         <g className="c-scrub" aria-hidden="true">

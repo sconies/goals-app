@@ -23,11 +23,11 @@ A goal can be proposed before anyone is held to it: visible to everyone, never j
 
 A From before this week is asked at every door (rule 3's from-past, in New goal's words; a tool passes `confirm` once the person has said yes), and a From outside week 0 to the week before the plan's To is refused: "From must be a week of this cycle before the plan’s To: week 0 to week {n}." A proposal has no check-ins, so proposing a stages goal asks nothing about stages already past and saves no check-in for them; they are marked done at its first check-in. Marking an owner as left hands over their proposed goals with the rest (`leaving`).
 
-**Back to proposed** (`backToProposed`): an active goal with no check-ins, by its owner or an admin. One with a check-in can't: "It has check-ins, so it can’t go back to proposed. Stop it instead." (`state-has-check-ins` in a file).
+**Back to proposed** (`backToProposed`): an active goal with no check-ins, by its owner or an admin, from the goal's "…" menu, "Make it proposed again", which confirms "It will have no status and nothing will be due until it is made active." and says "“{goal}” is proposed again." with Undo. History: "Made it proposed again". One with a check-in can't: the menu item is absent, its Change page says "It has check-ins, so it can’t go back to proposed. Stop it instead.", and a file says so too (`state-has-check-ins`).
 
 **Withdrawing** is deleting (domain/removal): Recently removed for 30 days, with Undo; History says "Withdrew the proposal “{goal}”".
 
-**Home** (`proposalAsks`): a goal proposed for the viewer by someone else, not yet opened; and one proposed 8 weeks ago or more (`PROPOSED_ASK_WEEKS`) for its owner: "“{goal}” has been proposed for {n} weeks. Make it active, or withdraw it." Never a status, a count or a flag.
+**Home** (`proposalAsks`): under "Proposed goals" in "Needs your response", a goal proposed for the viewer by someone else, not yet opened ("{Name} proposed a goal for you: “{goal}”."), and one proposed 8 weeks ago or more (`PROPOSED_ASK_WEEKS`) for its owner: "“{goal}” has been proposed for {n} weeks. Make it active, or withdraw it." Each has "Open it"; the second also "Not yet", which puts it off for 8 more weeks. Opening the goal as its owner ends the first. What each person opened and put off is kept behind the Prefs port. Never a status, a count or a flag. Proposing for someone else says so after the read-back: "{Owner} sees it on their Home as a proposal for them. Faro doesn’t send email."
 
 **The carry.** A proposed goal carries into the next year as proposed.
 
@@ -59,9 +59,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/proposed.ts](../../../src/domain/proposed.ts): `isProposed`, `judged`, `withProposed`, `measureEmpty`, `withdrawnSummary`
+- [src/domain/proposed.ts](../../../src/domain/proposed.ts): `isProposed`, `judged`, `withProposed`, `measureEmpty`, `withdrawnSummary`, `proposalAsks`
 - [src/domain/proposedSummary.ts](../../../src/domain/proposedSummary.ts): `goalCounts`, `withProposedCount`, `measureUnsaid`, `proposedSummary`
-- [src/domain/proposedActions.ts](../../../src/domain/proposedActions.ts): `mayActivate`, `readyToActivate`, `activate`, `activated`, `backToProposed`, `proposalAsks`
+- [src/domain/proposedActions.ts](../../../src/domain/proposedActions.ts): `mayActivate`, `readyToActivate`, `activate`, `activated`, `backToProposed`
 - [src/domain/goalEntry.ts](../../../src/domain/goalEntry.ts): `proposedMustFix`, `unsaidDraft`
 - [src/domain/goalRights.ts](../../../src/domain/goalRights.ts): `mayChangeGoal`
 - [src/domain/cycle.ts](../../../src/domain/cycle.ts): `scopeToCycle`

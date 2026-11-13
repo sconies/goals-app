@@ -158,7 +158,11 @@ export const ANSWERS = {
     ...(team && admin ? [{ choice: 'new', label: `Add ${found} as a new team` }] : []),
     { choice: 'choose', label: 'Choose another', needsValue: true },
   ],
-  unknownRef: (thing: string, found: string, team: boolean, admin: boolean): Choice[] => [
+  /** At set-up (`create`), a person the People sheet lacks: "Add {found}" (set-up adds them to its people) first. */
+  unknownRef: (thing: string, found: string, team: boolean, admin: boolean, create = false): Choice[] => create && thing === 'person' ? [
+    { choice: 'add', label: `Add ${found}` },
+    { choice: 'choose', label: 'Give it to someone here', needsValue: true },
+  ] : [
     { choice: 'choose', label: `Choose a ${thing}`, needsValue: true },
     ...(team && admin ? [{ choice: 'new', label: `Add ${found} as a new team` }] : []),
   ],
@@ -169,6 +173,8 @@ export const ANSWERS = {
   otherGoal: [{ choice: 'change', label: 'Yes, change it' }, { choice: 'new', label: 'No, add it as a new goal' }, { choice: 'leave', label: 'Leave it out' }] as Choice[],
   samePerson: (name: string): Choice[] => [{ choice: 'same', label: `The same person: give ${name} this email` }, { choice: 'new', label: 'Someone new' }],
   pastStage: [{ choice: 'done', label: 'They’re done' }, { choice: 'not-done', label: 'They’re not done' }, { choice: 'from-now', label: 'Count them from this week' }] as Choice[],
+  /** At set-up, the first chosen unless changed (IM8): stages counted from this week, or kept as typed (and late). */
+  pastStageSetUp: [{ choice: 'from-now', label: 'Count them from this week' }, { choice: 'keep', label: 'Keep the weeks as typed' }] as Choice[],
   pastPlan: [{ choice: 'add', label: 'They’re finished goals: add them' }, { choice: 'leave', label: 'Leave them out' }] as Choice[],
   noUnit: [{ choice: 'right', label: 'That’s right' }, { choice: 'leave', label: 'Leave them out' }] as Choice[],
   replaces: [{ choice: 'replace', label: 'Replace them' }, LEAVE] as Choice[],
@@ -255,7 +261,8 @@ export function groupTitle(kind: IssueKind, sheet: Sheet, count: number, first: 
     case 'same-person': return first.message;
     case 'same-goal': return `${n(count, 'new goal')} ${count === 1 ? 'has a name its team already uses' : 'have names their teams already use'}: “${v}”. Are they new?`;
     case 'other-goal': return first.message;
-    case 'past-stage': return `${n(count, 'new goal')} ${count === 1 ? 'has' : 'have'} stages due before this week. Are they done?`;
+    // At set-up its answers are "Count them from this week" or keep them (IM8): there is nothing to have done yet.
+    case 'past-stage': return first.answers?.[0]?.choice === 'from-now' ? `${n(count, 'new goal')} ${count === 1 ? 'has' : 'have'} stages due before this week, so ${count === 1 ? 'it' : 'they'} would start late` : `${n(count, 'new goal')} ${count === 1 ? 'has' : 'have'} stages due before this week. Are they done?`;
     case 'past-plan': return `${n(count, 'new goal')} ${count === 1 ? 'has a plan' : 'have plans'} that ${count === 1 ? 'has' : 'have'} already ended`;
     case 'odd-number': return count === 1 ? first.message : `${n(count, 'number')} look${count === 1 ? 's' : ''} unlikely: ${first.message}`;
     case 'plan-question': return count === 1 ? first.message : `${n(count, 'plan change')} to check: ${first.message}`;
