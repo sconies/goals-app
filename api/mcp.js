@@ -49677,10 +49677,10 @@ var personFromRow = (r) => ({
 	...when("removedAt", r.removed_at),
 	...who("removedBy", r.removed_by)
 });
-var rhythmCols = (c) => c.checkInWeeks === void 0 && c.rhythmFrom === void 0 ? {} : {
+var rhythmCols = (c) => ({
 	check_in_weeks: c.checkInWeeks ?? 1,
 	rhythm_from: c.rhythmFrom ?? null
-};
+});
 var cycleToRow = (ws, c) => ({
 	workspace_id: ws,
 	id: c.id,
