@@ -18,7 +18,7 @@ A goal behind leaves a review with a next step (an owner and a week) or an accep
 
 **Choosing who does it** is find-and-pick ([finding things](finding.md)): you and your team are suggested before anything is typed; then the people whose name, job title or team has a word starting with each word typed, those whose name it starts first, never someone marked as left. It is the one person search, the same as People's.
 
-**Last time** (`lastTime`): the session before this one is the latest earlier week anything was said in the review. Its actions are listed with how each stands now: open, overdue (open past its week) or done; open ones first, then by due week.
+**Last time** (`lastTime`): the session before this one is the latest earlier week anything was said in the review. Its actions are listed with how each stands now: open, overdue (open past its week) or done; open ones first, then by due week. The goals proposed in it follow (the Proposed goals rule, `proposedLine`).
 
 **Finishing** marks every goal not yet reviewed, in one save with Undo (`markReviewed`; Undo is `unmarkReviewed`), and so holds the session. Before it does, it says what was decided (`sessionDecisions`): the next steps by who owns them, the risks accepted, and the questions still open.
 

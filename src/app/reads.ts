@@ -74,6 +74,9 @@ export function dayOneRows(s: Pick<Snapshot, 'people' | 'goals' | 'checkIns' | '
  * Home's facts (docs/design/home/spec.md rule 1): what the lead and the quiet line read, from the rules that already
  * say each thing (weekProgress, onTimeStreak, reviewSession, the wrap-up's dates). `draft` says a check-in draft is kept.
  */
+/** A review's name, for " in {review}" (GE10): null when it isn't in the workspace to name. */
+export const reviewName = (s: Pick<Snapshot, 'reviews'>, id: string | null | undefined): string | null => (id ? s.reviews.find((r) => r.id === id)?.name ?? null : null);
+
 export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot }; opened?: ReadonlySet<string> }): HomeFacts {
   const day = today.toISOString().slice(0, 10);
   const p = weekProgress(viewerId, s, cycle, week, today);
@@ -116,7 +119,7 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
     asks: homeAsks(viewerId, s, cycle, week, today),
     // Goal entry rule 14: proposed for the viewer by someone else and not yet opened (what was opened is the Prefs port's).
     proposals: proposalAsks(s.proposed ?? [], { id: viewerId, admin: false }, today, { opened: opts.opened ?? new Set(), putOff: new Map() }, (id) => s.people.find((p) => p.id === id)?.name ?? 'Someone')
-      .filter((a) => a.kind === 'for-you').map((a) => ({ id: a.goal.id, title: a.goal.title, by: s.people.find((p) => p.id === a.goal.proposedBy)?.name.split(' ')[0] ?? 'Someone', proposedOn: a.goal.proposedAt!.slice(0, 10) })),
+      .filter((a) => a.kind === 'for-you').map((a) => ({ id: a.goal.id, title: a.goal.title, by: s.people.find((p) => p.id === a.goal.proposedBy)?.name.split(' ')[0] ?? 'Someone', proposedOn: a.goal.proposedAt!.slice(0, 10), in: reviewName(s, a.goal.proposedIn) })),
   };
 }
 

@@ -5,7 +5,7 @@
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
 import { daysSinceIn, weekIn } from './zones';
 import { homeFor, waiting, type HomeFacts } from '../domain/home';
-import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
+import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision, proposedLine } from '../domain/decide';
 import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
 import { beforeStartLine, currentCycle, cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
 import { carryCopy, carryKind } from '../domain/carry';
@@ -58,7 +58,7 @@ import type { ActionContext } from '../domain/actions';
 import MODULE_SPEC from 'virtual:faro-modules/spec';
 import { backTo, litItem, menuGroups, menuRows, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
 import { movedGoals, ownGroup, scopesFor } from '../domain/goalsPage';
-import { watchedGoals } from '../domain/review';
+import { dayText, watchedGoals } from '../domain/review';
 import { countLine, filterLine, findAll, keyOf, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
@@ -874,7 +874,7 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
 
 **Choosing who does it** is find-and-pick ([finding things](finding.md)): you and your team are suggested before anything is typed; then the people whose name, job title or team has a word starting with each word typed, those whose name it starts first, never someone marked as left. It is the one person search, the same as People's.
 
-**Last time** (\`lastTime\`): the session before this one is the latest earlier week anything was said in the review. Its actions are listed with how each stands now: open, overdue (open past its week) or done; open ones first, then by due week.
+**Last time** (\`lastTime\`): the session before this one is the latest earlier week anything was said in the review. Its actions are listed with how each stands now: open, overdue (open past its week) or done; open ones first, then by due week. The goals proposed in it follow (the Proposed goals rule, \`proposedLine\`).
 
 **Finishing** marks every goal not yet reviewed, in one save with Undo (\`markReviewed\`; Undo is \`unmarkReviewed\`), and so holds the session. Before it does, it says what was decided (\`sessionDecisions\`): the next steps by who owns them, the risks accepted, and the questions still open.
 
@@ -1489,13 +1489,13 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
     id: 'proposed',
     title: 'Proposed goals',
     summary: 'A goal can be proposed before anyone is held to it: visible to everyone, never judged, nothing due, counted apart, and made active by one deliberate act of its owner or an admin.',
-    code: [{ file: 'src/domain/proposed.ts', names: ['isProposed', 'judged', 'withProposed', 'measureEmpty', 'withdrawnSummary', 'proposalAsks'] }, { file: 'src/domain/proposedSummary.ts', names: ['goalCounts', 'withProposedCount', 'measureUnsaid', 'proposedSummary'] }, { file: 'src/domain/proposedActions.ts', names: ['mayActivate', 'readyToActivate', 'activate', 'activated', 'backToProposed'] }, { file: 'src/domain/goalEntry.ts', names: ['proposedMustFix', 'unsaidDraft'] }, { file: 'src/domain/goalRights.ts', names: ['mayChangeGoal'] }, { file: 'src/domain/cycle.ts', names: ['scopeToCycle'] }, { file: 'src/domain/readBack.ts', names: ['underWay', 'afterProposing', 'activeReadBack'] }, { file: 'src/domain/carry.ts', names: ['carryKind'] }],
+    code: [{ file: 'src/domain/proposed.ts', names: ['isProposed', 'judged', 'withProposed', 'measureEmpty', 'withdrawnSummary', 'proposalAsks', 'proposedInWords'] }, { file: 'src/domain/decide.ts', names: ['lastTime', 'proposedLine'] }, { file: 'src/domain/proposedSummary.ts', names: ['goalCounts', 'withProposedCount', 'measureUnsaid', 'proposedSummary'] }, { file: 'src/domain/proposedActions.ts', names: ['mayActivate', 'readyToActivate', 'activate', 'activated', 'backToProposed'] }, { file: 'src/domain/goalEntry.ts', names: ['proposedMustFix', 'unsaidDraft'] }, { file: 'src/domain/goalRights.ts', names: ['mayChangeGoal'] }, { file: 'src/domain/cycle.ts', names: ['scopeToCycle'] }, { file: 'src/domain/readBack.ts', names: ['underWay', 'afterProposing', 'activeReadBack'] }, { file: 'src/domain/carry.ts', names: ['carryKind'] }],
     tests: ['src/domain/proposed.test.ts'],
     reqs: ['GOAL-PROPOSED'],
     body: `
 **The words.** *Proposed*: the goal's state, visible, not judged, nothing due. *Active*: every other goal that isn't stopped, said only where the two are set side by side. *Propose*: save a new goal as proposed. *Make it active*: the act that starts it (not "approve": nobody is asked for permission; not "start", which From already means). *Withdraw*: remove a proposed goal.
 
-**Data.** A goal is proposed while \`proposedAt\` is set (with \`proposedBy\`, who proposed it) and it is neither removed nor stopped (\`isProposed\`). Making it active clears both; History has when.
+**Data.** A goal is proposed while \`proposedAt\` is set (with \`proposedBy\`, who proposed it) and it is neither removed nor stopped (\`isProposed\`). Making it active clears both; History has when. A goal proposed in a review's walk also keeps the review in \`proposedIn\`, and keeps it once active.
 
 **Never judged.** \`judged(goals)\` is those neither proposed nor stopped, and every rule that leaves a stopped goal out leaves a proposed one out the same way: the cycle's scope (\`scopeToCycle\`) keeps proposed goals beside its goals, never among them, so no status rule is ever run on one and it is in no count, health line, Needs attention, review agenda, check-in, wrap-up, streak or metric comparison. A check-in on one is refused at every door: "${NOTHING_TO_CHECK_IN}" Its summary has the state \`proposed\` and the status word "Proposed", drawn as a word alone, with no shape.
 
@@ -1515,6 +1515,8 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
 
 **Home** (\`proposalAsks\`): under "Proposed goals" in "Needs your response", a goal proposed for the viewer by someone else, not yet opened ("{Name} proposed a goal for you: “{goal}”."), and one proposed 8 weeks ago or more (\`PROPOSED_ASK_WEEKS\`) for its owner: "“{goal}” has been proposed for {n} weeks. Make it active, or withdraw it." Each has "Open it"; the second also "Not yet", which puts it off for 8 more weeks. Opening the goal as its owner ends the first; once it has waited 7 days it is Home's lead when no ask is (the Home rule's \`proposalLead\`). What each person opened and put off is kept behind the Prefs port. Never a status, a count or a flag. Proposing for someone else says so after the read-back: "{Owner} sees it on their Home as a proposal for them. Faro doesn’t send email."
 
+**In a review** (decision 15): "Propose a new goal" in the walk, beside "Add an action", opens a sheet: "What should the goal be called?" (the name's Must fix), "Who will own it?" (starts as the owner of the goal on screen; "Choose who will own it."), "It will feed" (starts as the goal on screen; "Nothing: top of its own tree"), then **Propose it**. It saves through \`saveGoal\` with \`state\` proposed and \`proposedIn\` the review, nothing else said; only a new proposed goal can name a review. The goal is not on the agenda and not counted in "{n} to discuss". Its owner's Home says where: "{Name} proposed a goal for you in {review}: “{goal}”." (\`proposedInWords\`) and the lead "{Name} proposed a goal for you in {review}"; with the review gone or Reviews off, " in {review}" is left out. The next session's "Last time" (\`lastTime\`: proposed in the review on a day after the session before it, and no later than its last word) adds, after the actions: "Proposed: {goal} ({key}). {Owner} hasn’t made it active yet." or "… {Owner} made it active on {date}." (\`proposedLine\`; the date is History's "State: Proposed → Active").
+
 **The carry.** A proposed goal carries into the next year as proposed.`,
     examples: (() => {
       const cy = { id: 'c', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 } as unknown as ReadBackContext['cycle'];
@@ -1529,10 +1531,11 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
         { given: 'Tunde makes G-132 active on Wednesday 25 Nov (week 48), From this week.', then: 'From 40% in week 48 (23–29 Nov 2026) to 90% by week 53 (28 Dec 2026–3 Jan 2027): 5 weeks, not the 7 you proposed. Its first check-in is due by Thursday 26 Nov, then every week.', run: () => activeReadBack(goal(), { cycle: cy, week: 48, today: new Date('2026-11-25T12:00:00Z'), rhythm: 'weekly', fromWeek: 48 }) },
         { given: 'New goal’s last step, for your own goal, From this week.', then: 'Not yet: propose it: Everyone can see it and comment. Nothing is due and it has no status until you or an admin make it active.', run: () => { const u = underWay({ owner: { name: 'Tunde Bakare', isViewer: true }, rhythm: 'weekly', week: 46, from: 46 }).proposed; return `${u.label}: ${u.line}`; } },
         { given: 'Proposed by Rhea for Tunde on 11 Nov; Tunde’s Home that day (not opened), then the owner’s Home 9 weeks later, opened.', then: 'Rhea proposed a goal for you: “Signed artifacts in staging”. / “Signed artifacts in staging” has been proposed for 9 weeks. Make it active, or withdraw it.', run: () => { const g = goal({ proposedBy: 'rhea' }); const t = { id: 'tunde', admin: false }; return [proposalAsks([g], t, new Date('2026-11-11T12:00:00Z'), { opened: new Set(), putOff: new Map() }, () => 'Rhea Kapoor')[0]!.says, proposalAsks([g], t, new Date('2027-01-15T12:00:00Z'), { opened: new Set(['g132']), putOff: new Map() })[0]!.says].join(' / '); } },
+        { given: 'Rhea proposed G-132 for Tunde in “Developer Productivity fortnightly”: Tunde’s Home; then, with Reviews off; then the next session’s Last time, before and after Tunde made it active on 24 Nov.', then: 'Rhea proposed a goal for you in Developer Productivity fortnightly: “Signed artifacts in staging”. / Rhea proposed a goal for you: “Signed artifacts in staging”. / Proposed: Signed artifacts in staging (G-132). Tunde hasn’t made it active yet. / Proposed: Signed artifacts in staging (G-132). Tunde made it active on Tue 24 Nov.', run: () => { const g = goal({ proposedBy: 'rhea', proposedIn: 'devprod' }); const says = (reviewOf: (id: string) => string | null) => proposalAsks([g], { id: 'tunde', admin: false }, new Date('2026-11-11T12:00:00Z'), { opened: new Set(), putOff: new Map() }, () => 'Rhea Kapoor', reviewOf)[0]!.says; return [says(() => 'Developer Productivity fortnightly'), says(() => null), proposedLine({ goal: g, activeOn: null }, 'Tunde', dayText), proposedLine({ goal: { ...g, proposedAt: null }, activeOn: '2026-11-24' }, 'Tunde', dayText)].join(' / '); } },
         { given: 'The year ends with it still proposed.', then: 'carry, still proposed', run: () => { const c = carryCopy(goal(), { old: { weeks: 53 }, next: { id: 'n', weeks: 52 }, checkIns: [], id: 'g2', parentId: null, now: '' }); return `${carryKind(goal(), { cycle: cy, checkIns: [], retro: null }).kind}, ${c.proposedAt ? 'still proposed' : 'active'}`; } },
       ];
     })(),
-    unclear: ['A Map node and a Board column for proposed goals (with the filter on), Home’s two rows, “Make it proposed again” in the goal’s menu, the metric page’s listing and Reviews’ “Propose a new goal” are specified (2.15) but not yet built; the rules they need are here.', 'Whether a goal for someone else should start proposed: New goal starts on “Not yet” for one (decision 16); a file or a tool starts it active unless State says proposed.'],
+    unclear: ['A Map node and a Board column for proposed goals (with the filter on), Home’s two rows, “Make it proposed again” in the goal’s menu, the metric page’s listing and Reviews’ “Propose a new goal” were specified (2.15) and are built; the rules they need are here.', 'Whether a goal for someone else should start proposed: New goal starts on “Not yet” for one (decision 16); a file or a tool starts it active unless State says proposed.'],
   },
 
   /* ---------- a goal not born late (onboarding spec, rules 3 and 4; OB2) ---------- */

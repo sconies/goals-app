@@ -1613,6 +1613,7 @@ None: nothing to type or choose here.
 | “Add a note” | button | `mustDecide` |
 | “Ask … a question” | button | `!own` |
 | “Add an action” | button | `!mustDecide` |
+| “Propose a new goal” | button | always |
 | “Skip for now” | button | `!reviewed` |
 | “Cancel” | button | always |
 | “Saving… / Save the decision / Save the next step / Save …” | primary | always |
