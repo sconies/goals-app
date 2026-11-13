@@ -4,7 +4,7 @@
    (a note per goal), so nothing here leans on the metric library. */
 import type { ActionContext } from './actions';
 import type { Commit } from './commit';
-import { applyModuleRows, carryModules, mergeModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, type ModuleRecords, type ModuleRow, type ModuleRows } from './records';
+import { applyModuleRows, carryModules, cycleUntil, goalMarksOf, mergeModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, type ModuleRecords, type ModuleRow, type ModuleRows } from './records';
 
 interface Note extends ModuleRow { goalId: string; text: string }
 const note = (id: string, goalId: string, more: Partial<Note> = {}): Note => ({ id, goalId, text: id, ...more });
@@ -78,5 +78,15 @@ describe('moduleRowsBefore (Undo)', () => {
   it('nothing to give back is nothing', () => {
     expect(moduleRowsBefore(undefined, { modules: {} })).toBeUndefined();
     expect(moduleRowsBefore(rows(note('new', 'g1')), { modules: {} })).toBeUndefined();
+  });
+});
+
+describe('goalMarksOf (MT3, #351 review)', () => {
+  const marks = (list: { week: number; label: string }[]): ModuleRecords => ({ module: 'm', records: [], goalMarks: (_s, _id, since, until) => (since === '2026-01-05' && until === '2027-01-11' ? list : []) });
+  const cycle = { startDate: '2026-01-05', weeks: 52 };
+  it('asks for the goal’s own cycle, merges marks in one week and keeps the latest three', () => {
+    expect(goalMarksOf([marks([{ week: 6, label: 'Direction changed, week 6' }, { week: 6, label: 'Definition changed, week 6' }])], {}, 'g', cycle)).toEqual([{ week: 6, label: 'Direction changed, week 6 · Definition changed, week 6' }]);
+    expect(goalMarksOf([marks([1, 9, 4, 20, 30].map((w) => ({ week: w, label: `W${w}` })))], {}, 'g', cycle).map((m) => m.week)).toEqual([9, 20, 30]);
+    expect(cycleUntil(cycle)).toBe('2027-01-11');
   });
 });

@@ -1,4 +1,4 @@
-/* N28: a reading is a suggestion, never a check-in (NR, docs/design/round-4/readings/spec.md 2.3 and answer a). With the
+/* N29: a reading is a suggestion, never a check-in (NR, docs/design/round-4/readings/spec.md 2.3 and answer a). With the
    demo's number sources registered, Daniel (CI pipeline time on main, read by CI analytics) and Rhea (Pipeline queue
    wait, read by CI runner metrics for CI/CD · main branch pipelines) each open Home, the week's check-in list and their
    goal's number step, which fills in the reading, and walk away without posting; Rhea also opens the one table. The
@@ -8,7 +8,7 @@ const GOALS = ['ns-ci', 'lead-ci-time'];
 const of = (s) => JSON.stringify((s?.checkIns ?? []).filter((c) => GOALS.includes(c.goalId)).map((c) => [c.id, c.goalId, c.week, c.value, c.postedAt, c.reading ?? null]).sort());
 
 module.exports = {
-  id: 'N28',
+  id: 'N29',
   area: 'metrics',
   title: 'A reading is never posted for anyone: opening Home, the check-in list, the number step and the one table and leaving creates no check-in for a goal on a read metric',
   reqs: ['READING-RECORDED-ONLY', 'READING-PREFILL'],

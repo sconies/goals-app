@@ -100,6 +100,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › lists the library and reads one metric in full, with the goals it measures
 - metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
 - metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
@@ -197,6 +198,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › lists the library and reads one metric in full, with the goals it measures
 - metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
 - metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
@@ -441,6 +443,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › lists the library and reads one metric in full, with the goals it measures
 - metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
 - metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
@@ -554,6 +557,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › lists the library and reads one metric in full, with the goals it measures
 - metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
 - metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
@@ -572,11 +576,11 @@ What kind of change a save is (rule 8), the marks a change of meaning or directi
 
 ### The rule
 
-**Rule 8. What kind of change** (`changeKinds(before, after, linkedGoals, { relabel })`). Every kind that applies, in this order: `scale` (the unit differs, goals are linked, and it isn't said to be a new label: refused), `relabel` (the same, said to be a new label: every linked goal's unit changes in the same save), `direction` (needs a reason), `meaning` (the meaning or the source differs: asks whether it is still the same number, `comparable`; when it isn't, a reason), `decimals` (fewer places than a linked goal shows: named, nothing asked). Anything else, or any change to a metric no live goal uses, is `words` and saves at once; nothing different is `none`. A reason is at most 300 characters. The form reads the change back before saving (title, Was and Will be, the goals named, the six first then “and {k} more”); `save_metric` takes `comparable`, `reason` and `relabel`.
+**Rule 8. What kind of change** (`changeKinds(before, after, linkedGoals, { relabel })`). Every kind that applies, in this order: `scale` (the unit differs, goals are linked, and it isn't said to be a new label: refused), `relabel` (the same, said to be a new label: every linked goal's unit changes in the same save), `direction` (needs a reason), `meaning` (the meaning or the source differs: asks whether it is still the same number, `comparable`; when it isn't, a reason), `decimals` (fewer places than a linked goal shows: named, nothing asked). Anything else, or any change to a metric no live goal uses, is `words` and saves at once; nothing different is `none`. A reason is at most 300 characters. The goals counted (`linkedGoals`) are every one with a link in force that isn't removed, a stopped one included (it can be restored). The form reads the change back in a sheet before saving (title, Was and Will be, a change of source alone showing the two sources, the goals named, the six first then “and {k} more”); `save_metric` takes `comparable`, `reason` and `relabel`, and with fewer decimals names the goals that show more (`moreDecimals`).
 
-**Rule 9. Marks** (`marksFor(metric, link, since)`). A save with the number changed (`comparable: false`) or a new direction keeps a mark on the metric: `{ week, at, by, kind: definition | direction, why, was, now }`, oldest first. A goal shows the marks made at or after it was linked, and since its cycle began: on its chart a dashed hairline at the week labelled beside it (“Definition changed, week {w}”, “Direction changed, week {w}”, through the core's `goal.marks` point), in its History the entry with the reason, and under About the line with “See both definitions”. Undo takes the mark back with the change.
+**Rule 9. Marks** (`marksFor(metric, link, since, until)`). A save with the number changed (`comparable: false`) or a new direction keeps a mark on the metric: `{ week, at, by, kind: definition | direction, why, was, now }`, oldest first. A goal shows the marks made at or after it was linked, in its own cycle (since it began and before the day after its last week, so a change made next year leaves this year's goals alone; only this cycle's goals are told in History): on its chart a dashed hairline at the week labelled beside it (“Definition changed, week {w}”, “Direction changed, week {w}”, through the core's `goal.marks` point), in its History the entry with the reason, and under About the line with “See both definitions”. Undo takes the mark back with the change.
 
-**Rule 10. Retire, bring back, merge** (`retireMetric`, `unretireMetric`, `mergeMetrics`, `everUsed`). A metric that has ever measured a goal (`everUsed`) can't be deleted: “{name} has measured goals, so it can’t be deleted. Retire it instead.” Its owner or an admin retires it with a reason (and optionally a live metric in the same unit that replaces it): its links stay, its goals keep their numbers and say “Measured by {metric}, retired {date}”, it leaves `liveMetrics` (the pickers and the library's list) but `measureOf` and `findMetric` still find it, and no new goal can be linked to it. Bring it back clears the four fields. Admins merge a live metric into another live one in the same unit: every live link moves (same slice and part), the first is retired pointing to the second, and each moved goal's History says so. Each is one save with one Undo.
+**Rule 10. Retire, bring back, merge** (`retireMetric`, `unretireMetric`, `mergeMetrics`, `everUsed`). A metric that has ever measured a goal (`everUsed`) can't be deleted: “{name} has measured goals, so it can’t be deleted. Retire it instead.” Its owner or an admin retires it with a reason (and optionally a live metric in the same unit that replaces it): its links stay, its goals keep their numbers and say “Measured by {metric}, retired {date}”, it leaves `liveMetrics` (the pickers and the library's list) but `measureOf` and `findMetric` still find it, and no new goal can be linked to it. The library lists retired ones apart (`?retired=1`, “See the {n} retired metrics” under the list), and a new metric with a retired one's name is refused in words that say it is retired, with a link to it. Bring it back clears the four fields. Admins merge a live metric into another live one in the same unit: every live link moves (same slice and part), the first is retired pointing to the second, and each moved goal's History says so. Each is one save with one Undo.
 
 ### Worked examples
 
@@ -596,7 +600,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - **Not self-explanatory:** The mark’s week is the cycle week the change is saved in; a change saved between cycles marks week 0 of the next.
 - **Not self-explanatory:** Merging two metrics in different directions is a Check on the form (“Merge anyway”), not a rule: the rule merges either way.
-- **Not self-explanatory:** The library lists retired metrics only through list_metrics (retired: true) and a metric’s own page; a Retired filter on the page itself is left for MT5 or later.
+- **Not self-explanatory:** Marks on a chart: two in one week are one line with both labels, and only the latest three weeks are drawn (the core’s `goalMarksOf`); History keeps them all.
 
 ### Where it lives
 
@@ -613,6 +617,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - rule 3: what kind of change › follows the spec’s table
 - rule 3: what kind of change › a change of meaning asks whether it is the same number, and a reason when it isn’t; it marks the goal (rule 4)
+- rule 3: what kind of change › a mark belongs to the year it was made in: a goal of another year neither shows it nor is told (#351 review)
+- rule 3: what kind of change › a source changed alone marks the two sources, not the meaning twice (#351 review)
+- rule 3: what kind of change › a stopped goal still counts: its metric’s unit and direction are asked about, and it is told (#351 review)
 - rule 3: what kind of change › a change of direction needs a reason; a new unit is a label or refused; a relabel changes the goals’ unit too
 - rule 5: retiring, bringing back, merging › retires a metric with a goal: the link stays, the pickers leave it out, a new goal can’t use it, and it comes back
 - rule 5: retiring, bringing back, merging › a never-used metric is deleted, a used one refused
@@ -651,6 +658,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › lists the library and reads one metric in full, with the goals it measures
 - metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
 - metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
