@@ -42,7 +42,7 @@ Home is where you start each day. It answers one question first: what is asked o
 
 #### When Home has no button
 
-- Before the day your check-ins are due, Home says “Nothing is asked of you today.” and when they are due, with Check in early if you want to get ahead.
+- Before the day your check-ins are due, Home says “Nothing is asked of you today.” and when they are due, with Check in early if you want to get ahead. When asks or proposed goals wait for you, it says so instead (“A proposed goal waits for your response.”).
 - Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in on time it adds how many weeks in a row you have been on time, from two weeks.
 - If you own and watch nothing, it says so, with a way to see the goals and to set one up.
 - It never tells you about a deadline you met.
@@ -270,7 +270,7 @@ Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, qua
 
 - Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status. A second check-in in a week is compared with last week, not with your first one, and so is the goal’s “vs last week”.
 - Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.
-- Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back, and History no longer says it was corrected. The form starts from what the check-in said, so you change only what was wrong. A cycle that has ended can’t be corrected here.
+- Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back, and History no longer says it was corrected. The form starts from what the check-in said, so you change only what was wrong. A cycle that has ended can’t be corrected here, or anywhere else: Data’s tables, the AI assistant and a spreadsheet refuse it too.
 - Changing a week’s check-in in Data’s tables, or through the AI assistant, corrects it the same way: it asks why first, and History says “Corrected week 45” with your reason. An admin can correct a past check-in in Data.
 - Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.
 - Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.

@@ -1708,6 +1708,13 @@ No arguments.
         agreedBy: string;
         handedFrom: string | null;
     }[];
+    proposedGoals: {
+        id: string;
+        key: string | null;
+        title: string;
+        kind: 'stale' | 'for-you';
+        says: string;
+    }[];
 }
 ```
 

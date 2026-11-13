@@ -5,7 +5,7 @@ import type { GoalRows, PersonRows, TeamRows } from '../domain/find';
 import { creatorOf, type DayOneRows } from '../domain/dayOne';
 import { summariseAll } from '../domain/summary';
 import { proposedSummary } from '../domain/proposedSummary';
-import { proposalAsks } from '../domain/proposed';
+import { proposalAsks, withProposed } from '../domain/proposed';
 import { scopeToCycle, wrapUpCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
 import type { Cycle, Person, Snapshot } from '../domain/types';
@@ -86,7 +86,7 @@ export function dayOneRows(s: Pick<Snapshot, 'people' | 'goals' | 'checkIns' | '
  * Home's facts (docs/design/home/spec.md rule 1): what the lead and the quiet line read, from the rules that already
  * say each thing (weekProgress, onTimeStreak, reviewSession, the wrap-up's dates). `draft` says a check-in draft is kept.
  */
-export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot }; opened?: ReadonlySet<string>; reviews?: boolean }): HomeFacts {
+export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot }; opened?: ReadonlySet<string>; putOff?: ReadonlyMap<string, string>; reviews?: boolean }): HomeFacts {
   // Reviews switched off (FT2): no session leads or names a day, and no ask names a review.
   const reviews = opts.reviews !== false;
   const day = today.toISOString().slice(0, 10);
@@ -130,6 +130,8 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
     ...(!reviews && !mine.length ? { watchNeeds: watchedGoals(viewerId, s).filter((g) => needsAttention(attentionFor(g, s, cycle, today))).length } : {}),
     asks: homeAsks(viewerId, s, cycle, week, today, reviews),
     // Goal entry rule 14: proposed for the viewer by someone else and not yet opened (what was opened is the Prefs port's).
+    // Every row under "Proposed goals" (both kinds), so the quiet line never says nothing is asked beside them (#319's review).
+    proposalRows: proposalAsks(s.proposed ?? [], { id: viewerId, admin: false }, today, { opened: opts.opened ?? new Set(), putOff: opts.putOff ?? new Map() }).length,
     proposals: proposalAsks(s.proposed ?? [], { id: viewerId, admin: false }, today, { opened: opts.opened ?? new Set(), putOff: new Map() }, (id) => s.people.find((p) => p.id === id)?.name ?? 'Someone')
       .filter((a) => a.kind === 'for-you').map((a) => ({ id: a.goal.id, title: a.goal.title, by: s.people.find((p) => p.id === a.goal.proposedBy)?.name.split(' ')[0] ?? 'Someone', proposedOn: a.goal.proposedAt!.slice(0, 10) })),
   };
@@ -158,8 +160,10 @@ export function homeAsks(viewerId: string, s: Snapshot, cycle: Cycle, week: numb
   const day = today.toISOString().slice(0, 10);
   const me = s.people.find((p) => p.id === viewerId)?.name ?? '';
   const first = (id: string) => s.people.find((p) => p.id === id)?.name.split(' ')[0] ?? 'Someone';
+  const all = withProposed(s);
   return openForPerson(viewerId, s).flatMap((r) => {
-    const goals = r.goalIds.map((id) => s.goals.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({ id: g!.id, title: g!.title }));
+    // A proposed goal's asks stay on Home (build review of #349): asked while proposed, or before it went back to proposed.
+    const goals = r.goalIds.map((id) => all.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({ id: g!.id, title: g!.title }));
     if (!goals.length) return [];
     // With Reviews off an ask is late by its own age, waits for no session and names no review (FT2 4.4, RS 2).
     const rv = r.reviewId && reviews ? s.reviews.find((v) => v.id === r.reviewId) : undefined;

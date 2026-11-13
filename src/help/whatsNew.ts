@@ -35,6 +35,28 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['features', 'home', 'goal-page', 'reviews'],
   },
   {
+    id: 'proposed-fixes-review',
+    date: '2026-11-13',
+    title: 'Proposed goals: Home, the Map and the AI assistant',
+    points: [
+      'Home no longer says “Nothing is asked of you today.” beside proposed goals waiting for you: it says they wait for your response.',
+      'An ask on a goal that went back to proposed stays on Home.',
+      'With the State filter on Proposed, the Map shows every proposed goal, whatever Troubled trees says.',
+      'The AI assistant’s summary of your work lists the proposed goals waiting for you.',
+    ],
+    articles: ['goal-proposed', 'home'],
+  },
+  {
+    id: 'ended-cycle-stays-as-read',
+    date: '2026-11-13',
+    title: 'A year that has ended keeps its check-ins as the wrap-up read them',
+    points: [
+      'Once a cycle has ended, none of its check-ins can be corrected: not from the form, Data’s tables, the AI assistant or a spreadsheet.',
+      'A spreadsheet that carries those check-ins unchanged still loads.',
+    ],
+    articles: ['check-in'],
+  },
+  {
     id: 'older-changes-on-request',
     date: '2026-11-13',
     title: 'Faro opens with the last year of changes, and fetches older ones when asked',
