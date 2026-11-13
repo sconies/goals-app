@@ -105,7 +105,7 @@ The track 3 session that built item 0 is at half its context. A fresh track 3 se
 | 7c | session_012kbr932dXk7emNz7HTfoU1 | #308's and #351's review fixes; MS, BL, GB, MC; GR, MQ |
 | Main fixer | session_012kbr8zm5LkH575XFmikwtq | main's full evals green, one rolling issue |
 
-Lane (13 Nov): every distinct feature is a module behind its own switch, and the handoff shows Faro can be built module by module (CLAUDE.md). When every track reports done: one session runs item 11 (core first, then each module on its own) (the full drill from spec/ and llms.txt alone) and brings docs/handoff.md up to date (its R5 line is stale since #283).
+Lane (13 Nov): every distinct feature is a module behind its own switch, and the handoff shows Faro can be built module by module (CLAUDE.md). When every track reports done: one session runs item 11 (core first, then each module on its own) (the full drill from spec/ and llms.txt alone) and brings docs/handoff.md up to date (its R5 line is stale since #283), and rewrites README.md, docs/handoff.md and docs/architecture.md from the module map and the generated spec, plus a one-line GitHub repository description for Lane to paste.
 
 Planning was session_012kbr939zneZWtAo7UQEHRP. Read this section, then the 12 Nov 21:55 section below for the standing context.
 
