@@ -86,6 +86,8 @@ export interface AppState {
   setRecording(on: boolean): Promise<void>;
   /** Admins: switch a feature module on or off in the open workspace (docs/architecture.md). */
   setModule(id: string, on: boolean): Promise<void>;
+  /** Admins: the check-in rhythm of the running cycle (FT1): every week (with its due day) or none. `from` is for Undo. */
+  setRhythm(to: { weeks: number; dueDay?: number; from?: string | null }): Promise<void>;
   snapshot: Snapshot;
   /** Every goal in the workspace, in every cycle (snapshot has this cycle's): for what reaches past it, like a team's goals. */
   allGoals: Goal[];
@@ -735,6 +737,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         moduleSwitches.current = step.catch(() => undefined);
         return step;
       },
+      setRhythm: async (to) => { await run('setRhythm', to); },
       setViewer: (id, arrival) => { if (!identity.choose || !wsId) return; identity.choose(wsId, id); if (arrival) arriving.current = id; setViewerId(id); },
       person: (id) => people.get(id),
       personName: (id) => { const p = people.get(id); if (!p) return id; const sh = sharedNames(); return sh.ids.has(id) && sh.twins.has(p.name.trim().toLowerCase()) ? nameWithTell(p, sc.people, lookup.teamName) : p.name; },
