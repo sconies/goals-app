@@ -782,6 +782,38 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
   - the unbuilt "cycle ended", "Add one" and gone-parent states from the onboarding spec.
 - **U23 (entry)** scored 8.6 locally and is track 2's to lift.
 
+## Track 4, Friday 13 November, 20:15 UTC (supersedes the 17:00 entry)
+
+Session: session_012kbr931R7QEqBrfxbNv2QV. Planning is session_012kbr91eefh4gwCAztBncNT.
+
+- **Merged since 17:00:**
+  - #419: AX6 part 1.
+  - #423: migration 0048, `okr_cycles.check_in_weeks` and `rhythm_from`.
+  - #424: RS1, including the CI job "Core journeys with every module switched off" (`FARO_MODULES_OFF=all`).
+  - #431: F8, a module's `module.json` `parity`.
+  - #439: the build reviewer's mediums on #371, including `writesReviews`, which refuses a write by what it touches, and switches loaded with the snapshot.
+  - #440: the build reviewer's mediums on #419. A re-run acts only as the viewer among the latest people; saves confirmed against a preview never re-run; `rebaseDraft` on the goal form.
+- **Built, not pushed (each in its own worktree under the session scratchpad; the branches are on origin only once pushed):**
+  - **`ft1-rhythm`:** FT1 complete, with main merged in at 20:10. Evals were running at 20:15. Its ids are U101, U102, F20 and N23.
+    - **Blocked:** don't turn on auto-merge until Lane has added `faro` to Supabase → Data API → Exposed schemas (Lane chose this on 13 Nov). Check it yourself first: a REST read of `okr_cycles` with `Accept-Profile: faro` and the app's public key must return `check_in_weeks`.
+    - With no set rhythm there is no receipt, no deadline phrase and no streak.
+  - **`sw1-switches`:** switches for Watching, Feedback, the goal map and the wrap-up, plus the Features groups. Evals were running at 20:15. Its ids are U156–U158 and N22.
+    - Left: `get_goal` `watchedBy`, `get_activity watching=1`, Activity's watching filter, the year line's wrap-up words, the "Watching is off here" filter line, and About's "All eight are on".
+    - FT1 adds a "How you work" group (the rhythm) to Features, and SW1 drops that group because it is empty. Whichever lands second reconciles.
+  - **`rs1-review-mediums`:** being built at 20:15. It covers the build reviewer's remaining #424 mediums:
+    - `inreview=` with Reviews off;
+    - review notes in the JSON export;
+    - `weekDoneText`'s clock branch that nothing calls;
+    - the habit panel's words coming from the switch alone.
+- **Owed:**
+  - SW2 (the AI access switch).
+  - FD (trim the first download back under 265 KB; main is 270 KB).
+  - The #358 lows: "Show older changes" with nothing older; the first older page lands at the top; `undo_import` past the window.
+  - The #403 low: a worker-checked file is planned again at Save.
+- **Traps** are as in the 17:00 entry. Two more:
+  - Journey and check ids clash across tracks. Choose ids at merge time, above main's highest.
+  - An eval agent that finishes "waiting on background work" can stop for good; send it a message to resume.
+
 ## Track 4, Friday 13 November, 17:00 UTC (supersedes the 06:00 entry)
 
 Session: session_012kbr931R7QEqBrfxbNv2QV. Planning is session_012kbr91eefh4gwCAztBncNT.

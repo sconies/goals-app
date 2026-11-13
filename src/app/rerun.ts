@@ -16,7 +16,8 @@ export interface Saved<O> extends Attempt<O> { before: Snapshot; reran: number }
 /**
  * Runs `attempt` on `first` and saves what it gives back. On a stale refusal, reloads and runs it again on the fresh
  * snapshot, at most `STALE_RERUNS` times; then the last stale refusal is thrown. A refusal by the rule (it throws) or
- * any other failure to save is thrown at once. A run that has nothing to save saves nothing.
+ * any other failure to save is thrown at once. A run that has nothing to save saves nothing. If the reload itself fails,
+ * the stale refusal is thrown, so the person is told it wasn't saved, as before (nothing is dropped without a word).
  */
 export async function saveRerunning<O>(
   first: Snapshot,
@@ -29,12 +30,14 @@ export async function saveRerunning<O>(
   for (let reran = 0; ; reran++) {
     const a = attempt(base);
     if (!a.commit) return { ...a, before: base, reran };
+    let stale: unknown;
     try {
       await save(a.commit);
       return { ...a, before: base, reran };
     } catch (e) {
       if (!isStale(e) || reran >= reruns) throw e;
+      stale = e;
     }
-    base = await reload();
+    try { base = await reload(); } catch { throw stale; }
   }
 }
