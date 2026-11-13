@@ -21,7 +21,11 @@ import type { McpContext, ToolDef, ToolResult } from '../../mcp/tools';
 import { listed } from '../../mcp/listed';
 import { VIA_MCP } from '../../domain/via';
 import { addCheckInReader } from '../../mcp/checkInReaders';
-import { metricReader } from './readingTool';
+import { metricReader, toolSources } from './readingTool';
+import { differentNumbers, differentWords, fillsIn, fillsInWords } from './rulesReading';
+import { sliceOf as readSlice } from './source';
+import { checkInsFor } from '../../domain/status';
+import { readWhen } from '../../domain/reading';
 
 // post_check_in's reading_confirmed and different_because read the goal's source here (NR rule 3).
 addCheckInReader(metricReader);
@@ -141,7 +145,13 @@ const tools: ToolDef[] = [
         const m = metricOf(ctx, a.metric);
         const d = metricData(ctx, m);
         const side = goalsOfMetric(ctx.snapshot, ctx.cycle, ctx.today, ctx.week, m.id);
-        const goals = side.map((r) => ({ goalId: r.goal.id, key: r.goal.key ?? null, goal: r.goal.title, status: r.status, statusLabel: LABEL[r.status], slice: r.slice, now: r.now, target: r.target, vsPlan: r.vsPlan, owner: r.owner }));
+        // Rule 4 (NR 2.4): how each goal's check-in gets its number, and how often one filled in was typed over.
+        const sources = toolSources(ctx);
+        const live = M.linksOf(ctx.snapshot).filter((l) => l.metricId === m.id && !l.removedAt);
+        const inItsCheckIn = (goal: (typeof side)[number]['goal']) => { const l = live.find((x) => x.goalId === goal.id); return l ? fillsInWords(fillsIn(sources, m, readSlice(l), checkInsFor(goal, ctx.snapshot.checkIns)), (at) => readWhen(at, ctx.today, 'UTC')) : null; };
+        const different = differentNumbers(ctx.snapshot.checkIns, new Map(side.map((r) => [r.goal.id, r.goal.kind === 'milestone' ? 0 : r.goal.decimals] as [string, number])), ctx.week)
+          .map((d) => ({ source: d.source, checkIns: d.n, different: d.k, weeks: d.weeks.map((w) => ({ goalId: w.goalId, week: w.week })), line: differentWords(d) }));
+        const goals = side.map((r) => ({ goalId: r.goal.id, key: r.goal.key ?? null, goal: r.goal.title, status: r.status, statusLabel: LABEL[r.status], slice: r.slice, now: r.now, target: r.target, vsPlan: r.vsPlan, owner: r.owner, inItsCheckIn: inItsCheckIn(r.goal) }));
         const summary = L.summaryLine(side);
         // Proposed goals (GE10) that name it: apart, with no numbers, in no comparison.
         const proposed = proposedOfMetric(ctx.snapshot, m.id).map((g) => ({ goalId: g.id, key: g.key ?? null, goal: g.title, owner: ctx.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? null }));
@@ -154,7 +164,8 @@ const tools: ToolDef[] = [
         const lines = [
           `${d.name} (${d.id})`, still.line, `Unit: ${d.unit}, ${L.decimalsWords(d.decimals)} · ${d.directionLabel}`, `Meaning: ${d.meaning || '—'}`,
           `Source: ${d.source || '—'} (owned by ${d.sourceOwner || '—'}) · refresh: ${d.refresh ?? 'not said'}`, `Owner: ${d.owner ?? '—'}`, `Caveats: ${d.caveats || '—'}`,
-          goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}`).join('\n')}` : 'Measures no goal yet.',
+          goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}${x.inItsCheckIn ? ` · in its check-in: ${x.inItsCheckIn}` : ''}`).join('\n')}` : 'Measures no goal yet.',
+          ...different.map((d) => `${d.line}${d.weeks.length ? ` (${d.weeks.map((w) => `${goals.find((x) => x.goalId === w.goalId)?.key ?? w.goalId} week ${w.week}`).join(', ')})` : ''}`),
           ...(summary ? [summary] : []),
           ...(parts.length ? [`Parts in use: ${parts.join(', ')}`] : []),
           ...(proposed.length ? [`Proposed (${proposed.length}), not judged: ${proposed.map((x) => `${x.key ?? x.goalId} ${x.goal}${x.owner ? ` (${x.owner})` : ''}`).join('; ')}`] : []),
@@ -164,7 +175,7 @@ const tools: ToolDef[] = [
         const history = ctx.snapshot.changes.filter((c) => c.entity === 'metric' && c.entityId === m.id && !c.goalId).slice(-20).reverse().map((c) => ({ at: c.at, by: name(ctx, c.actorId), action: c.action, summary: c.summary }));
         if (d.retired) lines.splice(1, 0, `Retired on ${d.retired.at.slice(0, 10)} by ${d.retired.by ?? '—'}: “${d.retired.why}”${d.retired.replacedBy ? ` Replaced by ${M.metricsOf(ctx.snapshot).find((x) => x.id === d.retired!.replacedBy)?.name ?? d.retired.replacedBy}.` : ''}`);
         if (d.marks.length) lines.push(`Marks on its goals: ${d.marks.map((k) => `${k.kind === 'direction' ? 'direction' : 'definition'} changed in week ${k.week}: ${k.why}`).join('; ')}`);
-        return { data: { ...d, stillToSay, goals, parts, proposed, summary, needs, history }, text: lines.join('\n') };
+        return { data: { ...d, stillToSay, goals, differentNumbers: different, parts, proposed, summary, needs, history }, text: lines.join('\n') };
       });
     },
   },

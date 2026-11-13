@@ -131,7 +131,8 @@ export const checkInToRow = (ws: string, c: CheckIn): CheckInRow => ({
   next: c.next, data_flagged: c.dataFlagged, backfilled: !!c.backfilled,
   // Written only when it holds something (NR rule 2): 0035's public views don't have the column, so a row without it saves
   // through either; one with it needs the app to read and write through faro (0047).
-  ...(c.reading ? { reading: c.reading } : {}),
+  // Always written (0047 is applied; okr_commit writes faro's table): a check-in re-saved without a reading clears it.
+  reading: c.reading ?? null,
   ...set({ removed_at: c.removedAt, removed_by: c.removedBy }),
 });
 

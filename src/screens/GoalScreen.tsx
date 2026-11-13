@@ -17,6 +17,7 @@ import { useSeen } from '../app/goalSeen';
 import { useDraft } from '../app/drafts';
 import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt } from '../domain/format';
+import { readingHistoryLine } from '../domain/reading';
 import { isEveryday, levelName } from '../domain/levels';
 import { notStarted, planHistoryOf, resultWeek, valueSeries, weekDates } from '../domain/plan';
 import { weekSays } from '../domain/weeks';
@@ -982,6 +983,8 @@ function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere, above, latestWeek }: 
   // The moment it made (habit rule 3), in small capitals beside its status: never on a correction or an import.
   const imported = app.snapshot.changes.some((x) => x.entity === 'check-in' && x.entityId === c.id && x.importId);
   const m = moment(app.checkInsOf(goal).filter((x) => x.id !== c.id), c, goal, !fix && !imported);
+  // Where its number came from (NR 2.4): from the source, or typed over it and why; "Typed by" only beside a sourced one.
+  const said = goal.kind === 'milestone' ? null : readingHistoryLine(c, goal, app.person(c.authorId)?.name ?? 'someone who has left', app.today, { nearSourced: app.checkInsOf(goal).some((x) => !!x.reading) });
   return (
     <li className={isOpen ? 'is-open' : undefined}>
       <button type="button" className="ci-row" aria-expanded={isOpen} aria-controls={'ci-' + c.id} onClick={() => setOpen(!isOpen)}>
@@ -991,6 +994,7 @@ function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere, above, latestWeek }: 
         <span className="ci-tail">{above && c.why && c.why !== NO_REASON ? <span className="small muted cilist-why">The reason is above, under Why.</span> : quiet ? <span className="small muted cilist-why">Same reason</span> : sameAs != null ? <span className="small muted cilist-why">{sameAs === latestWeek ? `The same reason as week ${sameAs}, under Why` : sameReasonText(sameAs, sameAsWhere)}</span> : c.why && c.why !== NO_REASON ? <span className="small cilist-why">{c.why}</span> : <span className="small muted cilist-why">{GAP['on-plan'].label}</span>}<Icon name={isOpen ? 'chevron-up' : 'chevron-down'} className="muted ci-chev" /></span>
       </button>
       {fix && <span className="small muted ci-corrected" style={{ display: 'block', gridColumn: '1 / -1', minWidth: 0, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{fix.summary}, by {app.person(fix.actorId)?.name ?? 'someone'}{why ? `: “${why}”` : ''}</span>}
+      {said && <span className="small muted ci-read-from" style={{ display: 'block', gridColumn: '1 / -1', minWidth: 0, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{said}</span>}
       {isOpen && <CheckInFull goal={goal} c={c} id={'ci-' + c.id} />}
     </li>
   );
