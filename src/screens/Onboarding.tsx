@@ -127,9 +127,15 @@ class PreviewBoundary extends Component<{ name: string; onRetry: () => void; chi
 
 /** After an answer at set-up, the focus goes on as on Import (#336 review): to the next open question, else to the line
     just answered, else to Create workspace; never to the page itself. */
-const focusAfterAnswer = (id: string | null) => requestAnimationFrame(() => {
-  const next = document.querySelector<HTMLElement>('.setup-file .import-group input[type=radio]');
-  (next ?? (id ? document.getElementById(`answered-${id}`) : null) ?? document.querySelector<HTMLElement>('form button[type=submit]'))?.focus();
+const focusAfterAnswer = (id: string | null, tries = 4) => requestAnimationFrame(() => {
+  // An answer can re-render set-up more than once ("Add {person}" adds them, then a default answer follows), so a focus
+  // that fell to the page is tried again for a few frames.
+  const fell = !document.activeElement || document.activeElement === document.body || !document.activeElement.isConnected;
+  if (fell || document.activeElement?.closest('.setup-file')) {
+    const next = document.querySelector<HTMLElement>('.setup-file .import-group input[type=radio]');
+    (next ?? (id ? document.getElementById(`answered-${id}`) : null) ?? document.querySelector<HTMLElement>('form button[type=submit]'))?.focus();
+  }
+  if (tries > 1) requestAnimationFrame(() => { if (!document.activeElement || document.activeElement === document.body) focusAfterAnswer(id, tries - 1); });
 });
 
 /** Rows of a pasted or uploaded people table, matched to our columns by header when there is one. */

@@ -10158,6 +10158,8 @@ function planChanges(input) {
 function* planChangesInChunks(input) {
 	const { snapshot: s, cycle, week, now, newId, via } = input;
 	const create = input.mode === "create";
+	const cycleEnded = !create && ["ended", "closed"].includes(cycleState(cycle, new Date(now)));
+	const endedRefusal = `${cycle.name} has ended, so its check-ins can’t be corrected.`;
 	const answers = input.answers ?? {};
 	const issues = [];
 	const items = [];
@@ -11808,6 +11810,10 @@ function* planChangesInChunks(input) {
 			imported.set(g.id, [...imported.get(g.id) ?? [], existing]);
 			return;
 		}
+		if (existing && cycleEnded) {
+			raise("cant-change", "Check-ins", row, g.title, endedRefusal);
+			return;
+		}
 		const removing = removals.find((x) => x.g.id === g.id);
 		if (removing) {
 			raise("cant-change", "Check-ins", row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`);
@@ -12135,8 +12141,8 @@ function* planChangesInChunks(input) {
 		}
 		const own = checkInsFor(g, s.checkIns);
 		const newest = own.filter((c) => c.week === w).pop() ?? null;
-		if (p.mode === "correct" && ["ended", "closed"].includes(cycleState(cycle, new Date(now)))) {
-			raise("cant-change", "Check-ins", row, g.title, `${cycle.name} has ended, so its check-ins can’t be corrected here.`);
+		if (p.mode === "correct" && cycleEnded) {
+			raise("cant-change", "Check-ins", row, g.title, endedRefusal);
 			continue;
 		}
 		if (p.mode !== "correct" && w < week) {
@@ -17580,7 +17586,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status. A second check-in in a week is compared with last week, not with your first one, and so is the goal’s “vs last week”.",
 					"Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.",
-					"Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back, and History no longer says it was corrected. The form starts from what the check-in said, so you change only what was wrong. A cycle that has ended can’t be corrected here.",
+					"Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back, and History no longer says it was corrected. The form starts from what the check-in said, so you change only what was wrong. A cycle that has ended can’t be corrected here, or anywhere else: Data’s tables, the AI assistant and a spreadsheet refuse it too.",
 					"Changing a week’s check-in in Data’s tables, or through the AI assistant, corrects it the same way: it asks why first, and History says “Corrected week 45” with your reason. An admin can correct a past check-in in Data.",
 					"Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.",
 					"Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.",
@@ -19816,6 +19822,13 @@ var WHATS_NEW = [
 			"People marked Example or Left on the People sheet aren’t added, and the preview counts every goal still to settle."
 		],
 		articles: ["set-up", "import"]
+	},
+	{
+		id: "ended-cycle-stays-as-read",
+		date: "2026-11-13",
+		title: "A year that has ended keeps its check-ins as the wrap-up read them",
+		points: ["Once a cycle has ended, none of its check-ins can be corrected: not from the form, Data’s tables, the AI assistant or a spreadsheet.", "A spreadsheet that carries those check-ins unchanged still loads."],
+		articles: ["check-in"]
 	},
 	{
 		id: "older-changes-on-request",
