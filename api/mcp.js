@@ -274,12 +274,32 @@ function nameProblem(name, thing) {
 	if (thing === "workspace" && t.length > 80) return `Keep the name to 80 characters or fewer: it has ${t.length}.`;
 	return null;
 }
+/** The cycle's rhythm, or null with no set rhythm (`checkInWeeks` 0). Every week from the cycle's start when unset. */
+function rhythmOf(cycle) {
+	const weeks = cycle.checkInWeeks ?? 1;
+	if (weeks === 0) return null;
+	const from = cycle.rhythmFrom && cycle.rhythmFrom > cycle.startDate ? cycle.rhythmFrom : cycle.startDate;
+	return {
+		weeks,
+		dueDay: cycle.reviewDay,
+		from
+	};
+}
+/** Days without a check-in before a goal has no recent update: RULES.staleCheckIns × 7 × the cycle's check-in weeks
+(14 every week). Null with no set rhythm: then nothing goes quiet. */
+function staleAfterDays(cycle) {
+	const r = rhythmOf(cycle);
+	return r ? RULES.staleCheckIns * 7 * r.weeks : null;
+}
 var RULES, NUMBER_WORDS;
 var init_thresholds = __esmMin((() => {
 	RULES = {
 		onTrack: .95,
 		atRisk: .8,
 		wellAhead: 1.2,
+		/** Missed check-ins before a goal has no recent update: two check-ins' time, counted in the cycle's rhythm (staleAfterDays). */
+		staleCheckIns: 2,
+		/** @deprecated staleAfterDays(cycle) for a weekly cycle (14 days); kept until the vocabulary and the spec pages say the helper. */
 		staleDays: 14,
 		/** A milestone stage more than this many weeks late is off track. */
 		lateWeeksOff: 2,
@@ -382,7 +402,7 @@ var init_vocabulary = __esmMin((() => {
 			label: "No recent update",
 			short: `no check-in for ${RULES.staleDays / 7} weeks or more`,
 			meaning: `No check-in for ${RULES.staleDays} days or more, so its status can’t be trusted.`,
-			long: `The latest check-in was posted ${RULES.staleDays} days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in.`,
+			long: `The latest check-in was posted ${RULES.staleDays} days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in. Never used when there is no set check-in rhythm.`,
 			rule: "status#goalStatus",
 			retired: [
 				"No recent check-in",
@@ -1169,16 +1189,20 @@ function goalStatus(goal, cycle, checkIns, today) {
 	if (latest?.status === "done") status = "done";
 	else if (week === 0) status = "planned";
 	else if (hasEnded(cycle, today)) status = latest ? latest.status : "none";
-	else if (quiet < RULES.staleDays) status = latest ? latest.status : "none";
-	else status = "stale";
+	else {
+		const after = staleAfterDays(cycle);
+		status = after == null || quiet < after ? latest ? latest.status : "none" : "stale";
+	}
 	const greener = latest != null && RANK[latest.status] < RANK[latest.calculated];
+	const asOfWeek = latest && latest.week !== week ? latest.week : null;
 	return {
 		status,
 		calc,
 		latest,
 		greener,
 		daysSinceCheckIn: days,
-		week
+		week,
+		asOfWeek
 	};
 }
 /**
@@ -1192,17 +1216,47 @@ function doneCheckIn(goal, checkIns, week) {
 }
 /**
 * Days since a goal's latest check-in was posted, or, with none, since it began (the cycle's start, or when it was
-* added if later). The one rule for "no recent update": stale at RULES.staleDays, and the Goals filter "No update for
-* N weeks" counts the same days in weeks.
+* added if later), and never from before the present check-in rhythm began (`rhythmFrom`, FT1). The one rule for "no
+* recent update": stale at staleAfterDays(cycle), and the Goals filter "Last check-in N weeks ago or more" counts the
+* same days in weeks.
 */
 function daysWithoutUpdate(goal, cycle, latest, today) {
-	if (latest) return daysSince(latest.postedAt, today);
+	const rhythm = cycle.rhythmFrom ? rhythmOf(cycle)?.from ?? "" : "";
+	if (latest) return daysSince(rhythm > latest.postedAt.slice(0, 10) ? rhythm : latest.postedAt, today);
 	const from = goal.kind === "metric" && (goal.plan.fromWeek ?? 0) > 0 ? weekDate(cycle, goal.plan.fromWeek) : "";
 	return daysSince([
 		cycle.startDate,
 		goal.createdAt ? goal.createdAt.slice(0, 10) : "",
-		from
+		from,
+		rhythm
 	].reduce((a, b) => b > a ? b : a), today);
+}
+function rhythmReadBack(goals, checkIns, cycle, to, today) {
+	const after = {
+		...cycle,
+		checkInWeeks: to.weeks,
+		reviewDay: to.weeks > 0 ? to.dueDay ?? cycle.reviewDay : cycle.reviewDay,
+		...(cycle.checkInWeeks ?? 1) === 0 && to.weeks > 0 ? { rhythmFrom: today.toISOString().slice(0, 10) } : {}
+	};
+	const out = {
+		live: 0,
+		unstale: 0,
+		unstaleBy: {},
+		stale: 0
+	};
+	for (const g of goals) {
+		if (g.stoppedAt || g.removedAt || g.proposedAt) continue;
+		const now = goalStatus(g, cycle, checkIns, today).status;
+		if (now === "done") continue;
+		out.live++;
+		const then = goalStatus(g, after, checkIns, today).status;
+		if (now === "stale" && then !== "stale") {
+			out.unstale++;
+			out.unstaleBy[then] = (out.unstaleBy[then] ?? 0) + 1;
+		}
+		if (now !== "stale" && then === "stale") out.stale++;
+	}
+	return out;
 }
 var RANK, byGoalCache, projects;
 var init_status = __esmMin((() => {
@@ -2082,6 +2136,12 @@ var init_levels = __esmMin((() => {
 function weekProgress(personId, s, cycle, week, today) {
 	const goals = s.goals.filter((g) => g.ownerId === personId && goalStatus(g, cycle, s.checkIns, today).status !== "done");
 	const done = goals.filter((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week));
+	if (!rhythmOf(cycle)) return {
+		goals,
+		done,
+		upcoming: [],
+		due: []
+	};
 	const upcoming = goals.filter((g) => !done.includes(g) && firstDueWeek(g, cycle) > week);
 	return {
 		goals,
@@ -2102,7 +2162,8 @@ function weekCompletion(p) {
 		complete: p.goals.length > 0 && p.done.length >= p.goals.length
 	};
 }
-/** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
+/** The day a week's check-ins are due by, as an ISO date. Check-ins posted by the end of it count as on time. Callers
+that may have no set rhythm ask `dueDate`, which says null then. */
 function reviewDate(cycle, week) {
 	const d = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
 	d.setUTCDate(d.getUTCDate() + cycle.reviewDay);
@@ -2126,12 +2187,13 @@ function firstReview(cycle, today) {
 * 'on' skips the forgiving step and 'off' returns null (docs/design/workspace-settings/spec.md 2.5).
 */
 function onTimeStreak(personId, s, cycle, week) {
+	if (!rhythmOf(cycle)) return null;
 	return onTimeRun(personId, s.goals, s.checkIns, cycle, week).weeks;
 }
 function onTimeRun(personId, all, checkIns, cycle, week) {
 	const goals = all.filter((g) => g.ownerId === personId);
 	const s = { checkIns };
-	if (!goals.length) return {
+	if (!goals.length || !rhythmOf(cycle)) return {
 		weeks: 0,
 		forgiven: []
 	};
@@ -2202,11 +2264,40 @@ as a review (deep review T4). `reviewsOn` is the reviews switch's flag (FT2), as
 function reviewOnDueDay(reviews, personId, cycle, reviewsOn) {
 	return reviewsOn && reviews.some((r) => !r.removedAt && !r.endedAt && r.weekday === cycle.reviewDay && r.people.includes(personId));
 }
+/**
+* The person's live goals for checking in with no set rhythm (FT1, spec 2.3): those with no check-in this week
+* (`waiting`: never-checked-in goals first, then oldest first) and those that have one (`thisWeek`). Done and stopped goals
+* are left out. A done goal is one whose latest check-in says so.
+*/
+function checkInList(personId, goals, checkIns, week) {
+	const rows = goals.filter((g) => g.ownerId === personId && !g.stoppedAt && !g.removedAt && !g.proposedAt).map((g) => {
+		const own = checkIns.filter((c) => c.goalId === g.id && !c.removedAt);
+		const latest = own.length ? own.reduce((a, b) => b.postedAt > a.postedAt ? b : a) : null;
+		return {
+			row: {
+				goalId: g.id,
+				lastWeek: latest?.week ?? null,
+				lastPostedAt: latest?.postedAt ?? null
+			},
+			done: latest?.status === "done",
+			now: own.some((c) => c.week === week)
+		};
+	}).filter((r) => !r.done);
+	return {
+		waiting: rows.filter((r) => !r.now).map((r) => r.row).sort((a, b) => (a.lastPostedAt ?? "").localeCompare(b.lastPostedAt ?? "")),
+		thisWeek: rows.filter((r) => r.now).map((r) => r.row)
+	};
+}
 var firstDueWeek, WEEKDAY;
 var init_progress = __esmMin((() => {
 	init_plan();
 	init_status();
-	firstDueWeek = (g, cycle) => Math.max(firstWeekFrom(cycle, g.createdAt, cycle.reviewDay), g.kind === "metric" ? g.plan?.fromWeek ?? 0 : 0);
+	init_thresholds();
+	firstDueWeek = (g, cycle) => {
+		const rhythm = rhythmOf(cycle);
+		if (!rhythm) return Infinity;
+		return Math.max(firstWeekFrom(cycle, g.createdAt, rhythm.dueDay), g.kind === "metric" ? g.plan?.fromWeek ?? 0 : 0, cycle.rhythmFrom ? firstWeekFrom(cycle, rhythm.from, rhythm.dueDay) : 0);
+	};
 	WEEKDAY = [
 		"Monday",
 		"Tuesday",
@@ -4500,8 +4591,9 @@ function nextCycleShape(old) {
 * goal that finishes or stops is dropped.
 */
 function nextCycle(old, goals, checkIns, retros, ids, now) {
+	const { rhythmFrom: _from, ...kept } = old;
 	const cycle = {
-		...old,
+		...kept,
 		id: ids.cycle,
 		...nextCycleShape(old)
 	};
@@ -7519,6 +7611,50 @@ function setModule(x, ws, modules, id, on) {
 		}]
 	};
 }
+/**
+* Admins: the workspace's check-in rhythm (FT1, spec 1.1): every week, due by a weekday, or no set rhythm. Kept on the
+* running cycle. Going from none to some starts the rhythm today (`rhythmFrom`), so nothing is late on the day it is
+* switched on; changing only the due day doesn't restart it. Null when nothing changed.
+*/
+function setRhythm(x, cycle, to) {
+	if (!x.actor.admin) no$3("Only admins can change the check-in rhythm.");
+	if (to.weeks !== 0 && to.weeks !== 1) no$3("Faro checks in every week, or on no set rhythm.");
+	if (to.weeks > 0 && to.dueDay != null && !(Number.isInteger(to.dueDay) && to.dueDay >= 0 && to.dueDay <= 6)) no$3("Choose a day of the week.");
+	if (cycleState(cycle, new Date(x.now)) !== "running" && cycleState(cycle, new Date(x.now)) !== "ending") no$3("That year is over; its rhythm can’t change.");
+	const was = cycle.checkInWeeks ?? 1;
+	const dueDay = to.weeks > 0 ? to.dueDay ?? cycle.reviewDay : cycle.reviewDay;
+	if (was === to.weeks && dueDay === cycle.reviewDay) return null;
+	const after = {
+		...cycle,
+		reviewDay: dueDay,
+		checkInWeeks: to.weeks
+	};
+	if (to.from !== void 0) {
+		if (to.from) after.rhythmFrom = to.from;
+		else delete after.rhythmFrom;
+	} else if (was === 0 && to.weeks > 0) after.rhythmFrom = x.now.slice(0, 10);
+	const day = (d) => WEEKDAY[d];
+	const said = (c) => (c.checkInWeeks ?? 1) === 0 ? "no set rhythm" : `every week, due by ${day(c.reviewDay)}`;
+	const summary = was === to.weeks ? `Changed the day check-ins are due by from ${day(cycle.reviewDay)} to ${day(dueDay)}` : to.weeks === 0 ? "Changed the check-in rhythm from every week to no set rhythm" : `Changed the check-in rhythm from no set rhythm to every week, due by ${day(dueDay)}`;
+	return {
+		cycles: [after],
+		changes: [{
+			id: x.newId("chg"),
+			at: x.now,
+			actorId: x.actor.id,
+			goalId: null,
+			entity: "workspace",
+			entityId: cycle.id,
+			action: "edited",
+			summary,
+			diffs: [{
+				field: "Check-in rhythm",
+				from: said(cycle),
+				to: said(after)
+			}]
+		}]
+	};
+}
 /** Admins: add a team, or rename one or change its lead. Null commit when nothing changed. */
 function saveTeam(x, t) {
 	if (!x.actor.admin) no$3("Only admins can add or change teams.");
@@ -7676,6 +7812,7 @@ var init_actions = __esmMin((() => {
 	init_thresholds();
 	init_records();
 	init_cycle();
+	init_progress();
 	init_carry();
 	init_copies();
 	init_people();
@@ -15176,6 +15313,7 @@ function summarise(goal, s, cycle, today, week) {
 		lastWeek: last?.week ?? null,
 		lastPostedAt: last?.postedAt ?? null,
 		quietDays: daysWithoutUpdate(goal, cycle, st.latest, today),
+		asOfWeek: st.asOfWeek,
 		attention: attentionFor(goal, s, cycle, today),
 		forecast: projects(goal, st.status) ? forecastText(goal, a, cycle.weeks, cycle)?.text ?? null : null,
 		projection: !projects(goal, st.status) || a.kind !== "metric" ? null : a.projection,
@@ -15244,6 +15382,7 @@ function proposedSummary(goal, s, cycle, week) {
 		lastWeek: null,
 		lastPostedAt: null,
 		quietDays: 0,
+		asOfWeek: null,
 		attention: {
 			goal,
 			status: {
@@ -15252,7 +15391,8 @@ function proposedSummary(goal, s, cycle, week) {
 				latest: null,
 				greener: false,
 				daysSinceCheckIn: null,
-				week
+				week,
+				asOfWeek: null
 			},
 			flags: [],
 			weight: 0,
@@ -17202,6 +17342,89 @@ function activityFilter(a, x) {
 		return true;
 	};
 }
+// src/domain/rhythm.ts
+init_format();
+init_plan();
+init_progress();
+init_thresholds();
+init_vocabulary();
+var rhythmChoiceOf = (cycle) => ({
+	weeks: rhythmOf(cycle) ? 1 : 0,
+	dueDay: cycle.reviewDay
+});
+/** The running cycle's line on Cycles (4.3), and the fact line for everyone (1.3). */
+function rhythmFact(cycle) {
+	const r = rhythmOf(cycle);
+	return r ? `Check-ins: every week, due by ${WEEKDAY[r.dueDay]}.` : "Check-ins: no set rhythm.";
+}
+var listStatuses = (by) => [
+	"on",
+	"risk",
+	"off",
+	"none"
+].filter((k) => by[k]).map((k) => k === "none" ? `${by[k]} with no check-in yet` : `${by[k]} ${LABEL[k].toLowerCase()}`).join(", ");
+/** What changes for everyone (4.2), once the choice differs from what is saved; [] when it doesn't. */
+function rhythmReadBackLines(cycle, to, counts, today) {
+	const was = rhythmChoiceOf(cycle);
+	if (was.weeks === to.weeks && (to.weeks === 0 || was.dueDay === to.dueDay)) return [];
+	const day = WEEKDAY[to.dueDay];
+	if (to.weeks === 0) {
+		const n = counts.live;
+		return [
+			{
+				strong: `${n} ${n === 1 ? "goal has" : "goals have"} nothing due.`,
+				rest: " Home and Check-in stop counting what’s due, and on-time streaks stop."
+			},
+			...counts.unstale ? [{
+				strong: `${counts.unstale} ${counts.unstale === 1 ? "goal stops" : "goals stop"} reading “No recent update”.`,
+				rest: ` Each shows its last check-in’s status and the week it is from: ${listStatuses(counts.unstaleBy)}.`
+			}] : [],
+			{
+				strong: "Nothing is flagged for going quiet.",
+				rest: " Goals’ “Last check-in” filter still finds them."
+			},
+			{
+				strong: "",
+				rest: "Dates people chose stay: stage dates, next steps’ weeks and “back on plan by”."
+			},
+			{
+				strong: "",
+				rest: "Every check-in already posted stays as it is."
+			}
+		];
+	}
+	if (was.weeks === 0) {
+		const after = {
+			...cycle,
+			checkInWeeks: 1,
+			reviewDay: to.dueDay
+		};
+		const first = reviewDate(after, firstWeekFrom(after, today.toISOString(), to.dueDay));
+		return [
+			{
+				strong: `Check-ins are due by ${day}`,
+				rest: `, the first by ${dayText(first)}.`
+			},
+			{
+				strong: "Nothing is late today.",
+				rest: ` A goal reads “No recent update” after ${staleAfterDays(after)} days without a check-in, counted from today.`
+			},
+			{
+				strong: "",
+				rest: "Streaks start from this week."
+			}
+		];
+	}
+	return [{
+		strong: "",
+		rest: `Check-ins are due by ${day} from this week. Streaks count the new day from this week.`
+	}];
+}
+/** The toast after saving (4.2). */
+function rhythmToast(cycle, to) {
+	if (to.weeks === 0) return "Check-ins have no set rhythm now.";
+	return rhythmOf(cycle) ? `Check-ins are due by ${WEEKDAY[to.dueDay]} now.` : `Check-ins are due every week, by ${WEEKDAY[to.dueDay]}.`;
+}
 // src/modules/metrics/help.ts
 var help$2 = [
 	{
@@ -18274,6 +18497,14 @@ var CORE_ARTICLES = [
 					"Letters in a number get the same message on every screen, sheet and AI tool: type digits only, with an example at the goal’s decimal places (like 29 for a goal of whole numbers). Every number Faro shows has its thousands grouped: 1,250.",
 					"The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned.",
 					"A number that looks wrong (ten times last week’s, say) is a question you answer before posting: “Yes, it’s right” or change it. The same number as last week asks whether you measured it again. Your answer is kept in the goal’s History. A number that can’t be used says what to fix."
+				]
+			},
+			{
+				heading: "With no set rhythm",
+				list: [
+					"An admin can choose no set rhythm for a workspace (Workspace, Features). Then Check-in is “Check in on a goal”: your goals with no check-in this week first, those you have never checked in on at the top, then those checked in this week. Each row has its own button; nothing is due, late or counted against you, and there is no streak.",
+					"A goal is judged by what it last said. Where that isn’t this week’s, its status says which week it is from: “On track · as of week 44”, on Goals, Home, Watching and the goal’s page. No goal reads No recent update, and History has no “No check-in” rows.",
+					"Home and Goals say what has a check-in this week, not what is due. Goals’ Last check-in filter still finds the goals that have gone quiet."
 				]
 			},
 			{
@@ -19950,7 +20181,9 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"On Workspace, Features says how this workspace works and lists the optional parts of Faro, each with what it does; About says which are on, from the same list. Goals, check-ins and people are the core and always on.",
-					"How you work holds Reviews: walking a set of goals together on a cadence. While it is on, it says how many reviews are set up. Tools holds the rest, such as the Metric library and Spreadsheets. Each has a switch with On or Off beside it.",
+					"How you work starts with the check-in rhythm: “Every week, due by Thursday” (a goal with no check-in for 14 days reads No recent update) or “No set rhythm” (owners check in when there’s news; nothing is due or late for want of a check-in). Change opens a sheet with the two choices and, with Every week, the day check-ins are due by.",
+					"Before you save, the sheet says what changes for everyone here, counted: how many goals have nothing due, how many stop reading No recent update and what each would show instead, and that dates people chose and every check-in already posted stay as they are. Switched back on, nothing is late that day: the rhythm counts from today, and the sheet says when the first check-ins are due. Save says what it did, with Undo.",
+					"Then Reviews: walking a set of goals together on a cadence. While it is on, it says how many reviews are set up. Tools holds the rest, such as the Metric library and Spreadsheets. Each has a switch with On or Off beside it.",
 					"Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching a tool off, or anything on, acts at once.",
 					"Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.",
 					"With Reviews off, asks and next steps stay on their goals and on Home, each goal’s History and Activity keep what was said in reviews, and check-ins are still due by the same day.",
@@ -19961,7 +20194,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Admins switch features. Everyone sees what is on."]
+				text: ["Admins switch features and choose the check-in rhythm. Everyone sees what is on, and Cycles says the rhythm to everyone (“Check-ins: every week, due by Thursday.” or “Check-ins: no set rhythm.”)."]
 			},
 			{
 				heading: "For the people building Faro",
@@ -19970,7 +20203,11 @@ var CORE_ARTICLES = [
 		],
 		routes: ["/workspace/features"],
 		screens: [],
-		reqs: ["MODULES", "REVIEWS-OPTIONAL"],
+		reqs: [
+			"MODULES",
+			"REVIEWS-OPTIONAL",
+			"RHYTHM-OPTIONAL"
+		],
 		keywords: [
 			"features",
 			"modules",
@@ -20458,6 +20695,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "check-in-rhythm",
+		date: "2026-11-13",
+		title: "Check-ins can have no set rhythm",
+		points: [
+			"Check-ins can have no set rhythm. An admin chooses on Workspace, Features: every week, or no set rhythm.",
+			"With none, nothing is due or late, and each goal says which week its status is from (“On track · as of week 44”).",
+			"Before it changes, the sheet says what will change for everyone, counted. Switching a rhythm back on counts from that day, so nothing is late, and Undo puts it back."
+		],
+		articles: ["features", "check-in"]
+	},
 	{
 		id: "habit-receipt-and-moment",
 		date: "2026-11-13",
@@ -21959,8 +22207,8 @@ function systemOverview() {
 		"",
 		"- A workspace has people, teams, a cycle (a goal year or quarter counted in weeks from week 0) and goals. A goal is one of three kinds: a number to move from a start to a target along a plan, a number to keep within a limit, or dated stages.",
 		"- Each week the owner checks in: the number (or each stage), their call on the status, and the words the numbers ask for (why it is behind or ahead, and a path back to green when behind).",
-		`- The status is the owner’s call, beside what the numbers say. A number goal is on track at ${pct(RULES.onTrack)} of the planned progress or more, at risk from ${pct(RULES.atRisk)}, off track below; a range goal is at risk near or once over its limit and off track after two weeks over; a stage up to ${RULES.lateWeeksOff} weeks late is at risk, later is off track. With no check-in for ${RULES.staleDays} days a goal has no recent update.`,
-		`- Statuses, worst first: ${STATUS_ORDER.map((k) => LABEL[k]).join(", ")}. Always shown as a shape and a word.`,
+		`- The status is the owner’s call, beside what the numbers say. A number goal is on track at ${pct(RULES.onTrack)} of the planned progress or more, at risk from ${pct(RULES.atRisk)}, off track below; a range goal is at risk near or once over its limit and off track after two weeks over; a stage up to ${RULES.lateWeeksOff} weeks late is at risk, later is off track. With no check-in for ${RULES.staleDays} days (two check-ins’ time, every week) a goal has no recent update; with no set check-in rhythm, never.`,
+		`- Statuses, worst first: ${STATUS_ORDER.map((k) => k === "stale" ? `${LABEL[k]} (only with a check-in rhythm)` : LABEL[k]).join(", ")}. Always shown as a shape and a word.`,
 		"- Flags say why a goal needs attention (off track, a missed recovery date, no recent update, a decision waiting, no path to green, at risk, getting worse, a call greener than calculated). An off-track or at-risk goal is being handled, and leaves the list that needs attention, when since its latest check-in an action with an owner and a due week was agreed (or, at risk only, its request was answered), until something new happens. Someone marking it reviewed or noting it is not enough: that is a quiet line only.",
 		"- One change engine takes many changes at once (spreadsheets, bulk edits, MCP) and checks every row with the same rules as the app’s forms.",
 		"",
@@ -22021,6 +22269,8 @@ init_vocabulary();
 init_asks();
 init_review();
 init_progress();
+init_thresholds();
+init_status();
 init_tableLayout();
 init_goalKey();
 init_proposed();
@@ -22344,9 +22594,20 @@ var WORK_TOOLS = [
 					day: d.next.weekday
 				} : null } : {}
 			};
+			const rhythm = rhythmOf(ctx.cycle);
+			const list = rhythm ? null : checkInList(ctx.actor.id, s.goals, s.checkIns, ctx.week);
+			const noCheckInThisWeek = list ? list.waiting.map((r) => ({
+				id: r.goalId,
+				title: s.goals.find((g) => g.id === r.goalId)?.title ?? r.goalId,
+				lastWeek: r.lastWeek
+			})) : null;
 			return {
 				data: {
 					week: ctx.week,
+					...rhythm ? {} : {
+						rhythm: "none",
+						noCheckInThisWeek
+					},
 					atAGlance: glance,
 					checkInsDue: due,
 					needsAttention: attention,
@@ -22363,7 +22624,7 @@ var WORK_TOOLS = [
 					`Week ${ctx.week} for ${ctx.actor.name}.`,
 					`${d.scope === "mine" ? "Your goals" : "All goals"}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(", ") || "none"}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? "week" : "weeks"}.` : ""}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ""}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ""}`,
 					...weekReceipt ? [[weekReceipt.first, weekReceipt.second].filter(Boolean).join(" ")] : [],
-					`Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.`,
+					rhythm ? `Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.` : `No set check-in rhythm: nothing is due. No check-in this week: ${noCheckInThisWeek.length ? noCheckInThisWeek.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.`,
 					`Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask}${when(r)} (${r.id})`).join("; ") : "none"}.`,
 					`Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question}${when(q)} (${q.id})`).join("; ") : "none"}.`,
 					`Asked for an update: ${asks.length ? asks.map((x) => `${withProposed(s).find((g) => g.id === x.goalId)?.title} by ${x.by}${when(x)} (${x.id})`).join("; ") : "none"}.`,
@@ -23309,6 +23570,55 @@ var WORK_TOOLS = [
 				data: {
 					on: [...r.on],
 					off: [...r.off.keys()]
+				}
+			};
+		}
+	},
+	{
+		name: "set_rhythm",
+		title: "Choose the check-in rhythm",
+		description: "Admins: how often every goal is expected to have a check-in in this workspace. every: \"week\" (due by a weekday, due_by; a goal with none for two check-ins’ time reads No recent update) or \"none\" (no set rhythm: owners check in when there’s news, and nothing is due or late for want of a check-in). Without confirm: true it changes nothing and says what would change, counted. With it, the change is made and logged; switching a rhythm on counts from today, so nothing is late that day.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["every"],
+			properties: {
+				every: str$7("“week” or “none”.", { enum: ["week", "none"] }),
+				due_by: str$7("With every week: the weekday check-ins are due by. Leave out to keep it.", { enum: WEEKDAY }),
+				confirm: bool$1("true to make the change; leave out to see what it would do first.")
+			}
+		},
+		annotations: {
+			...WRITE$2,
+			idempotentHint: true
+		},
+		async run(a, ctx) {
+			const weeks = a.every === "none" ? 0 : a.every === "week" ? 1 : -1;
+			if (weeks < 0) throw new Error("Say every: \"week\" or every: \"none\".");
+			const dueDay = a.due_by === void 0 || a.due_by === null ? ctx.cycle.reviewDay : WEEKDAY.indexOf(String(a.due_by));
+			if (dueDay < 0) throw new Error("Choose a day of the week.");
+			const to = {
+				weeks,
+				dueDay
+			};
+			if (a.confirm !== true) {
+				if (!ctx.actor.admin) throw new Error("Only admins can change the check-in rhythm.");
+				const lines = rhythmReadBackLines(ctx.cycle, to, rhythmReadBack(ctx.snapshot.goals, ctx.snapshot.checkIns, ctx.cycle, to, ctx.today), ctx.today);
+				const text = lines.length ? `Nothing is changed yet. What changes for everyone here:\n${lines.map((l) => `- ${l.strong}${l.rest}`).join("\n")}\nCall set_rhythm again with confirm: true to make the change.` : `Nothing to change: ${rhythmFact(ctx.cycle)}`;
+				return {
+					data: {
+						changed: false,
+						rhythm: rhythmFact(ctx.cycle),
+						wouldChange: lines.map((l) => l.strong + l.rest)
+					},
+					text
+				};
+			}
+			return {
+				...await save$2(ctx, setRhythm(ax$2(ctx), ctx.cycle, to), rhythmToast(ctx.cycle, to), `Nothing to change: ${rhythmFact(ctx.cycle)}`),
+				data: {
+					rhythm: weeks ? "every week" : "none",
+					dueBy: weeks ? WEEKDAY[dueDay] : null
 				}
 			};
 		}
@@ -25797,6 +26107,8 @@ function momentText(m, goal, c, weeks) {
 	};
 }
 // src/mcp/tools.ts
+init_thresholds();
+init_progress();
 init_levels();
 init_actions();
 init_query();
@@ -26178,7 +26490,7 @@ var CORE_TOOLS = [
 			openWorldHint: false
 		},
 		async run(_a, ctx) {
-			return { text: `You are acting as ${ctx.actor.name}${ctx.actor.admin ? " (an admin: can change any goal)" : " (can change the goals they own)"} in ${ctx.ws.name}.
+			return { text: `You are acting as ${ctx.actor.name}${ctx.actor.admin ? " (an admin: can change any goal)" : " (can change the goals they own)"} in ${ctx.ws.name}. Check-in rhythm: ${rhythmOf(ctx.cycle) ? `every week, due by ${WEEKDAY[ctx.cycle.reviewDay]}` : "none"}.
 
 ` + aiBrief({
 				ws: ctx.ws,
@@ -26256,6 +26568,7 @@ var CORE_TOOLS = [
 				linkScope = new URLSearchParams(v.params).get("scope");
 			}
 			const status = a.status ? statusIn(a.status) : null;
+			if (status === "stale" && !rhythmOf(ctx.cycle)) throw new Error("No recent update isn’t used here: there is no set check-in rhythm.");
 			const named = a.owner ? ctx.snapshot.people.filter((p) => p.name.toLowerCase().includes(String(a.owner).toLowerCase())).map((p) => p.id) : null;
 			const owners = [
 				query.owner.length ? query.owner : null,
@@ -26345,6 +26658,7 @@ var CORE_TOOLS = [
 				target: s.target,
 				gap: s.gap,
 				lastCheckInWeek: s.lastWeek,
+				asOfWeek: s.asOfWeek,
 				feedsInto: s.feedsInto,
 				youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id
 			})), a, "No goal matches. Try fewer or plainer words, or another scope or status."));
@@ -49061,6 +49375,10 @@ var personFromRow = (r) => ({
 	...when("removedAt", r.removed_at),
 	...who("removedBy", r.removed_by)
 });
+var rhythmCols = (c) => c.checkInWeeks === void 0 && c.rhythmFrom === void 0 ? {} : {
+	check_in_weeks: c.checkInWeeks ?? 1,
+	rhythm_from: c.rhythmFrom ?? null
+};
 var cycleToRow = (ws, c) => ({
 	workspace_id: ws,
 	id: c.id,
@@ -49068,20 +49386,26 @@ var cycleToRow = (ws, c) => ({
 	start_date: c.startDate,
 	weeks: c.weeks,
 	review_day: c.reviewDay,
+	...rhythmCols(c),
 	...set({
 		removed_at: c.removedAt,
 		removed_by: c.removedBy
 	})
 });
-var cycleFromRow = (r) => ({
-	id: r.id,
-	name: r.name,
-	startDate: r.start_date.slice(0, 10),
-	weeks: Number(r.weeks),
-	reviewDay: Number(r.review_day ?? 3),
-	...when("removedAt", r.removed_at),
-	...who("removedBy", r.removed_by)
-});
+var cycleFromRow = (r) => {
+	const weeks = Number(r.check_in_weeks ?? 1);
+	return {
+		id: r.id,
+		name: r.name,
+		startDate: r.start_date.slice(0, 10),
+		weeks: Number(r.weeks),
+		reviewDay: Number(r.review_day ?? 3),
+		...weeks !== 1 ? { checkInWeeks: weeks } : {},
+		...r.rhythm_from ? { rhythmFrom: String(r.rhythm_from).slice(0, 10) } : {},
+		...when("removedAt", r.removed_at),
+		...who("removedBy", r.removed_by)
+	};
+};
 function goalToRows(ws, g) {
 	return {
 		goal: {
