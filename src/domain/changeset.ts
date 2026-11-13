@@ -24,6 +24,7 @@ import {
 } from './columns';
 import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planQuestion, replanned, stagesDoneAtSetUp, type GoalDraft } from './goal';
 import { goalChecks, type GoalCheckId, type GoalField, goalMustFix, type MustFixId } from './goalEntry';
+import { ADMIN_DOOR_LIMIT, mayPostCheckInRow } from './checkInDoors';
 import { MARKS_STAGES, mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { notNumberText, precisionProblem, sameAsWritten, typedDecimals } from './numbers';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
@@ -31,7 +32,7 @@ import { isProposed, measureEmpty, withProposed } from './proposed';
 import { mayActivate, NOTHING_TO_CHECK_IN } from './proposedActions';
 import { proposedMustFix, unsaidDraft } from './goalEntry';
 // Making a proposed goal active, or proposed again, loads with the engine (app/actions NEEDS_ENGINE).
-export { activate } from './proposedActions';
+export { activate, backToProposed } from './proposedActions';
 import { fmt } from './format';
 import { isEmail, normalEmail, personChange, personProblems, sameNameNote, sameTitleNote } from './people';
 import { planAt, planEnd, weekDate } from './plan';
@@ -269,6 +270,7 @@ export interface PlanProgress { done: number; total: number; added: number; chan
 const ADDS: ReadonlySet<ItemKind> = new Set<ItemKind>(['new goal', 'new person', 'check-in']);
 
 /** The engine, in one go: `planChangesInChunks` run to the end. Results are the same either way. */
+
 export function planChanges(input: ChangeInput): ChangeSet {
   const run = planChangesInChunks(input);
   for (;;) { const step = run.next(); if (step.done) return step.value; }
@@ -1335,9 +1337,12 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     // Check-ins are the owner's (R1; goalRights mayPostCheckIn): an admin may bring others' in only from a workbook.
     // Asked of the owner before this file's own changes, so one change can't take a goal and check in on it at once.
     const owned = s.goals.find((x) => x.id === g.id) ?? g;
-    if (!create && !mayPostCheckIn({ id: actor.id, admin: admin() }, owned, via)) {
+    const who = { id: actor.id, admin: admin() };
+    if (!create && !mayPostCheckInRow(who, owned, via, { week: w, thisWeek: week, exists: !!existing })) {
       if (!post && answerOf('not-allowed', 'Check-ins')?.choice === 'leave') { leave('Check-ins', row); return; }
-      raise('not-allowed', 'Check-ins', row, g.title, `Only ${people.get(owned.ownerId)?.name ?? 'its owner'} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
+      // An admin at one of the two doors is told what that door is for.
+      const limit = mayPostCheckIn(who, owned, via) ? ' ' + ADMIN_DOOR_LIMIT(via) : '';
+      raise('not-allowed', 'Check-ins', row, g.title, `Only ${people.get(owned.ownerId)?.name ?? 'its owner'} (its owner) can check in on “${g.title}”.${limit}`, post ? {} : { answers: ANSWERS.leaveOnly });
       return;
     }
     // A screen's post answers what it was asked first (rule 2): an unlikely number is never posted unanswered.
