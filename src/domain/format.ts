@@ -125,3 +125,14 @@ export function gapText(g: Goal, a: Assessment): { short: string; long: string; 
   return { short: '', long: '', tone: 'stale' };
 }
 
+/* One formatter, and each day's words once: building a formatter per call (toLocaleDateString) made the due flag, said
+   for every goal in every attention list, the slowest part of the lists (N29). */
+const DAY_TEXT = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+const dayTexts = new Map<string, string>();
+/** "Thu 5 Nov", from yyyy-mm-dd or a full timestamp. */
+export const dayText = (iso: string): string => {
+  const day = iso.slice(0, 10);
+  let t = dayTexts.get(day);
+  if (t === undefined) { t = DAY_TEXT.format(new Date(day + 'T00:00:00Z')); dayTexts.set(day, t); }
+  return t;
+};

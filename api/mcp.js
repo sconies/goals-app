@@ -487,7 +487,7 @@ var init_vocabulary = __esmMin((() => {
 			label: "Check-in due",
 			short: "none yet this week",
 			meaning: "No check-in yet this week. It doesn’t, on its own, make a goal need attention.",
-			long: "The goal has no check-in for this week yet, before the review. It is listed for the owner, but on its own it doesn’t make the goal need attention.",
+			long: "The goal has no check-in for this week yet, and one is due by the workspace’s check-in day. It is listed for the owner, but on its own it doesn’t make the goal need attention.",
 			rule: "attention#attentionFor",
 			where: [
 				"screens",
@@ -2383,13 +2383,29 @@ function gapText(g, a) {
 		tone: "stale"
 	};
 }
-var NO_VALUE$1, weekLabel;
+var NO_VALUE$1, weekLabel, DAY_TEXT, dayTexts, dayText;
 var init_format = __esmMin((() => {
 	init_numbers();
 	init_range();
 	init_vocabulary();
 	NO_VALUE$1 = "No value yet";
 	weekLabel = (w, weeks) => w >= weeks ? weeks >= 48 ? "year end" : "cycle end" : "week " + w;
+	DAY_TEXT = new Intl.DateTimeFormat("en-GB", {
+		weekday: "short",
+		day: "numeric",
+		month: "short",
+		timeZone: "UTC"
+	});
+	dayTexts = /* @__PURE__ */ new Map();
+	dayText = (iso) => {
+		const day = iso.slice(0, 10);
+		let t = dayTexts.get(day);
+		if (t === void 0) {
+			t = DAY_TEXT.format(/* @__PURE__ */ new Date(day + "T00:00:00Z"));
+			dayTexts.set(day, t);
+		}
+		return t;
+	};
 }));
 // src/domain/checkin.ts
 /** The parts of a carried account that are still word for word the same and still asked for: the reason, the path. */
@@ -2794,7 +2810,7 @@ function flagsFor(goal, s, cycle, today) {
 	const trend = status.status === "done" ? null : worseningTrend(goal, cycle, s.checkIns);
 	if (trend) add("trend", trend, "risk");
 	if (status.greener && latest && status.status !== "stale" && status.status !== "done") add("greener", `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, "risk");
-	if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== "done" && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", `Due before the review in week ${week}.`, "info");
+	if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== "done" && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", `Due by ${dayText(reviewDate(cycle, week))}.`, "info");
 	flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
 	return {
 		status,
@@ -2932,6 +2948,7 @@ var WEIGHT, HANDLED_ORDER, LOOKS, byGoal, needsAttention, onAttentionList, atten
 var init_attention = __esmMin((() => {
 	init_status();
 	init_progress();
+	init_format();
 	init_plan();
 	init_trend();
 	init_vocabulary();
@@ -2952,7 +2969,7 @@ var init_attention = __esmMin((() => {
 	onAttentionList = (a) => attentionGroup(a) !== null;
 	attentionOrder = (a, b) => Number(!!a.handled) - Number(!!b.handled) || b.weight - a.weight || a.goal.title.localeCompare(b.goal.title);
 }));
-// src/domain/review.ts
+// src/domain/watch.ts
 /** A goal and every goal feeding it, at any depth. */
 function treeOf$2(rootId, goals) {
 	const out = [];
@@ -2985,6 +3002,8 @@ function watchScope(personId, watches) {
 function watchedGoals(personId, s) {
 	return goalsIn(watchScope(personId, s.watches), s.goals);
 }
+var init_watch = __esmMin((() => {}));
+// src/domain/review.ts
 /** The week of a review's current session: this week if it's held this week, otherwise the next week it is. */
 function sessionWeek(r, week, cycle) {
 	const n = Math.max(1, r.everyWeeks);
@@ -3021,21 +3040,46 @@ function agendaItems(r, s, cycle, today) {
 	return goalsIn(r.scope, s.goals).map((g) => attentionFor(g, s, cycle, today)).sort((a, b) => tier(a) - tier(b) || b.weight - a.weight || RANK[b.status.status] - RANK[a.status.status] || lastCheckIn(b.goal) - lastCheckIn(a.goal) || a.goal.title.localeCompare(b.goal.title));
 }
 function reviewSession(r, s, cycle, today, week) {
-	const w = sessionWeek(r, week, cycle);
-	const items = agendaItems(r, s, cycle, today);
-	const said = saidIn(s).filter((d) => d.reviewId === r.id && d.week === w);
-	const covered = new Set(said.filter((d) => d.kind === "acknowledge").map((d) => d.goalId));
-	const done = items.filter((a) => covered.has(a.goal.id)).length;
-	return {
-		review: r,
-		week: w,
-		date: sessionDate(r, cycle, w),
-		items,
-		covered,
-		done,
-		total: items.length,
-		said
+	const at = (w) => {
+		const said = saidIn(s).filter((d) => d.reviewId === r.id && d.week === w);
+		const covered = new Set(said.filter((d) => d.kind === "acknowledge").map((d) => d.goalId));
+		const done = items.filter((a) => covered.has(a.goal.id)).length;
+		return {
+			review: r,
+			week: w,
+			date: sessionDate(r, cycle, w),
+			items,
+			covered,
+			done,
+			total: items.length,
+			said
+		};
 	};
+	const items = agendaItems(r, s, cycle, today);
+	const x = at(sessionWeek(r, week, cycle));
+	if (x.done >= x.total) return x;
+	const off = offSpell(s.changes);
+	return off && x.date >= off.from && x.date < off.to ? at(sessionWeek(r, x.week + 1, cycle)) : x;
+}
+/**
+* The days Reviews was last switched off and back on (yyyy-mm-dd), from the change log setModule writes (its Reviews
+* field going Off, then On), or null while it hasn't come back on. Nothing is stored for it (FT2).
+*/
+function offSpell(changes) {
+	const known = spells.get(changes);
+	if (known !== void 0) return known;
+	const spell = readSpell(changes);
+	spells.set(changes, spell);
+	return spell;
+}
+function readSpell(changes) {
+	const last = (to, before = "~") => changes.filter((c) => c.entity === "workspace" && c.at < before && c.diffs.some((d) => d.field === "Reviews" && d.to === to)).reduce((m, c) => !m || c.at > m ? c.at : m, null);
+	const on = last("On");
+	const off = on && last("Off", on);
+	return on && off ? {
+		from: off.slice(0, 10),
+		to: on.slice(0, 10)
+	} : null;
 }
 function sessionState(s) {
 	if (s.total > 0 && s.done >= s.total) return {
@@ -3122,21 +3166,18 @@ function answerOf(d) {
 		byId: a.answeredBy ?? ""
 	};
 }
-var isHealthy, tier, dayText, reviewedText, nextSessionWeek, canSpeakFor, speakRefusal, scopeRefusal;
+var isHealthy, tier, spells, reviewedText, nextSessionWeek, canSpeakFor, speakRefusal, scopeRefusal;
 var init_review = __esmMin((() => {
 	init_attention();
 	init_vocabulary();
 	init_plan();
 	init_status();
 	init_asks();
+	init_watch();
+	init_format();
 	isHealthy = (a) => !needsAttention(a) && !a.handled;
 	tier = (a) => a.handled ? 1 : isHealthy(a) ? 2 : 0;
-	dayText = (iso) => (/* @__PURE__ */ new Date(iso.slice(0, 10) + "T00:00:00Z")).toLocaleDateString("en-GB", {
-		weekday: "short",
-		day: "numeric",
-		month: "short",
-		timeZone: "UTC"
-	});
+	spells = /* @__PURE__ */ new WeakMap();
 	reviewedText = (s) => `${s.done} of ${s.total} reviewed`;
 	nextSessionWeek = (r, sessionWk) => sessionWeek(r, sessionWk + 1);
 	ASK_KIND.action.label;
@@ -5722,8 +5763,8 @@ function parseQuery(p) {
 		owner: (p.get("owner") ?? "").split(",").filter(Boolean),
 		kind: list$1(p.get("kind"), KIND_OPTIONS.map(([k]) => k)),
 		...needsOf(p),
-		due: due === "quarter" ? "quarter" : int$3(due),
-		quiet: int$3(p.get("quiet")),
+		due: due === "quarter" ? "quarter" : int$4(due),
+		quiet: int$4(p.get("quiet")),
 		quarter: qtr === "met" || qtr === "missed" ? qtr : null,
 		result: list$1(p.get("result"), RESULT_OPTIONS.map(([k]) => k)),
 		feeds: p.get("feeds") || null,
@@ -5829,7 +5870,7 @@ function applyQuery(sums, q, ctx) {
 	const out = sums.filter((s) => matches(s, q, ctx, tree));
 	return q.sort ? out.sort(compare(q, ctx.week)) : out;
 }
-var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$3, COLUMN_PARAMS, QUERY_KEYS, GAP_RANK;
+var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$4, COLUMN_PARAMS, QUERY_KEYS, GAP_RANK;
 var init_query = __esmMin((() => {
 	init_levels();
 	init_attention();
@@ -5892,7 +5933,7 @@ var init_query = __esmMin((() => {
 		["due", "Due soonest"]
 	];
 	list$1 = (v, ok) => v ? v.split(",").filter((x) => ok.includes(x)) : [];
-	int$3 = (v) => {
+	int$4 = (v) => {
 		const n = v == null ? NaN : Number(v);
 		return Number.isInteger(n) && n > 0 ? n : null;
 	};
@@ -14857,7 +14898,8 @@ function missedReviews(personId, s, cycle, week, today) {
 		};
 	}).filter((x) => x.daysPast > 0 && x.week <= cycle.weeks).sort((a, b) => b.daysPast - a.daysPast || a.name.localeCompare(b.name));
 }
-function dashboard(personId, s, cycle, week, today) {
+/** With Reviews switched off (`reviews` false, FT2) there is no next review and none missed. */
+function dashboard(personId, s, cycle, week, today, opts = { reviews: true }) {
 	const mine = s.goals.filter((g) => g.ownerId === personId);
 	const goals = mine.length ? mine : s.goals;
 	const watched = watchedGoals(personId, s);
@@ -14868,13 +14910,13 @@ function dashboard(personId, s, cycle, week, today) {
 		streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
 		watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
 		...(() => {
-			const upcoming = nextReviews(personId, s, cycle, week, today);
+			const upcoming = opts.reviews ? nextReviews(personId, s, cycle, week, today) : [];
 			return {
 				next: upcoming[0] ?? null,
 				upcoming
 			};
 		})(),
-		missed: missedReviews(personId, s, cycle, week, today)
+		missed: opts.reviews ? missedReviews(personId, s, cycle, week, today) : []
 	};
 }
 var LONG_DAYS = [
@@ -15001,7 +15043,14 @@ init_review();
 init_askHandover();
 init_progress();
 init_asks();
+init_attention();
 var live = (xs) => xs.filter((x) => !x.removedAt);
+/**
+* Whether Reviews is on (FT2): the one place that names the reviews module. Screens pass `useModules().on`, the MCP
+* server and the dispatcher `modulesOn(ws).on`; the rules in src/domain take the answer as `reviews: boolean`. A build
+* without the module (FARO_WITHOUT=reviews) answers false. FT3 moves Reviews' code into its folder and retires this.
+*/
+var reviewsOn = (on) => on.has("reviews");
 /** Every goal's summary row, with what the Goals filters need beyond it. */
 function goalRows(s, cycle, today, week, columns) {
 	const goals = live(s.goals).filter((g) => !g.stoppedAt);
@@ -15082,9 +15131,9 @@ var localDay = (iso) => {
 	const n = new Date(iso);
 	return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10);
 };
-function homeAsks(viewerId, s, cycle, week, today) {
+function homeAsks(viewerId, s, cycle, week, today, reviews = true) {
 	return openForPerson(viewerId, s).flatMap((r) => {
-		const w = askWaiting(r, viewerId, s, cycle, week, today);
+		const w = askWaiting(r, viewerId, s, cycle, week, today, reviews);
 		return w ? [w] : [];
 	}).sort(waitingOrder);
 }
@@ -15093,7 +15142,7 @@ function homeAsks(viewerId, s, cycle, week, today) {
 * `get_my_work` and `list_requests` all read `late` from here (build review of #369, medium 5). Null when none of its
 * goals is in the workspace.
 */
-function askWaiting(r, viewerId, s, cycle, week, today) {
+function askWaiting(r, viewerId, s, cycle, week, today, reviews = true) {
 	const day = today.toISOString().slice(0, 10);
 	const me = s.people.find((p) => p.id === viewerId)?.name ?? "";
 	const first = (id) => s.people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
@@ -15103,7 +15152,7 @@ function askWaiting(r, viewerId, s, cycle, week, today) {
 		title: g.title
 	}));
 	if (!goals.length) return null;
-	const rv = r.reviewId ? s.reviews.find((v) => v.id === r.reviewId) : void 0;
+	const rv = r.reviewId && reviews ? s.reviews.find((v) => v.id === r.reviewId) : void 0;
 	let session = null;
 	if (r.dueWeek == null && r.kind === "question" && rv) {
 		const w = r.week != null ? nextSessionWeek(rv, r.week) : upcomingSessionWeek(rv, cycle, week, today);
@@ -16719,7 +16768,7 @@ function activityFilter(a, x) {
 	};
 }
 // src/modules/metrics/help.ts
-var help$3 = [
+var help$5 = [
 	{
 		id: "metrics",
 		title: "Metrics: what each number means",
@@ -16973,10 +17022,90 @@ var help$3 = [
 		]
 	}
 ];
+// src/modules/reviews/help.ts
+var help$4 = [{
+	id: "reviews",
+	title: "Reviews",
+	summary: "A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said.",
+	group: "leading",
+	after: "edit-goal",
+	sections: [
+		{
+			heading: "What it’s for",
+			text: ["A regular look at the goals that need it, with notes, questions and actions that stick to the goal."]
+		},
+		{
+			heading: "Setting one up",
+			list: ["Choose Set up a review on Reviews. Give it a name and a cadence: every 1, 2 or 4 weeks, on a weekday.", "Pick the goals: every goal at a level, a goal and everything feeding it, or single goals, found by typing their name or key. Then the people taking part, found by typing a name or a team (you and your team are suggested)."]
+		},
+		{
+			heading: "Running it",
+			list: [
+				"Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open. A session under way is listed first. A session not held by its date is outstanding: it says “Outstanding from” its date and how many days past, with the next session beside it, so the two are never mixed up. The review’s page and the bar you walk it with say the same.",
+				"Walking a review, the bar names the goal you’re on among the goals to discuss, and how many of the whole review are reviewed (the goals with nothing flagged count too). The order is fixed when the session starts: reviewing a goal or saving an action never moves one, Continue review picks up at the goal you left, and Previous goal goes back to ones already reviewed. Opening a goal’s walk from its own address keeps the same order.",
+				"Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead. Marking them asks first, and the message after it has Undo. While goals to discuss are left, the review carries on; when they’re all that’s left, Finish review marks them and records the session as held.",
+				"The walk opens each goal’s page in turn, under a bar with the review’s name (in full, on two lines if it needs them) and how far through you are. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.",
+				"A goal off track or at risk asks first: “What happens next, who, by when?” Add the next step (what, who and the week it’s due by; type to find the person: you and your team are suggested first), or choose We accept the risk and say why. Only then can it be marked reviewed. Skip for now leaves it for later in the session.",
+				"A session opens with Last time: what the previous session agreed, who agreed to do it, by when, and whether it’s done. Whoever does it, whoever agreed it, or an admin can mark it done there. Each goal in the walk shows its own. Goals proposed in it are listed after: “Proposed: … Tunde hasn’t made it active yet.”, or the day they did.",
+				"A new goal the room agrees on: choose Propose a new goal in the walk. Give it a name, who will own it and what it will feed. It is saved as proposed, and its owner sets it up and makes it active.",
+				"Finish review says what was decided (each person’s next steps, the risks accepted, the questions still open) before it records the session as held, and its message has Undo. The walk’s last goal finishes the same way.",
+				"Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session."
+			]
+		},
+		{
+			heading: "Ending one",
+			list: ["End this review, at the foot of its page: it stops showing as due and keeps its notes and actions on each goal and in exports. Its page says Ended, with Reopen. A review that was never held is deleted instead.", "A note said in a review can be removed by whoever said it, or an admin; the goal’s activity then says “Note removed” in its place. A corrected note says edited."]
+		},
+		{
+			heading: "Who can",
+			text: ["Anyone can set up a review, and everyone can read every review. Only people in a review, or an admin, speak for it: mark goals reviewed, add a note, accept a risk, and ask a question or agree a next step in it, and only about the goals it covers. Anyone can still ask a question or agree a next step on a goal’s own page. Someone not in a review is told who can add them: someone in it, whoever set it up, or an admin, who can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it."]
+		}
+	],
+	routes: [
+		"/reviews",
+		"/reviews/new",
+		"/reviews/:reviewId",
+		"/reviews/:reviewId/edit",
+		"/reviews/:reviewId/summary",
+		"/reviews/:reviewId/print",
+		"/review",
+		"/goals/:goalId?review=*"
+	],
+	screens: ["Review", "Inspect"],
+	reqs: [
+		"REVIEW",
+		"REVIEW-SETUP",
+		"REVIEW-RUN",
+		"REVIEW-DECIDE",
+		"INSPECT-ACT",
+		"REVIEW-LIST-STATE",
+		"REVIEW-AGENDA",
+		"EXCEPTIONS-FIRST",
+		"REVIEW-SPEAK"
+	],
+	keywords: [
+		"review",
+		"meeting",
+		"agenda",
+		"walk",
+		"notes",
+		"questions",
+		"actions",
+		"summary",
+		"cadence",
+		"weekly review"
+	],
+	related: [
+		"needs-attention",
+		"goal-page",
+		"print",
+		"requests"
+	]
+}];
 // src/modules/spreadsheets/help.ts
 init_columns();
 init_importLimits();
-var help$2 = [
+var help$3 = [
 	{
 		id: "import",
 		title: "Importing from a spreadsheet",
@@ -17250,13 +17379,20 @@ var help$2 = [
 	}
 ];
 // \0virtual:faro-modules/help
-var help_default = [{
-	id: "metrics",
-	part: help$3
-}, {
-	id: "spreadsheets",
-	part: help$2
-}];
+var help_default = [
+	{
+		id: "metrics",
+		part: help$5
+	},
+	{
+		id: "reviews",
+		part: help$4
+	},
+	{
+		id: "spreadsheets",
+		part: help$3
+	}
+];
 // src/help/about.ts
 var PROTOTYPE_LINE = "Faro is a prototype: a working model of a goals app, built to be copied and rebuilt inside a company. It isn’t a product, and nothing here is for sale.";
 // src/help/guide.ts
@@ -17321,6 +17457,10 @@ var CORE_ARTICLES = [
 					"Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it.",
 					"After a release you haven’t seen, a quiet line at the foot of Home says what’s new in Faro. Open it, or dismiss it with the cross."
 				]
+			},
+			{
+				heading: "In a workspace that doesn’t hold reviews",
+				list: ["When an admin has switched Reviews off, Home leads with your check-ins, the wrap-up and what is asked of you, as above. Someone who owns no goals and watches some is led to the goals they watch that need attention, with See them; watching nothing, Home starts with what needs your response.", "A question waits by its own age (“Waiting since 4 Aug, 14 weeks”), and a next step says when you agreed it and the week it’s due."]
 			},
 			{
 				heading: "Why an ask says how long it has waited",
@@ -17957,7 +18097,8 @@ var CORE_ARTICLES = [
 					"In the Table, select goals to change their owner or level, watch them or export them.",
 					"In the sidebar, Goals has your saved views under it.",
 					"The status key sits under the goals. New goal is a quiet link at the top right; the sidebar’s New goal opens it from anywhere.",
-					"Proposed goals are never among these and never counted with them: the count line adds “· 1 proposed”, a link that lists them. The Filters sheet has State: Active (the default) or Proposed."
+					"Proposed goals are never among these and never counted with them: the count line adds “· 1 proposed”, a link that lists them. The Filters sheet has State: Active (the default) or Proposed.",
+					"Goals is the same whether or not a workspace holds reviews: every list, filter and view works without them, and a link that opened Goals for a review’s goals opens Goals without the review."
 				]
 			},
 			{
@@ -18261,6 +18402,10 @@ var CORE_ARTICLES = [
 				]
 			},
 			{
+				heading: "In a workspace that doesn’t hold reviews",
+				list: ["When an admin has switched Reviews off, the page has Next steps and asks, Why, the chart, What feeds it, History and About, and nothing else in their place. Questions say who asked and when; a next step agreed in a review still says, in words, where it was agreed.", "History keeps everything said in reviews, and its Reviews filter is there while it has entries. An address that opened a goal in a review’s walk opens the goal’s own page."]
+			},
+			{
 				heading: "Changing it",
 				list: [
 					"Change this goal (in About, or the “…” menu) opens the goal’s form. Each change asks why once check-ins have started, and the reason goes in the activity for everyone watching.",
@@ -18558,7 +18703,7 @@ var CORE_ARTICLES = [
 					"Propose one from New goal: on Check, answer “Is it under way?” with “Not yet: propose it”, then Propose goal. It gets a key and a page at once. How it’s measured may wait.",
 					"Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.",
 					"Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.",
-					"Change it: the same page as any goal, with no reason ever asked. Withdraw it: it goes to Recently removed for 30 days, with Undo.",
+					"Change it: the same page as any goal, with no reason ever asked, and its type can still change. Withdraw it: it goes to Recently removed for 30 days, with Undo.",
 					"Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.",
 					"In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet.",
 					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).",
@@ -18613,7 +18758,7 @@ var CORE_ARTICLES = [
 					"A target on the other side of the start flips which way is better, so it is never saved quietly: the form says so (“This makes higher better”) and saves once you tick the yes beneath it. A start, target or week’s number far outside the plan it replaces is asked about the same way. The import, Data and the AI assistant ask the same questions.",
 					"The original plan stays on the chart, dotted, and earlier weeks and closed quarters stay judged against the plan of their day. There is no approval step.",
 					"A range can change between At most, At least and Between under Plan and target, as its limit can; Between asks for the lower limit too.",
-					"A goal’s type can’t change once check-ins have started."
+					"A goal’s type can’t change once it is active. While it is proposed, Type, under Plan and target, changes it: “It’s proposed, so its type can still change.”"
 				]
 			},
 			{
@@ -18648,83 +18793,6 @@ var CORE_ARTICLES = [
 			"new-goal",
 			"goal-page",
 			"activity"
-		]
-	},
-	{
-		id: "reviews",
-		title: "Reviews",
-		summary: "A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said.",
-		group: "leading",
-		sections: [
-			{
-				heading: "What it’s for",
-				text: ["A regular look at the goals that need it, with notes, questions and actions that stick to the goal."]
-			},
-			{
-				heading: "Setting one up",
-				list: ["Choose Set up a review on Reviews. Give it a name and a cadence: every 1, 2 or 4 weeks, on a weekday.", "Pick the goals: every goal at a level, a goal and everything feeding it, or single goals, found by typing their name or key. Then the people taking part, found by typing a name or a team (you and your team are suggested)."]
-			},
-			{
-				heading: "Running it",
-				list: [
-					"Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open. A session under way is listed first. A session not held by its date is outstanding: it says “Outstanding from” its date and how many days past, with the next session beside it, so the two are never mixed up. The review’s page and the bar you walk it with say the same.",
-					"Walking a review, the bar names the goal you’re on among the goals to discuss, and how many of the whole review are reviewed (the goals with nothing flagged count too). The order is fixed when the session starts: reviewing a goal or saving an action never moves one, Continue review picks up at the goal you left, and Previous goal goes back to ones already reviewed. Opening a goal’s walk from its own address keeps the same order.",
-					"Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead. Marking them asks first, and the message after it has Undo. While goals to discuss are left, the review carries on; when they’re all that’s left, Finish review marks them and records the session as held.",
-					"The walk opens each goal’s page in turn, under a bar with the review’s name (in full, on two lines if it needs them) and how far through you are. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.",
-					"A goal off track or at risk asks first: “What happens next, who, by when?” Add the next step (what, who and the week it’s due by; type to find the person: you and your team are suggested first), or choose We accept the risk and say why. Only then can it be marked reviewed. Skip for now leaves it for later in the session.",
-					"A session opens with Last time: what the previous session agreed, who agreed to do it, by when, and whether it’s done. Whoever does it, whoever agreed it, or an admin can mark it done there. Each goal in the walk shows its own. Goals proposed in it are listed after: “Proposed: … Tunde hasn’t made it active yet.”, or the day they did.",
-					"A new goal the room agrees on: choose Propose a new goal in the walk. Give it a name, who will own it and what it will feed. It is saved as proposed, and its owner sets it up and makes it active.",
-					"Finish review says what was decided (each person’s next steps, the risks accepted, the questions still open) before it records the session as held, and its message has Undo. The walk’s last goal finishes the same way.",
-					"Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session."
-				]
-			},
-			{
-				heading: "Ending one",
-				list: ["End this review, at the foot of its page: it stops showing as due and keeps its notes and actions on each goal and in exports. Its page says Ended, with Reopen. A review that was never held is deleted instead.", "A note said in a review can be removed by whoever said it, or an admin; the goal’s activity then says “Note removed” in its place. A corrected note says edited."]
-			},
-			{
-				heading: "Who can",
-				text: ["Anyone can set up a review, and everyone can read every review. Only people in a review, or an admin, speak for it: mark goals reviewed, add a note, accept a risk, and ask a question or agree a next step in it, and only about the goals it covers. Anyone can still ask a question or agree a next step on a goal’s own page. Someone not in a review is told who can add them: someone in it, whoever set it up, or an admin, who can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it."]
-			}
-		],
-		routes: [
-			"/reviews",
-			"/reviews/new",
-			"/reviews/:reviewId",
-			"/reviews/:reviewId/edit",
-			"/reviews/:reviewId/summary",
-			"/review",
-			"/goals/:goalId?review=*"
-		],
-		screens: ["Review", "Inspect"],
-		reqs: [
-			"REVIEW",
-			"REVIEW-SETUP",
-			"REVIEW-RUN",
-			"REVIEW-DECIDE",
-			"INSPECT-ACT",
-			"REVIEW-LIST-STATE",
-			"REVIEW-AGENDA",
-			"EXCEPTIONS-FIRST",
-			"REVIEW-SPEAK"
-		],
-		keywords: [
-			"review",
-			"meeting",
-			"agenda",
-			"walk",
-			"notes",
-			"questions",
-			"actions",
-			"summary",
-			"cadence",
-			"weekly review"
-		],
-		related: [
-			"needs-attention",
-			"goal-page",
-			"print",
-			"requests"
 		]
 	},
 	{
@@ -18932,7 +19000,7 @@ var CORE_ARTICLES = [
 				"Print uses black on white with the status shapes kept, and no navigation."
 			]
 		}],
-		routes: ["/goals/:goalId/print", "/reviews/:reviewId/print"],
+		routes: ["/goals/:goalId/print"],
 		screens: ["Print"],
 		reqs: ["PRINT-EXPORT"],
 		keywords: [
@@ -19331,11 +19399,11 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "An address that leads nowhere",
-				list: ["An old or mistyped link says “Page not found”, with Go to Home and Help. A goal, review or person that isn’t there says so in its own words."]
+				list: ["An old or mistyped link says “Page not found”, with Go to Home and Help. A goal, review or person that isn’t there says so in its own words.", "A link to a part of Faro an admin has switched off in this workspace, such as Reviews, says so under it: “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.” For an admin, Workspace, Features is a link."]
 			}
 		],
 		routes: [],
-		screens: [],
+		screens: ["NotFound"],
 		reqs: [
 			"NAV-WHERE",
 			"NAV-BACK",
@@ -19425,17 +19493,20 @@ var CORE_ARTICLES = [
 	{
 		id: "features",
 		title: "Features: switching parts of Faro on or off",
-		summary: "Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus features an admin can switch on or off for a workspace, such as Spreadsheets.",
+		summary: "Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace: how you work (Reviews) and tools such as the Metric library and Spreadsheets.",
 		group: "you",
 		sections: [
 			{
 				heading: "How to use it",
 				list: [
-					"On Workspace, Features lists the optional parts of Faro this workspace can use, each with what it does; About says which are on, from the same list. Goals, check-ins, reviews and people are the core and always on. Each has a switch with On or Off beside it; switch one off for everyone here; tick it to switch it back on.",
-					"Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.",
-					"Nothing a feature saved is deleted. Switch it back on and everything is as it was.",
+					"On Workspace, Features says how this workspace works and lists the optional parts of Faro, each with what it does; About says which are on, from the same list. Goals, check-ins and people are the core and always on.",
+					"How you work holds Reviews: walking a set of goals together on a cadence. While it is on, it says how many reviews are set up. Tools holds the rest, such as the Metric library and Spreadsheets. Each has a switch with On or Off beside it.",
+					"Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching a tool off, or anything on, acts at once.",
+					"Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.",
+					"With Reviews off, asks and next steps stay on their goals and on Home, each goal’s History and Activity keep what was said in reviews, and check-ins are still due by the same day.",
+					"Nothing a feature saved is deleted. Switch it back on and everything is as it was: every review, its people, its cadence and what was said. A session whose date passed while Reviews was off isn’t said to be not held.",
 					"Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.",
-					"Spreadsheets is the first feature: Export and Import on Data, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says."
+					"Spreadsheets is one of the tools: Export and Import on Data, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says."
 				]
 			},
 			{
@@ -19449,7 +19520,7 @@ var CORE_ARTICLES = [
 		],
 		routes: ["/workspace/features"],
 		screens: [],
-		reqs: ["MODULES"],
+		reqs: ["MODULES", "REVIEWS-OPTIONAL"],
 		keywords: [
 			"features",
 			"modules",
@@ -19458,6 +19529,9 @@ var CORE_ARTICLES = [
 			"disable",
 			"enable",
 			"spreadsheets",
+			"reviews",
+			"how you work",
+			"tools",
 			"optional",
 			"workspace settings"
 		],
@@ -19940,6 +20014,30 @@ var WHATS_NEW = [
 		title: "Find the goals stopped this year",
 		points: ["The Filters sheet’s State has a third choice, Stopped: the goals stopped this year, most recently stopped first.", "Each says who stopped it, when and why, and opens its page as it stood."],
 		articles: ["goals", "goal-page"]
+	},
+	{
+		id: "reviews-switch",
+		date: "2026-11-13",
+		title: "Reviews can be switched off, and nothing they saved is lost",
+		points: [
+			"An admin can switch Reviews off for a workspace on Workspace, Features, under How you work. Before it goes off, Faro says how many reviews, next steps and questions stay, and Undo brings it straight back.",
+			"Off, there is no Reviews in the menu or on Home, no walk or “Last time we talked” on a goal, and an old review link says Reviews is switched off. Someone who owns no goals is led to the goals they watch that need attention.",
+			"Asks and next steps stay on their goals and on Home. What was said in reviews stays in each goal’s History and in Activity. Switch Reviews back on and every review is as it was.",
+			"A check-in coming due now says the day it is due by, “Due by Thu 12 Nov”, whether or not Reviews is on."
+		],
+		articles: [
+			"features",
+			"home",
+			"goal-page",
+			"reviews"
+		]
+	},
+	{
+		id: "proposed-type-changes",
+		date: "2026-11-13",
+		title: "A proposed goal’s type can still change",
+		points: ["Changing a proposed goal, Type lets you turn it into a number to move, a number to keep in range, or dated stages.", "Once it is active, its type stays: add a new goal instead."],
+		articles: ["goal-proposed", "edit-goal"]
 	},
 	{
 		id: "asks-follow-owner-by-role",
@@ -21232,224 +21330,300 @@ var listed = (data) => ({
 	text: JSON.stringify(data)
 });
 // \0virtual:faro-modules
-var _virtual_faro_modules_default = [{
-	id: "metrics",
-	name: "Metric library",
-	summary: "Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.",
-	needs: [],
-	routes: [
-		"/metrics",
-		"/metrics/new",
-		"/metrics/:metricId",
-		"/metrics/:metricId/edit"
-	],
-	redirects: [["/data/metrics", "/metrics"]],
-	navigation: ["Metrics"],
-	places: [
-		"goal.facts",
-		"goal.measure",
-		"goal.sections",
-		"people.person",
-		"people.team"
-	],
-	tables: [{
-		"name": "okr_metrics",
-		"migration": "0033_metric_library.sql",
-		"purpose": "The metric library: one row per metric, never deleted (removed_at when removed)."
-	}, {
-		"name": "okr_goal_metrics",
-		"migration": "0033_metric_library.sql",
-		"purpose": "Which metric measures a goal, and for which slice (a team, or the whole company when team_id is null): one row per goal, removed_at when unlinked."
-	}],
-	records: [{
-		"name": "metric",
-		"table": "okr_metrics",
-		"key": "metrics",
-		"removable": true
-	}, {
-		"name": "metric link",
-		"table": "okr_goal_metrics",
-		"key": "metricLinks",
-		"removable": false
-	}],
-	aiTools: [
-		"list_metrics",
-		"get_metric",
-		"save_metric",
-		"remove_metric",
-		"retire_metric",
-		"merge_metrics",
-		"link_goal_metric"
-	],
-	help: [
-		"metrics",
-		"metric-define",
-		"metric-measured-by",
-		"metric-slices",
-		"metric-change"
-	],
-	requirements: [
-		"METRICS-LIBRARY",
-		"METRICS-MEASURED-BY",
-		"METRICS-CARE",
-		"METRIC-DEFINED",
-		"METRIC-PARTS",
-		"METRIC-CHANGE"
-	],
-	journeys: [
-		"U81",
-		"U82",
-		"U83",
-		"U145",
-		"U105",
-		"U146",
-		"U106",
-		"F15",
-		"N16"
-	],
-	elsewhere: [],
-	rebuild: {
-		"status": "outline",
-		"builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric. Defining one well: three things to be usable, the rest said later and named in words (“Fully defined” or “Still to say: …”, never a score), and three questions answered once before saving (a close name, a unit spelt another way, a percentage that doesn’t say out of what), with each Must fix and Check under its field. For, and which part: a link is for a team or the whole company and optionally one part of that number (“tier-1 services”), the parts in use offered under the field; the goal takes the metric’s unit and direction, its target stays its own; another goal on the same number, or a part spelt like one in use, is asked about once; and a goal with check-ins says why it is measured differently, in its History. Looking after one: what it still needs, a confirm before changing a unit or direction goals use, and on Workspace → About how many metrics have no owner.",
-		"entry": ["The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.", "Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice."],
-		"exit": [
-			"A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.",
-			"Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.",
-			"A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.",
-			"A metric that has measured a goal can’t be deleted (“Retire it instead.”); one that never has is deleted, and Undo or Recently removed brings it back.",
-			"The demo workspace’s 13 metrics and 12 links load (two of them for one part: CI/CD · main branch pipelines, CI/CD · main pipelines), and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).",
-			"Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there.",
-			"The library finds what each of rule 1’s worked examples says, a metric’s goals are rule 2’s rows in its order, and what a metric needs is rule 3’s, in order: every row of spec/conformance/metrics.csv matches.",
-			"The library is in the menu after People (under More on a phone); the old addresses of Metrics under Data lead to the library, a metric or the form; a metric’s row in the library counts the same goals by status as its page’s table lists (journey U81, checks F15 and N16).",
-			"In New goal, “Measured by” comes first on the measure step: a metric found by typing shows its meaning, fills in the unit, decimals and which way is better on a goal nobody typed them for, measures it for the goal’s team or the whole company, and Check says so; one added there is chosen; a goal with dated stages has none (journey U82, rule 5’s worked examples).",
-			"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first (the read-back, MT3); admins see on Workspace → About how many metrics have no owner (journey U83).",
-			"Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105).",
-			"A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146).",
-			"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples)."
+var _virtual_faro_modules_default = [
+	{
+		id: "metrics",
+		name: "Metric library",
+		summary: "Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.",
+		needs: [],
+		routes: [
+			"/metrics",
+			"/metrics/new",
+			"/metrics/:metricId",
+			"/metrics/:metricId/edit"
 		],
-		"gaps": [
-			"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).",
-			"The goals table is where slices side by side and numbers read from the source would grow (growth.md: dimensions an admin defines; numbers from the source).",
-			"Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md."
-		]
+		redirects: [["/data/metrics", "/metrics"]],
+		navigation: ["Metrics"],
+		places: [
+			"goal.facts",
+			"goal.measure",
+			"goal.sections",
+			"people.person",
+			"people.team"
+		],
+		tables: [{
+			"name": "okr_metrics",
+			"migration": "0033_metric_library.sql",
+			"purpose": "The metric library: one row per metric, never deleted (removed_at when removed)."
+		}, {
+			"name": "okr_goal_metrics",
+			"migration": "0033_metric_library.sql",
+			"purpose": "Which metric measures a goal, and for which slice (a team, or the whole company when team_id is null): one row per goal, removed_at when unlinked."
+		}],
+		records: [{
+			"name": "metric",
+			"table": "okr_metrics",
+			"key": "metrics",
+			"removable": true
+		}, {
+			"name": "metric link",
+			"table": "okr_goal_metrics",
+			"key": "metricLinks",
+			"removable": false
+		}],
+		aiTools: [
+			"list_metrics",
+			"get_metric",
+			"save_metric",
+			"remove_metric",
+			"retire_metric",
+			"merge_metrics",
+			"link_goal_metric"
+		],
+		help: [
+			"metrics",
+			"metric-define",
+			"metric-measured-by",
+			"metric-slices",
+			"metric-change"
+		],
+		requirements: [
+			"METRICS-LIBRARY",
+			"METRICS-MEASURED-BY",
+			"METRICS-CARE",
+			"METRIC-DEFINED",
+			"METRIC-PARTS",
+			"METRIC-CHANGE"
+		],
+		journeys: [
+			"U81",
+			"U82",
+			"U83",
+			"U145",
+			"U105",
+			"U146",
+			"U106",
+			"F15",
+			"N16"
+		],
+		elsewhere: [],
+		rebuild: {
+			"status": "outline",
+			"builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric. Defining one well: three things to be usable, the rest said later and named in words (“Fully defined” or “Still to say: …”, never a score), and three questions answered once before saving (a close name, a unit spelt another way, a percentage that doesn’t say out of what), with each Must fix and Check under its field. For, and which part: a link is for a team or the whole company and optionally one part of that number (“tier-1 services”), the parts in use offered under the field; the goal takes the metric’s unit and direction, its target stays its own; another goal on the same number, or a part spelt like one in use, is asked about once; and a goal with check-ins says why it is measured differently, in its History. Looking after one: what it still needs, a confirm before changing a unit or direction goals use, and on Workspace → About how many metrics have no owner.",
+			"entry": ["The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.", "Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice."],
+			"exit": [
+				"A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.",
+				"Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.",
+				"A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.",
+				"A metric that has measured a goal can’t be deleted (“Retire it instead.”); one that never has is deleted, and Undo or Recently removed brings it back.",
+				"The demo workspace’s 13 metrics and 12 links load (two of them for one part: CI/CD · main branch pipelines, CI/CD · main pipelines), and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).",
+				"Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there.",
+				"The library finds what each of rule 1’s worked examples says, a metric’s goals are rule 2’s rows in its order, and what a metric needs is rule 3’s, in order: every row of spec/conformance/metrics.csv matches.",
+				"The library is in the menu after People (under More on a phone); the old addresses of Metrics under Data lead to the library, a metric or the form; a metric’s row in the library counts the same goals by status as its page’s table lists (journey U81, checks F15 and N16).",
+				"In New goal, “Measured by” comes first on the measure step: a metric found by typing shows its meaning, fills in the unit, decimals and which way is better on a goal nobody typed them for, measures it for the goal’s team or the whole company, and Check says so; one added there is chosen; a goal with dated stages has none (journey U82, rule 5’s worked examples).",
+				"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first (the read-back, MT3); admins see on Workspace → About how many metrics have no owner (journey U83).",
+				"Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105).",
+				"A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146).",
+				"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples)."
+			],
+			"gaps": [
+				"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).",
+				"The goals table is where slices side by side and numbers read from the source would grow (growth.md: dimensions an admin defines; numbers from the source).",
+				"Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md."
+			]
+		},
+		growth: [
+			{
+				"idea": "Draft and Ready states",
+				"why": "A metric is usable as soon as it has a name, a unit and a direction, which is all a team needs to start. A review step before anyone can use one would slow the first weeks for little gain at Faro’s size.",
+				"how": "Add a state to the metric (draft, ready), let goals link only to ready ones, and give whoever reviews definitions (a data owner, say) a list of drafts to approve. The rules page’s “who may” paragraph is where the new rule goes."
+			},
+			{
+				"idea": "Versions, with a reason for each change",
+				"why": "Every change is already in the change log, field by field, with who and when, which answers “what did this mean in March?” for now.",
+				"how": "Keep each saved definition as a version with a required reason (as a goal’s plan keeps its earlier plans), show which version a goal’s numbers were read under, and let a reader compare two."
+			},
+			{
+				"idea": "Owner-only editing and other governance",
+				"why": "Owners and admins can change a metric, as with goals. Stricter rules (only the owner, or changes approved by a data steward) need roles Faro doesn’t have.",
+				"how": "Add a steward role per metric or per source, and route changes through an ask to them (the asks model already carries who must respond)."
+			},
+			{
+				"idea": "Dimensions an admin defines, and slices side by side",
+				"why": "A slice is a team or the whole company, which covers how Faro’s goals are set. Other cuts (region, product, tier) and comparing slices need data Faro doesn’t hold.",
+				"how": "Let an admin define dimensions and their values, let a link name any of them, and add a view that lists every goal on one metric by slice, with their targets side by side."
+			},
+			{
+				"idea": "Suggestions and grouping look-alikes for existing goals",
+				"why": "Linking is by hand, by each goal’s owner. Suggesting a metric for a goal, or spotting goals that measure the same thing under different names, needs matching that is easy to get wrong in a demo.",
+				"how": "Compare each unlinked goal’s title, unit and source with the library and suggest the closest metric; group goals whose definitions look alike and offer to link them all to one metric."
+			},
+			{
+				"idea": "“Metric not defined” enforcement",
+				"why": "A goal doesn’t have to be measured by a metric. Requiring one before a goal can be saved would block every workspace that hasn’t built its library yet.",
+				"how": "A workspace setting that makes every number goal need a metric, a flag (like the other attention flags) on goals that have none, and a count on Home for admins."
+			},
+			{
+				"idea": "Loading the Metrics sheet back, and numbers from the source",
+				"why": "The Metrics sheet is written for reading, like Asks and Notes; metrics are added in the app or by an AI assistant. A goal’s numbers still come from its check-ins.",
+				"how": "Give the Metrics sheet match and edit columns and read it through the change engine (stage 2), as People is. Later, read each metric’s number from its source on its refresh cadence and offer it in the check-in."
+			}
+		],
+		finders: ["metric"],
+		filters: ["metric"],
+		toSortOut: true
 	},
-	growth: [
-		{
-			"idea": "Draft and Ready states",
-			"why": "A metric is usable as soon as it has a name, a unit and a direction, which is all a team needs to start. A review step before anyone can use one would slow the first weeks for little gain at Faro’s size.",
-			"how": "Add a state to the metric (draft, ready), let goals link only to ready ones, and give whoever reviews definitions (a data owner, say) a list of drafts to approve. The rules page’s “who may” paragraph is where the new rule goes."
-		},
-		{
-			"idea": "Versions, with a reason for each change",
-			"why": "Every change is already in the change log, field by field, with who and when, which answers “what did this mean in March?” for now.",
-			"how": "Keep each saved definition as a version with a required reason (as a goal’s plan keeps its earlier plans), show which version a goal’s numbers were read under, and let a reader compare two."
-		},
-		{
-			"idea": "Owner-only editing and other governance",
-			"why": "Owners and admins can change a metric, as with goals. Stricter rules (only the owner, or changes approved by a data steward) need roles Faro doesn’t have.",
-			"how": "Add a steward role per metric or per source, and route changes through an ask to them (the asks model already carries who must respond)."
-		},
-		{
-			"idea": "Dimensions an admin defines, and slices side by side",
-			"why": "A slice is a team or the whole company, which covers how Faro’s goals are set. Other cuts (region, product, tier) and comparing slices need data Faro doesn’t hold.",
-			"how": "Let an admin define dimensions and their values, let a link name any of them, and add a view that lists every goal on one metric by slice, with their targets side by side."
-		},
-		{
-			"idea": "Suggestions and grouping look-alikes for existing goals",
-			"why": "Linking is by hand, by each goal’s owner. Suggesting a metric for a goal, or spotting goals that measure the same thing under different names, needs matching that is easy to get wrong in a demo.",
-			"how": "Compare each unlinked goal’s title, unit and source with the library and suggest the closest metric; group goals whose definitions look alike and offer to link them all to one metric."
-		},
-		{
-			"idea": "“Metric not defined” enforcement",
-			"why": "A goal doesn’t have to be measured by a metric. Requiring one before a goal can be saved would block every workspace that hasn’t built its library yet.",
-			"how": "A workspace setting that makes every number goal need a metric, a flag (like the other attention flags) on goals that have none, and a count on Home for admins."
-		},
-		{
-			"idea": "Loading the Metrics sheet back, and numbers from the source",
-			"why": "The Metrics sheet is written for reading, like Asks and Notes; metrics are added in the app or by an AI assistant. A goal’s numbers still come from its check-ins.",
-			"how": "Give the Metrics sheet match and edit columns and read it through the change engine (stage 2), as People is. Later, read each metric’s number from its source on its refresh cadence and offer it in the check-in."
-		}
-	],
-	finders: ["metric"],
-	filters: ["metric"],
-	toSortOut: true
-}, {
-	id: "spreadsheets",
-	name: "Spreadsheets",
-	summary: "Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.",
-	needs: [],
-	routes: [
-		"/data/import",
-		"/data/import/check",
-		"/data/import/check/changes",
-		"/data/import/done/:importId",
-		"/data/imports"
-	],
-	redirects: [["/import", "/data/import"]],
-	navigation: [],
-	places: [
-		"data.tools",
-		"goals.tools",
-		"help.article"
-	],
-	tables: [],
-	aiTools: ["export", "export_table"],
-	help: [
-		"import",
-		"past-imports",
-		"export",
-		"columns"
-	],
-	requirements: [
-		"EXPORT",
-		"BULK-IMPORT",
-		"IMPORT-ACTIONS",
-		"SPREADSHEETS-ON-DATA",
-		"FIELD-TABLE",
-		"IMPORT-LEVELS",
-		"IMPORT-PREVIEW",
-		"IMPORT-UNDO",
-		"IMPORT-LARGE"
-	],
-	journeys: [
-		"U19",
-		"U20",
-		"U46",
-		"U48",
-		"U87",
-		"U88",
-		"U89",
-		"U94",
-		"U90",
-		"U95",
-		"U96",
-		"F7",
-		"F8",
-		"F17",
-		"N5"
-	],
-	elsewhere: [],
-	rebuild: {
-		"status": "outline",
-		"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Before anything is saved, a preview says which sheets and columns were read and which were not (a column nothing reads is named, never dropped), counts by sheet, then what must be fixed, then the questions, then every change on request with before and after and every default used; the rows to fix download with a Problem column, or are left out with the rows that depend on them while the rest saves. Export is one sheet with one button, Export .xlsx (the other formats behind Other formats), the file’s name shown before it saves and said after; on Data, Export saves the table as shown and Import sits beside it. Every file is named workspace, what, scope (all, the view’s name, or as-shown) and date; the template is faro-template.xlsx. Help’s table of every column. Saving ends on Imported (what was saved from which file, and Undo); every import, bulk edit and change through MCP is one line in Past imports and one entry in Activity (its rows folded under it), and can be undone as a whole by whoever made it or an admin, saying first which rows changed since and stay, and why (core rule: undoing an import). A large file (more than 500 rows) is checked off the page’s thread: after 400 ms, Reading {file} says how far the check has got and what it has found so far, with Stop (“Stopped. Nothing was saved.”); the changes and a question’s rows are drawn 50 at a time; a file that would change more than 5,000 rows is checked, not saved, and offered as {k} files of 5,000 rows, each goal with its plan and check-ins and a goal before the goals that feed into it (core rule: the change engine, Speed). Saving tens of thousands of rows is the platform’s server-side job (internal requirement R11, R-L1 to R-L6); the browser’s preview is advice.",
-		"entry": ["The change engine (stage 2) reads every sheet of the spreadsheet format: Goals, Plan, Check-ins, People and Asks.", "The change engine reports every problem with its kind and level, groups them, and takes answers by group id (core rule: kinds, levels and near misses), so the preview only shows and answers them."],
-		"exit": [
-			"Export from Goals saves one workbook with one press, named {workspace}-goals-all-{date}.xlsx (or the view’s name when filtered); Data’s table as shown is named …-as-shown-{date}, and says first how many rows and columns it holds and which key columns it adds.",
-			"A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged, on any day and at any number of decimal places.",
-			"A workbook with one wrong row saves nothing, and the preview names the row and the problem.",
-			"A file with one row to fix offers the rows to fix as a download, its first column Problem, and leaving them out saves the rest; a new goal left out takes its check-ins and the goals that feed into it with it, each saying why.",
-			"A workbook loaded back with Status edited on two rows changes nothing and says so, and a column nothing reads is named in the file line.",
-			"Fourteen rows with one typo (“Platfrom”) are one question; answered “Use Platform”, all fourteen save as Platform. A name or word one letter out is asked about, never guessed.",
-			"The template loaded straight back changes nothing, and its example rows (Action says Example) are left out and counted.",
-			"The rebuild's field table gives every column the same need, format and example as Faro's (core rule: the field table).",
-			"A file of 5,000 new rows is checked within 8 seconds, and an unedited workbook of 30,000 rows within 20, giving the same result a row-by-row scan would (core rule: the change engine, Speed).",
-			"Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists \"import\" under \"also\").",
-			"An import of 5 goals and 10 check-ins, with one check-in posted on an imported goal since, previews Undo as 14 rows going back and 1 staying, naming who posted the check-in and when; Undo then does exactly that, and Past imports says when and by whom it was undone.",
-			"A file of 6,000 new goals shows Reading with progress and Stop; Stop saves nothing; checked, it offers Download as 2 files of 5,000 rows instead of Save, and the parts load one after the other; while it is checked, the page never stops for more than 200 ms and the preview has fewer than 3,000 elements."
+	{
+		id: "reviews",
+		name: "Reviews",
+		summary: "Walk a set of goals together on a cadence, decide what happens next and keep what was said.",
+		needs: [],
+		routes: [
+			"/review",
+			"/reviews",
+			"/reviews/new",
+			"/reviews/:reviewId",
+			"/reviews/:reviewId/edit",
+			"/reviews/:reviewId/summary",
+			"/reviews/:reviewId/print"
 		],
-		"gaps": ["The format is in the kit: the field table (a core rule page), how each column is read (spec/core/export-format.md), and every kind of issue with its trigger, sentence and answers and every column’s other spellings (spec/core/import-issues.md).", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
+		redirects: [],
+		navigation: [],
+		places: [],
+		tables: [],
+		aiTools: [
+			"list_reviews",
+			"get_review",
+			"review_call",
+			"unmark_reviewed",
+			"save_review",
+			"end_review",
+			"delete_review"
+		],
+		help: ["reviews"],
+		requirements: [
+			"REVIEW",
+			"REVIEW-SETUP",
+			"REVIEW-RUN",
+			"REVIEW-SPEAK",
+			"REVIEW-DECIDE",
+			"REVIEW-LIST-STATE",
+			"REVIEW-AGENDA",
+			"REVIEWS-OPTIONAL"
+		],
+		journeys: [
+			"U3",
+			"U13",
+			"U30",
+			"U36",
+			"U47",
+			"U49",
+			"U63",
+			"U67",
+			"U79",
+			"U80",
+			"U103",
+			"U104",
+			"N1",
+			"N21"
+		],
+		elsewhere: [],
+		rebuild: {
+			"status": "outline",
+			"builds": "Reviews, as a feature a workspace can switch off. A review walks a set of goals together on a cadence (every 1, 2 or 4 weeks, on a weekday): its agenda puts the goals that need attention first, worst and stalest, and the walk opens each goal's page in turn, where someone in the review marks it reviewed, adds a note, asks the owner a question, agrees a next step with who and by when, or accepts the risk on a goal behind; a goal off track or at risk leaves the walk with a decision. What was said stays on each goal: questions and next steps are asks, open on the owner's Home until answered or done; a held session leads its page with what was said, and prints. Off, Reviews has no menu row or phone tab, no page (its addresses say it is switched off and who can switch it on), no Next review on Home, no Last time we talked or walk on a goal, no review tools for an assistant and no review asked for on Workspace; asks and next steps stay as they are, History keeps what was said, and switching it back on brings every review back as it was. An admin switches it off on Workspace, Features, after a read-back that counts what stays.",
+			"entry": ["The core rules (stage 1) work out each goal's status, flags and attention, and the asks (stage 1: one way to ask): a review reads them and adds nothing to them.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2)."],
+			"exit": [
+				"Switched off, the menu has no Reviews row and the phone's tabs are Home, Check-in, Goals and People for someone with a goal to check in on, and Home, Goals, People and Activity for anyone else (the two rows of navigation.csv at the address “/ (Reviews off)”).",
+				"Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and the six review actions and tools refuse with “Reviews is off in {workspace}.” or the switched-off module's sentence (check N21).",
+				"Switched off, Home has no Next review cell and no review lead: someone who owns no goal is led to the goals they watch that need attention (“Goals you watch · {n} need attention · See them”), or to nothing; a question waits by its own age and names no session; the due flag says “Due by Thu 12 Nov.”, on or off.",
+				"Switching off first reads back what stays (the reviews, what was said in them, the open next steps and questions raised in one) from the rule switchOffReadBack, and Undo brings Reviews back (journey U103).",
+				"Back on, every review, its people, its cadence and what was said are as they were (journey U104)."
+			],
+			"gaps": [
+				"Reviews is a switch, not yet a folder of its own (FT3 moves it): its screens (src/screens/Review.tsx, src/screens/Inspect.tsx, ReviewPrint in src/screens/Print.tsx), its rules (src/domain/review.ts, with offSpell for a session passed while it was off; src/domain/reviewsOff.ts, the read-back's switchOffReadBack; src/domain/decide.ts, the review half of src/domain/onePager.ts, lastTalked in src/domain/goalPage.ts), its actions (saveReview, reviewCall, acceptRisk, markReviewed, unmarkReviewed, endReview and deleteReview in src/domain/actions.ts and src/domain/removal.ts), its menu row (src/domain/navigation.ts) and its table (okr_reviews, migration 0006, with review_id on okr_decisions and okr_requests) are still the core's. Its review actions refuse while it is off in src/app/actions.ts (performAny), and the read-back sheet is drawn by src/screens/Workspace.tsx. This folder holds its routes, its Help article and its AI tools; src/app/reads.ts reviewsOn is the one place that asks whether it is on.",
+				"A review's own records (reviews and what was said in them) are not yet declared as the module's (AS part 2's records extension point is FT3's), so a build without the module still loads and saves them as the core's.",
+				"The walk on a goal's page, Home's review lead and its Next review cell are drawn by core screens, not through places; FT3 adds the places (home.lead, home.glance) and a count for a module's menu item."
+			]
+		}
+	},
+	{
+		id: "spreadsheets",
+		name: "Spreadsheets",
+		summary: "Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.",
+		needs: [],
+		routes: [
+			"/data/import",
+			"/data/import/check",
+			"/data/import/check/changes",
+			"/data/import/done/:importId",
+			"/data/imports"
+		],
+		redirects: [["/import", "/data/import"]],
+		navigation: [],
+		places: [
+			"data.tools",
+			"goals.tools",
+			"help.article"
+		],
+		tables: [],
+		aiTools: ["export", "export_table"],
+		help: [
+			"import",
+			"past-imports",
+			"export",
+			"columns"
+		],
+		requirements: [
+			"EXPORT",
+			"BULK-IMPORT",
+			"IMPORT-ACTIONS",
+			"SPREADSHEETS-ON-DATA",
+			"FIELD-TABLE",
+			"IMPORT-LEVELS",
+			"IMPORT-PREVIEW",
+			"IMPORT-UNDO",
+			"IMPORT-LARGE"
+		],
+		journeys: [
+			"U19",
+			"U20",
+			"U46",
+			"U48",
+			"U87",
+			"U88",
+			"U89",
+			"U94",
+			"U90",
+			"U95",
+			"U96",
+			"F7",
+			"F8",
+			"F17",
+			"N5"
+		],
+		elsewhere: [],
+		rebuild: {
+			"status": "outline",
+			"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Before anything is saved, a preview says which sheets and columns were read and which were not (a column nothing reads is named, never dropped), counts by sheet, then what must be fixed, then the questions, then every change on request with before and after and every default used; the rows to fix download with a Problem column, or are left out with the rows that depend on them while the rest saves. Export is one sheet with one button, Export .xlsx (the other formats behind Other formats), the file’s name shown before it saves and said after; on Data, Export saves the table as shown and Import sits beside it. Every file is named workspace, what, scope (all, the view’s name, or as-shown) and date; the template is faro-template.xlsx. Help’s table of every column. Saving ends on Imported (what was saved from which file, and Undo); every import, bulk edit and change through MCP is one line in Past imports and one entry in Activity (its rows folded under it), and can be undone as a whole by whoever made it or an admin, saying first which rows changed since and stay, and why (core rule: undoing an import). A large file (more than 500 rows) is checked off the page’s thread: after 400 ms, Reading {file} says how far the check has got and what it has found so far, with Stop (“Stopped. Nothing was saved.”); the changes and a question’s rows are drawn 50 at a time; a file that would change more than 5,000 rows is checked, not saved, and offered as {k} files of 5,000 rows, each goal with its plan and check-ins and a goal before the goals that feed into it (core rule: the change engine, Speed). Saving tens of thousands of rows is the platform’s server-side job (internal requirement R11, R-L1 to R-L6); the browser’s preview is advice.",
+			"entry": ["The change engine (stage 2) reads every sheet of the spreadsheet format: Goals, Plan, Check-ins, People and Asks.", "The change engine reports every problem with its kind and level, groups them, and takes answers by group id (core rule: kinds, levels and near misses), so the preview only shows and answers them."],
+			"exit": [
+				"Export from Goals saves one workbook with one press, named {workspace}-goals-all-{date}.xlsx (or the view’s name when filtered); Data’s table as shown is named …-as-shown-{date}, and says first how many rows and columns it holds and which key columns it adds.",
+				"A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged, on any day and at any number of decimal places.",
+				"A workbook with one wrong row saves nothing, and the preview names the row and the problem.",
+				"A file with one row to fix offers the rows to fix as a download, its first column Problem, and leaving them out saves the rest; a new goal left out takes its check-ins and the goals that feed into it with it, each saying why.",
+				"A workbook loaded back with Status edited on two rows changes nothing and says so, and a column nothing reads is named in the file line.",
+				"Fourteen rows with one typo (“Platfrom”) are one question; answered “Use Platform”, all fourteen save as Platform. A name or word one letter out is asked about, never guessed.",
+				"The template loaded straight back changes nothing, and its example rows (Action says Example) are left out and counted.",
+				"The rebuild's field table gives every column the same need, format and example as Faro's (core rule: the field table).",
+				"A file of 5,000 new rows is checked within 8 seconds, and an unedited workbook of 30,000 rows within 20, giving the same result a row-by-row scan would (core rule: the change engine, Speed).",
+				"Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists \"import\" under \"also\").",
+				"An import of 5 goals and 10 check-ins, with one check-in posted on an imported goal since, previews Undo as 14 rows going back and 1 staying, naming who posted the check-in and when; Undo then does exactly that, and Past imports says when and by whom it was undone.",
+				"A file of 6,000 new goals shows Reading with progress and Stop; Stop saves nothing; checked, it offers Download as 2 files of 5,000 rows instead of Save, and the parts load one after the other; while it is checked, the page never stops for more than 200 ms and the preview has fewer than 3,000 elements."
+			],
+			"gaps": ["The format is in the kit: the field table (a core rule page), how each column is read (spec/core/export-format.md), and every kind of issue with its trigger, sentence and answers and every column’s other spellings (spec/core/import-issues.md).", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
+		}
 	}
-}];
+];
 // src/core/module.ts
 /**
 * Which modules are on in a workspace: installed, not switched off there, and with everything they need on (so
@@ -21725,12 +21899,12 @@ init_removal();
 init_via();
 /** A status as the assistant reads it: the words people see, with the code beside them. */
 var said = (k) => withCode(STATUS[k]);
-var str$6 = (description, extra = {}) => ({
+var str$7 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
 });
-var int$2 = (description) => ({
+var int$3 = (description) => ({
 	type: "integer",
 	description
 });
@@ -21738,7 +21912,7 @@ var bool$1 = (description) => ({
 	type: "boolean",
 	description
 });
-var ids$1 = (description) => ({
+var ids$2 = (description) => ({
 	type: "array",
 	items: { type: "string" },
 	description
@@ -21816,7 +21990,7 @@ var levelsOf = (v) => {
 	if (bad.length) throw new Error(`Levels are ${LEVELS$1.join(", ")} (not ${bad.join(", ")}).`);
 	return list;
 };
-var askLate = (ctx, r) => r.status === "open" ? askWaiting(r, r.recipientId ?? ctx.actor.id, ctx.snapshot, ctx.cycle, ctx.week, ctx.today)?.late ?? isOverdue(r, ctx.week) : false;
+var askLate = (ctx, r) => r.status === "open" ? askWaiting(r, r.recipientId ?? ctx.actor.id, ctx.snapshot, ctx.cycle, ctx.week, ctx.today, reviewsOn(modulesOn(ctx.ws).on))?.late ?? isOverdue(r, ctx.week) : false;
 var requestData = (ctx, r) => ({
 	id: r.id,
 	kind: r.kind,
@@ -21873,6 +22047,8 @@ function layoutFrom(ctx, a) {
 	if (problems.length) throw new Error(`${problems.join(" ")} Its columns: ${choosableColumns(layout.table, headOf(ctx, layout.table)).join(", ")}.`);
 	return layout;
 }
+/** What a switched-off module's tool answers (callTool's sentence), for a core tool that is partly Reviews' (FT2). */
+var offSentence = (ctx, tool) => `Reviews is switched off in ${ctx.ws.name}, so ${tool} can't be used there. An admin can switch it on in Workspace, under Features.`;
 /** A sentence as part of a longer line: without its closing full stop, so the line never ends in two. */
 var clause = (t) => t.trim().replace(/\.+$/, "");
 /** The newest n changes that pass `keep`. A whole snapshot (the server loads whole today) already holds every entry, so
@@ -21931,7 +22107,7 @@ var WORK_TOOLS = [
 				said: a.handled.said || null,
 				why: a.flags.map((f) => f.detail)
 			}));
-			const home = homeAsks(me, s, ctx.cycle, ctx.week, ctx.today);
+			const home = homeAsks(me, s, ctx.cycle, ctx.week, ctx.today, reviewsOn(modulesOn(ctx.ws).on));
 			const at = new Map(home.map((w, i) => [w.askId, {
 				i,
 				w
@@ -21989,7 +22165,8 @@ var WORK_TOOLS = [
 				kind: a.kind,
 				says: a.says
 			}));
-			const reviews = s.reviews.filter((r) => r.people.includes(me)).map((r) => {
+			const reviewsHere = reviewsOn(modulesOn(ctx.ws).on);
+			const reviews = !reviewsHere ? [] : s.reviews.filter((r) => r.people.includes(me)).map((r) => {
 				const x = reviewSession(r, s, ctx.cycle, ctx.today, ctx.week);
 				return {
 					id: r.id,
@@ -22000,7 +22177,7 @@ var WORK_TOOLS = [
 					of: x.total
 				};
 			});
-			const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today);
+			const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today, { reviews: reviewsHere });
 			const glance = {
 				goals: {
 					whose: d.scope,
@@ -22021,12 +22198,12 @@ var WORK_TOOLS = [
 					})),
 					noRecentUpdate: d.watching.quiet.length
 				} : null,
-				nextReview: d.next ? {
+				...reviewsHere ? { nextReview: d.next ? {
 					id: d.next.id,
 					name: d.next.name,
 					date: d.next.date,
 					day: d.next.weekday
-				} : null
+				} : null } : {}
 			};
 			return {
 				data: {
@@ -22040,7 +22217,7 @@ var WORK_TOOLS = [
 					asksForAnUpdate: asks,
 					yourActions: actions,
 					proposedGoals: proposedForYou,
-					yourReviews: reviews,
+					...reviewsHere ? { yourReviews: reviews } : {},
 					wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today)
 				},
 				text: [
@@ -22066,20 +22243,20 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$6(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
+				status: str$7(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
 					"open",
 					"answered",
 					"done",
 					"withdrawn"
 				])}, or all.`),
-				kind: str$6("Only one kind.", { enum: [
+				kind: str$7("Only one kind.", { enum: [
 					"decision",
 					"update",
 					"question",
 					"action"
 				] }),
 				for_me: bool$1("Only asks waiting on you (or asked of anyone)."),
-				goal_id: str$6("Only asks on a goal (its ID or key).")
+				goal_id: str$7("Only asks on a goal (its ID or key).")
 			}
 		},
 		annotations: READ$4,
@@ -22092,96 +22269,6 @@ var WORK_TOOLS = [
 				"withdrawn"
 			])}, or all.`);
 			return listed({ requests: asksOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.kind || r.kind === a.kind).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(goalOf$2(ctx, a.goal_id).id)).map((r) => requestData(ctx, r)) });
-		}
-	},
-	{
-		name: "list_reviews",
-		title: "Reviews",
-		description: "Every review in the workspace: its cadence, the goals it walks and who’s in it, with this session’s progress.",
-		inputSchema: {
-			type: "object",
-			properties: {},
-			additionalProperties: false
-		},
-		annotations: READ$4,
-		async run(_a, ctx) {
-			return listed({ reviews: ctx.snapshot.reviews.map((r) => {
-				const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
-				const held = lastHeld(r, ctx.snapshot, x.week);
-				return {
-					id: r.id,
-					name: r.name,
-					everyWeeks: r.everyWeeks,
-					weekday: r.weekday,
-					scope: r.scope,
-					people: r.people.map((p) => name$1(ctx, p)),
-					sessionWeek: x.week,
-					sessionDate: x.date,
-					reviewed: x.done,
-					of: x.total,
-					state: sessionStateText(sessionState(x)),
-					lastHeld: held?.on ?? null,
-					openActions: openActions(r, ctx.snapshot).length,
-					youreIn: r.people.includes(ctx.actor.id)
-				};
-			}) });
-		}
-	},
-	{
-		name: "get_review",
-		title: "A review’s agenda",
-		description: "One review’s current session: the goals to discuss (new information first, worst first, with why; those already being handled say what’s in hand), the healthy ones, and what has been said so far: notes, questions for owners (with any answers) and actions.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["review_id"],
-			properties: { review_id: str$6("The review’s ID, from list_reviews.") }
-		},
-		annotations: READ$4,
-		async run(a, ctx) {
-			const r = reviewOf(ctx, a.review_id);
-			const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
-			const ag = agendaOf(x);
-			const item = (g) => ({
-				id: g.goal.id,
-				title: g.goal.title,
-				owner: name$1(ctx, g.goal.ownerId),
-				status: g.status.status,
-				statusLabel: LABEL[g.status.status],
-				why: g.flags.map((f) => f.detail),
-				beingHandled: g.handled?.text ?? null
-			});
-			const saidHere = x.said.map((d) => ({
-				id: d.id,
-				goalId: d.goalId,
-				kind: d.kind,
-				note: d.note,
-				by: name$1(ctx, d.byId),
-				...d.kind === "action" ? {
-					who: name$1(ctx, d.assigneeId ?? null),
-					dueWeek: d.dueWeek ?? null
-				} : {},
-				...d.ask ? {
-					status: d.ask.status,
-					statusLabel: ASK_STATUS[d.ask.status].label,
-					answer: answerOf(d)?.text ?? null
-				} : {}
-			}));
-			const data = {
-				id: r.id,
-				name: r.name,
-				week: x.week,
-				date: x.date,
-				reviewed: x.done,
-				of: x.total,
-				toDiscuss: ag.discuss.map(item),
-				healthy: ag.healthy.map(item),
-				said: saidHere
-			};
-			return {
-				data,
-				text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${said(g.status)}.${g.beingHandled ? ` ${ATTENTION.handled.label}: ${g.beingHandled}.` : ""} ${g.why.join(" ")}`), "- nothing")}\nNothing flagged: ${data.healthy.map((g) => g.title).join(", ") || "none"}.`
-			};
 		}
 	},
 	{
@@ -22252,8 +22339,8 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				query: str$6("An Activity link’s query string."),
-				limit: int$2("How many changes, newest first (default 50, at most 500).")
+				query: str$7("An Activity link’s query string."),
+				limit: int$3("How many changes, newest first (default 50, at most 500).")
 			}
 		},
 		annotations: READ$4,
@@ -22380,8 +22467,8 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				id: str$6("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
-				search: str$6("Words to look for, e.g. \"plan change reason\". Every word must appear.")
+				id: str$7("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
+				search: str$7("Words to look for, e.g. \"plan change reason\". Every word must appear.")
 			}
 		},
 		annotations: READ$4,
@@ -22404,7 +22491,10 @@ var WORK_TOOLS = [
 						...brief(x),
 						sections: x.sections,
 						routes: x.routes,
-						related: x.related.map((r) => brief(articleById(r)))
+						related: x.related.flatMap((r) => {
+							const y = articleById(r);
+							return y ? [brief(y)] : [];
+						})
 					},
 					text: articleText(x)
 				};
@@ -22426,7 +22516,9 @@ var WORK_TOOLS = [
 			properties: {}
 		},
 		annotations: READ$4,
-		async run() {
+		async run(_a, ctx) {
+			const on = modulesOn(ctx.ws).on;
+			const off = MODULES.filter((m) => !on.has(m.id)).map((m) => m.name);
 			return {
 				data: {
 					rulePages: RULE_PAGES.map(([id, title]) => ({
@@ -22436,10 +22528,11 @@ var WORK_TOOLS = [
 					modules: MODULES.map((m) => ({
 						id: m.id,
 						name: m.name,
+						on: on.has(m.id),
 						path: `spec/modules/${m.id}/README.md`
 					}))
 				},
-				text: systemOverview()
+				text: systemOverview() + (off.length ? `\n\nSwitched off in ${ctx.ws.name}: ${off.join(", ")}.` : "")
 			};
 		}
 	},
@@ -22451,8 +22544,8 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				since: str$6("Only entries on or after this date (yyyy-mm-dd)."),
-				limit: int$2("How many entries, newest first (default all).")
+				since: str$7("Only entries on or after this date (yyyy-mm-dd)."),
+				limit: int$3("How many entries, newest first (default all).")
 			}
 		},
 		annotations: READ$4,
@@ -22485,8 +22578,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "answer"],
 			properties: {
-				request_id: str$6("The ask’s ID, from list_requests or get_my_work."),
-				answer: str$6("The answer, decision or help offered.")
+				request_id: str$7("The ask’s ID, from list_requests or get_my_work."),
+				answer: str$7("The answer, decision or help offered.")
 			}
 		},
 		annotations: WRITE$2,
@@ -22504,8 +22597,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$6("The action’s ID, from list_requests (kind action) or get_my_work."),
-				note: str$6("Optional: what was done.")
+				request_id: str$7("The action’s ID, from list_requests (kind action) or get_my_work."),
+				note: str$7("Optional: what was done.")
 			}
 		},
 		annotations: WRITE$2,
@@ -22516,14 +22609,14 @@ var WORK_TOOLS = [
 	{
 		name: "ask_question",
 		title: "Ask a goal’s owner a question",
-		description: "Ask a goal’s owner a question. It’s open on their Home until they answer it (a comment doesn’t), or you withdraw it. In a review, use review_call with kind ask instead, so it’s part of the session.",
+		description: "Ask a goal’s owner a question. It’s open on their Home until they answer it (a comment doesn’t), or you withdraw it.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id", "question"],
 			properties: {
-				goal_id: str$6("The goal’s ID or its key, e.g. G-12."),
-				question: str$6("The question.")
+				goal_id: str$7("The goal’s ID or its key, e.g. G-12."),
+				question: str$7("The question.")
 			}
 		},
 		annotations: WRITE$2,
@@ -22541,8 +22634,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "goal_id"],
 			properties: {
-				request_id: str$6("The request’s ID."),
-				goal_id: str$6("The goal that waits on it (its ID or key).")
+				request_id: str$7("The request’s ID."),
+				goal_id: str$7("The goal that waits on it (its ID or key).")
 			}
 		},
 		annotations: WRITE$2,
@@ -22559,8 +22652,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$6("The ask’s ID."),
-				goal_id: str$6("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
+				request_id: str$7("The ask’s ID."),
+				goal_id: str$7("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
 			}
 		},
 		annotations: WRITE$2,
@@ -22577,7 +22670,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$6("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$7("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: {
 			...WRITE$2,
@@ -22596,7 +22689,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$6("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$7("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: WRITE$2,
 		async run(a, ctx) {
@@ -22604,59 +22697,9 @@ var WORK_TOOLS = [
 		}
 	},
 	{
-		name: "review_call",
-		title: "Say something in a review",
-		description: "In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. Only someone in the review, or an admin, can, and only about a goal the review covers (its goals, trees and levels). A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: [
-				"review_id",
-				"goal_id",
-				"kind"
-			],
-			properties: {
-				review_id: str$6("The review’s ID."),
-				goal_id: str$6("The goal’s ID or its key, e.g. G-12."),
-				kind: str$6("What it is.", { enum: [
-					"acknowledge",
-					"note",
-					"ask",
-					"action",
-					"accept"
-				] }),
-				text: str$6("The note, question or action, or (accept) why the review accepts the risk. Optional when acknowledging."),
-				who: str$6("Actions: who does it (name or ID). Defaults to the goal’s owner."),
-				due_week: int$2("Actions: the week it’s due by.")
-			}
-		},
-		annotations: WRITE$2,
-		async run(a, ctx) {
-			const r = reviewOf(ctx, a.review_id), g = goalOf$2(ctx, a.goal_id);
-			if (a.kind === "accept") return save$2(ctx, acceptRisk(ax$2(ctx), g, r, String(a.text ?? ""), sessionWeek(r, ctx.week, ctx.cycle)), `Accepted the risk: ${g.title} in ${r.name}`, "");
-			const kind = a.kind;
-			if (![
-				"acknowledge",
-				"note",
-				"ask",
-				"action"
-			].includes(kind)) throw new Error("kind is acknowledge, note, ask, action or accept.");
-			const assigneeId = kind === "action" && a.who ? personOf$2(ctx, a.who).id : void 0;
-			return save$2(ctx, reviewCall(ax$2(ctx), g, r, kind, String(a.text ?? ""), {
-				assigneeId,
-				dueWeek: a.due_week
-			}), `${{
-				acknowledge: "Marked reviewed",
-				note: "Added a note",
-				ask: "Asked the owner",
-				action: "Agreed an action"
-			}[kind]}: ${g.title} in ${r.name}`, "");
-		}
-	},
-	{
 		name: "add_action",
 		title: "Add a next step to a goal",
-		description: "Agree a next step on a goal outside a review: what, who does it and the week it’s due by. An action is an ask: open until it’s marked done (mark_action_done) or withdrawn; overdue once its week has passed. Change one with edit_call.",
+		description: "Agree a next step on a goal: what, who does it and the week it’s due by. An action is an ask: open until it’s marked done (mark_action_done) or withdrawn; overdue once its week has passed. Change one with edit_call.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -22666,10 +22709,10 @@ var WORK_TOOLS = [
 				"who"
 			],
 			properties: {
-				goal_id: str$6("The goal’s ID or its key, e.g. G-12."),
-				text: str$6("What needs doing."),
-				who: str$6("Who does it (name or ID)."),
-				due_week: int$2("The week it’s due by.")
+				goal_id: str$7("The goal’s ID or its key, e.g. G-12."),
+				text: str$7("What needs doing."),
+				who: str$7("Who does it (name or ID)."),
+				due_week: int$3("The week it’s due by.")
 			}
 		},
 		annotations: WRITE$2,
@@ -22690,16 +22733,20 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["call_id", "text"],
 			properties: {
-				call_id: str$6("Its ID, from get_review."),
-				text: str$6("The new wording."),
-				who: str$6("Actions: who does it."),
-				due_week: int$2("Actions: the week it’s due by (0 for none).")
+				call_id: str$7("Its ID, from get_review."),
+				text: str$7("The new wording."),
+				who: str$7("Actions: who does it."),
+				due_week: int$3("Actions: the week it’s due by (0 for none).")
 			}
 		},
 		annotations: WRITE$2,
 		async run(a, ctx) {
 			const d = ctx.snapshot.decisions.find((x) => x.id === a.call_id) ?? asksOf(ctx.snapshot).find((x) => x.id === a.call_id);
 			if (!d) throw new Error(`There’s nothing said with ID ${String(a.call_id)}. Use get_review.`);
+			if (!("goalIds" in d) && !reviewsOn(modulesOn(ctx.ws).on)) return {
+				isError: true,
+				text: offSentence(ctx, "edit_call")
+			};
 			const action = "goalIds" in d ? d.kind === "action" : d.kind === "action";
 			const was = "goalIds" in d ? {
 				who: d.recipientId,
@@ -22716,95 +22763,6 @@ var WORK_TOOLS = [
 		}
 	},
 	{
-		name: "unmark_reviewed",
-		title: "Undo marking goals reviewed",
-		description: "Undo marking one or more goals reviewed in a review (review_call with acknowledge): they go back on the agenda. Whoever marked them, or an admin. The log keeps both.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["call_ids"],
-			properties: { call_ids: {
-				type: "array",
-				items: { type: "string" },
-				description: "The marks’ IDs (kind acknowledge), from get_review."
-			} }
-		},
-		annotations: WRITE$2,
-		async run(a, ctx) {
-			const ids = (a.call_ids ?? []).map(String);
-			const marks = ctx.snapshot.decisions.filter((d) => ids.includes(d.id));
-			if (!marks.length) throw new Error("There’s no mark with those IDs. Use get_review.");
-			return save$2(ctx, unmarkReviewed(ax$2(ctx), marks), `Undone: ${marks.length === 1 ? "back" : `${marks.length} goals back`} on the agenda`, "");
-		}
-	},
-	{
-		name: "save_review",
-		title: "Set up or change a review",
-		description: "Set up a review (anyone can), or change one (someone in it, whoever set it up, or an admin): its name, how often, the weekday, the goals it walks (goals, goals with everything feeding them, or whole levels) and who’s in it. Without review_id it sets up a new one.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			properties: {
-				review_id: str$6("The review to change. Leave out to set up a new one."),
-				name: str$6("Its name, e.g. \"Platform weekly review\"."),
-				every_weeks: int$2("Held every 1, 2 or 4 weeks."),
-				weekday: str$6("The weekday.", { enum: [
-					"Monday",
-					"Tuesday",
-					"Wednesday",
-					"Thursday",
-					"Friday"
-				] }),
-				goals: ids$1("Goal IDs or keys it walks."),
-				trees: ids$1("Goal IDs or keys it walks with everything feeding them."),
-				levels: ids$1("Levels it walks: north-star, svp, team."),
-				people: ids$1("Who’s in it (names or IDs). New reviews include you.")
-			}
-		},
-		annotations: WRITE$2,
-		async run(a, ctx) {
-			const day = a.weekday === void 0 ? void 0 : [
-				"monday",
-				"tuesday",
-				"wednesday",
-				"thursday",
-				"friday"
-			].indexOf(String(a.weekday).toLowerCase());
-			if (day === -1) throw new Error("weekday is Monday to Friday.");
-			const people = a.people ? [.../* @__PURE__ */ new Set([...a.people.map((p) => personOf$2(ctx, p).id)])] : void 0;
-			if (a.review_id) {
-				const before = reviewOf(ctx, a.review_id);
-				const scope = {
-					goals: goalIds(ctx, a.goals) ?? before.scope.goals,
-					trees: goalIds(ctx, a.trees) ?? before.scope.trees,
-					levels: a.levels ? levelsOf(a.levels) : before.scope.levels
-				};
-				const after = {
-					...before,
-					name: a.name !== void 0 ? String(a.name).trim() : before.name,
-					everyWeeks: a.every_weeks !== void 0 ? Number(a.every_weeks) : before.everyWeeks,
-					weekday: day ?? before.weekday,
-					scope,
-					people: people ?? before.people
-				};
-				return save$2(ctx, saveReview(ax$2(ctx), after, before), `Changed the review “${after.name}”`, "");
-			}
-			const r = newReview(ax$2(ctx), {
-				name: String(a.name ?? ""),
-				everyWeeks: Number(a.every_weeks ?? 1),
-				weekday: day ?? ctx.cycle.reviewDay,
-				goals: goalIds(ctx, a.goals),
-				trees: goalIds(ctx, a.trees),
-				levels: levelsOf(a.levels),
-				people: people ? [.../* @__PURE__ */ new Set([ctx.actor.id, ...people])] : void 0
-			});
-			return {
-				...await save$2(ctx, saveReview(ax$2(ctx), r, null), `Set up the review “${r.name}” (ID ${r.id})`, ""),
-				data: { id: r.id }
-			};
-		}
-	},
-	{
 		name: "watch",
 		title: "Watch goals",
 		description: "Watch a goal, a goal and everything feeding it, or every goal at a level. Watched goals are on the Watching page and in get_my_work.",
@@ -22813,12 +22771,12 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["kind", "ref"],
 			properties: {
-				kind: str$6("What to watch.", { enum: [
+				kind: str$7("What to watch.", { enum: [
 					"goal",
 					"tree",
 					"level"
 				] }),
-				ref: str$6("A goal’s ID or key (G-12), or a level (north-star, svp, team).")
+				ref: str$7("A goal’s ID or key (G-12), or a level (north-star, svp, team).")
 			}
 		},
 		annotations: {
@@ -22838,7 +22796,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["watch_id"],
-			properties: { watch_id: str$6("The watch’s ID, from list_watching.") }
+			properties: { watch_id: str$7("The watch’s ID, from list_watching.") }
 		},
 		annotations: WRITE$2,
 		async run(a, ctx) {
@@ -22853,11 +22811,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				person_id: str$6("The person to change (their ID or email). Leave out to add someone."),
-				name: str$6("Their full name."),
-				email: str$6("Their email: required for someone new."),
-				job_title: str$6("Their job title."),
-				team: str$6("Their team (name or ID); empty string for none."),
+				person_id: str$7("The person to change (their ID or email). Leave out to add someone."),
+				name: str$7("Their full name."),
+				email: str$7("Their email: required for someone new."),
+				job_title: str$7("Their job title."),
+				team: str$7("Their team (name or ID); empty string for none."),
 				admin: bool$1("Whether they’re an admin.")
 			}
 		},
@@ -22895,14 +22853,14 @@ var WORK_TOOLS = [
 				"next"
 			],
 			properties: {
-				goal_id: str$6("The goal’s ID or its key, e.g. G-12."),
-				result: str$6("How it landed.", { enum: [
+				goal_id: str$7("The goal’s ID or its key, e.g. G-12."),
+				result: str$7("How it landed.", { enum: [
 					"hit",
 					"partly",
 					"missed"
 				] }),
-				learned: str$6("One thing worth knowing next time (a sentence)."),
-				next: str$6("Next cycle.", { enum: ["carry", "stop"] })
+				learned: str$7("One thing worth knowing next time (a sentence)."),
+				next: str$7("Next cycle.", { enum: ["carry", "stop"] })
 			}
 		},
 		annotations: {
@@ -22974,9 +22932,9 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "query"],
 			properties: {
-				view_id: str$6("The view to change."),
-				name: str$6("Its name."),
-				query: str$6("The Goals query, e.g. \"status=off,risk&sort=gap\".")
+				view_id: str$7("The view to change."),
+				name: str$7("Its name."),
+				query: str$7("The Goals query, e.g. \"status=off,risk&sort=gap\".")
 			}
 		},
 		annotations: WRITE$2,
@@ -23001,16 +22959,16 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "table"],
 			properties: {
-				view_id: str$6("The saved layout to change."),
-				name: str$6("Its name."),
-				table: str$6("Which data table.", { enum: TABLE_ORDER }),
-				columns: ids$1("The columns to show, in order, by their names as the table heads them (e.g. \"Key\", \"Owner\", \"Status\"). Leave out for the usual columns."),
+				view_id: str$7("The saved layout to change."),
+				name: str$7("Its name."),
+				table: str$7("Which data table.", { enum: TABLE_ORDER }),
+				columns: ids$2("The columns to show, in order, by their names as the table heads them (e.g. \"Key\", \"Owner\", \"Status\"). Leave out for the usual columns."),
 				widths: {
 					type: "object",
 					additionalProperties: { type: "number" },
 					description: `Column widths in pixels by column name, e.g. {"Owner": 200}. Kept between each column’s least width (56 to 120) and 640.`
 				},
-				query: str$6("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
+				query: str$7("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
 			}
 		},
 		annotations: WRITE$2,
@@ -23035,7 +22993,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["view_id"],
-			properties: { view_id: str$6("The view’s ID, from list_views.") }
+			properties: { view_id: str$7("The view’s ID, from list_views.") }
 		},
 		annotations: {
 			...WRITE$2,
@@ -23055,7 +23013,7 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["view_id", "pinned"],
 			properties: {
-				view_id: str$6("The view’s ID."),
+				view_id: str$7("The view’s ID."),
 				pinned: bool$1("True to pin it for everyone, false to stop.")
 			}
 		},
@@ -23076,8 +23034,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["person", "name"],
 			properties: {
-				person: str$6("Who it acts as (name or ID)."),
-				name: str$6("What it’s for, e.g. \"Claude on Maya’s laptop\".")
+				person: str$7("Who it acts as (name or ID)."),
+				name: str$7("What it’s for, e.g. \"Claude on Maya’s laptop\".")
 			}
 		},
 		annotations: WRITE$2,
@@ -23105,7 +23063,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["token_id"],
-			properties: { token_id: str$6("The token’s ID, from list_tokens.") }
+			properties: { token_id: str$7("The token’s ID, from list_tokens.") }
 		},
 		annotations: {
 			...WRITE$2,
@@ -23125,12 +23083,12 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["mood", "text"],
 			properties: {
-				mood: str$6("How it felt.", { enum: [
+				mood: str$7("How it felt.", { enum: [
 					"good",
 					"meh",
 					"bad"
 				] }),
-				text: str$6("What happened, or what would help.")
+				text: str$7("What happened, or what would help.")
 			}
 		},
 		annotations: WRITE$2,
@@ -23146,7 +23104,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["name"],
-			properties: { name: str$6("The new name.") }
+			properties: { name: str$7("The new name.") }
 		},
 		annotations: {
 			...WRITE$2,
@@ -23189,7 +23147,7 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["feature", "on"],
 			properties: {
-				feature: str$6("The feature’s id.", { enum: MODULES.map((m) => m.id) }),
+				feature: str$7("The feature’s id.", { enum: MODULES.map((m) => m.id) }),
 				on: bool$1("true to switch it on, false to switch it off.")
 			}
 		},
@@ -23221,10 +23179,10 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name"],
 			properties: {
-				team: str$6("The team to change (name or ID). Leave out to add a team."),
-				name: str$6("The team’s name."),
-				lead: str$6("The team lead (a person’s name or ID); empty string for none."),
-				purpose: str$6("What the team is here to do, in a sentence or two; empty string to clear it. Leave out to keep it.")
+				team: str$7("The team to change (name or ID). Leave out to add a team."),
+				name: str$7("The team’s name."),
+				lead: str$7("The team lead (a person’s name or ID); empty string for none."),
+				purpose: str$7("What the team is here to do, in a sentence or two; empty string to clear it. Leave out to keep it.")
 			}
 		},
 		annotations: WRITE$2,
@@ -23252,8 +23210,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["team"],
 			properties: {
-				team: str$6("The team to remove (name or ID)."),
-				move_to: str$6("Where its people and goals go (a team’s name or ID).")
+				team: str$7("The team to remove (name or ID)."),
+				move_to: str$7("Where its people and goals go (a team’s name or ID).")
 			}
 		},
 		annotations: {
@@ -23278,7 +23236,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["confirm_name"],
-			properties: { confirm_name: str$6("The workspace’s exact name.") }
+			properties: { confirm_name: str$7("The workspace’s exact name.") }
 		},
 		annotations: {
 			readOnlyHint: false,
@@ -23598,7 +23556,7 @@ function markupOps(o) {
 	};
 }
 // src/mcp/markupTools.ts
-var str$5 = (description, extra = {}) => ({
+var str$6 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -23663,8 +23621,8 @@ var MARKUP_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$5("Only markups with this status.", { enum: STATUSES$1 }),
-				workspace: str$5("Only this workspace’s (its id)."),
+				status: str$6("Only markups with this status.", { enum: STATUSES$1 }),
+				workspace: str$6("Only this workspace’s (its id)."),
 				limit: {
 					type: "integer",
 					description: "At most this many (default 50)."
@@ -23700,8 +23658,8 @@ var MARKUP_TOOLS = [
 			additionalProperties: false,
 			required: ["id"],
 			properties: {
-				id: str$5("The markup’s id (mk_…), from list_markups or review_inbox."),
-				picture: str$5("Which picture to send: marked (the screen with the drawing, the default), screen (the screen alone) or none.", { enum: Object.keys(PICTURE_NAMES) })
+				id: str$6("The markup’s id (mk_…), from list_markups or review_inbox."),
+				picture: str$6("Which picture to send: marked (the screen with the drawing, the default), screen (the screen alone) or none.", { enum: Object.keys(PICTURE_NAMES) })
 			}
 		},
 		annotations: READ$3,
@@ -23750,8 +23708,8 @@ var MARKUP_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$5("Review markups and feedback with this status instead of new.", { enum: STATUSES$1 }),
-				workspace: str$5("Only this workspace’s (its id)."),
+				status: str$6("Review markups and feedback with this status instead of new.", { enum: STATUSES$1 }),
+				workspace: str$6("Only this workspace’s (its id)."),
 				pictures: {
 					type: "integer",
 					description: "How many groups get a picture (default 6, at most 12; 0 for none)."
@@ -23848,11 +23806,11 @@ var MARKUP_TOOLS = [
 			additionalProperties: false,
 			required: ["id"],
 			properties: {
-				id: str$5("The markup’s id (mk_…)."),
-				status: str$5("Its new status.", { enum: STATUSES$1 }),
-				fixed_in: str$5("With fixed: the What’s new entry’s id that has the fix."),
-				reason: str$5("With wont-fix: why it won’t be fixed."),
-				issue_url: str$5("The GitHub issue’s address, https://github.com/owner/repo/issues/123.")
+				id: str$6("The markup’s id (mk_…)."),
+				status: str$6("Its new status.", { enum: STATUSES$1 }),
+				fixed_in: str$6("With fixed: the What’s new entry’s id that has the fix."),
+				reason: str$6("With wont-fix: why it won’t be fixed."),
+				issue_url: str$6("The GitHub issue’s address, https://github.com/owner/repo/issues/123.")
 			}
 		},
 		annotations: {
@@ -23886,7 +23844,7 @@ var MARKUP_TOOLS = [
 	}
 ];
 // src/mcp/feedbackTools.ts
-var str$4 = (description, extra = {}) => ({
+var str$5 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -23911,8 +23869,8 @@ var FEEDBACK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$4("Only feedback with this status.", { enum: STATUSES$1 }),
-				workspace: str$4("Only this workspace’s (its id)."),
+				status: str$5("Only feedback with this status.", { enum: STATUSES$1 }),
+				workspace: str$5("Only this workspace’s (its id)."),
 				limit: {
 					type: "integer",
 					description: "At most this many (default 50)."
@@ -23963,7 +23921,7 @@ var FEEDBACK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["id"],
-			properties: { id: str$4("The feedback’s id, from list_feedback.") }
+			properties: { id: str$5("The feedback’s id, from list_feedback.") }
 		},
 		annotations: READ$2,
 		async run(a, ctx) {
@@ -23989,10 +23947,10 @@ var FEEDBACK_TOOLS = [
 			additionalProperties: false,
 			required: ["id", "status"],
 			properties: {
-				id: str$4("The feedback’s id."),
-				status: str$4("Its new status.", { enum: STATUSES$1 }),
-				fixed_in: str$4("With fixed: the What’s new entry’s id that has the fix."),
-				reason: str$4("With wont-fix: why it won’t be fixed.")
+				id: str$5("The feedback’s id."),
+				status: str$5("Its new status.", { enum: STATUSES$1 }),
+				fixed_in: str$5("With fixed: the What’s new entry’s id that has the fix."),
+				reason: str$5("With wont-fix: why it won’t be fixed.")
 			}
 		},
 		annotations: {
@@ -24029,12 +23987,12 @@ init_removal();
 init_status();
 init_vocabulary();
 init_via();
-var str$3 = (description, extra = {}) => ({
+var str$4 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
 });
-var int$1 = (description) => ({
+var int$2 = (description) => ({
 	type: "integer",
 	description
 });
@@ -24123,8 +24081,8 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["kind", "id"],
 			properties: {
-				kind: str$3("Its kind, from list_removed.", { enum: KINDS }),
-				id: str$3("Its ID, from list_removed.")
+				kind: str$4("Its kind, from list_removed.", { enum: KINDS }),
+				id: str$4("Its ID, from list_removed.")
 			}
 		},
 		annotations: WRITE$1,
@@ -24150,9 +24108,9 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["person"],
 			properties: {
-				person: str$3("Their ID or full name."),
-				goals_to: str$3("Who takes over their goals: an ID or full name."),
-				asks_to: str$3("Who takes over their open asks: an ID or full name.")
+				person: str$4("Their ID or full name."),
+				goals_to: str$4("Who takes over their goals: an ID or full name."),
+				asks_to: str$4("Who takes over their open asks: an ID or full name.")
 			}
 		},
 		annotations: REMOVE,
@@ -24172,7 +24130,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["person"],
-			properties: { person: str$3("Their ID or full name.") }
+			properties: { person: str$4("Their ID or full name.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -24189,8 +24147,8 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "reason"],
 			properties: {
-				goal_id: str$3("The goal’s ID or key, e.g. G-12."),
-				reason: str$3("Why it’s stopping, in a sentence (10 characters or more).")
+				goal_id: str$4("The goal’s ID or key, e.g. G-12."),
+				reason: str$4("Why it’s stopping, in a sentence (10 characters or more).")
 			}
 		},
 		annotations: REMOVE,
@@ -24207,7 +24165,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$3("The goal’s ID or key, e.g. G-12.") }
+			properties: { goal_id: str$4("The goal’s ID or key, e.g. G-12.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -24223,9 +24181,9 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				check_in_id: str$3("The check-in’s ID, from get_goal."),
-				goal_id: str$3("Or: the goal’s ID or key…"),
-				week: int$1("…and the week of its latest check-in.")
+				check_in_id: str$4("The check-in’s ID, from get_goal."),
+				goal_id: str$4("Or: the goal’s ID or key…"),
+				week: int$2("…and the week of its latest check-in.")
 			}
 		},
 		annotations: REMOVE,
@@ -24242,39 +24200,6 @@ var REMOVE_TOOLS = [
 		}
 	},
 	{
-		name: "end_review",
-		title: "End a review",
-		description: "Whoever set up the review, or an admin: end it. It keeps its notes and actions and stops showing as due. A review that was never held is deleted instead.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["review_id"],
-			properties: { review_id: str$3("The review’s ID, from list_reviews.") }
-		},
-		annotations: REMOVE,
-		async run(a, ctx) {
-			const r = ctx.snapshot.reviews.find((x) => x.id === a.review_id);
-			const out = endReview(ax$1(ctx), String(a.review_id ?? ""));
-			return save$1(ctx, out.commit, `${out.deleted ? "Deleted (it was never held)" : ENDED} the review “${r?.name ?? ""}”`);
-		}
-	},
-	{
-		name: "delete_review",
-		title: "Delete a review never held",
-		description: "Whoever set up the review, or an admin: delete a review that has never been held. One that has been held is ended instead (end_review), so its notes and actions stay.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["review_id"],
-			properties: { review_id: str$3("The review’s ID, from list_reviews.") }
-		},
-		annotations: REMOVE,
-		async run(a, ctx) {
-			const r = ctx.snapshot.reviews.find((x) => x.id === a.review_id);
-			return save$1(ctx, deleteReview(ax$1(ctx), String(a.review_id ?? "")), `Deleted the review “${r?.name ?? ""}”`);
-		}
-	},
-	{
 		name: "edit_comment",
 		title: "Edit a comment or review note",
 		description: "Correct the words of a comment (only whoever wrote it) or of a note said in a review (whoever said it, or an admin). It then shows as edited. Comment IDs are in get_goal’s comments; review notes’ IDs in get_review.",
@@ -24283,8 +24208,8 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["comment_id", "text"],
 			properties: {
-				comment_id: str$3("The comment’s or note’s ID."),
-				text: str$3("The corrected words.")
+				comment_id: str$4("The comment’s or note’s ID."),
+				text: str$4("The corrected words.")
 			}
 		},
 		annotations: WRITE$1,
@@ -24323,7 +24248,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["comment_id"],
-			properties: { comment_id: str$3("The comment’s or note’s ID.") }
+			properties: { comment_id: str$4("The comment’s or note’s ID.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -24340,7 +24265,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["cycle_id"],
-			properties: { cycle_id: str$3("The cycle’s ID.") }
+			properties: { cycle_id: str$4("The cycle’s ID.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -24356,7 +24281,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["cycle_id"],
-			properties: { cycle_id: str$3("The started cycle’s ID, from get_workspace.") }
+			properties: { cycle_id: str$4("The started cycle’s ID, from get_workspace.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -24373,7 +24298,7 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["import_id"],
 			properties: {
-				import_id: str$3("The import’s ID (imp_…), from get_activity."),
+				import_id: str$4("The import’s ID (imp_…), from get_activity."),
 				dry_run: {
 					type: "boolean",
 					description: "Say what Undo would do without saving anything."
@@ -24606,7 +24531,7 @@ init_rulesParts();
 init_status();
 init_vocabulary();
 init_via();
-var str$2 = (description, extra = {}) => ({
+var str$3 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -24725,23 +24650,23 @@ function metricData(ctx, m) {
 	};
 }
 var FIELDS = {
-	name: str$2("Its name, e.g. “Build time (p90)”. Required for a new metric; no two metrics share one."),
-	meaning: str$2("What it means and how it’s calculated: what is counted, over what period, what is left out."),
-	unit: str$2("Its unit: %, min, hours, USD, deploys… Required for a new metric. A goal it measures must use the same unit."),
+	name: str$3("Its name, e.g. “Build time (p90)”. Required for a new metric; no two metrics share one."),
+	meaning: str$3("What it means and how it’s calculated: what is counted, over what period, what is left out."),
+	unit: str$3("Its unit: %, min, hours, USD, deploys… Required for a new metric. A goal it measures must use the same unit."),
 	decimals: {
 		type: "integer",
 		minimum: 0,
 		maximum: 4,
 		description: "Places after the decimal point it’s shown with (0 to 4; 0 when left out)."
 	},
-	direction: str$2("Which way is better. Required for a new metric.", { enum: ["higher", "lower"] }),
-	source: str$2("Where the number comes from: a dashboard, a tool, a query."),
-	source_owner: str$2("Who owns that source: a team or a person, as text."),
-	refresh: str$2("How often the source refreshes. Empty for not said.", { enum: [...REFRESHES, ""] }),
-	owner: str$2("Who answers for the definition, by ID, email or name. Whoever adds it, when left out."),
-	caveats: str$2("What to watch out for when reading it.")
+	direction: str$3("Which way is better. Required for a new metric.", { enum: ["higher", "lower"] }),
+	source: str$3("Where the number comes from: a dashboard, a tool, a query."),
+	source_owner: str$3("Who owns that source: a team or a person, as text."),
+	refresh: str$3("How often the source refreshes. Empty for not said.", { enum: [...REFRESHES, ""] }),
+	owner: str$3("Who answers for the definition, by ID, email or name. Whoever adds it, when left out."),
+	caveats: str$3("What to watch out for when reading it.")
 };
-var tools$1 = [
+var tools$2 = [
 	{
 		name: "list_metrics",
 		title: "List the metric library",
@@ -24750,11 +24675,11 @@ var tools$1 = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				search: str$2("Words to find, each starting a word of the name, unit, “lower is better” or “higher is better”, the owner’s name, the meaning or the source."),
-				unit: str$2("Only metrics in this unit (any case)."),
-				team: str$2("Only metrics a goal measures for this team (ID or name), or “company” for the whole company."),
-				owner: str$2("Only metrics this person owns, by ID, email or name."),
-				direction: str$2("Only metrics where this way is better.", { enum: ["higher", "lower"] }),
+				search: str$3("Words to find, each starting a word of the name, unit, “lower is better” or “higher is better”, the owner’s name, the meaning or the source."),
+				unit: str$3("Only metrics in this unit (any case)."),
+				team: str$3("Only metrics a goal measures for this team (ID or name), or “company” for the whole company."),
+				owner: str$3("Only metrics this person owns, by ID, email or name."),
+				direction: str$3("Only metrics where this way is better.", { enum: ["higher", "lower"] }),
 				unused: {
 					type: "boolean",
 					description: "Only metrics no live goal uses."
@@ -24767,7 +24692,7 @@ var tools$1 = [
 					type: "boolean",
 					description: "Only metrics with something to sort out: no owner (or one who has left), no meaning, no source, or no goal after 14 days."
 				},
-				sort: str$2("A to Z (name, the default), most goals first (goals), or the latest change first (changed).", { enum: [
+				sort: str$3("A to Z (name, the default), most goals first (goals), or the latest change first (changed).", { enum: [
 					"name",
 					"goals",
 					"changed"
@@ -24837,7 +24762,7 @@ var tools$1 = [
 			type: "object",
 			additionalProperties: false,
 			required: ["metric"],
-			properties: { metric: str$2("The metric’s ID or name.") }
+			properties: { metric: str$3("The metric’s ID or name.") }
 		},
 		annotations: READ$1,
 		async run(a, ctx) {
@@ -24919,7 +24844,7 @@ var tools$1 = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				id: str$2("The metric to change, by ID or name. Leave out to add one."),
+				id: str$3("The metric to change, by ID or name. Leave out to add one."),
 				...FIELDS,
 				confirm: {
 					type: "boolean",
@@ -24942,9 +24867,9 @@ var tools$1 = [
 					additionalProperties: false,
 					description: "The person’s answers to the checks a previous call returned.",
 					properties: {
-						name: str$2("“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave."),
-						unit: str$2("“keep” the unit as typed, or “use” the one in use.", { enum: ["keep", "use"] }),
-						meaning: str$2("“as-written”: the meaning is right as written.", { enum: ["as-written"] })
+						name: str$3("“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave."),
+						unit: str$3("“keep” the unit as typed, or “use” the one in use.", { enum: ["keep", "use"] }),
+						meaning: str$3("“as-written”: the meaning is right as written.", { enum: ["as-written"] })
 					}
 				}
 			}
@@ -25034,7 +24959,7 @@ var tools$1 = [
 			type: "object",
 			additionalProperties: false,
 			required: ["metric"],
-			properties: { metric: str$2("The metric’s ID or name.") }
+			properties: { metric: str$3("The metric’s ID or name.") }
 		},
 		annotations: {
 			readOnlyHint: false,
@@ -25065,9 +24990,9 @@ var tools$1 = [
 			additionalProperties: false,
 			required: ["metric"],
 			properties: {
-				metric: str$2("The metric’s ID or name."),
-				why: str$2("Why it is retired, in a line (up to 300 characters). Required unless bringing it back."),
-				replaced_by: str$2("The metric its goals’ owners are offered instead, by ID or name: one in use, in the same unit."),
+				metric: str$3("The metric’s ID or name."),
+				why: str$3("Why it is retired, in a line (up to 300 characters). Required unless bringing it back."),
+				replaced_by: str$3("The metric its goals’ owners are offered instead, by ID or name: one in use, in the same unit."),
 				bring_back: {
 					type: "boolean",
 					description: "Bring a retired metric back."
@@ -25101,9 +25026,9 @@ var tools$1 = [
 			additionalProperties: false,
 			required: ["from", "into"],
 			properties: {
-				from: str$2("The metric to merge away, by ID or name."),
-				into: str$2("The metric to keep, by ID or name: one in use, in the same unit."),
-				why: str$2("Why, in a line. “The same number as {into}.” when left out.")
+				from: str$3("The metric to merge away, by ID or name."),
+				into: str$3("The metric to keep, by ID or name: one in use, in the same unit."),
+				why: str$3("Why, in a line. “The same number as {into}.” when left out.")
 			}
 		},
 		annotations: WRITE,
@@ -25130,11 +25055,11 @@ var tools$1 = [
 			additionalProperties: false,
 			required: ["goal"],
 			properties: {
-				goal: str$2("The goal’s ID or key (G-12)."),
-				metric: str$2("The metric’s ID or name. Required unless unlinking."),
-				team: str$2("The slice: a team by ID or name. Leave out for the whole company."),
-				part: str$2("Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them."),
-				reason: str$2("Why the goal is measured differently now. Required when a goal with check-ins changes its metric, team or part; it shows in the goal’s History."),
+				goal: str$3("The goal’s ID or key (G-12)."),
+				metric: str$3("The metric’s ID or name. Required unless unlinking."),
+				team: str$3("The slice: a team by ID or name. Leave out for the whole company."),
+				part: str$3("Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them."),
+				reason: str$3("Why the goal is measured differently now. Required when a goal with check-ins changes its metric, team or part; it shows in the goal’s History."),
 				answers: {
 					type: "object",
 					additionalProperties: false,
@@ -25214,6 +25139,289 @@ var tools$1 = [
 					text: [`${g.title}: ${c.changes[0].summary.charAt(0).toLowerCase()}${c.changes[0].summary.slice(1)} (as ${ctx.actor.name}).`, ...warnings.map((w) => `Warning: ${w}`)].join("\n")
 				};
 			});
+		}
+	}
+];
+// src/modules/reviews/tools.ts
+init_actions();
+init_removal();
+init_review();
+init_vocabulary();
+var str$2 = (description, extra = {}) => ({
+	type: "string",
+	description,
+	...extra
+});
+var int$1 = (description) => ({
+	type: "integer",
+	description
+});
+var ids$1 = (description) => ({
+	type: "array",
+	items: { type: "string" },
+	description
+});
+var tools$1 = [
+	{
+		name: "list_reviews",
+		title: "Reviews",
+		description: "Every review in the workspace: its cadence, the goals it walks and who’s in it, with this session’s progress.",
+		inputSchema: {
+			type: "object",
+			properties: {},
+			additionalProperties: false
+		},
+		annotations: READ$4,
+		async run(_a, ctx) {
+			return listed({ reviews: ctx.snapshot.reviews.map((r) => {
+				const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
+				const held = lastHeld(r, ctx.snapshot, x.week);
+				return {
+					id: r.id,
+					name: r.name,
+					everyWeeks: r.everyWeeks,
+					weekday: r.weekday,
+					scope: r.scope,
+					people: r.people.map((p) => name$1(ctx, p)),
+					sessionWeek: x.week,
+					sessionDate: x.date,
+					reviewed: x.done,
+					of: x.total,
+					state: sessionStateText(sessionState(x)),
+					lastHeld: held?.on ?? null,
+					openActions: openActions(r, ctx.snapshot).length,
+					youreIn: r.people.includes(ctx.actor.id)
+				};
+			}) });
+		}
+	},
+	{
+		name: "get_review",
+		title: "A review’s agenda",
+		description: "One review’s current session: the goals to discuss (new information first, worst first, with why; those already being handled say what’s in hand), the healthy ones, and what has been said so far: notes, questions for owners (with any answers) and actions.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["review_id"],
+			properties: { review_id: str$2("The review’s ID, from list_reviews.") }
+		},
+		annotations: READ$4,
+		async run(a, ctx) {
+			const r = reviewOf(ctx, a.review_id);
+			const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
+			const ag = agendaOf(x);
+			const item = (g) => ({
+				id: g.goal.id,
+				title: g.goal.title,
+				owner: name$1(ctx, g.goal.ownerId),
+				status: g.status.status,
+				statusLabel: LABEL[g.status.status],
+				why: g.flags.map((f) => f.detail),
+				beingHandled: g.handled?.text ?? null
+			});
+			const saidHere = x.said.map((d) => ({
+				id: d.id,
+				goalId: d.goalId,
+				kind: d.kind,
+				note: d.note,
+				by: name$1(ctx, d.byId),
+				...d.kind === "action" ? {
+					who: name$1(ctx, d.assigneeId ?? null),
+					dueWeek: d.dueWeek ?? null
+				} : {},
+				...d.ask ? {
+					status: d.ask.status,
+					statusLabel: ASK_STATUS[d.ask.status].label,
+					answer: answerOf(d)?.text ?? null
+				} : {}
+			}));
+			const data = {
+				id: r.id,
+				name: r.name,
+				week: x.week,
+				date: x.date,
+				reviewed: x.done,
+				of: x.total,
+				toDiscuss: ag.discuss.map(item),
+				healthy: ag.healthy.map(item),
+				said: saidHere
+			};
+			return {
+				data,
+				text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${said(g.status)}.${g.beingHandled ? ` ${ATTENTION.handled.label}: ${g.beingHandled}.` : ""} ${g.why.join(" ")}`), "- nothing")}\nNothing flagged: ${data.healthy.map((g) => g.title).join(", ") || "none"}.`
+			};
+		}
+	},
+	{
+		name: "review_call",
+		title: "Say something in a review",
+		description: "In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. Only someone in the review, or an admin, can, and only about a goal the review covers (its goals, trees and levels). A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: [
+				"review_id",
+				"goal_id",
+				"kind"
+			],
+			properties: {
+				review_id: str$2("The review’s ID."),
+				goal_id: str$2("The goal’s ID or its key, e.g. G-12."),
+				kind: str$2("What it is.", { enum: [
+					"acknowledge",
+					"note",
+					"ask",
+					"action",
+					"accept"
+				] }),
+				text: str$2("The note, question or action, or (accept) why the review accepts the risk. Optional when acknowledging."),
+				who: str$2("Actions: who does it (name or ID). Defaults to the goal’s owner."),
+				due_week: int$1("Actions: the week it’s due by.")
+			}
+		},
+		annotations: WRITE$2,
+		async run(a, ctx) {
+			const r = reviewOf(ctx, a.review_id), g = goalOf$2(ctx, a.goal_id);
+			if (a.kind === "accept") return save$2(ctx, acceptRisk(ax$2(ctx), g, r, String(a.text ?? ""), sessionWeek(r, ctx.week, ctx.cycle)), `Accepted the risk: ${g.title} in ${r.name}`, "");
+			const kind = a.kind;
+			if (![
+				"acknowledge",
+				"note",
+				"ask",
+				"action"
+			].includes(kind)) throw new Error("kind is acknowledge, note, ask, action or accept.");
+			const assigneeId = kind === "action" && a.who ? personOf$2(ctx, a.who).id : void 0;
+			return save$2(ctx, reviewCall(ax$2(ctx), g, r, kind, String(a.text ?? ""), {
+				assigneeId,
+				dueWeek: a.due_week
+			}), `${{
+				acknowledge: "Marked reviewed",
+				note: "Added a note",
+				ask: "Asked the owner",
+				action: "Agreed an action"
+			}[kind]}: ${g.title} in ${r.name}`, "");
+		}
+	},
+	{
+		name: "unmark_reviewed",
+		title: "Undo marking goals reviewed",
+		description: "Undo marking one or more goals reviewed in a review (review_call with acknowledge): they go back on the agenda. Whoever marked them, or an admin. The log keeps both.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["call_ids"],
+			properties: { call_ids: {
+				type: "array",
+				items: { type: "string" },
+				description: "The marks’ IDs (kind acknowledge), from get_review."
+			} }
+		},
+		annotations: WRITE$2,
+		async run(a, ctx) {
+			const ids = (a.call_ids ?? []).map(String);
+			const marks = ctx.snapshot.decisions.filter((d) => ids.includes(d.id));
+			if (!marks.length) throw new Error("There’s no mark with those IDs. Use get_review.");
+			return save$2(ctx, unmarkReviewed(ax$2(ctx), marks), `Undone: ${marks.length === 1 ? "back" : `${marks.length} goals back`} on the agenda`, "");
+		}
+	},
+	{
+		name: "save_review",
+		title: "Set up or change a review",
+		description: "Set up a review (anyone can), or change one (someone in it, whoever set it up, or an admin): its name, how often, the weekday, the goals it walks (goals, goals with everything feeding them, or whole levels) and who’s in it. Without review_id it sets up a new one.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				review_id: str$2("The review to change. Leave out to set up a new one."),
+				name: str$2("Its name, e.g. \"Platform weekly review\"."),
+				every_weeks: int$1("Held every 1, 2 or 4 weeks."),
+				weekday: str$2("The weekday.", { enum: [
+					"Monday",
+					"Tuesday",
+					"Wednesday",
+					"Thursday",
+					"Friday"
+				] }),
+				goals: ids$1("Goal IDs or keys it walks."),
+				trees: ids$1("Goal IDs or keys it walks with everything feeding them."),
+				levels: ids$1("Levels it walks: north-star, svp, team."),
+				people: ids$1("Who’s in it (names or IDs). New reviews include you.")
+			}
+		},
+		annotations: WRITE$2,
+		async run(a, ctx) {
+			const day = a.weekday === void 0 ? void 0 : [
+				"monday",
+				"tuesday",
+				"wednesday",
+				"thursday",
+				"friday"
+			].indexOf(String(a.weekday).toLowerCase());
+			if (day === -1) throw new Error("weekday is Monday to Friday.");
+			const people = a.people ? [.../* @__PURE__ */ new Set([...a.people.map((p) => personOf$2(ctx, p).id)])] : void 0;
+			if (a.review_id) {
+				const before = reviewOf(ctx, a.review_id);
+				const scope = {
+					goals: goalIds(ctx, a.goals) ?? before.scope.goals,
+					trees: goalIds(ctx, a.trees) ?? before.scope.trees,
+					levels: a.levels ? levelsOf(a.levels) : before.scope.levels
+				};
+				const after = {
+					...before,
+					name: a.name !== void 0 ? String(a.name).trim() : before.name,
+					everyWeeks: a.every_weeks !== void 0 ? Number(a.every_weeks) : before.everyWeeks,
+					weekday: day ?? before.weekday,
+					scope,
+					people: people ?? before.people
+				};
+				return save$2(ctx, saveReview(ax$2(ctx), after, before), `Changed the review “${after.name}”`, "");
+			}
+			const r = newReview(ax$2(ctx), {
+				name: String(a.name ?? ""),
+				everyWeeks: Number(a.every_weeks ?? 1),
+				weekday: day ?? ctx.cycle.reviewDay,
+				goals: goalIds(ctx, a.goals),
+				trees: goalIds(ctx, a.trees),
+				levels: levelsOf(a.levels),
+				people: people ? [.../* @__PURE__ */ new Set([ctx.actor.id, ...people])] : void 0
+			});
+			return {
+				...await save$2(ctx, saveReview(ax$2(ctx), r, null), `Set up the review “${r.name}” (ID ${r.id})`, ""),
+				data: { id: r.id }
+			};
+		}
+	},
+	{
+		name: "end_review",
+		title: "End a review",
+		description: "Whoever set up the review, or an admin: end it. It keeps its notes and actions and stops showing as due. A review that was never held is deleted instead.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["review_id"],
+			properties: { review_id: str$2("The review’s ID, from list_reviews.") }
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const r = ctx.snapshot.reviews.find((x) => x.id === a.review_id);
+			const out = endReview(ax$1(ctx), String(a.review_id ?? ""));
+			return save$1(ctx, out.commit, `${out.deleted ? "Deleted (it was never held)" : ENDED} the review “${r?.name ?? ""}”`);
+		}
+	},
+	{
+		name: "delete_review",
+		title: "Delete a review never held",
+		description: "Whoever set up the review, or an admin: delete a review that has never been held. One that has been held is ended instead (end_review), so its notes and actions stay.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["review_id"],
+			properties: { review_id: str$2("The review’s ID, from list_reviews.") }
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const r = ctx.snapshot.reviews.find((x) => x.id === a.review_id);
+			return save$1(ctx, deleteReview(ax$1(ctx), String(a.review_id ?? "")), `Deleted the review “${r?.name ?? ""}”`);
 		}
 	}
 ];
@@ -25325,13 +25533,20 @@ var tools = [{
 	}
 }];
 // \0virtual:faro-modules/tools
-var tools_default = [{
-	id: "metrics",
-	part: tools$1
-}, {
-	id: "spreadsheets",
-	part: tools
-}];
+var tools_default = [
+	{
+		id: "metrics",
+		part: tools$2
+	},
+	{
+		id: "reviews",
+		part: tools$1
+	},
+	{
+		id: "spreadsheets",
+		part: tools
+	}
+];
 // src/domain/readBack.ts
 init_goalEntry();
 init_goal();

@@ -130,6 +130,13 @@ describe('being handled', () => {
     expect(handled(s, RED, monday)).not.toBeNull();
   });
 
+  it('says when a check-in is due by its day, never by a review (FT2): a review is not what makes it due', () => {
+    const monday = new Date('2026-11-09T12:00:00Z');
+    const due = attentionFor(goal(s0, RED), s0, cycle, monday).flags.find((f) => f.kind === 'due');
+    expect(due?.detail).toMatch(/^Due by (Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d{1,2} [A-Z][a-z]{2}\.$/);
+    expect(due?.detail).not.toMatch(/review/);
+  });
+
   it('an action past its week is news, not in hand', () => {
     expect(handled(withSaid(s0, action(RED, { dueWeek: week - 1 })), RED)).toBeNull();
     expect(handled(withSaid(s0, action(RED, { dueWeek: week })), RED)).not.toBeNull();

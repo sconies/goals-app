@@ -56,7 +56,7 @@ export const OTHER_VIEWS: OtherView[] = [
   { name: 'A review: one goal at a time', file: 'src/screens/Inspect.tsx', where: 'A review’s walk (/goals/:goalId?review=…), and a goal’s page during one.', help: 'reviews', mainAction: 'Say what the review decided about this goal, and go on to the next.' },
   { name: 'Data: filters', file: 'src/screens/DataFilters.tsx', where: 'Filter, on a table in Data.', help: 'data', mainAction: 'Narrow the rows a table shows.' },
   { name: 'Data: columns and layouts', file: 'src/screens/DataLayout.tsx', where: 'Columns, on a table in Data.', help: 'data', mainAction: 'Choose and order the columns, and save the layout.' },
-  { name: 'Page not found', file: 'src/App.tsx', component: 'NotFound', where: 'Any address that leads nowhere.', mainAction: 'Go to Home.' },
+  { name: 'Page not found', file: 'src/screens/NotFound.tsx', component: 'NotFound', where: 'Any address that leads nowhere.', mainAction: 'Go to Home.' },
   { name: 'The error page', file: 'src/telemetry/react.tsx', component: 'ErrorBoundary', where: 'Instead of a screen that failed to draw, or a part that can’t load while offline, or while a new version loads.', mainAction: 'Reload, or Try again when offline.' },
 ];
 

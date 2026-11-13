@@ -30,6 +30,13 @@ describe('the menu, the lit item and a page’s name (AR2, NV1)', () => {
     expect(phoneTabs(false)).toEqual(['home', 'goals', 'reviews', 'people']);
     expect(moreFor(menuGroups(false, [{ id: 'metrics', to: '/metrics', label: 'Metrics' }]), phoneTabs(false))).toEqual({ lookup: ['module:metrics', 'activity', 'data'], make: ['new'], you: ['workspace', 'settings', 'help', 'feedback'] });
   });
+  it('has no Reviews row or tab with Reviews switched off (FT2): People and Activity take the tabs', () => {
+    expect(menuGroups(true, [], false).work).toEqual(['home', 'checkin', 'goals']);
+    expect(menuGroups(false, [{ id: 'plan', to: '/plan', label: 'Plan', group: 'work' }], false).work).toEqual(['home', 'goals', 'module:plan']);
+    expect(phoneTabs(true, false)).toEqual(['home', 'checkin', 'goals', 'people']);
+    expect(phoneTabs(false, false)).toEqual(['home', 'goals', 'people', 'activity']);
+    expect(moreFor(menuGroups(false, [], false), phoneTabs(false, false))).toEqual({ lookup: ['data'], make: ['new'], you: ['workspace', 'settings', 'help', 'feedback'] });
+  });
   it('lists up to four saved views: pinned A to Z, then yours, the latest opened first', () => {
     const v = (id: string, pinned: boolean, createdAt = '2026-11-01') => ({ id, name: id, pinned, mine: !pinned, createdAt });
     expect(menuViews([v('b', true), v('a', true), v('m1', false, '2026-11-02'), v('m2', false, '2026-11-03'), v('m3', false, '2026-11-04')], ['m1']).map((x) => x.id)).toEqual(['a', 'b', 'm1', 'm3']);

@@ -563,6 +563,9 @@ export interface SaveGoalInput {
   proposedIn?: string;
 }
 
+/** Why an active goal's type can't change (a proposed one's can: rule 14). */
+export const TYPE_FIXED = 'A goal’s type can’t change once it is active. Add a new goal instead.';
+
 /** The words for a plan change with no reason (section 4, `reason-empty`). */
 export const REASON_EMPTY = 'Say why, in a sentence. It goes in the goal’s History, and anyone watching it sees the change flagged.';
 
@@ -592,6 +595,8 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   const checkIns = existing ? checkInsFor(existing, s.checkIns) : [];
   // Proposed (rule 14): the type's own required fields are optional, all together; no reason is ever asked.
   const proposing = existing ? isProposed(existing) : i.state === 'proposed';
+  // The type changes only while a goal is proposed (rule 14): an active goal keeps its own, at every door.
+  if (existing && !proposing && i.draft.kind !== existing.kind) throw new NotAllowed(TYPE_FIXED);
   const fix = (proposing ? proposedMustFix : goalMustFix)(i.draft, {
     cycleWeeks: x.cycle.weeks, week: x.week, existing, checkIns, door: 'form', startDate: x.cycle.startDate,
     owner: owner ? { name: owner.name, teamId: owner.teamId ?? null } : null, parent: parent ? { title: parent.title } : null,

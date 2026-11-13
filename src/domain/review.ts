@@ -5,51 +5,12 @@ import { ASK_KIND, ASK_STATUS, SESSION } from './vocabulary';
 import { daysSince, firstWeekFrom, weekDate } from './plan';
 import { checkInsFor, RANK } from './status';
 import { asksOf, isResolved } from './asks';
-import type { Ask, Cycle, Decision, Goal, Level, Person, Review, Snapshot, Watch } from './types';
-
-/** A goal and every goal feeding it, at any depth. */
-export function treeOf(rootId: string, goals: Goal[]): Goal[] {
-  const out: Goal[] = [];
-  const seen = new Set<string>();
-  const walk = (id: string) => {
-    const g = goals.find((x) => x.id === id);
-    if (!g || seen.has(id)) return;
-    seen.add(id);
-    out.push(g);
-    for (const c of goals.filter((x) => x.parentId === id)) walk(c.id);
-  };
-  walk(rootId);
-  return out;
-}
-
-/** The goals a set of picks covers: single goals, whole trees and whole levels, each once. */
-export function goalsIn(scope: { goals: string[]; trees: string[]; levels: Level[] }, goals: Goal[]): Goal[] {
-  const ids = new Set<string>([...scope.goals, ...scope.trees.flatMap((t) => treeOf(t, goals).map((g) => g.id))]);
-  for (const g of goals) if (scope.levels.includes(g.level)) ids.add(g.id);
-  return goals.filter((g) => ids.has(g.id));
-}
-
-/** What a person watches, as the same kind of scope a review uses. */
-export function watchScope(personId: string, watches: Watch[]) {
-  const mine = watches.filter((w) => w.personId === personId);
-  return {
-    goals: mine.filter((w) => w.kind === 'goal').map((w) => w.ref),
-    trees: mine.filter((w) => w.kind === 'tree').map((w) => w.ref),
-    levels: mine.filter((w) => w.kind === 'level').map((w) => w.ref as Level),
-  };
-}
-
-export function watchedGoals(personId: string, s: Snapshot): Goal[] {
-  return goalsIn(watchScope(personId, s.watches), s.goals);
-}
-
-/** How a person is watching a goal, if they are: directly, through a tree, or through its level. */
-export function watchOf(personId: string, goal: Goal, s: Snapshot): Watch | 'via' | null {
-  const mine = s.watches.filter((w) => w.personId === personId);
-  const direct = mine.find((w) => (w.kind === 'goal' || w.kind === 'tree') && w.ref === goal.id);
-  if (direct) return direct;
-  return goalsIn(watchScope(personId, s.watches), s.goals).some((g) => g.id === goal.id) ? 'via' : null;
-}
+import type { Ask, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
+import { goalsIn } from './watch';
+// Watching's rules moved to watch.ts and "Thu 5 Nov" to format.ts (FT2); they are said here too for one release.
+export { coveringWatches, goalsIn, treeOf, watchedGoals, watchOf, watchScope } from './watch';
+import { dayText } from './format';
+export { dayText };
 
 /** The week of a review's current session: this week if it's held this week, otherwise the next week it is. */
 export function sessionWeek(r: Review, week: number, cycle?: Cycle): number {
@@ -109,13 +70,41 @@ function agendaItems(r: Review, s: Snapshot, cycle: Cycle, today: Date): GoalAtt
 }
 
 export function reviewSession(r: Review, s: Snapshot, cycle: Cycle, today: Date, week: number): ReviewSession {
-  const w = sessionWeek(r, week, cycle);
+  const at = (w: number): ReviewSession => {
+    const said = saidIn(s).filter((d) => d.reviewId === r.id && d.week === w);
+    // Only an explicit "reviewed" counts; a note, question or action can come before the assessment is finished.
+    const covered = new Set(said.filter((d) => d.kind === 'acknowledge').map((d) => d.goalId));
+    const done = items.filter((a) => covered.has(a.goal.id)).length;
+    return { review: r, week: w, date: sessionDate(r, cycle, w), items, covered, done, total: items.length, said };
+  };
   const items = agendaItems(r, s, cycle, today);
-  const said = saidIn(s).filter((d) => d.reviewId === r.id && d.week === w);
-  // Only an explicit "reviewed" counts; a note, question or action can come before the assessment is finished.
-  const covered = new Set(said.filter((d) => d.kind === 'acknowledge').map((d) => d.goalId));
-  const done = items.filter((a) => covered.has(a.goal.id)).length;
-  return { review: r, week: w, date: sessionDate(r, cycle, w), items, covered, done, total: items.length, said };
+  const x = at(sessionWeek(r, week, cycle));
+  // A session whose date passed while Reviews was switched off, and wasn't held, isn't outstanding once it is back on:
+  // the current session is the next date on its cadence (FT2; README 2.2 of the reviews-switch spec).
+  if (x.done >= x.total) return x;
+  const off = offSpell(s.changes);
+  return off && x.date >= off.from && x.date < off.to ? at(sessionWeek(r, x.week + 1, cycle)) : x;
+}
+
+type Spell = { from: string; to: string } | null;
+/** offSpell's answer for each change log read: it scans the whole log, and every session asks (N29). */
+const spells = new WeakMap<object, Spell>();
+/**
+ * The days Reviews was last switched off and back on (yyyy-mm-dd), from the change log setModule writes (its Reviews
+ * field going Off, then On), or null while it hasn't come back on. Nothing is stored for it (FT2).
+ */
+export function offSpell(changes: readonly { entity: string; at: string; diffs: readonly { field: string; to: string }[] }[]): Spell {
+  const known = spells.get(changes);
+  if (known !== undefined) return known;
+  const spell = readSpell(changes);
+  spells.set(changes, spell);
+  return spell;
+}
+function readSpell(changes: Parameters<typeof offSpell>[0]): Spell {
+  const last = (to: string, before = '~') => changes.filter((c) => c.entity === 'workspace' && c.at < before && c.diffs.some((d) => d.field === 'Reviews' && d.to === to)).reduce<string | null>((m, c) => (!m || c.at > m ? c.at : m), null);
+  const on = last('On');
+  const off = on && last('Off', on);
+  return on && off ? { from: off.slice(0, 10), to: on.slice(0, 10) } : null;
 }
 
 /**
@@ -153,8 +142,6 @@ export function sessionToDo(ss: ReviewSession, s: Pick<Snapshot, 'checkIns'>, we
   return s.checkIns.some((c) => ids.has(c.goalId) && !c.removedAt);
 }
 
-/** "Thu 5 Nov", from yyyy-mm-dd or a full timestamp. */
-export const dayText = (iso: string) => new Date(iso.slice(0, 10) + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 /**
  * Where a review's current session stands. Held means every goal in it has been marked reviewed; it is held on the
@@ -299,13 +286,6 @@ export function answerOf(d: Said): { text: string; at: string; byId: string } | 
   const a = d.ask;
   if (!a || !isResolved(a)) return null;
   return { text: a.answer || (a.status === 'done' ? ASK_STATUS.done.label : ''), at: a.answeredAt ?? a.updatedAt, byId: a.answeredBy ?? '' };
-}
-
-/** The tree and level watches that cover a goal for a person, not counting a watch on the goal itself. */
-export function coveringWatches(personId: string, goal: Goal, s: Snapshot): Watch[] {
-  return s.watches.filter((w) => w.personId === personId && (
-    (w.kind === 'level' && w.ref === goal.level) ||
-    (w.kind === 'tree' && w.ref !== goal.id && treeOf(w.ref, s.goals).some((g) => g.id === goal.id))));
 }
 
 /* ---------- Who may speak for a review (RV7: docs/design/reviews/spec.md section 3, Lane's decision 1) ---------- */
