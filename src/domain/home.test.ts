@@ -33,7 +33,7 @@ describe('Home rule 2: the lead', () => {
   it('Tunde, Thu 12 Nov, posts the last one today, streak 5: one sentence with the streak and the next date', () => {
     const p = homeFor(facts({ today: '2026-11-12' }, { done: 2, allInOnTimeToday: true, streak: 5 }));
     expect(p.lead).toBeNull();
-    expect(p.quiet).toEqual({ sentence: 'Both check-ins are in for week 46.', line: 'That is 5 weeks in a row on time. The next are due by Thursday 19 Nov.', buttons: [] });
+    expect(p.quiet).toEqual({ sentence: 'Both of your check-ins are in for week 46, before Thursday’s deadline.', line: 'That is 5 weeks in a row. The next are due by Thursday 19 Nov.', buttons: [] });
   });
   it('Tunde, Fri 13 Nov, all in: no streak clause, and the passed deadline is not said', () => {
     expect(quietLine(facts({ today: '2026-11-13' }, { done: 2, streak: 5 })).line).toBe('The next are due by Thursday 19 Nov.');

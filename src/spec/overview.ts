@@ -51,6 +51,7 @@ export const MORE_RULE_PAGES: [string, string][] = [
   ['navigation', 'Navigation: the menu, the lit item and a page’s name'],
   ['goals-page', 'The Goals page: whose goals, how they are grouped, and the switch'],
   ['home', 'Home: what is asked of you today'],
+  ['habit', 'The habit: the run, the receipt and a moment'],
 ];
 
 /** The requirements under spec/requirements/internal/ (backlog 8r): what the internal rebuild must do that Faro doesn't

@@ -2114,6 +2114,18 @@ function weekProgress(personId, s, cycle, week, today) {
 		due: week < 1 || hasEnded(cycle, today) ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g))
 	};
 }
+/**
+* Where the person's week stands, the one reading Home's ring, the check-in's confirmation and its done screen all use
+* (backlog T, 8 Nov: a confirmation once said all four goals were checked in after one, because the other three weren't
+* due yet). Complete only when every goal counted is checked in this week.
+*/
+function weekCompletion(p) {
+	return {
+		done: p.done.length,
+		total: p.goals.length,
+		complete: p.goals.length > 0 && p.done.length >= p.goals.length
+	};
+}
 /** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
 function reviewDate(cycle, week) {
 	const d = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
@@ -2129,17 +2141,90 @@ function firstReview(cycle, today) {
 	};
 }
 /**
-* Consecutive weeks, counting back from the latest finished one, in which every goal the
-* person owns was checked in by the owner on or before the review day.
+* The on-time run (CF4, forgiving; HB1): weeks in a row, counting back from the latest finished one, in which every goal
+* the person owns was checked in by the owner on or before the review day. One late week is forgiven when each of the
+* four weeks before it in which the person had something due was on time: it isn't counted, and the walk goes on. A late
+* week that isn't forgiven ends the run. "Checked in this week, but late" is a late week like any other.
+*
+* CF2's migration (the cycle's `streak` setting) isn't on main yet, so the forgiving run is the only one: when it lands,
+* 'on' skips the forgiving step and 'off' returns null (docs/design/workspace-settings/spec.md 2.5).
 */
 function onTimeStreak(personId, s, cycle, week) {
-	const goals = s.goals.filter((g) => g.ownerId === personId);
-	if (!goals.length) return 0;
-	const onTime = (w) => goals.some((g) => firstDueWeek(g, cycle) <= w) && goals.every((g) => firstDueWeek(g, cycle) > w || s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
-	if (goals.every((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week)) && !onTime(week)) return 0;
-	let streak = 0;
-	for (let w = onTime(week) ? week : week - 1; w >= 1 && onTime(w); w--) streak++;
-	return streak;
+	return onTimeRun(personId, s.goals, s.checkIns, cycle, week).weeks;
+}
+function onTimeRun(personId, all, checkIns, cycle, week) {
+	const goals = all.filter((g) => g.ownerId === personId);
+	const s = { checkIns };
+	if (!goals.length) return {
+		weeks: 0,
+		forgiven: []
+	};
+	const due = (w) => goals.some((g) => firstDueWeek(g, cycle) <= w);
+	const onTime = (w) => due(w) && goals.every((g) => firstDueWeek(g, cycle) > w || s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
+	const forgiven = (w) => {
+		let seen = 0;
+		for (let v = w - 1; v >= 1 && seen < 4; v--) {
+			if (!due(v)) continue;
+			if (!onTime(v)) return false;
+			seen++;
+		}
+		return seen === 4;
+	};
+	const complete = goals.every((g) => firstDueWeek(g, cycle) > week || s.checkIns.some((c) => c.goalId === g.id && c.week === week));
+	const out = {
+		weeks: 0,
+		forgiven: []
+	};
+	for (let w = complete && due(week) ? week : week - 1; w >= 1 && due(w); w--) if (onTime(w)) out.weeks++;
+	else if (forgiven(w)) out.forgiven.push(w);
+	else break;
+	return out;
+}
+/**
+* The receipt's facts for a person's week (habit spec 2.1), from the rules that already say each: weekProgress (`p`) for
+* their goals, reviewDate for the due day, the run. A goal's week counts as after when its first check-in that week
+* (theirs, or someone's checking in for them) was posted after the due day. `review` is `reviewOnDueDay`'s.
+* `nextDue` is the next due day as an ISO date: the caller says it in words before `receiptText`.
+*/
+function receiptFacts(p, personId, s, cycle, week, review) {
+	const due = reviewDate(cycle, week);
+	const after = p.goals.filter((g) => {
+		const first = s.checkIns.filter((c) => c.goalId === g.id && c.week === week && !c.removedAt).map((c) => c.postedAt).sort()[0];
+		return first != null && first.slice(0, 10) > due;
+	}).length;
+	const run = onTimeRun(personId, s.goals, s.checkIns, cycle, week);
+	return {
+		total: p.goals.length,
+		after,
+		week,
+		dueDay: WEEKDAY[cycle.reviewDay],
+		review,
+		run: run.weeks,
+		forgiven: run.forgiven[0] ?? null,
+		nextDue: week < cycle.weeks ? reviewDate(cycle, week + 1) : null
+	};
+}
+/**
+* The receipt's two sentences, once every check-in of the week is in (habit spec 2.1; HB1). Read by the check-in's last
+* screen and by Home's quiet line on the day the week is completed. A late week is never called lost or broken, and no run
+* is mentioned beside one. The due day is a review only for someone in a review held that day (T4).
+*/
+function receiptText(r) {
+	const yours = r.total === 1 ? "Your check-in is" : r.total === 2 ? "Both of your check-ins are" : `All ${r.total} of your check-ins are`;
+	const next = r.nextDue ? `The next ${r.total === 1 ? "is" : "are"} due by ${r.nextDue}.` : null;
+	if (r.after > 0) return {
+		first: `${yours} in. ${r.total === 1 ? "It" : r.after === r.total ? r.total === 2 ? "Both" : "All of them" : r.after === 1 ? "One" : String(r.after)} came ${r.review ? `after ${r.dueDay}’s review` : `in after ${r.dueDay}’s deadline`}.`,
+		second: next
+	};
+	return {
+		first: r.review ? `${yours} in before ${r.dueDay}’s review.` : `${yours} in for week ${r.week}, before ${r.dueDay}’s deadline.`,
+		second: [r.run >= 2 ? `That is ${r.run} weeks in a row.` : null, r.forgiven != null && r.forgiven === r.week - 1 && r.run >= 2 ? `Week ${r.forgiven} came in late; one late week doesn’t break a run.` : null].filter(Boolean).join(" ") || null
+	};
+}
+/** Whether the person is in a review held on the workspace's due day (live, not ended): only then is the due day said
+as a review (deep review T4). `reviewsOn` is the reviews switch's flag (FT2), as readBack.ts takes it. */
+function reviewOnDueDay(reviews, personId, cycle, reviewsOn) {
+	return reviewsOn && reviews.some((r) => !r.removedAt && !r.endedAt && r.weekday === cycle.reviewDay && r.people.includes(personId));
 }
 var firstDueWeek, WEEKDAY;
 var init_progress = __esmMin((() => {
@@ -14715,9 +14800,8 @@ var metricLinkFromRow = (r) => ({
 	...when$2("removedAt", r.removed_at),
 	...who$1("removedBy", r.removed_by)
 });
-// src/core/records.ts
-/** Every module's records, in module id order. */
-var MODULE_RECORDS = [{
+// \0virtual:faro-modules/records
+var records_default = [{
 	id: "metrics",
 	part: {
 		records: [{
@@ -14814,17 +14898,367 @@ var MODULE_RECORDS = [{
 			}
 		}]
 	}
-}].map((p) => ({
+}];
+// \0virtual:faro-modules
+var _virtual_faro_modules_default = [
+	{
+		id: "metrics",
+		name: "Metric library",
+		summary: "Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.",
+		needs: [],
+		routes: [
+			"/metrics",
+			"/metrics/new",
+			"/metrics/:metricId",
+			"/metrics/:metricId/edit"
+		],
+		redirects: [["/data/metrics", "/metrics"]],
+		navigation: ["Metrics"],
+		places: [
+			"goal.facts",
+			"goal.measure",
+			"goal.sections",
+			"people.person",
+			"people.team"
+		],
+		tables: [{
+			"name": "okr_metrics",
+			"migration": "0033_metric_library.sql",
+			"purpose": "The metric library: one row per metric, never deleted (removed_at when removed)."
+		}, {
+			"name": "okr_goal_metrics",
+			"migration": "0033_metric_library.sql",
+			"purpose": "Which metric measures a goal, and for which slice (a team, or the whole company when team_id is null): one row per goal, removed_at when unlinked."
+		}],
+		records: [{
+			"name": "metric",
+			"table": "okr_metrics",
+			"key": "metrics",
+			"removable": true
+		}, {
+			"name": "metric link",
+			"table": "okr_goal_metrics",
+			"key": "metricLinks",
+			"removable": false
+		}],
+		aiTools: [
+			"list_metrics",
+			"get_metric",
+			"save_metric",
+			"remove_metric",
+			"retire_metric",
+			"merge_metrics",
+			"link_goal_metric"
+		],
+		help: [
+			"metrics",
+			"metric-define",
+			"metric-measured-by",
+			"metric-slices",
+			"metric-change",
+			"metric-measurement"
+		],
+		requirements: [
+			"METRICS-LIBRARY",
+			"METRICS-MEASURED-BY",
+			"METRICS-CARE",
+			"METRIC-DEFINED",
+			"METRIC-PARTS",
+			"METRIC-CHANGE",
+			"METRIC-MEASUREMENT"
+		],
+		journeys: [
+			"U81",
+			"U82",
+			"U83",
+			"U145",
+			"U105",
+			"U146",
+			"U106",
+			"U152",
+			"F15",
+			"N16",
+			"U152"
+		],
+		elsewhere: [],
+		rebuild: {
+			"status": "outline",
+			"builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric. Defining one well: three things to be usable, the rest said later and named in words (“Fully defined” or “Still to say: …”, never a score), and three questions answered once before saving (a close name, a unit spelt another way, a percentage that doesn’t say out of what), with each Must fix and Check under its field. For, and which part: a link is for a team or the whole company and optionally one part of that number (“tier-1 services”), the parts in use offered under the field; the goal takes the metric’s unit and direction, its target stays its own; another goal on the same number, or a part spelt like one in use, is asked about once; and a goal with check-ins says why it is measured differently, in its History. Looking after one: what it still needs, a confirm before changing a unit or direction goals use, and on Workspace → About how many metrics have no owner. Measurement status: each metric says whether it is measured today (Measured, Partly or Gap, a shape and a word, with what is missing); a gap or a part is listed under To sort out, and a goal measured by a gap is held to no number (the core’s rule over the goal’s own field, which the library fills in when it links the goal and when the metric is measured).",
+			"entry": ["The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.", "Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice."],
+			"exit": [
+				"A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.",
+				"Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.",
+				"A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.",
+				"A metric that has measured a goal can’t be deleted (“Retire it instead.”); one that never has is deleted, and Undo or Recently removed brings it back.",
+				"The demo workspace’s 13 metrics and 12 links load (two of them for one part: CI/CD · main branch pipelines, CI/CD · main pipelines), and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).",
+				"Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there.",
+				"Starting the next year carries every goal’s metric link to its copy: the same metric, team and part (journey U152; the core’s carry journey, U115, checks nothing of the module’s).",
+				"The library finds what each of rule 1’s worked examples says, a metric’s goals are rule 2’s rows in its order, and what a metric needs is rule 3’s, in order: every row of spec/conformance/metrics.csv matches.",
+				"The library is in the menu after People (under More on a phone); the old addresses of Metrics under Data lead to the library, a metric or the form; a metric’s row in the library counts the same goals by status as its page’s table lists (journey U81, checks F15 and N16).",
+				"In New goal, “Measured by” comes first on the measure step: a metric found by typing shows its meaning, fills in the unit, decimals and which way is better on a goal nobody typed them for, measures it for the goal’s team or the whole company, and Check says so; one added there is chosen; a goal with dated stages has none (journey U82, rule 5’s worked examples).",
+				"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first (the read-back, MT3); admins see on Workspace → About how many metrics have no owner (journey U83).",
+				"Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105).",
+				"A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146).",
+				"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples).",
+				"A metric said to be a Gap holds every goal it measures to no number in the same save (the goal says Not measured yet and nothing on it is due); said to be measured, partly or in full, or unlinked, the goal is held to its plan again; the library lists the gap under To sort out."
+			],
+			"gaps": [
+				"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).",
+				"The goals table is where slices side by side and numbers read from the source would grow (growth.md: dimensions an admin defines; numbers from the source).",
+				"Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md."
+			]
+		},
+		growth: [
+			{
+				"idea": "Draft and Ready states",
+				"why": "A metric is usable as soon as it has a name, a unit and a direction, which is all a team needs to start. A review step before anyone can use one would slow the first weeks for little gain at Faro’s size.",
+				"how": "Add a state to the metric (draft, ready), let goals link only to ready ones, and give whoever reviews definitions (a data owner, say) a list of drafts to approve. The rules page’s “who may” paragraph is where the new rule goes."
+			},
+			{
+				"idea": "Versions, with a reason for each change",
+				"why": "Every change is already in the change log, field by field, with who and when, which answers “what did this mean in March?” for now.",
+				"how": "Keep each saved definition as a version with a required reason (as a goal’s plan keeps its earlier plans), show which version a goal’s numbers were read under, and let a reader compare two."
+			},
+			{
+				"idea": "Owner-only editing and other governance",
+				"why": "Owners and admins can change a metric, as with goals. Stricter rules (only the owner, or changes approved by a data steward) need roles Faro doesn’t have.",
+				"how": "Add a steward role per metric or per source, and route changes through an ask to them (the asks model already carries who must respond)."
+			},
+			{
+				"idea": "Dimensions an admin defines, and slices side by side",
+				"why": "A slice is a team or the whole company, which covers how Faro’s goals are set. Other cuts (region, product, tier) and comparing slices need data Faro doesn’t hold.",
+				"how": "Let an admin define dimensions and their values, let a link name any of them, and add a view that lists every goal on one metric by slice, with their targets side by side."
+			},
+			{
+				"idea": "Suggestions and grouping look-alikes for existing goals",
+				"why": "Linking is by hand, by each goal’s owner. Suggesting a metric for a goal, or spotting goals that measure the same thing under different names, needs matching that is easy to get wrong in a demo.",
+				"how": "Compare each unlinked goal’s title, unit and source with the library and suggest the closest metric; group goals whose definitions look alike and offer to link them all to one metric."
+			},
+			{
+				"idea": "“Metric not defined” enforcement",
+				"why": "A goal doesn’t have to be measured by a metric. Requiring one before a goal can be saved would block every workspace that hasn’t built its library yet.",
+				"how": "A workspace setting that makes every number goal need a metric, a flag (like the other attention flags) on goals that have none, and a count on Home for admins."
+			},
+			{
+				"idea": "Loading the Metrics sheet back, and numbers from the source",
+				"why": "The Metrics sheet is written for reading, like Asks and Notes; metrics are added in the app or by an AI assistant. A goal’s numbers still come from its check-ins.",
+				"how": "Give the Metrics sheet match and edit columns and read it through the change engine (stage 2), as People is. Later, read each metric’s number from its source on its refresh cadence and offer it in the check-in."
+			}
+		],
+		finders: ["metric"],
+		filters: ["metric"],
+		toSortOut: true
+	},
+	{
+		id: "reviews",
+		name: "Reviews",
+		summary: "Walk a set of goals together on a cadence, decide what happens next and keep what was said.",
+		needs: [],
+		routes: [
+			"/review",
+			"/reviews",
+			"/reviews/new",
+			"/reviews/:reviewId",
+			"/reviews/:reviewId/edit",
+			"/reviews/:reviewId/summary",
+			"/reviews/:reviewId/print"
+		],
+		redirects: [],
+		navigation: [],
+		places: [],
+		tables: [],
+		aiTools: [
+			"list_reviews",
+			"get_review",
+			"review_call",
+			"unmark_reviewed",
+			"save_review",
+			"end_review",
+			"delete_review"
+		],
+		help: ["reviews"],
+		requirements: [
+			"REVIEW",
+			"REVIEW-SETUP",
+			"REVIEW-RUN",
+			"REVIEW-SPEAK",
+			"REVIEW-DECIDE",
+			"REVIEW-LIST-STATE",
+			"REVIEW-AGENDA",
+			"REVIEWS-OPTIONAL"
+		],
+		journeys: [
+			"U3",
+			"U13",
+			"U30",
+			"U36",
+			"U47",
+			"U49",
+			"U63",
+			"U67",
+			"U79",
+			"U80",
+			"U103",
+			"U104",
+			"N1",
+			"N21"
+		],
+		elsewhere: [],
+		rebuild: {
+			"status": "outline",
+			"builds": "Reviews, as a feature a workspace can switch off. A review walks a set of goals together on a cadence (every 1, 2 or 4 weeks, on a weekday): its agenda puts the goals that need attention first, worst and stalest, and the walk opens each goal's page in turn, where someone in the review marks it reviewed, adds a note, asks the owner a question, agrees a next step with who and by when, or accepts the risk on a goal behind; a goal off track or at risk leaves the walk with a decision. What was said stays on each goal: questions and next steps are asks, open on the owner's Home until answered or done; a held session leads its page with what was said, and prints. Off, Reviews has no menu row or phone tab, no page (its addresses say it is switched off and who can switch it on), no Next review on Home, no Last time we talked or walk on a goal, no review tools for an assistant and no review asked for on Workspace; asks and next steps stay as they are, History keeps what was said, and switching it back on brings every review back as it was. An admin switches it off on Workspace, Features, after a read-back that counts what stays.",
+			"entry": ["The core rules (stage 1) work out each goal's status, flags and attention, and the asks (stage 1: one way to ask): a review reads them and adds nothing to them.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2)."],
+			"exit": [
+				"Switched off, the menu has no Reviews row and the phone's tabs are Home, Check-in, Goals and People for someone with a goal to check in on, and Home, Goals, People and Activity for anyone else (the two rows of navigation.csv at the address “/ (Reviews off)”).",
+				"Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and the six review actions and tools refuse with “Reviews is off in {workspace}.” or the switched-off module's sentence (check N21).",
+				"Switched off, Home has no Next review cell and no review lead: someone who owns no goal is led to the goals they watch that need attention (“Goals you watch · {n} need attention · See them”), or to nothing; a question waits by its own age and names no session; the due flag says “Due by Thu 12 Nov.”, on or off.",
+				"Switching off first reads back what stays (the reviews, what was said in them, the open next steps and questions raised in one) from the rule switchOffReadBack, and Undo brings Reviews back (journey U103).",
+				"Back on, every review, its people, its cadence and what was said are as they were (journey U104)."
+			],
+			"gaps": [
+				"Reviews is a switch, not yet a folder of its own (FT3 moves it): its screens (src/screens/Review.tsx, src/screens/Inspect.tsx, ReviewPrint in src/screens/Print.tsx), its rules (src/domain/review.ts, with offSpell for a session passed while it was off; src/domain/reviewsOff.ts, the read-back's switchOffReadBack; src/domain/decide.ts, the review half of src/domain/onePager.ts, lastTalked in src/domain/goalPage.ts), its actions (saveReview, reviewCall, acceptRisk, markReviewed, unmarkReviewed, endReview and deleteReview in src/domain/actions.ts and src/domain/removal.ts), its menu row (src/domain/navigation.ts) and its table (okr_reviews, migration 0006, with review_id on okr_decisions and okr_requests) are still the core's. Its review actions refuse while it is off in src/app/actions.ts (performAny), and the read-back sheet is drawn by src/screens/Workspace.tsx. This folder holds its routes, its Help article and its AI tools; src/app/reads.ts reviewsOn is the one place that asks whether it is on.",
+				"A review's own records (reviews and what was said in them) are not yet declared as the module's (AS part 2's records extension point is FT3's), so a build without the module still loads and saves them as the core's.",
+				"The walk on a goal's page, Home's review lead and its Next review cell are drawn by core screens, not through places; FT3 adds the places (home.lead, home.glance) and a count for a module's menu item."
+			]
+		}
+	},
+	{
+		id: "spreadsheets",
+		name: "Spreadsheets",
+		summary: "Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.",
+		needs: [],
+		routes: [
+			"/data/import",
+			"/data/import/check",
+			"/data/import/check/changes",
+			"/data/import/done/:importId",
+			"/data/imports"
+		],
+		redirects: [["/import", "/data/import"]],
+		navigation: [],
+		places: [
+			"data.tools",
+			"goals.tools",
+			"help.article"
+		],
+		tables: [],
+		aiTools: ["export", "export_table"],
+		help: [
+			"import",
+			"past-imports",
+			"export",
+			"columns"
+		],
+		requirements: [
+			"EXPORT",
+			"BULK-IMPORT",
+			"IMPORT-ACTIONS",
+			"SPREADSHEETS-ON-DATA",
+			"FIELD-TABLE",
+			"IMPORT-LEVELS",
+			"IMPORT-PREVIEW",
+			"IMPORT-UNDO",
+			"IMPORT-LARGE"
+		],
+		journeys: [
+			"U19",
+			"U20",
+			"U46",
+			"U48",
+			"U87",
+			"U88",
+			"U89",
+			"U94",
+			"U90",
+			"U95",
+			"U96",
+			"F7",
+			"F8",
+			"F17",
+			"N5"
+		],
+		elsewhere: [],
+		rebuild: {
+			"status": "outline",
+			"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Before anything is saved, a preview says which sheets and columns were read and which were not (a column nothing reads is named, never dropped), counts by sheet, then what must be fixed, then the questions, then every change on request with before and after and every default used; the rows to fix download with a Problem column, or are left out with the rows that depend on them while the rest saves. Export is one sheet with one button, Export .xlsx (the other formats behind Other formats), the file’s name shown before it saves and said after; on Data, Export saves the table as shown and Import sits beside it. Every file is named workspace, what, scope (all, the view’s name, or as-shown) and date; the template is faro-template.xlsx. Help’s table of every column. Saving ends on Imported (what was saved from which file, and Undo); every import, bulk edit and change through MCP is one line in Past imports and one entry in Activity (its rows folded under it), and can be undone as a whole by whoever made it or an admin, saying first which rows changed since and stay, and why (core rule: undoing an import). A large file (more than 500 rows) is checked off the page’s thread: after 400 ms, Reading {file} says how far the check has got and what it has found so far, with Stop (“Stopped. Nothing was saved.”); the changes and a question’s rows are drawn 50 at a time; a file that would change more than 5,000 rows is checked, not saved, and offered as {k} files of 5,000 rows, each goal with its plan and check-ins and a goal before the goals that feed into it (core rule: the change engine, Speed). Saving tens of thousands of rows is the platform’s server-side job (internal requirement R11, R-L1 to R-L6); the browser’s preview is advice.",
+			"entry": ["The change engine (stage 2) reads every sheet of the spreadsheet format: Goals, Plan, Check-ins, People and Asks.", "The change engine reports every problem with its kind and level, groups them, and takes answers by group id (core rule: kinds, levels and near misses), so the preview only shows and answers them."],
+			"exit": [
+				"Export from Goals saves one workbook with one press, named {workspace}-goals-all-{date}.xlsx (or the view’s name when filtered); Data’s table as shown is named …-as-shown-{date}, and says first how many rows and columns it holds and which key columns it adds.",
+				"A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged, on any day and at any number of decimal places.",
+				"A workbook with one wrong row saves nothing, and the preview names the row and the problem.",
+				"A file with one row to fix offers the rows to fix as a download, its first column Problem, and leaving them out saves the rest; a new goal left out takes its check-ins and the goals that feed into it with it, each saying why.",
+				"A workbook loaded back with Status edited on two rows changes nothing and says so, and a column nothing reads is named in the file line.",
+				"Fourteen rows with one typo (“Platfrom”) are one question; answered “Use Platform”, all fourteen save as Platform. A name or word one letter out is asked about, never guessed.",
+				"The template loaded straight back changes nothing, and its example rows (Action says Example) are left out and counted.",
+				"The rebuild's field table gives every column the same need, format and example as Faro's (core rule: the field table).",
+				"A file of 5,000 new rows is checked within 8 seconds, and an unedited workbook of 30,000 rows within 20, giving the same result a row-by-row scan would (core rule: the change engine, Speed).",
+				"Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists \"import\" under \"also\").",
+				"An import of 5 goals and 10 check-ins, with one check-in posted on an imported goal since, previews Undo as 14 rows going back and 1 staying, naming who posted the check-in and when; Undo then does exactly that, and Past imports says when and by whom it was undone.",
+				"A file of 6,000 new goals shows Reading with progress and Stop; Stop saves nothing; checked, it offers Download as 2 files of 5,000 rows instead of Save, and the parts load one after the other; while it is checked, the page never stops for more than 200 ms and the preview has fewer than 3,000 elements."
+			],
+			"gaps": ["The format is in the kit: the field table (a core rule page), how each column is read (spec/core/export-format.md), and every kind of issue with its trigger, sentence and answers and every column’s other spellings (spec/core/import-issues.md).", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
+		}
+	}
+];
+// src/core/module.ts
+/**
+* Which modules are on in a workspace: installed, not switched off there, and with everything they need on (so
+* switching one off switches off what depends on it, however deep). A need that isn't installed counts as off.
+*/
+function resolveModules(installed, switchedOff = []) {
+	const ids = new Set(installed.map((m) => m.id));
+	const on = new Set(installed.filter((m) => !switchedOff.includes(m.id)).map((m) => m.id));
+	const off = /* @__PURE__ */ new Map();
+	for (const m of installed) if (switchedOff.includes(m.id)) off.set(m.id, { kind: "switched-off" });
+	for (let changed = true; changed;) {
+		changed = false;
+		for (const m of installed) {
+			if (!on.has(m.id)) continue;
+			const missing = m.needs.filter((n) => !on.has(n) || !ids.has(n));
+			if (missing.length) {
+				on.delete(m.id);
+				off.set(m.id, {
+					kind: "needs",
+					missing
+				});
+				changed = true;
+			}
+		}
+	}
+	return {
+		on,
+		off
+	};
+}
+// src/core/registry.ts
+/** Every module in this build, in id order. */
+var MODULES = _virtual_faro_modules_default;
+/** A module's facts, if this build has it. */
+var moduleById = (id) => MODULES.find((m) => m.id === id);
+/** The modules on in a workspace: in this build, not switched off there, and with what they need on. */
+var modulesOn = (ws) => resolveModules(MODULES, ws?.modulesOff ?? []);
+/** Whether a module is on in a workspace. */
+var isModuleOn = (ws, id) => modulesOn(ws).on.has(id);
+// src/core/records.ts
+/** Every module's records, in module id order. */
+var MODULE_RECORDS = records_default.map((p) => ({
 	...p.part,
 	module: p.id
 }));
-/** The columns the modules add to Goals' rows (?metric=): the app's filters (core/app) and the AI's find_goals read them. */
-var MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => m.goalColumns ?? []);
+/** The columns the modules add to Goals' rows (?metric=), each with its module: the app's filters (core/app) and the AI's
+find_goals read them, and both leave out a switched-off module's column. */
+var MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => (m.goalColumns ?? []).map((c) => ({
+	...c,
+	module: m.module
+})));
 /** The workbook's sheets the modules add (domain/export), in module id order: every module in this build. */
 var MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
-/** The records of the modules switched on in a workspace: what Recently removed lists and restores. A module that's off
-keeps its rows untouched, and none of them is offered back until it is on again. */
-var recordsOn = (ws) => MODULE_RECORDS.filter((m) => !(ws?.modulesOff ?? []).includes(m.module));
+/** The records of the modules on in a workspace: what Recently removed lists and restores, and what a carried copy
+carries. A module that's off, switched off itself or off because something it needs is (fix item F5), keeps its rows
+untouched, and none of them is offered back until it is on again. */
+var recordsOn = (ws) => recordsOf(MODULE_RECORDS, modulesOn(ws).on);
+/** Of some modules' records, those of the modules on (resolveModules' `on`). */
+var recordsOf = (records, on) => records.filter((m) => on.has(m.module));
 /** The workbook's sheets of the modules switched on in a workspace (fix item F2): a module that's off adds no sheet to
 any export (the Export sheet, Data's downloads, the MCP export tool), as it adds nothing else. */
 var sheetsOn = (ws) => recordsOn(ws).flatMap((m) => m.sheets ?? []);
@@ -15067,6 +15501,11 @@ var SHORT_MONTHS = [
 	"Nov",
 	"Dec"
 ];
+/** "Thursday 12 Nov". */
+function longDay(iso) {
+	const d = /* @__PURE__ */ new Date(iso.slice(0, 10) + "T00:00:00Z");
+	return `${LONG_DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${SHORT_MONTHS[d.getUTCMonth()]}`;
+}
 var dayDiff = (from, to) => Math.round((Date.parse(to + "T00:00:00Z") - Date.parse(from + "T00:00:00Z")) / 864e5);
 var SHORT_DAYS = [
 	"Sun",
@@ -16895,7 +17334,7 @@ function activityFilter(a, x) {
 	};
 }
 // src/modules/metrics/help.ts
-var help$5 = [
+var help$2 = [
 	{
 		id: "metrics",
 		title: "Metrics: what each number means",
@@ -17186,7 +17625,7 @@ var help$5 = [
 	}
 ];
 // src/modules/reviews/help.ts
-var help$4 = [{
+var help$1 = [{
 	id: "reviews",
 	title: "Reviews",
 	summary: "A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said.",
@@ -17268,7 +17707,7 @@ var help$4 = [{
 // src/modules/spreadsheets/help.ts
 init_columns();
 init_importLimits();
-var help$3 = [
+var help = [
 	{
 		id: "import",
 		title: "Importing from a spreadsheet",
@@ -17545,15 +17984,15 @@ var help$3 = [
 var help_default = [
 	{
 		id: "metrics",
-		part: help$5
+		part: help$2
 	},
 	{
 		id: "reviews",
-		part: help$4
+		part: help$1
 	},
 	{
 		id: "spreadsheets",
-		part: help$3
+		part: help
 	}
 ];
 // src/help/about.ts
@@ -17633,7 +18072,7 @@ var CORE_ARTICLES = [
 				heading: "When Home has no button",
 				list: [
 					"Before the day your check-ins are due, Home says “Nothing is asked of you today.” and when they are due, with Check in early if you want to get ahead. When asks or proposed goals wait for you, it says so instead (“A proposed goal waits for your response.”).",
-					"Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in on time it adds how many weeks in a row you have been on time, from two weeks.",
+					"Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in, it says what the check-in’s last screen said: whether they were in before the deadline, and how many weeks in a row you have been on time, from two weeks.",
 					"If you own and watch nothing, it says so, with a way to see the goals and to set one up.",
 					"It never tells you about a deadline you met."
 				]
@@ -18017,6 +18456,14 @@ var CORE_ARTICLES = [
 				]
 			},
 			{
+				heading: "When the week’s are all in",
+				text: [
+					"The last screen says whether your check-ins were in before the deadline (“All 4 of your check-ins are in for week 46, before Thursday’s deadline.”; if you are in a review that day, “… before Thursday’s review.”) and, from two weeks, how many weeks in a row you have been on time. If some came after it, it says how many, and when the next are due.",
+					"One late week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. Only you see your run.",
+					"When a check-in takes a goal to its target, the last screen says so quietly, with a way to copy the goal’s share image; when it brings a goal back on track after two weeks or more behind, it says that. The goal’s History marks the week “Reached its target” or “Back on track”. A correction never does."
+				]
+			},
+			{
 				heading: "Who can",
 				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. Anyone can ask the owner for an update from the goal’s page."]
 			}
@@ -18040,7 +18487,9 @@ var CORE_ARTICLES = [
 			"NO-DOUBLE-POST",
 			"DRAFTS",
 			"FIRST-CHECKIN",
-			"HONEST-CHECKIN"
+			"HONEST-CHECKIN",
+			"HABIT-RECEIPT",
+			"HABIT-MOMENT"
 		],
 		keywords: [
 			"update",
@@ -18049,6 +18498,11 @@ var CORE_ARTICLES = [
 			"post",
 			"list",
 			"queue",
+			"streak",
+			"in a row",
+			"forgiven",
+			"target reached",
+			"back on track",
 			"start with",
 			"draft kept",
 			"cause",
@@ -20184,6 +20638,18 @@ var WHATS_NEW = [
 		articles: ["metric-measurement"]
 	},
 	{
+		id: "habit-receipt-and-moment",
+		date: "2026-11-13",
+		title: "Your run forgives one missed week, and reaching a target is said, quietly",
+		points: [
+			"When your week’s check-ins are all in, the last screen says whether they were in before the deadline (or the review, if you are in one that day), and how many weeks in a row you have been on time.",
+			"One late week no longer ends your run: if the four weeks before it were on time, it is forgiven, and the next check-in says so once.",
+			"A check-in that takes a goal to its target says so in one quiet panel, with a way to copy the goal’s share image. One that brings a goal back on track after two weeks or more behind says that too.",
+			"The goal’s History marks those weeks “Reached its target” or “Back on track”."
+		],
+		articles: ["check-in", "home"]
+	},
+	{
 		id: "state-filter-stopped",
 		date: "2026-11-13",
 		title: "Find the goals stopped this year",
@@ -21504,344 +21970,6 @@ var listed = (data) => ({
 	data,
 	text: JSON.stringify(data)
 });
-// \0virtual:faro-modules
-var _virtual_faro_modules_default = [
-	{
-		id: "metrics",
-		name: "Metric library",
-		summary: "Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.",
-		needs: [],
-		routes: [
-			"/metrics",
-			"/metrics/new",
-			"/metrics/:metricId",
-			"/metrics/:metricId/edit"
-		],
-		redirects: [["/data/metrics", "/metrics"]],
-		navigation: ["Metrics"],
-		places: [
-			"goal.facts",
-			"goal.measure",
-			"goal.sections",
-			"people.person",
-			"people.team"
-		],
-		tables: [{
-			"name": "okr_metrics",
-			"migration": "0033_metric_library.sql",
-			"purpose": "The metric library: one row per metric, never deleted (removed_at when removed)."
-		}, {
-			"name": "okr_goal_metrics",
-			"migration": "0033_metric_library.sql",
-			"purpose": "Which metric measures a goal, and for which slice (a team, or the whole company when team_id is null): one row per goal, removed_at when unlinked."
-		}],
-		records: [{
-			"name": "metric",
-			"table": "okr_metrics",
-			"key": "metrics",
-			"removable": true
-		}, {
-			"name": "metric link",
-			"table": "okr_goal_metrics",
-			"key": "metricLinks",
-			"removable": false
-		}],
-		aiTools: [
-			"list_metrics",
-			"get_metric",
-			"save_metric",
-			"remove_metric",
-			"retire_metric",
-			"merge_metrics",
-			"link_goal_metric"
-		],
-		help: [
-			"metrics",
-			"metric-define",
-			"metric-measured-by",
-			"metric-slices",
-			"metric-change",
-			"metric-measurement"
-		],
-		requirements: [
-			"METRICS-LIBRARY",
-			"METRICS-MEASURED-BY",
-			"METRICS-CARE",
-			"METRIC-DEFINED",
-			"METRIC-PARTS",
-			"METRIC-CHANGE",
-			"METRIC-MEASUREMENT"
-		],
-		journeys: [
-			"U81",
-			"U82",
-			"U83",
-			"U145",
-			"U105",
-			"U146",
-			"U106",
-			"F15",
-			"N16",
-			"U152"
-		],
-		elsewhere: [],
-		rebuild: {
-			"status": "outline",
-			"builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric. Defining one well: three things to be usable, the rest said later and named in words (“Fully defined” or “Still to say: …”, never a score), and three questions answered once before saving (a close name, a unit spelt another way, a percentage that doesn’t say out of what), with each Must fix and Check under its field. For, and which part: a link is for a team or the whole company and optionally one part of that number (“tier-1 services”), the parts in use offered under the field; the goal takes the metric’s unit and direction, its target stays its own; another goal on the same number, or a part spelt like one in use, is asked about once; and a goal with check-ins says why it is measured differently, in its History. Looking after one: what it still needs, a confirm before changing a unit or direction goals use, and on Workspace → About how many metrics have no owner. Measurement status: each metric says whether it is measured today (Measured, Partly or Gap, a shape and a word, with what is missing); a gap or a part is listed under To sort out, and a goal measured by a gap is held to no number (the core’s rule over the goal’s own field, which the library fills in when it links the goal and when the metric is measured).",
-			"entry": ["The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.", "Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice."],
-			"exit": [
-				"A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.",
-				"Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.",
-				"A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.",
-				"A metric that has measured a goal can’t be deleted (“Retire it instead.”); one that never has is deleted, and Undo or Recently removed brings it back.",
-				"The demo workspace’s 13 metrics and 12 links load (two of them for one part: CI/CD · main branch pipelines, CI/CD · main pipelines), and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).",
-				"Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there.",
-				"The library finds what each of rule 1’s worked examples says, a metric’s goals are rule 2’s rows in its order, and what a metric needs is rule 3’s, in order: every row of spec/conformance/metrics.csv matches.",
-				"The library is in the menu after People (under More on a phone); the old addresses of Metrics under Data lead to the library, a metric or the form; a metric’s row in the library counts the same goals by status as its page’s table lists (journey U81, checks F15 and N16).",
-				"In New goal, “Measured by” comes first on the measure step: a metric found by typing shows its meaning, fills in the unit, decimals and which way is better on a goal nobody typed them for, measures it for the goal’s team or the whole company, and Check says so; one added there is chosen; a goal with dated stages has none (journey U82, rule 5’s worked examples).",
-				"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first (the read-back, MT3); admins see on Workspace → About how many metrics have no owner (journey U83).",
-				"Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105).",
-				"A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146).",
-				"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples).",
-				"A metric said to be a Gap holds every goal it measures to no number in the same save (the goal says Not measured yet and nothing on it is due); said to be measured, partly or in full, or unlinked, the goal is held to its plan again; the library lists the gap under To sort out."
-			],
-			"gaps": [
-				"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).",
-				"The goals table is where slices side by side and numbers read from the source would grow (growth.md: dimensions an admin defines; numbers from the source).",
-				"Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md."
-			]
-		},
-		growth: [
-			{
-				"idea": "Draft and Ready states",
-				"why": "A metric is usable as soon as it has a name, a unit and a direction, which is all a team needs to start. A review step before anyone can use one would slow the first weeks for little gain at Faro’s size.",
-				"how": "Add a state to the metric (draft, ready), let goals link only to ready ones, and give whoever reviews definitions (a data owner, say) a list of drafts to approve. The rules page’s “who may” paragraph is where the new rule goes."
-			},
-			{
-				"idea": "Versions, with a reason for each change",
-				"why": "Every change is already in the change log, field by field, with who and when, which answers “what did this mean in March?” for now.",
-				"how": "Keep each saved definition as a version with a required reason (as a goal’s plan keeps its earlier plans), show which version a goal’s numbers were read under, and let a reader compare two."
-			},
-			{
-				"idea": "Owner-only editing and other governance",
-				"why": "Owners and admins can change a metric, as with goals. Stricter rules (only the owner, or changes approved by a data steward) need roles Faro doesn’t have.",
-				"how": "Add a steward role per metric or per source, and route changes through an ask to them (the asks model already carries who must respond)."
-			},
-			{
-				"idea": "Dimensions an admin defines, and slices side by side",
-				"why": "A slice is a team or the whole company, which covers how Faro’s goals are set. Other cuts (region, product, tier) and comparing slices need data Faro doesn’t hold.",
-				"how": "Let an admin define dimensions and their values, let a link name any of them, and add a view that lists every goal on one metric by slice, with their targets side by side."
-			},
-			{
-				"idea": "Suggestions and grouping look-alikes for existing goals",
-				"why": "Linking is by hand, by each goal’s owner. Suggesting a metric for a goal, or spotting goals that measure the same thing under different names, needs matching that is easy to get wrong in a demo.",
-				"how": "Compare each unlinked goal’s title, unit and source with the library and suggest the closest metric; group goals whose definitions look alike and offer to link them all to one metric."
-			},
-			{
-				"idea": "“Metric not defined” enforcement",
-				"why": "A goal doesn’t have to be measured by a metric. Requiring one before a goal can be saved would block every workspace that hasn’t built its library yet.",
-				"how": "A workspace setting that makes every number goal need a metric, a flag (like the other attention flags) on goals that have none, and a count on Home for admins."
-			},
-			{
-				"idea": "Loading the Metrics sheet back, and numbers from the source",
-				"why": "The Metrics sheet is written for reading, like Asks and Notes; metrics are added in the app or by an AI assistant. A goal’s numbers still come from its check-ins.",
-				"how": "Give the Metrics sheet match and edit columns and read it through the change engine (stage 2), as People is. Later, read each metric’s number from its source on its refresh cadence and offer it in the check-in."
-			}
-		],
-		finders: ["metric"],
-		filters: ["metric"],
-		toSortOut: true
-	},
-	{
-		id: "reviews",
-		name: "Reviews",
-		summary: "Walk a set of goals together on a cadence, decide what happens next and keep what was said.",
-		needs: [],
-		routes: [
-			"/review",
-			"/reviews",
-			"/reviews/new",
-			"/reviews/:reviewId",
-			"/reviews/:reviewId/edit",
-			"/reviews/:reviewId/summary",
-			"/reviews/:reviewId/print"
-		],
-		redirects: [],
-		navigation: [],
-		places: [],
-		tables: [],
-		aiTools: [
-			"list_reviews",
-			"get_review",
-			"review_call",
-			"unmark_reviewed",
-			"save_review",
-			"end_review",
-			"delete_review"
-		],
-		help: ["reviews"],
-		requirements: [
-			"REVIEW",
-			"REVIEW-SETUP",
-			"REVIEW-RUN",
-			"REVIEW-SPEAK",
-			"REVIEW-DECIDE",
-			"REVIEW-LIST-STATE",
-			"REVIEW-AGENDA",
-			"REVIEWS-OPTIONAL"
-		],
-		journeys: [
-			"U3",
-			"U13",
-			"U30",
-			"U36",
-			"U47",
-			"U49",
-			"U63",
-			"U67",
-			"U79",
-			"U80",
-			"U103",
-			"U104",
-			"N1",
-			"N21"
-		],
-		elsewhere: [],
-		rebuild: {
-			"status": "outline",
-			"builds": "Reviews, as a feature a workspace can switch off. A review walks a set of goals together on a cadence (every 1, 2 or 4 weeks, on a weekday): its agenda puts the goals that need attention first, worst and stalest, and the walk opens each goal's page in turn, where someone in the review marks it reviewed, adds a note, asks the owner a question, agrees a next step with who and by when, or accepts the risk on a goal behind; a goal off track or at risk leaves the walk with a decision. What was said stays on each goal: questions and next steps are asks, open on the owner's Home until answered or done; a held session leads its page with what was said, and prints. Off, Reviews has no menu row or phone tab, no page (its addresses say it is switched off and who can switch it on), no Next review on Home, no Last time we talked or walk on a goal, no review tools for an assistant and no review asked for on Workspace; asks and next steps stay as they are, History keeps what was said, and switching it back on brings every review back as it was. An admin switches it off on Workspace, Features, after a read-back that counts what stays.",
-			"entry": ["The core rules (stage 1) work out each goal's status, flags and attention, and the asks (stage 1: one way to ask): a review reads them and adds nothing to them.", "The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions and AI tools (stage 2)."],
-			"exit": [
-				"Switched off, the menu has no Reviews row and the phone's tabs are Home, Check-in, Goals and People for someone with a goal to check in on, and Home, Goals, People and Activity for anyone else (the two rows of navigation.csv at the address “/ (Reviews off)”).",
-				"Switched off, every review address shows Page not found with “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, a goal's address with ?review= opens the goal without it, and the six review actions and tools refuse with “Reviews is off in {workspace}.” or the switched-off module's sentence (check N21).",
-				"Switched off, Home has no Next review cell and no review lead: someone who owns no goal is led to the goals they watch that need attention (“Goals you watch · {n} need attention · See them”), or to nothing; a question waits by its own age and names no session; the due flag says “Due by Thu 12 Nov.”, on or off.",
-				"Switching off first reads back what stays (the reviews, what was said in them, the open next steps and questions raised in one) from the rule switchOffReadBack, and Undo brings Reviews back (journey U103).",
-				"Back on, every review, its people, its cadence and what was said are as they were (journey U104)."
-			],
-			"gaps": [
-				"Reviews is a switch, not yet a folder of its own (FT3 moves it): its screens (src/screens/Review.tsx, src/screens/Inspect.tsx, ReviewPrint in src/screens/Print.tsx), its rules (src/domain/review.ts, with offSpell for a session passed while it was off; src/domain/reviewsOff.ts, the read-back's switchOffReadBack; src/domain/decide.ts, the review half of src/domain/onePager.ts, lastTalked in src/domain/goalPage.ts), its actions (saveReview, reviewCall, acceptRisk, markReviewed, unmarkReviewed, endReview and deleteReview in src/domain/actions.ts and src/domain/removal.ts), its menu row (src/domain/navigation.ts) and its table (okr_reviews, migration 0006, with review_id on okr_decisions and okr_requests) are still the core's. Its review actions refuse while it is off in src/app/actions.ts (performAny), and the read-back sheet is drawn by src/screens/Workspace.tsx. This folder holds its routes, its Help article and its AI tools; src/app/reads.ts reviewsOn is the one place that asks whether it is on.",
-				"A review's own records (reviews and what was said in them) are not yet declared as the module's (AS part 2's records extension point is FT3's), so a build without the module still loads and saves them as the core's.",
-				"The walk on a goal's page, Home's review lead and its Next review cell are drawn by core screens, not through places; FT3 adds the places (home.lead, home.glance) and a count for a module's menu item."
-			]
-		}
-	},
-	{
-		id: "spreadsheets",
-		name: "Spreadsheets",
-		summary: "Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.",
-		needs: [],
-		routes: [
-			"/data/import",
-			"/data/import/check",
-			"/data/import/check/changes",
-			"/data/import/done/:importId",
-			"/data/imports"
-		],
-		redirects: [["/import", "/data/import"]],
-		navigation: [],
-		places: [
-			"data.tools",
-			"goals.tools",
-			"help.article"
-		],
-		tables: [],
-		aiTools: ["export", "export_table"],
-		help: [
-			"import",
-			"past-imports",
-			"export",
-			"columns"
-		],
-		requirements: [
-			"EXPORT",
-			"BULK-IMPORT",
-			"IMPORT-ACTIONS",
-			"SPREADSHEETS-ON-DATA",
-			"FIELD-TABLE",
-			"IMPORT-LEVELS",
-			"IMPORT-PREVIEW",
-			"IMPORT-UNDO",
-			"IMPORT-LARGE"
-		],
-		journeys: [
-			"U19",
-			"U20",
-			"U46",
-			"U48",
-			"U87",
-			"U88",
-			"U89",
-			"U94",
-			"U90",
-			"U95",
-			"U96",
-			"F7",
-			"F8",
-			"F17",
-			"N5"
-		],
-		elsewhere: [],
-		rebuild: {
-			"status": "outline",
-			"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Before anything is saved, a preview says which sheets and columns were read and which were not (a column nothing reads is named, never dropped), counts by sheet, then what must be fixed, then the questions, then every change on request with before and after and every default used; the rows to fix download with a Problem column, or are left out with the rows that depend on them while the rest saves. Export is one sheet with one button, Export .xlsx (the other formats behind Other formats), the file’s name shown before it saves and said after; on Data, Export saves the table as shown and Import sits beside it. Every file is named workspace, what, scope (all, the view’s name, or as-shown) and date; the template is faro-template.xlsx. Help’s table of every column. Saving ends on Imported (what was saved from which file, and Undo); every import, bulk edit and change through MCP is one line in Past imports and one entry in Activity (its rows folded under it), and can be undone as a whole by whoever made it or an admin, saying first which rows changed since and stay, and why (core rule: undoing an import). A large file (more than 500 rows) is checked off the page’s thread: after 400 ms, Reading {file} says how far the check has got and what it has found so far, with Stop (“Stopped. Nothing was saved.”); the changes and a question’s rows are drawn 50 at a time; a file that would change more than 5,000 rows is checked, not saved, and offered as {k} files of 5,000 rows, each goal with its plan and check-ins and a goal before the goals that feed into it (core rule: the change engine, Speed). Saving tens of thousands of rows is the platform’s server-side job (internal requirement R11, R-L1 to R-L6); the browser’s preview is advice.",
-			"entry": ["The change engine (stage 2) reads every sheet of the spreadsheet format: Goals, Plan, Check-ins, People and Asks.", "The change engine reports every problem with its kind and level, groups them, and takes answers by group id (core rule: kinds, levels and near misses), so the preview only shows and answers them."],
-			"exit": [
-				"Export from Goals saves one workbook with one press, named {workspace}-goals-all-{date}.xlsx (or the view’s name when filtered); Data’s table as shown is named …-as-shown-{date}, and says first how many rows and columns it holds and which key columns it adds.",
-				"A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged, on any day and at any number of decimal places.",
-				"A workbook with one wrong row saves nothing, and the preview names the row and the problem.",
-				"A file with one row to fix offers the rows to fix as a download, its first column Problem, and leaving them out saves the rest; a new goal left out takes its check-ins and the goals that feed into it with it, each saying why.",
-				"A workbook loaded back with Status edited on two rows changes nothing and says so, and a column nothing reads is named in the file line.",
-				"Fourteen rows with one typo (“Platfrom”) are one question; answered “Use Platform”, all fourteen save as Platform. A name or word one letter out is asked about, never guessed.",
-				"The template loaded straight back changes nothing, and its example rows (Action says Example) are left out and counted.",
-				"The rebuild's field table gives every column the same need, format and example as Faro's (core rule: the field table).",
-				"A file of 5,000 new rows is checked within 8 seconds, and an unedited workbook of 30,000 rows within 20, giving the same result a row-by-row scan would (core rule: the change engine, Speed).",
-				"Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists \"import\" under \"also\").",
-				"An import of 5 goals and 10 check-ins, with one check-in posted on an imported goal since, previews Undo as 14 rows going back and 1 staying, naming who posted the check-in and when; Undo then does exactly that, and Past imports says when and by whom it was undone.",
-				"A file of 6,000 new goals shows Reading with progress and Stop; Stop saves nothing; checked, it offers Download as 2 files of 5,000 rows instead of Save, and the parts load one after the other; while it is checked, the page never stops for more than 200 ms and the preview has fewer than 3,000 elements."
-			],
-			"gaps": ["The format is in the kit: the field table (a core rule page), how each column is read (spec/core/export-format.md), and every kind of issue with its trigger, sentence and answers and every column’s other spellings (spec/core/import-issues.md).", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
-		}
-	}
-];
-// src/core/module.ts
-/**
-* Which modules are on in a workspace: installed, not switched off there, and with everything they need on (so
-* switching one off switches off what depends on it, however deep). A need that isn't installed counts as off.
-*/
-function resolveModules(installed, switchedOff = []) {
-	const ids = new Set(installed.map((m) => m.id));
-	const on = new Set(installed.filter((m) => !switchedOff.includes(m.id)).map((m) => m.id));
-	const off = /* @__PURE__ */ new Map();
-	for (const m of installed) if (switchedOff.includes(m.id)) off.set(m.id, { kind: "switched-off" });
-	for (let changed = true; changed;) {
-		changed = false;
-		for (const m of installed) {
-			if (!on.has(m.id)) continue;
-			const missing = m.needs.filter((n) => !on.has(n) || !ids.has(n));
-			if (missing.length) {
-				on.delete(m.id);
-				off.set(m.id, {
-					kind: "needs",
-					missing
-				});
-				changed = true;
-			}
-		}
-	}
-	return {
-		on,
-		off
-	};
-}
-// src/core/registry.ts
-/** Every module in this build, in id order. */
-var MODULES = _virtual_faro_modules_default;
-/** A module's facts, if this build has it. */
-var moduleById = (id) => MODULES.find((m) => m.id === id);
-/** The modules on in a workspace: in this build, not switched off there, and with what they need on. */
-var modulesOn = (ws) => resolveModules(MODULES, ws?.modulesOff ?? []);
-/** Whether a module is on in a workspace. */
-var isModuleOn = (ws, id) => modulesOn(ws).on.has(id);
 // src/spec/overview.ts
 init_thresholds();
 init_vocabulary();
@@ -21928,7 +22056,8 @@ var MORE_RULE_PAGES = [
 	["finding", "Finding things"],
 	["navigation", "Navigation: the menu, the lit item and a page’s name"],
 	["goals-page", "The Goals page: whose goals, how they are grouped, and the switch"],
-	["home", "Home: what is asked of you today"]
+	["home", "Home: what is asked of you today"],
+	["habit", "The habit: the run, the receipt and a moment"]
 ];
 /** The requirements under spec/requirements/internal/ (backlog 8r): what the internal rebuild must do that Faro doesn't
 build, because the company's platform provides the machinery. [file, title, what it says]. */
@@ -22358,6 +22487,15 @@ var WORK_TOOLS = [
 				};
 			});
 			const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today, { reviews: reviewsHere });
+			const wp = weekProgress(me, s, ctx.cycle, ctx.week, ctx.today);
+			const rf = weekCompletion(wp).complete ? receiptFacts(wp, me, s, ctx.cycle, ctx.week, reviewOnDueDay(s.reviews, me, ctx.cycle, reviewsHere)) : null;
+			const weekReceipt = rf ? {
+				...receiptText({
+					...rf,
+					nextDue: rf.nextDue ? longDay(rf.nextDue) : null
+				}),
+				forgivenWeek: rf.forgiven
+			} : null;
 			const glance = {
 				goals: {
 					whose: d.scope,
@@ -22369,6 +22507,7 @@ var WORK_TOOLS = [
 					}))
 				},
 				onTimeStreakWeeks: d.streak,
+				weekReceipt,
 				watching: d.watching ? {
 					goals: d.watching.all.length,
 					needAttention: d.watching.needs.map((a) => a.goal.title),
@@ -22403,6 +22542,7 @@ var WORK_TOOLS = [
 				text: [
 					`Week ${ctx.week} for ${ctx.actor.name}.`,
 					`${d.scope === "mine" ? "Your goals" : "All goals"}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(", ") || "none"}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? "week" : "weeks"}.` : ""}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ""}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ""}`,
+					...weekReceipt ? [[weekReceipt.first, weekReceipt.second].filter(Boolean).join(" ")] : [],
 					`Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.`,
 					`Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask}${when(r)} (${r.id})`).join("; ") : "none"}.`,
 					`Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question}${when(q)} (${q.id})`).join("; ") : "none"}.`,
@@ -22652,7 +22792,7 @@ var WORK_TOOLS = [
 			}
 		},
 		annotations: READ$4,
-		async run(a) {
+		async run(a, ctx) {
 			const brief = (x) => ({
 				id: x.id,
 				title: x.title,
@@ -22660,26 +22800,29 @@ var WORK_TOOLS = [
 				group: GROUPS.find((g) => g.id === x.group)?.title ?? x.group,
 				path: `/help/${x.id}`
 			});
+			const on = modulesOn(ctx.ws).on;
+			const shown = (x) => !!x && (!x.module || on.has(x.module));
 			if (a.id) {
 				const x = articleById(String(a.id));
+				if (x?.module && !on.has(x.module)) return {
+					isError: true,
+					text: `${MODULES.find((m) => m.id === x.module)?.name ?? x.module} is switched off in ${ctx.ws.name}, so its Help isn’t shown there. An admin can switch it on in Workspace, under Features.`
+				};
 				if (!x) return {
 					isError: true,
-					text: `There’s no help article with id ${String(a.id)}. Articles: ${ARTICLES.map((y) => y.id).join(", ")}.`
+					text: `There’s no help article with id ${String(a.id)}. Articles: ${ARTICLES.filter(shown).map((y) => y.id).join(", ")}.`
 				};
 				return {
 					data: {
 						...brief(x),
 						sections: x.sections,
 						routes: x.routes,
-						related: x.related.flatMap((r) => {
-							const y = articleById(r);
-							return y ? [brief(y)] : [];
-						})
+						related: x.related.map(articleById).filter(shown).map(brief)
 					},
 					text: articleText(x)
 				};
 			}
-			const list = a.search ? searchGuide(String(a.search)) : ARTICLES;
+			const list = (a.search ? searchGuide(String(a.search)) : ARTICLES).filter(shown);
 			return listed({
 				articles: list.map(brief),
 				why: list.length ? null : `No help article matches “${String(a.search)}”. Try fewer or plainer words.`
@@ -25808,6 +25951,51 @@ function activeReadBack(goal, c) {
 	if (c.proposer) parts.push(`${first(c.proposer)}${c.watchers ? ` and its ${plural(c.watchers, "watcher")}` : ""} see that it is active.`);
 	return parts.join(" ");
 }
+// src/domain/habit.ts
+init_format();
+/** Whether a value meets a metric goal's target in its direction (up when the target is above the start). */
+function meets(goal, v) {
+	if (goal.kind !== "metric" || goal.plan.target === goal.plan.start) return false;
+	return goal.plan.target > goal.plan.start ? v >= goal.plan.target : v <= goal.plan.target;
+}
+/**
+* Rule 3: what a check-in makes, from the goal's earlier check-ins (any order) and this one. `reached` wins over `back`.
+* Neither fires on a backfilled week; callers leave out corrections and imports, which never reach the receipt and are
+* marked on History's row as corrected (`fresh: false`).
+*/
+function moment(earlier, after, goal, fresh = true) {
+	if (!fresh || after.backfilled || after.removedAt) return null;
+	const byWeek = /* @__PURE__ */ new Map();
+	for (const c of [...earlier].sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt))) if (c.week < after.week && !c.removedAt) byWeek.set(c.week, c);
+	const prior = [...byWeek.values()].sort((a, b) => b.week - a.week);
+	const before = prior[0];
+	if (after.value != null && meets(goal, after.value) && !(before?.value != null && meets(goal, before.value))) return {
+		kind: "reached",
+		behind: 0
+	};
+	if (after.status !== "on" || !before || before.status !== "risk" && before.status !== "off") return null;
+	let behind = 0;
+	for (const c of prior) {
+		if (c.status !== "risk" && c.status !== "off") break;
+		behind++;
+	}
+	return behind >= 2 ? {
+		kind: "back",
+		behind
+	} : null;
+}
+/** The receipt's panel for a moment (spec 2.2): its heading and line. */
+function momentText(m, goal, c, weeks) {
+	const v = c.value == null || goal.kind === "milestone" ? "" : fmt(c.value, goal);
+	if (m.kind === "reached" && goal.kind === "metric") return {
+		heading: `${goal.title} reached its target`,
+		line: `${v}, against a target of ${fmt(goal.plan.target, goal)}, in week ${c.week} of ${weeks}. It started the year at ${fmt(goal.plan.start, goal)}.`
+	};
+	return {
+		heading: `${goal.title} is back on track`,
+		line: `${v ? `${v}, after` : "After"} ${m.behind} weeks behind plan.`
+	};
+}
 // src/mcp/tools.ts
 init_levels();
 init_actions();
@@ -26071,7 +26259,9 @@ async function change(ctx, tables, opts) {
 			text: `Checked, not saved (dry run). Would save: ${what}${createdLine()}`
 		};
 	}
+	const before = ctx.snapshot;
 	await ctx.save(cs.commit);
+	const extra = opts.saved?.(cs, before) ?? null;
 	data.saved = true;
 	data.created = added.map((x) => ({
 		id: x.goalId,
@@ -26083,8 +26273,11 @@ async function change(ctx, tables, opts) {
 		key: keyOf(x.goalId)
 	} : x);
 	return {
-		data,
-		text: `Saved as ${ctx.actor.name}: ${what}${createdLine()}`
+		data: extra ? {
+			...data,
+			...extra.data
+		} : data,
+		text: `Saved as ${ctx.actor.name}: ${what}${createdLine()}${extra ? `\n${extra.text}` : ""}`
 	};
 }
 /** A goal by its ID or its key (G-12). */
@@ -26295,7 +26488,7 @@ var CORE_TOOLS = [
 			});
 			const byId = new Map(rows.goal().summaries.map((s) => [s.goal.id, s]));
 			const cols = Object.entries(asked.cols ?? {}).flatMap(([k, v]) => {
-				const c = MODULE_GOAL_COLUMNS.find((x) => x.param === k);
+				const c = MODULE_GOAL_COLUMNS.find((x) => x.param === k && isModuleOn(ctx.ws, x.module));
 				return c && v ? [{
 					fill: c.fill(ctx.full ?? ctx.snapshot),
 					v
@@ -26472,7 +26665,7 @@ var CORE_TOOLS = [
 		},
 		async run(a, ctx) {
 			const g = goalRef(ctx, a.goal_id);
-			return change(ctx, { checkIns: [row({
+			const r = row({
 				...a,
 				goal_id: g.id,
 				week: a.week ?? ctx.week,
@@ -26491,10 +26684,27 @@ var CORE_TOOLS = [
 				back_on_plan_by_week: "back on plan by week",
 				needs: "needs",
 				next_step: "next step"
-			})] }, {
+			});
+			const saved = (cs, before) => {
+				if (cs.items.some((x) => x.kind === "replaces check-in")) return null;
+				const c = cs.commit?.checkIns?.find((x) => x.goalId === g.id);
+				const m = c && moment(before.checkIns.filter((x) => x.goalId === g.id), c, g);
+				if (!c || !m) return null;
+				const t = momentText(m, g, c, ctx.cycle.weeks);
+				return {
+					data: { moment: {
+						kind: m.kind,
+						heading: t.heading,
+						line: t.line
+					} },
+					text: `${t.heading}. ${t.line}`
+				};
+			};
+			return change(ctx, { checkIns: [r] }, {
 				dry: !!a.dry_run,
 				reason: a.reason,
-				answers: a.answers
+				answers: a.answers,
+				saved
 			});
 		}
 	},

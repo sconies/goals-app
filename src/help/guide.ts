@@ -92,7 +92,7 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'When Home has no button', list: [
         'Before the day your check-ins are due, Home says “Nothing is asked of you today.” and when they are due, with Check in early if you want to get ahead. When asks or proposed goals wait for you, it says so instead (“A proposed goal waits for your response.”).',
-        'Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in on time it adds how many weeks in a row you have been on time, from two weeks.',
+        'Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in, it says what the check-in’s last screen said: whether they were in before the deadline, and how many weeks in a row you have been on time, from two weeks.',
         'If you own and watch nothing, it says so, with a way to see the goals and to set one up.',
         'It never tells you about a deadline you met.',
       ] },
@@ -286,12 +286,17 @@ const CORE_ARTICLES: Article[] = [
         'Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.',
         'The first check-in sets where a goal stands today. If the goal was set up in the last four weeks and the number isn’t where its plan starts, you’re asked: start the plan from this number (same target, due week and shape; no reason needed, with Undo), or keep the plan and say why.',
       ] },
+      { heading: 'When the week’s are all in', text: [
+        'The last screen says whether your check-ins were in before the deadline (“All 4 of your check-ins are in for week 46, before Thursday’s deadline.”; if you are in a review that day, “… before Thursday’s review.”) and, from two weeks, how many weeks in a row you have been on time. If some came after it, it says how many, and when the next are due.',
+        'One late week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. Only you see your run.',
+        'When a check-in takes a goal to its target, the last screen says so quietly, with a way to copy the goal’s share image; when it brings a goal back on track after two weeks or more behind, it says that. The goal’s History marks the week “Reached its target” or “Back on track”. A correction never does.',
+      ] },
       { heading: 'Who can', text: ['Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. Anyone can ask the owner for an update from the goal’s page.'] },
     ],
     routes: ['/check-in', '/check-in/:goalId'],
     screens: ['CheckInFlow', 'CheckInQueue'],
-    reqs: ['CHECK-IN-QUEUE', 'NO-SILENT-ROUNDING', 'CARRY-OVER', 'GREENER', 'REASON-BEHIND', 'REASON-AHEAD', 'PATH-TO-GREEN', 'CHECKIN-STATUS-VS-PLAN', 'ONE-PER-WEEK', 'UPDATE-ANYTIME', 'OWNER-ONLY', 'ONE-ACCOUNT', 'OTHER-CAUSE', 'NO-DOUBLE-POST', 'DRAFTS', 'FIRST-CHECKIN', 'HONEST-CHECKIN'],
-    keywords: ['update', 'weekly', 'number', 'post', 'list', 'queue', 'start with', 'draft kept', 'cause', 'reason', 'path to green', 'recovery', 'still true', 'correct', 'ad hoc', 'stages', 'milestone', 'behind', 'ahead'],
+    reqs: ['CHECK-IN-QUEUE', 'NO-SILENT-ROUNDING', 'CARRY-OVER', 'GREENER', 'REASON-BEHIND', 'REASON-AHEAD', 'PATH-TO-GREEN', 'CHECKIN-STATUS-VS-PLAN', 'ONE-PER-WEEK', 'UPDATE-ANYTIME', 'OWNER-ONLY', 'ONE-ACCOUNT', 'OTHER-CAUSE', 'NO-DOUBLE-POST', 'DRAFTS', 'FIRST-CHECKIN', 'HONEST-CHECKIN', 'HABIT-RECEIPT', 'HABIT-MOMENT'],
+    keywords: ['update', 'weekly', 'number', 'post', 'list', 'queue', 'streak', 'in a row', 'forgiven', 'target reached', 'back on track', 'start with', 'draft kept', 'cause', 'reason', 'path to green', 'recovery', 'still true', 'correct', 'ad hoc', 'stages', 'milestone', 'behind', 'ahead'],
     related: ['check-in-table', 'requests', 'status', 'goal-page'],
   },
   {

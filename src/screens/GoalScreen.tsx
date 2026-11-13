@@ -15,7 +15,6 @@ import { useApp } from '../app/state';
 import { useOlderChanges } from '../app/history';
 import { useSeen } from '../app/goalSeen';
 import { useDraft } from '../app/drafts';
-import { saveFile } from '../app/files';
 import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt } from '../domain/format';
 import { isEveryday, levelName } from '../domain/levels';
@@ -25,6 +24,7 @@ import { planSays } from '../domain/weekChoices';
 
 const capitalFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
+import { moment, MOMENT_RESULT } from '../domain/habit';
 import { goalScorecard, projects, type ScoreCell, type Scorecard } from '../domain/scorecard';
 import { criticalPath } from '../domain/map';
 import { isYear, quarterLabel, quarterOf, quarterResults } from '../domain/year';
@@ -53,7 +53,7 @@ import { useShellTop } from '../ui/shellTop';
 import { useWidth } from '../ui/useWidth';
 import { MOTION_MS, reducedMotion, STORY_MS } from '../ui/motion';
 import { effectOn, landedMoment, openMotionLab, storyOn, storyPace } from '../app/appearance';
-import { shareCardPng, type ShareCard } from '../ui/shareCard';
+import { copyGoalLink, shareGoalImage } from './goalShare';
 import { ArchivedGoalScope } from '../app/state';
 import { isProposed } from '../domain/proposed';
 import { isUnmeasured, UNMEASURED_MEANING } from '../domain/unmeasured';
@@ -433,47 +433,10 @@ function useCompact(slot: RefObject<HTMLDivElement | null>) {
   return s;
 }
 
-/** Share: a PNG of the summary bar and a small chart, with the goal's link; or the link alone. */
+/** Share: a PNG of the summary bar and a small chart, with the goal's link; or the link alone (`./goalShare.ts`). */
 function useShare(goal: Goal, now: string, against: string[], why: string, status: DisplayStatus) {
   const app = useApp();
-  const link = () => `${window.location.origin}${app.mode === 'demo' ? '/demo' : ''}/goals/${goal.key ?? goal.id}`;
-  const copyText = async (text: string) => { try { await navigator.clipboard.writeText(text); return true; } catch { return false; } };
-  return {
-    link: async () => { const ok = await copyText(link()); app.toast(ok ? 'Link copied' : `Couldn’t copy. The link is ${link()}`, ok ? undefined : 'error'); },
-    image: async () => {
-      const owner = app.person(goal.ownerId);
-      const series = valueSeries(app.checkInsOf(goal));
-      const a = assessPosted(goal, app.cycle, app.snapshot.checkIns, app.week);
-      const card: ShareCard = {
-        workspace: app.ws.name.replace(/^Example:\s*/, ''), title: goal.title, owner: owner?.name ?? '',
-        meta: [!isEveryday(app.cycle, goal.level) ? levelName(app.cycle, goal.level) : '', goal.key ?? ''].filter(Boolean).join(' · '),
-        status, statusWord: LABEL[status], now, against: against.join(' · '), why,
-        when: `Week ${app.week} · ${app.today.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`,
-        link: link(),
-        chart: goal.kind === 'metric' && a.kind === 'metric' ? { goal: goal as MetricGoal, weeks: app.cycle.weeks, week: app.week, series, projection: projects(goal, status) ? a.projection : null } : null,
-      };
-      try {
-        const png = await shareCardPng(card);
-        const url = link();
-        let copied = false;
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const CI = (window as any).ClipboardItem as typeof ClipboardItem | undefined;
-          if (CI && navigator.clipboard?.write) {
-            await navigator.clipboard.write([new CI({ 'image/png': png, 'text/plain': new Blob([url], { type: 'text/plain' }) })]);
-            copied = true;
-          }
-        } catch { copied = false; }
-        if (copied) app.toast('Copied an image of this goal, with its link');
-        else {
-          await saveFile({ workspace: app.ws.name, what: 'goal', scope: goal.key ?? goal.title, date: app.today }, { kind: 'png', blob: png });
-          app.toast(await copyText(url) ? 'Saved an image of this goal, and copied its link' : `Saved an image of this goal. Its link is ${url}`);
-        }
-      } catch (e) {
-        app.toast('Couldn’t make the image: ' + (e instanceof Error ? e.message : String(e)), 'error');
-      }
-    },
-  };
+  return { link: () => copyGoalLink(app, goal), image: () => shareGoalImage(app, goal, now, against, why, status) };
 }
 
 /* ---------------------------------------------------------------------------------------------------- next steps and asks */
@@ -1010,12 +973,15 @@ function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere, above, latestWeek }: 
   // A correction that was undone no longer says so: the week reads as it was (review of #225, medium 2).
   const fix = [...app.snapshot.changes].reverse().find((x) => x.entity === 'check-in' && x.entityId === c.id && x.diffs.some((d) => d.field === 'Why corrected') && !(x.importId && importUndone(app.snapshot, x.importId)));
   const why = fix?.diffs.find((d) => d.field === 'Why corrected')?.to;
+  // The moment it made (habit rule 3), in small capitals beside its status: never on a correction or an import.
+  const imported = app.snapshot.changes.some((x) => x.entity === 'check-in' && x.entityId === c.id && x.importId);
+  const m = moment(app.checkInsOf(goal).filter((x) => x.id !== c.id), c, goal, !fix && !imported);
   return (
     <li className={isOpen ? 'is-open' : undefined}>
       <button type="button" className="ci-row" aria-expanded={isOpen} aria-controls={'ci-' + c.id} onClick={() => setOpen(!isOpen)}>
         <span className="strong ci-week"><span className="nowrap">Week {c.week}</span></span>
         <span className="ci-value num">{goal.kind === 'milestone' ? `${assessMilestone(goal, c.week, c.stages).doneCount} of ${goal.stages.length} stages` : c.value == null ? '—' : fmt(c.value, goal)}</span>
-        <Chip k={c.status} />
+        <span className="ci-call"><Chip k={c.status} />{m && <span className={'ci-result ' + (m.kind === 'reached' ? 'is-done' : 'is-on')}>{MOMENT_RESULT[m.kind]}</span>}</span>
         <span className="ci-tail">{above && c.why && c.why !== NO_REASON ? <span className="small muted cilist-why">The reason is above, under Why.</span> : quiet ? <span className="small muted cilist-why">Same reason</span> : sameAs != null ? <span className="small muted cilist-why">{sameAs === latestWeek ? `The same reason as week ${sameAs}, under Why` : sameReasonText(sameAs, sameAsWhere)}</span> : c.why && c.why !== NO_REASON ? <span className="small cilist-why">{c.why}</span> : <span className="small muted cilist-why">{GAP['on-plan'].label}</span>}<Icon name={isOpen ? 'chevron-up' : 'chevron-down'} className="muted ci-chev" /></span>
       </button>
       {fix && <span className="small muted ci-corrected" style={{ display: 'block', gridColumn: '1 / -1', minWidth: 0, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{fix.summary}, by {app.person(fix.actorId)?.name ?? 'someone'}{why ? `: “${why}”` : ''}</span>}

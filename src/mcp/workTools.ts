@@ -9,7 +9,7 @@ import * as A from '../domain/actions';
 import { activityFilter, parseActivity } from '../domain/activity';
 import { attentionList, splitAttention } from '../domain/attention';
 import { cycleDates, cycleState, dayWithYear, wrapUpOpenOn } from '../domain/cycle';
-import { dashboard } from '../domain/home';
+import { dashboard, longDay } from '../domain/home';
 import { askWaiting, homeAsks } from '../app/reads';
 import { ASK_STATUS, ATTENTION, choices, HANDLED_LINE, codeFrom, LABEL, lower, STATUS, withCode } from '../domain/vocabulary';
 import type { Change, DisplayStatus } from '../domain/types';
@@ -21,7 +21,7 @@ export const said = (k: DisplayStatus) => withCode(STATUS[k]);
 /** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
 import { ASK_KIND_LABEL, askText, asksOf, canAnswer, canMarkDone, isOverdue, openForPerson, openUpdateAsk } from '../domain/asks';
 import { reviewSession, watchedGoals } from '../domain/review';
-import { weekProgress } from '../domain/progress';
+import { receiptFacts, receiptText, reviewOnDueDay, weekCompletion, weekProgress } from '../domain/progress';
 import { workbook } from '../domain/export';
 import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { findGoal, isKey } from '../domain/goalKey';
@@ -186,9 +186,14 @@ export const WORK_TOOLS: ToolDef[] = [
       const reviews = !reviewsHere ? [] : s.reviews.filter((r) => r.people.includes(me)).map((r) => { const x = reviewSession(r, s, ctx.cycle, ctx.today, ctx.week); return { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total }; });
       // The strip at the top of Home: their goals by status, their on-time streak, what they watch, their next review.
       const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today, { reviews: reviewsHere });
+      const wp = weekProgress(me, s, ctx.cycle, ctx.week, ctx.today);
+      const rf = weekCompletion(wp).complete ? receiptFacts(wp, me, s, ctx.cycle, ctx.week, reviewOnDueDay(s.reviews, me, ctx.cycle, reviewsHere)) : null;
+      const weekReceipt = rf ? { ...receiptText({ ...rf, nextDue: rf.nextDue ? longDay(rf.nextDue) : null }), forgivenWeek: rf.forgiven } : null;
       const glance = {
         goals: { whose: d.scope, total: d.total, byStatus: d.counts.map((c) => ({ status: c.status, statusLabel: LABEL[c.status], n: c.n })) },
         onTimeStreakWeeks: d.streak,
+        // The check-in's receipt, once every check-in of the week is in (habit spec 2.1): the same two sentences.
+        weekReceipt,
         watching: d.watching ? { goals: d.watching.all.length, needAttention: d.watching.needs.map((a) => a.goal.title), beingHandled: d.watching.handled.map((a) => ({ title: a.goal.title, inHand: a.handled!.text })), noRecentUpdate: d.watching.quiet.length } : null,
         ...(reviewsHere ? { nextReview: d.next ? { id: d.next.id, name: d.next.name, date: d.next.date, day: d.next.weekday } : null } : {}),
       };
@@ -196,6 +201,7 @@ export const WORK_TOOLS: ToolDef[] = [
       const text = [
         `Week ${ctx.week} for ${ctx.actor.name}.`,
         `${d.scope === 'mine' ? 'Your goals' : 'All goals'}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(', ') || 'none'}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? 'week' : 'weeks'}.` : ''}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ''}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ''}`,
+        ...(weekReceipt ? [[weekReceipt.first, weekReceipt.second].filter(Boolean).join(' ')] : []),
         `Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(', ') : 'none'}.`,
         `Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask}${when(r)} (${r.id})`).join('; ') : 'none'}.`,
         `Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question}${when(q)} (${q.id})`).join('; ') : 'none'}.`,
@@ -328,15 +334,19 @@ export const WORK_TOOLS: ToolDef[] = [
       search: str('Words to look for, e.g. "plan change reason". Every word must appear.'),
     } },
     annotations: READ,
-    async run(a) {
+    async run(a, ctx) {
       const brief = (x: Article) => ({ id: x.id, title: x.title, summary: x.summary, group: GROUPS.find((g) => g.id === x.group)?.title ?? x.group, path: `/help/${x.id}` });
+      // As Help does (screens/Help.tsx): a switched-off module's articles aren't offered (module map F3).
+      const on = modulesOn(ctx.ws).on;
+      const shown = (x: Article | undefined): x is Article => !!x && (!x.module || on.has(x.module));
       if (a.id) {
         const x = articleById(String(a.id));
-        if (!x) return { isError: true, text: `There’s no help article with id ${String(a.id)}. Articles: ${ARTICLES.map((y) => y.id).join(', ')}.` };
-        return { data: { ...brief(x), sections: x.sections, routes: x.routes, related: x.related.flatMap((r) => { const y = articleById(r); return y ? [brief(y)] : []; }) }, text: articleText(x) };
+        if (x?.module && !on.has(x.module)) return { isError: true, text: `${MODULES.find((m) => m.id === x.module)?.name ?? x.module} is switched off in ${ctx.ws.name}, so its Help isn’t shown there. An admin can switch it on in Workspace, under Features.` };
+        if (!x) return { isError: true, text: `There’s no help article with id ${String(a.id)}. Articles: ${ARTICLES.filter(shown).map((y) => y.id).join(', ')}.` };
+        return { data: { ...brief(x), sections: x.sections, routes: x.routes, related: x.related.map(articleById).filter(shown).map(brief) }, text: articleText(x) };
       }
       // A list answers as every list does (listed, #249's review): the same keys every time, and why when it's empty.
-      const list = a.search ? searchGuide(String(a.search)) : ARTICLES;
+      const list = (a.search ? searchGuide(String(a.search)) : ARTICLES).filter(shown);
       return listed({ articles: list.map(brief), why: list.length ? null : `No help article matches “${String(a.search)}”. Try fewer or plainer words.` });
     },
   },

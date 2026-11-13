@@ -391,7 +391,8 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await h.fill(p.getByLabel('What happened'), 'The runner budget came through a week early.');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
   // The last post is the only confirmation: what was saved, that the week is done, and a way on.
-  await see(p, `checked in for week ${NOW}`, 'the last post says the week is done');
+  // The receipt (habit spec 2.1): every check-in in, before the review or after it.
+  await see(p, /(Your check-in is|Both of your check-ins are|All \d+ of your check-ins are) in/, 'the last post says the week is done');
   h.set('finish', await p.getByRole('link', { name: 'Back to home' }).isVisible() && await p.getByRole('link', { name: 'View the goal' }).isVisible(), 'no way on from the confirmation');
   await h.checkpoint('done');
   let s = await h.snapshot();
@@ -402,7 +403,8 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await p.reload();
   if (built('reviews')) {
     // Rhea is in no review this week (hers is on Tuesday), so Home says the week is done in one sentence (HM1).
-    await see(p, /(Your check-in is|Both check-ins are|All \d+ check-ins are) in for week/, 'posted check-ins survive a reload, and home says the week is done');
+    // On the day it is completed, Home says the check-in's receipt (habit spec 2.1); on a later day, the week.
+    await see(p, /(Your check-in is|Both (of your )?check-ins are|All \d+ (of your )?check-ins are) in( for week| before|\.)/, 'posted check-ins survive a reload, and home says the week is done');
   } else {
     // Without Reviews, Daniel's question waits by its own age, not for Tuesday's session: nine days, so it leads Home
     // (rule 3), and nothing is left to check in on.
@@ -1553,12 +1555,13 @@ journey('U115', ['CARRY-GOALS'], 'Start 2027 only prepares it: on 21 Dec 2026 th
   s = await h.snapshot('ws_turn');
   h.set('finish', /2027 · week 1 · Q1/.test(jan) && s.cycles.filter((c) => c.name === '2027' && !c.removedAt).length === 1, `on 4 Jan 2027 the frame said “${(jan.match(/20\d\d[^\n]{0,30}/) || [''])[0]}”`);
   h.set('logged', s.changes.filter((c) => c.entity === 'cycle' && c.summary.startsWith('Started 2027')).length === 2);
-  // What came with the goals (CY4): watches, metric links and open asks follow; no stage is due after week 52; no number plan starts late.
+  // What came with the goals (CY4): watches and open asks follow; no stage is due after week 52; no number plan starts late.
+  // A module's records that follow (metric links) are the module's own journey's to check (U152; fix item F6).
   const y27 = s.cycles.find((c) => c.name === '2027' && !c.removedAt);
   const ids27 = new Set(s.goals.filter((g) => g.cycleId === y27.id).map((g) => g.id));
-  const came = (s.watches || []).some((w) => !w.removedAt && ids27.has(w.ref)) && (s.requests || []).some((r) => r.status === 'open' && r.goalIds.some((id) => ids27.has(id))) && (((s.modules || {}).metrics || {}).metricLinks || []).some((l) => !l.removedAt && ids27.has(l.goalId));
+  const came = (s.watches || []).some((w) => !w.removedAt && ids27.has(w.ref)) && (s.requests || []).some((r) => r.status === 'open' && r.goalIds.some((id) => ids27.has(id)));
   const planned = s.goals.filter((g) => ids27.has(g.id)).every((g) => g.kind === 'milestone' ? g.stages.every((x) => x.dueWeek <= 52) : g.kind !== 'metric' || (g.plan.fromWeek || 0) <= 0);
-  h.set('attention', came && planned, `carried goals came without their watches, asks or metric links, or with a plan past week 52 (${came}, ${planned})`);
+  h.set('attention', came && planned, `carried goals came without their watches or asks, or with a plan past week 52 (${came}, ${planned})`);
   // A workspace whose only year is 2027, on 11 Nov 2026: it says when it starts, and nothing is due.
   await p.evaluate((snap) => {
     const c = snap.cycles[0];
@@ -1572,6 +1575,41 @@ journey('U115', ['CARRY-GOALS'], 'Start 2027 only prepares it: on 21 Dec 2026 th
   h.set('parity', /2027 starts on Mon 4 Jan 2027, in 7 weeks\. Nothing is due until then\./.test(before) && !/check-ins? to do|days late|No recent update/.test(before), `a year not begun: “${before.replace(/\s+/g, ' ').slice(0, 200)}”`);
   await p.context().close();
 }, ['budget']);
+
+journey('U152', ['METRICS-MEASURED-BY'], 'Metric links carry over: as Amara, on 21 Dec 2026 Start 2027 on Cycles; every goal carried into 2027 that was measured by a metric in 2026 is measured by the same metric, for the same team and part, in 2027', 4, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/'));
+  await p.locator('.hero').waitFor();
+  // The example copied into a workspace of Amara's own, so it keeps 2026 when the clock moves (as U115 does).
+  await p.evaluate(async () => {
+    const full = await window.__goalsStore.load('platform-org');
+    localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([{ id: 'ws_links', name: 'Links turn', kind: 'own', createdAt: '2026-10-01T00:00:00Z' }]));
+    localStorage.setItem('goals-app-v2:ws_links', JSON.stringify({ ...full }));
+    localStorage.setItem('goals-app-workspace', 'ws_links');
+    localStorage.setItem('goals-app-viewer:ws_links', 'amara');
+  });
+  const on = (day, path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  await p.goto(on('2026-12-21', '/workspace/cycles'));
+  await h.inView(p.getByRole('link', { name: 'Start 2027' }), 'entry', 'Start 2027 on Cycles');
+  await h.click(p.getByRole('link', { name: 'Start 2027' }));
+  await see(p, 'Everyone stays in 2026 until Sun 3 Jan 2027');
+  await h.checkpoint('read-back');
+  await h.click(p.getByRole('button', { name: 'Start 2027' }));
+  await see(p, '2027 is ready');
+  const s = await h.snapshot('ws_links');
+  const y27 = s.cycles.find((c) => c.name === '2027' && !c.removedAt);
+  const links = ((s.modules || {}).metrics || {}).metricLinks || [];
+  const live = (l) => !l.removedAt;
+  // A carried goal keeps its key (G-1, G-2 …): its link is the 2026 goal's with the same key, carried.
+  const was26 = new Map(s.goals.filter((g) => g.cycleId !== y27.id && g.key).map((g) => [g.key, g]));
+  const carried = s.goals.filter((g) => g.cycleId === y27.id && g.key && was26.has(g.key));
+  const from = carried.map((g) => ({ g, was: links.find((l) => live(l) && l.goalId === was26.get(g.key).id), now: links.find((l) => live(l) && l.goalId === g.id) })).filter((x) => x.was);
+  const same = from.every((x) => x.now && x.now.metricId === x.was.metricId && (x.now.teamId || '') === (x.was.teamId || '') && (x.now.part || '') === (x.was.part || ''));
+  h.set('attention', from.length > 0 && same, `of ${from.length} carried goals measured by a metric, ${from.filter((x) => !x.now).length} came without their link and ${from.filter((x) => x.now && x.now.metricId !== x.was.metricId).length} with another metric`);
+  h.set('finish', Boolean(y27), '2027 did not start');
+  h.set('logged', s.changes.some((c) => c.entity === 'cycle' && c.summary.startsWith('Started 2027')), 'starting 2027 was not logged');
+  await p.context().close();
+}, ['budget', 'progress', 'errors']);
 
 journey('U111', ['HONEST-CHECKIN', 'ONE-PER-WEEK'], 'A number that looks wrong is asked about: ten times last week’s blocks Continue until it is answered; Change the number goes back to the field, and the corrected number posts and is compared with last week', 6, async (h, device) => {
   // Rhea's image slimming (ci-docker), due this week. She types ten times last week's number by mistake.
@@ -1643,7 +1681,7 @@ journey('U122', ['HOME-OWNER'], 'The owner’s week on Home: on Monday nothing i
   await p.goto(day('2026-11-11'));
   await hero.waitFor();
   const done = await hero.innerText();
-  h.set('finish', /Both check-ins are in for week 46\./.test(done) && /The next are due by Thursday 19 Nov\./.test(done) && await p.locator('.page.home .btn.primary').count() === 0, `Wednesday’s Home said “${done.replace(/\s+/g, ' ')}”`);
+  h.set('finish', /Both (of your )?check-ins are in (for week 46|before Thursday’s review)/.test(done) && /The next are due by Thursday 19 Nov\./.test(done) && await p.locator('.page.home .btn.primary').count() === 0, `Wednesday’s Home said “${done.replace(/\s+/g, ' ')}”`);
   // Friday 13 Nov: the deadline he met is not said.
   await p.goto(day('2026-11-13'));
   await hero.waitFor();
@@ -5761,6 +5799,40 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
 }, []);
 
 /* Check reads the metric from the draft (build review of #202, findings 2 and 3): a reload keeps it, a new team re-slices it. */
+journey('U151', ['HABIT-MOMENT', 'HABIT-RECEIPT'], 'The habit moment on the receipt: as Valentina on Thursday 5 Nov, her one check-in at 80 (Commitment coverage’s target) shows one panel “… reached its target” with “Copy the share image” and “See the goal”, and the receipt “Your check-in is in for week 45, before Thursday’s deadline.”; the goal’s History marks that week “Reached its target”; as Jonah on Friday 6 Nov (nothing posted for week 45), his check-in says “It came in after Thursday’s deadline.” and no run', 12, async (h, device) => {
+  const on = (path, day) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  const p = h.use(await newPage(device, 'valentina'));
+  await p.goto(on('/check-in/cost-commit', '2026-11-05'));
+  await h.fill(p.getByLabel('This week’s value'), '80');
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Check-in saved');
+  const panel = p.locator('.ci-moment');
+  await see(panel, 'reached its target', 'no panel says the goal reached its target');
+  await see(panel, 'against a target of', 'the panel does not say the target');
+  h.set('finish', await panel.getByRole('button', { name: 'Copy the share image' }).isVisible() && await panel.getByRole('link', { name: 'See the goal' }).isVisible() && await p.locator('.ci-moment').count() === 1, 'the panel has not one share button and one link to the goal');
+  // The due day is a review only for someone in a review held that day (deep review T4); otherwise it is the deadline.
+  await see(p, /Your check-in is in (before Thursday’s review|for week 45, before Thursday’s deadline)\./, 'the receipt does not say it was in before the due day');
+  const said = await p.locator('.celebrate').innerText();
+  h.set('errors', !/lost|broken|!/i.test(said), `the receipt said “${said.replace(/\s+/g, ' ')}”`);
+  await h.checkpoint('reached');
+  await h.click(panel.getByRole('link', { name: 'See the goal' }));
+  await p.waitForURL(/\/goals\//);
+  const result = p.locator('.ci-result').first();
+  await result.waitFor({ timeout: 5000 }).catch(() => undefined);
+  const word = (await result.count()) ? (await result.textContent())?.trim() : '';
+  h.set('logged', word === 'Reached its target', `History’s row says “${word}”`);
+  await h.checkpoint('history');
+  // Friday: the review has passed. The receipt says so, and mentions no run.
+  const q = h.use(await newPage(device, 'jonah'));
+  await q.goto(on('/check-in/cost-storage', '2026-11-06'));
+  await h.fill(q.getByLabel('This week’s value'), '72');
+  await h.click(q.getByRole('button', { name: 'Post check-in' }));
+  await see(q, /It came (after Thursday’s review|in after Thursday’s deadline)\./, 'a check-in after the due day does not say it came after');
+  const late = await q.locator('.celebrate').innerText();
+  h.set('progress', !/in a row|lost|broken/i.test(late), `the late receipt said “${late.replace(/\s+/g, ' ')}”`);
+  await h.checkpoint('late');
+});
+
 journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, a goal stopped with a reason is gone from Goals and listed with the State filter on Stopped (“1 stopped goal, most recently stopped first.”), with the Stopped mark, who stopped it and when, and the reason; the Filters sheet’s State offers Active, Proposed and Stopped; Remove goes back to the active goals', 15, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   const on = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2026-11-11';
