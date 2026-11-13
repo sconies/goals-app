@@ -5167,7 +5167,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `caveats` | string | no | What to watch out for when reading it. |
 | `confirm` | boolean | no | Yes to changing the unit or direction of a metric goals use, once the person has said so. |
 | `answers` | object | no | The person’s answers to the checks a previous call returned. |
-| `answers.name` | string | no | “keep” (mine is different), or “use:<id>” to use that metric instead (nothing is saved). |
+| `answers.name` | string | no | “keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave. |
 | `answers.unit` | one of `keep`, `use` | no | “keep” the unit as typed, or “use” the one in use. |
 | `answers.meaning` | one of `as-written` | no | “as-written”: the meaning is right as written. |
 
@@ -5248,7 +5248,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
       "properties": {
         "name": {
           "type": "string",
-          "description": "“keep” (mine is different), or “use:<id>” to use that metric instead (nothing is saved)."
+          "description": "“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave."
         },
         "unit": {
           "type": "string",
@@ -5283,8 +5283,13 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 - “There’s no metric called or with the ID …. Use list_metrics.”
 - “There’s no one called … in this workspace. Use list_people.”
+- “Answers are words for name, unit or meaning, from the questions you were asked.”
+- “There’s no question about “…”: answers are for name, unit or meaning.”
+- “The answer for … is one of the words the question offered, such as “keep:<id>”, “use” or “as-written”.”
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
 - “Only … or an admin can change this metric.”
+- “Nothing saved: use that metric instead.”
+- “Answer … first: …”
 
 **Does the same as:** [saveMetric](actions.md#savemetric), so it refuses with their words too.
 
