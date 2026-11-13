@@ -1192,9 +1192,7 @@ None: nothing to type or choose here.
 
 **Fields**
 
-| Field | Kind | Shown when |
-|---|---|---|
-| “Find a workspace” | search | `open` and `app.workspaces.length >= 6` |
+None: nothing to type or choose here.
 
 **States**
 
@@ -1204,10 +1202,9 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “… Opening… / … Switch: switch workspace, or set one up” | button | `variant === 'side'` |
-| “Opening … / …, …: switch workspace” | button | `!(variant === 'side')` |
-| “About …” | button | `open` |
-| “Set up a new workspace” | button | `open` |
+| “(…: switch workspace, or set one up)” | button | `variant === 'rail'` |
+| “… Opening… / … Switch: switch workspace, or set one up” | button | `!(variant === 'rail')` and `variant === 'side'` |
+| “Opening … / …, …: switch workspace” | button | `!(variant === 'rail')` and `!(variant === 'side')` |
 
 ### Goals: the table
 

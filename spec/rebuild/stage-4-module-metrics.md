@@ -23,7 +23,7 @@ It keeps records of its own, which the core stores without knowing what they are
 ## Exit criteria
 
 1. Its requirements hold: `METRICS-LIBRARY`, `METRICS-MEASURED-BY`, `METRICS-CARE`, `METRIC-DEFINED`, `METRIC-PARTS`, `METRIC-CHANGE`, `READING-PREFILL`, `READING-RECORDED-ONLY`, `READING-SEVEN-DAYS` (words in [its section](../modules/metrics/README.md#requirements)).
-2. Its journeys and checks can be done: U81, U82, U83, U145, U105, U146, U106, U152, U156, U157, U158, U159, U160, F15, N16 ([its section](../modules/metrics/README.md#journeys-and-checks)).
+2. Its journeys and checks can be done: U81, U82, U83, U145, U105, U146, U106, U152, U156, U157, U158, U159, U160, N28, F15, N16 ([its section](../modules/metrics/README.md#journeys-and-checks)).
 3. A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.
 4. Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.
 5. A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.

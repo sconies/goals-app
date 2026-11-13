@@ -39,6 +39,16 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['check-in', 'metric-slices'],
   },
   {
+    id: 'switch-from-the-narrow-menu',
+    date: '2026-11-13',
+    title: 'Switch workspace from the narrow menu',
+    points: [
+      'With the narrow menu of icons, the Faro mark at its top opens the workspace switcher.',
+      'Nothing is added to the menu, so the rest of it keeps its room on a small screen.',
+    ],
+    articles: ['workspace'],
+  },
+  {
     id: 'look-around-the-demo',
     date: '2026-11-13',
     title: 'Look around the demo from any workspace',
