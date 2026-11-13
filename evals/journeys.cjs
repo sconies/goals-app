@@ -7,6 +7,7 @@
    SHARD=k/n              run shard k of n: journeys by position, platform checks as evals/shards.cjs places them; writes
                           out/journeys-k.json (P5 is left to the merge, which has every shard's console errors) */
 const { chromium } = require('playwright');
+const { withPhoneCpu, PHONE_CPU, PHONE_MAX_WIDTH } = require('./phoneCpu.cjs');
 const fs = require('fs');
 const path = require('path');
 
@@ -6204,9 +6205,15 @@ journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, 
   await p.locator('.goal-bar').first().waitFor();
   await goalMenu(h, p, 'Stop this goal');
   const dlg = p.getByRole('dialog', { name: 'Stop this goal' });
+  h.set('entry', await dlg.isVisible(), 'Stop this goal, in the goal’s menu, opens no dialog');
+  // Without a reason it doesn't stop: it says why it needs one, and the goal is as it was.
+  await h.click(dlg.getByRole('button', { name: 'Stop the goal' }));
+  const refused = await dlg.getByRole('alert').filter({ hasText: 'Say why, in a sentence' }).isVisible().catch(() => false);
+  h.set('errors', refused && !(await h.snapshot()).goals.find((x) => x.id === 'ci-docker')?.stoppedAt, 'stopping without a reason isn’t refused in words, or stops the goal anyway');
   await h.fill(dlg.getByLabel('Why is it stopping?'), 'The platform team took base images over in October.');
   await h.click(dlg.getByRole('button', { name: 'Stop the goal' }));
   await see(p, 'Stopped Base image build time', 'no message that it stopped');
+  h.set('progress', true);
   const snap = await h.snapshot();
   const g = snap.goals.find((x) => x.id === 'ci-docker');
   h.set('logged', !!g?.stoppedAt && g.stoppedBy === 'rhea' && g.stopReason === 'The platform team took base images over in October.', 'the stop wasn’t saved with who and why');
@@ -6214,6 +6221,7 @@ journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, 
   await see(p, 'Filtered by: Stopped', 'the stopped list doesn’t say its filter');
   await see(p, '1 stopped goal, most recently stopped first.', 'the stopped list doesn’t count the stopped goal');
   const row = p.locator('[data-part="Stopped goals"] li').first();
+  await h.inView(row, 'attention', 'the stopped goal’s row');
   const says = (await row.innerText().catch(() => '')).replace(/\s+/g, ' ');
   h.set('finish', says.includes('Base image build time') && says.includes('stopped 11 Nov by Rhea') && says.includes('The platform team took base images over in October.'), `the stopped row reads “${says}”`);
   h.set('a11y', (await row.locator('.life-mark').count()) === 1 && (await row.locator('.status-shape').count()) === 0, 'a stopped row doesn’t draw the Stopped mark, or draws a status shape');
@@ -6221,6 +6229,9 @@ journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, 
   await h.click(p.getByRole('button', { name: 'Remove' }).first());
   await p.waitForURL((u) => !u.search.includes('state=stopped'));
   await p.locator('.goals-line').first().waitFor();
+  // The address changes before the list is drawn again, and the count line is on both, so wait for the stopped list to
+  // go; reading at once counted the old list's row (U150 at 9/10, 13 Nov).
+  await p.locator('[data-part="Stopped goals"]').waitFor({ state: 'detached', timeout: 10000 }).catch(() => {});
   // The goal's rows, not the page's text: the toast that it stopped may still be showing.
   h.set('finish', (await p.locator('main a[href$="/goals/ci-docker"]').count()) === 0, 'the stopped goal is listed among the active goals');
 });
@@ -7335,6 +7346,9 @@ async function platformChecks() {
       await r.goto(url(route));
       await r.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
       await r.reload();
+      // Measured once the screen has loaded (its heading is there), not while the loading skeleton shows: on a slow
+      // phone the skeleton lasts about a second, and a fixed 300 ms measured it instead of the page (phone CPU, 13 Nov).
+      await r.locator('h1').first().waitFor({ timeout: 15000 }).catch(() => {});
       await r.waitForTimeout(300);
       const m = await r.evaluate(() => {
         const W = window.innerWidth;
@@ -7408,7 +7422,9 @@ async function platformChecks() {
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
-  browser = await chromium.launch();
+  // A phone runs as a slow phone, on every run (evals/phoneCpu.cjs).
+  browser = withPhoneCpu(await chromium.launch());
+  console.log(PHONE_CPU > 1 ? `Phone pages (up to ${PHONE_MAX_WIDTH} px) run with the CPU slowed ${PHONE_CPU}×.` : 'Phone pages run at full speed (PHONE_CPU=1).');
   const journeys = [];
   const only = (process.env.ONLY || '').split(',').filter(Boolean);
   const ids = J.map((x) => x.id);
