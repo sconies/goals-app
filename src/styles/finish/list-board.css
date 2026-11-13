@@ -36,12 +36,6 @@
   .goals-toolbar { flex-wrap: wrap; }
   .goals-toolbar > .goals-tabs { flex: 0 0 auto; max-width: 100%; }
 }
-/* So that, where it can, it's still one row: in a frame up to 1200px wide Export these goals is its icon, with its
-   name as the tooltip, as on a phone. The map at 1280×800 keeps its whole height below one row. */
-@container page (min-width: 601px) and (max-width: 1200px) {
-  .goals-page .goals-toolbar .view-bar > .io-buttons .export-these .btn-label { display: none; }
-  .goals-page .goals-toolbar .view-bar > .io-buttons .export-these { min-width: 40px; padding: 0; justify-content: center; }
-}
 /* Phones: one row that scrolls, the fade at its edge, and 16px after the last tab so it can scroll clear of the fade (2). */
 @container app (max-width: 600px) {
   .goals-tabs > .seg.tabs { overflow-x: auto !important; scroll-snap-type: x proximity; scroll-padding-inline: 4px 16px; padding-inline-end: var(--s4); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
@@ -59,16 +53,6 @@
   .goals-page .goals-toolbar .view-bar { flex-wrap: nowrap !important; justify-content: space-between; }
   .goals-page .layout-switch { gap: 0; }
 }
-@container app (max-width: 380px) {
-  .goals-page .goals-toolbar .view-bar > .io-buttons .export-these .btn-label { display: none; }
-  .goals-page .goals-toolbar .view-bar > .io-buttons .export-these { min-width: 44px; padding: 0; justify-content: center; }
-}
-@media (pointer: coarse) {
-  @container app (max-width: 400px) {
-    .goals-page .goals-toolbar .view-bar > .io-buttons .export-these .btn-label { display: none; }
-    .goals-page .goals-toolbar .view-bar > .io-buttons .export-these { min-width: 44px; padding: 0; justify-content: center; }
-  }
-}
 /* A short screen with a mouse (a laptop zoomed to 150%, 853×533): the tabs and the tools share one row, the tabs
    scrolling if they must, Export these goals as its icon, and less space between the rows (8). */
 @media (max-height: 600px) and (pointer: fine) {
@@ -79,8 +63,6 @@
     .goals-page .goals-toolbar > .goals-tabs { flex: 1 1 auto; min-width: 0; }
     .goals-page .goals-tabs > .seg.tabs { padding-inline-end: var(--s4); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
     .goals-page .goals-toolbar .view-bar { flex: none; width: auto; }
-    .goals-page .goals-toolbar .view-bar > .io-buttons .export-these .btn-label { display: none; }
-    .goals-page .goals-toolbar .view-bar > .io-buttons .export-these { min-width: 44px; padding: 0; justify-content: center; }
   }
 }
 

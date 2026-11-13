@@ -9417,6 +9417,17 @@ function stagesFromNow(stages, week, weeks = 52) {
 	const scale = Math.min(1, room / last);
 	return parts.map((p) => p.at == null ? p.name : `${p.name}@${Math.min(weeks, Math.max(0, week) + Math.max(1, Math.round(p.at * scale)))}`).join("; ");
 }
+/** Whether a file's Check-ins sheet has a row for a Goals row (by key, ID or title): a goal with history keeps its weeks. */
+function reportedIn(checkIns) {
+	const low = (v) => (v ?? "").trim().toLowerCase();
+	const keys = /* @__PURE__ */ new Set();
+	for (const c of checkIns ?? []) for (const [col, as] of [
+		["goal key", "k"],
+		["goal id", "i"],
+		["goal", "t"]
+	]) if (low(c[col])) keys.add(as + low(c[col]));
+	return (g) => !!low(g["key"]) && keys.has("k" + low(g["key"])) || !!low(g["id"]) && keys.has("i" + low(g["id"])) || !!low(g["goal"]) && keys.has("t" + low(g["goal"]));
+}
 var init_templates = __esmMin((() => {}));
 // src/domain/problemLevels.ts
 /** Edits between two strings, a swap of two letters counting as one (Damerau, optimal string alignment). */
@@ -9518,7 +9529,7 @@ function groupTitle(kind, sheet, count, first) {
 		case "same-person": return first.message;
 		case "same-goal": return `${n$1(count, "new goal")} ${count === 1 ? "has a name its team already uses" : "have names their teams already use"}: “${v}”. Are they new?`;
 		case "other-goal": return first.message;
-		case "past-stage": return `${n$1(count, "new goal")} ${count === 1 ? "has" : "have"} stages due before this week. Are they done?`;
+		case "past-stage": return first.answers?.[0]?.choice === "from-now" ? `${n$1(count, "new goal")} ${count === 1 ? "has" : "have"} stages due before this week, so ${count === 1 ? "it" : "they"} would start late` : `${n$1(count, "new goal")} ${count === 1 ? "has" : "have"} stages due before this week. Are they done?`;
 		case "past-plan": return `${n$1(count, "new goal")} ${count === 1 ? "has a plan" : "have plans"} that ${count === 1 ? "has" : "have"} already ended`;
 		case "odd-number": return count === 1 ? first.message : `${n$1(count, "number")} look${count === 1 ? "s" : ""} unlikely: ${first.message}`;
 		case "plan-question": return count === 1 ? first.message : `${n$1(count, "plan change")} to check: ${first.message}`;
@@ -9654,7 +9665,15 @@ var init_problemLevels = __esmMin((() => {
 				needsValue: true
 			}
 		],
-		unknownRef: (thing, found, team, admin) => [{
+		/** At set-up (`create`), a person the People sheet lacks: "Add {found}" (set-up adds them to its people) first. */
+		unknownRef: (thing, found, team, admin, create = false) => create && thing === "person" ? [{
+			choice: "add",
+			label: `Add ${found}`
+		}, {
+			choice: "choose",
+			label: "Give it to someone here",
+			needsValue: true
+		}] : [{
 			choice: "choose",
 			label: `Choose a ${thing}`,
 			needsValue: true
@@ -9733,6 +9752,14 @@ var init_problemLevels = __esmMin((() => {
 				label: "Count them from this week"
 			}
 		],
+		/** At set-up, the first chosen unless changed (IM8): stages counted from this week, or kept as typed (and late). */
+		pastStageSetUp: [{
+			choice: "from-now",
+			label: "Count them from this week"
+		}, {
+			choice: "keep",
+			label: "Keep the weeks as typed"
+		}],
 		pastPlan: [{
 			choice: "add",
 			label: "They’re finished goals: add them"
@@ -10150,7 +10177,10 @@ function* planChangesInChunks(input) {
 			if (a?.choice === "use" && nearOne) return { p: nearOne };
 			if (a?.choice === "choose" && a.value) {
 				const again = personFrom(sheet, column, a.value.includes("@") ? "email" : "name", a.value);
-				if (again.p) return again;
+				if (again.p) return {
+					...again,
+					chosen: true
+				};
 			}
 			return {
 				kind: k,
@@ -10185,7 +10215,7 @@ function* planChangesInChunks(input) {
 			return settle("unknown-ref", `No one here has the email ${e}. Add them on the People sheet, or check it.`, {
 				column,
 				found: e,
-				answers: ANSWERS.unknownRef("person", e, false, false)
+				answers: ANSWERS.unknownRef("person", e, false, false, create)
 			});
 		}
 		if (kind === "id") {
@@ -10230,7 +10260,7 @@ function* planChangesInChunks(input) {
 		return settle("unknown-ref", `“${v}” isn’t in this workspace. Add them on the People sheet, or check the spelling.`, {
 			column,
 			found: v,
-			answers: ANSWERS.unknownRef("person", v, false, false)
+			answers: ANSWERS.unknownRef("person", v, false, false, create)
 		});
 	};
 	/**
@@ -10242,17 +10272,31 @@ function* planChangesInChunks(input) {
 		const header = (k) => k === "email" ? cols.name ? `${what} email` : what : k === "id" ? `${what} ID` : what;
 		const given = Object.entries(cols).filter(([, c]) => has(r, c) && ref(r, c)).map(([k, c]) => [k, ref(r, c)]);
 		const says = (k, v) => !!current && (k === "email" ? normalEmail(current.email) === normalEmail(v) : k === "id" ? current.id === v : fold$1(current.name) === fold$1(v) || current.id === v || v.includes("@") && normalEmail(current.email) === normalEmail(v));
-		let changed = given.filter(([k, v]) => !says(k, v));
+		const changed = given.filter(([k, v]) => !says(k, v));
 		if (!changed.length) return {};
-		const exact = changed.filter(([k]) => k !== "name").map(([k, v]) => personFrom(sheet, header(k), k, v).p).find(Boolean);
-		if (exact) changed = changed.filter(([k, v]) => k !== "name" || fold$1(v) !== fold$1(exact.name));
-		const found = changed.map(([k, v]) => ({
+		const read = changed.map(([k, v]) => ({
 			k,
 			v,
 			...personFrom(sheet, header(k), k, v)
 		}));
+		const picked = read.find((x) => x.chosen && x.p);
+		if (picked) return { person: picked.p };
+		const exact = read.find((x) => x.k !== "name" && x.p)?.p;
+		const found = exact ? read.filter((x) => x.k !== "name" || fold$1(x.v) !== fold$1(exact.name)) : read;
 		if (found.some((x) => x.left)) return { left: true };
 		const bad = found.find((x) => x.problem);
+		const nameCell = given.find(([k]) => k === "name")?.[1];
+		if (bad && create && nameCell && !nameCell.includes("@") && bad.extra?.answers?.[0]?.choice === "add") return {
+			kind: bad.kind,
+			problem: bad.problem,
+			extra: {
+				...bad.extra,
+				answers: [{
+					...bad.extra.answers[0],
+					label: `Add ${nameCell}`
+				}, ...bad.extra.answers.slice(1)]
+			}
+		};
 		if (bad) return {
 			kind: bad.kind,
 			problem: bad.problem,
@@ -10679,6 +10723,8 @@ function* planChangesInChunks(input) {
 		return skip;
 	}
 	const fromInDoubt = via !== "mcp" && !(input.tables.goals ?? []).some((r) => has(r, "start"));
+	/** A Goals row the file's Check-ins sheet reports on (create mode's stage question skips it). */
+	const reported = reportedIn(create ? input.tables.checkIns : void 0);
 	const goalRows = (input.tables.goals ?? []).map((r, i) => ({
 		r,
 		row: rowOf(r, i),
@@ -11009,19 +11055,19 @@ function* planChangesInChunks(input) {
 			d.stages = stages;
 		}
 		let doneIds = [];
-		if (!existing && !create && d.kind === "milestone") {
+		if (!existing && d.kind === "milestone" && !(create && reported(r))) {
 			const past = d.stages.filter((st) => {
 				const w = parseNumber(st.dueWeek);
 				return w != null && w < week;
 			});
 			if (past.length) {
-				const marks = mayPostCheckIn({
+				const marks = create || mayPostCheckIn({
 					id: actor.id,
 					admin: admin()
 				}, { ownerId: d.ownerId }, via) ? "" : " " + MARKS_STAGES(people.get(d.ownerId)?.name ?? "Its owner");
-				const a = ask("past-stage", "Goals", row, d.title, `${plural$2(past.length, "stage")} of “${d.title}” ${past.length === 1 ? "is" : "are"} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(", ")}. ${past.length === 1 ? "Is it" : "Are they"} done?${marks}`, {
+				const a = ask("past-stage", "Goals", row, d.title, `${plural$2(past.length, "stage")} of “${d.title}” ${past.length === 1 ? "is" : "are"} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(", ")}${create ? ", so it would start late." : `. ${past.length === 1 ? "Is it" : "Are they"} done?${marks}`}`, {
 					column: "Stages",
-					answers: ANSWERS.pastStage
+					answers: create ? ANSWERS.pastStageSetUp : ANSWERS.pastStage
 				});
 				if (a === "leave") return;
 				if (a?.choice === "done" && !marks) doneIds = past.map((st) => st.id);
@@ -16176,9 +16222,9 @@ var CORE_ARTICLES = [
 				"Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.",
 				"Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.",
 				"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.",
-				"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and a problem is shown on its row before anything is created. A name or word one letter out (an owner typed “Ben Ortz”, a Type of “Numbr”) is a problem to fix here too: set-up doesn’t ask “Did you mean…?” yet, and never leaves a goal out without saying so.",
+				"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and Check shows the same preview Import does before anything is created: how many goals and people the file adds (a goal still to fix counted too), what must be fixed, and its questions, each with its answers. A goal owned by someone nobody typed offers “Add {name}” (they join your people, with the row’s team) or “Give it to someone here”. Create workspace waits until every question is answered.",
 				"Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.",
-				"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, has its stages counted from this week, as a template’s are, so it isn’t late on day one. Check says which goals moved; Keep the weeks as typed puts them back.",
+				"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, is asked about on Check, already answered “Count them from this week” as a template’s are, so it isn’t late on day one. Change, then Keep the weeks as typed, puts them back.",
 				"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
 				"The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.",
 				"Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.",
@@ -16198,7 +16244,8 @@ var CORE_ARTICLES = [
 			"ONBOARDING",
 			"IDENTITY",
 			"WORKSPACES",
-			"CALENDAR-WEEKS"
+			"CALENDAR-WEEKS",
+			"SETUP-UPLOAD"
 		],
 		keywords: [
 			"onboarding",
@@ -17237,6 +17284,7 @@ var CORE_ARTICLES = [
 					"Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.",
 					"Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.",
 					"Change it: the same page as any goal, with no reason ever asked. Withdraw it: it goes to Recently removed for 30 days, with Undo.",
+					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks.",
 					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. Find lists them with the word Proposed.",
 					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active. A goal with check-ins can’t go back to proposed: stop it instead."
 				]
@@ -18613,6 +18661,28 @@ var WHATS_NEW = [
 		title: "Import has a way out again",
 		points: ["Import has “Close without saving” at the top right, as every form does, so on a phone it no longer leaves you with no way back to Data.", "Rows you pasted are asked about first."],
 		articles: ["getting-around", "import"]
+	},
+	{
+		id: "setup-upload-preview",
+		date: "2026-11-13",
+		title: "Set-up checks a spreadsheet as Import does",
+		points: [
+			"A spreadsheet given at set-up ends on Import’s preview: what it adds, what must be fixed, and its questions.",
+			"An owner nobody typed: “Add {name}”, or “Give it to someone here”.",
+			"Stages already due count from this week unless you change it."
+		],
+		articles: ["set-up", "import"]
+	},
+	{
+		id: "proposals-on-home",
+		date: "2026-11-13",
+		title: "Proposals for you show on Home",
+		points: [
+			"A goal someone proposes for you shows on your Home, under Needs your response, until you open it.",
+			"A proposal that has waited 8 weeks or more asks once whether to make it active or withdraw it; Not yet puts it off for 8 more weeks.",
+			"Proposing a goal for someone else now says they will see it on their Home."
+		],
+		articles: ["goal-proposed", "home"]
 	},
 	{
 		id: "range-between-both-limits",

@@ -33,6 +33,28 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['getting-around', 'import'],
   },
   {
+    id: 'setup-upload-preview',
+    date: '2026-11-13',
+    title: 'Set-up checks a spreadsheet as Import does',
+    points: [
+      'A spreadsheet given at set-up ends on Import’s preview: what it adds, what must be fixed, and its questions.',
+      'An owner nobody typed: “Add {name}”, or “Give it to someone here”.',
+      'Stages already due count from this week unless you change it.',
+    ],
+    articles: ['set-up', 'import'],
+  },
+  {
+    id: 'proposals-on-home',
+    date: '2026-11-13',
+    title: 'Proposals for you show on Home',
+    points: [
+      'A goal someone proposes for you shows on your Home, under Needs your response, until you open it.',
+      'A proposal that has waited 8 weeks or more asks once whether to make it active or withdraw it; Not yet puts it off for 8 more weeks.',
+      'Proposing a goal for someone else now says they will see it on their Home.',
+    ],
+    articles: ['goal-proposed', 'home'],
+  },
+  {
     id: 'range-between-both-limits',
     date: '2026-11-13',
     title: 'A range between two numbers weighs both its limits',
