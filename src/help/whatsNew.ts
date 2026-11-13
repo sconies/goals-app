@@ -33,6 +33,18 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['check-in', 'data'],
   },
   {
+    id: 'range-between-both-limits',
+    date: '2026-11-13',
+    title: 'A range between two numbers weighs both its limits',
+    points: [
+      'A number moving back towards the middle of its range now reads as getting better, from either side, in its trend, “Vs last week” and the attention flags.',
+      '“Will it stay within?” answers for whichever limit the number is likelier to cross, not only the nearer one.',
+      'On a narrow range the chart’s Upper and Lower labels no longer sit on each other, and a quarter ended inside the range names both limits.',
+      'In a spreadsheet, two numbers in Limit with Must stay saying At most or At least now ask whether you meant Between.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
     id: 'metric-part',
     date: '2026-11-13',
     title: 'Measure a goal by one part of a number',
