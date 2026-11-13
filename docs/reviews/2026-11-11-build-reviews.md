@@ -120,6 +120,8 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #285 ST1: welcome and join | 2 | 0 | 3 | 7 |
 | #287 U93: the two review findings | 2 | 0 | 0 | 0 |
 | #283, #284 KT7 and KT8: the kit; #279 journeys | 6, evals | 0 | 0 | 0 |
+| #281 MT1: defining a metric well | metrics | 0 | 2 | 6 |
+| #299 MT2: migration 0043 | metrics | 0 | 0 | 2 |
 | #293 GE10 review: the four findings from #270 | 2 | 0 | 0 | 1 |
 | #294 Track 7 review fixes (#242, #249, #239) | MCP load | 0 | 0 | 0 |
 | #291, #295, #296, #304, #307 KT9, KT10 and KT6: the kit | 6 | 0 | 0 | 0 |
@@ -1273,3 +1275,25 @@ After a save the MCP server reads each new goal's key back from the database (`D
 ### #291, #295, #296, #304 and #307 KT9, KT10 and KT6: the kit; #278, #289, #301 and #311 handovers
 
 The spec's limits, logical model, zones, scale kit and reads as data, and `evals/requirements.json` re-tagged. They change the generator, the drill and a seed script, not the app's behaviour. Skimmed, not reviewed in depth. The rest are documents. No finding.
+
+### #281 MT1: defining a metric well (metrics, merged 22:01 UTC, 12 Nov)
+
+Read first by a reviewing session with probes, `save_metric` and the form on screen at 1440 and 390; I re-read the code behind the two mediums on main at `b753ef19`. No high finding. The form and `save_metric` both call `metricChecks` and `unansweredChecks`; a unit or direction change on a metric with live links is now asked at both (#144's medium 2); permissions hold at both.
+
+**1. Medium (ran). The goal forms' "Add this metric" is a third door that asks none of rule 1's Checks.** `MeasuredBy.tsx:109-113` runs `saveMetric` directly; the Checks are called only from the form and the tool, not from the action. Adding "Flaky tests rate" in "percent" from a goal's Measured by saved at once, where `/metrics/new` and `save_metric` raise three Checks for the same input. Fix: put the gate in `saveMetric` (take `answers`, refuse with the open checks), so every door inherits it.
+
+**2. Medium (ran). A name that differs from another only by an accent gets neither a Must fix nor a Check, at both doors.** The near-name Check skips names equal once folded, expecting the Must fix to catch them (`rulesDefine.ts:89`); the Must fix compares lower case only (`rules.ts:145`). "Fláky test rate" was added beside "Flaky test rate" with no question. Fix: make the Must fix compare folded names.
+
+**Lows.**
+- `save_metric` accepts answers nobody was asked for: a first call with `answers` or `confirm: true` saves in one step (an answer is tied to a field, not to the question).
+- It puts the questions to someone who may not change the metric, and refuses only once they answer.
+- `answers {name: 5}` leaks "answers.name?.startsWith is not a function".
+- Answering a Check on the form drops focus to the page body.
+- An answered Check is recorded neither with the draft nor in the change log (read; the spec does not ask).
+- "Lower is better" and "Higher is better" are 40 px high on touch (older).
+
+### #299 MT2: migration 0043 (metrics, merged 23:41 UTC, 12 Nov)
+
+Run on PGlite after 0001 to 0042 by the same reviewing session. Six columns and three named checks, all in `faro`; a catalogue diff shows nothing added or changed anywhere else; two further runs change nothing; it runs as a non-superuser owner with `search_path` faro; 0035's redirects still select, insert and update; main's row shape still saves, and nothing on main reads the new columns yet. Not tested against Supabase. No high or medium.
+
+- Low. `part`, `retired_why` and `marks` are NOT NULL and `okr_upsert` writes whatever a row carries, so MT2's code must write `''` and `[]`, never null, when a metric is brought back. Low. The column grants repeat what the table grants already give.
