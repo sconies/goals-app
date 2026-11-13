@@ -5,51 +5,12 @@ import { ASK_KIND, ASK_STATUS, SESSION } from './vocabulary';
 import { daysSince, firstWeekFrom, weekDate } from './plan';
 import { checkInsFor, RANK } from './status';
 import { asksOf, isResolved } from './asks';
-import type { Ask, Cycle, Decision, Goal, Level, Person, Review, Snapshot, Watch } from './types';
-
-/** A goal and every goal feeding it, at any depth. */
-export function treeOf(rootId: string, goals: Goal[]): Goal[] {
-  const out: Goal[] = [];
-  const seen = new Set<string>();
-  const walk = (id: string) => {
-    const g = goals.find((x) => x.id === id);
-    if (!g || seen.has(id)) return;
-    seen.add(id);
-    out.push(g);
-    for (const c of goals.filter((x) => x.parentId === id)) walk(c.id);
-  };
-  walk(rootId);
-  return out;
-}
-
-/** The goals a set of picks covers: single goals, whole trees and whole levels, each once. */
-export function goalsIn(scope: { goals: string[]; trees: string[]; levels: Level[] }, goals: Goal[]): Goal[] {
-  const ids = new Set<string>([...scope.goals, ...scope.trees.flatMap((t) => treeOf(t, goals).map((g) => g.id))]);
-  for (const g of goals) if (scope.levels.includes(g.level)) ids.add(g.id);
-  return goals.filter((g) => ids.has(g.id));
-}
-
-/** What a person watches, as the same kind of scope a review uses. */
-export function watchScope(personId: string, watches: Watch[]) {
-  const mine = watches.filter((w) => w.personId === personId);
-  return {
-    goals: mine.filter((w) => w.kind === 'goal').map((w) => w.ref),
-    trees: mine.filter((w) => w.kind === 'tree').map((w) => w.ref),
-    levels: mine.filter((w) => w.kind === 'level').map((w) => w.ref as Level),
-  };
-}
-
-export function watchedGoals(personId: string, s: Snapshot): Goal[] {
-  return goalsIn(watchScope(personId, s.watches), s.goals);
-}
-
-/** How a person is watching a goal, if they are: directly, through a tree, or through its level. */
-export function watchOf(personId: string, goal: Goal, s: Snapshot): Watch | 'via' | null {
-  const mine = s.watches.filter((w) => w.personId === personId);
-  const direct = mine.find((w) => (w.kind === 'goal' || w.kind === 'tree') && w.ref === goal.id);
-  if (direct) return direct;
-  return goalsIn(watchScope(personId, s.watches), s.goals).some((g) => g.id === goal.id) ? 'via' : null;
-}
+import type { Ask, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
+import { goalsIn } from './watch';
+// Watching's rules moved to watch.ts and "Thu 5 Nov" to format.ts (FT2); they are said here too for one release.
+export { coveringWatches, goalsIn, treeOf, watchedGoals, watchOf, watchScope } from './watch';
+import { dayText } from './format';
+export { dayText };
 
 /** The week of a review's current session: this week if it's held this week, otherwise the next week it is. */
 export function sessionWeek(r: Review, week: number, cycle?: Cycle): number {
@@ -153,8 +114,6 @@ export function sessionToDo(ss: ReviewSession, s: Pick<Snapshot, 'checkIns'>, we
   return s.checkIns.some((c) => ids.has(c.goalId) && !c.removedAt);
 }
 
-/** "Thu 5 Nov", from yyyy-mm-dd or a full timestamp. */
-export const dayText = (iso: string) => new Date(iso.slice(0, 10) + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 /**
  * Where a review's current session stands. Held means every goal in it has been marked reviewed; it is held on the
@@ -301,13 +260,6 @@ export function answerOf(d: Said): { text: string; at: string; byId: string } | 
   return { text: a.answer || (a.status === 'done' ? ASK_STATUS.done.label : ''), at: a.answeredAt ?? a.updatedAt, byId: a.answeredBy ?? '' };
 }
 
-/** The tree and level watches that cover a goal for a person, not counting a watch on the goal itself. */
-export function coveringWatches(personId: string, goal: Goal, s: Snapshot): Watch[] {
-  return s.watches.filter((w) => w.personId === personId && (
-    (w.kind === 'level' && w.ref === goal.level) ||
-    (w.kind === 'tree' && w.ref !== goal.id && treeOf(w.ref, s.goals).some((g) => g.id === goal.id))));
-}
-
 /* ---------- Who may speak for a review (RV7: docs/design/reviews/spec.md section 3, Lane's decision 1) ---------- */
 
 /**
@@ -329,4 +281,48 @@ export function joinLine(r: Pick<Review, 'people' | 'createdBy'>, nameOf: (id: s
   const shown = names.slice(0, 6);
   const who = !shown.length ? 'An admin' : `${shown.join(', ')}${names.length > 6 ? ` and ${names.length - 6} more` : ''} or an admin`;
   return `You’re not in this review. ${who} can add you.`;
+}
+
+/* ---------- Switching Reviews off (FT2: docs/design/feature-toggles/spec.md 4.2) ---------- */
+
+/** What switching Reviews off keeps, counted for the read-back an admin sees first. */
+export interface ReviewsReadBack {
+  /** Everyone here: "For all {n} people here". */
+  people: number;
+  /** Reviews set up and not ended or removed: they leave the menu, and stay in the record. */
+  reviews: number;
+  /** Things said or marked in reviews: the changes Activity counts under Reviews. */
+  said: number;
+  /** Open next steps agreed in a review: they stay open on their goals and on Home. */
+  steps: number;
+  /** Open questions raised in a review: they stay open and no longer name a session. */
+  questions: number;
+}
+
+/**
+ * Rule (FT2). What the read-back before switching Reviews off counts, from what it reads: everyone here; reviews not
+ * removed or ended; the changes with entity review or decision (the number Activity shows under Reviews); and the open
+ * next steps and open questions raised in a review. Nothing here is changed by switching off: the counts are what stays.
+ */
+export function switchOffReadBack(reads: { people: readonly { removedAt?: string | null }[]; reviews: readonly Pick<Review, 'endedAt' | 'removedAt'>[]; changes: readonly { entity: string }[]; asks: readonly Pick<Ask, 'kind' | 'status' | 'reviewId'>[] }): ReviewsReadBack {
+  const open = (kind: Ask['kind']) => reads.asks.filter((a) => a.kind === kind && a.status === 'open' && !!a.reviewId).length;
+  return {
+    people: reads.people.filter((p) => !p.removedAt).length,
+    reviews: reads.reviews.filter((r) => !r.removedAt && !r.endedAt).length,
+    said: reads.changes.filter((c) => c.entity === 'review' || c.entity === 'decision').length,
+    steps: open('action'),
+    questions: open('question'),
+  };
+}
+
+/** The read-back's lines, in order: the first and last always, each other only when its count is above nought. */
+export function switchOffLines(r: ReviewsReadBack): { strong: string; rest: string }[] {
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
+  return [
+    { strong: 'Reviews leaves the menu', rest: ', and Home’s “Next review”.' },
+    ...(r.reviews ? [{ strong: `${n(r.reviews, 'review stays', 'reviews stay')} in the record`, rest: `${r.said ? `, with the ${n(r.said, 'thing', 'things')} said or marked in ${r.reviews === 1 ? 'it' : 'them'}` : ''}. Each goal’s History still shows ${r.reviews === 1 ? 'it' : 'them'}.` }] : []),
+    ...(r.steps ? [{ strong: `${n(r.steps, 'open next step', 'open next steps')} agreed in a review ${r.steps === 1 ? 'stays' : 'stay'} open`, rest: ' on their goals and on Home.' }] : []),
+    ...(r.questions ? [{ strong: `${n(r.questions, 'question', 'questions')} waiting for a review`, rest: ` ${r.questions === 1 ? 'stays' : 'stay'} open; ${r.questions === 1 ? 'it no longer names' : 'they no longer name'} a session.` }] : []),
+    { strong: '', rest: 'Nothing is deleted. Switch Reviews back on and every review is as it was.' },
+  ];
 }

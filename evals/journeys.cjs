@@ -4687,6 +4687,116 @@ journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadshe
   await p.context().close();
 }, ['entry']);
 
+/** The visible menu's items (the sidebar on a computer, the tab bar on a phone) as their words. */
+const menuWords = async (p, device) => (await p.locator(device === 'phone' ? 'nav.tabbar a, nav.tabbar button' : 'nav.side a.nav').allInnerTexts()).map((t) => t.trim().split('\n')[0]);
+
+journey('U103', ['REVIEWS-OPTIONAL', 'MODULES', 'HOME-OWNER'], 'Amara switches Reviews off: the read-back names what stays, then Reviews leaves the menu, Home and the goal page, its addresses say it is off, History keeps what was said, and Undo brings it all back', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/workspace/features'));
+  const box = p.getByRole('checkbox', { name: /^Reviews/ });
+  await box.scrollIntoViewIfNeeded();
+  h.set('attention', await box.isChecked() && await see(p, 'How you work').then(() => true, () => false) && await see(p, '6 reviews are set up.').then(() => true, () => false), 'Features does not show Reviews under How you work, on, with “6 reviews are set up.”');
+  await h.checkpoint('features');
+  // Switching off asks first: the read-back counts what stays.
+  await h.click(box);
+  const sheet = p.getByRole('dialog', { name: /Switch off Reviews in/ });
+  await sheet.waitFor();
+  const says = await sheet.innerText();
+  if (!/6 reviews stay in the record/.test(says)) fail(`the read-back does not name the 6 reviews: ${says.slice(0, 300)}`);
+  if (!/Nothing is deleted\. Switch Reviews back on and every review is as it was\./.test(says)) fail('the read-back does not say nothing is deleted');
+  // Cancel changes nothing.
+  await sheet.getByRole('button', { name: 'Cancel' }).click();
+  if (!(await box.isChecked())) fail('Cancel switched Reviews off');
+  await h.click(box);
+  await h.click(p.getByRole('dialog', { name: /Switch off Reviews in/ }).getByRole('button', { name: 'Switch off Reviews' }));
+  await see(p, 'Reviews is off in');
+  await see(p, 'Nothing it saved is lost.');
+  h.set('one-action', true);
+  // Gone from the menu (and the phone's tabs).
+  await p.goto(url('/'));
+  await p.locator('.page.home').waitFor();
+  const menu = await menuWords(p, device);
+  if (menu.some((t) => /^Reviews/.test(t))) fail(`the menu still has Reviews: ${menu.join(', ')}`);
+  if (device === 'phone' && !menu.some((t) => /^People/.test(t))) fail(`the phone’s tabs have no People in Reviews’ place: ${menu.join(', ')}`);
+  // Home leads Amara, who owns no goals, to the goals she watches that need attention; no review cell.
+  const lead = p.locator('[data-part="This week’s main action"]');
+  await lead.waitFor();
+  const leadText = await lead.innerText();
+  if (!/Goals you watch/.test(leadText) || !/\d+ needs? attention/.test(leadText)) fail(`Home’s lead is not “Goals you watch · {n} need attention”: ${leadText}`);
+  if (!(await lead.getByRole('link', { name: 'See them' }).count())) fail('Home’s lead has no See them');
+  if (await p.locator('.dash-review').count()) fail('Home still shows a review cell');
+  if (/review/i.test(await p.locator('[data-part="Home"]').innerText().then((t) => t.split('\n').filter((l) => !/History|Activity/.test(l)).join('\n')))) fail('Home still says “review” somewhere');
+  // A review's address says it is off, and who can switch it on.
+  await p.goto(url('/reviews'));
+  await see(p, 'Page not found');
+  await see(p, 'Reviews is switched off in', 'the Reviews address does not say Reviews is switched off');
+  await p.goto(url('/goals/ns-lead?review=weekly'));
+  await p.waitForURL((u) => !/[?&]review=/.test(u.search), { timeout: 5000 }).catch(() => fail('a goal opened in a review’s walk kept ?review='));
+  // The goal's History still has what was said in the review, and its open next step is still on Home.
+  await p.goto(url('/goals/ns-lead?history=reviews'));
+  const hist = p.locator('#history');
+  await hist.waitFor();
+  const kept = /Platform leadership weekly/.test(await hist.innerText());
+  if (await p.locator('[data-part="Review notes"]').count()) fail('the goal still shows Last time we talked');
+  await p.goto(url('/'));
+  await p.locator('.page.home').waitFor();
+  const step = p.locator('.home-side').getByText('Take the runner budget to the finance review', { exact: false });
+  const stepThere = await step.first().isVisible().catch(() => false);
+  h.set('finish', kept && stepThere, `with Reviews off: History ${kept ? 'keeps' : 'lost'} what the review said; the next step is ${stepThere ? 'still' : 'no longer'} on Home`);
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.entity === 'workspace' && c.actorId === 'amara' && c.summary === 'Switched off Reviews'), 'switching Reviews off was not logged');
+  // Switching on acts at once; off again, then Undo straight after, brings it back.
+  await p.goto(url('/workspace/features'));
+  await box.scrollIntoViewIfNeeded();
+  await h.click(box);
+  await see(p, 'Reviews is on in');
+  await h.click(box);
+  await h.click(p.getByRole('dialog', { name: /Switch off Reviews in/ }).getByRole('button', { name: 'Switch off Reviews' }));
+  await see(p, 'Reviews is off in');
+  await p.getByRole('button', { name: 'Undo' }).last().click();
+  await see(p, 'Reviews is back on.');
+  if (!(await box.isChecked())) fail('Undo said Reviews is back on and left it off');
+  await p.goto(url('/reviews'));
+  await see(p, 'Platform leadership weekly', 'Reviews did not come back with every review');
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['entry', 'parity']);
+
+journey('U104', ['REVIEWS-OPTIONAL', 'MODULES'], 'Reviews off, then back on: off, Home is Home without reviews; back on, every review is as it was, and none whose date passed while it was off says Not held yet', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/reviews'));
+  const before = (await p.locator('main').innerText()).match(/Platform leadership weekly|Quarterly business review/g)?.length ?? 0;
+  await p.goto(url('/workspace/features'));
+  const box = p.getByRole('checkbox', { name: /^Reviews/ });
+  await box.scrollIntoViewIfNeeded();
+  await h.click(box);
+  await h.click(p.getByRole('button', { name: 'Switch off Reviews' }));
+  await see(p, 'Reviews is off in');
+  await h.checkpoint('off');
+  await p.goto(url('/'));
+  await p.locator('.page.home').waitFor();
+  h.set('attention', !(await p.locator('.dash-review').count()) && !/Not held yet|Review today|Open the review/.test(await p.locator('[data-part="Home"]').innerText()), 'Home with Reviews off still names a review');
+  // Back on: switching on acts at once.
+  await p.goto(url('/workspace/features'));
+  await box.scrollIntoViewIfNeeded();
+  await h.click(box);
+  await see(p, 'Reviews is on in');
+  h.set('one-action', true);
+  await p.goto(url('/reviews'));
+  await p.locator('main').waitFor();
+  const after = (await p.locator('main').innerText()).match(/Platform leadership weekly|Quarterly business review/g)?.length ?? 0;
+  await p.goto(url('/'));
+  await p.locator('.page.home').waitFor();
+  const notHeld = /Not held yet/.test(await p.locator('[data-part="Home"]').innerText());
+  h.set('finish', after === before && after > 0 && !notHeld, `back on: Reviews lists ${after} of the ${before} it listed before${notHeld ? '; Home says a session is Not held yet' : ''}`);
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.entity === 'workspace' && c.summary === 'Switched off Reviews') && s.changes.some((c) => c.entity === 'workspace' && c.summary === 'Switched on Reviews'), 'switching Reviews off and on was not logged');
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['entry', 'parity']);
+
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals?scope=all'));

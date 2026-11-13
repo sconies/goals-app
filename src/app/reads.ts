@@ -16,10 +16,30 @@ import { onTimeStreak, reviewDate, weekProgress } from '../domain/progress';
 import { hasEnded, weekDate, weekDates } from '../domain/plan';
 import { beforeStart, cycleDates, wrapUpOpenOn } from '../domain/cycle';
 import { openForPerson } from '../domain/asks';
+import { attentionFor, needsAttention } from '../domain/attention';
 import type { QueryContext } from '../domain/query';
 import type { LocalRows } from '../adapters/localSearch';
 
 const live = <T extends { removedAt?: string | null }>(xs: T[]) => xs.filter((x) => !x.removedAt);
+
+/**
+ * Whether Reviews is on (FT2): the one place that names the reviews module. Screens pass `useModules().on`, the MCP
+ * server and the dispatcher `modulesOn(ws).on`; the rules in src/domain take the answer as `reviews: boolean`. A build
+ * without the module (FARO_WITHOUT=reviews) answers false. FT3 moves Reviews' code into its folder and retires this.
+ */
+export const reviewsOn = (on: ReadonlySet<string>): boolean => on.has('reviews');
+
+/**
+ * The day Reviews was last switched back on (yyyy-mm-dd), from the change log setModule writes, or null when it never
+ * was: a session whose date passed while it was off is not "Not held yet" (FT2). No stored date is needed.
+ */
+export function reviewsBackOn(changes: readonly { entity: string; at: string; diffs: readonly { field: string; to: string }[] }[]): string | null {
+  const c = changes.filter((x) => x.entity === 'workspace' && x.diffs.some((d) => d.field === 'Reviews' && d.to === 'On')).reduce<string | null>((m, x) => (!m || x.at > m ? x.at : m), null);
+  return c ? c.slice(0, 10) : null;
+}
+
+/** What a review action says when Reviews is off (FT2, spec 1.2). */
+export const reviewsOffWords = (workspace: string) => `Reviews is off in ${workspace}.`;
 
 /** Every goal's summary row, with what the Goals filters need beyond it. */
 export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns']): GoalRows {
@@ -74,7 +94,9 @@ export function dayOneRows(s: Pick<Snapshot, 'people' | 'goals' | 'checkIns' | '
  * Home's facts (docs/design/home/spec.md rule 1): what the lead and the quiet line read, from the rules that already
  * say each thing (weekProgress, onTimeStreak, reviewSession, the wrap-up's dates). `draft` says a check-in draft is kept.
  */
-export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot }; opened?: ReadonlySet<string> }): HomeFacts {
+export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot }; opened?: ReadonlySet<string>; reviews?: boolean }): HomeFacts {
+  // Reviews switched off (FT2): no session leads or names a day, and no ask names a review.
+  const reviews = opts.reviews !== false;
   const day = today.toISOString().slice(0, 10);
   const p = weekProgress(viewerId, s, cycle, week, today);
   const mine = s.goals.filter((g) => g.ownerId === viewerId);
@@ -84,8 +106,10 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   const allIn = p.goals.length > 0 && p.done.length >= p.goals.length;
   const dueDate = reviewDate(cycle, Math.max(1, week));
   // Once the year has ended no session is held in it: a "Not held yet" lead would never go (HM1 review).
-  const sessions: HomeSession[] = ended ? [] : s.reviews.filter((r) => r.people.includes(viewerId)).map((r) => reviewSession(r, s, cycle, today, week))
-    .filter((x) => x.week === Math.max(1, week) && x.week <= cycle.weeks).map((x) => {
+  const backOn = reviewsBackOn(s.changes);
+  const sessions: HomeSession[] = ended || !reviews ? [] : s.reviews.filter((r) => r.people.includes(viewerId)).map((r) => reviewSession(r, s, cycle, today, week))
+    // A session whose date passed while Reviews was off is not "Not held yet" (FT2).
+    .filter((x) => x.week === Math.max(1, week) && x.week <= cycle.weeks && !(backOn && x.date < backOn)).map((x) => {
       const { discuss, healthy } = agendaOf(x);
       const order = walkOrder(sessionPlan(x, s, cycle, today));
       const nextId = order.find((id) => !x.covered.has(id));
@@ -113,7 +137,8 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
     sessions,
     owns: mine.length,
     watches: watchedGoals(viewerId, s).filter((g) => g.ownerId !== viewerId).length,
-    asks: homeAsks(viewerId, s, cycle, week, today),
+    ...(!reviews && !mine.length ? { watchNeeds: watchedGoals(viewerId, s).filter((g) => needsAttention(attentionFor(g, s, cycle, today))).length } : {}),
+    asks: homeAsks(viewerId, s, cycle, week, today, reviews),
     // Goal entry rule 14: proposed for the viewer by someone else and not yet opened (what was opened is the Prefs port's).
     proposals: proposalAsks(s.proposed ?? [], { id: viewerId, admin: false }, today, { opened: opts.opened ?? new Set(), putOff: new Map() }, (id) => s.people.find((p) => p.id === id)?.name ?? 'Someone')
       .filter((a) => a.kind === 'for-you').map((a) => ({ id: a.goal.id, title: a.goal.title, by: s.people.find((p) => p.id === a.goal.proposedBy)?.name.split(' ')[0] ?? 'Someone', proposedOn: a.goal.proposedAt!.slice(0, 10) })),
@@ -132,13 +157,14 @@ export function wrapUpScope(full: Snapshot, cycle: Cycle, snapshot: Snapshot, we
  * Rule 3's facts for each open ask waiting on the viewer, in its order. A question raised in a review is due before the
  * first session after the one it was raised in, fixed when asked: it doesn't move on when that session passes.
  */
-export function homeAsks(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): Waiting[] {
+export function homeAsks(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, reviews = true): Waiting[] {
   const day = today.toISOString().slice(0, 10);
   const first = (id: string) => s.people.find((p) => p.id === id)?.name.split(' ')[0] ?? 'Someone';
   return openForPerson(viewerId, s).flatMap((r) => {
     const goals = r.goalIds.map((id) => s.goals.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({ id: g!.id, title: g!.title }));
     if (!goals.length) return [];
-    const rv = r.reviewId ? s.reviews.find((v) => v.id === r.reviewId) : undefined;
+    // With Reviews off an ask is late by its own age, waits for no session and names no review (FT2 4.4, RS 2).
+    const rv = r.reviewId && reviews ? s.reviews.find((v) => v.id === r.reviewId) : undefined;
     let session: AskFacts['session'] = null;
     if (r.dueWeek == null && r.kind === 'question' && rv) {
       const w = r.week != null ? nextSessionWeek(rv, r.week) : upcomingSessionWeek(rv, cycle, week, today);

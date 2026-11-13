@@ -125,3 +125,5 @@ export function gapText(g: Goal, a: Assessment): { short: string; long: string; 
   return { short: '', long: '', tone: 'stale' };
 }
 
+/** "Thu 5 Nov", from yyyy-mm-dd or a full timestamp. */
+export const dayText = (iso: string) => new Date(iso.slice(0, 10) + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });

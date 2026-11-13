@@ -105,6 +105,8 @@ describe('what an admin has to sort out (app redesign WR2, rule 3)', () => {
     const bare = { people: live.people.slice(0, 6).map((p, i) => ({ ...p, admin: i === 0, email: undefined, teamId: i < 2 ? null : 'big' })), teams: [{ id: 'big', name: 'Big', leadId: '', objective: '' }], goals: [], reviews: [] };
     expect(workspaceNeeds(bare, cycle, true).map((x) => x.id)).toEqual(['no-goals', 'no-review', 'only-admin', 'no-email', 'no-team', 'no-lead']);
     expect(workspaceNeeds(bare, cycle, false)).toEqual([]);
+    // With Reviews switched off (FT2), no review is asked for.
+    expect(workspaceNeeds(bare, cycle, true, { reviews: false }).map((x) => x.id)).toEqual(['no-goals', 'only-admin', 'no-email', 'no-team', 'no-lead']);
   });
 });
 

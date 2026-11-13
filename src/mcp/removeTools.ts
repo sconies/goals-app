@@ -11,19 +11,19 @@ import * as R from '../domain/removal';
 import { checkInsFor } from '../domain/status';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 import { listed } from './listed';
-import { COMMENT_REMOVED, ENDED, NOTE_REMOVED } from '../domain/vocabulary';
+import { COMMENT_REMOVED, NOTE_REMOVED } from '../domain/vocabulary';
 import { VIA_MCP } from '../domain/via';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const int = (description: string) => ({ type: 'integer', description });
-const REMOVE = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } as const;
+export const REMOVE = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } as const;
 const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const;
 const VIA = VIA_MCP;
 /** The kinds restore_removed takes: the core's, and each feature module's removable records (domain/records). */
 const KINDS = R.removedKinds(MODULE_RECORDS);
 
-const ax = (ctx: McpContext): ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}), records: MODULE_RECORDS });
-async function save(ctx: McpContext, c: Commit, done: string): Promise<ToolResult> {
+export const ax = (ctx: McpContext): ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}), records: MODULE_RECORDS });
+export async function save(ctx: McpContext, c: Commit, done: string): Promise<ToolResult> {
   await ctx.save({ ...c, changes: c.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA] })) });
   return { text: `${done} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
 }
@@ -128,29 +128,6 @@ export const REMOVE_TOOLS: ToolDef[] = [
       }
       const c = ctx.snapshot.checkIns.find((x) => x.id === id);
       return save(ctx, R.deleteCheckIn(ax(ctx), id), `Deleted the check-in for week ${c?.week ?? '?'}`);
-    },
-  },
-  {
-    name: 'end_review',
-    title: 'End a review',
-    description: 'Whoever set up the review, or an admin: end it. It keeps its notes and actions and stops showing as due. A review that was never held is deleted instead.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['review_id'], properties: { review_id: str('The review’s ID, from list_reviews.') } },
-    annotations: REMOVE,
-    async run(a, ctx) {
-      const r = ctx.snapshot.reviews.find((x) => x.id === a.review_id);
-      const out = R.endReview(ax(ctx), String(a.review_id ?? ''));
-      return save(ctx, out.commit, `${out.deleted ? 'Deleted (it was never held)' : ENDED} the review “${r?.name ?? ''}”`);
-    },
-  },
-  {
-    name: 'delete_review',
-    title: 'Delete a review never held',
-    description: 'Whoever set up the review, or an admin: delete a review that has never been held. One that has been held is ended instead (end_review), so its notes and actions stay.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['review_id'], properties: { review_id: str('The review’s ID, from list_reviews.') } },
-    annotations: REMOVE,
-    async run(a, ctx) {
-      const r = ctx.snapshot.reviews.find((x) => x.id === a.review_id);
-      return save(ctx, R.deleteReview(ax(ctx), String(a.review_id ?? '')), `Deleted the review “${r?.name ?? ''}”`);
     },
   },
   {

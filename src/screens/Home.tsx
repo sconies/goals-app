@@ -1,4 +1,4 @@
-import { Place } from '../core/app';
+import { Place, useModules } from '../core/app';
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { usePrefs } from '../app/search';
@@ -10,7 +10,7 @@ import { EMPTY_QUERY } from '../domain/query';
 import { countList } from '../domain/order';
 import { gettingStarted, inviteLink, type DayOneFacts } from '../domain/dayOne';
 import { workspaceName } from '../domain/workspaceAttention';
-import { dayOneRows, homeFacts, wrapUpScope } from '../app/reads';
+import { dayOneRows, homeFacts, reviewsBackOn, reviewsOn, wrapUpScope } from '../app/reads';
 import { useApp } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
@@ -48,7 +48,7 @@ function LeadOrQuiet({ plan }: { plan: HomePlan }) {
         <div className="hero-body">
           <span className="eyebrow">{lead.warn && <WarnMark />}{lead.eyebrow}</span>
           <h2 className="hero-title">{lead.title}</h2>
-          <span className="muted">{lead.line}</span>
+          {lead.line && <span className="muted">{lead.line}</span>}
           <div className="row"><Link className="btn primary big-btn" to={lead.action.to}>{lead.action.label}</Link></div>
           {lead.also && <Link className="linkish small" to={lead.also.to}>{lead.also.label}</Link>}
         </div>
@@ -301,7 +301,7 @@ function useDashboard(): Dashboard {
   const app = useApp();
   const mine = useGoalCounts(useMineAsk(app.viewer.id));
   const all = useGoalCounts(mine && !mine.total ? { query: EMPTY_QUERY } : null);
-  const d = dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
+  const d = dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { reviews: reviewsOn(useModules().on), backOn: reviewsBackOn(app.snapshot.changes) });
   const counted = mine?.total ? mine : all;
   return counted ? { ...d, scope: mine?.total ? 'mine' : 'all', counts: countList(counted.status), total: counted.total } : d;
 }
@@ -312,7 +312,7 @@ export function Home() {
   const draft = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.some((g) => hasDraft(checkInDraftKey(app.ws.id, g.id, app.week)));
   const prefs = usePrefs();
   const opened = proposalSeen(prefs, app.ws.id, app.viewer.id).opened;
-  const plan = homeFor(homeFacts(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { workspace: workspaceName(app.ws, app.mode).name, draft, wrap: wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today), opened }));
+  const plan = homeFor(homeFacts(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { workspace: workspaceName(app.ws, app.mode).name, draft, wrap: wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today), opened, reviews: reviewsOn(useModules().on) }));
   return (
     <div className="page home" data-part="Home">
       <div className="page-head">

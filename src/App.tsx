@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
+import { BrowserRouter, Link, matchPath, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { AppProvider, useApp, useSetup } from './app/state';
 import type { Mode, Store } from './data/store';
 import type { Clock, Identity } from './ports';
@@ -11,6 +11,8 @@ import { PageWait } from './ui/bits';
 import { Find } from './ui/Find';
 import { ErrorBoundary, TelemetryRoutes } from './telemetry/react';
 import { Moved, useModules } from './core/app';
+import { reviewsOn } from './app/reads';
+import { SwitchedOffLine } from './ui/SwitchedOff';
 
 // Every page but Home loads when it is first opened (the first download, R4's 300 KB; scripts/check-bundle.mjs): a
 // first visit lands on Home, and a link to another page fetches that page's part as it opens.
@@ -19,11 +21,6 @@ const CheckInFlow = lazy(() => import('./screens/CheckInFlow').then((m) => ({ de
 const GoalScreen = lazy(() => import('./screens/GoalScreen').then((m) => ({ default: m.GoalScreen })));
 const GoalsScreen = lazy(() => import('./screens/GoalsScreen').then((m) => ({ default: m.GoalsScreen })));
 const Watching = lazy(() => import('./screens/Watching').then((m) => ({ default: m.Watching })));
-const ReviewEdit = lazy(() => import('./screens/Review').then((m) => ({ default: m.ReviewEdit })));
-const ReviewHome = lazy(() => import('./screens/Review').then((m) => ({ default: m.ReviewHome })));
-const ReviewRedirect = lazy(() => import('./screens/Review').then((m) => ({ default: m.ReviewRedirect })));
-const Reviews = lazy(() => import('./screens/Review').then((m) => ({ default: m.Reviews })));
-const ReviewSummary = lazy(() => import('./screens/Review').then((m) => ({ default: m.ReviewSummary })));
 const PeopleList = lazy(() => import('./screens/People').then((m) => ({ default: m.PeopleList })));
 const PersonPage = lazy(() => import('./screens/People').then((m) => ({ default: m.PersonPage })));
 const TeamPage = lazy(() => import('./screens/People').then((m) => ({ default: m.TeamPage })));
@@ -53,14 +50,13 @@ const Feedback = lazy(() => import('./screens/Feedback').then((m) => ({ default:
 const GoalEdit = lazy(() => import('./screens/GoalEdit').then((m) => ({ default: m.GoalEdit })));
 const GoalWizard = lazy(() => import('./screens/GoalWizard').then((m) => ({ default: m.GoalWizard })));
 const GoalPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.GoalPrint })));
-const ReviewPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.ReviewPrint })));
 const WrapUp = lazy(() => import('./screens/Retro').then((m) => ({ default: m.WrapUp })));
 const StartNext = lazy(() => import('./screens/StartNext').then((m) => ({ default: m.StartNext })));
 const RetroGoal = lazy(() => import('./screens/Retro').then((m) => ({ default: m.RetroGoal })));
 
 export function Routed() {
   const app = useApp();
-  const { pathname } = useLocation();
+  const { pathname, search, hash } = useLocation();
   // The feature modules that are on here add their routes, and lead their old addresses on (src/core/app.tsx).
   const modules = useModules();
   // Welcome and an invitation stand on their own, outside the shell, whoever is (or isn't) chosen here yet.
@@ -70,6 +66,9 @@ export function Routed() {
   // its arrival (review of #285, medium 1).
   if (!app.viewerChosen && pathname === '/workspace/new') return <Suspense fallback={null}><SetUp /></Suspense>;
   if (!app.viewerChosen) return <Suspense fallback={null}><WhoAreYou /></Suspense>;
+  // With Reviews switched off (FT2), a goal's or Goals' address that names a review (?review=) opens without it.
+  const q = new URLSearchParams(search);
+  if (q.has('review') && /^\/goals(\/[^/]+)?$/.test(pathname) && !reviewsOn(modules.on)) { q.delete('review'); const rest = q.toString(); return <Navigate to={pathname + (rest ? '?' + rest : '') + hash} replace />; }
   return (
     <Shell>
       <MotionLayer />
@@ -83,12 +82,6 @@ export function Routed() {
         <Route path="/quick-check-in" element={<QuickCheckIn />} />
         <Route path="/research" element={<Research />} />
         <Route path="/check-in/:goalId" element={<CheckInFlow />} />
-        <Route path="/review" element={<ReviewRedirect />} />
-        <Route path="/reviews" element={<Reviews />} />
-        <Route path="/reviews/new" element={<ReviewEdit />} />
-        <Route path="/reviews/:reviewId" element={<ReviewHome />} />
-        <Route path="/reviews/:reviewId/edit" element={<ReviewEdit />} />
-        <Route path="/reviews/:reviewId/summary" element={<ReviewSummary />} />
         {/* Watching is a scope of Goals (goals spec, section 1): the old address keeps its other parts. */}
         <Route path="/watching" element={<Watching />} />
         <Route path="/retro" element={<WrapUp />} />
@@ -99,7 +92,6 @@ export function Routed() {
         <Route path="/goals/:goalId" element={<GoalScreen />} />
         <Route path="/goals/:goalId/edit" element={<GoalEdit />} />
         <Route path="/goals/:goalId/print" element={<GoalPrint />} />
-        <Route path="/reviews/:reviewId/print" element={<ReviewPrint />} />
         <Route path="/activity" element={<Activity />} />
         <Route path="/data" element={<DataTables />} />
         <Route path="/workspace" element={<WorkspaceHome />} />
@@ -211,12 +203,17 @@ function MovedFrom() {
   return <Navigate to={movedTo(pathname, search, hash) ?? '/'} replace />;
 }
 
-/** An address that leads nowhere: say so, and offer the way home (re-review, 8 Nov, backlog T). */
+/** An address that leads nowhere: say so, and offer the way home (re-review, 8 Nov, backlog T). One that is a route of
+    a module installed here but switched off says so, and who can switch it on (FT2, N21). */
 function NotFound() {
+  const { pathname } = useLocation();
+  const { installed, on } = useModules();
+  const off = installed.find((m) => !on.has(m.id) && m.routes.some((r) => matchPath(r, pathname)));
   return (
     <div className="page narrow not-found">
       <h1 className="title-xl">Page not found</h1>
       <p className="muted">There’s nothing at this address. The link may be old, or mistyped.</p>
+      {off && <SwitchedOffLine name={off.name} />}
       <div className="row"><Link className="btn primary" to="/">Go to Home</Link></div>
       {/* Then Find, inline, and Help (navigation spec, 2.6). */}
       <section className="stack not-found-find" aria-label="Find">
