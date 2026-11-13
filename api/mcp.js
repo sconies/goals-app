@@ -13999,7 +13999,7 @@ var metricLinkToRow = (ws, l) => ({
 	goal_id: l.goalId,
 	metric_id: l.metricId,
 	team_id: l.teamId,
-	...l.part != null ? { part: String(l.part).trim() } : {},
+	part: String(l.part ?? "").trim(),
 	linked_by: l.linkedBy,
 	linked_at: l.linkedAt,
 	...set$1({
