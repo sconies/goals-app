@@ -35,6 +35,7 @@ a.dash-count:focus-visible, a.dash-all:focus-visible { outline: 2px solid var(--
 }
 /* A phone or a narrow tablet: two by two, and slimmer: a label and one line each, so the week's one action stays in
    the first screen. With three cells (someone who owns no goals), the goals by status take the first row. */
+.dash-label-short { display: none; }
 @container page (max-width: 719px) {
   .dash { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dash-cell { padding: 8px 12px; gap: 0; }
@@ -47,6 +48,9 @@ a.dash-count:focus-visible, a.dash-all:focus-visible { outline: 2px solid var(--
   .dash > .dash-cell:only-child { flex-direction: row; align-items: baseline; gap: 8px; }
   .dash > .dash-cell:only-child .dash-label { flex: none; }
   .dash > .dash-cell:only-child .dash-value { min-width: 0; }
+  /* Its label is the short one ("Not held yet", "Tomorrow"), so the review's name fits (Lane, 13 Nov). */
+  .dash > .dash-cell:only-child .dash-label-long { display: none; }
+  .dash > .dash-cell:only-child .dash-label-short { display: inline; }
   /* A leader's two cells (all goals by status, the next review): the counts get three fifths, so they pair up two to a
      line ("11 off track  21 at risk") and the strip stays slim; the review's name wraps in what's left, never cut. */
   .dash:has(> .dash-cell:first-child:nth-last-child(2)) { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }

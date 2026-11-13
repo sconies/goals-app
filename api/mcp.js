@@ -286,7 +286,9 @@ var init_thresholds = __esmMin((() => {
 		/** The wrap-up opens this many weeks before a cycle's last day (its last two weeks). */
 		wrapUpWeeksBefore: 2,
 		/** …and stays open this many weeks after it, for the last numbers and the owners' words. */
-		wrapUpWeeksAfter: 4
+		wrapUpWeeksAfter: 4,
+		/** A metric's reading older than this many days is never filled into a check-in (NR rule 1; Lane, 13 Nov). */
+		readingMaxDays: 7
 	};
 	NUMBER_WORDS = [
 		"no",
@@ -2152,15 +2154,40 @@ function firstReview(cycle, today) {
 function onTimeStreak(personId, s, cycle, week) {
 	return onTimeRun(personId, s.goals, s.checkIns, cycle, week).weeks;
 }
-function onTimeRun(personId, all, checkIns, cycle, week) {
-	const goals = all.filter((g) => g.ownerId === personId);
-	const s = { checkIns };
+/** Whether a check-in came in by its week's due day (`postedDay` on or before it), and was posted in its week rather than
+added later: a backfilled week is never on time (#410 review, medium 3). */
+function inByDueDay(c, cycle, week) {
+	return !c.backfilled && postedDay(c.postedAt) <= reviewDate(cycle, week);
+}
+/** The first week a goal counts for its present owner in the run: its first due week, or, when someone else checked it in
+later (it was theirs, or handed over), the week after the last of those, so taking over a goal never costs the new
+owner the weeks before it was theirs (#410 review, medium 4). */
+function ownedFrom(g, personId, checkIns, cycle) {
+	const others = checkIns.filter((c) => c.goalId === g.id && c.authorId !== personId).map((c) => c.week);
+	return Math.max(firstDueWeek(g, cycle), others.length ? Math.max(...others) + 1 : 0);
+}
+/** The week a goal was closed as Done, if it was (its first check-in with the status Done): it isn't due after that week,
+as weekProgress leaves Done goals out (#410 review, medium 2). */
+function doneWeek(g, checkIns) {
+	const w = checkIns.filter((c) => c.goalId === g.id && c.status === "done").map((c) => c.week);
+	return w.length ? Math.min(...w) : Infinity;
+}
+/** The run's walk, and the weeks inside it that were forgiven, each as late (checked in after the due day) or missed. */
+function onTimeRun(personId, all, allCheckIns, cycle, week) {
+	const checkIns = allCheckIns.filter((c) => !c.removedAt);
+	const goals = all.filter((g) => g.ownerId === personId).map((g) => ({
+		g,
+		from: ownedFrom(g, personId, checkIns, cycle),
+		to: doneWeek(g, checkIns)
+	}));
 	if (!goals.length) return {
 		weeks: 0,
 		forgiven: []
 	};
-	const due = (w) => goals.some((g) => firstDueWeek(g, cycle) <= w);
-	const onTime = (w) => due(w) && goals.every((g) => firstDueWeek(g, cycle) > w || s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
+	const dueIn = (w) => goals.filter((x) => x.from <= w && w <= x.to);
+	const due = (w) => dueIn(w).length > 0;
+	const mine = (gid, w) => checkIns.filter((c) => c.goalId === gid && c.week === w && c.authorId === personId);
+	const onTime = (w) => due(w) && dueIn(w).every((x) => mine(x.g.id, w).some((c) => inByDueDay(c, cycle, w)));
 	const forgiven = (w) => {
 		let seen = 0;
 		for (let v = w - 1; v >= 1 && seen < 4; v--) {
@@ -2170,13 +2197,16 @@ function onTimeRun(personId, all, checkIns, cycle, week) {
 		}
 		return seen === 4;
 	};
-	const complete = goals.every((g) => firstDueWeek(g, cycle) > week || s.checkIns.some((c) => c.goalId === g.id && c.week === week));
+	const complete = dueIn(week).every((x) => checkIns.some((c) => c.goalId === x.g.id && c.week === week));
 	const out = {
 		weeks: 0,
 		forgiven: []
 	};
 	for (let w = complete && due(week) ? week : week - 1; w >= 1 && due(w); w--) if (onTime(w)) out.weeks++;
-	else if (forgiven(w)) out.forgiven.push(w);
+	else if (forgiven(w)) out.forgiven.push({
+		week: w,
+		missed: dueIn(w).some((x) => !mine(x.g.id, w).some((c) => !c.backfilled))
+	});
 	else break;
 	return out;
 }
@@ -2188,10 +2218,9 @@ function onTimeRun(personId, all, checkIns, cycle, week) {
 * `nextDue` is the next due day as an ISO date: the caller says it in words before `receiptText`.
 */
 function receiptFacts(p, personId, s, cycle, week, words) {
-	const due = reviewDate(cycle, week);
 	const after = p.goals.filter((g) => {
 		const first = s.checkIns.filter((c) => c.goalId === g.id && c.week === week && !c.removedAt).map((c) => c.postedAt).sort()[0];
-		return first != null && first.slice(0, 10) > due;
+		return first != null && !inByDueDay({ postedAt: first }, cycle, week);
 	}).length;
 	const run = onTimeRun(personId, s.goals, s.checkIns, cycle, week);
 	return {
@@ -2203,7 +2232,8 @@ function receiptFacts(p, personId, s, cycle, week, words) {
 			after: words.after
 		},
 		run: run.weeks,
-		forgiven: run.forgiven[0] ?? null,
+		forgiven: run.forgiven[0]?.week ?? null,
+		forgivenMissed: run.forgiven[0]?.missed ?? false,
 		nextDue: week < cycle.weeks ? reviewDate(cycle, week + 1) : null
 	};
 }
@@ -2222,10 +2252,10 @@ function receiptText(r) {
 	};
 	return {
 		first: `${yours} in ${r.words.by}.`,
-		second: [r.run >= 2 ? `That is ${r.run} weeks in a row.` : null, r.forgiven != null && r.forgiven === r.week - 1 && r.run >= 2 ? `Week ${r.forgiven} came in late; one late week doesn’t break a run.` : null].filter(Boolean).join(" ") || null
+		second: [r.run >= 2 ? `That is ${r.run} weeks in a row.` : null, r.forgiven != null && r.forgiven === r.week - 1 && r.run >= 2 ? r.forgivenMissed ? `Week ${r.forgiven} was missed; one missed week doesn’t break a run.` : `Week ${r.forgiven} came in late; one late week doesn’t break a run.` : null].filter(Boolean).join(" ") || null
 	};
 }
-var firstDueWeek, SHORT_MONTH, WEEKDAY;
+var firstDueWeek, SHORT_MONTH, postedDay, WEEKDAY;
 var init_progress = __esmMin((() => {
 	init_plan();
 	init_status();
@@ -2244,6 +2274,10 @@ var init_progress = __esmMin((() => {
 		"Nov",
 		"Dec"
 	];
+	postedDay = (iso) => {
+		const n = new Date(iso);
+		return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10);
+	};
 	WEEKDAY = [
 		"Monday",
 		"Tuesday",
@@ -2386,9 +2420,12 @@ function fmt(v, g) {
 	if (!g.unit) return n;
 	return g.unit === "%" ? n + "%" : n + " " + unitFor(n, g.unit);
 }
-/** A goal's number as it's shown: its latest value, how many stages are done, or "No value yet". */
+/** A goal's number as it's shown: its latest value, how many stages are done, its baseline before the first check-in
+("41.5 min (baseline)", domain/baseline rule 2), or "No value yet". */
 function nowText(g, a) {
-	return a.kind === "milestone" ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === "milestone" ? NO_VALUE$1 : fmt(a.actual, g);
+	if (a.kind === "milestone") return `${a.doneCount} of ${a.stages.length} stages`;
+	if (a.actual == null && g.kind === "metric" && g.baseline) return `${fmt(g.baseline.value, g)} (baseline)`;
+	return a.actual == null || g.kind === "milestone" ? NO_VALUE$1 : fmt(a.actual, g);
 }
 /** A difference: "4 pts" for percentages, "1.2 days" otherwise. */
 function fmtDiff(v, g) {
@@ -3491,6 +3528,34 @@ var init_weeks = __esmMin((() => {
 	firstWeekOffered = (c) => spanOf(c, spanOf(c, 1).first - 1).first;
 	defaultTo = (c, from) => from < c.weeks ? c.weeks : lastWeekOffered(c);
 }));
+// src/domain/baseline.ts
+/** Rule 1. The baseline a goal's plan start, period and flag make: null when no period is given. */
+function baselineOf(start, period, provisional) {
+	const p = (period ?? "").trim();
+	if (start == null || !p) return null;
+	return {
+		value: start,
+		period: p,
+		provisional: !!provisional
+	};
+}
+/** "Baseline, June to September 2026, provisional". */
+function baselineWords(b) {
+	return [
+		"Baseline",
+		b.period,
+		b.provisional ? "provisional" : ""
+	].filter(Boolean).join(", ");
+}
+/** Rule 3, its first half: the plan starts from a provisional baseline (goal.ts planChanged holds the rest). */
+function startsFromProvisional(g) {
+	return g.kind === "metric" && !!g.baseline?.provisional && g.baseline.value === g.plan.start;
+}
+/** The period's problem in words, or null: at most 60 characters. */
+function periodProblem(period) {
+	return period.trim().length > 60 ? `The baseline’s period can be at most 60 characters.` : null;
+}
+var init_baseline = __esmMin((() => {}));
 // src/domain/goal.ts
 function blankGoal(teamId, ownerId, parentId) {
 	return {
@@ -3546,7 +3611,9 @@ function draftOf(g) {
 		target: String(g.plan.target),
 		shape: g.plan.shape,
 		endWeek: g.plan.endWeek ? String(g.plan.endWeek) : "",
-		points: Object.fromEntries((g.plan.points ?? []).map((p) => [String(p.week), String(p.value)]))
+		points: Object.fromEntries((g.plan.points ?? []).map((p) => [String(p.week), String(p.value)])),
+		baselinePeriod: g.baseline?.period ?? "",
+		baselineProvisional: !!g.baseline?.provisional
 	});
 	if (g.kind === "range") Object.assign(d, {
 		unit: g.unit,
@@ -3613,6 +3680,13 @@ function planQuestion(before, after) {
 /** Whether the plan itself differs: what status is judged against (start, target, shape, limit, stages). */
 function planChanged(a, b) {
 	if (a.kind !== b.kind) return true;
+	if (a.kind === "metric" && b.kind === "metric" && a.plan.start !== b.plan.start && startsFromProvisional(a)) return planChanged(a, {
+		...b,
+		plan: {
+			...b.plan,
+			start: a.plan.start
+		}
+	});
 	if (a.kind === "metric" && b.kind === "metric") return a.plan.start !== b.plan.start || a.plan.target !== b.plan.target || a.plan.shape !== b.plan.shape || (a.plan.fromWeek ?? 0) !== (b.plan.fromWeek ?? 0) || (a.plan.endWeek ?? 0) !== (b.plan.endWeek ?? 0) || JSON.stringify(a.plan.points ?? []) !== JSON.stringify(b.plan.points ?? []);
 	if (a.kind === "range" && b.kind === "range") return a.range.bound !== b.range.bound || a.range.limit !== b.range.limit || a.range.lower !== b.range.lower || a.range.margin !== b.range.margin;
 	if (a.kind === "milestone" && b.kind === "milestone") return JSON.stringify(a.stages.map((s) => [s.name, s.dueWeek])) !== JSON.stringify(b.stages.map((s) => [s.name, s.dueWeek]));
@@ -3656,13 +3730,15 @@ function buildGoal(d, cycle, base, existing, checkInsStarted, week) {
 			originalPlan: null,
 			rebaselinedWeek: null
 		};
+		const baseline = d.baselinePeriod === void 0 && existing?.kind === "metric" && existing.baseline ? baselineOf(plan.start, existing.baseline.period, existing.baseline.provisional) : baselineOf(plan.start, d.baselinePeriod, d.baselineProvisional);
 		return {
 			...common,
 			kind: "metric",
 			unit: d.unit.trim(),
 			decimals: decimalsFor(d) ?? 0,
 			plan,
-			...history
+			...history,
+			...baseline ? { baseline } : {}
 		};
 	}
 	if (d.kind === "range") return {
@@ -3778,6 +3854,7 @@ var init_goal = __esmMin((() => {
 	init_plan();
 	init_status();
 	init_weeks();
+	init_baseline();
 	pastStage = (dueWeek, week) => dueWeek < week;
 	DONE_AT_SET_UP = "Recorded as already done when the goal was set up";
 }));
@@ -4773,6 +4850,7 @@ function goalFields(g, l) {
 		f["Plan from week"] = g.plan.fromWeek ? `Week ${g.plan.fromWeek}` : "—";
 		f["Target due"] = g.plan.endWeek ? `Week ${g.plan.endWeek}` : "—";
 		f["Plan numbers"] = g.plan.points?.length ? g.plan.points.map((p) => `wk ${p.week}: ${fmt(p.value, g)}`).join(", ") : "—";
+		f.Baseline = g.baseline ? baselineWords(g.baseline) : "—";
 	}
 	if (g.kind === "range") {
 		const says = staysText(g);
@@ -4837,6 +4915,7 @@ function checkInChange(before, after, g, actorId, id) {
 }
 var shapeName, RECOVERY_LABEL, list$2;
 var init_changes = __esmMin((() => {
+	init_baseline();
 	init_checkin();
 	init_format();
 	init_levels();
@@ -4940,7 +5019,7 @@ function requiredLine(kind) {
 	if (kind === "checkIns") return `${req("Goal key")} (or ${req("Goal")}), ${req("Week")}, and ${req("Value")} or ${req("Stages")}.`;
 	return `${req("Name")} and ${req("Email")}.`;
 }
-var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$2, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, REVIEWS_COLUMN, sheetsFor, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
+var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, FIRMNESS_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$2, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, REVIEWS_COLUMN, sheetsFor, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
 var init_columns = __esmMin((() => {
 	init_levels();
 	init_asks();
@@ -4995,6 +5074,29 @@ var init_columns = __esmMin((() => {
 				"back loaded"
 			],
 			stepped: ["steps", "step"]
+		}
+	};
+	FIRMNESS_WORDS = {
+		what: "Baseline is",
+		word: {
+			provisional: "provisional",
+			firm: "firm"
+		},
+		also: {
+			provisional: [
+				"yes",
+				"y",
+				"true",
+				"draft",
+				"estimate"
+			],
+			firm: [
+				"no",
+				"n",
+				"false",
+				"final",
+				"confirmed"
+			]
 		}
 	};
 	BOUND_WORDS = {
@@ -5175,6 +5277,11 @@ var init_columns = __esmMin((() => {
 			e("Unit", "Number and range goals: what the number counts (%, days, ms).", (r) => r.g.kind === "milestone" ? null : or$1(r.g.unit)),
 			e("Decimals", "Number and range goals: how many decimal places the number has (0 to 3).", (r) => r.g.kind === "milestone" ? null : r.g.decimals),
 			e("Start", "Number goals: where the plan starts.", (r) => metricOf$2(r.g)?.plan.start ?? null, "Changes the plan; needs a reason once check-ins have started"),
+			e("Baseline period", "Number goals: the period the baseline (Start) covers, when it is a figure you already have (June to September 2026). Shown as the goal’s number until its first check-in.", (r) => metricOf$2(r.g)?.baseline?.period ?? null),
+			e("Baseline is", `Number goals with a baseline period: ${oneOf(Object.values(FIRMNESS_WORDS.word))}. Firming up a provisional baseline isn’t a plan change.`, (r) => {
+				const b = metricOf$2(r.g)?.baseline;
+				return b ? FIRMNESS_WORDS.word[b.provisional ? "provisional" : "firm"] : null;
+			}),
 			e("Target", "Number goals: where the plan ends, by its due week.", (r) => metricOf$2(r.g)?.plan.target ?? null, "Changes the plan; needs a reason once check-ins have started"),
 			e("Plan", `Number goals: the plan’s shape, ${oneOf(Object.values(SHAPE_WORDS.word))}.`, (r) => {
 				const g = metricOf$2(r.g);
@@ -5540,6 +5647,20 @@ var init_columns = __esmMin((() => {
 				example: "5",
 				empty: "Must fix for a number goal",
 				also: ["baseline"]
+			},
+			"Baseline period": {
+				required: { optional: "no baseline of its own" },
+				format: "Text, at most 60 characters; none to remove it",
+				example: "June to September 2026",
+				empty: "As it is",
+				also: ["baseline covers", "baseline window"]
+			},
+			"Baseline is": {
+				required: { optional: FIRMNESS_WORDS.word.firm },
+				format: wordList(FIRMNESS_WORDS),
+				example: FIRMNESS_WORDS.word.provisional,
+				empty: "As it is",
+				also: ["provisional"]
 			},
 			Target: {
 				required: { for: ["metric"] },
@@ -7955,6 +8076,8 @@ function goalMustFix(d, ctx) {
 		};
 		if (d.kind === "metric") {
 			const s = number("start", d.start, ["start-empty", ctx.existing ? "Enter where it starts." : "Enter where it starts today."]);
+			const long = periodProblem(d.baselinePeriod ?? "");
+			if (long) add("start", "baseline-period-long", long);
 			const t = number("target", d.target, ["target-empty", "Enter the target."]);
 			if (s != null && t != null && s === t) add("target", "same-as-start", `The target is the same as today (${withUnit(groupDigits(String(s)), d.unit)}). To hold a number where it is, make this a number to keep in range.`, { hold: s });
 			const stored = new Map(ctx.existing?.kind === "metric" ? (ctx.existing.plan.points ?? []).map((p) => [String(p.week), p.value]) : []);
@@ -8339,6 +8462,7 @@ var init_goalEntry = __esmMin((() => {
 	init_checkin();
 	init_columns();
 	init_goal();
+	init_baseline();
 	init_proposed();
 	init_goalRights();
 	init_find();
@@ -11467,6 +11591,14 @@ function* planChangesInChunks(input) {
 		].map((k) => typedDecimals(val(r, k))))));
 		if (val(r, "start")) d.start = val(r, "start");
 		if (val(r, "target")) d.target = val(r, "target");
+		const period = val(r, "baseline period");
+		if (period) d.baselinePeriod = /^(none|-|—)$/i.test(period) ? "" : period;
+		const firm = readWord(FIRMNESS_WORDS, val(r, "baseline is"), "Goals", row, d.title);
+		if (firm === void 0) return;
+		if (firm) {
+			d.baselineProvisional = firm === "provisional";
+			if (d.baselinePeriod === void 0 && existing?.kind === "metric" && existing.baseline) d.baselinePeriod = existing.baseline.period;
+		}
 		const shape = readWord(SHAPE_WORDS, val(r, "plan"), "Goals", row, d.title);
 		if (shape === void 0) return;
 		if (shape && shape !== d.shape) {
@@ -13010,7 +13142,8 @@ var init_changeset = __esmMin((() => {
 		"stage-done-removed": "cant-change",
 		"to-before-from": "plan-order",
 		"week-unknown": "week-wrong",
-		"week-beyond": "week-wrong"
+		"week-beyond": "week-wrong",
+		"baseline-period-long": "impossible-number"
 	};
 	ENGINE_CHECK = {
 		"below-zero": "odd-number",
@@ -14998,7 +15131,8 @@ var _virtual_faro_modules_default = [
 				"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first (the read-back, MT3); admins see on Workspace → About how many metrics have no owner (journey U83).",
 				"Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105).",
 				"A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146).",
-				"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples)."
+				"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples).",
+				"A number source reads a metric for a link’s slice (a team or the whole company, and a part) or says it doesn’t, and passes the source contract; a reading’s state in a check-in is rule 1’s (no-slice, unreachable, missing, old after 7 days, same, jump, changed, fresh), and what a check-in records of it is rule 2’s, which nothing that judges a goal reads (the reading rule’s worked examples; the `reading` rows of spec/conformance/metrics.csv)."
 			],
 			"gaps": [
 				"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).",
@@ -15045,7 +15179,27 @@ var _virtual_faro_modules_default = [
 		],
 		finders: ["metric"],
 		filters: ["metric"],
-		toSortOut: true
+		toSortOut: true,
+		parity: {
+			"Metrics": [
+				"list_metrics",
+				"get_metric",
+				"save_metric",
+				"remove_metric",
+				"restore_removed"
+			],
+			"MetricPlaces": [
+				"get_goal",
+				"get_metric",
+				"list_metrics"
+			],
+			"MeasuredBy": [
+				"list_metrics",
+				"save_metric",
+				"link_goal_metric"
+			],
+			"GoalFilterSheet": ["list_metrics"]
+		}
 	},
 	{
 		id: "reviews",
@@ -15126,6 +15280,22 @@ var _virtual_faro_modules_default = [
 				"A review's own records (reviews and what was said in them) are not yet declared as the module's (AS part 2's records extension point is FT3's), so a build without the module still loads and saves them as the core's.",
 				"The walk on a goal's page, Home's review lead and its Next review cell are drawn by core screens, not through places; FT3 adds the places (home.lead, home.glance) and a count for a module's menu item."
 			]
+		},
+		parity: {
+			"Review": [
+				"list_reviews",
+				"get_review",
+				"save_review",
+				"end_review",
+				"delete_review"
+			],
+			"Inspect": [
+				"get_review",
+				"review_call",
+				"edit_call",
+				"delete_comment"
+			],
+			"Print": ["get_review"]
 		}
 	},
 	{
@@ -15203,6 +15373,23 @@ var _virtual_faro_modules_default = [
 				"A file of 6,000 new goals shows Reading with progress and Stop; Stop saves nothing; checked, it offers Download as 2 files of 5,000 rows instead of Save, and the parts load one after the other; while it is checked, the page never stops for more than 200 ms and the preview has fewer than 3,000 elements."
 			],
 			"gaps": ["The format is in the kit: the field table (a core rule page), how each column is read (spec/core/export-format.md), and every kind of issue with its trigger, sentence and answers and every column’s other spellings (spec/core/import-issues.md).", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
+		},
+		parity: {
+			"Import": ["bulk_change"],
+			"Check": ["bulk_change"],
+			"CheckClose": ["bulk_change"],
+			"Large": ["bulk_change"],
+			"Changes": ["bulk_change"],
+			"Imported": ["get_activity", "undo_import"],
+			"PastImports": ["get_activity", "undo_import"],
+			"Export": ["export"],
+			"ExportButton": ["export"],
+			"DataMenu": [
+				"export",
+				"export_table",
+				"bulk_change"
+			],
+			"ColumnsHelp": ["get_help", "export"]
 		}
 	}
 ];
@@ -15747,10 +15934,7 @@ function scopeFacts(s, viewer) {
 * read on the same clock, not in UTC (build review of #310: "Asked yesterday" for an ask made half an hour ago at UTC+10).
 * On a server, whose zone is UTC, it is the stamp's UTC day.
 */
-var localDay = (iso) => {
-	const n = new Date(iso);
-	return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10);
-};
+var localDay = postedDay;
 function homeAsks(viewerId, s, cycle, week, today, reviews = true) {
 	return openForPerson(viewerId, s).flatMap((r) => {
 		const w = askWaiting(r, viewerId, s, cycle, week, today, reviews);
@@ -18493,7 +18677,7 @@ var CORE_ARTICLES = [
 				heading: "When the week’s are all in",
 				text: [
 					"The last screen says whether your check-ins were in before the deadline (“All 4 of your check-ins are in by Thursday.”; if you are in a review held that day, “… before Thursday’s review.”) and, from two weeks, how many weeks in a row you have been on time. If some came after it, it says how many, and when the next are due.",
-					"One late week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. Only you see your run.",
+					"One late or missed week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. On time means by the deadline day on your own clock. A week added later never counts as on time, a goal called Done leaves your run, and a goal you take over counts only from when it became yours. Only you see your run.",
 					"When a check-in takes a goal to its target, the last screen says so quietly, with a way to copy the goal’s share image; when it brings a goal back on track after two weeks or more behind, it says that. The goal’s History marks the week “Reached its target” or “Back on track”. A correction never does."
 				]
 			},
@@ -19018,6 +19202,7 @@ var CORE_ARTICLES = [
 				heading: "The summary bar",
 				list: [
 					"First line: the goal, its owner, its level and its key (G-12). Then its status as a shape and a word, and the number in the goal’s own units.",
+					"Before a goal’s first check-in, a baseline it was given with its period is shown as its number, with “Baseline, June to September 2026, provisional” beside it; lists say “41.5 min (baseline)”. Its status is No check-in yet as before, until someone checks in.",
 					"Beside the key: when it was last updated, the latest check-in’s date and its week (“Updated 6 Nov · week 45”).",
 					"Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go; when lower is better, how far over the target it still is: “5 min over”), and Will it hit the target. A gap on the wrong side of a plan says “short” when higher is better and “over” when lower is better, and a number shown equal to its plan counts as met.",
 					"Will it hit the target says Likely, Possible, Unlikely or Very unlikely, never a percentage. It comes from where the target sits against the projected range: comfortably on the near side of the likeliest value is Likely; close to it, or inside the range beyond it, is Possible; just beyond the range (within half its width) is Unlikely; further is Very unlikely. Under it, the likeliest end, such as “likely 37 hours by year end”.",
@@ -19272,6 +19457,7 @@ var CORE_ARTICLES = [
 				"Each step says what it needs: “Everything here is needed unless it says optional”, and an optional field says “· optional” after its name. A problem shows under its own field once you have changed it and moved on, never while you type. Continue is never greyed out: pressed with something to fix, every problem on the step shows, the first field is chosen, and one line above the button counts them (“2 things to fix above: Unit and Target”).",
 				"Step 2, who and where: the owner starts as you and the team follows the owner until you change it. Type to find a person, a team or a goal: nothing is chosen from a list of everything. The level starts one below the goal it feeds, else Team; if you lead a team that already has SVP or north-star goals, you’re asked. “Feeds into” suggests the goals one level up in the team first, worst first. “Also helps” can be set here too.",
 				"Step 3, how it’s measured: for a number, its unit (optional, and empty to start: type %, days, incidents or whatever it counts), then two rows: Baseline with From (the number, and the week it was true, when the plan starts) and Target with To (the number, and the week it is due). From starts as this week and To as the end of the year (in the year’s last week, the end of next year); the line under them says how many weeks that is. Then how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. “Adjust the plan week by week” opens the plan table, where any week can be typed over. Say how it’s measured and where the number comes from, so everyone reads it the same way.",
+				"Under Baseline, Period the baseline covers (optional): when the baseline is a figure you already have, say the period it covers, such as “June to September 2026”, and tick Provisional if it may still be firmed up. The goal then shows it as its number, marked as the baseline, until its first check-in.",
 				"Step 4, check: “Does this read right?” Nothing is saved until you publish. The goal is read back in sentences, each with Change to its step: What (the type, the numbers with their weeks and dates, how progress comes, and whether higher or lower is better), Who and where (owner, team, level, what it feeds, what else it helps, a guardrail), Measured by (the metric, or how it’s measured in words), Left as usual (every default you didn’t change, such as “Whole numbers.” or “Not a guardrail.”) and You said (each question you answered). After Change, Continue brings you straight back; a change that leaves a later step needing something (another type, say) opens that step first. The metric you chose stays chosen through a reload or a kept draft, and it is for the goal’s team as it is now: choose another team and Check says the new one.",
 				"Under the rows, After you publish says what happens next: when the first check-in is due (“Its first check-in is due by Thursday 12 Nov, then every week”, with what the plan expects the week after), who sees it (for someone else: they see it on their Home next time they open Faro; Faro doesn’t send email), the reviews that will walk it, and how long it can still be changed freely or deleted (until its first check-in; stages you said are already done count as its first check-in, so it can then be stopped, with a reason, but not deleted). With every stage already done, no check-in is due. Publish it: the goal’s page opens with “Published”, and nothing on the form asks again once you have pressed it; the owner is then offered the first check-in.",
 				"On a phone the steps take the whole screen, as every form does: the tab bar steps aside, so Back and Continue are always in reach.",
@@ -19298,6 +19484,7 @@ var CORE_ARTICLES = [
 		screens: ["GoalWizard"],
 		reqs: [
 			"GOAL-CREATE",
+			"GOAL-BASELINE",
 			"GOAL-ENTRY-REQUIRED",
 			"GOAL-DATES",
 			"NEW-GOAL-STEPS",
@@ -19403,6 +19590,7 @@ var CORE_ARTICLES = [
 					"A link can open the page at a section: add #definition, #plan or #owner to the address. Describe it on a goal with no definition opens What it is. Older links that opened one part of the form land on the matching section.",
 					"The owner, the team and the goals are found by typing a name or a key; a goal already under this one is listed but can’t be chosen to feed it.",
 					"Plan and target has the same two rows as a new goal: Baseline with From, Target with To, each week chosen from the list of weeks with their dates. Changing From or To after check-ins have started is a plan change, so it asks why.",
+					"Under them, Period the baseline covers and Provisional, as on New goal. Firming up a provisional baseline, changing the Baseline number while Provisional is ticked, isn’t a plan change: it asks no reason and keeps no earlier plan. Untick Provisional once the figure is firm.",
 					"Plan by week shows the numbers week by week; type over any week.",
 					"After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s history.",
 					"Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about. A target on the worse side of the start for the metric that measures the goal is asked about too (“Lead time for changes is better lower, but the target is above today”), here, in a spreadsheet and through the AI assistant, and your answer is kept in the goal’s History as Checked.",
@@ -19763,7 +19951,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "Switching, and setting one up",
 				list: [
-					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow.",
+					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: Look around the demo (outside the demo: it opens the example workspace, which you can change freely without touching yours), About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow. With the narrow menu of icons, the Faro mark at its top is the switcher.",
 					"Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.” A workspace you can’t open yet still lists the others, to open one of them.",
 					"A workspace is one organisation’s goals and the people who share them: its own people and teams, its own goal year and check-in day, and its own admins. About says so, under its name.",
 					"Switching is a page move: Back takes you to the workspace you came from. You land on the same page in the other workspace when it has one (Home, Goals, Reviews, People, a Workspace section), otherwise on Home; from a person’s or a team’s page, on People or Teams. While it opens, the page says so.",
@@ -19805,7 +19993,8 @@ var CORE_ARTICLES = [
 			"WORKSPACES",
 			"WORKSPACE-SECTIONS",
 			"WORKSPACE-ABOUT",
-			"WORKSPACE-ONE-PLACE"
+			"WORKSPACE-ONE-PLACE",
+			"RAIL-SWITCH"
 		],
 		keywords: [
 			"admin",
@@ -20674,6 +20863,36 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "baseline-of-its-own",
+		date: "2026-11-13",
+		title: "A baseline can say what period it covers, and how firm it is",
+		points: [
+			"When a goal’s baseline is a figure you already have, say the period it covers (“June to September 2026”) under Baseline, and tick Provisional if it may still change.",
+			"Until the first check-in, the goal shows that baseline as its number, marked as the baseline, instead of “No value yet”.",
+			"Firming up a provisional baseline isn’t a plan change: it asks for no reason and keeps no earlier plan.",
+			"The Goals sheet has Baseline period and Baseline is columns, and the AI tools take baseline_period and baseline_is."
+		],
+		articles: [
+			"new-goal",
+			"edit-goal",
+			"goal-page"
+		]
+	},
+	{
+		id: "switch-from-the-narrow-menu",
+		date: "2026-11-13",
+		title: "Switch workspace from the narrow menu",
+		points: ["With the narrow menu of icons, the Faro mark at its top opens the workspace switcher.", "Nothing is added to the menu, so the rest of it keeps its room on a small screen."],
+		articles: ["workspace"]
+	},
+	{
+		id: "look-around-the-demo",
+		date: "2026-11-13",
+		title: "Look around the demo from any workspace",
+		points: ["The workspace switcher has Look around the demo: the example workspace, which you can change freely without touching yours.", "On a phone, Home’s review cell uses a shorter label, so the review’s name fits."],
+		articles: ["workspace"]
+	},
+	{
 		id: "reviews-switch-clock",
 		date: "2026-11-13",
 		title: "Check-ins say plainly which day they’re due",
@@ -20717,7 +20936,7 @@ var WHATS_NEW = [
 		title: "Your run forgives one missed week, and reaching a target is said, quietly",
 		points: [
 			"When your week’s check-ins are all in, the last screen says whether they were in before the deadline (or the review, if you are in one that day), and how many weeks in a row you have been on time.",
-			"One late week no longer ends your run: if the four weeks before it were on time, it is forgiven, and the next check-in says so once.",
+			"One late or missed week no longer ends your run: if the four weeks before it were on time, it is forgiven, and the next check-in says so once. A goal called Done leaves your run, and a goal you take over counts only from when it became yours.",
 			"A check-in that takes a goal to its target says so in one quiet panel, with a way to copy the goal’s share image. One that brings a goal back on track after two weeks or more behind says that too.",
 			"The goal’s History marks those weeks “Reached its target” or “Back on track”."
 		],
@@ -22129,6 +22348,7 @@ var MORE_RULE_PAGES = [
 	["new-goal", "New goal"],
 	["read-back", "The read-back"],
 	["proposed", "Proposed goals"],
+	["baseline", "A baseline of its own"],
 	["not-born-late", "A goal not born late"],
 	["finding", "Finding things"],
 	["navigation", "Navigation: the menu, the lit item and a page’s name"],
@@ -22572,7 +22792,8 @@ var WORK_TOOLS = [
 					...rf,
 					nextDue: rf.nextDue ? longDay(rf.nextDue) : null
 				}),
-				forgivenWeek: rf.forgiven
+				forgivenWeek: rf.forgiven,
+				forgivenWeekWas: rf.forgiven == null ? null : rf.forgivenMissed ? "missed" : "late"
 			} : null;
 			const glance = {
 				goals: {
@@ -22619,7 +22840,7 @@ var WORK_TOOLS = [
 				},
 				text: [
 					`Week ${ctx.week} for ${ctx.actor.name}.`,
-					`${d.scope === "mine" ? "Your goals" : "All goals"}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(", ") || "none"}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? "week" : "weeks"}.` : ""}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ""}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ""}`,
+					`${d.scope === "mine" ? "Your goals" : "All goals"}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(", ") || "none"}.${d.streak ? ` On-time streak: ${d.streak} ${d.streak === 1 ? "week" : "weeks"}.` : ""}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ""}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ""}`,
 					...weekReceipt ? [[weekReceipt.first, weekReceipt.second].filter(Boolean).join(" ")] : [],
 					`Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.`,
 					`Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask}${when(r)} (${r.id})`).join("; ") : "none"}.`,
@@ -25561,6 +25782,7 @@ function meets(goal, v) {
 */
 function moment(earlier, after, goal, fresh = true) {
 	if (!fresh || after.backfilled || after.removedAt) return null;
+	if (earlier.some((c) => c.id !== after.id && c.goalId === after.goalId && c.week === after.week && !c.removedAt)) return null;
 	const byWeek = /* @__PURE__ */ new Map();
 	for (const c of [...earlier].sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt))) if (c.week < after.week && !c.removedAt) byWeek.set(c.week, c);
 	const prior = [...byWeek.values()].sort((a, b) => b.week - a.week);
@@ -25570,11 +25792,12 @@ function moment(earlier, after, goal, fresh = true) {
 		behind: 0
 	};
 	if (after.status !== "on" || !before || before.status !== "risk" && before.status !== "off") return null;
-	let behind = 0;
+	let from = after.week;
 	for (const c of prior) {
 		if (c.status !== "risk" && c.status !== "off") break;
-		behind++;
+		from = c.week;
 	}
+	const behind = after.week - from;
 	return behind >= 2 ? {
 		kind: "back",
 		behind
@@ -26472,6 +26695,8 @@ var GOAL_FIELDS = {
 	unit: str("Number goals: the unit, e.g. \"%\", \"days\", \"USD\"."),
 	decimals: int("Number goals: decimal places, 0 to 3."),
 	start: num$1("Move-a-number goals: where it starts."),
+	baseline_period: str("Move-a-number goals: the period the baseline (start) covers, when it is a figure you already have, e.g. \"June to September 2026\" (at most 60 characters). Given, start is shown as the goal’s number, marked as the baseline, until its first check-in. \"none\" removes it."),
+	baseline_is: str("Move-a-number goals with a baseline period: provisional (it may still be firmed up: changing start then isn’t a plan change and needs no reason) or firm.", { enum: ["provisional", "firm"] }),
 	target: num$1("Move-a-number goals: the target."),
 	plan_shape: str("Move-a-number goals: how the plan moves from start to target.", { enum: [
 		"straight",
@@ -26509,6 +26734,8 @@ var GOAL_COLS = {
 	unit: "unit",
 	decimals: "decimals",
 	start: "start",
+	baseline_period: "baseline period",
+	baseline_is: "baseline is",
 	target: "target",
 	plan_shape: "plan",
 	from: "from",
@@ -49532,6 +49759,9 @@ function goalToRows(ws, g) {
 			original_plan: g.kind === "metric" ? g.originalPlan : null,
 			rebaselined_week: g.kind === "metric" ? g.rebaselinedWeek : null,
 			plan_history: g.kind === "metric" && g.planHistory?.length ? g.planHistory : null,
+			baseline_value: g.kind === "metric" && g.baseline ? g.baseline.value : null,
+			baseline_period: g.kind === "metric" && g.baseline ? g.baseline.period : null,
+			baseline_provisional: g.kind === "metric" && g.baseline ? g.baseline.provisional : null,
 			range_bound: g.kind === "range" ? g.range.bound : null,
 			range_limit: g.kind === "range" ? g.range.limit : null,
 			range_margin: g.kind === "range" ? g.range.margin : null,
@@ -49622,7 +49852,12 @@ function goalFromRows(r, stageRows) {
 			...r.plan_history?.length ? { planHistory: r.plan_history.map((v) => ({
 				untilWeek: Number(v.untilWeek),
 				plan: planOf(v.plan)
-			})) } : {}
+			})) } : {},
+			...r.baseline_value != null ? { baseline: {
+				value: Number(r.baseline_value),
+				period: r.baseline_period ?? "",
+				provisional: !!r.baseline_provisional
+			} } : {}
 		};
 	}
 	if (r.kind === "range") {
@@ -49674,6 +49909,7 @@ var checkInToRow = (ws, c) => ({
 	next: c.next,
 	data_flagged: c.dataFlagged,
 	backfilled: !!c.backfilled,
+	...c.reading ? { reading: c.reading } : {},
 	...set({
 		removed_at: c.removedAt,
 		removed_by: c.removedBy
@@ -49702,6 +49938,7 @@ var checkInFromRow = (r) => ({
 	next: r.next,
 	dataFlagged: r.data_flagged,
 	...r.backfilled ? { backfilled: true } : {},
+	...r.reading ? { reading: r.reading } : {},
 	...when("removedAt", r.removed_at),
 	...who("removedBy", r.removed_by)
 });

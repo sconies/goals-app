@@ -82,6 +82,7 @@ Kept for their detail; 8r turns each into a requirement for the internal rebuild
 
 | Item | Shipped |
 |---|---|
+| Look around the demo (Lane, 13 Nov): one calm line in the workspace switcher, outside the demo, that opens `/demo`, with "Example data you can change freely. Your workspace isn’t touched." With it, on a phone Home's lone review cell uses a shorter label ("Not held yet", "Tomorrow") so the review's name fits (#369's medium 6, Lane's decision) | this PR, 13 Nov |
 | The Map at scale (MAP): Fit all fits every tree, find a goal by name or key (opens, outlines and pans), value, target and gap on nodes, a parent shows the worst status under it, folded to the roots with the critical path kept, Troubled trees only, no drawing wait, refits on scope change (F05) | PR #76, 10 Nov |
 | Small batch: "ms" said right (0u), stopped goals' exports pinned (7), AI assistant renamed MCP access with builder tokens labelled (10a, migration 0034), members see Cycles read-only and their own removals, Undo on Features and Privacy, no blur on phone bars (D1, P6 checks), 44 px touch targets (D3) | PR #75, 10 Nov |
 | Check-in honesty (LP part): which week a check-in is for, "Something changed" can't be posted unedited, one number check everywhere, the newest check-in shown on the goal page, the table path's confirmation, rings say what they count | PR #77, 10 Nov |

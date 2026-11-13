@@ -9,13 +9,17 @@
    - part-way through a task with a draft (a check-in, a goal, a review), it asks first, and says the draft stays in
      its own workspace, in this browser, for when you come back;
    - while the other workspace loads, the screen says "Opening <name>…" instead of mixing the two. */
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
 import { placeLine } from '../domain/cycle';
 import { landingLine, workspaceName } from '../domain/workspaceAttention';
 import { Sheet } from './bits';
+import { FaroMark } from './Brand';
 import { Icon } from './Icon';
+
+/* The panel loads on first open (small workspaces SM4, section 8). */
+const WorkspacePanel = lazy(() => import('./WorkspacePanel').then((m) => ({ default: m.WorkspacePanel })));
 
 /** Pages that exist in every workspace: a switch keeps you on them. Anything else (a goal, a check-in) goes Home. */
 const SAME_IN_EVERY = /^\/(goals|watching|reviews|activity|people|teams|data|workspace(\/[a-z-]+)?|settings|help(\/[^/]+)?|whats-new|feedback|retro)?$/;
@@ -118,16 +122,17 @@ export function WorkspaceSwitchProvider({ children }: { children: ReactNode }) {
  * leads to Workspace, and offers setting up a workspace of your own (moved here from Home, where Lane found it
  * confusing). Switching is real navigation (useSwitchWorkspace). Even with one workspace it opens, for the rest.
  */
-export function WorkspaceSwitcher({ variant }: { variant: 'side' | 'top' }) {
+export function WorkspaceSwitcher({ variant }: { variant: 'side' | 'top' | 'rail' }) {
   const app = useApp();
-  const switchTo = useSwitchWorkspace();
-  const nav = useNavigate();
   const [open, setOpen] = useState(false);
   const shown = app.opening ?? app.ws;
   const name = workspaceName(shown, app.mode).name;
-  const [q, setQ] = useState('');
-  const go = (to: string) => { setOpen(false); nav(to); };
-  const button = variant === 'side' ? (
+  // On the icon rail the Faro mark is the control (SM4, 2.6): no row is added, so the Demo box keeps its room at 1024 × 768.
+  const button = variant === 'rail' ? (
+    <button type="button" className="ws-rail-switch" aria-label={`${name}: switch workspace, or set one up`} data-label={`${name}: switch workspace, or set one up`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+      <FaroMark size={28} label={null} />
+    </button>
+  ) : variant === 'side' ? (
     <button type="button" className="ws-head ws-switch" title={`${shown.name}: switch workspace`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
 
       <span className="stack ws-head-text" style={{ gap: 0, minWidth: 0, flex: 1 }}>
@@ -150,43 +155,7 @@ export function WorkspaceSwitcher({ variant }: { variant: 'side' | 'top' }) {
   return (
     <>
       {button}
-      {open && (
-        <Sheet open onClose={() => setOpen(false)} title="Workspaces">
-          <div className="stack ws-switcher" style={{ gap: 'var(--s4)' }}>
-            {app.workspaces.length >= 6 && (
-              <label className="field"><span className="sr">Find a workspace</span>
-                <input className="input" type="search" placeholder="Find a workspace" value={q} onChange={(e) => setQ(e.target.value)} />
-              </label>
-            )}
-            <div className="stack" style={{ gap: 4 }} role="group" aria-label="Your workspaces">
-              {app.workspaces.filter((w) => !q.trim() || w.name.toLowerCase().includes(q.trim().toLowerCase())).map((w) => {
-                const here = w.id === app.ws.id;
-                const named = workspaceName(w, app.mode);
-                // Your role is known for the open one; the others say what kind they are.
-                const role = here ? `you’re ${app.viewer.admin ? 'an admin' : 'a member'}` : '';
-                const line = [named.kind ? named.kind.charAt(0).toUpperCase() + named.kind.slice(1) : '', role].filter(Boolean).join(' · ');
-                const body = (
-                  <span className="stack" style={{ gap: 0, flex: 1, minWidth: 0 }}>
-                    <span className="strong ws-pick-name">{named.name}</span>
-                    {line && <span className="tiny muted">{line.charAt(0).toUpperCase() + line.slice(1)}</span>}
-                  </span>
-                );
-                return here
-                  ? <div key={w.id} className="menuitem ws-pick" aria-current="true">{body}<span className="tiny strong" style={{ color: 'var(--accent-text)' }}>Open now</span></div>
-                  : <button key={w.id} type="button" className="menuitem ws-pick" onClick={() => { setOpen(false); switchTo(w.id); }}>{body}</button>;
-              })}
-            </div>
-            <div className="stack" style={{ gap: 4 }}>
-              <button type="button" className="menuitem ws-about-link" onClick={() => go('/workspace')}>
-                <span className="strong">About {name}</span>
-              </button>
-              <button type="button" className="menuitem ws-new" onClick={() => go('/workspace/new')}>
-                <span className="strong">Set up a new workspace</span>
-              </button>
-            </div>
-          </div>
-        </Sheet>
-      )}
+      {open && <Suspense fallback={null}><WorkspacePanel onClose={() => setOpen(false)} /></Suspense>}
     </>
   );
 }

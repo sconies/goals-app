@@ -1,7 +1,7 @@
 /* Domain records ⇄ okr_ table rows. Pure, so both directions are tested without a database.
    Every row carries the workspace it belongs to. */
 import type { DbRow, ModuleRecords, ModuleRows } from '../domain/records';
-import type { ApiToken, Ask, SavedView, Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback, RecoveryState } from '../domain/types';
+import type { ApiToken, Ask, SavedView, Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback, RecoveryState, CheckInReading } from '../domain/types';
 
 type W = { workspace_id: string };
 /** Removal columns (migration 0025): written only when the record says (a restore says null), so rows for older tables
@@ -36,7 +36,7 @@ export interface GoalRow extends W, Removal {
 export interface CheckInRow extends W, Removal {
   id: string; goal_id: string; author_id: string; week: number; posted_at: string; value: number | null; stages: CheckIn['stages'];
   status: CheckIn['status']; calculated: CheckIn['calculated']; cause: CheckIn['cause']; why: string; greener_why: string;
-  propose_target: number | null; ptg_what: string | null; ptg_by_week: number | null; ptg_needs: string; ptg_state?: RecoveryState | null; next: string; data_flagged: boolean; backfilled?: boolean;
+  propose_target: number | null; ptg_what: string | null; ptg_by_week: number | null; ptg_needs: string; ptg_state?: RecoveryState | null; next: string; data_flagged: boolean; backfilled?: boolean; reading?: CheckInReading | null;
 }
 export interface DecisionRow extends W, Removal { id: string; goal_id: string; check_in_id: string | null; review_id: string | null; week: number; kind: Decision['kind']; by_id: string; at: string; note: string; assignee_id?: string | null; due_week?: number | null; edited_at?: string | null }
 export interface ChangeRow extends W {
@@ -135,6 +135,9 @@ export const checkInToRow = (ws: string, c: CheckIn): CheckInRow => ({
   status: c.status, calculated: c.calculated, cause: c.cause, why: c.why, greener_why: c.greenerWhy, propose_target: c.proposeTarget,
   ptg_what: c.pathToGreen?.what ?? null, ptg_by_week: c.pathToGreen?.byWeek ?? null, ptg_needs: c.pathToGreen?.needs ?? '', ptg_state: c.pathToGreen?.state ?? null,
   next: c.next, data_flagged: c.dataFlagged, backfilled: !!c.backfilled,
+  // Written only when it holds something (NR rule 2): 0035's public views don't have the column, so a row without it saves
+  // through either; one with it needs the app to read and write through faro (0047).
+  ...(c.reading ? { reading: c.reading } : {}),
   ...set({ removed_at: c.removedAt, removed_by: c.removedBy }),
 });
 
@@ -142,7 +145,7 @@ export const checkInFromRow = (r: CheckInRow): CheckIn => ({
   id: r.id, goalId: r.goal_id, authorId: r.author_id, week: Number(r.week), postedAt: iso(r.posted_at), value: num(r.value), stages: r.stages,
   status: r.status, calculated: r.calculated, cause: r.cause, why: r.why, greenerWhy: r.greener_why, proposeTarget: num(r.propose_target),
   pathToGreen: r.ptg_what != null && (r.ptg_by_week != null || r.ptg_state) ? { what: r.ptg_what, byWeek: r.ptg_by_week == null ? null : Number(r.ptg_by_week), ...(r.ptg_state ? { state: r.ptg_state } : {}), needs: r.ptg_needs } : null,
-  next: r.next, dataFlagged: r.data_flagged, ...(r.backfilled ? { backfilled: true } : {}),
+  next: r.next, dataFlagged: r.data_flagged, ...(r.backfilled ? { backfilled: true } : {}), ...(r.reading ? { reading: r.reading } : {}),
   ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by),
 });
 

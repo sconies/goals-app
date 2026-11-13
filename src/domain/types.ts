@@ -232,9 +232,28 @@ export interface CheckIn {
   dataFlagged: boolean;
   /** Loaded later from a spreadsheet or another tool, not posted in its week. */
   backfilled?: boolean;
+  /** Where its number came from (NR rule 2): what the metric's source said and when it measured it, and why the owner's
+      number differs, when it does. Absent or null when the number was typed with nothing read. `value` above is always
+      the owner's number; nothing that judges a goal reads this. */
+  reading?: CheckInReading | null;
   /** Deleted (only while no newer check-in exists on the goal): kept, hidden, restorable. */
   removedAt?: string | null;
   removedBy?: Id | null;
+}
+
+/** Why an owner's number differs from what the source said (NR 2.2): the source is behind, counts something else, is
+    wrong this week, or something else (in their words). */
+export type ReadingWhyKind = 'behind' | 'other-count' | 'wrong' | 'else';
+
+/** What a check-in recorded of its metric's source (NR rule 2; migration 0047's `reading`). */
+export interface CheckInReading {
+  /** The source's name, as the metric names it. */
+  source: string;
+  value: number;
+  /** When the source measured it (an ISO time). */
+  at: string;
+  /** Set only when the check-in's number differs from `value`. */
+  why?: { kind: ReadingWhyKind; text?: string };
 }
 
 /** A field that changed: values are already formatted for reading. */
