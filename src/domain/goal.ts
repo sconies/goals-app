@@ -78,6 +78,20 @@ export function draftFor(g: Goal): GoalDraft {
 }
 
 /**
+ * A goal form's draft moved onto the goal as it is now (AX6): someone else saved the goal while it was open. Each field the
+ * person changed (it differs from `base`, the goal the form opened on) keeps their value; every other field takes the
+ * latest. So saving again changes only what the person changed, and never puts back what the other person did.
+ */
+export function rebaseDraft<D extends GoalDraft>(draft: D, base: GoalDraft, latest: GoalDraft): D {
+  const out = { ...draft } as Record<string, unknown>;
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  for (const k of new Set([...Object.keys(base), ...Object.keys(latest)]) as Set<keyof GoalDraft>) {
+    if (same(draft[k], base[k])) out[k] = latest[k];
+  }
+  return out as D;
+}
+
+/**
  * The decimal places a goal keeps (goal entry, rule 2): the ones chosen in Decimals, or, when none were, the most typed
  * in its numbers (Today, Target, Limit), at most 3. Null when Decimals says something that isn't 0 to 3. A new goal
  * starts with Decimals empty, so what is typed is what is kept.

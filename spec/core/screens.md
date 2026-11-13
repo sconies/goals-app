@@ -163,11 +163,11 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Waiting on a decision already asked for another goal?” | button | `othersAsked.length > 0` |
 | “… For … · asked by …” | button | `linking` |
 | “Keep … for this goal” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `shown?.block` and `!(keep == null)` |
-| “Measured again: unchanged” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `lastNumber?.value != null && !draft.value` |
+| “Measured again: unchanged” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `!numberStep` and `lastNumber?.value != null && !draft.value` |
 | “Start from …” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `offer` and `goal.kind === 'metric'` |
 | “Keep … and say why” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `offer` and `goal.kind === 'metric'` |
 | “Undo” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `rebased === 'start'` and `rebasedFrom` |
-| “No new number this week” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `!draft.value.trim() && onSkip` |
+| “No new number this week” | button | `step === 'measure'` and `!(goal.kind === 'milestone')` and `!draft.value.trim() && onSkip && !numberStep` |
 | “Change” | button | `step === 'measure'` and `valueOk && (goal.kind !== 'milestone' \|\| draft.stages.length > 0)` |
 | “Also need a decision or help?” | button | `step === 'account'` and `needsWay` and `!(draft.ptgState === 'help')` and `!showNeeds` |
 | “Back” | button | `step !== 'carry'` and `(trail.length > 0 \|\| step !== 'measure')` |
@@ -203,6 +203,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | Field | Kind | Shown when |
 |---|---|---|
 | “…: this week’s number in …” | text | `goals.length > 0` |
+| “Say more at least … characters / optional” | text | `goals.length > 0` and `differs` and `read` and `!invalidNumber` |
 | “In a sentence” | textarea | `goals.length > 0` and `(showWhy \|\| showPath)` and `showWhy` |
 | “How it gets back on plan” | textarea | `goals.length > 0` and `(showWhy \|\| showPath)` and `showPath` |
 
@@ -1191,9 +1192,7 @@ None: nothing to type or choose here.
 
 **Fields**
 
-| Field | Kind | Shown when |
-|---|---|---|
-| “Find a workspace” | search | `open` and `app.workspaces.length >= 6` |
+None: nothing to type or choose here.
 
 **States**
 
@@ -1203,10 +1202,9 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “… Opening… / … Switch: switch workspace, or set one up” | button | `variant === 'side'` |
-| “Opening … / …, …: switch workspace” | button | `!(variant === 'side')` |
-| “About …” | button | `open` |
-| “Set up a new workspace” | button | `open` |
+| “(…: switch workspace, or set one up)” | button | `variant === 'rail'` |
+| “… Opening… / … Switch: switch workspace, or set one up” | button | `!(variant === 'rail')` and `variant === 'side'` |
+| “Opening … / …, …: switch workspace” | button | `!(variant === 'rail')` and `!(variant === 'side')` |
 
 ### Goals: the table
 

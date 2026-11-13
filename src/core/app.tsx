@@ -7,7 +7,7 @@ import { Navigate, useLocation } from 'react-router';
 import APP from 'virtual:faro-modules/app';
 import { useApp } from '../app/state';
 import type { Cell } from '../domain/export';
-import type { Goal, GoalKind, Person, Snapshot, Team } from '../domain/types';
+import type { CheckInReading, Goal, GoalKind, Person, Snapshot, Team } from '../domain/types';
 import type { WorkspaceNeed } from '../domain/workspaceAttention';
 import type { NavGroup } from '../domain/navigation';
 import { addColumnParams, type QueryContext, type QueryNames } from '../domain/query';
@@ -56,6 +56,45 @@ export interface PlaceProps {
   'people.team': { team: Team };
   /** A Help article, under its title and before its sections: given the article's id, so a module draws only in its own article (the spreadsheets module's field table in `columns`). */
   'help.article': { article: string };
+  /**
+   * The check-in's number step, under "What's the number this week?" (NR, docs/design/round-4/readings/spec.md 2.1):
+   * where a number can come from somewhere other than the owner's typing. Given the goal and the week, the field as typed
+   * and a way to fill it, the number it is compared with (last week's) and what the goal's latest check-in recorded of a
+   * source. The core names no metric and no source. A module that draws here says so with `onStep`: then the step leaves
+   * out its own "Where to get it" hint, last week's number and "No new number this week" (the block says them), and its
+   * primary takes the label given, waits while `waits` is set, or runs `run` instead of moving on. `onReading` hands
+   * back what to record with the check-in (rule 3: the engine checks it again). Nothing renders here unless a module
+   * fills it, and the step is then as it always was.
+   */
+  'checkin.number': {
+    goal: Goal; week: number;
+    value: string; setValue: (v: string) => void;
+    last: { week: number; value: number } | null;
+    lastReading: CheckInReading | null;
+    /** The owner pressed the primary while the block was waiting: it says what is missing. */
+    tried: boolean;
+    onStep: (s: NumberStep | null) => void;
+    onReading: (r: CheckInReading | null) => void;
+    /** "No new number this week", where the step offers it (a goal with a number, not a correction). */
+    onSkip?: () => void;
+  };
+  /**
+   * The one-table check-in ("Type all your numbers in one table", NR 2.3): given the table's goals, a module hands back
+   * (`onReadings`) the readings it would fill in, by goal id: only those its rule calls fresh. The table shows each in its
+   * cell in faint ink until the owner touches the row, says under the table how many are from their sources, and posting
+   * the table confirms them; a cell changed from its reading asks why in its row. Draws nothing of its own.
+   */
+  'checkin.table': { goals: Goal[]; week: number; onReadings: (r: Record<string, CheckInReading>) => void };
+}
+
+/** What a module's block in the check-in's number step asks of the step's primary (checkin.number). */
+export interface NumberStep {
+  /** The primary's words ("Confirm 12 min"); left out, the step's own (Continue, or Post check-in). */
+  label?: string;
+  /** Nothing moves on until the block has what it needs (a reason, an answer). */
+  waits?: boolean;
+  /** Pressing the primary does this instead of moving on ("No new number this week"). */
+  run?: () => void;
 }
 
 /** What a goal form saves with the goal, from the goal.measure place: a module's action (app.run, AS part 2), with its

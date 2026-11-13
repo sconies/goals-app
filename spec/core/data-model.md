@@ -14,7 +14,7 @@ The logical model: what identifies each record, what must be unique, and what ea
 - **Ids are unique within their workspace.** Faro’s are global text ids made in the browser (`newId`); a rebuild’s server makes them, of whatever kind its platform uses.
 - **References stay inside the workspace.** A goal’s owner, its team and the goal it feeds are all in its workspace.
 - **Removing is marking.** A record with `removedAt` is kept for 30 days for undo and history (REMOVE-ANYTHING); uniqueness counts only records not removed, except a goal’s key, which is never given again.
-- **Versions.** Goals and reviews carry a `version`; a save names the version it was based on and is refused if it has moved (NO-LOST-UPDATES). A refused save runs its action again on the latest, with the same input, and saves that, unless the input is a whole record as last seen (AX6). Other records are last write wins today: a rebuild extends versions to them and says how a clash is shown.
+- **Versions.** Goals and reviews carry a `version`; a save names the version it was based on and is refused if it has moved (NO-LOST-UPDATES). A refused save runs its action again on the latest, with the same input, and saves that, unless the input is a whole record as last seen or the person confirmed it against what they were shown (AX6). Other records are last write wins today: a rebuild extends versions to them and says how a clash is shown.
 
 | Record | Key | Unique | Points to | Also |
 |---|---|---|---|---|
@@ -315,8 +315,28 @@ type RecoveryState = 'plan' | 'investigating' | 'help' | 'target'
 | `next` | `string` | yes |  |
 | `dataFlagged` | `boolean` | yes |  |
 | `backfilled` | `boolean` | no | Loaded later from a spreadsheet or another tool, not posted in its week. |
+| `reading` | `CheckInReading \| null` | no | Where its number came from (NR rule 2): what the metric's source said and when it measured it, and why the owner's number differs, when it does. Absent or null when the number was typed with nothing read. `value` above is always the owner's number; nothing that judges a goal reads this. |
 | `removedAt` | `string \| null` | no | Deleted (only while no newer check-in exists on the goal): kept, hidden, restorable. |
 | `removedBy` | `Id \| null` | no |  |
+
+### ReadingWhyKind
+
+Why an owner's number differs from what the source said (NR 2.2): the source is behind, counts something else, is wrong this week, or something else (in their words).
+
+```ts
+type ReadingWhyKind = 'behind' | 'other-count' | 'wrong' | 'else'
+```
+
+### CheckInReading
+
+What a check-in recorded of its metric's source (NR rule 2; migration 0047's `reading`).
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `source` | `string` | yes | The source's name, as the metric names it. |
+| `value` | `number` | yes |  |
+| `at` | `string` | yes | When the source measured it (an ISO time). |
+| `why` | `{ kind: ReadingWhyKind; text?: string }` | no | Set only when the check-in's number differs from `value`. |
 
 ### Diff
 

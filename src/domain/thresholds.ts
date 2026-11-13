@@ -13,6 +13,8 @@ export const RULES = {
   wrapUpWeeksBefore: 2,
   /** …and stays open this many weeks after it, for the last numbers and the owners' words. */
   wrapUpWeeksAfter: 4,
+  /** A metric's reading older than this many days is never filled into a check-in (NR rule 1; Lane, 13 Nov). */
+  readingMaxDays: 7,
 } as const;
 
 /** How many check-ins the trend looks back over: the latest and the two before it. */

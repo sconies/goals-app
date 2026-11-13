@@ -238,6 +238,8 @@ module.exports = {
       await q3.locator('.side .ws-switch').click();
       // The open one is a row that says "Open now", not a button (WR2); the other is a button.
       const ws = q3.getByRole('dialog', { name: 'Workspaces' }).getByRole('group', { name: 'Your workspaces' }).locator('.ws-pick');
+      // The panel loads on first open (SM4): wait for its rows before counting them.
+      await ws.first().waitFor({ timeout: 5000 }).catch(() => {});
       fail(!inPerson && await ws.count() === 2, `[NAV-GOALS] the switcher lists ${await ws.count()} workspaces (want the example and the person's own, 2); the person menu lists workspaces: ${inPerson}`);
       await c3.close();
     });

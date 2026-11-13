@@ -112,6 +112,17 @@ describe('database schema', () => {
     await db.query(`select okr_upsert('okr_cycles', $1::jsonb, 'id')`, [JSON.stringify(rows)]);
     expect((await db.query<{ check_in_weeks: number; rhythm_from: unknown }>(`select check_in_weeks, rhythm_from::text from okr_cycles where id = 'cycle-rhythm'`)).rows[0]).toEqual({ check_in_weeks: 0, rhythm_from: '2026-10-05' });
   });
+  it('keeps a goal’s baseline: a figure, its period and whether it is provisional, all optional, and runs twice (0049)', async () => {
+    const id = (await db.query<{ id: string }>(`select id from faro.okr_goals where kind = 'metric' limit 1`)).rows[0]!.id;
+    const b = await db.query<{ baseline_value: unknown; baseline_period: unknown; baseline_provisional: unknown }>(`select baseline_value, baseline_period, baseline_provisional from faro.okr_goals where id = $1`, [id]);
+    expect(b.rows[0]).toEqual({ baseline_value: null, baseline_period: null, baseline_provisional: null });
+    await db.query(`update faro.okr_goals set baseline_value = 41.5, baseline_period = 'June to September 2026', baseline_provisional = true where id = $1`, [id]);
+    await expect(db.query(`update faro.okr_goals set baseline_period = $2 where id = $1`, [id, 'x'.repeat(61)])).rejects.toThrow(/okr_goals_baseline_period_len/);
+    await expect(db.query(`update faro.okr_goals set baseline_value = null where id = $1`, [id])).rejects.toThrow(/okr_goals_baseline_whole/);
+    await db.query(`update faro.okr_goals set baseline_value = null, baseline_period = '', baseline_provisional = false where id = $1`, [id]);
+    await db.exec(readFileSync(join(dir, '0049_goal_baseline.sql'), 'utf8'));
+    expect((await db.query<{ n: number }>(`select count(*)::int as n from pg_constraint where conname in ('okr_goals_baseline_period_len', 'okr_goals_baseline_whole')`)).rows[0]!.n).toBe(2);
+  });
   it('saves retired and live metrics in one batch: a live one is written with an empty reason and no marks, never null (MT3)', async () => {
     const at = '2026-10-30T12:00:00.000Z';
     const base = { name: '', meaning: '', unit: '%', decimals: 0, direction: 'lower' as const, source: '', sourceOwner: '', refresh: null, ownerId: 'rhea', caveats: '', createdBy: 'rhea', createdAt: at, updatedAt: at };

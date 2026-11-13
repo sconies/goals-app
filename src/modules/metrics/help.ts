@@ -111,11 +111,17 @@ const help: Article[] = [
       { heading: 'On the goal’s page', list: [
         'About lists Measured by: For, what it means, From the metric, where the number comes from, caveats, the goal’s own target, and its own definition when that says more than the metric’s.',
       ] },
+      { heading: 'In the check-in', list: [
+        'When Faro can read a metric’s source for the goal’s own For and part, the goal’s check-in opens with the latest reading in the field and “From {source}, read {when}.”, and its button names the number: “Confirm 12 min”. A source that measures only the whole company never fills in a team’s goal.',
+        'Typing a different number asks why it’s different (the source is behind, counts something else, is wrong this week, or something else in your words). Your number is the check-in’s; what the source said and why are kept beside it, and never change the goal’s status or flag anything.',
+        'A reading more than 7 days old isn’t filled in or shown. Nothing is ever posted for you: a week you don’t check in has no check-in.',
+        'The AI assistant’s post_check_in does the same with reading_confirmed, or different_because when the number differs.',
+      ] },
     ],
     routes: [],
     screens: [],
-    reqs: ['METRIC-PARTS'],
-    keywords: ['which part', 'part', 'slice', 'for', 'tier-1', 'region', 'from the metric', 'why', 'measured differently'],
+    reqs: ['METRIC-PARTS', 'READING-PREFILL', 'READING-RECORDED-ONLY', 'READING-SEVEN-DAYS'],
+    keywords: ['which part', 'part', 'slice', 'for', 'tier-1', 'region', 'from the metric', 'why', 'measured differently', 'reading', 'filled in', 'source', 'confirm'],
     related: ['metric-measured-by', 'metric-define', 'edit-goal'],
   },
   {
