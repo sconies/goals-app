@@ -28,10 +28,9 @@ const who = (k: string, v: unknown) => (v ? { [k]: String(v) } : {});
 export const metricToRow = (ws: string, m: Metric): DbRow => ({
   workspace_id: ws, id: m.id, name: m.name, meaning: m.meaning, unit: m.unit, decimals: m.decimals, direction: m.direction, source: m.source, source_owner: m.sourceOwner,
   refresh: m.refresh, owner_id: m.ownerId, caveats: m.caveats, created_by: m.createdBy, created_at: m.createdAt, updated_at: m.updatedAt, ...set({ removed_at: m.removedAt, removed_by: m.removedBy }),
-  // MT3 (migration 0043): named only once a metric has been retired or marked, so other rows read as before; the NOT NULL
-  // columns get '' and [] (never null) when cleared.
-  ...(m.retiredAt !== undefined ? { retired_at: m.retiredAt ?? null, retired_by: m.retiredBy ?? null, retired_why: m.retiredWhy ?? '', replaced_by: m.replacedBy ?? null } : {}),
-  ...(m.marks !== undefined ? { marks: m.marks ?? [] } : {}),
+  // MT3 (migration 0043): always written, so a batch mixing retired and live metrics never leaves a key out (okr_upsert
+  // takes the union of a batch's keys, and a key left out is written null). The NOT NULL columns get '' and [].
+  retired_at: m.retiredAt ?? null, retired_by: m.retiredBy ?? null, retired_why: m.retiredWhy ?? '', replaced_by: m.replacedBy ?? null, marks: m.marks ?? [],
 });
 export const metricFromRow = (r: DbRow): Metric => ({
   id: r.id, name: String(r.name), meaning: String(r.meaning ?? ''), unit: String(r.unit), decimals: Number(r.decimals ?? 0), direction: r.direction as Metric['direction'],
