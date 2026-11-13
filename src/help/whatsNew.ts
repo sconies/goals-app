@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'proposed-fixes-review',
+    date: '2026-11-13',
+    title: 'Proposed goals: Home, the Map and the AI assistant',
+    points: [
+      'Home no longer says “Nothing is asked of you today.” beside proposed goals waiting for you: it says they wait for your response.',
+      'An ask on a goal that went back to proposed stays on Home.',
+      'With the State filter on Proposed, the Map shows every proposed goal, whatever Troubled trees says.',
+      'The AI assistant’s summary of your work lists the proposed goals waiting for you.',
+    ],
+    articles: ['goal-proposed', 'home'],
+  },
+  {
     id: 'older-changes-on-request',
     date: '2026-11-13',
     title: 'Faro opens with the last year of changes, and fetches older ones when asked',

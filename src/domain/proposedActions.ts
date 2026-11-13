@@ -78,7 +78,10 @@ export function backToProposed(x: ActionContext, i: { goalId: string }): { commi
   if (isProposed(g)) no(`“${g.title}” is already proposed.`);
   if (g.stoppedAt) no(`“${g.title}” is stopped.`);
   if (!mayChangeGoal(x.actor, g)) no(`Only ${nameOf(x, g.ownerId) ?? 'its owner'} (its owner) or an admin can make it proposed again.`);
-  if (x.snapshot.checkIns.some((c) => c.goalId === g.id && !c.removedAt)) no(HAS_CHECK_INS);
+  // Only this year's goals (build review of #349): goalIn also finds one in another year, whose check-ins this year's
+  // scope doesn't hold. Check-ins are read across the workspace when the caller has it.
+  if (g.cycleId !== x.cycle.id) no(`“${g.title}” is in another year, so it can’t go back to proposed.`);
+  if ((x.full ?? x.snapshot).checkIns.some((c) => c.goalId === g.id && !c.removedAt)) no(HAS_CHECK_INS);
   const goal = { ...g, proposedAt: x.now, proposedBy: x.actor.id } as Goal;
   return { commit: { goals: [goal], changes: [change(x, goal, 'Made it proposed again', [{ field: 'State', from: 'Active', to: PROPOSED }])] }, goal };
 }
