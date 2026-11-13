@@ -6,6 +6,7 @@ type Entry = string[] | { notForAssistants: string };
 
 /** Each action in AppState (src/app/state.tsx) that changes something. */
 export const ACTIONS: Record<string, Entry> = {
+  olderChanges: ['get_activity'],
   postCheckIn: ['post_check_in', 'bulk_change'],
   answerRequest: ['answer_request'],
   markActionDone: ['mark_action_done'],
