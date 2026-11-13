@@ -375,6 +375,13 @@ No arguments.
             postedAt: string;
             postedBy: string | null;
             backfilled: boolean;
+            numberFrom: {
+                from: string;
+                sourceSaid: number | null;
+                measuredAt: string | null;
+                reason: string | null;
+                says: string | null;
+            } | null;
         }[];
         state?: string | undefined;
         stopped?: {
@@ -542,6 +549,13 @@ No arguments.
             postedAt: string;
             postedBy: string | null;
             backfilled: boolean;
+            numberFrom: {
+                from: string;
+                sourceSaid: number | null;
+                measuredAt: string | null;
+                reason: string | null;
+                says: string | null;
+            } | null;
         }[];
         state?: string | undefined;
         stopped?: {
@@ -5998,6 +6012,13 @@ From the [spreadsheets](../modules/spreadsheets/README.md) module: switched off 
             postedAt: string;
             postedBy: string | null;
             backfilled: boolean;
+            numberFrom: {
+                from: string;
+                sourceSaid: number | null;
+                measuredAt: string | null;
+                reason: string | null;
+                says: string | null;
+            } | null;
         }[];
         state?: string | undefined;
         stopped?: {

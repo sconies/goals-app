@@ -76,6 +76,7 @@ Worked out: none.
 | Goal ref | Optional | The Ref of a row on Goals in this file | top | Goal key, Goal ID or Goal says which goal |
 | Week | Required | A whole number from 1 to this week; a date in the cycle is read as its week | 46 | Must fix |
 | Value | Required for a number or range goal | A number, at the goal’s decimal places | 6 | Must fix for a number or range goal |
+| Reason for a different number | For reading | Text | The source counts something else: “It leaves out release branches.” | Never read: a reason is given in the check-in |
 | Stages | Required for a stages goal | “Pilot: done week 6; Rollout: expected week 9” | Pilot: done week 6 | Must fix for a stages goal |
 | Call | Optional | On track, At risk, Off track or Done | At risk | The rules decide |
 | Cause | Required when it’s behind, or well ahead | Plan too aggressive, Delivery slower, Blocked by a dependency, External factor, Data problem, Something else, Plan too cautious, Change landed early or One-off, won’t last | Plan too aggressive | Must fix when it’s behind or well ahead. On a row already here, empty clears it |
@@ -87,7 +88,7 @@ Worked out: none.
 | Needs | Optional | Text | A decision on runner budget from Amara | Nothing needed. On a row already here, empty clears it |
 | Next step | Optional | Text | Order runners | Nothing said. On a row already here, empty clears it |
 
-Worked out: Week starting, Calculated, Plan that week, Posted at, Posted by, Posted by email, Backfilled.
+Worked out: Week starting, Number from, Source’s number, Measured at, Calculated, Plan that week, Posted at, Posted by, Posted by email, Backfilled.
 
 **People**. A new row needs: Name and Email.
 

@@ -20,6 +20,7 @@ import type { Ask, Goal, Person, Review, Snapshot } from '../domain/types';
 import { CYCLE } from './examples';
 import { cell, link, table } from './md';
 import { R10, R5, R7, R8, R9 } from './platform';
+import { readingHistoryLine, readingThisWeek } from '../domain/reading';
 
 export interface InternalExample {
   given: string;
@@ -517,6 +518,51 @@ export const INTERNAL: InternalRequirement[] = [
     decided: [
       'The limits (5,000 changes saved at once in Faro; 30 seconds and 2 minutes for 30,000 rows on the platform; 90 days of Undo) are proposals for the internal team to confirm.',
       'Faro splits a file too large to save into parts, each with its own Undo, rather than saving in batches: a model in the browser can’t promise one state at the end.',
+    ],
+  },
+  {
+    id: 'R12', file: 'r12-number-sources', title: 'R12. Number sources',
+    summary: 'A metric’s numbers come from where they are kept (a warehouse, a dashboard’s API, a monitoring tool) through connectors the platform runs: credentials on the server, a reference per metric and slice, readings on a schedule with their revisions, failures to the source’s owner, and readings as readable as the goals they measure.',
+    why: [
+      'A check-in opens with the number its metric’s source last read (requirement READING-PREFILL), and the goal’s page, History, the metric’s page, a review’s agenda and the sheet export say where each number came from (READING-SHOWN). Faro shows that with a demo source that replays seeded weeks. Real numbers live in systems Faro must not hold the keys to.',
+      'A number that fills itself in is only trusted if it is right, on time, and the same for everyone who may see the goal. That is the platform’s machinery, not a goals app’s.',
+    ],
+    rule: [
+      '1. **R12.1 Connectors.** Each source (a warehouse, a dashboard’s API, a monitoring tool) is a `NumberSource` that passes the contract (`src/modules/metrics/source.contract.ts`). The demo’s is not a connector.',
+      '2. **R12.2 Credentials** are held by the platform’s secret store and used on the server. None is in the browser, in Faro’s tables, or in a metric’s fields.',
+      '3. **R12.3 A reference per metric and slice**: what a connector reads (a query, a series, a dashboard tile), kept by the platform beside the metric, changed only by the source’s owner or an admin. A company-wide number is never a team’s: a source that reads only the whole company says so for a team’s goal.',
+      '4. **R12.4 A schedule.** The platform reads each metric on its refresh cadence and keeps every reading with the time measured and the time fetched. `read` is answered from those, not by calling the source while a person waits; the 200 ms budget of a list ([R4](r4-scale-and-safety.md)) holds.',
+      '5. **R12.5 Revisions.** A source that restates a past number keeps both; the check-in’s `revised` question reads them.',
+      '6. **R12.6 Failure is the source owner’s.** A connector that fails or falls behind raises it through the platform’s observability ([R9](r9-observability.md)) to whoever owns that source. A goal’s owner sees only the check-in’s words.',
+      '7. **R12.7 Access.** A reading is as readable as the goal it measures ([R1](r1-sign-in-and-access.md)); a connector reads with the platform’s rights, never the viewer’s.',
+      '8. **R12.8 A number with nobody confirming it** (MT4, decision 5): if the company wants it, a reading may be recorded as a number with no status call, shown as “From {source}. Nobody has said anything yet.”, and never counted as a check-in. Left out of Faro on purpose.',
+    ].join('\n'),
+    today: [
+      'The port is `NumberSource` (`src/modules/metrics/source.ts`), with its contract in `src/modules/metrics/source.contract.ts`. The demo’s two sources (`src/modules/metrics/numbers.ts`) replay seeded weekly series in the example only; a workspace of your own has none (`src/modules/metrics/sources.ts`).',
+      'The browser asks the source once when a check-in’s number step opens; the AI’s `post_check_in` asks it on the server with `reading_confirmed` (`src/modules/metrics/readingTool.ts`). Nothing reads on a schedule, and no reading is kept except what a check-in records (`CheckIn.reading`).',
+      'Where a reading came from shows on the goal’s Measured by and History, the metric’s page (rule 4 in `src/modules/metrics/rulesReading.ts`), a review’s agenda and the Check-ins sheet; `get_goal` and `get_metric` say the same.',
+      'There are no credentials anywhere: the demo’s sources need none.',
+    ],
+    examples: [
+      { given: 'Faro today: Rhea confirmed the 12 min CI analytics read at 09:02 on Thursday; her goal’s Measured by, read that day.', then: '12 min, from CI analytics, read 9:02 today. Confirmed by Rhea Kapoor.', run: () => readingThisWeek({ value: 12, reading: { source: 'CI analytics', value: 12, at: '2026-11-12T09:02:00Z' } }, { unit: 'min', decimals: 0 }, 'Rhea Kapoor', new Date('2026-11-12T10:00:00Z'), 'UTC') ?? '' },
+      { given: 'Faro today: Rhea typed 15 over CI analytics’ 13, because it counts something else; her goal’s History row.', then: 'Typed by Rhea Kapoor. CI analytics said 13 min. The source counts something else.', run: () => readingHistoryLine({ value: 15, reading: { source: 'CI analytics', value: 13, at: '2026-11-12T09:02:00Z', why: { kind: 'other-count' } } }, { unit: 'min', decimals: 0 }, 'Rhea Kapoor', new Date('2026-11-12T10:00:00Z'), { timeZone: 'UTC' }) ?? '' },
+      { given: 'Required: a goal measured for CI/CD by a metric whose source reads only the whole company.', then: 'Its check-in is typed by hand; the metric’s page says “Typed by hand: CI analytics has no number per team” (rule 4 of the metric library’s reading rule).' },
+      { given: 'Required: the warehouse’s token is rotated.', then: 'Only the platform’s secret store changes; no metric, goal or browser holds it, and the next scheduled read uses the new one.' },
+      { given: 'Required: the monitoring tool is down at 09:00 on Thursday, when twelve teams check in.', then: 'Each check-in opens on the last stored reading (or says it is too old), nobody waits on the tool, and the tool’s owner is told, not the goals’ owners.' },
+      { given: 'Required: on Friday the warehouse restates Thursday’s 41 min as 45 min.', then: 'Both readings are kept; next week’s check-in asks whether to correct week 46 to 45 min, with the source’s reason.' },
+    ],
+    checks: [
+      'Every connector passes `numberSourceContract`, run in the platform’s CI against a test double of its source.',
+      'No credential for a source is readable from the browser, Faro’s tables or a metric’s fields.',
+      'Opening a check-in never calls a source: the reading comes from the platform’s store within R4’s 200 ms.',
+      'A restated reading keeps both values, each with when it was measured and fetched.',
+      'A connector that fails, or falls a refresh behind, alerts the source’s owner within one refresh.',
+      'A reading is refused to anyone who may not read the goal it measures.',
+    ],
+    stage: { file: 'stage-4-module-metrics.md', title: 'Stage 4: Metric library', why: 'the number step, rule 1’s states and rule 4’s words are the metric library module’s; the rebuild plugs its connectors in behind the same `NumberSource` port.' },
+    decided: [
+      'Numbered R12 because R7 to R11 are taken (MT4’s spec calls it R7); its rules are R12.1 to R12.8.',
+      'A reading nobody confirmed (R12.8) stays out of Faro: a number is a check-in only when its owner says so.',
     ],
   },
 ];
