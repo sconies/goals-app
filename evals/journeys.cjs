@@ -5833,7 +5833,7 @@ journey('U146', ['METRIC-PARTS'], 'Which part: as Grace, Base image build time i
   await p.waitForTimeout(300);
   const heldAtCheck = /\/edit/.test(p.url()) && await twin.evaluate((el) => el === document.activeElement || el.contains(document.activeElement));
   await h.click(twin.getByRole('button', { name: 'Carry on' }));
-  h.set('errors', heldAtCheck && (await field.locator('[data-check="part"]').count()) === 0 && (await p.getByLabel(/^Why/).count()) === 0, heldAtCheck ? 'Carry on did not close the question, or a goal with no metric yet is asked why' : 'Save went past an open Check, or focus stayed on Save');
+  h.set('errors', heldAtCheck && (await field.locator('[data-check="part"]').count()) === 0 && (await p.getByLabel(/^Why$/).count()) === 0, heldAtCheck ? 'Carry on did not close the question, or a goal with no metric yet is asked why' : 'Save went past an open Check, or focus stayed on Save');
   await h.click(p.getByRole('button', { name: 'Save changes' }));
   await p.waitForURL(/\/demo\/goals\/(ci-docker|G-\d+)(\?|$)/);
   const about = p.locator('.metric-block');
@@ -5851,7 +5851,7 @@ journey('U146', ['METRIC-PARTS'], 'Which part: as Grace, Base image build time i
   await see(why, 'Must fix', 'Why is not a Must fix');
   await h.click(p.getByRole('button', { name: 'Save changes' }));
   const held = /\/edit/.test(p.url());
-  await h.fill(p.getByLabel(/^Why/), 'Release builds queue apart from main now');
+  await h.fill(p.getByLabel(/^Why$/), 'Release builds queue apart from main now');
   await h.click(p.getByRole('button', { name: 'Save changes' }));
   await p.waitForURL(/\/demo\/goals\/(lead-ci-time|G-\d+)(\?|$)/);
   const s = await h.snapshot();

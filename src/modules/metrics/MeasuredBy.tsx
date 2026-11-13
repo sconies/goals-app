@@ -95,13 +95,16 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
       pick = same ? undefined : {
         action: 'linkGoalMetric', input: (g) => ({ goalId: g.id, metricId: metric.id, teamId: slice, part: part.trim(), reason: reason.trim() }),
         // Check's row is labelled "Measured by" already: its value is the rest of the sentence.
-        says: measuredBySays(metric, slice ? team?.name ?? null : null, part).replace(/^Measured by /, ''), blocks: problems.errors[0] ?? fix?.words ?? (openCheck ? `Answer the question about the part first: ${openCheck.words}` : undefined),
+        // Quiet (New goal's Check step, after the goal is saved): the field isn't drawn and the choice is worked out
+        // silently, so a Check doesn't hold the save — otherwise the new goal's own saved link reads as a second goal
+        // on the same number and bounces Publish back (#308's review).
+        says: measuredBySays(metric, slice ? team?.name ?? null : null, part).replace(/^Measured by /, ''), blocks: problems.errors[0] ?? fix?.words ?? (!quiet && openCheck ? `Answer the question about the part first: ${openCheck.words}` : undefined),
         metric: { name: metric.name, direction: metric.direction },
       };
     } else if (link) pick = { action: 'unlinkGoalMetric', input: (g) => ({ goalId: g.id }) };
     onChange(pick);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [metric?.id, slice, part, reason, problems.errors[0], checks.find((c) => c.kind === 'fix')?.words, openCheck?.words, team?.name]);
+  }, [metric?.id, slice, part, reason, problems.errors[0], checks.find((c) => c.kind === 'fix')?.words, quiet ? '' : openCheck?.words, team?.name]);
 
   // Quiet (New goal's Check): the choice is worked out from the draft for the goal's team now, and nothing is drawn.
   if (quiet || kind === 'milestone' || (goal && !canLinkGoal(app.viewer, goal))) return null;
@@ -206,7 +209,7 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
           {(shown || part.trim().length > PART_MAX) && partChecks.map((c) => <LinkQuestion key={c.words} c={c} onAnswer={(choice) => { if (choice.startsWith('use:')) setPart(choice.slice(4)); setAnswered([...answered, c.words]); }} />)}
           {changing && (
             <div className="field"><label className="field-label" htmlFor="measured-why">Why <span className="hint">Required</span></label>
-              <textarea id="measured-why" className="input" rows={2} maxLength={LINK_REASON_MAX} value={reason} aria-invalid={!!whyFix || undefined} aria-describedby="measured-why-hint" onChange={(e) => setReason(e.target.value)} />
+              <textarea id="measured-why" className="input" rows={2} maxLength={LINK_REASON_MAX} value={reason} aria-label="Why" aria-invalid={!!whyFix || undefined} aria-describedby="measured-why-hint" onChange={(e) => setReason(e.target.value)} />
               <span className="hint" id="measured-why-hint">It shows in its History.</span>
             </div>
           )}
