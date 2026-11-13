@@ -10,7 +10,7 @@
 import { createToken, revokeToken, type ActionContext } from '../../domain/actions';
 import { deleteGoal, markPersonLeft, undoImport, undoRemoval } from '../../domain/removal';
 import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE } from '../../domain/importer';
-import type { Snapshot } from '../../domain/types';
+import type { Change, CheckIn, Cycle, Goal, Snapshot } from '../../domain/types';
 import { moduleRows, type DbRow, type ModuleRecords, type RecordDef } from '../../domain/records';
 import { examplesOf, isStale, withExpectations, type Commit, type Store } from '../../data/store';
 
@@ -50,6 +50,43 @@ export const CONTRACT_MODULE_SQL = `
   create or replace view public.okr_contract_marks with (security_invoker = on) as select * from faro.okr_contract_marks;
 `;
 const marksOf = (s: Snapshot) => moduleRows<Mark>(s, 'contract', 'marks');
+
+/* ---------- the narrower load (AX5 part 2): a workspace with an earlier cycle and an old change log ---------- */
+
+/** Where the windowed load in the contract starts: well into the contract workspace's year, months after its earlier cycle ended. */
+const FROM = '2026-06-01T00:00:00.000Z';
+
+/** A workspace with a quarter before its year (ended 13 April 2025), a goal in each with a check-in, and change-log
+    entries from before FROM of every kind the window treats differently: a plain edit (two at the same moment, so paging
+    meets a tie), a comment, the earlier cycle's own entry and an import's summary. */
+async function withHistory(store: Store) {
+  const ws = ids('ws');
+  const s = contractWorkspace(`h${n}`);
+  await store.createWorkspace({ id: ws, name: 'History', kind: 'own', createdAt: NOW.toISOString() }, s);
+  const actor = s.people[0]!.id;
+  const earlier: Cycle = { id: ids('cycle'), name: 'Jan–Mar 2025', startDate: '2025-01-06', weeks: 13, reviewDay: 3 };
+  const like = s.goals.find((g) => g.kind !== 'milestone')!;
+  const oldGoal = { ...like, id: ids('goal'), cycleId: earlier.id, parentId: null, alsoHelps: [], version: undefined } as Goal;
+  const checkIn = (goalId: string, week: number, postedAt: string): CheckIn => ({
+    id: ids('ci'), goalId, authorId: actor, week, postedAt, value: null, stages: null, status: 'on', calculated: 'on', cause: null,
+    why: '', greenerWhy: '', proposeTarget: null, pathToGreen: null, next: '', dataFlagged: false,
+  });
+  const entry = (at: string, x: Partial<Change>): Change => ({ id: ids('chg'), at, actorId: actor, goalId: oldGoal.id, entity: 'goal', entityId: oldGoal.id, action: 'edited', summary: 'Edited', diffs: [], ...x });
+  const old = {
+    cycle: entry('2025-01-06T08:00:00.000Z', { goalId: null, entity: 'cycle', entityId: earlier.id, action: 'created', summary: 'Started a cycle' }),
+    imported: entry('2025-02-01T10:00:00.000Z', { goalId: null, entity: 'workspace', entityId: ids('imp'), action: 'imported', summary: 'Imported a spreadsheet: 0 rows', undo: { goals: [], checkIns: [], people: [], requests: [] } }),
+    plain: entry('2025-03-01T10:00:00.000Z', {}),
+    note: entry('2025-03-02T10:00:00.000Z', { entity: 'note', entityId: ids('note'), action: 'noted', summary: 'Commented', diffs: [{ field: 'Comment', from: '—', to: 'An old comment' }] }),
+    tie: [entry('2025-03-03T10:00:00.000Z', {}), entry('2025-03-03T10:00:00.000Z', {})],
+  };
+  const oldCheckIn = checkIn(oldGoal.id, 2, '2025-01-20T09:00:00.000Z');
+  // This year's, posted before FROM: kept, because its cycle overlaps the window.
+  const thisYear = checkIn(like.id, 2, '2026-01-12T09:00:00.000Z');
+  await store.commit(ws, { cycles: [earlier], changes: [old.cycle] });
+  await store.commit(ws, { goals: [oldGoal], changes: [old.imported] });
+  await store.commit(ws, { checkIns: [oldCheckIn, thisYear], changes: [old.plain, old.note, ...old.tie] });
+  return { ws, earlier, current: s.cycles[0]!, oldGoal, old, oldCheckIn, thisYear };
+}
 
 export function storeContract(name: string, make: () => Promise<Store>) {
   describe(`the goals store contract: ${name}`, () => {
@@ -208,6 +245,59 @@ export function storeContract(name: string, make: () => Promise<Store>) {
       await store.deleteWorkspace(other);
       expect((await store.workspaces()).map((w) => w.id)).not.toContain(other);
       expect((await store.workspaces()).map((w) => w.id)).toContain(ws);
+    });
+
+    it('narrows a load to a window: check-ins of cycles that overlap it, and entries from its start plus the anchors of any age', async () => {
+      const h = await withHistory(store);
+      const s = await store.load(h.ws, { from: FROM });
+      expect(s.checkIns.map((c) => c.id)).toContain(h.thisYear.id);
+      expect(s.checkIns.map((c) => c.id)).not.toContain(h.oldCheckIn.id);
+      const kept = s.changes.map((c) => c.id);
+      expect(kept).not.toContain(h.old.plain.id);
+      for (const t of h.old.tie) expect(kept).not.toContain(t.id);
+      for (const anchor of [h.old.note, h.old.cycle, h.old.imported]) expect(kept).toContain(anchor.id);
+      expect(s.changes.find((c) => c.id === h.old.imported.id)?.undo).toBeTruthy();
+      // Entries from the window's start on are all there (the workspace's own, made at NOW).
+      expect(s.changes.filter((c) => c.at >= FROM).length).toBeGreaterThan(0);
+      // Everything else is whole: both cycles, and the earlier cycle's goal.
+      expect(s.cycles.map((c) => c.id).sort()).toEqual([h.current.id, h.earlier.id].sort());
+      expect(s.goals.map((g) => g.id)).toContain(h.oldGoal.id);
+      expect(s.history).toEqual({ from: FROM, checkInCycles: [h.current.id, h.earlier.id].sort() });
+      await store.deleteWorkspace(h.ws);
+    });
+
+    it('pages back through the change log newest first, with no skips or repeats, and narrows it to a goal', async () => {
+      const h = await withHistory(store);
+      const all = (await store.load(h.ws)).changes;
+      const seen: Change[] = [];
+      let before: { at: string; id: string } | null = null;
+      for (let i = 0; i < 100; i++) {
+        const page = await store.history(h.ws, { before, size: 2 });
+        expect(page.changes.length).toBeLessThanOrEqual(2);
+        seen.push(...page.changes);
+        if (!page.next) break;
+        expect(page.next).toEqual({ at: page.changes.at(-1)!.at, id: page.changes.at(-1)!.id });
+        before = page.next;
+      }
+      expect(seen.map((c) => c.id).sort()).toEqual(all.map((c) => c.id).sort());
+      expect(new Set(seen.map((c) => c.id)).size).toBe(seen.length);
+      for (let i = 1; i < seen.length; i++) expect(Date.parse(seen[i - 1]!.at)).toBeGreaterThanOrEqual(Date.parse(seen[i]!.at));
+      // One goal's entries, and a page is never more than 100.
+      const mine = await store.history(h.ws, { goalId: h.oldGoal.id, size: 500 });
+      expect(mine.changes.map((c) => c.id).sort()).toEqual(all.filter((c) => c.goalId === h.oldGoal.id).map((c) => c.id).sort());
+      expect(mine.changes.map((c) => c.id)).toEqual(expect.arrayContaining([h.old.plain.id, h.old.note.id, ...h.old.tie.map((t) => t.id)]));
+      expect(mine.next).toBeNull();
+      expect((await store.history(h.ws, { size: 500 })).changes.length).toBe(Math.min(all.length, 100));
+      await store.deleteWorkspace(h.ws);
+    });
+
+    it('loads the whole workspace when no window is asked for, and says nothing was left out', async () => {
+      const h = await withHistory(store);
+      const s = await store.load(h.ws);
+      expect(s.checkIns.map((c) => c.id)).toEqual(expect.arrayContaining([h.oldCheckIn.id, h.thisYear.id]));
+      expect(s.changes.map((c) => c.id)).toEqual(expect.arrayContaining([h.old.plain.id, ...h.old.tie.map((t) => t.id), h.old.note.id]));
+      expect(s.history).toBeUndefined();
+      await store.deleteWorkspace(h.ws);
     });
 
     it('resets the example only when it has one (the demo’s plumbing, not the port’s)', async () => {

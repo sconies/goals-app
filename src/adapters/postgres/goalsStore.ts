@@ -18,6 +18,8 @@ import {
   type RetroRow, type ReviewRow, type StageRow, type TeamRow, type TokenRow, type ViewRow, type WatchRow, type WorkspaceRow,
 } from '../../data/rows';
 import { EXAMPLE, StaleError, type Commit, type Store } from '../../data/store';
+import type { HistoryAsk, HistoryPage, LoadWindow } from '../../ports/store';
+import { ANCHOR_ACTIONS, ANCHOR_ENTITIES, historySize } from '../../ports/window';
 import { MODULE_RECORDS } from '../../core/records';
 
 /** What the adapter needs from a Postgres driver: node-postgres (Pool, Client) and PGlite both have it. */
@@ -33,6 +35,23 @@ const TABLES = {
   requests: 'okr_requests',
 } as const;
 
+/** A constant list as SQL: the anchor kinds (ports/window.ts), which are plain words. */
+const words = (xs: readonly string[]) => xs.map((x) => `'${x.replace(/'/g, "''")}'`).join(', ');
+
+/* The narrower load's queries (AX5 part 2). The rules are ports/window.ts's, put into SQL: a cycle overlaps the window
+   when its last day (domain/cycle cycleDates) is on or after the window's first day (UTC); an entry is kept from the
+   window's start on, or as an anchor (ANCHOR_ENTITIES, ANCHOR_ACTIONS, or carrying an import's undo). Ids compare in
+   the "C" collation, as JavaScript compares them. At company scale okr_changes wants an index on (workspace_id, at),
+   which a migration can add, shipped one merge ahead (AX10). */
+const OPEN_CYCLES = `select c.id from okr_cycles c where c.workspace_id = $1 and c.start_date + ((c.weeks + 1) * 7 - 1) >= ($2::timestamptz at time zone 'UTC')::date`;
+const WINDOW_CHECK_INS = `select ci.* from okr_check_ins ci join okr_goals g on g.id = ci.goal_id
+  where ci.workspace_id = $1 and g.cycle_id in (${OPEN_CYCLES}) order by ci.id`;
+const CHECK_IN_CYCLES = `select distinct g.cycle_id as id from okr_check_ins ci join okr_goals g on g.id = ci.goal_id where ci.workspace_id = $1 order by 1`;
+const WINDOW_CHANGES = `select * from okr_changes where workspace_id = $1
+  and (at >= $2::timestamptz or entity in (${words(ANCHOR_ENTITIES)}) or action in (${words(ANCHOR_ACTIONS)}) or undo is not null) order by id`;
+const HISTORY = `select * from okr_changes where workspace_id = $1
+  and ($2::timestamptz is null or (at, id collate "C") < ($2::timestamptz, $3::text collate "C"))
+  and ($4::text is null or goal_id = $4) order by at desc, id collate "C" desc limit $5`;
 
 export class PostgresStore implements Store {
   readonly kind = 'postgres' as const;
@@ -63,11 +82,16 @@ export class PostgresStore implements Store {
     return rows.map(workspaceFromRow).filter((w) => w.kind !== 'example' && w.id !== EXAMPLE.id);
   }
 
-  async load(ws: string): Promise<Snapshot> {
+  async load(ws: string, window?: LoadWindow): Promise<Snapshot> {
     const T = TABLES;
-    const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, views, requests, modules, feedback, tokens] = await Promise.all([
+    const from = window ? new Date(window.from).toISOString() : null;
+    const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, views, requests, modules, feedback, tokens, withCheckIns] = await Promise.all([
       this.all<TeamRow>(T.teams, ws), this.all<PersonRow>(T.people, ws), this.all<CycleRow>(T.cycles, ws), this.all<GoalRow>(T.goals, ws),
-      this.all<StageRow>(T.stages, ws), this.all<CheckInRow>(T.checkIns, ws), this.all<DecisionRow>(T.decisions, ws), this.all<ChangeRow>(T.changes, ws),
+      this.all<StageRow>(T.stages, ws),
+      // With a window, check-ins and change-log entries are trimmed in the query (ports/window.ts's rules, above).
+      from ? this.json<CheckInRow>(T.checkIns, WINDOW_CHECK_INS, [ws, from]) : this.all<CheckInRow>(T.checkIns, ws),
+      this.all<DecisionRow>(T.decisions, ws),
+      from ? this.json<ChangeRow>(T.changes, WINDOW_CHANGES, [ws, from]) : this.all<ChangeRow>(T.changes, ws),
       this.all<WatchRow>(T.watches, ws), this.all<ReviewRow>(T.reviews, ws), this.all<RetroRow>(T.retros, ws), this.all<ViewRow>(T.views, ws),
       this.all<RequestRow>(T.requests, ws),
       // Each feature module's own tables, as it declares them.
@@ -75,6 +99,7 @@ export class PostgresStore implements Store {
       // Feedback and tokens through the same functions the Supabase adapter reads them with (tokens without their hashes).
       this.json<FeedbackRow>('Feedback', 'select * from okr_feedback_list($1)', [ws]),
       this.json<TokenRow>('Tokens', 'select * from okr_token_list($1)', [ws]),
+      from ? this.json<{ id: string }>('Check-in cycles', CHECK_IN_CYCLES, [ws]) : null,
     ]);
     if (!cycles.length) throw new Error('This workspace has no cycle yet.');
     return upgradeAsks({
@@ -93,7 +118,18 @@ export class PostgresStore implements Store {
       views: views.map(viewFromRow),
       requests: requests.map(requestFromRow),
       ...(modules ? { modules } : {}),
+      ...(from && withCheckIns ? { history: { from: window!.from, checkInCycles: withCheckIns.map((r) => r.id).sort() } } : {}),
     });
+  }
+
+  /** Older change-log entries, newest first, keyset by (at, id) (ports/window.ts historyPage, in SQL). */
+  async history(ws: string, ask: HistoryAsk): Promise<HistoryPage> {
+    const size = historySize(ask);
+    const b = ask.before ?? null;
+    const rows = await this.json<ChangeRow>('History', HISTORY, [ws, b ? new Date(b.at).toISOString() : null, b?.id ?? null, ask.goalId ?? null, size + 1]);
+    const changes = rows.slice(0, size).map(changeFromRow);
+    const last = changes.at(-1);
+    return { changes, next: rows.length > size && last ? { at: last.at, id: last.id } : null };
   }
 
   /** One transaction (okr_commit), refused if something it was based on has changed. Revoking a token is its own save,

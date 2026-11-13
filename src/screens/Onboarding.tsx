@@ -133,10 +133,10 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const app = useMaybeApp();
   const nav = useNavigate();
   // Set up from inside the app, "Who are you?" starts as the person you are now (backlog WS); change anything.
-  const viewer = app?.viewer;
+  const viewer = app?.viewerChosen ? app.viewer : undefined; // No one chosen yet (from an invitation's arrival): nothing to fill in.
   const [d, setDraft, clear, restored] = useDraft<SetupDraft>(`setup:${setup.mode}`, () => ({
     step: 0, name: '', startDate: yearStartFor(setup.today, 0), reviewDay: 3,
-    me: viewer ? { name: viewer.name, email: viewer.email ?? '', title: viewer.role ?? '', team: app.team(viewer.teamId ?? '')?.name ?? '', admin: true } : { name: '', email: '', title: '', team: '', admin: true }, people: [blankPerson(), blankPerson()], objectives: {},
+    me: viewer ? { name: viewer.name, email: viewer.email ?? '', title: viewer.role ?? '', team: app?.team(viewer.teamId ?? '')?.name ?? '', admin: true } : { name: '', email: '', title: '', team: '', admin: true }, people: [blankPerson(), blankPerson()], objectives: {},
     template: '', outcome: blankGoal(), goals: [],
   }));
   // Each change says when, so Welcome can say where a set-up was left (set-up spec 2.1).
