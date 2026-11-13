@@ -12,6 +12,28 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 - `api/mcp.js` bundles more than `server/`: `src/domain` and `src/help/whatsNew.ts` too. Run `npm run build:mcp` after changing either, or the smoke gate fails on the bundle (#385 and #392 both did).
 - A PR with a merge conflict gets no CI at all (no merge ref), not a failed run: #383 sat for 25 minutes with only Vercel's check. Read `mergeable_state`; on `dirty`, merge main in.
 
+## Track 1, Friday 13 November, ~21:00 UTC (context near 80%, handing over; supersedes the 17:00 entry)
+
+Session: session_012kbr8y3FdWxxDaqeRvJw4c. Planning: session_012kbr91eefh4gwCAztBncNT (report there once, finished results and blockers only).
+
+**Merged:** #429 (#410's six mediums: `inByDueDay`/`postedDay`, the posted day on the reader's clock; Done goals leave the run; backfilled weeks never on time; a forgiven week is "missed" or "late"; a goal taken over counts from when it was the owner's; the moment panel and share image carry the check-in's own status; `home.csv` `run`/`forgiven`, `checkin.csv` `moment`). #434 (NR1: `Slice` on the port, the demo's seeded series `DEMO_SERIES`, `readingState`, `CheckIn.reading`). #437 (NR2: the number step's block in core place `checkin.number`, rule 3 in `src/domain/reading.ts`, `post_check_in`'s `reading_confirmed`/`different_because`, the table's `checkin.table`, U156–U160, N29, renumbered from N28: SM2 took that id).
+
+Also merged: #446 (NR3: "This week's number" in Measured by, History's second line, the metric's page table and the 8-week count, the agenda's "· from {source}", four sheet columns, R12 Number sources, MCP `numberFrom`/`inItsCheckIn`; and the build reviewer's three NR mediums: `reading` always written, `readingProblem` enforces rule 2, `askSource` times out at 5 s; U161). **This PR:** NR2's check renumbered N28 → N29 (SM2's `23-small-quiet` also said N28, so the shard plan ran it four times and the full suite failed on main).
+
+**Open, not this session's:** #432 (the previous track 1 session's fix for the reviewer's **HIGH on #416**: "Before this review" said "before it" for a review not held on the due day). It is ready; check it merges. This session built another fix (judging against the session's own date) and dropped it for #432's.
+
+**Next, in order:**
+1. **HM3** (Your team, teams worst first) and **HM4** (Changed since you last looked), `docs/design/home/spec.md` section on the build plan (rules 4 and 5). Neither is built. Then **PF1–PF2** (`docs/design/round-4/portfolio/spec.md`).
+2. **HB3** only once HM7 exists (it needs HM3 and HM5 first; not on main).
+3. N12 landed on main (#385): skip it. Then #110's lows, HM1's lows, the 14:25 entry's lows batch, #400's two lows (the 17:00 entry's item 5), and #410's two lows left: the evals accept "review" or "deadline" for one person, and a reload on the receipt returns to the form.
+
+**Habits, learned this session:**
+- Builder subagents worked well for NR2 and NR3: a fresh general-purpose agent with a full brief (spec section, what is built, the gate, "don't push, don't run the full suite"), in its own worktree branched from the previous item's branch; then one eval subagent runs `evals:changed` and returns only the scorecard. Keep one heavy run at a time.
+- `evals:changed` runs the whole suite whenever a changed file isn't named in `evals/touches.cjs` (habit.ts, reading.ts): budget ~18 minutes.
+- N6 (review notes' motion) and N18 (import's 30,000 rows) can fail under a full run's load and pass alone (`FINISH=N6`): run them alone before calling it.
+- A journey scoring 8/10 with "missed: entry, attention" (U151) never sets those criteria: it's its normal score.
+- Track 2's RS1 replaced `reviewOnDueDay` with `dueWords`/`dueWordsHere` (`heldOnDueDay` handles every-two-weeks reviews).
+
 ## Track 1, Friday 13 November, 17:00 UTC (handing over at about two-thirds full; supersedes the 14:25 entry)
 
 Session: session_012kbr8zT29m9btyWCVyT2QG. Planning is now session_012kbr91eefh4gwCAztBncNT: report there once, with finished results and blockers only.
