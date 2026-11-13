@@ -130,7 +130,9 @@ function NeedsYou({ asks, also }: { asks: Waiting[]; also: boolean }) {
   const groups = GROUP_ORDER.map((k) => [k, shown.filter((x) => x.kind === k)] as const).filter(([, l]) => l.length);
   const said = (w: Waiting) => {
     const who = w.by ? `${w.by} ${w.kind === 'action' ? 'agreed it' : 'asked'}` : 'You agreed it';
-    const asked = `${who}${w.where ? ` in ${w.where}` : ''} on ${dayText(w.askedOn).replace(/^\w+ /, '')}`;
+    // "Waiting since 28 Jul, 14 weeks" already says the day it was asked: it isn't said twice (F1, one line in the side column).
+    const since = w.line.startsWith('Waiting since');
+    const asked = `${who}${w.where ? ` in ${w.where}` : ''}${since ? '' : ` on ${dayText(w.askedOn).replace(/^\w+ /, '')}`}`;
     return w.late ? `${w.line} · ${asked}.` : `${asked} · ${w.line}.`;
   };
   return (
