@@ -6,7 +6,7 @@ import type { HistoryAsk, HistoryPage } from '../ports/store';
 import { LEVEL_WORDS, levelIds } from '../domain/levels';
 import { addNote, NotAllowed } from '../domain/actions';
 import { EMPTY_QUERY, parseQuery, queryEntries, type GoalQuery } from '../domain/query';
-import { scopeFacts, searchRows } from '../app/reads';
+import { reviewsOn, reviewWriteRows, scopeFacts, searchRows } from '../app/reads';
 import { scopesFor, SCOPES, type Scope } from '../domain/goalsPage';
 import { localSearch } from '../adapters/localSearch';
 import type { FoundRow, Search, SearchAsk } from '../ports/search';
@@ -29,7 +29,8 @@ import { FEEDBACK_TOOLS } from './feedbackTools';
 import type { FeedbackOps } from '../markup/feedback';
 import { REMOVE_TOOLS } from './removeTools';
 import MODULE_TOOLS from 'virtual:faro-modules/tools';
-import { isModuleOn, moduleById } from '../core/registry';
+import { isModuleOn, moduleById, modulesOn } from '../core/registry';
+import { writesReviews } from '../domain/reviewWrites';
 import { MODULE_GOAL_COLUMNS, recordsOn } from '../core/records';
 import { addColumnParams } from '../domain/query';
 import { commentsOf } from '../domain/removal';
@@ -569,13 +570,32 @@ export async function callTool(name: string, args: Record<string, unknown>, ctx:
   const from = TOOL_MODULE.get(name);
   if (from && !isModuleOn(ctx.ws, from)) return { isError: true, text: moduleOffSentence(moduleById(from)?.name ?? from, ctx.ws.name, name) };
   try {
-    return await t.run(args ?? {}, ctx);
+    return await t.run(args ?? {}, reviewsOn(modulesOn(ctx.ws).on) ? ctx : reviewsGuarded(ctx, name));
   } catch (e) {
+    if (e instanceof ReviewsOff) return { isError: true, text: e.message };
     const text = e instanceof Error ? e.message : String(e);
     // A refusal says who the token acts as, so an assistant (and the person reading) can tell "the rule says no" from "this
     // token is someone else's" (backlog N: a token made for a non-admin was taken for an admin's).
     return { isError: true, text: e instanceof NotAllowed ? `${text} ${actingAs(ctx.actor)}` : text, cause: e };
   }
+}
+
+/** A save refused because it writes Reviews' records while Reviews is off: said as the switched-off sentence alone. */
+class ReviewsOff extends Error {}
+
+/**
+ * The context a tool runs with while Reviews is off: the same, except that a save writing Reviews' records (a review, a
+ * note said in one, an ask raised in one, a goal proposed in one: domain/reviewWrites) is refused and saves nothing, in
+ * the switched-off sentence, whichever tool made it (build review of #371: edit_comment and delete_comment on a review
+ * note, create_goal proposed in a review, restore_removed reopening an ended review). Everything else reads and writes
+ * through to the context itself, which a save moves on.
+ */
+function reviewsGuarded(ctx: McpContext, tool: string): McpContext {
+  const save = async (c: Commit) => {
+    if (writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new ReviewsOff(moduleOffSentence('Reviews', ctx.ws.name, tool));
+    return ctx.save(c);
+  };
+  return new Proxy(ctx, { get: (t, k, r) => (k === 'save' ? save : Reflect.get(t, k, r)) });
 }
 
 /** Who a token acts as, in a sentence: said with every refusal. */

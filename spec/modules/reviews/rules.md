@@ -20,6 +20,8 @@ How the day check-ins are due is said with Reviews on or off, and what switching
 
 **Elsewhere with Reviews off.** The workbook has no Notes sheet and no Review column on Asks; a workbook that has them is not refused, and the preview says once “Reviews is off in {workspace}: the Notes sheet and the Review column were not read.”. Every review tool, and edit_call on a note said in a review, answers “Reviews is switched off in {workspace}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features.”, the sentence every switched-off module's tools use.
 
+**What is refused with Reviews off** (`writesReviews`, build review of #371). Not a list of actions: whatever touches Reviews' records. An action whose input names a review (a review's id or settings, or a goal's “proposed in”) is refused before its rule runs; then any save, from the app or an AI tool, that logs a change to a review or a note, writes a note or a new review, raises an ask in a review, or proposes a goal in one. So correcting or removing a review note, Undo of an ended review and restoring one from Recently removed are refused too. What a save only carries along still runs: answering a question raised in a review, correcting an ask's words, editing a goal once proposed in one, the reviews someone leaves when marked as left, the reviews a carried goal joins. An action says “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, under Features.”, as any switched-off module's action does; an AI tool, the tools' sentence above. Each reload of the workspace brings its switches, so a tab open from before the switch is refused from its next reload; the internal app checks at the server (the ports at company scale, rule 5).
+
 
 ### Worked examples
 
@@ -39,6 +41,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - [src/domain/progress.ts](../../../src/domain/progress.ts): `dueWords`, `dueWordsOn`, `weekDoneText`
 - [src/domain/review.ts](../../../src/domain/review.ts): `heldOnDueDay`
 - [src/domain/reviewsOff.ts](../../../src/domain/reviewsOff.ts): `switchOffReadBack`, `switchOffLines`
+- [src/domain/reviewWrites.ts](../../../src/domain/reviewWrites.ts): `writesReviews`
 
 ### Requirements
 
@@ -62,6 +65,19 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the read-back before switching Reviews off › says each line only when its count is above nought; the first, the due day’s and the last always
 - the read-back before switching Reviews off › RS2: counts the risks a review accepted on goals not removed, leaving out a removed note, another note and a removed goal
 - the read-back before switching Reviews off › RS2: the demo’s accepted risks are its notes that start “We accept the risk:”
+
+#### [src/app/reviewsOffWrites.test.ts](../../../src/app/reviewsOffWrites.test.ts)
+
+- the one sentence › is the switched-off module’s, for Reviews as for any module
+- writesReviews › is true of a note, a new review, a goal newly proposed in a review and an ask newly raised in one
+- writesReviews › is false of what a save only carries along: an ask raised in a review, answered; a review a person leaves; a goal edited
+- the dispatcher, with Reviews off › refuses deleting and correcting a note said in a review (deleteNote, editCall)
+- the dispatcher, with Reviews off › refuses a goal proposed in a review (saveGoal with proposedIn), and saves one proposed anywhere else
+- the dispatcher, with Reviews off › refuses reopening an ended review, by Undo (undoRemoval) or from Recently removed (restoreRemoved)
+- the dispatcher, with Reviews off › still marks someone in a review as left (their reviews are carried along), and still corrects an ask’s own words
+- the AI tools, with Reviews off › edit_comment and delete_comment on a review note answer the switched-off sentence and save nothing
+- the AI tools, with Reviews off › list_requests names no review with Reviews off, and names it with Reviews on
+- the AI tools, with Reviews off › a comment on a goal still saves
 
 #### [src/domain/reviewsOffSheets.test.ts](../../../src/domain/reviewsOffSheets.test.ts)
 

@@ -95,12 +95,13 @@ The browser may still run an action first to explain early (“Only admins can �
 | deletes a workspace and everything in it | The `deleteWorkspace` command, admins only (`canDeleteWorkspace`); afterwards no query returns anything of it. |
 | resets the example only when it has one | Not carried across: the example, `hasExample` and `resetExample` are the demo’s plumbing. They stay with the demo’s own store. |
 
-And four that `Store` has no equivalent of:
+And five that `Store` has no equivalent of:
 
 1. **The summaries are the rules.** For the demo workspace, `goals()` in every week gives the status, flags, projection and scorecard in [the conformance files](../conformance/README.md) (R4, check 1).
 2. **The server refuses what the rules refuse.** For every line of [R1’s access table](../requirements/internal/r1-sign-in-and-access.md#who-may-change-what), someone outside its “who” is refused by the command port, called directly with their own sign-in, with the words the app shows (R1, check 1).
 3. **Keyset paging** never skips or repeats a row while rows are added or changed between pages (R4).
 4. **No read is larger than a page**, and only `goal()` reads a goal’s check-ins (R4, check 3).
+5. **The server refuses a switched-off module’s writes.** With a module switched off in a workspace, every command that would write its records (for Reviews: a review, a note said in one, a question or action newly raised in one, a goal newly proposed in one) is refused with the switched-off sentence and changes nothing, whatever the caller last loaded. Faro checks it in the browser and in the AI tools’ save, from the switches loaded with the workspace, so a tab open since before the switch is refused only from its next reload; the internal app reads the switch on the server, at the save.
 
 ## A route from Faro’s code
 

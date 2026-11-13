@@ -53,7 +53,8 @@ import type { Commit } from '../domain/commit';
 import MODULE_PARTS from 'virtual:faro-modules/actions';
 import { recordsOn } from '../core/records';
 import { isModuleOn, moduleById, modulesOn } from '../core/registry';
-import { reviewsOffWords, reviewsOn } from './reads';
+import { reviewsOffWords, reviewsOn, reviewWriteRows, switchedOffWords } from './reads';
+import { writesReviews } from '../domain/reviewWrites';
 
 /** What the dispatcher hands each action: the rules' context, and the workspace itself for the few that change it. */
 export interface RunContext extends A.ActionContext {
@@ -200,8 +201,9 @@ export const MODULE_ACTIONS: Readonly<Record<string, ModuleAction & { module: st
 /** Every action's name: the core's, then the modules'. The command port lists the same (src/app/actions.test.ts). */
 export const actionNames = (): string[] => [...Object.keys(ACTIONS), ...Object.keys(MODULE_ACTIONS)];
 
-/** The core's actions that are Reviews' (FT2): refused while it is off, as a switched-off module's are. */
-export const REVIEW_ACTIONS: ReadonlySet<string> = new Set(['saveReview', 'reviewCall', 'acceptRisk', 'markReviewed', 'unmarkReviewed', 'endReview', 'deleteReview']);
+/** Whether an action's input names a review: a `reviewId`, a review's settings (`review`), or a goal's `proposedIn`. */
+const namesReview = (input: unknown): boolean =>
+  !!input && typeof input === 'object' && ['reviewId', 'review', 'proposedIn'].some((k) => (input as Record<string, unknown>)[k] != null);
 
 /** Run one action's rule: what it would save, or NotAllowed. Nothing is saved here (app/state.tsx `run` saves it). */
 export function perform<N extends ActionName>(x: RunContext, name: N, input: ActionInput<N>): ActionResult<N> {
@@ -211,15 +213,22 @@ export function perform<N extends ActionName>(x: RunContext, name: N, input: Act
 /** Run any action's rule by name, the core's or a module's: what app/state.tsx `run` calls. */
 export function performAny(x: RunContext, name: string, input: unknown): unknown {
   const fn = (ACTIONS as Record<string, (x: RunContext, i: unknown) => unknown>)[name];
-  // Reviews' actions are still the core's until FT3, and refuse as a module's do while Reviews is off (FT2): so does
-  // correcting a note said in a review (an ask's own words can still be corrected).
-  if ((REVIEW_ACTIONS.has(name) || (name === 'editCall' && !A.findAsk(x, (input as { callId: string }).callId))) && !reviewsOn(modulesOn(x.workspace).on)) throw new A.NotAllowed(reviewsOffWords(x.workspace.name));
-  if (fn) return fn(x, input);
-  const mod = MODULE_ACTIONS[name];
-  if (!mod) throw new Error(`There’s no action called ${String(name)}.`);
+  const mod = fn ? null : MODULE_ACTIONS[name];
+  if (!fn && !mod) throw new Error(`There’s no action called ${String(name)}.`);
   // A module switched off in the workspace runs nothing, as its AI tools say it's off.
-  if (!isModuleOn(x.workspace, mod.module)) throw new A.NotAllowed(`${moduleById(mod.module)?.name ?? mod.module} is switched off in ${x.workspace.name}. An admin can switch it on in Workspace, under Features.`);
-  return mod.run(x, input);
+  if (mod && !isModuleOn(x.workspace, mod.module)) throw new A.NotAllowed(switchedOffWords(moduleById(mod.module)?.name ?? mod.module, x.workspace.name));
+  // Reviews' records are still the core's until FT3. While Reviews is off, whatever touches them is refused, by what it
+  // names and what it would save rather than which action it is (build review of #371): an input naming a review is
+  // refused before its rule runs, so the rule never offers a review's way out; then a save that writes a review, a note
+  // said in one, an ask raised in one or a goal proposed in one (Undo of an ended review, a review note corrected).
+  const off = !reviewsOn(modulesOn(x.workspace).on);
+  if (off && namesReview(input)) throw new A.NotAllowed(reviewsOffWords(x.workspace.name));
+  const out = fn ? fn(x, input) : mod!.run(x, input);
+  if (off) {
+    const c = commitOf(name, out, input);
+    if (c && writesReviews(c, reviewWriteRows(x.full ?? x.snapshot))) throw new A.NotAllowed(reviewsOffWords(x.workspace.name));
+  }
+  return out;
 }
 
 /** The commit an action's result carries, if any: a Commit, `{ commit, … }`, or null. A change set's only with `apply`. */
