@@ -29,7 +29,7 @@ import { proposalAsks, withProposed } from '../domain/proposed';
 import type { Ask, AskKind, Level, Retro, Review, Watch } from '../domain/types';
 import { ARTICLES, GROUPS, articleById, articleText, searchGuide, type Article } from '../help/guide';
 import { newsSince } from '../help/whatsNew';
-import { canUndoImport, importUndone } from '../domain/removal';
+import { canUndoImport, importUndone, unmarkReviewed } from '../domain/removal';
 import { startPage, startPageText } from '../domain/startYear';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 import { listed } from './listed';
@@ -496,6 +496,19 @@ export const WORK_TOOLS: ToolDef[] = [
       const was = 'goalIds' in d ? { who: d.recipientId, due: d.dueWeek } : { who: d.assigneeId ?? null, due: d.dueWeek ?? null };
       const extra = action ? { assigneeId: a.who ? personOf(ctx, a.who).id : was.who, dueWeek: a.due_week === undefined ? was.due : Number(a.due_week) || null } : undefined;
       return save(ctx, A.editCall(ax(ctx), d, String(a.text ?? ''), extra), 'Corrected it', 'Nothing to change: it already says that.');
+    },
+  },
+  {
+    name: 'unmark_reviewed',
+    title: 'Undo marking goals reviewed',
+    description: 'Undo marking one or more goals reviewed in a review (review_call with acknowledge): they go back on the agenda. Whoever marked them, or an admin. The log keeps both.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['call_ids'], properties: { call_ids: { type: 'array', items: { type: 'string' }, description: 'The marks’ IDs (kind acknowledge), from get_review.' } } },
+    annotations: WRITE,
+    async run(a, ctx) {
+      const ids = ((a.call_ids as unknown[] | undefined) ?? []).map(String);
+      const marks = ctx.snapshot.decisions.filter((d) => ids.includes(d.id));
+      if (!marks.length) throw new Error('There’s no mark with those IDs. Use get_review.');
+      return save(ctx, unmarkReviewed(ax(ctx), marks), `Undone: ${marks.length === 1 ? 'back' : `${marks.length} goals back`} on the agenda`, '');
     },
   },
   {

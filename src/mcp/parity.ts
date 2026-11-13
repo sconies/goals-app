@@ -22,6 +22,8 @@ export const ACTIONS: Record<string, Entry> = {
   acceptRisk: ['review_call'],
   addAction: ['add_action'],
   editCall: ['edit_call'],
+  unmarkReviewed: ['unmark_reviewed'],
+  arrive: { notForAssistants: 'An arrival is a person choosing their own name in the app for the first time; an assistant acts as someone who has already arrived, so there is nothing for it to say.' },
   watch: ['watch'],
   unwatch: ['unwatch'],
   saveReview: ['save_review'],

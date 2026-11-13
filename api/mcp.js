@@ -8423,6 +8423,30 @@ function deleteNote(x, id) {
 		})]
 	};
 }
+/**
+* Undo marking goals reviewed in a session (deep review T3): those "reviewed" marks are set aside, kept and logged, and
+* the goals are back on the agenda. Whoever marked them, or an admin.
+*/
+function unmarkReviewed(x, made) {
+	const marks = made.filter((d) => d.kind === "acknowledge" && !d.removedAt);
+	if (!marks.length) no$1("Those goals are no longer marked reviewed.");
+	if (marks.some((d) => d.byId !== x.actor.id) && !x.actor.admin) no$1("Only whoever marked them, or an admin, can undo it.");
+	const after = marks.map((d) => ({
+		...d,
+		removedAt: x.now,
+		removedBy: x.actor.id
+	}));
+	return {
+		decisions: after,
+		changes: after.map((d) => log$1(x, {
+			entity: "decision",
+			entityId: d.id,
+			goalId: d.goalId,
+			action: "undone",
+			summary: "Undid marking it reviewed"
+		}))
+	};
+}
 /** Whether a windowed load (Snapshot.history) left a cycle's check-ins out: it has some, and it ended before the window. */
 function checkInsLeftOut(s, cycleId) {
 	const h = s.history;
@@ -23785,6 +23809,28 @@ var WORK_TOOLS = [
 				dueWeek: a.due_week === void 0 ? was.due : Number(a.due_week) || null
 			} : void 0;
 			return save$2(ctx, editCall(ax$2(ctx), d, String(a.text ?? ""), extra), "Corrected it", "Nothing to change: it already says that.");
+		}
+	},
+	{
+		name: "unmark_reviewed",
+		title: "Undo marking goals reviewed",
+		description: "Undo marking one or more goals reviewed in a review (review_call with acknowledge): they go back on the agenda. Whoever marked them, or an admin. The log keeps both.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["call_ids"],
+			properties: { call_ids: {
+				type: "array",
+				items: { type: "string" },
+				description: "The marks’ IDs (kind acknowledge), from get_review."
+			} }
+		},
+		annotations: WRITE$2,
+		async run(a, ctx) {
+			const ids = (a.call_ids ?? []).map(String);
+			const marks = ctx.snapshot.decisions.filter((d) => ids.includes(d.id));
+			if (!marks.length) throw new Error("There’s no mark with those IDs. Use get_review.");
+			return save$2(ctx, unmarkReviewed(ax$2(ctx), marks), `Undone: ${marks.length === 1 ? "back" : `${marks.length} goals back`} on the agenda`, "");
 		}
 	},
 	{

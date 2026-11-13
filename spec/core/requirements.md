@@ -745,7 +745,7 @@ A goal off track or at risk leaves a review's walk with a decision: a next step 
 - **Copy:** build it as Faro does.
 - **Rule:** [Deciding in a review](rules/review-decide.md)
 - **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Tests:** `src/mcp/mcp.test.ts` (1)
+- **Tests:** `src/mcp/mcp.test.ts` (2)
 - **Journeys and checks:** N1, U3
 
 ### REVIEW-LIST-STATE
