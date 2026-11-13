@@ -1107,7 +1107,7 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   await p.context().close();
 }, ['budget']);
 
-journey('U146', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first import (U92’s second half): at /?store=browser, set-up with a spreadsheet whose goals name an owner nobody typed ends on the import’s preview, not a dead end: Must fix offers “Add {name}” and “Give it to someone here”, the stage question is already answered “Count them from this week” and can be changed, Create waits for the answers, and nothing is saved before it; afterwards the person added owns their goal and no stage is due before this week', 18, async (h, device) => {
+journey('U147', ['SETUP-UPLOAD', 'IMPORT-PREVIEW', 'ONBOARDING'], 'The first import (U92’s second half): at /?store=browser, set-up with a spreadsheet whose goals name an owner nobody typed ends on the import’s preview, not a dead end: Must fix offers “Add {name}” and “Give it to someone here”, the stage question is already answered “Count them from this week” and can be changed, Create waits for the answers, and nothing is saved before it; afterwards the person added owns their goal and no stage is due before this week', 18, async (h, device) => {
   const p = h.use(await newPage(device, 'grace'));
   await p.goto(live('/workspace/new'));
   await p.locator('.steps').first().waitFor();

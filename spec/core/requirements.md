@@ -893,7 +893,7 @@ Setting up takes one question per screen: the workspace, who you are, your team 
 - **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R6a. The organisation](../requirements/internal/r6a-organisation.md).
 - **Rule:** [Day one: set-up’s steps and “Getting started”](rules/day-one.md)
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`
-- **Journeys and checks:** N10, U5, U11, U49, U54, U61, U86, U97, U146
+- **Journeys and checks:** N10, U5, U11, U49, U54, U61, U86, U97, U147
 
 ### DAY-ONE
 
@@ -929,7 +929,7 @@ A spreadsheet given at set-up is checked before the read-back, not after it: eve
 - **Copy:** build it as Faro does.
 - **Rule:** [The workspace: cycles, teams, names, leaving and what needs attention](rules/workspace.md)
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`
-- **Journeys and checks:** U146
+- **Journeys and checks:** U147
 
 ## Watching
 
