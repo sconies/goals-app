@@ -1,6 +1,8 @@
 /* Who you are: find yourself by typing (or, in the demo, someone to view as). */
 import type { ReactNode } from 'react';
+import { reviewsOn } from '../app/reads';
 import { useApp } from '../app/state';
+import { modulesOn } from '../core/registry';
 import { watchedGoals } from '../domain/review';
 import type { Person } from '../domain/types';
 import { Sheet } from './bits';
@@ -10,7 +12,8 @@ import { PickOne } from './Pick';
 export function personFacts(p: Person, app: ReturnType<typeof useApp>): string {
   const owns = app.snapshot.goals.filter((g) => g.ownerId === p.id).length;
   const watches = watchedGoals(p.id, app.snapshot).length;
-  const reviews = app.snapshot.reviews.filter((r) => r.people.includes(p.id)).length;
+  // A person's reviews are named only while Reviews is on (FT2).
+  const reviews = reviewsOn(modulesOn(app.ws).on) ? app.snapshot.reviews.filter((r) => r.people.includes(p.id)).length : 0;
   const bits = [owns ? `owns ${owns}` : '', watches ? `watches ${watches}` : '', reviews ? `in ${reviews} ${reviews === 1 ? 'review' : 'reviews'}` : '', p.admin ? 'admin' : ''].filter(Boolean);
   return bits.length ? bits.join(', ') : 'can view everything';
 }

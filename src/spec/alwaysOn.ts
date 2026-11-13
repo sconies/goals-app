@@ -14,7 +14,6 @@ export interface AlwaysOn {
 }
 
 export const ALWAYS_ON: readonly AlwaysOn[] = [
-  { id: 'reviews', name: 'Reviews', until: 'FT2', why: 'Its pages, its walk on a goal’s page and its lead on Home are written into core screens, and its records are core tables. FT2 puts it behind a switch; FT3 moves its code into its own folder.' },
   { id: 'watching', name: 'Watching', until: 'SW1', why: 'Home’s “Goals you watch” and Goals’ watching scope read watches inside core screens. Its switch is designed, not built.' },
   { id: 'ai-access', name: 'AI access', until: 'SW2', why: 'Every AI call is checked against a token at the server’s door. Switching it off needs the Features screen’s groups and a way to keep tokens named for when it comes back.' },
   { id: 'feedback', name: 'Feedback', until: 'SW1', why: 'Its menu row, its page and its inbox tools are core code. Its switch is designed, not built.' },

@@ -7,6 +7,7 @@ Each feature module is one folder, `src/modules/<id>/`, with a `module.json` say
 | Module | What it does | Needs |
 |---|---|---|
 | [Metric library](metrics/README.md) | Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company. | nothing |
+| [Reviews](reviews/README.md) | Walk a set of goals together on a cadence, decide what happens next and keep what was said. | nothing |
 | [Spreadsheets](spreadsheets/README.md) | Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved. | nothing |
 
 ## Distinct features still in the core
@@ -15,7 +16,6 @@ These can’t be switched off yet. Each says why, and which item gives it a swit
 
 | Feature | Why it can’t be switched off yet | Its switch |
 |---|---|---|
-| Reviews | Its pages, its walk on a goal’s page and its lead on Home are written into core screens, and its records are core tables. FT2 puts it behind a switch; FT3 moves its code into its own folder. | FT2 |
 | Watching | Home’s “Goals you watch” and Goals’ watching scope read watches inside core screens. Its switch is designed, not built. | SW1 |
 | AI access | Every AI call is checked against a token at the server’s door. Switching it off needs the Features screen’s groups and a way to keep tokens named for when it comes back. | SW2 |
 | Feedback | Its menu row, its page and its inbox tools are core code. Its switch is designed, not built. | SW1 |

@@ -17,23 +17,24 @@ import type { HistoryKey } from '../ports/store';
 import { HISTORY_MAX } from '../ports/window';
 
 /** A status as the assistant reads it: the words people see, with the code beside them. */
-const said = (k: DisplayStatus) => withCode(STATUS[k]);
+export const said = (k: DisplayStatus) => withCode(STATUS[k]);
 /** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
 import { ASK_KIND_LABEL, askText, asksOf, canAnswer, canMarkDone, isOverdue, openForPerson, openUpdateAsk } from '../domain/asks';
-import { agendaOf, answerOf, lastHeld, openActions, reviewSession, sessionState, sessionStateText, sessionWeek, watchedGoals } from '../domain/review';
+import { reviewSession, watchedGoals } from '../domain/review';
 import { weekProgress } from '../domain/progress';
 import { workbook } from '../domain/export';
 import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { findGoal, isKey } from '../domain/goalKey';
 import { proposalAsks, withProposed } from '../domain/proposed';
-import type { Ask, AskKind, Level, Retro, Review, Watch } from '../domain/types';
+import type { Ask, AskKind, Level, Retro, Watch } from '../domain/types';
 import { ARTICLES, GROUPS, articleById, articleText, searchGuide, type Article } from '../help/guide';
 import { newsSince } from '../help/whatsNew';
-import { canUndoImport, importUndone, unmarkReviewed } from '../domain/removal';
+import { canUndoImport, importUndone } from '../domain/removal';
 import { startPage, startPageText } from '../domain/startYear';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 import { listed } from './listed';
 import { MODULES, modulesOn } from '../core/registry';
+import { reviewsOn } from '../app/reads';
 import { RULE_PAGES, systemOverview } from '../spec/overview';
 import { VIA_MCP } from '../domain/via';
 
@@ -42,39 +43,39 @@ const int = (description: string) => ({ type: 'integer', description });
 const bool = (description: string) => ({ type: 'boolean', description });
 const ids = (description: string) => ({ type: 'array', items: { type: 'string' }, description });
 const LEVELS: Level[] = levelIds(null);
-const READ = { readOnlyHint: true, openWorldHint: false } as const;
-const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const;
+export const READ = { readOnlyHint: true, openWorldHint: false } as const;
+export const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const;
 const VIA = VIA_MCP;
 
-const ax = (ctx: McpContext): A.ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}), records: MODULE_RECORDS });
+export const ax = (ctx: McpContext): A.ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}), records: MODULE_RECORDS });
 
 /** Saves what an action returned, marked as done through the assistant. Null: nothing to save. */
-async function save(ctx: McpContext, c: Commit | null, done: string, nothing: string): Promise<ToolResult> {
+export async function save(ctx: McpContext, c: Commit | null, done: string, nothing: string): Promise<ToolResult> {
   if (!c) return { text: nothing };
   await ctx.save({ ...c, changes: c.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA] })) });
   return { text: `${done} (as ${ctx.actor.name}).` };
 }
 
-const name = (ctx: McpContext, id: string | null | undefined) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? '—';
+export const name = (ctx: McpContext, id: string | null | undefined) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? '—';
 /** A goal by its ID or its key (G-12). */
-const goalOf = (ctx: McpContext, id: unknown) => {
+export const goalOf = (ctx: McpContext, id: unknown) => {
   const g = findGoal(withProposed(ctx.snapshot), String(id ?? ''));
   if (!g) throw new Error(`There’s no goal with ${isKey(String(id ?? '')) ? 'key' : 'ID'} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
   return g;
 };
-const goalIds = (ctx: McpContext, v: unknown) => (v as string[] | undefined)?.map((id) => goalOf(ctx, id).id);
+export const goalIds = (ctx: McpContext, v: unknown) => (v as string[] | undefined)?.map((id) => goalOf(ctx, id).id);
 const requestOf = (ctx: McpContext, id: unknown) => {
   const r = asksOf(ctx.snapshot).find((x) => x.id === id);
   if (!r) throw new Error(`There’s no ask with ID ${String(id)}. Use list_requests to get IDs.`);
   return r;
 };
-const reviewOf = (ctx: McpContext, id: unknown) => {
+export const reviewOf = (ctx: McpContext, id: unknown) => {
   const r = ctx.snapshot.reviews.find((x) => x.id === id);
   if (!r) throw new Error(`There’s no review with ID ${String(id)}. Use list_reviews to get IDs.`);
   return r;
 };
 /** A person by ID or by name (whole or the start of it), for tools that name someone. */
-const personOf = (ctx: McpContext, ref: unknown) => {
+export const personOf = (ctx: McpContext, ref: unknown) => {
   const t = String(ref ?? '').trim().toLowerCase();
   // By ID, by email (exact), by full name, then by the start of a name.
   const p = ctx.snapshot.people.find((x) => x.id === ref) ?? ctx.snapshot.people.find((x) => !!t && (x.email ?? '').toLowerCase() === t) ?? ctx.snapshot.people.find((x) => x.name.toLowerCase() === t) ?? ctx.snapshot.people.filter((x) => x.name.toLowerCase().startsWith(t)).at(0);
@@ -88,7 +89,7 @@ const teamOf = (ctx: McpContext, ref: unknown) => {
   if (!team) throw new Error(`There’s no team called ${String(ref)}. Teams: ${ctx.snapshot.teams.map((x) => x.name).join(', ')}.`);
   return team.id;
 };
-const levelsOf = (v: unknown): Level[] => {
+export const levelsOf = (v: unknown): Level[] => {
   const list = ((v as string[] | undefined) ?? []).map((l) => l.toLowerCase().replace(/\s+/g, '-'));
   const bad = list.filter((l) => !LEVELS.includes(l as Level));
   if (bad.length) throw new Error(`Levels are ${LEVELS.join(', ')} (not ${bad.join(', ')}).`);
@@ -96,13 +97,13 @@ const levelsOf = (v: unknown): Level[] => {
 };
 // The one lateness rule (review of #369, medium 5): list_requests reads `late` as get_my_work and Home do (app/reads
 // askWaiting), where a question past its session is late, not only one past its due week. Only an open ask can be late.
-const askLate = (ctx: McpContext, r: Ask): boolean => (r.status === 'open' ? (askWaiting(r, r.recipientId ?? ctx.actor.id, ctx.snapshot, ctx.cycle, ctx.week, ctx.today)?.late ?? isOverdue(r, ctx.week)) : false);
+const askLate = (ctx: McpContext, r: Ask): boolean => (r.status === 'open' ? (askWaiting(r, r.recipientId ?? ctx.actor.id, ctx.snapshot, ctx.cycle, ctx.week, ctx.today, reviewsOn(modulesOn(ctx.ws).on))?.late ?? isOverdue(r, ctx.week)) : false);
 const requestData = (ctx: McpContext, r: ReturnType<typeof requestOf>) => ({
   id: r.id, kind: r.kind, ask: r.kind === 'decision' ? askText(r, ctx.snapshot.people) : r.ask, status: r.status, statusLabel: ASK_STATUS[r.status].label, dueWeek: r.dueWeek, overdue: askLate(ctx, r), review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null, askedBy: name(ctx, r.askedBy), askedOf: r.recipientId ? name(ctx, r.recipientId) : 'anyone',
   goals: r.goalIds.map((g) => { const x = withProposed(ctx.snapshot).find((y) => y.id === g); return { id: g, key: x?.key ?? null, title: x?.title ?? g }; }), raisedAt: r.createdAt,
   answer: r.answer, answeredBy: r.answeredBy ? name(ctx, r.answeredBy) : null, youCanAnswer: r.status === 'open' && canAnswer(r, ctx.actor), youCanMarkDone: r.status === 'open' && canMarkDone(r, ctx.actor),
 });
-const lines = (l: string[], none: string) => (l.length ? l.join('\n') : none);
+export const lines = (l: string[], none: string) => (l.length ? l.join('\n') : none);
 
 /** A data table's sheet, from the same workbook the Data screen and the exports use. */
 /** A Data table's sheet of the workbook, for this context (the spreadsheets module's export_table reads it too). */
@@ -124,6 +125,9 @@ export function layoutFrom(ctx: McpContext, a: Record<string, unknown>): TableLa
   if (problems.length) throw new Error(`${problems.join(' ')} Its columns: ${choosableColumns(layout.table, headOf(ctx, layout.table)).join(', ')}.`);
   return layout;
 }
+
+/** What a switched-off module's tool answers (callTool's sentence), for a core tool that is partly Reviews' (FT2). */
+const offSentence = (ctx: McpContext, tool: string) => `Reviews is switched off in ${ctx.ws.name}, so ${tool} can't be used there. An admin can switch it on in Workspace, under Features.`;
 
 /** A sentence as part of a longer line: without its closing full stop, so the line never ends in two. */
 const clause = (t: string) => t.trim().replace(/\.+$/, '');
@@ -162,7 +166,7 @@ export const WORK_TOOLS: ToolDef[] = [
       const handled = split.handled.map((a) => ({ id: a.goal.id, title: a.goal.title, status: a.status.status, statusLabel: LABEL[a.status.status], inHand: a.handled!.text, said: a.handled!.said || null, why: a.flags.map((f) => f.detail) }));
       // Every open ask waiting on them: one way to ask, so each kind is the same record with its own state.
       // How long each has waited, when it is due and whether it is late are Home's (rule 3, one rule), in Home's order.
-      const home = homeAsks(me, s, ctx.cycle, ctx.week, ctx.today);
+      const home = homeAsks(me, s, ctx.cycle, ctx.week, ctx.today, reviewsOn(modulesOn(ctx.ws).on));
       const at = new Map(home.map((w, i) => [w.askId, { i, w }]));
       const waiting = openForPerson(me, s).filter((r) => at.has(r.id)).sort((a, b) => at.get(a.id)!.i - at.get(b.id)!.i)
         .map((r) => { const w = at.get(r.id)!.w; const { overdue: _, ...d } = requestData(ctx, r); void _; return { ...d, waiting: w.line, late: w.late, handedFrom: w.was }; });
@@ -177,16 +181,18 @@ export const WORK_TOOLS: ToolDef[] = [
       // per browser, so the tools list every one proposed for them.
       const proposedForYou = proposalAsks(s.proposed ?? [], ctx.actor, ctx.today, { opened: new Set(), putOff: new Map() }, (id) => s.people.find((p) => p.id === id)?.name ?? 'Someone')
         .map((a) => ({ id: a.goal.id, key: a.goal.key ?? null, title: a.goal.title, kind: a.kind, says: a.says }));
-      const reviews = s.reviews.filter((r) => r.people.includes(me)).map((r) => { const x = reviewSession(r, s, ctx.cycle, ctx.today, ctx.week); return { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total }; });
+      // With Reviews switched off (FT2) no review is listed, here or as the next one.
+      const reviewsHere = reviewsOn(modulesOn(ctx.ws).on);
+      const reviews = !reviewsHere ? [] : s.reviews.filter((r) => r.people.includes(me)).map((r) => { const x = reviewSession(r, s, ctx.cycle, ctx.today, ctx.week); return { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total }; });
       // The strip at the top of Home: their goals by status, their on-time streak, what they watch, their next review.
-      const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today);
+      const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today, { reviews: reviewsHere });
       const glance = {
         goals: { whose: d.scope, total: d.total, byStatus: d.counts.map((c) => ({ status: c.status, statusLabel: LABEL[c.status], n: c.n })) },
         onTimeStreakWeeks: d.streak,
         watching: d.watching ? { goals: d.watching.all.length, needAttention: d.watching.needs.map((a) => a.goal.title), beingHandled: d.watching.handled.map((a) => ({ title: a.goal.title, inHand: a.handled!.text })), noRecentUpdate: d.watching.quiet.length } : null,
-        nextReview: d.next ? { id: d.next.id, name: d.next.name, date: d.next.date, day: d.next.weekday } : null,
+        ...(reviewsHere ? { nextReview: d.next ? { id: d.next.id, name: d.next.name, date: d.next.date, day: d.next.weekday } : null } : {}),
       };
-      const data = { week: ctx.week, atAGlance: glance, checkInsDue: due, needsAttention: attention, beingHandled: handled, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, proposedGoals: proposedForYou, yourReviews: reviews, wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today) };
+      const data = { week: ctx.week, atAGlance: glance, checkInsDue: due, needsAttention: attention, beingHandled: handled, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, proposedGoals: proposedForYou, ...(reviewsHere ? { yourReviews: reviews } : {}), wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today) };
       const text = [
         `Week ${ctx.week} for ${ctx.actor.name}.`,
         `${d.scope === 'mine' ? 'Your goals' : 'All goals'}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(', ') || 'none'}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? 'week' : 'weeks'}.` : ''}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ''}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ''}`,
@@ -224,37 +230,6 @@ export const WORK_TOOLS: ToolDef[] = [
         .filter((r) => !a.goal_id || r.goalIds.includes(goalOf(ctx, a.goal_id).id))
         .map((r) => requestData(ctx, r));
       return listed({ requests: list });
-    },
-  },
-  {
-    name: 'list_reviews',
-    title: 'Reviews',
-    description: 'Every review in the workspace: its cadence, the goals it walks and who’s in it, with this session’s progress.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-    annotations: READ,
-    async run(_a, ctx) {
-      const list = ctx.snapshot.reviews.map((r) => {
-        const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
-        const held = lastHeld(r, ctx.snapshot, x.week);
-        return { id: r.id, name: r.name, everyWeeks: r.everyWeeks, weekday: r.weekday, scope: r.scope, people: r.people.map((p) => name(ctx, p)), sessionWeek: x.week, sessionDate: x.date, reviewed: x.done, of: x.total, state: sessionStateText(sessionState(x)), lastHeld: held?.on ?? null, openActions: openActions(r, ctx.snapshot).length, youreIn: r.people.includes(ctx.actor.id) };
-      });
-      return listed({ reviews: list });
-    },
-  },
-  {
-    name: 'get_review',
-    title: 'A review’s agenda',
-    description: 'One review’s current session: the goals to discuss (new information first, worst first, with why; those already being handled say what’s in hand), the healthy ones, and what has been said so far: notes, questions for owners (with any answers) and actions.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['review_id'], properties: { review_id: str('The review’s ID, from list_reviews.') } },
-    annotations: READ,
-    async run(a, ctx) {
-      const r = reviewOf(ctx, a.review_id);
-      const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
-      const ag = agendaOf(x);
-      const item = (g: (typeof ag.discuss)[number]) => ({ id: g.goal.id, title: g.goal.title, owner: name(ctx, g.goal.ownerId), status: g.status.status, statusLabel: LABEL[g.status.status], why: g.flags.map((f) => f.detail), beingHandled: g.handled?.text ?? null });
-      const saidHere = x.said.map((d) => ({ id: d.id, goalId: d.goalId, kind: d.kind, note: d.note, by: name(ctx, d.byId), ...(d.kind === 'action' ? { who: name(ctx, d.assigneeId ?? null), dueWeek: d.dueWeek ?? null } : {}), ...(d.ask ? { status: d.ask.status, statusLabel: ASK_STATUS[d.ask.status].label, answer: answerOf(d)?.text ?? null } : {}) }));
-      const data = { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total, toDiscuss: ag.discuss.map(item), healthy: ag.healthy.map(item), said: saidHere };
-      return { data, text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${said(g.status)}.${g.beingHandled ? ` ${ATTENTION.handled.label}: ${g.beingHandled}.` : ''} ${g.why.join(' ')}`), '- nothing')}\nNothing flagged: ${data.healthy.map((g) => g.title).join(', ') || 'none'}.` };
     },
   },
   {
@@ -375,8 +350,11 @@ export const WORK_TOOLS: ToolDef[] = [
     description: 'What Faro is and how it is built, in one page: the core (goals, weekly check-ins, the status rules and their numbers, flags and the change engine), its feature modules, and where the generated spec says the rest (the data model, every rule with worked examples, the vocabulary, the screens, the journeys and requirements, and the conformance data a rebuild proves itself against). The same text as llms.txt at the root of the repository. Paths are relative to that root.',
     inputSchema: { type: 'object', additionalProperties: false, properties: {} },
     annotations: READ,
-    async run() {
-      return { data: { rulePages: RULE_PAGES.map(([id, title]) => ({ title, path: `spec/core/rules/${id}.md` })), modules: MODULES.map((m) => ({ id: m.id, name: m.name, path: `spec/modules/${m.id}/README.md` })) }, text: systemOverview() };
+    async run(_a, ctx) {
+      // Which modules are on in this workspace: one switched off (Reviews, say) isn't said to be on (FT2).
+      const on = modulesOn(ctx.ws).on;
+      const off = MODULES.filter((m) => !on.has(m.id)).map((m) => m.name);
+      return { data: { rulePages: RULE_PAGES.map(([id, title]) => ({ title, path: `spec/core/rules/${id}.md` })), modules: MODULES.map((m) => ({ id: m.id, name: m.name, on: on.has(m.id), path: `spec/modules/${m.id}/README.md` })) }, text: systemOverview() + (off.length ? `\n\nSwitched off in ${ctx.ws.name}: ${off.join(', ')}.` : '') };
     },
   },
   {
@@ -417,7 +395,7 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'ask_question',
     title: 'Ask a goal’s owner a question',
-    description: 'Ask a goal’s owner a question. It’s open on their Home until they answer it (a comment doesn’t), or you withdraw it. In a review, use review_call with kind ask instead, so it’s part of the session.',
+    description: 'Ask a goal’s owner a question. It’s open on their Home until they answer it (a comment doesn’t), or you withdraw it.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id', 'question'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), question: str('The question.') } },
     annotations: WRITE,
     async run(a, ctx) { const g = goalOf(ctx, a.goal_id); return save(ctx, A.askQuestion(ax(ctx), g, String(a.question ?? '')), `Asked ${name(ctx, g.ownerId)} a question on ${g.title}`, ''); },
@@ -455,32 +433,10 @@ export const WORK_TOOLS: ToolDef[] = [
     async run(a, ctx) { return save(ctx, A.undoUpdateAsk(ax(ctx), goalOf(ctx, a.goal_id)), 'Withdrew the ask for an update', 'There’s no open ask for an update on that goal.'); },
   },
 
-  /* ---------- Reviews ---------- */
-  {
-    name: 'review_call',
-    title: 'Say something in a review',
-    description: 'In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. Only someone in the review, or an admin, can, and only about a goal the review covers (its goals, trees and levels). A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['review_id', 'goal_id', 'kind'], properties: {
-      review_id: str('The review’s ID.'), goal_id: str('The goal’s ID or its key, e.g. G-12.'),
-      kind: str('What it is.', { enum: ['acknowledge', 'note', 'ask', 'action', 'accept'] }),
-      text: str('The note, question or action, or (accept) why the review accepts the risk. Optional when acknowledging.'),
-      who: str('Actions: who does it (name or ID). Defaults to the goal’s owner.'),
-      due_week: int('Actions: the week it’s due by.'),
-    } },
-    annotations: WRITE,
-    async run(a, ctx) {
-      const r = reviewOf(ctx, a.review_id), g = goalOf(ctx, a.goal_id);
-      if (a.kind === 'accept') return save(ctx, A.acceptRisk(ax(ctx), g, r, String(a.text ?? ''), sessionWeek(r, ctx.week, ctx.cycle)), `Accepted the risk: ${g.title} in ${r.name}`, '');
-      const kind = a.kind as A.CallKind;
-      if (!['acknowledge', 'note', 'ask', 'action'].includes(kind)) throw new Error('kind is acknowledge, note, ask, action or accept.');
-      const assigneeId = kind === 'action' && a.who ? personOf(ctx, a.who).id : undefined;
-      return save(ctx, A.reviewCall(ax(ctx), g, r, kind, String(a.text ?? ''), { assigneeId, dueWeek: a.due_week as number | undefined }), `${({ acknowledge: 'Marked reviewed', note: 'Added a note', ask: 'Asked the owner', action: 'Agreed an action' } as const)[kind]}: ${g.title} in ${r.name}`, '');
-    },
-  },
   {
     name: 'add_action',
     title: 'Add a next step to a goal',
-    description: 'Agree a next step on a goal outside a review: what, who does it and the week it’s due by. An action is an ask: open until it’s marked done (mark_action_done) or withdrawn; overdue once its week has passed. Change one with edit_call.',
+    description: 'Agree a next step on a goal: what, who does it and the week it’s due by. An action is an ask: open until it’s marked done (mark_action_done) or withdrawn; overdue once its week has passed. Change one with edit_call.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id', 'text', 'who'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), text: str('What needs doing.'), who: str('Who does it (name or ID).'), due_week: int('The week it’s due by.') } },
     annotations: WRITE,
     async run(a, ctx) {
@@ -497,55 +453,14 @@ export const WORK_TOOLS: ToolDef[] = [
     async run(a, ctx) {
       const d = ctx.snapshot.decisions.find((x) => x.id === a.call_id) ?? asksOf(ctx.snapshot).find((x) => x.id === a.call_id);
       if (!d) throw new Error(`There’s nothing said with ID ${String(a.call_id)}. Use get_review.`);
+      // A note said in a review is Reviews': refused while it is off, as its own tools are (FT2). An ask's words aren't.
+      if (!('goalIds' in d) && !reviewsOn(modulesOn(ctx.ws).on)) return { isError: true, text: offSentence(ctx, 'edit_call') };
       const action = 'goalIds' in d ? d.kind === 'action' : d.kind === 'action';
       const was = 'goalIds' in d ? { who: d.recipientId, due: d.dueWeek } : { who: d.assigneeId ?? null, due: d.dueWeek ?? null };
       const extra = action ? { assigneeId: a.who ? personOf(ctx, a.who).id : was.who, dueWeek: a.due_week === undefined ? was.due : Number(a.due_week) || null } : undefined;
       return save(ctx, A.editCall(ax(ctx), d, String(a.text ?? ''), extra), 'Corrected it', 'Nothing to change: it already says that.');
     },
   },
-  {
-    name: 'unmark_reviewed',
-    title: 'Undo marking goals reviewed',
-    description: 'Undo marking one or more goals reviewed in a review (review_call with acknowledge): they go back on the agenda. Whoever marked them, or an admin. The log keeps both.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['call_ids'], properties: { call_ids: { type: 'array', items: { type: 'string' }, description: 'The marks’ IDs (kind acknowledge), from get_review.' } } },
-    annotations: WRITE,
-    async run(a, ctx) {
-      const ids = ((a.call_ids as unknown[] | undefined) ?? []).map(String);
-      const marks = ctx.snapshot.decisions.filter((d) => ids.includes(d.id));
-      if (!marks.length) throw new Error('There’s no mark with those IDs. Use get_review.');
-      return save(ctx, unmarkReviewed(ax(ctx), marks), `Undone: ${marks.length === 1 ? 'back' : `${marks.length} goals back`} on the agenda`, '');
-    },
-  },
-  {
-    name: 'save_review',
-    title: 'Set up or change a review',
-    description: 'Set up a review (anyone can), or change one (someone in it, whoever set it up, or an admin): its name, how often, the weekday, the goals it walks (goals, goals with everything feeding them, or whole levels) and who’s in it. Without review_id it sets up a new one.',
-    inputSchema: { type: 'object', additionalProperties: false, properties: {
-      review_id: str('The review to change. Leave out to set up a new one.'),
-      name: str('Its name, e.g. "Platform weekly review".'),
-      every_weeks: int('Held every 1, 2 or 4 weeks.'),
-      weekday: str('The weekday.', { enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] }),
-      goals: ids('Goal IDs or keys it walks.'), trees: ids('Goal IDs or keys it walks with everything feeding them.'), levels: ids('Levels it walks: north-star, svp, team.'),
-      people: ids('Who’s in it (names or IDs). New reviews include you.'),
-    } },
-    annotations: WRITE,
-    async run(a, ctx) {
-      const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-      const day = a.weekday === undefined ? undefined : DAYS.indexOf(String(a.weekday).toLowerCase());
-      if (day === -1) throw new Error('weekday is Monday to Friday.');
-      const people = a.people ? [...new Set([...(a.people as string[]).map((p) => personOf(ctx, p).id)])] : undefined;
-      if (a.review_id) {
-        const before = reviewOf(ctx, a.review_id);
-        const scope = { goals: goalIds(ctx, a.goals) ?? before.scope.goals, trees: goalIds(ctx, a.trees) ?? before.scope.trees, levels: a.levels ? levelsOf(a.levels) : before.scope.levels };
-        const after: Review = { ...before, name: a.name !== undefined ? String(a.name).trim() : before.name, everyWeeks: a.every_weeks !== undefined ? Number(a.every_weeks) : before.everyWeeks, weekday: day ?? before.weekday, scope, people: people ?? before.people };
-        return save(ctx, A.saveReview(ax(ctx), after, before), `Changed the review “${after.name}”`, '');
-      }
-      const r = A.newReview(ax(ctx), { name: String(a.name ?? ''), everyWeeks: Number(a.every_weeks ?? 1), weekday: day ?? ctx.cycle.reviewDay, goals: goalIds(ctx, a.goals), trees: goalIds(ctx, a.trees), levels: levelsOf(a.levels), people: people ? [...new Set([ctx.actor.id, ...people])] : undefined });
-      const out = await save(ctx, A.saveReview(ax(ctx), r, null), `Set up the review “${r.name}” (ID ${r.id})`, '');
-      return { ...out, data: { id: r.id } };
-    },
-  },
-
   /* ---------- Watching ---------- */
   {
     name: 'watch',
