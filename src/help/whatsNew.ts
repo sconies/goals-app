@@ -27,7 +27,8 @@ export const WHATS_NEW: NewsEntry[] = [
     date: '2026-11-13',
     title: 'Find the goals stopped this year',
     points: [
-      'The Filters sheet’s State has a third choice, Stopped: the goals stopped this year, most recently stopped first, with who stopped each, when and why.',
+      'The Filters sheet’s State has a third choice, Stopped: the goals stopped this year, most recently stopped first.',
+      'Each says who stopped it, when and why, and opens its page as it stood.',
     ],
     articles: ['goals', 'goal-page'],
   },
