@@ -184,6 +184,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #413, #417, #423 migrations 0046, 0047, 0048 | 7c, 1, 4 | 0 | 0 | 1 |
 | #419 AX6: a stale save runs again on the latest | 4 | 0 | 4 | 3 |
 | #416 HB2: before this review, without being asked, the last 8 weeks | habit | 1 | 3 | 6 |
+| #429 #410's six mediums | habit | 0 | 0 | 1 |
+| #425 Look around the demo; a phone's lone review cell uses a short label | 2 | 0 | 0 | 0 |
+| #431 F8: a module lists its own screens' AI tools | 4 | 0 | 0 | 0 |
+| #430 migration 0049: a goal's baseline | 7c | 0 | 0 | 1 |
 
 **High findings, and where each stands**
 
@@ -1821,3 +1825,17 @@ Read first by a reviewing session with probes on the dispatcher and the MCP prot
 **4. Medium (ran; as before this PR). "Check it and try again" on the goal form overwrites the other person's change:** the form keeps its whole draft through the reload, so saving again puts the owner back. The new docs lean on this path being safe.
 
 **Lows.** `docs/architecture.md` and the rebuild step say the AI tools don't re-run whole-record commands; the protocol re-runs every tool (defensible, since each call loads afresh, but say so). No eval, Help or What's new for behaviour people now see (a new "already done" message). The retry count lives in the port file; words after a re-run come from the old render ("Stopped {old title}").
+
+### The 18:56 UTC check, 13 Nov: #429, #425, #431 and migration 0049
+
+Read by me; no high or medium. #424 and #434 are with first-pass reviewers. `beforeReview` is unchanged on main, so #416's high is still open.
+
+**#429 (session …8y3FdWxxDaqeRvJw4c): #410's six mediums. Holds.** One due day: a check-in's day is read on the reader's own clock (`postedDay`, `src/domain/progress.ts`), the same as Home's today, and Home, the receipt and the run all go through `inByDueDay`; a goal isn't due after the week it was closed as Done; a goal counts for its present owner only from the week after anyone else last checked it in; a backfilled week is never on time, and a forgiven week is said as "missed" or "came in late" as it was; the moment shows the check-in's own status and the share image carries it; the same-week test and "weeks behind" moved into `moment()`; conformance rows, README and handoff added. Low: on the server the reader's clock is UTC, so `get_my_work` can still differ from the app for someone far from UTC on the due day (the code says so).
+
+**#425 (track 2).** "Look around the demo" in the workspace switcher of a live workspace, a plain link to `/demo`. On a phone a lone review cell uses a short label so the review's name keeps its room: this is Lane's answer to #369's medium 6.
+
+**#431 (track 4).** Each module lists its own screens' AI tools in its `module.json`; the parity table merges them and names no module.
+
+**Migration 0049 (#430, track 7c).** Three nullable columns on `faro.okr_goals` for a goal's baseline, with a length check and a "whole or nothing" check; column grants written out; safe to run twice; a test runs it twice. Low, to watch when the code lands: a nullable column written only on some rows of a batch is set to NULL on the others (#376's finding), and the "whole" check refuses a period or a provisional flag without a figure, so the three must always be written together and on every goal row.
+
+#426 is a handover page.
