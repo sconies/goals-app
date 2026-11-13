@@ -303,7 +303,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “All reviews” | link | always |
 | “Continue review · … left / Start review · …” | primary | `inIt` and `!done` and `first` |
 | “Finish review” | primary | `inIt` and `!done` and `!first` and `healthyLeft.length > 0` |
-| “Join this review” | primary | `!inIt` |
 | “Edit review setup” | link | `canChange` |
 | “Print or save as PDF” | link | always |
 | “Done?” | button | `last` and `a.state !== 'done' && canMarkDone(a.ask, app.viewer)` |

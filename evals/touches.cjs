@@ -47,7 +47,8 @@ const RULES = [
   [/^src\/ui\/(NextStepSheet|PersonPick|goalRows)\.tsx|^evals\/(finish\/10-goal-order|notes\/11-said-once)\.cjs$/, ['U3', 'U9', 'U77', 'U78', 'U80', 'F14', 'N15']],
   [/^src\/screens\/(GoalsScreen|GoalViews|GoalTable|GoalBoard|GoalFilters|GoalHistory)\.tsx|^src\/ui\/HealthLine\.tsx|^src\/domain\/(query|tableFilter|tableLayout|columns|order)\.ts/, ['U19', 'U23', 'U32', 'U34', 'F5', 'N5', 'N6', 'N10']],
   [/^src\/screens\/GoalMap\.tsx|^src\/domain\/(map|tree)\.ts/, ['U26', 'U30', 'U34', 'F6']],
-  [/^src\/screens\/(Review|Retro)\.tsx|^src\/domain\/review\.ts/, ['U3', 'U10', 'U13', 'U36', 'F6', 'N1']],
+  [/^src\/screens\/(Review|Retro)\.tsx|^src\/domain\/review\.ts/, ['U3', 'U10', 'U13', 'U36', 'F6', 'N1', 'N25']],
+  [/^src\/screens\/Inspect\.tsx|^evals\/notes\/13-review-speak\.cjs$/, ['N25']],
   [/^src\/screens\/(DataTables|DataLayout|DataFilters|BulkEdit)\.tsx|^src\/domain\/(changeset|importer|export|sheets|format|formatDoc)\.ts|^src\/app\/(spreadsheet|files|zip)\.ts/, ['U19', 'U20', 'U21', 'U35', 'U45', 'U46', 'F7', 'F8', 'N5']],
   // The import's preview (IM3): its rules and its two checks.
   [/^src\/domain\/(changeset|sheets|leaveOut|workedOut|problemLevels)\.ts/, ['U87', 'U88', 'U89', 'U94', 'U98', 'F17', 'N18', 'P19']],
