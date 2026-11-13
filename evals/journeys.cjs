@@ -6088,6 +6088,80 @@ journey('U160', ['READING-PREFILL', 'READING-RECORDED-ONLY'], 'The one table fil
   await p.context().close();
 });
 
+/* Where a reading's source shows beyond the check-in (NR3, docs/design/round-4/readings/spec.md 2.4). Each part starts a
+   fresh browser, so each check-in is week 45's first: a confirmed one, then (in the second) a different one and why. */
+journey('U161', ['READING-SHOWN'], 'Where a number came from shows elsewhere: as Daniel, after confirming CI analytics’ 20 on CI pipeline time on main (p90), its Measured by says “This week’s number 20 min, from CI analytics, read 9:00 today. Confirmed by Daniel Okafor.”, its History row “From CI analytics, read 9:00 today. Daniel Okafor checked in.” and Developer Productivity fortnightly’s agenda row “· from CI analytics”; after typing 19 over it because the source counts something else, Measured by says “19 min, typed by Daniel Okafor. CI analytics said 20 min.”, History “Typed by Daniel Okafor. CI analytics said 20 min. The source counts something else: “…””, the agenda says no source, and the metric’s page lists the goal as “Filled in from CI analytics · last read 9:00 today” with “In the last 8 weeks, 1 of 1 check-in filled in from CI analytics used a different number.” and See them opening that week', 16, async (h, device) => {
+  const agendaRow = async (p) => {
+    await p.goto(url('/reviews/devprod'));
+    await p.locator('.review-home').waitFor();
+    const row = p.locator('.agenda-row').filter({ hasText: 'CI pipeline time on main (p90)' }).first();
+    if (!(await row.isVisible().catch(() => false))) {
+      const show = p.locator('summary').filter({ hasText: /^Show \d+ goals?$/ });
+      if (await show.count()) await h.click(show.first());
+    }
+    await row.waitFor({ timeout: 5000 }).catch(() => {});
+    return (await row.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  };
+  const about = async (p) => {
+    await p.goto(url('/goals/ns-ci?about=1'));
+    const said = p.locator('[data-part="Measured by"] .metric-this-week');
+    await said.waitFor({ timeout: 8000 }).catch(() => {});
+    return (await said.innerText().catch(() => '')).trim();
+  };
+  const historyLine = async (p) => (await p.locator('#history .ci-read-from').first().innerText().catch(() => '')).trim();
+
+  // Confirmed.
+  let p = h.use(await newPage(device, 'daniel'));
+  await p.goto(url('/check-in/ns-ci'));
+  await see(p.locator('.ci-reading-block'), 'From CI analytics');
+  await h.click(p.getByRole('button', { name: 'Confirm 20 min' }));
+  await see(p, 'Check-in saved');
+  const said1 = await about(p);
+  h.set('entry', /^20 min, from CI analytics, read 9:00 today\. Confirmed by Daniel Okafor\.$/.test(said1), `Measured by says “${said1}”`);
+  await h.checkpoint('measured by');
+  const hist1 = await historyLine(p);
+  h.set('progress', /^From CI analytics, read 9:00 today\. Daniel Okafor checked in\.$/.test(hist1), `History says “${hist1}”`);
+  const row1 = await agendaRow(p);
+  h.set('attention', /20 min · from CI analytics/.test(row1), `the agenda row says “${row1}”`);
+  await h.checkpoint('agenda');
+  await p.context().close();
+
+  // Typed over it, and why.
+  p = h.use(await newPage(device, 'daniel'));
+  await p.goto(url('/check-in/ns-ci'));
+  const block = p.locator('.ci-reading-block');
+  await see(block, 'From CI analytics');
+  await h.fill(p.getByLabel('This week’s value'), '19');
+  await h.click(block.getByRole('radio', { name: 'The source counts something else' }));
+  await h.fill(block.getByLabel(/^Say more/), 'It leaves out the release branch pipelines.');
+  await h.click(p.getByRole('button', { name: 'Use 19 min' }));
+  await see(p, 'Check-in saved');
+  const said2 = await about(p);
+  const hist2 = await historyLine(p);
+  h.set('finish', said2 === '19 min, typed by Daniel Okafor. CI analytics said 20 min.' && hist2 === 'Typed by Daniel Okafor. CI analytics said 20 min. The source counts something else: “It leaves out the release branch pipelines.”', `Measured by says “${said2}”; History says “${hist2}”`);
+  await h.checkpoint('typed');
+  const row2 = await agendaRow(p);
+  h.set('attention', /19 min/.test(row2) && !/from CI analytics/.test(row2), `a typed number's agenda row says “${row2}”`);
+
+  // The metric's page: goals and weeks, never people.
+  await p.goto(url('/metrics/ci-time'));
+  const part = p.locator('[data-part="In each goal’s check-in"]');
+  await part.waitFor({ timeout: 8000 }).catch(() => {});
+  const cell = (await part.locator('tr').filter({ hasText: 'CI pipeline time on main (p90)' }).locator('.mg-read').innerText().catch(() => '')).trim();
+  const line = (await part.locator('.metric-different').innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  const people = (await h.snapshot()).people.map((x) => x.name).filter((n) => n && (cell + line).includes(n));
+  h.set('logged', cell === 'Filled in from CI analytics · last read 9:00 today' && line.startsWith('In the last 8 weeks, 1 of 1 check-in filled in from CI analytics used a different number.') && !people.length, `the table says “${cell}”, under it “${line}”${people.length ? `, naming ${people.join(', ')}` : ''}`);
+  await h.checkpoint('metric page');
+  await h.click(part.getByRole('button', { name: 'See them' }));
+  const week = part.getByRole('link', { name: /^CI pipeline time on main \(p90\), week \d+$/ });
+  await h.click(week.first());
+  await p.waitForURL(/\/goals\/[^?]+\?history=checkins&week=\d+/, { timeout: 5000 }).catch(() => {});
+  const there = await historyLine(p);
+  h.set('finish', /Typed by Daniel Okafor\. CI analytics said 20 min\./.test(there), `See them opened ${p.url()}, whose History says “${there}”`);
+  h.set('errors', true);
+  await p.context().close();
+});
+
 
 journey('U153', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: as Rhea on Developer Productivity fortnightly, the panel says how many goals are checked in so far, its “have no check-in for week 45 yet” link opens exactly that many goals, and “The last 8 weeks” has eight cells, each a week with words; no person’s name is in the panel; a team’s page shows the same panel for its goals, and a one-owner team’s page shows none', 10, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));

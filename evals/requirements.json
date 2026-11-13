@@ -837,6 +837,12 @@
       "use": "copy"
     },
     {
+      "id": "READING-SHOWN",
+      "area": "Metrics",
+      "text": "Where a check-in's number came from shows beyond the check-in, from what the check-in recorded (Faro keeps no series of readings): the goal's Measured by says \"This week's number\" from its latest check-in (\"{value}, from {source}, read {when}. Confirmed by {name}.\" or \"{typed}, typed by {name}. {source} said {value}.\", nothing when it recorded none); each History row says \"From {source}, read {when}. {name} checked in.\" or \"Typed by {name}. {source} said {value}. {Reason}: “{words}”\"; the metric's page lists its goals with \"In its check-in\" (\"Filled in from {source} · last read {when}\", \"Typed by hand: {source} has no number per team\" or \"Typed by hand: no source can be read\") and \"In the last 8 weeks, {k} of {n} check-ins filled in from {source} used a different number.\" with See them (goals and weeks, never people); a review's agenda row says \"· from {source}\" in the quiet ink after a confirmed number, and nothing for a typed one; the Check-ins sheet has Number from, Source's number, Measured at and Reason for a different number, for reading, never loaded back; get_goal and get_metric say the same.",
+      "use": "copy"
+    },
+    {
       "id": "METRIC-CHANGE",
       "area": "Metrics",
       "text": "A metric that changes tells its goals (MT3). Changing a metric goals use reads back what it does to them first: a new meaning or source asks \"Is it still the same number?\"; \"The number itself changes\" and a new direction each need a reason, and leave a mark on every goal's chart (\"Definition changed, week {w}\", a dashed hairline labelled beside it) and History; a new unit is a new label (every goal's unit changes too) or a different scale, refused. A metric that has measured a goal is retired, not deleted: its goals keep their links and numbers and say \"Measured by {metric}, retired {date}\", it leaves the pickers, and Bring it back undoes it. Admins merge a metric into another in the same unit, moving its goals and retiring it pointing there. Every one of these saves with one Undo, and retire_metric, merge_metrics and save_metric's comparable, reason and relabel do the same through MCP.",
