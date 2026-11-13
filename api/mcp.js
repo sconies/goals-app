@@ -26380,6 +26380,8 @@ async function callTool(name, args, ctx) {
 /** Who a token acts as, in a sentence: said with every refusal. */
 var actingAs = (p) => `This token acts as ${p.name}, who ${p.admin ? "is an admin" : "isn’t an admin"}.`;
 // src/mcp/protocol.ts
+/** A tool whose save is refused as stale every time it runs again: said plainly, not as the store's error. */
+var STALE_TOOL = "Someone else changed this a moment ago, so it wasn’t saved. Read it again (get_goal or get_review) and try again.";
 /** The name stays 'goals' (assistants already have it saved); the title is the product's. */
 var SERVER_INFO = {
 	name: "goals",
@@ -26464,7 +26466,15 @@ async function handle(msg, context, trace) {
 		case "tools/call": {
 			const name = String(m.params?.name ?? "");
 			if (!TOOLS.some((t) => t.name === name)) return fail(m.id, -32602, `Unknown tool: ${name}`);
-			const run = async () => callTool(name, m.params?.arguments ?? {}, await context());
+			const args = m.params?.arguments ?? {};
+			const run = async () => {
+				let r = await callTool(name, args, await context());
+				for (let n = 0; n < 2 && r.isError && isStale(r.cause); n++) r = await callTool(name, args, await context(true));
+				return r.isError && isStale(r.cause) ? {
+					...r,
+					text: STALE_TOOL
+				} : r;
+			};
 			const r = trace ? await trace(name, run) : await run();
 			return ok(m.id, {
 				content: [{
@@ -26875,8 +26885,8 @@ async function serve(req, deps) {
 			} : g)
 		};
 	};
-	const context = async () => {
-		if (ctx) return ctx;
+	const context = async (fresh = false) => {
+		if (ctx && !fresh) return ctx;
 		const [loaded, name, recording, modulesOff] = await Promise.all([
 			db("select", () => deps.load(found.workspaceId)),
 			deps.workspaceName(found.workspaceId),
