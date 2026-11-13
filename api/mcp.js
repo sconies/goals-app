@@ -12559,7 +12559,7 @@ function metricFrom(input, before, x) {
 }
 /**
 * What's wrong with a metric, in words someone can act on; empty when it can be saved. Required: a name (3 to 120
-* characters, not one another metric here uses), a unit (up to 20 characters) and a direction (higher or lower is
+* characters, not one another metric here uses, accents and case aside), a unit (up to 20 characters) and a direction (higher or lower is
 * better). Optional: the meaning, decimals (0 to 4), source and its owner, refresh (one of REFRESHES), owner (someone in
 * the workspace) and caveats, each text up to 2,000 characters.
 */
@@ -12569,7 +12569,7 @@ function metricProblems(m, s) {
 	else if (m.name.length < 3) out.push("Give the metric a name of at least three characters.");
 	else if (m.name.length > METRIC_LIMITS.name) out.push(`Keep the name to ${METRIC_LIMITS.name} characters or fewer.`);
 	else {
-		const same = liveMetrics(s).find((v) => v.id !== m.id && v.name.toLowerCase() === m.name.toLowerCase());
+		const same = liveMetrics(s).find((v) => v.id !== m.id && fold$2(v.name) === fold$2(m.name));
 		if (same) out.push(`There’s already a metric called ${same.name}. Use it, or give this one a different name.`);
 	}
 	if (!m.unit) out.push("Say its unit: %, min, hours, USD, deploys…");
@@ -12629,7 +12629,7 @@ function metricChangeQuestion(before, next, goals, links) {
 */
 function saveMetric(x, input) {
 	const before = input.id ? live$1(x, input.id) : null;
-	if (before && !ownsOrAdmin(x, before)) no(`Only ${x.snapshot.people.find((p) => p.id === before.ownerId)?.name ?? "the metric’s owner"} or an admin can change this metric.`);
+	if (before) ownerOnly(x, before, "change");
 	const m = metricFrom(input, before, x);
 	const problems = metricProblems(m, x.snapshot);
 	if (problems.length) no(problems.join(" "));
@@ -12660,7 +12660,7 @@ function saveMetric(x, input) {
 */
 function removeMetric(x, id) {
 	const m = live$1(x, id);
-	if (!ownsOrAdmin(x, m)) no(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? "the metric’s owner"} or an admin can remove this metric.`);
+	ownerOnly(x, m, "remove");
 	const links = linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === id && !l.removedAt);
 	const n = links.length;
 	return {
@@ -12745,10 +12745,11 @@ function unlinkGoalMetric(x, goal) {
 		})]
 	};
 }
-var MODULE, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, sliceName, clean$1, log, live$1, ownsOrAdmin, canEditMetric, canLinkGoal;
+var MODULE, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, sliceName, clean$1, log, live$1, ownsOrAdmin, ownerOnly, canEditMetric, canLinkGoal;
 var init_rules = __esmMin((() => {
 	init_actions();
 	init_changes();
+	init_fold();
 	init_format();
 	init_numbers();
 	init_records();
@@ -12813,6 +12814,9 @@ var init_rules = __esmMin((() => {
 		return m;
 	};
 	ownsOrAdmin = (x, m) => x.actor.admin || m.ownerId === x.actor.id;
+	ownerOnly = (x, m, what) => {
+		if (!ownsOrAdmin(x, m)) no(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? "the metric’s owner"} or an admin can ${what} this metric.`);
+	};
 	canEditMetric = (actor, m) => actor.admin || m.ownerId === actor.id;
 	canLinkGoal = (actor, g) => actor.admin || g.ownerId === actor.id;
 }));
@@ -15506,7 +15510,7 @@ var help$3 = [
 			{
 				heading: "What it needs",
 				list: [
-					"In Metrics, choose Add a metric. Three things are needed: the Name (3 to 120 characters, used by one metric whatever the case), the Unit as it follows a number (hours, %, USD, deploys), and Which way is better. Decimal places is optional: 0 if left.",
+					"In Metrics, choose Add a metric. Three things are needed: the Name (3 to 120 characters, used by one metric whatever the case or accents), the Unit as it follows a number (hours, %, USD, deploys), and Which way is better. Decimal places is optional: 0 if left.",
 					"Five more make it fully defined, and can be said later: what it means and how it’s calculated (what is counted, out of what or over what period, and what is left out); where the number comes from; who owns that source; how often it refreshes; and an owner here who answers for what it means.",
 					"A metric’s page says “Fully defined” under its title, or what is still to say: “Still to say: where the number comes from, how often it refreshes.” Its owner and admins can open the form at each item from there. It is never a score, a percentage or a bar, and nothing is sorted by it."
 				]
@@ -15517,7 +15521,8 @@ var help$3 = [
 					"A Must fix stops the save until it is fixed: a name missing, too short or already used, no unit, or no direction. It shows under its field, outlined, once you leave the field or try to save.",
 					"A Check is a question to answer once. There are three: a name one letter or one word from another metric’s, or one a metric used to have (“This is one letter from “Deploy success rate” …”, with Use that one or Mine is different: keep it); a unit spelt differently from one in use (“Other metrics here use “min”.”); and a percentage whose meaning doesn’t say out of what (with It’s right as written).",
 					"The foot of the form counts them (“1 to fix, 2 to check.”) above the completeness line. Saving with a Check unanswered takes you to it. An answered Check closes to one line with Change; changing the field asks again.",
-					"Use that one opens the metric already in the library; what you typed is kept as a draft."
+					"Use that one opens the metric already in the library; what you typed is kept as a draft.",
+					"Adding a metric from a goal’s Measured by asks the same Checks, under the new metric’s fields, before Add this metric saves it."
 				]
 			},
 			{
@@ -15527,7 +15532,7 @@ var help$3 = [
 					"Changing the unit or which way is better of a metric goals use asks first, here and through the AI assistant: their numbers and plans don’t change, and the goals that now differ say so under “Measured by” on their page.",
 					"Workspace → About tells admins how many metrics have no owner (someone who left owned them), with See them.",
 					"On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back.",
-					"An AI assistant asks the same questions: save_metric returns them and saves nothing until it calls again with your answers."
+					"An AI assistant asks the same questions: save_metric returns them and saves nothing until it calls again with your answers to those questions. Someone who may not change a metric is told so before being asked anything."
 				]
 			}
 		],
@@ -18582,6 +18587,18 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "metric-checks-everywhere",
+		date: "2026-11-13",
+		title: "A new metric is checked wherever it is added",
+		points: [
+			"Adding a metric from a goal’s “Measured by” now asks the same questions as Add a metric: a name close to another’s, a unit spelt another way, a percentage that doesn’t say out of what.",
+			"A name that differs from another metric’s only by an accent, such as “Fláky test rate”, must be changed, as one differing only by case already did.",
+			"Answering a question on the form keeps your place: Change on the answered line takes the focus.",
+			"“Lower is better” and “Higher is better” are bigger to tap on a phone."
+		],
+		articles: ["metric-define", "metric-measured-by"]
+	},
 	{
 		id: "metric-part",
 		date: "2026-11-13",
@@ -24117,6 +24134,7 @@ function closeNames(name, metrics, except) {
 	return scored.sort((a, b) => a.d - b.d || fold$2(a.m.name).localeCompare(fold$2(b.m.name))).slice(0, 2).map((x) => x.m);
 }
 // src/modules/metrics/rulesDefine.ts
+init_actions();
 init_find();
 init_edits();
 /** The four things that make a metric fully defined beyond its name, unit and direction, in the order they are said. */
@@ -24277,8 +24295,9 @@ function meaningChecks(m) {
 var OUT_OF_WHAT = "This is a percentage, and the words don’t say out of what. For example: “production deploys with no rollback or hotfix, out of all production deploys, over 28 days”.";
 /**
 * The Checks a metric as typed raises (rule 1), one per field at most, each with its answers. Adding: all three. Changing:
-* only for a field that changed. An answer's `choice` is what save_metric's `answers` takes: name `keep` or `use:<id>`,
-* unit `keep` or `use`, meaning `as-written`.
+* only for a field that changed. An answer's `choice` is what save_metric's `answers` takes: name `keep:<id>` or `use:<id>`
+* (the id of the metric the question names, so an answer covers only the question it was given to), unit `keep` or `use`,
+* meaning `as-written`.
 */
 function metricChecks(next, before, r) {
 	const out = [];
@@ -24295,13 +24314,13 @@ function metricChecks(next, before, r) {
 				choice: `use:${m.id}`,
 				label: `Use ${m.name}`
 			}, {
-				choice: "keep",
+				choice: `keep:${m.id}`,
 				label: `Add “${next.name.trim()}” as a new metric`
 			}] : [{
 				choice: `use:${m.id}`,
 				label: "Use that one"
 			}, {
-				choice: "keep",
+				choice: `keep:${m.id}`,
 				label: "Mine is different: keep it"
 			}];
 			out.push({
@@ -24342,6 +24361,21 @@ function metricChecks(next, before, r) {
 }
 /** The checks an answer doesn't cover yet. An answer must be one of its check's choices. */
 var unansweredChecks = (checks, answers) => checks.filter((c) => !c.answers.some((a) => a.choice === answers[c.field]));
+/**
+* The answers as given, checked: an object of words for name, unit and meaning only. Anything else is refused in plain
+* words rather than read wrongly (an answer of 5 is not a choice).
+*/
+function answersFrom(raw) {
+	if (raw == null) return {};
+	if (typeof raw !== "object" || Array.isArray(raw)) throw new NotAllowed("Answers are words for name, unit or meaning, from the questions you were asked.");
+	const out = {};
+	for (const [k, v] of Object.entries(raw)) {
+		if (k !== "name" && k !== "unit" && k !== "meaning") throw new NotAllowed(`There’s no question about “${k}”: answers are for name, unit or meaning.`);
+		if (typeof v !== "string") throw new NotAllowed(`The answer for ${k} is one of the words the question offered, such as “keep:<id>”, “use” or “as-written”.`);
+		out[k] = v;
+	}
+	return out;
+}
 // src/modules/metrics/reads.ts
 init_rules();
 /** The running cycle's live goals: not removed, not stopped. */
@@ -24376,6 +24410,43 @@ function checkReads(s) {
 }
 /** Rule 1's line for a metric, its owner being someone here who hasn't left. */
 var lineOf = (s, m) => stillToSay(m, !!ownerName(s.people, m));
+// src/modules/metrics/rulesSave.ts
+init_rules();
+/**
+* The Checks the metric as typed still raises once the answers are counted, after the rights (someone who may not change
+* the metric is refused before being asked anything). A unit answered “use” takes the spelling in use.
+*/
+function openChecks(x, input) {
+	const before = input.id ? live$1(x, input.id) : null;
+	if (before) ownerOnly(x, before, "change");
+	const answers = input.answers ?? {};
+	const r = checkReads(x.snapshot);
+	let next = input;
+	if (answers.unit === "use" && input.unit !== void 0) {
+		const u = unitChecks(input.unit, [...new Set(r.metrics.filter((m) => m.id !== before?.id).map((m) => m.unit))]);
+		if (u) next = {
+			...input,
+			unit: u.use
+		};
+	}
+	const typed = metricFrom(next, before, x);
+	if (metricProblems(typed, x.snapshot).length) return {
+		input: next,
+		open: []
+	};
+	return {
+		input: next,
+		open: unansweredChecks(metricChecks(typed, before, r), answers)
+	};
+}
+/** Add or change a metric once every Check is answered; refused, with the questions in words, while one is open. */
+function saveMetricAsked(x, input) {
+	if (input.answers?.name?.startsWith("use:")) no("Nothing saved: use that metric instead.");
+	const { input: next, open } = openChecks(x, input);
+	if (open.length) no(`Answer ${open.length === 1 ? "this question" : "these questions"} first: ${open.map((c) => c.words).join(" ")}`);
+	const { answers: _, ...rest } = next;
+	return saveMetric(x, rest);
+}
 // src/modules/metrics/tools.ts
 init_actions();
 init_goalKey();
@@ -24671,7 +24742,7 @@ var tools$1 = [
 					additionalProperties: false,
 					description: "The person’s answers to the checks a previous call returned.",
 					properties: {
-						name: str$2("“keep” (mine is different), or “use:<id>” to use that metric instead (nothing is saved)."),
+						name: str$2("“keep:<id>” (mine is different from that metric), or “use:<id>” to use that metric instead (nothing is saved), with the id the question gave."),
 						unit: str$2("“keep” the unit as typed, or “use” the one in use.", { enum: ["keep", "use"] }),
 						meaning: str$2("“as-written”: the meaning is right as written.", { enum: ["as-written"] })
 					}
@@ -24695,7 +24766,7 @@ var tools$1 = [
 					...a.caveats !== void 0 ? { caveats: String(a.caveats) } : {},
 					...a.confirm === true ? { confirm: true } : {}
 				};
-				const answers = a.answers && typeof a.answers === "object" ? a.answers : {};
+				const answers = answersFrom(a.answers);
 				if (answers.name?.startsWith("use:")) {
 					const use = metricOf(ctx, answers.name.slice(4));
 					return {
@@ -24706,15 +24777,11 @@ var tools$1 = [
 						text: `Nothing saved: use ${use.name} (${use.id}) instead.`
 					};
 				}
-				const before = input.id ? metricsOf(ctx.snapshot).find((x) => x.id === input.id) ?? null : null;
-				const r = checkReads(ctx.snapshot);
-				if (answers.unit === "use" && input.unit !== void 0) {
-					const u = unitChecks(input.unit, [...new Set(r.metrics.filter((x) => x.id !== before?.id).map((x) => x.unit))]);
-					if (u) input.unit = u.use;
-				}
-				const typed = metricFrom(input, before, ax(ctx));
-				const open = unansweredChecks(metricChecks(typed, before, r), answers);
-				if (open.length && !metricProblems(typed, ctx.snapshot).length) {
+				const { open } = openChecks(ax(ctx), {
+					...input,
+					answers
+				});
+				if (open.length) {
 					const checks = open.map((c) => ({
 						field: c.field,
 						question: c.words,
@@ -24731,7 +24798,10 @@ var tools$1 = [
 						text: `Nothing saved yet. Ask the person, then call again with answers:\n${checks.map((c) => `- ${c.field}: ${c.question} (${c.answers.map((x) => `${x.answer}: ${x.label}`).join("; ")})`).join("\n")}`
 					};
 				}
-				const { commit, metric } = saveMetric(ax(ctx), input);
+				const { commit, metric } = saveMetricAsked(ax(ctx), {
+					...input,
+					answers
+				});
 				if (!commit) return {
 					data: {
 						saved: false,
