@@ -1717,13 +1717,6 @@ No arguments.
         waiting: string;
         late: boolean;
         handedFrom: string | null;
-        id: string;
-        kind: AskKind;
-        ask: string;
-        status: AskStatus;
-        statusLabel: string;
-        dueWeek: number | null;
-        review: string | null;
         askedBy: string;
         askedOf: string;
         goals: {
@@ -1736,6 +1729,13 @@ No arguments.
         answeredBy: string | null;
         youCanAnswer: boolean;
         youCanMarkDone: boolean;
+        review?: string | null | undefined;
+        id: string;
+        kind: AskKind;
+        ask: string;
+        status: AskStatus;
+        statusLabel: string;
+        dueWeek: number | null;
     }[];
     questionsOnYourGoals: {
         id: string;
@@ -1743,7 +1743,7 @@ No arguments.
         goal: string | undefined;
         question: string;
         by: string;
-        review: string | null;
+        review: string | null | undefined;
         waiting: string;
         late: boolean;
         handedFrom: string | null;

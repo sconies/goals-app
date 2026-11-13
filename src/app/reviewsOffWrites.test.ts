@@ -114,6 +114,16 @@ describe('the AI tools, with Reviews off', () => {
     }
   });
 
+  it('list_requests names no review with Reviews off, and names it with Reviews on', async () => {
+    const t = ctx('rhea');
+    const raised = (data: unknown) => (data as { requests: Record<string, unknown>[] }).requests;
+    const off = raised((await callTool('list_requests', { status: 'all' }, t.ctx)).data);
+    expect(off.length).toBeGreaterThan(0);
+    expect(off.some((r) => 'review' in r)).toBe(false);
+    const on = raised((await callTool('list_requests', { status: 'all' }, { ...t.ctx, ws: { id: 'w', name: 'Platform' } })).data);
+    expect(on.some((r) => typeof r.review === 'string')).toBe(true);
+  });
+
   it('a comment on a goal still saves', async () => {
     const t = ctx('rhea');
     const goal = t.ctx.snapshot.goals.find((g) => g.ownerId === 'rhea')!;
