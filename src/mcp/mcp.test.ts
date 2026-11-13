@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { goalsIn } from '../domain/review';
 import { serve, type Deps } from '../../server/mcp';
-import { applyCommit } from '../data/store';
+import { applyCommit, checkExpectations, type Commit } from '../data/store';
+import { STALE_RERUNS } from '../ports/store';
 import { buildPlatformOrg } from '../data/platformOrg';
 import { asksOf } from '../domain/asks';
 import { isProposed } from '../domain/proposed';
@@ -9,7 +10,7 @@ import { currentWeek, planAt } from '../domain/plan';
 import { applyQuery, parseQuery } from '../domain/query';
 import { summariseAll } from '../domain/summary';
 import type { ApiToken, MetricGoal, RangeGoal, Snapshot } from '../domain/types';
-import { hashToken, newToken } from './protocol';
+import { hashToken, newToken, STALE_TOOL } from './protocol';
 
 // Monday of week 45, before this week's check-ins.
 const today = new Date('2026-11-02T12:00:00Z');
@@ -437,5 +438,43 @@ describe('MCP server', () => {
     const mateo = await setup('mateo');
     (mateo.deps as { load: Deps['load'] }).load = async () => grace.data();
     expect((await mateo.rpc('tools/call', { name: 'get_overview', arguments: {} })).body.error.message).toMatch(/no longer in the workspace/);
+  });
+});
+
+describe('a save refused as stale, through MCP (AX6)', () => {
+  /** A server whose store checks what each save was based on, with someone else's change saved before its next ones. */
+  async function racing(others: ((s: Snapshot) => Snapshot)[]) {
+    const s = await setup('amara');
+    let data: Snapshot = structuredClone(built);
+    let saves = 0;
+    const bump = (c: Commit) => { const next = applyCommit(data, c); return { ...next, goals: next.goals.map((g) => (c.goals?.some((x) => x.id === g.id) ? { ...g, version: (data.goals.find((o) => o.id === g.id)?.version ?? 0) + 1 } : g)) }; };
+    s.deps.load = async () => structuredClone(data);
+    s.deps.commit = async (_ws, c) => {
+      saves++;
+      const other = others.shift();
+      if (other) data = other(data);
+      checkExpectations(data, c.expect);
+      data = bump(c);
+    };
+    return { ...s, data: () => data, saves: () => saves };
+  }
+  const relevel = (s: Snapshot): Snapshot => ({ ...s, goals: s.goals.map((g) => (g.id === 'ns-ai' ? { ...g, level: 'svp', version: (g.version ?? 0) + 1 } : g)) });
+
+  it('runs the tool again on the latest and saves: both changes stay', async () => {
+    const r = await racing([relevel]);
+    const out = await r.call('update_goal', { goal_id: 'ns-ai', title: 'AI review for every pull request' });
+    expect(out.isError).toBe(false);
+    expect(r.saves()).toBe(2);
+    const g = r.data().goals.find((x) => x.id === 'ns-ai')!;
+    expect([g.title, g.level]).toEqual(['AI review for every pull request', 'svp']);
+  });
+
+  it('says so plainly when every run is refused, and saves nothing', async () => {
+    const r = await racing(Array.from({ length: 1 + STALE_RERUNS }, () => relevel));
+    const out = await r.call('update_goal', { goal_id: 'ns-ai', title: 'AI review for every pull request' });
+    expect(out.isError).toBe(true);
+    expect(out.content[0]!.text).toBe(STALE_TOOL);
+    expect(r.saves()).toBe(1 + STALE_RERUNS);
+    expect(r.data().goals.find((x) => x.id === 'ns-ai')!.title).not.toBe('AI review for every pull request');
   });
 });

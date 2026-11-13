@@ -127,8 +127,9 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
     const keys = await db('select', () => deps.goalKeys!(found.workspaceId, added));
     return { ...c, goals: c.goals!.map((g) => (keys[g.id] && keys[g.id] !== g.key ? { ...g, key: keys[g.id]! } : g)) };
   };
-  const context = async (): Promise<McpContext> => {
-    if (ctx) return ctx;
+  // `fresh` drops what this request loaded, to run a tool again on the latest after a stale refusal (AX6).
+  const context = async (fresh = false): Promise<McpContext> => {
+    if (ctx && !fresh) return ctx;
     const [loaded, name, recording, modulesOff] = await Promise.all([
       db('select', () => deps.load(found.workspaceId)), deps.workspaceName(found.workspaceId),
       deps.recording ? deps.recording(found.workspaceId).catch(() => true) : Promise.resolve(true),
