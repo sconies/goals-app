@@ -6,9 +6,9 @@
    Pure: each takes only what it reads. Nothing here is a score: "Still to say" is words, never a number, and nothing may
    sort by it. A Check never stops a metric being usable; it is a question to answer once. */
 import { NotAllowed } from '../../domain/actions';
-import { fold } from '../../domain/find';
+import { fold } from '../../domain/fold';
 import { editsBetween } from './edits';
-import { closeNames, directionWords } from './rulesLibrary';
+import { closeNames, directionWords } from './names';
 
 export { editsBetween };
 import type { Metric, MetricDirection } from './types';

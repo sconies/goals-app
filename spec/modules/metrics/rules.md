@@ -309,7 +309,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ### Where it lives
 
-- [src/modules/metrics/rulesLibrary.ts](../../../src/modules/metrics/rulesLibrary.ts): `closeNames`, `nameWords`, `closeNameWords`
+- [src/modules/metrics/names.ts](../../../src/modules/metrics/names.ts): `closeNames`, `nameWords`
+- [src/modules/metrics/rulesLibrary.ts](../../../src/modules/metrics/rulesLibrary.ts): `closeNameWords`
 - [src/modules/metrics/rules.ts](../../../src/modules/metrics/rules.ts): `ownerName`, `ownerlessMetrics`
 - [src/modules/metrics/finder.ts](../../../src/modules/metrics/finder.ts): `metricsToSortOut`
 
@@ -391,7 +392,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - [src/modules/metrics/edits.ts](../../../src/modules/metrics/edits.ts): `editsBetween`
 - [src/modules/metrics/rulesDefine.ts](../../../src/modules/metrics/rulesDefine.ts): `stillToSay`, `nameChecks`, `formerNames`, `unitChecks`, `meaningChecks`, `metricChecks`, `unansweredChecks`, `answersFrom`, `countLine`
-- [src/modules/metrics/reads.ts](../../../src/modules/metrics/reads.ts): `checkReads`, `lineOf`
+- [src/modules/metrics/reads.ts](../../../src/modules/metrics/reads.ts): `lineOf`
+- [src/modules/metrics/checkReads.ts](../../../src/modules/metrics/checkReads.ts): `checkReads`
 - [src/modules/metrics/rulesSave.ts](../../../src/modules/metrics/rulesSave.ts): `openChecks`, `saveMetricAsked`
 
 ### Requirements

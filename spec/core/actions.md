@@ -1493,7 +1493,7 @@ From the [metrics](../modules/metrics/README.md) module.
 
 - “Nothing saved: use that metric instead.”
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
-- “Only … or an admin can … this metric.”
+- “Only … or an admin can change this metric.”
 - “Answer … first: …”
 
 **AI tools that do the same:** [`save_metric`](tools.md#save_metric)
@@ -1519,7 +1519,7 @@ From the [metrics](../modules/metrics/README.md) module.
 **Refuses with:**
 
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
-- “Only … or an admin can … this metric.”
+- “Only … or an admin can remove this metric.”
 
 **AI tools that do the same:** [`remove_metric`](tools.md#remove_metric), [`restore_removed`](tools.md#restore_removed)
 

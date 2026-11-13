@@ -5287,7 +5287,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 - “There’s no question about “…”: answers are for name, unit or meaning.”
 - “The answer for … is one of the words the question offered, such as “keep:<id>”, “use” or “as-written”.”
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
-- “Only … or an admin can … this metric.”
+- “Only … or an admin can change this metric.”
 - “Nothing saved: use that metric instead.”
 - “Answer … first: …”
 
@@ -5336,7 +5336,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 **Refuses with:**
 
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
-- “Only … or an admin can … this metric.”
+- “Only … or an admin can remove this metric.”
 - “There’s no metric called or with the ID …. Use list_metrics.”
 
 **Does the same as:** [removeMetric](actions.md#removemetric), so it refuses with their words too.

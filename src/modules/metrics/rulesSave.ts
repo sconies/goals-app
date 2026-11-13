@@ -2,8 +2,8 @@
    anything is saved, so no door can skip them (#281's build review). Loads with the first save, not the first download. */
 import type { ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
-import { checkReads } from './reads';
-import { live, metricFrom, metricProblems, no, ownerOnly, saveMetric, type Metric, type MetricInput } from './rules';
+import { checkReads } from './checkReads';
+import { canEditMetric, live, metricFrom, metricProblems, no, saveMetric, type Metric, type MetricInput } from './rules';
 import { metricChecks, unansweredChecks, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
 
 export type SaveMetricInput = MetricInput & { id?: string; confirm?: boolean; answers?: Partial<Record<CheckField, string>> };
@@ -14,7 +14,8 @@ export type SaveMetricInput = MetricInput & { id?: string; confirm?: boolean; an
  */
 export function openChecks(x: ActionContext, input: SaveMetricInput): { input: SaveMetricInput; open: MetricCheck[] } {
   const before = input.id ? live(x, input.id) : null;
-  if (before) ownerOnly(x, before, 'change');
+  // saveMetric refuses someone who may not change it, in its own words, before anything is asked.
+  if (before && !canEditMetric(x.actor, before)) saveMetric(x, input);
   const answers = input.answers ?? {};
   const r = checkReads(x.snapshot);
   let next = input;

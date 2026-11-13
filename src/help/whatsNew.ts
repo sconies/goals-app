@@ -25,7 +25,7 @@ export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'metric-checks-everywhere',
     date: '2026-11-13',
-    title: 'A new metric is checked wherever it is added',
+    title: 'New metrics checked everywhere',
     points: [
       'Adding a metric from a goal’s “Measured by” now asks the same questions as Add a metric: a name close to another’s, a unit spelt another way, a percentage that doesn’t say out of what.',
       'A name that differs from another metric’s only by an accent, such as “Fláky test rate”, must be changed, as one differing only by case already did.',

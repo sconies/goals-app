@@ -13,7 +13,6 @@
    workspace under `modules.metrics` (domain/records); `metricsOf` and `linksOf` read them. */
 import { NotAllowed, type ActionContext } from '../../domain/actions';
 import { diffFields } from '../../domain/changes';
-import { fold } from '../../domain/fold';
 import type { Commit } from '../../domain/commit';
 import { fmt } from '../../domain/format';
 import { placesText } from '../../domain/numbers';
@@ -143,7 +142,7 @@ export function metricProblems(m: Metric, s: Rows & { people: Person[] }): strin
   else if (m.name.length < 3) out.push('Give the metric a name of at least three characters.');
   else if (m.name.length > METRIC_LIMITS.name) out.push(`Keep the name to ${METRIC_LIMITS.name} characters or fewer.`);
   else {
-    const same = liveMetrics(s).find((v) => v.id !== m.id && fold(v.name) === fold(m.name));
+    const same = liveMetrics(s).find((v) => v.id !== m.id && !v.name.localeCompare(m.name, 'en', { sensitivity: 'base' }));
     if (same) out.push(`There’s already a metric called ${same.name}. Use it, or give this one a different name.`);
   }
   if (!m.unit) out.push('Say its unit: %, min, hours, USD, deploys…');
@@ -183,10 +182,6 @@ export const live = (x: ActionContext, id: string) => {
   return m!;
 };
 const ownsOrAdmin = (x: ActionContext, m: Metric) => x.actor.admin || m.ownerId === x.actor.id;
-/** Refuses anyone but the metric's owner or an admin, naming the owner: `what` is “change” or “remove”. */
-export const ownerOnly = (x: ActionContext, m: Metric, what: 'change' | 'remove') => {
-  if (!ownsOrAdmin(x, m)) no(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? 'the metric’s owner'} or an admin can ${what} this metric.`);
-};
 /** Who may change or remove a metric: its owner, or an admin. Anyone may add one. */
 export const canEditMetric = (actor: ActionContext['actor'], m: Metric) => actor.admin || m.ownerId === actor.id;
 /** Who may link a goal to a metric, or unlink it: the goal's owner, or an admin (whoever owns the metric). */
@@ -215,7 +210,7 @@ export function metricChangeQuestion(before: Metric, next: Metric, goals: readon
  */
 export function saveMetric(x: ActionContext, input: MetricInput & { id?: string; confirm?: boolean }): { commit: Commit | null; metric: Metric } {
   const before = input.id ? live(x, input.id) : null;
-  if (before) ownerOnly(x, before, 'change');
+  if (before && !ownsOrAdmin(x, before)) no(`Only ${x.snapshot.people.find((p) => p.id === before.ownerId)?.name ?? 'the metric’s owner'} or an admin can change this metric.`);
   const m = metricFrom(input, before, x);
   const problems = metricProblems(m, x.snapshot);
   if (problems.length) no(problems.join(' '));
@@ -233,7 +228,7 @@ export function saveMetric(x: ActionContext, input: MetricInput & { id?: string;
  */
 export function removeMetric(x: ActionContext, id: string): Commit {
   const m = live(x, id);
-  ownerOnly(x, m, 'remove');
+  if (!ownsOrAdmin(x, m)) no(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? 'the metric’s owner'} or an admin can remove this metric.`);
   const links = linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === id && !l.removedAt);
   const n = links.length;
   return {
