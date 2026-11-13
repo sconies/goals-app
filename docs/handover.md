@@ -577,6 +577,44 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
   - the unbuilt "cycle ended", "Add one" and gone-parent states from the onboarding spec.
 - **U23 (entry)** scored 8.6 locally and is track 2's to lift.
 
+## Track 4, Friday 13 November, 04:35 UTC (session past half, handing over; supersedes the 02:15 entry)
+
+Session: session_012kbr8y3UGvoeUMdAQ8yaJ8.
+
+- **Merged:**
+  - #327: migration 0044, keyset indexes `(workspace_id, at desc, id desc)` and `(goal_id, at desc, id desc)` for history paging.
+  - #335: the reviewer's three mediums on #323 and #229.
+    - Rules read `Snapshot.history`: `checkInsLeftOut` and `changesLeftOut` in `src/domain/removal.ts`; `goalHasCheckIns`, `cycleStanding` and `personHistory` (`unknown`); an import older than the window can't be undone.
+    - `wholeOnly` in `src/ports/window.ts`: every store's `createWorkspace` refuses a windowed snapshot.
+    - The goals port is keyed on `ws.modulesOff`, with `goalColumns` filled inside it (`src/app/goals.test.tsx`).
+    - Backlog row FD (trim the first download under 265 KB; Lane, 13 Nov).
+- **Open, with auto-merge on.** If either is still open, merge main in, rebuild and push:
+  - #354, U12: sidebar rows 36 px and a one-line Demo entry. The box now ends at y=860 at 1440×900.
+    - P9 "1280px rhea /: no navigation" did not reproduce in three full runs. It is timing (a 300 ms wait), not Home.
+  - #358, AX5 part 2b: the app loads a window (`appWindow`, `LOAD_DAYS` 420; every load goes through `loadWs` in `state.tsx`).
+    - Anchors gain `person` and `metric`.
+    - Activity and a goal's History page older changes (`useOlderChanges` in the new app/history module, and `AppState.olderChanges`).
+    - MCP `get_activity` pages `Store.history`.
+    - The MCP server still loads whole.
+    - Accepted for now: "since you last looked" can undercount before the window; Recently removed misses check-ins of years older than the window; an old import's saved count can read 0.
+    - When it merges, tell track 6 that the `Store` contract is unchanged; only the anchor list grew.
+- **Main's own faults seen in full runs:**
+  - U31 9 ("over the step budget"), on main as well.
+  - U46 9 once (phone export: two primary buttons in view). That belongs to track 3.
+- **Next, in order:**
+  1. FT2 (reviews as a feature switch, approved 11 Nov). Keep the shell change net nought, as the spec asks.
+  2. RS1 straight after it (`docs/design/round-4/reviews-switch/spec.md`, Lane, 13 Nov).
+  3. FT1, SW1 and SW2.
+  4. AX2.
+  5. AX6.
+- **Budgets:** 275 KB for the first download and 334 KB live (Lane, 13 Nov, raised once). Part 2b's first download is 262 KB.
+- **Traps:**
+  - Every merge of main conflicts in `src/help/whatsNew.ts` (keep yours on top) and `api/mcp.js` (take main's, then `npm run build:mcp`).
+  - After `build:mcp` from a worktree, the path-fixing sed must match any prefix: `sed -i 's#^// \(\.\./\)*[^ ]*node_modules/#// node_modules/#' api/mcp.js`.
+  - Run evals one at a time: two runs at once share ports 4318 to 4328.
+  - A worker restart kills a background eval run; start it again.
+  - `enable_pr_auto_merge` refuses a PR whose checks have already all passed ("clean"): merge it by hand then.
+
 ## Track 4, Friday 13 November, 02:15 UTC (handing over)
 
 Session: session_012kbr8xdoEbLiMQaBAxLeuJ. Read this, then the 12 Nov 18:00 section below, which it updates.
