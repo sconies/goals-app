@@ -45,6 +45,24 @@ describe('asking a source', () => {
   });
 });
 
+describe('asking a source that misbehaves (review of NR2, medium 3)', () => {
+  const m = { id: 'm', source: 'CI analytics' };
+  const slice = { teamId: null, part: '' };
+  const answering = (read: NumberSource['read'], reads: NumberSource['reads'] = () => true): NumberSource => ({ name: 'CI analytics', reads, read });
+  it('is unreachable when reads() throws, when it takes too long, or when its answer isn’t a reading', async () => {
+    expect((await askSource([answering(async () => r(12, 'T'), () => { throw new Error('bad config'); })], m, slice, now)).reading).toBe('unreachable');
+    expect((await askSource([answering(() => new Promise(() => undefined))], m, slice, now, 20)).reading).toBe('unreachable');
+    expect((await askSource([answering(async () => ({ value: '12' as unknown as number, at: '2026-11-12T09:02:00Z' }))], m, slice, now)).reading).toBe('unreachable');
+    expect((await askSource([answering(async () => r(Number.POSITIVE_INFINITY, '2026-11-12T09:02:00Z'))], m, slice, now)).reading).toBe('unreachable');
+    expect((await askSource([answering(async () => r(12, 'last Thursday'))], m, slice, now)).reading).toBe('unreachable');
+    expect((await askSource([answering(async () => r(12, '2027-11-12T09:02:00Z'))], m, slice, now)).reading).toBe('unreachable');
+  });
+  it('still gives a good answer, and none when the source has none', async () => {
+    expect((await askSource([answering(async () => r(12, '2026-11-12T09:02:00Z'))], m, slice, now)).reading).toEqual(r(12, '2026-11-12T09:02:00Z'));
+    expect((await askSource([answering(async () => null)], m, slice, now)).reading).toBe(null);
+  });
+});
+
 describe('rule 2: what is recorded', () => {
   it('keeps the reason only when the number differs, and nothing when nothing was read', () => {
     const why = { kind: 'behind' as const };
@@ -65,7 +83,7 @@ describe('rule 2: the row', () => {
   it('writes reading only when set, and reads it back', async () => {
     const { checkInToRow, checkInFromRow } = await import('../../data/rows');
     const c = { id: 'c', goalId: 'g', authorId: 'p', week: 46, postedAt: '2026-11-12T10:00:00Z', value: 14, stages: null, status: 'on', calculated: 'on', cause: null, why: '', greenerWhy: '', proposeTarget: null, pathToGreen: null, next: '', dataFlagged: false } as const;
-    expect('reading' in checkInToRow('ws', c)).toBe(false);
+    expect(checkInToRow('ws', c).reading).toBe(null);
     const reading = { source: 'CI analytics', value: 12, at: '2026-11-12T09:02:00Z', why: { kind: 'behind' as const } };
     expect(checkInFromRow(checkInToRow('ws', { ...c, reading })).reading).toEqual(reading);
     expect('reading' in checkInFromRow(checkInToRow('ws', c))).toBe(false);

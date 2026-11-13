@@ -4890,14 +4890,33 @@ var init_changes = __esmMin((() => {
 		const names = d.map((x) => x.field.toLowerCase());
 		return names.length <= 3 ? names.join(", ") : names.slice(0, 2).join(", ") + ` and ${names.length - 2} more`;
 	};
+})), correctReasonOk, correctReasonAsk;
+var init_correctReason = __esmMin((() => {
+	init_checkin();
+	correctReasonOk = (text) => {
+		const t = text.trim();
+		return t.length >= 10 && t.length <= 500 && (t.match(/\p{L}/gu) ?? []).length >= 3;
+	};
+	correctReasonAsk = (week) => `Say why, in a sentence of at least 10 characters (at most 500), so anyone reading week ${week} later knows.`;
 }));
 // src/domain/reading.ts
 /**
-* Rule 3: what a reading needs before a check-in records it, the same at every door. The owner's number is always the
-* check-in's; a reading whose number differs from it needs a reason (one of 2.2's four), and "Something else" needs at
-* least MIN_CORRECT_REASON characters of the owner's words. Null when it can be recorded.
+* Rule 3: what a reading needs before a check-in records it, the same at every door (the engine asks it of the form, the
+* one table, the AI tools and a file alike). The reading is the source's: a finite number, measured at a time that parses,
+* not after `now` and not more than RULES.readingMaxDays days before it. The owner's number is always the check-in's; a
+* reading whose number differs from it needs a reason, one of 2.2's four; "Something else" needs at least
+* MIN_CORRECT_REASON characters of the owner's words, and no reason's words may run past MAX_CORRECT_REASON. Null when it
+* can be recorded.
 */
-function readingProblem(r, value, decimals) {
+function readingProblem(r, value, decimals, now) {
+	const source = typeof r?.source === "string" && r.source.trim() ? r.source.trim() : "The source";
+	if (typeof r?.value !== "number" || !Number.isFinite(r.value)) return `${source}’s number can’t be read, so it can’t be recorded.`;
+	const at = typeof r.at === "string" ? Date.parse(r.at) : NaN;
+	const t = typeof now === "string" ? Date.parse(now) : now.getTime();
+	if (!Number.isFinite(at)) return `When ${source} measured its number can’t be read, so it can’t be recorded.`;
+	if (at > t) return `${source}’s number is dated after now, so it can’t be recorded.`;
+	if (t - at > RULES.readingMaxDays * 864e5) return `${source}’s number is more than ${RULES.readingMaxDays} days old, so it can’t be recorded.`;
+	if ((r.why?.text ?? "").trim().length > 500) return `Say why your number is different in at most 500 characters.`;
 	if (value == null || sameAtPlaces(value, r.value, decimals)) return null;
 	if (!r.why || !READING_WHY.some(([k]) => k === r.why.kind)) return `${r.source} said ${r.value}. Say why your number is different.`;
 	if (r.why.kind === "else" && (r.why.text ?? "").trim().length < 10) return `Say more about why your number is different from what ${r.source} said, in at least 10 characters.`;
@@ -4963,6 +4982,8 @@ function readingCells(c, decimals) {
 var READING_WHY, readingWhyLabel, sameAtPlaces, parts, readingConfirmed;
 var init_reading = __esmMin((() => {
 	init_checkin();
+	init_correctReason();
+	init_thresholds();
 	init_format();
 	READING_WHY = [
 		["behind", "The source is behind: I have a newer number"],
@@ -7927,14 +7948,6 @@ var init_actions = __esmMin((() => {
 		return ((w[0]?.[0] ?? "") + (w.length > 1 ? w[w.length - 1][0] : "")).toUpperCase();
 	};
 	liveView = (x, id) => (x.snapshot.views ?? []).find((v) => v.id === id && !v.deletedAt);
-})), correctReasonOk, correctReasonAsk;
-var init_correctReason = __esmMin((() => {
-	init_checkin();
-	correctReasonOk = (text) => {
-		const t = text.trim();
-		return t.length >= 10 && t.length <= 500 && (t.match(/\p{L}/gu) ?? []).length >= 3;
-	};
-	correctReasonAsk = (week) => `Say why, in a sentence of at least 10 characters (at most 500), so anyone reading week ${week} later knows.`;
 }));
 // src/domain/askHandover.ts
 /** The open asks that move when `after` replaces the goals of the same id in `s` (its goals, people and every ask, `asksOf`). */
@@ -12389,16 +12402,17 @@ function* planChangesInChunks(input) {
 		const made = asRecorded ? asWritten(asOf, w, draft, e, actor.id, at.toISOString(), existing?.id ?? newId("ci")) : toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId("ci"));
 		const read = post ? post.reading : input.readings?.find((x) => x.goalId === g.id && x.week === w)?.reading;
 		if (read && g.kind !== "milestone") {
-			const problem = readingProblem(read, made.value, g.decimals);
+			const problem = readingProblem(read, made.value, g.decimals, now);
 			if (problem) {
 				raise("checkin-incomplete", "Check-ins", row, g.title, problem);
 				return;
 			}
 		}
+		const was = !read && existing && existing.id === made.id && existing.reading && g.kind !== "milestone" && existing.value != null && made.value != null && sameAtPlaces(existing.value, made.value, g.decimals) ? existing.reading : null;
 		const c = {
 			...made,
 			...backfilled ? { backfilled: true } : {},
-			...read && g.kind !== "milestone" ? { reading: keptReading(read, made.value, g.decimals) } : {}
+			...read && g.kind !== "milestone" ? { reading: keptReading(read, made.value, g.decimals) } : was ? { reading: was } : {}
 		};
 		const ch = checkInChange(existing, c, g, actor.id, newId("chg"));
 		if (!ch) {
@@ -25267,12 +25281,36 @@ var checkInReaders = () => READERS;
 // src/modules/metrics/rulesReading.ts
 init_reading();
 init_thresholds();
+/** How long a source has to answer before the step treats it as unreachable. */
+var SOURCE_TIMEOUT_MS = 5e3;
+/** A source's answer as the step may use it: a finite number measured at a time that parses and is not after `now`.
+Anything else is not a reading. */
+var usable = (r, now) => {
+	if (!r || typeof r !== "object") return false;
+	const { value, at } = r;
+	const t = typeof at === "string" ? Date.parse(at) : NaN;
+	return typeof value === "number" && Number.isFinite(value) && Number.isFinite(t) && t <= now.getTime();
+};
 /** Ask the source that reads `metric` for the link's slice, once (the step opens). A source that reads the metric but not
-this slice is `no-slice`, and is never asked for another slice's number: a company-wide number is never a team's. */
-async function askSource(sources, metric, slice, now) {
-	const forSlice = sources.find((s) => s.reads(metric, slice));
+this slice is `no-slice`, and is never asked for another slice's number: a company-wide number is never a team's. A
+source that throws (in `reads` or `read`), takes longer than SOURCE_TIMEOUT_MS, or answers with something that isn't a
+reading (no finite number, a time that doesn't parse or is after now) is `unreachable`. */
+async function askSource(sources, metric, slice, now, timeoutMs = SOURCE_TIMEOUT_MS) {
+	const safe = (s, sl) => {
+		try {
+			return s.reads(metric, sl);
+		} catch {
+			return "threw";
+		}
+	};
+	const broken = sources.find((s) => safe(s, slice) === "threw");
+	const forSlice = sources.find((s) => safe(s, slice) === true);
 	if (!forSlice) {
-		const any = sources.find((s) => s.reads(metric));
+		if (broken) return {
+			source: broken.name,
+			reading: "unreachable"
+		};
+		const any = sources.find((s) => safe(s) === true);
 		return any ? {
 			source: any.name,
 			reading: "no-slice"
@@ -25281,16 +25319,34 @@ async function askSource(sources, metric, slice, now) {
 			reading: null
 		};
 	}
+	let timer;
 	try {
+		const late = new Promise((res) => {
+			timer = setTimeout(() => res("late"), timeoutMs);
+		});
+		const got = await Promise.race([forSlice.read(metric, now, slice), late]);
+		if (got === "late") return {
+			source: forSlice.name,
+			reading: "unreachable"
+		};
+		if (got == null) return {
+			source: forSlice.name,
+			reading: null
+		};
 		return {
 			source: forSlice.name,
-			reading: await forSlice.read(metric, now, slice)
+			reading: usable(got, now) ? {
+				value: got.value,
+				at: got.at
+			} : "unreachable"
 		};
 	} catch {
 		return {
 			source: forSlice.name,
 			reading: "unreachable"
 		};
+	} finally {
+		if (timer) clearTimeout(timer);
 	}
 }
 /** Whether `a` and `b` are one number at the metric's decimals (12 and 12.0 are; 12 and 14 aren't): the core's, so the
@@ -50399,7 +50455,7 @@ var checkInToRow = (ws, c) => ({
 	next: c.next,
 	data_flagged: c.dataFlagged,
 	backfilled: !!c.backfilled,
-	...c.reading ? { reading: c.reading } : {},
+	reading: c.reading ?? null,
 	...set({
 		removed_at: c.removedAt,
 		removed_by: c.removedBy

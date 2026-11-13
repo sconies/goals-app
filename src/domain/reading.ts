@@ -4,6 +4,8 @@
    module's. Rule 3, what a reading needs before it is recorded, is `readingProblem`: the engine (changeset.ts) asks it of
    every door, the form, the table and the AI tools alike. Nothing here judges a goal. */
 import { MIN_CORRECT_REASON } from './checkin';
+import { MAX_CORRECT_REASON } from './correctReason';
+import { RULES } from './thresholds';
 import { fmt } from './format';
 import type { CheckInReading, MetricGoal, RangeGoal, ReadingWhyKind } from './types';
 
@@ -27,11 +29,22 @@ export const sameAtPlaces = (a: number, b: number, decimals: number) => {
 };
 
 /**
- * Rule 3: what a reading needs before a check-in records it, the same at every door. The owner's number is always the
- * check-in's; a reading whose number differs from it needs a reason (one of 2.2's four), and "Something else" needs at
- * least MIN_CORRECT_REASON characters of the owner's words. Null when it can be recorded.
+ * Rule 3: what a reading needs before a check-in records it, the same at every door (the engine asks it of the form, the
+ * one table, the AI tools and a file alike). The reading is the source's: a finite number, measured at a time that parses,
+ * not after `now` and not more than RULES.readingMaxDays days before it. The owner's number is always the check-in's; a
+ * reading whose number differs from it needs a reason, one of 2.2's four; "Something else" needs at least
+ * MIN_CORRECT_REASON characters of the owner's words, and no reason's words may run past MAX_CORRECT_REASON. Null when it
+ * can be recorded.
  */
-export function readingProblem(r: CheckInReading, value: number | null, decimals: number): string | null {
+export function readingProblem(r: CheckInReading, value: number | null, decimals: number, now: string | Date): string | null {
+  const source = typeof r?.source === 'string' && r.source.trim() ? r.source.trim() : 'The source';
+  if (typeof r?.value !== 'number' || !Number.isFinite(r.value)) return `${source}’s number can’t be read, so it can’t be recorded.`;
+  const at = typeof r.at === 'string' ? Date.parse(r.at) : NaN;
+  const t = typeof now === 'string' ? Date.parse(now) : now.getTime();
+  if (!Number.isFinite(at)) return `When ${source} measured its number can’t be read, so it can’t be recorded.`;
+  if (at > t) return `${source}’s number is dated after now, so it can’t be recorded.`;
+  if (t - at > RULES.readingMaxDays * 86_400_000) return `${source}’s number is more than ${RULES.readingMaxDays} days old, so it can’t be recorded.`;
+  if ((r.why?.text ?? '').trim().length > MAX_CORRECT_REASON) return `Say why your number is different in at most ${MAX_CORRECT_REASON} characters.`;
   if (value == null || sameAtPlaces(value, r.value, decimals)) return null;
   if (!r.why || !READING_WHY.some(([k]) => k === r.why!.kind)) return `${r.source} said ${r.value}. Say why your number is different.`;
   if (r.why.kind === 'else' && (r.why.text ?? '').trim().length < MIN_CORRECT_REASON) return `Say more about why your number is different from what ${r.source} said, in at least ${MIN_CORRECT_REASON} characters.`;

@@ -13,18 +13,42 @@ export type ReadingState = 'no-slice' | 'unreachable' | 'missing' | 'old' | 'sam
     one that couldn't be reached. `source` is the source's name; null when no source reads the metric at all. */
 export type Asked = { source: string; reading: Reading | null } | { source: string; reading: 'no-slice' | 'unreachable' } | { source: null; reading: null };
 
+/** How long a source has to answer before the step treats it as unreachable. */
+export const SOURCE_TIMEOUT_MS = 5000;
+
+/** A source's answer as the step may use it: a finite number measured at a time that parses and is not after `now`.
+    Anything else is not a reading. */
+const usable = (r: unknown, now: Date): r is Reading => {
+  if (!r || typeof r !== 'object') return false;
+  const { value, at } = r as { value?: unknown; at?: unknown };
+  const t = typeof at === 'string' ? Date.parse(at) : NaN;
+  return typeof value === 'number' && Number.isFinite(value) && Number.isFinite(t) && t <= now.getTime();
+};
+
 /** Ask the source that reads `metric` for the link's slice, once (the step opens). A source that reads the metric but not
-    this slice is `no-slice`, and is never asked for another slice's number: a company-wide number is never a team's. */
-export async function askSource(sources: readonly NumberSource[], metric: SourcedMetric, slice: Slice, now: Date): Promise<Asked> {
-  const forSlice = sources.find((s) => s.reads(metric, slice));
+    this slice is `no-slice`, and is never asked for another slice's number: a company-wide number is never a team's. A
+    source that throws (in `reads` or `read`), takes longer than SOURCE_TIMEOUT_MS, or answers with something that isn't a
+    reading (no finite number, a time that doesn't parse or is after now) is `unreachable`. */
+export async function askSource(sources: readonly NumberSource[], metric: SourcedMetric, slice: Slice, now: Date, timeoutMs = SOURCE_TIMEOUT_MS): Promise<Asked> {
+  const safe = (s: NumberSource, sl?: Slice): boolean | 'threw' => { try { return s.reads(metric, sl); } catch { return 'threw'; } };
+  const broken = sources.find((s) => safe(s, slice) === 'threw');
+  const forSlice = sources.find((s) => safe(s, slice) === true);
   if (!forSlice) {
-    const any = sources.find((s) => s.reads(metric));
+    if (broken) return { source: broken.name, reading: 'unreachable' };
+    const any = sources.find((s) => safe(s) === true);
     return any ? { source: any.name, reading: 'no-slice' } : { source: null, reading: null };
   }
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    return { source: forSlice.name, reading: await forSlice.read(metric, now, slice) };
+    const late = new Promise<'late'>((res) => { timer = setTimeout(() => res('late'), timeoutMs); });
+    const got = await Promise.race([forSlice.read(metric, now, slice), late]);
+    if (got === 'late') return { source: forSlice.name, reading: 'unreachable' };
+    if (got == null) return { source: forSlice.name, reading: null };
+    return { source: forSlice.name, reading: usable(got, now) ? { value: got.value, at: got.at } : 'unreachable' };
   } catch {
     return { source: forSlice.name, reading: 'unreachable' };
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 

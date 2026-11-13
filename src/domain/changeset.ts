@@ -50,7 +50,7 @@ import { goalMeasureOf, type ModuleRecords } from './records';
 import { CHUNK } from './importLimits';
 import { ANSWERS, fold, LEAVE, groupId, groupIssues, issueOf, levelOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
 import type { Ask, Change, CheckIn, CheckInReading, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, Review, Snapshot, StageUpdate, Status, Team } from './types';
-import { keptReading, readingProblem } from './reading';
+import { keptReading, readingProblem, sameAtPlaces } from './reading';
 import { FLAG, LEFT, lower, STOPPED } from './vocabulary';
 
 export type { Rec, Tables } from './sheets';
@@ -1461,10 +1461,13 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     // NR rule 3: a reading is recorded only as the rule allows, at every door; the owner's number stays the check-in's.
     const read = post ? post.reading : input.readings?.find((x) => x.goalId === g.id && x.week === w)?.reading;
     if (read && g.kind !== 'milestone') {
-      const problem = readingProblem(read, made.value, g.decimals);
+      const problem = readingProblem(read, made.value, g.decimals, now);
       if (problem) { raise('checkin-incomplete', 'Check-ins', row, g.title, problem); return; }
     }
-    const c: CheckIn = { ...made, ...(backfilled ? { backfilled: true } : {}), ...(read && g.kind !== 'milestone' ? { reading: keptReading(read, made.value, g.decimals) } : {}) };
+    // A re-save of a week's check-in (a correction, a file's row) that carries no reading keeps the one it had only while
+    // its number is unchanged: a new number is no longer what the source said beside it (review of NR2, medium 1).
+    const was = !read && existing && existing.id === made.id && existing.reading && g.kind !== 'milestone' && existing.value != null && made.value != null && sameAtPlaces(existing.value, made.value, g.decimals) ? existing.reading : null;
+    const c: CheckIn = { ...made, ...(backfilled ? { backfilled: true } : {}), ...(read && g.kind !== 'milestone' ? { reading: keptReading(read, made.value, g.decimals) } : was ? { reading: was } : {}) };
     const ch = checkInChange(existing, c, g, actor.id, newId('chg'));
     if (!ch) { same('Check-ins'); return; }
     if (again) ch.summary = ch.summary.replace('Checked in for week', 'Checked in again for week');
