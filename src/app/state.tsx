@@ -330,6 +330,9 @@ export const stampSkewDays = (pinnedToday: Date | null, now: Date): number =>
  * after) and its "saved since the reload started?" check: the page's own running time, rising on every call. Not the
  * Clock, which the demo and the evals stop: with it, the reload on focus never fired and a save looked like no save.
  */
+/** Whether two lists of switched-off modules say the same, in any order. */
+const sameSwitches = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x) => b.includes(x));
+
 let lastMark = 0;
 export const loadMark = (): number => (lastMark = Math.max(performance.now(), lastMark + 0.001));
 
@@ -425,7 +428,24 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
   // The app loads a window, not the whole workspace (AX5 part 2b): every check-in of the cycles still open, and the change
   // log from about a year back plus the entries rules read at any age (ports/window.ts). Older entries come a page at a
   // time through `olderChanges`. Every load takes the same window, so the snapshot never flips between whole and windowed.
-  const loadWs = (ws: string) => store.load(ws, appWindow((pinned ?? clock)()));
+  // Each load brings the workspace's feature switches with it (build review of #371): a tab left open while an admin
+  // switched a module off elsewhere sees it off at its next reload, so its screens go and its next action is refused.
+  // Only the tab that switched knew before. The first load has just listed the workspaces, so it doesn't ask twice.
+  const loadWs = async (ws: string, switches = true) => {
+    const [snap, list] = await Promise.all([store.load(ws, appWindow((pinned ?? clock)())), switches ? store.workspaces().catch(() => null) : null]);
+    const w = list?.find((x) => x.id === ws);
+    if (w) adoptSwitches(ws, w.modulesOff ?? []);
+    return snap;
+  };
+  /** Takes a workspace's switches as just loaded, when they differ from this tab's: at once in the ref, so an action run
+      straight after (a stale save run again on the latest) reads them. */
+  const adoptSwitches = (ws: string, off: string[]) => {
+    const had = workspacesNow.current.find((w) => w.id === ws);
+    if (!had || sameSwitches(had.modulesOff ?? [], off)) return;
+    const next = (l: Workspace[]) => l.map((w) => (w.id === ws ? { ...w, modulesOff: off } : w));
+    workspacesNow.current = next(workspacesNow.current);
+    setWorkspaces(next);
+  };
   useEffect(() => {
     let live = true;
     setError(null);
@@ -444,7 +464,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       if (id !== wsId) { write(K.ws, id); setWsId(id); return; }
       // Opened from an invitation: remembered like a switch.
       if (invited && id === invited && read(K.ws) !== id) write(K.ws, id);
-      const [snap, me] = await Promise.all([loadWs(id), identity.current(id)]);
+      const [snap, me] = await Promise.all([loadWs(id, false), identity.current(id)]);
       const why = !me && identity.why ? await identity.why(id).catch(() => null) : null;
       if (!live) return;
       setLoaded({ ws: id, snap, at: loadMark() });
