@@ -81,13 +81,12 @@ export function dueWordsOn(reviewsOn: boolean, iso: string, held = false): DueWo
 }
 
 /**
- * The confirmation's sentence, from weekCompletion: all of them in, what's still due, or what isn't due yet. All in, it
- * says when against the deadline in dueWords' words (`clock`): "…checked in for week 46, by Thursday." or "…, after
- * Thursday’s review."
+ * The confirmation's sentence, from weekCompletion: all of them in, what's still due, or what isn't due yet. Once all are
+ * in the check-in shows the receipt instead (receiptText), which says when against the deadline in dueWords' words.
  */
-export function weekDoneText(p: WeekProgress, week: number, clock?: { late: boolean; words: DueWords }): string {
+export function weekDoneText(p: WeekProgress, week: number): string {
   const w = weekCompletion(p);
-  if (w.complete) return `${w.total === 1 ? 'Your goal is' : w.total === 2 ? 'Both your goals are' : `All ${w.total} of your goals are`} checked in for week ${week}${clock ? `, ${clock.late ? clock.words.after : clock.words.by}` : ''}.`;
+  if (w.complete) return `${w.total === 1 ? 'Your goal is' : w.total === 2 ? 'Both your goals are' : `All ${w.total} of your goals are`} checked in for week ${week}.`;
   if (p.due.length) return `${w.done} of ${w.total} checked in for week ${week}. Still due this week: ${p.due.map((g) => g.title).join(', ')}.`;
   const rest = w.total - w.done;
   return `${w.done} of ${w.total} checked in for week ${week}. ${rest === 1 ? 'The other one isn’t' : `The other ${rest} aren’t`} due until next week.`;
