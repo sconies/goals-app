@@ -19,20 +19,30 @@ module.exports = {
         await p.locator('[role="tablist"][aria-label="Whose goals"]').first().waitFor({ timeout: 8000 }).catch(() => {});
         const noughts = await p.evaluate(() => [...document.querySelectorAll('.tabcount, .side .nav .count, .tabbar .count')].filter((e) => e.getClientRects().length && e.textContent.trim() === '0').map((e) => (e.closest('[role="tab"], a, button')?.textContent || '').trim()));
         check(!noughts.length, `${who}, ${w}px: a nought is printed beside ${noughts.join(', ')}`);
-        if (!touch) {
-          await p.goto(url('/watching'));
-          const empty = p.locator('.watch-empty');
-          if (await empty.count()) {
-            emptySeen = true;
-            const text = await empty.innerText();
-            check(/You’re not watching anything/.test(text) && !/anything yet/.test(text), `${who}: the empty Watching page's heading reads “${text.split('\n')[0]}”`);
-            check(/Watch is on (every|a) goal’s page/.test(text), `${who}: the empty Watching page doesn't say where Watch is`);
-            check(!(await empty.locator('.btn.primary').count()), `${who}: the empty Watching page has a primary button`);
-          }
-        }
       } finally { await c.close(); }
     }
-    check(emptySeen, `none of ${PEOPLE.join(', ')} watches nothing, so the empty Watching page wasn't seen`);
+    // Someone in the demo who watches nothing: found in the workspace itself, then shown the empty Watching page.
+    {
+      const [c, p] = await open(1440, 900, 'tunde', '/', false);
+      const nobody = await p.evaluate(async () => { const s = await window.__goalsStore.load('platform-org'); const w = new Set((s.watches || []).filter((x) => !x.removedAt).map((x) => x.personId)); return (s.people.find((x) => !w.has(x.id) && !x.leftAt && !x.removedAt) || {}).id || null; });
+      await c.close();
+      check(!!nobody, 'everyone in the demo watches something, so the empty Watching page could not be seen');
+      if (nobody) {
+        const [c2, q] = await open(1440, 900, nobody, '/goals?scope=watching', false);
+        try {
+          const empty = q.locator('.watch-empty');
+          await empty.first().waitFor({ timeout: 8000 }).catch(() => {});
+          emptySeen = (await empty.count()) > 0;
+          check(emptySeen, `${nobody} watches nothing, but Goals' Watching tab shows no empty page (${q.url().replace(/^.*\/demo/, '')}: ${((await q.locator('main').innerText().catch(() => '')) || '').replace(/\s+/g, ' ').slice(0, 400)})`);
+          if (emptySeen) {
+            const text = await empty.innerText();
+            check(/You’re not watching anything/.test(text) && !/anything yet/.test(text), `${nobody}: the empty Watching page's heading reads “${text.split('\n')[0]}”`);
+            check(/Watch is on (every|a) goal’s page/.test(text), `${nobody}: the empty Watching page doesn't say where Watch is`);
+            check(!(await empty.locator('.btn.primary').count()), `${nobody}: the empty Watching page has a primary button`);
+          }
+        } finally { await c2.close(); }
+      }
+    }
     return fails;
   },
 };
