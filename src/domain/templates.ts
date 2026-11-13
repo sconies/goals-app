@@ -78,25 +78,11 @@ export function stagesFromNow(stages: string, week: number, weeks = 52): string 
   return parts.map((p) => (p.at == null ? p.name : `${p.name}@${Math.min(weeks, Math.max(0, week) + Math.max(1, Math.round(p.at * scale)))}`)).join('; ');
 }
 
-/** The weeks a stages cell names ("Design@2; Pilot@6" → [2, 6]). */
-const stageWeeks = (stages: string) => stages.split(';').map((x) => /@\s*(\d+)\s*$/.exec(x.trim())?.[1]).filter((w): w is string => !!w).map(Number);
-
-/**
- * A spreadsheet loaded at set-up, with its stages counted from the week the workspace joins, as a template's are
- * (stagesFromNow): the app's own template, uploaded unchanged in week 46, once made every goal late on day one with
- * "Design@2" (deep review U4). Only a goal with a stage due before the joining week and no check-ins in the file moves;
- * one with history keeps its weeks, as they happened. Says which goals moved, so set-up can offer to keep them as typed.
- */
-export function stagesFromJoining(goals: Record<string, string>[], checkIns: Record<string, string>[] | undefined, week: number, weeks: number): { goals: Record<string, string>[]; moved: string[] } {
+/** Whether a file's Check-ins sheet has a row for a Goals row (by key, ID or title): a goal with history keeps its weeks. */
+export function reportedIn(checkIns: Record<string, string>[] | undefined): (g: Record<string, string>) => boolean {
   const low = (v: string | undefined) => (v ?? '').trim().toLowerCase();
-  const reported = (g: Record<string, string>) => (checkIns ?? []).some((c) =>
-    (!!low(c['goal key']) && low(c['goal key']) === low(g['key'])) || (!!low(c['goal id']) && low(c['goal id']) === low(g['id'])) || (!!low(c['goal']) && low(c['goal']) === low(g['goal'])));
-  const moved: string[] = [];
-  const out = goals.map((g) => {
-    const stages = g['stages'] ?? '';
-    if (!stages.trim() || !stageWeeks(stages).some((w) => w < week) || reported(g)) return g;
-    moved.push((g['goal'] ?? '').trim());
-    return { ...g, stages: stagesFromNow(stages, week, weeks) };
-  });
-  return { goals: out, moved };
+  const keys = new Set<string>();
+  for (const c of checkIns ?? []) for (const [col, as] of [['goal key', 'k'], ['goal id', 'i'], ['goal', 't']] as const) if (low(c[col])) keys.add(as + low(c[col]));
+  return (g) => (!!low(g['key']) && keys.has('k' + low(g['key']))) || (!!low(g['id']) && keys.has('i' + low(g['id']))) || (!!low(g['goal']) && keys.has('t' + low(g['goal'])));
 }
+
