@@ -3,6 +3,21 @@
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
 
+## Track 3 (import), Friday 13 November, 03:30 UTC: IM8 and the review lows done (supersedes the 01:10 entry's list)
+
+**Done**
+- **#336, IM8** (merged). Set-up's upload goes through the import preview: create mode takes answers (`buildWorkspace`), the group block is shared from `src/ui/IssueGroup.tsx`, and the set-up preview (`src/ui/SetupFilePreview.tsx`) loads lazily. An owner the People sheet lacks offers "Add {name}" (`ownerToAdd`) or "Give it to someone here". `past-stage` is asked in create mode, answered "Count them from this week" by default (`setupDefaults`); `keepFileWeeks` and `stagesFromJoining` are gone. Journey **U147** (U146 was taken), `SETUP-UPLOAD`. The PR also:
+  - fixed F8 on main: the hidden View sheet holds a copy of the toast;
+  - gave the speed tests timeouts above their own limits;
+  - removed Export's dead standalone button.
+- **#347, the review lows** (auto-merge on; check it merged): IM3's two engine findings and the shared count helper, every IM4 and IM5 low, the #257 and #248 lows, and U29 on a phone (the walkthrough now lazy-loads). Two lows were left as they are: the year is already in the file name, and the zipped CSVs stay three clicks away. The full suite passed except U12 (8.8) and U31 (9), which are not import's.
+
+**Next for track 3:** nothing open from the reviews. U99 (the set-up design's whole SETUP-UPLOAD journey: People paste, a team typo at set-up) belongs to the set-up track's ST6.
+
+**Gotchas (new)**
+- Don't run `npm test` and `evals:changed` at once: the container restarted.
+- The newest What's new entry and a lazy route's dependency list both sit in the first download. A new shared chunk adds its name to the list, and so does a hash change. Near the budget, measure to two decimals: `sed 's/toFixed(0)/toFixed(2)/' scripts/check-bundle.mjs`.
+
 ## Track 3 (import), Friday 13 November, 01:10 UTC: handover after item 0 (supersedes the 12 Nov 21:20 entry's list)
 
 The track 3 session that built item 0 is at half its context. A fresh track 3 session picks up here. The 12 Nov 19:40 section below still holds the open findings word for word.
@@ -356,6 +371,32 @@ Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this sessi
 - **Fence check (#125):** Supabase's own tables in extensions, cron and net, open to every role by default, are a warning; a direct grant to `faro_owner` still fails. 0038 is live.
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
+
+## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~04:30 UTC (session at half, handing over; supersedes the 02:50 entry)
+
+Session: session_012kbr8yiXGwtRjT4Wf4vu8n. Planning is session_012kbr939zneZWtAo7UQEHRP. #319 merged before this session began.
+
+| Branch | State | PR |
+|---|---|---|
+| `ge10-home-lead` | A goal proposed for you, unopened a week, is Home's lead after any ask (`proposalLead`); **migration 0045** adds `okr_goals.proposed_in`, unused, one merge ahead of "in {review}" | #344 merged |
+| `ge10-back-to-proposed` | "Make it proposed again" in the goal's "…" menu (`backToProposed` as an action); the Change page says why not once there are check-ins | #349 merged |
+| `ge10-map-board` | With `state=proposed`: the Board is one "Proposed" column, the Map draws proposed goals dashed with the word, never judged | #355 merged |
+| `ge10-metric-proposed` | The metric page's "Proposed · n" under its goals table; `get_metric` gives `proposed` | #356, auto-merge on |
+
+**Next, in order** (the rest of GE10 (F), one PR each where they're big):
+1. Reviews' "Propose a new goal" (decision 15: name, who would own it, what it would feed) **writes `proposed_in`** (0045, now applied), then Home's for-you row and lead say "{Name} proposed a goal for you in {review}", and the next session's "Last time" reads "Proposed: {goal} ({key}). {Owner} hasn’t made it active yet." or "… made it active on {date}." Map `proposedIn` in the adapter and the Goal type with it (it is in no TS type yet).
+2. Changing the type while proposed ("It’s proposed, so its type can still change.").
+3. "Stopped" in the State filter (Active · Proposed · Stopped).
+4. `for-someone-else` for files and tools (goal entry section 3's State row).
+5. What feeds it: "Proposed · {n}" under the active feeders; "Feeds into {goal} · Proposed".
+6. The start page's count: "{n} goals carry on · {k} proposed goals carry as proposed".
+
+**Habits, learned this session:**
+- Two eval runs at once (or `npm test` beside one) time out: vitest's 5 s tests (fence, layers, scale, spec examples) and P9/N12 fail under load and pass alone. Run one heavy job at a time; rerun a lone platform check with `ONLY=PLATFORM CHECKS=P9` (a P check) or `FINISH=N12`. `CHECKS=` without `ONLY=PLATFORM` runs nothing.
+- Main moves every few minutes: every PR conflicts on `src/help/whatsNew.ts` and `api/mcp.js`. Keep both news entries (ours first), take main's `api/mcp.js`, then `build:mcp` and `npm run spec`. Restore `evals/report.md` before merging main (an eval run leaves it changed).
+- The first-download budget is now 275 KB (real app 334); we're at 262 / 321.
+
+**Prompt for the next track 2 session:** "You are track 2 of Faro's build (goal entry and set-up). Read CLAUDE.md, then the track 2 section of docs/handover.md ('Track 2 … Friday 13 November, ~04:30 UTC') and do its 'Next' list in order, one PR each. Check #356 first: if either hasn't merged, fix what blocks it. The first download is about 262 of 275 KB: keep anything new lazy; never raise budgets. Track 3 is building IM8 in Onboarding.tsx's upload step: stay out of it. A migration that adds a check constraint adds its line to src/spec/limits.ts. Follow CLAUDE.md's gate (typecheck, npm test, npm run spec, evals:changed, build:mcp from a real node_modules via cp -al, never ln -s), one heavy run at a time. Build in a worktree, send eval runs to a subagent that returns only the scorecard, check mergeable_state, then enable auto-merge (MERGE) once the gate passes. Report to the planning session (session_012kbr939zneZWtAo7UQEHRP, or whichever session tells you planning has moved) once, when done or blocked. At half context, write a handover entry in a PR and send the planning session the next prompt."
 
 ## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~02:50 UTC (session at half, handing over; supersedes the 01:10 entry)
 

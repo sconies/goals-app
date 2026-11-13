@@ -14,18 +14,23 @@ export interface NamedGrid { name: string; rows: Grid }
 export type Rec = Record<string, string> & { __row?: string };
 export interface Tables { goals?: Rec[]; plan?: Rec[]; checkIns?: Rec[]; people?: Rec[] }
 
-/** The separator a delimited text uses: a tab if its first line has one (a paste from a spreadsheet), else a comma,
-    else a semicolon (CSV saved where the comma is the decimal mark). */
+/** The separator a delimited text uses, judged on its first ten lines (a title row above the headers says nothing): the
+    one the line with the most separators has most of, a tab first (a paste from a spreadsheet), then a comma, then a
+    semicolon (CSV saved where the comma is the decimal mark). A comma when no line has any. */
 function separatorOf(t: string): ',' | '\t' | ';' {
-  let quoted = false, comma = 0, semi = 0;
+  let quoted = false, lines = 0;
+  let line = { '\t': 0, ',': 0, ';': 0 }, best = line;
+  const most = (x: typeof line) => Math.max(x['\t'], x[','], x[';']);
+  const endLine = () => { if (most(line) > most(best)) best = line; line = { '\t': 0, ',': 0, ';': 0 }; };
   for (const ch of t) {
     if (ch === '"') quoted = !quoted;
-    else if (!quoted && (ch === '\n' || ch === '\r')) break;
-    else if (!quoted && ch === '\t') return '\t';
-    else if (!quoted && ch === ',') comma++;
-    else if (!quoted && ch === ';') semi++;
+    else if (quoted) continue;
+    else if (ch === '\t' || ch === ',' || ch === ';') line[ch]++;
+    else if (ch === '\n') { endLine(); if (++lines >= 10) break; }
   }
-  return comma || !semi ? ',' : ';';
+  endLine();
+  const m = most(best);
+  return !m ? ',' : best['\t'] === m ? '\t' : best[','] === m ? ',' : ';';
 }
 
 /** The formula guard an export adds (domain/export toCsv), taken off: "'=SUM" is "=SUM" again. */
@@ -33,17 +38,18 @@ export const unguard = (c: string) => (/^'[=+\-@\t\r]/.test(c) ? c.slice(1) : c)
 
 /**
  * CSV or tab-separated text as rows, in one pass. Quoted cells keep their commas, doubled quotes and line breaks; a
- * quote inside an unquoted cell is just a character. Blank lines are dropped; cells keep their inner spacing (the
- * engine trims what it compares).
+ * quote inside an unquoted cell is just a character. Blank lines are dropped, unless `keepBlank`: a file being imported
+ * keeps them (as empty rows) so every row keeps its number in the file; blank lines at the end go either way. Cells
+ * keep their inner spacing (the engine trims what it compares).
  */
-export function parseDelimited(text: string, sep?: ',' | '\t' | ';'): Grid {
-  const t = text.replace(/^﻿/, '');
+export function parseDelimited(text: string, opts: { sep?: ',' | '\t' | ';'; keepBlank?: boolean } = {}): Grid {
+  const t = text.replace(/^\uFEFF/, '');
   if (!t.trim()) return [];
-  const s = sep ?? separatorOf(t);
+  const s = opts.sep ?? separatorOf(t);
   const rows: Grid = [];
   let row: string[] = [], cell = '', quoted = false, wasQuoted = false;
   const endCell = () => { row.push(unguard(wasQuoted ? cell : cell.trim())); cell = ''; wasQuoted = false; };
-  const endRow = () => { endCell(); if (row.some((c) => c.trim() !== '')) rows.push(row); row = []; };
+  const endRow = () => { endCell(); if (opts.keepBlank || !isBlank(row)) rows.push(row); row = []; };
   for (let i = 0; i < t.length; i++) {
     const ch = t[i]!;
     if (quoted) {
@@ -57,8 +63,12 @@ export function parseDelimited(text: string, sep?: ',' | '\t' | ';'): Grid {
     else cell += ch;
   }
   if (cell !== '' || row.length) endRow();
-  return rows;
+  return dropTrailingBlank(rows);
 }
+
+/** A row with nothing in it. */
+export const isBlank = (r: readonly string[]) => !r.some((c) => c.trim() !== '');
+const dropTrailingBlank = (g: Grid): Grid => { let n = g.length; while (n && isBlank(g[n - 1]!)) n--; return n === g.length ? g : g.slice(0, n); };
 
 /** A workbook cell as text, line breaks kept: a date as yyyy-mm-dd, a number as written. */
 export function cellText(v: unknown): string {
@@ -67,8 +77,9 @@ export function cellText(v: unknown): string {
   if (typeof v === 'boolean') return v ? 'yes' : 'no';
   return String(v).replace(/\r\n?/g, '\n');
 }
-/** A workbook's sheet as a grid of text. Empty rows go. */
-export const gridOf = (data: readonly (readonly unknown[])[]): Grid => data.map((r) => r.map(cellText)).filter((r) => r.some((c) => c.trim() !== ''));
+/** A workbook's sheet as a grid of text. An empty row in the middle stays (as an empty row), so every row keeps its number
+    in the sheet; empty rows at the end go. */
+export const gridOf = (data: readonly (readonly unknown[])[]): Grid => dropTrailingBlank(data.map((r) => r.map(cellText)));
 
 /** A grid as records keyed by lower-case header, each with its row number in the sheet (the header is row 1). */
 export function recordsOf(grid: Grid): Rec[] {
@@ -185,7 +196,7 @@ function kindByOwnNames(head: readonly string[]): SheetKind | null {
 export function readHeader(grid: Grid): { row: number; kind: SheetKind | null; columns: { index: number; header: string; as: string | null; how: HeaderHow }[] } {
   let best = -1, score = 1;
   grid.slice(0, 10).forEach((r, i) => { const n = r.filter((c) => anyName(c) != null).length; if (n > score) { best = i; score = n; } });
-  const at = best < 0 ? 0 : best;
+  const at = best < 0 ? Math.max(0, grid.findIndex((r) => !isBlank(r))) : best;
   const head = grid[at] ?? [];
   const kind = best < 0 ? sheetKindOf(head) : kindByOwnNames(head);
   return {
@@ -211,25 +222,27 @@ export function readTables(grids: NamedGrid[], moduleSheets: readonly { name: st
     return moduleSheets.find((m) => m.columns.length && m.columns.every((c) => h.has(c.header.toLowerCase())));
   };
   for (const g of grids) {
-    if (!g.rows.length) continue;
+    const first = g.rows.find((r) => !isBlank(r));
+    if (!first) continue;
     const bare = g.name.replace(/\.(csv|tsv|txt)$/i, '').trim().toLowerCase();
     if (bare === START_HERE.toLowerCase() || bare === 'readme') { out.origin ??= originOf(g.rows); out.skipped.push({ name: g.name, why: 'start-here' }); continue; }
-    if (ownSheet(g.rows[0]!)) { out.skipped.push({ name: g.name, why: 'reading-only' }); continue; }
+    if (ownSheet(first)) { out.skipped.push({ name: g.name, why: 'reading-only' }); continue; }
     const head = readHeader(g.rows);
     const kind = head.kind;
     const key = kind ? LOADED[kind] : undefined;
-    if (!kind) { out.skipped.push({ name: g.name, why: 'not-faro' }); if (!out.firstHeaders.length) out.firstHeaders = g.rows[0]!.map((h) => h.trim()).filter(Boolean).slice(0, 5); }
+    if (!kind) { out.skipped.push({ name: g.name, why: 'not-faro' }); if (!out.firstHeaders.length) out.firstHeaders = first.map((h) => h.trim()).filter(Boolean).slice(0, 5); }
     else if (!key) out.skipped.push({ name: g.name, why: 'reading-only' });
     else if (out.tables[key]) out.skipped.push({ name: g.name, why: 'second' });
     else {
-      out.rowCount += Math.max(0, g.rows.length - head.row);
+      out.rowCount += g.rows.slice(head.row).filter((r) => !isBlank(r)).length;
       // Rows above the header row (a title) are skipped and said; rows keep their number in the sheet.
       const rows = g.rows.slice(head.row - 1);
       // A header one letter out keeps its own spelling, so the question says it as the file does ("Targett").
       const asWritten = new Map(head.columns.filter((c) => c.how === 'near').map((c) => [c.header.toLowerCase(), c.header]));
       out.tables[key] = recordsOf(rows).map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [asWritten.get(k) ?? k, k === '__row' ? String(Number(v) + head.row - 1) : v])) as Rec);
       out.read.push({ name: g.name, kind });
-      if (head.row > 1) out.headerRows.push({ sheet: g.name, row: head.row });
+      // Said only when something was skipped: blank rows above the headers are nothing.
+      if (g.rows.slice(0, head.row - 1).some((r) => !isBlank(r))) out.headerRows.push({ sheet: g.name, row: head.row });
       out.headers[key] = rows[0]!.map((h) => h.trim());
       // A header one letter out is asked about by the engine (near-header), so it isn't listed as not read.
       const unknown = head.columns.filter((c) => c.header && c.how === 'unknown' && !readsHeader(kind, c.header)).map((c) => c.header);
@@ -238,6 +251,10 @@ export function readTables(grids: NamedGrid[], moduleSheets: readonly { name: st
   }
   return out;
 }
+
+/** Rule 3, said on the preview's file line: "Row 3 of Goals is the header row; 2 rows above it were skipped." */
+export const headerRowsLine = (read: Pick<ReadTables, 'headerRows'>): string =>
+  read.headerRows.map((h) => `Row ${h.row} of ${h.sheet} is the header row; ${h.row - 1} ${h.row === 2 ? 'row' : 'rows'} above it ${h.row === 2 ? 'was' : 'were'} skipped.`).join(' ');
 
 /**
  * Rule 5. What was read, in one sentence (the preview's file line, 2.3): "Read Goals and Check-ins. Not read: Results

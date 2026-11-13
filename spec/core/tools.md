@@ -785,11 +785,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
 - ““…” isn’t a status here. Use one of: ….”
+- “Not checked. …”
 - “Not saved. Must fix:
 …”
 - “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 
 **Does the same as:** [postCheckIn](actions.md#postcheckin), so it refuses with their words too.
 
@@ -1012,11 +1014,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 **Refuses with:**
 
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
+- “Not checked. …”
 - “Not saved. Must fix:
 …”
 - “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 - “A range between two numbers needs limit, the upper number, as well as lower.”
 
 **Does the same as:** [saveGoal](actions.md#savegoal), so it refuses with their words too.
@@ -1302,11 +1306,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 **Refuses with:**
 
+- “Not checked. …”
 - “Not saved. Must fix:
 …”
 - “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 - “A range between two numbers needs limit, the upper number, as well as lower.”
 
 **Does the same as:** [saveGoal](actions.md#savegoal), so it refuses with their words too.
@@ -1392,11 +1398,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 **Refuses with:**
 
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
+- “Not checked. …”
 - “Not saved. Must fix:
 …”
 - “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 
 **Does the same as:** [saveGoal](actions.md#savegoal), so it refuses with their words too.
 
@@ -1551,11 +1559,13 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 **Refuses with:**
 
+- “Not checked. …”
 - “Not saved. Must fix:
 …”
 - “Not saved: …. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “Not saved. … Send the rows in parts, a goal's plan and check-ins with it.”
 - “… should be a list of rows.”
 
 **Does the same as:** [postCheckIn](actions.md#postcheckin), [saveGoal](actions.md#savegoal), so it refuses with their words too.

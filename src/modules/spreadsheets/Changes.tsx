@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useApp } from '../../app/state';
-import { describe, type Item } from '../../domain/changeset';
+import { describe, showOf, type ChangeSet, type ChangeShow, type Item } from '../../domain/changeset';
 import { fold, SHEET_ORDER } from '../../domain/problemLevels';
 import { LEFT, STOPPED } from '../../domain/vocabulary';
 import { ListBar, ListSearch } from '../../ui/ListBar';
@@ -16,8 +16,8 @@ import { importStore } from './importStore';
 import { leftRowsOf } from './rowsFile';
 import './import.css';
 
-type Show = 'all' | 'added' | 'changed' | 'stopped';
-const SHOW_OF = (x: Item): Show => (['new goal', 'check-in', 'new person'].includes(x.kind) ? 'added' : ['stop goal', 'delete goal', 'person left'].includes(x.kind) ? 'stopped' : 'changed');
+type Show = 'all' | ChangeShow;
+const SHOW_OF = (x: Item): Show => showOf(x.kind);
 const WHAT: Record<Item['kind'], string> = {
   'new goal': 'added', goal: 'changed', plan: 'plan changed', 'check-in': 'added', 'replaces check-in': 'replaces a check-in', person: 'changed', 'new person': 'added', team: 'changed',
   'stop goal': STOPPED.toLowerCase(), 'delete goal': 'deleted', 'person left': LEFT.toLowerCase(),
@@ -27,7 +27,11 @@ const n = (k: number, one: string, many = one + 's') => `${k.toLocaleString('en-
 export function Changes() {
   const app = useApp();
   const nav = useNavigate();
-  const { st, cs, base, left, toSave } = useImportPlan();
+  const plan = useImportPlan();
+  const { st, base, left, toSave } = plan;
+  // While a save runs, the list it was asked from (Check.tsx says why).
+  const [saving, setSaving] = useState<ChangeSet | null>(null);
+  const cs = saving ?? plan.cs;
   const [problem, setProblem] = useState('');
   const [params, setParams] = useSearchParams();
   const [busy, setBusy] = useState(false);
@@ -51,6 +55,7 @@ export function Changes() {
     const final = toSave();
     if (!final?.commit) return;
     setBusy(true);
+    setSaving(cs);
     setProblem('');
     const importId = final.commit.changes.find((c) => c.action === 'imported')?.entityId;
     try {
@@ -61,13 +66,14 @@ export function Changes() {
     } catch (e) {
       setProblem(`Nothing was saved: ${e instanceof Error ? e.message : String(e)}. Try again.`);
       setBusy(false);
+      setSaving(null);
     }
   };
   return (
     <div className="page narrow import-check">
       <div className="page-head">
         <h1 className="title-xl">The changes</h1>
-        <span className="hint">Nothing has been saved.</span>
+        <span className="hint">{saving ? 'Saving…' : 'Nothing has been saved.'}</span>
       </div>
       <ListBar search={<ListSearch value={q} onSearch={(t) => set('q', t)} label="Find a goal, a person or a key" placeholder="Find a goal, a person or a key" />}>
         <span className="seg import-shows" role="group" aria-label="Show">
