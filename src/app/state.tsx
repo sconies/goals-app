@@ -643,12 +643,14 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals, full: snapshot, records: MODULE_RECORDS });
     const rx = (): RunContext => ({ ...ax(), workspace: workspacesNow.current.find((w) => w.id === ws.id) ?? ws, modules: MODULES });
     /** The same, on another load of this workspace: the latest, when a stale save runs again (AX6). The viewer acts as
-        they are there; someone who has since left acts as that, and the rule says what they may still do. */
+        they are there now. Someone no longer among the people here (marked as left or deleted since) can't act at all:
+        refused in the words anyone not signed in gets, as before the re-run (the save was refused, nothing was saved). */
     const rxOn = (full: Snapshot): RunContext => {
       if (full === snapshot) return rx();
       const cyc = currentCycle(full.cycles, now) ?? cycle;
       const s = scopeToCycle(full, cyc, MODULE_RECORDS);
-      const actor = s.people.find((p) => p.id === viewer.id) ?? full.people.find((p) => p.id === viewer.id) ?? viewer;
+      const actor = s.people.find((p) => p.id === viewer.id);
+      if (!actor) throw new A.NotAllowed(NOBODY);
       return { ...rx(), snapshot: s, cycle: cyc, week: currentWeek(cyc, now), actor, allGoals: full.goals, full };
     };
     // An action made in one workspace (a toast's Undo, pressed after switching) never saves into another: this render's
@@ -710,6 +712,8 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       // review since), on the latest, with the same input, and that is saved (AX6, app/rerun.ts). The rule decides again,
       // so a refusal then is in its own words. An input holding whole records as last seen isn't run again (actions.ts).
       const attempt = (full: Snapshot) => {
+        // Signed in on every run, not only the first: a re-run comes after a reload, and sign-in may have gone since.
+        if (!signedIn.current) throw new A.NotAllowed(NOBODY);
         const out = performAny(rxOn(full), name, input) as ReturnType<typeof perform<N>>;
         if (name === 'planChanges' && (input as ActionInput<'planChanges'>).apply && !(out as ChangeSet).commit) throw new Error('These changes can’t be saved yet.');
         return { out, commit: commitOf(name, out, input) };
