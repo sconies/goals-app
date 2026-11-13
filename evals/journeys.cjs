@@ -7,6 +7,7 @@
    SHARD=k/n              run shard k of n: journeys by position, platform checks as evals/shards.cjs places them; writes
                           out/journeys-k.json (P5 is left to the merge, which has every shard's console errors) */
 const { chromium } = require('playwright');
+const { withPhoneCpu, PHONE_CPU, PHONE_MAX_WIDTH } = require('./phoneCpu.cjs');
 const fs = require('fs');
 const path = require('path');
 
@@ -7184,7 +7185,9 @@ async function platformChecks() {
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
-  browser = await chromium.launch();
+  // A phone runs as a slow phone, on every run (evals/phoneCpu.cjs).
+  browser = withPhoneCpu(await chromium.launch());
+  console.log(PHONE_CPU > 1 ? `Phone pages (up to ${PHONE_MAX_WIDTH} px) run with the CPU slowed ${PHONE_CPU}×.` : 'Phone pages run at full speed (PHONE_CPU=1).');
   const journeys = [];
   const only = (process.env.ONLY || '').split(',').filter(Boolean);
   const ids = J.map((x) => x.id);

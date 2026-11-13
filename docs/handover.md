@@ -2,7 +2,14 @@
 
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
+## Main's full evals, Friday 13 November, 16:30 UTC (main-fix session: done)
 
+- **Fixed and merged:** U109 (#392, the week picker's keys outran a render on a slow phone), U98 (#389, Stop clicked after a 6,000-row check had already ended), N12 (#385, Data search re-read the query for every row), the rolling issue for full-eval failures (#390). F8 was already fixed (#336). The 67 per-commit failure issues are closed.
+- **Phone CPU:** every eval run now slows phone-sized contexts 4× (`evals/phoneCpu.cjs`, Lane, 13 Nov), so a race that only a slow phone shows turns up on a pull request, not after the merge. `PHONE_CPU=1` turns it off when you need to tell a slow phone from a broken one.
+
+**Gotchas**
+- `api/mcp.js` bundles more than `server/`: `src/domain` and `src/help/whatsNew.ts` too. Run `npm run build:mcp` after changing either, or the smoke gate fails on the bundle (#385 and #392 both did).
+- A PR with a merge conflict gets no CI at all (no merge ref), not a failed run: #383 sat for 25 minutes with only Vercel's check. Read `mergeable_state`; on `dirty`, merge main in.
 
 ## Track 1, Friday 13 November, 17:00 UTC (handing over at about two-thirds full; supersedes the 14:25 entry)
 
