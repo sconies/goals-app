@@ -130,6 +130,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #274 GL2 review | 1 | 0 | 0 | 2 |
 | #293 GE10 review: the four findings from #270 | 2 | 0 | 0 | 1 |
 | #294 Track 7 review fixes (#242, #249, #239) | MCP load | 0 | 0 | 0 |
+| #322 RV7: who may speak for a review | 1 | 0 | 1 | 6 |
 | #318 ST1 review: the three mediums from #285 | 2 | 0 | 0 | 0 |
 | #313 FS1 review: three mediums from #111 | 1 | 0 | 0 | 0 |
 | #291, #295, #296, #304, #307 KT9, KT10 and KT6: the kit | 6 | 0 | 0 | 0 |
@@ -1387,3 +1388,19 @@ The open picker is fixed to the window on a computer, so a sheet or Data's table
 ### #315 KT6: the goals contract as data; #320 handover
 
 The goals port's contract cases moved to data for the drill. Skimmed, not reviewed in depth. No finding.
+
+### #322 RV7: who may speak for a review (track 1, merged 01:32 UTC, 13 Nov)
+
+Someone in a review, or an admin, may mark a goal reviewed, add a note, accept a risk, or raise a question or next step in it; nobody joins a review by themselves. Read first by a reviewing session with domain probes, the MCP tools and the screens at 1440 and 390; I re-read `reviewCall` on main at `1ab6a54e`. No high finding. The rule is one pure function (`canSpeakFor`, `src/domain/review.ts`) asked in the action, so an outsider is refused every kind of call in the domain and through all five MCP kinds; self-joining is refused; someone removed mid-session is refused at once; each record carries its actor; and nothing here writes a check-in, changes a goal or answers an ask.
+
+**1. Medium (ran; older than RV7, left open by it). A member can speak for a review about a goal the review does not walk.** `reviewCall` asks `canSpeakFor` and never the review's scope (`src/domain/actions.ts:168-183`), and `review_call` takes any `goal_id`. Daniel, in the Developer Productivity review, marked "Change failure rate" looked at and accepted a risk on it, though it is outside that review's trees; through MCP Tariq did the same. The session's count did not move. Fix: refuse a goal not in `goalsIn(review.scope, goals)`.
+
+**Lows.**
+- Someone removed from a review can still turn their own old note into "We accept the risk: …" by correcting it (`editCall` checks only who said it).
+- The join line can name the viewer as the person who can add them, to whoever set the review up.
+- `reviewCall` accepts any week from the app's dispatcher (week 1 and week 99 were allowed; older).
+- MCP enforces the rule but its description does not say it, `list_reviews` gives only `youreIn` (false for an admin who can speak), and no MCP test covers it (read).
+- N25 only checks that a member and an admin lack the "not in this review" line (read).
+- The walk's sentence is cut out of the join line by string replacement (`Inspect.tsx:102`), and on a phone the non-member's bar is four lines of names.
+
+**Unconfirmed.** A stale tab saving after its person is removed.
