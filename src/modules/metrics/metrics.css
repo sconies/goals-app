@@ -99,3 +99,13 @@
 .from-metric .label { margin-right: var(--s1); }
 /* "Which way is better" and "For": 44px to hit on a phone or a touch screen (#281's review). */
 @media (max-width: 640px), (pointer: coarse) { .metric-form .seg button, .measured-by .seg button { min-height: 44px; } }
+
+/* MT3: a retired metric's note, the change read-back and a metric's History. Outlined on every side, never an edge. */
+.metric-retired { border: 1px solid var(--line); border-radius: 8px; padding: var(--s3); }
+.metric-retired p { margin: 0; }
+.metric-readback { border: 1px solid var(--line); border-radius: 8px; padding: var(--s3); }
+.metric-readback fieldset { border: 0; margin: 0; padding: 0; }
+.metric-readback label.row { align-items: baseline; gap: var(--s2); flex-wrap: wrap; min-height: 44px; }
+.metric-history-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-2); }
+.metric-history-list > li { padding: 8px 0; border-bottom: 1px solid var(--line-2); display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s2); }
+.metric-marks { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); }

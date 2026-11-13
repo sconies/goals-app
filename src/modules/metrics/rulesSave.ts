@@ -4,9 +4,10 @@ import type { ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import { checkReads } from './checkReads';
 import { canEditMetric, live, metricFrom, metricProblems, no, saveMetric, type Metric, type MetricInput } from './rules';
+import { saveMetricChange } from './rulesChange';
 import { metricChecks, unansweredChecks, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
 
-export type SaveMetricInput = MetricInput & { id?: string; confirm?: boolean; answers?: Partial<Record<CheckField, string>> };
+export type SaveMetricInput = MetricInput & { id?: string; confirm?: boolean; answers?: Partial<Record<CheckField, string>>; comparable?: boolean; reason?: string; relabel?: boolean };
 
 /**
  * The Checks the metric as typed still raises once the answers are counted, after the rights (someone who may not change
@@ -34,5 +35,6 @@ export function saveMetricAsked(x: ActionContext, input: SaveMetricInput): { com
   const { input: next, open } = openChecks(x, input);
   if (open.length) no(`Answer ${open.length === 1 ? 'this question' : 'these questions'} first: ${open.map((c) => c.words).join(' ')}`);
   const { answers: _, ...rest } = next;
-  return saveMetric(x, rest);
+  // Then rule 3 (MT3): what kind of change it is, and what that asks.
+  return saveMetricChange(x, rest);
 }

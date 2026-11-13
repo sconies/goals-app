@@ -1,7 +1,7 @@
 /* Home at a glance (Lane's notes, 5 Nov): your goals by status, your on-time streak, the goals you watch that need
    attention, and your next review. Worked out once, for Home and for the AI assistant's "what needs me". */
 import { attentionFor, needsAttention, type GoalAttention } from './attention';
-import { daysSince } from './plan';
+import { daysSince, hasEnded } from './plan';
 import { onTimeStreak, WEEKDAY } from './progress';
 import { daysPast, reviewSession, sessionDate, upcomingSessionWeek, watchedGoals } from './review';
 import { goalStatus } from './status';
@@ -52,8 +52,10 @@ export function nextReviews(personId: string, s: Pick<Snapshot, 'reviews'>, cycl
 /** A session of a review the person is in, past its date this week and not held (re-review, 8 Nov, backlog T). */
 export interface MissedReview { id: string; name: string; week: number; date: string; daysPast: number }
 
-/** This week's sessions the person is in that are past their date and not held, longest past first. */
+/** This week's sessions the person is in that are past their date and not held, longest past first; none once the cycle has ended. */
 export function missedReviews(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): MissedReview[] {
+  // Once the year has ended its last week stays the current one, but no session is still to hold (build review of #305).
+  if (hasEnded(cycle, today)) return [];
   return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
     const sx = reviewSession(r, s, cycle, today, week);
     return { id: r.id, name: r.name, week: sx.week, date: sx.date, daysPast: daysPast(sx, today) };
@@ -282,10 +284,14 @@ export interface AskFacts {
   session: { name: string; date: string } | null;
   /** The review it was raised in, if any (said only while Reviews is on). */
   where: string | null;
+  /** Who it was asked of before it came to the viewer with a goal they now own (domain/askHandover), if it did. */
+  was?: string | null;
 }
 
 export interface Waiting {
   askId: string; kind: AskKind; by: string | null; where: string | null; goals: { id: string; title: string }[]; said: string; askedOn: string; waitedDays: number;
+  /** "Asked of Tunde, now yours": who it was asked of, when it came with a goal. */
+  was: string | null;
   due: { date: string; why: 'week' | 'session' } | null; late: boolean; dueThisWeek: boolean;
   /** Said after who asked and when; `warn` puts the warning mark before it. */
   line: string; warn: boolean;
@@ -316,7 +322,8 @@ export function waiting(a: AskFacts, today: string): Waiting {
   let line: string;
   let warn = false;
   if (late && due!.why === 'week') { line = `Was due week ${a.dueWeek!.week} (${a.dueWeek!.dates})`; warn = true; }
-  else if (late) { line = `Was due before ${a.session!.name}’s session on ${shortDay(a.session!.date)}`; warn = true; }
+  // Short enough to show whole on a phone's one line; the review is named after it ("asked in …"; build review of #310).
+  else if (late) { line = `Was due by ${shortDay(a.session!.date)}`; warn = true; }
   else if (due?.why === 'session' && dayDiff(today, due.date) <= 1) { line = dayDiff(today, due.date) === 0 ? 'Due before today’s session' : 'Due before tomorrow’s session'; warn = true; }
   else if (due?.why === 'week' && dueThisWeek) line = `Due this week (${a.dueWeek!.dates})`;
   else if (due?.why === 'week') line = `Due week ${a.dueWeek!.week} (${a.dueWeek!.dates})`;
@@ -324,7 +331,7 @@ export function waiting(a: AskFacts, today: string): Waiting {
   else if (waitedDays >= 7) line = `Waiting since ${dayMonth(a.askedOn)}, ${waitedDays < 14 ? `${waitedDays} days` : `${Math.floor(waitedDays / 7)} weeks`}`;
   else line = waitedDays === 0 ? 'Asked today' : waitedDays === 1 ? 'Asked yesterday' : `Asked on ${LONG_DAYS[new Date(a.askedOn + 'T00:00:00Z').getUTCDay()]}`;
   const to = a.kind === 'update' ? `/check-in/${a.goals[0]!.id}` : `/goals/${a.goals[0]!.id}?respond=${a.id}`;
-  return { askId: a.id, kind: a.kind, by: a.by, where: a.where, goals: a.goals, said: a.said, askedOn: a.askedOn, waitedDays, due, late, dueThisWeek, line, warn, to };
+  return { askId: a.id, kind: a.kind, by: a.by, where: a.where, goals: a.goals, said: a.said, askedOn: a.askedOn, waitedDays, was: a.was ?? null, due, late, dueThisWeek, line, warn, to };
 }
 
 const KIND_ORDER: AskKind[] = ['decision', 'question', 'update', 'action'];

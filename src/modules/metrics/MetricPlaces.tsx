@@ -4,7 +4,8 @@
 import { Link } from 'react-router';
 import { useApp } from '../../app/state';
 import type { PlaceProps } from '../../core/app';
-import { canLinkGoal, linkProblems, measureOf } from './rules';
+import { canLinkGoal, linkProblems, measureOf, metricsOf } from './rules';
+import { markLabel, marksFor, onDay } from './rulesChange';
 import { WarnMark } from '../../ui/bits';
 import { decimalsWords, directionWords, findMetrics, liveLinks, metricPath, type LibraryRow } from './rulesLibrary';
 import { libraryReads } from './reads';
@@ -24,7 +25,7 @@ export function GoalMeasuredBy({ goal }: PlaceProps['goal.facts']) {
   const differ = [...p.errors, ...p.warnings];
   return (
     <>
-      <p className="goal-measured-by small">Measured by <Link to={metricPath(m.metric)}>{m.metric.name}</Link> · {m.metric.unit}, {directionWords(m.metric.direction)}</p>
+      <p className="goal-measured-by small">Measured by <Link to={metricPath(m.metric)}>{m.metric.name}</Link>{m.retired ? `, retired ${onDay(m.retired.at)}` : ''} · {m.metric.unit}, {directionWords(m.metric.direction)}</p>
       {differ.length > 0 && <p className="small metric-differs" role="note"><WarnMark /> {differ.join(' ')}</p>}
     </>
   );
@@ -47,9 +48,27 @@ export function GoalMetric({ goal }: PlaceProps['goal.sections']) {
   // The goal's own definition, only when it says something the metric's meaning doesn't.
   const squash = (t: string) => t.toLowerCase().replace(/\s+/g, '');
   const own = goal.definition?.trim() && squash(goal.definition) !== squash(m.metric.meaning) ? goal.definition.trim() : '';
+  // MT3: a retired metric says so, with its reason and what replaces it; the marks its changes left on this goal.
+  const r = m.retired;
+  const other = r?.replacedBy ? metricsOf(app.snapshot).find((v) => v.id === r.replacedBy && !v.removedAt && !v.retiredAt) : undefined;
+  const sameUnit = !!other && other.unit.trim().toLowerCase() === m.metric.unit.trim().toLowerCase();
+  const may = canLinkGoal(app.viewer, goal) && !goal.stoppedAt;
+  const marks = marksFor(m.metric, m.link, app.cycle.startDate);
+  const useOther = async () => { try { await app.run('linkGoalMetric', { goalId: goal.id, metricId: other!.id, teamId: m.link.teamId, part: m.part, reason: `${m.metric.name} was retired.` }); } catch { /* the rule's message is shown */ } };
   return (
     <section className="stack metric-block" aria-labelledby="g-metric" data-part="Measured by">
-      <h3 className="label" id="g-metric">Measured by {m.metric.name}</h3>
+      <h3 className="label" id="g-metric">Measured by <Link to={metricPath(m.metric)}>{m.metric.name}</Link>{r ? `, retired ${onDay(r.at)}` : ''}</h3>
+      {r && (
+        <div className="small stack" style={{ gap: 'var(--s1)' }}>
+          <span>{app.person(r.by ?? '')?.name ?? 'Someone'} retired it: “{r.why}”. This goal keeps its numbers and its plan.{other && <> Replaced by <Link to={metricPath(other)}>{other.name}</Link>.</>}</span>
+          {may && <span className="row">{sameUnit && <button type="button" className="btn sm" onClick={() => void useOther()}>Measure it by {other!.name}</button>}<Link className="btn sm ghost" to={`/goals/${encodeURIComponent(goal.id)}/edit#definition`}>Choose another</Link></span>}
+        </div>
+      )}
+      {marks.length > 0 && (
+        <ul className="metric-marks small">
+          {marks.map((k) => <li key={k.at}><WarnMark /> <strong>{markLabel(k)}</strong>: {app.person(k.by)?.name ?? 'Someone'} changed {k.kind === 'direction' ? `which way is better for ${m.metric.name}` : `what ${m.metric.name} means`}: “{k.why}” {k.kind === 'definition' ? `Weeks before ${k.week} were measured the old way.` : ''} <Link to={`${metricPath(m.metric)}#history`}>See both definitions</Link></li>)}
+        </ul>
+      )}
       <dl className="metric-facts">
         <dt>For</dt><dd>{m.slice}{m.part ? ` · ${m.part}` : ''}</dd>
         <dt>What it means</dt><dd>{m.metric.meaning || <span className="hint">Its meaning hasn’t been written yet.</span>}</dd>
