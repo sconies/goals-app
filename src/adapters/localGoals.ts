@@ -1,29 +1,34 @@
 /* The query port (src/ports/goals.ts) over the workspace loaded in this browser: summary rows made by the pure rules
    (src/app/reads.ts goalRows: summariseAll), filtered and sorted by the Goals query (applyQuery), a page at a time.
+   A scope is worked out for the person asking (`facts`: who they are, their teams, what they watch); with no sort the
+   order is worst first, then by title (domain/query compare).
    The internal app's adapter asks its server instead and changes no screen. */
 import { applyQuery, type GoalQuery } from '../domain/query';
 import { nearMiss, goalWords, type GoalRows } from '../domain/find';
-import { goalsCounted } from '../domain/goalsPage';
+import { goalsCounted, scopeIds, type ScopeFacts } from '../domain/goalsPage';
 import type { GoalSummary } from '../domain/summary';
 import { PAGE_MAX, type GoalAsk, type GoalCounts, type GoalPage, type GoalRow, type Goals } from '../ports/goals';
 
 const listRow = ({ checkIns: _c, series: _s, ...row }: GoalSummary): GoalRow => row;
 
 /** `rows` is called on each read, so it may be lazy (made once per workspace as loaded). */
-export function localGoals(rows: () => GoalRows): Goals {
-  const among = (ask: Pick<GoalAsk, 'among'>) => {
+export function localGoals(rows: () => GoalRows, facts?: () => ScopeFacts): Goals {
+  const inScope = (ask: Pick<GoalAsk, 'scope'>) => {
     const r = rows();
-    if (!ask.among) return r.summaries;
-    const keep = new Set(ask.among);
+    if (!ask.scope || ask.scope === 'all') return r.summaries;
+    if (!facts) throw new Error('This port wasn’t told who is asking, so it can’t answer a scope.');
+    const keep = new Set(scopeIds(facts(), ask.scope));
     return r.summaries.filter((s) => keep.has(s.goal.id));
   };
   // The query's matches; a search that finds nothing tries its near miss (find rule 5), as Goals does.
-  const matched = (ask: Pick<GoalAsk, 'query' | 'among'>): { list: GoalSummary[]; near?: string } => {
-    const sums = among(ask), ctx = rows().ctx;
-    const list = applyQuery(sums, ask.query, ctx);
-    if (list.length || !ask.query.q.trim()) return { list };
-    const fix = nearMiss(ask.query.q, sums.map(goalWords));
-    const again = fix ? applyQuery(sums, { ...ask.query, q: fix } satisfies GoalQuery, ctx) : [];
+  const matched = (ask: Pick<GoalAsk, 'query' | 'scope'>): { list: GoalSummary[]; near?: string } => {
+    const sums = inScope(ask), ctx = rows().ctx;
+    // No sort is worst first, then by title: a rule a server can answer too, not the order goals are stored in.
+    const query: GoalQuery = ask.query.sort ? ask.query : { ...ask.query, sort: 'worst', dir: 1 };
+    const list = applyQuery(sums, query, ctx);
+    if (list.length || !query.q.trim()) return { list };
+    const fix = nearMiss(query.q, sums.map(goalWords));
+    const again = fix ? applyQuery(sums, { ...query, q: fix } satisfies GoalQuery, ctx) : [];
     return again.length ? { list: again, near: fix! } : { list };
   };
   const goals = (ask: GoalAsk): GoalPage => {
@@ -36,9 +41,9 @@ export function localGoals(rows: () => GoalRows): Goals {
     const more = from + size < list.length;
     return { rows: page.map(listRow), next: more ? page[page.length - 1]!.goal.id : null, total: list.length, ...(near ? { near } : {}) };
   };
-  const counts = (ask: Pick<GoalAsk, 'query' | 'among'>): GoalCounts => {
+  const counts = (ask: Pick<GoalAsk, 'query' | 'scope'>): GoalCounts => {
     const { list } = matched(ask);
-    return { total: list.length, ...goalsCounted(list, applyQuery(among(ask), { ...ask.query, attention: false, needs: [], sort: null }, rows().ctx)) };
+    return { total: list.length, ...goalsCounted(list, applyQuery(inScope(ask), { ...ask.query, attention: false, needs: [], sort: null }, rows().ctx)) };
   };
   return {
     now: { goals, counts },

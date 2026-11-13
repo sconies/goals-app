@@ -38,17 +38,27 @@ export interface ScopeTab { id: Scope; label: string; ids: string[] }
  */
 export function scopesFor(f: ScopeFacts, last: Scope | null): { tabs: ScopeTab[]; opens: Scope } {
   const tabs: ScopeTab[] = [];
-  const mine = f.goals.filter((g) => g.ownerId === f.viewerId).map((g) => g.id);
+  const mine = scopeIds(f, 'mine');
   if (mine.length) tabs.push({ id: 'mine', label: 'Mine', ids: mine });
-  if (f.teams.length) {
-    const ids = new Set(f.teams.map((t) => t.id));
-    tabs.push({ id: 'team', label: f.teams.length === 1 ? 'My team' : 'My teams', ids: f.goals.filter((g) => ids.has(g.teamId)).map((g) => g.id) });
-  }
-  tabs.push({ id: 'watching', label: 'Watching', ids: f.goals.filter((g) => f.watched.has(g.id)).map((g) => g.id) });
-  tabs.push({ id: 'all', label: 'All', ids: f.goals.map((g) => g.id) });
+  if (f.teams.length) tabs.push({ id: 'team', label: f.teams.length === 1 ? 'My team' : 'My teams', ids: scopeIds(f, 'team') });
+  tabs.push({ id: 'watching', label: 'Watching', ids: scopeIds(f, 'watching') });
+  tabs.push({ id: 'all', label: 'All', ids: scopeIds(f, 'all') });
   const has = (s: Scope | null) => !!s && tabs.some((t) => t.id === s);
   const opens: Scope = has(last) ? last! : mine.length ? 'mine' : (tabs.find((t) => t.id === 'watching')!.ids.length ? 'watching' : 'all');
   return { tabs, opens };
+}
+
+/** What a scope is asked by, so a server can answer it for the person asking without being sent ids (AX5): a tab
+    of Goals, or one named team (`team:<id>`). */
+export type ScopeName = Scope | `team:${string}`;
+
+/** The goals in a scope, by id, in the workspace's order. "team" is the viewer's own team and the teams they lead. */
+export function scopeIds(f: ScopeFacts, scope: ScopeName): string[] {
+  if (scope === 'all') return f.goals.map((g) => g.id);
+  if (scope === 'mine') return f.goals.filter((g) => g.ownerId === f.viewerId).map((g) => g.id);
+  if (scope === 'watching') return f.goals.filter((g) => f.watched.has(g.id)).map((g) => g.id);
+  const teams = new Set(scope === 'team' ? f.teams.map((t) => t.id) : [scope.slice('team:'.length)]);
+  return f.goals.filter((g) => teams.has(g.teamId)).map((g) => g.id);
 }
 
 /** Rule 2. A scope's own arrangement: All as trees; every other scope one list. */

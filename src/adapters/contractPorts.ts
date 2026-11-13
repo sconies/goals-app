@@ -9,6 +9,11 @@ import type { SearchSeed } from '../ports/contracts/cases/search';
 import { prefsStart, searchStart } from '../ports/contracts/search';
 import { browserPrefs } from './local';
 import { localSearch } from './localSearch';
+import { localGoals } from './localGoals';
+import { goalRows, scopeFacts } from '../app/reads';
+import { goalsStart } from '../ports/contracts/goals';
+import { asOf, type ConformanceWorkspace } from '../spec/conformance';
+import conformanceJson from '../../spec/conformance/workspace.json';
 
 /** A browser's localStorage, in memory. */
 export const memoryStorage = (): Storage => {
@@ -37,5 +42,14 @@ export function memoryPrefs() {
   return () => browserPrefs('faro-prefs:', () => storage);
 }
 
+/** Faro's query port over the conformance workspace (or the same with goals added) at its builtFor, asked by `viewer`. */
+const conf = conformanceJson as unknown as ConformanceWorkspace;
+export const conformanceGoals = async (s: Snapshot, viewer: string) => {
+  const at = new Date(conf.builtFor);
+  const rows = goalRows(s, conf.cycle, at, currentWeek(conf.cycle, at));
+  return localGoals(() => rows, () => scopeFacts(s, { id: viewer, teamId: s.people.find((p) => p.id === viewer)?.teamId ?? null }));
+};
+export const conformanceBase = async () => asOf(conf, new Date(conf.builtFor));
+
 /** What Faro's shim answers: every port that has a contract as data. */
-export const faroCaller = () => caller({ search: searchStart(seededSearch), prefs: prefsStart(memoryPrefs) });
+export const faroCaller = () => caller({ search: searchStart(seededSearch), prefs: prefsStart(memoryPrefs), goals: goalsStart(conformanceBase, conformanceGoals) });

@@ -118,8 +118,7 @@ export function GoalsScreen() {
   const attentionOn = query.attention || query.needs.length > 0;
   // A search that finds nothing tries a near miss (find rule 5): the goals that match it are shown, and said so.
   // Through the query port (AX5): the scope's goals that match, in the query's order, or its near miss's.
-  const among = useMemo(() => [...inScope], [inScope]);
-  const found = useGoalList(refined ? { query, among } : null);
+  const found = useGoalList(refined ? { query, scope } : null);
   const ranked = refined ? (found?.rows.map((r) => r.goal.id) ?? []) : null;
   const near = found?.near ?? null;
   // Saved views and what can be done with this one: the Views menu, or the phone's View sheet (goals spec, 2.1, 2.4).
@@ -173,8 +172,8 @@ export function GoalsScreen() {
   const mapGoals = narrowed ? (() => { const keep = withAncestors(app.snapshot.goals, new Set(shown.map((g) => g.id))); return app.snapshot.goals.filter((g) => keep.has(g.id)); })() : shown;
   const alt = layout !== 'list';
   // The switch's count (rule 3): the scope's goals needing attention, after the search and filters.
-  const rowsInScope = useGoalList({ query: EMPTY_QUERY, among })?.rows ?? [];
-  const switchCount = useGoalCounts({ query, among })?.attention ?? 0;
+  const rowsInScope = useGoalList({ query: EMPTY_QUERY, scope })?.rows ?? [];
+  const switchCount = useGoalCounts({ query, scope })?.attention ?? 0;
   const shownIds = new Set(shown.map((g) => g.id));
   const line = goalsLine(rowsInScope.filter((x) => shownIds.has(x.goal.id)), narrowed, query.sort ? (SORT_OPTIONS.find(([k]) => k === query.sort)?.[1] ?? '').toLowerCase() : group === 'tree' ? 'as trees' : 'worst first', switchOn);
   const linkNote = moved?.text ?? null;

@@ -313,6 +313,12 @@
       "use": "copy"
     },
     {
+      "id": "REVIEW-SPEAK",
+      "area": "Reviews",
+      "text": "Only someone in a review, or an admin, speaks for it: marking a goal reviewed, a note, accepting a risk, and a question or next step raised in it are refused for anyone else with one sentence, through the app and the AI tools alike. Everyone can still read it. Its page tells someone not in it who can add them, and never offers a Join it refuses.",
+      "use": "copy"
+    },
+    {
       "id": "REVIEW-DECIDE",
       "area": "Reviews",
       "text": "A goal off track or at risk leaves a review's walk with a decision: a next step with an owner (chosen by searching, never from a list of everyone) and a week it's due by, or \"We accept the risk\" with a reason. The goal page shows next steps as dated rows with an owner, changed there, an overdue one flagged; anyone can add one. The next session opens with what the last one agreed and asks if it's done. Finish review says what was decided and who owns what, with Undo. A review isn't \"to do\" before anything is due.",
@@ -859,7 +865,7 @@
     {
       "id": "STALE-RELOAD",
       "area": "Observability",
-      "text": "After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop. Offline, nothing reloads (a reload would load nothing): the page says it needs a connection, with Try again and Go back.",
+      "text": "After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop. Offline, nothing reloads (a reload would load nothing): the page says it needs a connection, with Try again and Go back. An action that needs a part that hasn't loaded (the change engine, for Post check-in) never fails silently: offline it says saving needs a connection and what was typed is kept; online it reloads once, or offers Reload when it just did, and the reload keeps what was typed.",
       "use": "demo-only"
     },
     {

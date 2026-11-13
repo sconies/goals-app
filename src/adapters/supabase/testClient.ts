@@ -16,6 +16,23 @@ async function json(db: Sql, from: string, params: unknown[]): Promise<unknown[]
   return (typeof r === 'string' ? JSON.parse(r) : r) as unknown[];
 }
 
+/** Splits a PostgREST filter list at its top-level commas (not inside brackets or quotes). */
+function terms(list: string): string[] {
+  const out: string[] = [];
+  let depth = 0, quoted = false, cur = '';
+  for (let i = 0; i < list.length; i++) {
+    const ch = list[i]!;
+    if (quoted && ch === '\\') { cur += ch + (list[++i] ?? ''); continue; }
+    if (ch === '"') quoted = !quoted;
+    else if (!quoted && ch === '(') depth++;
+    else if (!quoted && ch === ')') depth--;
+    if (ch === ',' && !quoted && depth === 0) { out.push(cur); cur = ''; } else cur += ch;
+  }
+  return cur ? [...out, cur] : out;
+}
+const unquote = (v: string) => (v.startsWith('"') && v.endsWith('"') ? v.slice(1, -1).replace(/\\(.)/g, '$1') : v);
+const OPS: Record<string, string> = { eq: '=', neq: '<>', gt: '>', gte: '>=', lt: '<', lte: '<=' };
+
 function table(db: Sql, schema: string, bare: string) {
   const name = `${ident(schema)}.${ident(bare)}`;
   const where: string[] = [];
@@ -50,6 +67,24 @@ function table(db: Sql, schema: string, bare: string) {
     select: (_cols?: string) => { if (op.kind === 'update') op.returning = true; return q; },
     eq: (c: string, v: unknown) => { where.push(`${ident(c)} = ${p(v)}`); return q; },
     gt: (c: string, v: unknown) => { where.push(`${ident(c)} > ${p(v)}`); return q; },
+    gte: (c: string, v: unknown) => { where.push(`${ident(c)} >= ${p(v)}`); return q; },
+    lt: (c: string, v: unknown) => { where.push(`${ident(c)} < ${p(v)}`); return q; },
+    lte: (c: string, v: unknown) => { where.push(`${ident(c)} <= ${p(v)}`); return q; },
+    // PostgREST's `or`, for the few forms Faro writes: column.[not.]op.value, with eq, neq, gt, gte, lt, lte, in.(…) and is.null.
+    or: (list: string) => {
+      const sql = terms(list).map((t) => {
+        const m = /^([a-z_][a-z0-9_]*)\.(not\.)?(eq|neq|gt|gte|lt|lte|in|is)\.(.*)$/s.exec(t);
+        if (!m) throw new Error('Not a filter the stand-in reads: ' + t);
+        const [, col, not, op, raw] = m as unknown as [string, string, string | undefined, string, string];
+        const c = ident(col);
+        const e = op === 'is' ? `${c} is ${raw === 'null' ? 'null' : ident(raw)}`
+          : op === 'in' ? `${c} = any(${p(terms(raw.replace(/^\(|\)$/g, '')).map(unquote))})`
+          : `${c} ${OPS[op]} ${p(unquote(raw))}`;
+        return not ? `not (${e})` : e;
+      });
+      where.push(`(${sql.join(' or ')})`);
+      return q;
+    },
     in: (c: string, vs: unknown[]) => { where.push(`${ident(c)} = any(${p(vs)})`); return q; },
     is: (c: string, v: null) => { where.push(`${ident(c)} is ${v === null ? 'null' : 'not null'}`); return q; },
     order: (c: string, o?: { ascending?: boolean }) => { order += `${order ? ',' : ' order by'} ${ident(c)}${o?.ascending === false ? ' desc' : ''}`; return q; },

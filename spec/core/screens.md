@@ -19,9 +19,9 @@ Words worked out when the screen shows (from the goal, the person or the week) a
 
 [src/screens/Start.tsx](../../src/screens/Start.tsx)
 
-- `/join/:workspaceId` (`Join`): An invitation is a link that opens one workspace: it says who set it up and what it holds, then asks which one you are. Help: “Joining a workspace you were invited to” (`joining`).
+- `/join/:workspaceId/*` (`Join`): An invitation is a link that opens one workspace: it says who set it up and what it holds, then asks which one you are. Help: “Joining a workspace you were invited to” (`joining`).
 - `/ready` (`Ready`): A workspace holds one organisation’s people, teams, goals and history. Setting one up takes about three minutes. Help: “Setting up a workspace” (`set-up`).
-- `/join/:workspaceId` (`Join`): An invitation is a link that opens one workspace: it says who set it up and what it holds, then asks which one you are. Help: “Joining a workspace you were invited to” (`joining`).
+- `/join/:workspaceId/*` (`Join`): An invitation is a link that opens one workspace: it says who set it up and what it holds, then asks which one you are. Help: “Joining a workspace you were invited to” (`joining`).
 
 - **Named parts:** “Which one are you?”, “This invitation doesn’t open a workspace”, “Open another workspace”
 - **Main action:** On an invitation, choose which one you are, then go on to Home; on /ready, the one next thing after setting up.
@@ -303,7 +303,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “All reviews” | link | always |
 | “Continue review · … left / Start review · …” | primary | `inIt` and `!done` and `first` |
 | “Finish review” | primary | `inIt` and `!done` and `!first` and `healthyLeft.length > 0` |
-| “Join this review” | primary | `!inIt` |
 | “Edit review setup” | link | `canChange` |
 | “Print or save as PDF” | link | always |
 | “Done?” | button | `last` and `a.state !== 'done' && canMarkDone(a.ask, app.viewer)` |

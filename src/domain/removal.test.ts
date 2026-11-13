@@ -197,7 +197,8 @@ describe('removing, archiving and undoing', () => {
     w.apply(R.restoreRemoved(w.x('amara'), 'comment', id));
     expect(R.commentText(R.commentsOf(w.full.changes).get(id), '')).toBe('Better words');
     // A review note.
-    const review = w.x('rhea').snapshot.reviews[0]!;
+    // A review Rhea is in: only its people, or an admin, speak for one (RV7).
+    const review = w.x('rhea').snapshot.reviews.find((r) => r.people.includes('rhea'))!;
     const said = w.apply(reviewCall(w.x('rhea'), goal, review, 'note', 'Worth a look next week'))!;
     w.apply(R.deleteNote(w.x('amara'), said.decisions![0]!.id));
     expect(w.x('rhea').snapshot.decisions.some((d) => d.id === said.decisions![0]!.id)).toBe(false);
@@ -241,7 +242,7 @@ describe('removing, archiving and undoing', () => {
     const goal0 = x('rhea').snapshot.goals.find((g) => g.ownerId === 'rhea')!;
     w.apply({ goals: [{ ...goal0, id: 'g_rt', key: 'G-998', title: 'Round trip goal', parentId: goal0.id, version: 0 }], changes: [] });
     const note = w.apply(addNote(x('rhea'), goal0, 'A comment to remove'))!;
-    const review = x('rhea').snapshot.reviews[0]!;
+    const review = x('rhea').snapshot.reviews.find((r) => r.people.includes('rhea'))!;
     const said = w.apply(reviewCall(x('rhea'), goal0, review, 'note', 'A note to remove'))!;
     const view = saveView(x('rhea'), { name: 'Mine', params: 'show=mine' });
     w.apply(view.commit);
