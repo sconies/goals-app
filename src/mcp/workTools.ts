@@ -2,6 +2,7 @@
    wrap-ups and the next cycle, saved views, tokens and feedback, plus what needs them and the activity log. Each write
    is a shared action (domain/actions.ts), so the assistant meets exactly the rules the person does in the app, and every
    change it makes is logged as that person, via MCP. Check-ins, goals and plans are in tools.ts. */
+import { moduleOffSentence } from './moduleOff';
 import { MODULE_RECORDS } from '../core/records';
 import { levelIds } from '../domain/levels';
 import type { Commit } from '../data/store';
@@ -104,7 +105,7 @@ export const lines = (l: string[], none: string) => (l.length ? l.join('\n') : n
 
 /** A data table's sheet, from the same workbook the Data screen and the exports use. */
 /** A Data table's sheet of the workbook, for this context (the spreadsheets module's export_table reads it too). */
-export const sheetOf = (ctx: McpContext, t: DataTable) => workbook({ ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today }).find((x) => x.name === TABLES[t].sheet)!;
+export const sheetOf = (ctx: McpContext, t: DataTable) => workbook({ ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, reviews: reviewsOn(modulesOn(ctx.ws).on) }).find((x) => x.name === TABLES[t].sheet)!;
 const headOf = (ctx: McpContext, t: DataTable) => (sheetOf(ctx, t).rows[0] ?? []).map((c) => String(c ?? ''));
 /** A table layout from a tool's arguments: a saved table view by name, or a table with columns, widths and a query. */
 export function layoutFrom(ctx: McpContext, a: Record<string, unknown>): TableLayout {
@@ -124,7 +125,7 @@ export function layoutFrom(ctx: McpContext, a: Record<string, unknown>): TableLa
 }
 
 /** What a switched-off module's tool answers (callTool's sentence), for a core tool that is partly Reviews' (FT2). */
-const offSentence = (ctx: McpContext, tool: string) => `Reviews is switched off in ${ctx.ws.name}, so ${tool} can't be used there. An admin can switch it on in Workspace, under Features.`;
+const offSentence = (ctx: McpContext, tool: string) => moduleOffSentence('Reviews', ctx.ws.name, tool);
 
 /** A sentence as part of a longer line: without its closing full stop, so the line never ends in two. */
 const clause = (t: string) => t.trim().replace(/\.+$/, '');

@@ -31,6 +31,8 @@ export interface ExportInput {
   goals?: Goal[];
   /** The sheets feature modules add (domain/records), after the core's: those of the modules in this build. */
   sheets?: readonly ModuleSheet[];
+  /** False when Reviews is switched off here (RS, spec 5): the workbook leaves out the Notes sheet and Asks' Review column. */
+  reviews?: boolean;
 }
 
 /** What a column is for. */
@@ -370,6 +372,11 @@ export const NOTES: SheetSpec<NoteRow> = {
 
 /** The core's sheets, in the workbook's order (a module's sheets follow them; domain/records ModuleSheet). */
 export const SHEETS = [GOALS, PLAN, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES] as const;
+/** What is Reviews' in the workbook (RS, spec 5): the Notes sheet, and the Review column on Asks. */
+export const REVIEWS_SHEET = NOTES.name;
+export const REVIEWS_COLUMN = 'Review';
+/** The core's sheets as a workbook has them with Reviews on or off: off, no Notes sheet and no Review column on Asks. */
+export const sheetsFor = (reviews: boolean) => (reviews ? [...SHEETS] : SHEETS.filter((v) => v !== NOTES).map((v) => (v === ASKS ? { ...ASKS, columns: ASKS.columns.filter((c) => c.header !== REVIEWS_COLUMN) } : v)));
 /** The workbook's first sheet: what the file is, and the field table (it replaced the README, which is still skipped). */
 export const START_HERE = 'Start here';
 /** Every sheet of the core's workbook, in order. */

@@ -5,6 +5,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useApp } from '../../app/state';
+import { useModules } from '../../core/app';
+import { reviewsOn } from '../../app/reads';
 import { saveAndSay } from '../../app/files';
 import { fieldTable, isFillIn, requiredLine, specOf, type FillKind } from '../../domain/columns';
 import { workbook } from '../../domain/export';
@@ -30,6 +32,7 @@ function adminsWho(names: string[]): string {
 
 export function Import() {
   const app = useApp();
+  const reviews = reviewsOn(useModules().on);
   const nav = useNavigate();
   const [params, setParams] = useSearchParams();
   const [stopped] = useState(() => importStore.get().stopped);
@@ -52,7 +55,7 @@ export function Import() {
     if (choosePaste(pasted, (text) => setProblem({ text, headers: true }))) nav('/data/import/check');
   };
   // The same file as Export's "Everything", by the same name and with the same toast (spec 2.9; #248 review).
-  const workbookFile = () => saveAndSay(app.toast, { workspace: app.ws.name, what: 'goals', scope: 'all', date: app.today }, { kind: 'xlsx', sheets: workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, sheets: MODULE_SHEETS }) }, (f) => `Exported ${f}`);
+  const workbookFile = () => saveAndSay(app.toast, { workspace: app.ws.name, what: 'goals', scope: 'all', date: app.today }, { kind: 'xlsx', sheets: workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, sheets: MODULE_SHEETS, reviews }) }, (f) => `Exported ${f}`);
   const copy = (kind: FillKind) => {
     void navigator.clipboard?.writeText(headersOf(kind)).then(() => app.toast(`Copied the ${specOf(kind).name} headers`), () => app.toast('Copying didn’t work here. The template has the headers.', 'error'));
   };

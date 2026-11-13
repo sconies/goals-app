@@ -5,6 +5,8 @@
 import { lazy, Suspense, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import { useApp } from '../../app/state';
+import { useModules } from '../../core/app';
+import { reviewsOn } from '../../app/reads';
 import { saveAndSay } from '../../app/files';
 import { readChanges } from '../../app/spreadsheet';
 import { MODULE_SHEETS } from '../../core/records';
@@ -77,6 +79,8 @@ export function choosePaste(text: string, onProblem: (text: string) => void): bo
 
 export function Check() {
   const app = useApp();
+  // With Reviews off (RS, spec 5) the Notes sheet and a Review column on Asks are not read, and the file line says so once.
+  const lineOpts = reviewsOn(useModules().on) ? {} : { reviewsOff: app.ws.name };
   const nav = useNavigate();
   const plan = useImportPlan();
   const { st, base, left, otherWorkspace, toSave, run, tables } = plan;
@@ -103,7 +107,7 @@ export function Check() {
     return (
       <div className="page narrow import-check">
         <div className="page-head"><h1 className="title-xl">Check this import</h1><span className="hint">Nothing has been saved.</span></div>
-        <p className="small">{st.name} · {readLine(read)}</p>
+        <p className="small">{st.name} · {readLine(read, 0, lineOpts)}</p>
         <div className="level-block level-check" role="group" aria-labelledby="other-ws">
           <span className="level-head"><WarnMark /><span className="level-word">Check</span></span>
           <strong id="other-ws" className="level-q">This file was exported from {from}, not from {app.ws.name}. Its keys and IDs belong there.</strong>
@@ -179,7 +183,7 @@ export function Check() {
         <span className="hint">{saving ? SAVING : 'Nothing has been saved.'}</span>
       </div>
 
-      <p className="small import-file-line"><span className="strong">{st.name}</span> · {[readLine(read, cs.examples), headerRowsLine(read)].filter(Boolean).join(' ')}</p>
+      <p className="small import-file-line"><span className="strong">{st.name}</span> · {[readLine(read, cs.examples, lineOpts), headerRowsLine(read)].filter(Boolean).join(' ')}</p>
       {st.carried > 0 && <p className="small">Your {n(st.carried, 'answer')} still {st.carried === 1 ? 'applies' : 'apply'}.</p>}
       {problem && <p className="hint tone-off" role="alert">{problem}</p>}
 

@@ -4,6 +4,8 @@
 import { aiBrief, sheetNamed, toCsv, toJson, workbook } from '../../domain/export';
 import { sheetNamesWith, START_HERE } from '../../domain/columns';
 import { MODULE_SHEETS } from '../../core/records';
+import { modulesOn } from '../../core/registry';
+import { reviewsOn } from '../../app/reads';
 import { exportedTable, TABLE_ORDER, TABLES } from '../../domain/tableLayout';
 import type { ToolDef } from '../../mcp/tools';
 import { layoutFrom, sheetOf } from '../../mcp/workTools';
@@ -22,7 +24,7 @@ const tools: ToolDef[] = [
     inputSchema: { type: 'object', additionalProperties: false, required: ['format'], properties: { format: str('Which export.', { enum: ['json', 'brief', ...CSV_FORMATS.map(([f]) => f)] }) } },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
-      const x = { ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, sheets: MODULE_SHEETS };
+      const x = { ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, sheets: MODULE_SHEETS, reviews: reviewsOn(modulesOn(ctx.ws).on) };
       if (a.format === 'json') { const j = toJson(x); return { data: j, text: JSON.stringify(j) }; }
       if (a.format === 'brief') return { text: aiBrief(x) };
       const sheet = CSV_FORMATS.find(([f]) => f === a.format)?.[1];

@@ -1,6 +1,7 @@
 /* The MCP tools: what an AI assistant can read and change, acting as one person through their personal token.
    Every write goes through the bulk-change engine, so it meets the same rules as the app (owners change their own
    goals, admins any; reasons when behind; a reason for plan changes) and is logged as that person, via MCP. */
+import { moduleOffSentence } from './moduleOff';
 import type { HistoryAsk, HistoryPage } from '../ports/store';
 import { LEVEL_WORDS, levelIds } from '../domain/levels';
 import { addNote, NotAllowed } from '../domain/actions';
@@ -509,7 +510,7 @@ export async function callTool(name: string, args: Record<string, unknown>, ctx:
   const t = TOOLS.find((x) => x.name === name);
   if (!t) return { isError: true, text: `There's no tool called ${name}.` };
   const from = TOOL_MODULE.get(name);
-  if (from && !isModuleOn(ctx.ws, from)) return { isError: true, text: `${moduleById(from)?.name ?? from} is switched off in ${ctx.ws.name}, so ${name} can't be used there. An admin can switch it on in Workspace, under Features.` };
+  if (from && !isModuleOn(ctx.ws, from)) return { isError: true, text: moduleOffSentence(moduleById(from)?.name ?? from, ctx.ws.name, name) };
   try {
     return await t.run(args ?? {}, ctx);
   } catch (e) {
