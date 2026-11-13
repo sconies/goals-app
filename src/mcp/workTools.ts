@@ -10,7 +10,7 @@ import { activityFilter, parseActivity } from '../domain/activity';
 import { attentionList, splitAttention } from '../domain/attention';
 import { cycleDates, cycleState, dayWithYear, wrapUpOpenOn } from '../domain/cycle';
 import { dashboard } from '../domain/home';
-import { homeAsks } from '../app/reads';
+import { askWaiting, homeAsks } from '../app/reads';
 import { ASK_STATUS, ATTENTION, choices, HANDLED_LINE, codeFrom, LABEL, lower, STATUS, withCode } from '../domain/vocabulary';
 import type { Change, DisplayStatus } from '../domain/types';
 import type { HistoryKey } from '../ports/store';
@@ -26,10 +26,10 @@ import { workbook } from '../domain/export';
 import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { findGoal, isKey } from '../domain/goalKey';
 import { proposalAsks, withProposed } from '../domain/proposed';
-import type { AskKind, Level, Retro, Review, Watch } from '../domain/types';
+import type { Ask, AskKind, Level, Retro, Review, Watch } from '../domain/types';
 import { ARTICLES, GROUPS, articleById, articleText, searchGuide, type Article } from '../help/guide';
 import { newsSince } from '../help/whatsNew';
-import { canUndoImport, importUndone } from '../domain/removal';
+import { canUndoImport, importUndone, unmarkReviewed } from '../domain/removal';
 import { startPage, startPageText } from '../domain/startYear';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 import { listed } from './listed';
@@ -94,8 +94,11 @@ const levelsOf = (v: unknown): Level[] => {
   if (bad.length) throw new Error(`Levels are ${LEVELS.join(', ')} (not ${bad.join(', ')}).`);
   return list as Level[];
 };
+// The one lateness rule (review of #369, medium 5): list_requests reads `late` as get_my_work and Home do (app/reads
+// askWaiting), where a question past its session is late, not only one past its due week. Only an open ask can be late.
+const askLate = (ctx: McpContext, r: Ask): boolean => (r.status === 'open' ? (askWaiting(r, r.recipientId ?? ctx.actor.id, ctx.snapshot, ctx.cycle, ctx.week, ctx.today)?.late ?? isOverdue(r, ctx.week)) : false);
 const requestData = (ctx: McpContext, r: ReturnType<typeof requestOf>) => ({
-  id: r.id, kind: r.kind, ask: r.kind === 'decision' ? askText(r, ctx.snapshot.people) : r.ask, status: r.status, statusLabel: ASK_STATUS[r.status].label, dueWeek: r.dueWeek, overdue: isOverdue(r, ctx.week), review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null, askedBy: name(ctx, r.askedBy), askedOf: r.recipientId ? name(ctx, r.recipientId) : 'anyone',
+  id: r.id, kind: r.kind, ask: r.kind === 'decision' ? askText(r, ctx.snapshot.people) : r.ask, status: r.status, statusLabel: ASK_STATUS[r.status].label, dueWeek: r.dueWeek, overdue: askLate(ctx, r), review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null, askedBy: name(ctx, r.askedBy), askedOf: r.recipientId ? name(ctx, r.recipientId) : 'anyone',
   goals: r.goalIds.map((g) => { const x = withProposed(ctx.snapshot).find((y) => y.id === g); return { id: g, key: x?.key ?? null, title: x?.title ?? g }; }), raisedAt: r.createdAt,
   answer: r.answer, answeredBy: r.answeredBy ? name(ctx, r.answeredBy) : null, youCanAnswer: r.status === 'open' && canAnswer(r, ctx.actor), youCanMarkDone: r.status === 'open' && canMarkDone(r, ctx.actor),
 });
@@ -125,10 +128,11 @@ export function layoutFrom(ctx: McpContext, a: Record<string, unknown>): TableLa
 /** A sentence as part of a longer line: without its closing full stop, so the line never ends in two. */
 const clause = (t: string) => t.trim().replace(/\.+$/, '');
 
-/** The newest n changes that pass `keep`. With the store's history (AX5 part 2b) it pages back through the log, 100 at
-    a time, rather than filtering every change ever made; without it, it reads the snapshot. */
-async function activityPages(ctx: McpContext, keep: (c: Change) => boolean, n: number): Promise<Change[]> {
-  if (!ctx.history) return ctx.snapshot.changes.filter(keep).sort((x, y) => (x.at < y.at ? 1 : -1)).slice(0, n);
+/** The newest n changes that pass `keep`. A whole snapshot (the server loads whole today) already holds every entry, so
+    they are read from it; only a windowed one (Snapshot.history) pages back through the store's history, 100 at a time
+    (AX5 part 2b). */
+export async function activityPages(ctx: McpContext, keep: (c: Change) => boolean, n: number): Promise<Change[]> {
+  if (!ctx.history || !ctx.snapshot.history) return ctx.snapshot.changes.filter(keep).sort((x, y) => (x.at < y.at ? 1 : -1)).slice(0, n);
   const out: Change[] = [];
   let before: HistoryKey | null | undefined;
   do {
@@ -493,6 +497,19 @@ export const WORK_TOOLS: ToolDef[] = [
       const was = 'goalIds' in d ? { who: d.recipientId, due: d.dueWeek } : { who: d.assigneeId ?? null, due: d.dueWeek ?? null };
       const extra = action ? { assigneeId: a.who ? personOf(ctx, a.who).id : was.who, dueWeek: a.due_week === undefined ? was.due : Number(a.due_week) || null } : undefined;
       return save(ctx, A.editCall(ax(ctx), d, String(a.text ?? ''), extra), 'Corrected it', 'Nothing to change: it already says that.');
+    },
+  },
+  {
+    name: 'unmark_reviewed',
+    title: 'Undo marking goals reviewed',
+    description: 'Undo marking one or more goals reviewed in a review (review_call with acknowledge): they go back on the agenda. Whoever marked them, or an admin. The log keeps both.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['call_ids'], properties: { call_ids: { type: 'array', items: { type: 'string' }, description: 'The marks’ IDs (kind acknowledge), from get_review.' } } },
+    annotations: WRITE,
+    async run(a, ctx) {
+      const ids = ((a.call_ids as unknown[] | undefined) ?? []).map(String);
+      const marks = ctx.snapshot.decisions.filter((d) => ids.includes(d.id));
+      if (!marks.length) throw new Error('There’s no mark with those IDs. Use get_review.');
+      return save(ctx, unmarkReviewed(ax(ctx), marks), `Undone: ${marks.length === 1 ? 'back' : `${marks.length} goals back`} on the agenda`, '');
     },
   },
   {
