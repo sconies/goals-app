@@ -3117,7 +3117,7 @@ function answerOf(d) {
 		byId: a.answeredBy ?? ""
 	};
 }
-var isHealthy, tier, reviewedText, canSpeakFor, speakRefusal;
+var isHealthy, tier, reviewedText, canSpeakFor, speakRefusal, scopeRefusal;
 var init_review = __esmMin((() => {
 	init_attention();
 	init_vocabulary();
@@ -3132,6 +3132,7 @@ var init_review = __esmMin((() => {
 	ASK_KIND.action.label;
 	canSpeakFor = (r, p) => p.admin || r.people.includes(p.id);
 	speakRefusal = (r) => `Only people in ${r.name}, or an admin, can speak for it.`;
+	scopeRefusal = (r, g) => `${r.name} doesn’t cover ${g.title}, so nothing can be said about it there.`;
 }));
 // src/domain/decide.ts
 var ACCEPT, acceptNote;
@@ -5890,7 +5891,7 @@ var init_query = __esmMin((() => {
 // src/domain/find.ts
 /**
 * Rule 1. True when every word of `q` starts a word of `words`, ignoring case and accents (words break at spaces and at
-* / - , . : ( )). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
+* / - , . : ( ), but a number keeps its point: 12.5). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
 * finds only that goal ("G-48" isn't G-4), while a bare number also matches as words. An empty search matches anything.
 */
 function textMatches(words, q, key) {
@@ -6133,7 +6134,7 @@ var init_find = __esmMin((() => {
 	init_levels();
 	init_goalKey();
 	init_query();
-	wordsOf = (s) => fold$2(s).split(/[\s/\-,.:()]+/).filter(Boolean);
+	wordsOf = (s) => fold$2(s).split(/[\s/\-:()]+|(?<!\d)[.,]+|[.,]+(?!\d)/).filter(Boolean);
 	MAX_PAGE = 200;
 	goalWords = (s) => [
 		s.goal.title,
@@ -6194,9 +6195,20 @@ function applyTable(rows, head, q, filters, sort, searched) {
 	const idx = (c) => head.indexOf(c);
 	const cols = (searched ?? head).map(idx).filter((i) => i >= 0);
 	const colsKey = cols.join(",");
-	const keyAt = idx("Key");
+	const keyAt = [
+		"Key",
+		"Goal key",
+		"Goal keys"
+	].map(idx).find((i) => i >= 0) ?? -1;
+	const keyTyped = keyAt >= 0 && (!!normalKey(typed) || /^\d{1,9}$/.test(typed));
+	const keysOf = (r) => keyTyped ? (r.cells[keyAt] ?? "").split(";").map((k) => k.trim()).filter(Boolean) : [];
+	const found = (r) => {
+		const ks = keysOf(r);
+		const w = wordsFor(r, cols, colsKey);
+		return ks.length ? ks.some((k) => wordsMatch(w, typed, k)) : wordsMatch(w, typed, null);
+	};
 	const live = filters.filter((f) => idx(f.col) >= 0 && (NO_VALUE.includes(f.op) || f.value.trim() !== ""));
-	const out = rows.filter((r) => (!typed || wordsMatch(wordsFor(r, cols, colsKey), typed, keyAt >= 0 ? r.cells[keyAt] : null)) && live.every((f) => passes(r.cells[idx(f.col)] ?? "", f)));
+	const out = rows.filter((r) => (!typed || found(r)) && live.every((f) => passes(r.cells[idx(f.col)] ?? "", f)));
 	const si = sortIndex(head, sort);
 	if (sort && si >= 0) out.sort((a, b) => {
 		const x = a.cells[si] ?? "", y = b.cells[si] ?? "";
@@ -6244,6 +6256,7 @@ function filterEntries(filters, sort) {
 var OP_LABEL, NO_VALUE, isNum, rowWords, wordsFor, sortIndex;
 var init_tableFilter = __esmMin((() => {
 	init_find();
+	init_goalKey();
 	OP_LABEL = {
 		is: "is any of",
 		isNot: "is none of",
@@ -6545,7 +6558,7 @@ function askQuestion(x, goal, text, opts = {}) {
 	if (t.length < 2) no$3("Write the question.");
 	if (goal.ownerId === x.actor.id) no$3("It’s your own goal: there’s no one to ask. Comment instead.");
 	const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : void 0;
-	if (review && !canSpeakFor(review, x.actor)) no$3(speakRefusal(review));
+	if (review) maySpeak(x, review, goal);
 	const { ask, change } = raiseAsk({
 		kind: "question",
 		goalIds: [goal.id],
@@ -6569,7 +6582,7 @@ function addAction(x, goal, text, opts = {}) {
 	if (!x.snapshot.people.some((p) => p.id === who)) no$3("The person for the action isn’t in this workspace.");
 	if (opts.dueWeek != null && !(opts.dueWeek >= 1 && opts.dueWeek <= x.cycle.weeks)) no$3(`The due week is between 1 and ${x.cycle.weeks}.`);
 	const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : void 0;
-	if (review && !canSpeakFor(review, x.actor)) no$3(speakRefusal(review));
+	if (review) maySpeak(x, review, goal);
 	const { ask, change } = raiseAsk({
 		kind: "action",
 		goalIds: [goal.id],
@@ -6642,12 +6655,20 @@ function withdrawRequest(x, r, goal) {
 	};
 }
 /**
+* Whether the actor may say this in the review: someone in it, or an admin (RV7), and only about a goal it walks, its
+* goals, trees and levels (build review of #322). Throws the refusal.
+*/
+function maySpeak(x, review, goal) {
+	if (!canSpeakFor(review, x.actor)) no$3(speakRefusal(review));
+	if (!goalsIn(review.scope, x.snapshot.goals).some((g) => g.id === goal.id)) no$3(scopeRefusal(review, goal));
+}
+/**
 * What someone says about a goal in a review: seen, a note, a question for the owner, or an action. Seen and a note are
 * the review's record (decisions); a question and an action are asks, raised in the review's session, so they're open
 * until answered or done like any other ask.
 */
 function reviewCall(x, goal, review, kind, note, extra = {}) {
-	if (!canSpeakFor(review, x.actor)) no$3(speakRefusal(review));
+	maySpeak(x, review, goal);
 	const text = note.trim();
 	const week = extra.week ?? sessionWeek(review, x.week, x.cycle);
 	if (kind === "ask") {
@@ -14021,7 +14042,7 @@ var metricLinkToRow = (ws, l) => ({
 	goal_id: l.goalId,
 	metric_id: l.metricId,
 	team_id: l.teamId,
-	...l.part != null ? { part: String(l.part).trim() } : {},
+	part: String(l.part ?? "").trim(),
 	linked_by: l.linkedBy,
 	linked_at: l.linkedAt,
 	...set$1({
@@ -16046,6 +16067,7 @@ var help$5 = [
 					"Find a metric by its name, unit, owner or meaning: “min lower” finds those in minutes where lower is better. Unit and Used by narrow the list beside the search; Filters has Owner, Which way is better, No goals use it and Something to sort out. Sort by A to Z, Most goals first or Changed lately. The filter line says what is on, each with Remove.",
 					"A search that finds nothing offers to add it as a new metric.",
 					"Open a metric to see what it means and how it’s calculated, then every goal measured by it as a table: its status as a shape and a word, the goal, who it is for (a team, or the whole company), the latest number, the target with its week, and where it stands against plan (for a goal kept in range, its room to the limit). When two or more goals have a number, a line says the lowest and highest now.",
+					"A proposed goal that names the metric is listed under the table, apart, as “Proposed · 1”: its name, key and owner, with no numbers. It is in no comparison until it is made active.",
 					"Below them: where the number comes from, who owns that source, how often it refreshes, any caveats, and who added and last changed it. With one goal, See its goal opens it.",
 					"On a goal measured by a metric, its summary says “Measured by …”, and its page has a block with the metric’s meaning and a link to the other goals measured by it. A person’s page lists the metrics they own, and a team’s the metrics its goals use.",
 					"Old links to Metrics under Data still work: they open the library, a metric, or the form."
@@ -16260,7 +16282,7 @@ var help$4 = [{
 		},
 		{
 			heading: "Who can",
-			text: ["Anyone can set up a review, and everyone can read every review. Only people in a review, or an admin, speak for it: mark goals reviewed, add a note, accept a risk, and ask a question or agree a next step in it. Anyone can still ask a question or agree a next step on a goal’s own page. Someone not in a review is told who can add them: someone in it, whoever set it up, or an admin, who can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it."]
+			text: ["Anyone can set up a review, and everyone can read every review. Only people in a review, or an admin, speak for it: mark goals reviewed, add a note, accept a risk, and ask a question or agree a next step in it, and only about the goals it covers. Anyone can still ask a question or agree a next step on a goal’s own page. Someone not in a review is told who can add them: someone in it, whoever set it up, or an admin, who can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it."]
 		}
 	],
 	routes: [
@@ -18122,7 +18144,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Pick a table. Search it (each word you type starts a word in a shown column, as on Goals; a key like G-48 finds its goal), sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.",
+					"Pick a table. Search it (each word you type starts a word in a shown column, as on Goals, and the line under it says so while columns are hidden; a number like 12.5 is one word; a key like G-48 finds its goal, and on Check-ins and Asks that goal’s rows), sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.",
 					"Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.",
 					"Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.",
 					"Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.",
@@ -19217,6 +19239,38 @@ var WHATS_NEW = [
 			"goal-page",
 			"reviews"
 		]
+	},
+	{
+		id: "data-search-finds",
+		date: "2026-11-13",
+		title: "Searching Data finds what you typed",
+		points: [
+			"A goal’s key finds its check-ins and asks too: G-48 on Check-ins shows that goal’s rows, and on Asks every ask about it.",
+			"A number with a point is one word: 12.5 finds 12.5, not every row with a 12 and a 5.",
+			"Search looks only in the columns shown, and the line under it now says so while some are hidden, with Choose columns."
+		],
+		articles: ["data", "finding"]
+	},
+	{
+		id: "review-speaks-for-its-goals",
+		date: "2026-11-13",
+		title: "A review speaks only for the goals it walks",
+		points: ["In a review, marking a goal reviewed, a note, accepting a risk, a question or a next step is only for a goal the review covers: its goals, trees and levels. Anything else is refused, in the app and through the AI tools, with a sentence that says why.", "Anyone can still ask a question or agree a next step on the goal’s own page."],
+		articles: ["reviews"]
+	},
+	{
+		id: "metric-lists-proposed",
+		date: "2026-11-13",
+		title: "A metric’s page lists its proposed goals",
+		points: ["A proposed goal that names a metric is listed on the metric’s page under its goals, as “Proposed · 1”, with no numbers.", "It joins the comparison only once it is made active. The AI assistant’s get_metric gives them apart too."],
+		articles: ["metrics", "goal-proposed"]
+	},
+	{
+		id: "sidebar-fits-a-laptop",
+		date: "2026-11-13",
+		title: "The whole sidebar fits on a laptop screen",
+		points: ["The sidebar’s rows are a little tighter, so everything down to your name shows on a 900-pixel-high screen without scrolling.", "In the demo, the Demo button in the sidebar is one line: the word Demo, then who you’re viewing as."],
+		articles: ["getting-around", "demo"]
 	},
 	{
 		id: "import-review-lows",
@@ -24693,6 +24747,11 @@ function goalsOfMetric(s, cycle, today, week, metricId) {
 	const ids = new Set(links.map((l) => l.goalId));
 	return metricGoals(metricId, links, summariseAll(liveGoals(s).filter((g) => ids.has(g.id)), s, cycle, today, week), s.teams, cycle);
 }
+/** The cycle's proposed goals (GE10) a metric names, newest first: listed apart, with no numbers, in no comparison. */
+function proposedOfMetric(s, metricId) {
+	const ids = new Set(linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt).map((l) => l.goalId));
+	return (s.proposed ?? []).filter((g) => ids.has(g.id) && !g.removedAt).sort((a, b) => (b.proposedAt ?? "").localeCompare(a.proposedAt ?? ""));
+}
 /** Rule 1's line for a metric, its owner being someone here who hasn't left. */
 var lineOf = (s, m) => stillToSay(m, !!ownerName(s.people, m));
 // src/modules/metrics/tools.ts
@@ -24911,7 +24970,7 @@ var tools$2 = [
 	{
 		name: "get_metric",
 		title: "Read a metric",
-		description: "One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; and, for its owner and admins, what it still needs (rule 3).",
+		description: "One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -24937,6 +24996,12 @@ var tools$2 = [
 					owner: r.owner
 				}));
 				const summary = summaryLine(side);
+				const proposed = proposedOfMetric(ctx.snapshot, m.id).map((g) => ({
+					goalId: g.id,
+					key: g.key ?? null,
+					goal: g.title,
+					owner: ctx.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? null
+				}));
 				const needs = canEditMetric(ctx.actor, m) ? metricNeeds(m, libraryReads(ctx.snapshot, ctx.now)).map((x) => ({
 					id: x.id,
 					sentence: x.sentence
@@ -24958,6 +25023,7 @@ var tools$2 = [
 					`Caveats: ${d.caveats || "—"}`,
 					goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}`).join("\n")}` : "Measures no goal yet.",
 					...summary ? [summary] : [],
+					...proposed.length ? [`Proposed (${proposed.length}), not judged: ${proposed.map((x) => `${x.key ?? x.goalId} ${x.goal}${x.owner ? ` (${x.owner})` : ""}`).join("; ")}`] : [],
 					...needs.length ? [`To sort out: ${needs.map((x) => x.sentence).join("; ")}`] : []
 				];
 				return {
@@ -24965,6 +25031,7 @@ var tools$2 = [
 						...d,
 						stillToSay,
 						goals,
+						proposed,
 						summary,
 						needs
 					},
@@ -25312,7 +25379,7 @@ var tools$1 = [
 	{
 		name: "review_call",
 		title: "Say something in a review",
-		description: "In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.",
+		description: "In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. Only someone in the review, or an admin, can, and only about a goal the review covers (its goals, trees and levels). A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,

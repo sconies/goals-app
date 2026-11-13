@@ -4730,7 +4730,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 ## get_metric
 
-**Read a metric.** One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; and, for its owner and admins, what it still needs (rule 3).
+**Read a metric.** One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).
 
 From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
@@ -5187,7 +5187,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [AskStatus](
 
 ## review_call
 
-**Say something in a review.** In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.
+**Say something in a review.** In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. Only someone in the review, or an admin, can, and only about a goal the review covers (its goals, trees and levels). A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.
 
 From the [reviews](../modules/reviews/README.md) module: switched off with it.
 

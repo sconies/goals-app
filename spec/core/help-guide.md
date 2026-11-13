@@ -751,7 +751,7 @@ A regular look at the goals that need it, with notes, questions and actions that
 
 #### Who can
 
-Anyone can set up a review, and everyone can read every review. Only people in a review, or an admin, speak for it: mark goals reviewed, add a note, accept a risk, and ask a question or agree a next step in it. Anyone can still ask a question or agree a next step on a goal’s own page. Someone not in a review is told who can add them: someone in it, whoever set it up, or an admin, who can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it.
+Anyone can set up a review, and everyone can read every review. Only people in a review, or an admin, speak for it: mark goals reviewed, add a note, accept a risk, and ask a question or agree a next step in it, and only about the goals it covers. Anyone can still ask a question or agree a next step on a goal’s own page. Someone not in a review is told who can add them: someone in it, whoever set it up, or an admin, who can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it.
 
 ### The activity log
 
@@ -823,7 +823,7 @@ Routes: `/data`. Screens: `DataTables`, `DataFilters`, `DataLayout`. Requirement
 
 #### How to use it
 
-- Pick a table. Search it (each word you type starts a word in a shown column, as on Goals; a key like G-48 finds its goal), sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.
+- Pick a table. Search it (each word you type starts a word in a shown column, as on Goals, and the line under it says so while columns are hidden; a number like 12.5 is one word; a key like G-48 finds its goal, and on Check-ins and Asks that goal’s rows), sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.
 - Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.
 - Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.
 - Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.
@@ -1098,6 +1098,7 @@ A metric says exactly what a number means (what is counted, over what, its unit 
 - Find a metric by its name, unit, owner or meaning: “min lower” finds those in minutes where lower is better. Unit and Used by narrow the list beside the search; Filters has Owner, Which way is better, No goals use it and Something to sort out. Sort by A to Z, Most goals first or Changed lately. The filter line says what is on, each with Remove.
 - A search that finds nothing offers to add it as a new metric.
 - Open a metric to see what it means and how it’s calculated, then every goal measured by it as a table: its status as a shape and a word, the goal, who it is for (a team, or the whole company), the latest number, the target with its week, and where it stands against plan (for a goal kept in range, its room to the limit). When two or more goals have a number, a line says the lowest and highest now.
+- A proposed goal that names the metric is listed under the table, apart, as “Proposed · 1”: its name, key and owner, with no numbers. It is in no comparison until it is made active.
 - Below them: where the number comes from, who owns that source, how often it refreshes, any caveats, and who added and last changed it. With one goal, See its goal opens it.
 - On a goal measured by a metric, its summary says “Measured by …”, and its page has a block with the metric’s meaning and a link to the other goals measured by it. A person’s page lists the metrics they own, and a team’s the metrics its goals use.
 - Old links to Metrics under Data still work: they open the library, a metric, or the form.
