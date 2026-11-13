@@ -32,7 +32,7 @@ Module id `wrap-up`, in [src/modules/wrap-up/](../../../src/modules/wrap-up/modu
 | Id | What | Where |
 |---|---|---|
 | U10 | Close the cycle: owners wrap up their goals, an admin starts the next cycle | `evals/journeys.cjs` |
-| U158 | Amara switches the Wrap-up off: before it opens it acts at once, then /retro says it is off and Cycles offers no wrap-up | `evals/journeys.cjs` |
+| U166 | Amara switches the Wrap-up off: before it opens it acts at once, then /retro says it is off and Cycles offers no wrap-up | `evals/journeys.cjs` |
 | N22 | Watching, the Wrap-up, the Goal map and Feedback switched off: no menu row, tab, layout, button or Help article of theirs, and each comes back on | `evals/notes/22-more-switches.cjs` |
 
 ## Help

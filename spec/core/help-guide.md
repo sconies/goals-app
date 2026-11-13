@@ -533,6 +533,7 @@ A proposed goal’s page is simpler: Proposed above the title, what it would mea
 #### The summary bar
 
 - First line: the goal, its owner, its level and its key (G-12). Then its status as a shape and a word, and the number in the goal’s own units.
+- Before a goal’s first check-in, a baseline it was given with its period is shown as its number, with “Baseline, June to September 2026, provisional” beside it; lists say “41.5 min (baseline)”. Its status is No check-in yet as before, until someone checks in.
 - Beside the key: when it was last updated, the latest check-in’s date and its week (“Updated 6 Nov · week 45”).
 - Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go; when lower is better, how far over the target it still is: “5 min over”), and Will it hit the target. A gap on the wrong side of a plan says “short” when higher is better and “over” when lower is better, and a number shown equal to its plan counts as met.
 - Will it hit the target says Likely, Possible, Unlikely or Very unlikely, never a percentage. It comes from where the target sits against the projected range: comfortably on the near side of the likeliest value is Likely; close to it, or inside the range beyond it, is Possible; just beyond the range (within half its width) is Unlikely; further is Very unlikely. Under it, the likeliest end, such as “likely 37 hours by year end”.
@@ -558,6 +559,7 @@ A proposed goal’s page is simpler: Proposed above the title, what it would mea
 - The comment box is one line, Add a comment, until you press it. Open, it says who will see what you write before you post: everyone in the workspace can read it, and the owner and the people watching see it on Home. Cancel closes it and keeps what you typed.
 - Watch opens a sheet that says what watching does: the goal’s check-ins, changes of status and new asks show on your Home and under Watching in Goals, your name is listed under Watched by, and Faro sends no email. With goals feeding it, choose this goal, or it and everything feeding it. Watching, the same sheet has Done and Stop watching; each says what it did, with Undo.
 - This year by quarter, then History: every week from when the goal was set up to this one, newest first, with its check-in or “No check-in” (four or more missed in a row are one line, “Weeks 12 to 17 · No check-ins (6 weeks)”), and the goal’s comments, what reviews said and its changes, with a comment box at the top. This week’s check-in points to Why for its reason rather than saying it twice.
+- A check-in whose number was filled in from its metric’s source says so on a second line in History: “From CI analytics, read 9:02 on Thu 12 Nov. Rhea Kapoor checked in.”, or, when the owner typed their own, “Typed by Rhea Kapoor. CI analytics said 13 min.” with their reason. It is a fact about the check-in, so it stays when the Metric library is switched off.
 - History’s filters, each with its count: All, Check-ins, Comments, Reviews (what was said in a review, and asks raised in one, even after the review is renamed) and Changes (edits to the goal, its plan, owner and the rest). The filter is in the address (?history=changes), so a link or a reload shows the same list; Show all is ?all=1. With more than 30 entries, find in the goal’s history, or go to a week. An old link to #activity opens History.
 - About this goal: what it measures (or Describe it, for the owner, when it isn’t described yet), its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change, and one link: Change this goal. It’s open the first time you visit, and folded after.
 - On a computer from about 1,100 px wide, Next steps and asks and Last time we talked sit in a side column; on a phone everything is in one column, in this order.
@@ -651,7 +653,7 @@ Requirements: `FIND-AND-PICK`, `LIST-BAR`, `FIND-ANYWHERE`.
 
 `new-goal`. A new goal takes four short steps: what you want to achieve, whose it is and where it fits, how it’s measured, then a check before publishing.
 
-Routes: `/goals/new`, `/goals/new/:step`. Screens: `GoalWizard`. Requirements: `GOAL-CREATE`, `GOAL-ENTRY-REQUIRED`, `GOAL-DATES`, `NEW-GOAL-STEPS`, `NEW-GOAL-TRUTH`, `PLAN-SHAPE`, `LEVELS`, `FIRST-CHECKIN`, `HIERARCHY`, `NO-SILENT-ROUNDING`, `SAME-NAMES`.
+Routes: `/goals/new`, `/goals/new/:step`. Screens: `GoalWizard`. Requirements: `GOAL-CREATE`, `GOAL-BASELINE`, `GOAL-ENTRY-REQUIRED`, `GOAL-DATES`, `NEW-GOAL-STEPS`, `NEW-GOAL-TRUTH`, `PLAN-SHAPE`, `LEVELS`, `FIRST-CHECKIN`, `HIERARCHY`, `NO-SILENT-ROUNDING`, `SAME-NAMES`.
 
 #### How to use it
 
@@ -659,6 +661,7 @@ Routes: `/goals/new`, `/goals/new/:step`. Screens: `GoalWizard`. Requirements: `
 - Each step says what it needs: “Everything here is needed unless it says optional”, and an optional field says “· optional” after its name. A problem shows under its own field once you have changed it and moved on, never while you type. Continue is never greyed out: pressed with something to fix, every problem on the step shows, the first field is chosen, and one line above the button counts them (“2 things to fix above: Unit and Target”).
 - Step 2, who and where: the owner starts as you and the team follows the owner until you change it. Type to find a person, a team or a goal: nothing is chosen from a list of everything. The level starts one below the goal it feeds, else Team; if you lead a team that already has SVP or north-star goals, you’re asked. “Feeds into” suggests the goals one level up in the team first, worst first. “Also helps” can be set here too.
 - Step 3, how it’s measured: for a number, its unit (optional, and empty to start: type %, days, incidents or whatever it counts), then two rows: Baseline with From (the number, and the week it was true, when the plan starts) and Target with To (the number, and the week it is due). From starts as this week and To as the end of the year (in the year’s last week, the end of next year); the line under them says how many weeks that is. Then how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. “Adjust the plan week by week” opens the plan table, where any week can be typed over. Say how it’s measured and where the number comes from, so everyone reads it the same way.
+- Under Baseline, Period the baseline covers (optional): when the baseline is a figure you already have, say the period it covers, such as “June to September 2026”, and tick Provisional if it may still be firmed up. The goal then shows it as its number, marked as the baseline, until its first check-in.
 - Step 4, check: “Does this read right?” Nothing is saved until you publish. The goal is read back in sentences, each with Change to its step: What (the type, the numbers with their weeks and dates, how progress comes, and whether higher or lower is better), Who and where (owner, team, level, what it feeds, what else it helps, a guardrail), Measured by (the metric, or how it’s measured in words), Left as usual (every default you didn’t change, such as “Whole numbers.” or “Not a guardrail.”) and You said (each question you answered). After Change, Continue brings you straight back; a change that leaves a later step needing something (another type, say) opens that step first. The metric you chose stays chosen through a reload or a kept draft, and it is for the goal’s team as it is now: choose another team and Check says the new one.
 - Under the rows, After you publish says what happens next: when the first check-in is due (“Its first check-in is due by Thursday 12 Nov, then every week”, with what the plan expects the week after), who sees it (for someone else: they see it on their Home next time they open Faro; Faro doesn’t send email), the reviews that will walk it, and how long it can still be changed freely or deleted (until its first check-in; stages you said are already done count as its first check-in, so it can then be stopped, with a reason, but not deleted). With every stage already done, no check-in is due. Publish it: the goal’s page opens with “Published”, and nothing on the form asks again once you have pressed it; the owner is then offered the first check-in.
 - On a phone the steps take the whole screen, as every form does: the tab bar steps aside, so Back and Continue are always in reach.
@@ -685,7 +688,7 @@ Anyone can set up a goal, for themselves or for anyone else, at any level: here,
 
 `goal-proposed`. A goal can be proposed before anyone is held to it: everyone can see it and comment, it has no status and nothing is due, and its owner or an admin makes it active when it is agreed.
 
-Routes: `/goals?state=proposed`. Screens: `ProposedGoal`, `ProposedList`. Requirements: `GOAL-PROPOSED`.
+Routes: `/goals?state=proposed`. Screens: `ProposedGoal`, `ProposedList`. Requirements: `GOAL-PROPOSED`, `GOAL-NO-TARGET`.
 
 #### What it’s for
 
@@ -696,6 +699,7 @@ Putting a goal in front of its would-be owner, or a leader, without committing t
 - Propose one from New goal: on Check, answer “Is it under way?” with “Not yet: propose it”, then Propose goal. It gets a key and a page at once. How it’s measured may wait.
 - Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.
 - Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.
+- A number goal can be proposed with its Baseline and no Target yet, when the number is known but nobody has agreed where it should go. It says “Target not set” (in lists: “0.42 USD now, target not set”), has no status and nothing due, and needs a target before it can be made active: Set the target on its page opens Change it at the plan. Leaving out the Baseline and giving only a Target isn’t enough: the baseline is what such a goal is.
 - Change it: the same page as any goal, with no reason ever asked, and its type can still change. Withdraw it: it goes to Recently removed for 30 days, with Undo.
 - Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.
 - In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet. Only people in the review, or an admin, can propose one there.
@@ -721,6 +725,7 @@ Routes: `/goals/:goalId/edit`. Screens: `GoalEdit`. Requirements: `PLAN-CHANGE`,
 - A link can open the page at a section: add #definition, #plan or #owner to the address. Describe it on a goal with no definition opens What it is. Older links that opened one part of the form land on the matching section.
 - The owner, the team and the goals are found by typing a name or a key; a goal already under this one is listed but can’t be chosen to feed it.
 - Plan and target has the same two rows as a new goal: Baseline with From, Target with To, each week chosen from the list of weeks with their dates. Changing From or To after check-ins have started is a plan change, so it asks why.
+- Under them, Period the baseline covers and Provisional, as on New goal. Firming up a provisional baseline, changing the Baseline number while Provisional is ticked, isn’t a plan change: it asks no reason and keeps no earlier plan. Untick Provisional once the figure is firm.
 - Plan by week shows the numbers week by week; type over any week.
 - After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s history.
 - Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about. A target on the worse side of the start for the metric that measures the goal is asked about too (“Lead time for changes is better lower, but the target is above today”), here, in a spreadsheet and through the AI assistant, and your answer is kept in the goal’s History as Checked.
@@ -1121,7 +1126,7 @@ People used to be a section of Workspace. Its old address, /workspace/people, st
 
 `metrics`, from the metrics module. The metric library: each number goals are measured by, defined once, with its page saying what it means and every goal measured by it, side by side.
 
-Routes: `/metrics`, `/metrics/:metricId`, `/data/metrics`. Screens: `Metrics`, `MetricPlaces`. Requirements: `METRICS-LIBRARY`.
+Routes: `/metrics`, `/metrics/:metricId`, `/data/metrics`. Screens: `Metrics`, `MetricPlaces`. Requirements: `METRICS-LIBRARY`, `READING-SHOWN`.
 
 #### What it’s for
 
@@ -1135,6 +1140,7 @@ A metric says exactly what a number means (what is counted, over what, its unit 
 - Open a metric to see what it means and how it’s calculated, then every goal measured by it as a table: its status as a shape and a word, the goal, who it is for (a team, or the whole company), the latest number, the target with its week, and where it stands against plan (for a goal kept in range, its room to the limit). When two or more goals have a number, a line says the lowest and highest now.
 - A proposed goal that names the metric is listed under the table, apart, as “Proposed · 1”: its name, key and owner, with no numbers. It is in no comparison until it is made active.
 - Below them: where the number comes from, who owns that source, how often it refreshes, any caveats, and who added and last changed it. With one goal, See its goal opens it.
+- For a metric that says where its number comes from, In each goal’s check-in lists its goals and how each one’s check-in gets its number: “Filled in from CI analytics · last read 9:02 today”, “Typed by hand: CI analytics has no number per team”, or “Typed by hand: no source can be read”. Under it: “In the last 8 weeks, 1 of 8 check-ins filled in from CI analytics used a different number.”, with See them for those goals and weeks. It says how far the source can be trusted, for whoever owns it; it names goals and weeks, never people.
 - On a goal measured by a metric, its summary says “Measured by …”, and its page has a block with the metric’s meaning and a link to the other goals measured by it. A person’s page lists the metrics they own, and a team’s the metrics its goals use.
 - Old links to Metrics under Data still work: they open the library, a metric, or the form.
 
@@ -1168,7 +1174,7 @@ Routes: `/metrics/new`, `/metrics/:metricId/edit`. Requirements: `METRIC-DEFINED
 - What you type is kept as a draft: Close, Back or a reload doesn’t lose it. Opened from a metric’s To sort out or its completeness line, the form opens at the field that needs filling.
 - Changing the unit or which way is better of a metric goals use asks first, here and through the AI assistant: their numbers and plans don’t change, and the goals that now differ say so under “Measured by” on their page.
 - Workspace → About tells admins how many metrics have no owner (someone who left owned them), with See them.
-- On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back.
+- On a metric’s page, its owner and admins choose Change this metric, Retire this metric… (one a goal has used) or Delete this metric… (one no goal has used). Retiring keeps its goals’ numbers and plans; Undo, Bring it back, or Recently removed for 30 days for a deleted one, puts it back.
 - An AI assistant asks the same questions: save_metric returns them and saves nothing until it calls again with your answers to those questions. Someone who may not change a metric is told so before being asked anything.
 
 ### Measured by: choosing a goal’s metric
@@ -1191,7 +1197,7 @@ Screens: `MeasuredBy`. Requirements: `METRICS-MEASURED-BY`.
 
 `metric-slices`, from the metrics module. What a goal takes from its metric and what stays its own, whose number it is, and one part of that number.
 
-Requirements: `METRIC-PARTS`, `READING-PREFILL`, `READING-RECORDED-ONLY`, `READING-SEVEN-DAYS`.
+Requirements: `METRIC-PARTS`, `READING-PREFILL`, `READING-RECORDED-ONLY`, `READING-SEVEN-DAYS`, `READING-SHOWN`.
 
 #### What a goal takes from its metric
 
@@ -1213,6 +1219,8 @@ Requirements: `METRIC-PARTS`, `READING-PREFILL`, `READING-RECORDED-ONLY`, `READI
 #### On the goal’s page
 
 - About lists Measured by: For, what it means, From the metric, where the number comes from, caveats, the goal’s own target, and its own definition when that says more than the metric’s.
+- When the latest check-in recorded what the source said, Measured by adds This week’s number: “12 min, from CI analytics, read 9:02 today. Confirmed by Rhea Kapoor.”, or “14 min, typed by Rhea Kapoor. CI analytics said 12 min.” Faro keeps no series of readings: it says only what that check-in recorded.
+- Each check-in in History says the same under its number: “From CI analytics, read 9:02 on Thu 12 Nov. Rhea Kapoor checked in.”, or “Typed by Rhea Kapoor. CI analytics said 13 min. The source counts something else: …” with the owner’s words. A review’s agenda adds “· from CI analytics” after a confirmed number, quietly; a typed one says nothing. The Check-ins sheet of an export has Number from, Source’s number, Measured at and Reason for a different number, for reading only.
 
 #### In the check-in
 
@@ -1234,14 +1242,15 @@ Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-CHANGE`.
 #### What reads back first
 
 - Changing what a metric means, or where its number comes from, shows the goals it measures and asks “Is it still the same number?”. Same number, better words: nothing is marked. The number itself changes: say why, in a line, and each goal’s chart and History say “Definition changed, week {w}” with your reason. Their numbers and plans don’t change.
-- Changing which way is better needs a reason too, names the goals whose target now lies the wrong way, and marks each goal.
+- Changing which way is better needs a reason too, names the goals whose target now lies the wrong way, and marks each goal. Goals that are stopped count too, as they can be restored.
 - A new unit is either a new label for the same numbers (every goal’s unit changes with it) or a different scale. A different scale is a different metric: add it as a new metric and move goals to it, or retire this one.
 - Fewer decimal places names the goals that show more; they keep theirs until their owners change them.
-- Undo takes back the change, its marks and, for a new label, every goal’s unit, as one.
+- The toast after a change has Undo: it takes back the change, its marks and, for a new label, every goal’s unit, as one.
+- A mark belongs to the year it was made in: a change made next year leaves this year’s goals as they were. A chart shows the latest three, and two in one week as one line.
 
 #### Retire, not delete
 
-- A metric that has measured a goal is retired, not deleted: its goals keep their numbers and plans and say “Measured by {metric}, retired {date}”. It leaves the pickers and the library’s list (Retired metrics are listed apart), and it can be brought back at any time with Bring it back.
+- A metric that has measured a goal is retired, not deleted: its goals keep their numbers and plans and say “Measured by {metric}, retired {date}”. It leaves the pickers and the library’s list; See the retired metrics, under the list (or Filters, Retired metrics only), lists them, and any can be brought back with Bring it back. Adding a metric with its name says it is retired and links to it.
 - Say why it is retired. Name what replaces it, in the same unit, and its goals’ owners are offered it on the goal’s page.
 - A metric no goal has ever used is deleted instead, and can be put back from Recently removed for 30 days.
 

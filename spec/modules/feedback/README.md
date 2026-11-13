@@ -46,7 +46,7 @@ Module id `feedback`, in [src/modules/feedback/](../../../src/modules/feedback/m
 | U51 | Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees About, Cycles and Privacy read-only and their own removals, and old links still land, the inbox’s at Feedback | `evals/journeys.cjs` |
 | U52 | Anyone works an inbox of 75 markups and pieces of feedback down to nothing new: a folded row handled together, keys or Next, filters and search, and batches closed a page at a time | `evals/journeys.cjs` |
 | U53 | Workspace is one place: the switcher at the top switches as a page move (Back returns, a check-in draft is warned about and kept), your role is said in one line, About names the admins, Feedback is beside Help, and a member leaves from Settings | `evals/journeys.cjs` |
-| U157 | Feedback and the Goal map off: no Feedback in the menu, Ctrl+Shift+M opens nothing, /feedback says it is off; Goals offers four layouts and a link to the Map opens the List and says so; both back on, the Map opens | `evals/journeys.cjs` |
+| U165 | Feedback and the Goal map off: no Feedback in the menu, Ctrl+Shift+M opens nothing, /feedback says it is off; Goals offers four layouts and a link to the Map opens the List and says so; both back on, the Map opens | `evals/journeys.cjs` |
 | N22 | Watching, the Wrap-up, the Goal map and Feedback switched off: no menu row, tab, layout, button or Help article of theirs, and each comes back on | `evals/notes/22-more-switches.cjs` |
 
 ## Help

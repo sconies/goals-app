@@ -52,7 +52,7 @@ const RULES = [
   // Reviews behind its switch (FT2): its read-back, a switched-off module's addresses, and its two journeys.
   [/^src\/domain\/reviewsOff\.ts$|^src\/screens\/NotFound\.tsx$|^src\/ui\/SwitchedOff\.tsx$|^evals\/notes\/21-switched-off\.cjs$/, ['U103', 'U104', 'U48', 'N21']],
   // SW1: the four switches whose code is still the core's, their read-backs and the Features page's groups.
-  [/^src\/domain\/switchOff\.ts$|^src\/app\/reads\.ts$|^src\/domain\/home\.ts$|^src\/screens\/(Workspace|Home|GoalsScreen|GoalViews)\.tsx$|^src\/ui\/(Shell|goalRows)\.tsx$|^evals\/notes\/22-more-switches\.cjs$/, ['U156', 'U157', 'U158', 'N22', 'N21']],
+  [/^src\/domain\/switchOff\.ts$|^src\/app\/reads\.ts$|^src\/domain\/home\.ts$|^src\/screens\/(Workspace|Home|GoalsScreen|GoalViews)\.tsx$|^src\/ui\/(Shell|goalRows)\.tsx$|^evals\/notes\/22-more-switches\.cjs$/, ['U164', 'U165', 'U166', 'N22', 'N21']],
   // Its clock (RS1): dueWords and the receipt, the read-back's two lines; the words with it off, and back on (N30, the tools' one
   // sentence, is a spec scenario in evals/mcp.eval.ts, which always runs).
   [/^src\/domain\/(reviewsOff|progress)\.ts$|^src\/screens\/CheckInFlow\.tsx$|^src\/mcp\/moduleOff\.ts$|^evals\/notes\/21-switched-off\.cjs$/, ['U154', 'U155', 'N21']],
@@ -70,7 +70,7 @@ const RULES = [
   [/^evals\/finish\/10-people\.cjs$/, ['F10']],
   // The metric library (ML1): its two checks.
   [/^evals\/(finish\/15-metrics|notes\/16-metrics)\.cjs$/, ['F15', 'N16']],
-  [/^evals\/notes\/28-readings\.cjs$/, ['N28']],
+  [/^evals\/notes\/29-readings\.cjs$/, ['N29']],
   [/^src\/screens\/Print\.tsx|^src\/domain\/onePager\.ts/, ['N6']],
   [/^src\/screens\/Research\.tsx|^src\/app\/research\.ts/, ['U28', 'U40']],
   [/^src\/screens\/Help\.tsx/, ['N7']],

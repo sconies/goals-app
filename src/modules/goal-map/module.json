@@ -25,7 +25,7 @@
     "U90",
     "U134",
     "U135",
-    "U157",
+    "U165",
     "F6",
     "N22"
   ],
@@ -37,8 +37,8 @@
       "Goals' layouts and the roll-up of what feeds a goal are the core's (stage 3); the map draws them and adds nothing to them."
     ],
     "exit": [
-      "Switched off, Goals' Layout offers List, Table, Board and History, and nothing on Goals says Map (journey U157).",
-      "Switched off, /goals?view=map opens the List with “The Goal map is off here, so this is the List.” once; switched back on, the same address opens the Map (journey U157, check N22)."
+      "Switched off, Goals' Layout offers List, Table, Board and History, and nothing on Goals says Map (journey U165).",
+      "Switched off, /goals?view=map opens the List with “The Goal map is off here, so this is the List.” once; switched back on, the same address opens the Map (journey U165, check N22)."
     ],
     "gaps": [
       "The Goal map is a switch, not yet a folder of its own (SW5 moves it): its screen (src/screens/GoalMap.tsx), the drawing half of src/domain/map.ts and the Map layout's control in src/screens/GoalsScreen.tsx are still the core's. src/app/reads.ts goalMapOn is the one place that asks whether it is on; the rule that opens the List instead is src/domain/query.ts layoutOn.",

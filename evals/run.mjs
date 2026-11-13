@@ -298,7 +298,7 @@ if (quick && LEFT_OUT.modules.length) {
 if (quick) {
   const took = clock();
   build({ down: quick.down });
-  console.log(`\n▸ Spec scenarios, and journeys ${quick.journeys.join(' ')} with checks ${quick.checks.join(' ')} and P5, side by side`);
+  console.log(`\n▸ Spec scenarios, and journeys ${quick.journeys.join(' ')} with checks ${quick.checks.join(' ')} and P5${Number(process.env.PHONE_CPU ?? '4') > 1 ? `, phone pages slowed ${process.env.PHONE_CPU ?? '4'}×` : ''}`);
   const servers = await startServers(quick.down ? [[PORT], [PORT + 1, 'evals/out/dist-down']] : [[PORT]]);
   const stopHang = quick.down ? startHang() : () => {};
   // Two journey processes and the scenarios at once (they used to run one after another), balanced by how long each
@@ -306,10 +306,17 @@ if (quick) {
   const halves = [{ journeys: [], checks: [], s: 0 }, { journeys: [], checks: [], s: 0 }];
   const units = [...quick.journeys.map((id) => ({ id, w: QUICK_WEIGHTS[id] ?? JOURNEY_WEIGHTS[id] ?? 9.5, j: true })), ...quick.checks.map((id) => ({ id, w: WEIGHTS[id] ?? 20, j: false }))].sort((x, y) => y.w - x.w);
   for (const u of units) { const h = halves[0].s <= halves[1].s ? halves[0] : halves[1]; (u.j ? h.journeys : h.checks).push(u.id); h.s += u.w; }
-  const env = { BASE: `http://localhost:${PORT}`, ...(quick.down ? { DOWN: `http://localhost:${PORT + 1}` } : {}) };
+  // The runs before a merge (smoke, and what a change touches) run phone pages with the CPU slowed 4× (evals/phoneCpu.cjs,
+  // Lane, 13 Nov), so a race only a slow phone shows turns up on the pull request. A slowed page keeps its core busy, so
+  // the two journey processes then run one after another, not side by side, and starve nothing; the full suite after
+  // the merge runs at full speed. PHONE_CPU=1 runs a quick run at full speed too.
+  const phoneCpu = process.env.PHONE_CPU ?? '4';
+  const slowed = Number(phoneCpu) > 1;
+  const env = { BASE: `http://localhost:${PORT}`, PHONE_CPU: phoneCpu, ...(quick.down ? { DOWN: `http://localhost:${PORT + 1}` } : {}) };
+  const half = (h, i) => (!h.journeys.length && !h.checks.length ? null : journeysProc({ ...env, ONLY: h.journeys.join(','), CHECKS: h.checks.join(','), FINISH: '', OUT_FILE: `quick-${i + 1}.json` }, path.join(out, `quick-${i + 1}.log`)));
   await Promise.all([
     new Promise((resolve) => { const p = spawn('npx', ['vitest', 'run', '--config', 'evals/vitest.config.ts', '--reporter=default', '--reporter=json', '--outputFile=evals/out/scenarios.json'], { cwd: root, stdio: ['ignore', fs.openSync(path.join(out, 'scenarios.log'), 'w'), 'inherit'] }); p.on('close', resolve); }),
-    ...halves.map((h, i) => (!h.journeys.length && !h.checks.length ? null : journeysProc({ ...env, ONLY: h.journeys.join(','), CHECKS: h.checks.join(','), FINISH: '', OUT_FILE: `quick-${i + 1}.json` }, path.join(out, `quick-${i + 1}.log`)))),
+    ...(slowed ? [(async () => { for (const [i, h] of halves.entries()) await half(h, i); })()] : halves.map(half)),
   ]);
   servers.forEach((x) => x.kill());
   stopHang();

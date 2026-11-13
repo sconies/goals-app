@@ -42,6 +42,7 @@ Some things the internal app must do, Faro leaves to the platform it is rebuilt 
 - [R9. Observability and service levels](../requirements/internal/r9-observability.md): the signals sent to the company’s tools, the service levels promised, and what pages the on-call person
 - [R10. Accessibility](../requirements/internal/r10-accessibility.md): WCAG 2.2 AA on every screen: shape and word, the keyboard, screen readers, zoom and reflow
 - [R11. Large imports, a server-side job](../requirements/internal/r11-large-imports.md): an import of tens of thousands of rows as a job on the server: the rules run there, one state at the end, Undo kept per import (R-L1 to R-L6)
+- [R12. Number sources](../requirements/internal/r12-number-sources.md): connectors for where metrics’ numbers are kept: credentials on the server, a reference per metric and slice, readings on a schedule with revisions, failures to the source’s owner (R12.1 to R12.8)
 
 ## The drill: a fresh session rebuilds a stage from the kit alone
 

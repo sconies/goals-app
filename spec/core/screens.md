@@ -355,6 +355,8 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Start a new one” | button | `restored` and `!asking` |
 | “Discard it” | button | `asking` |
 | “Keep it” | button | `asking` |
+| “No target agreed yet? Propose it with just the baseline” | button | `step === 2` and `d.kind === 'metric'` and `!proposing && baselineOnly(d)` |
+| “Baseline known for a period?” | button | `step === 2` and `d.kind === 'metric'` and `!(baselineOpen \|\| d.baselinePeriod)` |
 | “At most” | button | `step === 2` and `d.kind === 'range'` |
 | “At least” | button | `step === 2` and `d.kind === 'range'` |
 | “Between” | button | `step === 2` and `d.kind === 'range'` |
@@ -1390,7 +1392,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “Finish it” | primary | `canActivate` and `missing.length` |
+| “Set the target / Finish it” | primary | `canActivate` and `missing.length` |
 | “Make it active” | primary | `canActivate` and `!missing.length` |
 | “Change it” | link | `canActivate` |
 | “Withdraw it” | button | `canActivate` |

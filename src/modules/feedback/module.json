@@ -54,7 +54,7 @@
     "U51",
     "U52",
     "U53",
-    "U157",
+    "U165",
     "N22"
   ],
   "elsewhere": [],
@@ -66,7 +66,7 @@
       "The menu's last group (Workspace, Settings, Help) is the core's (stage 3); Feedback's row follows Help while it is on."
     ],
     "exit": [
-      "Switched off, the menu's last group is Workspace, Settings, Help (desktop and More on a phone), and Ctrl+Shift+M opens nothing (journey U157).",
+      "Switched off, the menu's last group is Workspace, Settings, Help (desktop and More on a phone), and Ctrl+Shift+M opens nothing (journey U165).",
       "Switched off, /feedback, /workspace/inbox and /inbox show Page not found with “Feedback is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and the eight tools answer the switched-off module's sentence (check N22).",
       "Switched off, sending feedback refuses with “Feedback is off in {workspace}.”; what was sent before stays in the builders' inbox, and switching it back on brings the row, the page and the key back."
     ],

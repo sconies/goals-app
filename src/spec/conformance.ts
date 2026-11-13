@@ -352,6 +352,14 @@ export function importCases(w: ConformanceWorkspace): ImportCase[] {
   return [
     { case: 'required-empty', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'No owner', Unit: '%', Start: '1', Target: '2' }] },
     { case: 'required-empty-start', actor: 'amara', sheet: 'goals', rows: [fresh({ Start: '' })] },
+    // BL: a baseline of its own, a period too long for it, and a word Baseline is doesn't know.
+    { case: 'baseline-provisional', actor: 'amara', sheet: 'goals', rows: [fresh({ 'Baseline period': 'June to September 2026', 'Baseline is': 'provisional' })] },
+    { case: 'baseline-period-long', actor: 'amara', sheet: 'goals', rows: [fresh({ 'Baseline period': 'The whole of the summer quarter and most of the autumn one, 2026' })] },
+    { case: 'baseline-is-unknown', actor: 'amara', sheet: 'goals', rows: [fresh({ 'Baseline period': 'Q3 2026', 'Baseline is': 'maybe' })] },
+    // GB: a proposed goal with a Baseline and no Target loads; an active one, or a Target with no Baseline, is a Must fix.
+    { case: 'proposed-target-not-set', actor: 'amara', sheet: 'goals', rows: [fresh({ Target: '', State: 'proposed' })] },
+    { case: 'active-target-empty', actor: 'amara', sheet: 'goals', rows: [fresh({ Target: '', State: 'active' })] },
+    { case: 'proposed-start-empty', actor: 'amara', sheet: 'goals', rows: [fresh({ Start: '', State: 'proposed' })] },
     { case: 'not-a-number', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-14', Week: String(week), Value: 'six' }] },
     { case: 'formula', actor: 'amara', sheet: 'goals', rows: [fresh({ Target: '=20+2' })] },
     { case: 'precision', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-14', Week: String(week), Value: '6.25' }] },

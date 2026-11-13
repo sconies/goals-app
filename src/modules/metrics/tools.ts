@@ -7,7 +7,7 @@ import type { Commit } from '../../domain/commit';
 import { findGoal, isKey } from '../../domain/goalKey';
 import * as M from './rules';
 import { linkGoalMetric, linkReads } from './rulesLink';
-import { mergeMetrics, retireMetric, unretireMetric } from './rulesChange';
+import { linkedGoals, mergeMetrics, retireMetric, unretireMetric } from './rulesChange';
 import * as L from './rulesLibrary';
 import { goalsOfMetric, libraryReads, lineOf, proposedOfMetric } from './reads';
 import { answersFrom } from './rulesDefine';
@@ -21,7 +21,11 @@ import type { McpContext, ToolDef, ToolResult } from '../../mcp/tools';
 import { listed } from '../../mcp/listed';
 import { VIA_MCP } from '../../domain/via';
 import { addCheckInReader } from '../../mcp/checkInReaders';
-import { metricReader } from './readingTool';
+import { metricReader, toolSources } from './readingTool';
+import { differentNumbers, differentWords, fillsIn, fillsInWords } from './rulesReading';
+import { sliceOf as readSlice } from './source';
+import { checkInsFor } from '../../domain/status';
+import { readWhen } from '../../domain/reading';
 
 // post_check_in's reading_confirmed and different_because read the goal's source here (NR rule 3).
 addCheckInReader(metricReader);
@@ -141,7 +145,13 @@ const tools: ToolDef[] = [
         const m = metricOf(ctx, a.metric);
         const d = metricData(ctx, m);
         const side = goalsOfMetric(ctx.snapshot, ctx.cycle, ctx.today, ctx.week, m.id);
-        const goals = side.map((r) => ({ goalId: r.goal.id, key: r.goal.key ?? null, goal: r.goal.title, status: r.status, statusLabel: LABEL[r.status], slice: r.slice, now: r.now, target: r.target, vsPlan: r.vsPlan, owner: r.owner }));
+        // Rule 4 (NR 2.4): how each goal's check-in gets its number, and how often one filled in was typed over.
+        const sources = toolSources(ctx);
+        const live = M.linksOf(ctx.snapshot).filter((l) => l.metricId === m.id && !l.removedAt);
+        const inItsCheckIn = (goal: (typeof side)[number]['goal']) => { const l = live.find((x) => x.goalId === goal.id); return l ? fillsInWords(fillsIn(sources, m, readSlice(l), checkInsFor(goal, ctx.snapshot.checkIns)), (at) => readWhen(at, ctx.today, 'UTC')) : null; };
+        const different = differentNumbers(ctx.snapshot.checkIns, new Map(side.map((r) => [r.goal.id, r.goal.kind === 'milestone' ? 0 : r.goal.decimals] as [string, number])), ctx.week)
+          .map((d) => ({ source: d.source, checkIns: d.n, different: d.k, weeks: d.weeks.map((w) => ({ goalId: w.goalId, week: w.week })), line: differentWords(d) }));
+        const goals = side.map((r) => ({ goalId: r.goal.id, key: r.goal.key ?? null, goal: r.goal.title, status: r.status, statusLabel: LABEL[r.status], slice: r.slice, now: r.now, target: r.target, vsPlan: r.vsPlan, owner: r.owner, inItsCheckIn: inItsCheckIn(r.goal) }));
         const summary = L.summaryLine(side);
         // Proposed goals (GE10) that name it: apart, with no numbers, in no comparison.
         const proposed = proposedOfMetric(ctx.snapshot, m.id).map((g) => ({ goalId: g.id, key: g.key ?? null, goal: g.title, owner: ctx.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? null }));
@@ -154,7 +164,8 @@ const tools: ToolDef[] = [
         const lines = [
           `${d.name} (${d.id})`, still.line, `Unit: ${d.unit}, ${L.decimalsWords(d.decimals)} · ${d.directionLabel}`, `Meaning: ${d.meaning || '—'}`,
           `Source: ${d.source || '—'} (owned by ${d.sourceOwner || '—'}) · refresh: ${d.refresh ?? 'not said'}`, `Owner: ${d.owner ?? '—'}`, `Caveats: ${d.caveats || '—'}`,
-          goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}`).join('\n')}` : 'Measures no goal yet.',
+          goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}${x.inItsCheckIn ? ` · in its check-in: ${x.inItsCheckIn}` : ''}`).join('\n')}` : 'Measures no goal yet.',
+          ...different.map((d) => `${d.line}${d.weeks.length ? ` (${d.weeks.map((w) => `${goals.find((x) => x.goalId === w.goalId)?.key ?? w.goalId} week ${w.week}`).join(', ')})` : ''}`),
           ...(summary ? [summary] : []),
           ...(parts.length ? [`Parts in use: ${parts.join(', ')}`] : []),
           ...(proposed.length ? [`Proposed (${proposed.length}), not judged: ${proposed.map((x) => `${x.key ?? x.goalId} ${x.goal}${x.owner ? ` (${x.owner})` : ''}`).join('; ')}`] : []),
@@ -164,7 +175,7 @@ const tools: ToolDef[] = [
         const history = ctx.snapshot.changes.filter((c) => c.entity === 'metric' && c.entityId === m.id && !c.goalId).slice(-20).reverse().map((c) => ({ at: c.at, by: name(ctx, c.actorId), action: c.action, summary: c.summary }));
         if (d.retired) lines.splice(1, 0, `Retired on ${d.retired.at.slice(0, 10)} by ${d.retired.by ?? '—'}: “${d.retired.why}”${d.retired.replacedBy ? ` Replaced by ${M.metricsOf(ctx.snapshot).find((x) => x.id === d.retired!.replacedBy)?.name ?? d.retired.replacedBy}.` : ''}`);
         if (d.marks.length) lines.push(`Marks on its goals: ${d.marks.map((k) => `${k.kind === 'direction' ? 'direction' : 'definition'} changed in week ${k.week}: ${k.why}`).join('; ')}`);
-        return { data: { ...d, stillToSay, goals, parts, proposed, summary, needs, history }, text: lines.join('\n') };
+        return { data: { ...d, stillToSay, goals, differentNumbers: different, parts, proposed, summary, needs, history }, text: lines.join('\n') };
       });
     },
   },
@@ -201,11 +212,16 @@ const tools: ToolDef[] = [
           const checks = open.map((c) => ({ field: c.field, question: c.words, answers: c.answers.map((x) => ({ answer: x.choice, label: x.label })) }));
           return { data: { saved: false, checks }, text: `Nothing saved yet. Ask the person, then call again with answers:\n${checks.map((c) => `- ${c.field}: ${c.question} (${c.answers.map((x) => `${x.answer}: ${x.label}`).join('; ')})`).join('\n')}` };
         }
-        const { commit, metric } = saveMetricAsked(ax(ctx), { ...input, answers });
+        const x = ax(ctx);
+        const was = input.id ? M.metricsOf(x.snapshot).find((m) => m.id === input.id) : undefined;
+        const { commit, metric } = saveMetricAsked(x, { ...input, answers });
         if (!commit) return { data: { saved: false, id: metric.id }, text: `Nothing changed: ${metric.name} already says that.` };
         await save(ctx, commit);
         const still = lineOf(ctx.snapshot, metric).line;
-        return { data: { saved: true, id: metric.id, changes: commit.changes[0]!.diffs, stillToSay: still }, text: `${commit.changes[0]!.summary} (as ${ctx.actor.name}). Its ID is ${metric.id}. ${still}` };
+        // Fewer decimal places: the goals that show more keep theirs, as the form's read-back says (#351 review).
+        const more = was && metric.decimals < was.decimals ? linkedGoals(x.full ?? x.snapshot, metric.id).filter((g) => g.decimals > metric.decimals) : [];
+        const places = more.length ? ` ${more.length === 1 ? '1 goal shows' : `${more.length} goals show`} more decimal places than ${metric.name} now does: ${more.map((g) => g.title).join(', ')}. They keep theirs until their owners change them.` : '';
+        return { data: { saved: true, id: metric.id, changes: commit.changes[0]!.diffs, stillToSay: still, ...(more.length ? { moreDecimals: more.map((g) => g.id) } : {}) }, text: `${commit.changes[0]!.summary} (as ${ctx.actor.name}). Its ID is ${metric.id}. ${still}${places}` };
       });
     },
   },

@@ -21,12 +21,12 @@ What it adds to the core (routes, places on core screens, AI tools, Help) is in 
 ## Exit criteria
 
 1. Its requirements hold: `WATCHING`, `ONE-WATCHING`, `WATCHING-OPTIONAL` (words in [its section](../modules/watching/README.md#requirements)).
-2. Its journeys and checks can be done: U7, U8, U9, U16, U31, U73, U80, U90, U103, U156, F1, N22 ([its section](../modules/watching/README.md#journeys-and-checks)).
+2. Its journeys and checks can be done: U7, U8, U9, U16, U31, U73, U80, U90, U103, U164, F1, N22 ([its section](../modules/watching/README.md#journeys-and-checks)).
 3. Switched off, /watching shows Page not found with “Watching is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and list_watching, watch and unwatch answer “Watching is switched off in {workspace}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features.” (check N22).
-4. Switched off, Goals has no Watching tab (a remembered Watching tab opens Mine, or All for someone who owns no goal), Home has no “Goals you watch”, a goal's page has no Watch or Watching and no “Watched by”, and the watch action refuses with “Watching is off in {workspace}.” (journey U156).
+4. Switched off, Goals has no Watching tab (a remembered Watching tab opens Mine, or All for someone who owns no goal), Home has no “Goals you watch”, a goal's page has no Watch or Watching and no “Watched by”, and the watch action refuses with “Watching is off in {workspace}.” (journey U164).
 5. Switched off, someone who owns no goal is led to “{n} goals need attention · See them” (every goal that needs attention), not to the goals they watch.
 6. Switching off first reads back what stays, from the rule watchingOffReadBack: how many people's watches are kept, and how many of them own no goal and see Home through what they watch; with no watch at all it acts at once.
-7. Back on, every person watches what they did (journey U156).
+7. Back on, every person watches what they did (journey U164).
 
 ## Gaps in the kit
 

@@ -21,8 +21,8 @@ What it adds to the core (routes, places on core screens, AI tools, Help) is in 
 ## Exit criteria
 
 1. Its requirements hold: `MARKUP`, `FEEDBACK-RAISED`, `MARKUP-INBOX`, `FEEDBACK-INBOX`, `MCP-FEEDBACK`, `CONNECT-CLAUDE`, `MCP-PICTURES`, `INBOX-TRIAGE`, `FEEDBACK-PAGE`, `FEEDBACK-OPTIONAL` (words in [its section](../modules/feedback/README.md#requirements)).
-2. Its journeys and checks can be done: U40, U41, U42, U47, U51, U52, U53, U157, N22 ([its section](../modules/feedback/README.md#journeys-and-checks)).
-3. Switched off, the menu's last group is Workspace, Settings, Help (desktop and More on a phone), and Ctrl+Shift+M opens nothing (journey U157).
+2. Its journeys and checks can be done: U40, U41, U42, U47, U51, U52, U53, U165, N22 ([its section](../modules/feedback/README.md#journeys-and-checks)).
+3. Switched off, the menu's last group is Workspace, Settings, Help (desktop and More on a phone), and Ctrl+Shift+M opens nothing (journey U165).
 4. Switched off, /feedback, /workspace/inbox and /inbox show Page not found with “Feedback is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and the eight tools answer the switched-off module's sentence (check N22).
 5. Switched off, sending feedback refuses with “Feedback is off in {workspace}.”; what was sent before stays in the builders' inbox, and switching it back on brings the row, the page and the key back.
 

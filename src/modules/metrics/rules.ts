@@ -65,10 +65,11 @@ export type MetricInput = Partial<Pick<Metric, 'name' | 'meaning' | 'unit' | 'de
 
 /** The metrics in use: not removed, by name. A retired one (MT3) is left out of pickers and lists unless asked for. */
 export const liveMetrics = (s: Rows, o: { retired?: boolean } = {}): Metric[] => metricsOf(s).filter((m) => !m.removedAt && (o.retired || !m.retiredAt)).sort((a, b) => a.name.localeCompare(b.name));
-/** The marks a goal shows (MT3 rule 4): its metric's marks made at or after the goal was linked to it, and since `since`
-    (the cycle's start), oldest first. A goal linked after a change was never measured the old way. */
-export function marksFor(metric: Pick<Metric, 'marks'>, link: Pick<MetricLink, 'linkedAt'>, since?: string): NonNullable<Metric['marks']> {
-  return (metric.marks ?? []).filter((m) => m.at >= link.linkedAt && (!since || m.at >= since));
+/** The marks a goal shows (MT3 rule 4): its metric's marks made at or after the goal was linked to it, in the goal's own
+    cycle (since `since`, its start, and before `until`, the day after its last week), oldest first. A goal linked after a
+    change was never measured the old way, and a change made next year leaves this year's goals as they were. */
+export function marksFor(metric: Pick<Metric, 'marks'>, link: Pick<MetricLink, 'linkedAt'>, since?: string, until?: string): NonNullable<Metric['marks']> {
+  return (metric.marks ?? []).filter((m) => m.at >= link.linkedAt && (!since || m.at >= since) && (!until || m.at < until));
 }
 /** A chart's label for a mark (spec 2.7). */
 export const markLabel = (m: { kind: 'definition' | 'direction'; week: number }) => `${m.kind === 'direction' ? 'Direction' : 'Definition'} changed, week ${m.week}`;
@@ -94,7 +95,7 @@ export function goalsMeasuredBy(s: Rows, goals: readonly Goal[], metricId: strin
 /** A goal's target in its metric: a metric goal's plan target, or a range goal's limit (between two numbers: the upper,
     with the lower beside it). Milestones have none. */
 export function goalTarget(g: Goal): { value: number; kind: 'target' | 'at most' | 'at least' | 'between'; lower?: number } | null {
-  if (g.kind === 'metric') return { value: g.plan.target, kind: 'target' };
+  if (g.kind === 'metric') return g.targetUnset ? null : { value: g.plan.target, kind: 'target' };
   if (g.kind === 'range') return g.range.bound === 'between' ? { value: g.range.limit, kind: 'between', lower: g.range.lower! } : { value: g.range.limit, kind: g.range.bound === 'atMost' ? 'at most' : 'at least' };
   return null;
 }
@@ -154,7 +155,9 @@ export function metricProblems(m: Metric, s: Rows & { people: Person[] }): strin
   else if (m.name.length > METRIC_LIMITS.name) out.push(`Keep the name to ${METRIC_LIMITS.name} characters or fewer.`);
   else {
     const same = liveMetrics(s, { retired: true }).find((v) => v.id !== m.id && !v.name.localeCompare(m.name, 'en', { sensitivity: 'base' }));
-    if (same) out.push(`There’s already a metric called ${same.name}. Use it, or give this one a different name.`);
+    // A retired one says so, or someone looking for it would never think to bring it back (MT3, rule 5).
+    if (same?.retiredAt) out.push(`There’s already a metric called ${same.name}, retired on ${new Date(same.retiredAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}. Bring it back from its page, or give this one a different name.`);
+    else if (same) out.push(`There’s already a metric called ${same.name}. Use it, or give this one a different name.`);
   }
   if (!m.unit) out.push('Say its unit: %, min, hours, USD, deploys…');
   else if (m.unit.length > METRIC_LIMITS.unit) out.push(`Keep the unit to ${METRIC_LIMITS.unit} characters or fewer.`);

@@ -17,6 +17,7 @@ import { useSeen } from '../app/goalSeen';
 import { useDraft } from '../app/drafts';
 import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt } from '../domain/format';
+import { readingHistoryLine } from '../domain/reading';
 import { isEveryday, levelName } from '../domain/levels';
 import { notStarted, planHistoryOf, resultWeek, valueSeries, weekDates } from '../domain/plan';
 import { weekSays } from '../domain/weeks';
@@ -361,6 +362,8 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
           <span className="bar-now">{num}</span>
           {/* Only in the one-line bar: the gap to plan, which the scorecard says in full. */}
           {card.gap && <span className="bar-gap"><span aria-hidden="true">· </span>{card.gap}</span>}
+          {/* Before the first check-in, a baseline of its own is the number: said as one (domain/baseline rule 2). */}
+          {figures.baseline && <span className="bar-baseline">{figures.baseline}</span>}
         </div>
         {firstDue && !goal.stoppedAt ? <p className="small muted sc-none" data-part="Scorecard">The scorecard starts with the first check-in.</p> : card.cells.length > 0 && <ScoreGrid cells={card.cells} />}
         {askedLine && <div className="bar-note">{askedLine}</div>}
@@ -624,17 +627,19 @@ function GoalChart({ goal, status, landed, hit, card }: { goal: Goal; status: Di
     : projected ? (goal.kind === 'metric' ? 'Likely end projected from the last eight weeks, not the owner’s date.' : 'Likely end projected from the last eight weeks.')
     : null;
   const caption = foot ? <span className="chart-say chart-foot">{foot}</span> : null;
+  // Modules' marks (MT3's “Definition changed, week 6”), on a number's chart and a range's alike.
+  const notes = goalMarksOf(MODULE_RECORDS, app.snapshot, goal.id, cycle);
   return (
     <section className="block goal-chart-block" id="chart" aria-label="Chart" data-part="Chart">
       {goal.kind === 'metric' && a.kind === 'metric' && (
         <figure className="card goal-chart" style={{ margin: 0 }}>
-          <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={ahead ? a.forecast : null} projection={ahead ? a.projection : null} ptgBy={ahead ? ptg?.byWeek ?? null : null} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} hit={hit} marks={stale ? null : card.marks} notes={goalMarksOf(MODULE_RECORDS, app.snapshot, goal.id, cycle.startDate)} />
+          <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={ahead ? a.forecast : null} projection={ahead ? a.projection : null} ptgBy={ahead ? ptg?.byWeek ?? null : null} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} hit={hit} marks={stale ? null : card.marks} notes={notes} />
           {(caption || goal.originalPlan) && <figcaption className="small">{caption}{goal.originalPlan ? <PlanChanges goal={goal} /> : null}</figcaption>}
         </figure>
       )}
       {goal.kind === 'range' && (
         <figure className="card goal-chart" style={{ margin: 0 }}>
-          <RangeChart goal={goal} weeks={cycle.weeks} week={week} series={series} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} />
+          <RangeChart goal={goal} weeks={cycle.weeks} week={week} series={series} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} notes={notes} />
           {caption && <figcaption className="small">{caption}</figcaption>}
         </figure>
       )}
@@ -984,6 +989,8 @@ function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere, above, latestWeek }: 
   // The moment it made (habit rule 3), in small capitals beside its status: never on a correction or an import.
   const imported = app.snapshot.changes.some((x) => x.entity === 'check-in' && x.entityId === c.id && x.importId);
   const m = moment(app.checkInsOf(goal).filter((x) => x.id !== c.id), c, goal, !fix && !imported);
+  // Where its number came from (NR 2.4): from the source, or typed over it and why; "Typed by" only beside a sourced one.
+  const said = goal.kind === 'milestone' ? null : readingHistoryLine(c, goal, app.person(c.authorId)?.name ?? 'someone who has left', app.today, { nearSourced: app.checkInsOf(goal).some((x) => !!x.reading) });
   return (
     <li className={isOpen ? 'is-open' : undefined}>
       <button type="button" className="ci-row" aria-expanded={isOpen} aria-controls={'ci-' + c.id} onClick={() => setOpen(!isOpen)}>
@@ -993,6 +1000,7 @@ function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere, above, latestWeek }: 
         <span className="ci-tail">{above && c.why && c.why !== NO_REASON ? <span className="small muted cilist-why">The reason is above, under Why.</span> : quiet ? <span className="small muted cilist-why">Same reason</span> : sameAs != null ? <span className="small muted cilist-why">{sameAs === latestWeek ? `The same reason as week ${sameAs}, under Why` : sameReasonText(sameAs, sameAsWhere)}</span> : c.why && c.why !== NO_REASON ? <span className="small cilist-why">{c.why}</span> : <span className="small muted cilist-why">{GAP['on-plan'].label}</span>}<Icon name={isOpen ? 'chevron-up' : 'chevron-down'} className="muted ci-chev" /></span>
       </button>
       {fix && <span className="small muted ci-corrected" style={{ display: 'block', gridColumn: '1 / -1', minWidth: 0, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{fix.summary}, by {app.person(fix.actorId)?.name ?? 'someone'}{why ? `: “${why}”` : ''}</span>}
+      {said && <span className="small muted ci-read-from" style={{ display: 'block', gridColumn: '1 / -1', minWidth: 0, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{said}</span>}
       {isOpen && <CheckInFull goal={goal} c={c} id={'ci-' + c.id} />}
     </li>
   );

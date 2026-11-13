@@ -5,15 +5,15 @@ import type { Point } from '../domain/plan';
 import { fmt, staysText } from '../domain/format';
 import { rangeOut, type RangeSide } from '../domain/range';
 import type { RangeGoal } from '../domain/types';
-import { Better, line, looseScales, Sized, TargetLabel, useScrub, WeekLabels, type Frame, type Scrub } from './charts';
+import { Better, ChartNotes, line, looseScales, Sized, TargetLabel, useScrub, WeekLabels, type Frame, type Scrub } from './charts';
 
-export interface RangeProps { goal: RangeGoal; weeks: number; week: number; series: Point[]; height?: number; scrub?: Scrub; draw?: boolean; landed?: boolean }
+export interface RangeProps { goal: RangeGoal; weeks: number; week: number; series: Point[]; height?: number; scrub?: Scrub; draw?: boolean; landed?: boolean; /** Modules' marks (MT3's `goal.marks`), as on a number's chart. */ notes?: readonly { week: number; label: string }[] | null }
 
 export function RangeChart(p: RangeProps) {
   return <Sized height={p.height ?? 200}>{(w) => <RangeSvg {...p} W={w} H={p.height ?? 200} />}</Sized>;
 }
 
-function RangeSvg({ goal, weeks, week, series, scrub, draw, landed, W, H }: RangeProps & { W: number; H: number }) {
+function RangeSvg({ goal, weeks, week, series, scrub, draw, landed, notes, W, H }: RangeProps & { W: number; H: number }) {
   const compact = W < 420;
   const f: Frame = { W, H, padL: compact ? 34 : 44, padR: 12, padT: 24, padB: 20 };
   const r = goal.range, { bound, limit, margin } = r, two = bound === 'between';
@@ -32,6 +32,7 @@ function RangeSvg({ goal, weeks, week, series, scrub, draw, landed, W, H }: Rang
     <svg className={'chart' + (draw ? ' draw' : '') + (scrub ? ' scrubbable' : '')} width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${goal.title}: ${last ? fmt(last.value, goal) + ' in week ' + last.week : 'no values yet'}, ${two ? `must stay ${staysText(goal)}` : `limit ${fmt(limit, goal)}, ${bound === 'atMost' ? 'lower' : 'higher'} is better`}`} {...sc.svg}>
       {sides.map((s) => { const y = Y(s.limit), inner = Y(s.limit - k(s) * margin); return <g key={s.bound}><rect className="c-area" x={f.padL} y={Math.min(y, inner)} width={W - f.padL - f.padR} height={Math.abs(inner - y)} /><line className="c-target" x1={f.padL} x2={W - f.padR} y1={y} y2={y} /></g>; })}
       <WeekLabels f={f} weeks={weeks} week={week} X={X} wide={!compact} />
+      <ChartNotes notes={notes} f={f} X={X} />
       {series.length > 0 && <polyline className="c-act" points={line(series.map((p) => [X(p.week), Y(p.value)]))} />}
       {series.map((p) => <circle key={p.week} cx={X(p.week)} cy={Y(p.value)} r={out(p.value) ? 5 : 3} className={(out(p.value) ? 'c-breach' : 'c-dot') + (p === last ? ' c-last' : '') + (landed && p === last ? ' landed' : '')} />)}
       {draw && last && <circle className="c-dot-ring" cx={X(last.week)} cy={Y(last.value)} r={4} aria-hidden="true" />}

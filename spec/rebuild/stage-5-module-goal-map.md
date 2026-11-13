@@ -20,9 +20,9 @@ What it adds to the core (routes, places on core screens, AI tools, Help) is in 
 ## Exit criteria
 
 1. Its requirements hold: `GOAL-MAP`, `MAP-OPTIONAL` (words in [its section](../modules/goal-map/README.md#requirements)).
-2. Its journeys and checks can be done: U26, U30, U34, U39, U90, U134, U135, U157, F6, N22 ([its section](../modules/goal-map/README.md#journeys-and-checks)).
-3. Switched off, Goals' Layout offers List, Table, Board and History, and nothing on Goals says Map (journey U157).
-4. Switched off, /goals?view=map opens the List with “The Goal map is off here, so this is the List.” once; switched back on, the same address opens the Map (journey U157, check N22).
+2. Its journeys and checks can be done: U26, U30, U34, U39, U90, U134, U135, U165, F6, N22 ([its section](../modules/goal-map/README.md#journeys-and-checks)).
+3. Switched off, Goals' Layout offers List, Table, Board and History, and nothing on Goals says Map (journey U165).
+4. Switched off, /goals?view=map opens the List with “The Goal map is off here, so this is the List.” once; switched back on, the same address opens the Map (journey U165, check N22).
 
 ## Gaps in the kit
 

@@ -21,9 +21,9 @@ What it adds to the core (routes, places on core screens, AI tools, Help) is in 
 ## Exit criteria
 
 1. Its requirements hold: `RETRO`, `WRAP-UP-OPTIONAL` (words in [its section](../modules/wrap-up/README.md#requirements)).
-2. Its journeys and checks can be done: U10, U158, N22 ([its section](../modules/wrap-up/README.md#journeys-and-checks)).
+2. Its journeys and checks can be done: U10, U166, N22 ([its section](../modules/wrap-up/README.md#journeys-and-checks)).
 3. Switched off, /retro and /retro/{goal} show Page not found with “Wrap-up is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and get_wrap_up and wrap_up_goal answer the switched-off module's sentence (check N22).
-4. Switched off, in the year's last two weeks an owner's Home leads with check-ins as in any other week, never “Wrap up your goals”, and a goal's page has no “Wrap up this goal”; saving a wrap-up refuses with “Wrap-up is off in {workspace}.” (journey U158).
+4. Switched off, in the year's last two weeks an owner's Home leads with check-ins as in any other week, never “Wrap up your goals”, and a goal's page has no “Wrap up this goal”; saving a wrap-up refuses with “Wrap-up is off in {workspace}.” (journey U166).
 5. Switching off first reads back what stays, from the rule wrapUpOffReadBack: the wrap-ups already written (kept in History), how many said stop, and that the year still ends; with none written and the wrap-up not open it acts at once.
 6. Off or on, an admin starts the next year from Cycles, and a goal's result is worked out as before.
 

@@ -156,9 +156,19 @@ export interface MetricGoal extends GoalBase {
   originalPlan: MetricPlan | null;
   /** The week of the latest re-plan. */
   rebaselinedWeek: number | null;
+  /** The baseline as a field of its own (BL, domain/baseline): a figure known for a period, often provisional; its
+      value is the plan's start. Shown as the goal's number until its first check-in. Absent or null: none. */
+  baseline?: Baseline | null;
+  /** A proposed goal with a baseline and nothing else yet (GB, domain/proposed targetNotSet): no target agreed yet, so
+      `plan.target` only holds the start and means nothing; read this first. Never set on an active goal: making it
+      active asks for the target (rule 2). Absent: the target is set. */
+  targetUnset?: true;
   /** Every earlier plan, oldest first: each applied to the weeks before its untilWeek (and after the one before it). */
   planHistory?: PlanVersion[];
 }
+
+/** A baseline (BL): the figure, the period it covers in words, and whether it may still be firmed up. */
+export interface Baseline { value: number; period: string; provisional: boolean }
 
 export interface PlanVersion { untilWeek: number; plan: MetricPlan }
 

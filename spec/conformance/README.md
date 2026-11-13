@@ -42,10 +42,10 @@ Rows go by week, then goals in key order (G-1, G-2 … G-126).
 | [find.csv](find.csv) (stage 3) | 23 | search | `kind`, `q`, `total`, `near`, `ids` |
 | [goals.csv](goals.csv) (not stage 1) | 23 | Goals query | `query`, `total`, `near`, `off`, `risk`, `stale`, `none`, `on`, `planned`, `done`, `attention`, `ids` |
 | [navigation.csv](navigation.csv) (stage 3) | 60 | viewer and address | `viewer`, `owns_goals`, `address`, `menu`, `tabs`, `lit`, `page` |
-| [import.csv](import.csv) (stage 2) | 64 | case of the change engine | `case`, `actor`, `sheet`, `rows`, `answers`, `given`, `kind`, `level`, `group`, `message`, `must`, `questions`, `saves`, `kinds` |
-| [changes.csv](changes.csv) (stage 2) | 125 | case of the change engine, then one per item it would save | `case`, `row`, `actor`, `sheet`, `line`, `rows`, `answers`, `given`, `target`, `name`, `kind`, `diffs`, `counts`, `unchanged`, `needs_reason`, `saves` |
+| [import.csv](import.csv) (stage 2) | 70 | case of the change engine | `case`, `actor`, `sheet`, `rows`, `answers`, `given`, `kind`, `level`, `group`, `message`, `must`, `questions`, `saves`, `kinds` |
+| [changes.csv](changes.csv) (stage 2) | 133 | case of the change engine, then one per item it would save | `case`, `row`, `actor`, `sheet`, `line`, `rows`, `answers`, `given`, `target`, `name`, `kind`, `diffs`, `counts`, `unchanged`, `needs_reason`, `saves` |
 | [readback.csv](readback.csv) (stage 3) | 6 | draft New goal reads back | `case`, `viewer`, `draft`, `rows`, `after` |
-| [metrics.csv](metrics.csv) (the metrics module, not stage 1) | 95 | rule and what it is asked | `rule`, `ask`, `row`, `total`, `ids`, `goal`, `status`, `slice`, `now`, `target`, `vs_plan`, `owner`, `summary`, `needs`, `still`, `parts`, `ends`, `reading`, `state` |
+| [metrics.csv](metrics.csv) (the metrics module, not stage 1) | 96 | rule and what it is asked | `rule`, `ask`, `row`, `total`, `ids`, `goal`, `status`, `slice`, `now`, `target`, `vs_plan`, `owner`, `summary`, `needs`, `still`, `parts`, `ends`, `reading`, `state` |
 | [reviews.csv](reviews.csv) (the reviews module, not stage 1) | 91 | rule and what it is asked | `rule`, `week`, `reviews`, `held`, `by`, `after`, `on_time`, `flag`, `risks`, `due_day` |
 | [watching.csv](watching.csv) (the watching module, not stage 1) | 63 | rule and what it is asked | `rule`, `person`, `watches`, `covers`, `people`, `see_through` |
 | [home.csv](home.csv) (stage 3) | 56 | viewer and day | `viewer`, `day`, `lead`, `title`, `quiet`, `run`, `forgiven` |

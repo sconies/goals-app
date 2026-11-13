@@ -40,6 +40,30 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['features'],
   },
   {
+    id: 'target-not-set',
+    date: '2026-11-13',
+    title: 'A goal can go in with its baseline and no target yet',
+    points: [
+      'When a number is known but nobody has agreed a target, propose the goal with its Baseline and leave Target empty.',
+      'It says “Target not set”, has no status and nothing due, and counts in nothing until it is made active.',
+      'Set the target on its page when one is agreed; it can be made active once it has one.',
+      'The Goals sheet and the AI tools take a proposed goal with a Start and no Target too.',
+    ],
+    articles: ['goal-proposed'],
+  },
+  {
+    id: 'baseline-of-its-own',
+    date: '2026-11-13',
+    title: 'A baseline can say what period it covers, and how firm it is',
+    points: [
+      'When a goal’s baseline is a figure you already have, say the period it covers (“June to September 2026”) under Baseline, and tick Provisional if it may still change.',
+      'Until the first check-in, the goal shows that baseline as its number, marked as the baseline, instead of “No value yet”.',
+      'Firming up a provisional baseline isn’t a plan change: it asks for no reason and keeps no earlier plan.',
+      'The Goals sheet has Baseline period and Baseline is columns, and the AI tools take baseline_period and baseline_is.',
+    ],
+    articles: ['new-goal', 'edit-goal', 'goal-page'],
+  },
+  {
     id: 'empty-pages-say-when',
     date: '2026-11-13',
     title: 'Empty pages say when you’d want them',
@@ -58,8 +82,9 @@ export const WHATS_NEW: NewsEntry[] = [
       'The button names the number (“Confirm 12 min”). Nothing is posted until you finish the check-in.',
       'Type a different number and you’re asked why it differs. Your number counts; the reading and your reason are kept beside it, and nobody is flagged.',
       'A reading more than a week old isn’t filled in, and a company-wide number never fills in a team’s goal.',
+      'Where a number came from also shows on the goal’s Measured by and History, on the metric’s page (with how often its source’s number was typed over), in a review’s agenda and in the Check-ins sheet.',
     ],
-    articles: ['check-in', 'metric-slices'],
+    articles: ['check-in', 'metric-slices', 'metrics', 'goal-page'],
   },
   {
     id: 'switch-from-the-narrow-menu',
