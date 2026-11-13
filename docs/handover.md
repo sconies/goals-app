@@ -338,6 +338,27 @@ Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this sessi
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
 
+## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~02:50 UTC (session at half, handing over; supersedes the 01:10 entry)
+
+Session: session_012kbr8zJcP8xenTkLS4rV4P. Planning is session_012kbr939zneZWtAo7UQEHRP.
+
+| Branch | State | PR |
+|---|---|---|
+| `range-review-fixes` | #300's review (three mediums, the lows) and #293's low. **Merged as #331** at 02:27 UTC by auto-merge | #331 merged |
+| `ge10-home-proposals` | GE10 (F), Home's two proposal rows, plus `screens/savedViews.ts` (useViews/viewParams out of GoalFilters: first download 261.4 of 265 KB, real app 320.4 of 324). Gate passed; ready, **auto-merge on** since 02:49 | #319 |
+
+**Next, in order** (after #319 merges; if it hasn't, read its checks first):
+1. The rest of GE10 (F), one PR each where they're big: Home's lead for a for-you proposal (the Home spec's `ask` rule) and "in {review}" in its line; "Make it proposed again" (`backToProposed` is built, no action); Map and Board with the filter; the metric page's "Proposed · n"; Reviews' "Propose a new goal" and "Last time"; changing the type while proposed; "Stopped" in the State filter; `for-someone-else` for files and tools; what feeds it; the start-year count.
+
+**Habits, learned this session:**
+- Merging: planning's branch rule (02:10). When the gate passes and the PR is ready, call `enable_pr_auto_merge` (MERGE) and move on. If main moves first, merge main in, rebuild `api/mcp.js` and the spec, and push.
+- Measure the budget with `npx vite build --manifest` then `node scripts/check-bundle.mjs`. It has two budgets: the first download (265) and the real app's (324). Both were within 0.1 KB of their limit before #319; #319 frees about 3.6 KB.
+- Find what a chunk holds from a `--sourcemap` build's `.js.map` sources; it is quicker than guessing.
+- Main's full suite is red on F8 ("toast in sheet 390", Export from the View sheet on a phone; issues #330, #332, #338). This is not track 2's. Don't chase it from a feature branch.
+- `src/help/whatsNew.ts` conflicts on every merge of main: keep both entries, ours first.
+
+**Prompt for the next track 2 session:** "You are track 2 of Faro's build (goal entry and set-up). Read CLAUDE.md, then the track 2 section of docs/handover.md ('Track 2 … Friday 13 November, ~02:50 UTC') and do its 'Next' list in order, one PR each. Check #319 first: if it hasn't merged, fix what blocks it. The first download is about 261 of 265 KB (real app 320 of 324): keep anything new lazy; never raise budgets. Track 3 is building IM8 in Onboarding.tsx's upload step: stay out of it. Follow CLAUDE.md's gate (typecheck, npm test, npm run spec, evals:changed, build:mcp from a real node_modules via cp -al, never ln -s). Build in a worktree, send eval runs to a subagent that returns only the scorecard, check mergeable_state, then enable auto-merge (MERGE) once the gate passes. Report to the planning session (session_012kbr939zneZWtAo7UQEHRP, or whichever session tells you planning has moved) once, when done or blocked. At half context, write a handover entry in a PR and send the planning session the next prompt."
+
 ## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~01:10 UTC (session at half, handing over; supersedes the 12 Nov 23:10 entry)
 
 Session: session_012kbr8z3ACYiinbB3TbXmPk. Planning is session_012kbr939zneZWtAo7UQEHRP.
