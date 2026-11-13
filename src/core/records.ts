@@ -4,6 +4,7 @@
    (FARO_WITHOUT) declares nothing here, so its rows are neither read nor written, and none are deleted. */
 import PARTS from 'virtual:faro-modules/records';
 import type { ModuleRecords, ModuleSheet } from '../domain/records';
+import { modulesOn } from './registry';
 
 /** Every module's records, in module id order. */
 export const MODULE_RECORDS: readonly ModuleRecords[] = PARTS.map((p) => ({ ...p.part, module: p.id }));
@@ -14,10 +15,13 @@ export const MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => m.goalColumns ?
 /** The workbook's sheets the modules add (domain/export), in module id order: every module in this build. */
 export const MODULE_SHEETS: readonly ModuleSheet[] = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
 
-/** The records of the modules switched on in a workspace: what Recently removed lists and restores. A module that's off
-    keeps its rows untouched, and none of them is offered back until it is on again. */
-export const recordsOn = (ws: { modulesOff?: readonly string[] } | null | undefined): readonly ModuleRecords[] =>
-  MODULE_RECORDS.filter((m) => !(ws?.modulesOff ?? []).includes(m.module));
+/** The records of the modules on in a workspace: what Recently removed lists and restores, and what a carried copy
+    carries. A module that's off, switched off itself or off because something it needs is (fix item F5), keeps its rows
+    untouched, and none of them is offered back until it is on again. */
+export const recordsOn = (ws: { modulesOff?: readonly string[] } | null | undefined): readonly ModuleRecords[] => {
+  const { on } = modulesOn(ws);
+  return MODULE_RECORDS.filter((m) => on.has(m.module));
+};
 
 /** The workbook's sheets of the modules switched on in a workspace (fix item F2): a module that's off adds no sheet to
     any export (the Export sheet, Data's downloads, the MCP export tool), as it adds nothing else. */
