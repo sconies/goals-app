@@ -19,7 +19,7 @@ import {
 } from '../../data/rows';
 import { EXAMPLE, StaleError, type Commit, type Store } from '../../data/store';
 import type { HistoryAsk, HistoryPage, LoadWindow } from '../../ports/store';
-import { ANCHOR_ACTIONS, ANCHOR_ENTITIES, historySize } from '../../ports/window';
+import { ANCHOR_ACTIONS, ANCHOR_ENTITIES, historySize, wholeOnly } from '../../ports/window';
 import { MODULE_RECORDS } from '../../core/records';
 
 /** What the adapter needs from a Postgres driver: node-postgres (Pool, Client) and PGlite both have it. */
@@ -160,6 +160,7 @@ export class PostgresStore implements Store {
   }
 
   async createWorkspace(w: Workspace, data: Snapshot) {
+    wholeOnly(data);
     const payload = { ...commitPayload(w.id, data, this.records), teams: data.teams.map((t) => teamToRow(w.id, t)), expect: null };
     await this.run('Creating the workspace', 'select okr_create_workspace($1::jsonb, $2::jsonb)', [JSON.stringify(workspaceToRow(w)), JSON.stringify(payload)]);
   }

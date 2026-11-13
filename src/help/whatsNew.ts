@@ -23,6 +23,38 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'proposed-on-map-and-board',
+    date: '2026-11-13',
+    title: 'Proposed goals on the Map and the Board',
+    points: [
+      'With the State filter on Proposed, the Board is one column, Proposed, and the Map draws each proposed goal in its tree with a dashed outline and the word.',
+      'They still have no status: none is on the critical path or counted in what is under a goal.',
+    ],
+    articles: ['goal-proposed', 'goals'],
+  },
+  {
+    id: 'proposal-leads-home',
+    date: '2026-11-13',
+    title: 'A proposal for you can lead Home',
+    points: [
+      'A goal someone proposed for you that you haven’t opened becomes Home’s main action once it has waited a week, if nothing else is asked of you first.',
+      'Open it goes to the goal, and the proposal isn’t listed a second time under Needs your response.',
+    ],
+    articles: ['home', 'goal-proposed'],
+  },
+  {
+    id: 'correct-means-one-thing',
+    date: '2026-11-13',
+    title: 'Correcting a check-in means one thing everywhere',
+    points: [
+      'Correct it, from the week’s list or the receipt, opens the correction with what the check-in said, so you change only what was wrong.',
+      'Changing a week’s check-in in Data’s tables or through the AI assistant asks why first, as the form does, and History says “Corrected week 45” with your reason.',
+      'A correction that changes only the words says what it changed, never “37 hours is now 37 hours”. After Undo, History no longer says the week was corrected.',
+      'A half-written correction keeps its reason when you come back to it. A cycle that has ended can’t be corrected from the form.',
+    ],
+    articles: ['check-in'],
+  },
+  {
     id: 'make-it-proposed-again',
     date: '2026-11-13',
     title: 'Make a goal proposed again',

@@ -2,6 +2,7 @@
    with the word "Proposed" where a status would be (muted text, no shape, no capsule), its key line and, at the right,
    what it would measure. Loaded only when the filter is on, so a first visit doesn't carry it. */
 import '../styles/notes/proposed.css';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { fmt, staysText } from '../domain/format';
@@ -26,14 +27,51 @@ export function wouldMeasure(g: Goal): string {
   return `${g.stages.length} ${g.stages.length === 1 ? 'stage' : 'stages'}`;
 }
 
-export function ProposedList({ goals, onRemove }: { goals: Goal[]; onRemove: () => void }) {
-  const app = useApp();
-  const list = [...goals].sort((a, b) => (b.proposedAt ?? '').localeCompare(a.proposedAt ?? ''));
+const newestFirst = (goals: Goal[]) => [...goals].sort((a, b) => (b.proposedAt ?? '').localeCompare(a.proposedAt ?? ''));
+
+/** The filter line and the count line, the same on the List, the Board and the Map. */
+export function ProposedHead({ goals, onRemove }: { goals: Goal[]; onRemove: () => void }) {
   return (
     <>
       <p className="small filter-line" role="status">Filtered by: Proposed (<button type="button" className="linkish" onClick={onRemove}>Remove</button>)</p>
-      <p className="small goals-line">{list.length ? `${list.length === 1 ? '1 proposed goal' : `${list.length} proposed goals`}, newest first.` : 'No proposed goals here.'}</p>
-      {list.length > 0 && (
+      <p className="small goals-line">{goals.length ? `${goals.length === 1 ? '1 proposed goal' : `${goals.length} proposed goals`}, newest first.` : 'No proposed goals here.'}</p>
+    </>
+  );
+}
+
+/** The Board with the filter on: one column, "Proposed", newest first; each card the word, its title, who and what it would measure. */
+export function ProposedBoard({ goals }: { goals: Goal[] }) {
+  const app = useApp();
+  const list = newestFirst(goals);
+  if (!list.length) return null;
+  return (
+    <div className="board" data-part="Proposed goals">
+      <section className="board-col" aria-label={`Proposed, ${list.length}`}>
+        <h2 className="board-head">Proposed<span className="board-count tnum">{list.length}</span></h2>
+        <span className="hint board-meaning">Not yet active: nothing is due and it has no status</span>
+        {list.map((g) => (
+          <Link key={g.id} to={'/goals/' + g.id} className="board-card proposed">
+            <span className="board-top"><span className="proposed-word">Proposed</span></span>
+            <span className="board-title">{g.title}</span>
+            <span className="hint ellipsis">{[app.person(g.ownerId)?.name, app.team(g.teamId)?.name].filter(Boolean).join(' · ')}</span>
+            <span className="small muted">{wouldMeasure(g)}</span>
+          </Link>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+/** With the filter on, in the layout chosen: the Board's one column, the Map (`map`, drawn by the Goals screen), else the list. */
+export function ProposedList({ goals, onRemove, layout = 'list', map = null }: { goals: Goal[]; onRemove: () => void; layout?: string; map?: ReactNode }) {
+  const app = useApp();
+  const list = newestFirst(goals);
+  return (
+    <>
+      <ProposedHead goals={list} onRemove={onRemove} />
+      {layout === 'board' && <ProposedBoard goals={list} />}
+      {layout === 'map' && list.length > 0 && map}
+      {layout !== 'board' && layout !== 'map' && list.length > 0 && (
         <ul className="tree proposed-rows" data-part="Proposed goals">
           {list.map((g) => {
             const by = g.proposedBy && g.proposedBy !== g.ownerId ? app.person(g.proposedBy)?.name.split(' ')[0] ?? null : null;

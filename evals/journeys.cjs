@@ -1681,7 +1681,9 @@ journey('U142', ['ONE-PER-WEEK', 'CHANGE-LOG', 'IMPORT-UNDO'], 'Correct this che
   await see(p, 'Undone');
   const s3 = await h.snapshot();
   const back = s3.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW);
-  h.set('logged', back.length === 1 && back[0].value === right, `after Undo week ${NOW} holds ${back.map((c) => c.value).join(', ') || 'nothing'}`);
+  // Undone, the week's row no longer says it was corrected (review of #225, medium 2): it reads as first posted.
+  const stale = await hist.locator('.ci-corrected').first().waitFor({ state: 'detached', timeout: 5000 }).then(() => false, () => true);
+  h.set('logged', back.length === 1 && back[0].value === right && !stale, stale ? 'after Undo, History still says the week was corrected' : `after Undo week ${NOW} holds ${back.map((c) => c.value).join(', ') || 'nothing'}`);
 });
 
 journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days; started then, 2026’s wrap-up stays open', 6, async (h, device) => {
@@ -2479,10 +2481,12 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   const dialog = p.getByRole('dialog', { name: 'Review your changes' });
   await see(dialog, 'Oskar Lindgren', 'the review does not show the person change');
   h.set('errors', !(await dialog.getByText('fixing first').isVisible().catch(() => false)), 'the review found problems with the edits');
+  // Changing a week's check-in corrects it, as the check-in screen does: the review asks why first (#225's review, medium 6).
+  await h.fill(dialog.getByLabel('Why are you correcting this check-in?'), 'The note named the wrong week');
   await h.click(dialog.getByRole('button', { name: /^Save 2 changes/ }));
   await see(p, 'Saved 2 changes', 'saving the tables did not confirm');
   const s = await h.snapshot();
-  h.set('logged', s.people.find((x) => x.id === 'oskar')?.role === 'Staff engineer, DevEx' && s.changes.some((c) => c.entity === 'check-in' && c.actorId === 'grace' && c.diffs.some((d) => d.field === 'Via' && d.to === 'Data tables')), 'the person or the check-in correction was not saved and logged');
+  h.set('logged', s.people.find((x) => x.id === 'oskar')?.role === 'Staff engineer, DevEx' && s.changes.some((c) => c.entity === 'check-in' && c.actorId === 'grace' && c.diffs.some((d) => d.field === 'Via' && d.to === 'Data tables') && c.diffs.some((d) => d.field === 'Why corrected' && d.to === 'The note named the wrong week')), 'the person or the check-in correction was not saved and logged');
   // Someone who isn't an admin can look but not change anything.
   const m = await newPage(device, 'rhea');
   await m.goto(url('/data'));
@@ -5463,7 +5467,7 @@ journey('U137', ['GOAL-ENTRY-REQUIRED', 'NEW-GOAL-STEPS'], 'Read back before it�
 }, []);
 
 /* GE10: a goal that is proposed, not yet active (goal entry 2.15, rule 14). */
-journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as Tunde, New goal’s last step asks “Is it under way?”; “Not yet: propose it” turns the button to “Propose goal” and the block to “After you propose it”; the goal has a key and a page that says “Proposed” as a word with no status shape; Goals, Mine counts it apart (“· 1 proposed”) and the link lists it; its check-in says there is nothing to check in; a fortnight later it still says “Proposed”. As Oskar its page has comment, ask and watch and “Tunde Bakare or an admin can make this active.” As Tunde, “Make it active” reads back From as this week with the first check-in’s date; after it the page reads “No check-in yet”; Undo returns it to proposed; made active again, the “…” menu’s “Make it proposed again” asks and returns it to proposed; “Withdraw it” removes it', 40, async (h, device) => {
+journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as Tunde, New goal’s last step asks “Is it under way?”; “Not yet: propose it” turns the button to “Propose goal” and the block to “After you propose it”; the goal has a key and a page that says “Proposed” as a word with no status shape; Goals, Mine counts it apart (“· 1 proposed”) and the link lists it; with the filter the Board is one column, Proposed, and the Map draws it dashed with the word; its check-in says there is nothing to check in; a fortnight later it still says “Proposed”. As Oskar its page has comment, ask and watch and “Tunde Bakare or an admin can make this active.” As Tunde, “Make it active” reads back From as this week with the first check-in’s date; after it the page reads “No check-in yet”; Undo returns it to proposed; made active again, the “…” menu’s “Make it proposed again” asks and returns it to proposed; “Withdraw it” removes it', 40, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));
   const on = (path, day = '2026-11-11') => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
   await p.goto(on('/goals/new'));
@@ -5504,6 +5508,18 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
   await see(p, '1 proposed goal, newest first.', 'the proposed link doesn’t list it');
   await see(p, 'Filtered by: Proposed', 'the proposed list doesn’t say its filter');
   h.set('a11y', (await p.locator('.proposed-rows .status-shape').count()) === 0, 'a proposed row draws a status shape');
+  // The Board with the filter: one column, Proposed, with its card; the Map: its node dashed, with the word.
+  await p.goto(on('/goals?scope=mine&state=proposed&view=board'));
+  const col = p.locator('section.board-col[aria-label="Proposed, 1"]').first();
+  await col.waitFor({ timeout: 8000 }).catch(() => {});
+  h.set('finish', (await p.locator('.board-col').count()) === 1 && /Signed artifacts in staging/.test(await col.innerText().catch(() => '')), 'the Board with the State filter isn’t one Proposed column with the goal');
+  h.set('a11y', (await col.locator('.status-shape').count()) === 0, 'a proposed card on the Board draws a status shape');
+  await p.goto(on('/goals?scope=mine&state=proposed&view=map'));
+  const node = p.locator('.map-node.proposed').first();
+  await node.waitFor({ timeout: 10000 }).catch(() => {});
+  h.set('finish', (await node.isVisible().catch(() => false)) && (await node.locator('.proposed-word').innerText().catch(() => '')).trim() === 'Proposed', 'the Map with the State filter doesn’t draw the proposed goal with the word');
+  h.set('a11y', (await node.locator('.status-shape').count()) === 0, 'a proposed node on the Map draws a status shape');
+  await p.goto(on('/goals?scope=mine&view=list'));
   // Nothing to check in, and a fortnight later still proposed.
   await p.goto(on('/check-in/' + id));
   await see(p, 'This goal is proposed, so there is nothing to check in. Make it active first.', 'the check-in of a proposed goal doesn’t say so');
