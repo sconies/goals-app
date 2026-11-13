@@ -17,7 +17,8 @@ import { GOAL_ACTION_WORDS, PERSON_ACTION_WORDS } from '../domain/columns';
 import { goalScorecard } from '../domain/scorecard';
 import { goalStatus } from '../domain/status';
 import { attentionGroup, needsAttention } from '../domain/attention';
-import { ATTENTION, choices, codeFrom, COMMENT_REMOVED, FLAG, QUARTER, RESULT, STATUS, withCode } from '../domain/vocabulary';
+import { ATTENTION, choices, codeFrom, COMMENT_REMOVED, FLAG, QUARTER, RESULT, STATUS, STOPPED, withCode } from '../domain/vocabulary';
+import { watchedGoals } from '../domain/review';
 import { NEED_OPTIONS } from '../domain/query';
 import { WORK_TOOLS } from './workTools';
 import { listed } from './listed';
@@ -38,6 +39,7 @@ import { proposedSummary } from '../domain/proposedSummary';
 import { activeReadBack } from '../domain/readBack';
 import { readWeekCode } from '../domain/weeks';
 import { isTableView } from '../domain/tableLayout';
+import { moment, momentText } from '../domain/habit';
 import type { Cycle, DisplayStatus, Goal, Level, Person, Snapshot } from '../domain/types';
 
 export interface McpContext {
@@ -143,7 +145,7 @@ const answersOf = (a: unknown): Answers => Object.fromEntries(Object.entries((a 
 /** find_goals' page: how many goals it lists unless asked, and the most it lists at once. */
 const FIND_PAGE = 50, FIND_MAX = 200;
 
-async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown }): Promise<ToolResult> {
+async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown; saved?: (cs: ChangeSet, before: McpContext['snapshot']) => { data: Record<string, unknown>; text: string } | null }): Promise<ToolResult> {
   // The size limits every door keeps (domain/importLimits): rows read in one call, then changes saved at once.
   const big = tooLarge('This call', { rows: (tables.goals?.length ?? 0) + (tables.plan?.length ?? 0) + (tables.checkIns?.length ?? 0) + (tables.people?.length ?? 0) }, 'call');
   if (big) return { isError: true, text: `Not checked. ${big}` };
@@ -201,13 +203,15 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
     data.changes = data.changes.map((x) => (added.some((a) => a.goalId === x.goalId) ? { ...x, goalId: null } : x));
     return { data, text: `Checked, not saved (dry run). Would save: ${what}${createdLine()}` };
   }
+  const before = ctx.snapshot;
   await ctx.save(cs.commit);
+  const extra = opts.saved?.(cs, before) ?? null;
   // Read back as saved: the server reads each new goal's key from the database after the save (Deps.goalKeys), so two
   // people adding goals at once never share one and the answer names the key the goal holds.
   data.saved = true;
   data.created = added.map((x) => ({ id: x.goalId, key: keyOf(x.goalId), title: x.goal }));
   data.changes = data.changes.map((x) => (x.goalId ? { ...x, key: keyOf(x.goalId) } : x));
-  return { data, text: `Saved as ${ctx.actor.name}: ${what}${createdLine()}` };
+  return { data: extra ? { ...data, ...extra.data } : data, text: `Saved as ${ctx.actor.name}: ${what}${createdLine()}${extra ? `\n${extra.text}` : ''}` };
 }
 
 /** A goal by its ID or its key (G-12). */
@@ -279,7 +283,7 @@ const CORE_TOOLS: ToolDef[] = [
       scope: str('Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.', { enum: SCOPES }),
       query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(', ')}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ['met', 'missed'])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
       view: str('The name of a saved view: one of yours, or one pinned for everyone.'),
-      state: str('active (the default) or proposed: proposed goals have no status and are listed only when asked for.', { enum: ['active', 'proposed'] }),
+      state: str('active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter).', { enum: ['active', 'proposed', 'stopped'] }),
       limit: { type: 'integer', minimum: 1, maximum: FIND_MAX, description: `How many goals to list, from offset: ${FIND_PAGE} unless asked, at most ${FIND_MAX}.` },
       offset: { type: 'integer', minimum: 0, description: 'How many matching goals to skip, for the next page (as “more” says).' },
     } },
@@ -340,6 +344,15 @@ const CORE_TOOLS: ToolDef[] = [
       const cols = Object.entries(asked.cols ?? {}).flatMap(([k, v]) => { const c = MODULE_GOAL_COLUMNS.find((x) => x.param === k && isModuleOn(ctx.ws, x.module)); return c && v ? [{ fill: c.fill(ctx.full ?? ctx.snapshot), v }] : []; });
       // Proposed goals (GE10) are left out unless asked for, and then only they are listed; their scope is worked out as the
       // Goals screen's count line does, by owner or team.
+      // Stopped goals (GE10's State filter): this year's, most recently stopped first, in the same scope.
+      if (a.state === 'stopped') {
+        const facts = scopeFacts(ctx.snapshot, ctx.actor);
+        const stopped = (ctx.snapshot.archive?.goals ?? []).filter((g) => (scope === 'mine' ? g.ownerId === ctx.actor.id : scope === 'team' ? facts.teams.some((t) => t.id === g.teamId) : scope === 'watching' ? watchedGoals(ctx.actor.id, { ...ctx.snapshot, goals: [...ctx.snapshot.goals, g] }).some((w) => w.id === g.id) : true)
+          && (!words.trim() || words.toLowerCase().split(/\s+/).every((w) => `${g.title} ${g.key ?? ''}`.toLowerCase().includes(w))))
+          .sort((x, y) => (y.stoppedAt ?? '').localeCompare(x.stoppedAt ?? ''));
+        const who = (id: string | null | undefined) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? null;
+        return listed(goalPage(stopped.map((g) => ({ key: g.key ?? null, id: g.id, title: g.title, type: g.kind, level: g.level, owner: who(g.ownerId), team: ctx.snapshot.teams.find((t) => t.id === g.teamId)?.name ?? null, status: null, statusLabel: STOPPED, state: 'stopped', stoppedAt: g.stoppedAt ?? null, stoppedBy: who(g.stoppedBy), stopReason: g.stopReason ?? null })), a, 'No stopped goals here.'));
+      }
       const proposedOnly = a.state === 'proposed';
       const inScopeOf = (g: Goal) => (!inScope ? true : !isProposed(g) ? inScope.has(g.id) : scope === 'mine' ? g.ownerId === ctx.actor.id : scope === 'team' ? scopeFacts(ctx.snapshot, ctx.actor).teams.some((t) => t.id === g.teamId) : false);
       const wordsOf = (g: Goal) => `${g.title} ${g.key ?? ''}`.toLowerCase();
@@ -399,7 +412,16 @@ const CORE_TOOLS: ToolDef[] = [
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
       const r = row({ ...a, goal_id: g.id, week: a.week ?? ctx.week, call: a.call == null || a.call === '' ? undefined : statusIn(a.call, CALLS) }, { goal_id: 'goal id', week: 'week', value: 'value', stages: 'stages', call: 'call', cause: 'cause', why: 'why', why_greener: 'why greener', path_to_green: 'path to green', recovery: 'recovery', back_on_plan_by_week: 'back on plan by week', needs: 'needs', next_step: 'next step' });
-      return change(ctx, { checkIns: [r] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, answers: a.answers });
+      // A target reached, or back on track (habit rule 3), said as the receipt says it. Never on a correction.
+      const saved = (cs: ChangeSet, before: McpContext['snapshot']) => {
+        if (cs.items.some((x) => x.kind === 'replaces check-in')) return null;
+        const c = cs.commit?.checkIns?.find((x) => x.goalId === g.id);
+        const m = c && moment(before.checkIns.filter((x) => x.goalId === g.id), c, g);
+        if (!c || !m) return null;
+        const t = momentText(m, g, c, ctx.cycle.weeks);
+        return { data: { moment: { kind: m.kind, heading: t.heading, line: t.line } }, text: `${t.heading}. ${t.line}` };
+      };
+      return change(ctx, { checkIns: [r] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, answers: a.answers, saved });
     },
   },
   {

@@ -91,6 +91,7 @@ export const SCREENS: Record<string, Entry> = {
   GoalWizard: ['create_goal'],
   ProposedGoal: ['get_goal', 'make_goal_active', 'update_goal', 'delete_goal', 'add_comment', 'ask_question', 'watch'],
   ProposedList: ['find_goals'],
+  StoppedList: ['find_goals'],
   GoalEdit: ['update_goal', 'set_plan_numbers'],
   CheckInFlow: ['post_check_in', 'link_request'],
   CheckInQueue: ['get_my_work', 'post_check_in'],

@@ -156,6 +156,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Save and skip” | primary | always |
 | “Check in on …” | primary | `p.due.length > 0` |
 | “Back to home” | primary | always |
+| “Copy the share image” | button | `m.kind === 'reached'` |
 | “Next: …” | primary | `left` |
 | “Back to home” | primary | `!left` |
 | “View the goal” | link | always |
@@ -358,6 +359,7 @@ None: nothing to type or choose here.
 
 | State | What it says | Shown when |
 |---|---|---|
+| whole screen | “Goals” | `params.get('state') === 'stopped'` |
 | whole screen | “Goals” | `stateOn` |
 | empty | “No goals yet” | `!app.snapshot.goals.length` |
 
@@ -468,7 +470,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | empty | “This goal doesn’t exist” | `!goal` |
 | error | “Type the question.” | `tried and bad` |
 | error | “Write a few words.” | always |
-| error | “Couldn’t make the image:” | always |
 
 **Buttons, and who sees them**
 
@@ -1321,6 +1322,28 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Tidy up” | button | `Object.keys(moved).length > 0` |
 | “(Close)” | button | always |
 | “Open the goal” | primary | always |
+
+### Goals: stopped goals
+
+[src/screens/StoppedList.tsx](../../src/screens/StoppedList.tsx)
+
+- **Where:** /goals?state=stopped (the State filter)
+- **Help:** “Goals and its layouts” (`goals`): Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look.
+- **Main action:** Read the goals stopped this year in the scope, most recently stopped first, with who stopped each, when and why, and open one.
+
+**Fields**
+
+None: nothing to type or choose here.
+
+**States**
+
+None written in its markup beyond the screen itself: it draws what it has.
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “Remove” | button | always |
 
 ### Goals: proposed goals
 

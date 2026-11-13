@@ -2090,6 +2090,18 @@ function weekProgress(personId, s, cycle, week, today) {
 		due: week < 1 || hasEnded(cycle, today) ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g))
 	};
 }
+/**
+* Where the person's week stands, the one reading Home's ring, the check-in's confirmation and its done screen all use
+* (backlog T, 8 Nov: a confirmation once said all four goals were checked in after one, because the other three weren't
+* due yet). Complete only when every goal counted is checked in this week.
+*/
+function weekCompletion(p) {
+	return {
+		done: p.done.length,
+		total: p.goals.length,
+		complete: p.goals.length > 0 && p.done.length >= p.goals.length
+	};
+}
 /** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
 function reviewDate(cycle, week) {
 	const d = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
@@ -2105,17 +2117,90 @@ function firstReview(cycle, today) {
 	};
 }
 /**
-* Consecutive weeks, counting back from the latest finished one, in which every goal the
-* person owns was checked in by the owner on or before the review day.
+* The on-time run (CF4, forgiving; HB1): weeks in a row, counting back from the latest finished one, in which every goal
+* the person owns was checked in by the owner on or before the review day. One late week is forgiven when each of the
+* four weeks before it in which the person had something due was on time: it isn't counted, and the walk goes on. A late
+* week that isn't forgiven ends the run. "Checked in this week, but late" is a late week like any other.
+*
+* CF2's migration (the cycle's `streak` setting) isn't on main yet, so the forgiving run is the only one: when it lands,
+* 'on' skips the forgiving step and 'off' returns null (docs/design/workspace-settings/spec.md 2.5).
 */
 function onTimeStreak(personId, s, cycle, week) {
-	const goals = s.goals.filter((g) => g.ownerId === personId);
-	if (!goals.length) return 0;
-	const onTime = (w) => goals.some((g) => firstDueWeek(g, cycle) <= w) && goals.every((g) => firstDueWeek(g, cycle) > w || s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
-	if (goals.every((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week)) && !onTime(week)) return 0;
-	let streak = 0;
-	for (let w = onTime(week) ? week : week - 1; w >= 1 && onTime(w); w--) streak++;
-	return streak;
+	return onTimeRun(personId, s.goals, s.checkIns, cycle, week).weeks;
+}
+function onTimeRun(personId, all, checkIns, cycle, week) {
+	const goals = all.filter((g) => g.ownerId === personId);
+	const s = { checkIns };
+	if (!goals.length) return {
+		weeks: 0,
+		forgiven: []
+	};
+	const due = (w) => goals.some((g) => firstDueWeek(g, cycle) <= w);
+	const onTime = (w) => due(w) && goals.every((g) => firstDueWeek(g, cycle) > w || s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
+	const forgiven = (w) => {
+		let seen = 0;
+		for (let v = w - 1; v >= 1 && seen < 4; v--) {
+			if (!due(v)) continue;
+			if (!onTime(v)) return false;
+			seen++;
+		}
+		return seen === 4;
+	};
+	const complete = goals.every((g) => firstDueWeek(g, cycle) > week || s.checkIns.some((c) => c.goalId === g.id && c.week === week));
+	const out = {
+		weeks: 0,
+		forgiven: []
+	};
+	for (let w = complete && due(week) ? week : week - 1; w >= 1 && due(w); w--) if (onTime(w)) out.weeks++;
+	else if (forgiven(w)) out.forgiven.push(w);
+	else break;
+	return out;
+}
+/**
+* The receipt's facts for a person's week (habit spec 2.1), from the rules that already say each: weekProgress (`p`) for
+* their goals, reviewDate for the due day, the run. A goal's week counts as after when its first check-in that week
+* (theirs, or someone's checking in for them) was posted after the due day. `review` is `reviewOnDueDay`'s.
+* `nextDue` is the next due day as an ISO date: the caller says it in words before `receiptText`.
+*/
+function receiptFacts(p, personId, s, cycle, week, review) {
+	const due = reviewDate(cycle, week);
+	const after = p.goals.filter((g) => {
+		const first = s.checkIns.filter((c) => c.goalId === g.id && c.week === week && !c.removedAt).map((c) => c.postedAt).sort()[0];
+		return first != null && first.slice(0, 10) > due;
+	}).length;
+	const run = onTimeRun(personId, s.goals, s.checkIns, cycle, week);
+	return {
+		total: p.goals.length,
+		after,
+		week,
+		dueDay: WEEKDAY[cycle.reviewDay],
+		review,
+		run: run.weeks,
+		forgiven: run.forgiven[0] ?? null,
+		nextDue: week < cycle.weeks ? reviewDate(cycle, week + 1) : null
+	};
+}
+/**
+* The receipt's two sentences, once every check-in of the week is in (habit spec 2.1; HB1). Read by the check-in's last
+* screen and by Home's quiet line on the day the week is completed. A late week is never called lost or broken, and no run
+* is mentioned beside one. The due day is a review only for someone in a review held that day (T4).
+*/
+function receiptText(r) {
+	const yours = r.total === 1 ? "Your check-in is" : r.total === 2 ? "Both of your check-ins are" : `All ${r.total} of your check-ins are`;
+	const next = r.nextDue ? `The next ${r.total === 1 ? "is" : "are"} due by ${r.nextDue}.` : null;
+	if (r.after > 0) return {
+		first: `${yours} in. ${r.total === 1 ? "It" : r.after === r.total ? r.total === 2 ? "Both" : "All of them" : r.after === 1 ? "One" : String(r.after)} came ${r.review ? `after ${r.dueDay}’s review` : `in after ${r.dueDay}’s deadline`}.`,
+		second: next
+	};
+	return {
+		first: r.review ? `${yours} in before ${r.dueDay}’s review.` : `${yours} in for week ${r.week}, before ${r.dueDay}’s deadline.`,
+		second: [r.run >= 2 ? `That is ${r.run} weeks in a row.` : null, r.forgiven != null && r.forgiven === r.week - 1 && r.run >= 2 ? `Week ${r.forgiven} came in late; one late week doesn’t break a run.` : null].filter(Boolean).join(" ") || null
+	};
+}
+/** Whether the person is in a review held on the workspace's due day (live, not ended): only then is the due day said
+as a review (deep review T4). `reviewsOn` is the reviews switch's flag (FT2), as readBack.ts takes it. */
+function reviewOnDueDay(reviews, personId, cycle, reviewsOn) {
+	return reviewsOn && reviews.some((r) => !r.removedAt && !r.endedAt && r.weekday === cycle.reviewDay && r.people.includes(personId));
 }
 var firstDueWeek, WEEKDAY;
 var init_progress = __esmMin((() => {
@@ -14946,6 +15031,11 @@ var SHORT_MONTHS = [
 	"Nov",
 	"Dec"
 ];
+/** "Thursday 12 Nov". */
+function longDay(iso) {
+	const d = /* @__PURE__ */ new Date(iso.slice(0, 10) + "T00:00:00Z");
+	return `${LONG_DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${SHORT_MONTHS[d.getUTCMonth()]}`;
+}
 var dayDiff = (from, to) => Math.round((Date.parse(to + "T00:00:00Z") - Date.parse(from + "T00:00:00Z")) / 864e5);
 var SHORT_DAYS = [
 	"Sun",
@@ -17474,7 +17564,7 @@ var CORE_ARTICLES = [
 				heading: "When Home has no button",
 				list: [
 					"Before the day your check-ins are due, Home says “Nothing is asked of you today.” and when they are due, with Check in early if you want to get ahead. When asks or proposed goals wait for you, it says so instead (“A proposed goal waits for your response.”).",
-					"Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in on time it adds how many weeks in a row you have been on time, from two weeks.",
+					"Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in, it says what the check-in’s last screen said: whether they were in before the deadline, and how many weeks in a row you have been on time, from two weeks.",
 					"If you own and watch nothing, it says so, with a way to see the goals and to set one up.",
 					"It never tells you about a deadline you met."
 				]
@@ -17858,6 +17948,14 @@ var CORE_ARTICLES = [
 				]
 			},
 			{
+				heading: "When the week’s are all in",
+				text: [
+					"The last screen says whether your check-ins were in before the deadline (“All 4 of your check-ins are in for week 46, before Thursday’s deadline.”; if you are in a review that day, “… before Thursday’s review.”) and, from two weeks, how many weeks in a row you have been on time. If some came after it, it says how many, and when the next are due.",
+					"One late week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. Only you see your run.",
+					"When a check-in takes a goal to its target, the last screen says so quietly, with a way to copy the goal’s share image; when it brings a goal back on track after two weeks or more behind, it says that. The goal’s History marks the week “Reached its target” or “Back on track”. A correction never does."
+				]
+			},
+			{
 				heading: "Who can",
 				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. Anyone can ask the owner for an update from the goal’s page."]
 			}
@@ -17881,7 +17979,9 @@ var CORE_ARTICLES = [
 			"NO-DOUBLE-POST",
 			"DRAFTS",
 			"FIRST-CHECKIN",
-			"HONEST-CHECKIN"
+			"HONEST-CHECKIN",
+			"HABIT-RECEIPT",
+			"HABIT-MOMENT"
 		],
 		keywords: [
 			"update",
@@ -17890,6 +17990,11 @@ var CORE_ARTICLES = [
 			"post",
 			"list",
 			"queue",
+			"streak",
+			"in a row",
+			"forgiven",
+			"target reached",
+			"back on track",
 			"start with",
 			"draft kept",
 			"cause",
@@ -18121,7 +18226,8 @@ var CORE_ARTICLES = [
 			"GoalViews",
 			"GoalTable",
 			"GoalBoard",
-			"BulkEdit"
+			"BulkEdit",
+			"StoppedList"
 		],
 		reqs: [
 			"GOALS-SCOPE",
@@ -18425,7 +18531,7 @@ var CORE_ARTICLES = [
 				list: [
 					"A goal stopped mid-year keeps its page, marked Stopped (a ring with a bar across, and the word), with who stopped it, when and why. Its chart, check-ins and activity stay as they were; it has no main button, and Restart it is there for an admin or whoever stopped it.",
 					"A stopped goal makes no forecast: its scorecard keeps Vs plan, Vs last week and To target as they stood, without Will it hit the target, and its chart has no projection.",
-					"It is out of every list, count, review and Home, but still in exports (Status: Stopped) and Activity."
+					"It is out of every list, count, review and Home, but still in exports (Status: Stopped) and Activity. Goals lists the year’s stopped goals with the State filter on Stopped, most recently stopped first, with who stopped each, when and why."
 				]
 			},
 			{
@@ -20011,6 +20117,25 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "habit-receipt-and-moment",
+		date: "2026-11-13",
+		title: "Your run forgives one missed week, and reaching a target is said, quietly",
+		points: [
+			"When your week’s check-ins are all in, the last screen says whether they were in before the deadline (or the review, if you are in one that day), and how many weeks in a row you have been on time.",
+			"One late week no longer ends your run: if the four weeks before it were on time, it is forgiven, and the next check-in says so once.",
+			"A check-in that takes a goal to its target says so in one quiet panel, with a way to copy the goal’s share image. One that brings a goal back on track after two weeks or more behind says that too.",
+			"The goal’s History marks those weeks “Reached its target” or “Back on track”."
+		],
+		articles: ["check-in", "home"]
+	},
+	{
+		id: "state-filter-stopped",
+		date: "2026-11-13",
+		title: "Find the goals stopped this year",
+		points: ["The Filters sheet’s State has a third choice, Stopped: the goals stopped this year, most recently stopped first.", "Each says who stopped it, when and why, and opens its page as it stood."],
+		articles: ["goals", "goal-page"]
+	},
 	{
 		id: "reviews-switch",
 		date: "2026-11-13",
@@ -21744,7 +21869,8 @@ var MORE_RULE_PAGES = [
 	["finding", "Finding things"],
 	["navigation", "Navigation: the menu, the lit item and a page’s name"],
 	["goals-page", "The Goals page: whose goals, how they are grouped, and the switch"],
-	["home", "Home: what is asked of you today"]
+	["home", "Home: what is asked of you today"],
+	["habit", "The habit: the run, the receipt and a moment"]
 ];
 /** The requirements under spec/requirements/internal/ (backlog 8r): what the internal rebuild must do that Faro doesn't
 build, because the company's platform provides the machinery. [file, title, what it says]. */
@@ -22174,6 +22300,15 @@ var WORK_TOOLS = [
 				};
 			});
 			const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today, { reviews: reviewsHere });
+			const wp = weekProgress(me, s, ctx.cycle, ctx.week, ctx.today);
+			const rf = weekCompletion(wp).complete ? receiptFacts(wp, me, s, ctx.cycle, ctx.week, reviewOnDueDay(s.reviews, me, ctx.cycle, reviewsHere)) : null;
+			const weekReceipt = rf ? {
+				...receiptText({
+					...rf,
+					nextDue: rf.nextDue ? longDay(rf.nextDue) : null
+				}),
+				forgivenWeek: rf.forgiven
+			} : null;
 			const glance = {
 				goals: {
 					whose: d.scope,
@@ -22185,6 +22320,7 @@ var WORK_TOOLS = [
 					}))
 				},
 				onTimeStreakWeeks: d.streak,
+				weekReceipt,
 				watching: d.watching ? {
 					goals: d.watching.all.length,
 					needAttention: d.watching.needs.map((a) => a.goal.title),
@@ -22219,6 +22355,7 @@ var WORK_TOOLS = [
 				text: [
 					`Week ${ctx.week} for ${ctx.actor.name}.`,
 					`${d.scope === "mine" ? "Your goals" : "All goals"}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(", ") || "none"}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? "week" : "weeks"}.` : ""}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ""}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ""}`,
+					...weekReceipt ? [[weekReceipt.first, weekReceipt.second].filter(Boolean).join(" ")] : [],
 					`Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.`,
 					`Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask}${when(r)} (${r.id})`).join("; ") : "none"}.`,
 					`Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question}${when(q)} (${q.id})`).join("; ") : "none"}.`,
@@ -25607,6 +25744,51 @@ function activeReadBack(goal, c) {
 	if (c.proposer) parts.push(`${first(c.proposer)}${c.watchers ? ` and its ${plural(c.watchers, "watcher")}` : ""} see that it is active.`);
 	return parts.join(" ");
 }
+// src/domain/habit.ts
+init_format();
+/** Whether a value meets a metric goal's target in its direction (up when the target is above the start). */
+function meets(goal, v) {
+	if (goal.kind !== "metric" || goal.plan.target === goal.plan.start) return false;
+	return goal.plan.target > goal.plan.start ? v >= goal.plan.target : v <= goal.plan.target;
+}
+/**
+* Rule 3: what a check-in makes, from the goal's earlier check-ins (any order) and this one. `reached` wins over `back`.
+* Neither fires on a backfilled week; callers leave out corrections and imports, which never reach the receipt and are
+* marked on History's row as corrected (`fresh: false`).
+*/
+function moment(earlier, after, goal, fresh = true) {
+	if (!fresh || after.backfilled || after.removedAt) return null;
+	const byWeek = /* @__PURE__ */ new Map();
+	for (const c of [...earlier].sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt))) if (c.week < after.week && !c.removedAt) byWeek.set(c.week, c);
+	const prior = [...byWeek.values()].sort((a, b) => b.week - a.week);
+	const before = prior[0];
+	if (after.value != null && meets(goal, after.value) && !(before?.value != null && meets(goal, before.value))) return {
+		kind: "reached",
+		behind: 0
+	};
+	if (after.status !== "on" || !before || before.status !== "risk" && before.status !== "off") return null;
+	let behind = 0;
+	for (const c of prior) {
+		if (c.status !== "risk" && c.status !== "off") break;
+		behind++;
+	}
+	return behind >= 2 ? {
+		kind: "back",
+		behind
+	} : null;
+}
+/** The receipt's panel for a moment (spec 2.2): its heading and line. */
+function momentText(m, goal, c, weeks) {
+	const v = c.value == null || goal.kind === "milestone" ? "" : fmt(c.value, goal);
+	if (m.kind === "reached" && goal.kind === "metric") return {
+		heading: `${goal.title} reached its target`,
+		line: `${v}, against a target of ${fmt(goal.plan.target, goal)}, in week ${c.week} of ${weeks}. It started the year at ${fmt(goal.plan.start, goal)}.`
+	};
+	return {
+		heading: `${goal.title} is back on track`,
+		line: `${v ? `${v}, after` : "After"} ${m.behind} weeks behind plan.`
+	};
+}
 // src/mcp/tools.ts
 init_levels();
 init_actions();
@@ -25616,6 +25798,7 @@ init_columns();
 init_status();
 init_attention();
 init_vocabulary();
+init_review();
 init_removal();
 init_goalKey();
 init_proposed();
@@ -25869,7 +26052,9 @@ async function change(ctx, tables, opts) {
 			text: `Checked, not saved (dry run). Would save: ${what}${createdLine()}`
 		};
 	}
+	const before = ctx.snapshot;
 	await ctx.save(cs.commit);
+	const extra = opts.saved?.(cs, before) ?? null;
 	data.saved = true;
 	data.created = added.map((x) => ({
 		id: x.goalId,
@@ -25881,8 +26066,11 @@ async function change(ctx, tables, opts) {
 		key: keyOf(x.goalId)
 	} : x);
 	return {
-		data,
-		text: `Saved as ${ctx.actor.name}: ${what}${createdLine()}`
+		data: extra ? {
+			...data,
+			...extra.data
+		} : data,
+		text: `Saved as ${ctx.actor.name}: ${what}${createdLine()}${extra ? `\n${extra.text}` : ""}`
 	};
 }
 /** A goal by its ID or its key (G-12). */
@@ -26011,7 +26199,11 @@ var CORE_TOOLS = [
 				scope: str("Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.", { enum: SCOPES }),
 				query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
 				view: str("The name of a saved view: one of yours, or one pinned for everyone."),
-				state: str("active (the default) or proposed: proposed goals have no status and are listed only when asked for.", { enum: ["active", "proposed"] }),
+				state: str("active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter).", { enum: [
+					"active",
+					"proposed",
+					"stopped"
+				] }),
 				limit: {
 					type: "integer",
 					minimum: 1,
@@ -26095,6 +26287,29 @@ var CORE_TOOLS = [
 					v
 				}] : [];
 			});
+			if (a.state === "stopped") {
+				const facts = scopeFacts(ctx.snapshot, ctx.actor);
+				const stopped = (ctx.snapshot.archive?.goals ?? []).filter((g) => (scope === "mine" ? g.ownerId === ctx.actor.id : scope === "team" ? facts.teams.some((t) => t.id === g.teamId) : scope === "watching" ? watchedGoals(ctx.actor.id, {
+					...ctx.snapshot,
+					goals: [...ctx.snapshot.goals, g]
+				}).some((w) => w.id === g.id) : true) && (!words.trim() || words.toLowerCase().split(/\s+/).every((w) => `${g.title} ${g.key ?? ""}`.toLowerCase().includes(w)))).sort((x, y) => (y.stoppedAt ?? "").localeCompare(x.stoppedAt ?? ""));
+				const who = (id) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? null;
+				return listed(goalPage(stopped.map((g) => ({
+					key: g.key ?? null,
+					id: g.id,
+					title: g.title,
+					type: g.kind,
+					level: g.level,
+					owner: who(g.ownerId),
+					team: ctx.snapshot.teams.find((t) => t.id === g.teamId)?.name ?? null,
+					status: null,
+					statusLabel: STOPPED,
+					state: "stopped",
+					stoppedAt: g.stoppedAt ?? null,
+					stoppedBy: who(g.stoppedBy),
+					stopReason: g.stopReason ?? null
+				})), a, "No stopped goals here."));
+			}
 			const proposedOnly = a.state === "proposed";
 			const inScopeOf = (g) => !inScope ? true : !isProposed(g) ? inScope.has(g.id) : scope === "mine" ? g.ownerId === ctx.actor.id : scope === "team" ? scopeFacts(ctx.snapshot, ctx.actor).teams.some((t) => t.id === g.teamId) : false;
 			const wordsOf = (g) => `${g.title} ${g.key ?? ""}`.toLowerCase();
@@ -26243,7 +26458,7 @@ var CORE_TOOLS = [
 		},
 		async run(a, ctx) {
 			const g = goalRef(ctx, a.goal_id);
-			return change(ctx, { checkIns: [row({
+			const r = row({
 				...a,
 				goal_id: g.id,
 				week: a.week ?? ctx.week,
@@ -26262,10 +26477,27 @@ var CORE_TOOLS = [
 				back_on_plan_by_week: "back on plan by week",
 				needs: "needs",
 				next_step: "next step"
-			})] }, {
+			});
+			const saved = (cs, before) => {
+				if (cs.items.some((x) => x.kind === "replaces check-in")) return null;
+				const c = cs.commit?.checkIns?.find((x) => x.goalId === g.id);
+				const m = c && moment(before.checkIns.filter((x) => x.goalId === g.id), c, g);
+				if (!c || !m) return null;
+				const t = momentText(m, g, c, ctx.cycle.weeks);
+				return {
+					data: { moment: {
+						kind: m.kind,
+						heading: t.heading,
+						line: t.line
+					} },
+					text: `${t.heading}. ${t.line}`
+				};
+			};
+			return change(ctx, { checkIns: [r] }, {
 				dry: !!a.dry_run,
 				reason: a.reason,
-				answers: a.answers
+				answers: a.answers,
+				saved
 			});
 		}
 	},
