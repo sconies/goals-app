@@ -6,7 +6,8 @@
 
 /** What an answer must be. Every key given must hold; `select` first picks the part of the answer the rest look at. */
 export interface Then {
-  /** A path into the answer: `total`, `rows[0].name`, `rows[].id` (every row's id), `[].id` when the answer is a list. */
+  /** A path into the answer: `total`, `rows[0].name`, `rows[].id` (every row's id), `[].id` when the answer is a list,
+      `goals[id=g1].title` (the item whose id is g1). */
   select?: string;
   /** Equal, as JSON: same keys, same values, lists in the same order. */
   equals?: unknown;
@@ -20,6 +21,8 @@ export interface Then {
   length?: number;
   /** A list or text no longer than this. */
   maxLength?: number;
+  /** Text matching this regular expression (JavaScript's). */
+  matches?: string;
   /** A list with no item twice. */
   distinct?: boolean;
   /** A list in this order: `text` (A to Z, by the language's own order), or by rank, highest first (ties in any order). */
@@ -30,7 +33,8 @@ export interface Then {
   absent?: boolean;
   /** Every one of these holds. */
   all?: Then[];
-  /** At least one of these holds: where the contract allows either of two answers (the near miss is optional). */
+  /** At least one of these holds: where the contract allows either of two answers (the near miss is optional). A
+      `throws` among them lets the operation refuse. */
   anyOf?: Then[];
 }
 
@@ -42,15 +46,16 @@ export interface When {
 }
 
 /**
- * One step. With `pages`, the operation is called again with the last answer's `next` put in as `after` (in the
- * argument at `pages.arg`), until `next` is null or `pages.max` calls; `each` is checked on every answer, and `then` on
- * `{ pages, rows }`: how many calls were made and every page's rows, in order. `between`, when given, is called once
+ * One step. With `pages`, the operation is called again with the last answer's `next` put in as `after` (or `key`) in
+ * the argument at `pages.arg`, until `next` is null or `pages.max` calls; `each` is checked on every answer, and `then`
+ * on `{ pages, rows }`: how many calls were made and every page's rows (its `rows`, or the list named by `pages.rows`),
+ * in order. `between`, when given, is called once
  * after the first page and before the second: something that happens while someone pages (a goal added).
  */
 export interface Step {
   when: When;
   then: Then;
-  pages?: { arg: number; max: number; each?: Then; between?: When };
+  pages?: { arg: number; max: number; key?: string; rows?: string; each?: Then; between?: When };
 }
 
 export interface Case {

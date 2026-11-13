@@ -1,6 +1,6 @@
 # Track 6 handover: the handoff kit (KT)
 
-Written 12 Nov 2026 by the first track 6 session and updated by the second to eighth (the seventh did KT9 and KT10; the eighth KT11 and KT12). The next session starts from here.
+Written 12 Nov 2026 by the first track 6 session and updated by the second to ninth (the seventh did KT9 and KT10; the eighth KT11 and KT12; the ninth KT13). The next session starts from here.
 
 ## The brief
 
@@ -93,8 +93,9 @@ The ground rules:
   - **`spec/rebuild/reads.md`** (`src/spec/reads.ts`, `readsRun.ts`, `readsSamples.ts`, `readsPage.ts`): every action is run on the demo with each list wrapped, and the page records which records it used and which lists it read whole. `goalSlice` proves that every goal's summary row, being handled included, comes out the same from its own records as from the whole workspace. A new action needs a sample in `readsSamples.ts`, or `reads.test.ts` fails.
 
 - **KT12, gap 1(b), the goals contract as data:** `src/ports/contracts/cases/goals.ts` makes `spec/conformance/contracts/goals.json` from `goals.csv`, `status.csv`, `flags.csv` and `workspace.json`: 24 cases, one per Goals query, plus the four structural checks (same names), a scope by name and the order with no sort. An ask's `query` is the Goals link's query string. The harness gained `pages.between`, an operation called once after the first page, which the add-a-goal-between-pages case uses. Faro's shim answers `goals` (`conformanceGoals` in `src/adapters/contractPorts.ts`), and the drill passes 37 of 37.
+- **KT13, gap 1(b), the store contract as data:** `src/ports/contracts/cases/store.ts` makes `spec/conformance/contracts/store.json`: storeContract's 12 tests as cases (same names), each from a fresh store holding the contract workspace (`given: { workspaces: [{ workspace, snapshot }] }`). Every commit a case saves (Undo, an import's undoing, a token and its revoking, the stale save) is worked out when the cases are made, by `applyCommit` over the fixed workspace and a fixed id counter, so `npm run spec` writes the same file every time. The contract module and its SQL are in `about`. The harness gained `matches` (a token's secret), a `[id=x]` selector (one record from a list in any order), `pages.key`/`pages.rows` (history pages by `before` through `changes`) and an `anyOf` that may hold `throws` (a save to another workspace may be refused). `storeContract` keeps its signature and runs the cases through `contractSuite` (`storeStart`); the stale error's type and the demo's example reset stay as Faro-only tests beside it. Faro's shim answers `store` (`memoryStore`), and the drill passes 49 of 49. **Every gap in the kit review is now done.**
 
-## The store contract: where the eighth session stopped
+## The store contract: where the eighth session stopped (done in KT13)
 
 AX5 part 2a is on main (#323): the store has `load(ws, window?)` and `history(ws, { before, goalId, size })`, with the window rules in `src/ports/window.ts`. `storeContract` (`src/ports/contracts/store.ts`) has 12 tests. The last three are the windowed load, history paging and the whole load. The eighth session read it and planned the move, but didn't start it (it was past half context). The plan:
 
@@ -115,7 +116,7 @@ AX5 part 2a is on main (#323): the store has `load(ws, window?)` and `history(ws
 
 ## Next, in order
 
-1. **Gap 1, part (b), the rest: the store contract as data** (goals is done: KT12) (search and prefs are done: KT3). Agreed with track 4 (`session_012kbr8yGf2m8ghRQungzjo3`; also `session_012kbr8xdoEbLiMQaBAxLeuJ` for #193's follow-ups):
+1. **Gap 1, part (b): done (KT13, the store contract; KT12, goals; KT3, search and prefs).** Kept for the record: (search and prefs are done: KT3). Agreed with track 4 (`session_012kbr8yGf2m8ghRQungzjo3`; also `session_012kbr8xdoEbLiMQaBAxLeuJ` for #193's follow-ups):
    - **The format:** cases in `src/ports/contracts/cases/<port>.ts`, each `{ given, when: { op, args }, then }`, with several steps where a case needs them. The vitest contracts run the list, and `npm run spec` writes `spec/conformance/contracts/<port>.json`. The drill runs a build's shim: one JSON request per line on stdin, one answer per line on stdout.
    - **Order:** search and prefs first, then store, then goals.
    - **A decision for search first:** today's search contract (`src/ports/contracts/search.ts`) seeds the full demo (`buildExample`), and checks job titles and team sizes (`detail: 'Engineering Manager, CI/CD · CI/CD'`). `spec/conformance/workspace.json` has neither: people carry only `id`, `name`, `teamId` and `admin`. Pick one of these:
