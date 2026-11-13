@@ -1,7 +1,7 @@
 /* Setting up a workspace: from nothing to an outcome, the goals feeding it and the people who own them,
    one question per screen, in about three minutes. A template fills it in so it's never blank. */
 import { isTop, levelName } from '../domain/levels';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useMaybeApp, useSetup } from '../app/state';
 import { useDraft } from '../app/drafts';
@@ -10,13 +10,14 @@ import { setupSteps, type SetupStep } from '../domain/dayOne';
 import { SETUP_STEP_NAMES } from '../domain/arrival';
 import { readChanges, templateSheets } from '../app/spreadsheet';
 import { saveAndSay } from '../app/files';
-import { buildWorkspace, parseTable, type ImportIssue } from '../domain/importer';
+import { buildWorkspace, ownerToAdd, parseTable, setupDefaults, type ImportIssue } from '../domain/importer';
+import type { Answer } from '../domain/problemLevels';
 import type { Rec, Tables } from '../domain/sheets';
 import { isEmail, mergePeople, normalEmail } from '../domain/people';
 import type { Cycle } from '../domain/types';
 import { MONTH_NAMES, startMonth, yearStartFor, yearWeeks } from '../domain/year';
 import { yearName } from '../domain/yearName';
-import { stagesFromJoining, stagesFromNow, TEMPLATES, type TemplateGoal } from '../domain/templates';
+import { stagesFromNow, TEMPLATES, type TemplateGoal } from '../domain/templates';
 import { currentWeek } from '../domain/plan';
 import { firstReview, WEEKDAY } from '../domain/progress';
 import { dayText } from '../domain/review';
@@ -58,8 +59,12 @@ interface SetupDraft {
   newTeams?: string[];
   /** Whether the workspace records how the app is used: off unless chosen here (backlog WS, Lane 9 Nov). */
   recording?: boolean;
-  /** Keep an uploaded spreadsheet's stage weeks as typed, even those before the joining week (deep review U4). */
-  keepFileWeeks?: boolean;
+  /** The uploaded spreadsheet's name, and the answers to its preview's questions (IM8): by group id, with the words its
+      closed line says, and the groups set-up has given its default answer once ("Count them from this week"). */
+  fileName?: string;
+  fileAnswers?: Record<string, Answer>;
+  fileSaid?: Record<string, { title: string; label: string; level: 'must' | 'check' }>;
+  fileDefaults?: string[];
   /** When it was last changed, for Welcome's "Stopped at step 3 of 7, … on 9 Nov." */
   savedAt?: string;
 }
@@ -75,6 +80,8 @@ const STEP_MARKS: Mark[] = ['setUp.step-1', 'setUp.step-2', 'setUp.step-3', 'set
 
 /** Most goal cards set-up takes: the step asks for two to four (UX report, 8 Nov). */
 const MAX_GOALS = 4;
+/** Set-up's preview of a spreadsheet, loaded only when one is read (IM8). */
+const SetupFilePreview = lazy(() => import('../ui/SetupFilePreview').then((m) => ({ default: m.SetupFilePreview })));
 
 /** Rows of a pasted or uploaded people table, matched to our columns by header when there is one. */
 export function peopleFromTable(tsv: string): { rows: PersonRow[]; objectives: Record<string, string> } {
@@ -100,9 +107,6 @@ export function peopleFromRecords(recs: Rec[]): { rows: PersonRow[]; objectives:
   }).filter((r) => r.name || r.team || r.email);
   return { rows, objectives };
 }
-
-/** "A", "A and B", "A, B and C". */
-const listText = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 
 /** The people as the one format's People sheet: you first, then everyone else (a row with no team takes yours). */
 function peopleTsv(me: PersonRow, rows: PersonRow[], objectives: Record<string, string>) {
@@ -153,11 +157,22 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   // A draft kept from before people had emails still opens.
   const me = { ...d.me, email: d.me.email ?? '' };
   const rowsOf = d.people.map((r) => ({ ...r, email: r.email ?? '' }));
-  // Goals from a spreadsheet count their stages from the week you join, unless you keep them as typed (deep review U4).
-  const joinWeek = Math.max(0, currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today));
-  const fromFile = d.template === 'file' && d.fileTables?.goals ? stagesFromJoining(d.fileTables.goals, d.fileTables.checkIns, joinWeek, yearWeeks(d.startDate)) : null;
-  const fileTables = d.fileTables && fromFile && !d.keepFileWeeks ? { ...d.fileTables, goals: fromFile.goals } : d.fileTables;
-  const result = buildWorkspace({ name: d.name, startDate: d.startDate, reviewDay: d.reviewDay, people: peopleTsv(me, rowsOf, d.objectives), goals: goalsTsv(d), ...(d.template === 'file' && fileTables ? { tables: fileTables } : {}), now: setup.today, idSuffix: suffix });
+  // Goals from a spreadsheet go through the import's preview in create mode (IM8): its questions are answered on Check,
+  // and a goal's stages already due are counted from this week unless that answer is changed.
+  const fromFile = d.template === 'file' && !!d.fileTables;
+  const result = buildWorkspace({ name: d.name, startDate: d.startDate, reviewDay: d.reviewDay, people: peopleTsv(me, rowsOf, d.objectives), goals: goalsTsv(d), ...(fromFile ? { tables: d.fileTables!, answers: d.fileAnswers ?? {} } : {}), now: setup.today, idSuffix: suffix });
+  const fileGroups = fromFile ? result.groups.filter((g) => g.level !== 'note') : [];
+  // Set-up's default answers, given once per question so "Change" leaves it open (setupDefaults).
+  const defaults = fromFile ? setupDefaults(result.groups, d.fileDefaults ?? []) : [];
+  useEffect(() => {
+    if (!defaults.length) return;
+    set({
+      fileAnswers: { ...d.fileAnswers, ...Object.fromEntries(defaults.map((x) => [x.id, x.answer])) },
+      fileSaid: { ...d.fileSaid, ...Object.fromEntries(defaults.map((x) => [x.id, { title: x.title, label: x.label, level: 'check' as const }])) },
+      fileDefaults: [...(d.fileDefaults ?? []), ...defaults.map((x) => x.id)],
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaults.map((x) => x.id).join()]);
   const issues = (t: ImportIssue['table']) => result.issues.filter((i) => (t === 'Goals' ? i.table !== 'People' : i.table === t));
   // peopleTsv drops empty rows, so map each table row to its line in the sheet: header 1, you 2, then the rest.
   const filled = rowsOf.map((r, k) => (r.name.trim() || r.team.trim() || r.email.trim() ? k : -1)).filter((k) => k >= 0);
@@ -210,7 +225,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     !!d.template,
     clean(goalErr(d.outcome, true), d.outcome) && !goalIssue(2),
     d.goals.every((g) => !g.title.trim() || clean(goalErr(g), g)) && !issues('Goals').length,
-    !result.issues.length,
+    !result.issues.length && !fileGroups.some((g) => g.level === 'check'),
   ];
   const problem = [
     nameIssue ?? 'Pick the month the goal year starts.',
@@ -219,7 +234,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     'Pick a starting point.',
     goalIssue(2) ?? (unanswered(cardChecks(d.outcome), d.outcome.answers).length ? 'Answer the question above.' : ''),
     d.goals.some((g) => g.title.trim() && clean(goalErr(g)) && unanswered(cardChecks(g), g.answers).length) && d.goals.every((g) => !g.title.trim() || clean(goalErr(g))) ? 'Answer the questions above.' : 'Fix the goals marked in red, or remove them.',
-    result.issues[0]?.message ?? '',
+    fileGroups.length ? `Settle the ${fileGroups.length === 1 ? 'question' : `${fileGroups.length} questions`} about ${d.fileName ?? 'your spreadsheet'} above.` : result.issues[0]?.message ?? '',
   ];
   const fieldErr = (text: string | null | undefined) => (tried && text ? <span className="hint tone-off field-error" role="alert">{text}</span> : null);
   // When the first check-ins are due: the first review on or after today (domain/progress firstReview).
@@ -273,6 +288,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
         patch.objectives = { ...d.objectives, ...r.objectives };
       }
       // The goals with their plans and past check-ins, for "Goals from your spreadsheet".
+      // A new file's questions are its own: answers given to the last one are dropped.
+      patch.fileName = file.name; patch.fileAnswers = {}; patch.fileSaid = {}; patch.fileDefaults = [];
       if (t.goals?.length) patch.fileTables = { goals: t.goals, ...(t.plan ? { plan: t.plan } : {}), ...(t.checkIns ? { checkIns: t.checkIns } : {}) };
       else patch.fileTables = undefined;
       set(patch);
@@ -491,6 +508,19 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
         {d.step === 6 && (
           <section className="qsection">
             <h1 className="qtitle big">Ready to create {d.name.trim() || 'your workspace'}?</h1>
+            {fromFile && (
+              <Suspense fallback={<p className="hint">Reading {d.fileName ?? 'your spreadsheet'}…</p>}>
+                <SetupFilePreview name={d.fileName ?? 'your spreadsheet'} goals={result.snapshot.goals.length} people={result.snapshot.people.length} groups={fileGroups} issues={result.found}
+                  answers={d.fileAnswers ?? {}} said={d.fileSaid ?? {}} source={owners.source}
+                  valueOf={(kind, id) => { const p = kind === 'person' ? draftPeople.find((x) => x.id === id) : undefined; return p?.email || p?.name || ''; }}
+                  onAnswer={(g, x) => {
+                    // "Add {person}": they join the people step's rows, so the file's people and those typed are one list.
+                    if (x.answer.choice === 'add') { const o = ownerToAdd(d.fileTables?.goals ?? [], g, d.me.team.trim()); set({ people: [...rowsOf.filter((r) => r.name.trim() || r.email.trim() || r.team.trim()), { ...blankPerson(), ...o }] }); return; }
+                    set({ fileAnswers: { ...d.fileAnswers, [g.id]: x.answer }, fileSaid: { ...d.fileSaid, [g.id]: { title: x.title, label: x.label, level: x.level } } });
+                  }}
+                  onClear={(id) => { const { [id]: _a, ...answers } = d.fileAnswers ?? {}; const { [id]: _s, ...said } = d.fileSaid ?? {}; set({ fileAnswers: answers, fileSaid: said }); }} />
+              </Suspense>
+            )}
             {err()}
             <dl className="details">
               <dt>People</dt><dd>{result.snapshot.people.length} in {result.snapshot.teams.length} {result.snapshot.teams.length === 1 ? 'team' : 'teams'}</dd>
@@ -500,13 +530,6 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <dt>You</dt><dd>{d.me.name} ({meEmail}), admin</dd>
               <dt>Recording</dt><dd>{d.recording ? 'On: how the app is used here is recorded' : 'Off: nothing about how the app is used here is recorded'}</dd>
               {(d.fileTables?.checkIns?.length ?? 0) > 0 && d.template === 'file' && <><dt>History</dt><dd>{result.snapshot.checkIns.length} past check-ins, from your spreadsheet</dd></>}
-              {/* Stages from the file that would already be late are counted from now, said here with the way back (deep review U4). */}
-              {!!fromFile?.moved.length && <><dt>Stages</dt><dd className="setup-stage-weeks">
-                {d.keepFileWeeks
-                  ? `Kept as typed: ${listText(fromFile.moved.map((t) => `“${t}”`))} ${fromFile.moved.length === 1 ? 'has' : 'have'} stages due before week ${joinWeek}, so ${fromFile.moved.length === 1 ? 'it starts' : 'they start'} late.`
-                  : `Counted from this week, week ${joinWeek}, as a template’s are: ${listText(fromFile.moved.map((t) => `“${t}”`))} had stages due before it, which would start late.`}
-                {' '}<button type="button" className="linkish" onClick={() => set({ keepFileWeeks: !d.keepFileWeeks })}>{d.keepFileWeeks ? 'Count them from this week' : 'Keep the weeks as typed'}</button>
-              </dd></>}
             </dl>
             <div className="row" style={{ gap: 'var(--s3)' }}>
               <button type="button" className="linkish small tap-44" onClick={() => go(0)}>Change name or year</button>

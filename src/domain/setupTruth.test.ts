@@ -1,9 +1,9 @@
 /* Set-up that tells the truth (backlog SU, deep review U2–U7): the first ten minutes say only what the data backs. */
-import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE } from './importer';
+import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE, setupDefaults } from './importer';
 import { firstReports } from './progress';
 import { mergePeople } from './people';
 import { placesToKeep } from './numbers';
-import { stagesFromJoining } from './templates';
+import { reportedIn } from './templates';
 import { records } from './sheets';
 import type { Cycle } from './types';
 
@@ -12,22 +12,21 @@ const NOW = new Date('2026-11-10T09:00:00Z');
 const START = '2025-12-29';
 
 describe('set-up that tells the truth', () => {
-  it('counts an uploaded template’s stages from the joining week, so nothing is late on day one (U4)', () => {
+  it('counts an uploaded template’s stages from the joining week by default, so nothing is late on day one (U4, IM8)', () => {
     const goals = records(GOALS_TEMPLATE);
-    const { goals: out, moved } = stagesFromJoining(goals, undefined, 46, 53);
-    expect(moved).toEqual(['Canary releases live']);
-    const stages = out.find((g) => g['goal'] === 'Canary releases live')!['stages']!;
-    expect(stages.split(';').map((x) => Number(x.split('@')[1])).every((w) => w > 46 && w <= 53)).toBe(true);
-    // Goals without stages, and stages all still ahead, are left as typed.
-    expect(out.filter((g) => g['goal'] !== 'Canary releases live')).toEqual(goals.filter((g) => g['goal'] !== 'Canary releases live'));
-    expect(stagesFromJoining([{ goal: 'Later', stages: 'A@47; B@50' }], undefined, 46, 53).moved).toEqual([]);
+    const at = (answers?: Record<string, { choice: string }>) => buildWorkspace({ name: 'P', startDate: START, people: PEOPLE_TEMPLATE, goals: '', tables: { goals }, now: NOW, idSuffix: 't', ...(answers ? { answers } : {}) });
+    const given = setupDefaults(at().groups, []);
+    expect(given.map((x) => x.label)).toEqual(['Count them from this week']);
+    const out = at(Object.fromEntries(given.map((x) => [x.id, x.answer]))).snapshot.goals;
+    const canary = out.find((g) => g.title === 'Canary releases live')!;
+    expect(canary.kind === 'milestone' && canary.stages.every((st) => st.dueWeek > 46 && st.dueWeek <= 53)).toBe(true);
   });
 
   it('keeps the stage weeks of an uploaded goal that has check-ins in the file: its history happened (U4)', () => {
-    const goals = [{ goal: 'Canary releases live', key: 'PLAT-3', stages: 'Design@2; Pilot@6' }];
-    expect(stagesFromJoining(goals, [{ 'goal key': 'plat-3', week: '3' }], 46, 53).moved).toEqual([]);
-    expect(stagesFromJoining(goals, [{ goal: 'canary releases live', week: '3' }], 46, 53).moved).toEqual([]);
-    expect(stagesFromJoining(goals, [{ goal: 'Another goal', week: '3' }], 46, 53).moved).toEqual(['Canary releases live']);
+    const g = { goal: 'Canary releases live', key: 'PLAT-3', stages: 'Design@2; Pilot@6' };
+    expect(reportedIn([{ 'goal key': 'plat-3', week: '3' }])(g)).toBe(true);
+    expect(reportedIn([{ goal: 'canary releases live', week: '3' }])(g)).toBe(true);
+    expect(reportedIn([{ goal: 'Another goal', week: '3' }])(g)).toBe(false);
   });
 
   it('adds an upload’s people after those already typed, never replacing them or adding anyone twice (U5)', () => {
