@@ -5638,6 +5638,9 @@ journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, 
   await h.fill(dlg.getByLabel('Why is it stopping?'), 'The platform team took base images over in October.');
   await h.click(dlg.getByRole('button', { name: 'Stop the goal' }));
   await see(p, 'Stopped Base image build time', 'no message that it stopped');
+  const snap = await h.snapshot();
+  const g = snap.goals.find((x) => x.id === 'ci-docker');
+  h.set('logged', !!g?.stoppedAt && g.stoppedBy === 'rhea' && g.stopReason === 'The platform team took base images over in October.', 'the stop wasn’t saved with who and why');
   await p.goto(on('/goals?scope=all&state=stopped'));
   await see(p, 'Filtered by: Stopped', 'the stopped list doesn’t say its filter');
   await see(p, '1 stopped goal, most recently stopped first.', 'the stopped list doesn’t count the stopped goal');
@@ -5649,7 +5652,8 @@ journey('U150', ['GOAL-STOP', 'GOAL-PROPOSED'], 'Stopped goals listed: as Rhea, 
   await h.click(p.getByRole('button', { name: 'Remove' }).first());
   await p.waitForURL((u) => !u.search.includes('state=stopped'));
   await p.locator('.goals-line').first().waitFor();
-  h.set('finish', !(await p.locator('main').innerText()).includes('Base image build time'), 'the stopped goal is listed among the active goals');
+  // The goal's rows, not the page's text: the toast that it stopped may still be showing.
+  h.set('finish', (await p.locator('main a[href$="/goals/ci-docker"]').count()) === 0, 'the stopped goal is listed among the active goals');
 });
 
 journey('U148', ['GOAL-PROPOSED'], 'Proposed in a review: as Rhea walking Developer Productivity fortnightly, “Propose a new goal” (on a phone, “Propose a new goal instead” in the next-step sheet) on Lead time for changes opens a sheet that starts with Rhea (the goal’s owner) and Lead time for changes; a name and Camille as owner saves a proposed goal for Camille in that review, not on the agenda; Camille’s Home says “Rhea proposed a goal for you in Developer Productivity fortnightly”; the review’s next session’s Last time reads “Proposed: … Camille hasn’t made it active yet.”', 30, async (h, device) => {

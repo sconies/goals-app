@@ -7,7 +7,7 @@ import { useGoalColumns } from '../core/app';
 import { levelIds, levelName } from '../domain/levels';
 import { EMPTY_QUERY, KIND_OPTIONS, NEED_OPTIONS, RESULT_OPTIONS, SORT_OPTIONS, STATUS_OPTIONS, type GoalQuery, type SortKey } from '../domain/query';
 import type { Level } from '../domain/types';
-import { ATTENTION, QUARTER } from '../domain/vocabulary';
+import { ATTENTION, QUARTER, STOPPED } from '../domain/vocabulary';
 import { Sheet } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { PickOne } from '../ui/Pick';
@@ -43,7 +43,7 @@ export function FilterSheet({ open = true, onClose, sortOff }: { open?: boolean;
         </fieldset>}
         {/* State (GE10): active goals by default; proposed and stopped goals are listed apart, never mixed with them. */}
         <fieldset className="filter-group"><legend className="field-label">State</legend>
-          <span className="filter-options">{([['', 'Active'], ['proposed', 'Proposed'], ['stopped', 'Stopped']] as const).map(([k, l]) => (
+          <span className="filter-options">{([['', 'Active'], ['proposed', 'Proposed'], ['stopped', STOPPED]] as const).map(([k, l]) => (
             <label key={k} className="check"><input type="radio" name="goal-state" checked={(params.get('state') ?? '') === k} onChange={() => setParams((p) => { if (k) p.set('state', k); else p.delete('state'); return p; })} /> {l}</label>
           ))}</span>
         </fieldset>
