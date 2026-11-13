@@ -158,6 +158,14 @@ describe('MCP server', () => {
     expect(c.authorId).toBe('mateo');
     expect(data().changes.at(-2)!.diffs).toEqual(expect.arrayContaining([{ field: 'Via', from: '—', to: 'MCP' }]));
     expect(touched()).toBeGreaterThan(0);
+    // The week now has a check-in, so posting it again corrects it: refused without a reason, saved with one (#225's review).
+    const again = await call('post_check_in', { goal_id: 'mttr-pir', value: onPlan + 1 });
+    expect(again.isError).toBe(true);
+    expect(again.content[0]!.text).toMatch(/corrects it, which needs a reason.*call again with "reason"/);
+    const fixed = await call('post_check_in', { goal_id: 'mttr-pir', value: onPlan + 1, reason: 'The first number was misread' });
+    expect(fixed.isError).toBe(false);
+    expect(data().checkIns.filter((x) => x.goalId === 'mttr-pir' && x.week === NOW && !x.removedAt).map((x) => x.value)).toEqual([onPlan + 1]);
+    expect(data().changes.flatMap((ch) => ch.diffs ?? [])).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'Why corrected', to: 'The first number was misread' })]));
   });
 
   it('can’t change someone else’s goal, unless the person is an admin', async () => {
