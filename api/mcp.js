@@ -1961,7 +1961,8 @@ function mayChangeGoal(actor, goal) {
 * Whether `actor` may post or correct a check-in on `goal` (Lane, 12 Nov: check-ins are the owner's). Only its owner
 * at the check-in screens, the one-table check-in and through the AI tools. Two exceptions, both kept by Lane (12 Nov),
 * both for an admin: loading a workbook (a spreadsheet import, or setting up from an export) brings in everyone's
-* history, and Data's tables let an admin correct a past check-in. Each records the admin as author and actor, with
+* past weeks, and Data's tables let an admin correct a check-in that exists; neither adds this week's new one: the row
+* decides that (checkInDoors mayPostCheckInRow, which the change engine asks; Lane, 13 Nov, backlog AD). Each records the admin as author and actor, with
 * the door as its Via (postCheckIn.test).
 */
 function mayPostCheckIn(actor, goal, via) {
@@ -8037,6 +8038,21 @@ var init_goalEntry = __esmMin((() => {
 		stages: []
 	});
 }));
+// src/domain/checkInDoors.ts
+/**
+* Whether `actor` may post or correct this check-in row on `goal`. The owner always; an admin at one of the two doors
+* only for what it is for: a workbook brings in past weeks or corrects a check-in that is there, never this week's new
+* one (one pasted row on Import is no history); Data's tables correct a check-in that exists, never add one.
+*/
+function mayPostCheckInRow(actor, goal, via, row) {
+	if (goal.ownerId === actor.id) return true;
+	return mayPostCheckIn(actor, goal, via) && (row.exists || via !== "table" && row.week < row.thisWeek);
+}
+var ADMIN_DOOR_LIMIT;
+var init_checkInDoors = __esmMin((() => {
+	init_goalRights();
+	ADMIN_DOOR_LIMIT = (via) => via === "table" ? "Data’s tables correct a check-in; they don’t add one." : "A workbook brings in past weeks, not this week’s new check-in.";
+}));
 // src/domain/proposedActions.ts
 /** Rule 2's full list for the goal as it stands, as if it were made active from `fromWeek` (this week by default). */
 function readyToActivate(goal, ctx) {
@@ -11630,15 +11646,21 @@ function* planChangesInChunks(input) {
 			return;
 		}
 		const owned = s.goals.find((x) => x.id === g.id) ?? g;
-		if (!create && !mayPostCheckIn({
+		const who = {
 			id: actor.id,
 			admin: admin()
-		}, owned, via)) {
+		};
+		if (!create && !mayPostCheckInRow(who, owned, via, {
+			week: w,
+			thisWeek: week,
+			exists: !!existing
+		})) {
 			if (!post && answerOf("not-allowed", "Check-ins")?.choice === "leave") {
 				leave("Check-ins", row);
 				return;
 			}
-			raise("not-allowed", "Check-ins", row, g.title, `Only ${people.get(owned.ownerId)?.name ?? "its owner"} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
+			const limit = mayPostCheckIn(who, owned, via) ? " " + ADMIN_DOOR_LIMIT(via) : "";
+			raise("not-allowed", "Check-ins", row, g.title, `Only ${people.get(owned.ownerId)?.name ?? "its owner"} (its owner) can check in on “${g.title}”.${limit}`, post ? {} : { answers: ANSWERS.leaveOnly });
 			return;
 		}
 		const asked = post ? checkInLevels(g, w, draft, ctx).checks : [];
@@ -12337,6 +12359,7 @@ var init_changeset = __esmMin((() => {
 	init_columns();
 	init_goal();
 	init_goalEntry();
+	init_checkInDoors();
 	init_goalRights();
 	init_numbers();
 	init_goalKey();
@@ -16786,7 +16809,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet. Anyone can ask the owner for an update from the goal’s page."]
+				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. Anyone can ask the owner for an update from the goal’s page."]
 			}
 		],
 		routes: ["/check-in", "/check-in/:goalId"],
@@ -18392,7 +18415,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Leaving a form",
-				list: ["A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.", "“Close without saving” (setting up or changing a review, wrapping up a goal) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it."]
+				list: ["A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.", "“Close without saving” (setting up or changing a review, wrapping up a goal, starting an import) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it."]
 			},
 			{
 				heading: "An address that leads nowhere",
@@ -19005,6 +19028,20 @@ var WHATS_NEW = [
 		title: "Proposed goals on the Map and the Board",
 		points: ["With the State filter on Proposed, the Board is one column, Proposed, and the Map draws each proposed goal in its tree with a dashed outline and the word.", "They still have no status: none is on the critical path or counted in what is under a goal."],
 		articles: ["goal-proposed", "goals"]
+	},
+	{
+		id: "admin-check-in-doors-narrow",
+		date: "2026-11-13",
+		title: "Only owners add this week’s check-in",
+		points: ["An admin’s workbook brings in past weeks and corrections, not this week’s new check-in for someone else.", "In Data, an admin corrects a check-in; adding one is the owner’s."],
+		articles: ["check-in", "data"]
+	},
+	{
+		id: "import-way-out",
+		date: "2026-11-13",
+		title: "Import has a way out again",
+		points: ["Import has “Close without saving” at the top right, as every form does, so on a phone it no longer leaves you with no way back to Data.", "Rows you pasted are asked about first."],
+		articles: ["getting-around", "import"]
 	},
 	{
 		id: "setup-upload-preview",

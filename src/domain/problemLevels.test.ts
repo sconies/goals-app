@@ -16,6 +16,8 @@ const s: Snapshot = { ...demo, teams: [...demo.teams, { id: 'platform', name: 'P
 const cycle = s.cycles[0]!;
 const week = currentWeek(cycle, today);
 const person = (id: string) => s.people.find((p) => p.id === id)!;
+/** A goal's owner, by its key: this week's check-ins are theirs to load (backlog AD). */
+const ownerOf = (key: string) => s.goals.find((g) => g.key === key)!.ownerId;
 let n = 0;
 const base = (actor: string, tables: ChangeInput['tables'], extra: Partial<ChangeInput> = {}): ChangeInput => ({
   tables, snapshot: s, cycle, week, actor: person(actor), now: today.toISOString(), newId: (p) => `${p}_l${++n}`, via: 'spreadsheet', ...extra,
@@ -103,10 +105,11 @@ describe('rule 7: one answer covers every row in its group', () => {
   it('[IMPORT-LEVELS] “Keep 2 decimal places for these goals” gives each goal the places, so its check-ins save', () => {
     const g = s.goals.find((x) => x.key === 'G-23') as MetricGoal;
     const t = { checkIns: [rec({ 'Goal key': 'G-23', Week: String(week), Value: '9.25', Call: 'On track', Why: 'Recounted after the cache change.' })] };
-    const cs = run('amara', t);
+    // This week's check-in is the owner's to load (backlog AD).
+    const cs = run(g.ownerId, t);
     const p = cs.groups.find((x) => x.kind === 'precision')!;
     expect(p).toMatchObject({ level: 'must', answers: [{ choice: 'keep', label: 'Keep 2 decimal places for this goal' }] });
-    const done = run('amara', t, { answers: { [p.id]: { choice: 'keep' } } });
+    const done = run(g.ownerId, t, { answers: { [p.id]: { choice: 'keep' } } });
     expect(done.issues.filter((i) => i.level === 'must')).toEqual([]);
     expect((done.commit?.goals ?? []).find((x) => x.id === g.id)).toMatchObject({ decimals: 2 });
   });
@@ -114,7 +117,7 @@ describe('rule 7: one answer covers every row in its group', () => {
     const g = s.goals.find((x) => x.cycleId === cycle.id && x.kind === 'metric' && x.decimals === 1 && !x.removedAt && !s.checkIns.some((c) => c.goalId === x.id && c.week === week)) as MetricGoal;
     const at = planAt(g.plan, week, cycle.weeks).toFixed(1);
     const t = { checkIns: [rec({ 'Goal ID': g.id, Week: String(week), Value: at.replace('.', ',') })] };
-    expect(run('amara', t).issues.map((i) => i.kind)).toContain('decimal-comma');
+    expect(run(g.ownerId, t).issues.map((i) => i.kind)).toContain('decimal-comma');
     // The one-table check-in is the owner's own (check-ins are the owner's, R1).
     const grid = run(g.ownerId, t, { via: 'bulk' });
     expect(grid.issues.filter((i) => i.level !== 'note')).toEqual([]);
@@ -151,7 +154,7 @@ describe('section 4: a case per kind, with its sentence and level', () => {
     ['not-a-number', 'amara', { checkIns: [rec({ 'Goal key': 'G-14', Week: String(week), Value: 'six' })] }, /“six” isn’t a number/],
     ['formula', 'amara', { goals: [newGoal({ Target: '=20+2' })] }, /Target holds a formula \(“=20\+2”\), not a number\. In Excel, copy the column and paste it as values\./],
     ['precision', 'amara', { checkIns: [rec({ 'Goal key': 'G-14', Week: String(week), Value: '6.25' })] }, /has 2 decimal places, but this goal keeps whole numbers/],
-    ['impossible-number', 'amara', { checkIns: [rec({ 'Goal key': 'G-31', Week: String(week), Value: '-4' })] }, /can’t be below zero %/],
+    ['impossible-number', ownerOf('G-31'), { checkIns: [rec({ 'Goal key': 'G-31', Week: String(week), Value: '-4' })] }, /can’t be below zero %/],
     ['unknown-word', 'amara', { goals: [rec({ Key: 'G-1', Level: 'vp' })] }, /^Level says “vp”\. Use north star, svp or team\.$/],
     ['unknown-ref', 'amara', { goals: [newGoal({ Team: 'Infra Guild' })] }, /There’s no team called “Infra Guild”\./],
     ['ambiguous-ref', 'amara', { goals: [newGoal({ Owner: 'Sam Lee' })] }, /2 people are called “Sam Lee”\. Use their email instead/, { snapshot: twoSams }],
@@ -165,7 +168,7 @@ describe('section 4: a case per kind, with its sentence and level', () => {
     ['stage-format', 'amara', { goals: [rec({ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Design; Pilot@50' })] }, /“Design” has no week\. Write it as Name@week, like Pilot@52\./],
     ['stage-format', 'amara', { goals: [rec({ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Pilot@50; pilot@52' })] }, /^Two stages are called “Pilot”\. Give each its own name, such as “pilot review”\.$/],
     ['week-wrong', 'amara', { checkIns: [rec({ 'Goal key': 'G-14', Week: '50', Value: '6' })] }, /Week 50 hasn’t happened yet; it’s week 46\./],
-    ['checkin-incomplete', 'amara', { checkIns: [rec({ 'Goal key': 'G-126', Week: String(week), Value: '4.1' })] }, /needs a Cause and a Why of 10 characters or more/],
+    ['checkin-incomplete', ownerOf('G-126'), { checkIns: [rec({ 'Goal key': 'G-126', Week: String(week), Value: '4.1' })] }, /needs a Cause and a Why of 10 characters or more/],
     ['cant-change', 'amara', { goals: [rec({ Key: 'G-1', Type: 'milestone' })] }, /A goal’s type can’t change\. Add a new goal instead\./],
     ['not-allowed', 'tunde', { goals: [rec({ Key: 'G-1', Target: String(g1.plan.target - 1) })] }, /Only Rhea Kapoor \(its owner\) or an admin can change “Lead time for changes”\./, { reason: 'x' }],
     ['removal-refused', 'amara', { goals: [rec({ Key: 'G-14', Action: 'Stop' })] }, /Say why/],
@@ -218,7 +221,8 @@ describe('the design’s samples (docs/design/import/samples) as fixtures', () =
   it('[IMPORT-LEVELS] 05b: fourteen rows with one typo are one question', () => expect(kinds('05b-same-team-typo-14.csv')).toEqual(['check near-ref 14']));
   it('06: duplicates and keys', () => expect(kinds('06-duplicates.csv')).toEqual(['must duplicate 4', 'must bad-key 1', 'must bad-key 1', 'check same-goal 1']));
   it('07: past dates, and dates read as weeks', () => expect(kinds('07-past-dates.csv')).toEqual(['must stage-format 2', 'must plan-order 1', 'check past-stage 1']));
-  it('08: check-ins', () => expect(kinds('08-checkins.csv', 'checkIns')).toEqual(['must week-wrong 2', 'must duplicate 2', 'must not-a-number 1', 'must precision 1', 'must impossible-number 1', 'must checkin-incomplete 1', 'must checkin-incomplete 1', 'must bad-key 1', 'must unknown-word 1', 'check decimal-comma 1']));
+  // Loaded the week after its rows: an admin's workbook brings in past weeks, not this week's new check-ins (backlog AD).
+  it('08: check-ins', () => expect(asked(run('amara', { checkIns: sample('08-checkins.csv') }, { week: week + 1 }))).toEqual(['must week-wrong 2', 'must duplicate 2', 'must not-a-number 1', 'must precision 1', 'must impossible-number 1', 'must checkin-incomplete 1', 'must checkin-incomplete 1', 'must bad-key 1', 'must unknown-word 1', 'check decimal-comma 1']));
   it('09e: a totals row is asked about', () => expect(kinds('09e-blank-and-merged.csv')).toEqual(['must required-empty 1', 'check totals-row 1']));
   it('09f: decimal commas, asked once', () => expect(kinds('09f-semicolons.csv')).toEqual(['check decimal-comma 4']));
   it('09h: keys from another workspace name other goals', () => expect(kinds('09h-other-workspace-keys-only.csv')).toEqual(['check other-goal 1', 'check other-goal 1']));
