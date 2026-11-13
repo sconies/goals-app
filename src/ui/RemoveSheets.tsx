@@ -67,6 +67,26 @@ export function RemoveGoalSheet({ goal, onClose }: { goal: Goal; onClose: () => 
   );
 }
 
+/** Make an active goal with no check-ins proposed again (GE10, rule 14's `backToProposed`): its owner or an admin. */
+export function BackToProposedSheet({ goal, onClose }: { goal: Goal; onClose: () => void }) {
+  const app = useApp();
+  const [busy, setBusy] = useState(false);
+  const go = async () => {
+    if (busy) return;
+    setBusy(true);
+    try { await app.run('backToProposed', { goalId: goal.id }); onClose(); } catch { setBusy(false); }
+  };
+  return (
+    <Sheet open onClose={onClose} title="Make it proposed again">
+      <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void go(); }}>
+        <p className="strong">{goal.title}</p>
+        <p className="small">It will have no status and nothing will be due until it is made active.</p>
+        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Keep it active</button><button className="btn primary big-btn" type="submit">{busy ? 'Saving…' : 'Make it proposed'}</button></div>
+      </form>
+    </Sheet>
+  );
+}
+
 /** What taking someone out of the workspace is called for them: Mark as left, or (no history) Delete. */
 export function leaveLabel(app: ReturnType<typeof useApp>, p: Person) {
   return hasHistory(personHistory(app.full, p.id)) ? 'Mark as left' : `Delete ${firstOf(p.name)}`;

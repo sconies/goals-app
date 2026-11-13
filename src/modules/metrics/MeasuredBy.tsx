@@ -11,6 +11,8 @@ import { parseNumber } from '../../domain/checkin';
 import { WarnMark } from '../../ui/bits';
 import { PickOne } from '../../ui/Pick';
 import { canLinkGoal, DIRECTION_LABEL, linkOf, metricsOf, type Metric, type MetricDirection } from './rules';
+import { checkReads } from './reads';
+import { metricChecks, unansweredChecks, unitChecks, type CheckField } from './rulesDefine';
 import { linkReads } from './rulesLink';
 import { metricPath } from './rulesLibrary';
 import { FROM_METRIC_NOTE, fromMetricWords, measureDefaults, measuredBySays, measureFormProblems } from './rulesMeasure';
@@ -44,6 +46,8 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
   const [shown, setShown] = useState(false);
   const [adding, setAdding] = useState<Adding | null>(null);
   const [addErr, setAddErr] = useState('');
+  // Rule 1's answers for the metric being added here: the same Checks as Add a metric asks (#281's review).
+  const [addAnswers, setAddAnswers] = useState<Partial<Record<CheckField, string>>>({});
   const [busy, setBusy] = useState(false);
   // What the form held before a metric filled it, so "No metric" gives it back (rule 5); null when nothing was filled.
   const before = useRef<{ unit: string; decimals: string } | null>(null);
@@ -126,11 +130,21 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
     setHidden(false);
   };
 
+  const addChecks = adding ? metricChecks({ id: '', name: adding.name, unit: adding.unit, meaning: adding.meaning }, null, checkReads(app.snapshot)) : [];
+  const addOpen = unansweredChecks(addChecks, addAnswers);
+  const answerAdd = (field: CheckField, choice: string) => {
+    if (!adding) return;
+    if (choice.startsWith('use:')) { pickMetric(metricsOf(app.snapshot).find((x) => x.id === choice.slice(4))); setAdding(null); setAddAnswers({}); return; }
+    if (field === 'unit' && choice === 'use') { const u = unitChecks(adding.unit, metricsOf(app.snapshot).filter((m) => !m.removedAt).map((m) => m.unit)); if (u) setAdding({ ...adding, unit: u.use }); return; }
+    setAddAnswers({ ...addAnswers, [field]: choice });
+  };
   const addIt = async () => {
     if (!adding || busy) return;
+    if (addOpen.length) { setAddErr('Answer the question above first.'); return; }
     setBusy(true); setAddErr('');
     try {
-      const out = await app.run('saveMetric', { name: adding.name, unit: adding.unit, direction: (adding.direction || undefined) as MetricDirection, meaning: adding.meaning, decimals: dp, ownerId: app.viewer.id }) as { metric: Metric };
+      const out = await app.run('saveMetric', { name: adding.name, unit: adding.unit, direction: (adding.direction || undefined) as MetricDirection, meaning: adding.meaning, decimals: dp, ownerId: app.viewer.id, answers: addAnswers }) as { metric: Metric };
+      setAddAnswers({});
       setAdding(null);
       app.toast(`Added ${out.metric.name}. Say more about it on its page when you can.`);
       pickMetric(out.metric);
@@ -160,8 +174,9 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
             </div>
           </div>
           <label className="field"><span className="field-label">What it means <span className="hint">optional</span></span><input className="input" value={adding.meaning} maxLength={2000} onChange={(e) => setAdding({ ...adding, meaning: e.target.value })} /></label>
+          {addOpen.map((c) => <LinkQuestion key={c.field} c={{ field: c.field, kind: 'check', words: c.words, answers: c.answers }} onAnswer={(choice) => answerAdd(c.field, choice)} />)}
           {addErr && <span className="hint tone-off" role="alert">{addErr}</span>}
-          <div className="row"><button type="button" className="btn" disabled={busy} onClick={() => void addIt()}>{busy ? 'Adding…' : 'Add this metric'}</button><button type="button" className="btn ghost" onClick={() => setAdding(null)}>Cancel</button></div>
+          <div className="row"><button type="button" className="btn" disabled={busy} onClick={() => void addIt()}>{busy ? 'Adding…' : 'Add this metric'}</button><button type="button" className="btn ghost" onClick={() => { setAdding(null); setAddAnswers({}); }}>Cancel</button></div>
         </div>
       )}
 
@@ -200,8 +215,8 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
   );
 }
 
-/** One of rule 2's questions under "Which part": a Must fix outlined and washed, a Check with its answers as plain buttons. */
-function LinkQuestion({ c, onAnswer }: { c: LinkCheck; onAnswer: (choice: string) => void }) {
+/** One of rule 2's questions under "Which part" (or rule 1's, for a metric added here): a Must fix outlined and washed, a Check with its answers as plain buttons. */
+function LinkQuestion({ c, onAnswer }: { c: Pick<LinkCheck, 'kind' | 'words' | 'answers'> & { field: string }; onAnswer: (choice: string) => void }) {
   return (
     <div className={`level-block ${c.kind === 'fix' ? 'level-fix' : 'level-check'}`} role={c.kind === 'fix' ? 'alert' : 'group'} data-check={c.field}>
       <span className="level-head"><WarnMark /><span className="level-word">{c.kind === 'fix' ? 'Must fix' : 'Check'}</span></span>

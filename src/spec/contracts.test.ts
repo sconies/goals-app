@@ -9,7 +9,10 @@ import { checkThen, runContract } from '../../scripts/drill.mjs';
 import { contracts } from './contracts';
 import { PREFS_CONTRACT } from '../ports/contracts/cases/prefs';
 import { SEARCH_CONTRACT, WORST_FIRST } from '../ports/contracts/cases/search';
-import { seededSearch } from '../adapters/contractPorts';
+import { memoryStore, seededSearch } from '../adapters/contractPorts';
+import { STORE_CONTRACT } from '../ports/contracts/cases/store';
+import { storeStart } from '../ports/contracts/store';
+import { BrowserStore } from '../data/store';
 import { caller, methods } from '../ports/contracts/cases/run';
 import { searchStart } from '../ports/contracts/search';
 import type { Search } from '../ports/search';
@@ -45,6 +48,34 @@ describe('the port contracts as data (spec/conformance/contracts)', () => {
     expect(checkThen({ select: 'near', absent: true }, ok({ total: 0 }))).toEqual([]);
     expect(checkThen({ anyOf: [{ equals: 1 }, { equals: 2 }] }, ok(2))).toEqual([]);
     expect(checkThen({ anyOf: [{ equals: 1 }, { equals: 2 }] }, ok(3))).toHaveLength(1);
+    expect(checkThen({ anyOf: [{}, { throws: true }] }, { error: 'no' })).toEqual([]);
+    expect(checkThen({ anyOf: [{ equals: 1 }] }, { error: 'no' })).toEqual(['refused: no']);
+    expect(checkThen({ matches: '^\\S{3,}$' }, ok('abcd'))).toEqual([]);
+    expect(checkThen({ matches: '^\\S{3,}$' }, ok('a b'))).toHaveLength(1);
+    expect(checkThen({ select: 'goals[id=g2].title', equals: 'Two' }, ok({ goals: [{ id: 'g1', title: 'One' }, { id: 'g2', title: 'Two' }] }))).toEqual([]);
+    expect(checkThen({ select: 'goals[id=g3].title', absent: true }, ok({ goals: [{ id: 'g1' }] }))).toEqual([]);
+  });
+
+  it('fails a store that ignores the window it is asked for, naming the case', async () => {
+    const whole = storeStart(async () => { const s = await memoryStore(); return Object.assign(s, { load: (id: string) => BrowserStore.prototype.load.call(s, id) }); });
+    const failed = (await runContract(STORE_CONTRACT, caller({ store: whole }))).filter((r) => !r.pass);
+    expect(failed.map((r) => r.name)).toEqual([STORE_CONTRACT.cases.find((c) => c.name.startsWith('narrows a load'))!.name]);
+  }, 60_000);
+
+  it('pages by another option and list when a step names them (the store’s history: before, changes)', async () => {
+    const log = Array.from({ length: 5 }, (_, i) => ({ id: `c${i}` }));
+    const seen: unknown[] = [];
+    const call = async (r: { op: string; args: unknown[] }) => {
+      if (r.op === 'given') return { ok: null };
+      const ask = r.args[1] as { before?: number };
+      seen.push(ask.before ?? null);
+      const from = ask.before ?? 0;
+      return { ok: { changes: log.slice(from, from + 2), next: from + 2 < log.length ? from + 2 : null } };
+    };
+    const contract = { port: 'p', about: '', ops: {}, given: null, cases: [{ name: 'pages', steps: [{ when: { op: 'history', args: ['ws', {}] }, pages: { arg: 1, max: 10, key: 'before', rows: 'changes' }, then: { all: [{ select: 'rows[].id', equals: log.map((c) => c.id) }, { select: 'pages', equals: 3 }] } }] }] };
+    const [r] = await runContract(contract, call);
+    expect(r!.problems).toEqual([]);
+    expect(seen).toEqual([null, 2, 4]);
   });
 
   it('fails a search that breaks a rule, naming the case', async () => {

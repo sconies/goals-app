@@ -6,23 +6,24 @@ What any build’s ports must do, as cases a harness runs: the same cases Faro�
 
 ## A contract file
 
-Each `<port>.json` holds `port` (the name the shim is asked by), `about`, `ops` (each operation the shim answers, with its arguments and what it does), `given` (what a case starts from) and `cases`. A case is `{ "name", "given"?, "steps" }`: a sentence saying what any build must do, its own `given` when it doesn’t start from the contract’s, and its steps, each `{ "when": { "op", "args" }, "then" }`. A step with `pages` calls its operation again with the last answer’s `next` put in as `after` (in the argument at `pages.arg`), until `next` is null or `pages.max` calls; `pages.each` is checked on every answer, and `then` on `{ "pages", "rows" }`: how many calls were made, and every page’s rows in order. `pages.between`, when given, is an operation called once after the first page and before the second: something that happens while someone pages, such as a goal added.
+Each `<port>.json` holds `port` (the name the shim is asked by), `about`, `ops` (each operation the shim answers, with its arguments and what it does), `given` (what a case starts from) and `cases`. A case is `{ "name", "given"?, "steps" }`: a sentence saying what any build must do, its own `given` when it doesn’t start from the contract’s, and its steps, each `{ "when": { "op", "args" }, "then" }`. A step with `pages` calls its operation again with the last answer’s `next` put in as `after` (in the argument at `pages.arg`), until `next` is null or `pages.max` calls (`pages.key`, when given, names the option `next` goes in instead of `after`, such as `before`); `pages.each` is checked on every answer, and `then` on `{ "pages", "rows" }`: how many calls were made, and every page’s rows in order (an answer’s `rows`, or the list `pages.rows` names, such as `changes`). `pages.between`, when given, is an operation called once after the first page and before the second: something that happens while someone pages, such as a goal added.
 
 What a `then` checks (every key given must hold; an empty `then` only asks that the operation doesn’t refuse):
 
-- `select`: a path into the answer that the other keys look at: `total`, `rows[0].name`, `rows[].id` (every row’s id), `[].id` when the answer is a list. Inside `all` and `anyOf`, each path starts from the whole answer again.
+- `select`: a path into the answer that the other keys look at: `total`, `rows[0].name`, `rows[].id` (every row’s id), `[].id` when the answer is a list, `goals[id=g1].title` (the item whose id is `g1`). Inside `all` and `anyOf`, each path starts from the whole answer again.
 - `equals`: equal as JSON: the same keys (a key left out and one holding nothing are the same), the same values, lists in the same order.
 - `has`: at least this: an object’s keys as deep as given (others may be there too), a list’s items one for one.
 - `includes`: a list holding each of these, anywhere in it.
 - `excludes`: a list holding none of these.
 - `length`: a list or text exactly this long.
 - `maxLength`: a list or text no longer than this.
+- `matches`: text matching this regular expression (JavaScript’s), such as a token’s secret that can’t be known in advance.
 - `distinct`: a list with no item twice.
 - `ordered`: `"text"`: A to Z in the language’s own order; `{ "rank": { … } }`: by each item’s rank, highest first, ties in any order (stale and at risk tie, so worst first is checked this way, not by a fixed list).
 - `throws`: the operation refuses: the shim answers `{ "error": … }`, in any words.
 - `absent`: nothing there: the key is left out, or null.
 - `all`: every one of these holds.
-- `anyOf`: at least one of these holds: where the contract accepts either of two answers (a near miss is optional).
+- `anyOf`: at least one of these holds: where the contract accepts either of two answers (a near miss is optional). A `throws` among them lets the operation refuse.
 
 ## The shim
 
@@ -78,6 +79,41 @@ Its 3 cases:
 1. keeps a value when the store is opened again
 1. forgets a value set to null, and a later value replaces an earlier one
 
+### [store](store.json)
+
+The goals store (`Store`): where a workspace’s records are kept, whatever keeps them. `given` is `{ workspaces: [{ workspace, snapshot }] }`: start a fresh, empty store and make each workspace in it with `createWorkspace`. A snapshot is a workspace’s records by kind (`goals`, `people`, `teams`, `cycles`, `checkIns`, `changes`, `tokens`, `modules` and the rest; [the records](../../core/types.md)); a commit is one save: the records it adds or replaces by kind, change-log entries to add, and `expect`, the versions it was based on. A store must keep a feature module’s records it knows nothing about: `modules.<module>.<key>`, each row whole, saved with the rest of its commit. The contract’s module is `contract`, whose one record is a mark on a goal (`modules.contract.marks`); a database store gets its table first, as the module’s migration would make it:
+
+```sql
+create table if not exists faro.okr_contract_marks (id text primary key, workspace_id text not null references faro.okr_workspaces (id), goal_id text not null references faro.okr_goals (id), text text not null, at timestamptz not null, removed_at timestamptz, removed_by text);
+grant select, insert, update on faro.okr_contract_marks to anon;
+insert into faro.module_tables (table_name, module, position) values ('okr_contract_marks', 'contract', 100) on conflict (table_name) do nothing;
+create or replace view public.okr_contract_marks with (security_invoker = on) as select * from faro.okr_contract_marks;
+```
+
+- `given`: Start a fresh store holding these workspaces. Answers null.
+- `workspaces`: The workspaces kept: `[{ id, name, kind, createdAt }]`.
+- `createWorkspace`: (workspace, snapshot) Keep a new workspace and all its records. Answers null.
+- `load`: (workspaceId, window?) The workspace’s records. With `window` (`{ from }`): only the check-ins of cycles whose last day is on or after `from`’s day, and only the change-log entries from `from` on plus the anchors of any age (comments, asks, a cycle’s entries, an import’s summary or undoing, or any entry carrying `undo`), and `history: { from, checkInCycles }` (every cycle with a check-in, sorted); without one, everything, and no `history`.
+- `commit`: (workspaceId, commit) Save it whole or not at all: a saved goal or review is one version on; refuse it as stale when a goal or review it `expect`s has moved on. Never changes another workspace’s records. Answers null.
+- `issueToken`: (workspaceId, commit) Keep the commit’s new AI assistant token and answer its secret (at least 20 characters, no spaces), which is never kept or given back.
+- `deleteWorkspace`: (workspaceId) Remove the workspace and everything in it. Answers null.
+- `history`: (workspaceId, { before?, goalId?, size? }) Change-log entries a page at a time, newest first (by `at`, then `id`, both descending): `{ changes, next }`, those strictly older than `before` (`{ at, id }`), only one goal’s when `goalId` is given, 50 unless `size` says otherwise and never more than 100; `next` is the last entry’s `{ at, id }` when there are more, else null.
+
+Its 12 cases:
+
+1. keeps a new workspace whole, and lists it
+1. saves a change-log entry and gives it back
+1. saves a goal one version on, and refuses a save based on the version before it as stale
+1. never lets a save to one workspace change another’s records
+1. keeps a module’s records whole, saves them with a commit, and removes and restores them with what they point to
+1. brings back what Undo restores, as loaded, and it stays back after the next load
+1. puts back what an import deleted, stopped or marked as left when the import is undone, and it stays back
+1. issues an AI assistant token once, never keeps its secret, and revokes it
+1. deletes a workspace and everything in it
+1. narrows a load to a window: check-ins of cycles that overlap it, and entries from its start plus the anchors of any age
+1. pages back through the change log newest first, with no skips or repeats, and narrows it to a goal
+1. loads the whole workspace when no window is asked for, and says nothing was left out
+
 ### [goals](goals.json)
 
 The query port’s goal calls (`Goals`): what Home, Goals and the AI tools read about goals, a page of summary rows at a time, each row what the stage 1 rules say about the goal now. `given` names the conformance workspace (`workspace.json`, beside this folder) as it stood at its `builtFor`, asked by `viewer` (for scopes): the shim makes a port over it. An ask is `{ query, scope?, after?, size? }`, where `query` is a Goals link’s query string (`status=off&sort=title`; the Goals screen’s filters and sort, [the Goals page](../../core/rules/goals-page.md)) and `scope` names a Goals scope, answered for the viewer. A row is the goal’s summary without its check-ins: `goal` (the record), `status`, `attention.flags` (each with its `kind`) and the rest.
@@ -114,5 +150,3 @@ Its 24 cases:
 1. gives a goal’s check-ins only through goal()
 1. narrows to a scope by its name, for the person asking, and counts the same filter
 1. lists with no sort worst first, then by title
-
-**Not yet as data:** the goals store’s contract (`storeContract`) is still only in Faro’s code; it moves here when the store’s windowed load and history land.

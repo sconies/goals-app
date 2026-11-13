@@ -11,6 +11,7 @@ import * as R from '../../domain/removal';
 import type { Goal, Snapshot } from '../../domain/types';
 import * as M from './rules';
 import { linkGoalMetric } from './rulesLink';
+import { saveMetricAsked } from './rulesSave';
 import RECORDS from './records';
 
 /** This module's records, as the registry gives them to the core. */
@@ -91,6 +92,22 @@ describe('what a metric needs', () => {
 });
 
 describe('adding and changing a metric', () => {
+  it('asks rule 1’s Checks at every door: saving refuses while one is open, and saves once it is answered (#281)', () => {
+    const w = world();
+    // From a goal’s Measured by, as from Add a metric: a name one letter from another’s, a share that doesn’t say out of what.
+    expect(() => saveMetricAsked(w.x('oskar'), { name: 'Flaky tests rate', unit: '%', direction: 'lower' })).toThrow(/Answer this question first: This is one letter from “Flaky test rate”/);
+    const done = saveMetricAsked(w.x('oskar'), { name: 'Flaky tests rate', unit: '%', direction: 'lower', answers: { name: 'keep:metric_flaky-rate' } });
+    expect(done.commit!.changes[0]!.summary).toBe('Added the metric “Flaky tests rate”');
+    expect(() => saveMetricAsked(w.x('oskar'), { name: 'Flaky tests rate', unit: '%', direction: 'lower', answers: { name: 'use:metric_flaky-rate' } })).toThrow('Nothing saved: use that metric instead.');
+  });
+  it('treats a name that differs only by accents or case as the same name: a Must fix (#281)', () => {
+    const w = world();
+    expect(() => M.saveMetric(w.x('oskar'), { name: 'Fláky Test Rate', unit: '%', direction: 'lower' })).toThrow('There’s already a metric called Flaky test rate.');
+  });
+  it('refuses someone who may not change the metric before asking anything (#281)', () => {
+    const w = world();
+    expect(() => saveMetricAsked(w.x('oskar'), { id: 'metric_flaky-rate', name: 'Flaky tests rate' })).toThrow('Only Rhea Kapoor or an admin can change this metric.');
+  });
   it('anyone adds one, owns it, and it’s logged field by field', () => {
     const w = world();
     const { commit, metric } = M.saveMetric(w.x('oskar'), { name: 'Build time', unit: 'min', direction: 'lower', source: 'CI analytics' });

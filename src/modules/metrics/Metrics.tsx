@@ -437,13 +437,15 @@ export function MetricForm() {
     if (choice.startsWith('use:')) { const m = metricsOf(app.snapshot).find((x) => x.id === choice.slice(4)); if (m) void nav(metricPath(m)); return; }
     if (c.field === 'unit' && choice === 'use') { const u = unitChecks(d.unit, unitsInUse(metricsOf(app.snapshot).filter((m) => m.id !== live?.id))); if (u) set({ unit: u.use }); return; }
     setAnswered((a) => ({ ...a, [c.field]: { choice, at: valueOf(c.field) } }));
+    // The question closes to one line: its Change takes the focus, so it isn't lost to the page (#281's review).
+    window.setTimeout(() => document.querySelector<HTMLElement>(`[data-said="${c.field}"] button`)?.focus(), 0);
   };
   const said = (f: CheckField) => (f === 'name' ? 'You said: mine is different.' : f === 'unit' ? `You said: keep “${d.unit.trim()}”.` : 'You said: it’s right as written.');
   const checkFor = (f: CheckField) => {
     const c = checks.find((x) => x.field === f);
     if (!c) return null;
     const a = answered[f];
-    if (a && a.at === valueOf(f)) return <CheckSaid onChange={() => setAnswered((x) => { const y = { ...x }; delete y[f]; return y; })}>{said(f)}</CheckSaid>;
+    if (a && a.at === valueOf(f)) return <div data-said={f}><CheckSaid onChange={() => setAnswered((x) => { const y = { ...x }; delete y[f]; return y; })}>{said(f)}</CheckSaid></div>;
     if (!shows(f)) return null;
     return (
       <div className={'level-block level-check metric-check' + (waiting ? ' level-alert' : '')} role="group" aria-labelledby={`metric-check-${f}`} tabIndex={-1} data-check={f}>
@@ -473,7 +475,9 @@ export function MetricForm() {
     setAsking(false);
     setBusy(true);
     try {
-      const out = await app.run('saveMetric', live ? { ...input, id: live.id, ...(confirmed ? { confirm: true } : {}) } : input) as { metric: Metric };
+      // The answers go with the save: the action asks the same Checks and refuses while one is open.
+      const answers = Object.fromEntries(checks.flatMap((c) => (answered[c.field] && answered[c.field]!.at === valueOf(c.field) ? [[c.field, answered[c.field]!.choice]] : [])));
+      const out = await app.run('saveMetric', { ...input, answers, ...(live ? { id: live.id, ...(confirmed ? { confirm: true } : {}) } : {}) }) as { metric: Metric };
       clearDraft();
       app.toast(live ? `Saved ${out.metric.name}` : `Added ${out.metric.name}`);
       void nav(metricPath(out.metric), { replace: true });
