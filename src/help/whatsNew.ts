@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'ended-cycle-stays-as-read',
+    date: '2026-11-13',
+    title: 'A year that has ended keeps its check-ins as the wrap-up read them',
+    points: [
+      'Once a cycle has ended, none of its check-ins can be corrected: not from the form, Data’s tables, the AI assistant or a spreadsheet.',
+      'A spreadsheet that carries those check-ins unchanged still loads.',
+    ],
+    articles: ['check-in'],
+  },
+  {
     id: 'older-changes-on-request',
     date: '2026-11-13',
     title: 'Faro opens with the last year of changes, and fetches older ones when asked',
