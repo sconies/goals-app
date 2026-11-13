@@ -136,3 +136,12 @@ export const dayText = (iso: string): string => {
   if (t === undefined) { t = DAY_TEXT.format(new Date(day + 'T00:00:00Z')); dayTexts.set(day, t); }
   return t;
 };
+
+/**
+ * Small workspaces, rule 2: a count beside a tab, a menu row or a section's name is left out at nought ("Watching", not
+ * "Watching 0"). A sentence may still say none. With a noun, "3 goals"; at nought, nothing.
+ */
+export function countWords(n: number, noun?: { one: string; many: string }): string {
+  if (!(n > 0)) return '';
+  return noun ? `${n} ${n === 1 ? noun.one : noun.many}` : String(n);
+}
