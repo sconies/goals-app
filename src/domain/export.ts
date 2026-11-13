@@ -24,6 +24,8 @@ import {
 import type { Archive, CheckIn, Decision, Goal, Person } from './types';
 import { moduleSheetRows } from './records';
 import { NO_REASON } from './checkin';
+import { rhythmOf, staleAfterDays } from './thresholds';
+import { WEEKDAY } from './progress';
 
 export type { Cell, ExportInput } from './columns';
 /** A sheet: its name, its rows (the header first), and the columns set apart in grey: worked out, or only for reading.
@@ -75,9 +77,17 @@ const STATUS_WORDS = ['on', 'risk', 'off', 'stale', 'none', 'planned', 'done'] a
 /** The groups of words a workbook defines, in order. */
 const DEFINED: GroupKey[] = ['status', 'flag', 'attention', 'warning', 'trend', 'gap', 'result', 'quarter', 'stage', 'askStatus'];
 
-/** Every word an export uses for a state, defined: read from the vocabulary (domain/vocabulary.ts), never restated. */
-export function definitions(): Cell[][] {
-  return DEFINED.flatMap((k) => Object.values(GROUPS[k].terms as Record<string, Term>).filter((t) => t.where.includes('exports') && !t.same?.startsWith('status.')).map((t) => ['Words', t.label, t.long, GROUPS[k].title]));
+/** Every word an export uses for a state, defined: read from the vocabulary (domain/vocabulary.ts), never restated.
+    With no set check-in rhythm (`rhythm` false, FT1) No recent update is never used, so it isn't defined. */
+export function definitions(rhythm = true): Cell[][] {
+  return DEFINED.flatMap((k) => Object.entries(GROUPS[k].terms as Record<string, Term>).filter(([key, t]) => t.where.includes('exports') && !t.same?.startsWith('status.') && (rhythm || !(k === 'status' && key === 'stale'))).map(([, t]) => ['Words', t.label, t.long, GROUPS[k].title]));
+}
+
+/** The workspace's check-in rhythm, as the Start here sheet says it (FT1). */
+export function rhythmSentence(cycle: ExportInput['cycle']): string {
+  const r = rhythmOf(cycle);
+  return r ? `Check-in rhythm: every week, due by ${WEEKDAY[r.dueDay]}. A goal with no check-in for ${staleAfterDays(cycle)} days reads No recent update.`
+    : 'Check-in rhythm: none. A status is the latest check-in’s.';
 }
 
 /** The headers of the field table, on the Start here sheet. */
@@ -96,6 +106,7 @@ export function startHere(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today'
     [opts.template
       ? 'Fill in a row for each goal, check-in and person, then load the file on Import: you see every change before anything is saved. Headers in bold are required on a new row. Rows whose Action says Example are never imported. Each sheet is recognised by its header row, so keep the headers as they are.'
       : 'Change any column a person fills in, add rows, and load the file back on Import: you see every change before anything is saved. Worked-out columns are set in grey and ignored. Each sheet is recognised by its header row, so keep the headers as they are.'],
+    ...(opts.template ? [] : [[rhythmSentence(x.cycle)]]),
   ];
   for (const kind of FILL_SHEETS) {
     const sheet = specOf(kind);
@@ -109,7 +120,7 @@ export function startHere(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today'
     rows.push([], [`The ${sheet.name} sheet`, `One row per ${sheet.rowIs}. ${sheet.about} For reading only: not loaded back.`], ['Column', 'Kind', null, null, null, 'What it means']);
     for (const c of sheet.columns) rows.push([c.header, ROLE_WORD[c.role], null, null, null, c.means]);
   }
-  return [...rows, [], ['Words', 'Word', 'What it means', 'Kind'], ...definitions()];
+  return [...rows, [], ['Words', 'Word', 'What it means', 'Kind'], ...definitions(!!rhythmOf(x.cycle))];
 }
 
 const muted = (kind: SheetKind, head: Cell[]) => head.map(String).filter((h) => isWorkedOut(kind, h));
@@ -306,7 +317,10 @@ export function aiBrief(x: ExportInput): string {
 
   out.push('## How to read the status');
   out.push(`The status is the owner’s call each week, checked against the numbers; a call ${lower(FLAG.greener)} says so.`);
-  for (const k of ['on', 'risk', 'off', 'stale'] as const) out.push(`- **${LABEL[k]}:** ${MEANING[k]}`);
+  // With no set rhythm (FT1) nothing reads No recent update: the brief says the rhythm instead of defining it.
+  const rhythm = !!rhythmOf(x.cycle);
+  for (const k of rhythm ? ['on', 'risk', 'off', 'stale'] as const : ['on', 'risk', 'off'] as const) out.push(`- **${LABEL[k]}:** ${MEANING[k]}`);
+  if (!rhythm) out.push(`- ${rhythmSentence(x.cycle)}`);
   out.push(`- **${ATTENTION.needs.label}:** ${ATTENTION.needs.long}`);
   for (const k of ['completed', 'late', 'missed'] as const) out.push(`- **${RESULT_TEXT[k]}:** ${RESULT_MEANING[k]}`);
   out.push('');

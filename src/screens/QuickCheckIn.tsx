@@ -40,8 +40,10 @@ const rowOf = (d: Draft | null): Row => (d ? { value: d.value ?? '', cause: d.ca
 export function QuickCheckIn() {
   const app = useApp();
   const nav = useNavigate();
-  const goals = app.snapshot.goals.filter((g): g is MetricGoal | RangeGoal => g.ownerId === app.viewer.id && g.kind !== 'milestone' && app.statusOf(g).status !== 'done');
-  const milestones = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id && g.kind === 'milestone' && app.statusOf(g).status !== 'done');
+  // Every live goal you own, due or not: with no set rhythm (FT1) nothing is due, so the table is never "the due ones".
+  const live = (g: Goal) => g.ownerId === app.viewer.id && !g.stoppedAt && !g.proposedAt && app.statusOf(g).status !== 'done';
+  const goals = app.snapshot.goals.filter((g): g is MetricGoal | RangeGoal => live(g) && g.kind !== 'milestone');
+  const milestones = app.snapshot.goals.filter((g) => live(g) && g.kind === 'milestone');
   // Kept as you type, in each goal's own check-in draft: a refresh or a wrong turn doesn't lose the numbers (round 3
   // review), and a number typed in the one-by-one check-in is here too, and back again (deep review U12).
   const keyOf = (id: string) => checkInDraftKey(app.ws.id, id, app.week);

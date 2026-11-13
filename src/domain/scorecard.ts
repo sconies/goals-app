@@ -116,7 +116,7 @@ function sinceCell(goal: MetricGoal | RangeGoal, cycle: Cycle, checkIns: CheckIn
   return { key: 'since', label, value: `${amount(f.delta, goal)} ${g > 0 ? 'better' : 'worse'}`, sub: was, tone: g > 0 ? 'good' : 'bad', move };
 }
 
-function metricCard(goal: MetricGoal, cycle: Cycle, checkIns: CheckIn[], week: number, stale: boolean): Scorecard {
+function metricCard(goal: MetricGoal, cycle: Cycle, checkIns: CheckIn[], week: number, stale: boolean, pace: string): Scorecard {
   const a = assessPosted(goal, cycle, checkIns, week);
   if (a.kind !== 'metric') return { cells: [], gap: null, marks: null };
   const better: 1 | -1 = goal.plan.target >= goal.plan.start ? 1 : -1;
@@ -160,14 +160,14 @@ function metricCard(goal: MetricGoal, cycle: Cycle, checkIns: CheckIn[], week: n
     const p = a.projection;
     const l = likelihood(target, p, better, likelihoodFloor(goal.plan.target - goal.plan.start, goal.decimals));
     const tone: CellTone = l === 'likely' ? 'good' : l === 'possible' ? 'flat' : 'bad';
-    cells.push({ key: 'hit', label, value: LIKELIHOOD_WORD[l], sub: `likely ${fmt(p.value, goal)} ${byWeekWords(cycle, due)}`, tone, likelihood: l });
+    cells.push({ key: 'hit', label, value: LIKELIHOOD_WORD[l], sub: `likely ${fmt(p.value, goal)} ${byWeekWords(cycle, due)}${pace}`, tone, likelihood: l });
     const short = round((target - p.value) * better, goal.decimals);
     end = { week: a.projection.week, likely: p.value, target, likelyText: `likely ${bareValue(p.value, goal)}`, gapText: short > 0 ? `${bare(short, goal)} ${shortWord(better)}` : 'on course', tone: short > 0 ? 'bad' : 'good' };
   }
   return { cells, gap, marks: { now, end } };
 }
 
-function rangeCard(goal: RangeGoal, cycle: Cycle, checkIns: CheckIn[], week: number, stale: boolean): Scorecard {
+function rangeCard(goal: RangeGoal, cycle: Cycle, checkIns: CheckIn[], week: number, stale: boolean, pace: string): Scorecard {
   const a = assessPosted(goal, cycle, checkIns, week);
   if (a.kind !== 'range') return { cells: [], gap: null, marks: null };
   const { margin } = goal.range;
@@ -200,7 +200,7 @@ function rangeCard(goal: RangeGoal, cycle: Cycle, checkIns: CheckIn[], week: num
     // against the bound nearer the projected number: the one it is likelier to cross, so the worse of the two answers.
     const s = rangeSide(goal.range, pr.value);
     const stay = likelihood(s.limit, { value: pr.value, low: pr.low, high: pr.high }, s.bound === 'atLeast' ? 1 : -1, likelihoodFloor(margin || s.limit * 0.1, goal.decimals));
-    cells.push({ key: 'hit', label, value: LIKELIHOOD_WORD[stay], sub: `likely ${fmt(pr.value, goal)} ${byWeekWords(cycle, cycle.weeks)}`, tone: stay === 'likely' ? 'good' : stay === 'possible' ? 'flat' : 'bad', likelihood: stay });
+    cells.push({ key: 'hit', label, value: LIKELIHOOD_WORD[stay], sub: `likely ${fmt(pr.value, goal)} ${byWeekWords(cycle, cycle.weeks)}${pace}`, tone: stay === 'likely' ? 'good' : stay === 'possible' ? 'flat' : 'bad', likelihood: stay });
   }
   return { cells, gap, marks: null };
 }
@@ -228,10 +228,14 @@ function milestoneCard(goal: MilestoneGoal, checkIns: CheckIn[], week: number): 
 
 /** A goal's scorecard from its check-ins up to `week`. `stale` when its status can't be trusted, so nothing is projected.
     A stopped goal makes no forecast: its card says how it stood (no "will it hit?" cell and no likely end on the
-    chart), and the note under it says when and why it stopped. */
-export function goalScorecard(goal: Goal, cycle: Cycle, checkIns: CheckIn[], week: number, stale: boolean): Scorecard {
-  const card = goal.kind === 'metric' ? metricCard(goal, cycle, checkIns, week, stale)
-    : goal.kind === 'range' ? rangeCard(goal, cycle, checkIns, week, stale)
+    chart), and the note under it says when and why it stopped.
+    `asOfWeek`: with no set rhythm (FT1), the week the latest check-in is from when it isn't this week's. The projection
+    is still made from the numbers there are (age alone never makes it Can’t say), and its line says so: "likely 3.2
+    days by year end · on the pace to week 44". Null with a rhythm (then No recent update says it). */
+export function goalScorecard(goal: Goal, cycle: Cycle, checkIns: CheckIn[], week: number, stale: boolean, asOfWeek: number | null = null): Scorecard {
+  const pace = asOfWeek != null && !stale ? ` · on the pace to week ${asOfWeek}` : '';
+  const card = goal.kind === 'metric' ? metricCard(goal, cycle, checkIns, week, stale, pace)
+    : goal.kind === 'range' ? rangeCard(goal, cycle, checkIns, week, stale, pace)
     : milestoneCard(goal, checkIns, week);
   const done = doneCheckIn(goal, checkIns, week);
   if (!goal.stoppedAt && !done) return card;

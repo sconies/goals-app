@@ -34,7 +34,7 @@ import { goalsIn, watchOf, watchScope } from '../domain/review';
 import { NextStepSheet } from '../ui/NextStepSheet';
 import {
   askedOf, asksOnGoal, commentReach, goalHistory, HISTORY_FILTERS, HISTORY_LABEL, barFigures, feedingOrder, feedsLine, lastTalked, pathCheck, planFor, postedLine,
-  primaryAction, sameReasonText, sinceLooked, standingAction, stepsAndAsks, updatedLine, whyLine, whyPointer,
+  canAskUpdate, primaryAction, sameReasonText, sinceLooked, standingAction, stepsAndAsks, updatedLine, whyLine, whyPointer,
   type AskedItem, type HistoryEntry, type HistoryFilter, type StepRow, type StepsAndAsks, type StreamItem,
 } from '../domain/goalPage';
 import type { CheckIn, DisplayStatus, Goal, MetricGoal } from '../domain/types';
@@ -144,10 +144,14 @@ function GoalView({ goal }: { goal: Goal }) {
   const watching = !isOwner && watchOf(app.viewer.id, goal, app.snapshot) !== null;
   const openSteps = [...steps.forYou, ...steps.open].filter((x) => x.kind === 'action').length;
   const primary = primaryAction({ goal, viewer: app.viewer, owner, status, due, week, asked, updateAsked: !!updateAsk, openSteps, firstDue: own.length === 0 });
-  const standing = standingAction({ goal, viewer: app.viewer, primary, watching, status });
+  // With no set rhythm (FT1) nothing is due: the owner's check-in is an ordinary button, and anyone else may ask for an
+  // update whenever the latest check-in isn't this week's (canAskUpdate), as an ordinary button too.
+  const noRhythm = !rhythmOf(cycle);
+  const standing = standingAction({ goal, viewer: app.viewer, primary, watching, status, week, checkedInThisWeek: noRhythm ? own.some((c) => c.week === week) : undefined });
+  const askable = noRhythm && primary.kind !== 'ask-update' && canAskUpdate({ goal, viewer: app.viewer, status, latestWeek: st.latest?.week ?? null, week, updateAsked: !!updateAsk });
 
   const figures = barFigures(goal, app.snapshot, cycle, week, stale);
-  const card = goalScorecard(goal, cycle, app.snapshot.checkIns, week, stale);
+  const card = goalScorecard(goal, cycle, app.snapshot.checkIns, week, stale, noRhythm && status !== 'done' ? st.asOfWeek : null);
   const why = whyLine(goal, app.snapshot, att);
   const feeds = feedsLine(children, (g) => app.statusOf(g).status);
   const a = assessPosted(goal, cycle, app.snapshot.checkIns, week);
@@ -225,11 +229,12 @@ function GoalView({ goal }: { goal: Goal }) {
   const actions = review ? null : (
     <>
       {mainAction}
+      {askable && <button type="button" className="btn" disabled={asking} onClick={() => void askForUpdate()}>Ask {ownerFirst} for an update</button>}
       {standingButton}
       {menu}
     </>
   );
-  const askedLine = stopped ? <StoppedNote goal={goal} /> : !isOwner && stale && !review && (updateAsk
+  const askedLine = stopped ? <StoppedNote goal={goal} /> : !isOwner && (stale || noRhythm) && !review && (updateAsk
     ? <span className="small asked-line" role="status"><span className="strong">Asked {ownerFirst} for an update {timeAgo(updateAsk.createdAt, app.today)}{updateAsk.askedBy !== app.viewer.id ? ` (${app.person(updateAsk.askedBy)?.name.split(' ')[0] ?? 'someone'})` : ''}.</span> It’s open on their Home until they check in or answer it.{canWithdraw(updateAsk, app.viewer, goal) && <> <button type="button" className="linkish" disabled={asking} onClick={() => void undoAsk()}>Undo</button></>}</span>
     : undone ? <span className="small" role="status">Withdrawn. It’s off their Home.</span> : null);
 
@@ -693,11 +698,13 @@ function WhySection({ goal, why }: { goal: Goal; why: ReturnType<typeof whyLine>
   const ownerFirst = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'The owner';
   // A check-in an admin loaded (a workbook, or a correction in Data) is said as theirs, by name: not as the owner's.
   const sayer = latest && latest.authorId !== goal.ownerId ? app.person(latest.authorId)?.name ?? 'Someone else' : null;
+  // With no set rhythm a reason from an earlier week is labelled with its week (FT1): "Julia said in week 44".
+  const saidIn = latest && !rhythmOf(app.cycle) && latest.week !== app.week ? `${sayer ?? app.person(latest.authorId)?.name.split(' ')[0] ?? ownerFirst} said in week ${latest.week}.` : null;
   const [title, purpose] = !latest ? ['Why', 'Nothing said yet. The first check-in will say where it stands.']
     : stale ? [`Why it has ${lower(STATUS.stale)}`, `When ${sayer ?? 'the owner'} last said where it stands.`]
-    : behind ? [`Why it ${STATUS[status].short}`, `${sayer ? `${sayer}’s` : 'The owner’s'} reason, from ${when ?? 'their check-in'}.`]
+    : behind ? [`Why it ${STATUS[status].short}`, saidIn ?? `${sayer ? `${sayer}’s` : 'The owner’s'} reason, from ${when ?? 'their check-in'}.`]
     : onlySignals ? ['Worth knowing', 'What the numbers flag that the status doesn’t say.']
-    : ['The latest word', when ? `What ${sayer ?? 'the owner'} said in ${when}.` : 'What the owner has said so far.'];
+    : ['The latest word', saidIn ?? (when ? `What ${sayer ?? 'the owner'} said in ${when}.` : 'What the owner has said so far.')];
   return (
     <section className="block why-block goal-section" id="why" aria-labelledby="g-why" data-part="Why">
       <SectionHead id="g-why" title={title} purpose={purpose} />

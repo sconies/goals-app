@@ -382,8 +382,10 @@ const CORE_TOOLS: ToolDef[] = [
       // A proposed goal is never judged (GE10): no scorecard, no status.
       if (isProposed(g)) { const data = { cycle: j.cycle, goal: j.goals[0], state: 'proposed', notes: j.notes }; return { data, text: JSON.stringify(data, null, 2) }; }
       // The goal page's scorecard, in its words: vs plan, vs last week, to target and will it hit (domain/scorecard).
-      const stale = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status === 'stale';
-      const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale).cells.map((c) => ({ label: c.label, value: c.value, detail: c.sub }));
+      const gs = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today);
+      const stale = gs.status === 'stale';
+      // With no set rhythm the forecast says which week's pace it is (FT1).
+      const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale, rhythmOf(ctx.cycle) ? null : gs.asOfWeek).cells.map((c) => ({ label: c.label, value: c.value, detail: c.sub }));
       // Comments as they read now: edited ones say so, and a removed one is only its place in the thread.
       const comments = [...commentsOf(ctx.snapshot.changes).values()].filter((k) => k.goalId === g.id).map((k) => ({ id: k.id, by: ctx.snapshot.people.find((p) => p.id === k.authorId)?.name ?? (ctx.full ?? ctx.snapshot).people.find((p) => p.id === k.authorId)?.name ?? '—', at: k.at, text: k.removedAt ? COMMENT_REMOVED : k.text, edited: !!k.editedAt, removed: !!k.removedAt }));
       const data = { cycle: j.cycle, goal: j.goals[0], scorecard, notes: j.notes, comments };

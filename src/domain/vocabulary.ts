@@ -63,7 +63,7 @@ export const STATUS: Record<DisplayStatus, Term<DisplayStatus>> = {
   stale: term('stale', {
     label: 'No recent update', short: `no check-in for ${RULES.staleDays / 7} weeks or more`,
     meaning: `No check-in for ${RULES.staleDays} days or more, so its status can’t be trusted.`,
-    long: `The latest check-in was posted ${RULES.staleDays} days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in.`,
+    long: `The latest check-in was posted ${RULES.staleDays} days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in. Never used when there is no set check-in rhythm.`,
     rule: 'status#goalStatus',
     retired: ['No recent check-in', 'gone quiet', 'goes quiet', 'An update is overdue', 'update is overdue', 'no check-in for 2+ weeks', 'Quiet for'],
   }),
@@ -416,6 +416,13 @@ export const EDITED = REMOVAL.edited.label;
     docs/glossary.md quotes it; the rebuild states its own the same way (R6a). Not a status word, so not a term. */
 export const WORKSPACE_MEANS = 'A workspace is one organisation’s goals and the people who share them: its own people and teams, its own goal year and check-in day, and its own admins. What you can do in it depends on your role there: an admin or a member.';
 
+/* ---------- the check-in rhythm ---------- */
+
+/** Said beside a status with no set check-in rhythm (FT1, spec 2.7); `{n}` is the week. */
+export const RHYTHM = {
+  asOf: term('asOf', { label: 'as of week {n}', short: 'the week a status is from', meaning: 'The week a goal’s status and numbers are from, said when it isn’t this week and there is no set check-in rhythm.', long: 'With no set check-in rhythm a goal keeps the status its latest check-in gave, however old. Beside it, “as of week 44” says which week that was.', rule: 'status#goalStatus', where: ['screens', 'help', 'ai'] }),
+};
+
 /* ---------- every group, and helpers ---------- */
 
 export const GROUPS = {
@@ -433,6 +440,7 @@ export const GROUPS = {
   askStatus: { title: 'Where an ask stands', terms: ASK_STATUS },
   session: { title: 'A review’s session', terms: SESSION },
   removal: { title: 'Removed, stopped and ended', terms: REMOVAL },
+  rhythm: { title: 'The check-in rhythm', terms: RHYTHM },
 } as const;
 export type GroupKey = keyof typeof GROUPS;
 
