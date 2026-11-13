@@ -382,7 +382,7 @@ function ReadingsTable({ metric: m, rows }: { metric: Metric; rows: MetricGoalRo
   return (
     <section className="stack metric-readings" style={{ gap: 'var(--s2)' }} aria-labelledby="metric-readings" data-part="In each goal’s check-in">
       <h2 className="label" id="metric-readings">In each goal’s check-in</h2>
-      <table className="metric-goals metric-reading-goals">
+      <table className="metric-reads">
         <thead><tr><th scope="col">Goal</th><th scope="col">For</th><th scope="col">In its check-in</th></tr></thead>
         <tbody>
           {cells.map(({ r, words }) => (
