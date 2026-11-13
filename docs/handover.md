@@ -753,6 +753,50 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
   - the unbuilt "cycle ended", "Add one" and gone-parent states from the onboarding spec.
 - **U23 (entry)** scored 8.6 locally and is track 2's to lift.
 
+## Track 4, Friday 13 November, 17:00 UTC (supersedes the 06:00 entry)
+
+Session: session_012kbr931R7QEqBrfxbNv2QV. Planning is session_012kbr91eefh4gwCAztBncNT.
+
+- **Merged:**
+  - #398: the build reviewer's high and two mediums on #358 (the app's window). The reviewer has confirmed it on main.
+  - #371: FT2, Reviews behind its switch.
+  - #403: AX2, every change through the dispatcher.
+  - #412: module map fixes F1, F3 and F4.
+- **Open, with auto-merge on:** #419, AX6 part 1: a stale save runs again on the latest data. Saves that send a whole record (`saveGoal`, `saveReview`, `planChanges`, `undoRemoval`) don't re-run. Part 2, a version on every record, is written up in the backlog's AX row: it needs a migration that ships a merge ahead.
+- **Built, not pushed:**
+  - **RS1, branch `rs1-reviews-clock`.** It covers:
+    - `dueWords`, folded into HB1's receipt;
+    - the read-back's two lines;
+    - the tools' one sentence (check N30);
+    - export and import with Reviews off, using main's per-workspace sheets (F2) plus a Reviews flag (`exportOn`);
+    - the CI job "Core journeys with every module switched off" (`FARO_MODULES_OFF=all`).
+
+    Its two journeys must sit above main's highest id: they clashed twice, and are being renumbered now. It still needs merging with main, evals and a PR.
+  - **F8, branch `parity-from-modules`.** A module's `module.json` `parity` lists its screens' AI tools, and `src/mcp/parity.ts` merges them in. Committed; it needs evals, a merge with main and a PR.
+  - **FT1:** a build agent is working on two branches. `ft1-migration` is the migration alone (0046, `okr_cycles` gains `check_in_weeks` and `rhythm_from`), and its PR must merge first. `ft1-rhythm` is the rest. Both are unpushed.
+- **Owed from the build reviewer:**
+  - **#371 (FT2), three mediums:**
+    1. A tab open before the switch keeps writing review data. Load the switches with the snapshot, and say in the spec that the server refuses a switched-off module's writes.
+    2. `REVIEW_ACTIONS` is a list of names. Refuse by what the commit touches instead: it misses `edit_comment`/`delete_comment` on a review note, `deleteNote`, `saveGoal` with `proposedIn`, and restoring an ended review.
+    3. `GoalWizard.tsx:293` passes `reviewsOn: true`.
+
+    `list_requests` still names a review when Reviews is off. Exports and import are covered by RS1, and `get_help` by F3.
+  - **#403 (AX2), one low:** a large file the worker has checked is planned again on the main thread at Save.
+  - **#358's three lows:** "Show older changes" with nothing older; the first older page lands at the top; `undo_import` on MCP allows an import older than the window.
+- **Next, in order:**
+  1. Land RS1, F8 and FT1.
+  2. The FT2 mediums PR.
+  3. SW1 and SW2 (the remaining switches; `src/spec/alwaysOn.ts` loses each entry as its switch ships).
+  4. FD.
+- **Main on its own** (no PR needed): U31 9, U134 9, U148 7, U149 6, U150 5, U151 8, U72 8.9. N6, N12, N18 and P9 fail under load and pass on rerun.
+- **Traps:**
+  - Main moves every few minutes. A PR whose branch conflicts gets no CI run at all, so after pushing, check that CI started.
+  - What's new: take main's file and put your feature entry on top.
+  - Journey and check ids clash across tracks. Take ids above main's highest when you merge, not when you build.
+  - Worktree folders under the scratchpad can vanish. Commit work in progress often.
+  - To squash a branch, reset to the branch's own base, never to a newer `origin/main`. Resetting to the newer main silently reverts everything main gained in between.
+  - `ss` isn't installed. Read `/proc/net/tcp` to see what holds the eval ports 4318–4328.
+
 ## Track 4, Friday 13 November, 06:00 UTC (session past half, handing over; supersedes the 04:35 entry)
 
 Session: session_012kbr931R7QEqBrfxbNv2QV.
