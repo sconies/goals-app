@@ -31,7 +31,8 @@ Module id `reviews`, in [src/modules/reviews/](../../../src/modules/reviews/modu
 - `REVIEW-DECIDE`: A goal off track or at risk leaves a review's walk with a decision: a next step with an owner (chosen by searching, never from a list of everyone) and a week it's due by, or "We accept the risk" with a reason. The goal page shows next steps as dated rows with an owner, changed there, an overdue one flagged; anyone can add one. The next session opens with what the last one agreed and asks if it's done. Finish review says what was decided and who owns what, with Undo. A review isn't "to do" before anything is due. (Copy.) Tests: `src/mcp/mcp.test.ts`.
 - `REVIEW-LIST-STATE`: The Reviews page says, for every review, where this session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held and how many of its actions are open. (Copy.) Tests: `src/domain/review.test.ts`, `evals/review-notes.eval.ts`.
 - `REVIEW-AGENDA`: A review's agenda reads at a glance: one line per goal (status, name, number, gap) with nothing cut off at any width; the end of a review shows what was said and leads back to the review. (Copy.)
-- `REVIEWS-OPTIONAL`: An admin switches Reviews off for a workspace. Off, there is no Reviews in the menu, on Home, on a goal or in the AI’s tools; asks and next steps are unchanged; what was said in reviews stays in history. Nothing is deleted, and switching it on restores it. (Copy.)
+- `REVIEWS-OPTIONAL`: An admin switches Reviews off for a workspace. Off, there is no Reviews in the menu, on Home, on a goal or in the AI’s tools; asks and next steps are unchanged; what was said in reviews stays in history. Nothing is deleted, and switching it on restores it. (Copy.) Tests: `evals/mcp.eval.ts`.
+- `REVIEWS-SWITCH-CLOCK`: The day check-ins are due never needs a review. One rule names the deadline: “before Thursday’s review” only when Reviews is on and a review is held that day, otherwise “by Thursday”, so with Reviews off no screen, receipt or count calls the deadline a review. Switching Reviews off says first that check-ins are still due by that day and how many accepted risks stay on their goals; a spreadsheet leaves out what is Reviews’ and an import says once that it wasn’t read; every switched-off module’s AI tools answer with one sentence; and back on, a session whose date passed while it was off is not “Not held yet”. (Copy.)
 
 ## Journeys and checks
 
@@ -49,6 +50,8 @@ Module id `reviews`, in [src/modules/reviews/](../../../src/modules/reviews/modu
 | U80 | Watch and comments say what they do before you do them; an owner has no Watch, and About says why | `evals/journeys.cjs` |
 | U103 | Amara switches Reviews off: the read-back names what stays, then Reviews leaves the menu, Home and the goal page, its addresses say it is off, History keeps what was said, and Undo brings it all back | `evals/journeys.cjs` |
 | U104 | Reviews off, then back on: off, Home is Home without reviews; back on, every review is as it was, and none whose date passed while it was off says Not held yet | `evals/journeys.cjs` |
+| U154 | Reviews off, the clock without a review: the read-back says check-ins are still due by Thursday; then no page Rhea opens calls the deadline a review, and her check-in’s receipt says the week is in “by Thursday” | `evals/journeys.cjs` |
+| U155 | Reviews back on after a week off: switched off on Monday 2 Nov and on again on Friday 6 Nov, every session whose date passed while it was off moves to its next date, so neither Reviews nor Home says Not held yet | `evals/journeys.cjs` |
 | N1 | Review notes, reviews | `evals/notes/1-reviews.cjs` |
 | N21 | A switched-off module’s addresses say so, and who can switch it on; the read-back before switching Reviews off counts what stays | `evals/notes/21-switched-off.cjs` |
 
@@ -59,4 +62,4 @@ Module id `reviews`, in [src/modules/reviews/](../../../src/modules/reviews/modu
 ## Rules, conformance and rebuild stage
 
 Its rebuild stage: [stage 5](../../rebuild/stage-5-module-reviews.md) (an outline, with no drill yet).
-**Not self-explanatory:** it has no rules section or conformance rows of its own yet. It uses only the core rules (its imports go through [the change engine](../../core/rules/change-engine.md)), and its behaviour is in its code, its Help articles and the journeys above.
+Its rules: [Reviews’ switch: the clock and the read-back](rules.md#reviews-switch-the-clock-and-the-read-back), in plain words with worked examples (run against the code by the spec’s own test). Its conformance rows: [reviews.csv](../../conformance/reviews.csv) ([what each column is](../../conformance/README.md#the-files)).

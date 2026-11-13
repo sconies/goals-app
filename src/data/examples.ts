@@ -3,7 +3,11 @@
    that builds it loads only when it's needed, so it isn't part of the app's main bundle. */
 import type { Snapshot, Workspace } from '../domain/types';
 
-export const EXAMPLE: Workspace = { id: 'platform-org', name: 'Example: Platform Engineering', kind: 'example', createdAt: '2026-01-01T00:00:00.000Z' };
+/** The modules an eval build starts the example with switched off (FARO_MODULES_OFF, evals/run.mjs): CI's smoke run with
+    every module switched off at runtime. Empty in every other build. */
+const MODULES_OFF = ((import.meta.env.VITE_EXAMPLE_MODULES_OFF as string | undefined) ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+
+export const EXAMPLE: Workspace = { id: 'platform-org', name: 'Example: Platform Engineering', kind: 'example', createdAt: '2026-01-01T00:00:00.000Z', ...(MODULES_OFF.length ? { modulesOff: MODULES_OFF } : {}) };
 
 /** Whether a workspace id is the demo's example. */
 export const isExample = (id: string) => id === EXAMPLE.id;
