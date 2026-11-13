@@ -36,6 +36,7 @@ import { FormClose } from '../ui/FormClose';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
 import { Place, useFilled, type MeasurePick } from '../core/app';
+import { BaselineFields } from '../ui/BaselineFields';
 import { Pick, PickOne } from '../ui/Pick';
 import { recentsOf, usePrefs } from '../app/search';
 
@@ -426,6 +427,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
                   </div>
                 </div>
                 <p className="small muted span-says" role="status">{spanSays(cycle, span.from, endChoice, week)}</p>
+                <BaselineFields period={d.baselinePeriod ?? ''} provisional={!!d.baselineProvisional} onChange={set} invalid={invalid('start')} />
                 {questions('start')}
                 {questions('target')}
                 {decimalsLine}

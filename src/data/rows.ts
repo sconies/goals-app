@@ -30,6 +30,8 @@ export interface GoalRow extends W, Removal {
   range_lower?: number | null;
   range_margin: number | null; created_at: string; pending?: Goal['pending']; version?: number; also_helps?: string[] | null;
   plan_history?: { untilWeek: number; plan: MetricPlan }[] | null;
+  /** A baseline of its own (migration 0049, BL): its figure, period and flag; all null when there is none. */
+  baseline_value?: number | null; baseline_period?: string | null; baseline_provisional?: boolean | null;
 }
 export interface CheckInRow extends W, Removal {
   id: string; goal_id: string; author_id: string; week: number; posted_at: string; value: number | null; stages: CheckIn['stages'];
@@ -71,6 +73,9 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
     plan_start: g.kind === 'metric' ? g.plan.start : null, plan_target: g.kind === 'metric' ? g.plan.target : null, plan_shape: g.kind === 'metric' ? g.plan.shape : null, plan_from_week: g.kind === 'metric' ? g.plan.fromWeek ?? 0 : 0, plan_end_week: g.kind === 'metric' ? g.plan.endWeek ?? null : null, plan_points: g.kind === 'metric' && g.plan.points?.length ? g.plan.points : null,
     original_plan: g.kind === 'metric' ? g.originalPlan : null, rebaselined_week: g.kind === 'metric' ? g.rebaselinedWeek : null,
     plan_history: g.kind === 'metric' && g.planHistory?.length ? g.planHistory : null,
+    // BL (0049): written on every row, null when there's no baseline, so a batch mixing goals with and without one
+    // never gives a goal another row's columns (okr_upsert fills a missing key with null).
+    baseline_value: g.kind === 'metric' && g.baseline ? g.baseline.value : null, baseline_period: g.kind === 'metric' && g.baseline ? g.baseline.period : null, baseline_provisional: g.kind === 'metric' && g.baseline ? g.baseline.provisional : null,
     range_bound: g.kind === 'range' ? g.range.bound : null, range_limit: g.kind === 'range' ? g.range.limit : null, range_margin: g.kind === 'range' ? g.range.margin : null,
     // Range goals only (migration 0042): the lower bound of a range between two numbers, null for a one-sided range so a
     // range changed from between to one side clears it. Metric and milestone rows look exactly as before.
@@ -108,6 +113,7 @@ export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
       // Whole earlier plans, so weeks before a re-plan are judged against exactly what applied then.
       originalPlan: op ? planOf(op) : null, rebaselinedWeek: r.rebaselined_week,
       ...(r.plan_history?.length ? { planHistory: r.plan_history.map((v) => ({ untilWeek: Number(v.untilWeek), plan: planOf(v.plan) })) } : {}),
+      ...(r.baseline_value != null ? { baseline: { value: Number(r.baseline_value), period: r.baseline_period ?? '', provisional: !!r.baseline_provisional } } : {}),
     };
   }
   if (r.kind === 'range') {

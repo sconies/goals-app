@@ -25,6 +25,7 @@ import { spanSays } from '../domain/weekChoices';
 import { parseNumber } from '../domain/checkin';
 import { FormClose } from '../ui/FormClose';
 import { Place, type MeasurePick } from '../core/app';
+import { BaselineFields } from '../ui/BaselineFields';
 import { Pick, PickOne } from '../ui/Pick';
 
 /** The page's sections that an address can open at. */
@@ -207,6 +208,7 @@ function EditSheet({ goal }: { goal: Goal }) {
                 <div><WeekPick cycle={cycle} week={week} field="to" from={span.from} label="To" value={endChoice} onChange={(n) => set({ endWeek: n === cycle.weeks ? '' : String(n), points: {} })} invalid={tried && !!errors.endWeek} dataField="endWeek" />{err('endWeek')}</div>
               </div>
               <p className="hint span-says">{spanSays(cycle, span.from, endChoice, week)}</p>
+              <BaselineFields period={d.baselinePeriod ?? ''} provisional={!!d.baselineProvisional} onChange={set} invalid={tried && !!errors.start} />
               {questions('unit')}
               {questions('start')}
               {questions('fromWeek')}

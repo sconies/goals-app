@@ -27,6 +27,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'baseline-of-its-own',
+    date: '2026-11-13',
+    title: 'A baseline can say what period it covers, and how firm it is',
+    points: [
+      'When a goal’s baseline is a figure you already have, say the period it covers (“June to September 2026”) under Baseline, and tick Provisional if it may still change.',
+      'Until the first check-in, the goal shows that baseline as its number, marked as the baseline, instead of “No value yet”.',
+      'Firming up a provisional baseline isn’t a plan change: it asks for no reason and keeps no earlier plan.',
+      'The Goals sheet has Baseline period and Baseline is columns, and the AI tools take baseline_period and baseline_is.',
+    ],
+    articles: ['new-goal', 'edit-goal', 'goal-page'],
+  },
+  {
     id: 'reviews-switch-clock',
     date: '2026-11-13',
     title: 'Check-ins say plainly which day they’re due',

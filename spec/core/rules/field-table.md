@@ -29,6 +29,8 @@ The workbook's first sheet, **Start here**, is this table (with a "File of" row 
 | Unit | Optional | Text | days | No unit, never “%” by default: a Check asks once a file whether the numbers are plain counts. On a row already here, empty clears it |
 | Decimals | Optional | 0, 1, 2 or 3 | 1 | The most decimal places typed in Start, Target or Limit, up to 3 |
 | Start | Required for a number goal | A number | 5 | Must fix for a number goal |
+| Baseline period | Optional | Text, at most 60 characters; none to remove it | June to September 2026 | As it is |
+| Baseline is | Optional | provisional or firm | provisional | As it is |
 | Target | Required for a number goal | A number, different from Start | 1 | Must fix for a number goal |
 | Plan | Optional | straight, back-loaded or stepped | back-loaded | straight |
 | From | Optional | A year and a week | 2026-W46 | This week |

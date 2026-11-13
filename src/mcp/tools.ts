@@ -239,6 +239,8 @@ const GOAL_FIELDS = {
   unit: str('Number goals: the unit, e.g. "%", "days", "USD".'),
   decimals: int('Number goals: decimal places, 0 to 3.'),
   start: num('Move-a-number goals: where it starts.'),
+  baseline_period: str('Move-a-number goals: the period the baseline (start) covers, when it is a figure you already have, e.g. "June to September 2026" (at most 60 characters). Given, start is shown as the goal’s number, marked as the baseline, until its first check-in. "none" removes it.'),
+  baseline_is: str('Move-a-number goals with a baseline period: provisional (it may still be firmed up: changing start then isn’t a plan change and needs no reason) or firm.', { enum: ['provisional', 'firm'] }),
   target: num('Move-a-number goals: the target.'),
   plan_shape: str('Move-a-number goals: how the plan moves from start to target.', { enum: ['straight', 'back-loaded', 'stepped'] }),
   from: str('Move-a-number goals: the week the baseline (start) was true and the plan starts, as a year and a week, e.g. "2026-W46". Left out: this week for a new goal.'),
@@ -255,7 +257,7 @@ const GOAL_FIELDS = {
   definition: str('Exactly what is counted.'),
   state: str('active (the default for a new goal) or proposed: a proposed goal is visible to everyone, has no status and nothing due, and needs no plan yet; its owner or an admin makes it active (make_goal_active). A goal with check-ins can’t go back to proposed.', { enum: ['active', 'proposed'] }),
 };
-const GOAL_COLS: Record<string, string> = { title: 'goal', owner: 'owner', owner_email: 'owner email', team: 'team', level: 'level', unit: 'unit', decimals: 'decimals', start: 'start', target: 'target', plan_shape: 'plan', from: 'from', to: 'to', due_week: 'due week', limit: 'limit', must_stay: 'must stay', margin: 'margin', stages: 'stages', feeds_into_id: 'feeds into id', why_it_helps: 'why it helps', source: 'source', definition: 'definition', state: 'state' };
+const GOAL_COLS: Record<string, string> = { title: 'goal', owner: 'owner', owner_email: 'owner email', team: 'team', level: 'level', unit: 'unit', decimals: 'decimals', start: 'start', baseline_period: 'baseline period', baseline_is: 'baseline is', target: 'target', plan_shape: 'plan', from: 'from', to: 'to', due_week: 'due week', limit: 'limit', must_stay: 'must stay', margin: 'margin', stages: 'stages', feeds_into_id: 'feeds into id', why_it_helps: 'why it helps', source: 'source', definition: 'definition', state: 'state' };
 
 
 const CORE_TOOLS: ToolDef[] = [

@@ -4,6 +4,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildPlatformOrg } from './platformOrg';
 import { metricLinkToRow, metricToRow } from '../modules/metrics/records';
+import { goalToRows } from './rows';
+import type { MetricGoal } from '../domain/types';
 
 const dir = join(__dirname, '../../supabase/migrations');
 const sql = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort().map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
@@ -122,6 +124,21 @@ describe('database schema', () => {
     await db.query(`update faro.okr_goals set baseline_value = null, baseline_period = '', baseline_provisional = false where id = $1`, [id]);
     await db.exec(readFileSync(join(dir, '0049_goal_baseline.sql'), 'utf8'));
     expect((await db.query<{ n: number }>(`select count(*)::int as n from pg_constraint where conname in ('okr_goals_baseline_period_len', 'okr_goals_baseline_whole')`)).rows[0]!.n).toBe(2);
+  });
+  it('saves goals with and without a baseline in one batch: each keeps its own, never another row’s (BL)', async () => {
+    const [a, b] = ['ci-cost', 'lead-merge'].map((id) => s.goals.find((g) => g.id === id) as MetricGoal);
+    const rows = [goalToRows('example', { ...a!, baseline: { value: a!.plan.start, period: 'June to September 2026', provisional: true } }).goal, goalToRows('example', b!).goal];
+    expect(rows[1]).toMatchObject({ baseline_value: null, baseline_period: null, baseline_provisional: null });
+    await db.query(`select okr_upsert('okr_goals', $1::jsonb, 'id')`, [JSON.stringify(rows)]);
+    const saved = await db.query<{ id: string; baseline_value: string | null; baseline_period: string | null; baseline_provisional: boolean | null }>(`select id, baseline_value::text, baseline_period, baseline_provisional from okr_goals where id in ('ci-cost', 'lead-merge') order by id`);
+    expect(saved.rows).toEqual([
+      { id: 'ci-cost', baseline_value: String(a!.plan.start), baseline_period: 'June to September 2026', baseline_provisional: true },
+      { id: 'lead-merge', baseline_value: null, baseline_period: null, baseline_provisional: null },
+    ]);
+    // Saved again without it, in a batch with one that still has it: the column is cleared, not kept.
+    await db.query(`select okr_upsert('okr_goals', $1::jsonb, 'id')`, [JSON.stringify([goalToRows('example', a!).goal, goalToRows('example', { ...b!, baseline: { value: b!.plan.start, period: 'Q3', provisional: false } }).goal])]);
+    const again = await db.query<{ id: string; baseline_period: string | null }>(`select id, baseline_period from okr_goals where id in ('ci-cost', 'lead-merge') order by id`);
+    expect(again.rows).toEqual([{ id: 'ci-cost', baseline_period: null }, { id: 'lead-merge', baseline_period: 'Q3' }]);
   });
   it('saves retired and live metrics in one batch: a live one is written with an empty reason and no marks, never null (MT3)', async () => {
     const at = '2026-10-30T12:00:00.000Z';

@@ -20,9 +20,12 @@ export function fmt(v: number, g: Numeric): string {
 /** The words for a goal with no number yet: the same in every list, card, headline and export. */
 export const NO_VALUE = 'No value yet';
 
-/** A goal's number as it's shown: its latest value, how many stages are done, or "No value yet". */
+/** A goal's number as it's shown: its latest value, how many stages are done, its baseline before the first check-in
+    ("41.5 min (baseline)", domain/baseline rule 2), or "No value yet". */
 export function nowText(g: Goal, a: Assessment): string {
-  return a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? NO_VALUE : fmt(a.actual, g);
+  if (a.kind === 'milestone') return `${a.doneCount} of ${a.stages.length} stages`;
+  if (a.actual == null && g.kind === 'metric' && g.baseline) return `${fmt(g.baseline.value, g)} (baseline)`;
+  return a.actual == null || g.kind === 'milestone' ? NO_VALUE : fmt(a.actual, g);
 }
 
 /** A difference: "4 pts" for percentages, "1.2 days" otherwise. */
