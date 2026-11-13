@@ -14,12 +14,15 @@ import type { DisplayStatus, Person, Team } from './types';
 /** Lower case, accents gone: "Lucía" reads as "lucia" (domain/fold.ts). */
 export { fold };
 
-/** The words of a text: broken at spaces and at / - , . : ( ), folded. */
-export const wordsOf = (s: string) => fold(s).split(/[\s/\-,.:()]+/).filter(Boolean);
+/**
+ * The words of a text: broken at spaces and at / - , . : ( ), folded. A point or comma between two digits stays in its
+ * number, so 12.5 is one word and finds 12.5, not every row with a 12 and a 5 (build review of #234).
+ */
+export const wordsOf = (s: string) => fold(s).split(/[\s/\-:()]+|(?<!\d)[.,]+|[.,]+(?!\d)/).filter(Boolean);
 
 /**
  * Rule 1. True when every word of `q` starts a word of `words`, ignoring case and accents (words break at spaces and at
- * / - , . : ( )). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
+ * / - , . : ( ), but a number keeps its point: 12.5). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
  * finds only that goal ("G-48" isn't G-4), while a bare number also matches as words. An empty search matches anything.
  */
 export function textMatches(words: string, q: string, key?: string | null): boolean {
