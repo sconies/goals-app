@@ -6177,7 +6177,8 @@ function applyTable(rows, head, q, filters, sort, searched) {
 		"Goal key",
 		"Goal keys"
 	].map(idx).find((i) => i >= 0) ?? -1;
-	const keysOf = (r) => keyAt >= 0 ? (r.cells[keyAt] ?? "").split(";").map((k) => k.trim()).filter(Boolean) : [];
+	const keyTyped = keyAt >= 0 && (!!normalKey(typed) || /^\d{1,9}$/.test(typed));
+	const keysOf = (r) => keyTyped ? (r.cells[keyAt] ?? "").split(";").map((k) => k.trim()).filter(Boolean) : [];
 	const found = (r) => {
 		const ks = keysOf(r);
 		const w = wordsFor(r, cols, colsKey);
@@ -6232,6 +6233,7 @@ function filterEntries(filters, sort) {
 var OP_LABEL, NO_VALUE, isNum, rowWords, wordsFor, sortIndex;
 var init_tableFilter = __esmMin((() => {
 	init_find();
+	init_goalKey();
 	OP_LABEL = {
 		is: "is any of",
 		isNot: "is none of",
