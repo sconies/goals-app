@@ -15730,7 +15730,7 @@ var CORE_ARTICLES = [
 			}
 		],
 		routes: ["/"],
-		screens: ["Home", "HomeProposals"],
+		screens: ["Home"],
 		reqs: [
 			"HOME-OWNER",
 			"PROFILES",
