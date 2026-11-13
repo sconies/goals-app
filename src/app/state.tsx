@@ -766,6 +766,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         if (!also) return (await run('saveGoal', input)).goal;
         if (!signedIn.current) { toast(NOBODY, 'error'); throw new Error(NOBODY); }
         await ready('saveGoal');
+        await ready(also.action);
         let out: { commit: Commit | null; goal: Goal }, extra: Commit | null;
         try {
           out = performAny(rx(), 'saveGoal', input) as { commit: Commit | null; goal: Goal };

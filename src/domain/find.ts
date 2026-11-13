@@ -2,6 +2,7 @@
    kind. Every list bar, picker and Find reaches these through the Search port (src/ports/search.ts), whose browser
    adapter calls them over the loaded workspace; the internal app's adapter asks its server instead. Pure: each rule takes
    only the rows it reads (src/app/reads.ts makes them), never the whole workspace, and no clock. */
+import { fold } from './fold';
 import { levelName } from './levels';
 import { formatKey, normalKey } from './goalKey';
 import { applyQuery, parseQuery, type QueryContext } from './query';
@@ -10,8 +11,8 @@ import type { DisplayStatus, Person, Team } from './types';
 
 /* ---------- Rule 1: does text match ---------- */
 
-/** Lower case, accents gone: "Lucía" reads as "lucia". */
-export const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+/** Lower case, accents gone: "Lucía" reads as "lucia" (domain/fold.ts). */
+export { fold };
 
 /** The words of a text: broken at spaces and at / - , . : ( ), folded. */
 export const wordsOf = (s: string) => fold(s).split(/[\s/\-,.:()]+/).filter(Boolean);

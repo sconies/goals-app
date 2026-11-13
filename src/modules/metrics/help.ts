@@ -72,7 +72,7 @@ const help: Article[] = [
       { heading: 'How to use it', list: [
         'In New goal, “Measured by” is the first field on the step about numbers; when changing a goal, it is under its name. Type part of a metric’s name, unit or owner to find it. Metrics already in the goal’s unit are offered first.',
         'Choosing one shows what it means, with Read more for its page. On a new goal whose unit nobody has typed, it fills in the unit, the decimal places and which way is better, said in one line; Use different ones shows the fields again.',
-        'For: the goal’s team, or the whole company. With no team chosen yet, only the whole company is offered.',
+        'For: the goal’s team, or the whole company. With no team chosen yet, only the whole company is offered. Which part narrows it to one part of that number; see “Measured by: for whom, and which part”.',
         'A goal in another unit can’t be measured by the metric: it says so, and the goal can’t be saved until the units agree or No metric is chosen.',
         'No metric means the goal says in its own words how it’s measured. A goal with dated stages has no number, so it has no “Measured by”.',
         'Nothing fits? Choose Add “…” as a new metric: give it a name, a unit and which way is better, and it is chosen. You own it; say more about it on its page later.',
@@ -83,7 +83,37 @@ const help: Article[] = [
     screens: ['MeasuredBy'],
     reqs: ['METRICS-MEASURED-BY'],
     keywords: ['measured by', 'metric', 'choose metric', 'link metric', 'no metric', 'for'],
-    related: ['metrics', 'metric-define', 'new-goal'],
+    related: ['metrics', 'metric-define', 'new-goal', 'metric-slices'],
+  },
+  {
+    id: 'metric-slices',
+    title: 'Measured by: for whom, and which part',
+    summary: 'What a goal takes from its metric and what stays its own, whose number it is, and one part of that number.',
+    group: 'you',
+    after: 'metric-measured-by',
+    sections: [
+      { heading: 'What a goal takes from its metric', list: [
+        'A goal measured by a metric uses the metric’s unit and which way is better, shown as “From the metric”, with where the number comes from and how often it refreshes when the metric says. To use others, choose another metric or No metric.',
+        'Its start, target, plan and due week stay the goal’s own.',
+      ] },
+      { heading: 'For, and which part', list: [
+        'For says whose number it is: the goal’s team, or the whole company.',
+        'Which part is optional: one part of that number, such as tier-1 services, a region or release builds, up to 60 characters. Leave it empty for all of it.',
+        'Parts other goals on the metric already use are listed under the field; choose one rather than typing it again, so goals on the same part line up on the metric’s page. A part spelt like one in use is asked about (“Use tier-1 services”, or keep yours).',
+        'If another goal already measures the same metric for the same team and part, you are asked, as two goals on one number is unusual; Carry on keeps it.',
+      ] },
+      { heading: 'After check-ins', list: [
+        'Once a goal has check-ins, changing its metric, For or part asks Why. It shows in the goal’s History, so anyone reading its chart knows the number was measured differently from then on.',
+      ] },
+      { heading: 'On the goal’s page', list: [
+        'About lists Measured by: For, what it means, From the metric, where the number comes from, caveats, the goal’s own target, and its own definition when that says more than the metric’s.',
+      ] },
+    ],
+    routes: [],
+    screens: [],
+    reqs: ['METRIC-PARTS'],
+    keywords: ['which part', 'part', 'slice', 'for', 'tier-1', 'region', 'from the metric', 'why', 'measured differently'],
+    related: ['metric-measured-by', 'metric-define', 'edit-goal'],
   },
 ];
 

@@ -6450,8 +6450,8 @@
       "metricLinks": [
         {"id":"ns-lead","goalId":"ns-lead","metricId":"metric_lead-time","teamId":null,"linkedBy":"rhea","linkedAt":"2025-12-19T01:00:00.000Z","removedAt":null,"removedBy":null},
         {"id":"ns-ci","goalId":"ns-ci","metricId":"metric_ci-time","teamId":null,"linkedBy":"daniel","linkedAt":"2025-12-19T02:00:00.000Z","removedAt":null,"removedBy":null},
-        {"id":"lead-ci-time","goalId":"lead-ci-time","metricId":"metric_queue-wait","teamId":"cicd","linkedBy":"rhea","linkedAt":"2025-12-19T03:00:00.000Z","removedAt":null,"removedBy":null},
-        {"id":"lead-flaky","goalId":"lead-flaky","metricId":"metric_flaky-rate","teamId":"cicd","linkedBy":"rhea","linkedAt":"2025-12-19T04:00:00.000Z","removedAt":null,"removedBy":null},
+        {"id":"lead-ci-time","goalId":"lead-ci-time","metricId":"metric_queue-wait","teamId":"cicd","part":"main branch pipelines","linkedBy":"rhea","linkedAt":"2025-12-19T03:00:00.000Z","removedAt":null,"removedBy":null},
+        {"id":"lead-flaky","goalId":"lead-flaky","metricId":"metric_flaky-rate","teamId":"cicd","part":"main pipelines","linkedBy":"rhea","linkedAt":"2025-12-19T04:00:00.000Z","removedAt":null,"removedBy":null},
         {"id":"lead-cache","goalId":"lead-cache","metricId":"metric_cache-hit","teamId":"cicd","linkedBy":"sana","linkedAt":"2025-12-19T05:00:00.000Z","removedAt":null,"removedBy":null},
         {"id":"lead-review","goalId":"lead-review","metricId":"metric_first-review","teamId":"devex","linkedBy":"tariq","linkedAt":"2025-12-19T06:00:00.000Z","removedAt":null,"removedBy":null},
         {"id":"ns-deploy","goalId":"ns-deploy","metricId":"metric_deploys","teamId":null,"linkedBy":"pavel","linkedAt":"2025-12-19T07:00:00.000Z","removedAt":null,"removedBy":null},
