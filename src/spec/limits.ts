@@ -38,6 +38,8 @@ export const LIMITS: Limit[] = [
   { constraint: 'okr_goals_range_margin_check', holds: ['range_margin >='], rule: 'goal-entry', words: 'A range goal’s warning margin is 0 or more.' },
   { constraint: 'okr_goals_check2', holds: ['NOT headline', 'parent_id IS NULL'], rule: 'goal-entry', words: 'A headline goal feeds nothing.' },
   { constraint: 'okr_goals_plan_from_week_check', holds: ['plan_from_week >=', '104'], rule: 'weeks-and-plans', words: 'A plan’s first week is between −104 and 104 (a plan carried from an earlier year starts before week 0).' },
+  { constraint: 'okr_goals_baseline_period_len', holds: ['<= 60'], rule: 'goal-entry', words: 'The period a goal’s baseline covers has at most 60 characters.' },
+  { constraint: 'okr_goals_baseline_whole', holds: ['baseline_value IS NOT NULL', 'baseline_provisional'], rule: 'goal-entry', words: 'A baseline’s period and its “provisional” flag only go with a baseline figure.' },
   { constraint: 'okr_goals_plan_end_week_check', holds: ['plan_end_week >= 1', 'plan_end_week <= 104'], rule: 'weeks-and-plans', words: 'A plan’s due week, when it has one, is 1 to 104.' },
   { constraint: 'okr_stages_due_week_check', holds: ['due_week >= 1'], rule: 'weeks-and-plans', words: 'A milestone stage is due in week 1 or later.' },
   { constraint: 'okr_goals_key_check', holds: ['^G-[1-9][0-9]*$'], rule: 'numbers-and-names', words: 'A goal’s key is “G-” and a whole number from 1, with no leading zero (G-1, G-27).', code: 'src/domain/goalKey.ts#nextKey' },

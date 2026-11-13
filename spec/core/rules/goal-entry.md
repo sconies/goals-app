@@ -36,6 +36,8 @@ Faro’s database holds these as well as the rule; a rebuild holds them wherever
 - A range goal kept between two numbers has a lower number below its limit; any other range goal has no lower number. (`okr_goals_range_lower_ok`)
 - A range goal’s warning margin is 0 or more. (`okr_goals_range_margin_check`)
 - A headline goal feeds nothing. (`okr_goals_check2`)
+- The period a goal’s baseline covers has at most 60 characters. (`okr_goals_baseline_period_len`)
+- A baseline’s period and its “provisional” flag only go with a baseline figure. (`okr_goals_baseline_whole`)
 
 ## Worked examples
 
