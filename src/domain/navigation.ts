@@ -34,19 +34,22 @@ export const GROUP_NAMES: Record<keyof MenuGroups, string> = { work: 'Your work'
  * Rule 1. The menu in its groups: your work (Home; Check-in for someone with a goal to check in on; Goals; Reviews),
  * things to look up (People, then the modules' items in the order they register, then Activity and Data), New goal, and
  * this workspace and you (Workspace, Settings, Help, Feedback). A module's item in the work group follows Reviews.
+ * With Reviews switched off (`reviews` false, FT2) it has no row.
  */
-export function menuGroups(checksIn: boolean, modules: ModuleNavItem[] = []): MenuGroups {
+export function menuGroups(checksIn: boolean, modules: ModuleNavItem[] = [], reviews = true): MenuGroups {
   const id = (m: ModuleNavItem) => `module:${m.id}`;
   return {
-    work: ['home', ...(checksIn ? ['checkin'] : []), 'goals', 'reviews', ...modules.filter((m) => m.group === 'work').map(id)],
+    work: ['home', ...(checksIn ? ['checkin'] : []), 'goals', ...(reviews ? ['reviews'] : []), ...modules.filter((m) => m.group === 'work').map(id)],
     lookup: ['people', ...modules.filter((m) => m.group !== 'work').map(id), 'activity', 'data'],
     make: ['new'],
     you: ['workspace', 'settings', 'help', 'feedback'],
   };
 }
 
-/** The phone's four tabs: Check-in for whoever checks in, People for anyone else. More holds the rest. */
-export function phoneTabs(checksIn: boolean): NavId[] {
+/** The phone's four tabs: Check-in for whoever checks in, People for anyone else. More holds the rest. With Reviews
+    switched off (FT2), People takes its tab for whoever checks in, and Activity for anyone else. */
+export function phoneTabs(checksIn: boolean, reviews = true): NavId[] {
+  if (!reviews) return checksIn ? ['home', 'checkin', 'goals', 'people'] : ['home', 'goals', 'people', 'activity'];
   return checksIn ? ['home', 'checkin', 'goals', 'reviews'] : ['home', 'goals', 'reviews', 'people'];
 }
 

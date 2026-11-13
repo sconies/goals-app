@@ -11,6 +11,12 @@ import { nearMiss } from '../domain/find';
 import { Place, useModules } from '../core/app';
 
 /** A module's articles show only while it's on here (src/core/app.tsx); the core's always do. */
+/** A topic's name: "Reviews and the year" is "The year" while Reviews is off (FT2). */
+function useGroupTitle() {
+  const { on } = useModules();
+  return (g: (typeof GROUPS)[number]) => (g.id === 'leading' && !reviewsOn(on) ? 'The year' : g.title);
+}
+
 function useShown() {
   const { on } = useModules();
   return (a: Article | undefined): a is Article => !!a && (!a.module || on.has(a.module));
@@ -21,6 +27,8 @@ import { BackLink } from '../ui/BackLink';
 import { EmptyResult } from '../ui/bits';
 import { StatusLegend } from '../ui/StatusLegend';
 import { Icon } from '../ui/Icon';
+import { SwitchedOffLine } from '../ui/SwitchedOff';
+import { reviewsOn } from '../app/reads';
 import { useApp } from '../app/state';
 import { raisedBy } from '../markup/backend';
 import { raisedIn, raisedText, type Raised } from '../markup/model';
@@ -47,6 +55,7 @@ export function HelpHome() {
   const ARTICLE_WORDS = { thing: 'article', things: 'articles' };
   const latest = latestNews();
   const unread = useUnreadNews().length > 0;
+  const groupTitle = useGroupTitle();
   return (
     <div className="page narrow help-page">
       <div className="page-head">
@@ -74,7 +83,7 @@ export function HelpHome() {
         </section>
       ) : GROUPS.map((g) => (
         <section key={g.id} className="block" aria-labelledby={'help-' + g.id}>
-          <h2 className="block-title" id={'help-' + g.id}>{g.title}</h2>
+          <h2 className="block-title" id={'help-' + g.id}>{groupTitle(g)}</h2>
           <ul className="help-list">{ARTICLES.filter((a) => a.group === g.id && shown(a)).map((a) => <ArticleRow key={a.id} a={a} />)}</ul>
         </section>
       ))}
@@ -87,11 +96,16 @@ export function HelpArticle() {
   const shown = useShown();
   const found = anyArticle(id);
   const a = shown(found) ? found : undefined;
+  const { installed } = useModules();
+  const groupTitle = useGroupTitle();
+  // A switched-off module's article is hidden, and its address says so (FT2, N21).
+  const offModule = !a && found?.module ? installed.find((m) => m.id === found.module) : undefined;
   if (!a) {
     return (
       <div className="page narrow help-page">
         <BackLink to="/help" label="Help" />
         <EmptyResult title="There’s no help article here" action={<Link className="btn" to="/help">See all help</Link>}>It may have moved. Search Help for what you need.</EmptyResult>
+        {offModule && <SwitchedOffLine name={offModule.name} />}
       </div>
     );
   }
@@ -101,7 +115,7 @@ export function HelpArticle() {
     <div className="page narrow help-page help-article">
       <BackLink to="/help" label="Help" />
       <div className="page-head">
-        <span className="eyebrow">{group?.title}</span>
+        <span className="eyebrow">{group && groupTitle(group)}</span>
         <h1 className="title-xl">{a.title}</h1>
         <p className="help-lead">{a.summary}</p>
       </div>

@@ -363,6 +363,8 @@ Faro’s database holds these as well as the rule; a rebuild holds them wherever
 - A metric’s unit has 1 to 20 characters. (`okr_metrics_unit_check`; the code holds it too, in `src/modules/metrics/rules.ts`)
 - A metric keeps 0 to 4 decimal places (a goal keeps at most 3). (`okr_metrics_decimals_check`; the code holds it too, in `src/modules/metrics/rules.ts`)
 - A metric’s meaning, source, source owner and caveats each have at most 2,000 characters. (`okr_metrics_meaning_check`; the code holds it too, in `src/modules/metrics/rules.ts`)
+- A metric is measured, partly measured or a gap (not measured yet); measured unless someone says otherwise. (`okr_metrics_measurement_ok`)
+- What is missing from a metric’s measurement has at most 300 characters. (`okr_metrics_measurement_note_len`)
 
 ### Worked examples
 

@@ -8,7 +8,7 @@ import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-route
 import { useApp } from '../app/state';
 import { clearDraft, goalDraftKey, peekDraft, useDraft } from '../app/drafts';
 import { parseNumber } from '../domain/checkin';
-import { blankGoal, withPoints, type GoalDraft } from '../domain/goal';
+import { blankGoal, GOAL_KINDS, withPoints, type GoalDraft } from '../domain/goal';
 import { checksContext, decimalsFor, formNeed, goalChecks, goalMustFix, planSpanOf, proposedMustFix, unsaidDraft, sameNamedIn, STEP_SAYS, stepFields, stepSays, stepState, unanswered, type GoalAnswers, type GoalCheck, type GoalField, type MustFix } from '../domain/goalEntry';
 import { FixLine } from '../ui/Levels';
 import { focusQuestion } from '../ui/questionInView';
@@ -23,7 +23,7 @@ import { measureEmpty } from '../domain/proposed';
 /** The fields that say how a goal is measured: optional, all together, while it is proposed (rule 14). */
 const MEASURE_FIELDS: string[] = ['start', 'target', 'limit', 'stages'];
 import { worstFirst } from '../domain/order';
-import type { GoalKind, Level, MetricGoal, PlanShape } from '../domain/types';
+import type { Level, MetricGoal, PlanShape } from '../domain/types';
 import { newId } from '../data/store';
 import { Steps } from '../ui/bits';
 import { MetricChart } from '../ui/charts';
@@ -39,11 +39,7 @@ import { Place, useFilled, type MeasurePick } from '../core/app';
 import { Pick, PickOne } from '../ui/Pick';
 import { recentsOf, usePrefs } from '../app/search';
 
-const KINDS: [GoalKind, string, string, string][] = [
-  ['metric', 'Move a number', 'From where it is to where it should be', 'e.g. Lead time from 4.2 to 2 days'],
-  ['range', 'Keep a number in range', 'A guardrail that mustn’t cross a line', 'e.g. Change failure rate at most 12%'],
-  ['milestone', 'Hit dated stages', 'Work that is done or not, by a week', 'e.g. Threat model, build, approval'],
-];
+const KINDS = GOAL_KINDS;
 const SHAPES: [PlanShape, string, string][] = [
   ['straight', 'Steady', 'The same progress every week'],
   ['back', 'Back-loaded', 'Slow start, faster once work lands'],

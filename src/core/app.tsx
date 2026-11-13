@@ -58,11 +58,11 @@ export interface PlaceProps {
   'help.article': { article: string };
 }
 
-/** What a goal form saves after the goal, from the goal.measure place: a module's action (app.run, AS part 2), with its
-    input for the goal as saved. The core names no module's records or actions. */
+/** What a goal form saves with the goal, from the goal.measure place: a module's action (app.run, AS part 2), with its
+    input less the goal, which the save names (`goalId`). The core names no module's records or actions. */
 export interface MeasurePick {
   action: string;
-  input: (goal: Goal) => unknown;
+  input: Record<string, unknown>;
   /** The choice in words, for New goal's Check ("Measured by Lead time for changes, for CI/CD."). */
   says?: string;
   /** Why it can't be saved with the goal as typed (a unit that differs): the form stops on its step and says so. */

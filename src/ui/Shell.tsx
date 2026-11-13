@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, matchPath, useLocation, useNavigate } from 'react-router';
 import { useModules } from '../core/app';
+import { reviewsOn } from '../app/reads';
 import { useApp, useToasts } from '../app/state';
 import { weekProgress } from '../domain/progress';
 import { reviewSession, sessionToDo } from '../domain/review';
@@ -172,10 +173,12 @@ function ShellBody({ children }: { children: ReactNode }) {
   const ownsGoals = app.snapshot.goals.some((g) => g.ownerId === app.viewer.id && !g.stoppedAt && app.statusOf(g).status !== 'done');
   const views = useViews();
   const prefs = usePrefs();
-  const { screens } = useModules();
+  const { screens, on } = useModules();
   const moduleNav = screens.flatMap((m) => m.navigation ?? []);
-  const groups = menuGroups(ownsGoals, moduleNav);
-  const tabs = phoneTabs(ownsGoals);
+  // Reviews switched off (FT2): no row, no count and no tab.
+  const reviews = reviewsOn(on);
+  const groups = menuGroups(ownsGoals, moduleNav, reviews);
+  const tabs = phoneTabs(ownsGoals, reviews);
   const more = moreFor(groups, tabs);
   const shownViews = menuViews(views.map((v) => ({ id: v.id, name: v.name, pinned: v.pinned, mine: v.personId === app.viewer.id, createdAt: v.createdAt })), recentsOf(prefs, app.ws.id, app.viewer.id).filter((r) => r.kind === 'view').map((r) => r.id)).map((m) => views.find((v) => v.id === m.id)!);
   /** The app's own label on the collapsed rail (hover after a moment, at once on focus): the row's full words. */
@@ -195,7 +198,7 @@ function ShellBody({ children }: { children: ReactNode }) {
   const setPresent = (on: boolean) => { try { sessionStorage.setItem('goals-present', on ? '1' : ''); } catch { /* private mode */ } setPresentState(on); };
   const due = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.length;
   // A review you're in that's held this week, still has goals to cover, and has something to review (review.sessionToDo).
-  const reviewsOpen = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).filter((x) => sessionToDo(x, app.snapshot, app.week, app.today)).length;
+  const reviewsOpen = !reviews ? 0 : app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).filter((x) => sessionToDo(x, app.snapshot, app.week, app.today)).length;
   const count = (id: NavId) => (id === 'checkin' ? due : id === 'reviews' ? reviewsOpen : 0);
   const team = app.viewer.teamId ? app.team(app.viewer.teamId)?.name ?? '' : '';
   const work = useRef<HTMLElement>(null);
@@ -226,7 +229,7 @@ function ShellBody({ children }: { children: ReactNode }) {
 
   // A form is focus mode (navigation's one rule, which Back reads too); so is a module's focus page and a review's walk,
   // which isn't a form (what was said is saved as it is said). Check-in's list keeps the sidebar (NV3).
-  const focusMode = !!moduleRoute?.focus || isForm(pathname, search) || /[?&]review=/.test(search);
+  const focusMode = !!moduleRoute?.focus || isForm(pathname, search) || (reviews && /[?&]review=/.test(search));
   const icons = look.sidebar === 'icons';
   // The rail: chosen, or always between 761 and 1100 px. Its rows name themselves with the app's label.
   const sideRef = useRef<HTMLElement>(null);

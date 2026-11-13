@@ -7,7 +7,6 @@ import * as A from '../domain/actions';
 import { attentionFor, type GoalAttention } from '../domain/attention';
 import type { Lookup } from '../domain/changes';
 import type { GoalDraft } from '../domain/goal';
-import type { SaveGoalInput } from '../domain/goalEntry';
 import type { Draft } from '../domain/checkin';
 import { currentWeek } from '../domain/plan';
 import { invitedTo } from '../domain/dayOne';
@@ -22,7 +21,12 @@ import { MODULE_RECORDS, recordsOn } from '../core/records';
 import { applyCommit, EXAMPLE, examplesOf, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import type { Answers, ChangeInput, ChangeSet, CheckInPost, PostMode, Tables, Via } from '../domain/changeset';
 import { ACTIONS } from '../mcp/parity';
-import { commitOf, loadEngine, loadGoalEntry, MODULE_ACTIONS, perform, performAny, ready, type ActionInput, type ActionName, type RunContext, type RunResult } from './actions';
+import { commitOf, loadEngine, loadGoalEntry, MODULE_ACTIONS, perform, performAny, ready, type ActionInput, type ActionName, type RunContext, type RunResult, type SaveGoalWith } from './actions';
+
+/** What previewChanges is given, and applyChanges sends again with apply. */
+export type ChangePlan = Omit<ActionInput<'planChanges'>, 'apply'>;
+/** A preview, with the plan it was made from, so applyChanges re-runs that plan rather than trusting the shown commit. */
+export type Preview = ChangeSet & { plan: ChangePlan };
 import { telemetry } from '../telemetry';
 import { isOffline, recoverFromStaleCode } from '../telemetry/staleCode';
 import * as R from '../domain/removal';
@@ -129,7 +133,7 @@ export interface AppState {
       being changed (null for a new one). A new goal's stages said to be already done (`stagesDone`, onboarding rule 3)
       are recorded done in the same save. `also`: a module's action for the goal as saved (what measures it, from the
       goal.measure place), run on the workspace with the goal in it and saved in the same commit. Gives back the goal as saved. */
-  saveGoal(draft: GoalDraft, goal: Goal | null, opts?: Omit<SaveGoalInput, 'draft' | 'goalId'> & { also?: { action: string; input: (goal: Goal) => unknown } }): Promise<Goal>;
+  saveGoal(draft: GoalDraft, goal: Goal | null, opts?: Omit<SaveGoalWith, 'draft' | 'goalId'>): Promise<Goal>;
   /** A logged comment on a goal. Anyone can comment; it doesn't change the status, and it asks nothing of anyone. */
   addNote(goal: Goal, text: string): Promise<void>;
   /** Ask a goal's owner for an update: open on their Home until they check in or answer it, or it's withdrawn. */
@@ -162,11 +166,12 @@ export interface AppState {
   startNextCycle(): Promise<string>;
   /** Works out what a set of rows would change (from a spreadsheet, the bulk grid or a table action), without saving. */
   /** `posts`: check-ins from a screen (the table check-in), judged as the form's are, so what they answered is kept. */
-  previewChanges(tables: Tables, via: Via, reason?: string, confirm?: boolean, answers?: Answers, file?: { name: string; leftOut?: number }, posts?: CheckInPost[]): ChangeSet;
+  previewChanges(tables: Tables, via: Via, reason?: string, confirm?: boolean, answers?: Answers, file?: { name: string; leftOut?: number }, posts?: CheckInPost[]): Preview;
   /** What previewChanges hands the engine, made now, for a check run off this thread (the import's worker, backlog IM6). */
   changeInput(tables: Tables, via: Via, answers?: Answers, file?: { name: string; leftOut?: number }): ChangeInput;
-  /** Saves a change set worked out by previewChanges: all of it, or none. */
-  applyChanges(cs: ChangeSet): Promise<void>;
+  /** Saves what previewChanges was given, worked out again now (the planChanges action, with apply, from the plan the
+      preview carries): all of it, or none. Gives back the change set saved. */
+  applyChanges(cs: Preview): Promise<ChangeSet>;
   /** Admins: a personal token for an AI assistant to act as this person. Returns the token, shown once. */
   createToken(personId: string, name: string): Promise<string>;
   /** Admins, or the token's person: stop a token working. */
@@ -374,6 +379,8 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
   const posting = useRef(new Map<string, Promise<CheckIn>>());
   // A correction's Undo runs against the workspace as it is when pressed (the import it undoes is in it by then).
   const undoNow = useRef<(importId: string) => void>(() => undefined);
+  // The dispatcher as the app is now, and its workspace: for an Undo that names what it undoes by id.
+  const latest = useRef<{ ws: string; run: AppState['run'] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [viewerId, setViewerId] = useState<string | null>(null);
@@ -490,7 +497,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       // Only a workspace with more than one cycle can have a copy, so the rule loads then, not on a first visit.
       const first = given.changes[0];
       const c = cur.snap.cycles.filter((v) => !v.removedAt).length > 1
-        ? (await import('../domain/recarry')).withRecarry(cur.snap, given, { now: first?.at ?? new Date().toISOString(), actorId: first?.actorId ?? '', newId, records: MODULE_RECORDS })
+        ? (await import('../domain/recarry')).withRecarry(cur.snap, given, { now: first?.at ?? new Date().toISOString(), actorId: first?.actorId ?? '', newId, records: recordsOn(workspacesNow.current.find((w) => w.id === cur.ws)) })
         : given;
       if (!signedIn.current) throw new Error(NOBODY);
       try {
@@ -605,14 +612,15 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       if (loadedRef.current && loadedRef.current.ws !== ws.id) { toast(ELSEWHERE, 'error'); throw new Error(ELSEWHERE); }
       return commit(c);
     };
-    async function act<T extends Commit | { commit: Commit | null } | null>(run: () => T): Promise<T> {
-      let out: T;
-      try { out = run(); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
-      const c = out && 'commit' in out ? out.commit : (out as Commit | null);
-      if (c) await save(c);
-      return out;
-    }
-    const undoBy = (c: Commit, before: Snapshot) => () => { void act(() => R.undoRemoval(ax(), c, before)).then(() => toast('Undone')).catch(() => undefined); };
+    // A removal's Undo runs from the app it was made in: in another workspace by then, save refuses it (ELSEWHERE).
+    const undoBy = (c: Commit, before: Snapshot) => () => { void run('undoRemoval', { removal: c, before }).then(() => toast('Undone')).catch(() => undefined); };
+    // Undo for marking reviewed names the marks by id, so it runs on the app as it is now, whose workspace has them; never
+    // in another workspace.
+    const unmark = (decisionIds: string[]) => () => {
+      const now = latest.current;
+      if (!now || now.ws !== ws.id) { toast(ELSEWHERE, 'error'); return; }
+      void now.run('unmarkReviewed', { decisionIds }).then(() => toast('Undone: back on the agenda')).catch(() => undefined);
+    };
 
     // What a removal says, with Undo for 10 seconds (domain/removal). Undo puts back every record the removal changed,
     // as it was just before (what it handed over or moved included).
@@ -635,22 +643,19 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       deleteCycle: (_, i) => `Deleted the cycle ${snapshot.cycles.find((c) => c.id === i.cycleId)?.name ?? ''}`,
     };
 
+    latest.current = { ws: ws.id, run };
     undoNow.current = (importId) => { void run('undoImport', { importId }).then(() => toast('Undone')).catch(() => undefined); };
-    /** An action's rules, loaded when first needed; a failed load says so (and offers a reload), never nothing. */
-    async function loadRules(name: Parameters<typeof ready>[0]) {
-      try { await ready(name); } catch (e) {
-        if (isOffline()) toast(ENGINE_OFFLINE, 'error');
-        // Online, it is stale code or a failed fetch: reload once (staleCode.ts), or offer the reload when it just did.
-        else if (!recoverFromStaleCode(e)) toast(ENGINE_FAILED, 'error', { label: 'Reload', run: () => location.reload() });
-        throw e;
-      }
-    }
     /** The dispatcher (app/actions.ts): one way to run an action. Who, when and ids are set here. */
     async function run<N extends ActionName>(name: N, input: ActionInput<N>, opts: { said?: string } = {}): Promise<RunResult<N>> {
       const before = snapshot;
       // Outside the demo, nobody signed in can't act: there is no stand-in to act as (AX3).
       if (!signedIn.current) { toast(NOBODY, 'error'); throw new Error(NOBODY); }
-      await loadRules(name);
+      try { await ready(name, input); } catch (e) {
+        if (isOffline()) toast(ENGINE_OFFLINE, 'error');
+        // Online, it is stale code or a failed fetch: reload once (staleCode.ts), or offer the reload when it just did.
+        else if (!recoverFromStaleCode(e)) toast(ENGINE_FAILED, 'error', { label: 'Reload', run: () => location.reload() });
+        throw e;
+      }
       let out: ReturnType<typeof perform<N>>;
       try { out = performAny(rx(), name, input) as ReturnType<typeof perform<N>>; } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
       // A token's secret is made where it's kept (the shared database makes its own) and shown once; only its hash is stored.
@@ -662,7 +667,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       if (name === 'markReviewed') {
         const n = (input as ActionInput<'markReviewed'>).goalIds.length;
         const review = sc.reviews.find((r) => r.id === (input as ActionInput<'markReviewed'>).reviewId);
-        toast(opts.said ?? `${n} ${n === 1 ? 'goal' : 'goals'} marked reviewed in ${review?.name ?? 'the review'}`, 'success', { label: 'Undo', run: () => { void act(() => R.unmarkReviewed(ax(), c.decisions ?? [])).then(() => toast('Undone: back on the agenda')).catch(() => undefined); } });
+        toast(opts.said ?? `${n} ${n === 1 ? 'goal' : 'goals'} marked reviewed in ${review?.name ?? 'the review'}`, 'success', { label: 'Undo', run: unmark((c.decisions ?? []).map((d) => d.id)) });
       } else {
         // A module's removal or change says what it did, with Undo, as the core's do (its actions.ts `said`); a `said`
         // that gives back nothing leaves the toast to the screen (adding a metric, say).
@@ -774,26 +779,8 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       linkRequest: async (r, goal) => { await run('linkRequest', { askId: r.id, goalId: goal.id }); },
       withdrawRequest: async (r, goal) => { await run('withdrawRequest', { askId: r.id, goalId: goal?.id }); },
       // One way to save a goal (goal entry, rule 7; AX2): the dispatcher runs the rule, so the form saves nothing itself.
-      // What the form's module place chose (goal.measure) is run on the workspace with the goal in it and saved in the
-      // same commit: run after the save, it would see the workspace from before it, without the goal.
-      saveGoal: async (draft, goal, opts) => {
-        const { also, ...rest } = opts ?? {};
-        const input = { draft, ...(goal ? { goalId: goal.id } : {}), ...rest };
-        if (!also) return (await run('saveGoal', input)).goal;
-        if (!signedIn.current) { toast(NOBODY, 'error'); throw new Error(NOBODY); }
-        // The goal form's save with what measures it loads both rules, and says so if either fails (#308's review).
-        await loadRules('saveGoal');
-        await loadRules(also.action);
-        let out: { commit: Commit | null; goal: Goal }, extra: Commit | null;
-        try {
-          out = performAny(rx(), 'saveGoal', input) as { commit: Commit | null; goal: Goal };
-          const g = out.goal, given = also.input(g);
-          extra = commitOf(also.action, performAny({ ...rx(), snapshot: { ...sc, goals: [...sc.goals.filter((v) => v.id !== g.id), g] } }, also.action, given), given);
-        } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
-        const c = out.commit ? A.mergeCommits(out.commit, extra) : extra;
-        if (c) await save(c);
-        return out.goal;
-      },
+      // What the form's module place chose (goal.measure) goes with it, saved in the same commit (actions.ts saveGoal).
+      saveGoal: async (draft, goal, opts) => (await run('saveGoal', { draft, ...(goal ? { goalId: goal.id } : {}), ...opts })).goal,
       addNote: async (goal, text) => { await run('addNote', { goalId: goal.id, text }); },
       askForUpdate: async (goal) => { await run('askForUpdate', { goalId: goal.id }); },
       undoUpdateAsk: async (goal) => { await run('undoUpdateAsk', { goalId: goal.id }); },
@@ -812,13 +799,16 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         // The demo's data lives in this browser only, so its feedback is also sent where the people building the app read it.
         if (mode === 'demo') void sendDemoFeedback({ mood, text, path, persona: `${viewer.name}${viewer.role ? ', ' + viewer.role : ''}` });
       },
-      // A change set is worked out here and saved by applyChanges, so the screen shows the preview the person agreed to.
+      // A change set is previewed here; applyChanges sends the same input again with apply, so what is saved is worked
+      // out at save time by the rule, not trusted from the preview.
       changeInput: (tables, via, answers, file) => { const x = ax(); return { tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via, answers, full: x.full, records: x.records, ...(file ? { file } : {}) }; },
-      previewChanges: (tables, via, reason, confirm, answers, file, posts) => perform(rx(), 'planChanges', { tables, via, reason, confirm, answers, ...(file ? { file } : {}), ...(posts?.length ? { posts } : {}) }),
-      applyChanges: async (cs) => {
-        if (!cs.commit) throw new Error('These changes can’t be saved yet.');
-        await save(cs.commit);
+      previewChanges: (tables, via, reason, confirm, answers, file, posts) => {
+        const plan: ChangePlan = { tables, via, reason, confirm, answers, ...(file ? { file } : {}), ...(posts?.length ? { posts } : {}) };
+        // The preview carries the plan it was made from, so applyChanges can send it again with apply: what is saved is
+        // worked out by the rule at save time, never trusted from the preview on screen.
+        return Object.assign(perform(rx(), 'planChanges', plan), { plan });
       },
+      applyChanges: (cs) => run('planChanges', { ...cs.plan, apply: true }),
       createToken: (personId, name) => run('createToken', { personId, name }),
       saveView: async (v) => (await run('saveView', v)).id,
       saveTableView: async (v, head) => (await run('saveTableView', { ...v, head })).id,
