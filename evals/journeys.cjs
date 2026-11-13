@@ -3432,7 +3432,7 @@ journey('U70', ['NAV-BACK'], 'Back agrees: the back link names where it goes and
   await p.context().close();
 }, ['logged']);
 
-journey('U72', ['NAV-FORMS'], 'One way out of a form: each focus-mode page has one closing control with words (“Close and keep the draft” or “Close without saving”); closing a review’s set-up with something typed asks first, and Keep editing keeps it', 3, async (h, device) => {
+journey('U72', ['NAV-FORMS'], 'One way out of a form: each focus-mode page has one closing control with words (“Close and keep the draft” or “Close without saving”); closing a review’s set-up with something typed asks first, and Keep editing keeps it; Import’s check and its changes have one too, which goes back to Import', 3, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   const wrong = [];
   const closers = () => p.locator('.focus-top').first().locator('button, a').filter({ hasText: /^Close|^Cancel/ }).or(p.locator('.focus-top').first().locator('.iconbtn[aria-label^="Close"]'));
@@ -3464,6 +3464,26 @@ journey('U72', ['NAV-FORMS'], 'One way out of a form: each focus-mode page has o
   await ask.getByRole('button', { name: 'Close without saving' }).click();
   await p.waitForURL(/\/reviews(\?|$)/, { timeout: 5000 }).catch(() => {});
   h.set('finish', /\/reviews(\?|$)/.test(p.url()), `Close without saving went to ${p.url()}`);
+  // Import's check and its changes are forms once a file is read (review of #328): one closer each, which forgets the file
+  // and goes back to Import. Set up with plain calls: the steps counted are the review's.
+  await p.goto(url('/data/import'));
+  await p.getByRole('button', { name: 'or paste rows from a spreadsheet' }).click();
+  await p.getByRole('textbox', { name: 'Paste rows from a spreadsheet' }).fill('Goal\tOwner\tTeam\tUnit\tStart\tTarget\nA way out of the check\tRhea Kapoor\tCI/CD\t%\t20\t90\n');
+  await p.getByRole('button', { name: 'Check these rows' }).click();
+  const shut = [];
+  for (const [page, open] of [['/data/import/check', null], ['/data/import/check/changes', () => p.getByRole('link', { name: 'Show the 1 change' }).click()]]) {
+    if (open) await open();
+    await p.waitForURL(new RegExp(page.replace(/\//g, '\\/') + '$'), { timeout: 8000 }).catch(() => {});
+    await p.locator('.focus-top').first().waitFor({ timeout: 8000 }).catch(() => {});
+    const n = await closers().count();
+    const words = n ? (await closers().first().innerText()).trim() : '';
+    if (n !== 1 || words !== 'Close without saving') shut.push(`${page}: ${n} closing controls${n ? ` (“${words}”)` : ''}`);
+  }
+  await closers().first().click().catch(() => {});
+  await p.waitForURL(/\/data\/import$/, { timeout: 5000 }).catch(() => {});
+  if (!/\/data\/import$/.test(p.url())) shut.push(`closing the changes went to ${p.url()}`);
+  else if (await p.getByText('Choose the file again').count()) shut.push('Import says the file was lost after closing on purpose');
+  h.set('progress', !shut.length, shut.join('; '));
   h.set('attention', true); h.set('parity', true);
   await p.context().close();
 }, ['logged']);
@@ -6202,7 +6222,7 @@ journey('U96', ['IMPORT-PREVIEW'], 'Leave a row out and save the rest: as Amara,
   h.set('progress', true);
   await p.context().close();
 }, ['parity', 'entry', 'logged']);
-journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals shows “Reading” with how far the check has got and what it has found so far; checked, it is not saved but offered as 2 files of 5,000 rows, which download with the file’s name; chosen again, Stop says nothing was saved and nothing is; a file of 1,200 goals is checked off the page’s thread, its changes drawn 50 at a time, and saves', 16, async (h, device) => {
+journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals shows “Reading” with how far the check has got and what it has found so far; checked, it is not saved but offered as 2 files of 5,000 rows, which download with the file’s name; a file of 30,000 stopped while it is checked says nothing was saved, and nothing is; a file of 1,200 goals is checked off the page’s thread, its changes drawn 50 at a time, and saves', 16, async (h, device) => {
   const rows = (k, word) => 'Goal,Owner,Team,Unit,Start,Target\n' + Array.from({ length: k }, (_, i) => `${word} queue ${i + 1},Rhea Kapoor,CI/CD,min,10,5\n`).join('');
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/data/import'));
@@ -6221,8 +6241,11 @@ journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals show
   h.set('finish', names.length === 2 && /^u97-part-1-of-2/.test(names[0] ?? '') && /^u97-part-2-of-2/.test(names[1] ?? ''), `the parts are named ${names.join(', ')}`);
   await h.checkpoint('too many');
   await h.click(p.getByRole('button', { name: 'Choose another file' }));
-  await p.getByLabel('Choose a spreadsheet').setInputFiles(big);
-  await see(p, 'Reading u97.csv', 'a large file chosen again shows no Reading panel', 10000);
+  // Stop is on the Reading panel only while the check runs. 6,000 rows are checked about a second after the panel shows,
+  // so Stop could be gone before the click (U98 failed this way on main, both devices: a 30 s click timeout). A file of
+  // 30,000 rows, the most Import takes, keeps it checking for seconds, and longer on a slower machine, not shorter.
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('u97-most.csv', rows(30000, 'Sized')));
+  await see(p, 'Reading u97-most.csv', 'a file of the most rows Import takes shows no Reading panel', 10000);
   await h.click(p.getByRole('button', { name: 'Stop' }));
   await p.waitForURL(/\/data\/import$/);
   await see(p, 'Stopped. Nothing was saved.', 'Stop does not say nothing was saved');
