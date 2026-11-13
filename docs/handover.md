@@ -419,6 +419,27 @@ Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this sessi
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
 
+## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~12:40 UTC (session past half, handing over; supersedes the 04:30 entry)
+
+Session: session_012kbr92MfjHTHVBgQp2nL52. Planning is session_012kbr939zneZWtAo7UQEHRP. #356 and #363 have merged. Track 4 is now session_012kbr931R7QEqBrfxbNv2QV; it has been told about #376's touches to the review screens and that `reviewName` should give null with Reviews off.
+
+This session built items 1 to 3 of the GE10 list, before planning moved the review's mediums ahead of them. All three are **draft PRs with the gate not finished**: typecheck, spec and build:mcp passed on each, and `npm test` passed on #376 only. An `evals:changed` run on #376 hung for hours after a worker restart and was killed, so there is no scorecard yet.
+
+| Branch | What | PR |
+|---|---|---|
+| `ge10-proposed-in` | Reviews' "Propose a new goal" (walk link, lazy `ui/ProposeInReview.tsx`), `proposedIn` ↔ `proposed_in`, Home's " in {review}", "Last time"'s "Proposed: …" lines (`lastTime` returns `proposed`); journey U148 | #376, draft |
+| `ge10-proposed-type` | Type on a proposed goal's edit page; `TYPE_FIXED` refuses an active goal's type change in `planGoal`; `GOAL_KINDS` in domain/goal.ts; journey U149 | #377, draft |
+| `ge10-state-stopped` | State: Active · Proposed · Stopped; `state=stopped` lists `archive.goals` (lazy `screens/StoppedList.tsx`); journey U150 | #378, draft |
+
+**Next, in order:**
+1. The build reviewer's mediums (and lows) on #349, #355 and #319, as listed in the 04:30 entry below, in one PR.
+2. Then take #376, #377 and #378 one at a time: merge main (keep both What's new entries, ours first; take main's `api/mcp.js`, then `build:mcp` and `npm run spec`), run `npm test`, then `evals:changed` (as a background job writing to a log, or a subagent; if it runs past about 40 minutes, kill it and rerun the failing shard's checks with `ONLY=`/`FINISH=`). Then mark the PR ready and enable auto-merge (MERGE). The three touch the same help files, so merge them in order.
+3. Then the 04:30 list's items 4 to 6: `for-someone-else` for files and tools; "Proposed · {n}" in what feeds a goal; the start page's carry count.
+
+**Habits:** a worker restart kills background eval runs and subagents silently. Check `ps` for a stuck `evals/run.mjs` before starting another run.
+
+**Prompt for the next track 2 session:** "You are track 2 of Faro's build (goal entry and set-up). Read CLAUDE.md, then the track 2 section of docs/handover.md ('Track 2 … Friday 13 November, ~12:40 UTC') and do its 'Next' list in order: the review's mediums first (listed in the 04:30 entry), then gate and merge the three drafts #376, #377 and #378, then the remaining GE10 items. The first download is about 262 of 275 KB: keep anything new lazy; never raise budgets. Track 4 (session_012kbr931R7QEqBrfxbNv2QV) is building the reviews switch: coordinate with it on Inspect.tsx and Review.tsx. Track 7c will ask when GE10's code is in. A migration that adds a check constraint adds its line to src/spec/limits.ts. Follow CLAUDE.md's gate (typecheck, npm test, npm run spec, evals:changed, build:mcp from a real node_modules via cp -al, never ln -s), one heavy run at a time. Build in a worktree, send eval runs to a subagent that returns only the scorecard, check mergeable_state, then enable auto-merge (MERGE) once the gate passes. Report to the planning session (session_012kbr939zneZWtAo7UQEHRP, or whichever session tells you planning has moved) once, when done or blocked. At half context, write a handover entry in a PR and send the planning session the next prompt."
+
 ## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~04:30 UTC (session at half, handing over; supersedes the 02:50 entry)
 
 Session: session_012kbr8yiXGwtRjT4Wf4vu8n. Planning is session_012kbr939zneZWtAo7UQEHRP. #319 merged before this session began.
