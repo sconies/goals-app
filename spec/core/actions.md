@@ -68,7 +68,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | [createToken](#createtoken) | Make an MCP token for someone | Admins | [`create_token`](tools.md#create_token) |
 | [revokeToken](#revoketoken) | Revoke an MCP token | An admin, or the token’s person | [`revoke_token`](tools.md#revoke_token) |
 | [sendFeedback](#sendfeedback) | Send feedback about the app | Anyone | [`send_feedback`](tools.md#send_feedback) |
-| [saveMetric](#savemetric) (metrics) | Add a metric to the library; Change or remove a metric | Anyone; they own it unless they name another owner; Its owner, or an admin | [`save_metric`](tools.md#save_metric) |
+| [saveMetric](#savemetric) (metrics) | — | — | [`save_metric`](tools.md#save_metric) |
 | [removeMetric](#removemetric) (metrics) | Change or remove a metric | Its owner, or an admin | [`remove_metric`](tools.md#remove_metric), [`restore_removed`](tools.md#restore_removed) |
 | [linkGoalMetric](#linkgoalmetric) (metrics) | Say which metric measures a goal, or stop | The goal’s owner, or an admin | [`link_goal_metric`](tools.md#link_goal_metric) |
 | [unlinkGoalMetric](#unlinkgoalmetric) (metrics) | Say which metric measures a goal, or stop | The goal’s owner, or an admin | [`link_goal_metric`](tools.md#link_goal_metric) |
@@ -1463,9 +1463,9 @@ Nothing.
 
 From the [metrics](../modules/metrics/README.md) module.
 
-**Does:** Add a metric to the library; change or remove a metric.
+**Does:** —.
 
-**Input**:
+**Input** (`SaveMetricInput`):
 
 | Field | Type | Needed | What it is |
 |---|---|---|---|
@@ -1481,17 +1481,20 @@ From the [metrics](../modules/metrics/README.md) module.
 | `caveats` | `string` | no | What to watch out for when reading it (a known gap, a change of method). |
 | `id` | `string` | no |  |
 | `confirm` | `boolean` | no |  |
+| `answers` | `Partial<Record<CheckField, string>>` | no |  |
 
 **Result:** `{ commit: Commit \| null; metric: Metric; }`
 
-**Who may:** Anyone; they own it unless they name another owner (to add a metric to the library); Its owner, or an admin (to change or remove a metric).
+**Who may:** —.
 
-**The rule:** `saveMetric`, in `src/modules/metrics/rules.ts`.
+**The rule:** `saveMetricAsked`.
 
 **Refuses with:**
 
+- “Nothing saved: use that metric instead.”
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
-- “Only … or an admin can change this metric.”
+- “Only … or an admin can … this metric.”
+- “Answer … first: …”
 
 **AI tools that do the same:** [`save_metric`](tools.md#save_metric)
 
@@ -1516,7 +1519,7 @@ From the [metrics](../modules/metrics/README.md) module.
 **Refuses with:**
 
 - “There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.”
-- “Only … or an admin can remove this metric.”
+- “Only … or an admin can … this metric.”
 
 **AI tools that do the same:** [`remove_metric`](tools.md#remove_metric), [`restore_removed`](tools.md#restore_removed)
 
@@ -1576,7 +1579,7 @@ From the [metrics](../modules/metrics/README.md) module.
 
 ## The types the actions name
 
-Each type an action’s input or result names that isn’t a record in [the data model](data-model.md), as the code declares it (with its comments), in A to Z order. 37 types.
+Each type an action’s input or result names that isn’t a record in [the data model](data-model.md), as the code declares it (with its comments), in A to Z order. 39 types.
 
 ### Answers
 
@@ -1630,6 +1633,14 @@ export interface ChangeSet {
   /** Create mode: everything the new workspace starts with (set-up reads it). */
   created?: Pick<Snapshot, 'people' | 'teams' | 'goals' | 'checkIns' | 'requests' | 'keysIssued'>;
 }
+```
+
+### CheckField
+
+In `src/modules/metrics/rulesDefine.ts`.
+
+```ts
+export type CheckField = 'name' | 'unit' | 'meaning';
 ```
 
 ### CheckId
@@ -2034,6 +2045,14 @@ export interface SaveGoalInput {
       changed keeps its state: it is made active by domain/proposed activate, never by a save. */
   state?: 'active' | 'proposed';
 }
+```
+
+### SaveMetricInput
+
+In `src/modules/metrics/rulesSave.ts`.
+
+```ts
+export type SaveMetricInput = MetricInput & { id?: string; confirm?: boolean; answers?: Partial<Record<CheckField, string>> };
 ```
 
 ### Sheet

@@ -5,6 +5,7 @@
 
    Pure: each takes only what it reads. Nothing here is a score: "Still to say" is words, never a number, and nothing may
    sort by it. A Check never stops a metric being usable; it is a question to answer once. */
+import { NotAllowed } from '../../domain/actions';
 import { fold } from '../../domain/find';
 import { editsBetween } from './edits';
 import { closeNames, directionWords } from './rulesLibrary';
@@ -160,8 +161,9 @@ const OUT_OF_WHAT = 'This is a percentage, and the words don’t say out of what
 
 /**
  * The Checks a metric as typed raises (rule 1), one per field at most, each with its answers. Adding: all three. Changing:
- * only for a field that changed. An answer's `choice` is what save_metric's `answers` takes: name `keep` or `use:<id>`,
- * unit `keep` or `use`, meaning `as-written`.
+ * only for a field that changed. An answer's `choice` is what save_metric's `answers` takes: name `keep:<id>` or `use:<id>`
+ * (the id of the metric the question names, so an answer covers only the question it was given to), unit `keep` or `use`,
+ * meaning `as-written`.
  */
 export function metricChecks(next: Pick<Metric, 'id' | 'name' | 'unit' | 'meaning'>, before: Pick<Metric, 'name' | 'unit' | 'meaning'> | null, r: CheckReads): MetricCheck[] {
   const out: MetricCheck[] = [];
@@ -177,8 +179,8 @@ export function metricChecks(next: Pick<Metric, 'id' | 'name' | 'unit' | 'meanin
         : c.kind === 'letters' ? `This is ${c.edits === 1 ? 'one letter' : 'two letters'} from “${m.name}” (${about}).`
           : `This looks like “${m.name}” (${about}).`;
       const answers = c.kind === 'former'
-        ? [{ choice: `use:${m.id}`, label: `Use ${m.name}` }, { choice: 'keep', label: `Add “${next.name.trim()}” as a new metric` }]
-        : [{ choice: `use:${m.id}`, label: 'Use that one' }, { choice: 'keep', label: 'Mine is different: keep it' }];
+        ? [{ choice: `use:${m.id}`, label: `Use ${m.name}` }, { choice: `keep:${m.id}`, label: `Add “${next.name.trim()}” as a new metric` }]
+        : [{ choice: `use:${m.id}`, label: 'Use that one' }, { choice: `keep:${m.id}`, label: 'Mine is different: keep it' }];
       out.push({ field: 'name', level: 'check', words, answers });
     }
   }
@@ -194,6 +196,22 @@ export function metricChecks(next: Pick<Metric, 'id' | 'name' | 'unit' | 'meanin
 
 /** The checks an answer doesn't cover yet. An answer must be one of its check's choices. */
 export const unansweredChecks = (checks: readonly MetricCheck[], answers: Partial<Record<CheckField, string>>) => checks.filter((c) => !c.answers.some((a) => a.choice === answers[c.field]));
+
+/**
+ * The answers as given, checked: an object of words for name, unit and meaning only. Anything else is refused in plain
+ * words rather than read wrongly (an answer of 5 is not a choice).
+ */
+export function answersFrom(raw: unknown): Partial<Record<CheckField, string>> {
+  if (raw == null) return {};
+  if (typeof raw !== 'object' || Array.isArray(raw)) throw new NotAllowed('Answers are words for name, unit or meaning, from the questions you were asked.');
+  const out: Partial<Record<CheckField, string>> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (k !== 'name' && k !== 'unit' && k !== 'meaning') throw new NotAllowed(`There’s no question about “${k}”: answers are for name, unit or meaning.`);
+    if (typeof v !== 'string') throw new NotAllowed(`The answer for ${k} is one of the words the question offered, such as “keep:<id>”, “use” or “as-written”.`);
+    out[k] = v;
+  }
+  return out;
+}
 
 /** The count line at the foot of the form: “1 to fix, 2 to check.”; either part left out at zero; empty for none. */
 export const countLine = (fix: number, check: number) => [fix ? `${fix} to fix` : '', check ? `${check} to check` : ''].filter(Boolean).join(', ') + (fix || check ? '.' : '');
