@@ -1,6 +1,7 @@
 // @vitest-environment node
 /* With Reviews switched off, what reads name no review (build review of #424, medium 2): `inreview=` is no filter on
-   Goals or in find_goals, as a switched-off module's column isn't (module map F4), and has no words. */
+   Goals or in find_goals, as a switched-off module's column isn't (module map F4), and has no words; the JSON export and
+   get_goal hold no notes said in reviews, as the workbook has no Notes sheet. */
 import { buildPlatformOrg } from '../data/platformOrg';
 import { currentCycle, scopeToCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
@@ -14,6 +15,11 @@ const cycle = currentCycle(full.cycles, today)!;
 const s = scopeToCycle(full, cycle);
 const week = currentWeek(cycle, today);
 const review = full.reviews.find((r) => !r.removedAt)!;
+const mcp = (modulesOff: string[]): McpContext => {
+  const actor = full.people.find((p) => p.admin && !p.leftAt && !p.removedAt)!;
+  return { ws: { id: 'w', name: 'Platform', modulesOff }, snapshot: s, cycle, week, today, actor, now: '2026-11-05T13:00:00Z', newId: (p) => p, allGoals: full.goals, full,
+    save: async () => {}, issueToken: async () => 'secret' };
+};
 
 describe('inreview= with Reviews off', () => {
   const q = { ...EMPTY_QUERY, inreview: review.id };
@@ -31,10 +37,7 @@ describe('inreview= with Reviews off', () => {
   });
 
   const find = async (modulesOff: string[], query?: string) => {
-    const actor = full.people.find((p) => p.admin && !p.leftAt && !p.removedAt)!;
-    const ctx: McpContext = { ws: { id: 'w', name: 'Platform', modulesOff }, snapshot: s, cycle, week, today, actor, now: '2026-11-05T13:00:00Z', newId: (p) => p, allGoals: full.goals, full,
-      save: async () => {}, issueToken: async () => 'secret' };
-    const r = await callTool('find_goals', { ...(query ? { query } : {}), limit: 200 }, ctx);
+    const r = await callTool('find_goals', { ...(query ? { query } : {}), limit: 200 }, mcp(modulesOff));
     expect(r.isError).toBeFalsy();
     return JSON.parse(r.text).total as number;
   };
@@ -42,5 +45,24 @@ describe('inreview= with Reviews off', () => {
     const every = await find(['reviews']);
     expect(await find([], `inreview=${review.id}`)).toBeLessThan(every);
     expect(await find(['reviews'], `inreview=${review.id}`)).toBe(every);
+  });
+});
+
+describe('the JSON export with Reviews off', () => {
+  const json = async (modulesOff: string[]) => JSON.parse((await callTool('export', { format: 'json' }, mcp(modulesOff))).text);
+  it('holds the notes said in reviews while Reviews is on, and none while it is off (as notes_csv is refused)', async () => {
+    const on = await json([]);
+    expect(on.notes.length).toBeGreaterThan(0);
+    const off = await json(['reviews']);
+    expect(off.notes).toBeUndefined();
+    expect(off.about).not.toMatch(/review/i);
+    expect(off.goals.length).toBe(on.goals.length);
+    expect((await callTool('export', { format: 'notes_csv' }, mcp(['reviews']))).isError).toBe(true);
+  });
+  it('get_goal holds no review notes while Reviews is off', async () => {
+    const goalId = (s.decisions.find((d) => d.kind === 'note' && d.reviewId && !d.removedAt && s.goals.some((g) => g.id === d.goalId)))!.goalId;
+    const get = async (off: string[]) => JSON.parse((await callTool('get_goal', { goal_id: goalId }, mcp(off))).text);
+    expect((await get([])).notes.length).toBeGreaterThan(0);
+    expect((await get(['reviews'])).notes).toBeUndefined();
   });
 });
