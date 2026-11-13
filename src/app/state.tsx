@@ -11,7 +11,7 @@ import type { Draft } from '../domain/checkin';
 import { currentWeek } from '../domain/plan';
 import { invitedTo } from '../domain/dayOne';
 import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
-import type { CheckIn, Cycle, Decision, Goal, Ask, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
+import type { CheckIn, CheckInReading, Cycle, Decision, Goal, Ask, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
 import { currentCycle, scopeToCycle, withArchivedGoal, withoutRemoved } from '../domain/cycle';
 import { findGoal, withKeys } from '../domain/goalKey';
 import type { TableLayout } from '../domain/tableLayout';
@@ -75,6 +75,9 @@ export interface AppState {
   /** Set up a workspace; `recording` is whether it records how the app is used, as chosen at set-up (off unless chosen). */
   createWorkspace(name: string, data: Snapshot, meId?: string, recording?: boolean): Promise<string>;
   resetExample(): Promise<void>;
+  /** The open workspace as the demo built it, before this browser's saves, when it is the example; null otherwise
+      (a workspace of your own, or the real app). The metric module makes the demo's number sources from it (NR). */
+  exampleSeed(): Promise<Snapshot | null>;
   /** Admins: delete the open workspace (not an example) and everything in it, then open another. */
   deleteWorkspace(): Promise<void>;
   /** Admins: give the open workspace a new name. */
@@ -120,7 +123,9 @@ export interface AppState {
   /** Posts (or replaces) this week's check-in and logs it. */
   /** Post a check-in through the engine (rule 13): `new` for this week, or `again` beside this week's own. */
   /** `reason` is a correction's why (mode `correct`, at least MIN_CORRECT_REASON characters). */
-  postCheckIn(goal: Goal, draft: Draft, mode: PostMode, reason?: string): Promise<CheckIn>;
+  /** One check-in, through the engine. `reading`: what the metric's source said, from the number step's module block
+      (the place checkin.number; NR rule 3), recorded with it when the rule allows. */
+  postCheckIn(goal: Goal, draft: Draft, mode: PostMode, reason?: string, reading?: CheckInReading | null): Promise<CheckIn>;
   /** Answer an ask (a decision or help, an update, a question): one answer for every goal it applies to. */
   answerRequest(r: Ask, answer: string): Promise<void>;
   /** Mark an action done, with an optional note. */
@@ -330,6 +335,9 @@ export const stampSkewDays = (pinnedToday: Date | null, now: Date): number =>
  * after) and its "saved since the reload started?" check: the page's own running time, rising on every call. Not the
  * Clock, which the demo and the evals stop: with it, the reload on focus never fired and a save looked like no save.
  */
+/** Whether two lists of switched-off modules say the same, in any order. */
+const sameSwitches = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x) => b.includes(x));
+
 let lastMark = 0;
 export const loadMark = (): number => (lastMark = Math.max(performance.now(), lastMark + 0.001));
 
@@ -425,7 +433,24 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
   // The app loads a window, not the whole workspace (AX5 part 2b): every check-in of the cycles still open, and the change
   // log from about a year back plus the entries rules read at any age (ports/window.ts). Older entries come a page at a
   // time through `olderChanges`. Every load takes the same window, so the snapshot never flips between whole and windowed.
-  const loadWs = (ws: string) => store.load(ws, appWindow((pinned ?? clock)()));
+  // Each load brings the workspace's feature switches with it (build review of #371): a tab left open while an admin
+  // switched a module off elsewhere sees it off at its next reload, so its screens go and its next action is refused.
+  // Only the tab that switched knew before. The first load has just listed the workspaces, so it doesn't ask twice.
+  const loadWs = async (ws: string, switches = true) => {
+    const [snap, list] = await Promise.all([store.load(ws, appWindow((pinned ?? clock)())), switches ? store.workspaces().catch(() => null) : null]);
+    const w = list?.find((x) => x.id === ws);
+    if (w) adoptSwitches(ws, w.modulesOff ?? []);
+    return snap;
+  };
+  /** Takes a workspace's switches as just loaded, when they differ from this tab's: at once in the ref, so an action run
+      straight after (a stale save run again on the latest) reads them. */
+  const adoptSwitches = (ws: string, off: string[]) => {
+    const had = workspacesNow.current.find((w) => w.id === ws);
+    if (!had || sameSwitches(had.modulesOff ?? [], off)) return;
+    const next = (l: Workspace[]) => l.map((w) => (w.id === ws ? { ...w, modulesOff: off } : w));
+    workspacesNow.current = next(workspacesNow.current);
+    setWorkspaces(next);
+  };
   useEffect(() => {
     let live = true;
     setError(null);
@@ -444,7 +469,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       if (id !== wsId) { write(K.ws, id); setWsId(id); return; }
       // Opened from an invitation: remembered like a switch.
       if (invited && id === invited && read(K.ws) !== id) write(K.ws, id);
-      const [snap, me] = await Promise.all([loadWs(id), identity.current(id)]);
+      const [snap, me] = await Promise.all([loadWs(id, false), identity.current(id)]);
       const why = !me && identity.why ? await identity.why(id).catch(() => null) : null;
       if (!live) return;
       setLoaded({ ws: id, snap, at: loadMark() });
@@ -618,12 +643,14 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals, full: snapshot, records: MODULE_RECORDS });
     const rx = (): RunContext => ({ ...ax(), workspace: workspacesNow.current.find((w) => w.id === ws.id) ?? ws, modules: MODULES });
     /** The same, on another load of this workspace: the latest, when a stale save runs again (AX6). The viewer acts as
-        they are there; someone who has since left acts as that, and the rule says what they may still do. */
+        they are there now. Someone no longer among the people here (marked as left or deleted since) can't act at all:
+        refused in the words anyone not signed in gets, as before the re-run (the save was refused, nothing was saved). */
     const rxOn = (full: Snapshot): RunContext => {
       if (full === snapshot) return rx();
       const cyc = currentCycle(full.cycles, now) ?? cycle;
       const s = scopeToCycle(full, cyc, MODULE_RECORDS);
-      const actor = s.people.find((p) => p.id === viewer.id) ?? full.people.find((p) => p.id === viewer.id) ?? viewer;
+      const actor = s.people.find((p) => p.id === viewer.id);
+      if (!actor) throw new A.NotAllowed(NOBODY);
       return { ...rx(), snapshot: s, cycle: cyc, week: currentWeek(cyc, now), actor, allGoals: full.goals, full };
     };
     // An action made in one workspace (a toast's Undo, pressed after switching) never saves into another: this render's
@@ -685,6 +712,8 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       // review since), on the latest, with the same input, and that is saved (AX6, app/rerun.ts). The rule decides again,
       // so a refusal then is in its own words. An input holding whole records as last seen isn't run again (actions.ts).
       const attempt = (full: Snapshot) => {
+        // Signed in on every run, not only the first: a re-run comes after a reload, and sign-in may have gone since.
+        if (!signedIn.current) throw new A.NotAllowed(NOBODY);
         const out = performAny(rxOn(full), name, input) as ReturnType<typeof perform<N>>;
         if (name === 'planChanges' && (input as ActionInput<'planChanges'>).apply && !(out as ChangeSet).commit) throw new Error('These changes can’t be saved yet.');
         return { out, commit: commitOf(name, out, input) };
@@ -727,6 +756,10 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       ws, workspaces, opening: wanted && wanted !== wsId ? workspaces.find((w) => w.id === wanted) ?? null : null, snapshot: sc, allGoals: snapshot.goals, full: snapshot, olderChanges: (ask: HistoryAsk) => store.history(ws.id, ask), cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind, saveNote,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
+      exampleSeed: async () => {
+        const demo = examplesOf(store);
+        return demo?.seeded && ws.kind === 'example' ? demo.seeded(ws.id) : null;
+      },
       resetExample: async () => {
         const demo = examplesOf(store);
         if (!demo) throw new Error('Only the demo has an example to reset.');
@@ -799,12 +832,12 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         return a;
       },
       checkInsOf: (g) => checkInsFor(g, g.stoppedAt ? sc.archive?.checkIns ?? [] : sc.checkIns),
-      postCheckIn: (goal, draft, mode, reason) => {
+      postCheckIn: (goal, draft, mode, reason, reading) => {
         const inFlight = posting.current.get(goal.id);
         if (inFlight) return inFlight;
         // One way to save (check-in spec, rule 13): the engine the table, the import and the AI tools use; its ask too.
         // A correction is an import of one (rule 8): it says what it changed, and Undo takes the import back (2.7).
-        const posted = run('postCheckIn', { goalId: goal.id, draft, mode, ...(mode === 'correct' ? { reason } : {}) }).then((out) => {
+        const posted = run('postCheckIn', { goalId: goal.id, draft, mode, ...(mode === 'correct' ? { reason } : {}), ...(reading ? { reading } : {}) }).then((out) => {
           const ch = out.commit.changes.find((x) => x.importId);
           if (mode === 'correct' && ch?.importId) {
             const importId = ch.importId;

@@ -819,6 +819,24 @@
       "use": "copy"
     },
     {
+      "id": "READING-PREFILL",
+      "area": "Metrics",
+      "text": "When a goal is measured by a metric that a registered number source reads for the link's own slice (its team and part), the check-in's number step asks the source once when it opens and fills the field with the latest reading: \"From {source}, read {when}.\" (in the viewer's zone: \"9:02 today\", \"16:40 yesterday\", else \"9:00 on Thu 5 Nov\") and the step's primary names the number (\"Confirm 12 min\"). Nothing is ever posted for the owner: a week with a reading and no check-in has no check-in. A source that reads only the whole company never fills in a team's goal (\"{source} measures this for the whole company, not for {team} on its own, so it isn't filled in.\"); no source, no number yet, nothing new since the last check-in and a source that can't be reached each say so, and the step is otherwise as without a source. With the Metric library off, the step is exactly as it was.",
+      "use": "copy"
+    },
+    {
+      "id": "READING-RECORDED-ONLY",
+      "area": "Metrics",
+      "text": "A number typed over a reading asks \"Why is it different?\" with four choices (the source is behind: I have a newer number; counts something else; is wrong this week; something else, which needs at least 10 characters of Say more) before \"Use {typed} {unit}\". The owner's number is the check-in's; the reading (source, value, when measured) and the reason are recorded beside it, by the same rule at every door (the form, the one table, post_check_in's reading_confirmed and different_because), and the read-back says \"{value}, from {source}, read {when}. Confirmed by you.\" or \"{typed}, typed. {source} said {value}: {reason}.\" Nothing reads the reason to decide a status, a flag, an attention count or an order: no review flag, no mark against the owner.",
+      "use": "copy"
+    },
+    {
+      "id": "READING-SEVEN-DAYS",
+      "area": "Metrics",
+      "text": "A reading more than 7 days old (RULES.readingMaxDays, one limit for every metric) is not filled in and its value is not shown anywhere on the step: \"{source} last read this on {date}, {n} days ago. That is too old to fill in. Type this week's number, or say there isn't one.\" with the warning mark, the step's Continue and No new number this week.",
+      "use": "copy"
+    },
+    {
       "id": "METRIC-CHANGE",
       "area": "Metrics",
       "text": "A metric that changes tells its goals (MT3). Changing a metric goals use reads back what it does to them first: a new meaning or source asks \"Is it still the same number?\"; \"The number itself changes\" and a new direction each need a reason, and leave a mark on every goal's chart (\"Definition changed, week {w}\", a dashed hairline labelled beside it) and History; a new unit is a new label (every goal's unit changes too) or a different scale, refused. A metric that has measured a goal is retired, not deleted: its goals keep their links and numbers and say \"Measured by {metric}, retired {date}\", it leaves the pickers, and Bring it back undoes it. Admins merge a metric into another in the same unit, moving its goals and retiring it pointing there. Every one of these saves with one Undo, and retire_metric, merge_metrics and save_metric's comparable, reason and relabel do the same through MCP.",
@@ -1167,6 +1185,12 @@
       "id": "SAME-NAMES",
       "area": "Names",
       "text": "Two goals may share a title and two people a name (the email is who someone is). Creating one warns; wherever both could be on screen, a goal shows its key and a person their team or job title beside the name, and people with the same initials get different avatar colours.",
+      "use": "copy"
+    },
+    {
+      "id": "RAIL-SWITCH",
+      "area": "Navigation",
+      "text": "On the icon rail the Faro mark is the workspace switcher: it opens the same panel as the sidebar's Switch, adds no row (the Demo box keeps its room at 1024 × 768), and Escape returns focus to it.",
       "use": "copy"
     }
   ],

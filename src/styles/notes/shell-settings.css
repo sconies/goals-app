@@ -27,6 +27,9 @@
 /* At the top of the sidebar, above the workspace: the wordmark, or the F alone on the icon rail. */
 .side-brand { display: flex; align-items: center; min-height: 34px; padding: 4px 10px 6px; }
 .side-brand .faro-mark { display: none; }
+/* The rail's F is the workspace switcher (small workspaces SM4): drawn only on the rail, a 44px target with no frame. */
+.side-brand .ws-rail-switch { display: none; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 10px; background: none; color: inherit; cursor: pointer; }
+.side-brand .ws-rail-switch:hover { background: var(--surface-2); }
 
 /* ---------- The sidebar's head: the workspace's name, not a control (switching is in the person menu) ---------- */
 .ws-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 8px; min-width: 0; }
@@ -55,6 +58,7 @@
   .side .side-brand { justify-content: center; padding: 4px 0; }
   .side .side-brand .faro-logo { display: none; }
   .side .side-brand .faro-mark { display: block; }
+  .side .side-brand .ws-rail-switch { display: inline-flex; }
   /* The rail has the F above; the workspace's name needs the full sidebar. */
   .side .ws-head { display: none; }
   /* The rail keeps Goals and Watching (it has an icon); the other items under Goals are on the Goals page itself. */
@@ -72,6 +76,7 @@
   .app.nav-icons .side .side-brand { justify-content: center; padding: 4px 0; }
   .app.nav-icons .side .side-brand .faro-logo { display: none; }
   .app.nav-icons .side .side-brand .faro-mark { display: block; }
+  .app.nav-icons .side .side-brand .ws-rail-switch { display: inline-flex; }
   .app.nav-icons .side .ws-head { display: none; }
   .app.nav-icons .side .nav.sub:not(.has-icon) { display: none; }
   .app.nav-icons .side .nav.sub.has-icon { padding: 0; min-height: 38px; }

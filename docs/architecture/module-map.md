@@ -48,7 +48,7 @@ The core is everything outside `src/modules`. It cannot be switched off because 
 
 **Core, and staying core** (architecture readiness review, 11 November): the goal map, markup and the scorecard were looked at and left. The map and the scorecard read core records only; markup lives mostly in one folder and may move when something needs it to.
 
-Of the features in the core today, these are **distinct but not yet switchable**, because their switch is designed and not built (FT2, SW1, SW2): reviews, Watching, AI access, Feedback, the goal map, the wrap-up's own screens. Until their switch ships, each needs the sentence in its spec saying why it cannot be switched off — see fix item F1.
+Of the features in the core today, these are **distinct but not yet switchable**, because their switch is designed and not built (SW1, SW2): Watching, AI access, Feedback, the goal map, the wrap-up's own screens. Until their switch ships, each needs the sentence in its spec saying why it cannot be switched off — see fix item F1.
 
 ## 2. The modules
 
@@ -88,7 +88,7 @@ Each row says whether the item is a module of its own, part of an existing modul
 | Item | What it is | Switch | Needs | What turns off with it | Stage |
 |---|---|---|---|---|---|
 | **HB1–HB3** habit moment | **Core.** A rule over check-ins (the forgiving run, the receipt, the moment a goal reaches its target), read by Home and by a review | None | — | Nothing. With `reviews` off the words change ("on time, without being asked") and the short review goes: the core rule takes a flag, as `src/domain/readBack.ts` already takes `reviewsOn`. The habit must not import the reviews module | Core stages 1 and 3 |
-| **NR1–NR3** readings | **Part of the metric library.** Readings exist because a metric has a source | `metrics` | `metrics` on; a new core place for the check-in's number field | With `metrics` off: no pre-filled number, no "From CI analytics, read 9:02 today" line, no override reason. The Check-ins sheet's three reading columns stay either way (they are the core's record of what was said) | The metrics stage |
+| **NR1–NR3** readings | **Part of the metric library.** Readings exist because a metric has a source | `metrics` | `metrics` on; the core places `checkin.number` (the number step) and `checkin.table` (the one table), built in NR2 | With `metrics` off: no pre-filled number, no "From CI analytics, read 9:02 today" line, no override reason. The Check-ins sheet's three reading columns stay either way (they are the core's record of what was said) | The metrics stage |
 | **PF1–PF2** leader's week | **Core.** A view of Goals (`view=week`), like any saved view | None | HM3, HM4 | Nothing. Its "This week, for these goals" entry is drawn only while `reviews` is on, so that entry belongs to the reviews feature, not to the view | Core stage 3 |
 | **SM1–SM4** small workspaces | **Core**, by rule with no mode (Lane 1a, 13 November). No "start simple" preset of switches | None | SM3 needs ST2 | Nothing. SM1 adds `menu.waitsFor` to the manifest, so a module's menu row waits until it has something in it: every module.json gains the field, and hiding is only ever drawing | Core stage 3, and the manifest in each module's stage |
 | **GE10** proposed goals | **Core.** Built | None | — | Nothing: the State column and `make_goal_active` are always there (Lane 21a, 11 November) | Core stages 1–3 |

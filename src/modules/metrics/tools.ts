@@ -20,6 +20,11 @@ import type { Metric, MetricDirection, MetricRefresh } from './types';
 import type { McpContext, ToolDef, ToolResult } from '../../mcp/tools';
 import { listed } from '../../mcp/listed';
 import { VIA_MCP } from '../../domain/via';
+import { addCheckInReader } from '../../mcp/checkInReaders';
+import { metricReader } from './readingTool';
+
+// post_check_in's reading_confirmed and different_because read the goal's source here (NR rule 3).
+addCheckInReader(metricReader);
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const READ = { readOnlyHint: true, openWorldHint: false } as const;

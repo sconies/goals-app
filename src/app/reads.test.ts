@@ -52,7 +52,7 @@ describe('Home with Reviews switched off (FT2)', () => {
     const { reviewsOn, reviewsOffWords } = await import('./reads');
     expect(reviewsOn(new Set(['reviews', 'metrics']))).toBe(true);
     expect(reviewsOn(new Set(['metrics']))).toBe(false);
-    expect(reviewsOffWords('Platform Engineering')).toBe('Reviews is off in Platform Engineering.');
+    expect(reviewsOffWords('Platform Engineering')).toBe('Reviews is switched off in Platform Engineering. An admin can switch it on in Workspace, under Features.');
   });
   it('has no next review and none missed', () => {
     const d = dashboard(who, s, cycle, week, today, { reviews: false });
