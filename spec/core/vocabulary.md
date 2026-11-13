@@ -33,7 +33,7 @@ Group `flag`.
 | `missed-path` | Missed its own date | The path to green named a week to be back on plan by, that week has passed, and the goal is still off track or at risk. Never said: “Missed path to green”. | `attention#attentionFor` | screens, exports, help, ai |
 | `trend` | Getting worse | A number further behind its plan (in the goal’s own units) at each of the last two of 3 check-ins, and visibly so: behind now as shown, and further behind than at the first of them; a number moving towards its limit two check-ins running; a stage expected later than it was at the check-in before; or on track today with the whole projected range falling short of the target. The goal’s trend, its chart and its scorecard use the same rule. Never said: “Worsening trend”, “Falling further behind”, “Losing ground on the plan”, “and slipping”, “Moving towards the limit”. | `trend#gapTrend` | screens, exports, help, ai |
 | `greener` | Greener than calculated | The owner called it greener than the app calculates from the numbers. A greener call needs a reason, which is shown beside it. Never said: “Called greener than the numbers”, “greener than the numbers”. | `status#goalStatus` | screens, exports, help, ai |
-| `due` | Check-in due | The goal has no check-in for this week yet, before the review. It is listed for the owner, but on its own it doesn’t make the goal need attention. | `attention#attentionFor` | screens, help, ai |
+| `due` | Check-in due | The goal has no check-in for this week yet, and one is due by the workspace’s check-in day. It is listed for the owner, but on its own it doesn’t make the goal need attention. | `attention#attentionFor` | screens, help, ai |
 
 ## Needs attention and being handled
 

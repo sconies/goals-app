@@ -107,6 +107,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - being handled › an answered request puts an at-risk goal in hand; an off-track goal stays counted until it has an action
 - being handled › a new flag since the look makes it news again: the recovery date passes
 - being handled › a check-in coming due does not count as new: the owner has a week to post it
+- being handled › says when a check-in is due by its day, never by a review (FT2): a review is not what makes it due
 - being handled › an action past its week is news, not in hand
 - being handled › a goal going quiet is never being handled
 - being handled › only behind goals are handled: an on-track goal with a note is just on track

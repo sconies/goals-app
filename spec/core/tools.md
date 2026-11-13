@@ -28,8 +28,6 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`bulk_change`](#bulk_change) | Change many goals at once | changes | [postCheckIn](actions.md#postcheckin), [saveGoal](actions.md#savegoal) |
 | [`get_my_work`](#get_my_work) | What needs me | reads | — |
 | [`list_requests`](#list_requests) | Asks: decisions or help, updates, questions, actions | reads | — |
-| [`list_reviews`](#list_reviews) | Reviews | reads | — |
-| [`get_review`](#get_review) | A review’s agenda | reads | — |
 | [`list_watching`](#list_watching) | What you watch | reads | — |
 | [`list_people`](#list_people) | People and teams | reads | — |
 | [`get_activity`](#get_activity) | The activity log | reads | — |
@@ -46,10 +44,8 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`withdraw_request`](#withdraw_request) | Withdraw an ask | changes | [withdrawRequest](actions.md#withdrawrequest) |
 | [`ask_for_update`](#ask_for_update) | Ask the owner for an update | changes | [askForUpdate](actions.md#askforupdate) |
 | [`undo_update_ask`](#undo_update_ask) | Withdraw an ask for an update | changes | [undoUpdateAsk](actions.md#undoupdateask) |
-| [`review_call`](#review_call) | Say something in a review | changes | [askQuestion](actions.md#askquestion), [reviewCall](actions.md#reviewcall), [acceptRisk](actions.md#acceptrisk), [markReviewed](actions.md#markreviewed) |
 | [`add_action`](#add_action) | Add a next step to a goal | changes | [addAction](actions.md#addaction) |
 | [`edit_call`](#edit_call) | Correct something said in a review | changes | [editCall](actions.md#editcall) |
-| [`save_review`](#save_review) | Set up or change a review | changes | [saveReview](actions.md#savereview) |
 | [`watch`](#watch) | Watch goals | changes | [watch](actions.md#watch) |
 | [`unwatch`](#unwatch) | Stop watching | changes | [unwatch](actions.md#unwatch) |
 | [`save_person`](#save_person) | Add or change a person | changes | [savePerson](actions.md#saveperson) |
@@ -75,8 +71,6 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`stop_goal`](#stop_goal) | Stop a goal | changes; removes something | [stopGoal](actions.md#stopgoal) |
 | [`delete_goal`](#delete_goal) | Delete a goal with no check-ins | changes; removes something | [deleteGoal](actions.md#deletegoal) |
 | [`delete_check_in`](#delete_check_in) | Delete a check-in | changes; removes something | [deleteCheckIn](actions.md#deletecheckin) |
-| [`end_review`](#end_review) | End a review | changes; removes something | [endReview](actions.md#endreview) |
-| [`delete_review`](#delete_review) | Delete a review never held | changes; removes something | [deleteReview](actions.md#deletereview) |
 | [`edit_comment`](#edit_comment) | Edit a comment or review note | changes | [editComment](actions.md#editcomment) |
 | [`delete_comment`](#delete_comment) | Remove a comment or review note | changes; removes something | [deleteComment](actions.md#deletecomment), [deleteNote](actions.md#deletenote) |
 | [`delete_cycle`](#delete_cycle) | Delete a cycle | changes; removes something | [deleteCycle](actions.md#deletecycle) |
@@ -94,6 +88,12 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`save_metric`](#save_metric) (metrics) | Add or change a metric | changes | [saveMetric](actions.md#savemetric) |
 | [`remove_metric`](#remove_metric) (metrics) | Remove a metric | changes; removes something | [removeMetric](actions.md#removemetric) |
 | [`link_goal_metric`](#link_goal_metric) (metrics) | Say which metric measures a goal | changes | [linkGoalMetric](actions.md#linkgoalmetric), [unlinkGoalMetric](actions.md#unlinkgoalmetric) |
+| [`list_reviews`](#list_reviews) (reviews) | Reviews | reads | — |
+| [`get_review`](#get_review) (reviews) | A review’s agenda | reads | — |
+| [`review_call`](#review_call) (reviews) | Say something in a review | changes | [askQuestion](actions.md#askquestion), [reviewCall](actions.md#reviewcall), [acceptRisk](actions.md#acceptrisk), [markReviewed](actions.md#markreviewed) |
+| [`save_review`](#save_review) (reviews) | Set up or change a review | changes | [saveReview](actions.md#savereview) |
+| [`end_review`](#end_review) (reviews) | End a review | changes; removes something | [endReview](actions.md#endreview) |
+| [`delete_review`](#delete_review) (reviews) | Delete a review never held | changes; removes something | [deleteReview](actions.md#deletereview) |
 | [`export`](#export) (spreadsheets) | Export the goals | reads | — |
 | [`export_table`](#export_table) (spreadsheets) | Export a data table as shown | reads | — |
 
@@ -1594,8 +1594,23 @@ No arguments.
 
 ```ts
 {
+    wrapUpOpen: boolean;
+    yourReviews?: {
+        id: string;
+        name: string;
+        week: number;
+        date: string;
+        reviewed: number;
+        of: number;
+    }[] | undefined;
     week: number;
     atAGlance: {
+        nextReview?: {
+            id: string;
+            name: string;
+            date: string;
+            day: string;
+        } | null | undefined;
         goals: {
             whose: 'mine' | 'all';
             total: number;
@@ -1614,12 +1629,6 @@ No arguments.
                 inHand: string;
             }[];
             noRecentUpdate: number;
-        } | null;
-        nextReview: {
-            id: string;
-            name: string;
-            date: string;
-            day: string;
         } | null;
     };
     checkInsDue: {
@@ -1687,15 +1696,6 @@ No arguments.
         overdue: boolean;
         agreedBy: string;
     }[];
-    yourReviews: {
-        id: string;
-        name: string;
-        week: number;
-        date: string;
-        reviewed: number;
-        of: number;
-    }[];
-    wrapUpOpen: boolean;
 }
 ```
 
@@ -1765,121 +1765,6 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [AskKind](da
 
 - ““…” isn’t where an ask can stand. Use one of: …, or all.”
 - “There’s no goal with … … in …. Use find_goals to get IDs and keys.”
-
-**Does the same as:** no action: it reads, or does something only an assistant needs.
-
-## list_reviews
-
-**Reviews.** Every review in the workspace: its cadence, the goals it walks and who’s in it, with this session’s progress.
-
-**Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
-
-**Input:**
-
-No arguments.
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "properties": {},
-  "additionalProperties": false
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{}
-```
-
-**Refuses with:** nothing of its own beyond the shared refusals above.
-
-**Does the same as:** no action: it reads, or does something only an assistant needs.
-
-## get_review
-
-**A review’s agenda.** One review’s current session: the goals to discuss (new information first, worst first, with why; those already being handled say what’s in hand), the healthy ones, and what has been said so far: notes, questions for owners (with any answers) and actions.
-
-**Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
-
-**Input:**
-
-| Argument | Type | Needed | What it is |
-|---|---|---|---|
-| `review_id` | string | yes | The review’s ID, from list_reviews. |
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "review_id"
-  ],
-  "properties": {
-    "review_id": {
-      "type": "string",
-      "description": "The review’s ID, from list_reviews."
-    }
-  }
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{
-    id: string;
-    name: string;
-    week: number;
-    date: string;
-    reviewed: number;
-    of: number;
-    toDiscuss: {
-        id: string;
-        title: string;
-        owner: string;
-        status: DisplayStatus;
-        statusLabel: string;
-        why: string[];
-        beingHandled: string | null;
-    }[];
-    healthy: {
-        id: string;
-        title: string;
-        owner: string;
-        status: DisplayStatus;
-        statusLabel: string;
-        why: string[];
-        beingHandled: string | null;
-    }[];
-    said: {
-        status?: AskStatus | undefined;
-        statusLabel?: string | undefined;
-        answer?: string | null | undefined;
-        who?: string | undefined;
-        dueWeek?: number | null | undefined;
-        id: string;
-        goalId: string;
-        kind: 'note' | 'action' | 'ask' | 'acknowledge' | 'approve-target' | 'decline-target' | 'approve-change' | 'decline-change';
-        note: string;
-        by: string;
-    }[];
-}
-```
-
-The records it names: [DisplayStatus](data-model.md#displaystatus), [AskStatus](data-model.md#askstatus).
-
-**Refuses with:**
-
-- “There’s no review with ID …. Use list_reviews to get IDs.”
 
 **Does the same as:** no action: it reads, or does something only an assistant needs.
 
@@ -2202,6 +2087,7 @@ No arguments.
     modules: {
         id: string;
         name: string;
+        on: boolean;
         path: string;
     }[];
 }
@@ -2358,7 +2244,7 @@ No arguments.
 
 ## ask_question
 
-**Ask a goal’s owner a question.** Ask a goal’s owner a question. It’s open on their Home until they answer it (a comment doesn’t), or you withdraw it. In a review, use review_call with kind ask instead, so it’s part of the session.
+**Ask a goal’s owner a question.** Ask a goal’s owner a question. It’s open on their Home until they answer it (a comment doesn’t), or you withdraw it.
 
 **Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
 
@@ -2595,90 +2481,9 @@ No arguments.
 
 **Does the same as:** [undoUpdateAsk](actions.md#undoupdateask), so it refuses with their words too.
 
-## review_call
-
-**Say something in a review.** In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.
-
-**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
-
-**Input:**
-
-| Argument | Type | Needed | What it is |
-|---|---|---|---|
-| `review_id` | string | yes | The review’s ID. |
-| `goal_id` | string | yes | The goal’s ID or its key, e.g. G-12. |
-| `kind` | one of `acknowledge`, `note`, `ask`, `action`, `accept` | yes | What it is. |
-| `text` | string | no | The note, question or action, or (accept) why the review accepts the risk. Optional when acknowledging. |
-| `who` | string | no | Actions: who does it (name or ID). Defaults to the goal’s owner. |
-| `due_week` | integer | no | Actions: the week it’s due by. |
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "review_id",
-    "goal_id",
-    "kind"
-  ],
-  "properties": {
-    "review_id": {
-      "type": "string",
-      "description": "The review’s ID."
-    },
-    "goal_id": {
-      "type": "string",
-      "description": "The goal’s ID or its key, e.g. G-12."
-    },
-    "kind": {
-      "type": "string",
-      "description": "What it is.",
-      "enum": [
-        "acknowledge",
-        "note",
-        "ask",
-        "action",
-        "accept"
-      ]
-    },
-    "text": {
-      "type": "string",
-      "description": "The note, question or action, or (accept) why the review accepts the risk. Optional when acknowledging."
-    },
-    "who": {
-      "type": "string",
-      "description": "Actions: who does it (name or ID). Defaults to the goal’s owner."
-    },
-    "due_week": {
-      "type": "integer",
-      "description": "Actions: the week it’s due by."
-    }
-  }
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{}
-```
-
-**Refuses with:**
-
-- “There’s no review with ID …. Use list_reviews to get IDs.”
-- “There’s no goal with … … in …. Use find_goals to get IDs and keys.”
-- “kind is acknowledge, note, ask, action or accept.”
-- “There’s no one called … in this workspace. Use list_people.”
-
-**Does the same as:** [askQuestion](actions.md#askquestion), [reviewCall](actions.md#reviewcall), [acceptRisk](actions.md#acceptrisk), [markReviewed](actions.md#markreviewed), so it refuses with their words too.
-
 ## add_action
 
-**Add a next step to a goal.** Agree a next step on a goal outside a review: what, who does it and the week it’s due by. An action is an ask: open until it’s marked done (mark_action_done) or withdrawn; overdue once its week has passed. Change one with edit_call.
+**Add a next step to a goal.** Agree a next step on a goal: what, who does it and the week it’s due by. An action is an ask: open until it’s marked done (mark_action_done) or withdrawn; overdue once its week has passed. Change one with edit_call.
 
 **Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
 
@@ -2798,111 +2603,6 @@ No arguments.
 - “There’s no one called … in this workspace. Use list_people.”
 
 **Does the same as:** [editCall](actions.md#editcall), so it refuses with their words too.
-
-## save_review
-
-**Set up or change a review.** Set up a review (anyone can), or change one (someone in it, whoever set it up, or an admin): its name, how often, the weekday, the goals it walks (goals, goals with everything feeding them, or whole levels) and who’s in it. Without review_id it sets up a new one.
-
-**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
-
-**Input:**
-
-| Argument | Type | Needed | What it is |
-|---|---|---|---|
-| `review_id` | string | no | The review to change. Leave out to set up a new one. |
-| `name` | string | no | Its name, e.g. "Platform weekly review". |
-| `every_weeks` | integer | no | Held every 1, 2 or 4 weeks. |
-| `weekday` | one of `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday` | no | The weekday. |
-| `goals` | list of string | no | Goal IDs or keys it walks. |
-| `trees` | list of string | no | Goal IDs or keys it walks with everything feeding them. |
-| `levels` | list of string | no | Levels it walks: north-star, svp, team. |
-| `people` | list of string | no | Who’s in it (names or IDs). New reviews include you. |
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "review_id": {
-      "type": "string",
-      "description": "The review to change. Leave out to set up a new one."
-    },
-    "name": {
-      "type": "string",
-      "description": "Its name, e.g. \"Platform weekly review\"."
-    },
-    "every_weeks": {
-      "type": "integer",
-      "description": "Held every 1, 2 or 4 weeks."
-    },
-    "weekday": {
-      "type": "string",
-      "description": "The weekday.",
-      "enum": [
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday"
-      ]
-    },
-    "goals": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Goal IDs or keys it walks."
-    },
-    "trees": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Goal IDs or keys it walks with everything feeding them."
-    },
-    "levels": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Levels it walks: north-star, svp, team."
-    },
-    "people": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Who’s in it (names or IDs). New reviews include you."
-    }
-  }
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`, one of:
-
-```ts
-{}
-```
-
-```ts
-{
-    id: string;
-}
-```
-
-**Refuses with:**
-
-- “weekday is Monday to Friday.”
-- “There’s no one called … in this workspace. Use list_people.”
-- “There’s no review with ID …. Use list_reviews to get IDs.”
-- “There’s no goal with … … in …. Use find_goals to get IDs and keys.”
-- “Levels are … (not …).”
-
-**Does the same as:** [saveReview](actions.md#savereview), so it refuses with their words too.
 
 ## watch
 
@@ -3673,7 +3373,7 @@ No arguments.
 
 ## set_feature
 
-**Switch a feature on or off.** Admins: switch one of Faro's optional features (its modules) on or off in this workspace. Off, it leaves every screen: no page, menu or tool of its own, here or for assistants; anything that needs it goes off with it. Nothing it saved is deleted, and switching it back on brings it all back. The change is logged. The features: metrics (Metric library: Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.); spreadsheets (Spreadsheets: Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.).
+**Switch a feature on or off.** Admins: switch one of Faro's optional features (its modules) on or off in this workspace. Off, it leaves every screen: no page, menu or tool of its own, here or for assistants; anything that needs it goes off with it. Nothing it saved is deleted, and switching it back on brings it all back. The change is logged. The features: metrics (Metric library: Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.); reviews (Reviews: Walk a set of goals together on a cadence, decide what happens next and keep what was said.); spreadsheets (Spreadsheets: Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.).
 
 **Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
 
@@ -3681,7 +3381,7 @@ No arguments.
 
 | Argument | Type | Needed | What it is |
 |---|---|---|---|
-| `feature` | one of `metrics`, `spreadsheets` | yes | The feature’s id. |
+| `feature` | one of `metrics`, `reviews`, `spreadsheets` | yes | The feature’s id. |
 | `on` | boolean | yes | true to switch it on, false to switch it off. |
 
 <details><summary>The input schema, as JSON</summary>
@@ -3700,6 +3400,7 @@ No arguments.
       "description": "The feature’s id.",
       "enum": [
         "metrics",
+        "reviews",
         "spreadsheets"
       ]
     },
@@ -4216,90 +3917,6 @@ No arguments.
 - “… has no check-in….”
 
 **Does the same as:** [deleteCheckIn](actions.md#deletecheckin), so it refuses with their words too.
-
-## end_review
-
-**End a review.** Whoever set up the review, or an admin: end it. It keeps its notes and actions and stops showing as due. A review that was never held is deleted instead.
-
-**Kind:** changes; removes something. Hints: readOnlyHint false, destructiveHint true, idempotentHint false, openWorldHint false.
-
-**Input:**
-
-| Argument | Type | Needed | What it is |
-|---|---|---|---|
-| `review_id` | string | yes | The review’s ID, from list_reviews. |
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "review_id"
-  ],
-  "properties": {
-    "review_id": {
-      "type": "string",
-      "description": "The review’s ID, from list_reviews."
-    }
-  }
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{}
-```
-
-**Refuses with:** nothing of its own beyond the shared refusals above.
-
-**Does the same as:** [endReview](actions.md#endreview), so it refuses with their words too.
-
-## delete_review
-
-**Delete a review never held.** Whoever set up the review, or an admin: delete a review that has never been held. One that has been held is ended instead (end_review), so its notes and actions stay.
-
-**Kind:** changes; removes something. Hints: readOnlyHint false, destructiveHint true, idempotentHint false, openWorldHint false.
-
-**Input:**
-
-| Argument | Type | Needed | What it is |
-|---|---|---|---|
-| `review_id` | string | yes | The review’s ID, from list_reviews. |
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "review_id"
-  ],
-  "properties": {
-    "review_id": {
-      "type": "string",
-      "description": "The review’s ID, from list_reviews."
-    }
-  }
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{}
-```
-
-**Refuses with:** nothing of its own beyond the shared refusals above.
-
-**Does the same as:** [deleteReview](actions.md#deletereview), so it refuses with their words too.
 
 ## edit_comment
 
@@ -5448,6 +5065,403 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 - “There’s no team with that ID. Leave the slice empty for the whole company.”
 
 **Does the same as:** [linkGoalMetric](actions.md#linkgoalmetric), [unlinkGoalMetric](actions.md#unlinkgoalmetric), so it refuses with their words too.
+
+## list_reviews
+
+**Reviews.** Every review in the workspace: its cadence, the goals it walks and who’s in it, with this session’s progress.
+
+From the [reviews](../modules/reviews/README.md) module: switched off with it.
+
+**Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
+
+**Input:**
+
+No arguments.
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {},
+  "additionalProperties": false
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:** nothing of its own beyond the shared refusals above.
+
+**Does the same as:** no action: it reads, or does something only an assistant needs.
+
+## get_review
+
+**A review’s agenda.** One review’s current session: the goals to discuss (new information first, worst first, with why; those already being handled say what’s in hand), the healthy ones, and what has been said so far: notes, questions for owners (with any answers) and actions.
+
+From the [reviews](../modules/reviews/README.md) module: switched off with it.
+
+**Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `review_id` | string | yes | The review’s ID, from list_reviews. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "review_id"
+  ],
+  "properties": {
+    "review_id": {
+      "type": "string",
+      "description": "The review’s ID, from list_reviews."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{
+    id: string;
+    name: string;
+    week: number;
+    date: string;
+    reviewed: number;
+    of: number;
+    toDiscuss: {
+        id: string;
+        title: string;
+        owner: string;
+        status: DisplayStatus;
+        statusLabel: string;
+        why: string[];
+        beingHandled: string | null;
+    }[];
+    healthy: {
+        id: string;
+        title: string;
+        owner: string;
+        status: DisplayStatus;
+        statusLabel: string;
+        why: string[];
+        beingHandled: string | null;
+    }[];
+    said: {
+        status?: AskStatus | undefined;
+        statusLabel?: string | undefined;
+        answer?: string | null | undefined;
+        who?: string | undefined;
+        dueWeek?: number | null | undefined;
+        id: string;
+        goalId: string;
+        kind: 'note' | 'action' | 'ask' | 'acknowledge' | 'approve-target' | 'decline-target' | 'approve-change' | 'decline-change';
+        note: string;
+        by: string;
+    }[];
+}
+```
+
+The records it names: [DisplayStatus](data-model.md#displaystatus), [AskStatus](data-model.md#askstatus).
+
+**Refuses with:**
+
+- “There’s no review with ID …. Use list_reviews to get IDs.”
+
+**Does the same as:** no action: it reads, or does something only an assistant needs.
+
+## review_call
+
+**Say something in a review.** In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.
+
+From the [reviews](../modules/reviews/README.md) module: switched off with it.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `review_id` | string | yes | The review’s ID. |
+| `goal_id` | string | yes | The goal’s ID or its key, e.g. G-12. |
+| `kind` | one of `acknowledge`, `note`, `ask`, `action`, `accept` | yes | What it is. |
+| `text` | string | no | The note, question or action, or (accept) why the review accepts the risk. Optional when acknowledging. |
+| `who` | string | no | Actions: who does it (name or ID). Defaults to the goal’s owner. |
+| `due_week` | integer | no | Actions: the week it’s due by. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "review_id",
+    "goal_id",
+    "kind"
+  ],
+  "properties": {
+    "review_id": {
+      "type": "string",
+      "description": "The review’s ID."
+    },
+    "goal_id": {
+      "type": "string",
+      "description": "The goal’s ID or its key, e.g. G-12."
+    },
+    "kind": {
+      "type": "string",
+      "description": "What it is.",
+      "enum": [
+        "acknowledge",
+        "note",
+        "ask",
+        "action",
+        "accept"
+      ]
+    },
+    "text": {
+      "type": "string",
+      "description": "The note, question or action, or (accept) why the review accepts the risk. Optional when acknowledging."
+    },
+    "who": {
+      "type": "string",
+      "description": "Actions: who does it (name or ID). Defaults to the goal’s owner."
+    },
+    "due_week": {
+      "type": "integer",
+      "description": "Actions: the week it’s due by."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:**
+
+- “There’s no review with ID …. Use list_reviews to get IDs.”
+- “There’s no goal with … … in …. Use find_goals to get IDs and keys.”
+- “kind is acknowledge, note, ask, action or accept.”
+- “There’s no one called … in this workspace. Use list_people.”
+
+**Does the same as:** [askQuestion](actions.md#askquestion), [reviewCall](actions.md#reviewcall), [acceptRisk](actions.md#acceptrisk), [markReviewed](actions.md#markreviewed), so it refuses with their words too.
+
+## save_review
+
+**Set up or change a review.** Set up a review (anyone can), or change one (someone in it, whoever set it up, or an admin): its name, how often, the weekday, the goals it walks (goals, goals with everything feeding them, or whole levels) and who’s in it. Without review_id it sets up a new one.
+
+From the [reviews](../modules/reviews/README.md) module: switched off with it.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `review_id` | string | no | The review to change. Leave out to set up a new one. |
+| `name` | string | no | Its name, e.g. "Platform weekly review". |
+| `every_weeks` | integer | no | Held every 1, 2 or 4 weeks. |
+| `weekday` | one of `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday` | no | The weekday. |
+| `goals` | list of string | no | Goal IDs or keys it walks. |
+| `trees` | list of string | no | Goal IDs or keys it walks with everything feeding them. |
+| `levels` | list of string | no | Levels it walks: north-star, svp, team. |
+| `people` | list of string | no | Who’s in it (names or IDs). New reviews include you. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "review_id": {
+      "type": "string",
+      "description": "The review to change. Leave out to set up a new one."
+    },
+    "name": {
+      "type": "string",
+      "description": "Its name, e.g. \"Platform weekly review\"."
+    },
+    "every_weeks": {
+      "type": "integer",
+      "description": "Held every 1, 2 or 4 weeks."
+    },
+    "weekday": {
+      "type": "string",
+      "description": "The weekday.",
+      "enum": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday"
+      ]
+    },
+    "goals": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Goal IDs or keys it walks."
+    },
+    "trees": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Goal IDs or keys it walks with everything feeding them."
+    },
+    "levels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Levels it walks: north-star, svp, team."
+    },
+    "people": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Who’s in it (names or IDs). New reviews include you."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`, one of:
+
+```ts
+{}
+```
+
+```ts
+{
+    id: string;
+}
+```
+
+**Refuses with:**
+
+- “weekday is Monday to Friday.”
+- “There’s no one called … in this workspace. Use list_people.”
+- “There’s no review with ID …. Use list_reviews to get IDs.”
+- “There’s no goal with … … in …. Use find_goals to get IDs and keys.”
+- “Levels are … (not …).”
+
+**Does the same as:** [saveReview](actions.md#savereview), so it refuses with their words too.
+
+## end_review
+
+**End a review.** Whoever set up the review, or an admin: end it. It keeps its notes and actions and stops showing as due. A review that was never held is deleted instead.
+
+From the [reviews](../modules/reviews/README.md) module: switched off with it.
+
+**Kind:** changes; removes something. Hints: readOnlyHint false, destructiveHint true, idempotentHint false, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `review_id` | string | yes | The review’s ID, from list_reviews. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "review_id"
+  ],
+  "properties": {
+    "review_id": {
+      "type": "string",
+      "description": "The review’s ID, from list_reviews."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:** nothing of its own beyond the shared refusals above.
+
+**Does the same as:** [endReview](actions.md#endreview), so it refuses with their words too.
+
+## delete_review
+
+**Delete a review never held.** Whoever set up the review, or an admin: delete a review that has never been held. One that has been held is ended instead (end_review), so its notes and actions stay.
+
+From the [reviews](../modules/reviews/README.md) module: switched off with it.
+
+**Kind:** changes; removes something. Hints: readOnlyHint false, destructiveHint true, idempotentHint false, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `review_id` | string | yes | The review’s ID, from list_reviews. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "review_id"
+  ],
+  "properties": {
+    "review_id": {
+      "type": "string",
+      "description": "The review’s ID, from list_reviews."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:** nothing of its own beyond the shared refusals above.
+
+**Does the same as:** [deleteReview](actions.md#deletereview), so it refuses with their words too.
 
 ## export
 

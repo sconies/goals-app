@@ -117,4 +117,5 @@ export const SCREENS: Record<string, Entry> = {
   Start: { notForAssistants: 'Saying who you are on an invitation, and the screen right after set-up: a token already acts as one person in one workspace.' },
   Welcome: { notForAssistants: 'The front door, before anyone has chosen a workspace: a token already belongs to one.' },
   Research: { notForAssistants: 'Research sessions in the demo, for the people building the app.' },
+  NotFound: { notForAssistants: 'An address that leads nowhere: a tool names what it can’t find in its own answer.' },
 };

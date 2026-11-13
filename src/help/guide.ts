@@ -1029,10 +1029,11 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'An address that leads nowhere', list: [
         'An old or mistyped link says “Page not found”, with Go to Home and Help. A goal, review or person that isn’t there says so in its own words.',
+        'A link to a part of Faro an admin has switched off in this workspace, such as Reviews, says so under it: “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.” For an admin, Workspace, Features is a link.',
       ] },
     ],
     routes: [],
-    screens: [],
+    screens: ['NotFound'],
     reqs: ['NAV-WHERE', 'NAV-BACK', 'NAV-FORMS'],
     keywords: ['back', 'back link', 'title', 'tab', 'where am i', 'lit', 'close', 'draft', 'not found', 'navigation'],
     related: ['settings', 'finding'],
