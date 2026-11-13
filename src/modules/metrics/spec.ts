@@ -9,6 +9,7 @@ import * as MEAS from './rulesMeasure';
 import * as DEF from './rulesDefine';
 import * as PARTS from './rulesParts';
 import * as CHG from './rulesChange';
+import * as MEASD from './rulesMeasured';
 import { checkReads, lineOf } from './reads';
 import * as SAVE from './rulesSave';
 import { goalsOfMetric, libraryReads } from './reads';
@@ -252,6 +253,32 @@ rules.push({
     { given: 'Rhea, not an admin, merges Flaky test rate into Remote build cache hit rate.', then: 'refused: Only admins can merge metrics: it changes what other people’s goals are measured by.', run: () => summaryOf(asPerson('rhea', (x) => CHG.mergeMetrics(x, 'metric_flaky-rate', 'metric_cache-hit'))) },
   ],
   unclear: ['The mark’s week is the cycle week the change is saved in; a change saved between cycles marks week 0 of the next.', 'Merging two metrics in different directions is a Check on the form (“Merge anyway”), not a rule: the rule merges either way.', 'The library lists retired metrics only through list_metrics (retired: true) and a metric’s own page; a Retired filter on the page itself is left for MT5 or later.'],
+});
+
+rules.push({
+  id: 'metric-measurement',
+  title: 'Measured, partly measured or a gap',
+  summary: 'Whether a metric is measured today (rule 11), what the library does with a gap or a part, and the goals a gap holds to no number: the library fills in the goal’s field; the core’s rule reads it.',
+  code: [{ file: 'src/modules/metrics/rulesMeasured.ts', names: ['measurementOf', 'holdsToNoNumber', 'measurementProblems', 'measurementWords', 'heldBy', 'heldByLink'] }, { file: 'src/modules/metrics/rulesLibrary.ts', names: ['metricNeeds'] }, { file: 'src/domain/unmeasured.ts', names: ['isUnmeasured', 'heldToNoNumber'] }],
+  tests: ['src/modules/metrics/rulesMeasured.test.ts'],
+  reqs: ['METRIC-MEASUREMENT'],
+  body: `
+**Rule 11. Measured, Partly or Gap** (\`measurementOf\`, \`measurementProblems\`). Each metric says whether its number is measured today: \`measured\` (in full, every time it is due; the default, and what a metric never said otherwise is), \`partly\` (some of it, or not every period) or \`gap\` (nobody measures it yet), with an optional line on what is missing and who is sorting it out (at most 300 characters; kept only while not measured). It is always shown as a shape and its word: a filled square (Measured), a half-filled square (Partly), a broken square (Gap). Its owner or an admin says it, as any other field; History logs it as “Measured”.
+
+**To sort out** (\`metricNeeds\`). A gap comes first in what a metric needs: “Not measured yet: {n} goals held to no number” (the goals it measures now; “Not measured yet” with none); a part: “Only partly measured”. Each with “Say how it’s measured”, which opens the form at that field. The library’s “Something to sort out” filter lists them with the rest.
+
+**Held to no number** (\`heldBy\`, \`heldByLink\`; the core's \`isUnmeasured\`). A goal measured by a metric with a gap is held to no number: the goal's own field \`unmeasuredSince\` is set, and the core's status rule reads it (never the library). The library sets and clears it, in the same save as the cause, with a line in the goal's History and one Undo:
+- a metric saved as a gap holds every goal it measures now (a live link; the goal neither removed nor stopped; not one with dated stages): “Held to no number until “{metric}” is measured”;
+- the metric saved as measured or partly lets go of them: “Held to its plan again, as “{metric}” is measured”;
+- a goal linked to a gap is held; linked to a measured metric, or unlinked, it is let go (“Held to its plan again”).
+A save that leaves the gap as it was writes no goal.`,
+  examples: [
+    { given: 'Flaky test rate, never said otherwise.', then: 'Measured', run: () => MEASD.measurementWords(LIB_METRIC('metric_flaky-rate')) },
+    { given: 'Rhea says Flaky test rate is a gap: “The new runners send no results yet.”', then: 'Changed the metric “Flaky test rate” / Held to no number until “Flaky test rate” is measured', run: () => summaryOf(asPerson('rhea', (x) => CHG.saveMetricChange(x, { id: 'metric_flaky-rate', measurement: 'gap', measurementNote: 'The new runners send no results yet.' }).commit)) },
+    { given: 'Rhea says what is missing from Flaky test rate in 301 characters.', then: 'refused: Keep what’s missing to 300 characters or fewer.', run: () => summaryOf(asPerson('rhea', (x) => MET.saveMetric(x, { id: 'metric_flaky-rate', measurement: 'partly', measurementNote: 'x'.repeat(301) }).commit)) },
+    { given: 'Flaky test rate as a gap, measuring one goal: what it needs first.', then: 'gap: Not measured yet: 1 goal held to no number → Say how it’s measured', run: () => { const n = LIB.metricNeeds({ ...LIB_METRIC('metric_flaky-rate'), measurement: 'gap' }, reads())[0]!; return `${n.id}: ${n.sentence} → ${n.button}`; } },
+  ],
+  unclear: ['A partly measured metric holds its goals to their plans: the part that is measured is the number. Say what is missing so readers know.', 'The goal side asks for no baseline only once a goal may be saved without one (backlog GB and BL); until then a goal held to no number keeps the plan it was given, unjudged.'],
 });
 
 const LIB_METRIC = (id: string) => MET.metricsOf(demo()).find((m) => m.id === id)!;

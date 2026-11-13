@@ -2,6 +2,7 @@
    metric measures a goal. Every rule is rules.ts's, so an assistant meets exactly the rules a person does,
    and every change is logged as that person, via the AI assistant. A removed metric comes back with restore_removed
    (kind metric). In a workspace that has switched the metric library off, these say so instead of running. */
+import { MEASUREMENT_LABEL, MEASUREMENTS, measurementOf } from './rulesMeasured';
 import { NotAllowed, type ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import { findGoal, isKey } from '../../domain/goalKey';
@@ -16,7 +17,7 @@ import { forWords, linkChecks, type LinkCheck } from './rulesParts';
 import { goalStatus } from '../../domain/status';
 import { LABEL } from '../../domain/vocabulary';
 import type { DisplayStatus } from '../../domain/types';
-import type { Metric, MetricDirection, MetricRefresh } from './types';
+import type { Metric, MetricDirection, MetricMeasurement, MetricRefresh } from './types';
 import type { McpContext, ToolDef, ToolResult } from '../../mcp/tools';
 import { listed } from '../../mcp/listed';
 import { VIA_MCP } from '../../domain/via';
@@ -67,6 +68,8 @@ function metricData(ctx: McpContext, m: Metric) {
     direction: m.direction, directionLabel: M.DIRECTION_LABEL[m.direction], source: m.source, sourceOwner: m.sourceOwner,
     refresh: m.refresh, owner: name(ctx, m.ownerId), ownerId: m.ownerId, caveats: m.caveats, updatedAt: m.updatedAt,
     youCanChange: M.canEditMetric(ctx.actor, m),
+    // MS: whether it is measured today; goals measured by one with a gap are held to no number.
+    measurement: measurementOf(m), measurementLabel: MEASUREMENT_LABEL[measurementOf(m)], measurementNote: m.measurementNote ?? '',
     retired: m.retiredAt ? { at: m.retiredAt, by: name(ctx, m.retiredBy ?? ''), why: m.retiredWhy ?? '', replacedBy: m.replacedBy ?? null } : null,
     marks: (m.marks ?? []).map((k) => ({ week: k.week, at: k.at, kind: k.kind, why: k.why, was: k.was, now: k.now, by: name(ctx, k.by) })),
     measures: M.goalsMeasuredBy(ctx.snapshot, ctx.snapshot.goals, m.id).map((g) => {
@@ -87,6 +90,8 @@ const FIELDS = {
   refresh: str('How often the source refreshes. Empty for not said.', { enum: [...M.REFRESHES, ''] }),
   owner: str('Who answers for the definition, by ID, email or name. Whoever adds it, when left out.'),
   caveats: str('What to watch out for when reading it.'),
+  measurement: str('Whether it is measured today: “measured” (in full), “partly” (some of it, or not every period; say what’s missing) or “gap” (nobody measures it yet). Goals measured by a metric with a gap are held to no number until it is measured, and need no made-up baseline. Measured when left out of a new metric.', { enum: [...MEASUREMENTS] }),
+  measurement_note: str('What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured.'),
 };
 
 const tools: ToolDef[] = [
@@ -146,7 +151,7 @@ const tools: ToolDef[] = [
         const stillToSay = { full: still.full, missing: still.missing, ownerLeft: still.ownerLeft, line: still.line };
         const lines = [
           `${d.name} (${d.id})`, still.line, `Unit: ${d.unit}, ${L.decimalsWords(d.decimals)} · ${d.directionLabel}`, `Meaning: ${d.meaning || '—'}`,
-          `Source: ${d.source || '—'} (owned by ${d.sourceOwner || '—'}) · refresh: ${d.refresh ?? 'not said'}`, `Owner: ${d.owner ?? '—'}`, `Caveats: ${d.caveats || '—'}`,
+          `Source: ${d.source || '—'} (owned by ${d.sourceOwner || '—'}) · refresh: ${d.refresh ?? 'not said'}`, `Owner: ${d.owner ?? '—'}`, `Caveats: ${d.caveats || '—'}`, `Measured today: ${d.measurementLabel}${d.measurement !== 'measured' && d.measurementNote ? ` (${d.measurementNote})` : ''}`,
           goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}`).join('\n')}` : 'Measures no goal yet.',
           ...(summary ? [summary] : []),
           ...(proposed.length ? [`Proposed (${proposed.length}), not judged: ${proposed.map((x) => `${x.key ?? x.goalId} ${x.goal}${x.owner ? ` (${x.owner})` : ''}`).join('; ')}`] : []),
@@ -180,6 +185,8 @@ const tools: ToolDef[] = [
           ...(a.refresh !== undefined ? { refresh: a.refresh ? (String(a.refresh).toLowerCase() as MetricRefresh) : null } : {}),
           ...(a.owner !== undefined ? { ownerId: personOf(ctx, a.owner) } : {}),
           ...(a.caveats !== undefined ? { caveats: String(a.caveats) } : {}),
+          ...(a.measurement !== undefined ? { measurement: String(a.measurement).toLowerCase() as MetricMeasurement } : {}),
+          ...(a.measurement_note !== undefined ? { measurementNote: String(a.measurement_note) } : {}),
           ...(a.confirm === true ? { confirm: true } : {}),
           ...(typeof a.comparable === 'boolean' ? { comparable: a.comparable } : {}),
           ...(typeof a.reason === 'string' ? { reason: a.reason } : {}),

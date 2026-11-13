@@ -77,12 +77,13 @@ export function flagsFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date): { 
   if (waiting.length) add('decision', `Waiting on ${waiting.map((r) => askText(r, s.people)).join('; ')}.`, behind ? 'off' : 'risk');
   if (behind && !ptg) add('no-path', 'It is behind and the owner has not said how it gets back.', 'off');
   if (status.status === 'risk') add('risk', why ?? `The owner called it ${lower(FLAG.risk)}.`, 'risk');
-  const trend = status.status === 'done' ? null : worseningTrend(goal, cycle, s.checkIns);
+  const trend = status.status === 'done' || status.unmeasured ? null : worseningTrend(goal, cycle, s.checkIns);
   if (trend) add('trend', trend, 'risk');
   // A done goal is finished: how it was called on the way there is no longer news (re-review, 8 Nov, backlog T).
   if (status.greener && latest && status.status !== 'stale' && status.status !== 'done') add('greener', `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, 'risk');
   // Nothing is due once the cycle's last day is past (cycle-end rule 2).
-  if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== 'done' && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add('due', `Due by ${dayText(reviewDate(cycle, week))}.`, 'info');
+  // A goal held to no number (domain/unmeasured) has nothing due: it lists under its metric's "To sort out" instead.
+  if (!status.unmeasured && week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== 'done' && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add('due', `Due by ${dayText(reviewDate(cycle, week))}.`, 'info');
 
   flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
   return { status, flags };

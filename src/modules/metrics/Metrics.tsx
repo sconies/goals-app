@@ -7,6 +7,8 @@
      /metrics/new           add a metric (focus mode)
      /metrics/<id>/edit     change a metric (focus mode)
    What is listed and in what order, a metric's goals and what it needs come from rulesLibrary.ts (rules 1 to 3). */
+import { MeasureMark } from './measureMark';
+import { MEASUREMENT_MEANING, MEASUREMENT_NOTE_MAX, MEASUREMENTS, measurementOf } from './rulesMeasured';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../../app/state';
@@ -24,6 +26,7 @@ import { MenuButton } from '../../ui/MenuButton';
 import { PickOne } from '../../ui/Pick';
 import { useWidth } from '../../ui/useWidth';
 import { canEditMetric, DIRECTION_LABEL, everUsed, liveMetrics, linksOf, METRIC_LIMITS, metricFrom, metricProblems, metricsOf, REFRESH_LABEL, REFRESHES, type Metric, type MetricDirection, type MetricInput, type MetricRefresh } from './rules';
+import type { MetricMeasurement } from './types';
 import { decimalsWords, directionWords, findMetrics, goalsByStatus, LIBRARY_PAGE, LIBRARY_SORTS, metricAt, metricNeeds, metricPath, movedMetrics, needsLine, ownerName, summaryLine, unitsInUse, type LibraryAsk, type LibrarySort, type MetricGoalRow } from './rulesLibrary';
 import { checkReads, goalsOfMetric, libraryReads, lineOf, proposedOfMetric } from './reads';
 import { countLine, metricChecks, STILL_FIELD, stillToSay, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
@@ -179,7 +182,7 @@ function MetricRow({ metric: m, owner, goalIds, needs }: { metric: Metric; owner
     <Link className="metric-row" to={metricPath(m)}>
       <span className="metric-text">
         <span className="metric-name">{m.name}</span>
-        <span className="hint">{m.unit} · {directionWords(m.direction)} · {owner ? `owned by ${owner}` : 'no owner'}</span>
+        <span className="hint">{m.unit} · {directionWords(m.direction)} · {owner ? `owned by ${owner}` : 'no owner'}{measurementOf(m) !== 'measured' && <> · <MeasureMark k={measurementOf(m)} /></>}</span>
       </span>
       <span className="metric-side small">
         {statuses.length ? <StatusCounts statuses={statuses} label={`${m.name}’s goals`} /> : <span className="metric-none">No goals yet</span>}
@@ -268,6 +271,7 @@ export function MetricPage() {
         <dt>Where the number comes from</dt><dd>{m.source || 'Not said'}</dd>
         <dt>Who owns that source</dt><dd>{m.sourceOwner || 'Not said'}</dd>
         <dt>How often it refreshes</dt><dd>{m.refresh ? REFRESH_LABEL[m.refresh] : 'Not said'}</dd>
+        <dt>Measured today</dt><dd><MeasureMark k={measurementOf(m)} />{measurementOf(m) !== 'measured' && m.measurementNote ? <span className="hint"> {m.measurementNote}</span> : null}</dd>
         {m.caveats && <><dt>Caveats</dt><dd>{m.caveats}</dd></>}
         <dt>Added</dt><dd>{by(m.createdBy, m.createdAt)}</dd>
         <dt>Last changed</dt><dd>{by(lastChangedBy(app.snapshot.changes, m), m.updatedAt)}</dd>
@@ -504,7 +508,7 @@ const FIELD_ORDER: [string, RegExp][] = [['name', /metric a name|already a metri
 /** Where a metric's form keeps its draft: one for a new metric, one for each metric being changed. */
 const metricDraftKey = (ws: string, id: string | null) => `${ws}:metric:${id ?? 'new'}`;
 
-type Draft = { name: string; meaning: string; unit: string; decimals: number; direction: MetricDirection | ''; source: string; sourceOwner: string; refresh: MetricRefresh | ''; ownerId: string; caveats: string };
+type Draft = { name: string; meaning: string; unit: string; decimals: number; direction: MetricDirection | ''; source: string; sourceOwner: string; refresh: MetricRefresh | ''; ownerId: string; caveats: string; measurement?: MetricMeasurement; measurementNote?: string };
 
 export function MetricForm() {
   const app = useApp();
@@ -515,7 +519,7 @@ export function MetricForm() {
   const live = before && !before.removedAt ? before : null;
   // Kept as other drafts are (src/app/drafts.ts): Close, Back or a reload never loses what was typed.
   const [d, set, clearDraft, restored] = useDraft<Draft>(metricDraftKey(app.ws.id, live?.id ?? null), () => live
-    ? { name: live.name, meaning: live.meaning, unit: live.unit, decimals: live.decimals, direction: live.direction, source: live.source, sourceOwner: live.sourceOwner, refresh: live.refresh ?? '', ownerId: live.ownerId, caveats: live.caveats }
+    ? { name: live.name, meaning: live.meaning, unit: live.unit, decimals: live.decimals, direction: live.direction, source: live.source, sourceOwner: live.sourceOwner, refresh: live.refresh ?? '', ownerId: live.ownerId, caveats: live.caveats, measurement: measurementOf(live), measurementNote: live.measurementNote ?? '' }
     : { name: (params.get('name') ?? '').slice(0, METRIC_LIMITS.name), meaning: '', unit: '', decimals: 0, direction: '', source: '', sourceOwner: '', refresh: '', ownerId: app.viewer.id, caveats: '' });
   const [tried, setTried] = useState(false);
   // Fields left once: their errors show from then on, not while the first thing is being typed.
@@ -559,7 +563,7 @@ export function MetricForm() {
       </div>
     );
   }
-  const input: MetricInput = { name: d.name, meaning: d.meaning, unit: d.unit, decimals: d.decimals, direction: (d.direction || undefined) as MetricDirection, source: d.source, sourceOwner: d.sourceOwner, refresh: d.refresh || null, ownerId: d.ownerId, caveats: d.caveats };
+  const input: MetricInput = { name: d.name, meaning: d.meaning, unit: d.unit, decimals: d.decimals, direction: (d.direction || undefined) as MetricDirection, source: d.source, sourceOwner: d.sourceOwner, refresh: d.refresh || null, ownerId: d.ownerId, caveats: d.caveats, measurement: d.measurement ?? 'measured', measurementNote: d.measurementNote ?? '' };
   const next = metricFrom(input, live, { actor: app.viewer, now: app.stamp(), newId });
   const problems = metricProblems(next, app.snapshot);
   const shows = (k?: string) => tried || (!!k && left.has(k));
@@ -691,6 +695,17 @@ export function MetricForm() {
               </select>
             </label>
             {slow && <span className="hint">Check-ins here are weekly. Most weeks a goal measured by this will have no new number, and that is fine.</span>}
+          </div>
+          <div className="field" id="metric-measurement"><span className="field-label" id="metric-measurement-l">Is it measured today</span>
+            <div className="seg" role="group" aria-labelledby="metric-measurement-l">
+              {MEASUREMENTS.map((k) => <button key={k} type="button" aria-pressed={(d.measurement ?? 'measured') === k} onClick={() => set({ measurement: k })}><MeasureMark k={k} /></button>)}
+            </div>
+            <span className="hint">{MEASUREMENT_MEANING[d.measurement ?? 'measured']}</span>
+            {(d.measurement ?? 'measured') !== 'measured' && (
+              <label className="field metric-measure-note"><span className="field-label">What’s missing, and who is sorting it out <span className="hint">optional</span></span>
+                <input className="input" maxLength={MEASUREMENT_NOTE_MAX} value={d.measurementNote ?? ''} placeholder="No feed from the data warehouse yet; the data team is adding one" onChange={(e) => set({ measurementNote: e.target.value })} autoFocus={field === 'measurement'} />
+              </label>
+            )}
           </div>
         </fieldset>
         <div className="field" id="metric-owner">

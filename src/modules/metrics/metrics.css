@@ -109,3 +109,9 @@
 .metric-history-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-2); }
 .metric-history-list > li { padding: 8px 0; border-bottom: 1px solid var(--line-2); display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s2); }
 .metric-marks { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); }
+
+/* MS: a metric's measurement status, a shape and a word (MeasureMark.tsx). Colour is never the only signal. */
+.measure-mark { display: inline-flex; align-items: center; gap: 5px; color: var(--fg-2); white-space: nowrap; }
+.measure-shape { width: 14px; height: 14px; flex: none; }
+.measure-gap { color: var(--fg-1, inherit); font-weight: 600; }
+.metric-measure-note { margin-top: var(--s1); }

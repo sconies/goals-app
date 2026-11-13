@@ -18,6 +18,7 @@ import { fmt } from '../../domain/format';
 import { placesText } from '../../domain/numbers';
 import { mergeModuleRows, moduleRows, withModuleRows, type ModuleRows } from '../../domain/records';
 import type { Change, Goal, Person, Team } from '../../domain/types';
+import { heldByLink, measurementProblems, measurementWords } from './rulesMeasured';
 import type { Metric, MetricDirection, MetricLink, MetricRefresh } from './types';
 
 export type { Metric, MetricDirection, MetricLink, MetricMark, MetricRefresh } from './types';
@@ -55,11 +56,11 @@ export const ownerlessMetrics = (r: { metrics: readonly Metric[]; people: readon
 export const METRIC_LIMITS = { name: 120, unit: 20, text: 2000, decimals: 4 } as const;
 /** The fields a metric must have, and the ones it may leave empty. */
 export const REQUIRED_FIELDS = ['name', 'unit', 'direction'] as const;
-export const OPTIONAL_FIELDS = ['meaning', 'decimals', 'source', 'sourceOwner', 'refresh', 'ownerId', 'caveats'] as const;
+export const OPTIONAL_FIELDS = ['meaning', 'decimals', 'source', 'sourceOwner', 'refresh', 'ownerId', 'caveats', 'measurement', 'measurementNote'] as const;
 
 /** What someone gives to add or change a metric: everything but the bookkeeping. Left out, a field keeps its value
     (a new metric: empty text, 0 decimals, no refresh, owned by whoever adds it). */
-export type MetricInput = Partial<Pick<Metric, 'name' | 'meaning' | 'unit' | 'decimals' | 'direction' | 'source' | 'sourceOwner' | 'refresh' | 'ownerId' | 'caveats'>>;
+export type MetricInput = Partial<Pick<Metric, 'name' | 'meaning' | 'unit' | 'decimals' | 'direction' | 'source' | 'sourceOwner' | 'refresh' | 'ownerId' | 'caveats' | 'measurement' | 'measurementNote'>>;
 
 /* ---------- reading ---------- */
 
@@ -115,6 +116,8 @@ export const sliceName = (s: { teams: Team[] }, teamId: string | null) => (teamI
 
 /* ---------- what a metric needs ---------- */
 
+const measured = (k: Metric['measurement'] | null, note: string | null | undefined): Pick<Metric, 'measurement' | 'measurementNote'> =>
+  k && k !== 'measured' ? { measurement: k, measurementNote: (note ?? '').trim() } : {};
 const clean = (v: string | undefined | null) => (v ?? '').trim().replace(/[ \t]+/g, ' ');
 
 /** The metric as it would be saved: text trimmed, defaults filled in. Throws nothing; metricProblems says what's wrong. */
@@ -132,6 +135,8 @@ export function metricFrom(input: MetricInput, before: Metric | null, x: Pick<Ac
     refresh: pick('refresh', null) ?? null,
     ownerId: pick('ownerId', x.actor.id) || x.actor.id,
     caveats: (pick('caveats', '') ?? '').trim(),
+    // MS (rulesMeasured.ts): left out while measured, so a metric never said otherwise reads as it always has.
+    ...measured(pick('measurement', null), pick('measurementNote', '')),
     createdBy: before?.createdBy ?? x.actor.id,
     createdAt: before?.createdAt ?? x.now,
     updatedAt: x.now,
@@ -162,6 +167,7 @@ export function metricProblems(m: Metric, s: Rows & { people: Person[] }): strin
   if (!Number.isInteger(m.decimals) || m.decimals < 0 || m.decimals > METRIC_LIMITS.decimals) out.push(`Decimals is a whole number from 0 to ${METRIC_LIMITS.decimals}.`);
   if (m.refresh != null && !REFRESHES.includes(m.refresh)) out.push(`Refresh is one of ${REFRESHES.join(', ')}, or left empty.`);
   if (!s.people.some((p) => p.id === m.ownerId)) out.push('The metric’s owner isn’t in this workspace.');
+  out.push(...measurementProblems(m));
   for (const [k, label] of [['meaning', 'meaning'], ['source', 'source'], ['sourceOwner', 'source’s owner'], ['caveats', 'caveats']] as const) {
     if (m[k].length > METRIC_LIMITS.text) out.push(`Keep the ${label} to ${METRIC_LIMITS.text.toLocaleString('en-GB')} characters or fewer.`);
   }
@@ -183,6 +189,7 @@ export function metricFields(m: Metric, s: { people: Person[] }): Record<string,
     Refresh: m.refresh ? REFRESH_LABEL[m.refresh] : '—',
     Owner: s.people.find((p) => p.id === m.ownerId)?.name ?? '—',
     Caveats: m.caveats || '—',
+    Measured: measurementWords(m),
   };
 }
 
@@ -281,7 +288,9 @@ export function unlinkGoalMetric(x: ActionContext, goal: Goal): Commit | null {
   const l = linksOf(x.snapshot).find((v) => v.goalId === goal.id && !v.removedAt);
   if (!l) return null;
   const name = metricsOf(x.full ?? x.snapshot).find((v) => v.id === l.metricId)?.name ?? 'its metric';
-  return { ...metricRows({ metricLinks: [{ ...l, removedAt: x.now, removedBy: x.actor.id }] }), changes: [log(x, { entityId: l.metricId, goalId: goal.id, action: 'removed', summary: `No longer measured by “${name}”`, diffs: [{ field: 'Measured by', from: name, to: '—' }] })] };
+  // MS: measured by nothing, a goal held to no number is held to its plan again.
+  const hold = heldByLink(x, goal, null);
+  return { ...metricRows({ metricLinks: [{ ...l, removedAt: x.now, removedBy: x.actor.id }] }), ...(hold ? { goals: [hold.goal] } : {}), changes: [log(x, { entityId: l.metricId, goalId: goal.id, action: 'removed', summary: `No longer measured by “${name}”`, diffs: [{ field: 'Measured by', from: name, to: '—' }] }), ...(hold ? [hold.change] : [])] };
 }
 
 /** Two saves as one (a new goal and its link, made in one form): records and change-log entries together, in order. */

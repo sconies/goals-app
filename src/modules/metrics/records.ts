@@ -30,6 +30,8 @@ export const metricToRow = (ws: string, m: Metric): DbRow => ({
   refresh: m.refresh, owner_id: m.ownerId, caveats: m.caveats, created_by: m.createdBy, created_at: m.createdAt, updated_at: m.updatedAt, ...set({ removed_at: m.removedAt, removed_by: m.removedBy }),
   // MT3 (migration 0043): always written, so a batch mixing retired and live metrics never leaves a key out (okr_upsert
   // takes the union of a batch's keys, and a key left out is written null). The NOT NULL columns get '' and [].
+  // MS (migration 0046): always written, as the NOT NULL columns are, for the same reason.
+  measurement: m.measurement ?? 'measured', measurement_note: m.measurement && m.measurement !== 'measured' ? m.measurementNote ?? '' : '',
   retired_at: m.retiredAt ?? null, retired_by: m.retiredBy ?? null, retired_why: m.retiredWhy ?? '', replaced_by: m.replacedBy ?? null, marks: m.marks ?? [],
 });
 export const metricFromRow = (r: DbRow): Metric => ({
@@ -38,6 +40,7 @@ export const metricFromRow = (r: DbRow): Metric => ({
   createdBy: String(r.created_by), createdAt: iso(r.created_at), updatedAt: iso(r.updated_at), ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by),
   ...(r.retired_at ? { retiredAt: iso(r.retired_at), retiredBy: r.retired_by ? String(r.retired_by) : null, retiredWhy: String(r.retired_why ?? ''), replacedBy: r.replaced_by ? String(r.replaced_by) : null } : {}),
   ...(Array.isArray(r.marks) && r.marks.length ? { marks: r.marks as Metric['marks'] } : {}),
+  ...(r.measurement === 'partly' || r.measurement === 'gap' ? { measurement: r.measurement, measurementNote: String(r.measurement_note ?? '') } : {}),
 });
 export const metricLinkToRow = (ws: string, l: MetricLink): DbRow => ({ workspace_id: ws, id: l.id, goal_id: l.goalId, metric_id: l.metricId, team_id: l.teamId, part: String(l.part ?? '').trim(), linked_by: l.linkedBy, linked_at: l.linkedAt, ...set({ removed_at: l.removedAt, removed_by: l.removedBy }) });
 export const metricLinkFromRow = (r: DbRow): MetricLink => ({

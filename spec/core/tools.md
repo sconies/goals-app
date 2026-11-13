@@ -375,6 +375,9 @@ No arguments.
             postedBy: string | null;
             backfilled: boolean;
         }[];
+        unmeasured?: {
+            since: string;
+        } | undefined;
         state?: string | undefined;
         stopped?: {
             at: string;
@@ -542,6 +545,9 @@ No arguments.
             postedBy: string | null;
             backfilled: boolean;
         }[];
+        unmeasured?: {
+            since: string;
+        } | undefined;
         state?: string | undefined;
         stopped?: {
             at: string;
@@ -4823,6 +4829,8 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `refresh` | one of `live`, `hourly`, `daily`, `weekly`, `monthly`, `quarterly`, `` | no | How often the source refreshes. Empty for not said. |
 | `owner` | string | no | Who answers for the definition, by ID, email or name. Whoever adds it, when left out. |
 | `caveats` | string | no | What to watch out for when reading it. |
+| `measurement` | one of `measured`, `partly`, `gap` | no | Whether it is measured today: “measured” (in full), “partly” (some of it, or not every period; say what’s missing) or “gap” (nobody measures it yet). Goals measured by a metric with a gap are held to no number until it is measured, and need no made-up baseline. Measured when left out of a new metric. |
+| `measurement_note` | string | no | What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured. |
 | `confirm` | boolean | no | Kept for older callers; the questions below replace it. |
 | `comparable` | boolean | no | When the meaning or source of a metric goals use changes: true if it is still the same number (better words; nothing is marked), false if the number itself changes from this week (its goals’ charts and History say so; give reason). |
 | `reason` | string | no | Why, in a line (up to 300 characters): required when the number itself changes (comparable false) or the direction changes. Every goal measured by it shows this. |
@@ -4897,6 +4905,19 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
     "caveats": {
       "type": "string",
       "description": "What to watch out for when reading it."
+    },
+    "measurement": {
+      "type": "string",
+      "description": "Whether it is measured today: “measured” (in full), “partly” (some of it, or not every period; say what’s missing) or “gap” (nobody measures it yet). Goals measured by a metric with a gap are held to no number until it is measured, and need no made-up baseline. Measured when left out of a new metric.",
+      "enum": [
+        "measured",
+        "partly",
+        "gap"
+      ]
+    },
+    "measurement_note": {
+      "type": "string",
+      "description": "What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured."
     },
     "confirm": {
       "type": "boolean",
@@ -5866,6 +5887,9 @@ From the [spreadsheets](../modules/spreadsheets/README.md) module: switched off 
             postedBy: string | null;
             backfilled: boolean;
         }[];
+        unmeasured?: {
+            since: string;
+        } | undefined;
         state?: string | undefined;
         stopped?: {
             at: string;

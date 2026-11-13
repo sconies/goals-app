@@ -1,5 +1,6 @@
 /* Rule 2's action: measuring a goal by a metric, for a slice and a part (MT2), and what it reads. Kept out of rules.ts
    so the first download (which loads rules.ts for the module's records) doesn't carry rule 2's checks and edit distance. */
+import { heldByLink } from './rulesMeasured';
 import type { ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import type { Goal } from '../../domain/types';
@@ -49,7 +50,9 @@ export function linkGoalMetric(x: ActionContext, goal: Goal, metricId: string, t
   ];
   const why = reason.trim();
   const summary = `Measured by “${m.name}” for ${forWords(slice, p)}${why ? `: ${why}` : ''}`;
-  return { ...metricRows({ metricLinks: [link] }), changes: [log(x, { entityId: m.id, goalId: goal.id, action: current ? 'edited' : 'linked', summary, diffs })] };
+  // MS: measured by a metric with a gap, the goal is held to no number; by one that's measured, to its plan.
+  const hold = heldByLink(x, goal, m);
+  return { ...metricRows({ metricLinks: [link] }), ...(hold ? { goals: [hold.goal] } : {}), changes: [log(x, { entityId: m.id, goalId: goal.id, action: current ? 'edited' : 'linked', summary, diffs }), ...(hold ? [hold.change] : [])] };
 }
 
 /** What rule 2 reads for a goal and a metric: its present link, the metric's other live links (with each goal's title,

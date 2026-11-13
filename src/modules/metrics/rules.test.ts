@@ -113,7 +113,7 @@ describe('adding and changing a metric', () => {
     const { commit, metric } = M.saveMetric(w.x('oskar'), { name: 'Build time', unit: 'min', direction: 'lower', source: 'CI analytics' });
     expect(metric.ownerId).toBe('oskar');
     expect(commit!.changes[0]).toMatchObject({ entity: 'metric', entityId: metric.id, action: 'created', summary: 'Added the metric “Build time”', goalId: null });
-    expect(commit!.changes[0]!.diffs.map((d) => d.field)).toEqual(['Name', 'Unit', 'Decimals', 'Direction', 'Source', 'Owner']);
+    expect(commit!.changes[0]!.diffs.map((d) => d.field)).toEqual(['Name', 'Unit', 'Decimals', 'Direction', 'Source', 'Owner', 'Measured']);
     w.apply(commit);
     expect(M.findMetric(w.scoped, 'build time')!.id).toBe(metric.id);
   });

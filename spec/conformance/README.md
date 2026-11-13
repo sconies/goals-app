@@ -45,7 +45,7 @@ Rows go by week, then goals in key order (G-1, G-2 … G-126).
 | [import.csv](import.csv) (stage 2) | 64 | case of the change engine | `case`, `actor`, `sheet`, `rows`, `answers`, `given`, `kind`, `level`, `group`, `message`, `must`, `questions`, `saves`, `kinds` |
 | [changes.csv](changes.csv) (stage 2) | 125 | case of the change engine, then one per item it would save | `case`, `row`, `actor`, `sheet`, `line`, `rows`, `answers`, `given`, `target`, `name`, `kind`, `diffs`, `counts`, `unchanged`, `needs_reason`, `saves` |
 | [readback.csv](readback.csv) (stage 3) | 6 | draft New goal reads back | `case`, `viewer`, `draft`, `rows`, `after` |
-| [metrics.csv](metrics.csv) (the metrics module, not stage 1) | 93 | rule and what it is asked | `rule`, `ask`, `row`, `total`, `ids`, `goal`, `status`, `slice`, `now`, `target`, `vs_plan`, `owner`, `summary`, `needs`, `still`, `parts`, `ends` |
+| [metrics.csv](metrics.csv) (the metrics module, not stage 1) | 106 | rule and what it is asked | `rule`, `ask`, `row`, `total`, `ids`, `goal`, `status`, `slice`, `now`, `target`, `vs_plan`, `owner`, `summary`, `needs`, `still`, `parts`, `ends`, `measured` |
 | [home.csv](home.csv) (stage 3) | 56 | viewer and day | `viewer`, `day`, `lead`, `title`, `quiet` |
 | [zone.csv](zone.csv) (R3) | 20 | moment and goal of the home-zone case | `moment`, `goal`, `home_time`, `week`, `latest_posted`, `days_without_update`, `stale` |
 
