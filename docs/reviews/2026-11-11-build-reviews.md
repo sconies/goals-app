@@ -160,6 +160,13 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #313 FS1 review: three mediums from #111 | 1 | 0 | 0 | 0 |
 | #291, #295, #296, #304, #307 KT9, KT10 and KT6: the kit | 6 | 0 | 0 | 0 |
 | #244, #246, #254, #260 Backlog and handovers | planning, 6, 7 | 0 | 0 | 0 |
+| #398 Recarry and the window: #358's high and mediums 2 and 3 | 4 | 0 | 0 | 0 |
+| #382 An ended cycle refuses every correction, at every door (#326) | 1 | 0 | 0 | 0 |
+| #380 GE10: mediums on #349, #355 and #319 | 2 | 0 | 0 | 1 |
+| #387 Import's check and its changes have a way out (#328) | 1 | 0 | 0 | 0 |
+| #385 N12: Data search reads the query once | 2 | 0 | 0 | 1 |
+| #396 IM8 review fixes (#336) | 3 | 0 | 0 | 0 |
+| #400 Asks follow a goal's new owner: Lane's rule, #369's mediums; unmark_reviewed | 1 | 0 | 0 | 2 |
 
 **High findings, and where each stands**
 
@@ -180,7 +187,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #199: a column whose header differs from Faro's only by punctuation, an accent or spacing is neither read nor named | Track 3, 15:35 UTC, 12 Nov | **Fixed** by #214; the reproduction re-run: "Target.", "Tárget" and "Due_week" are read, a near miss is asked about, an unknown column is named |
 | #227: any member can put a check-in on someone else's goal by creating it with stages already done | Its builder (session …91EAkyS7gzPSYrnJPg), 18:15 UTC, 12 Nov | **Fixed** by #247 (read, with its tests): the set-up check-in asks the rule at the form, a sheet, MCP and `recordStagesDone`; from anyone but the owner the goal is published without it, and the stage question says who marks it |
 | #308: on a database, a save with several metric links, some with a part and some without, is refused for everyone (removing a metric, starting the next year, a workspace from the demo) | Its builder (session …92c7taPQJmK4jDJU9E), 04:06 UTC, 13 Nov | **Fixed** by #360 (re-run by me on main at `7ab34d99`): a link always writes its part, `''` when it has none, so the mixed batch saves; a schema test saves one through `okr_upsert` |
-| #358: with a second year, once the first year's check-ins fall outside the loaded window, a save that touches that year's goals adds its finished goals to the next year | A track 4 builder (session …931R7QEqBrfxbNv2QV), 12:52 UTC, 13 Nov | **Open** |
+| #358: with a second year, once the first year's check-ins fall outside the loaded window, a save that touches that year's goals adds its finished goals to the next year | A track 4 builder (session …931R7QEqBrfxbNv2QV), 12:52 UTC, 13 Nov | **Fixed** by #398 (merged 13 Nov): recarry does nothing for a year whose check-ins the window left out, and the window always keeps the newest two cycles. Re-run on main at `243959c4`, 3 Mar 2028: with two years 2026's check-ins stay loaded and nothing is added to 2027; with three years they are left out and nothing is added |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -1674,3 +1681,24 @@ Holding in full: the day an ask was made is counted in the viewer's own day (#31
 **7. Medium (ran). History's sentence for the handover reads wrongly:** "Grace Achterberg daniel Okafor's ask now goes to Tunde Bakare…" (the summary starts with a name and its first letter is lowered, `src/ui/ChangeItem.tsx:33`).
 
 **Lows.** `update_goal` says nothing of the asks that move; undoing an import puts asks back but logs nothing on the ask; marking someone as left can give Oskar "Asked of Tunde, now yours" for a goal he doesn't own; the "now yours" note is found by the person's name in the change log, so a rename or the window drops it (read); 57 of 89 meta lines are still two lines at 1440; a read-only metric edit page says "Close without saving"; a proposed goal's "waiting since" still reads the UTC day (read); with one kind, its heading wraps at 390.
+
+
+### Fix PRs from the 14:27 UTC check, 13 Nov (#398, #382, #380, #387, #385, #396, #400)
+
+Read by me against the findings they answer. No high and no medium.
+
+**#398 (track 4): #358's high and its mediums 2 and 3. Holds.** `recarry` returns nothing when `checkInsLeftOut` says the window left the year's check-ins out (`src/domain/recarry.ts:30`), and `copyUntouched` counts a copy made before the window as used. "What a window leaves out" now lives once, in `src/domain/leftOut.ts`: `keptCycles` keeps every cycle that overlaps the window and always the newest two not removed, and `windowed()`, the Supabase store and the Postgres query all read it (the SQL names the same constant). `get_activity` reads the snapshot when it is whole. I re-ran my probe from #358 on main: no finished goal is added to the next year with two years or three. The contract and `startYear.test.ts` gained the windowed cases the review asked for. Still open from #358, as the track says: "Show older changes" shown when nothing is older, the first older page landing at the top, and `undo_import` on MCP allowing an import older than the window.
+
+**#382 (track 1): #326's medium. Holds.** The refusal moved from the form's branch to the engine's shared check-in path (`src/domain/changeset.ts:1361`): any row that would replace a check-in of a cycle that has ended is refused with one sentence, whichever door it came through; a row that says the same as what is stored still reads as unchanged, so an export loaded back says nothing would change. A week that has no check-in can still be added to an ended year with a reason, as before.
+
+**#380 (track 2): mediums on #349, #355 and #319. Holds.** "Make it proposed again" refuses a goal of another year and reads check-ins across the workspace (`src/domain/proposedActions.ts:81-84`); a proposed goal's asks stay on Home and in the tools; the Map hides "Troubled trees only" while the State filter is on Proposed; the quiet line counts the rows under Proposed goals; `get_my_work` lists them. Low: the quiet line's count includes a proposal the lead is already about, where the list leaves it out (`src/app/reads.ts:123` against `src/screens/Home.tsx:135`); it only shows if both can be on screen together (read).
+
+**#387 (track 1): #328's medium. Holds.** Check this import and its list of changes carry "Close without saving", which asks first once an answer or a reason was given, forgets the file and returns to Import; journey added.
+
+**#385 (track 2): N12.** `wordsMatcher` reads the query once and gives the same answers as `wordsMatch` in each branch (key typed, bare number, words). Low: the warming effect in `src/screens/DataTables.tsx:165` depends on `rows` and `head`; if either is a new array on each render it starts again from the first row each time (cheap, since the words are cached; read).
+
+**#396 (track 3): #336's seven mediums and its lows. Holds as read.** Focus after an answer (Import imports the shared group statically again; set-up tries the next question, the answered line, then Create); set-up's finder searches the draft's goals; a Goals row's team one letter from one already named is asked; a chosen person stands only for cells that name no one here, and a cell naming someone else or an unreadable ID stays Must fix (`changeset.ts:489-498`, with tests); People's Action is honoured at set-up; the lazy preview has an error boundary with Try again. Its What's new entry was dropped, as Lane's rule of 13 Nov says.
+
+**#400 (track 1): Lane's rule for asks, and #369's mediums 1, 2, 3, 4, 5 and 7. Holds.** Only an update asked for and a question follow the goal (`FOLLOWS_OWNER`, `src/domain/askHandover.ts:20`); an ask to a person by name stays; one the new owner asked is withdrawn and logged; proposed goals carry theirs; summaries start with a verb; the lead names the handover; `list_requests` reads lateness from `askWaiting`, as Home and `get_my_work` do. `unmark_reviewed` runs the app's own rule. Medium 6 (the review's name cut in a lone cell on a phone) is left for Lane, as the PR says. Lows: when the first of several asks closes and others move, the goal's own change reads "Open asks (2): Old owner → —" (`openAsksDiff` takes the first change only); `unmark_reviewed` ignores IDs it doesn't find when at least one matches.
+
+Not code, not reviewed line by line: #370, #372, #375, #379, #386, #388, #389, #390, #393, #394, #397 (documents, CI, evals and the rebuild kit).
