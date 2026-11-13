@@ -804,7 +804,7 @@ Pressing Post again, pressing Enter then clicking, or a double tap never posts a
 
 ### NO-LOST-UPDATES
 
-A save says what it was based on. If someone else has changed the same goal, review or week since, the save is refused whole, the person is told plainly and shown the latest; nothing is half-saved and the change log never records a save that didn’t land. Open screens pick up other people’s changes when the tab comes back into view.
+A save says what it was based on. If someone else has changed the same goal, review or week since, the save is refused whole and runs again on the latest with the same input, so the person’s change lands beside the other one unless the rule now says no, which is said in its own words; a form that holds a whole record as last seen (a goal’s or a review’s) isn’t run again, and a save refused three times stops: the person is told plainly and shown the latest; nothing is half-saved and the change log never records a save that didn’t land. Open screens pick up other people’s changes when the tab comes back into view.
 
 - **Copy:** build it as Faro does.
 - **Help:** “The activity log” (`activity`), screens `Activity`; “On a phone, a tablet or a big screen” (`any-device`)
