@@ -1080,6 +1080,12 @@
       "use": "copy"
     },
     {
+      "id": "SETUP-UPLOAD",
+      "area": "Onboarding",
+      "text": "A spreadsheet given at set-up is checked before the read-back, not after it: every row that is wrong or doubtful is named with its row and its fix, counts never leave a wrong row out, the file's people join those typed, and nothing is saved until the workspace is created.",
+      "use": "copy"
+    },
+    {
       "id": "IMPORT-ACTIONS",
       "area": "Data",
       "text": "A spreadsheet’s Action column stops a goal with check-ins (with a Reason) or deletes one with none, and marks someone as left (their goals, open asks and teams going to Takes over, by email), with the same rules, refusals and consequences as the app (domain/removal), shown in the preview. The import’s Undo puts every one back: the goal live again, the deleted goal restored, the person back with their goals, asks, reviews and teams.",

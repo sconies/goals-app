@@ -37,7 +37,9 @@ describe('rule 10: a large file is checked in about the time it takes to read', 
       const took = timed(() => { cs = planChanges(input(s0, newRows(k))); });
       expect(cs!.counts.newGoals).toBe(k / 2);
       expect(took).toBeLessThan(ms);
-    });
+      // The limit is the assertion: the test's own timeout sits above it, so a slow machine fails on the limit, never on
+      // vitest's 5 s default (a CI runner timed the 30,000-row test out at 5 s, #336).
+    }, ms * 3);
   }
 
   /** Five copies of the workspace, each copy's goals, people and teams with their own keys, titles, names and emails, so
@@ -65,14 +67,14 @@ describe('rule 10: a large file is checked in about the time it takes to read', 
     expect(cs!.items).toEqual([]);
     expect(Object.values(cs!.unchangedBy).reduce((a, b) => a + b, 0)).toBe(rows);
     expect(took).toBeLessThan(20_000);
-  });
+  }, 60_000);
 
   it('costs about what its rows do: five times the rows, well under twenty-five times the time', () => {
     planChanges(input(s0, newRows(200)));
     const small = Math.max(timed(() => planChanges(input(s0, newRows(1000)))), 5);
     const large = timed(() => planChanges(input(s0, newRows(5000))));
     expect(large / small).toBeLessThan(12);
-  });
+  }, 30_000);
 
   it('says fourteen rows with one typo once, as one group, among thousands', () => {
     const t = newRows(2000);

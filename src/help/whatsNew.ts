@@ -23,6 +23,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'setup-upload-preview',
+    date: '2026-11-13',
+    title: 'Set-up checks a spreadsheet as Import does',
+    points: [
+      'A spreadsheet given at set-up ends on Import’s preview: what it adds, what must be fixed, and its questions.',
+      'An owner nobody typed: “Add {name}”, or “Give it to someone here”.',
+      'Stages already due count from this week unless you change it.',
+    ],
+    articles: ['set-up', 'import'],
+  },
+  {
     id: 'proposals-on-home',
     date: '2026-11-13',
     title: 'Proposals for you show on Home',

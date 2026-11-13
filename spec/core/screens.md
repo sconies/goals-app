@@ -858,7 +858,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Remove this goal” | button | `d.step === 5` |
 | “Undo” | button | `d.step === 5` and `removed` |
 | “Add a goal” | button | `d.step === 5` |
-| “Count them from this week / Keep the weeks as typed” | button | `d.step === 6` and `!!fromFile?.moved.length` |
 | “Change name or year” | button | `d.step === 6` |
 | “Change people” | button | `d.step === 6` |
 | “Change the north star” | button | `d.step === 6` and `result.snapshot.goals.length > 0` and `!skipGoalSteps` |
