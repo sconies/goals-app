@@ -250,7 +250,7 @@ select.input { padding-right: 28px; }
 .import-rows-table th, .import-rows-table td { padding: 4px var(--s2); border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; }
 .import-rows-table .num { text-align: right; font-variant-numeric: tabular-nums; width: 4em; }
 .import-answered { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s2) var(--s3); border: 1px solid var(--line); border-radius: 10px; font-size: var(--t-sm); }
-.import-answered .btn { min-height: 44px; flex: none; }
+.import-answered .btn, .import-answered .btn.sm { min-height: 44px; flex: none; }
 .level-head { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--fg-2); }
 .level-head svg { width: 14px; height: 14px; flex: none; }
 .level-word { font-weight: 600; }

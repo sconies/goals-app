@@ -62,6 +62,7 @@ src/domain/     the rules: plans, status, check-ins, attention, review, change l
 src/data/       demo data, the store contract, the browser and Supabase stores
 src/app/        app state (workspaces, profiles, saves that log) and drafts
 src/screens/    Home (per profile), Check-in, Review, Goals, Goal page, Goal setup, Activity, Workspace
+src/modules/    feature modules, one folder each: Spreadsheets (Excel and CSV export, and import with every change shown first) and the Metric library (each number goals are measured by, defined once)
 src/ui/         shell, status chips (shape + word), progress ring, charts
 docs/           the user journeys and the ease test
 supabase/       the Postgres schema for when the data moves to Supabase
