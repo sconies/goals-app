@@ -279,7 +279,7 @@ const CORE_ARTICLES: Article[] = [
         'Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.',
         'The first check-in sets where a goal stands today. If the goal was set up in the last four weeks and the number isn’t where its plan starts, you’re asked: start the plan from this number (same target, due week and shape; no reason needed, with Undo), or keep the plan and say why.',
       ] },
-      { heading: 'Who can', text: ['Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet. Anyone can ask the owner for an update from the goal’s page.'] },
+      { heading: 'Who can', text: ['Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. Anyone can ask the owner for an update from the goal’s page.'] },
     ],
     routes: ['/check-in', '/check-in/:goalId'],
     screens: ['CheckInFlow', 'CheckInQueue'],
@@ -1048,7 +1048,7 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'Leaving a form', list: [
         'A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.',
-        '“Close without saving” (setting up or changing a review, wrapping up a goal) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it.',
+        '“Close without saving” (setting up or changing a review, wrapping up a goal, starting an import) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it.',
       ] },
       { heading: 'An address that leads nowhere', list: [
         'An old or mistyped link says “Page not found”, with Go to Home and Help. A goal, review or person that isn’t there says so in its own words.',
