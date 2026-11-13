@@ -29,11 +29,11 @@ export function sessionDate(r: Review, cycle: Cycle, week: number): string {
 
 /**
  * Whether a review is held on a week's due day (RS1): a review not ended or removed whose session falls in that week, on
- * the day check-ins are due. dueWords then says "before Thursday’s review"; otherwise "by Thursday".
+ * the day check-ins are due (a review with no date it was set up counts from week 1). dueWords then says "before Thursday’s review"; otherwise "by Thursday".
  */
 export function heldOnDueDay(reviews: readonly Review[], cycle: Cycle, week: number): boolean {
   const w = Math.max(1, week);
-  return reviews.some((r) => !r.removedAt && !r.endedAt && r.weekday === cycle.reviewDay && sessionWeek(r, w, cycle) === w);
+  return reviews.some((r) => !r.removedAt && !r.endedAt && r.weekday === cycle.reviewDay && sessionWeek(r, w, r.createdAt ? cycle : undefined) === w);
 }
 
 /**

@@ -4803,6 +4803,106 @@ journey('U104', ['REVIEWS-OPTIONAL', 'MODULES'], 'Reviews off, then back on: off
   await p.context().close();
 }, ['entry', 'parity']);
 
+/* REVIEWS-OFF-WORDS (RS1, docs/design/round-4/reviews-switch/spec.md 2 and 7): with Reviews off, the app's own words name
+   no review outside Workspace, Features, History's unlinked names and the closed page's sentence. What people wrote
+   (goal titles such as "Time to first review", asks, notes) is data, not the app's words, so it is taken out first. */
+const ownWords = (text, s) => {
+  const theirs = [...s.goals.map((g) => g.title), ...(s.requests || []).flatMap((r) => [r.ask, r.answer]), ...s.decisions.map((d) => d.note), ...s.reviews.map((r) => r.name), ...(s.checkIns || []).flatMap((c) => [c.note, c.pathToGreen && c.pathToGreen.needs, c.pathToGreen && c.pathToGreen.plan])]
+    .filter((x) => typeof x === 'string' && x.length > 2).sort((a, b) => b.length - a.length);
+  let t = text.replace(/“[^”]*”/g, '');
+  for (const x of theirs) t = t.split(x).join('');
+  return t;
+};
+
+journey('U148', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews off, the clock without a review: the read-back says check-ins are still due by Thursday; then no page Rhea opens calls the deadline a review, and her check-in’s receipt says the week is in “by Thursday”', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/workspace/features'));
+  const box = p.getByRole('checkbox', { name: /^Reviews/ });
+  await box.scrollIntoViewIfNeeded();
+  await h.click(box);
+  const sheet = p.getByRole('dialog', { name: /Switch off Reviews in/ });
+  await sheet.waitFor();
+  const says = (await sheet.innerText()).replace(/\s+/g, ' ');
+  const s0 = await h.snapshot();
+  const risks = s0.decisions.filter((d) => d.kind === 'note' && !d.removedAt && /^We accept the risk: /.test(d.note) && s0.goals.some((g) => g.id === d.goalId && !g.removedAt)).length;
+  h.set('attention', says.includes('Check-ins are still due by Thursday. “Before the review” becomes “by Thursday” on Home, in the check-in and in the count of goals checked in on time.')
+    && (risks ? says.includes(`${risks} accepted risk`) : !/accepted risk/.test(says)), `the read-back does not say when check-ins are due, or miscounts the ${risks} accepted risks: ${says.slice(0, 500)}`);
+  await h.checkpoint('read-back');
+  await h.click(sheet.getByRole('button', { name: 'Switch off Reviews' }));
+  await see(p, 'Reviews is off in');
+  h.set('one-action', true);
+  // Rhea, who owns goals, on the pages she uses: none names a review in the app's own words.
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+  const s = await h.snapshot();
+  const named = [];
+  for (const route of ['/', '/check-in', '/goals', '/goals?scope=mine', '/goals/ci-docker', '/watching', '/people/rhea', '/teams/cicd', '/data']) {
+    await p.goto(url(route));
+    await p.locator('main').first().waitFor();
+    await p.waitForTimeout(300);
+    // History's names of past reviews are words, not links, and stay (spec 2.3): History is left out.
+    const text = await p.locator('main').evaluate((m) => { const c = m.cloneNode(true); c.querySelectorAll('#history, [data-part="History"]').forEach((e) => e.remove()); return c.innerText; });
+    const hit = ownWords(text, s).match(/[^\n]{0,40}\breview(s|ed|ing)?\b[^\n]{0,40}/i);
+    if (hit) named.push(`${route}: “${hit[0].trim()}”`);
+  }
+  h.set('finish', !named.length, `with Reviews off a page names a review: ${named.join('; ')}`);
+  // Her check-in: both due goals, as in U1; the receipt says the week is in by Thursday.
+  await p.goto(url('/check-in?start=1'));
+  const before = await h.snapshot();
+  const plan = (id) => before.goals.find((g) => g.id === id).plan;
+  await h.fill(p.getByLabel('This week’s value'), String(Math.round(planAt(plan('ci-docker'), NOW)) - 2));
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Check-in saved');
+  await h.click(p.getByRole('button', { name: /Next: / }));
+  await h.fill(p.getByLabel('This week’s value'), '0.40');
+  await h.click(p.getByRole('button', { name: /^Keep .* and say why$/ }));
+  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await h.click(p.getByRole('button', { name: 'Change landed early' }));
+  await h.fill(p.getByLabel('What happened'), 'The runner budget came through a week early.');
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, `checked in for week ${NOW}`);
+  const receipt = (await p.locator('.ci-week-done').innerText()).trim();
+  h.set('progress', new RegExp(`checked in for week ${NOW}, by Thursday\\.$`).test(receipt) && !/review/i.test(receipt), `the receipt says “${receipt}”, not “…, by Thursday.”`);
+  await h.checkpoint('receipt');
+  const after = await h.snapshot();
+  h.set('logged', after.changes.some((c) => c.entity === 'workspace' && c.summary === 'Switched off Reviews') && after.changes.filter((c) => c.actorId === 'rhea' && c.action === 'posted' && new RegExp(`week ${NOW}:`).test(c.summary)).length >= 2, 'switching off or the two check-ins were not logged');
+  h.set('errors', true);
+  h.set('entry', true);
+  await p.context().close();
+}, ['parity', 'budget']);
+
+journey('U149', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews back on after a week off: switched off on Monday 2 Nov and on again on Friday 6 Nov, every session whose date passed while it was off moves to its next date, so neither Reviews nor Home says Not held yet', 8, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  const on = (day, path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  await p.goto(on('2026-11-02', '/workspace/features'));
+  const box = p.getByRole('checkbox', { name: /^Reviews/ });
+  await box.scrollIntoViewIfNeeded();
+  await h.click(box);
+  await h.click(p.getByRole('dialog', { name: /Switch off Reviews in/ }).getByRole('button', { name: 'Switch off Reviews' }));
+  await see(p, 'Reviews is off in');
+  // Friday: Monday's to Thursday's sessions all passed while it was off.
+  await p.goto(on('2026-11-06', '/workspace/features'));
+  await box.scrollIntoViewIfNeeded();
+  if (await box.isChecked()) fail('Reviews came back on by itself on Friday (the switch was not kept)');
+  h.set('entry', true);
+  await h.click(box);
+  await see(p, 'Reviews is on in');
+  h.set('one-action', true);
+  await p.goto(on('2026-11-06', '/reviews'));
+  await p.locator('.reviews-list').first().waitFor();
+  const list = await p.locator('main').innerText();
+  await h.checkpoint('reviews back on');
+  await p.goto(on('2026-11-06', '/'));
+  await p.locator('.page.home').waitFor();
+  const home = await p.locator('[data-part="Home"]').innerText();
+  h.set('finish', /Platform leadership weekly/.test(list) && !/Not held yet/.test(list) && !/Not held yet/.test(home), `back on Friday: ${/Not held yet/.test(list) ? 'Reviews says a session is Not held yet' : ''}${/Not held yet/.test(home) ? ' Home says Not held yet' : ''}${/Platform leadership weekly/.test(list) ? '' : ' the weekly is missing'}`);
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.summary === 'Switched off Reviews') && s.changes.some((c) => c.summary === 'Switched on Reviews'), 'switching off and on was not logged');
+  h.set('attention', true);
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['parity', 'budget']);
+
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals?scope=all'));
