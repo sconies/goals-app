@@ -123,6 +123,8 @@ export interface HomeFacts {
   asks: Waiting[];
   /** Goals proposed for the viewer by someone else, not yet opened (goal entry rule 14, `proposalAsks`'s `for-you`). */
   proposals?: ProposedForYou[];
+  /** How many rows Home lists under "Proposed goals" (for you, and waiting 8 weeks or more): asked of the viewer, so the quiet line counts them. */
+  proposalRows?: number;
 }
 
 /** A goal proposed for the viewer by someone else that they haven't opened, as the lead reads it. */
@@ -238,7 +240,12 @@ export function proposalLead(list: readonly ProposedForYou[], today: string): Le
 /** Section 2.1's quiet line: what Home says when nothing is asked of the viewer today. Never "You’re all set". */
 export function quietLine(f: HomeFacts): Quiet {
   // While asks wait on the viewer ("Needs your response"), Home doesn't say nothing is asked (HM1 review).
-  const sentence = f.asks.length ? `${f.asks.length === 1 ? 'One ask waits' : `${f.asks.length} asks wait`} for your response.` : 'Nothing is asked of you today.';
+  // Proposed goals listed under it are asked of the viewer too (goal entry rule 14; build review of #319).
+  const n = f.asks.length, k = f.proposalRows ?? 0;
+  const goalsN = `${k} proposed ${k === 1 ? 'goal' : 'goals'}`;
+  const sentence = n && k ? `${n === 1 ? 'One ask' : `${n} asks`} and ${goalsN} wait for your response.`
+    : n ? `${n === 1 ? 'One ask waits' : `${n} asks wait`} for your response.`
+    : k ? `${k === 1 ? 'A proposed goal waits' : `${goalsN} wait`} for your response.` : 'Nothing is asked of you today.';
   if (f.starts) return { sentence, line: `${f.cycleName} starts on ${longDay(f.starts.on)}. The first check-ins are due by ${longDay(f.starts.firstDue)}.`, buttons: [] };
   if (f.ended) return { sentence, line: `${f.cycleName} has ended.`, buttons: [] };
   const c = f.checkIns;

@@ -841,12 +841,14 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | State | What it says | Shown when |
 |---|---|---|
+| error | “Couldn’t show what … would add: part of Faro didn’t load. Check your connection and try again. Nothing is los…” | always |
 | error | “Couldn’t create the workspace:” | always |
 
 **Buttons, and who sees them**
 
 | Button | Kind | Shown when |
 |---|---|---|
+| “Try again” | button | always |
 | “Start over” | button | `restored` |
 | “Change” | button | `d.step === 0` and `!cycleOpen` |
 | “Same as above (…)” | button | `d.step === 2` and `!r.team.trim() && above && above !== d.me.team.trim()` |
@@ -1303,7 +1305,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Field | Kind | Shown when |
 |---|---|---|
-| “Troubled trees only Troubled trees” | checkbox | always |
+| “Troubled trees only Troubled trees” | checkbox | `!proposed?.size` |
 
 **States**
 

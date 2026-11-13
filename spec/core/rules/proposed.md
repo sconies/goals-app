@@ -90,6 +90,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 14: proposed goals › GE10 review: a stages goal proposed with a stage already done saves no check-in
 - rule 14: proposed goals › GE10 review: marking an owner as left hands over their proposed goals too
 - rule 14: proposed goals › a goal with a check-in can’t go back to proposed, by the menu or by a file
+- rule 14: proposed goals › build review of #349: a goal from another year can’t go back to proposed; an ask on a goal sent back to proposed stays on Home
 - rule 14: proposed goals › a goal proposed 9 weeks ago asks its owner on Home
 - rule 14: proposed goals › it carries into the next year as proposed
 - rule 14: proposed goals › New goal’s last step: the question and “After you propose it”

@@ -245,6 +245,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 - ““…” is already proposed.”
 - ““…” is stopped.”
 - “Only … (its owner) or an admin can make it proposed again.”
+- ““…” is in another year, so it can’t go back to proposed.”
 
 **AI tools that do the same:** none
 

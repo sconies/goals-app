@@ -15,6 +15,10 @@ export interface SetupFilePreviewProps {
   name: string;
   goals: number;
   people: number;
+  /** The Goals rows that set-up can't build until their Must fix or Check is settled: counted, and said. */
+  held: number;
+  /** The Goals rows marked Example, skipped. */
+  examples: number;
   /** The engine's groups, notes left out. */
   groups: readonly Group[];
   issues: readonly Issue[];
@@ -31,14 +35,14 @@ export function SetupFilePreview(p: SetupFilePreviewProps) {
   const checks = p.groups.filter((g) => g.level === 'check');
   const answered = Object.keys(p.answers).filter((id) => p.said[id] && !p.groups.some((g) => g.id === id));
   const mustRows = new Set(p.issues.filter((i) => i.level === 'must').map(rowKey)).size;
-  const held = new Set(p.issues.filter((i) => i.level === 'must' && i.sheet === 'Goals').map(rowKey)).size;
+  const held = p.held;
   const block = (g: Group) => <IssueGroup key={g.id} g={g} rows={p.issues.filter((i) => i.group === g.id)} prior={p.answers[g.id]} source={p.source} valueOf={p.valueOf} onAnswer={(x) => p.onAnswer(g, x)} />;
   const line = (id: string) => <Answered key={id} id={id} title={p.said[id]!.title} label={p.said[id]!.label} onChange={() => p.onClear(id)} />;
   return (
     <section className="stack setup-file" aria-labelledby="setup-file">
       <h2 className="h2" id="setup-file">From {p.name}</h2>
-      {/* Counts never leave a wrong row out (SETUP-UPLOAD): a goal stopped by a Must fix is counted, and said. */}
-      <p>{n(p.goals + held, 'goal')} and {n(p.people, 'person', 'people')} would be added{held ? `, once ${held === 1 ? 'the goal' : `the ${held} goals`} below ${held === 1 ? 'is' : 'are'} settled` : ''}. Nothing has been saved.</p>
+      {/* Counts never leave a wrong row out (SETUP-UPLOAD): a goal stopped by a Must fix or a Check is counted, and said. */}
+      <p>{n(p.goals + held, 'goal')} and {n(p.people, 'person', 'people')} would be added{held ? `, once ${held === 1 ? 'the goal' : `the ${held} goals`} below ${held === 1 ? 'is' : 'are'} settled` : ''}. {p.examples ? ` ${n(p.examples, 'row')} marked Example ${p.examples === 1 ? 'is' : 'are'} skipped.` : ''} Nothing has been saved.</p>
       {must.length > 0 && (
         <section className="stack import-section" aria-labelledby="setup-must">
           <h3 className="h3" id="setup-must">Must fix</h3>
