@@ -5,7 +5,7 @@
    Home has no “Goals you watch” and Getting started no “Watch the goals you care about”; a goal's page has no Watch
    and no “Watched by”; Help lists none of their articles and each article's address says the feature is off; the
    Features page shows them under their groups with “Off” beside each switch. Then every one back on, and each door
-   opens again. The AI tools' refusals and the actions' are unit tests (src/modules/*/tools.test.ts,
+   opens again. The AI tools' refusals and the actions' are unit tests (each module’s tools.test.ts,
    src/app/actions.test.ts). */
 const SWITCHES = [
   { name: 'Watching', help: 'watching' },
