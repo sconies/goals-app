@@ -70,6 +70,19 @@ const tools: ToolDef[] = [
     },
   },
   {
+    name: 'unmark_reviewed',
+    title: 'Undo marking goals reviewed',
+    description: 'Undo marking one or more goals reviewed in a review (review_call with acknowledge): they go back on the agenda. Whoever marked them, or an admin. The log keeps both.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['call_ids'], properties: { call_ids: { type: 'array', items: { type: 'string' }, description: 'The marks’ IDs (kind acknowledge), from get_review.' } } },
+    annotations: WRITE,
+    async run(a, ctx) {
+      const ids = ((a.call_ids as unknown[] | undefined) ?? []).map(String);
+      const marks = ctx.snapshot.decisions.filter((d) => ids.includes(d.id));
+      if (!marks.length) throw new Error('There’s no mark with those IDs. Use get_review.');
+      return save(ctx, R.unmarkReviewed(ax(ctx), marks), `Undone: ${marks.length === 1 ? 'back' : `${marks.length} goals back`} on the agenda`, '');
+    },
+  },
+  {
     name: 'save_review',
     title: 'Set up or change a review',
     description: 'Set up a review (anyone can), or change one (someone in it, whoever set it up, or an admin): its name, how often, the weekday, the goals it walks (goals, goals with everything feeding them, or whole levels) and who’s in it. Without review_id it sets up a new one.',

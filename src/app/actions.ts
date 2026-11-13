@@ -34,10 +34,13 @@ let goalEntry: GoalEntry | null = null;
 export async function loadGoalEntry(): Promise<GoalEntry> { return (goalEntry ??= await import('../domain/goalEntry')); }
 const entry = (): GoalEntry => { if (!goalEntry) throw new Error('Goal entry hasn’t loaded yet: call ready() first.'); return goalEntry; };
 /** Loads what an action needs before it runs: the dispatcher calls it first. */
-export async function ready(name: string): Promise<void> {
+export async function ready(name: string, input?: unknown): Promise<void> {
   if (NEEDS_ENGINE.has(name)) await loadEngine();
   if (name === 'saveGoal') await loadGoalEntry();
   await MODULE_ACTIONS[name]?.ready?.();
+  // What a goal form saves with the goal (saveGoal's `also`) loads with it.
+  const also = name === 'saveGoal' ? (input as SaveGoalWith | undefined)?.also : undefined;
+  if (also) await ready(also.action);
 }
 const eng = (): Engine => { if (!engine) throw new Error('The change engine hasn’t loaded yet: call ready() first.'); return engine; };
 import type { Draft } from '../domain/checkin';
@@ -45,7 +48,7 @@ import type { SaveGoalInput } from '../domain/goalEntry';
 import { findGoal } from '../domain/goalKey';
 import type { Tables } from '../domain/sheets';
 import type { TableLayout } from '../domain/tableLayout';
-import type { Goal, Person, Retro, Review, Watch, Workspace } from '../domain/types';
+import type { Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
 import type { Commit } from '../domain/commit';
 import MODULE_PARTS from 'virtual:faro-modules/actions';
 import { recordsOn } from '../core/records';
@@ -69,6 +72,9 @@ const reviewOf = (x: RunContext, id: string): Review => x.snapshot.reviews.find(
 const callOf = (x: RunContext, id: string) => A.findAsk(x, id) ?? x.snapshot.decisions.find((d) => d.id === id) ?? gone('note');
 
 type Who = { goalsTo?: string | null; asksTo?: string | null };
+/** A goal's save, with what the form's module place chose to save with it (goal.measure): a module's action and its
+    input, less the goal, which the save names (`goalId`). */
+export type SaveGoalWith = SaveGoalInput & { also?: { action: string; input: Record<string, unknown> } };
 
 /**
  * The actions, by name. Each is (context, input) → what the rule returns: a Commit to save, `{ commit, … }`, or null
@@ -84,8 +90,17 @@ export const ACTIONS = {
     const goalId = goalOf(x, i.goalId).id;
     return eng().postCheckIn(x, { goalId, week: i.week ?? x.week, draft: i.draft, mode: i.mode, reason: i.reason });
   },
-  /* A goal from New goal or the edit page (goal entry, rule 7): the same rights and Must fix as every other door. */
-  saveGoal: (x: RunContext, i: SaveGoalInput) => entry().planGoal(x, i),
+  /* A goal from New goal or the edit page (goal entry, rule 7): the same rights and Must fix as every other door. With
+     `also`, what the form's module place chose (goal.measure) runs on the workspace with the goal in it, for the goal as
+     saved, and is saved in the same commit: run after the save, it would see the workspace from before it. */
+  saveGoal: (x: RunContext, i: SaveGoalWith) => {
+    const { also, ...rest } = i;
+    const out = entry().planGoal(x, rest);
+    if (!also) return out;
+    const g = out.goal, given = { ...also.input, goalId: g.id };
+    const extra = commitOf(also.action, performAny({ ...x, snapshot: { ...x.snapshot, goals: [...x.snapshot.goals.filter((v) => v.id !== g.id), g] } }, also.action, given), given);
+    return { ...out, commit: out.commit ? A.mergeCommits(out.commit, extra) : extra };
+  },
   /* A proposed goal (GE10, rule 14): made active by its owner or an admin. */
   activate: (x: RunContext, i: { goalId: string; fromWeek?: number }) => eng().activate(x, { goalId: goalOf(x, i.goalId).id, fromWeek: i.fromWeek }),
   /* An active goal with no check-ins, by its owner or an admin: proposed again (GE10, rule 14). */
@@ -146,6 +161,9 @@ export const ACTIONS = {
   renameWorkspace: (x: RunContext, i: { name: string }) => A.renameWorkspace(x, x.workspace, i.name),
   setRecording: (x: RunContext, i: { on: boolean }) => A.setRecording(x, x.workspace, i.on),
   setModule: (x: RunContext, i: { moduleId: string; on: boolean }) => A.setModule(x, x.workspace, x.modules, i.moduleId, i.on),
+  /* A removal's Undo, straight after it (its message): every record it changed back as it was. Unlike the others, the
+     input carries records: the removal as saved and the workspace just before it, which the Undo holds. */
+  undoRemoval: (x: RunContext, i: { removal: Commit; before: Snapshot }) => R.undoRemoval(x, i.removal, i.before),
   restoreRemoved: (x: RunContext, i: { kind: R.RemovedKind; id: string }) => R.restoreRemoved(x, i.kind, i.id, recordsOn(x.workspace)),
   createToken: (x: RunContext, i: { personId: string; name: string }) => A.createToken(x, i.personId, i.name),
   revokeToken: (x: RunContext, i: { tokenId: string }) => A.revokeToken(x, i.tokenId),

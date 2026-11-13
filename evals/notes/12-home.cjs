@@ -37,6 +37,13 @@ module.exports = {
             hrefs: [...(home?.querySelectorAll('a[href]') ?? [])].map((a) => a.getAttribute('href').replace(/^\/demo/, '')),
             // U2's measure: the first of your goals that needs attention, its title ending 8px above the fold.
             firstGoal: (() => { const t = home?.querySelector('.home-mine .arow .arow-title'); return t ? t.getBoundingClientRect().bottom : null; })(),
+            // Every ask's waiting line (the part before " · "), cut on a phone (review of #369, medium 4).
+            cutMeta: [...(home?.querySelectorAll('.needs-you .need-meta') ?? [])].map((e) => {
+              const node = [...e.childNodes].find((n) => n.nodeType === 3 && n.textContent.includes(' · '));
+              if (!node) return null;
+              const r = document.createRange(); r.setStart(node, 0); r.setEnd(node, node.textContent.indexOf(' · '));
+              return r.getBoundingClientRect().right > e.getBoundingClientRect().right + 0.5 ? (e.textContent || '').trim() : null;
+            }).filter(Boolean),
           };
         });
         check(seen.lead !== 'missing', `${at}: Home has neither a lead nor the quiet line`);
@@ -50,6 +57,7 @@ module.exports = {
         if (touch && seen.firstGoal != null) check(seen.firstGoal <= seen.fold - 8, `${at}: the first of your goals that needs attention ends at ${Math.round(seen.firstGoal)}px, under the fold at ${Math.round(seen.fold)}px`);
         const bad = seen.hrefs.filter((x) => /^\/goals(\?)?$/.test(x.replace(/[?&]today=[\d-]+/, '')) || /[?&]show=/.test(x));
         check(!bad.length, `${at}: a bare or old Goals link (${bad.join(' ')})`);
+        if (touch) check(!seen.cutMeta.length, `${at}: an ask’s waiting line is cut (${seen.cutMeta.join(' | ')})`);
       }
       await c.close();
     }

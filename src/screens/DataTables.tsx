@@ -10,9 +10,9 @@ import '../app/engineReady';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { Place, useModules } from '../core/app';
-import { reviewsOn } from '../app/reads';
-import { examplesLine, type Answers, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
+import { Place } from '../core/app';
+import { exportOn } from '../core/records';
+import { examplesLine, type Answers, type Rec, type Tables } from '../domain/changeset';
 import { workbook, type Cell } from '../domain/export';
 import { BOUND_WORDS, CAUSE_WORDS, isEditable, LEVEL_WORDS, RECOVERY_WORDS, SHAPE_WORDS } from '../domain/columns';
 import { Chip, Sheet } from '../ui/bits';
@@ -23,7 +23,7 @@ import { MenuButton } from '../ui/MenuButton';
 import { ColumnsSheet, readLocal, SaveLayoutSheet, useColumnMoves, writeLocal, type Local } from './DataLayout';
 import { FilterEditor } from './DataFilters';
 import {
-  applyTable, columnKind, describeFilter, filterEntries, parseFilters, parseSort, sortIndex,
+  applyTable, columnKind, warmTableWords, describeFilter, filterEntries, parseFilters, parseSort, sortIndex,
   type ColumnKind, type PropFilter, type TableSort,
 } from '../domain/tableFilter';
 import {
@@ -95,7 +95,7 @@ export function DataTables() {
   useEffect(() => { if (params.has('s')) setView({}, 'remembered'); });
   const canEdit = app.viewer.admin;
   // With Reviews off (RS) Asks has no Review column to choose.
-  const reviews = reviewsOn(useModules().on);
+  const reviews = exportOn(app.ws).reviews;
   const book = useMemo(() => workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, reviews }), [app.ws, app.snapshot, app.cycle, app.week, app.today, reviews]);
   const tables = useMemo(() => {
     const out = {} as Record<Tab, { head: string[]; rows: { key: string; cells: string[]; locked?: string }[] }>;
@@ -162,6 +162,16 @@ export function DataTables() {
   const [choosing, setChoosing] = useState(false);
   // The search reads the columns shown, as Goals' does (find spec, 2.1); a filter may name any column.
   const shown = applyTable(rows, head, q, filters, sort, order);
+  // The words the search reads, split while nothing else is happening, so the first key on a large table is as quick
+  // as the rest (N12).
+  const orderKey = order.join('\u0001');
+  useEffect(() => {
+    let at = 0;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const slice = () => { at = warmTableWords(rows, head, order, at, 2000); if (at >= 0) t = setTimeout(slice, 0); };
+    t = setTimeout(slice, 0);
+    return () => clearTimeout(t);
+  }, [rows, head, orderKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const kinds = useMemo(() => Object.fromEntries(head.map((c, i) => [c, columnKind(rows.map((r) => r.cells[i] ?? ''))])) as Record<string, ColumnKind>, [head, rows]);
   const narrowed = !!q.trim() || filters.length > 0;
 
@@ -216,7 +226,7 @@ export function DataTables() {
     Team: { kind: 'team', idOf: (v) => ids.team.get(v) ?? null, valueOf: (id) => app.team(id)?.name ?? '', none: 'No team' },
   };
 
-  const [cs, setCs] = useState<ChangeSet | null>(null);
+  const [cs, setCs] = useState<import('../app/state').Preview | null>(null);
   const [reason, setReason] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);

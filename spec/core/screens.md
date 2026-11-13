@@ -527,14 +527,14 @@ None written in its markup beyond the screen itself: it draws what it has.
 |---|---|---|
 | “Why change it?” | textarea | `replanning` |
 | “Name …” | text | always |
-| “What it measures” | textarea | `goal.kind !== 'milestone'` |
-| “Baseline (…) …” | text | `goal.kind === 'metric'` |
-| “From” | WeekPick | `goal.kind === 'metric'` |
-| “Target (…) …” | text | `goal.kind === 'metric'` |
-| “To” | WeekPick | `goal.kind === 'metric'` |
-| “Lower limit …” | text | `goal.kind === 'range'` and `d.bound === 'between'` |
-| “Upper limit / Limit …” | text | `goal.kind === 'range'` |
-| “Warn this close …” | text | `goal.kind === 'range'` |
+| “What it measures” | textarea | `d.kind !== 'milestone'` |
+| “Baseline (…) …” | text | `d.kind === 'metric'` |
+| “From” | WeekPick | `d.kind === 'metric'` |
+| “Target (…) …” | text | `d.kind === 'metric'` |
+| “To” | WeekPick | `d.kind === 'metric'` |
+| “Lower limit …” | text | `d.kind === 'range'` and `d.bound === 'between'` |
+| “Upper limit / Limit …” | text | `d.kind === 'range'` |
+| “Warn this close …” | text | `d.kind === 'range'` |
 | “Owner” | PickOne | always |
 | “Team” | PickOne | always |
 | “Feeds into” | PickOne | always |
@@ -558,9 +558,9 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “All goals” | link | always |
 | “Back to the goal” | link | always |
 | “Discard them” | button | `restored` |
-| “At most” | button | `goal.kind === 'range'` |
-| “At least” | button | `goal.kind === 'range'` |
-| “Between” | button | `goal.kind === 'range'` |
+| “At most” | button | `d.kind === 'range'` |
+| “At least” | button | `d.kind === 'range'` |
+| “Between” | button | `d.kind === 'range'` |
 | “… (worked out when it shows)” | primary | always |
 
 ## Print
@@ -787,12 +787,14 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | State | What it says | Shown when |
 |---|---|---|
+| error | “Couldn’t show what … would add: part of Faro didn’t load. Check your connection and try again. Nothing is los…” | always |
 | error | “Couldn’t create the workspace:” | always |
 
 **Buttons, and who sees them**
 
 | Button | Kind | Shown when |
 |---|---|---|
+| “Try again” | button | always |
 | “Start over” | button | `restored` |
 | “Change” | button | `d.step === 0` and `!cycleOpen` |
 | “Same as above (…)” | button | `d.step === 2` and `!r.team.trim() && above && above !== d.me.team.trim()` |
@@ -1304,7 +1306,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Field | Kind | Shown when |
 |---|---|---|
-| “Troubled trees only Troubled trees” | checkbox | always |
+| “Troubled trees only Troubled trees” | checkbox | `!proposed?.size` |
 
 **States**
 
@@ -1617,7 +1619,9 @@ None: nothing to type or choose here.
 | “Add a note” | button | `mustDecide` |
 | “Ask … a question” | button | `!own` |
 | “Add an action” | button | `!mustDecide` |
+| “Propose a new goal” | button | always |
 | “Skip for now” | button | `!reviewed` |
+| “Propose a new goal instead” | button | `mode === 'action'` and `!existing` and `onPropose` |
 | “Cancel” | button | always |
 | “Saving… / Save the decision / Save the next step / Save …” | primary | always |
 

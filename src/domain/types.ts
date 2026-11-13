@@ -133,6 +133,9 @@ interface GoalBase {
   proposedAt?: string | null;
   /** Who proposed it: set only with proposedAt. While it is proposed they may change or withdraw it too. */
   proposedBy?: Id | null;
+  /** The review (Review.id) it was proposed in, from "Propose a new goal" in the walk (GE10, decision 15); kept once it
+      is made active, so the next session's "Last time" can say so. Left out when it was proposed anywhere else. */
+  proposedIn?: Id | null;
 }
 
 export interface PendingChange {

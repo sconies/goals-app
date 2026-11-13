@@ -14,6 +14,7 @@ import { useImportPlan } from './importPlan';
 import { PAGE } from '../../domain/importLimits';
 import { importStore } from './importStore';
 import { leftRowsOf } from './rowsFile';
+import { CheckClose } from './CheckClose';
 import './import.css';
 
 type Show = 'all' | ChangeShow;
@@ -57,9 +58,10 @@ export function Changes() {
     setBusy(true);
     setSaving(cs);
     setProblem('');
-    const importId = final.commit.changes.find((c) => c.action === 'imported')?.entityId;
     try {
-      await app.applyChanges(final);
+      // The import's id is the saved one: the change set is worked out again when saved (AX2), with new ids.
+      const saved = await app.applyChanges(final);
+      const importId = saved.commit?.changes.find((c) => c.action === 'imported')?.entityId;
       if (importId && base) importStore.set({ done: { importId, tables: base, rows: leftRowsOf(left) } });
       else app.toast(`Saved: ${describe(cs).toLowerCase()}`);
       nav(importId ? `/data/import/done/${importId}` : '/goals');
@@ -71,6 +73,7 @@ export function Changes() {
   };
   return (
     <div className="page narrow import-check">
+      <CheckClose />
       <div className="page-head">
         <h1 className="title-xl">The changes</h1>
         <span className="hint">{saving ? 'Saving…' : 'Nothing has been saved.'}</span>

@@ -90,15 +90,26 @@ export function reviewSession(r: Review, s: Snapshot, cycle: Cycle, today: Date,
   const x = at(sessionWeek(r, week, cycle));
   // A session whose date passed while Reviews was switched off, and wasn't held, isn't outstanding once it is back on:
   // the current session is the next date on its cadence (FT2; README 2.2 of the reviews-switch spec).
+  if (x.done >= x.total) return x;
   const off = offSpell(s.changes);
-  return off && x.date >= off.from && x.date < off.to && x.done < x.total ? at(sessionWeek(r, x.week + 1, cycle)) : x;
+  return off && x.date >= off.from && x.date < off.to ? at(sessionWeek(r, x.week + 1, cycle)) : x;
 }
 
+type Spell = { from: string; to: string } | null;
+/** offSpell's answer for each change log read: it scans the whole log, and every session asks (N29). */
+const spells = new WeakMap<object, Spell>();
 /**
  * The days Reviews was last switched off and back on (yyyy-mm-dd), from the change log setModule writes (its Reviews
  * field going Off, then On), or null while it hasn't come back on. Nothing is stored for it (FT2).
  */
-export function offSpell(changes: readonly { entity: string; at: string; diffs: readonly { field: string; to: string }[] }[]): { from: string; to: string } | null {
+export function offSpell(changes: readonly { entity: string; at: string; diffs: readonly { field: string; to: string }[] }[]): Spell {
+  const known = spells.get(changes);
+  if (known !== undefined) return known;
+  const spell = readSpell(changes);
+  spells.set(changes, spell);
+  return spell;
+}
+function readSpell(changes: Parameters<typeof offSpell>[0]): Spell {
   const last = (to: string, before = '~') => changes.filter((c) => c.entity === 'workspace' && c.at < before && c.diffs.some((d) => d.field === 'Reviews' && d.to === to)).reduce<string | null>((m, c) => (!m || c.at > m ? c.at : m), null);
   const on = last('On');
   const off = on && last('Off', on);

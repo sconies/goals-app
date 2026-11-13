@@ -18,7 +18,7 @@ Module id `reviews`, in [src/modules/reviews/](../../../src/modules/reviews/modu
 | Workspace sections | none |
 | Database tables | none |
 | Its own records | none |
-| AI tools | `list_reviews`, `get_review`, `review_call`, `save_review`, `end_review`, `delete_review` |
+| AI tools | `list_reviews`, `get_review`, `review_call`, `unmark_reviewed`, `save_review`, `end_review`, `delete_review` |
 | Help articles | “Reviews” (`reviews`) |
 | Outside its folder | none |
 

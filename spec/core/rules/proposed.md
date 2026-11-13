@@ -9,13 +9,13 @@ A goal can be proposed before anyone is held to it: visible to everyone, never j
 
 **The words.** *Proposed*: the goal's state, visible, not judged, nothing due. *Active*: every other goal that isn't stopped, said only where the two are set side by side. *Propose*: save a new goal as proposed. *Make it active*: the act that starts it (not "approve": nobody is asked for permission; not "start", which From already means). *Withdraw*: remove a proposed goal.
 
-**Data.** A goal is proposed while `proposedAt` is set (with `proposedBy`, who proposed it) and it is neither removed nor stopped (`isProposed`). Making it active clears both; History has when.
+**Data.** A goal is proposed while `proposedAt` is set (with `proposedBy`, who proposed it) and it is neither removed nor stopped (`isProposed`). Making it active clears both; History has when. A goal proposed in a review's walk also keeps the review in `proposedIn`, and keeps it once active.
 
 **Never judged.** `judged(goals)` is those neither proposed nor stopped, and every rule that leaves a stopped goal out leaves a proposed one out the same way: the cycle's scope (`scopeToCycle`) keeps proposed goals beside its goals, never among them, so no status rule is ever run on one and it is in no count, health line, Needs attention, review agenda, check-in, wrap-up, streak or metric comparison. A proposed goal may name its metric: the metric's page lists it under its goals table as "Proposed · {n}" with no numbers (the metrics module's `proposedOfMetric`), and `get_metric` gives it apart as `proposed`. A check-in on one is refused at every door: "This goal is proposed, so there is nothing to check in. Make it active first." Its summary has the state `proposed` and the status word "Proposed", drawn as a word alone, with no shape.
 
 **Counted apart.** `goalCounts` gives active and proposed apart, and a count line adds "{n} proposed": "2 goals, worst first. 1 proposed". With the State filter on Proposed (`state=proposed`), Goals lists them newest first; the Board is one column, "Proposed"; the Map draws each in its tree with the goals above it for context, as a node with a dashed outline and the word, on no critical path and in no "Under it", and opening one goes to its page. Without the filter neither draws one.
 
-**Saving.** A new goal is proposed when "Is it under way?" is answered "Not yet: propose it", a file's State says proposed, or a tool's state does. While proposed, the type's own required fields (Baseline and Target, the Limit, the stages) are optional all together (`proposedMustFix`): a proposal that says none of them is stored as dated stages with no stages (`measureUnsaid`) and every screen says "How it’s measured isn’t said yet."; one that says part of it is judged as any goal is. No reason is ever asked of a change to a proposed goal.
+**Saving.** A new goal is proposed when "Is it under way?" is answered "Not yet: propose it", a file's State says proposed, or a tool's state does. While proposed, the type's own required fields (Baseline and Target, the Limit, the stages) are optional all together (`proposedMustFix`): a proposal that says none of them is stored as dated stages with no stages (`measureUnsaid`) and every screen says "How it’s measured isn’t said yet."; one that says part of it is judged as any goal is. No reason is ever asked of a change to a proposed goal. Its type can still change: the edit page has Type (Move a number · Keep a number in range · Hit dated stages) under "It’s proposed, so its type can still change."; an active goal's is refused at the save: "A goal’s type can’t change once it is active. Add a new goal instead."
 
 **Who.** Anyone may propose a goal for anyone. Its owner or an admin makes it active (`mayActivate`); whoever proposed it may also change or withdraw it while it is proposed (`mayChangeGoal`).
 
@@ -28,6 +28,8 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
 **Withdrawing** is deleting (domain/removal): Recently removed for 30 days, with Undo; History says "Withdrew the proposal “{goal}”".
 
 **Home** (`proposalAsks`): under "Proposed goals" in "Needs your response", a goal proposed for the viewer by someone else, not yet opened ("{Name} proposed a goal for you: “{goal}”."), and one proposed 8 weeks ago or more (`PROPOSED_ASK_WEEKS`) for its owner: "“{goal}” has been proposed for {n} weeks. Make it active, or withdraw it." Each has "Open it"; the second also "Not yet", which puts it off for 8 more weeks. Opening the goal as its owner ends the first; once it has waited 7 days it is Home's lead when no ask is (the Home rule's `proposalLead`). What each person opened and put off is kept behind the Prefs port. Never a status, a count or a flag. Proposing for someone else says so after the read-back: "{Owner} sees it on their Home as a proposal for them. Faro doesn’t send email."
+
+**In a review** (decision 15): "Propose a new goal" in the walk, beside "Add an action", opens a sheet: "What should the goal be called?" (the name's Must fix), "Who will own it?" (starts as the owner of the goal on screen; "Choose who will own it."), "It will feed" (starts as the goal on screen; "Nothing: top of its own tree"), then **Propose it**. It saves through `saveGoal` with `state` proposed and `proposedIn` the review, nothing else said; only a new proposed goal can name a review. The goal is not on the agenda and not counted in "{n} to discuss". Its owner's Home says where: "{Name} proposed a goal for you in {review}: “{goal}”." (`proposedInWords`) and the lead "{Name} proposed a goal for you in {review}"; with the review gone or Reviews off, " in {review}" is left out. The next session's "Last time" (`lastTime`: proposed in the review on a day after the session before it, and no later than its last word) adds, after the actions: "Proposed: {goal} ({key}). {Owner} hasn’t made it active yet." or "… {Owner} made it active on {date}." (`proposedLine`; the date is History's "State: Proposed → Active").
 
 **The carry.** A proposed goal carries into the next year as proposed.
 
@@ -50,16 +52,18 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Tunde makes G-132 active on Wednesday 25 Nov (week 48), From this week. | `From 40% in week 48 (23–29 Nov 2026) to 90% by week 53 (28 Dec 2026–3 Jan 2027): 5 weeks, not the 7 you proposed. Its first check-in is due by Thursday 26 Nov, then every week.` |
 | New goal’s last step, for your own goal, From this week. | `Not yet: propose it: Everyone can see it and comment. Nothing is due and it has no status until you or an admin make it active.` |
 | Proposed by Rhea for Tunde on 11 Nov; Tunde’s Home that day (not opened), then the owner’s Home 9 weeks later, opened. | `Rhea proposed a goal for you: “Signed artifacts in staging”. / “Signed artifacts in staging” has been proposed for 9 weeks. Make it active, or withdraw it.` |
+| Rhea proposed G-132 for Tunde in “Developer Productivity fortnightly”: Tunde’s Home; then, with Reviews off; then the next session’s Last time, before and after Tunde made it active on 24 Nov. | `Rhea proposed a goal for you in Developer Productivity fortnightly: “Signed artifacts in staging”. / Rhea proposed a goal for you: “Signed artifacts in staging”. / Proposed: Signed artifacts in staging (G-132). Tunde hasn’t made it active yet. / Proposed: Signed artifacts in staging (G-132). Tunde made it active on Tue 24 Nov.` |
 | The year ends with it still proposed. | `carry, still proposed` |
 
 ## Not self-explanatory
 
-- **Not self-explanatory:** A Map node and a Board column for proposed goals (with the filter on), Home’s two rows, “Make it proposed again” in the goal’s menu, the metric page’s listing and Reviews’ “Propose a new goal” are specified (2.15) but not yet built; the rules they need are here.
+- **Not self-explanatory:** A Map node and a Board column for proposed goals (with the filter on), Home’s two rows, “Make it proposed again” in the goal’s menu, the metric page’s listing and Reviews’ “Propose a new goal” were specified (2.15) and are built; the rules they need are here.
 - **Not self-explanatory:** Whether a goal for someone else should start proposed: New goal starts on “Not yet” for one (decision 16); a file or a tool starts it active unless State says proposed.
 
 ## Where it lives
 
-- [src/domain/proposed.ts](../../../src/domain/proposed.ts): `isProposed`, `judged`, `withProposed`, `measureEmpty`, `withdrawnSummary`, `proposalAsks`
+- [src/domain/proposed.ts](../../../src/domain/proposed.ts): `isProposed`, `judged`, `withProposed`, `measureEmpty`, `withdrawnSummary`, `proposalAsks`, `proposedInWords`
+- [src/domain/decide.ts](../../../src/domain/decide.ts): `lastTime`, `proposedLine`
 - [src/domain/proposedSummary.ts](../../../src/domain/proposedSummary.ts): `goalCounts`, `withProposedCount`, `measureUnsaid`, `proposedSummary`
 - [src/domain/proposedActions.ts](../../../src/domain/proposedActions.ts): `mayActivate`, `readyToActivate`, `activate`, `activated`, `backToProposed`
 - [src/domain/goalEntry.ts](../../../src/domain/goalEntry.ts): `proposedMustFix`, `unsaidDraft`
@@ -80,11 +84,14 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 14: proposed goals › Goals, Mine, as Tunde: the count line says the proposed goal apart
 - rule 14: proposed goals › a fortnight later it still says Proposed, and a check-in on it is refused in the check-in’s words
 - rule 14: proposed goals › Rhea proposes a goal for Camille with only a name: nothing measured yet; Camille’s Home asks; she may make it active, Rhea may change it, Oskar neither
+- rule 14: proposed goals › Proposed, its type can still change: Tunde turns G-132 into stages; an active goal’s type is refused
+- rule 14: proposed goals › Rhea proposes a goal for Camille in Developer Productivity fortnightly: Camille’s Home says where; the next session’s Last time names it, then says when Camille made it active
 - rule 14: proposed goals › Tunde makes it active in week 48: From becomes 48, read back with its dates; Undo makes it proposed again
 - rule 14: proposed goals › GE10 review: From before this week is asked at every door; a From outside the plan is refused
 - rule 14: proposed goals › GE10 review: a stages goal proposed with a stage already done saves no check-in
 - rule 14: proposed goals › GE10 review: marking an owner as left hands over their proposed goals too
 - rule 14: proposed goals › a goal with a check-in can’t go back to proposed, by the menu or by a file
+- rule 14: proposed goals › build review of #349: a goal from another year can’t go back to proposed; an ask on a goal sent back to proposed stays on Home
 - rule 14: proposed goals › a goal proposed 9 weeks ago asks its owner on Home
 - rule 14: proposed goals › it carries into the next year as proposed
 - rule 14: proposed goals › New goal’s last step: the question and “After you propose it”

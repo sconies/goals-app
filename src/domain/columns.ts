@@ -381,8 +381,9 @@ export const sheetsFor = (reviews: boolean) => (reviews ? [...SHEETS] : SHEETS.f
 export const START_HERE = 'Start here';
 /** Every sheet of the core's workbook, in order. */
 export const SHEET_NAMES = [START_HERE, ...SHEETS.map((x) => x.name)] as const;
-/** Every sheet's name with the modules' sheets (domain/records) after the core's: Start here first. */
-export const sheetNamesWith = (sheets: readonly ModuleSheet[] = []): string[] => [START_HERE, ...SHEETS.map((x) => x.name), ...sheets.map((x) => x.spec.name)];
+/** Every sheet's name with the modules' sheets (domain/records) after the core's: Start here first. With Reviews off
+    (`reviews` false) there is no Notes sheet (RS1). */
+export const sheetNamesWith = (sheets: readonly ModuleSheet[] = [], reviews = true): string[] => [START_HERE, ...sheetsFor(reviews).map((x) => x.name), ...sheets.map((x) => x.spec.name)];
 export const specOf = (kind: SheetKind) => SHEETS.find((x) => x.kind === kind)! as SheetSpec<unknown>;
 export const headersOf = (kind: SheetKind) => specOf(kind).columns.map((c) => c.header);
 export const columnOf = (kind: SheetKind, header: string) => specOf(kind).columns.find((c) => c.header.toLowerCase() === header.toLowerCase());

@@ -1,11 +1,19 @@
-/* Parity between the app and its AI assistants: for every action a person can take (each write in AppState) and every
-   screen they can read, the MCP tools that do the same, or why an assistant has no need of it. A test reads AppState and
-   the screens folder, so a new action or screen without an entry here fails the build. */
+/* Parity between the app and its AI assistants: for every action a person can take (each write in AppState, and every
+   action the dispatcher runs: app/actions.ts) and every screen they can read, the MCP tools that do the same, or why an
+   assistant has no need of it. A test reads AppState, the dispatcher's table and the screens folder, so a new action or
+   screen without an entry here fails the build. */
 
 type Entry = string[] | { notForAssistants: string };
 
-/** Each action in AppState (src/app/state.tsx) that changes something. */
+/** Each action in AppState (src/app/state.tsx) that changes something, and each action the dispatcher runs by name
+    (src/app/actions.ts ACTIONS) that no AppState member is named for (`planChanges`, the undo toasts, `arrive`). */
 export const ACTIONS: Record<string, Entry> = {
+  // The change engine itself, which the goal, check-in, people and bulk tools all run (src/mcp/tools.ts planChanges).
+  planChanges: ['bulk_change', 'create_goal', 'update_goal', 'set_plan_numbers', 'post_check_in', 'save_person'],
+  activate: ['make_goal_active'],
+  backToProposed: { notForAssistants: 'Making an active goal proposed again is an app step (GE10): an assistant brings a goal in already proposed (create_goal, state proposed) or makes one active (make_goal_active), and a goal with check-ins can’t go back.' },
+  recordStagesDone: { notForAssistants: 'Marking which stages were already done at set-up is the owner’s own first step in the app; an assistant brings a goal in with create_goal or a workbook (bulk_change), and the owner records done stages at the first check-in (post_check_in).' },
+  undoRemoval: { notForAssistants: 'Undoing a removal straight after it is the Undo on the app’s toast; an assistant that removed something brings it back with restore_removed (within 30 days).' },
   olderChanges: ['get_activity'],
   postCheckIn: ['post_check_in', 'bulk_change'],
   answerRequest: ['answer_request'],
@@ -22,6 +30,8 @@ export const ACTIONS: Record<string, Entry> = {
   acceptRisk: ['review_call'],
   addAction: ['add_action'],
   editCall: ['edit_call'],
+  unmarkReviewed: ['unmark_reviewed'],
+  arrive: { notForAssistants: 'An arrival is a person choosing their own name in the app for the first time; an assistant acts as someone who has already arrived, so there is nothing for it to say.' },
   watch: ['watch'],
   unwatch: ['unwatch'],
   saveReview: ['save_review'],
@@ -95,6 +105,7 @@ export const SCREENS: Record<string, Entry> = {
   DataLayout: ['list_views', 'save_table_view', 'delete_view', 'pin_view'],
   Import: ['bulk_change'],
   Check: ['bulk_change'],
+  CheckClose: ['bulk_change'],
   Large: ['bulk_change'],
   Changes: ['bulk_change'],
   Imported: ['get_activity', 'undo_import'],

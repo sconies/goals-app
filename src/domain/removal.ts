@@ -18,7 +18,6 @@ import { isTableView } from './tableLayout';
 import { VIA_LABEL, type Via } from './via';
 import { COMMENT_REMOVED, ENDED, LEFT, MIN_STOP_REASON, RESTORE_DAYS, STOPPED } from './vocabulary';
 import type { Ask, Change, CheckIn, Comment, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
-import { cycleDates } from './cycle';
 import { asBefore, hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsLeaving, rowsUndone, applyModuleRows, type ModuleRecords } from './records';
 
 const no = (msg: string): never => { throw new NotAllowed(msg); };
@@ -111,15 +110,8 @@ export function unmarkReviewed(x: ActionContext, made: Decision[]): Commit {
 
 const IMPORT_TOO_OLD = 'That import is over a year old, so it can’t be undone: too much may have changed since.';
 
-/** Whether a windowed load (Snapshot.history) left a cycle's check-ins out: it has some, and it ended before the window. */
-export function checkInsLeftOut(s: Pick<Snapshot, 'cycles' | 'history'>, cycleId: string): boolean {
-  const h = s.history;
-  if (!h || !h.checkInCycles.includes(cycleId)) return false;
-  const c = s.cycles.find((v) => v.id === cycleId);
-  return !c || cycleDates(c).lastDay < h.from.slice(0, 10);
-}
-/** Whether a windowed load left change-log entries from before this time out (anchors stay whatever their age). */
-export const changesLeftOut = (s: Pick<Snapshot, 'history'>, at: string) => !!s.history && Date.parse(at) < Date.parse(s.history.from);
+export { changesLeftOut, checkInsLeftOut } from './leftOut';
+import { changesLeftOut, checkInsLeftOut } from './leftOut';
 
 /* ---------- people ---------- */
 
@@ -850,9 +842,13 @@ export function restoreRemoved(x: ActionContext, kind: RemovedKind, id: string, 
 /**
  * Undo a removal straight after it (the Undo on its message): every record it changed goes back to how it was just
  * before, the people and asks it handed over and the goals it moved included, and a removed comment comes back. Logged
- * as restored. `before` is the whole workspace as it was just before the removal was saved.
+ * as restored. `before` is the whole workspace as it was just before the removal was saved. Whoever removed it, or an
+ * admin, may.
  */
 export function undoRemoval(x: ActionContext, removal: Commit, before: Snapshot): Commit {
+  // Whoever removed it, or an admin (R1): the Undo is on the remover's own message.
+  const by = removal.changes[0]?.actorId;
+  if (by && by !== x.actor.id && !x.actor.admin) no('Only whoever removed it, or an admin, can undo it.');
   const back = <T extends { id: string }>(list: T[] | undefined, from: T[] | undefined): T[] => (list ?? []).flatMap((r) => { const b = (from ?? []).find((v) => v.id === r.id); return b ? [asBefore(r, b)] : []; });
   const out: Commit = {
     people: back(removal.people, before.people),

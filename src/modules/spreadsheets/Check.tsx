@@ -2,14 +2,12 @@
    was read, counts by sheet, then what must be fixed, then the questions, then what will be saved, and Save. Nothing is
    saved until every Must fix is fixed (or its rows left out) and every Check is answered; one answer covers every row
    in its group. The file is held in memory (importStore): a reload comes back to Import. */
-import { lazy, Suspense, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import { useApp } from '../../app/state';
-import { useModules } from '../../core/app';
-import { reviewsOn } from '../../app/reads';
 import { saveAndSay } from '../../app/files';
 import { readChanges } from '../../app/spreadsheet';
-import { MODULE_SHEETS } from '../../core/records';
+import { exportOn } from '../../core/records';
 import { describe, sheetCounts, type ChangeSet } from '../../domain/changeset';
 import { workbook } from '../../domain/export';
 import { leaveOut } from '../../domain/leaveOut';
@@ -19,18 +17,18 @@ import { headerRowsLine, parseDelimited, readLine, readTables, type ReadTables, 
 import { workedOutEdits } from '../../domain/workedOut';
 import { useMark } from '../../telemetry/react';
 import { Sheet as SheetBox, WarnMark } from '../../ui/bits';
+/* The group block is shared with set-up. It is imported here, not lazily: a lazy Answered suspends on its first render,
+   so the focus that follows an answer found nothing and fell to the page (#336 review). */
+import { Answered as AnsweredLine, IssueGroup as SharedGroup } from '../../ui/IssueGroup';
 import type { Snapshot } from '../../domain/types';
 import { isNewIn, useImportPlan } from './importPlan';
 import { stopCheck } from './checkRun';
 import { importStore } from './importStore';
 import { Reading, TooManyChanges, useReadingDue } from './Large';
 import { baseName, leftRowsOf, rowsSheets, type RowProblem } from './rowsFile';
+import { CheckClose } from './CheckClose';
 import './import.css';
 
-/* The group block is shared with set-up (src/ui/IssueGroup) and loaded with the first group, so Import's own entry in
-   the first download doesn't grow (the bundle budget). */
-const SharedGroup = lazy(() => import('../../ui/IssueGroup').then((m) => ({ default: m.IssueGroup })));
-const AnsweredLine = lazy(() => import('../../ui/IssueGroup').then((m) => ({ default: m.Answered })));
 
 const SHEETS: Sheet[] = ['Goals', 'Plan', 'Check-ins', 'People'];
 const KEY: Record<Sheet, keyof Tables> = { Goals: 'goals', Plan: 'plan', 'Check-ins': 'checkIns', People: 'people' };
@@ -80,7 +78,7 @@ export function choosePaste(text: string, onProblem: (text: string) => void): bo
 export function Check() {
   const app = useApp();
   // With Reviews off (RS, spec 5) the Notes sheet and a Review column on Asks are not read, and the file line says so once.
-  const lineOpts = reviewsOn(useModules().on) ? {} : { reviewsOff: app.ws.name };
+  const lineOpts = exportOn(app.ws).reviews ? {} : { reviewsOff: app.ws.name };
   const nav = useNavigate();
   const plan = useImportPlan();
   const { st, base, left, otherWorkspace, toSave, run, tables } = plan;
@@ -106,6 +104,7 @@ export function Check() {
     const from = read.origin!.workspaceName ? `“${read.origin!.workspaceName}”` : 'another workspace';
     return (
       <div className="page narrow import-check">
+        <CheckClose />
         <div className="page-head"><h1 className="title-xl">Check this import</h1><span className="hint">Nothing has been saved.</span></div>
         <p className="small">{st.name} · {readLine(read, 0, lineOpts)}</p>
         <div className="level-block level-check" role="group" aria-labelledby="other-ws">
@@ -126,6 +125,7 @@ export function Check() {
       return (
         <div className="page narrow import-check">
           {picker}
+          <CheckClose />
           <div className="page-head"><h1 className="title-xl">Check this import</h1><span className="hint">Nothing has been saved.</span></div>
           <p className="hint tone-off" role="alert">Faro couldn’t check {st.name}: {run.error}. Split it and import each part.</p>
           <div className="foot-row import-foot"><button type="button" className="btn primary big-btn" onClick={choose}>Choose another file</button></div>
@@ -158,8 +158,9 @@ export function Check() {
     setBusy(true);
     setSaving(cs);
     try {
-      const importId = final.commit.changes.find((c) => c.action === 'imported')?.entityId;
-      await app.applyChanges(final);
+      // The import's id is the saved one: the change set is worked out again when saved (AX2), with new ids.
+      const saved = await app.applyChanges(final);
+      const importId = saved.commit?.changes.find((c) => c.action === 'imported')?.entityId;
       // The file is forgotten when Import next opens: emptied here, the open preview would send the person back to Import.
       // Imported reads the import from the change log; the rows left out stay in memory for its download.
       if (importId) importStore.set({ done: { importId, tables: base, rows: leftRows } });
@@ -178,6 +179,7 @@ export function Check() {
   return (
     <div className="page narrow import-check">
       {picker}
+      <CheckClose />
       <div className="page-head">
         <h1 className="title-xl">Check this import</h1>
         <span className="hint">{saving ? SAVING : 'Nothing has been saved.'}</span>
@@ -272,7 +274,7 @@ function Counts({ cs, base, read }: { cs: ChangeSet; base: Tables; read: { name:
 /** "Nothing would change" (2.3), with the worked-out cells that differ from today's, when there are any. */
 function Nothing({ cs, base, names }: { cs: ChangeSet; base: Tables; names: Partial<Record<keyof Tables, string>> }) {
   const app = useApp();
-  const edits = useMemo(() => workedOutEdits(base, workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, sheets: MODULE_SHEETS }), names), [base, app, names]);
+  const edits = useMemo(() => workedOutEdits(base, workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, ...exportOn(app.ws) }), names), [base, app, names]);
   const rows = edits.reduce((k, e) => k + e.rows.length, 0);
   const cols = [...new Set(edits.flatMap((e) => e.columns))];
   return (
@@ -294,7 +296,7 @@ const focusOn = (then: string) => requestAnimationFrame(() => {
 /** A question answered: what was asked and the answer, with Change. */
 function Answered({ id }: { id: string }) {
   const said = importStore.get().said[id]!;
-  return <Suspense fallback={null}><AnsweredLine id={id} title={said.title} label={said.label} onChange={() => importStore.answer(id, null)} /></Suspense>;
+  return <AnsweredLine id={id} title={said.title} label={said.label} onChange={() => importStore.answer(id, null)} />;
 }
 
 /** The cell an answer reads as: a team's name, a person's email (or name), a goal's key. */
@@ -309,8 +311,8 @@ function valueOf(s: Snapshot, kind: 'team' | 'person' | 'goal', id: string): str
 function GroupBlock({ g, cs, prior }: { g: IssueGroup; cs: ChangeSet; prior?: Answer }) {
   const app = useApp();
   return (
-    <Suspense fallback={null}><SharedGroup g={g} rows={cs.issues.filter((i) => i.group === g.id)} prior={prior} valueOf={(kind, id) => valueOf(app.snapshot, kind, id)}
-      onAnswer={(x) => { importStore.answer(g.id, x.answer, { title: x.title, label: x.label, level: x.level }); focusOn(`[id="answered-${g.id}"]`); }} /></Suspense>
+    <SharedGroup g={g} rows={cs.issues.filter((i) => i.group === g.id)} prior={prior} valueOf={(kind, id) => valueOf(app.snapshot, kind, id)}
+      onAnswer={(x) => { importStore.answer(g.id, x.answer, { title: x.title, label: x.label, level: x.level }); focusOn(`[id="answered-${g.id}"]`); }} />
   );
 }
 

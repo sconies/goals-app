@@ -4,6 +4,7 @@
    (FARO_WITHOUT) declares nothing here, so its rows are neither read nor written, and none are deleted. */
 import PARTS from 'virtual:faro-modules/records';
 import type { ModuleRecords, ModuleSheet } from '../domain/records';
+import { isModuleOn } from './registry';
 
 /** Every module's records, in module id order. */
 export const MODULE_RECORDS: readonly ModuleRecords[] = PARTS.map((p) => ({ ...p.part, module: p.id }));
@@ -11,10 +12,22 @@ export const MODULE_RECORDS: readonly ModuleRecords[] = PARTS.map((p) => ({ ...p
 /** The columns the modules add to Goals' rows (?metric=): the app's filters (core/app) and the AI's find_goals read them. */
 export const MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => m.goalColumns ?? []);
 
-/** The workbook's sheets the modules add (domain/export), in module id order. */
+/** The workbook's sheets the modules add (domain/export), in module id order: every module in this build. */
 export const MODULE_SHEETS: readonly ModuleSheet[] = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
 
 /** The records of the modules switched on in a workspace: what Recently removed lists and restores. A module that's off
     keeps its rows untouched, and none of them is offered back until it is on again. */
 export const recordsOn = (ws: { modulesOff?: readonly string[] } | null | undefined): readonly ModuleRecords[] =>
   MODULE_RECORDS.filter((m) => !(ws?.modulesOff ?? []).includes(m.module));
+
+/** The workbook's sheets of the modules switched on in a workspace (fix item F2): a module that's off adds no sheet to
+    any export (the Export sheet, Data's downloads, the MCP export tool), as it adds nothing else. */
+export const sheetsOn = (ws: { modulesOff?: readonly string[] } | null | undefined): readonly ModuleSheet[] =>
+  recordsOn(ws).flatMap((m) => m.sheets ?? []);
+
+/** What a workspace's exports hold, for every door that writes one (the Export sheet, Import's "Export everything", the
+    preview's worked-out check, the Data tables, the MCP export tool): the sheets of the modules switched on there (F2),
+    and whether Reviews is on (RS1, Reviews switch spec 5): with it off the workbook has no Notes sheet and Asks no Review
+    column. Spread into workbook()'s input, so the rule lives here once. */
+export const exportOn = (ws: { modulesOff?: readonly string[] } | null | undefined): { sheets: readonly ModuleSheet[]; reviews: boolean } =>
+  ({ sheets: sheetsOn(ws), reviews: isModuleOn(ws, 'reviews') });

@@ -20,6 +20,7 @@
     "list_reviews",
     "get_review",
     "review_call",
+    "unmark_reviewed",
     "save_review",
     "end_review",
     "delete_review"

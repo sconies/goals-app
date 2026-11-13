@@ -5,25 +5,17 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../../app/state';
 import { fileName, saveFile, saveFailed, type FileContent } from '../../app/files';
-import { REVIEWS_SHEET, sheetNamesWith } from '../../domain/columns';
-import { useModules } from '../../core/app';
-import { reviewsOn } from '../../app/reads';
-import { MODULE_SHEETS } from '../../core/records';
+import { andList, sheetNamesWith } from '../../domain/columns';
+import { exportOn } from '../../core/records';
 import { aiBrief, csvFiles, everythingCounts, sheetNamed, toCsv, toJson, workbook, type ExportInput } from '../../domain/export';
 import type { Goal } from '../../domain/types';
 import { Sheet } from '../../ui/bits';
 
-/** Every sheet's name after Start here: the core's, then each module's (the metric library's Metrics). */
-const SHEET_NAMES = sheetNamesWith(MODULE_SHEETS).slice(1);
-/** Them with Reviews on, and off (RS, spec 5: no Notes sheet). */
-const SHEETS_SHOWN = { on: SHEET_NAMES, off: SHEET_NAMES.filter((n) => n !== REVIEWS_SHEET) };
 
 const count = (n: number, one: string, many: string) => `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
 
 export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewName: string; onClose: () => void }) {
   const app = useApp();
-  // With Reviews off (RS, spec 5) the workbook has no Notes sheet and no Review column on Asks.
-  const reviews = reviewsOn(useModules().on);
   const all = app.snapshot.goals;
   const partial = goals.length < all.length;
   // A view that shows nothing has nothing to export: it can't be chosen, and the export starts from everything (#248 review).
@@ -34,7 +26,13 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
   const [others, setOthers] = useState(false);
   // One table on its own, as a CSV.
   const [one, setOne] = useState<string>('Goals');
-  const input: ExportInput = { ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, goals: scope === 'view' ? goals : undefined, sheets: MODULE_SHEETS, reviews };
+  // What this workspace's exports hold (F2, RS1): the sheets of the modules switched on here, and with Reviews off no
+  // Notes sheet and no Review column on Asks.
+  const on = exportOn(app.ws);
+  /** Every sheet’s name after Start here: the core’s, then each module’s that’s on (the metric library’s Metrics). A list
+      fixed by the build and the switches, not by the workspace’s records (the pickers lint). */
+  const SHEET_NAMES = sheetNamesWith(on.sheets, on.reviews).slice(1);
+  const input: ExportInput = { ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, goals: scope === 'view' ? goals : undefined, ...on };
   // Every file is named the same way (spec 2.9): workspace, what it holds, which goals (`all` or the view's name), the day.
   // `all` means everything: a filtered All tab is `as-shown`, never `all`.
   const which = viewName && viewName.trim().toLowerCase() !== 'all' ? viewName : 'as-shown';
@@ -62,7 +60,7 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
             </div>
           </fieldset>
         )}
-        <p>An Excel workbook: Goals, Plan, Check-ins and People, which load back, and Results, Asks{reviews ? ', Notes' : ''} and Metrics for reading. Its first sheet says what each column means and which are required.</p>
+        <p>An Excel workbook: Goals, Plan, Check-ins and People, which load back, and {andList(['Results', 'Asks', ...(on.reviews ? ['Notes'] : []), ...on.sheets.map((x) => x.spec.name)])} for reading. Its first sheet says what each column means and which are required.</p>
         <div>
           <button type="button" className="linkish tap export-others" aria-expanded={others} onClick={() => setOthers(!others)}>{others ? 'Fewer formats' : 'Other formats'}</button>
         </div>
@@ -78,7 +76,7 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
             <div className="opt static">
               <span className="stack" style={{ gap: 2 }}><span className="strong">One sheet as CSV</span>
                 <span className="row" style={{ gap: 'var(--s2)' }}><label className="hint" htmlFor="export-one">Sheet</label>
-                  <select id="export-one" className="input sm" value={one} onChange={(e) => setOne(e.target.value)}>{SHEETS_SHOWN[reviews ? 'on' : 'off'].map((n) => <option key={n} value={n}>{n}</option>)}</select></span></span>
+                  <select id="export-one" className="input sm" value={one} onChange={(e) => setOne(e.target.value)}>{SHEET_NAMES.map((n) => <option key={n} value={n}>{n}</option>)}</select></span></span>
               <span className="export-actions">
                 <button type="button" className="btn sm" aria-label={`Save .csv: ${one}`} disabled={!!busy} onClick={() => void run('csv', () => save(one, { kind: 'csv', text: toCsv(sheetNamed(workbook(input), one).rows) }))}>Save .csv</button>
               </span>

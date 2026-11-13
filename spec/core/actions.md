@@ -15,16 +15,16 @@ Every change a person makes, as the command port runs it ([the ports at company 
 
 | Action | Does | Who may | AI tools |
 |---|---|---|---|
-| [planChanges](#planchanges) | Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI); Add a goal, at any level, owned by anyone; Add someone; change their name, job title, team or admin rights | The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it; Anyone, for anyone (Lane, 11 Nov); Admins | — |
+| [planChanges](#planchanges) | Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI); Add a goal, at any level, owned by anyone; Add someone; change their name, job title, team or admin rights | The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it; Anyone, for anyone (Lane, 11 Nov); Admins | [`bulk_change`](tools.md#bulk_change), [`create_goal`](tools.md#create_goal), [`update_goal`](tools.md#update_goal), [`set_plan_numbers`](tools.md#set_plan_numbers), [`post_check_in`](tools.md#post_check_in), [`save_person`](tools.md#save_person) |
 | [postCheckIn](#postcheckin) | Post or correct a check-in (at the check-in screens, the one-table check-in or through the AI) | The goal’s owner only (Lane, 12 Nov), with exactly two exceptions, both for an admin: bringing check-ins in from a workbook (an import, or setting up from an export: past weeks, or a correction of one already there; never this week’s new check-in, so one pasted row is not a workbook), and correcting one that exists in Data’s tables (never adding one). Each records the admin as author, with the route as its Via | [`post_check_in`](tools.md#post_check_in), [`bulk_change`](tools.md#bulk_change) |
 | [saveGoal](#savegoal) | Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI); Add a goal, at any level, owned by anyone | The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it; Anyone, for anyone (Lane, 11 Nov) | [`create_goal`](tools.md#create_goal), [`update_goal`](tools.md#update_goal), [`set_plan_numbers`](tools.md#set_plan_numbers), [`bulk_change`](tools.md#bulk_change) |
-| [activate](#activate) | Make a proposed goal active (GE10) | The goal’s owner, or an admin (not whoever proposed it, unless they are one) | — |
-| [backToProposed](#backtoproposed) | Make an active goal with no check-ins proposed again (GE10) | The goal’s owner, or an admin | — |
+| [activate](#activate) | Make a proposed goal active (GE10) | The goal’s owner, or an admin (not whoever proposed it, unless they are one) | [`make_goal_active`](tools.md#make_goal_active) |
+| [backToProposed](#backtoproposed) | Make an active goal with no check-ins proposed again (GE10) | The goal’s owner, or an admin | none |
 | [stopGoal](#stopgoal) | Stop a goal that has check-ins (with a reason); delete one that has none (withdraw it, while it is proposed) | The goal’s owner, or an admin; a proposal also whoever proposed it | [`stop_goal`](tools.md#stop_goal) |
 | [deleteGoal](#deletegoal) | Stop a goal that has check-ins (with a reason); delete one that has none (withdraw it, while it is proposed) | The goal’s owner, or an admin; a proposal also whoever proposed it | [`delete_goal`](tools.md#delete_goal) |
 | [deleteCheckIn](#deletecheckin) | Delete a goal’s latest check-in (after a newer one it can only be corrected) | The goal’s owner only, whoever posted it (check-ins are the owner’s, Lane, 12 Nov) | [`delete_check_in`](tools.md#delete_check_in) |
 | [saveRetro](#saveretro) | Wrap up a goal at the end of the cycle | The goal’s owner, or an admin | [`wrap_up_goal`](tools.md#wrap_up_goal) |
-| [recordStagesDone](#recordstagesdone) | Say which stages were already done when a goal was set up (before its first check-in) | The goal’s owner only: someone setting it up for them publishes it without, and the owner marks them at the first check-in (an admin loading a workbook is the exception) | — |
+| [recordStagesDone](#recordstagesdone) | Say which stages were already done when a goal was set up (before its first check-in) | The goal’s owner only: someone setting it up for them publishes it without, and the owner marks them at the first check-in (an admin loading a workbook is the exception) | none |
 | [undoImport](#undoimport) | Undo an import or bulk edit | Whoever made it, or an admin; a check-in it wrote goes back only for someone who may check in on that goal by the same door (an owner’s own correction, only the owner) | [`undo_import`](tools.md#undo_import) |
 | [addNote](#addnote) | Comment on a goal; agree an action on it | Anyone in the workspace | [`add_comment`](tools.md#add_comment) |
 | [addAction](#addaction) | Comment on a goal; agree an action on it | Anyone in the workspace | [`add_action`](tools.md#add_action) |
@@ -42,7 +42,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | [acceptRisk](#acceptrisk) | Mark goals reviewed in a session; accept the risk on a goal behind, with a reason | Anyone | [`review_call`](tools.md#review_call) |
 | [markReviewed](#markreviewed) | Mark goals reviewed in a session; accept the risk on a goal behind, with a reason | Anyone | [`review_call`](tools.md#review_call) |
 | [editCall](#editcall) | Correct what was said in a review, or an ask’s words | Whoever said or asked it, or an admin | [`edit_call`](tools.md#edit_call) |
-| [unmarkReviewed](#unmarkreviewed) | Undo marking goals reviewed in a session | Whoever marked them, or an admin | — |
+| [unmarkReviewed](#unmarkreviewed) | Undo marking goals reviewed in a session | Whoever marked them, or an admin | [`unmark_reviewed`](tools.md#unmark_reviewed) |
 | [deleteNote](#deletenote) | Remove a note said in a review | Whoever said it, or an admin | [`delete_comment`](tools.md#delete_comment) |
 | [endReview](#endreview) | End a review, or delete one never held | Whoever set it up, or an admin | [`end_review`](tools.md#end_review) |
 | [deleteReview](#deletereview) | End a review, or delete one never held | Whoever set it up, or an admin | [`delete_review`](tools.md#delete_review) |
@@ -61,10 +61,11 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | [startNextCycle](#startnextcycle) | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`start_next_cycle`](tools.md#start_next_cycle) |
 | [deleteCycle](#deletecycle) | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`delete_cycle`](tools.md#delete_cycle) |
 | [undoStart](#undostart) | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`undo_start_cycle`](tools.md#undo_start_cycle) |
-| [arrive](#arrive) | Arrive: the first time you choose your name in a workspace (its arrival screen), the log says so, once | Anyone, as themselves (in the internal app the first sign-in records it: SR3) | — |
+| [arrive](#arrive) | Arrive: the first time you choose your name in a workspace (its arrival screen), the log says so, once | Anyone, as themselves (in the internal app the first sign-in records it: SR3) | none |
 | [renameWorkspace](#renameworkspace) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`rename_workspace`](tools.md#rename_workspace) |
 | [setRecording](#setrecording) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`set_recording`](tools.md#set_recording) |
 | [setModule](#setmodule) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`set_feature`](tools.md#set_feature) |
+| [undoRemoval](#undoremoval) | Undo a removal straight after it (the Undo on its message): every record it changed goes back as it was | Whoever removed it, or an admin | none |
 | [restoreRemoved](#restoreremoved) | Restore something removed, stopped or marked as left (within 30 days), and see it on Recently removed | An admin (everything), or whoever removed it (their own) | [`restore_removed`](tools.md#restore_removed), [`list_removed`](tools.md#list_removed) |
 | [createToken](#createtoken) | Make an MCP token for someone | Admins | [`create_token`](tools.md#create_token) |
 | [revokeToken](#revoketoken) | Revoke an MCP token | An admin, or the token’s person | [`revoke_token`](tools.md#revoke_token) |
@@ -116,7 +117,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 - “… owns …: choose who takes them over.”
 - “… has …: choose who takes them over.”
 
-**AI tools that do the same:** none
+**AI tools that do the same:** [`bulk_change`](tools.md#bulk_change), [`create_goal`](tools.md#create_goal), [`update_goal`](tools.md#update_goal), [`set_plan_numbers`](tools.md#set_plan_numbers), [`post_check_in`](tools.md#post_check_in), [`save_person`](tools.md#save_person)
 
 ## postCheckIn
 
@@ -160,7 +161,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 
 **Does:** Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI); add a goal, at any level, owned by anyone.
 
-**Input** (`SaveGoalInput`):
+**Input** (`SaveGoalWith`):
 
 | Field | Type | Needed | What it is |
 |---|---|---|---|
@@ -172,6 +173,8 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | `metric` | `GoalMeasure \| null` | no | What measures it, as the form chose (the goal.measure place): its name and which way is better, for the wrong-side question; null for nothing. Left out, what measures it now (domain/records goalMeasureOf), for a goal being changed. |
 | `stagesDone` | `string[]` | no | A new goal's stages already done when it was set up (OB2's rule 3), recorded in the same save. When left out, the stages the draft says are done (answered yes to stage-past). |
 | `state` | `'active' \| 'proposed'` | no | A new goal only: 'proposed' saves it proposed, not yet active (GE10, rule 14); left out, active. A goal being changed keeps its state: it is made active by domain/proposed activate, never by a save. |
+| `proposedIn` | `string` | no | A new proposed goal only: the review it is proposed in ("Propose a new goal" in the walk, GE10 decision 15). |
+| `also` | `{ action: string; input: Record<string, unknown>; }` | no |  |
 
 **Result:** `{ commit: Commit \| null; goal: Goal; }` ([Goal](data-model.md#goal))
 
@@ -187,6 +190,8 @@ Every change a person makes, as the command port runs it ([the ports at company 
 - “That person isn’t in this workspace any more. Choose who owns it.”
 - “That team isn’t here any more. Choose a team.”
 - “The goal it feeds isn’t here any more. Choose another, or nothing.”
+- “Only a new proposed goal is proposed in a review.”
+- “That review isn’t here any more. Reload to see the latest.”
 - “Not saved. Must fix: …”
 - “Not saved. Check with the person first: …”
 
@@ -218,7 +223,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 - “Not saved. Check with the person first: …”
 - ““…” can’t be made active yet: …”
 
-**AI tools that do the same:** none
+**AI tools that do the same:** [`make_goal_active`](tools.md#make_goal_active)
 
 ## backToProposed
 
@@ -242,8 +247,9 @@ Every change a person makes, as the command port runs it ([the ports at company 
 - ““…” is already proposed.”
 - ““…” is stopped.”
 - “Only … (its owner) or an admin can make it proposed again.”
+- ““…” is in another year, so it can’t go back to proposed.”
 
-**AI tools that do the same:** none
+**AI tools that do the same:** none. Making an active goal proposed again is an app step (GE10): an assistant brings a goal in already proposed (create_goal, state proposed) or makes one active (make_goal_active), and a goal with check-ins can’t go back.
 
 ## stopGoal
 
@@ -370,7 +376,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 - “Only … (its owner) can say which stages are done.”
 - “This goal has check-ins already: say a stage is done in a check-in.”
 
-**AI tools that do the same:** none
+**AI tools that do the same:** none. Marking which stages were already done at set-up is the owner’s own first step in the app; an assistant brings a goal in with create_goal or a workbook (bulk_change), and the owner records done stages at the first check-in (post_check_in).
 
 ## undoImport
 
@@ -843,7 +849,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 - “Those goals are no longer marked reviewed.”
 - “Only whoever marked them, or an admin, can undo it.”
 
-**AI tools that do the same:** none
+**AI tools that do the same:** [`unmark_reviewed`](tools.md#unmark_reviewed)
 
 ## deleteNote
 
@@ -1317,7 +1323,7 @@ Nothing.
 
 **Refuses with:** nothing of its own beyond who may and the shared refusals above.
 
-**AI tools that do the same:** none
+**AI tools that do the same:** none. An arrival is a person choosing their own name in the app for the first time; an assistant acts as someone who has already arrived, so there is nothing for it to say.
 
 ## renameWorkspace
 
@@ -1387,6 +1393,29 @@ Nothing.
 - “There’s no feature called ….”
 
 **AI tools that do the same:** [`set_feature`](tools.md#set_feature)
+
+## undoRemoval
+
+**Does:** Undo a removal straight after it (the Undo on its message): every record it changed goes back as it was.
+
+**Input**:
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `removal` | `Commit` | yes |  |
+| `before` | `Snapshot` ([Snapshot](data-model.md#snapshot)) | yes |  |
+
+**Result:** `Commit`
+
+**Who may:** Whoever removed it, or an admin.
+
+**The rule:** `undoRemoval`, in `src/domain/removal.ts`.
+
+**Refuses with:**
+
+- “Only whoever removed it, or an admin, can undo it.”
+
+**AI tools that do the same:** none. Undoing a removal straight after it is the Undo on the app’s toast; an assistant that removed something brings it back with restore_removed (within 30 days).
 
 ## restoreRemoved
 
@@ -1708,7 +1737,7 @@ From the [metrics](../modules/metrics/README.md) module.
 
 ## The types the actions name
 
-Each type an action’s input or result names that isn’t a record in [the data model](data-model.md), as the code declares it (with its comments), in A to Z order. 40 types.
+Each type an action’s input or result names that isn’t a record in [the data model](data-model.md), as the code declares it (with its comments), in A to Z order. 41 types.
 
 ### Answers
 
@@ -2200,7 +2229,17 @@ export interface SaveGoalInput {
   /** A new goal only: 'proposed' saves it proposed, not yet active (GE10, rule 14); left out, active. A goal being
       changed keeps its state: it is made active by domain/proposed activate, never by a save. */
   state?: 'active' | 'proposed';
+  /** A new proposed goal only: the review it is proposed in ("Propose a new goal" in the walk, GE10 decision 15). */
+  proposedIn?: string;
 }
+```
+
+### SaveGoalWith
+
+In `src/app/actions.ts`.
+
+```ts
+export type SaveGoalWith = SaveGoalInput & { also?: { action: string; input: Record<string, unknown> } };
 ```
 
 ### SaveMetricInput
