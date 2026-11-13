@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { usePrefs } from '../app/search';
 import { proposalSeen, putOff } from '../app/proposalSeen';
 import { proposalAsks, type ProposalAsk } from '../domain/proposed';
-const ProposalRows = lazy(() => import('./HomeProposals').then((m) => ({ default: m.ProposalRows })));
+const ProposalRows = lazy(() => import('../ui/HomeProposals').then((m) => ({ default: m.ProposalRows })));
 import { useGoalCounts, useGoalList } from '../app/goals';
 import { EMPTY_QUERY } from '../domain/query';
 import { countList } from '../domain/order';

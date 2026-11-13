@@ -2,7 +2,7 @@
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import type { ProposalAsk } from '../domain/proposed';
-import { Avatar } from '../ui/bits';
+import { Avatar } from './bits';
 
 export function ProposalRows({ proposals, notYet }: { proposals: ProposalAsk[]; notYet: (p: ProposalAsk) => void }) {
   const app = useApp();
