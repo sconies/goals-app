@@ -136,7 +136,7 @@ describe('the Limit cell', () => {
     // The export's "at most", left as it was: asked, not overridden quietly (#300 review).
     const asked = load(full, edit('at most'));
     expect(asked.items).toEqual([]);
-    expect(asked.issues.map((i) => `${i.level} ${i.kind}: ${i.message}`)).toEqual([`check near-word: Limit has two numbers (${lower}–${base.range.limit}) and Must stay says “at most”. Read it as between?`]);
+    expect(asked.issues.map((i) => `${i.level} ${i.kind}: ${i.message}`)).toEqual([`check near-word: Limit has two numbers and Must stay says “at most”. Read it as between?`]);
     changed(load(full, edit('at most'), { [groupId('near-word', 'Goals', 'Must stay', 'at most')]: { choice: 'use' } }));
     const left = load(full, edit('at most'), { [groupId('near-word', 'Goals', 'Must stay', 'at most')]: { choice: 'leave' } });
     expect([left.items, left.issues.filter((i) => i.level !== 'note')]).toEqual([[], []]);

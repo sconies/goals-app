@@ -36,7 +36,7 @@ export const linksOf = (s: Rows | null | undefined): MetricLink[] => moduleRows<
 /** A commit's part for metrics and links: `{ modules: { metrics: { … } } }`. */
 export const metricRows = (rows: { metrics?: Metric[]; metricLinks?: MetricLink[] }): Pick<Commit, 'modules'> => withModuleRows(MODULE, { [METRICS_KEY]: rows.metrics, [LINKS_KEY]: rows.metricLinks });
 
-const no = (msg: string): never => { throw new NotAllowed(msg); };
+export const no = (msg: string): never => { throw new NotAllowed(msg); };
 
 /* ---------- words ---------- */
 
@@ -92,14 +92,14 @@ export function goalTarget(g: Goal): { value: number; kind: 'target' | 'at most'
 
 /** What a goal is measured by, ready to show: the metric, the slice in words, and the goal's target in it, as a number
     and as every screen writes it (domain/numbers: at the goal's decimals, digits grouped, with its unit: "At most 2.0%"). */
-export interface Measure { link: MetricLink; metric: Metric; slice: string; target: ReturnType<typeof goalTarget>; targetText: string | null }
+export interface Measure { link: MetricLink; metric: Metric; slice: string; part: string; target: ReturnType<typeof goalTarget>; targetText: string | null }
 export function measureOf(s: Rows & { teams: Team[] }, goal: Goal): Measure | null {
   const link = linkOf(s, goal.id);
   if (!link) return null;
   const metric = liveMetrics(s).find((m) => m.id === link.metricId)!;
   const target = goalTarget(goal);
   const targetText = target && goal.kind !== 'milestone' ? `${target.kind === 'target' ? 'Target' : target.kind === 'at most' ? 'At most' : target.kind === 'at least' ? 'At least' : `Between ${fmt(target.lower!, goal)} and`} ${fmt(target.value, goal)}` : null;
-  return { link, metric, slice: sliceName(s, link.teamId), target, targetText };
+  return { link, metric, slice: sliceName(s, link.teamId), part: (link.part ?? '').trim(), target, targetText };
 }
 /** A slice in words: the team's name (or "a removed team"), or the whole company. */
 export const sliceName = (s: { teams: Team[] }, teamId: string | null) => (teamId == null ? COMPANY : s.teams.find((t) => t.id === teamId)?.name ?? 'A removed team');
@@ -175,8 +175,8 @@ export function metricFields(m: Metric, s: { people: Person[] }): Record<string,
   };
 }
 
-const log = (x: ActionContext, v: Pick<Change, 'entityId' | 'action' | 'summary'> & Partial<Change>): Change => ({ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'metric', diffs: [], ...v });
-const live = (x: ActionContext, id: string) => {
+export const log = (x: ActionContext, v: Pick<Change, 'entityId' | 'action' | 'summary'> & Partial<Change>): Change => ({ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'metric', diffs: [], ...v });
+export const live = (x: ActionContext, id: string) => {
   const m = metricsOf(x.snapshot).find((v) => v.id === id);
   if (!m || m.removedAt) no('There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.');
   return m!;
@@ -259,33 +259,6 @@ export function linkProblems(goal: Goal, m: Metric): { errors: string[]; warning
     if (!flat && (up ? 'higher' : 'lower') !== m.direction) warnings.push(`The goal aims ${up ? 'up' : 'down'}, but for ${m.name} ${DIRECTION_LABEL[m.direction].toLowerCase()}. Check it’s meant.`);
   }
   return { errors, warnings };
-}
-
-/**
- * Measure a goal by a metric, for a slice: a team (teamId) or the whole company (null). The goal's owner or an admin.
- * Linking again with the same metric and slice changes nothing (null); with another, it's changed and logged.
- */
-export function linkGoalMetric(x: ActionContext, goal: Goal, metricId: string, teamId: string | null = null): Commit | null {
-  // A goal being created in this save (it's in the snapshot the form passes, not yet in the workspace): whoever may
-  // create it, for themselves or someone else, chooses what measures it in the same save.
-  const creating = !!x.full && !x.full.goals.some((g) => g.id === goal.id) && x.snapshot.goals.some((g) => g.id === goal.id);
-  if (!creating && !canLinkGoal(x.actor, goal)) no('Only the goal’s owner or an admin can choose what measures it.');
-  const m = live(x, metricId);
-  if (teamId != null && !x.snapshot.teams.some((t) => t.id === teamId)) no('There’s no team with that ID. Leave the slice empty for the whole company.');
-  const { errors } = linkProblems(goal, m);
-  if (errors.length) no(errors.join(' '));
-  const all = linksOf(x.full ?? x.snapshot);
-  const old = all.find((l) => l.id === goal.id);
-  const current = old && !old.removedAt ? old : undefined;
-  if (current && current.metricId === m.id && current.teamId === teamId) return null;
-  const metricName = (id: string) => metricsOf(x.full ?? x.snapshot).find((v) => v.id === id)?.name ?? '—';
-  const link: MetricLink = { id: goal.id, goalId: goal.id, metricId: m.id, teamId, linkedBy: x.actor.id, linkedAt: x.now, removedAt: null, removedBy: null };
-  const slice = sliceName(x.snapshot, teamId);
-  const diffs = [
-    ...(!current || current.metricId !== m.id ? [{ field: 'Measured by', from: current ? metricName(current.metricId) : '—', to: m.name }] : []),
-    ...(!current || current.teamId !== teamId ? [{ field: 'Slice', from: current ? sliceName(x.snapshot, current.teamId) : '—', to: slice }] : []),
-  ];
-  return { ...metricRows({ metricLinks: [link] }), changes: [log(x, { entityId: m.id, goalId: goal.id, action: current ? 'edited' : 'linked', summary: `Measured by “${m.name}” for ${slice === COMPANY ? 'the whole company' : slice}`, diffs })] };
 }
 
 /** Stop measuring a goal by its metric: the goal's owner or an admin. Kept, so it can be undone. Null when it has none. */

@@ -125,7 +125,7 @@ function metricFacts(goal: MetricGoal, cycle: Cycle, all: CheckIn[], own: CheckI
     out.push({ key: 'trend', label: 'Trend', value, detail, tone: direction === 'worsening' ? 'bad' : direction === 'recovering' ? 'good' : 'flat', direction });
   }
 
-  out.push(sinceFact(goal, own, dir));
+  out.push(sinceFact(goal, own, (from, to) => (to - from) * dir));
 
   // Projection: where the recent trend takes it by the due week, as a range, against the target.
   const due = planEnd(goal.plan, cycle.weeks);
@@ -148,20 +148,20 @@ function metricFacts(goal: MetricGoal, cycle: Cycle, all: CheckIn[], own: CheckI
 
 /** What changed since the week before the latest check-in's (rule 5, `previousFor`): a second check-in in the same week
     is compared with last week, never with the first. The number, and the call if it moved. */
-/** better: the sign of a gain (a number goal), or how much better a move from one number to another is (a range goal's room). */
-function sinceFact(goal: MetricGoal | RangeGoal, own: CheckIn[], better: number | ((from: number, to: number) => number)): SummaryFact {
+/** gain: how much better a move from one number to another is (a number goal: along its direction; a range goal: room gained). */
+function sinceFact(goal: MetricGoal | RangeGoal, own: CheckIn[], gain: (from: number, to: number) => number): SummaryFact {
   const latest = own[own.length - 1]!;
   const prev = previousFor(own, latest.week).number;
   const callMoved = (p: CheckIn) => (p.status !== latest.status ? `; was ${LABEL[p.status].toLowerCase()}, now ${LABEL[latest.status].toLowerCase()}` : '');
   if (latest.value == null) return { key: 'since', label: 'Since last update', value: 'No number this time', detail: null, tone: 'flat' };
   if (!prev) return { key: 'since', label: 'Since last update', value: 'First check-in', detail: `${fmt(latest.value, goal)} in week ${latest.week}`, tone: 'flat' };
   const delta = round(latest.value - prev.value!, goal.decimals);
-  const gain = typeof better === 'number' ? delta * better : round(better(prev.value!, latest.value), goal.decimals);
+  const g = round(gain(prev.value!, latest.value), goal.decimals);
   return {
     key: 'since', label: 'Since last update', delta, from: { value: prev.value!, week: prev.week },
     value: delta === 0 ? 'No change' : `${delta > 0 ? 'Up' : 'Down'} ${fmtDiff(delta, goal)}`,
     detail: `${fmt(prev.value!, goal)} in week ${prev.week} → ${fmt(latest.value, goal)} in week ${latest.week}${callMoved(prev)}`,
-    tone: gain === 0 ? 'flat' : gain > 0 ? 'good' : 'bad',
+    tone: g === 0 ? 'flat' : g > 0 ? 'good' : 'bad',
   };
 }
 

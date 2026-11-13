@@ -50,6 +50,9 @@ export interface MetricLink {
   goalId: Id;
   metricId: Id;
   teamId: Id | null;
+  /** Which part of the team's or the company's number (“tier-1 services”, a region); empty or absent for all of it (MT2).
+      Absent on a link that never had one, so its row doesn't name the column; '' when a part was cleared. */
+  part?: string;
   linkedBy: Id;
   linkedAt: string;
   removedAt?: string | null;

@@ -35,6 +35,30 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['new-goal'],
   },
   {
+    id: 'metric-part',
+    date: '2026-11-13',
+    title: 'Measure a goal by one part of a number',
+    points: [
+      '“Measured by” now has “Which part”: tier-1 services, a region, release builds. Parts other goals on the metric already use are offered under it.',
+      'A goal takes its unit and which way is better from its metric, shown as “From the metric”; its target and dates stay its own.',
+      'Once a goal has check-ins, changing what measures it asks why, and its History says so.',
+      'A goal’s About lists what its metric says: for whom, what it means, where the number comes from and the goal’s own target.',
+    ],
+    articles: ['metric-slices', 'metric-measured-by'],
+  },
+  {
+    id: 'import-export-fixes',
+    date: '2026-11-13',
+    title: 'Import and Export, four fixes',
+    points: [
+      'A Goals row with no key that says Stop or Delete is now a Must fix on that row, asking for the goal’s Key, instead of stopping the page.',
+      'A filtered All tab exports as as-shown, never as all: all is only ever everything.',
+      'Export’s Everything line counts what the workbook holds, stopped and proposed goals and their check-ins too.',
+      'On a phone, Export opened from the View sheet now shows on its own, with one button to press; the View sheet is back when it closes.',
+    ],
+    articles: ['import', 'export'],
+  },
+  {
     id: 'review-who-speaks',
     date: '2026-11-13',
     title: 'Only people in a review, or an admin, decide in it',

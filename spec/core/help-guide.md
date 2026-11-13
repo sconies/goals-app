@@ -882,7 +882,7 @@ Screens: `Export`, `ExportButton`, `DataMenu`. Requirements: `EXPORT`, `SHARED-D
 
 #### How to use it
 
-- On Goals, choose Export these goals. When the goals are filtered, it starts from the ones shown now; Everything in the cycle is one click away, with how many goals, check-ins and people that is.
+- On Goals, choose Export these goals. When the goals are filtered, it starts from the ones shown now; Everything in the cycle is one click away, with how many goals, check-ins and people that is: stopped and proposed goals count, as the workbook holds them.
 - Export .xlsx is the one button. The file’s name is at the foot of the sheet before you press it, and the message after says it again: Exported platform-goals-all-2026-11-05.xlsx.
 - On Data, Export saves the open table exactly as laid out, as .xlsx or .csv, with the columns that say which record each row is added so it loads back; the menu says how many rows and columns that is. Everything… opens the same Export as Goals. Import is beside it.
 - Excel workbook, the usual choice: a first sheet, Start here, that says for every column what it means, whether a new row must have it, its format and an example; then Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks, Notes and Metrics. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.
@@ -891,7 +891,7 @@ Screens: `Export`, `ExportButton`, `DataMenu`. Requirements: `EXPORT`, `SHARED-D
 - One format: whatever you export can be edited and loaded back on Data’s Import, or used to set up a new workspace. Loaded back unedited, it changes nothing. Each person is written with their name and email.
 - JSON: everything, with each goal’s plan and check-ins inside it, in a stated format.
 - Brief for an AI chat: Markdown that leads with decisions waiting on people, then each goal’s story, then results. Copy it or save it.
-- Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date. Which goals is all, the view’s name, or as-shown for a table from Data: platform-goals-all-2026-11-05.xlsx, platform-goals-off-track-2026-11-05.xlsx, platform-check-ins-as-shown-2026-11-05.csv.
+- Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date. Which goals is all (only ever for everything), the view’s name, or as-shown for a table from Data or a filtered All tab: platform-goals-all-2026-11-05.xlsx, platform-goals-off-track-2026-11-05.xlsx, platform-check-ins-as-shown-2026-11-05.csv.
 - Exports hold names and the owners’ reasons. Share them as you would the app.
 
 ### Every column, and what it needs
@@ -1127,11 +1127,37 @@ Screens: `MeasuredBy`. Requirements: `METRICS-MEASURED-BY`.
 
 - In New goal, “Measured by” is the first field on the step about numbers; when changing a goal, it is under its name. Type part of a metric’s name, unit or owner to find it. Metrics already in the goal’s unit are offered first.
 - Choosing one shows what it means, with Read more for its page. On a new goal whose unit nobody has typed, it fills in the unit, the decimal places and which way is better, said in one line; Use different ones shows the fields again.
-- For: the goal’s team, or the whole company. With no team chosen yet, only the whole company is offered.
+- For: the goal’s team, or the whole company. With no team chosen yet, only the whole company is offered. Which part narrows it to one part of that number; see “Measured by: for whom, and which part”.
 - A goal in another unit can’t be measured by the metric: it says so, and the goal can’t be saved until the units agree or No metric is chosen.
 - No metric means the goal says in its own words how it’s measured. A goal with dated stages has no number, so it has no “Measured by”.
 - Nothing fits? Choose Add “…” as a new metric: give it a name, a unit and which way is better, and it is chosen. You own it; say more about it on its page later.
 - Check reads it back (“Measured by …, for …”). On Goals, Filters has Measured by, and a metric’s page has See its goals.
+
+### Measured by: for whom, and which part
+
+`metric-slices`, from the metrics module. What a goal takes from its metric and what stays its own, whose number it is, and one part of that number.
+
+Requirements: `METRIC-PARTS`.
+
+#### What a goal takes from its metric
+
+- A goal measured by a metric uses the metric’s unit and which way is better, shown as “From the metric”, with where the number comes from and how often it refreshes when the metric says. To use others, choose another metric or No metric.
+- Its start, target, plan and due week stay the goal’s own.
+
+#### For, and which part
+
+- For says whose number it is: the goal’s team, or the whole company.
+- Which part is optional: one part of that number, such as tier-1 services, a region or release builds, up to 60 characters. Leave it empty for all of it.
+- Parts other goals on the metric already use are listed under the field; choose one rather than typing it again, so goals on the same part line up on the metric’s page. A part spelt like one in use is asked about (“Use tier-1 services”, or keep yours).
+- If another goal already measures the same metric for the same team and part, you are asked, as two goals on one number is unusual; Carry on keeps it.
+
+#### After check-ins
+
+- Once a goal has check-ins, changing its metric, For or part asks Why. It shows in the goal’s History, so anyone reading its chart knows the number was measured differently from then on.
+
+#### On the goal’s page
+
+- About lists Measured by: For, what it means, From the metric, where the number comes from, caveats, the goal’s own target, and its own definition when that says more than the metric’s.
 
 ### Teams
 
@@ -1294,7 +1320,7 @@ Requirements: `MCP-TOKENS`, `MCP-PARITY`, `TOKENS-SERVER-ONLY`.
 
 - Read every screen: what needs you, goals, a goal in full, requests, reviews, watching, people, activity, views, the wrap-up, this guide and what’s new.
 - Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.
-- Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.
+- Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company and optionally one part of it (it asks before two goals share one number, and asks why when a goal with check-ins is measured differently).
 - It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses. A goal that raises a question (over 100%, no unit, a link to a lower level, a plan that flips which way is better) comes back as “Not saved. Check with the person first:” with every question; it saves once you have said yes to each and it calls again with “confirm”.
 - In one bulk change it can add a whole tree of goals and their first numbers: each new goal’s row has a Ref, and the rows below name it in Feeds into ref or Goal ref. One dry run checks it all.
 - Adding goals, one at a time or many at once, it is told each new goal’s key (G-12) and ID straight away, so it can link, check in on or change them without searching first. The key is the one the goal holds once saved, even when someone else adds a goal at the same moment. A dry run says the keys the goals would get, and no IDs yet.

@@ -9,7 +9,7 @@
    Pure: the page, the chart and the AI assistant's get_goal read the same words. */
 import { fixed } from './numbers';
 import { fmt, NO_VALUE, staysText } from './format';
-import { rangeRoom, rangeSide, rangeSides } from './range';
+import { rangeRoom, rangeSide } from './range';
 import { planEnd, projectionFor, valueSeries } from './plan';
 import { assessMilestone, assessPosted, checkInsFor, doneCheckIn, projects } from './status';
 import { summaryFacts } from './summaryFacts';
@@ -21,8 +21,6 @@ type Numeric = Pick<MetricGoal | RangeGoal, 'unit' | 'decimals'>;
 /* ---------- will it hit the target? ---------- */
 
 export type Likelihood = 'likely' | 'possible' | 'unlikely' | 'very-unlikely';
-/** Best first. */
-const LIKELIHOOD_ORDER: Likelihood[] = ['likely', 'possible', 'unlikely', 'very-unlikely'];
 export const LIKELIHOOD_WORD: Record<Likelihood, string> = { likely: 'Likely', possible: 'Possible', unlikely: 'Unlikely', 'very-unlikely': 'Very unlikely' };
 
 /**
@@ -199,10 +197,9 @@ function rangeCard(goal: RangeGoal, cycle: Cycle, checkIns: CheckIn[], week: num
   else if (!pr) cells.push({ key: 'hit', label, value: 'Too early to say', sub: 'needs three weeks of numbers', tone: 'flat' });
   else {
     // Staying within is the same question as reaching a target: ending on the limit's safe side. Between two numbers,
-    // on both bounds' safe sides: the worse of the two answers.
-    const stay = rangeSides(goal.range)
-      .map((s) => likelihood(s.limit, { value: pr.value, low: pr.low, high: pr.high }, s.bound === 'atLeast' ? 1 : -1, likelihoodFloor(margin || s.limit * 0.1, goal.decimals)))
-      .reduce((w, l) => (LIKELIHOOD_ORDER.indexOf(l) > LIKELIHOOD_ORDER.indexOf(w) ? l : w));
+    // against the bound nearer the projected number: the one it is likelier to cross, so the worse of the two answers.
+    const s = rangeSide(goal.range, pr.value);
+    const stay = likelihood(s.limit, { value: pr.value, low: pr.low, high: pr.high }, s.bound === 'atLeast' ? 1 : -1, likelihoodFloor(margin || s.limit * 0.1, goal.decimals));
     cells.push({ key: 'hit', label, value: LIKELIHOOD_WORD[stay], sub: `likely ${fmt(pr.value, goal)} ${byWeekWords(cycle, cycle.weeks)}`, tone: stay === 'likely' ? 'good' : stay === 'possible' ? 'flat' : 'bad', likelihood: stay });
   }
   return { cells, gap, marks: null };
