@@ -36,9 +36,9 @@ import { Questions, StageFields } from '../ui/GoalFields';
 import { PickOne, type PickSource } from '../ui/Pick';
 
 interface PersonRow { name: string; email: string; title: string; team: string; admin: boolean }
-interface GoalRow extends TemplateGoal { owner: string; /** How it's measured: optional, one line (setup review, 8 Nov). */ definition?: string; /** Answers to the card's questions (goal entry, rule 3), by slot. */ answers?: GoalAnswers }
+interface GoalRow extends TemplateGoal { owner: string; /** The picked owner's email, which tells two people of one name apart (FS1 review). */ ownerEmail?: string; /** How it's measured: optional, one line (setup review, 8 Nov). */ definition?: string; /** Answers to the card's questions (goal entry, rule 3), by slot. */ answers?: GoalAnswers }
 /** Set-up's owner picker: a search over the draft's people, and the names a goal row keeps. */
-interface OwnerPick { source: PickSource; idOf: (name: string) => string | null; nameOf: (id: string) => string }
+interface OwnerPick { source: PickSource; idOf: (g: Pick<GoalRow, 'owner' | 'ownerEmail'>) => string | null; rowOf: (id: string | null) => Pick<GoalRow, 'owner' | 'ownerEmail'> }
 
 interface SetupDraft {
   step: number;
@@ -115,10 +115,12 @@ function goalsTsv(d: SetupDraft) {
   if (d.template === 'file' || d.template === 'later') return '';
   const people = [d.me, ...d.people];
   // A goal with no owner chosen is made owned by whoever sets up (OB3); Home asks them to give it an owner.
-  const person = (owner: string) => people.find((p) => p.name.trim().toLowerCase() === (owner.trim() || d.me.name.trim()).toLowerCase());
+  const byName = (owner: string) => people.find((p) => p.name.trim().toLowerCase() === (owner.trim() || d.me.name.trim()).toLowerCase());
+  // The email picked, when there is one: two people of one name are told apart by it (FS1 review).
+  const person = (owner: string, email?: string) => (email ? people.find((p) => normalEmail(p.email) === normalEmail(email)) : undefined) ?? byName(owner);
   // The owner by email, as the format matches people, with their name beside it.
   const row = (g: GoalRow, headline: boolean) => [
-    g.title, person(g.owner)?.team.trim() || d.me.team, person(g.owner)?.email ?? '', g.owner.trim() || d.me.name.trim(), g.kind, g.kind === 'milestone' ? '' : g.unit, g.kind === 'metric' ? g.start : '', g.kind === 'metric' ? g.target : '',
+    g.title, person(g.owner, g.ownerEmail)?.team.trim() || d.me.team, person(g.owner, g.ownerEmail)?.email ?? '', g.owner.trim() || d.me.name.trim(), g.kind, g.kind === 'milestone' ? '' : g.unit, g.kind === 'metric' ? g.start : '', g.kind === 'metric' ? g.target : '',
     g.plan ?? 'straight', g.kind === 'range' ? g.limit ?? '' : '', g.kind === 'range' ? g.bound ?? 'at most' : '', g.kind === 'range' ? g.margin ?? '' : '', g.kind === 'milestone' ? g.stages ?? '' : '', headline ? '' : d.outcome.title, headline ? 'north star' : 'team', '', '', g.kind === 'milestone' ? '' : g.definition ?? '',
   ].map((v) => v.replace(/[\t\n]+/g, ' ')).join('\t');
   const goals = d.goals.filter((g) => g.title.trim());
@@ -173,8 +175,9 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const ownerSearch = useMemo(() => searchOver(result.snapshot), [peopleKey]);
   const owners: OwnerPick = {
     source: { search: ownerSearch, viewerId: draftPeople.find((p) => normalEmail(p.email ?? '') === meEmail)?.id ?? draftPeople[0]?.id ?? '', ws: 'setup' },
-    idOf: (name) => draftPeople.find((p) => p.name === name.trim())?.id ?? null,
-    nameOf: (id) => draftPeople.find((p) => p.id === id)?.name ?? '',
+    // By email first: with two people of one name, the one picked is the one kept.
+    idOf: (g) => (g.ownerEmail ? draftPeople.find((p) => normalEmail(p.email ?? '') === normalEmail(g.ownerEmail!)) : undefined)?.id ?? draftPeople.find((p) => p.name === g.owner.trim())?.id ?? null,
+    rowOf: (id) => { const p = id ? draftPeople.find((x) => x.id === id) : undefined; return { owner: p?.name ?? '', ownerEmail: p?.email ?? undefined }; },
   };
   const unownedTitles = new Set(d.template === 'file' || d.template === 'later' ? [] : d.goals.filter((g) => g.title.trim() && !g.owner.trim()).map((g) => g.title.trim()));
   const prefs = usePrefs();
@@ -602,7 +605,7 @@ function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 
           <input className="input" value={g.definition ?? ''} onChange={(e) => onChange({ definition: e.target.value })} aria-label={name + ': how it’s measured'} placeholder={headline ? 'e.g. People who used it at least once in the week, from product analytics' : 'e.g. Median hours to the first reply, from the help desk'} />
         </label>
       )}
-      <PickOne kind="person" label="Owner" source={owners.source} value={owners.idOf(g.owner)} none={headline ? undefined : 'No owner yet'} onChange={(id) => onChange({ owner: id ? owners.nameOf(id) : '' })} />
+      <PickOne kind="person" label="Owner" source={owners.source} value={owners.idOf(g)} none={headline ? undefined : 'No owner yet'} onChange={(id) => onChange(owners.rowOf(id))} />
       {ownerHint && <span className="hint">{ownerHint}</span>}
       {issue && !any && <span className="hint tone-off field-error" role="alert">{issue}</span>}
     </div>

@@ -13614,9 +13614,10 @@ function goalRows(s, cycle, today, week, columns) {
 }
 function personRows(s) {
 	const teams = new Map(s.teams.map((t) => [t.id, t]));
+	const here = new Set(s.people.map((p) => p.id));
 	return {
 		kind: "person",
-		people: live(s.people),
+		people: live([...s.people, ...(s.archive?.people ?? []).filter((p) => !here.has(p.id))]),
 		teamName: (id) => teams.get(id)?.name ?? "",
 		teamLead: (id) => teams.get(id)?.leadId ?? null
 	};
@@ -16812,7 +16813,8 @@ var CORE_ARTICLES = [
 					"Press Ctrl K (Cmd K on a Mac), or choose Find at the top of the sidebar (on a phone, Find in the top bar), and type a name, a few words, or a goal’s key like G-48.",
 					"What matches comes in groups: Goals, People, Teams, and Metrics while the metric library is on. Each shows its first three with how many match in all; “See all 8 goals” opens that list with your search filled in.",
 					"A goal’s key on its own (G-48, g48 or 48) puts that goal first. Enter opens the first row; Down and Up move to another; Escape closes. Each row is a link, so you can open it in a new tab.",
-					"Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open."
+					"Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open.",
+					"On a computer, a picker opens under its field, or above it when the window has no room below, so a sheet or a table never cuts it off."
 				]
 			},
 			{
@@ -18326,6 +18328,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "pickers-in-full",
+		date: "2026-11-12",
+		title: "Pickers show in full, and Find finds people who have left",
+		points: [
+			"On a computer, a picker opened in a sheet or in Data’s table is no longer cut off: it opens above its field when there is no room below.",
+			"Find finds someone who has left again, marked “(left)”, as it always said it would.",
+			"Setting up a workspace with two people of one name, the owner you pick is the one the goal gets."
+		],
+		articles: ["finding"]
+	},
 	{
 		id: "save-part-not-loaded",
 		date: "2026-11-12",
