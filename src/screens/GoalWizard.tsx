@@ -427,7 +427,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
                   </div>
                 </div>
                 <p className="small muted span-says" role="status">{spanSays(cycle, span.from, endChoice, week)}</p>
-                <BaselineFields period={d.baselinePeriod ?? ''} provisional={!!d.baselineProvisional} onChange={set} invalid={invalid('start')} />
+                <BaselineFields period={d.baselinePeriod ?? ''} provisional={!!d.baselineProvisional} onChange={set} invalid={invalid('start')} compact />
                 {questions('start')}
                 {questions('target')}
                 {decimalsLine}

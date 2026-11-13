@@ -208,13 +208,13 @@ function EditSheet({ goal }: { goal: Goal }) {
                 <div><WeekPick cycle={cycle} week={week} field="to" from={span.from} label="To" value={endChoice} onChange={(n) => set({ endWeek: n === cycle.weeks ? '' : String(n), points: {} })} invalid={tried && !!errors.endWeek} dataField="endWeek" />{err('endWeek')}</div>
               </div>
               <p className="hint span-says">{spanSays(cycle, span.from, endChoice, week)}</p>
-              <BaselineFields period={d.baselinePeriod ?? ''} provisional={!!d.baselineProvisional} onChange={set} invalid={tried && !!errors.start} />
               {questions('unit')}
               {questions('start')}
               {questions('fromWeek')}
               {questions('target')}
               {questions('endWeek')}
               {reasonField}
+              <BaselineFields period={d.baselinePeriod ?? ''} provisional={!!d.baselineProvisional} onChange={set} invalid={tried && !!errors.start} />
               <div className="field"><span className="field-label" id="shape-l">How progress comes</span>
                 <div className="seg full" role="group" aria-labelledby="shape-l">
                   {SHAPES.map(([k, l]) => <button key={k} type="button" aria-pressed={d.shape === k} onClick={() => set({ shape: k })}>{l}</button>)}
