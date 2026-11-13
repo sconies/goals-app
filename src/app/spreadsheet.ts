@@ -16,12 +16,12 @@ export const workbookGrids = (sheets: { sheet: string; data: unknown[][] }[]): N
 export async function zipGrids(bytes: Uint8Array): Promise<NamedGrid[]> {
   const { unzipFiles } = await import('./zip');
   const dec = new TextDecoder();
-  return (await unzipFiles(bytes)).filter((f) => isText(f.name)).map((f) => ({ name: f.name.replace(/^.*\//, ''), rows: parseDelimited(dec.decode(f.data)) }));
+  return (await unzipFiles(bytes)).filter((f) => isText(f.name)).map((f) => ({ name: f.name.replace(/^.*\//, ''), rows: parseDelimited(dec.decode(f.data), { keepBlank: true }) }));
 }
 
 /** Every sheet in a file, as named grids of text. */
 export async function readGrids(file: File): Promise<NamedGrid[]> {
-  if (isText(file.name)) return [{ name: file.name, rows: parseDelimited(await file.text()) }];
+  if (isText(file.name)) return [{ name: file.name, rows: parseDelimited(await file.text(), { keepBlank: true }) }];
   if (/\.zip$/i.test(file.name)) return zipGrids(new Uint8Array(await file.arrayBuffer()));
   const { default: readExcelFile } = await import('read-excel-file/browser');
   return workbookGrids((await readExcelFile(file)) as unknown as { sheet: string; data: unknown[][] }[]);

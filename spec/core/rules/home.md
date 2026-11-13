@@ -14,6 +14,7 @@ Whether Home leads with one thing asked of the viewer today, and its one primary
 3. *The wrap-up*: open (the cycle's last two weeks, or after its end), the viewer owns goals not yet wrapped up, and no check-in is still to do this week. **Start the wrap-up** opens the first.
 4. *A review*: one the viewer is in, this week's, on or past its day, not held, with goals not yet marked reviewed; the earliest, then by name. Past its day it says "Not held yet" with the warning mark. **Open the review**, or **Continue: {goal}** once begun.
 5. *An ask*: the first ask waiting on the viewer in the order below, when it is late, due this week, or has waited 7 days or more with no date. "Needs your response · {its line}" · "{First name} needs a decision" (asked a question, asked for an update; "A next step you agreed is due") · "“{ask}”. About {goal}." · **Respond**, **Answer**, **Check in** or **Mark done**. It is then not listed again under "Also needs your response".
+   Then, when no ask leads (`proposalLead`): a goal proposed for the viewer by someone else and not yet opened (goal entry rule 14) is an ask with no date, asked on the day it was proposed, so it leads once it has waited 7 days or more, the oldest first. "Needs your response · waiting since {4 Nov}, {9 days}" · "{First name} proposed a goal for you" · "“{goal}”. Nothing is due on it until you make it active." · **Open it**. Its row under "Proposed goals" is then not listed.
 
 **An ask that waits** (`waiting`). Its due date is its own due week's Sunday; else, for a question raised in a review, the first session after the one it was raised in, fixed when asked (it does not move on when that session passes); else none. Late: today is after the due date. Its line, said after who asked and when: late, with the warning mark, "Was due week {w} ({dates})" or "Was due by {Tue 10 Nov}" (the review is named after it, where it was asked); "Due before today’s session" / "tomorrow’s" with the warning mark; "Due this week ({dates})"; "Due week {w} ({dates})"; "Before its next session, {Tue 24 Nov}"; no date and 7 days or more, "Waiting since {4 Aug}, {8 days | 14 weeks}" (weeks from 14 days); newer, "Asked today", "yesterday" or "on {Tuesday}". The day it was asked is read on the viewer's own clock, as today is (at UTC+10 an ask made half an hour ago is "Asked today"). Under the ask the line comes first, then who asked, where and on which day (left out when the line says it), so a phone's one line, cut short, still says how long it has waited. **Order** (`waitingOrder`): late; due this week; no date and waited 7 days or more, oldest first; the rest, newest first; within each, decisions, questions, updates, next steps.
 
@@ -41,6 +42,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Daniel’s question, raised on Tuesday 3 Nov in the Developer Productivity fortnightly, whose next session is Tuesday 10 Nov: its line on Monday 9 Nov, then on Wednesday 11 Nov unanswered. | `Due before tomorrow’s session / Was due by Tue 10 Nov` |
 | Amara, Monday 9 Nov, no check-ins of her own; Rhea’s decision for her asked on 4 Aug, with no date. | `ask: Needs your response · waiting since 4 Aug, 13 weeks · Rhea needs a decision · Respond` |
 | Tunde’s goal “Warm build cache” has Rhea’s open question and Amara’s answered one, both asked of Tunde; it goes to Sam Patel. | `Rhea Kapoor’s ask now goes to Sam Patel, who owns Warm build cache now (Asked of: Tunde Bakare → Sam Patel); 1 ask moved` |
+| Tunde, Friday 13 Nov, both in; Rhea proposed a goal for him on 4 Nov that he hasn’t opened. | `ask: Needs your response · waiting since 4 Nov, 9 days · Rhea proposed a goal for you · Open it` |
 | Tunde, Wednesday 23 Dec (week 52), both in, the wrap-up open. | `wrap-up: 2026 ends on Sunday 3 Jan · Wrap up your 2 goals · Start the wrap-up` |
 
 ## Not self-explanatory
@@ -49,7 +51,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/home.ts](../../../src/domain/home.ts): `homeFor`, `homeLead`, `quietLine`, `LEAD_DAYS`, `longDay`, `waiting`, `waitingOrder`, `askLead`, `missedReviews`
+- [src/domain/home.ts](../../../src/domain/home.ts): `homeFor`, `homeLead`, `quietLine`, `LEAD_DAYS`, `longDay`, `waiting`, `waitingOrder`, `askLead`, `proposalLead`, `missedReviews`
 - [src/domain/askHandover.ts](../../../src/domain/askHandover.ts): `asksFollowOwner`, `handedFrom`, `openAsksDiff`
 
 ## Requirements
@@ -87,6 +89,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - Home rule 3: an ask that waits › leads when late, due this week or a week old; not when new
 - Home rule 3: an ask that waits › rank 60: an ask leads only when nothing before it does, and is then not listed again
 - Home after the build review of #305 › a session missed in the year’s last week is not “not held” once the year has ended
+- Home rank 60 after the asks: a goal proposed for you (goal entry rule 14) › leads once it has waited 7 days, oldest first, with Open it
+- Home rank 60 after the asks: a goal proposed for you (goal entry rule 14) › comes after any ask that leads, and after a check-in that does
 
 ### [src/domain/askHandover.test.ts](../../../src/domain/askHandover.test.ts)
 

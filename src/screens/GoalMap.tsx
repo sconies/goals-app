@@ -2,7 +2,7 @@
    that feed them below. Solid lines: feeds into. Dotted: also helps. Bold red: the critical path, the inputs most
    likely to make each top goal miss. Branches fold and unfold; a goal opens its story beside the map. */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { Background, BaseEdge, Controls, Handle, MarkerType, Position, ReactFlow, type Edge, type EdgeProps, type Node, type NodeProps, type ReactFlowInstance } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useApp } from '../app/state';
@@ -20,6 +20,8 @@ import type { DisplayStatus, Goal } from '../domain/types';
 import { Chip, StatusShape, StatusWord, TitleTell } from '../ui/bits';
 import { StoryLines } from '../ui/GoalStory';
 import { Icon } from '../ui/Icon';
+import { PROPOSED } from '../domain/proposed';
+import { wouldMeasure } from './ProposedList';
 
 type GoalNodeData = {
   goal: Goal; status: DisplayStatus; owner: string; result: ResultKind | null; children: number; hidden: number; critical: boolean; root: boolean; context: boolean; found: boolean;
@@ -28,17 +30,21 @@ type GoalNodeData = {
   /** What's under it, by the one roll-up rule: the worst status there and the words for it. */
   under: { worst: DisplayStatus; text: string; total: number } | null;
   onToggle: (id: string) => void;
+  /** Proposed, not yet active (GE10): the word in place of a status, a dashed outline, what it would measure. */
+  proposed: boolean;
 };
 
 function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
-  const { goal, status, owner, result, children, hidden, critical, root, context, found, nums, under, onToggle } = data;
+  const { goal, status, owner, result, children, hidden, critical, root, context, found, nums, under, onToggle, proposed } = data;
   // The walkthrough's card goes left of a critical goal (else below), 16px off, and never covers the north star it threatens.
   const coach = critical ? (root ? { 'data-coach-avoid': '' } : { 'data-coach-place': 'left below', 'data-coach-gap': '16' }) : {};
   return (
-    <div className={'map-node' + (critical ? ' critical' : '') + (selected ? ' selected' : '') + (context ? ' context' : '') + (found ? ' found' : '')} data-tone={status} {...coach}>
+    <div className={'map-node' + (critical ? ' critical' : '') + (selected ? ' selected' : '') + (context ? ' context' : '') + (found ? ' found' : '') + (proposed ? ' proposed' : '')} data-tone={proposed ? undefined : status} {...coach}>
       <Handle type="target" position={Position.Bottom} isConnectable={false} />
-      <StatusWord k={status} className="map-status">{result && <span className={'result-tag result-' + result}>{RESULT_TEXT[result]}</span>}</StatusWord>
+      {proposed ? <span className="proposed-word map-status">{PROPOSED}</span>
+        : <StatusWord k={status} className="map-status">{result && <span className={'result-tag result-' + result}>{RESULT_TEXT[result]}</span>}</StatusWord>}
       <span className="map-title" title={goal.title}>{goal.title}<TitleTell goal={goal} /></span>
+      {proposed && <span className="map-nums muted">{wouldMeasure(goal)}</span>}
       {nums && (
         <span className="map-nums">
           <span className="strong">{nums.now}</span>
@@ -94,15 +100,21 @@ const readTrouble = (ws: string) => { try { return localStorage.getItem(troubleK
  * the trees wrapped into rows so Fit all really fits, the list bar's search that opens a goal's tree and moves to it (`goTo`), numbers and
  * a roll-up on every node, and a switch for the trees in trouble only.
  */
-export function GoalMap({ goals, matches, goTo }: { goals: Goal[]; matches?: Set<string>; goTo?: { id: string; n: number } | null }) {
+/**
+ * `proposed`: the proposed goals among `goals` (the Goals screen's State filter on Proposed, GE10). They are drawn but
+ * never judged: no status rule runs on one, it is on no critical path and in no "Under it", and it opens its own page.
+ */
+export function GoalMap({ goals, matches, goTo, proposed }: { goals: Goal[]; matches?: Set<string>; goTo?: { id: string; n: number } | null; proposed?: ReadonlySet<string> }) {
   const app = useApp();
+  const nav = useNavigate();
   const phone = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches;
   const [selected, setSelected] = useState<string | null>(null);
   // Opened from the keyboard: the panel takes focus, and closing it gives focus back to the goal on the map.
   const fromKeys = useRef<HTMLElement | null>(null);
   const [moved, setMoved] = useState(() => readPos(app.ws.id));
   const canvas = useRef<HTMLDivElement>(null);
-  const statusOf = useCallback((g: Goal) => app.statusOf(g).status, [app]);
+  // A proposed goal reads as nothing to judge ('planned' threatens nothing), so it is on no critical path.
+  const statusOf = useCallback((g: Goal): DisplayStatus => (proposed?.has(g.id) ? 'planned' : app.statusOf(g).status), [app, proposed]);
   // Only the trees in trouble: their top goal or anything under it off track, at risk or gone quiet.
   const [onlyTroubled, setOnlyTroubled] = useState(() => readTrouble(app.ws.id));
   useEffect(() => { try { localStorage.setItem(troubleKey(app.ws.id), onlyTroubled ? '1' : '0'); } catch { /* storage blocked */ } }, [onlyTroubled, app.ws.id]);
@@ -137,23 +149,24 @@ export function GoalMap({ goals, matches, goTo }: { goals: Goal[]; matches?: Set
   const placed = useMemo(() => (phone ? layoutIndented(scope, { only: shown, order }) : pack(layout(scope, { only: shown, order, stack: 3 }), box?.w ?? 1200, box?.h ?? 700)), [scope, shown, order, phone, box]);
   const [found, setFound] = useState<string | null>(null);
   const nodes: Node<GoalNodeData>[] = useMemo(() => placed.map((n) => {
-    const g = n.goal, a = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week), st = statusOf(g);
-    const gap = st === 'stale' ? null : gapBeside(g, a);
-    const r = rollup(g, scope, statusOf);
+    const g = n.goal, isP = !!proposed?.has(g.id);
+    const a = isP ? null : assessPosted(g, app.cycle, app.snapshot.checkIns, app.week), st = statusOf(g);
+    const gap = st === 'stale' || !a ? null : gapBeside(g, a);
+    const r = rollup(g, proposed?.size ? scope.filter((x) => !proposed.has(x.id)) : scope, statusOf);
     const kids = kidsOf.get(g.id) ?? [];
     return {
       id: n.id, type: 'goal', position: moved[n.id] ?? { x: n.x, y: n.y }, selected: n.id === selected,
       domAttributes: { 'aria-keyshortcuts': 'Enter Space' },
-      ariaLabel: `${g.key ? g.key + ' ' : ''}${g.title}: ${LABEL[st]}${critical.has(n.id) ? ', on the critical path' : ''}${matches && !matches.has(n.id) ? ', shown for context' : ''}`,
+      ariaLabel: `${g.key ? g.key + ' ' : ''}${g.title}: ${isP ? PROPOSED : LABEL[st]}${critical.has(n.id) ? ', on the critical path' : ''}${matches && !matches.has(n.id) ? ', shown for context' : ''}`,
       data: {
-        goal: g, status: st, owner: app.person(g.ownerId)?.name ?? '', result: goalResult(g, app.cycle, app.snapshot.checkIns, resultWeek(app.cycle, app.today))?.kind ?? null,
+        goal: g, status: st, owner: app.person(g.ownerId)?.name ?? '', result: isP ? null : goalResult(g, app.cycle, app.snapshot.checkIns, resultWeek(app.cycle, app.today))?.kind ?? null,
         children: kids.length, hidden: kids.filter((c) => !shown.has(c.id)).length, critical: critical.has(n.id), root: n.depth === 0, context: !!matches && !matches.has(n.id), found: found === n.id,
-        nums: { now: nowText(g, a), target: g.kind === 'metric' ? fmt(g.plan.target, g) : null, gap: gap ? { short: gap.short, tone: gap.tone } : null },
+        nums: a ? { now: nowText(g, a), target: g.kind === 'metric' ? fmt(g.plan.target, g) : null, gap: gap ? { short: gap.short, tone: gap.tone } : null } : null,
         under: r ? { worst: r.worst, text: rollupText(r), total: r.total } : null,
-        onToggle: toggle,
+        onToggle: toggle, proposed: isP,
       },
     };
-  }), [placed, moved, selected, statusOf, critical, app, toggle, matches, scope, kidsOf, shown, found]);
+  }), [placed, moved, selected, statusOf, critical, app, toggle, matches, scope, kidsOf, shown, found, proposed]);
   const busOf = useMemo(() => new Map(placed.filter((n) => n.bus != null).map((n) => [n.id, n.bus!])), [placed]);
   // The critical path is drawn last, so no grey line paints over it.
   const links: Edge[] = useMemo(() => mapEdges(placed, critical).sort((a, b) => Number(a.critical) - Number(b.critical)).map((e) => ({
@@ -339,6 +352,7 @@ export function GoalMap({ goals, matches, goTo }: { goals: Goal[]; matches?: Set
             const node = (e.target as HTMLElement).closest<HTMLElement>('.react-flow__node');
             if (!node || (e.key !== 'Enter' && e.key !== ' ')) return;
             e.preventDefault();
+            if (proposed?.has(node.dataset.id ?? '')) { nav('/goals/' + node.dataset.id); return; }
             fromKeys.current = node;
             setSelected(node.dataset.id ?? null);
           }}>
@@ -346,7 +360,7 @@ export function GoalMap({ goals, matches, goTo }: { goals: Goal[]; matches?: Set
             nodes={nodes} edges={links} nodeTypes={nodeTypes} edgeTypes={edgeTypes} minZoom={MIN_ZOOM} maxZoom={1.6}
             onInit={(rf) => { flow.current = rf; setReady(true); }}
             nodesConnectable={false} elementsSelectable deleteKeyCode={null} proOptions={{ hideAttribution: true }} panActivationKeyCode={null}
-            onNodeClick={(_, n) => { fromKeys.current = null; setSelected(n.id); setFound(null); }} onPaneClick={() => { setSelected(null); setFound(null); }}
+            onNodeClick={(_, n) => { if (proposed?.has(n.id)) { nav('/goals/' + n.id); return; } fromKeys.current = null; setSelected(n.id); setFound(null); }} onPaneClick={() => { setSelected(null); setFound(null); }}
             onNodeDragStop={(_, n) => setMoved((m) => ({ ...m, [n.id]: n.position }))}
           >
             <Background gap={24} size={1} />

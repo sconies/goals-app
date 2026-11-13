@@ -121,7 +121,12 @@ export interface HomeFacts {
   watches: number;
   /** Rule 3: the open asks waiting on the viewer, in rule 3's order. */
   asks: Waiting[];
+  /** Goals proposed for the viewer by someone else, not yet opened (goal entry rule 14, `proposalAsks`'s `for-you`). */
+  proposals?: ProposedForYou[];
 }
+
+/** A goal proposed for the viewer by someone else that they haven't opened, as the lead reads it. */
+export interface ProposedForYou { id: string; title: string; by: string; proposedOn: string }
 
 export type LeadKind = 'check-in-late' | 'check-in' | 'wrap-up' | 'review' | 'ask';
 export interface Lead {
@@ -212,8 +217,22 @@ export function homeLead(f: HomeFacts): Lead | null {
   // 50: a review the viewer is in, on or past its day this week, not held.
   const session = f.sessions.filter((x) => x.date <= f.today && !x.held && x.done < x.total).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name))[0];
   if (session) return reviewLead(f, session);
-  // 60: the oldest or most pressing thing waiting on the viewer (rule 3's order puts it first).
-  return askLead(f.asks[0]);
+  // 60: the oldest or most pressing thing waiting on the viewer (rule 3's order puts it first); then a goal proposed for
+  // them, which is an ask with no date, asked on the day it was proposed, and so after any ask that leads.
+  return askLead(f.asks[0]) ?? proposalLead(f.proposals ?? [], f.today);
+}
+
+/**
+ * Rank 60, after the asks (goal entry rule 14 under rule 3): the oldest goal proposed for the viewer by someone else and
+ * not yet opened, once it has waited 7 days or more; it has no due date. "Open it" opens the goal, which ends it.
+ */
+export function proposalLead(list: readonly ProposedForYou[], today: string): Lead | null {
+  const p = list.filter((x) => dayDiff(x.proposedOn, today) >= 7).sort((a, b) => a.proposedOn.localeCompare(b.proposedOn) || a.title.localeCompare(b.title))[0];
+  if (!p) return null;
+  const days = dayDiff(p.proposedOn, today);
+  return { kind: 'ask', eyebrow: `Needs your response · waiting since ${dayMonth(p.proposedOn)}, ${days < 14 ? `${days} days` : `${Math.floor(days / 7)} weeks`}`, warn: false,
+    title: `${p.by} proposed a goal for you`, line: `“${p.title}”. Nothing is due on it until you make it active.`,
+    action: { label: 'Open it', to: `/goals/${p.id}` }, also: null, ring: null, about: p.id };
 }
 
 /** Section 2.1's quiet line: what Home says when nothing is asked of the viewer today. Never "You’re all set". */

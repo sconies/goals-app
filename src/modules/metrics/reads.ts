@@ -23,6 +23,12 @@ export function goalsOfMetric(s: Snapshot, cycle: Cycle, today: Date, week: numb
   return metricGoals(metricId, links, summariseAll(goals, s, cycle, today, week), s.teams, cycle);
 }
 
+/** The cycle's proposed goals (GE10) a metric names, newest first: listed apart, with no numbers, in no comparison. */
+export function proposedOfMetric(s: Pick<Snapshot, 'proposed'> & Parameters<typeof linksOf>[0], metricId: string) {
+  const ids = new Set(linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt).map((l) => l.goalId));
+  return (s.proposed ?? []).filter((g) => ids.has(g.id) && !g.removedAt).sort((a, b) => (b.proposedAt ?? '').localeCompare(a.proposedAt ?? ''));
+}
+
 /** What rule 1's questions read: in rulesSave.ts, which loads on the first save without the library's reads. */
 export { checkReads } from './checkReads';
 

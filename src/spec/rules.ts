@@ -59,7 +59,7 @@ import type { ActionContext } from '../domain/actions';
 import MODULE_SPEC from 'virtual:faro-modules/spec';
 import { backTo, litItem, menuGroups, menuRows, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
 import { movedGoals, ownGroup, scopesFor } from '../domain/goalsPage';
-import { watchedGoals } from '../domain/review';
+import { goalsIn, watchedGoals } from '../domain/review';
 import { countLine, filterLine, findAll, keyOf, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
@@ -859,12 +859,12 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
     code: [
       { file: 'src/domain/decide.ts', names: ['needsDecision', 'decisionFor', 'acceptNote', 'acceptedReason', 'lastTime', 'sessionDecisions'] },
       { file: 'src/domain/actions.ts', names: ['acceptRisk', 'addAction', 'markReviewed'] },
-      { file: 'src/domain/review.ts', names: ['sessionToDo', 'canSpeakFor', 'speakRefusal', 'joinLine'] },
+      { file: 'src/domain/review.ts', names: ['sessionToDo', 'canSpeakFor', 'speakRefusal', 'scopeRefusal', 'joinLine'] },
     ],
     tests: ['src/domain/decide.test.ts', 'src/domain/review.test.ts', 'src/domain/speakFor.test.ts'],
     reqs: ['REVIEW-DECIDE', 'REVIEW-RUN', 'REVIEW-SPEAK'],
     body: `
-**Who may speak for a review** (\`canSpeakFor\`): someone in it, or an admin. Marking a goal reviewed, a note, the review accepting a risk, and a question or next step raised in the review are refused for anyone else with "Only people in {review}, or an admin, can speak for it." (\`speakRefusal\`). Everyone may read a review, and anyone may still ask a question or agree a next step on a goal's own page. A review's page tells someone not in it who can add them (\`joinLine\`): "You’re not in this review. {its people and whoever set it up, up to six, then "and {n} more"} or an admin can add you."
+**Who may speak for a review** (\`canSpeakFor\`): someone in it, or an admin. Marking a goal reviewed, a note, the review accepting a risk, and a question or next step raised in the review are refused for anyone else with "Only people in {review}, or an admin, can speak for it." (\`speakRefusal\`). Even then, only about a goal the review walks (its goals, trees and levels, \`goalsIn\`): anything said in it about another goal is refused with "{review} doesn’t cover {goal}, so nothing can be said about it there." (\`scopeRefusal\`). Everyone may read a review, and anyone may still ask a question or agree a next step on a goal's own page. A review's page tells someone not in it who can add them (\`joinLine\`): "You’re not in this review. {its people and whoever set it up, up to six, then "and {n} more"} or an admin can add you."
 
 **Who must decide.** A goal whose status is \`off\` or \`risk\` (\`needsDecision\`) is not marked reviewed in a walk until something is decided about it. Every other goal is marked reviewed as before.
 
@@ -884,6 +884,7 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
       { given: 'Which statuses need a decision: off, risk, on, stale, done.', then: 'yes, yes, no, no, no', run: () => ['off', 'risk', 'on', 'stale', 'done'].map((k) => (needsDecision(k) ? 'yes' : 'no')).join(', ') },
       { given: 'The words saved for accepting the risk because "the vendor fix lands next release", and what is read back from them and from "Talked it through".', then: 'We accept the risk: the vendor fix lands next release / the vendor fix lands next release / not a decision', run: () => { const w = acceptNote('the vendor fix lands next release'); return `${w} / ${acceptedReason(w)} / ${acceptedReason('Talked it through') ?? 'not a decision'}`; } },
       { given: 'In the demo workspace, Daniel accepts the risk on the merge queue in the Developer Productivity fortnightly with the reason "ok".', then: 'refused: Say why the review accepts the risk.', run: () => summaryOf(asPerson('daniel', (x) => acceptRisk(x, goalIn('lead-mq'), demo!.reviews.find((r) => r.id === 'devprod')!, 'ok', 46))) },
+      { given: 'In the demo workspace, Daniel, who is in the Developer Productivity fortnightly, marks a goal the fortnightly doesn’t walk reviewed in it.', then: 'refused: Developer Productivity fortnightly doesn’t cover {that goal}, so nothing can be said about it there.', run: () => { const rv = demo!.reviews.find((r) => r.id === 'devprod')!; const all = demo!.goals; const out = all.find((g) => !goalsIn(rv.scope, all).some((v) => v.id === g.id))!; return summaryOf(asPerson('daniel', (x) => reviewCall(x, out, rv, 'acknowledge', ''))).replace(out.title, '{that goal}'); } },
       { given: 'In the demo workspace, Oskar, who is not in the Developer Productivity fortnightly and is not an admin, marks the merge queue reviewed in it.', then: 'refused: Only people in Developer Productivity fortnightly, or an admin, can speak for it.', run: () => summaryOf(asPerson('oskar', (x) => reviewCall(x, goalIn('lead-mq'), demo!.reviews.find((r) => r.id === 'devprod')!, 'acknowledge', ''))) },
       { given: 'Searching the demo workspace’s people for "kap", then "rhea tunde".', then: 'Rhea Kapoor / nobody', run: () => [search(personRows(demo!), { q: 'kap' }), search(personRows(demo!), { q: 'rhea tunde' })].map((a) => a.rows.map((p) => p.name).join(', ') || 'nobody').join(' / ') },
     ],
@@ -1498,9 +1499,9 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
 
 **Data.** A goal is proposed while \`proposedAt\` is set (with \`proposedBy\`, who proposed it) and it is neither removed nor stopped (\`isProposed\`). Making it active clears both; History has when.
 
-**Never judged.** \`judged(goals)\` is those neither proposed nor stopped, and every rule that leaves a stopped goal out leaves a proposed one out the same way: the cycle's scope (\`scopeToCycle\`) keeps proposed goals beside its goals, never among them, so no status rule is ever run on one and it is in no count, health line, Needs attention, review agenda, check-in, wrap-up, streak or metric comparison. A check-in on one is refused at every door: "${NOTHING_TO_CHECK_IN}" Its summary has the state \`proposed\` and the status word "Proposed", drawn as a word alone, with no shape.
+**Never judged.** \`judged(goals)\` is those neither proposed nor stopped, and every rule that leaves a stopped goal out leaves a proposed one out the same way: the cycle's scope (\`scopeToCycle\`) keeps proposed goals beside its goals, never among them, so no status rule is ever run on one and it is in no count, health line, Needs attention, review agenda, check-in, wrap-up, streak or metric comparison. A proposed goal may name its metric: the metric's page lists it under its goals table as "Proposed · {n}" with no numbers (the metrics module's \`proposedOfMetric\`), and \`get_metric\` gives it apart as \`proposed\`. A check-in on one is refused at every door: "${NOTHING_TO_CHECK_IN}" Its summary has the state \`proposed\` and the status word "Proposed", drawn as a word alone, with no shape.
 
-**Counted apart.** \`goalCounts\` gives active and proposed apart, and a count line adds "{n} proposed": "2 goals, worst first. 1 proposed".
+**Counted apart.** \`goalCounts\` gives active and proposed apart, and a count line adds "{n} proposed": "2 goals, worst first. 1 proposed". With the State filter on Proposed (\`state=proposed\`), Goals lists them newest first; the Board is one column, "Proposed"; the Map draws each in its tree with the goals above it for context, as a node with a dashed outline and the word, on no critical path and in no "Under it", and opening one goes to its page. Without the filter neither draws one.
 
 **Saving.** A new goal is proposed when "Is it under way?" is answered "Not yet: propose it", a file's State says proposed, or a tool's state does. While proposed, the type's own required fields (Baseline and Target, the Limit, the stages) are optional all together (\`proposedMustFix\`): a proposal that says none of them is stored as dated stages with no stages (\`measureUnsaid\`) and every screen says "How it’s measured isn’t said yet."; one that says part of it is judged as any goal is. No reason is ever asked of a change to a proposed goal.
 
@@ -1514,7 +1515,7 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
 
 **Withdrawing** is deleting (domain/removal): Recently removed for 30 days, with Undo; History says "Withdrew the proposal “{goal}”".
 
-**Home** (\`proposalAsks\`): under "Proposed goals" in "Needs your response", a goal proposed for the viewer by someone else, not yet opened ("{Name} proposed a goal for you: “{goal}”."), and one proposed 8 weeks ago or more (\`PROPOSED_ASK_WEEKS\`) for its owner: "“{goal}” has been proposed for {n} weeks. Make it active, or withdraw it." Each has "Open it"; the second also "Not yet", which puts it off for 8 more weeks. Opening the goal as its owner ends the first. What each person opened and put off is kept behind the Prefs port. Never a status, a count or a flag. Proposing for someone else says so after the read-back: "{Owner} sees it on their Home as a proposal for them. Faro doesn’t send email."
+**Home** (\`proposalAsks\`): under "Proposed goals" in "Needs your response", a goal proposed for the viewer by someone else, not yet opened ("{Name} proposed a goal for you: “{goal}”."), and one proposed 8 weeks ago or more (\`PROPOSED_ASK_WEEKS\`) for its owner: "“{goal}” has been proposed for {n} weeks. Make it active, or withdraw it." Each has "Open it"; the second also "Not yet", which puts it off for 8 more weeks. Opening the goal as its owner ends the first; once it has waited 7 days it is Home's lead when no ask is (the Home rule's \`proposalLead\`). What each person opened and put off is kept behind the Prefs port. Never a status, a count or a flag. Proposing for someone else says so after the read-back: "{Owner} sees it on their Home as a proposal for them. Faro doesn’t send email."
 
 **The carry.** A proposed goal carries into the next year as proposed.`,
     examples: (() => {
@@ -1697,7 +1698,7 @@ RULE_LIST.push({
   id: 'home',
   title: 'Home: what is asked of you today',
   summary: 'Whether Home leads with one thing asked of the viewer today, and its one primary action, or says in one quiet line that nothing is.',
-  code: [{ file: 'src/domain/home.ts', names: ['homeFor', 'homeLead', 'quietLine', 'LEAD_DAYS', 'longDay', 'waiting', 'waitingOrder', 'askLead', 'missedReviews'] }, { file: 'src/domain/askHandover.ts', names: ['asksFollowOwner', 'handedFrom', 'openAsksDiff'] }],
+  code: [{ file: 'src/domain/home.ts', names: ['homeFor', 'homeLead', 'quietLine', 'LEAD_DAYS', 'longDay', 'waiting', 'waitingOrder', 'askLead', 'proposalLead', 'missedReviews'] }, { file: 'src/domain/askHandover.ts', names: ['asksFollowOwner', 'handedFrom', 'openAsksDiff'] }],
   tests: ['src/domain/home.test.ts', 'src/domain/askHandover.test.ts'],
   reqs: ['HOME-OWNER'],
   body: `
@@ -1708,6 +1709,7 @@ RULE_LIST.push({
 3. *The wrap-up*: open (the cycle's last two weeks, or after its end), the viewer owns goals not yet wrapped up, and no check-in is still to do this week. **Start the wrap-up** opens the first.
 4. *A review*: one the viewer is in, this week's, on or past its day, not held, with goals not yet marked reviewed; the earliest, then by name. Past its day it says "Not held yet" with the warning mark. **Open the review**, or **Continue: {goal}** once begun.
 5. *An ask*: the first ask waiting on the viewer in the order below, when it is late, due this week, or has waited 7 days or more with no date. "Needs your response · {its line}" · "{First name} needs a decision" (asked a question, asked for an update; "A next step you agreed is due") · "“{ask}”. About {goal}." · **Respond**, **Answer**, **Check in** or **Mark done**. It is then not listed again under "Also needs your response".
+   Then, when no ask leads (\`proposalLead\`): a goal proposed for the viewer by someone else and not yet opened (goal entry rule 14) is an ask with no date, asked on the day it was proposed, so it leads once it has waited 7 days or more, the oldest first. "Needs your response · waiting since {4 Nov}, {9 days}" · "{First name} proposed a goal for you" · "“{goal}”. Nothing is due on it until you make it active." · **Open it**. Its row under "Proposed goals" is then not listed.
 
 **An ask that waits** (\`waiting\`). Its due date is its own due week's Sunday; else, for a question raised in a review, the first session after the one it was raised in, fixed when asked (it does not move on when that session passes); else none. Late: today is after the due date. Its line, said after who asked and when: late, with the warning mark, "Was due week {w} ({dates})" or "Was due by {Tue 10 Nov}" (the review is named after it, where it was asked); "Due before today’s session" / "tomorrow’s" with the warning mark; "Due this week ({dates})"; "Due week {w} ({dates})"; "Before its next session, {Tue 24 Nov}"; no date and 7 days or more, "Waiting since {4 Aug}, {8 days | 14 weeks}" (weeks from 14 days); newer, "Asked today", "yesterday" or "on {Tuesday}". The day it was asked is read on the viewer's own clock, as today is (at UTC+10 an ask made half an hour ago is "Asked today"). Under the ask the line comes first, then who asked, where and on which day (left out when the line says it), so a phone's one line, cut short, still says how long it has waited. **Order** (\`waitingOrder\`): late; due this week; no date and waited 7 days or more, oldest first; the rest, newest first; within each, decisions, questions, updates, next steps.
 
@@ -1735,6 +1737,7 @@ Never said: "You’re all set", a deadline that has passed for someone who met i
       const h = asksFollowOwner({ goals: [goal], people, asks: [ask('q1', 'rhea', 'open'), ask('q2', 'amara', 'answered')] }, [{ ...goal, ownerId: 'sam' }], { actorId: 'tunde', now: '2026-11-11T12:00:00Z', newId: (p) => p });
       return `${h.changes.map((c) => `${c.summary} (${c.diffs.map((d) => `${d.field}: ${d.from} → ${d.to}`).join('')})`).join('; ')}; ${h.requests.length} ask moved`;
     } },
+    { given: 'Tunde, Friday 13 Nov, both in; Rhea proposed a goal for him on 4 Nov that he hasn’t opened.', then: 'ask: Needs your response · waiting since 4 Nov, 9 days · Rhea proposed a goal for you · Open it', run: () => homeSays(HOME_F({ today: '2026-11-13', proposals: [{ id: 'g132', title: 'Signed artifacts in staging', by: 'Rhea', proposedOn: '2026-11-04' }] }, { done: 2 })) },
     { given: 'Tunde, Wednesday 23 Dec (week 52), both in, the wrap-up open.', then: 'wrap-up: 2026 ends on Sunday 3 Jan · Wrap up your 2 goals · Start the wrap-up', run: () => homeSays(HOME_F({ today: '2026-12-23', week: 52, rhythm: { dueDate: '2026-12-24', nextDueDate: '2026-12-31' }, wrap: { ends: '2027-01-03', ended: false, left: [{ id: 'g1', title: 'Goal 1' }, { id: 'g2', title: 'Goal 2' }], total: 2 } }, { done: 2 })) },
   ],
   unclear: ['The ring and its words are drawn by the screen from the lead’s counts; the conformance rows (home.csv) give the lead’s kind and the quiet sentence for each demo person on each day of two weeks.'],

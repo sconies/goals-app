@@ -80,7 +80,7 @@ export const TOURS: Tour[] = [
     id: 'import', title: 'Import from a spreadsheet', role: 'Goal owner', personId: 'mateo', start: '/data', module: 'spreadsheets',
     steps: [
       { say: 'Goals, plan numbers and past weeks can come from a spreadsheet. On Data, Export takes them out and Import brings them in: choose Import.', target: { selector: '.data-tools .data-import' }, doneWhen: { route: /^\/data\/import/ } },
-      { say: 'Download the workbook, change it in Excel, then choose it here. Every change is shown before anything is saved, and checked with the app’s own rules.', target: { selector: '.steps-list' } },
+      { say: 'Download the workbook, change it in Excel, then choose it here. Every change is shown before anything is saved, and checked with the app’s own rules.', target: { selector: '.import-workbook .btn' } },
     ],
   },
 ];
