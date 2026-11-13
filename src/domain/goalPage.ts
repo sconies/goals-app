@@ -164,12 +164,14 @@ export function primaryAction(o: {
 
 /** The plain button beside the primary one: the owner's "Check in again", or anyone else's "Watch" / "Watching". */
 export type StandingKind = 'check-in-again' | 'watch' | 'watching' | null;
-export function standingAction(o: { goal: Goal; viewer: Person; primary: Primary; watching: boolean; status: DisplayStatus }): { kind: StandingKind; label: string } {
+/** `watching` is null while Watching is switched off (SW1, spec 2.6): then no Watch button, for anyone but the owner. */
+export function standingAction(o: { goal: Goal; viewer: Person; primary: Primary; watching: boolean | null; status: DisplayStatus }): { kind: StandingKind; label: string } {
   if (o.goal.stoppedAt) return { kind: null, label: '' };
   if (o.viewer.id === o.goal.ownerId) {
     if (o.status === 'done' || o.primary.kind === 'check-in' || o.primary.kind === 'first-check-in') return { kind: null, label: '' };
     return { kind: 'check-in-again', label: 'Check in again' };
   }
+  if (o.watching === null) return { kind: null, label: '' };
   return o.watching ? { kind: 'watching', label: 'Watching' } : { kind: 'watch', label: 'Watch' };
 }
 

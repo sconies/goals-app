@@ -10,7 +10,7 @@ What is in the core, what is a module, what each switch turns off, and the order
 |---|---|
 | Core | People, teams, goals, plans, check-ins, the status rules, the habit (the on-time run with one late week forgiven, the check-in's receipt, a target reached, and the measure "before this review, without being asked" on a review's and a team's page: `src/domain/habit.ts`, `standing.ts`, `progress.ts`), the vocabulary (`src/domain/vocabulary.ts`) and the change engine, including undo and history |
 | Extension points | Pages, navigation, Home blocks, goal-page sections, settings, database tables, AI tools, Help articles, requirements and journeys |
-| Feature modules | One folder each, with a manifest saying what it adds and what it needs. Today: spreadsheets and the metric library. Reviews, asks, Watching and the goal map are core and stay core (below, “Core, and staying core”) |
+| Feature modules | One folder each, with a manifest saying what it adds and what it needs. Today: spreadsheets and the metric library, and five switches whose screens are still the core's (their folders hold routes, Help and AI tools): Reviews, Watching, the Wrap-up, the Goal map and Feedback (SW1). Asks stay core (below, “Core, and staying core”) |
 | Background jobs | Separate processes only where work runs on a schedule or after saves: summary rows (release 4b), alerts and the weekly review (release 5), and the AI assistant server (`api/mcp.js`). Each one reuses the shared rules and never restates them |
 
 ## Rules
@@ -147,4 +147,4 @@ Faro's Supabase project (family-hq) also holds another app's real family data, s
   - the CI job that runs the core without each module;
   - the three rules files that reached into the data layer: `Commit` now lives in `src/domain/commit.ts`.
 - **Next:** the metric library becomes a module with its own records and rules (AS part 2), the proof that a feature with records of its own can be added without editing the core.
-- **Core, and staying core** (architecture readiness review, 11 Nov): reviews, asks, Watching and the map. Moving reviews (about 90 files across nine folders) would teach a rebuild nothing the metric library won't. Markup lives mostly in one folder and may move when something needs it to.
+- **Core, and staying core** (architecture readiness review, 11 Nov): asks. Reviews (FT2), Watching, the Wrap-up, the goal map and Feedback (SW1) have since become switches, each with a folder holding its routes, Help and AI tools, while their screens and rules stay in the core until each moves (FT3, SW4 to SW8). Moving reviews (about 90 files across nine folders) would teach a rebuild nothing the metric library won't. Markup lives mostly in one folder and may move when something needs it to.

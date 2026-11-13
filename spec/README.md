@@ -44,9 +44,13 @@ Anything a rebuild could not take from the spec alone is marked **Not self-expla
 
 | Module | What it does |
 |---|---|
+| [Feedback](modules/feedback/README.md) | Send feedback about Faro, or mark up a screen. It goes to the people who build Faro. |
+| [Goal map](modules/goal-map/README.md) | See every goal and what feeds it on one canvas, with the path the risk runs along. |
 | [Metric library](modules/metrics/README.md) | Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company. |
 | [Reviews](modules/reviews/README.md) | Walk a set of goals together on a cadence, decide what happens next and keep what was said. |
 | [Spreadsheets](modules/spreadsheets/README.md) | Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved. |
+| [Watching](modules/watching/README.md) | Follow goals you don’t own: they show on your Home and under Watching in Goals. |
+| [Wrap-up](modules/wrap-up/README.md) | At the end of the year, each owner says how their goals landed and what they learned. |
 
 ## Keeping it true
 

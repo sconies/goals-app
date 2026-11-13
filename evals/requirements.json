@@ -1194,6 +1194,36 @@
       "use": "copy"
     },
     {
+      "id": "WATCHING-OPTIONAL",
+      "area": "Architecture",
+      "text": "An admin switches Watching off for a workspace. Off, there is no Watching tab, no “Goals you watch”, no Watch button and no watching tool; someone who owns no goal is led to the goals that need attention. Switching it off first says how many people’s watches are kept. Every watch is kept, and switching it on restores each person’s.",
+      "use": "copy"
+    },
+    {
+      "id": "FEEDBACK-OPTIONAL",
+      "area": "Architecture",
+      "text": "An admin switches Feedback off for a workspace. Off, there is no Feedback in the menu, no way to send feedback or mark up a screen (Ctrl+Shift+M does nothing), and no inbox tool; its addresses say it is switched off. What was sent stays in the builders’ inbox.",
+      "use": "copy"
+    },
+    {
+      "id": "MAP-OPTIONAL",
+      "area": "Architecture",
+      "text": "An admin switches the Goal map off for a workspace. Off, Goals offers no Map, and a link or saved view that asked for it opens the List and says so.",
+      "use": "copy"
+    },
+    {
+      "id": "WRAP-UP-OPTIONAL",
+      "area": "Architecture",
+      "text": "An admin switches the Wrap-up off for a workspace. Off, nobody is asked how a goal landed (no wrap-up on Home, Goals, a goal or Cycles, no wrap-up page or tool); results are worked out as before and an admin still starts the next year from Cycles. Switching it off first says how many wrap-ups stay. Wrap-ups already written stay in History.",
+      "use": "copy"
+    },
+    {
+      "id": "FEATURE-GROUPS",
+      "area": "Architecture",
+      "text": "Workspace, Features lists the optional features in groups: Working together (Reviews, Watching, the Wrap-up), Tools (the Metric library, Spreadsheets, the Goal map) and Beyond this workspace (Feedback); a group with nothing installed is not shown. A feature on that holds something says so in a third line (how many reviews are set up, how many people watch goals, when the wrap-up opens). About lists what is on in the same order.",
+      "use": "copy"
+    },
+    {
       "id": "NO-SILENT-ROUNDING",
       "area": "Numbers",
       "text": "A number is never rounded quietly: one typed with more decimal places than its goal keeps is refused, with what it would show as, in the check-in, New goal, goal edit, the import and the AI tools. Letters in a number get one message everywhere, every number shown has its thousands grouped, and numbers far outside the plan are questioned, never refused.",
