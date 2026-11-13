@@ -385,7 +385,7 @@ The projection fits a least-squares line through the recent numbers, not a slope
     tests: ['src/domain/rules.test.ts#check-in rules', 'src/domain/rules.test.ts#typed numbers', 'src/domain/postCheckIn.test.ts#what a new number is compared with (rule 5)', 'src/domain/postCheckIn.test.ts#the levels in a check-in (rules 2 and 3)', 'src/domain/rules.test.ts#what a check-in still needs, as stable codes', 'evals/scenarios.eval.ts'],
     reqs: ['REASON-BEHIND', 'REASON-AHEAD', 'PATH-TO-GREEN', 'GREENER', 'OWNER-CALL', 'CHECKIN-STATUS-VS-PLAN', 'OTHER-CAUSE', 'FIRST-CHECKIN', 'HONEST-CHECKIN'],
     body: `
-A check-in is one week's report on one goal, by its owner only (R1; an admin may bring others' in by loading a workbook, or correct a past one in Data's tables): the number (or each stage's state), the owner's call, and the words the numbers ask for. Every way in (the check-in screen, the bulk grid, a spreadsheet, the AI assistant) uses these rules.
+A check-in is one week's report on one goal, by its owner only (R1; an admin may bring others' past weeks in by loading a workbook, or correct one that exists in Data's tables; neither adds this week's new check-in): the number (or each stage's state), the owner's call, and the words the numbers ask for. Every way in (the check-in screen, the bulk grid, a spreadsheet, the AI assistant) uses these rules.
 
 **Reading a number** (\`parseNumber\`): spaces and a trailing unit or \`%\` are ignored; a decimal comma with one or two digits (\`29,4\`) is a decimal point; commas grouping thousands (\`1,250\`, \`1,250.5\`) are dropped. Anything else that isn't plain digits with one optional point and sign (hex, exponents, words, two points) is not a number; nor is anything 10¹² or more.
 
