@@ -31,8 +31,10 @@ const live = <T extends { removedAt?: string | null }>(xs: T[]) => xs.filter((x)
  */
 export const reviewsOn = (on: ReadonlySet<string>): boolean => on.has('reviews');
 
-/** What a review action says when Reviews is off (FT2, spec 1.2). */
-export const reviewsOffWords = (workspace: string) => `Reviews is off in ${workspace}.`;
+/** What an action of a switched-off module says (docs/architecture/module-map.md, "An action, refused"): one sentence. */
+export const switchedOffWords = (module: string, workspace: string) => `${module} is switched off in ${workspace}. An admin can switch it on in Workspace, under Features.`;
+/** What a save of Reviews' records says while Reviews is off (FT2): the switched-off module's sentence (build review of #371). */
+export const reviewsOffWords = (workspace: string) => switchedOffWords('Reviews', workspace);
 
 /**
  * This week's deadline in dueWords' words (RS1), from what the rule reads: whether Reviews is on, and whether a review is
