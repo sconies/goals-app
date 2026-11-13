@@ -13212,7 +13212,8 @@ function partsOf(links) {
 }
 /**
 * A part in use that the typed one probably means: the same `partKey` spelt differently, or one edit away from one
-* (never for parts of two characters or fewer: "EU" is not "US"). Null when it is a part in use as typed, or new.
+* (never for parts of two characters or fewer: "EU" is not "US"; never when their numbers differ: "Region 2" is not
+* "Region 1"). Null when it is a part in use as typed, or new.
 */
 function closePart(part, parts) {
 	const p = part.trim();
@@ -13221,7 +13222,7 @@ function closePart(part, parts) {
 	const same = parts.find((x) => partKey(x) === k);
 	if (same) return same;
 	if (k.length <= 2) return null;
-	return parts.find((x) => partKey(x).length > 2 && editsBetween(partKey(x), k, 1) === 1) ?? null;
+	return parts.find((x) => partKey(x).length > 2 && numbersIn(partKey(x)) === numbersIn(k) && editsBetween(partKey(x), k, 1) === 1) ?? null;
 }
 /**
 * Rule 2. What measuring `goal` by `metric`, for `teamId` and `part`, asks. `problems` are linkProblems' (rules.ts:
@@ -13283,7 +13284,7 @@ function linkChecks(goal, metric, slice, problems, r, reason) {
 	if (!problems.errors.length && r.hasCheckIns && linkChanges(r.present, metric.id, slice.teamId, part) && !reason.trim()) out.push({
 		field: "why",
 		kind: "fix",
-		words: "Say why this goal is measured differently now. It shows in its History.",
+		words: "Say why this goal is measured differently now.",
 		answers: []
 	});
 	if (reason.trim().length > 300) out.push({
@@ -13294,11 +13295,12 @@ function linkChecks(goal, metric, slice, problems, r, reason) {
 	});
 	return out;
 }
-var partKey, linkChanges, forWords;
+var partKey, numbersIn, linkChanges, forWords;
 var init_rulesParts = __esmMin((() => {
 	init_fold();
 	init_edits();
-	partKey = (part) => fold$2(part).replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(" ").filter(Boolean).map((w) => w.length > 1 && w.endsWith("s") ? w.slice(0, -1) : w).join(" ");
+	partKey = (part) => fold$2(part).replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(" ").filter(Boolean).map((w) => w.length > 3 && w.endsWith("s") ? w.slice(0, -1) : w).join(" ");
+	numbersIn = (key) => (key.match(/\p{N}+/gu) ?? []).join(" ");
 	linkChanges = (present, metricId, teamId, part) => !!present && (present.metricId !== metricId || present.teamId !== teamId || partKey(present.part ?? "") !== partKey(part));
 	forWords = (sliceName, part) => `${sliceName === "The whole company" ? "the whole company" : sliceName}${(part ?? "").trim() ? ` · ${(part ?? "").trim()}` : ""}`;
 }));
@@ -13974,15 +13976,16 @@ function linkGoalMetric(x, goal, metricId, teamId = null, part = "", reason = ""
 		})]
 	};
 }
-/** What rule 2 reads for a goal and a metric: its present link, the metric's other live links (with each goal's title,
-key and owner), whether the goal has check-ins, and slices in words. */
+/** What rule 2 reads for a goal and a metric: its last link (removed or not), the metric's other live links on goals
+of the same cycle (with each goal's title, key and owner), whether the goal has check-ins, and slices in words. */
 function linkReads(x, goal, metricId) {
 	const s = x.full ?? x.snapshot;
-	const present = linksOf(s).find((l) => l.id === goal.id && !l.removedAt);
+	const present = linksOf(s).find((l) => l.id === goal.id);
 	const goals = new Map(s.goals.map((g) => [g.id, g]));
+	const cycle = goal.cycleId ?? goals.get(goal.id)?.cycleId ?? x.cycle?.id;
 	const others = linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt && l.goalId !== goal.id).flatMap((l) => {
 		const g = goals.get(l.goalId);
-		if (!g || g.removedAt || g.stoppedAt) return [];
+		if (!g || g.removedAt || g.stoppedAt || cycle && g.cycleId !== cycle) return [];
 		return [{
 			goalId: l.goalId,
 			teamId: l.teamId,
@@ -16783,12 +16786,13 @@ var help$3 = [
 					"For says whose number it is: the goal’s team, or the whole company.",
 					"Which part is optional: one part of that number, such as tier-1 services, a region or release builds, up to 60 characters. Leave it empty for all of it.",
 					"Parts other goals on the metric already use are listed under the field; choose one rather than typing it again, so goals on the same part line up on the metric’s page. A part spelt like one in use is asked about (“Use tier-1 services”, or keep yours).",
-					"If another goal already measures the same metric for the same team and part, you are asked, as two goals on one number is unusual; Carry on keeps it."
+					"If another goal this year already measures the same metric for the same team and part, you are asked, as two goals on one number is unusual; Carry on keeps it.",
+					"A question here is answered before the goal saves: Save takes you to it."
 				]
 			},
 			{
 				heading: "After check-ins",
-				list: ["Once a goal has check-ins, changing its metric, For or part asks Why. It shows in the goal’s History, so anyone reading its chart knows the number was measured differently from then on."]
+				list: ["Once a goal has check-ins, changing its metric, For or part asks Why, even if it stopped being measured by a metric in between. It shows in the goal’s History, so anyone reading its chart knows the number was measured differently from then on."]
 			},
 			{
 				heading: "On the goal’s page",
@@ -25850,7 +25854,7 @@ var tools$1 = [
 	{
 		name: "get_metric",
 		title: "Read a metric",
-		description: "One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).",
+		description: "One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; the parts its goals use (`parts`, most used first); the proposed goals that name it, apart and with no numbers; and, for its owner and admins, what it still needs (rule 3).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -25882,6 +25886,7 @@ var tools$1 = [
 					goal: g.title,
 					owner: ctx.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? null
 				}));
+				const parts = partsOf(linksOf(ctx.snapshot).filter((l) => l.metricId === m.id));
 				const needs = canEditMetric(ctx.actor, m) ? metricNeeds(m, libraryReads(ctx.snapshot, ctx.now)).map((x) => ({
 					id: x.id,
 					sentence: x.sentence
@@ -25903,6 +25908,7 @@ var tools$1 = [
 					`Caveats: ${d.caveats || "—"}`,
 					goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}`).join("\n")}` : "Measures no goal yet.",
 					...summary ? [summary] : [],
+					...parts.length ? [`Parts in use: ${parts.join(", ")}`] : [],
 					...proposed.length ? [`Proposed (${proposed.length}), not judged: ${proposed.map((x) => `${x.key ?? x.goalId} ${x.goal}${x.owner ? ` (${x.owner})` : ""}`).join("; ")}`] : [],
 					...needs.length ? [`To sort out: ${needs.map((x) => x.sentence).join("; ")}`] : []
 				];
@@ -25919,6 +25925,7 @@ var tools$1 = [
 						...d,
 						stillToSay,
 						goals,
+						parts,
 						proposed,
 						summary,
 						needs,
@@ -26151,8 +26158,8 @@ var tools$1 = [
 				goal: str$2("The goal’s ID or key (G-12)."),
 				metric: str$2("The metric’s ID or name. Required unless unlinking."),
 				team: str$2("The slice: a team by ID or name. Leave out for the whole company."),
-				part: str$2("Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them."),
-				reason: str$2("Why the goal is measured differently now. Required when a goal with check-ins changes its metric, team or part; it shows in the goal’s History."),
+				part: str$2("Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them under parts."),
+				reason: str$2("Why the goal is measured differently now. Required when a goal with check-ins is measured differently from its last link (another metric, team or part, even after unlinking); it shows in the goal’s History."),
 				answers: {
 					type: "object",
 					additionalProperties: false,
