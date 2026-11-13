@@ -27,6 +27,11 @@ const help: Article[] = [
         'Finish review says what was decided (each person’s next steps, the risks accepted, the questions still open) before it records the session as held, and its message has Undo. The walk’s last goal finishes the same way.',
         'Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session.',
       ] },
+      { heading: 'Before this review', list: [
+        'At the top of a review’s page: how many of its goals were checked in before it, and how many of those without being asked (an ask for an update is the only nudge). Before the review’s day it says how many are in so far.',
+        'Under it, “came in after an ask” and “have no check-in yet” each open exactly those goals on Goals, worst first. Then the last 8 weeks, one square each: All in, how many came after, None in, or Nothing due.',
+        'It counts weeks and goals, never people: nobody is named in it, and a set of goals with fewer than three owners doesn’t show it.',
+      ] },
       { heading: 'Ending one', list: [
         'End this review, at the foot of its page: it stops showing as due and keeps its notes and actions on each goal and in exports. Its page says Ended, with Reopen. A review that was never held is deleted instead.',
         'A note said in a review can be removed by whoever said it, or an admin; the goal’s activity then says “Note removed” in its place. A corrected note says edited.',
@@ -36,7 +41,7 @@ const help: Article[] = [
     routes: ['/reviews', '/reviews/new', '/reviews/:reviewId', '/reviews/:reviewId/edit', '/reviews/:reviewId/summary', '/reviews/:reviewId/print', '/review', '/goals/:goalId?review=*'],
     screens: ['Review', 'Inspect'],
     reqs: ['REVIEW', 'REVIEW-SETUP', 'REVIEW-RUN', 'REVIEW-DECIDE', 'INSPECT-ACT', 'REVIEW-LIST-STATE', 'REVIEW-AGENDA', 'EXCEPTIONS-FIRST', 'REVIEW-SPEAK'],
-    keywords: ['review', 'meeting', 'agenda', 'walk', 'notes', 'questions', 'actions', 'summary', 'cadence', 'weekly review'],
+    keywords: ['review', 'meeting', 'agenda', 'walk', 'notes', 'questions', 'actions', 'summary', 'cadence', 'weekly review', 'before this review', 'checked in before', 'last 8 weeks', 'without being asked'],
     related: ['needs-attention', 'goal-page', 'print', 'requests'],
   },
 ];

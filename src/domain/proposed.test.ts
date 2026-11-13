@@ -7,7 +7,7 @@ import { loadEngine, loadGoalEntry, perform, type RunContext } from '../app/acti
 import { attentionList } from './attention';
 import { carryCopy, carryKind } from './carry';
 import { planChanges } from './changeset';
-import { currentCycle, scopeToCycle } from './cycle';
+import { currentCycle, cycleDates, scopeToCycle } from './cycle';
 import { countLine } from './find';
 import { blankGoal, draftFor, type GoalDraft } from './goal';
 import { TYPE_FIXED } from './goalEntry';
@@ -23,6 +23,8 @@ import { markPersonLeft, undoRemoval } from './removal';
 import { agendaOf, reviewSession } from './review';
 import { lastTime, proposedLine } from './decide';
 import { workbook } from './export';
+import { startPage } from './startYear';
+import { goalToRows } from '../data/rows';
 import { proposedSummary } from './proposedSummary';
 import { readTables, type NamedGrid } from './sheets';
 import type { Goal, Snapshot } from './types';
@@ -124,6 +126,36 @@ describe('rule 14: proposed goals', () => {
     const made = { ...out.goal, proposedAt: null, proposedBy: null } as Goal;
     full = applyCommit(full, { goals: [made], changes: [{ id: 'chg_act', at: '2026-11-24T09:00:00Z', actorId: 'camille', goalId: made.id, entity: 'goal', entityId: made.id, action: 'edited', summary: 'Made it active', diffs: [{ field: 'State', from: 'Proposed', to: 'Active' }] }] });
     expect(before(scopeToCycle(full, w.cycle))).toEqual([`Proposed: Data-backed environments ready in under an hour (${out.goal.key}). Camille made it active on 2026-11-24.`]);
+  });
+
+  it('Proposed in a review (build review of #376): only someone in it may; once active it keeps the review on every save, a row included; proposed again or carried, it names none', () => {
+    const w = at('2026-11-11');
+    const draft = { ...blankGoal('portal', 'camille', ''), title: 'Data-backed environments ready in under an hour' };
+    // Oskar isn't in Developer Productivity fortnightly and isn't an admin: he can't propose in it.
+    expect(() => perform(x('oskar', w), 'saveGoal', { draft, state: 'proposed', proposedIn: 'devprod' })).toThrow('Only people in Developer Productivity fortnightly, or an admin, can speak for it.');
+    const out = perform(x('rhea', w), 'saveGoal', { draft, state: 'proposed', proposedIn: 'devprod' }) as { commit: Commit; goal: Goal };
+    // Made active (as `activate` stores it), then renamed by Camille: the review stays.
+    const made = { ...out.goal, proposedAt: null, proposedBy: null } as Goal;
+    const ww = { ...w, full: applyCommit(applyCommit(w.full, out.commit), { goals: [made], changes: [] }) };
+    const renamed = perform(x('camille', ww), 'saveGoal', { draft: { ...draftFor(made), title: 'Data-backed environments in under an hour', stages: [{ id: 's1', name: 'The first environment', dueWeek: '50' }] }, goalId: made.id }) as { goal: Goal };
+    expect(renamed.goal.proposedIn).toBe('devprod');
+    expect(goalToRows('ws', renamed.goal).goal.proposed_in).toBe('devprod');
+    // Made proposed again by Camille: proposed by her, in no review.
+    const again = backToProposed(x('camille', ww), { goalId: made.id }).goal;
+    expect([again.proposedBy, again.proposedIn]).toEqual(['camille', null]);
+    // Carried to the next year: a new goal there, proposed in no review of it.
+    expect(carryCopy(made, { old: { weeks: 53 }, next: { id: 'n', weeks: 52 }, checkIns: [], id: 'g2', parentId: null, now: '' }).proposedIn).toBeNull();
+  });
+
+  it('The start page counts a proposed goal apart: “1 proposed goal carries as proposed”, and in none of the four counts', () => {
+    const { w, goal } = proposed();
+    const after = new Date(cycleDates(w.cycle).lastDay + 'T12:00:00Z');
+    after.setUTCDate(after.getUTCDate() + 1);
+    const p = startPage(w.full, w.cycle, after);
+    expect(p.readBack!.proposed).toBe(1);
+    expect(p.counts.reduce((t, c) => t + c.n, 0)).toBe(p.readBack!.total);
+    expect(p.readBack!.total).toBe(w.full.goals.filter((g) => g.cycleId === w.cycle.id && !g.removedAt && !g.stoppedAt && g.id !== goal.id).length);
+    expect(p.startsWith.map((x) => x.bold + x.rest)).toContain('1 proposed goal carries as proposed, with nothing due until its owner makes it active.');
   });
 
   it('Tunde makes it active in week 48: From becomes 48, read back with its dates; Undo makes it proposed again', () => {

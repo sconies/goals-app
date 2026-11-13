@@ -129,6 +129,28 @@ describe('metric library tools', () => {
     expect((await call('link_goal_metric', { goal: 'ns-ci', metric: 'CI pipeline time on main (p90)' })).content[0]!.text).toMatch(/Only the goal’s owner or an admin/);
   });
 
+  it('asks why of a goal with check-ins measured differently even after unlinking it first (#308’s review)', async () => {
+    const { call, data } = await setup('rhea');
+    expect((await call('link_goal_metric', { goal: 'lead-ci-time', unlink: true })).isError).toBe(false);
+    const asked = await call('link_goal_metric', { goal: 'lead-ci-time', metric: 'CI pipeline time on main (p90)' });
+    expect(asked.isError).toBe(true);
+    expect(asked.content[0]!.text).toMatch(/Say why this goal is measured differently now\./);
+    expect(linksOf(data()).find((l) => l.goalId === 'lead-ci-time')!.removedAt).toBeTruthy();
+    // Linked back as it was is no change, so nothing is asked.
+    expect((await call('link_goal_metric', { goal: 'lead-ci-time', metric: 'metric_queue-wait', team: 'CI/CD', part: 'main branch pipelines' })).isError).toBe(false);
+    expect((await call('link_goal_metric', { goal: 'lead-ci-time', unlink: true })).isError).toBe(false);
+    const said = await call('link_goal_metric', { goal: 'lead-ci-time', metric: 'CI pipeline time on main (p90)', reason: 'Queue wait is part of pipeline time now', answers: { others: 'carry-on' } });
+    expect(said.isError).toBe(false);
+    expect(data().changes.some((c) => c.goalId === 'lead-ci-time' && c.summary === 'Measured by “CI pipeline time on main (p90)” for the whole company: Queue wait is part of pipeline time now')).toBe(true);
+  });
+
+  it('get_metric lists the parts its goals use', async () => {
+    const { call } = await setup('rhea');
+    const r = await call('get_metric', { metric: 'metric_queue-wait' });
+    expect((r.structuredContent as { parts: string[] }).parts).toEqual(['main branch pipelines']);
+    expect(r.content[0]!.text).toMatch(/Parts in use: main branch pipelines/);
+  });
+
   it('removes only a metric no goal has used, and restore_removed brings it back; a used one is retired (MT3)', async () => {
     const { call, data } = await setup('grace');
     const used = await call('remove_metric', { metric: 'metric_lead-time' });

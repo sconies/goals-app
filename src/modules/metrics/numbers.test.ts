@@ -1,7 +1,7 @@
 // @vitest-environment node
-/* The demo's number source passes the port's contract (src/ports/contracts/parts.ts), as any real source must. */
+/* The demo's number source passes the module's source contract (./source.contract.ts), as any real source must. */
 import { buildExample } from '../../data/examples';
-import { numberSourceContract } from '../../ports/contracts/parts';
+import { numberSourceContract } from './source.contract';
 import { DEMO_SOURCE, demoNumbers } from './numbers';
 import { metricsOf } from './rules';
 

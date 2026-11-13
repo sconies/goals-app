@@ -47,7 +47,7 @@ Every outside part sits behind one interface in `src/ports/`, with a contract te
 - [ ] **The clock:** `Clock`. The system's, or a fixed one for demos and tests.
 - [ ] **The AI tools' endpoint:** everything it needs is its `Deps` (`server/mcp.ts`); Supabase's are in `src/adapters/supabase/server.ts`, picked in `server/vercel.ts`. No contract of its own yet.
 - [ ] **Research and telemetry:** `src/app/research.ts` (through `src/adapters/supabase/research.ts`), `src/telemetry/` (sends to Supabase's REST address, no client library). Keep, swap for the company's analytics, or drop (`spec/requirements/internal/r9-observability.md`).
-- [ ] **A number source** for metrics that fill themselves in: `NumberSource`, with one demo source (`src/modules/metrics/numbers.ts`, "CI analytics", the build-time metric). Real connectors are yours: one per system a metric names as its source, each passing `numberSourceContract`. Nothing on screen reads one yet.
+- [ ] **A number source** for metrics that fill themselves in: `NumberSource` (the metric library's own port, `src/modules/metrics/source.ts`), with one demo source (`src/modules/metrics/numbers.ts`, "CI analytics", the build-time metric). Real connectors are yours: one per system a metric names as its source, each passing `numberSourceContract`. Nothing on screen reads one yet.
 
 ### 4. Build what the platform must add
 
