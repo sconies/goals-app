@@ -124,6 +124,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #299 MT2: migration 0043 | metrics | 0 | 0 | 2 |
 | #300 A range between two numbers (with #292, migration 0042) | 2 | 0 | 3 | 4 |
 | #277 IM6 part 2: the import's worker, Stop, and files in parts | 3 | 0 | 3 | 7 |
+| #310 HM2: asks say how long they have waited | 1 | 0 | 4 | 5 |
+| #305 HM1 review: five mediums | 1 | 0 | 2 | 2 |
+| #282 NV2, NV3 review | 1 | 0 | 2 | 3 |
+| #274 GL2 review | 1 | 0 | 0 | 2 |
 | #293 GE10 review: the four findings from #270 | 2 | 0 | 0 | 1 |
 | #294 Track 7 review fixes (#242, #249, #239) | MCP load | 0 | 0 | 0 |
 | #291, #295, #296, #304, #307 KT9, KT10 and KT6: the kit | 6 | 0 | 0 | 0 |
@@ -1338,3 +1342,34 @@ Read first by a reviewing session with probes and large files on screen at 1440 
 - "2 files of 5,000 rows" when the second has 1,000; the hint reads as if the split were by hand; focus stays on `body` when Reading appears and when the check ends; the whole progress card is one live region (read).
 - The changes list can save while a re-check runs (read; the store refuses a stale goal version).
 - U98 checks the two file names and does not load the parts back (read).
+
+### Four track 1 pull requests: #310, #305, #282 and #274 (merged 22:29 UTC, 12 Nov, to 00:18 UTC, 13 Nov)
+
+Read first by a reviewing session on the merged code at `b6bed496`, with probes and the demo on screen at 1440 and 390; the report reached me through its file after a restart, and I re-read the code behind #282's medium 1 and #305's medium 1. No high finding: no ask was shown to someone who shouldn't see it, and no typed work was lost.
+
+**#310 HM2: asks say how long they have waited.**
+
+1. Medium (ran). On a phone the waiting time is cut off, so what HM2 adds can't be read: `.need-meta` is one line with an ellipsis (`src/styles/finish/home-watching.css:226`) and the wait comes last. At 390 all six asks checked were clipped ("Rhea asked · Waiting since 4 …"). N26 reads the text, so it passes. Fix: put the waiting line first, or let the meta wrap.
+2. Medium (ran). The day is counted in two clocks: the day asked is the stamp's UTC date (`src/app/reads.ts:141`) and today is the viewer's own day. At UTC+10 an ask made half an hour ago reads "Asked yesterday"; in the UK it is wrong only between midnight and 01:00 in summer.
+3. Medium (ran). Home's "late" and MCP's "overdue" are two rules that disagree (`src/domain/home.ts:286-290` against `asks.ts:53`), and `get_my_work` has no waiting time or order though it says "as their Home shows it". A question past its review session is late on Home and not overdue in the tool.
+4. Medium (ran at the read; older than this PR). After a goal changes owner, a question or update ask stays with the old owner and the new owner sees nothing (`asks.ts:48`). The rule needs deciding.
+
+- Lows: the day is said twice for asks under a week old ("asked on 10 Nov · Asked yesterday"); the meta is two or three lines at 1440, not one; a late question sits under three decisions because the screen regroups by kind; "A next step you agreed is due" when someone else set it, and two full stops; `ASK_BUTTON` repeats `ASK_ACTION`.
+
+**#305 HM1 review.** Asks waiting are no longer "nothing asked", and the admin's year-end note shows to admins only: both hold. Two of the five do not hold fully:
+
+1. Medium (ran). "No 'not held' after the year" holds for the lead line only. `missedReviews` has no test for an ended cycle (`src/domain/home.ts:56-61`), so the This week cell says "Not held yet · Thu 31 Dec · … · 11 days past" on 11 Jan and "51 days past" on 20 Feb.
+2. Medium (ran). The wrapped lead still pushes the first goal needing attention off a phone's first screen on some days: 5 of 70 person-days by U2's own measure (Rhea on 10, 11 and 18 Nov, Tariq on 10 and 11 Nov). U2 runs only on the default day.
+
+- Lows: two reviews on one day are counted ("2 reviews") but only one is named and linked; "Sept" in the cell and "Sep" in the lead.
+
+**#282 NV2, NV3 review.**
+
+1. Medium (ran). A regression: Import has no way out on a phone. `/data/import` now counts as a form (`src/domain/navigation.ts`, `FORM`), so its back link draws nothing, Import has no closing control of its own, and focus mode hides the tab bar. Fix: give Import a `FormClose` and add it to U72.
+2. Medium (ran). "One rule for a form" is still two: a module's page with `focus: true` is in focus mode but is not a form to `isForm`, so `/metrics/new` shows a back link, "Close and keep the draft" and Cancel.
+
+- Lows: Close goes to a fixed place, not where the person came from (a goal's check-in closes to Home); after "Save and skip" a reload returns the walk to the skipped goal (older); U70's step budget was raised from 7 to 9.
+
+**#274 GL2 review.** No medium. The Map narrows on Enter, un-narrows when emptied, forgets the last find on a view change, and offers no sort, at 699, 700 and 701.
+
+- Lows: only part of the Goals page moved to 700 px (`list-board.css` still has 600 and 601 px blocks and `GoalMap.tsx:99` uses 640), so at 601 to 649 the count line is cut; the new width check uses 650 and 700, not 699 and 701.
