@@ -27,6 +27,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'switch-from-the-narrow-menu',
+    date: '2026-11-13',
+    title: 'Switch workspace from the narrow menu',
+    points: [
+      'With the narrow menu of icons, the Faro mark at its top opens the workspace switcher.',
+      'Nothing is added to the menu, so the rest of it keeps its room on a small screen.',
+    ],
+    articles: ['workspace'],
+  },
+  {
     id: 'reviews-switch-clock',
     date: '2026-11-13',
     title: 'Check-ins say plainly which day they’re due',
