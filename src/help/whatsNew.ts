@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'import-way-out',
+    date: '2026-11-13',
+    title: 'Import has a way out again',
+    points: [
+      'Import has “Close without saving” at the top right, as every form does, so on a phone it no longer leaves you with no way back to Data.',
+      'Rows you pasted are asked about first.',
+    ],
+    articles: ['getting-around', 'import'],
+  },
+  {
     id: 'review-who-speaks',
     date: '2026-11-13',
     title: 'Only people in a review, or an admin, decide in it',

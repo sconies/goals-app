@@ -17728,7 +17728,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Leaving a form",
-				list: ["A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.", "“Close without saving” (setting up or changing a review, wrapping up a goal) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it."]
+				list: ["A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.", "“Close without saving” (setting up or changing a review, wrapping up a goal, starting an import) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it."]
 			},
 			{
 				heading: "An address that leads nowhere",
@@ -18335,6 +18335,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "import-way-out",
+		date: "2026-11-13",
+		title: "Import has a way out again",
+		points: ["Import has “Close without saving” at the top right, as every form does, so on a phone it no longer leaves you with no way back to Data.", "Rows you pasted are asked about first."],
+		articles: ["getting-around", "import"]
+	},
 	{
 		id: "review-who-speaks",
 		date: "2026-11-13",

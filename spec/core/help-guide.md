@@ -220,7 +220,7 @@ Requirements: `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`.
 #### Leaving a form
 
 - A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.
-- “Close without saving” (setting up or changing a review, wrapping up a goal) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it.
+- “Close without saving” (setting up or changing a review, wrapping up a goal, starting an import) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it.
 
 #### An address that leads nowhere
 

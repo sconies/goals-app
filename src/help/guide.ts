@@ -1046,7 +1046,7 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'Leaving a form', list: [
         'A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.',
-        '“Close without saving” (setting up or changing a review, wrapping up a goal) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it.',
+        '“Close without saving” (setting up or changing a review, wrapping up a goal, starting an import) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it.',
       ] },
       { heading: 'An address that leads nowhere', list: [
         'An old or mistyped link says “Page not found”, with Go to Home and Help. A goal, review or person that isn’t there says so in its own words.',
