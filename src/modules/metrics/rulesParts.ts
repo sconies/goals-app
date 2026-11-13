@@ -4,7 +4,7 @@
    these, so they can't disagree.
 
    Pure: each takes only what it reads. A Check is a question answered once; a Must fix stops the link. */
-import { fold } from '../../domain/find';
+import { fold } from '../../domain/fold';
 import type { Goal } from '../../domain/types';
 import { editsBetween } from './edits';
 import type { Metric } from './types';
