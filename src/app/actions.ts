@@ -189,6 +189,9 @@ export interface ModuleAction<I = any, O = any> {
   ready?(): Promise<void>;
   /** Its input carries a whole record as the person last saw it, so a stale save isn't run again (AX6, `rerunsWhenStale`). */
   wholeRecord?: boolean;
+  /** The person confirms it against what they were shown (a sheet saying what it does), so a stale save isn't run again
+      on something they haven't seen (AX6, `rerunsWhenStale`). */
+  confirmed?: boolean;
 }
 /** What a module's actions.ts default-exports: its actions, by name. */
 export type ModuleActions = Record<string, ModuleAction>;
@@ -236,8 +239,18 @@ export function commitOf(name: ActionName | string, out: unknown, input: unknown
  * told and shown the latest, as before. A module's action says the same with `wholeRecord`.
  */
 const WHOLE_RECORD = new Set<string>(['saveGoal', 'saveReview', 'planChanges', 'undoRemoval']);
+/**
+ * Actions the person confirms against what they were shown first: a preview, a read-back or a sheet that says what
+ * happens (what a goal's removal moves up, who takes over a leaver's goals, which goals move with a team, the dates a
+ * proposed goal goes active with, what undoing an import puts back, the next cycle's read-back). Run again on the latest,
+ * they could do something the person never saw (another goal handed over, other dates), with nothing said. So these
+ * aren't re-run either: the person is told and shown the latest, to check and confirm again. A module's action says the
+ * same with `confirmed`. Plain actions (a note, a watch, a restore) re-run without a word: their input is all they mean.
+ */
+const CONFIRMED = new Set<string>(['activate', 'backToProposed', 'stopGoal', 'deleteGoal', 'deletePerson', 'markPersonLeft', 'leaveWorkspace', 'removeTeam', 'undoImport', 'deleteCycle', 'startNextCycle']);
 /** Whether a save refused as stale may run this action again on the latest (AX6). */
-export const rerunsWhenStale = (name: string) => !WHOLE_RECORD.has(name) && !MODULE_ACTIONS[name]?.wholeRecord;
+export const rerunsWhenStale = (name: string) =>
+  !WHOLE_RECORD.has(name) && !CONFIRMED.has(name) && !MODULE_ACTIONS[name]?.wholeRecord && !MODULE_ACTIONS[name]?.confirmed;
 
 /** What `run` gives back: the rule's result, or for a token the secret, shown once. */
 export type RunResult<N extends ActionName> = N extends 'createToken' ? string : ActionResult<N>;

@@ -11,6 +11,7 @@ import { contractWorkspace } from '../ports/contracts/store';
 import { STALE_RERUNS } from '../ports/store';
 import type { Snapshot } from '../domain/types';
 import { draftFor } from '../domain/goal';
+import { rerunsWhenStale } from './actions';
 
 describe('saveRerunning', () => {
   const s0 = { goals: [] } as unknown as Snapshot, s1 = { goals: [] } as unknown as Snapshot;
@@ -53,6 +54,15 @@ describe('saveRerunning', () => {
     await expect(saveRerunning(s0, () => ({ out: 0, commit: c(0) }), async () => { saves++; throw new StaleError('goal g'); }, async () => s1, 0)).rejects.toBeInstanceOf(StaleError);
     await expect(saveRerunning(s0, () => ({ out: 0, commit: c(0) }), async () => { saves++; throw new Error('offline'); }, async () => s1)).rejects.toThrow('offline');
     expect(saves).toBe(2);
+  });
+});
+
+describe('which actions run again', () => {
+  it('doesn’t re-run what the person confirmed against what they were shown, or a whole record; does re-run plain actions', () => {
+    for (const n of ['activate', 'markPersonLeft', 'leaveWorkspace', 'removeTeam', 'undoImport', 'deleteGoal', 'stopGoal', 'deletePerson', 'deleteCycle', 'startNextCycle', 'mergeMetrics', 'retireMetric', 'removeMetric', 'saveGoal', 'planChanges'])
+      expect([n, rerunsWhenStale(n)]).toEqual([n, false]);
+    for (const n of ['restoreRemoved', 'addNote', 'watch', 'deleteComment', 'endReview', 'linkGoalMetric'])
+      expect([n, rerunsWhenStale(n)]).toEqual([n, true]);
   });
 });
 
@@ -163,6 +173,17 @@ describe('a save refused as stale, in the app', () => {
     expect(err).toBeInstanceOf(StaleError);
     expect(t.saves()).toBe(1);
     await waitFor(() => expect(t.toasts().some((x) => x.text === STALE_SAVE)).toBe(true));
+  });
+
+  it('doesn’t run a delete again: it was confirmed against a sheet saying what it moves, which may have changed', async () => {
+    const t = await open('rerun7');
+    t.others.push(renamed(t.goal.id, 'Renamed by someone else'));
+    let err: unknown;
+    await act(async () => { err = await t.app().run('deleteGoal', { goalId: t.goal.id }).then(() => null, (e: unknown) => e); });
+    expect(err).toBeInstanceOf(StaleError);
+    expect(t.saves()).toBe(1);
+    await waitFor(() => expect(t.toasts().some((x) => x.text === STALE_SAVE)).toBe(true));
+    expect((await t.store.load('ws_r')).goals.find((x) => x.id === t.goal.id)!.removedAt).toBeFalsy();
   });
 
   it('doesn’t run a whole goal form again: it would put back what someone else just changed', async () => {
