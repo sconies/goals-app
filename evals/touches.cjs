@@ -52,7 +52,7 @@ const RULES = [
   // Reviews behind its switch (FT2): its read-back, a switched-off module's addresses, and its two journeys.
   [/^src\/domain\/reviewsOff\.ts$|^src\/screens\/NotFound\.tsx$|^src\/ui\/SwitchedOff\.tsx$|^evals\/notes\/21-switched-off\.cjs$/, ['U103', 'U104', 'U48', 'N21']],
   // The check-in rhythm (FT1): its words, its sheet and its journeys and check.
-  [/^src\/domain\/rhythm\.ts$|^evals\/finish\/20-no-rhythm\.cjs$/, ['U101', 'U102', 'U104', 'F20', 'N21']],
+  [/^src\/domain\/rhythm\.ts$|^evals\/(finish\/20-no-rhythm|notes\/22-rhythm)\.cjs$/, ['U101', 'U102', 'F20', 'N22']],
   [/^src\/screens\/(DataTables|DataLayout|DataFilters|BulkEdit)\.tsx|^src\/domain\/(changeset|importer|export|sheets|format|formatDoc)\.ts|^src\/app\/(spreadsheet|files|zip)\.ts/, ['U19', 'U20', 'U21', 'U35', 'U45', 'U46', 'F7', 'F8', 'N5']],
   // The import's preview (IM3): its rules and its two checks.
   [/^src\/domain\/(changeset|sheets|leaveOut|workedOut|problemLevels)\.ts/, ['U87', 'U88', 'U89', 'U94', 'U98', 'F17', 'N18', 'P19']],

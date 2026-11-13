@@ -4892,6 +4892,120 @@ journey('U104', ['REVIEWS-OPTIONAL', 'MODULES'], 'Reviews off, then back on: off
   await p.context().close();
 }, ['entry', 'parity']);
 
+journey('U101', ['RHYTHM-OPTIONAL', 'HOME-OWNER', 'CHANGE-LOG'], 'Amara sets the check-in rhythm to none: Features → Change → No set rhythm reads back what changes, counted; saved, Home has no streak and nothing due, Goals has no “no recent update”, a quiet goal says which week its status is from, Activity has the entry and Undo restores it. Switched back on, nothing is late that day and the first check-ins’ date is said', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/workspace/features'));
+  await see(p, 'Check-in rhythm');
+  await see(p, 'Every week, due by Thursday.', 'Features does not say the rhythm is every week, due by Thursday');
+  const goalsBefore = await (async () => { await p.goto(url('/goals?scope=all')); await p.locator('.goals-line').waitFor(); return p.locator('.goals-line').innerText(); })();
+  if (!/no recent update/i.test(goalsBefore)) fail(`with a rhythm Goals’ count line names no goal with no recent update: ${goalsBefore}`);
+  await p.goto(url('/workspace/features'));
+  await h.click(p.locator('.rhythm-row').getByRole('button', { name: 'Change' }));
+  const sheet = p.getByRole('dialog', { name: 'Check-in rhythm' });
+  await sheet.waitFor();
+  if (!(await sheet.getByRole('button', { name: 'Save' }).isDisabled())) fail('Save is offered before anything changed');
+  await h.click(sheet.getByRole('radio', { name: /No set rhythm/ }));
+  const says = await sheet.innerText();
+  for (const t of [/\d+ goals have nothing due\./, /stop reading “No recent update”/, /Nothing is flagged for going quiet\./, /Every check-in already posted stays as it is\./]) if (!t.test(says)) fail(`the read-back does not say ${t}: ${says.slice(0, 400)}`);
+  h.set('attention', true);
+  await h.click(sheet.getByRole('button', { name: 'Save' }));
+  await see(p, 'Check-ins have no set rhythm now.');
+  h.set('one-action', true);
+  await see(p, 'No set rhythm. Owners check in when there’s news', 'Features does not say there is no set rhythm');
+  await h.checkpoint('none');
+  // Home: no streak, nothing due.
+  await p.goto(url('/'));
+  await p.locator('.page.home').waitFor();
+  const home = await p.locator('[data-part="Home"]').innerText();
+  const owed = home.match(/On-time streak|weeks on time|check-ins? to do|are due by|is due by|Due by/);
+  if (owed) fail(`Home with no set rhythm still says “${owed[0]}”`);
+  // Goals: no “no recent update”; a status not from this week says which week.
+  await p.goto(url('/goals?scope=all'));
+  await p.locator('.goals-line').waitFor();
+  const line = await p.locator('.goals-line').innerText();
+  if (/no recent update/i.test(line)) fail(`Goals’ count line still names no recent update: ${line}`);
+  const asOf = await p.getByText(/as of week \d+/).count();
+  if (!asOf) fail('no goal on Goals says “as of week {n}”');
+  // Activity: the entry, under the workspace.
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.entity === 'workspace' && c.actorId === 'amara' && c.summary === 'Changed the check-in rhythm from every week to no set rhythm'), 'the rhythm change was not logged');
+  // Switched back on: nothing late that day, the first date said.
+  await p.goto(url('/workspace/features'));
+  await h.click(p.locator('.rhythm-row').getByRole('button', { name: 'Change' }));
+  await h.click(p.getByRole('dialog', { name: 'Check-in rhythm' }).getByRole('radio', { name: /Every week/ }));
+  const back = await p.getByRole('dialog', { name: 'Check-in rhythm' }).innerText();
+  if (!/Check-ins are due by Thursday, the first by \w{3} \d{1,2} \w{3}\./.test(back) || !/Nothing is late today\./.test(back)) fail(`switching back on does not say when the first are due and that nothing is late: ${back.slice(0, 400)}`);
+  await h.click(p.getByRole('dialog', { name: 'Check-in rhythm' }).getByRole('button', { name: 'Save' }));
+  await see(p, 'Check-ins are due every week, by Thursday.');
+  await p.goto(url('/goals?scope=all'));
+  await p.locator('.goals-line').waitFor();
+  const fresh = await p.locator('.goals-line').innerText();
+  h.set('finish', !/no recent update/i.test(fresh), `switched back on, goals read No recent update on the same day: ${fresh}`);
+  // Undo, from the toast, puts the rhythm back as it was.
+  await p.goto(url('/workspace/features'));
+  await h.click(p.locator('.rhythm-row').getByRole('button', { name: 'Change' }));
+  await h.click(p.getByRole('dialog', { name: 'Check-in rhythm' }).getByRole('radio', { name: /No set rhythm/ }));
+  await h.click(p.getByRole('dialog', { name: 'Check-in rhythm' }).getByRole('button', { name: 'Save' }));
+  await see(p, 'Check-ins have no set rhythm now.');
+  await p.getByRole('button', { name: 'Undo' }).last().click();
+  await see(p, 'The check-in rhythm is as it was.');
+  await see(p, 'Every week, due by Thursday.', 'Undo did not put the rhythm back');
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['entry', 'parity']);
+
+journey('U102', ['RHYTHM-OPTIONAL', 'UPDATE-ANYTIME'], 'Rhea checks in with nothing due: with no set rhythm, the menu’s Check-in has no count; “Check in on a goal” lists her goals with no check-in this week first; checking in on one moves it to “Checked in this week”; nothing says how many are left or a streak', 10, async (h, device) => {
+  // Amara (an admin) sets no set rhythm; then, in the same browser (the demo keeps its data there), Rhea.
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/workspace/features'));
+  await p.locator('.rhythm-row').getByRole('button', { name: 'Change' }).click();
+  await p.getByRole('dialog', { name: 'Check-in rhythm' }).getByRole('radio', { name: /No set rhythm/ }).click();
+  await p.getByRole('dialog', { name: 'Check-in rhythm' }).getByRole('button', { name: 'Save' }).click();
+  await see(p, 'Check-ins have no set rhythm now.');
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+  await p.goto(url('/check-in'));
+  await see(p, 'Check in on a goal');
+  await see(p, 'Check in when there’s news; nothing is due.');
+  const menu = await menuWords(p, device);
+  const item = (await p.locator(device === 'phone' ? 'nav.tabbar a, nav.tabbar button' : 'nav.side a.nav').filter({ hasText: 'Check-in' }).first().innerText()).trim();
+  if (/\d/.test(item)) fail(`the menu’s Check-in has a count with nothing due: ${item}`);
+  h.set('entry', menu.some((t) => /^Check-in/.test(t)), 'no Check-in in the menu for an owner');
+  const waiting = p.locator('[data-part="No check-in this week"]');
+  await waiting.waitFor();
+  const n = await waiting.locator('.ciq-row').count();
+  const doneBefore = await p.locator('[data-part="Checked in this week"] .ciq-row').count();
+  const first = waiting.locator('.ciq-row').first();
+  const title = (await first.locator('.ciq-title').innerText()).trim();
+  h.set('attention', n > 0, 'nothing listed under No check-in this week');
+  await h.click(first.getByRole('link'));
+  await p.waitForURL(/\/check-in\/[^/?]+/);
+  h.set('one-action', true);
+  // Post it as the form asks: a number when it has one, a reason when one is asked for.
+  for (let i = 0; i < 5 && !(await p.getByText('Check-in saved').isVisible().catch(() => false)) && /\/check-in\/[^/?]+/.test(new URL(p.url()).pathname); i++) {
+    const value = p.getByLabel('This week’s value');
+    if (i === 0 && await value.isVisible().catch(() => false)) await h.fill(value, await value.inputValue() || '1');
+    const why = p.getByLabel('What happened');
+    if (await why.isVisible().catch(() => false) && !(await why.inputValue())) { await p.locator('.cause-pick button, [aria-label^="Why is it"] button').first().click().catch(() => {}); await why.fill('Checking in with the latest number.'); }
+    const post = p.getByRole('button', { name: 'Post check-in' });
+    await (await post.isVisible().catch(() => false) ? post : p.getByRole('button', { name: 'Continue' })).click().catch(() => {});
+    await p.waitForTimeout(300);
+  }
+  await p.waitForURL((u) => u.pathname === '/check-in', { timeout: 8000 }).catch(() => undefined);
+  if (!/\/check-in$/.test(new URL(p.url()).pathname)) await p.goto(url('/check-in'));
+  await p.locator('[data-part="Checked in this week"]').waitFor();
+  const moved = await p.locator('[data-part="Checked in this week"]').getByText(title, { exact: false }).count();
+  const after = await p.locator('[data-part="Checked in this week"] .ciq-row').count();
+  const page = await p.locator('main').innerText();
+  const owed = page.match(/\d+ of \d+|streak|weeks on time|to do|Still due/);
+  if (owed) fail(`Check-in with no set rhythm says “${owed[0]}”`);
+  h.set('finish', moved > 0 && after === doneBefore + 1, `${title} did not move to Checked in this week`);
+  h.set('progress', true);
+  h.set('logged', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['parity']);
+
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals?scope=all'));

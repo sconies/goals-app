@@ -1140,6 +1140,12 @@
       "use": "copy"
     },
     {
+      "id": "RHYTHM-OPTIONAL",
+      "area": "Architecture",
+      "text": "An admin chooses the check-in rhythm for a workspace: every week, or none. With none, nothing is due or late for want of a check-in, no goal reads No recent update, and a status that isn’t this week’s says which week it is from. Dates people set still count. The change says what it will do first, is logged, and can be undone.",
+      "use": "copy"
+    },
+    {
       "id": "NO-SILENT-ROUNDING",
       "area": "Numbers",
       "text": "A number is never rounded quietly: one typed with more decimal places than its goal keeps is refused, with what it would show as, in the check-in, New goal, goal edit, the import and the AI tools. Letters in a number get one message everywhere, every number shown has its thousands grouped, and numbers far outside the plan are questioned, never refused.",
