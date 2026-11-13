@@ -2,10 +2,10 @@
    pipeline time on main (p90), as if the CI system sent it. In the demo, CI's numbers are the series the example was
    built with, so a reading is the value of the goal that metric measures, as last checked in at or before the moment
    asked. Real sources (a warehouse, a dashboard's API, a monitoring tool) are the internal team's: each is a
-   NumberSource that passes src/ports/contracts/numbers.ts. Nothing on screen uses it yet. It is the metric module's
+   NumberSource that passes ./source.contract.ts. Nothing on screen uses it yet. It is the metric module's
    (AS part 2): only a module with metrics has a source for them. */
 import type { Snapshot } from '../../domain/types';
-import type { NumberSource } from '../../ports';
+import type { NumberSource } from './source';
 import { goalsMeasuredBy } from './rules';
 import type { Metric } from './types';
 

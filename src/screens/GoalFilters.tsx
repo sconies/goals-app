@@ -71,6 +71,7 @@ export function FilterBar({ lead, trail, after, find, sortOff }: {
     team: (id: string) => app.team(id)?.name ?? 'a team',
     person: (id: string) => app.person(id)?.name ?? 'someone',
     goal: (id: string) => app.goal(id)?.title ?? 'a goal',
+    review: (id: string) => app.snapshot.reviews.find((r) => r.id === id)?.name ?? 'a review',
     col,
   };
   // The filters in words (find rule 3). The Needs attention switch isn't a filter, and a search never is.

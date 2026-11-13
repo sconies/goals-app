@@ -37,6 +37,18 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['workspace'],
   },
   {
+    id: 'habit-before-this-review',
+    date: '2026-11-13',
+    title: 'A review says how many goals were ready for it',
+    points: [
+      'A review’s page now opens with how many of its goals were checked in before it, and how many without anyone asking.',
+      'Links open the goals that came in after an ask for an update, and those with no check-in yet.',
+      'The last 8 weeks show as a row of squares: All in, how many came after, or None in. A team’s page has the same.',
+      'It counts weeks and goals, never people, and isn’t shown for a set of goals with fewer than three owners.',
+    ],
+    articles: ['reviews', 'teams'],
+  },
+  {
     id: 'habit-receipt-and-moment',
     date: '2026-11-13',
     title: 'Your run forgives one missed week, and reaching a target is said, quietly',

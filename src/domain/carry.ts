@@ -154,11 +154,12 @@ export interface CopyCtx {
  * A goal's copy in the next year (rule 5): a new id, in the new cycle, made now, with its key and everything else as it
  * was. A number goal that **carries** starts from its final number in week 1 (\`fromWeek\` 0), with the same target
  * and shape, due at the end of the new year: no end week, no hand-set numbers, no earlier plans. One that **keeps** its
- * plan keeps its dates, counted from the new year's start. Stages not done are spread evenly over the new year
+ * plan keeps its dates, counted from the new year's start. The copy was proposed in no review of the new year, so it
+ * keeps no `proposedIn` (build review of #376). Stages not done are spread evenly over the new year
  * (\`round((i + 1) × weeks / n)\`, never after its last week). A limit is unchanged.
  */
 export function carryCopy(g: Goal, ctx: CopyCtx): Goal {
-  const base = { ...g, id: ctx.id, cycleId: ctx.next.id, parentId: ctx.parentId, alsoHelps: ctx.alsoHelps ?? [], createdAt: ctx.now, pending: null } as Goal;
+  const base = { ...g, id: ctx.id, cycleId: ctx.next.id, parentId: ctx.parentId, alsoHelps: ctx.alsoHelps ?? [], createdAt: ctx.now, pending: null, ...(g.proposedIn ? { proposedIn: null } : {}) } as Goal;
   if (!base.parentId) base.effect = null;
   if (g.kind === 'metric' && (g.plan.endWeek ?? 0) > ctx.old.weeks) {
     const shift = (w: number) => w - ctx.old.weeks;
