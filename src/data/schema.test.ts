@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildPlatformOrg } from './platformOrg';
 import { metricLinkToRow, metricToRow } from '../modules/metrics/records';
+import { cycleToRow } from './rows';
 
 const dir = join(__dirname, '../../supabase/migrations');
 const sql = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort().map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
@@ -111,6 +112,14 @@ describe('database schema', () => {
     const rows = [{ id: 'cycle-rhythm', workspace_id: 'example', name: 'Rhythm', start_date: '2026-09-07', weeks: 13, check_in_weeks: 0, rhythm_from: '2026-10-05' }];
     await db.query(`select okr_upsert('okr_cycles', $1::jsonb, 'id')`, [JSON.stringify(rows)]);
     expect((await db.query<{ check_in_weeks: number; rhythm_from: unknown }>(`select check_in_weeks, rhythm_from::text from okr_cycles where id = 'cycle-rhythm'`)).rows[0]).toEqual({ check_in_weeks: 0, rhythm_from: '2026-10-05' });
+  });
+  it('saves two cycles in one batch, one with the rhythm and one without: every row carries both columns (0048, #308)', async () => {
+    const base = { name: 'Two', startDate: '2026-09-07', weeks: 13, reviewDay: 3 };
+    const rows = [cycleToRow('example', { ...base, id: 'cycle-with', startDate: '2030-01-07', checkInWeeks: 0, rhythmFrom: '2030-02-04' }), cycleToRow('example', { ...base, id: 'cycle-without', startDate: '2031-01-06' })];
+    expect(rows[1]).toMatchObject({ check_in_weeks: 1, rhythm_from: null });
+    await db.query(`select okr_upsert('okr_cycles', $1::jsonb, 'id')`, [JSON.stringify(rows)]);
+    const saved = await db.query<{ id: string; check_in_weeks: number; rhythm_from: string | null }>(`select id, check_in_weeks, rhythm_from::text from okr_cycles where id in ('cycle-with', 'cycle-without') order by id`);
+    expect(saved.rows).toEqual([{ id: 'cycle-with', check_in_weeks: 0, rhythm_from: '2030-02-04' }, { id: 'cycle-without', check_in_weeks: 1, rhythm_from: null }]);
   });
   it('saves retired and live metrics in one batch: a live one is written with an empty reason and no marks, never null (MT3)', async () => {
     const at = '2026-10-30T12:00:00.000Z';

@@ -16,7 +16,7 @@ export interface TeamRow extends W { id: string; name: string; lead_id: string |
 export interface PersonRow extends W, Removal { id: string; name: string; role: string; initials: string; team_id: string | null; is_admin: boolean; left_at?: string | null; left_by?: string | null; email?: string | null }
 export interface CycleRow extends W, Removal {
   id: string; name: string; start_date: string; weeks: number; review_day: number;
-  /** FT1 (migration 0048): written only when the cycle carries its rhythm, with rhythm_from beside it (null clears it). */
+  /** FT1 (migration 0048): written on every cycle row (1 and null when the cycle doesn't carry them). */
   check_in_weeks?: number | null; rhythm_from?: string | null;
 }
 export interface StageRow extends W { id: string; goal_id: string; name: string; due_week: number }
@@ -62,9 +62,11 @@ export const teamFromRow = (r: TeamRow): Team => ({ id: r.id, name: r.name, lead
 // people without one look exactly as before, and a database without the column yet takes the row as it is.
 export const personToRow = (ws: string, p: Person): PersonRow => ({ workspace_id: ws, id: p.id, name: p.name, role: p.role, initials: p.initials, team_id: p.teamId, is_admin: p.admin, ...set({ email: p.email, left_at: p.leftAt, left_by: p.leftBy, removed_at: p.removedAt, removed_by: p.removedBy }) });
 export const personFromRow = (r: PersonRow): Person => ({ id: r.id, name: r.name, role: r.role, initials: r.initials, teamId: r.team_id, admin: !!r.is_admin, ...(r.email ? { email: r.email } : {}), ...when('leftAt', r.left_at), ...who('leftBy', r.left_by), ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by) });
-// The rhythm (FT1) is written only by a cycle that carries it (setRhythm, its Undo, a new workspace with none), and then
-// both columns, so going back to every week, or Undo, clears what was there. Every other cycle row looks as before.
-const rhythmCols = (c: Cycle) => (c.checkInWeeks === undefined && c.rhythmFrom === undefined ? {} : { check_in_weeks: c.checkInWeeks ?? 1, rhythm_from: c.rhythmFrom ?? null });
+// The rhythm (FT1, migration 0048) is written on every cycle row, both columns: 1 and null when the cycle doesn't carry
+// them. okr_upsert gives null to a key one row lacks that another row in the same save carries (#308), and
+// check_in_weeks is not null, so a save of two cycles where only one carries it would fail. Going back to every week,
+// or Undo, clears what was there.
+const rhythmCols = (c: Cycle) => ({ check_in_weeks: c.checkInWeeks ?? 1, rhythm_from: c.rhythmFrom ?? null });
 export const cycleToRow = (ws: string, c: Cycle): CycleRow => ({ workspace_id: ws, id: c.id, name: c.name, start_date: c.startDate, weeks: c.weeks, review_day: c.reviewDay, ...rhythmCols(c), ...set({ removed_at: c.removedAt, removed_by: c.removedBy }) });
 export const cycleFromRow = (r: CycleRow): Cycle => {
   const weeks = Number(r.check_in_weeks ?? 1);

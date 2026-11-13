@@ -148,10 +148,10 @@ describe('setRhythm (1.1)', () => {
 });
 
 describe('the rhythm in a saved row (rows.ts)', () => {
-  it('a cycle without the fields writes and reads as before; with them, round trips', () => {
+  it('a cycle without the fields writes every week and no start, and reads as before; with them, round trips', () => {
     const row = cycleToRow('ws', CYCLE);
-    expect('check_in_weeks' in row || 'rhythm_from' in row).toBe(false);
-    expect(cycleFromRow({ ...row, check_in_weeks: 1, rhythm_from: null })).toEqual(CYCLE);
+    expect(row).toMatchObject({ check_in_weeks: 1, rhythm_from: null });
+    expect(cycleFromRow(row)).toEqual(CYCLE);
     const none: Cycle = { ...CYCLE, checkInWeeks: 0, rhythmFrom: '2026-10-05' };
     expect(cycleFromRow(cycleToRow('ws', none))).toEqual(none);
   });
