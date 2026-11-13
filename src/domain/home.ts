@@ -117,7 +117,7 @@ export interface HomeFacts {
   checkIns: { total: number; done: number; due: { id: string; title: string; number: boolean }[]; draft: boolean; allInOnTimeToday: boolean; streak: number | null;
     /** The receipt's facts (habit spec 2.1), for the day the week is completed: whether its last check-in was today, how many
         came after the due day, the forgiven week inside the run, and whether the due day is a review the viewer is in (T4). */
-    completedToday?: boolean; after?: number; forgiven?: number | null; hasReview?: boolean };
+    completedToday?: boolean; after?: number; forgiven?: number | null; forgivenMissed?: boolean; hasReview?: boolean };
   /** The wrap-up, while it is open: the cycle's last day, whether it has passed, the viewer's goals not yet wrapped up. */
   wrap: { name?: string; ends: string; ended: boolean; left: { id: string; title: string }[]; total: number } | null;
   sessions: HomeSession[];
@@ -263,7 +263,7 @@ export function quietLine(f: HomeFacts): Quiet {
     const next = nextDue ? `The next ${c.total === 1 ? 'is' : 'are'} due by ${nextDue}.` : '';
     // On the day the week is completed, the check-in's receipt, word for word (habit spec 2.1; HB1).
     if (c.completedToday ?? c.allInOnTimeToday) {
-      const r = receiptText({ total: c.total, after: c.after ?? 0, week: f.week, dueDay: longDay(f.rhythm.dueDate).split(' ')[0]!, review: !!c.hasReview, run: c.streak ?? 0, forgiven: c.forgiven ?? null, nextDue });
+      const r = receiptText({ total: c.total, after: c.after ?? 0, week: f.week, dueDay: longDay(f.rhythm.dueDate).split(' ')[0]!, review: !!c.hasReview, run: c.streak ?? 0, forgiven: c.forgiven ?? null, forgivenMissed: !!c.forgivenMissed, nextDue });
       return { sentence: r.first, line: (c.after ? r.second : [r.second, next].filter(Boolean).join(' ')) || null, buttons: [] };
     }
     const allIn = c.total === 1 ? 'Your check-in is' : c.total === 2 ? 'Both check-ins are' : `All ${c.total} check-ins are`;

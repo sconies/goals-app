@@ -229,7 +229,7 @@ function TablePosted({ posted, kept }: FromTable) {
 function Receipt() {
   const app = useApp();
   // The due day is named as a review only for someone in a review held that day, while Reviews is on (T4, FT2).
-  const hasReview = reviewOnDueDay(app.snapshot.reviews, app.viewer.id, app.cycle, reviewsOn(useModules().on));
+  const hasReview = reviewOnDueDay(app.snapshot.reviews, app.viewer.id, app.cycle, reviewsOn(useModules().on), Math.max(1, app.week));
   const f = receiptFacts(weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today), app.viewer.id, app.snapshot, app.cycle, app.week, hasReview);
   const r = receiptText({ ...f, nextDue: f.nextDue ? longDay(f.nextDue) : null });
   return (
@@ -247,17 +247,14 @@ function MomentPanel({ m, goal, c }: { m: Moment; goal: Goal; c: CheckIn }) {
   const t = momentText(m, goal, c, app.cycle.weeks);
   const share = async () => {
     const { shareGoalImage } = await import('./goalShare');
-    await shareGoalImage(app, goal, c.value == null || goal.kind === 'milestone' ? '' : fmt(c.value, goal), goal.kind === 'metric' ? [`target ${fmt(goal.plan.target, goal)}`] : [], t.line, 'done');
+    await shareGoalImage(app, goal, c.value == null || goal.kind === 'milestone' ? '' : fmt(c.value, goal), goal.kind === 'metric' ? [`target ${fmt(goal.plan.target, goal)}`] : [], t.line, c.status);
   };
   return (
     <section className="ci-moment" aria-label={t.heading}>
-      <Chip k={m.kind === 'reached' ? 'done' : 'on'} />
+      <Chip k={c.status} />
       <h2 className="ci-moment-head">{t.heading}</h2>
       <p>{t.line}</p>
-      <div className="row">
-        {m.kind === 'reached' && <button type="button" className="btn" onClick={() => void share()}>Copy the share image</button>}
-        <Link className="linkish" to={`/goals/${goal.id}?posted=1`}>See the goal</Link>
-      </div>
+      {m.kind === 'reached' && <div className="row"><button type="button" className="btn" onClick={() => void share()}>Copy the share image</button></div>}
     </section>
   );
 }
