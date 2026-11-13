@@ -7649,25 +7649,45 @@ function asksFollowOwner(s, after, x) {
 	for (const g of after) owner.set(g.id, g.ownerId);
 	const name = (id) => s.people.find((p) => p.id === id)?.name ?? "Someone";
 	for (const r of s.asks) {
-		if (r.status !== "open" || !r.recipientId) continue;
+		if (r.status !== "open" || !r.recipientId || !FOLLOWS_OWNER.includes(r.kind)) continue;
 		const g = changed.find((c) => r.goalIds.includes(c.id) && before.get(c.id).ownerId === r.recipientId);
 		if (!g || r.goalIds.some((id) => owner.get(id) === r.recipientId)) continue;
 		const from = r.recipientId;
-		out.requests.push({
-			...r,
-			recipientId: g.ownerId,
-			updatedAt: x.now
-		});
 		out.moved.set(g.id, (out.moved.get(g.id) ?? 0) + 1);
-		out.changes.push({
+		const base = {
 			id: x.newId("chg"),
 			at: x.now,
 			actorId: x.actorId,
 			goalId: g.id,
 			entity: "request",
 			entityId: r.id,
-			action: "edited",
-			summary: `${name(r.askedBy)}’s ask now goes to ${name(g.ownerId)}, who owns ${g.title} now`,
+			action: "edited"
+		};
+		if (r.askedBy === g.ownerId) {
+			out.requests.push({
+				...r,
+				status: "withdrawn",
+				updatedAt: x.now
+			});
+			out.changes.push({
+				...base,
+				summary: `Closed ${name(r.askedBy)}’s ask, since ${name(g.ownerId)} owns ${g.title} now`,
+				diffs: [{
+					field: "Asked of",
+					from: name(from),
+					to: "—"
+				}]
+			});
+			continue;
+		}
+		out.requests.push({
+			...r,
+			recipientId: g.ownerId,
+			updatedAt: x.now
+		});
+		out.changes.push({
+			...base,
+			summary: `Moved ${name(r.askedBy)}’s ask to ${name(g.ownerId)}, who owns ${g.title} now`,
 			diffs: [{
 				field: "Asked of",
 				from: name(from),
@@ -7684,13 +7704,17 @@ function handedFrom(askId, recipientName, changes) {
 	const d = last?.diffs.find((v) => v.field === "Asked of");
 	return d && d.to === recipientName ? d.from : null;
 }
-var openAsksDiff;
+var FOLLOWS_OWNER, openAsksDiff;
 var init_askHandover = __esmMin((() => {
-	openAsksDiff = (n, moved) => ({
-		field: `Open asks (${n})`,
-		from: moved.diffs[0].from,
-		to: moved.diffs[0].to
-	});
+	FOLLOWS_OWNER = ["update", "question"];
+	openAsksDiff = (n, moved) => {
+		const d = moved.diffs.find((v) => v.field === "Asked of");
+		return {
+			field: `Open asks (${n})`,
+			from: d.from,
+			to: d.to
+		};
+	};
 }));
 // src/domain/goalEntry.ts
 /**
@@ -8470,6 +8494,30 @@ function deleteNote(x, id) {
 				to: "—"
 			}]
 		})]
+	};
+}
+/**
+* Undo marking goals reviewed in a session (deep review T3): those "reviewed" marks are set aside, kept and logged, and
+* the goals are back on the agenda. Whoever marked them, or an admin.
+*/
+function unmarkReviewed(x, made) {
+	const marks = made.filter((d) => d.kind === "acknowledge" && !d.removedAt);
+	if (!marks.length) no$1("Those goals are no longer marked reviewed.");
+	if (marks.some((d) => d.byId !== x.actor.id) && !x.actor.admin) no$1("Only whoever marked them, or an admin, can undo it.");
+	const after = marks.map((d) => ({
+		...d,
+		removedAt: x.now,
+		removedBy: x.actor.id
+	}));
+	return {
+		decisions: after,
+		changes: after.map((d) => log$1(x, {
+			entity: "decision",
+			entityId: d.id,
+			goalId: d.goalId,
+			action: "undone",
+			summary: "Undid marking it reviewed"
+		}))
 	};
 }
 /** What a person has left a mark on: goals they owned (in any cycle), check-ins, notes and comments, and asks. */
@@ -12447,7 +12495,7 @@ function* planChangesInChunks(input) {
 		}
 	}
 	const handed = asksFollowOwner({
-		goals: s.goals,
+		goals: withProposed(s),
 		people: s.people,
 		asks: asksOf(s)
 	}, [...goalOut.values()], {
@@ -14647,11 +14695,14 @@ var MODULE_RECORDS = [{
 }));
 /** The columns the modules add to Goals' rows (?metric=): the app's filters (core/app) and the AI's find_goals read them. */
 var MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => m.goalColumns ?? []);
-/** The workbook's sheets the modules add (domain/export), in module id order. */
+/** The workbook's sheets the modules add (domain/export), in module id order: every module in this build. */
 var MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
 /** The records of the modules switched on in a workspace: what Recently removed lists and restores. A module that's off
 keeps its rows untouched, and none of them is offered back until it is on again. */
 var recordsOn = (ws) => MODULE_RECORDS.filter((m) => !(ws?.modulesOff ?? []).includes(m.module));
+/** The workbook's sheets of the modules switched on in a workspace (fix item F2): a module that's off adds no sheet to
+any export (the Export sheet, Data's downloads, the MCP export tool), as it adds nothing else. */
+var sheetsOn = (ws) => recordsOn(ws).flatMap((m) => m.sheets ?? []);
 // src/domain/summary.ts
 init_checkin();
 init_format();
@@ -14947,7 +14998,7 @@ function waiting(a, today) {
 		warn = true;
 	} else if (due?.why === "week" && dueThisWeek) line = `Due this week (${a.dueWeek.dates})`;
 	else if (due?.why === "week") line = `Due week ${a.dueWeek.week} (${a.dueWeek.dates})`;
-	else if (due) line = `Before its next session, ${shortDay(due.date)}`;
+	else if (due) line = `Due by ${shortDay(due.date)}`;
 	else if (waitedDays >= 7) line = `Waiting since ${dayMonth(a.askedOn)}, ${waitedDays < 14 ? `${waitedDays} days` : `${Math.floor(waitedDays / 7)} weeks`}`;
 	else line = waitedDays === 0 ? "Asked today" : waitedDays === 1 ? "Asked yesterday" : `Asked on ${LONG_DAYS[(/* @__PURE__ */ new Date(a.askedOn + "T00:00:00Z")).getUTCDay()]}`;
 	const to = a.kind === "update" ? `/check-in/${a.goals[0].id}` : `/goals/${a.goals[0].id}?respond=${a.id}`;
@@ -15081,43 +15132,52 @@ var localDay = (iso) => {
 	return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10);
 };
 function homeAsks(viewerId, s, cycle, week, today, reviews = true) {
+	return openForPerson(viewerId, s).flatMap((r) => {
+		const w = askWaiting(r, viewerId, s, cycle, week, today, reviews);
+		return w ? [w] : [];
+	}).sort(waitingOrder);
+}
+/**
+* One ask as Home reads it for a viewer: its line, its due day and whether it is late. The one lateness rule: Home,
+* `get_my_work` and `list_requests` all read `late` from here (build review of #369, medium 5). Null when none of its
+* goals is in the workspace.
+*/
+function askWaiting(r, viewerId, s, cycle, week, today, reviews = true) {
 	const day = today.toISOString().slice(0, 10);
 	const me = s.people.find((p) => p.id === viewerId)?.name ?? "";
 	const first = (id) => s.people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
 	const all = withProposed(s);
-	return openForPerson(viewerId, s).flatMap((r) => {
-		const goals = r.goalIds.map((id) => all.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({
-			id: g.id,
-			title: g.title
-		}));
-		if (!goals.length) return [];
-		const rv = r.reviewId && reviews ? s.reviews.find((v) => v.id === r.reviewId) : void 0;
-		let session = null;
-		if (r.dueWeek == null && r.kind === "question" && rv) {
-			const w = r.week != null ? nextSessionWeek(rv, r.week) : upcomingSessionWeek(rv, cycle, week, today);
-			if (w <= cycle.weeks) session = {
-				name: rv.name,
-				date: sessionDate(rv, cycle, w)
-			};
-		}
-		const sunday = (w) => new Date(Date.parse(weekDate(cycle, w) + "T00:00:00Z") + 5184e5).toISOString().slice(0, 10);
-		return [waiting({
-			id: r.id,
-			kind: r.kind,
-			by: r.askedBy === viewerId ? null : first(r.askedBy),
-			goals,
-			said: r.ask,
-			askedOn: localDay(r.createdAt),
-			was: handedFrom(r.id, me, s.changes ?? []),
-			dueWeek: r.dueWeek != null ? {
-				week: r.dueWeek,
-				sunday: sunday(r.dueWeek),
-				dates: weekDates(cycle, r.dueWeek)
-			} : null,
-			session,
-			where: rv?.name ?? null
-		}, day)];
-	}).sort(waitingOrder);
+	const goals = r.goalIds.map((id) => all.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({
+		id: g.id,
+		title: g.title
+	}));
+	if (!goals.length) return null;
+	const rv = r.reviewId && reviews ? s.reviews.find((v) => v.id === r.reviewId) : void 0;
+	let session = null;
+	if (r.dueWeek == null && r.kind === "question" && rv) {
+		const w = r.week != null ? nextSessionWeek(rv, r.week) : upcomingSessionWeek(rv, cycle, week, today);
+		if (w <= cycle.weeks) session = {
+			name: rv.name,
+			date: sessionDate(rv, cycle, w)
+		};
+	}
+	const sunday = (w) => new Date(Date.parse(weekDate(cycle, w) + "T00:00:00Z") + 5184e5).toISOString().slice(0, 10);
+	return waiting({
+		id: r.id,
+		kind: r.kind,
+		by: r.askedBy === viewerId ? null : first(r.askedBy),
+		goals,
+		said: r.ask,
+		askedOn: localDay(r.createdAt),
+		was: handedFrom(r.id, me, s.changes ?? []),
+		dueWeek: r.dueWeek != null ? {
+			week: r.dueWeek,
+			sunday: sunday(r.dueWeek),
+			dates: weekDates(cycle, r.dueWeek)
+		} : null,
+		session,
+		where: rv?.name ?? null
+	}, day);
 }
 // src/domain/goalsPage.ts
 init_query();
@@ -18642,7 +18702,7 @@ var CORE_ARTICLES = [
 					"Propose one from New goal: on Check, answer “Is it under way?” with “Not yet: propose it”, then Propose goal. It gets a key and a page at once. How it’s measured may wait.",
 					"Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.",
 					"Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.",
-					"Change it: the same page as any goal, with no reason ever asked. Withdraw it: it goes to Recently removed for 30 days, with Undo.",
+					"Change it: the same page as any goal, with no reason ever asked, and its type can still change. Withdraw it: it goes to Recently removed for 30 days, with Undo.",
 					"Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.",
 					"In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet.",
 					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).",
@@ -18697,7 +18757,7 @@ var CORE_ARTICLES = [
 					"A target on the other side of the start flips which way is better, so it is never saved quietly: the form says so (“This makes higher better”) and saves once you tick the yes beneath it. A start, target or week’s number far outside the plan it replaces is asked about the same way. The import, Data and the AI assistant ask the same questions.",
 					"The original plan stays on the chart, dotted, and earlier weeks and closed quarters stay judged against the plan of their day. There is no approval step.",
 					"A range can change between At most, At least and Between under Plan and target, as its limit can; Between asks for the lower limit too.",
-					"A goal’s type can’t change once check-ins have started."
+					"A goal’s type can’t change once it is active. While it is proposed, Type, under Plan and target, changes it: “It’s proposed, so its type can still change.”"
 				]
 			},
 			{
@@ -19963,6 +20023,24 @@ var WHATS_NEW = [
 			"goal-page",
 			"reviews"
 		]
+	},
+	{
+		id: "proposed-type-changes",
+		date: "2026-11-13",
+		title: "A proposed goal’s type can still change",
+		points: ["Changing a proposed goal, Type lets you turn it into a number to move, a number to keep in range, or dated stages.", "Once it is active, its type stays: add a new goal instead."],
+		articles: ["goal-proposed", "edit-goal"]
+	},
+	{
+		id: "asks-follow-owner-by-role",
+		date: "2026-11-13",
+		title: "Asks that follow a goal’s new owner are the ones put to the owner",
+		points: [
+			"When a goal changes owner, the open asks put to its owner — an update asked for, a question — go with it, and the new owner sees “Asked of {name}, now yours”.",
+			"An ask put to a person by name — a next step they agreed, a decision asked of them — stays with that person.",
+			"If the new owner is the one who asked, the ask closes: nobody answers their own ask."
+		],
+		articles: ["requests", "goal-page"]
 	},
 	{
 		id: "propose-in-review",
@@ -21409,6 +21487,7 @@ var _virtual_faro_modules_default = [
 			"list_reviews",
 			"get_review",
 			"review_call",
+			"unmark_reviewed",
 			"save_review",
 			"end_review",
 			"delete_review"
@@ -21903,6 +21982,7 @@ var levelsOf = (v) => {
 	if (bad.length) throw new Error(`Levels are ${LEVELS$1.join(", ")} (not ${bad.join(", ")}).`);
 	return list;
 };
+var askLate = (ctx, r) => r.status === "open" ? askWaiting(r, r.recipientId ?? ctx.actor.id, ctx.snapshot, ctx.cycle, ctx.week, ctx.today, reviewsOn(modulesOn(ctx.ws).on))?.late ?? isOverdue(r, ctx.week) : false;
 var requestData = (ctx, r) => ({
 	id: r.id,
 	kind: r.kind,
@@ -21910,7 +21990,7 @@ var requestData = (ctx, r) => ({
 	status: r.status,
 	statusLabel: ASK_STATUS[r.status].label,
 	dueWeek: r.dueWeek,
-	overdue: isOverdue(r, ctx.week),
+	overdue: askLate(ctx, r),
 	review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null,
 	askedBy: name$1(ctx, r.askedBy),
 	askedOf: r.recipientId ? name$1(ctx, r.recipientId) : "anyone",
@@ -22019,7 +22099,7 @@ var WORK_TOOLS = [
 				said: a.handled.said || null,
 				why: a.flags.map((f) => f.detail)
 			}));
-			const home = homeAsks(me, s, ctx.cycle, ctx.week, ctx.today);
+			const home = homeAsks(me, s, ctx.cycle, ctx.week, ctx.today, reviewsOn(modulesOn(ctx.ws).on));
 			const at = new Map(home.map((w, i) => [w.askId, {
 				i,
 				w
@@ -25215,6 +25295,28 @@ var tools$1 = [
 		}
 	},
 	{
+		name: "unmark_reviewed",
+		title: "Undo marking goals reviewed",
+		description: "Undo marking one or more goals reviewed in a review (review_call with acknowledge): they go back on the agenda. Whoever marked them, or an admin. The log keeps both.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["call_ids"],
+			properties: { call_ids: {
+				type: "array",
+				items: { type: "string" },
+				description: "The marks’ IDs (kind acknowledge), from get_review."
+			} }
+		},
+		annotations: WRITE$2,
+		async run(a, ctx) {
+			const ids = (a.call_ids ?? []).map(String);
+			const marks = ctx.snapshot.decisions.filter((d) => ids.includes(d.id));
+			if (!marks.length) throw new Error("There’s no mark with those IDs. Use get_review.");
+			return save$2(ctx, unmarkReviewed(ax$2(ctx), marks), `Undone: ${marks.length === 1 ? "back" : `${marks.length} goals back`} on the agenda`, "");
+		}
+	},
+	{
 		name: "save_review",
 		title: "Set up or change a review",
 		description: "Set up a review (anyone can), or change one (someone in it, whoever set it up, or an admin): its name, how often, the weekday, the goals it walks (goals, goals with everything feeding them, or whole levels) and who’s in it. Without review_id it sets up a new one.",
@@ -25333,7 +25435,7 @@ var READ = {
 	openWorldHint: false
 };
 /** Each sheet of the workbook as a CSV format the export tool offers: goals_csv, plan_csv, check_ins_csv… */
-var CSV_FORMATS = sheetNamesWith(MODULE_SHEETS).filter((n) => n !== START_HERE).map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, "_")}_csv`, n]);
+var csvFormats = (sheets) => sheetNamesWith(sheets).filter((n) => n !== START_HERE).map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, "_")}_csv`, n]);
 var tools = [{
 	name: "export",
 	title: "Export the goals",
@@ -25345,7 +25447,7 @@ var tools = [{
 		properties: { format: str$1("Which export.", { enum: [
 			"json",
 			"brief",
-			...CSV_FORMATS.map(([f]) => f)
+			...csvFormats(MODULE_SHEETS).map(([f]) => f)
 		] }) }
 	},
 	annotations: {
@@ -25353,14 +25455,16 @@ var tools = [{
 		openWorldHint: false
 	},
 	async run(a, ctx) {
+		const sheets = sheetsOn(ctx.ws);
 		const x = {
 			ws: ctx.ws,
 			snapshot: ctx.snapshot,
 			cycle: ctx.cycle,
 			week: ctx.week,
 			today: ctx.today,
-			sheets: MODULE_SHEETS
+			sheets
 		};
+		const formats = csvFormats(sheets);
 		if (a.format === "json") {
 			const j = toJson$1(x);
 			return {
@@ -25369,11 +25473,16 @@ var tools = [{
 			};
 		}
 		if (a.format === "brief") return { text: aiBrief(x) };
-		const sheet = CSV_FORMATS.find(([f]) => f === a.format)?.[1];
+		const sheet = formats.find(([f]) => f === a.format)?.[1];
 		if (sheet) return { text: toCsv(sheetNamed(workbook(x), sheet).rows) };
+		const off = MODULE_SHEETS.find((m) => !sheets.includes(m) && csvFormats([m]).at(-1)?.[0] === a.format);
+		if (off) return {
+			isError: true,
+			text: `The ${off.spec.name} sheet’s module is switched off in ${ctx.ws.name}, so it isn’t exported there. An admin can switch it on in Workspace, under Features.`
+		};
 		return {
 			isError: true,
-			text: `format should be json, brief or one of ${CSV_FORMATS.map(([f]) => f).join(", ")}.`
+			text: `format should be json, brief or one of ${formats.map(([f]) => f).join(", ")}.`
 		};
 	}
 }, {

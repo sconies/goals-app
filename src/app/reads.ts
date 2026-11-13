@@ -8,7 +8,7 @@ import { proposedSummary } from '../domain/proposedSummary';
 import { proposalAsks, withProposed } from '../domain/proposed';
 import { scopeToCycle, wrapUpCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
-import type { Cycle, Person, Snapshot } from '../domain/types';
+import type { Ask, Cycle, Person, Snapshot } from '../domain/types';
 import type { ScopeFacts } from '../domain/goalsPage';
 import { agendaOf, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
 import { waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession, type Waiting } from '../domain/home';
@@ -160,26 +160,33 @@ export function wrapUpScope(full: Snapshot, cycle: Cycle, snapshot: Snapshot, we
 const localDay = (iso: string) => { const n = new Date(iso); return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())).toISOString().slice(0, 10); };
 
 export function homeAsks(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, reviews = true): Waiting[] {
+  return openForPerson(viewerId, s).flatMap((r) => { const w = askWaiting(r, viewerId, s, cycle, week, today, reviews); return w ? [w] : []; }).sort(waitingOrder);
+}
+
+/**
+ * One ask as Home reads it for a viewer: its line, its due day and whether it is late. The one lateness rule: Home,
+ * `get_my_work` and `list_requests` all read `late` from here (build review of #369, medium 5). Null when none of its
+ * goals is in the workspace.
+ */
+export function askWaiting(r: Ask, viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, reviews = true): Waiting | null {
   const day = today.toISOString().slice(0, 10);
   const me = s.people.find((p) => p.id === viewerId)?.name ?? '';
   const first = (id: string) => s.people.find((p) => p.id === id)?.name.split(' ')[0] ?? 'Someone';
   const all = withProposed(s);
-  return openForPerson(viewerId, s).flatMap((r) => {
-    // A proposed goal's asks stay on Home (build review of #349): asked while proposed, or before it went back to proposed.
-    const goals = r.goalIds.map((id) => all.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({ id: g!.id, title: g!.title }));
-    if (!goals.length) return [];
-    // With Reviews off an ask is late by its own age, waits for no session and names no review (FT2 4.4, RS 2).
-    const rv = r.reviewId && reviews ? s.reviews.find((v) => v.id === r.reviewId) : undefined;
-    let session: AskFacts['session'] = null;
-    if (r.dueWeek == null && r.kind === 'question' && rv) {
-      const w = r.week != null ? nextSessionWeek(rv, r.week) : upcomingSessionWeek(rv, cycle, week, today);
-      if (w <= cycle.weeks) session = { name: rv.name, date: sessionDate(rv, cycle, w) };
-    }
-    const sunday = (w: number) => new Date(Date.parse(weekDate(cycle, w) + 'T00:00:00Z') + 6 * 86_400_000).toISOString().slice(0, 10);
-    const facts: AskFacts = {
-      id: r.id, kind: r.kind, by: r.askedBy === viewerId ? null : first(r.askedBy), goals, said: r.ask, askedOn: localDay(r.createdAt), was: handedFrom(r.id, me, s.changes ?? []),
-      dueWeek: r.dueWeek != null ? { week: r.dueWeek, sunday: sunday(r.dueWeek), dates: weekDates(cycle, r.dueWeek) } : null, session, where: rv?.name ?? null,
-    };
-    return [waiting(facts, day)];
-  }).sort(waitingOrder);
+  // A proposed goal's asks stay on Home (build review of #349): asked while proposed, or before it went back to proposed.
+  const goals = r.goalIds.map((id) => all.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({ id: g!.id, title: g!.title }));
+  if (!goals.length) return null;
+  // With Reviews off an ask is late by its own age, waits for no session and names no review (FT2 4.4, RS 2).
+  const rv = r.reviewId && reviews ? s.reviews.find((v) => v.id === r.reviewId) : undefined;
+  let session: AskFacts['session'] = null;
+  if (r.dueWeek == null && r.kind === 'question' && rv) {
+    const w = r.week != null ? nextSessionWeek(rv, r.week) : upcomingSessionWeek(rv, cycle, week, today);
+    if (w <= cycle.weeks) session = { name: rv.name, date: sessionDate(rv, cycle, w) };
+  }
+  const sunday = (w: number) => new Date(Date.parse(weekDate(cycle, w) + 'T00:00:00Z') + 6 * 86_400_000).toISOString().slice(0, 10);
+  const facts: AskFacts = {
+    id: r.id, kind: r.kind, by: r.askedBy === viewerId ? null : first(r.askedBy), goals, said: r.ask, askedOn: localDay(r.createdAt), was: handedFrom(r.id, me, s.changes ?? []),
+    dueWeek: r.dueWeek != null ? { week: r.dueWeek, sunday: sunday(r.dueWeek), dates: weekDates(cycle, r.dueWeek) } : null, session, where: rv?.name ?? null,
+  };
+  return waiting(facts, day);
 }

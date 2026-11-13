@@ -39,6 +39,27 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['features', 'home', 'goal-page', 'reviews'],
   },
   {
+    id: 'proposed-type-changes',
+    date: '2026-11-13',
+    title: 'A proposed goal’s type can still change',
+    points: [
+      'Changing a proposed goal, Type lets you turn it into a number to move, a number to keep in range, or dated stages.',
+      'Once it is active, its type stays: add a new goal instead.',
+    ],
+    articles: ['goal-proposed', 'edit-goal'],
+  },
+  {
+    id: 'asks-follow-owner-by-role',
+    date: '2026-11-13',
+    title: 'Asks that follow a goal’s new owner are the ones put to the owner',
+    points: [
+      'When a goal changes owner, the open asks put to its owner — an update asked for, a question — go with it, and the new owner sees “Asked of {name}, now yours”.',
+      'An ask put to a person by name — a next step they agreed, a decision asked of them — stays with that person.',
+      'If the new owner is the one who asked, the ask closes: nobody answers their own ask.',
+    ],
+    articles: ['requests', 'goal-page'],
+  },
+  {
     id: 'propose-in-review',
     date: '2026-11-13',
     title: 'Propose a new goal in a review',
