@@ -1644,7 +1644,7 @@ None: nothing to type or choose here.
 | “Add an action” | button | `!mustDecide` |
 | “Propose a new goal” | button | always |
 | “Skip for now” | button | `!reviewed` |
-| “Propose a new goal instead” | button | `mode === 'action'` and `!existing` and `onPropose` |
+| “Propose a new goal instead” | button | `mode === 'action'` and `!existing` and `propose` |
 | “Cancel” | button | always |
 | “Saving… / Save the decision / Save the next step / Save …” | primary | always |
 
