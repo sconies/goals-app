@@ -789,7 +789,7 @@ function ChangeReadBack(p: {
         <span>{names}</span>
         <span>{p.marking ? `Each goal’s chart and History will say “${meaning && p.comparable === false ? 'Definition' : 'Direction'} changed”, with your reason. Their numbers and plans don’t change.` : meaning && p.comparable === true ? 'Nothing changes on these goals but the words they show.' : ''}</span>
       </div>
-      <div className="row"><button type="button" className="btn primary" disabled={p.unitIs === 'scale'} onClick={p.onSave}>{primary}</button><button type="button" className="btn ghost" onClick={p.onKeep}>Keep it as it was</button></div>
+      <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={p.onKeep}>Keep it as it was</button><button type="button" className="btn primary big-btn" disabled={p.unitIs === 'scale'} onClick={p.onSave}>{primary}</button></div>
     </div>
     </Sheet>
   );
