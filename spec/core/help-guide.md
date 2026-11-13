@@ -755,7 +755,8 @@ Routes: `/activity`. Screens: `Activity`. Requirements: `CHANGE-LOG`, `NOTES`, `
 - Search finds the words on a change: who, the goal and its key, what was said and the numbers. A line under it says how many match; the filters on read as words with Remove (see Finding and choosing). Choose who and which goal by typing their name. Show the changes opens the before and after.
 - The search and filters are in the link, so a filtered log can be shared, and Back undoes the last choice. Save .csv exports what is shown.
 - Every removal is here too: a goal stopped, a person marked as left, a check-in or comment deleted, a view deleted, a watch stopped, and each restore.
-- An import or bulk edit has Undo this import on its entry, for whoever made it or an admin. It puts every row back as it was; rows changed since are skipped and listed on the entry that says it was undone.
+- An import or bulk edit has Undo this import on its entry, for whoever made it or an admin. It puts every row back as it was; rows changed since are skipped and listed on the entry that says it was undone. An import over a year old can no longer be undone.
+- The app opens with about the last year of changes, plus every comment, ask and import whatever its age. Show older changes, at the end of the list, fetches older ones a page at a time; a goal’s History has the same.
 
 #### Safe saves
 

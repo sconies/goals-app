@@ -23,6 +23,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'older-changes-on-request',
+    date: '2026-11-13',
+    title: 'Faro opens with the last year of changes, and fetches older ones when asked',
+    points: [
+      'A workspace opens faster: it brings the last year or so of changes, and every comment, ask and import whatever its age.',
+      'Show older changes, at the end of Activity and of a goal’s History, fetches older ones a page at a time.',
+      'An import over a year old can no longer be undone, since too much may have changed since.',
+    ],
+    articles: ['activity'],
+  },
+  {
     id: 'asks-follow-owner',
     date: '2026-11-13',
     title: 'Open asks follow a goal to its new owner',

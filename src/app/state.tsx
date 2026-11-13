@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { systemClock, viewerPicker } from '../adapters/local';
 import type { Clock, Identity, NoEntry } from '../ports';
+import { appWindow } from '../ports/window';
+import type { HistoryAsk, HistoryPage } from '../ports/store';
 import * as A from '../domain/actions';
 import { attentionFor, type GoalAttention } from '../domain/attention';
 import type { Lookup } from '../domain/changes';
@@ -212,8 +214,11 @@ export interface AppState {
   recentlyRemoved(): R.Removed[];
   /** A comment as it reads now (edited, or removed), by its id. */
   comment(id: string): import('../domain/types').Comment | undefined;
-  /** The whole workspace, every cycle and every removed record (snapshot is this cycle's, live records only). */
+  /** The whole workspace, every cycle and every removed record (snapshot is this cycle's, live records only). Loaded with
+      a window (AX5 part 2b): `full.history` says what was left out, and `olderChanges` pages it in. */
   full: Snapshot;
+  /** Older change-log entries than the load holds, a page at a time, newest first (Store.history). */
+  olderChanges(ask: HistoryAsk): Promise<HistoryPage>;
   /** Admins: show a view to everyone in the workspace, or stop. */
   pinView(id: string, pinned: boolean): Promise<void>;
   /** Now, as an ISO timestamp on the app's today. Use for anything saved. */
@@ -405,6 +410,10 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     if (note) toast('Saved for this visit only: ' + note.charAt(0).toLowerCase() + note.slice(1), 'error');
   }), [store, toast]);
 
+  // The app loads a window, not the whole workspace (AX5 part 2b): every check-in of the cycles still open, and the change
+  // log from about a year back plus the entries rules read at any age (ports/window.ts). Older entries come a page at a
+  // time through `olderChanges`. Every load takes the same window, so the snapshot never flips between whole and windowed.
+  const loadWs = (ws: string) => store.load(ws, appWindow((pinned ?? clock)()));
   useEffect(() => {
     let live = true;
     setError(null);
@@ -423,7 +432,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       if (id !== wsId) { write(K.ws, id); setWsId(id); return; }
       // Opened from an invitation: remembered like a switch.
       if (invited && id === invited && read(K.ws) !== id) write(K.ws, id);
-      const [snap, me] = await Promise.all([store.load(id), identity.current(id)]);
+      const [snap, me] = await Promise.all([loadWs(id), identity.current(id)]);
       const why = !me && identity.why ? await identity.why(id).catch(() => null) : null;
       if (!live) return;
       setLoaded({ ws: id, snap, at: loadMark() });
@@ -467,7 +476,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
   /** Reloads the open workspace from the store, unless a save has happened since the reload started. */
   const reload = useCallback(async (ws: string) => {
     const started = loadedRef.current?.at;
-    const snap = await store.load(ws);
+    const snap = await loadWs(ws);
     setLoaded((l) => (l && l.ws === ws && l.at === started ? { ws, snap, at: loadMark() } : l));
     return snap;
   }, [store]);
@@ -491,7 +500,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         // A save that timed out may still have landed: look before calling it a failure, so a retry doesn't duplicate it.
         const first = c.changes[0];
         if (!isStale(e) && first && e instanceof Error && /did not answer in time|abort/i.test(e.message)) {
-          const fresh = await store.load(cur.ws).catch(() => null);
+          const fresh = await loadWs(cur.ws).catch(() => null);
           if (fresh?.changes.some((x) => x.id === first.id)) { setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: fresh, at: loadMark() } : l)); return; }
         }
         throw e;
@@ -499,7 +508,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: applyCommit(l.snap, c), at: loadMark() } : l));
     } catch (e) {
       if (isStale(e) && cur) {
-        await store.load(cur.ws).then((snap) => setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap, at: loadMark() } : l))).catch(() => undefined);
+        await loadWs(cur.ws).then((snap) => setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap, at: loadMark() } : l))).catch(() => undefined);
         toast('Someone else changed this a moment ago, so yours wasn’t saved. You’re now looking at the latest: check it and try again.', 'error');
       } else {
         toast('Couldn’t save: ' + (e instanceof Error ? e.message : String(e)) + '. Your changes are still here; try again.', 'error');
@@ -661,7 +670,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     return traced({
       run: ((name: ActionName, input: ActionInput<ActionName>, opts?: { said?: string }) => telemetry.action(name, () => run(name, input, opts))) as AppState['run'],
       mode, viewerChosen: mode === 'demo' || chosen, canChooseViewer: !!identity.choose, noEntry,
-      ws, workspaces, opening: wanted && wanted !== wsId ? workspaces.find((w) => w.id === wanted) ?? null : null, snapshot: sc, allGoals: snapshot.goals, full: snapshot, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind, saveNote,
+      ws, workspaces, opening: wanted && wanted !== wsId ? workspaces.find((w) => w.id === wanted) ?? null : null, snapshot: sc, allGoals: snapshot.goals, full: snapshot, olderChanges: (ask: HistoryAsk) => store.history(ws.id, ask), cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind, saveNote,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
       resetExample: async () => {
