@@ -5596,12 +5596,21 @@ journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as 
 }, []);
 
 /* Check reads the metric from the draft (build review of #202, findings 2 and 3): a reload keeps it, a new team re-slices it. */
-journey('U148', ['GOAL-PROPOSED'], 'Proposed in a review: as Rhea walking Developer Productivity fortnightly, “Propose a new goal” on Lead time for changes opens a sheet that starts with Rhea (the goal’s owner) and Lead time for changes; a name and Camille as owner saves a proposed goal for Camille in that review, not on the agenda; Camille’s Home says “Rhea proposed a goal for you in Developer Productivity fortnightly”; the review’s next session’s Last time reads “Proposed: … Camille hasn’t made it active yet.”', 30, async (h, device) => {
+journey('U148', ['GOAL-PROPOSED'], 'Proposed in a review: as Rhea walking Developer Productivity fortnightly, “Propose a new goal” (on a phone, “Propose a new goal instead” in the next-step sheet) on Lead time for changes opens a sheet that starts with Rhea (the goal’s owner) and Lead time for changes; a name and Camille as owner saves a proposed goal for Camille in that review, not on the agenda; Camille’s Home says “Rhea proposed a goal for you in Developer Productivity fortnightly”; the review’s next session’s Last time reads “Proposed: … Camille hasn’t made it active yet.”', 30, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   const on = (path, day = '2026-11-11') => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
   const title = 'Data-backed environments ready in under an hour';
   await p.goto(on('/goals/ns-lead?review=devprod'));
-  await h.click(p.getByRole('button', { name: 'Propose a new goal' }));
+  // On a phone the decide bar keeps to its height (RV 4), so the link lives in the next-step sheet instead.
+  if (device === 'phone') {
+    // A goal behind asks for its next step first; one that isn't offers "Add an action". Either opens the same sheet.
+    await p.locator('.decide').waitFor();
+    const step = p.getByRole('button', { name: 'Add the next step' });
+    await h.click((await step.isVisible().catch(() => false)) ? step : p.getByRole('button', { name: 'Add an action' }));
+    await h.click(p.getByRole('button', { name: 'Propose a new goal instead' }));
+  } else {
+    await h.click(p.getByRole('button', { name: 'Propose a new goal' }));
+  }
   const sheet = p.getByRole('dialog', { name: 'Propose a new goal' });
   await sheet.waitFor();
   h.set('finish', await sheet.getByRole('button', { name: /^Who will own it\?: Rhea Kapoor/ }).isVisible() && await sheet.getByRole('button', { name: /^It will feed: Lead time for changes/ }).isVisible(), 'the sheet doesn’t start with the goal on screen’s owner and the goal itself');
