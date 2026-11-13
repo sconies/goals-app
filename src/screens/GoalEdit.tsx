@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
-import { buildGoal, draftFor, GOAL_KINDS, planChanged, type GoalDraft } from '../domain/goal';
+import { buildGoal, draftFor, GOAL_KINDS, planChanged, rebaseDraft, type GoalDraft } from '../domain/goal';
 import { isProposed } from '../domain/proposed';
 import { HAS_CHECK_INS } from '../domain/proposedActions';
 import { checksContext, goalChecks, goalMustFix, proposedMustFix, openLine, planSpanOf, REASON_EMPTY, sameNamedIn, unanswered, type GoalAnswers, type GoalCheck, type GoalField } from '../domain/goalEntry';
@@ -56,7 +56,24 @@ function EditSheet({ goal }: { goal: Goal }) {
   const nav = useNavigate();
   const { cycle, week } = app;
   const started = app.checkInsOf(goal).length > 0;
-  const [d, set, clear, restored] = useDraft<GoalDraft & { reason: string; answers?: GoalAnswers; measureKept?: string }>(goalDraftKey(app.ws.id, goal.id) + ':edit', () => ({ ...draftFor(goal), reason: '' }));
+  // `base` is the goal as the form opened on it: what tells the person's changes from the rest (rebaseDraft below).
+  const [d, set, clear, restored] = useDraft<GoalDraft & { reason: string; answers?: GoalAnswers; measureKept?: string; base?: GoalDraft }>(goalDraftKey(app.ws.id, goal.id) + ':edit', () => ({ ...draftFor(goal), reason: '', base: draftFor(goal) }));
+  // Someone else saved the goal while it was open (seen on a reload, or on a save refused as stale: "check it and try
+  // again", AX6): the form moves onto the latest, keeping only the fields the person changed, so saving again doesn't put
+  // back the other person's change. A draft kept from before there was a base takes the goal as it is now as its base.
+  const latestKey = JSON.stringify(draftFor(goal));
+  useEffect(() => {
+    const latest = JSON.parse(latestKey) as GoalDraft;
+    if (!d.base) { set({ base: latest }); return; }
+    if (JSON.stringify(d.base) === latestKey) return;
+    const next = { ...rebaseDraft(d, d.base, latest), base: latest };
+    set(next);
+    // Nothing of the person's in it: not a draft to restore next time.
+    const { reason, answers, measureKept: _m, base: _b, ...fields } = next;
+    if (!reason && !answers && JSON.stringify(fields) === latestKey) clear();
+    // Only when the goal itself changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latestKey]);
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const loc = useLocation();
@@ -137,7 +154,7 @@ function EditSheet({ goal }: { goal: Goal }) {
       const after: Goal = { ...built, pending: null };
       const changed = JSON.stringify(after) !== JSON.stringify({ ...goal, pending: null });
       // Saved through the saveGoal action (goal entry, rule 7): the rights, Must fix, question and reason are the rule's.
-      const { reason, answers: _a, ...draft } = d;
+      const { reason, answers: _a, base: _b, ...draft } = d;
       // A changed goal and what measures it are one save, so the link is judged against the goal as changed.
       if (changed) await app.saveGoal(draft, goal, { ...(replanning ? { reason: reason.trim() } : {}), answers, metric, ...(measure ? { also: measure } : {}) });
       else if (measure) await app.run(measure.action, { ...measure.input, goalId: goal.id });
