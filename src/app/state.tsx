@@ -497,7 +497,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       // Only a workspace with more than one cycle can have a copy, so the rule loads then, not on a first visit.
       const first = given.changes[0];
       const c = cur.snap.cycles.filter((v) => !v.removedAt).length > 1
-        ? (await import('../domain/recarry')).withRecarry(cur.snap, given, { now: first?.at ?? new Date().toISOString(), actorId: first?.actorId ?? '', newId, records: MODULE_RECORDS })
+        ? (await import('../domain/recarry')).withRecarry(cur.snap, given, { now: first?.at ?? new Date().toISOString(), actorId: first?.actorId ?? '', newId, records: recordsOn(workspacesNow.current.find((w) => w.id === cur.ws)) })
         : given;
       if (!signedIn.current) throw new Error(NOBODY);
       try {
