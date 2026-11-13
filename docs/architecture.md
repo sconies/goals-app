@@ -2,6 +2,8 @@
 
 Decided with Lane on 7 November 2026. Faro is one deployable app with one database, built as a small core plus feature modules. It is not split into microservices.
 
+What is in the core, what is a module, what each switch turns off, and the order a team rebuilds them in: `docs/architecture/module-map.md`.
+
 ## The parts
 
 | Part | What it holds |
