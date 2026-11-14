@@ -36,6 +36,12 @@ To add when merged: GR (#464), MQ (#502 merged; #505 to come), FT1 (#465), TG2 (
 - **The switch isn't in the kit's data** (5.1): `workspace.json` can't say a module is off, so no harness run proves the off state; and Workspace → Features, Layout, Table, Board, History and saved views aren't specified (5.13, 5.14, 5.20), so module builders add them to the core.
 - **Module stages have no harness:** each is an outline checked by hand.
 
+## Lane's answers on the core findings (14 Nov, via planning, 21:43 UTC). Do these first
+1. **Close the journeys gap:** make `npm run spec` generate each core journey's steps and checks from `evals/journeys.cjs` into `spec/`, so the kit says what every journey does, not just its title and budget. Then re-run stage 3 from the new kit.
+2. **Edge-case conformance rows:** add rows for each rule the stage 1 rebuild guessed wrong and still passed (range goals, ties, corrections, 1.3, 1.9, 1.12, and others found), so a wrong rebuild fails.
+3. **The moment's rule (the reviewer's medium on #513):** Lane chose the kit's rule. A check-in's Reached moment is fixed as of its own week, judged against earlier check-ins and that week's plan, so later posts and re-plans don't erase it. History (`GoalScreen.tsx:1008` passes every other check-in and today's plan to `moment`) must change to match, by moving the cuts into `moment` itself so the rule lives once. Add a test; update the spec's words if needed. A code change to the app: gate it as usual, What's new only if visible (it changes what History shows for some check-ins, so judge it), and send the merged PR number to the reviewer.
+Carry on with the modules after these, or alongside them if cheaper.
+
 ## Next steps
 1. If `drill-gaps-stage2` was pushed, check its diff and open its draft PR; watch CI.
 2. Start the stage 3 gap fixer (same shape as stage 2's: fix each gap from the code, in the words, `npm run spec`, gate, push), then one for 5.
