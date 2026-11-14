@@ -22,6 +22,7 @@
 - **Never symlink `node_modules` into a worktree.** `npm run build:mcp` then writes `../goals-app/node_modules/...` paths into `api/mcp.js`, and CI's "api/mcp.js is out of date" check fails every time (37 lines). Use `cp -al <main>/node_modules node_modules`, a hard-linked copy, instead.
 - **CI builds the PR merged with the latest main,** so the smoke check also fails on `api/mcp.js` after main moves. Merge main again and rebuild.
 - What's new conflicts come from every merge of main. Keep both entries, yours first.
+- **A journeys.cjs conflict between two new journeys drops the first one's closing lines** (git sees `h.set('finish', true); … }, []);` as shared). After any merge, run `node --check evals/journeys.cjs` and count `^journey(` against main plus yours.
 - `evals:changed` exits 0 even when something fails. Read the summary lines, not the exit code.
 - The highest journey ids now: U170 (MS), U171 (GR), U172 (MQ). Recheck main before taking the next one.
 - Earlier gotchas still hold: one eval run at a time; a conflicted PR gets no CI; rebuild `api/mcp.js` after any journey renumber; row mappers write every column on every row.
