@@ -3,7 +3,9 @@
    its counts are the workspace's (the rule switchOffReadBack: reviews not ended or removed, what was said or marked in
    them, the open next steps and questions raised in one); then, with every installed module switched off, each of their
    routes (from each module.json) is Page not found with “{Name} is switched off in {workspace}. An admin can switch it on
-   in Workspace, Features.”, a link for an admin; Reviews' Help article says the same. For Rhea, who isn't an admin, the
+   in Workspace, Features.”, a link for an admin, and its Help link (if any) doesn't open the module's hidden article;
+   Help lists none of their articles, Reviews' article address says it is off, and What's new still lists their releases
+   (Lane, 14 Nov). For Rhea, who isn't an admin, the
    line is words, not a link, and Features offers her no switch (setModule refuses her too: src/domain/actions.ts, its
    unit test). */
 const fs = require('fs');
@@ -14,6 +16,11 @@ const MODULES = fs.readdirSync(path.join(__dirname, '../../src/modules'), { with
   .map((d) => require(`../../src/modules/${d.name}/module.json`));
 /** A route as an address: each parameter given a value. */
 const address = (route) => route.replace(/:[A-Za-z]+/g, 'x');
+/** Each module's Help articles (its help.ts), which are hidden while it is off (Lane, 14 Nov). */
+const ARTICLES = Object.fromEntries(MODULES.map((m) => {
+  const f = path.join(__dirname, '../../src/modules', m.id, 'help.ts');
+  return [m.id, fs.existsSync(f) ? [...fs.readFileSync(f, 'utf8').matchAll(/^    id: '([^']+)'/gm)].map((x) => x[1]) : []];
+}));
 const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
 
 module.exports = {
@@ -82,11 +89,21 @@ module.exports = {
         if (!/Page not found/.test(text)) { fails.push(`${m.name} off: ${r} is not Page not found`); continue; }
         if (!new RegExp(`${m.name} is switched off in .+\\. An admin can switch it on in Workspace, Features\\.`).test(text)) fails.push(`${m.name} off: ${r} does not say “${m.name} is switched off in …”`);
         else if (!(await main.getByRole('link', { name: 'Workspace, Features' }).count())) fails.push(`${m.name} off: on ${r}, “Workspace, Features” is not a link for an admin`);
+        // The page's Help link doesn't lead to its hidden article.
+        const foot = await p.locator('.page-help-link').getAttribute('data-article', { timeout: 500 }).catch(() => null);
+        if (foot && ARTICLES[m.id].includes(foot)) fails.push(`${m.name} off: ${r}'s Help link opens its hidden article ${foot}`);
       }
     }
     await p.goto(url('/help/reviews'));
     await p.locator('main').getByText(/There’s no help article here/).first().waitFor({ timeout: 8000 }).catch(() => {});
     if (!/Reviews is switched off in/.test(await p.locator('main').innerText())) fails.push('Reviews off: /help/reviews does not say Reviews is switched off');
+    // Help lists none of an off module's articles; What's new keeps their releases (Lane, 14 Nov).
+    await p.goto(url('/help'));
+    await p.locator('main h1').first().waitFor({ timeout: 8000 }).catch(() => {});
+    for (const m of MODULES) for (const id of ARTICLES[m.id]) if (await p.locator(`main a[href$="/help/${id}"]`).count()) fails.push(`${m.name} off: Help still lists its article ${id}`);
+    await p.goto(url('/whats-new'));
+    await p.locator('main').getByText('Reviews can be switched off, and nothing they saved is lost').first().waitFor({ timeout: 8000 }).catch(() => {});
+    if (!/Reviews can be switched off, and nothing they saved is lost/.test(await p.locator('main').innerText())) fails.push('Reviews off: What’s new no longer lists Reviews’ releases');
 
     // Rhea isn't an admin: the line is words, not a link, and Features offers her no switch.
     await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
