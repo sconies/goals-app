@@ -14,10 +14,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon (session …iZx169kF) stopped after 14 code PRs, at about 395k tokens of context. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `b4a84b8d` (#515), the head of main at 22:50 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511 and #516 (docs only) have neither.
+- **Last merge fully reviewed:** `a11d6092` (#510), the head of main at 23:10 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511 and #516 (docs only) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none.
-- **Mediums open:** six, all sent to planning on 14 Nov: #503's (a goal stopped while held stays held), #513's (the kit's words on a moment are not what History does), #497's (the workspace's line is never drawn in a browser by any eval), #517's (`see()` on a page never says what it showed), #504's (Feedback's inbox still offers Connect Claude with AI access off) and #515's (seven sentences of the change engine's page are not what the engine does).
+- **Mediums open:** seven, all sent to planning on 14 Nov: #503's (a goal stopped while held stays held), #513's (the kit's words on a moment are not what History does), #497's (the workspace's line is never drawn in a browser by any eval), #517's (`see()` on a page never says what it showed), #504's (Feedback's inbox still offers Connect Claude with AI access off) and #515's (seven sentences of the change engine's page are not what the engine does); and #510's (a goal that is Not measured yet is in no lane of the Board).
 - **Expected next:** #505 (MQ's code, track 7d, on migration 0055: check the row mapper writes SQL null, never an empty string, for a `level` or `confidence` that isn't said, which 0055's checks refuse; and that the parent's rules, no loops, same workspace, not removed, are in the module's rule, since the database only refuses a metric that is its own parent). #497 (HM7 and HB3, track 1). U124's "Changed since" check (track 1).
 - **Read, not walked on screen by this session:** #469 (HM4), #491 (SM1h), #487 (TG1), #464 (GR) and #465 (FT1); their own journeys are the only browser runs. #465's thirteen screen files were skimmed. If the full suite on main goes red on one of them, start there.
 - **How merges reach you:** no timer works here (scheduling a wake needs an approval nobody answers). Each track messages the reviewer its PR's number when it merges; whenever a message arrives, run `git log --first-parent <last reviewed>..origin/main` and review everything in it. Messages lag and repeat: about half of this session's were for PRs already reviewed, and a track's message can give a stale migration number (#502 was announced as 0054 and is 0055).
@@ -265,6 +265,7 @@ Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon 
 | #517 Evals diagnostics: U109's waits named, `see()` says what was shown, a failed journey leaves a log | 1 | 0 | 1 | 0 |
 | #504 SW2: AI access behind its own switch | 4 | 0 | 1 | 2 |
 | #515 Rebuild kit stage 2: the change engine's sentences, fields and inputs | item 11 | 0 | 1 | 0 |
+| #510 MS medium 5: Not measured yet is a status of its own | 7d | 0 | 1 | 1 |
 
 **High findings, and where each stands**
 
@@ -2312,3 +2313,15 @@ Words and the kit's inputs: the change engine's page gains every sentence it can
 A narrower one: a set-up row with a name the workspace has is "on two rows" only when it names the same team or none.
 
 Not checked: the order of issues within one row (read only), and the store and module-record sentences in `rebuild.ts`.
+
+### #510 MS medium 5: "Not measured yet" is a status of its own (track 7d, merged 14 Nov)
+
+Read whole against #428's medium 5 and Lane's answer of 14 Nov; walked by a subagent on a fresh production build of the demo at 1440 as Rhea on 5 Nov, with Flaky test rate made a Gap by U170's steps.
+
+- **#428 medium 5: closed where it was raised.** `goalStatus` gives `unmeasured` (in week 0 too; the owner's Done still wins), so the Goals list, the Table, the goal's bar, the metric's counts, Home ("1 not measured yet", with the goal's row) and `get_goal` all say "Not measured yet", and nothing on the goal's page says "No check-in yet"; a list row has no projected year-end number. The word and its meaning live once in the vocabulary; the shape (a ring with a dot at its centre) is in the design rules, and every one seen has its word beside it. The status filter, `find_goals` and the store contract's cases take the new status. No console error.
+
+**1. Medium (ran). A goal that is Not measured yet is in no lane of the Board.** The Board makes a lane per status from its own list (`src/screens/GoalBoard.tsx:19`: off, risk, stale, none, planned, on, done), which the PR didn't add to. With one goal held: the count line says "126 goals … 1 not measured yet", the lanes are 11, 20, 2, 2, 82 and 8, which is 125, and no card carries the goal's title. `?view=board&status=unmeasured` says "1 goal matches. 1 not measured yet" over no lanes at all. Before this PR the goal sat under No check-in yet. Add the lane (it has its word, shape and short meaning already), and have U170 look for the card.
+
+**Low.** The workbook's Goals sheet lists the status codes in its own description from `STATUS_WORDS` (`src/domain/export.ts:79`), which doesn't have `unmeasured`, though the Status column now carries it.
+
+Not checked: the Map (the goal's name wasn't found in the page's text at the zoom tried, which may only be a folded tree), and a phone's width.
