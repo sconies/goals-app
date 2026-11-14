@@ -28,7 +28,7 @@ export interface NewsEntry {
 export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'menu-shows-what-you-use',
-    date: '2026-11-13',
+    date: '2026-11-14',
     title: 'The menu shows what you use',
     points: [
       'A tab on Goals appears once it has goals in it and isn’t the same list as another, so a one-team workspace shows Mine and All.',
