@@ -9861,7 +9861,8 @@ function nothingToUndo(skipped) {
 	return skipped ? `Nothing left to undo: ${skipped === 1 ? "its one row has" : `all ${plural$3(skipped, "row", "rows")} have`} changed since.` : "Nothing to undo: it changed no rows.";
 }
 /** Everything removed, stopped, ended or marked as left in the last 30 days, newest first. After that it drops off this list; the row stays. */
-function recentlyRemoved(full, now, days = 30, records = []) {
+/** `watches: false` while Watching is switched off: its stopped watches aren't listed, as nothing can restore them then. */
+function recentlyRemoved(full, now, days = 30, records = [], show = {}) {
 	const since = Number.isFinite(days) ? (/* @__PURE__ */ new Date(now.getTime() - days * 864e5)).toISOString() : "";
 	const goalTitle = (id) => full.goals.find((g) => g.id === id)?.title ?? "A goal";
 	const out = [];
@@ -9885,7 +9886,7 @@ function recentlyRemoved(full, now, days = 30, records = []) {
 	for (const k of commentsOf(full.changes).values()) if (k.removedAt) add("comment", k.id, `${goalTitle(k.goalId)}: “${excerpt(k.text)}”`, k.removedBy, k.removedAt);
 	for (const d of full.decisions) if (d.removedAt && d.kind === "note") add("note", d.id, `${goalTitle(d.goalId)}: “${excerpt(d.note)}”`, d.removedBy, d.removedAt);
 	for (const v of full.views ?? []) if (v.deletedAt) add("view", v.id, isTableView(v) ? `${v.name} (a saved layout in Data)` : v.name, v.deletedBy, v.deletedAt);
-	for (const w of full.watches ?? []) if (w.removedAt) add("watch", w.id, `${nameIn(full, w.personId)} on ${w.kind === "level" ? `every ${w.ref} goal` : goalTitle(w.ref)}`, w.removedBy, w.removedAt);
+	for (const w of show.watches === false ? [] : full.watches ?? []) if (w.removedAt) add("watch", w.id, `${nameIn(full, w.personId)} on ${w.kind === "level" ? `every ${w.ref} goal` : goalTitle(w.ref)}`, w.removedBy, w.removedAt);
 	for (const c of full.cycles) if (c.removedAt) add("cycle", c.id, c.name, c.removedBy, c.removedAt);
 	for (const r of removedModuleRows(full, records)) add(r.kind, r.id, r.name, r.by, r.at, r.label);
 	return out.sort((a, b) => b.at.localeCompare(a.at));
@@ -15796,7 +15797,7 @@ var _virtual_faro_modules_default = [
 				"Back on, every person watches what they did (journey U164)."
 			],
 			"gaps": [
-				"Watching is a switch, not yet a folder of its own (SW6 moves it): its screens (src/screens/Watching.tsx; Home's “Goals you watch” in src/screens/Home.tsx; the Watch button and its sheet in src/screens/GoalScreen.tsx; the Watching tab of src/screens/GoalsScreen.tsx), its rules (src/domain/watch.ts, src/domain/review.ts watchedGoals, src/domain/home.ts groupWatched, src/domain/goalsPage.ts scopesFor) and its actions (watch and unwatch in src/domain/actions.ts) are still the core's, and so is its table (okr_watches, migration 0006). The watch actions refuse while it is off in src/app/actions.ts (performAny, SWITCHED_ACTIONS in src/app/reads.ts), and the read-back sheet is drawn by src/screens/Workspace.tsx. This folder holds its route, its Help article and its AI tools; src/app/reads.ts watchingOn is the one place that asks whether it is on.",
+				"Watching is a switch, not yet a folder of its own (SW6 moves it): its screens (src/screens/Watching.tsx; Home's “Goals you watch” in src/screens/Home.tsx; the Watch button and its sheet in src/screens/GoalScreen.tsx; the Watching tab of src/screens/GoalsScreen.tsx), its rules (src/domain/watch.ts, src/domain/review.ts watchedGoals, src/domain/home.ts groupWatched, src/domain/goalsPage.ts scopesFor) and its actions (watch and unwatch in src/domain/actions.ts) are still the core's, and so is its table (okr_watches, migration 0006). While it is off, a save that writes a watch is refused by what it writes (src/domain/watchWrites.ts writesWatches), in src/app/actions.ts performAny and in the AI tools' save (src/mcp/tools.ts), and the read-back sheet is drawn by src/screens/Workspace.tsx. This folder holds its route, its Help article and its AI tools; src/app/reads.ts watchingOn is the one place that asks whether it is on.",
 				"A watch is not yet declared as the module's record (AS part 2's records extension point is SW6's), so a build without the module still loads, carries and saves watches as the core's.",
 				"get_my_work, get_goal and get_activity are core tools: with Watching off get_my_work leaves out what you watch, but get_goal still names who watches a goal and get_activity still takes watching=1 (spec 6.2; SW3)."
 			]
@@ -22854,7 +22855,10 @@ var WEEKDAYS = [
 	"Sunday"
 ];
 var n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
-function startPage(s, cycle, today) {
+/** `show`: which switched modules are on (SW1). With the Wrap-up off the page names no wrap-up, and with Watching off no
+watches; what they carry along is carried all the same. */
+function startPage(s, cycle, today, show = {}) {
+	const wrapUp = show.wrapUp !== false, watching = show.watching !== false;
 	const shape = nextCycleShape(cycle);
 	const next = {
 		...cycle,
@@ -22864,7 +22868,7 @@ function startPage(s, cycle, today) {
 	const state = cycleState(cycle, today);
 	const later = laterCycle(s.cycles, cycle);
 	const ended = state === "ended" || state === "closed";
-	const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? `It opens for everyone as soon as you start it.${state === "ended" ? ` ${cycle.name}’s wrap-up stays open until ${dayWithYear(d.wrapUpCloses)}.` : ""}` : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins and the wrap-up carry on.`}`;
+	const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? `It opens for everyone as soon as you start it.${state === "ended" && wrapUp ? ` ${cycle.name}’s wrap-up stays open until ${dayWithYear(d.wrapUpCloses)}.` : ""}` : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins${wrapUp ? " and the wrap-up" : ""} carry on.`}`;
 	if (state === "before" || state === "running") return {
 		next: shape.name,
 		canStart: false,
@@ -22912,7 +22916,7 @@ function startPage(s, cycle, today) {
 		},
 		{
 			n: rb.open,
-			says: "not wrapped up yet",
+			says: wrapUp ? "not wrapped up yet" : "go by where they stand",
 			sub: `${rb.openCarry} carry on as they are, ${rb.openFinish} finish`
 		}
 	];
@@ -22937,7 +22941,7 @@ function startPage(s, cycle, today) {
 			bold: `${n(extras.asks, "open next step or ask moves", "open next steps and asks move")} with ${extras.asks === 1 ? "its goal" : "their goals"}.`,
 			rest: extras.staying ? ` ${extras.staying} stay in ${cycle.name}, on goals that finish or stop.` : ""
 		}] : [],
-		...extras.watches ? [{
+		...extras.watches && watching ? [{
 			bold: `${n(extras.watches, "watch follows", "watches follow")} ${extras.watches === 1 ? "its goal" : "their goals"}`,
 			rest: ", for the same people."
 		}] : [],
@@ -24100,7 +24104,11 @@ var WORK_TOOLS = [
 		},
 		async run(a, ctx) {
 			if (a.confirm !== true || a.dry_run === true) {
-				const page = startPage(ctx.full ?? ctx.snapshot, ctx.cycle, ctx.today);
+				const on = modulesOn(ctx.ws).on;
+				const page = startPage(ctx.full ?? ctx.snapshot, ctx.cycle, ctx.today, {
+					wrapUp: wrapUpOn(on),
+					watching: watchingOn(on)
+				});
 				const rb = page.readBack;
 				return {
 					text: `${startPageText(page)}\n\nNothing has changed. Ask the person first, then call again with confirm: true.`,
@@ -24515,7 +24523,7 @@ var REMOVE_TOOLS = [
 			openWorldHint: false
 		},
 		async run(_a, ctx) {
-			const all = recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, void 0, recordsOn(ctx.ws)).filter((r) => canRestore(ctx.actor, r));
+			const all = recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, void 0, recordsOn(ctx.ws), { watches: watchingOn(modulesOn(ctx.ws).on) }).filter((r) => canRestore(ctx.actor, r));
 			const who = (id) => (ctx.full ?? ctx.snapshot).people.find((p) => p.id === id)?.name ?? "—";
 			return listed({ removed: all.map((r) => ({
 				kind: r.kind,
@@ -27462,6 +27470,19 @@ function writesReviews(c, stored) {
 	if (c.requests?.some((a) => !!a.reviewId && a.reviewId !== (stored.asks.find((x) => x.id === a.id)?.reviewId ?? null))) return true;
 	return false;
 }
+// src/domain/watchWrites.ts
+/**
+* Rule (SW1). A save writes Watching's records when it logs a change to a watch, stops a watch by its id, or writes
+* watches and nothing else (starting one, or bringing a stopped one back by Undo or from Recently removed). What a save
+* only carries along is not: the watches that follow goals into the next cycle, or go and come back with a cycle's start
+* and its undoing, ride with the goals or the cycle the save is about.
+*/
+function writesWatches(c) {
+	if ((c.changes ?? []).some((x) => x.entity === "watch")) return true;
+	if (c.unwatch?.length) return true;
+	if (!c.watches?.length) return false;
+	return !Object.entries(c).some(([k, v]) => k !== "changes" && k !== "watches" && (Array.isArray(v) ? v.length > 0 : v != null && typeof v === "object" ? Object.keys(v).length > 0 : false));
+}
 // src/domain/readBack.ts
 init_goalEntry();
 init_goal();
@@ -28664,9 +28685,10 @@ async function callTool(name, args, ctx) {
 		text: moduleOffSentence(moduleById(from)?.name ?? from, ctx.ws.name, name)
 	};
 	try {
-		return await t.run(args ?? {}, reviewsOn(modulesOn(ctx.ws).on) ? ctx : reviewsGuarded(ctx, name));
+		const on = modulesOn(ctx.ws).on;
+		return await t.run(args ?? {}, reviewsOn(on) && watchingOn(on) ? ctx : switchesGuarded(ctx, name, !reviewsOn(on), !watchingOn(on)));
 	} catch (e) {
-		if (e instanceof ReviewsOff) return {
+		if (e instanceof SwitchedOff) return {
 			isError: true,
 			text: e.message
 		};
@@ -28678,18 +28700,22 @@ async function callTool(name, args, ctx) {
 		};
 	}
 }
-/** A save refused because it writes Reviews' records while Reviews is off: said as the switched-off sentence alone. */
-var ReviewsOff = class extends Error {};
+/** A save refused because it writes a switched-off module's records (Reviews', Watching's): said as the switched-off
+sentence alone. */
+var SwitchedOff = class extends Error {};
 /**
-* The context a tool runs with while Reviews is off: the same, except that a save writing Reviews' records (a review, a
-* note said in one, an ask raised in one, a goal proposed in one: domain/reviewWrites) is refused and saves nothing, in
-* the switched-off sentence, whichever tool made it (build review of #371: edit_comment and delete_comment on a review
-* note, create_goal proposed in a review, restore_removed reopening an ended review). Everything else reads and writes
-* through to the context itself, which a save moves on.
+* The context a tool runs with while Reviews or Watching is off: the same, except that a save writing the switched-off
+* module's records is refused and saves nothing, in the switched-off sentence, whichever tool made it. Reviews': a
+* review, a note said in one, an ask raised in one, a goal proposed in one (domain/reviewWrites; build review of #371:
+* edit_comment and delete_comment on a review note, create_goal proposed in a review, restore_removed reopening an ended
+* review). Watching's: a watch started, stopped or brought back (domain/watchWrites; build review of #444:
+* restore_removed on a stopped watch). Everything else reads and writes through to the context itself, which a save
+* moves on.
 */
-function reviewsGuarded(ctx, tool) {
+function switchesGuarded(ctx, tool, reviewsOff, watchingOff) {
 	const save = async (c) => {
-		if (writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new ReviewsOff(moduleOffSentence("Reviews", ctx.ws.name, tool));
+		if (reviewsOff && writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new SwitchedOff(moduleOffSentence("Reviews", ctx.ws.name, tool));
+		if (watchingOff && writesWatches(c)) throw new SwitchedOff(moduleOffSentence("Watching", ctx.ws.name, tool));
 		return ctx.save(c);
 	};
 	return new Proxy(ctx, { get: (t, k, r) => k === "save" ? save : Reflect.get(t, k, r) });

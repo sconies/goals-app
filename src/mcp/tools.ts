@@ -29,6 +29,7 @@ import { REMOVE_TOOLS } from './removeTools';
 import MODULE_TOOLS from 'virtual:faro-modules/tools';
 import { isModuleOn, moduleById, modulesOn } from '../core/registry';
 import { writesReviews } from '../domain/reviewWrites';
+import { writesWatches } from '../domain/watchWrites';
 import { MODULE_GOAL_COLUMNS, recordsOn } from '../core/records';
 import { addColumnParams } from '../domain/query';
 import { commentsOf } from '../domain/removal';
@@ -575,9 +576,10 @@ export async function callTool(name: string, args: Record<string, unknown>, ctx:
   const from = TOOL_MODULE.get(name);
   if (from && !isModuleOn(ctx.ws, from)) return { isError: true, text: moduleOffSentence(moduleById(from)?.name ?? from, ctx.ws.name, name) };
   try {
-    return await t.run(args ?? {}, reviewsOn(modulesOn(ctx.ws).on) ? ctx : reviewsGuarded(ctx, name));
+    const on = modulesOn(ctx.ws).on;
+    return await t.run(args ?? {}, reviewsOn(on) && watchingOn(on) ? ctx : switchesGuarded(ctx, name, !reviewsOn(on), !watchingOn(on)));
   } catch (e) {
-    if (e instanceof ReviewsOff) return { isError: true, text: e.message };
+    if (e instanceof SwitchedOff) return { isError: true, text: e.message };
     const text = e instanceof Error ? e.message : String(e);
     // A refusal says who the token acts as, so an assistant (and the person reading) can tell "the rule says no" from "this
     // token is someone else's" (backlog N: a token made for a non-admin was taken for an admin's).
@@ -585,19 +587,23 @@ export async function callTool(name: string, args: Record<string, unknown>, ctx:
   }
 }
 
-/** A save refused because it writes Reviews' records while Reviews is off: said as the switched-off sentence alone. */
-class ReviewsOff extends Error {}
+/** A save refused because it writes a switched-off module's records (Reviews', Watching's): said as the switched-off
+    sentence alone. */
+class SwitchedOff extends Error {}
 
 /**
- * The context a tool runs with while Reviews is off: the same, except that a save writing Reviews' records (a review, a
- * note said in one, an ask raised in one, a goal proposed in one: domain/reviewWrites) is refused and saves nothing, in
- * the switched-off sentence, whichever tool made it (build review of #371: edit_comment and delete_comment on a review
- * note, create_goal proposed in a review, restore_removed reopening an ended review). Everything else reads and writes
- * through to the context itself, which a save moves on.
+ * The context a tool runs with while Reviews or Watching is off: the same, except that a save writing the switched-off
+ * module's records is refused and saves nothing, in the switched-off sentence, whichever tool made it. Reviews': a
+ * review, a note said in one, an ask raised in one, a goal proposed in one (domain/reviewWrites; build review of #371:
+ * edit_comment and delete_comment on a review note, create_goal proposed in a review, restore_removed reopening an ended
+ * review). Watching's: a watch started, stopped or brought back (domain/watchWrites; build review of #444:
+ * restore_removed on a stopped watch). Everything else reads and writes through to the context itself, which a save
+ * moves on.
  */
-function reviewsGuarded(ctx: McpContext, tool: string): McpContext {
+function switchesGuarded(ctx: McpContext, tool: string, reviewsOff: boolean, watchingOff: boolean): McpContext {
   const save = async (c: Commit) => {
-    if (writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new ReviewsOff(moduleOffSentence('Reviews', ctx.ws.name, tool));
+    if (reviewsOff && writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new SwitchedOff(moduleOffSentence('Reviews', ctx.ws.name, tool));
+    if (watchingOff && writesWatches(c)) throw new SwitchedOff(moduleOffSentence('Watching', ctx.ws.name, tool));
     return ctx.save(c);
   };
   return new Proxy(ctx, { get: (t, k, r) => (k === 'save' ? save : Reflect.get(t, k, r)) });
