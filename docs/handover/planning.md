@@ -15,7 +15,7 @@ Out of scope until after the handoff: PF1–PF2 and every review low (backlog, "
 | 1 (Home, reviews, check-in) | session_012kbr8xcik1h2gfbMLvPnKV | #482 (Lane's answers, auto-merge), gate #469 HM4, gate #492 (Home's one-team fix), SM1h (#491), HM7, HB3 |
 | 2 (goal entry, set-up) | session_012kbr934MTtvyvkmqWACv6M | PP2 (the #485 medium: two devices merge "Opened"), TG1 (#487), TG2 |
 | 4 (architecture, switches) | session_012kbr934nkdcyyV7KxsKcqN | #476, #480, FT1 (#465: redo its merge of main), Help hides switched-off modules, SW2, KL |
-| Reviewer (Fable) | session_012kbr8xhnbxBn8GD91Ct4dL | reviews each code PR when its track messages it; hands over after about 20 PRs (two more). Start the next one from docs/handover/reviewer.md |
+| Reviewer (Fable) | session_012kbr8zWCPJxkmsiZx169kF (fresh 15:30) | reviews each code PR merged after cadff60d (#488) when its track messages it; hands over after about 20 PRs. Its note lives in docs/handover/reviewer.md on branch build-reviews |
 
 **Waiting for a free slot:**
 - **Track 7d (metrics),** read docs/handover/track-7.md:
