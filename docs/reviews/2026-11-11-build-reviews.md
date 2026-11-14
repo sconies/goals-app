@@ -245,6 +245,8 @@ Written 14 November 2026, 15:40 UTC, when the reviewer of 14 November (session �
 | #488 PP2: two devices open at once keep each other's Opened and Not yet (#485's medium) | 2 | 0 | 0 | 0 |
 | #492 HM3: a one-team workspace has Your team on Home again (#468's medium) | 1 | 0 | 0 | 1 |
 | #475 ST2 + SM3: set-up in four steps, each an address; no example templates | 2 | 0 | 1 | 1 |
+| #476 SW1 review: #444's three mediums (Watching off by what a save writes; no wrap-up or watch words when off) | 4 | 0 | 0 | 1 |
+| #482 A correction keeps whose check-in it is; an ended year's missing week is added late with a reason at every door | 1 | 0 | 0 | 1 |
 
 **High findings, and where each stands**
 
@@ -2125,4 +2127,23 @@ Read (the rule, the screen, Help, What's new, the spec's rule, the journeys' cha
 **1. Medium (ran on screen). The browser's Forward takes a workspace name the rule refuses through to Create.** Fill step 1 properly, go on to Check, press Back to step 1, change the name to "ab" and press Forward three times instead of Continue: Check says "Create ab?", shows no error, and Create makes it ("ab is ready"). The rule is 3 to 80 characters (`nameProblem`, which Workspace's rename holds). Step 1's check runs only in `next()` (`ok.workspace`, `src/screens/Onboarding.tsx`), `firstUnfilled` asks only that the name isn't blank, and Check's own test (`ok.check`) is the import's issues, which don't include the workspace's name. Before this PR a step could only be left through Next. A typed address does the same. An email that isn't one is caught on the same route, at Create ("“notanemail” doesn’t look like an email."), since the import reads it. To fix: have `firstUnfilled` (or the redirect beside it) use the steps' own `ok`, at least `nameProblem`, so Check can't be reached past a step that wouldn't let Continue through; and a case in the journey.
 
 **Low.** By the same route with "Add your own" and an outcome that has a title and no numbers, Check reads "Goals: None yet. Each owner adds theirs from New goal." and only Create says "“Weekly active users”: Enter where it starts today." Nothing wrong is saved; the read-back is untrue until then. The fix for 1 covers it if it uses `ok.goals`.
+
+### #476 SW1 review: #444's mediums (track 4, merged 14 Nov, 16:09 UTC)
+
+Read against #444's three mediums; its tests pass on main (52 across `watchingOffWrites`, `reviewsOffWrites` and `startYear`). No high, no medium.
+
+- **#444 medium 1 (a stopped watch put back with Watching off): closed.** A save is refused by what it writes (`writesWatches`, `src/domain/watchWrites.ts`), once in the app's dispatcher and once in the AI tools' save, as Reviews' is: a watch started, stopped, restored from Recently removed or brought back by Undo. Watches a save only carries (the next year's, a cycle's start and its undoing, a goal's removal undone) ride with it; I looked at every place a commit gets `watches` and found no other. Recently removed and `list_removed` leave stopped watches out. `watch` and `unwatch` left `SWITCHED_ACTIONS` and are still refused, in the same words (tested).
+- **#444 medium 2 (wrap-up words with the Wrap-up off): closed.** `yearLine` and `startPage` take the switch; Workspace, Cycles, the Start page and the tool's read-back pass it. The four counts still add up to the read-back's total.
+- **#444 medium 3 (Activity's watching scope): closed.** `watching=` narrows nothing and says nothing with Watching off.
+- **#424:** the `restore_removed` test through the MCP server with Reviews off is here, and passes.
+
+The first-download comment records Lane's 275 KB; the number is unchanged.
+
+**Low (read).** On Cycles the current year's hint is `yearLine(...)` with its first sentence cut off; with the Wrap-up off the line is one sentence, so nothing is cut and the hint repeats the year beside its own name ("2026, week 46 of 53.").
+
+### #482 A correction keeps whose check-in it is (track 1, merged 14 Nov, 16:30 UTC)
+
+Read against Lane's answers of 14 Nov; its tests pass on main (57 across `postCheckIn`, `setUpCheckIn` and the conformance test). No high, no medium. Replacing a check-in keeps its author at every door, with the change's actor the one who replaced it; an admin's workbook row over someone else's check-in for this week is a correction that asks for a reason first (#334's answer); a week an ended year has no check-in for is added late with a reason from a workbook or the AI tools as from the form, and replacing one there is still refused. Help, What's new (it says the behaviour changed), the rule's words, a conformance case with an `author` column, and the design note's "anyone in the workspace" come with it. The reason box's words are now one component for Preview and the import's Check.
+
+**Low (read).** A workbook row that adds a missing week to an ended year needs a reason but its kind is "check-in", not "replaces check-in", so `ReasonWords` (`src/ui/IssueGroup.tsx`) asks "Why are these plans changing?" and speaks of the old and new plan.
 
