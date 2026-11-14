@@ -7,13 +7,13 @@ import { Link, Navigate, useNavigate } from 'react-router';
 import { useApp } from '../../app/state';
 import { saveAndSay } from '../../app/files';
 import { readChanges } from '../../app/spreadsheet';
-import { exportOn, sheetHeadsFor } from '../../core/records';
+import { exportOn, loadSheetPlanners, sheetHeadsFor } from '../../core/records';
 import { describe, sheetCounts, type ChangeSet } from '../../domain/changeset';
 import { workbook } from '../../domain/export';
 import { leaveOut } from '../../domain/leaveOut';
 import { questionsLine, type Answer, type IssueGroup, type Sheet } from '../../domain/problemLevels';
 import { CHANGES_SAVE_MAX, tooLarge } from '../../domain/importLimits';
-import { headerRowsLine, parseDelimited, readKindOf, readLine, readTables, rowsOfSheet, type ReadTables, type Tables } from '../../domain/sheets';
+import { headerRowsLine, moduleOffLine, parseDelimited, readKindOf, readLine, readTables, rowsOfSheet, type ReadTables, type Tables } from '../../domain/sheets';
 import { workedOutEdits } from '../../domain/workedOut';
 import { useMark } from '../../telemetry/react';
 import { Sheet as SheetBox, WarnMark } from '../../ui/bits';
@@ -41,7 +41,10 @@ const uniqueRows = <T extends { sheet: Sheet; row: number }>(list: readonly T[])
 
 
 /** Reads tables into the import, or says why not: nothing that looks like a Faro sheet, or too many rows. */
-function take(got: ReadTables, name: string, onProblem: (text: string, template?: boolean) => void): boolean {
+function take(got: ReadTables, name: string, onProblem: (text: string, template?: boolean) => void, workspace?: string): boolean {
+  // Only a switched-off module's sheet (MI: Metrics with the Metric library off): said once, as the preview would.
+  const off = got.skipped.filter((x) => x.why === 'module-off');
+  if (!got.read.length && off.length) { onProblem(`${off.map((x) => moduleOffLine(x.module ?? 'Its feature', workspace, x.sheet ?? x.name)).join(' ')} Nothing else in ${name} was read.`); return false; }
   if (!got.read.length) {
     const heads = got.firstHeaders.length ? ` Its first sheet’s headers are ${got.firstHeaders.join(', ')}…` : '';
     onProblem(`Nothing in ${name} looks like a Faro sheet.${heads} Faro looks for Goal and Owner (goals), Goal key and Week (check-ins), or Name and Email (people). The template has the right headers.`, true);
@@ -63,15 +66,18 @@ export async function chooseFile(f: File | undefined, onProblem: (text: string, 
     onProblem(`Faro can’t read ${f.name}. Save it as .xlsx or .csv and try again.`);
     return false;
   }
-  return take(got, f.name, onProblem);
+  return take(got, f.name, onProblem, (ws as { name?: string } | null | undefined)?.name);
 }
+
+// A module's own sheet's planner (MI: Metrics) comes with the import's screens, so rows pasted at once are planned.
+void loadSheetPlanners();
 
 /** Rows pasted from a spreadsheet (tab-separated, the header row first), read as a file called “Pasted rows”. */
 export function choosePaste(text: string, onProblem: (text: string) => void, ws?: { modulesOff?: readonly string[] } | null): boolean {
   // Blank lines stay, so the rows keep the numbers they had where they were copied from (IM5 review).
   const got = readTables([{ name: 'Pasted rows', rows: parseDelimited(text, { keepBlank: true }) }], sheetHeadsFor(ws));
   if (!got.read.length) { onProblem('The first row should be the headers (Goal, Owner, Start…). Copy them from here:'); return false; }
-  return take(got, 'Pasted rows', onProblem);
+  return take(got, 'Pasted rows', onProblem, (ws as { name?: string } | null | undefined)?.name);
 }
 
 export function Check() {

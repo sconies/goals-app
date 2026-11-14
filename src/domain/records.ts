@@ -84,7 +84,11 @@ export interface ModuleSheet<C = unknown> {
   keys: string[];
   /** Its rows: what the export carries, for the goals it exports. */
   rows(x: ExportInput, c: Ctx, goalIds: ReadonlySet<string>): C[];
-  /** A loaded sheet: what its rows would do, with the module's own rules. */
+  /** A loaded sheet's planner, loaded on demand (the workbook's sheets are in the first download, its rules needn't be):
+      every door that runs the engine on such a sheet awaits it first (core/records loadSheetPlanners), which keeps it
+      in `plan`. */
+  loadPlan?: () => Promise<SheetPlanner>;
+  /** The planner once loaded (or given directly, as a test or the module's conformance does). */
   plan?: SheetPlanner;
   /** A header row made by hand that is this sheet (lower-case headers), beside the export's own. */
   has?: (headers: ReadonlySet<string>) => boolean;

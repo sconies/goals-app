@@ -35,7 +35,7 @@ import MODULE_TOOLS from 'virtual:faro-modules/tools';
 import { isModuleOn, moduleById, modulesOn } from '../core/registry';
 import { writesReviews } from '../domain/reviewWrites';
 import { writesWatches } from '../domain/watchWrites';
-import { MODULE_GOAL_COLUMNS, MODULE_RECORDS, recordsOn } from '../core/records';
+import { loadSheetPlanners, MODULE_GOAL_COLUMNS, MODULE_RECORDS, recordsOn } from '../core/records';
 import { moduleOffLine } from '../domain/sheets';
 import { addColumnParams } from '../domain/query';
 import { commentsOf } from '../domain/removal';
@@ -151,7 +151,7 @@ const ANSWERS_ARG = { type: 'object', additionalProperties: { anyOf: [{ type: 's
 const answersOf = (a: unknown): Answers => Object.fromEntries(Object.entries((a ?? {}) as Record<string, unknown>).map(([k, v]) => [k, typeof v === 'string' ? { choice: v } : { choice: String((v as { choice?: unknown }).choice ?? ''), ...((v as { value?: unknown }).value != null ? { value: String((v as { value: unknown }).value) } : {}) }]));
 
 /** The modules' own loaded sheets (MI: Metrics), each a bulk_change argument named by its sheet in lower case. */
-const LOADED_MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => (m.sheets ?? []).filter((sh) => sh.spec.loaded && sh.plan).map((sh) => ({ module: m.module, sheet: sh.spec.name, arg: sh.spec.name.toLowerCase().replace(/[^a-z]+/g, '_'), about: sh.spec.about })));
+const LOADED_MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => (m.sheets ?? []).filter((sh) => sh.spec.loaded && (sh.plan || sh.loadPlan)).map((sh) => ({ module: m.module, sheet: sh.spec.name, arg: sh.spec.name.toLowerCase().replace(/[^a-z]+/g, '_'), about: sh.spec.about })));
 
 /** find_goals' page: how many goals it lists unless asked, and the most it lists at once. */
 const FIND_PAGE = 50, FIND_MAX = 200;
@@ -572,6 +572,7 @@ const CORE_TOOLS: ToolDef[] = [
       const on = given.filter((x) => isModuleOn(ctx.ws, x.module));
       const off = given.filter((x) => !isModuleOn(ctx.ws, x.module)).map((x) => moduleOffLine(moduleById(x.module)?.name ?? x.module, ctx.ws.name, x.sheet));
       const tables: Tables = { goals: rows(a.goals, 'goals'), plan: rows(a.plan, 'plan'), checkIns: rows(a.check_ins, 'check_ins'), people: rows(a.people, 'people'), ...(on.length ? { modules: Object.fromEntries(on.map((x) => [x.sheet, rows(a[x.arg], x.arg)])) } : {}) };
+      if (on.length) await loadSheetPlanners();
       const res = await change(ctx, tables, { dry: !a.apply, reason: a.reason as string | undefined, confirm: a.confirm === true, answers: a.answers });
       return off.length ? { ...res, text: `${off.join(' ')}\n${res.text}`, ...(res.data ? { data: { ...res.data, notRead: off } } : {}) } : res;
     },

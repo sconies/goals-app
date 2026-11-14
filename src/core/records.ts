@@ -43,6 +43,12 @@ export const exportOn = (ws: { modulesOff?: readonly string[] } | null | undefin
     in this workspace, the module's name, so the sheet is said once as not read ("Metric library is off in …"). */
 export const sheetHeadsFor = (ws: { modulesOff?: readonly string[] } | null | undefined): ModuleSheetHead[] =>
   MODULE_RECORDS.flatMap((m) => (m.sheets ?? []).map((sh) => ({
-    name: sh.spec.name, columns: sh.spec.columns, loaded: sh.spec.loaded && !!sh.plan, ...(sh.has ? { has: sh.has } : {}),
+    name: sh.spec.name, columns: sh.spec.columns, loaded: sh.spec.loaded && !!(sh.plan || sh.loadPlan), ...(sh.has ? { has: sh.has } : {}),
     off: isModuleOn(ws, m.module) ? null : moduleById(m.module)?.name ?? m.module,
   })));
+
+/** Loads every module sheet's planner not loaded yet (MI): each door that runs the engine on a file with a module's own
+    sheet awaits this first (the import's reader, its worker, bulk_change). Loaded once, kept on the sheet. */
+export async function loadSheetPlanners(): Promise<void> {
+  await Promise.all(MODULE_SHEETS.filter((sh) => sh.loadPlan && !sh.plan).map(async (sh) => { sh.plan = await sh.loadPlan!(); }));
+}

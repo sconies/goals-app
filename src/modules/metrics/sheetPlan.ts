@@ -2,7 +2,7 @@
    metric, changes one (found by ID, else by name, any case), retires one or brings one back, through the library's own
    rules (saveMetricChange, retireMetric, unretireMetric), so a file and the form say no in the same words. The engine
    (domain/changeset, through domain/sheetPlan) owns the questions' levels, the answers, leaving rows out and one Undo.
-   An absent column leaves a field as it is; an empty cell in a column the file has clears it. */
+   As on every sheet, a row already here needs no column: an absent column or an empty cell keeps what the metric says. */
 import { NotAllowed, type ActionContext } from '../../domain/actions';
 import { normalEmail } from '../../domain/people';
 import { fold, LEAVE } from '../../domain/problemLevels';
@@ -23,8 +23,6 @@ const cell = (api: SheetPlanApi, r: Rec, col: string): { has: boolean; v: string
   return { has: false, v: '' };
 };
 
-/** A header row made by hand that is the Metrics sheet: Metric (or Name with Unit and Direction), and Unit, Direction or Measures. */
-export const isMetricsHeader = (h: ReadonlySet<string>) => (h.has('metric') && (h.has('unit') || h.has('direction') || h.has('measures'))) || (h.has('name') && h.has('unit') && h.has('direction'));
 
 const DIRECTION_WORDS: Record<string, Metric['direction']> = { 'higher is better': 'higher', higher: 'higher', up: 'higher', 'lower is better': 'lower', lower: 'lower', down: 'lower' };
 const REFRESH_WORDS = Object.fromEntries(Object.entries(REFRESH_LABEL).map(([k, v]) => [fold(v), k])) as Record<string, Metric['refresh']>;
@@ -82,7 +80,7 @@ export function planMetricsSheet(api: SheetPlanApi): SheetPlanResult {
     if (name.has && name.v) input.name = name.v;
     for (const [col, key] of [['meaning', 'meaning'], ['source', 'source'], ['source owner', 'sourceOwner'], ['caveats', 'caveats'], ['unit', 'unit']] as const) {
       const c = cell(api, r, col);
-      if (c.has) input[key] = c.v;
+      if (c.v) input[key] = c.v;
     }
     const dec = cell(api, r, 'decimals');
     if (dec.has && dec.v) {
@@ -92,7 +90,7 @@ export function planMetricsSheet(api: SheetPlanApi): SheetPlanResult {
     const dir = cell(api, r, 'direction');
     if (dir.has && dir.v) { const d = DIRECTION_WORDS[fold(dir.v)]; if (d) input.direction = d; else must('Direction', `Direction says “${dir.v}”. Use Higher is better or Lower is better.`, dir.v); }
     const ref = cell(api, r, 'refresh');
-    if (ref.has) { if (!ref.v) input.refresh = null; else { const f = REFRESH_WORDS[fold(ref.v)]; if (f) input.refresh = f; else must('Refresh', `Refresh says “${ref.v}”. Use Live, Hourly, Daily, Weekly, Monthly or Quarterly, or leave it empty.`, ref.v); } }
+    if (ref.v) { { const f = REFRESH_WORDS[fold(ref.v)]; if (f) input.refresh = f; else must('Refresh', `Refresh says “${ref.v}”. Use Live, Hourly, Daily, Weekly, Monthly or Quarterly, or leave it empty.`, ref.v); } }
     const email = cell(api, r, 'owner email');
     const ownerName = cell(api, r, 'owner');
     if (email.v) {

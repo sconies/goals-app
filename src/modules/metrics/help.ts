@@ -170,7 +170,7 @@ const help: Article[] = [
       { heading: 'Out and back in', list: [
         'Export everything from Data: the workbook’s Metrics sheet lists every metric, retired ones too with the day they were retired, and the goals each measures.',
         'Change rows, or add rows with an empty ID, and load the file on Import. Loading an export unchanged changes nothing.',
-        'A row finds its metric by ID, or else by its name, any case. A column you leave out leaves that field as it is; an empty cell in a column you keep clears it.',
+        'A row finds its metric by ID, or else by its name, any case. A column you leave out, or an empty cell, keeps what the metric says.',
         'Action retires a metric (say why in Reason) or brings one back.',
       ] },
       { heading: 'What it asks', list: [

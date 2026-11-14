@@ -6,8 +6,7 @@ import { cellOr, moduleColumn, oneOf, type Ctx } from '../../domain/columns';
 import type { ModuleSheet } from '../../domain/records';
 import type { Goal } from '../../domain/types';
 import { DIRECTION_LABEL, liveMetrics, linksOf, REFRESH_LABEL, sliceName } from './rules';
-import { stillToSay } from './rulesDefine';
-import { isMetricsHeader, planMetricsSheet } from './sheetPlan';
+import { stillToSay } from './rulesStill';
 import type { Metric } from './types';
 
 /** A metric in the library, and the exported goals it measures, each with its slice. */
@@ -42,7 +41,7 @@ export const METRICS_SHEET: ModuleSheet<MetricRow> = {
     ],
   },
   keys: ['ID'],
-  plan: planMetricsSheet,
+  loadPlan: () => import('./sheetPlan').then((m) => m.planMetricsSheet),
   has: isMetricsHeader,
   // Every metric, retired ones too (with the day), with the goals among those exported it measures (and for which slice).
   rows: (x, c, ids) => {
@@ -53,3 +52,9 @@ export const METRICS_SHEET: ModuleSheet<MetricRow> = {
     }));
   },
 };
+
+/** A header row made by hand that is the Metrics sheet (3.1): Metric (or Name with Unit and Direction), and Unit,
+    Direction or Measures. */
+export function isMetricsHeader(h: ReadonlySet<string>): boolean {
+  return (h.has('metric') && (h.has('unit') || h.has('direction') || h.has('measures'))) || (h.has('name') && h.has('unit') && h.has('direction'));
+}

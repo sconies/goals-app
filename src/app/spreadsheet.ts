@@ -4,7 +4,7 @@
    so the app stays small. Files going out are saved by app/files (saveFile). */
 import { GOALS_TEMPLATE, PEOPLE_TEMPLATE } from '../domain/importer';
 import { gridOf, parseDelimited, readTables, type NamedGrid, type ReadTables } from '../domain/sheets';
-import { sheetHeadsFor } from '../core/records';
+import { loadSheetPlanners, sheetHeadsFor } from '../core/records';
 import type { SheetOut } from './files';
 
 const isText = (name: string) => /\.(csv|tsv|txt)$/i.test(name);
@@ -31,7 +31,9 @@ export async function readGrids(file: File): Promise<NamedGrid[]> {
 export async function readChanges(file: File, ws?: { modulesOff?: readonly string[] } | null): Promise<ReadTables> {
   // The modules' sheets (Metrics) are known by their headers: loaded back when their module is on in this workspace,
   // and said once as not read when it is off.
-  return readTables(await readGrids(file), sheetHeadsFor(ws));
+  const read = readTables(await readGrids(file), sheetHeadsFor(ws));
+  if (read.tables.modules) await loadSheetPlanners();
+  return read;
 }
 
 /** The set-up template: a People sheet and a Goals sheet in the one format, with example rows, ready for saveFile. */

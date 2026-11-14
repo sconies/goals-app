@@ -1,8 +1,8 @@
 /* The Metrics sheet in and out (MI, round 2's MT6; docs/design/metrics-2/spec.md 2.9, 3.1, 3.4): an export loaded back
    changes nothing; rows add, change, retire and bring back metrics through the library's rules; the same Must fix and
    Check words as the form; one Undo puts every row back; with the Metric library off the sheet is said once, not read. */
-import { describe, expect, it } from 'vitest';
-import { MODULE_RECORDS, MODULE_SHEETS, sheetHeadsFor } from '../../core/records';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { loadSheetPlanners, MODULE_RECORDS, MODULE_SHEETS, sheetHeadsFor } from '../../core/records';
 import { buildPlatformOrg } from '../../data/platformOrg';
 import { applyCommit } from '../../data/store';
 import { planChanges, type Answers, type Tables } from '../../domain/changeset';
@@ -33,6 +33,7 @@ const must = (cs: ReturnType<typeof plan>) => cs.issues.filter((i) => i.level ==
 const grids = (book: ReturnType<typeof workbook>): NamedGrid[] => book.map((t) => ({ name: t.name, rows: t.rows.map((r) => r.map((c) => (c == null ? '' : String(c)))) }));
 
 describe('the Metrics sheet in and out (MI)', () => {
+  beforeAll(() => loadSheetPlanners());
   const live = liveMetrics(full);
   const used = live.find((m) => linkedGoals(full, m.id).length)!;
   const spare = live.find((m) => !linkedGoals(full, m.id).length)!;

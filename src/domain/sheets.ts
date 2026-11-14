@@ -127,7 +127,7 @@ export interface ReadTables {
   /** The sheets loaded, by the name they had. */
   read: { name: string; kind: SheetKind | (string & {}) }[];
   /** Sheets left out, and why. */
-  skipped: { name: string; why: SkipWhy; kind?: SheetKind; module?: string }[];
+  skipped: { name: string; why: SkipWhy; kind?: SheetKind; module?: string; sheet?: string }[];
   /** Columns on a sheet that was read that nothing reads (C19): named in the file line, never dropped silently. */
   unknownColumns: { sheet: string; headers: string[] }[];
   /** Each table's headers as the file wrote them, in order: the rows-to-fix file writes them back (a module's sheet by its name). */
@@ -250,7 +250,7 @@ export function readTables(grids: NamedGrid[], moduleSheets: readonly ModuleShee
     const bare = g.name.replace(/\.(csv|tsv|txt)$/i, '').trim().toLowerCase();
     if (bare === START_HERE.toLowerCase() || bare === 'readme') { out.origin ??= originOf(g.rows); out.skipped.push({ name: g.name, why: 'start-here' }); continue; }
     const own = ownSheet(first);
-    if (own && own.off) { out.skipped.push({ name: g.name, why: 'module-off', module: own.off }); continue; }
+    if (own && own.off) { out.skipped.push({ name: g.name, why: 'module-off', module: own.off, sheet: own.name }); continue; }
     if (own && !own.loaded) { out.skipped.push({ name: g.name, why: 'reading-only' }); continue; }
     if (own) {
       out.tables.modules ??= {};
@@ -323,4 +323,4 @@ export function readLine(read: Pick<ReadTables, 'read' | 'skipped' | 'unknownCol
 /** What the preview and bulk_change say once for a module's sheet whose module is off (AS, MI): "Metric library is off
     in Platform Engineering, so the Metrics sheet was not read." */
 export const moduleOffLine = (module: string, workspace: string | undefined, sheet: string) => `${module} is off${workspace ? ` in ${workspace}` : ''}, so the ${sheet} sheet was not read.`;
-const moduleOffLines = (read: Pick<ReadTables, 'skipped'>, workspace?: string) => read.skipped.filter((x) => x.why === 'module-off').map((x) => moduleOffLine(x.module ?? 'Its feature', workspace, x.name));
+const moduleOffLines = (read: Pick<ReadTables, 'skipped'>, workspace?: string) => read.skipped.filter((x) => x.why === 'module-off').map((x) => moduleOffLine(x.module ?? 'Its feature', workspace, x.sheet ?? x.name));

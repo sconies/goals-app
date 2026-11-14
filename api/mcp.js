@@ -1,4 +1,5 @@
 // \0rolldown/runtime.js
+var __defProp = Object.defineProperty;
 var __esmMin = (fn, res, err) => () => {
 	if (err) throw err[0];
 	try {
@@ -6,6 +7,15 @@ var __esmMin = (fn, res, err) => () => {
 	} catch (e) {
 		throw err = [e], e;
 	}
+};
+var __exportAll = (all, no_symbols) => {
+	let target = {};
+	for (var name in all) __defProp(target, name, {
+		get: all[name],
+		enumerable: true
+	});
+	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
+	return target;
 };
 // server/log.ts
 /** Writes the failure to standard error and returns its reference. Never throws. */
@@ -10391,7 +10401,7 @@ function groupTitle(kind, sheet, count, first) {
 		case "ambiguous-ref": return `${n$1(count, "row")} say “${v}”, and more than one ${THING[col] ?? "record"} is called that`;
 		case "conflicting-refs": return `${n$1(count, "row")} name${count === 1 ? "s" : ""} two different ${THING[col] === "goal" ? "goals" : "people"}`;
 		case "bad-key": return /look like/.test(first.message) ? `${n$1(count, "key")} ${count === 1 ? "doesn’t" : "don’t"} look like G-12` : `${n$1(count, col === "ID" || col === "Goal ID" ? "ID" : "key")} ${count === 1 ? "isn’t" : "aren’t"} here`;
-		case "duplicate": return sheet === "People" ? `${n$1(count, "person", "people")} appear on more than one row` : sheet === "Check-ins" ? `${n$1(count, "check-in")} appear on more than one row` : `${n$1(count, "goal")} appear on more than one row`;
+		case "duplicate": return sheet === "People" ? `${n$1(count, "person", "people")} appear on more than one row` : sheet === "Check-ins" ? `${n$1(count, "check-in")} appear on more than one row` : sheet === "Goals" ? `${n$1(count, "goal")} appear on more than one row` : `${n$1(count, "row")} repeat${count === 1 ? "s" : ""} another row`;
 		case "type-unclear": return `${n$1(count, "new goal")} ${count === 1 ? "doesn’t" : "don’t"} say what type ${count === 1 ? "it is" : "they are"}`;
 		case "plan-order": return `${n$1(count, "plan")} ${count === 1 ? "ends" : "end"} before ${count === 1 ? "it starts" : "they start"}, or ${count === 1 ? "has" : "have"} weeks outside ${count === 1 ? "it" : "them"}`;
 		case "stage-format": return `${n$1(count, "row")} ${count === 1 ? "has" : "have"} stages that can’t be read`;
@@ -14292,7 +14302,7 @@ var init_names = __esmMin((() => {
 	]);
 	nameWords = (name) => new Set(fold$2(name.replace(/\([^)]*\)|\[[^\]]*\]/g, " ")).split(/[^\p{L}\p{N}%]+/u).filter((w) => w && !FILLER.has(w)));
 }));
-// src/modules/metrics/rulesDefine.ts
+// src/modules/metrics/rulesStill.ts
 /**
 * Rule 1. What a metric still needs to say. A metric with a name, a unit and a direction is usable; `missing` lists, in
 * order, what it means (meaning empty), where the number comes from (source empty), who owns that source (empty) and how
@@ -14313,6 +14323,19 @@ function stillToSay(m, ownerIsHere) {
 		line
 	};
 }
+var STILL_TO_SAY, FULLY_DEFINED, OWNER_LEFT;
+var init_rulesStill = __esmMin((() => {
+	STILL_TO_SAY = [
+		["what it means", "meaning"],
+		["where the number comes from", "source"],
+		["who owns that source", "sourceOwner"],
+		["how often it refreshes", "refresh"]
+	];
+	Object.fromEntries(STILL_TO_SAY);
+	FULLY_DEFINED = "Fully defined";
+	OWNER_LEFT = "Its owner has left.";
+}));
+// src/modules/metrics/rulesDefine.ts
 /**
 * Rule 1. Up to two names close to `name`, closest first. **former**: `name` is a name a metric in use used to have
 * (its rename in the change log). **letters**: the two names, bared, differ by one edit for names up to 12 characters and
@@ -14485,21 +14508,13 @@ function answersFrom(raw) {
 	}
 	return out;
 }
-var STILL_TO_SAY, FULLY_DEFINED, OWNER_LEFT, bare$1, UNIT_SPELLINGS, unitBare, TIME_UNIT, PER_TIME, OUT_OF, OUT_OF_WHAT, unansweredChecks;
+var bare$1, UNIT_SPELLINGS, unitBare, TIME_UNIT, PER_TIME, OUT_OF, OUT_OF_WHAT, unansweredChecks;
 var init_rulesDefine = __esmMin((() => {
 	init_actions();
 	init_fold();
 	init_edits();
 	init_names();
-	STILL_TO_SAY = [
-		["what it means", "meaning"],
-		["where the number comes from", "source"],
-		["who owns that source", "sourceOwner"],
-		["how often it refreshes", "refresh"]
-	];
-	Object.fromEntries(STILL_TO_SAY);
-	FULLY_DEFINED = "Fully defined";
-	OWNER_LEFT = "Its owner has left.";
+	init_rulesStill();
 	bare$1 = (s) => fold$2(s).replace(/[^\p{L}\p{N}%]+/gu, " ").trim();
 	UNIT_SPELLINGS = {
 		percent: "%",
@@ -15310,53 +15325,7 @@ var SKIP = /* @__PURE__ */ new Set([
 	"updatedAt"
 ]);
 // src/modules/metrics/sheetPlan.ts
-init_actions();
-init_people();
-init_problemLevels();
-init_records();
-init_rulesDefine();
-init_rulesChange();
-init_rules();
-var goalsWord = (n) => `${n} ${n === 1 ? "goal is" : "goals are"}`;
-/** A column under the export's header, or a name a register often uses for it (3.1, header aliases). */
-var ALIASES = {
-	metric: ["metric", "name"],
-	meaning: [
-		"meaning",
-		"description",
-		"definition"
-	],
-	direction: ["direction", "better"],
-	"owner email": ["owner email", "owner e-mail"]
-};
-var cell = (api, r, col) => {
-	for (const k of ALIASES[col] ?? [col]) if (api.has(r, k)) return {
-		has: true,
-		v: api.val(r, k)
-	};
-	return {
-		has: false,
-		v: ""
-	};
-};
-/** A header row made by hand that is the Metrics sheet: Metric (or Name with Unit and Direction), and Unit, Direction or Measures. */
-var isMetricsHeader = (h) => h.has("metric") && (h.has("unit") || h.has("direction") || h.has("measures")) || h.has("name") && h.has("unit") && h.has("direction");
-var DIRECTION_WORDS = {
-	"higher is better": "higher",
-	higher: "higher",
-	up: "higher",
-	"lower is better": "lower",
-	lower: "lower",
-	down: "lower"
-};
-var REFRESH_WORDS = Object.fromEntries(Object.entries(REFRESH_LABEL).map(([k, v]) => [fold$1(v), k]));
-var ACTION_WORDS = {
-	retire: "retire",
-	"bring back": "back",
-	"bring it back": "back"
-};
-/** The fields a row gives that differ from the metric as it is (nothing given: nothing differs). */
-var differs = (before, input) => Object.keys(input).some((k) => (typeof before[k] === "string" ? String(before[k]).trim() : before[k] ?? null) !== (typeof input[k] === "string" ? String(input[k]).trim() : input[k] ?? null));
+var sheetPlan_exports = /* @__PURE__ */ __exportAll({ planMetricsSheet: () => planMetricsSheet });
 function planMetricsSheet(api) {
 	const { x: x0, rows } = api;
 	const ws = "this workspace";
@@ -15452,7 +15421,7 @@ function planMetricsSheet(api) {
 			["unit", "unit"]
 		]) {
 			const c = cell(api, r, col);
-			if (c.has) input[key] = c.v;
+			if (c.v) input[key] = c.v;
 		}
 		const dec = cell(api, r, "decimals");
 		if (dec.has && dec.v) {
@@ -15472,13 +15441,10 @@ function planMetricsSheet(api) {
 			else must("Direction", `Direction says “${dir.v}”. Use Higher is better or Lower is better.`, dir.v);
 		}
 		const ref = cell(api, r, "refresh");
-		if (ref.has) {
-			if (!ref.v) input.refresh = null;
-			else {
-				const f = REFRESH_WORDS[fold$1(ref.v)];
-				if (f) input.refresh = f;
-				else must("Refresh", `Refresh says “${ref.v}”. Use Live, Hourly, Daily, Weekly, Monthly or Quarterly, or leave it empty.`, ref.v);
-			}
+		if (ref.v) {
+			const f = REFRESH_WORDS[fold$1(ref.v)];
+			if (f) input.refresh = f;
+			else must("Refresh", `Refresh says “${ref.v}”. Use Live, Hourly, Daily, Weekly, Monthly or Quarterly, or leave it empty.`, ref.v);
 		}
 		const email = cell(api, r, "owner email");
 		const ownerName = cell(api, r, "owner");
@@ -15676,10 +15642,56 @@ function planMetricsSheet(api) {
 		noun: ["metric", "metrics"]
 	};
 }
+var goalsWord, ALIASES, cell, DIRECTION_WORDS, REFRESH_WORDS, ACTION_WORDS, differs;
+var init_sheetPlan = __esmMin((() => {
+	init_actions();
+	init_people();
+	init_problemLevels();
+	init_records();
+	init_rulesDefine();
+	init_rulesChange();
+	init_rules();
+	goalsWord = (n) => `${n} ${n === 1 ? "goal is" : "goals are"}`;
+	ALIASES = {
+		metric: ["metric", "name"],
+		meaning: [
+			"meaning",
+			"description",
+			"definition"
+		],
+		direction: ["direction", "better"],
+		"owner email": ["owner email", "owner e-mail"]
+	};
+	cell = (api, r, col) => {
+		for (const k of ALIASES[col] ?? [col]) if (api.has(r, k)) return {
+			has: true,
+			v: api.val(r, k)
+		};
+		return {
+			has: false,
+			v: ""
+		};
+	};
+	DIRECTION_WORDS = {
+		"higher is better": "higher",
+		higher: "higher",
+		up: "higher",
+		"lower is better": "lower",
+		lower: "lower",
+		down: "lower"
+	};
+	REFRESH_WORDS = Object.fromEntries(Object.entries(REFRESH_LABEL).map(([k, v]) => [fold$1(v), k]));
+	ACTION_WORDS = {
+		retire: "retire",
+		"bring back": "back",
+		"bring it back": "back"
+	};
+	differs = (before, input) => Object.keys(input).some((k) => (typeof before[k] === "string" ? String(before[k]).trim() : before[k] ?? null) !== (typeof input[k] === "string" ? String(input[k]).trim() : input[k] ?? null));
+}));
 // src/modules/metrics/sheet.ts
 init_columns();
 init_rules();
-init_rulesDefine();
+init_rulesStill();
 var { match: m, edit: e, worked: w, shown: sh, action: act } = moduleColumn;
 var or = cellOr;
 var METRICS_SHEET = {
@@ -15711,7 +15723,7 @@ var METRICS_SHEET = {
 		]
 	},
 	keys: ["ID"],
-	plan: planMetricsSheet,
+	loadPlan: () => Promise.resolve().then(() => (init_sheetPlan(), sheetPlan_exports)).then((m) => m.planMetricsSheet),
 	has: isMetricsHeader,
 	rows: (x, c, ids) => {
 		const s = x.snapshot;
@@ -15728,6 +15740,11 @@ var METRICS_SHEET = {
 		}));
 	}
 };
+/** A header row made by hand that is the Metrics sheet (3.1): Metric (or Name with Unit and Direction), and Unit,
+Direction or Measures. */
+function isMetricsHeader(h) {
+	return h.has("metric") && (h.has("unit") || h.has("direction") || h.has("measures")) || h.has("name") && h.has("unit") && h.has("direction");
+}
 // src/modules/metrics/records.ts
 init_actions();
 init_rules();
@@ -16144,7 +16161,8 @@ var _virtual_faro_modules_default = [
 			"metric-measured-by",
 			"metric-slices",
 			"metric-change",
-			"metric-measurement"
+			"metric-measurement",
+			"metric-sheet"
 		],
 		requirements: [
 			"METRICS-LIBRARY",
@@ -16663,6 +16681,13 @@ var exportOn = (ws) => ({
 	sheets: sheetsOn(ws),
 	reviews: isModuleOn(ws, "reviews")
 });
+/** Loads every module sheet's planner not loaded yet (MI): each door that runs the engine on a file with a module's own
+sheet awaits this first (the import's reader, its worker, bulk_change). Loaded once, kept on the sheet. */
+async function loadSheetPlanners() {
+	await Promise.all(MODULE_SHEETS.filter((sh) => sh.loadPlan && !sh.plan).map(async (sh) => {
+		sh.plan = await sh.loadPlan();
+	}));
+}
 // src/mcp/moduleOff.ts
 /** "Reviews is switched off in {ws}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features." */
 var moduleOffSentence = (module, workspace, tool) => `${module} is switched off in ${workspace}, so ${tool} can’t be used there. An admin can switch it on in Workspace, under Features.`;
@@ -19660,7 +19685,7 @@ var help$5 = [
 				list: [
 					"Export everything from Data: the workbook’s Metrics sheet lists every metric, retired ones too with the day they were retired, and the goals each measures.",
 					"Change rows, or add rows with an empty ID, and load the file on Import. Loading an export unchanged changes nothing.",
-					"A row finds its metric by ID, or else by its name, any case. A column you leave out leaves that field as it is; an empty cell in a column you keep clears it.",
+					"A row finds its metric by ID, or else by its name, any case. A column you leave out, or an empty cell, keeps what the metric says.",
 					"Action retires a metric (say why in Reason) or brings one back."
 				]
 			},
@@ -29657,7 +29682,7 @@ var answersOf = (a) => Object.fromEntries(Object.entries(a ?? {}).map(([k, v]) =
 	...v.value != null ? { value: String(v.value) } : {}
 }]));
 /** The modules' own loaded sheets (MI: Metrics), each a bulk_change argument named by its sheet in lower case. */
-var LOADED_MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => (m.sheets ?? []).filter((sh) => sh.spec.loaded && sh.plan).map((sh) => ({
+var LOADED_MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => (m.sheets ?? []).filter((sh) => sh.spec.loaded && (sh.plan || sh.loadPlan)).map((sh) => ({
 	module: m.module,
 	sheet: sh.spec.name,
 	arg: sh.spec.name.toLowerCase().replace(/[^a-z]+/g, "_"),
@@ -30670,13 +30695,15 @@ var CORE_TOOLS = [
 			const given = LOADED_MODULE_SHEETS.filter((x) => Array.isArray(a[x.arg]) && a[x.arg].length);
 			const on = given.filter((x) => isModuleOn(ctx.ws, x.module));
 			const off = given.filter((x) => !isModuleOn(ctx.ws, x.module)).map((x) => moduleOffLine(moduleById(x.module)?.name ?? x.module, ctx.ws.name, x.sheet));
-			const res = await change(ctx, {
+			const tables = {
 				goals: rows$1(a.goals, "goals"),
 				plan: rows$1(a.plan, "plan"),
 				checkIns: rows$1(a.check_ins, "check_ins"),
 				people: rows$1(a.people, "people"),
 				...on.length ? { modules: Object.fromEntries(on.map((x) => [x.sheet, rows$1(a[x.arg], x.arg)])) } : {}
-			}, {
+			};
+			if (on.length) await loadSheetPlanners();
+			const res = await change(ctx, tables, {
 				dry: !a.apply,
 				reason: a.reason,
 				confirm: a.confirm === true,

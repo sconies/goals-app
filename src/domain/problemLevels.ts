@@ -251,7 +251,7 @@ export function groupTitle(kind: IssueKind, sheet: Sheet, count: number, first: 
     case 'ambiguous-ref': return `${n(count, 'row')} say “${v}”, and more than one ${THING[col] ?? 'record'} is called that`;
     case 'conflicting-refs': return `${n(count, 'row')} name${count === 1 ? 's' : ''} two different ${THING[col] === 'goal' ? 'goals' : 'people'}`;
     case 'bad-key': return /look like/.test(first.message) ? `${n(count, 'key')} ${count === 1 ? 'doesn’t' : 'don’t'} look like G-12` : `${n(count, col === 'ID' || col === 'Goal ID' ? 'ID' : 'key')} ${count === 1 ? 'isn’t' : 'aren’t'} here`;
-    case 'duplicate': return sheet === 'People' ? `${n(count, 'person', 'people')} appear on more than one row` : sheet === 'Check-ins' ? `${n(count, 'check-in')} appear on more than one row` : `${n(count, 'goal')} appear on more than one row`;
+    case 'duplicate': return sheet === 'People' ? `${n(count, 'person', 'people')} appear on more than one row` : sheet === 'Check-ins' ? `${n(count, 'check-in')} appear on more than one row` : sheet === 'Goals' ? `${n(count, 'goal')} appear on more than one row` : `${n(count, 'row')} repeat${count === 1 ? 's' : ''} another row`;
     case 'type-unclear': return `${n(count, 'new goal')} ${count === 1 ? 'doesn’t' : 'don’t'} say what type ${count === 1 ? 'it is' : 'they are'}`;
     case 'plan-order': return `${n(count, 'plan')} ${count === 1 ? 'ends' : 'end'} before ${count === 1 ? 'it starts' : 'they start'}, or ${count === 1 ? 'has' : 'have'} weeks outside ${count === 1 ? 'it' : 'them'}`;
     case 'stage-format': return `${n(count, 'row')} ${count === 1 ? 'has' : 'have'} stages that can’t be read`;
