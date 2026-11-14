@@ -19,7 +19,8 @@ import { gzipSync } from 'node:zlib';
 /** Each budget is the size measured on the day it was set plus this margin (Lane, 12 Nov): lowered as the size comes
     down, never raised past that. */
 export const MARGIN_KB = 3;
-/** Raised by 10 KB (Lane, 13 Nov), still under R4's 300. */
+/** Raised by 10 KB (Lane, 13 Nov), still under R4's 300. Lane, 14 Nov: kept at 275 after FD (259 KB), so the tracks
+    have room; not lowered to the measured size plus the margin this time. */
 export const FIRST_DOWNLOAD_KB = 272 + MARGIN_KB;
 /** The real app's, at most: the first download and what src/main.tsx awaits before the first render with Supabase
     configured (321 KB on 12 Nov 2026: 262 and the store's 5 and the client's 54). */
