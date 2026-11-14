@@ -27,6 +27,8 @@ import { FormClose } from '../ui/FormClose';
 import { Place, type MeasurePick } from '../core/app';
 import { BaselineFields } from '../ui/BaselineFields';
 import { Pick, PickOne } from '../ui/Pick';
+import { MAX_GUARDS } from '../domain/guards';
+import { guardRefusal } from '../domain/guardWords';
 
 /** The page's sections that an address can open at. */
 const SECTIONS = ['definition', 'plan', 'owner', 'more'];
@@ -299,6 +301,8 @@ function EditSheet({ goal }: { goal: Goal }) {
               </label>
             )}
             <label className="check"><input type="checkbox" checked={d.guardrail} onChange={(e) => set({ guardrail: e.target.checked })} /><span>It’s a guardrail</span></label>
+            <Pick kind="goal" several label="Guarded by" hint={`optional · goals kept in a range, at most ${MAX_GUARDS}: past a limit there makes this goal at risk or off track`} value={d.guards ?? []}
+              onChange={(ids) => set({ guards: ids.slice(0, MAX_GUARDS) })} hide={[goal.id]} refuse={(row) => { const o = app.goal(row.id); return o ? guardRefusal(goal, o) : null; }} />
             <label className="field"><span className="field-label">Data source</span><input className="input" value={d.source} onChange={(e) => set({ source: e.target.value })} placeholder="Where the number comes from" /></label>
           </div>
         </details>
