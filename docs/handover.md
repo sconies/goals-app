@@ -2,6 +2,25 @@
 
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
+## Track 1, Saturday 14 November, ~13:40 UTC (context near 300k, handing over; supersedes the ~10:40 entry)
+
+Session: session_012kbr92BWoUTEK1XiaCKCPC. Planning: session_012kbr91eefh4gwCAztBncNT. Reviewer: session_012kbr8xhnbxBn8GD91Ct4dL (send each merged code PR's number in one line).
+
+**Merged:** #473 (U159). It wasn't the clock: U156–U161 pass with the browser clock at 00:10, 02:38, 07:30 and 08:59 UTC. Main's one U159 failure was a 5 s wait for the reading block that also covered the page load. U157–U159 and U161 now wait for the step's heading first. `EVAL_CLOCK=2026-11-14T07:30:00Z` sets the browser clock in `newPage` (eval-only; track 4 agreed: the demo's time of day stays unpinned). Planning and the reviewer were told.
+
+**Open, auto-merge on:** **#479** (branch `review-before-fix`): the reviewer's #432 medium and lows. `sessionOnDueDay` (domain/review.ts) and `beforeReviewHeading` (domain/habit.ts) are shared by the review page and get_review; Help has a line; U153 asserts "Week 45, due by Thursday 5 Nov". Its gate passed; CI failed only the `api/mcp.js` check, fixed in 96edba83 (see Trap). Check it merges, then tell the reviewer.
+
+**#468 HM3** (branch `hm3-your-team`, head df35f0b3, still draft): main merged in; F1 waits for Goals you watch (it loads after the first download now); **U1/U2/U3's random a11y loss is found**: axe measured `--risk-fg` at ~81% opacity (#a86939 on white, 4.42:1), a row caught mid-fade by `motion.ts`'s fade for rows that join a list, which starts after the checkpoint collected animations. The checkpoint now waits for 150 ms of DOM quiet (at most 2 s), then until nothing finite is animating; a contrast failure's message now gives axe's colours. U1, U2, U3, U5 and U16 pass slowed. **Next:** run `evals:changed` (the full suite: the harness changed), check CI, mark ready and auto-merge. Then retarget **#469 HM4** to main, merge main into it, gate it (the `.arow-flags` contrast loss was the same fade).
+
+**Lane's 14 Nov answers** (from planning), branch `lane-answers` (not pushed until answer 1 is settled; worktree `../wt-la`):
+- 3 (Before this review is the whole workspace's) and 4 (feedback triage in the browser is accepted for Faro; R1 keeps the server requirement): written (habit spec section 3; `src/spec/platform.ts`).
+- 2 (ended year: replacing refused, adding a missing week late allowed): spec words in `src/spec/rules.ts`'s check-in rule, citing Lane. The code is `changeset.ts` `if (existing && cycleEnded)`.
+- 1 (an admin's pasted row replacing someone's check-in for this week is a correction): built in `planChanges` (`othersThisWeek`, beside `CORRECTS_VIA`) with a test in `setUpCheckIn.test.ts`; the import's reason box now uses Preview's words (`ReasonWords` in `src/ui/IssueGroup.tsx`). **Waiting on planning:** "the owner stays author, as Data's tables already do" isn't what the code does: every door writes the corrector as `authorId`. I asked: (a, recommended) keep the existing author on an admin's correction at every door, or (b) authorship as today. Build what planning says, then a What's new entry (it changes what an admin's import does), the import's Help line, `npm run spec`, `npm run build:mcp` (see Trap), gate and PR.
+
+**Then, in order:** SM1h (Home's section of SM1, with track 2's agreement); PF1–PF2 (`docs/design/round-4/portfolio/spec.md`); HB3 once HM7 is on main; then the lows: #460's (no journey presses "Confirm all readings"), #437's (the filled cell's "From {source}" label; MCP's answer doesn't say what reading was recorded; two controls under 44 px at 390 and the reason radios' four tab stops; the server's demo source from live check-ins; README line on readings), #110's, HM1's, the 13 Nov 14:25 entry's batch, #400's two, #410's two.
+
+**Trap (new): a worktree whose `node_modules` is a symlink writes `// ../goals-app/node_modules/...` into `api/mcp.js`'s path comments**, and CI's "api/mcp.js is out of date" check fails. After `npm run build:mcp` in such a worktree, run `sed -i 's#^// \.\./goals-app/node_modules/#// node_modules/#' api/mcp.js`, or install node_modules in the worktree. Main's own file is fine.
+
 ## Track 1, Saturday 14 November, ~10:40 UTC (context past 300k, handing over; supersedes the 13 Nov 21:00 entry)
 
 Session: session_012kbr92yprssgsHbkpCFh3s. Planning: session_012kbr91eefh4gwCAztBncNT (report there once, finished results and blockers only).

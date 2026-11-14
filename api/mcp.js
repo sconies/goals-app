@@ -12490,7 +12490,8 @@ function* planChangesInChunks(input) {
 				value: String(draft.value)
 			}) === "leave") return;
 		}
-		const corrects = post?.mode === "correct" || !post && !!existing && CORRECTS_VIA.includes(via);
+		const othersThisWeek = !!existing && w === week && owned.ownerId !== actor.id;
+		const corrects = post?.mode === "correct" || !post && !!existing && (CORRECTS_VIA.includes(via) || othersThisWeek);
 		const keeps = corrects && existing;
 		const backfilled = keeps ? !!existing.backfilled : w < week;
 		const due = new Date(Date.parse(weekDate(cycle, w) + "T09:00:00Z") + cycle.reviewDay * 864e5);
