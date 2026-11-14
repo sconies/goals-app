@@ -281,6 +281,8 @@ export function quietLine(f: HomeFacts): Quiet {
     const allIn = c.total === 1 ? 'Your check-in is' : c.total === 2 ? 'Both check-ins are' : `All ${c.total} check-ins are`;
     return { sentence: `${allIn} in for week ${f.week}.`, line: next || null, buttons: [] };
   }
+  // With no set rhythm nothing was owed: every goal checked in this week is said plainly, with no run (FT1).
+  if (!f.rhythm && c.total > 0 && c.done >= c.total) return { sentence, line: `All ${c.total} have a check-in this week.`, buttons: [] };
   if (!f.owns && !f.watches && !f.asks.length) return { sentence, line: f.watchingOff ? `You don’t own a goal in ${f.workspace} yet.` : `You don’t own or watch a goal in ${f.workspace} yet.`, buttons: [{ label: 'See the goals', to: '/goals?scope=all' }, { label: 'Set up a goal', to: '/goals/new' }] };
   // Set up after this week's deadline: the first check-in is next week's, said plainly.
   if (f.rhythm && c.total > 0 && !c.done && f.rhythm.nextDueDate) return { sentence, line: `Your first ${plural(c.total, 'check-in is', 'check-ins are')} due by ${dueOn(f.rhythm.nextDueDate)}.`, buttons: [] };

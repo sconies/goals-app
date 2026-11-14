@@ -26,8 +26,9 @@ const withModule = async () => { const db = await freshPostgres(); await db.exec
 storeContract('in the browser', async () => new BrowserStore(() => new Date('2026-10-30T12:00:00Z'), { storage: memory(), example: false, key: 'contract' }));
 storeContract('Supabase', async () => new SupabaseStore('https://stand-in.supabase.co', 'public-key', pgSupabase(await withModule()), RECORDS));
 // While Supabase's Data API doesn't offer the faro schema yet, the app reaches the same tables through the redirects
-// migration 0035 left under the old names in public (backlog 0c): the same contract, through those.
-storeContract('Supabase, through the old names in public', async () => new SupabaseStore('https://stand-in.supabase.co', 'public-key', pgSupabase(await withModule(), undefined, 'public'), RECORDS));
+// migration 0035 left under the old names in public (backlog 0c): the same contract, through those, except the cycle's
+// rhythm (0048), whose columns those fixed views don't show: the app reads it only through faro.
+storeContract('Supabase, through the old names in public', async () => new SupabaseStore('https://stand-in.supabase.co', 'public-key', pgSupabase(await withModule(), undefined, 'public'), RECORDS), { without: /check-in rhythm/ });
 storeContract('plain Postgres', async () => new PostgresStore(await withModule(), RECORDS));
 
 /* The database stores refuse a save that carries a token with anything else (build review, 11 Nov): a token is made

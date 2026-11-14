@@ -56,6 +56,7 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`rename_workspace`](#rename_workspace) | Rename the workspace | changes | [renameWorkspace](actions.md#renameworkspace) |
 | [`set_recording`](#set_recording) | Turn recording on or off | changes | [setRecording](actions.md#setrecording) |
 | [`set_feature`](#set_feature) | Switch a feature on or off | changes | [setModule](actions.md#setmodule) |
+| [`set_rhythm`](#set_rhythm) | Choose the check-in rhythm | changes | [setRhythm](actions.md#setrhythm) |
 | [`save_team`](#save_team) | Add or change a team | changes | [saveTeam](actions.md#saveteam) |
 | [`remove_team`](#remove_team) | Remove a team | changes; removes something | [removeTeam](actions.md#removeteam) |
 | [`delete_workspace`](#delete_workspace) | Delete the workspace | changes; removes something | — |
@@ -1743,7 +1744,6 @@ No arguments.
         reviewed: number;
         of: number;
     }[] | undefined;
-    week: number;
     atAGlance: {
         nextReview?: {
             id: string;
@@ -1859,6 +1859,13 @@ No arguments.
         kind: 'stale' | 'for-you';
         says: string;
     }[];
+    rhythm?: 'none' | undefined;
+    noCheckInThisWeek?: {
+        id: string;
+        title: string;
+        lastWeek: number | null;
+    }[] | null | undefined;
+    week: number;
 }
 ```
 
@@ -3295,6 +3302,86 @@ No arguments.
 - “Say on: true to switch it on, or on: false to switch it off.”
 
 **Does the same as:** [setModule](actions.md#setmodule), so it refuses with their words too.
+
+## set_rhythm
+
+**Choose the check-in rhythm.** Admins: how often every goal is expected to have a check-in in this workspace. every: "week" (due by a weekday, due_by; a goal with none for two check-ins’ time reads No recent update) or "none" (no set rhythm: owners check in when there’s news, and nothing is due or late for want of a check-in). Without confirm: true it changes nothing and says what would change, counted. With it, the change is made and logged; switching a rhythm on counts from today, so nothing is late that day.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `every` | one of `week`, `none` | yes | “week” or “none”. |
+| `due_by` | one of `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`, `Saturday`, `Sunday` | no | With every week: the weekday check-ins are due by. Leave out to keep it. |
+| `confirm` | boolean | no | true to make the change; leave out to see what it would do first. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "every"
+  ],
+  "properties": {
+    "every": {
+      "type": "string",
+      "description": "“week” or “none”.",
+      "enum": [
+        "week",
+        "none"
+      ]
+    },
+    "due_by": {
+      "type": "string",
+      "description": "With every week: the weekday check-ins are due by. Leave out to keep it.",
+      "enum": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday"
+      ]
+    },
+    "confirm": {
+      "type": "boolean",
+      "description": "true to make the change; leave out to see what it would do first."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`, one of:
+
+```ts
+{
+    changed: boolean;
+    rhythm: string;
+    wouldChange: string[];
+}
+```
+
+```ts
+{
+    rhythm: string;
+    dueBy: string | null | undefined;
+}
+```
+
+**Refuses with:**
+
+- “Say every: "week" or every: "none".”
+- “Choose a day of the week.”
+- “Only admins can change the check-in rhythm.”
+
+**Does the same as:** [setRhythm](actions.md#setrhythm), so it refuses with their words too.
 
 ## save_team
 

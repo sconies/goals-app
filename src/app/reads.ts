@@ -1,6 +1,7 @@
 /* Reads (docs/design/architecture.md, 4.4: AR4): the one place that turns the loaded workspace into what each rule
    reads. New rules in src/domain take only these rows, never the whole workspace (the layers lint checks it), so the
    internal app can hand them the same shapes from its query port instead of a loaded workspace. */
+import { rhythmOf } from '../domain/thresholds';
 import type { GoalRows, PersonRows, TeamRows } from '../domain/find';
 import { creatorOf, type DayOneRows } from '../domain/dayOne';
 import { summariseAll } from '../domain/summary';
@@ -179,7 +180,8 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   // The receipt names the due day as a review only for someone in a review held that day, while Reviews is on (T4, FT2):
   // dueWords' words (RS1), the same the check-in's receipt says.
   const words = dueWordsHere(reviews, s, cycle, week, viewerId);
-  const receipt = allIn ? receiptFacts(p, viewerId, s, cycle, week, words) : { after: 0, forgiven: null, forgivenMissed: false };
+  // With no set rhythm there is no receipt (FT1): Home says what is in, plainly.
+  const receipt = (allIn ? receiptFacts(p, viewerId, s, cycle, week, words) : null) ?? { after: 0, forgiven: null, forgivenMissed: false };
   const dueDate = reviewDate(cycle, Math.max(1, week));
   // Once the year has ended no session is held in it: a "Not held yet" lead would never go (HM1 review).
   const sessions: HomeSession[] = ended || !reviews ? [] : s.reviews.filter((r) => r.people.includes(viewerId)).map((r) => reviewSession(r, s, cycle, today, week))
@@ -200,7 +202,7 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   return {
     today: day, week, lastWeek: cycle.weeks, cycleName: cycle.name, workspace: opts.workspace,
     starts: start ? { on: start.firstDay, firstDue: start.firstDue } : null, ended: ended && !(wrapUp && wrapOpen && mine.some((g) => !s.retros.some((r) => r.goalId === g.id))),
-    rhythm: { dueDate, nextDueDate: week < cycle.weeks ? reviewDate(cycle, Math.max(1, week) + 1) : null },
+    rhythm: rhythmOf(cycle) ? { dueDate, nextDueDate: week < cycle.weeks ? reviewDate(cycle, Math.max(1, week) + 1) : null } : null,
     checkIns: {
       total: p.goals.length, done: p.done.length,
       due: p.due.map((g) => ({ id: g.id, title: g.title, number: g.kind !== 'milestone' })), draft: opts.draft,

@@ -1,6 +1,8 @@
 /* The MCP tools: what an AI assistant can read and change, acting as one person through their personal token.
    Every write goes through the bulk-change engine, so it meets the same rules as the app (owners change their own
    goals, admins any; reasons when behind; a reason for plan changes) and is logged as that person, via MCP. */
+import { rhythmOf } from '../domain/thresholds';
+import { WEEKDAY } from '../domain/progress';
 import { moduleOffSentence } from './moduleOff';
 import type { HistoryAsk, HistoryPage } from '../ports/store';
 import { LEVEL_WORDS, levelIds } from '../domain/levels';
@@ -19,6 +21,7 @@ import { goalScorecard } from '../domain/scorecard';
 import { goalStatus } from '../domain/status';
 import { attentionGroup, needsAttention } from '../domain/attention';
 import { ATTENTION, choices, codeFrom, COMMENT_REMOVED, FLAG, QUARTER, RESULT, STATUS, STOPPED, withCode } from '../domain/vocabulary';
+import { NO_STALE_HERE } from '../domain/rhythm';
 import { watchedGoals } from '../domain/review';
 import { NEED_OPTIONS } from '../domain/query';
 // find_goals answers `moved=` (Home rule 5) as Goals does: importing it registers the rule.
@@ -272,7 +275,7 @@ const CORE_TOOLS: ToolDef[] = [
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(_a, ctx) {
       const who = `You are acting as ${ctx.actor.name}${ctx.actor.admin ? ' (an admin: can change any goal)' : ' (can change the goals they own)'} in ${ctx.ws.name}.`;
-      return { text: who + '\n\n' + aiBrief({ ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today }) };
+      return { text: who + ` Check-in rhythm: ${rhythmOf(ctx.cycle) ? `every week, due by ${WEEKDAY[ctx.cycle.reviewDay]}` : 'none'}.` + '\n\n' + aiBrief({ ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today }) };
     },
   },
   {
@@ -321,6 +324,8 @@ const CORE_TOOLS: ToolDef[] = [
       // Every argument becomes the Goals link it means, and the goals are found through the Search port, as the
       // screens find them (docs/design/architecture.md, 1.1): one search, one set of filters.
       const status = a.status ? statusIn(a.status) : null;
+      // With no set rhythm (FT1) no goal reads No recent update: asking for it is said plainly, not answered with nothing.
+      if (status === 'stale' && !rhythmOf(ctx.cycle)) throw new Error(NO_STALE_HERE);
       // `owner=-me` in a link is "not mine" (Home rule 4): the asker's own goals are left out below.
       const notMine = query.owner.includes(NOT_ME);
       if (notMine) query = { ...query, owner: query.owner.filter((o) => o !== NOT_ME) };
@@ -372,7 +377,7 @@ const CORE_TOOLS: ToolDef[] = [
         : found.map((r) => byId.get(r.id)!).filter((x) => x && !isProposed(x.goal) && inScopeOf(x.goal) && cols.every((c) => c.fill(x.goal) === c.v) && !(notMine && x.goal.ownerId === ctx.actor.id));
       // The list, as the screen has it (Lane, 9 Nov): those that need attention, then those being handled.
       if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== 'handled'), ...list.filter((s) => attentionGroup(s.attention) === 'handled')];
-      const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.state === 'proposed' ? null : s.status, statusLabel: s.statusLabel, state: s.state ?? 'active', needsAttention: needsAttention(s.attention), beingHandled: s.attention.handled?.text ?? null, lookedAt: s.attention.lookedAt?.text ?? null, because: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => withCode({ label: f.label, code: f.kind })), now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
+      const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.state === 'proposed' ? null : s.status, statusLabel: s.statusLabel, state: s.state ?? 'active', needsAttention: needsAttention(s.attention), beingHandled: s.attention.handled?.text ?? null, lookedAt: s.attention.lookedAt?.text ?? null, because: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => withCode({ label: f.label, code: f.kind })), now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, asOfWeek: s.asOfWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
       // The same shape every time, filtered or not (MCP load, 12 Nov): the list as JSON, as structured content and as text.
       return listed(goalPage(data, a, 'No goal matches. Try fewer or plainer words, or another scope or status.'));
     },
@@ -390,8 +395,10 @@ const CORE_TOOLS: ToolDef[] = [
       // A proposed goal is never judged (GE10): no scorecard, no status.
       if (isProposed(g)) { const data = { cycle: j.cycle, goal: j.goals[0], state: 'proposed', notes: j.notes }; return { data, text: JSON.stringify(data, null, 2) }; }
       // The goal page's scorecard, in its words: vs plan, vs last week, to target and will it hit (domain/scorecard).
-      const stale = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status === 'stale';
-      const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale).cells.map((c) => ({ label: c.label, value: c.value, detail: c.sub }));
+      const gs = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today);
+      const stale = gs.status === 'stale';
+      // With no set rhythm the forecast says which week's pace it is (FT1).
+      const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale, rhythmOf(ctx.cycle) ? null : gs.asOfWeek).cells.map((c) => ({ label: c.label, value: c.value, detail: c.sub }));
       // Comments as they read now: edited ones say so, and a removed one is only its place in the thread.
       const comments = [...commentsOf(ctx.snapshot.changes).values()].filter((k) => k.goalId === g.id).map((k) => ({ id: k.id, by: ctx.snapshot.people.find((p) => p.id === k.authorId)?.name ?? (ctx.full ?? ctx.snapshot).people.find((p) => p.id === k.authorId)?.name ?? '—', at: k.at, text: k.removedAt ? COMMENT_REMOVED : k.text, edited: !!k.editedAt, removed: !!k.removedAt }));
       const data = { cycle: j.cycle, goal: j.goals[0], scorecard, notes: j.notes, comments };

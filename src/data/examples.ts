@@ -20,9 +20,15 @@ export async function buildExample(today: Date): Promise<Snapshot> {
   if (saved && today.toISOString() === saved) {
     try {
       const r = await fetch(`/example-${saved.slice(0, 10)}.json`);
-      if (r.ok) return (await r.json()) as Snapshot;
+      if (r.ok) return withDemoRhythm((await r.json()) as Snapshot);
     } catch { /* built below instead */ }
   }
   const { buildPlatformOrg } = await import('./platformOrg/generate');
-  return buildPlatformOrg(today);
+  return withDemoRhythm(buildPlatformOrg(today));
+}
+
+/** A build made with FARO_DEMO_RHYTHM=0 (CI's "Core journeys with no rhythm", FT1) shows the example with no set
+    check-in rhythm: its cycles carry `checkInWeeks: 0`. Any other build shows it as it is. */
+export function withDemoRhythm(s: Snapshot, rhythm = import.meta.env.VITE_DEMO_RHYTHM as string | undefined): Snapshot {
+  return rhythm === '0' ? { ...s, cycles: s.cycles.map((c) => ({ ...c, checkInWeeks: 0 })) } : s;
 }
