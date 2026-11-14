@@ -5,7 +5,7 @@ Faro is an internal goals (OKR) app. Read your role's file below, then `CLAUDE.m
 | Role | Reads |
 |---|---|
 | Planning | `docs/handover/planning.md` |
-| Track 1, 2, 3, 4 | `docs/handover/track-N.md` |
+| Track 1, 2, 3, 4 | `docs/handover/track-1.md` to `track-4.md` |
 | Track 7 (metrics) | `docs/handover/track-7.md` |
 | Build reviewer | `docs/handover/reviewer.md` |
 | Main-fix session | `docs/handover/main-fixer.md` |
