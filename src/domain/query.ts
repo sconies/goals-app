@@ -151,7 +151,7 @@ export interface QueryContext {
   columns?: Record<string, (goal: Goal) => string | null>;
   /** A goal's standing this week (habit rule 1, `standing.ts`), null when it isn't due: what `checkedin=` reads. */
   standing?: (goal: Goal) => 'unasked' | 'asked' | 'after' | 'none' | null;
-  /** The goals a review walks, by the review's id; null for no such review: what `inreview=` reads. */
+  /** The goals a review walks, by the review's id; null for no such review: what `inreview=` reads. Not here while Reviews is off: `inreview=` then narrows nothing, as a switched-off module's column doesn't (module map F4). */
   inReview?: (reviewId: string) => ReadonlySet<string> | null;
   /** Who is asking: what `owner=-me` leaves out. Without it, `-me` narrows nothing. */
   viewerId?: string;
@@ -199,7 +199,7 @@ export function matches(s: GoalSummary, q: GoalQuery, ctx: QueryContext, tree?: 
     const st = ctx.standing?.(g);
     if (q.checkedin === 'no' ? st !== 'none' : st !== 'asked') return false;
   }
-  if (q.inreview && !ctx.inReview?.(q.inreview)?.has(g.id)) return false;
+  if (q.inreview && ctx.inReview && !ctx.inReview(q.inreview)?.has(g.id)) return false;
   if (q.quarter) {
     const last = [...s.story.quarters].reverse().find((x) => x.kind === 'met' || x.kind === 'missed');
     if (last?.kind !== q.quarter) return false;
@@ -240,7 +240,7 @@ export function applyQuery(sums: GoalSummary[], q: GoalQuery, ctx: QueryContext)
 /** Names for what a query holds by id; `col` words a module filter's value ("Measured by", "Lead time"), null when no module that's on reads it. */
 export interface QueryNames {
   team: (id: string) => string; person: (id: string) => string; goal: (id: string) => string;
-  /** A review's name, for `inreview=`. */
+  /** A review's name, for `inreview=`; left out while Reviews is off, when `inreview=` is no filter and has no words. */
   review?: (id: string) => string;
   col?: (param: string, value: string) => { label: string; value: string } | null;
 }
@@ -263,7 +263,7 @@ export function describeQuery(q: GoalQuery, names: QueryNames): { key: string; t
   if (q.feeds) out.push({ key: 'feeds', text: `In the tree of ${names.goal(q.feeds)}` });
   if (q.helps) out.push({ key: 'helps', text: 'With “also helps” links' });
   if (q.checkedin) out.push({ key: 'checkedin', text: q.checkedin === 'no' ? 'No check-in this week yet' : 'Checked in after an ask' });
-  if (q.inreview) out.push({ key: 'inreview', text: `In ${names.review?.(q.inreview) ?? 'a review'}` });
+  if (q.inreview && names.review) out.push({ key: 'inreview', text: `In ${names.review(q.inreview)}` });
   for (const [k, v] of Object.entries(q.cols ?? {})) { const c = names.col?.(k, v); if (c) out.push({ key: k, text: `${c.label} ${c.value}` }); }
   return out;
 }
@@ -288,7 +288,7 @@ export function queryParts(q: GoalQuery, names: QueryNames): FilterPart[] {
   if (q.feeds) out.push({ key: 'feeds', label: 'In the tree of', values: [names.goal(q.feeds)] });
   if (q.helps) out.push({ key: 'helps', label: 'With', values: ['“also helps” links'] });
   if (q.checkedin) out.push({ key: 'checkedin', label: 'This week', values: [q.checkedin === 'no' ? 'no check-in yet' : 'checked in after an ask'] });
-  if (q.inreview) out.push({ key: 'inreview', label: 'In', values: [names.review?.(q.inreview) ?? 'a review'] });
+  if (q.inreview && names.review) out.push({ key: 'inreview', label: 'In', values: [names.review(q.inreview)] });
   for (const [k, v] of Object.entries(q.cols ?? {})) { const c = names.col?.(k, v); if (c) out.push({ key: k, label: c.label, values: [c.value] }); }
   return out;
 }
