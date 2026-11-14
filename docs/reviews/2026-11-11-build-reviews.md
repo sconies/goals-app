@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh that morning (session …Bn8GD91Ct4dL). The note before it was written at 00:10 UTC by the reviewer that stopped.
 
-- **Last merge fully reviewed:** `47cf666b` (#461), the head of main at 12:50 UTC, 14 Nov. Tracks now message the reviewer a PR's number when it merges (planning, 11:01 UTC); compare main's log with this SHA whenever one arrives. Every code PR merged from #121 up to it has a row in State and a section below.
+- **Last merge fully reviewed:** `3e20d6ad` (#472), the head of main at 13:25 UTC, 14 Nov. Tracks now message the reviewer a PR's number when it merges (planning, 11:01 UTC); compare main's log with this SHA whenever one arrives. Every code PR merged from #121 up to it has a row in State and a section below.
 - **Merged since, not reviewed:** none.
 - **Highs not yet confirmed fixed:** none. #452 is fixed by #467 and #416 by #432 (both re-run). What is left of #416 is a medium in #432's section: a review held on the due weekday, but not this week.
 - **To watch in #464 (GR, track 7d):** `BUILT_KEYS` (`src/domain/changeset.ts`) must name `guards` if `buildGoal` decides it; and migration 0051's check refuses a JSON null.
@@ -233,6 +233,7 @@ Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh th
 | #471 FD: the first download leaves out the goal page's charts and words and the map's layout | 4 | 0 | 0 | 2 |
 | #473 U159 waits for the number step; EVAL_CLOCK in the harness | readings | 0 | 0 | 0 |
 | #461 SM1: a module's menu row and a Goals tab wait until they have something in them | 2 | 0 | 1 | 2 |
+| #472 TG0: migration 0052, a workspace's own fields, with the Fields module's rule | 2 | 0 | 0 | 1 |
 
 **High findings, and where each stands**
 
@@ -2049,3 +2050,11 @@ Read; the medium run in a browser by a helper session at `47cf666b` (the demo wi
 **1. Medium (ran). The Metrics row follows you into a workspace that has no metrics.** `drawnOnce` (`src/ui/Shell.tsx:182`) remembers every row drawn since the shell mounted, and a workspace switch doesn't remount it. From the demo, "Set up a new workspace" ("Empty Co", goals later): the new workspace's menu has Metrics at once; switching to Example data and back, the same; after a reload the row is gone. So the first thing SM1 is for, a new small workspace, shows the row whenever it is set up or reached from one that has metrics. Fix: keep what was drawn per workspace (key the set by `app.ws.id`, or clear it when the workspace changes). N30 only opens the demo, where the row is always there; a check that opens an empty workspace after the demo would hold this.
 
 **Lows.** (1) N30 asserts the row is drawn in the demo and never that it waits in a workspace with no metric, in the menu or on a phone. (2) SMALL-MENU's words include "a Home section", which this PR does not build (it is "rows and tabs"); the requirement reads as met.
+
+### #472 TG0: migration 0052 and the Fields module's rule (track 2, merged 14 Nov)
+
+Read against the faro rules. Two tables, `faro.goal_fields` and `faro.goal_field_values`, named without `okr_` and with the reason said (0035's redirects); every grant written out to `anon` (select, insert, update; nothing deletes), row rules as the workspace's other tables, both put on `faro.module_tables` after the metric library's, nothing outside `faro`, and safe to run twice. The change log's entity check is replaced whole and keeps all thirteen of 0033's words, adding `field`. It ships a merge ahead of any code that writes it. The module (`tags`, named Fields) has a manifest, a rebuild stage marked outline with honest gaps, two pure rules with tests, its limits rows, and its lines in README, architecture, handoff and the module map. No screens or tools yet, so nothing to switch off.
+
+**Low.** A free-text field "has none" of a list's values in the limits' words, but neither the check (`kind = 'text' or …`) nor `fieldProblem` refuses a text field that carries values. Either say so in the rule, or drop the claim.
+
+**To watch in TG1.** The generic module save must cope with tables that have no `removed_at`: a field is retired, a value is cleared to empty, and `anon` has no delete.
