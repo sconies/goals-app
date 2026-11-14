@@ -361,7 +361,7 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
         {/* A fact a module adds, such as what measures it (the goal.facts place). */}
         <Place name="goal.facts" goal={goal} />
         <div className="bar-2">
-          {goal.stoppedAt ? <LifeMark k="stopped" className="bar-status bar-life" /> : isUnmeasured(goal) ? <LifeMark k="unmeasured" className="bar-status bar-life" /> : <span className="bar-status-tap" onClick={secretTap}><Chip k={status} className={'bar-status' + (statusMoved ? ' moved' : '')} /></span>}
+          {goal.stoppedAt ? <LifeMark k="stopped" className="bar-status bar-life" /> : <span className="bar-status-tap" onClick={secretTap}><Chip k={status} className={'bar-status' + (statusMoved ? ' moved' : '')} /></span>}
           <span className="bar-dot" aria-hidden="true">·</span>
           <span className="bar-now">{num}</span>
           {/* Only in the one-line bar: the gap to plan, which the scorecard says in full. */}

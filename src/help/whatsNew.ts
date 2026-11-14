@@ -27,6 +27,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'not-measured-yet-status',
+    date: '2026-11-14',
+    title: 'Not measured yet is a status of its own',
+    points: [
+      'A goal whose number nobody measures yet now says “Not measured yet” wherever its status is shown: the Goals list, its page, its metric’s page and the library’s counts, the workbook and the AI tools.',
+      'It has its own shape, a ring with a dot at its centre, so it no longer reads as “No check-in yet”.',
+      'It still projects no year-end number, and nothing on it is due or late, until its number is measured. You can filter the Goals list by it.',
+    ],
+    articles: ['status', 'metrics'],
+  },
+  {
     id: 'goal-guardrails',
     date: '2026-11-14',
     title: 'Guardrails on a goal',

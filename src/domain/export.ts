@@ -2,7 +2,7 @@
    brief in Markdown (to paste into any AI chat). Pure functions; the app turns them into files.
    The workbook and the CSVs are the one spreadsheet format (domain/columns.ts): every sheet and column is defined there
    once, so whatever is exported can be edited and loaded back, and loads back unedited as no change at all. */
-import { isUnmeasured, UNMEASURED } from './unmeasured';
+import { isUnmeasured } from './unmeasured';
 import { proposedSummary } from './proposedSummary';
 import { isProposed } from './proposed';
 import { planHistoryOf } from './goal';
@@ -233,7 +233,7 @@ export function toJson(x: ExportInput) {
         ...(s.state === 'proposed' ? { state: 'proposed' } : {}),
         // Held to no number (MS; domain/unmeasured): its status says nothing about its plan, and nothing on it is due.
         ...(isUnmeasured(g) ? { unmeasured: { since: g.unmeasuredSince! } } : {}),
-        now: { status: s.status, statusLabel: g.stoppedAt ? STOPPED : isUnmeasured(g) ? UNMEASURED : s.statusLabel, statusMeaning: MEANING[s.status], value: s.nowValue, text: s.now, planThisWeek: s.planNow, gap: s.gap, lastCheckInWeek: s.lastWeek, forecast: s.forecast,
+        now: { status: s.status, statusLabel: g.stoppedAt ? STOPPED : s.statusLabel, statusMeaning: MEANING[s.status], value: s.nowValue, text: s.now, planThisWeek: s.planNow, gap: s.gap, lastCheckInWeek: s.lastWeek, forecast: s.forecast,
           projection: s.projection && g.kind === 'metric' ? { likeliest: Number(s.projection.value.toFixed(g.decimals)), low: Number(s.projection.low.toFixed(g.decimals)), high: Number(s.projection.high.toFixed(g.decimals)), byWeek: s.projection.week, fittedWeeks: [s.projection.from, s.projection.to] } : null },
         story: { since: s.story.since, where: s.story.where, outlook: s.story.outlook, whyItsOff: s.story.why, recoveryPlan: s.story.doing, byWhen: s.story.byWhen, needs: s.story.needs, nextStep: s.story.next, warnings: s.story.warnings, warningKinds: s.story.flags, feeds: s.story.feeds },
         needsAttention: { needs: needsAttention(s.attention), beingHandled: s.attention.handled?.text ?? null, flags: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => ({ kind: f.kind, label: f.label, detail: f.detail })) },

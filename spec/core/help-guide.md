@@ -80,6 +80,7 @@ Requirements: `PROJECTION-RANGE`, `STATUS-BANDS`, `STATUS-DIRECTION`, `RANGE`, `
 - Off track: Under 80% of the progress planned by now, a stage more than 2 weeks late, or over a limit two weeks running. It needs a decision, help or a new plan.
 - No recent update: The latest check-in was posted 14 days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in.
 - No check-in yet: The goal has begun and nobody has checked in on it yet. 14 days after it began with still none, it has no recent update.
+- Not measured yet: The goal is measured by a number nobody collects yet, so it is held to no number until it is: no status from its plan, nothing late or quiet, and no projected year-end number. Once its number is measured, it is held to its plan again. The owner can still call it done.
 - Not started: Week 0: the goal is set up and its first check-in is due in week 1.
 - Done: The owner called it done in a check-in. Done means finished wherever it is said: a goal, a stage or an action.
 
@@ -554,7 +555,7 @@ A proposed goal’s page is simpler: Proposed above the title, what it would mea
 #### The summary bar
 
 - First line: the goal, its owner, its level and its key (G-12). Then its status as a shape and a word, and the number in the goal’s own units.
-- A goal whose number isn’t measured yet (the metric that measures it has a gap) says “Not measured yet”, with a broken ring, instead of a status: it is held to no number, so nothing on it is due or late and it projects nothing, until the metric is measured.
+- A goal whose number isn’t measured yet (the metric that measures it has a gap) has the status “Not measured yet”, a ring with a dot at its centre, everywhere it is shown: it is held to no number, so nothing on it is due or late and it projects nothing, until the metric is measured.
 - Before a goal’s first check-in, a baseline it was given with its period is shown as its number, with “Baseline, June to September 2026, provisional” beside it; lists say “41.5 min (baseline)”. Its status is No check-in yet as before, until someone checks in.
 - Beside the key: when it was last updated, the latest check-in’s date and its week (“Updated 6 Nov · week 45”).
 - Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go; when lower is better, how far over the target it still is: “5 min over”), and Will it hit the target. A gap on the wrong side of a plan says “short” when higher is better and “over” when lower is better, and a number shown equal to its plan counts as met.
@@ -1317,7 +1318,7 @@ Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-MEASUREMENT`.
 
 #### Goals measured by a gap
 
-- A goal measured by a metric with a gap is held to no number. It says “Not measured yet”, with a broken ring, instead of a status: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.
+- A goal measured by a metric with a gap is held to no number. Its status is “Not measured yet”, a ring with a dot at its centre, wherever it is shown: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.
 - Once the metric is measured, in full or in part, its goals are held to their plans again, in the same save. Linking a goal to a measured metric, or unlinking it, does the same. History says so on each goal, and Undo takes it all back.
 
 ### Teams

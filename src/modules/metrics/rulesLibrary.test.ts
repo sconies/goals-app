@@ -96,6 +96,9 @@ describe('rule 2: a metric’s goals', () => {
   it('counts by status, worst first, only the statuses there are', () => {
     expect(L.goalsByStatus(['on', 'off', 'on'])).toEqual([{ status: 'off', n: 1 }, { status: 'on', n: 2 }]);
   });
+  it('counts a goal held to no number as Not measured yet, never No check-in yet (Lane, 14 Nov)', () => {
+    expect(L.goalsByStatus(['unmeasured', 'on', 'unmeasured'])).toEqual([{ status: 'on', n: 1 }, { status: 'unmeasured', n: 2 }]);
+  });
 });
 
 describe('rule 3: what a metric needs', () => {

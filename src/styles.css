@@ -283,7 +283,7 @@ select.input { padding-right: 28px; }
 .arow-icon { flex: none; padding-top: 4px; display: inline-flex; }
 .arow-icon svg { width: 14px; height: 14px; }
 /* The status shape, in its status's mark colour (the goal's status, never a flag's). */
-.arow-icon.tone-on { color: var(--on-mark); } .arow-icon.tone-off { color: var(--off-mark); } .arow-icon.tone-risk { color: var(--risk-mark); } .arow-icon.tone-stale, .arow-icon.tone-none, .arow-icon.tone-planned { color: var(--stale-mark); } .arow-icon.tone-done { color: var(--done-mark); }
+.arow-icon.tone-on { color: var(--on-mark); } .arow-icon.tone-off { color: var(--off-mark); } .arow-icon.tone-risk { color: var(--risk-mark); } .arow-icon.tone-stale, .arow-icon.tone-none, .arow-icon.tone-unmeasured, .arow-icon.tone-planned { color: var(--stale-mark); } .arow-icon.tone-done { color: var(--done-mark); }
 .arow-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; color: inherit; text-decoration: none; }
 .arow-title { font-weight: 600; }
 .arow-why { font-size: 0.875rem; line-height: 1.25rem; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

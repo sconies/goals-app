@@ -7,13 +7,13 @@ A goal whose number isn’t measured yet has no status from its plan, nothing du
 
 ## The rule
 
-**The word.** *Not measured yet*: the goal's number isn't measured, so it is held to no number. Shown as a broken ring and the words, where its status would be; never a status shape.
+**The word.** *Not measured yet* (`unmeasured`): the goal's number isn't measured, so it is held to no number. It is a status of its own (Lane, 14 Nov), a ring with a dot at its centre and the words, and says the same everywhere a goal's status is shown: the Goals list, the goal and metric pages, the library's counts, the workbook and the MCP tools. Never No check-in yet.
 
 **Data.** A goal is held to no number while `unmeasuredSince` is set and it is neither removed nor stopped (`isUnmeasured`). The field is the goal's own: whatever measures the goal sets and clears it (the metric library does, when the goal is linked to a metric with a gap and when that metric is measured; its section says how). These rules read the goal alone, so they hold with every module switched off.
 
-**Its status** (`goalStatus`). Done if the owner's latest check-in calls it done; Not started in week 0; otherwise No check-in yet (`none`), whatever its plan or check-ins say, and never No recent update: nothing on it goes quiet. Its calculation is `none`, and it is never greener than the numbers. It projects nothing (`projects`).
+**Its status** (`goalStatus`). Done if the owner's latest check-in calls it done; otherwise Not measured yet (`unmeasured`), in week 0 too, whatever its plan or check-ins say, and never No recent update: nothing on it goes quiet. Its calculation is `none`, and it is never greener than the numbers. It projects nothing (`projects`): no projected year-end number. In a group it ranks with Not started and Done, below On track.
 
-**Nothing due** (`flagsFor`). No check-in is due on it, and it has no worsening trend; it lists under its metric's To sort out instead. The export says `unmeasured: { since }` and the status label Not measured yet.
+**Nothing due** (`flagsFor`). No check-in is due on it, and it has no worsening trend; it lists under its metric's To sort out instead. The export says `unmeasured: { since }` and the status `unmeasured`, labelled Not measured yet.
 
 ## Worked examples
 
@@ -21,13 +21,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 | Given | The rule gives |
 |---|---|
-| In the demo workspace, Flaky test rate’s goal (lead-flaky), held to no number since today. | `none, calc none, projects: no` |
+| In the demo workspace, Flaky test rate’s goal (lead-flaky), held to no number since today. | `unmeasured, calc none, projects: no` |
 | The same goal, stopped. | `not held` |
 
 ## Not self-explanatory
 
 - **Not self-explanatory:** The goal side asks for no baseline once a goal may be saved without one (backlog GB and BL); until then a held goal keeps the plan it was given, unjudged.
-- **Not self-explanatory:** Lists show a held goal as No check-in yet; its page shows Not measured yet.
 
 ## Where it lives
 
@@ -44,3 +43,5 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - a goal held to no number › is set and cleared on the goal itself, and a stopped or removed goal is never held
 - a goal held to no number › has no status from its plan, nothing late, due or projected
+- a goal held to no number › has a status of its own, Not measured yet, in week 0 too, until its owner calls it done
+- a goal held to no number › says Not measured yet on every list row, with no projected year-end number

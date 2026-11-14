@@ -322,9 +322,10 @@ function heldToNoNumber(g, held, now) {
 		unmeasuredSince: held ? now : null
 	};
 }
-var UNMEASURED, isUnmeasured;
+var UNMEASURED, UNMEASURED_MEANING, isUnmeasured;
 var init_unmeasured = __esmMin((() => {
 	UNMEASURED = "Not measured yet";
+	UNMEASURED_MEANING = "Its number isn’t measured yet, so it is held to no number: no status from its plan, nothing late, and no baseline needed.";
 	isUnmeasured = (g) => !!g.unmeasuredSince && !g.removedAt && !g.stoppedAt;
 }));
 // src/domain/vocabulary.ts
@@ -360,6 +361,7 @@ function codeFrom(terms, input) {
 var ALL, pct$3, term, STATUS, STATUS_ORDER, statusFlag, FLAG, ATTENTION_FLAGS, ATTENTION, HANDLED_LINE, WARNING, RESULT, QUARTER, OWNER_VIEW_LABEL, OWNER_VIEW, STAGE, ASK_KIND, ASK_STATUS, SESSION, DECIDED, TREND, GAP, REMOVAL, leftName, LEFT, STOPPED, ENDED, COMMENT_REMOVED, NOTE_REMOVED, GROUPS$1, labels, LABEL, MEANING, RESULT_TEXT, RESULT_MEANING, lower, withCode, choices;
 var init_vocabulary = __esmMin((() => {
 	init_thresholds();
+	init_unmeasured();
 	ALL = [
 		"screens",
 		"exports",
@@ -425,6 +427,13 @@ var init_vocabulary = __esmMin((() => {
 			long: "Week 0: the goal is set up and its first check-in is due in week 1.",
 			rule: "status#goalStatus"
 		}),
+		unmeasured: term("unmeasured", {
+			label: UNMEASURED,
+			short: "its number isn’t measured yet",
+			meaning: UNMEASURED_MEANING,
+			long: "The goal is measured by a number nobody collects yet, so it is held to no number until it is: no status from its plan, nothing late or quiet, and no projected year-end number. Once its number is measured, it is held to its plan again. The owner can still call it done.",
+			rule: "status#goalStatus"
+		}),
 		done: term("done", {
 			label: "Done",
 			short: "finished",
@@ -438,6 +447,7 @@ var init_vocabulary = __esmMin((() => {
 		"risk",
 		"stale",
 		"none",
+		"unmeasured",
 		"on",
 		"planned",
 		"done"
@@ -986,7 +996,7 @@ var init_vocabulary = __esmMin((() => {
 		late: RESULT.late.meaning,
 		missed: RESULT.missed.meaning
 	};
-	STATUS.on.label, RESULT.completed.label, RESULT.late.label, QUARTER.met.label, STATUS.risk.label, STAGE.risk.label, STATUS.off.label, STAGE.off.label, RESULT.missed.label, QUARTER.missed.label, STATUS.stale.label, STATUS.none.label, STATUS.planned.label, STAGE.planned.label, STATUS.done.label;
+	STATUS.on.label, RESULT.completed.label, RESULT.late.label, QUARTER.met.label, STATUS.risk.label, STAGE.risk.label, STATUS.off.label, STAGE.off.label, RESULT.missed.label, QUARTER.missed.label, STATUS.stale.label, STATUS.none.label, STATUS.unmeasured.label, STATUS.planned.label, STAGE.planned.label, STATUS.done.label;
 	lower = (t) => t.label.charAt(0).toLowerCase() + t.label.slice(1);
 	withCode = (t) => `${t.label} (${t.code})`;
 	choices = (terms, only) => (only ?? Object.keys(terms)).map((k) => withCode(terms[k])).join(", ");
@@ -1180,7 +1190,7 @@ function goalStatus(goal, cycle, checkIns, today) {
 	const latest = own.length ? own.reduce((a, b) => b.postedAt > a.postedAt ? b : a) : null;
 	const days = latest ? daysSince(latest.postedAt, today) : null;
 	if (isUnmeasured(goal)) return {
-		status: latest?.status === "done" ? "done" : week === 0 ? "planned" : "none",
+		status: latest?.status === "done" ? "done" : "unmeasured",
 		calc: "none",
 		latest,
 		greener: false,
@@ -1243,7 +1253,8 @@ var init_status = __esmMin((() => {
 		on: 1,
 		risk: 2,
 		stale: 2,
-		off: 3
+		off: 3,
+		unmeasured: 0
 	};
 	byGoalCache = /* @__PURE__ */ new WeakMap();
 	projects = (goal, status) => status !== "stale" && status !== "done" && !goal.stoppedAt && !isUnmeasured(goal);
@@ -6374,7 +6385,8 @@ var init_query = __esmMin((() => {
 		"on",
 		"done",
 		"none",
-		"planned"
+		"planned",
+		"unmeasured"
 	].map((k) => [k, LABEL[k]]);
 	NEED_OPTIONS = [...ATTENTION_FLAGS.filter((k) => k !== "due").map((k) => [k, FLAG[k].label]), ["slipped", WARNING.slipped.label]];
 	OLD_NEEDS = {
@@ -17179,7 +17191,7 @@ function toJson$1(x) {
 				...isUnmeasured(g) ? { unmeasured: { since: g.unmeasuredSince } } : {},
 				now: {
 					status: s.status,
-					statusLabel: g.stoppedAt ? STOPPED : isUnmeasured(g) ? UNMEASURED : s.statusLabel,
+					statusLabel: g.stoppedAt ? STOPPED : s.statusLabel,
 					statusMeaning: MEANING[s.status],
 					value: s.nowValue,
 					text: s.now,
@@ -18914,7 +18926,7 @@ var help$5 = [
 			]
 		}, {
 			heading: "Goals measured by a gap",
-			list: ["A goal measured by a metric with a gap is held to no number. It says “Not measured yet”, with a broken ring, instead of a status: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.", "Once the metric is measured, in full or in part, its goals are held to their plans again, in the same save. Linking a goal to a measured metric, or unlinking it, does the same. History says so on each goal, and Undo takes it all back."]
+			list: ["A goal measured by a metric with a gap is held to no number. Its status is “Not measured yet”, a ring with a dot at its centre, wherever it is shown: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.", "Once the metric is measured, in full or in part, its goals are held to their plans again, in the same save. Linking a goal to a measured metric, or unlinking it, does the same. History says so on each goal, and Undo takes it all back."]
 		}],
 		routes: ["/metrics/:metricId/edit"],
 		screens: [],
@@ -19690,6 +19702,7 @@ var CORE_ARTICLES = [
 					"off",
 					"stale",
 					"none",
+					"unmeasured",
 					"planned",
 					"done"
 				].map((k) => define(STATUS[k]))
@@ -20496,7 +20509,7 @@ var CORE_ARTICLES = [
 				heading: "The summary bar",
 				list: [
 					"First line: the goal, its owner, its level and its key (G-12). Then its status as a shape and a word, and the number in the goal’s own units.",
-					"A goal whose number isn’t measured yet (the metric that measures it has a gap) says “Not measured yet”, with a broken ring, instead of a status: it is held to no number, so nothing on it is due or late and it projects nothing, until the metric is measured.",
+					"A goal whose number isn’t measured yet (the metric that measures it has a gap) has the status “Not measured yet”, a ring with a dot at its centre, everywhere it is shown: it is held to no number, so nothing on it is due or late and it projects nothing, until the metric is measured.",
 					"Before a goal’s first check-in, a baseline it was given with its period is shown as its number, with “Baseline, June to September 2026, provisional” beside it; lists say “41.5 min (baseline)”. Its status is No check-in yet as before, until someone checks in.",
 					"Beside the key: when it was last updated, the latest check-in’s date and its week (“Updated 6 Nov · week 45”).",
 					"Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go; when lower is better, how far over the target it still is: “5 min over”), and Will it hit the target. A gap on the wrong side of a plan says “short” when higher is better and “over” when lower is better, and a number shown equal to its plan counts as met.",
@@ -22035,6 +22048,15 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "not-measured-yet-status",
+		date: "2026-11-14",
+		title: "Not measured yet is a status of its own",
+		points: [
+			"A goal whose number nobody measures yet now says “Not measured yet” wherever its status is shown: the Goals list, its page, its metric’s page and the library’s counts, the workbook and the AI tools.",
+			"It has its own shape, a ring with a dot at its centre, so it no longer reads as “No check-in yet”.",
+			"It still projects no year-end number, and nothing on it is due or late, until its number is measured. You can filter the Goals list by it."
+		],
+		articles: ["status", "metrics"],
 		id: "goal-guardrails",
 		date: "2026-11-14",
 		title: "Guardrails on a goal",
@@ -28692,7 +28714,8 @@ var STATUSES = [
 	"none",
 	"on",
 	"done",
-	"planned"
+	"planned",
+	"unmeasured"
 ];
 var CALLS = [
 	"on",
