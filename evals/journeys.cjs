@@ -6324,9 +6324,15 @@ journey('U153', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: 
   const line = await p.locator('.goals-line').first().innerText();
   h.set('finish', new RegExp(`^${n} goals? match`).test(line) && linkText.startsWith(`${n} `), `the link “${linkText}” (${n}) opened Goals saying “${line}”`);
   await h.checkpoint('goals');
-  // A team's page: the same panel for its goals; a team whose goals have one owner shows none (rule 4).
-  await p.goto(url('/teams/cicd'));
+  // A team's page: the same panel for its goals; a team whose goals have one owner shows none (rule 4). It names a
+  // review only when one is held on the due day with the team's owners in it (RS1, heldForGoals): Developer Experience's
+  // are in Thursday's Platform leadership weekly; CI/CD's are in none, so its panel says the deadline's words.
+  await p.goto(url('/teams/devex'));
   await see(p, 'Before this week’s review', 'a team’s page has no panel');
+  await p.goto(url('/teams/cicd'));
+  await p.locator('section.habit').waitFor({ timeout: 8000 }).catch(() => {});
+  const cicd = await p.locator('section.habit').count() ? (await p.locator('#habit-head').innerText()).trim() : '';
+  h.set('errors', /^Week \d+, due by \w+day \d+ \w{3}$/.test(cicd), cicd ? `CI/CD’s panel is headed “${cicd}”, with no review held that day for its owners` : 'a team’s page has no panel');
   await p.goto(url('/teams/office'));
   await p.locator('.team-page').waitFor();
   h.set('errors', await p.locator('section.habit').count() === 0, 'a one-owner team’s page shows the panel');
