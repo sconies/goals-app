@@ -839,6 +839,21 @@ journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app:
   h.set('entry', fromCheck[0] && !fromCheck[1], `a step opened from Check has “Back to Check” ${fromCheck[0]}, and ${fromCheck[1]} Back buttons`);
   await h.click(p.getByRole('button', { name: 'Back to Check' }));
   await p.waitForURL(/\/workspace\/new\/check/);
+  // A name step 1 refuses can't reach Create another way (build review of #475): change it to "ab" on step 1, then open
+  // Check by its address (as the browser's Forward would) instead of Continue. Set-up goes back to step 1. A probe, not
+  // a step of the task, so its clicks are plain ones, as the empty-name check above.
+  await p.getByRole('button', { name: 'Change you' }).click();
+  await p.waitForURL(/\/workspace\/new\/workspace/);
+  await p.getByLabel('Workspace name', { exact: true }).fill('ab');
+  await p.waitForTimeout(400);
+  await p.goto(live('/workspace/new/check'));
+  await p.waitForURL(/\/workspace\/new\/workspace/, { timeout: 5000 }).catch(() => {});
+  const refused = [/\/workspace\/new\/workspace/.test(p.url()), await p.getByText('Create ab?').count()];
+  h.set('entry', refused[0] && !refused[1], `a refused name reached by address: at ${p.url()}, “Create ab?” shown ${refused[1]} times`);
+  await p.getByLabel('Workspace name', { exact: true }).fill('Growth');
+  await p.getByRole('button', { name: /^(Continue to people|Back to Check)$/ }).first().click();
+  if (!/\/check/.test(p.url())) await p.goto(live('/workspace/new/check'));
+  await p.waitForURL(/\/workspace\/new\/check/);
   await h.click(p.getByRole('button', { name: 'Create Growth' }));
   await see(p, 'Growth is ready');
   h.set('finish', await p.locator('.celebrate .btn.primary').isVisible(), 'no next step after setting up');
@@ -905,6 +920,7 @@ async function designProblems(r) {
     return [...new Set(out)];
   });
 }
+
 
 journey('U97', ['SETUP-FIRST-SCREEN', 'IDENTITY', 'ONBOARDING'], 'The first screen and the way in: Welcome at its own address with one main action; set-up at its own; the invitation opens the workspace it names, says who set it up and asks which one you are; a link to nothing opens nothing; Welcome back remembers', 22, async (h, device) => {
   const p = h.use(await newPage(device));
@@ -1826,7 +1842,7 @@ journey('U123', ['HOME-MANAGER'], 'The manager on Home: Rhea’s “Your team ·
   await p.context().close();
 });
 
-journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k', 3, async (h, device) => {
+journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k; “Changed since Friday 6 Nov” counts open lists of that length, and the table’s last column is “Since Fri 6 Nov”', 3, async (h, device) => {
   // Home rule 4 (HM3): three or more teams are drawn as teams, ordered as Goals orders "By team" (worstGroupsFirst).
   const day = (d) => BASE + '/demo/?today=' + d;
   const p = h.use(await newPage(device, 'amara'));
@@ -1858,6 +1874,37 @@ journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans 
   await p.locator('.goals-line').first().waitFor();
   const line = await p.locator('.goals-line').first().innerText();
   h.set('finish', new RegExp(`^${k} needs? attention`).test(line), `a team’s “${k} need attention” opened Goals saying “${line}”`);
+  // Changed since (rule 5, HM4). Monday's first look counted from that Monday, and nothing had moved: the part is absent.
+  // Home last opened on Fri 6 Nov (the `home-seen` pref, per browser), on Wed 11 Nov it says what moved since, each count
+  // opening Goals with a count line of that length and the filter line in its words; the teams table's last column too.
+  await p.goto(day('2026-11-09'));
+  await block.waitFor();
+  if (await p.locator('[data-part="Changed since"]').count()) fail('“Changed since” shows on Monday though nothing moved since Monday');
+  await p.evaluate(([k, v]) => localStorage.setItem(k, v), ['faro-prefs:platform-org:amara:home-seen', JSON.stringify({ last: '2026-11-06', prev: null })]);
+  await p.goto(day('2026-11-11'));
+  const changed = p.locator('[data-part="Changed since"]');
+  await changed.waitFor();
+  const title = (await changed.locator('h2').innerText()).trim();
+  const moved = await changed.locator('.changed-counts a').evaluateAll((as) => as.map((a) => ({ kind: a.getAttribute('data-moved'), n: Number((a.textContent.match(/^(\d+)/) || [])[1]), text: a.textContent.trim(), href: a.getAttribute('href') || '' })));
+  const rows = await changed.locator('.changed-row').count();
+  const total = moved.reduce((n, m) => n + m.n, 0);
+  if (title !== 'Changed since Friday 6 Nov' || !moved.length || rows !== Math.min(4, total)) fail(`“Changed since” says “${title}”, counts ${moved.map((m) => m.text).join(', ')}, with ${rows} rows`);
+  if (await changed.locator('.changed-row .status-shape').count() !== rows) fail('a “Changed since” row has no status shape beside its word');
+  const WORDS = { worse: 'got worse', better: 'recovered', quiet: 'went quiet', done: 'done' };
+  for (const m of moved) {
+    await h.click(changed.locator(`.changed-counts a[data-moved="${m.kind}"]`));
+    await p.waitForURL(new RegExp(`scope=watching&moved=${m.kind}&since=2026-11-06`));
+    await p.locator('.goals-line').first().waitFor();
+    const said = await p.locator('.goals-line').first().innerText();
+    if (Number((said.match(/^(\d+)/) || [])[1]) !== m.n) fail(`“${m.text}” opened Goals saying “${said}”`);
+    const words = await p.locator('.filter-line').first().innerText().catch(() => '');
+    if (!words.includes(`Changed since Fri 6 Nov: ${WORDS[m.kind]}`)) fail(`“${m.text}” opened Goals whose filter line says “${words}”`);
+    await p.goBack();
+    await changed.waitFor();
+  }
+  const since = (await table.locator('thead th').last().innerText()).trim();
+  if (since !== 'Since Fri 6 Nov') fail(`the teams table’s last column is “${since}”, not “Since Fri 6 Nov”`);
+  await h.checkpoint('changed');
   h.set('errors', true);
   h.set('logged', true);
   await p.context().close();

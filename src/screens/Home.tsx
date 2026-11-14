@@ -317,7 +317,7 @@ export function Home() {
       <ThisWeek d={useDashboard()} leadAbout={plan.lead?.about ?? null} />
       <div className="home-grid split">
         <LeadOrQuiet plan={plan} />
-        <aside className="home-side split-side" aria-label="For you"><NeedsYou asks={plan.asks} also={plan.lead?.kind === 'ask'} leadAbout={plan.lead?.about ?? null} /><AdminCard /></aside>
+        <aside className="home-side split-side" aria-label="For you"><NeedsYou asks={plan.asks} also={plan.lead?.kind === 'ask'} leadAbout={plan.lead?.about ?? null} />{/* Changed since (part 8, rule 5), loaded with the sets after the first download; it also keeps the day Home was last opened (`home-seen`). */}<Suspense fallback={null}><HomeSet set="changed" /></Suspense><AdminCard /></aside>
         <div className="home-main split-b">
           <YourGoals />
           {/* Your team (part 7, rule 4): the My team scope, when it holds a goal you don't own; nothing otherwise, and
