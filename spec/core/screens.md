@@ -64,7 +64,7 @@ Words worked out when the screen shows (from the goal, the person or the week) a
 
 - `/` (`Home`): Home shows what needs you this week: one main thing to do, what people have asked of you, and the goals you own and watch. Help: “Home and your week at a glance” (`home`).
 
-- **Named parts:** “Your goals”, “Getting started”, “This week (region)”, “For you (region)”
+- **Named parts:** “Getting started”, “This week (region)”, “For you (region)”
 - **Main action:** The lead’s, or none: what is asked of you today (late check-ins, check-ins due tomorrow or before today’s review, the wrap-up, a review on its day), or one quiet line that nothing is.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_my_work`, `get_overview`
