@@ -6903,12 +6903,13 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   await p.context().close();
 }, []);
 
-journey('U171', ['GUARDRAILS'], 'A goal guarded by the number it mustn’t make worse (GR): as Rhea, Image slimming is guarded by Flaky test rate, chosen by its key under More details (a goal with a number to move is listed but can’t guard, and says why); with Flaky test rate’s limit tightened past its latest number, Image slimming’s page and its check-in say “Guardrail “Flaky test rate in the main pipelines” (G-11) is over its … limit”, and Status from the numbers is no longer on track', 24, async (h, device) => {
+journey('U171', ['GUARDRAILS'], 'A goal guarded by the number it mustn’t make worse (GR): as Rhea, Base image build time is guarded by Flaky test rate, chosen by its key under More details (a goal with a number to move is listed but can’t guard, and says why); with Flaky test rate’s limit tightened past its latest number, Base image build time’s page and its check-in say “Guardrail “Flaky test rate in the main pipelines” (G-11) is over its … limit”, and Status from the numbers is no longer on track', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/ci-docker/edit'));
+  await h.click(p.getByText('More details', { exact: true }));
   const s0 = await h.snapshot();
   const flaky = s0.goals.find((g) => g.id === 'lead-flaky');
   const cost = s0.goals.find((g) => g.id === 'ci-cost');
-  await p.goto(url('/goals/ci-docker/edit#more'));
   await h.click(p.getByRole('button', { name: /^Guarded by\b/ }));
   h.set('entry', true);
   // A goal with a number to move is listed, not selectable, with why.
