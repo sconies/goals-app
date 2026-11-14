@@ -5,6 +5,7 @@
    spec, 2.3. */
 import { useRef, useState } from 'react';
 import { useApp } from '../app/state';
+import { ReasonWords } from './IssueGroup';
 import { describe, type Answer, type Answers, type ChangeSet, type IssueGroup, type Item } from '../domain/changeset';
 import { fmt } from '../domain/format';
 import { planAt } from '../domain/plan';
@@ -68,12 +69,7 @@ export function Preview({ cs, name, reason, setReason, onConfirm, answers = {}, 
 
       {cs.items.some((x) => x.needsReason) && (
         <label className="field">
-          {/* A plan change once check-ins have started, or a week's check-in changed (a correction, as on its screen: review of #225). */}
-          {cs.items.every((x) => !x.needsReason || x.kind === 'replaces check-in')
-            ? <><span className="field-label">Why are you correcting {cs.items.filter((x) => x.needsReason).length === 1 ? 'this check-in' : 'these check-ins'}?</span>
-              <span className="hint">Say why to save, in a sentence: changing a week’s check-in corrects it, and History keeps the reason with what it said before.</span></>
-            : <><span className="field-label">Why are these plans changing?</span>
-              <span className="hint">Say why to save: check-ins have started on {cs.items.filter((x) => x.needsReason).length === 1 ? 'this goal' : 'these goals'}, so the change log keeps the reason with the old and new plan{cs.items.some((x) => x.needsReason && x.kind === 'replaces check-in') ? ', and with any check-in it corrects' : ''}. A Reason column in the file is used first.</span></>}
+          <ReasonWords items={cs.items} />
           <textarea ref={why} className={'input' + (tried && cs.needsReason ? ' invalid' : '')} aria-invalid={tried && cs.needsReason ? true : undefined} rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
         </label>
       )}
@@ -175,3 +171,4 @@ const KIND: Record<Item['kind'], string> = {
   'new goal': 'New goal', goal: 'Details', plan: 'Plan', 'check-in': 'Check-in', 'replaces check-in': 'Replaces a check-in', person: 'Person', 'new person': 'New person', team: 'Team',
   'stop goal': STOPPED, 'delete goal': 'Deleted', 'person left': LEFT,
 };
+

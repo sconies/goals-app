@@ -59,7 +59,7 @@ export function Routed() {
   if (pathname.startsWith('/join/')) return <Suspense fallback={null}><Routes><Route path="/join/:workspaceId/*" element={<Join />} /></Routes></Suspense>;
   // Setting up another workspace needs no name here: someone who opened an invitation and went no further isn't held at
   // its arrival (review of #285, medium 1).
-  if (!app.viewerChosen && pathname === '/workspace/new') return <Suspense fallback={null}><SetUp /></Suspense>;
+  if (!app.viewerChosen && (pathname === '/workspace/new' || pathname.startsWith('/workspace/new/'))) return <Suspense fallback={null}><Routes><Route path="/workspace/new" element={<SetUp />} /><Route path="/workspace/new/:step" element={<SetUp />} /></Routes></Suspense>;
   if (!app.viewerChosen) return <Suspense fallback={null}><WhoAreYou /></Suspense>;
   // With Reviews switched off (FT2), a goal's or Goals' address that names a review (?review=) opens without it.
   const q = new URLSearchParams(search);
@@ -88,6 +88,8 @@ export function Routed() {
         <Route path="/data" element={<DataTables />} />
         <Route path="/workspace" element={<WorkspaceHome />} />
         <Route path="/workspace/new" element={<Onboarding />} />
+        {/* Set-up's steps are addresses (set-up spec ST2): the browser's Back moves between them. */}
+        <Route path="/workspace/new/:step" element={<Onboarding />} />
         {/* Workspace's sections (backlog W); a module's sections are added with its routes below. */}
         <Route path="/workspace/overview" element={<MovedFrom />} />
         {/* People and Teams have places of their own (app redesign WR1); their old addresses lead there (domain/directory movedTo). */}
@@ -143,6 +145,7 @@ function Outside() {
         <Route path="/welcome" element={<Welcome />} />
         <Route path="/join/:workspaceId/*" element={<Join />} />
         <Route path="/workspace/new" element={<SetUp />} />
+        <Route path="/workspace/new/:step" element={<SetUp />} />
         {/* Just made: the workspace is opening, and /ready draws once it has. */}
         <Route path="/ready" element={<ToWelcome after={1500} />} />
         <Route path="*" element={<ToWelcome />} />
