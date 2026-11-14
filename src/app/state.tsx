@@ -20,7 +20,6 @@ import { MODULES } from '../core/registry';
 import { MODULE_RECORDS, recordsOn } from '../core/records';
 import { applyCommit, EXAMPLE, examplesOf, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import type { Answers, ChangeInput, ChangeSet, CheckInPost, PostMode, Tables, Via } from '../domain/changeset';
-import { ACTIONS } from '../mcp/parity';
 import { saveRerunning } from './rerun';
 import { commitOf, loadEngine, loadGoalEntry, MODULE_ACTIONS, perform, performAny, ready, rerunsWhenStale, type ActionInput, type ActionName, type RunContext, type RunResult, type SaveGoalWith } from './actions';
 
@@ -36,13 +35,16 @@ import { avatarHues, duplicateTitles, goalTell, nameWithTell } from '../domain/p
 import { COMMENT_REMOVED, ENDED, leftName, NOTE_REMOVED, RESTORE_DAYS, UNDO_MS } from '../domain/vocabulary';
 
 /** The actions telemetry names, one trace each: every one in AppState (parity.ts lists them), except previewChanges,
-    which only works out a change, and createWorkspace, which is timed where it's defined (onboarding uses it too). */
-const TRACED = Object.keys(ACTIONS).filter((k) => k !== 'previewChanges' && k !== 'createWorkspace' && k !== 'run');
+    which only works out a change, and createWorkspace, which is timed where it's defined (onboarding uses it too).
+    parity.ts, with its reasons in words, loads after the first download: an action pressed before it has arrived (in
+    the app's first moments) runs untraced. */
+let TRACED: ReadonlySet<string> | null = null;
+void import('../mcp/parity').then(({ ACTIONS }) => { TRACED = new Set(Object.keys(ACTIONS).filter((k) => k !== 'previewChanges' && k !== 'createWorkspace' && k !== 'run')); });
 function traced(v: AppState): AppState {
   const out = { ...v } as unknown as Record<string, unknown>;
-  for (const k of TRACED) {
+  for (const k of Object.keys(out)) {
     const fn = out[k];
-    if (typeof fn === 'function') out[k] = (...args: unknown[]) => telemetry.action(k, () => (fn as (...a: unknown[]) => unknown)(...args));
+    if (typeof fn === 'function') out[k] = (...args: unknown[]) => (TRACED?.has(k) ? telemetry.action(k, () => (fn as (...a: unknown[]) => unknown)(...args)) : (fn as (...a: unknown[]) => unknown)(...args));
   }
   return out as unknown as AppState;
 }
