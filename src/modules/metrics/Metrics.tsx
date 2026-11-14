@@ -32,7 +32,7 @@ import { checkReads, goalsOfMetric, libraryReads, lineOf, proposedOfMetric } fro
 import { countLine, metricChecks, STILL_FIELD, stillToSay, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
 import { CheckSaid, FixLine } from '../../ui/Levels';
 import { changeKinds, linkedGoals } from './rulesChange';
-import { readWhen } from '../../domain/reading';
+import { readWhen } from '../../domain/readingWords';
 import { checkInsFor } from '../../domain/status';
 import { differentNumbers, differentWords, fillsIn, fillsInWords } from './rulesReading';
 import { sliceOf, type NumberSource } from './source';
