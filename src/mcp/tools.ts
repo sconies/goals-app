@@ -416,7 +416,7 @@ const CORE_TOOLS: ToolDef[] = [
       needs: str('A decision or help needed, and from whom.'),
       next_step: str('The next step.'),
       reason: str(`If the week already has a check-in, this corrects it: why, in a sentence (${MIN_CORRECT_REASON} to 500 characters), kept as “Why corrected”.`),
-      reading_confirmed: bool('True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded.'),
+      reading_confirmed: bool('True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded. This week’s check-in only: refused with an earlier week.'),
       different_because: { type: 'object', additionalProperties: false, required: ['kind'], description: `When the owner’s value differs from what the source reads now, why: the reading and the reason are recorded beside their number (never a flag). kind: behind (the source is behind: they have a newer number), other-count (it counts something else), wrong (it is wrong this week) or else (something else, with text of at least ${MIN_CORRECT_REASON} characters).`, properties: { kind: str('Why it differs.', { enum: ['behind', 'other-count', 'wrong', 'else'] }), text: str('In the owner’s words; needed for else.') } },
       answers: ANSWERS_ARG,
       dry_run: DRY,
@@ -430,6 +430,8 @@ const CORE_TOOLS: ToolDef[] = [
       let readings: ChangeInput['readings'];
       let readSays = '';
       if (asksReading) {
+        // A source reads what it says now, so a reading goes with this week's check-in only (review of #437, medium 2).
+        if (typeof a.week === 'number' && a.week !== ctx.week) return { isError: true, text: `reading_confirmed and different_because are for this week’s check-in (week ${ctx.week}) only: a source reads what it says now, not what it said in week ${a.week}. Post week ${a.week} with its value and without them.` };
         const reader = checkInReaders()[0];
         if (reader && !isModuleOn(ctx.ws, reader.module)) return { isError: true, text: moduleOffSentence(moduleById(reader.module)?.name ?? reader.module, ctx.ws.name, 'post_check_in with reading_confirmed or different_because') };
         const got = reader ? await reader.read(ctx, g, { value: typeof a.value === 'number' ? a.value : null, confirmed: a.reading_confirmed === true, ...(diff ? { why: diff } : {}) }) : { reading: null, says: 'No number source can be read here, so no reading was recorded.' };

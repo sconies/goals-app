@@ -3677,7 +3677,7 @@ function decimalsFor(d) {
 	return Math.min(3, Math.max(0, ...typed.map((t) => typedDecimals(t))));
 }
 function planQuestion(before, after) {
-	if (before?.kind !== "metric" || after.kind !== "metric" || !planChanged(before, after)) return null;
+	if (before?.kind !== "metric" || after.kind !== "metric" || before.targetUnset || !planChanged(before, after)) return null;
 	const was = before.plan, now = after.plan;
 	const d = after.decimals, u = after.unit.trim() === "%" ? "%" : after.unit.trim() ? " " + after.unit.trim() : "";
 	const n = (x) => fixed(x, d) + u;
@@ -4976,7 +4976,7 @@ var init_correctReason = __esmMin((() => {
 /**
 * Rule 3: what a reading needs before a check-in records it, the same at every door (the engine asks it of the form, the
 * one table, the AI tools and a file alike). The reading is the source's: a finite number, measured at a time that parses,
-* not after `now` and not more than RULES.readingMaxDays days before it. The owner's number is always the check-in's; a
+* not more than a day after `now` and not more than RULES.readingMaxDays days before it. The owner's number is always the check-in's; a
 * reading whose number differs from it needs a reason, one of 2.2's four; "Something else" needs at least
 * MIN_CORRECT_REASON characters of the owner's words, and no reason's words may run past MAX_CORRECT_REASON. Null when it
 * can be recorded.
@@ -4987,7 +4987,7 @@ function readingProblem(r, value, decimals, now) {
 	const at = typeof r.at === "string" ? Date.parse(r.at) : NaN;
 	const t = typeof now === "string" ? Date.parse(now) : now.getTime();
 	if (!Number.isFinite(at)) return `When ${source} measured its number can’t be read, so it can’t be recorded.`;
-	if (at > t) return `${source}’s number is dated after now, so it can’t be recorded.`;
+	if (at > t + 864e5) return `${source}’s number is dated after now, so it can’t be recorded.`;
 	if (t - at > RULES.readingMaxDays * 864e5) return `${source}’s number is more than ${RULES.readingMaxDays} days old, so it can’t be recorded.`;
 	if ((r.why?.text ?? "").trim().length > 500) return `Say why your number is different in at most 500 characters.`;
 	if (value == null || sameAtPlaces(value, r.value, decimals)) return null;
@@ -5008,31 +5008,10 @@ function keptReading(r, value, decimals) {
 		...why ? { why } : {}
 	};
 }
-/**
-* When a source measured a number, in the viewer's zone (2.1): "9:02 today", "16:40 yesterday", otherwise
-* "9:00 on Thu 5 Nov". `today` is the app's today; `timeZone` is left out for the viewer's own.
-*/
-function readWhen(at, today, timeZone) {
-	const a = parts(new Date(at), timeZone);
-	if (a.day === parts(today, timeZone).day) return `${a.time} today`;
-	if (a.day === parts(/* @__PURE__ */ new Date(today.getTime() - 864e5), timeZone).day) return `${a.time} yesterday`;
-	return `${a.time} on ${a.long}`;
-}
 /** The reason in a sentence: "The source counts something else: “It leaves out…”", or the choice alone, ending in a stop. */
 function readingReason(w) {
 	const words = w.text?.trim();
 	return words ? `${readingWhyLabel(w.kind)}: “${words}”` : `${readingWhyLabel(w.kind).replace(/\.$/, "")}.`;
-}
-/**
-* A History row's second line for a check-in (2.4, MT4 5.3 with the reason): "From CI analytics, read 9:02 on Thu 12 Nov.
-* Rhea Kapoor checked in." or "Typed by Rhea Kapoor. CI analytics said 13 min. The source counts something else: “…”".
-* A check-in with no reading says "Typed by {name}." only beside one that has (`nearSourced`); otherwise null.
-*/
-function readingHistoryLine(c, g, name, today, opts = {}) {
-	const r = c.reading;
-	if (!r || c.value == null) return opts.nearSourced && c.value != null ? `Typed by ${name}.` : null;
-	if (readingConfirmed(c, g.decimals)) return `From ${r.source}, read ${readWhen(r.at, today, opts.timeZone)}. ${name} checked in.`;
-	return `Typed by ${name}. ${r.source} said ${fmt(r.value, g)}.${r.why ? ` ${readingReason(r.why)}` : ""}`;
 }
 /** The Check-ins sheet's columns for a check-in's reading (MT4 3.3, NR 2.4), worked out and never loaded back: Number
 from ("Typed", or the source's name), Source’s number, Measured at (ISO, UTC) and Reason for a different number.
@@ -5052,12 +5031,11 @@ function readingCells(c, decimals) {
 		reason: r.why ? readingReason(r.why) : null
 	};
 }
-var READING_WHY, readingWhyLabel, sameAtPlaces, parts, readingConfirmed;
+var READING_WHY, readingWhyLabel, sameAtPlaces, readingConfirmed;
 var init_reading = __esmMin((() => {
 	init_checkin();
 	init_correctReason();
 	init_thresholds();
-	init_format();
 	READING_WHY = [
 		["behind", "The source is behind: I have a newer number"],
 		["other-count", "The source counts something else"],
@@ -5068,24 +5046,6 @@ var init_reading = __esmMin((() => {
 	sameAtPlaces = (a, b, decimals) => {
 		const p = Math.max(0, decimals);
 		return Number(a.toFixed(p)) === Number(b.toFixed(p));
-	};
-	parts = (d, timeZone) => {
-		const f = new Intl.DateTimeFormat("en-GB", {
-			timeZone,
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-			weekday: "short",
-			hour: "numeric",
-			minute: "2-digit",
-			hourCycle: "h23"
-		});
-		const o = Object.fromEntries(f.formatToParts(d).map((p) => [p.type, p.value]));
-		return {
-			day: `${o.year}-${o.month}-${o.day}`,
-			time: `${Number(o.hour)}:${o.minute}`,
-			long: `${o.weekday} ${o.day} ${o.month}`
-		};
 	};
 	readingConfirmed = (c, decimals) => !!c.reading && c.value != null && sameAtPlaces(c.value, c.reading.value, decimals);
 }));
@@ -10774,6 +10734,15 @@ function namedHeaders(t, nearOk, whichOf) {
 	}
 	return out;
 }
+/** A goal built from a draft, laid over the stored goal it changes: the build wins on every key it decides. */
+function builtOver(existing, built) {
+	const out = {
+		...existing,
+		...built
+	};
+	for (const k of BUILT_KEYS) if (!(k in built)) delete out[k];
+	return out;
+}
 function planChanges(input) {
 	const run = planChangesInChunks(input);
 	for (;;) {
@@ -12012,10 +11981,7 @@ function* planChangesInChunks(input) {
 			id: gid,
 			createdAt: existing?.createdAt ?? new Date(Date.parse(now) + i).toISOString()
 		}, existing, started(gid), week);
-		if (existing) built = {
-			...existing,
-			...built
-		};
+		if (existing) built = builtOver(existing, built);
 		if (key) built = {
 			...built,
 			key
@@ -12031,7 +11997,6 @@ function* planChangesInChunks(input) {
 			proposedAt: null,
 			proposedBy: null
 		};
-		if (existing && d.whyHelps === "" && "whyHelps" in built) delete built.whyHelps;
 		if (action) {
 			if (existing && goalChange(existing, built, lookupNow(), actor.id, now, "x")) return raise("cant-change", "Goals", row, existing.title, `A row that says ${GOAL_ACTION_WORDS.word[action]} can’t also change the goal. Make the change, or the ${GOAL_ACTION_WORDS.word[action].toLowerCase()}, on its own.`, { column: "Action" });
 			parentLinks.pop();
@@ -13228,7 +13193,7 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, STOPS, showOf, COVERED_BY_PICK, CORRECTS_VIA, initialsOf, GoalSet;
+var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, STOPS, showOf, BUILT_KEYS, COVERED_BY_PICK, CORRECTS_VIA, initialsOf, GoalSet;
 var init_changeset = __esmMin((() => {
 	init_correctReason();
 	init_actions();
@@ -13384,6 +13349,20 @@ var init_changeset = __esmMin((() => {
 		"person left"
 	]);
 	showOf = (kind) => ADDS.has(kind) ? "added" : STOPS.has(kind) ? "stopped" : "changed";
+	BUILT_KEYS = [
+		"whyHelps",
+		"alsoHelps",
+		"unit",
+		"decimals",
+		"plan",
+		"originalPlan",
+		"rebaselinedWeek",
+		"planHistory",
+		"baseline",
+		"targetUnset",
+		"range",
+		"stages"
+	];
 	COVERED_BY_PICK = [
 		"unknown-ref",
 		"near-ref",
@@ -16584,8 +16563,52 @@ function localSearch(rows, finders = {}) {
 		}
 	};
 }
-// src/domain/export.ts
+// src/domain/readingWords.ts
 init_changeset();
+init_format();
+init_reading();
+/** A source's number as a check-in's field holds it: at the goal's decimals (20.4567 fills a whole-minutes goal as "20"). */
+var filledAt = (v, decimals) => String(Number(v.toFixed(Math.max(0, decimals))));
+var parts = (d, timeZone) => {
+	const f = new Intl.DateTimeFormat("en-GB", {
+		timeZone,
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+		weekday: "short",
+		hour: "numeric",
+		minute: "2-digit",
+		hourCycle: "h23"
+	});
+	const o = Object.fromEntries(f.formatToParts(d).map((p) => [p.type, p.value]));
+	return {
+		day: `${o.year}-${o.month}-${o.day}`,
+		time: `${Number(o.hour)}:${o.minute}`,
+		long: `${o.weekday} ${o.day} ${o.month}`
+	};
+};
+/**
+* When a source measured a number, in the viewer's zone (2.1): "9:02 today", "16:40 yesterday", otherwise
+* "9:00 on Thu 5 Nov". `today` is the app's today; `timeZone` is left out for the viewer's own.
+*/
+function readWhen(at, today, timeZone) {
+	const a = parts(new Date(at), timeZone);
+	if (a.day === parts(today, timeZone).day) return `${a.time} today`;
+	if (a.day === parts(/* @__PURE__ */ new Date(today.getTime() - 864e5), timeZone).day) return `${a.time} yesterday`;
+	return `${a.time} on ${a.long}`;
+}
+/**
+* A History row's second line for a check-in (2.4, MT4 5.3 with the reason): "From CI analytics, read 9:02 on Thu 12 Nov.
+* Rhea Kapoor checked in." or "Typed by Rhea Kapoor. CI analytics said 13 min. The source counts something else: “…”".
+* A check-in with no reading says "Typed by {name}." only beside one that has (`nearSourced`); otherwise null.
+*/
+function readingHistoryLine(c, g, name, today, opts = {}) {
+	const r = c.reading;
+	if (!r || c.value == null) return opts.nearSourced && c.value != null ? `Typed by ${name}.` : null;
+	if (readingConfirmed(c, g.decimals)) return `From ${r.source}, read ${readWhen(r.at, today, opts.timeZone)}. ${name} checked in.`;
+	return `Typed by ${name}. ${r.source} said ${fmt(r.value, g)}.${r.why ? ` ${readingReason(r.why)}` : ""}`;
+}
+// src/domain/export.ts
 init_unmeasured();
 init_proposed();
 init_goal();
@@ -19270,7 +19293,7 @@ var CORE_ARTICLES = [
 				list: [
 					"If you are in a team, or lead one, and it has goals you don’t own, “Your team · CI/CD · 17 goals” follows your goals (“Your teams · 30 goals in 2 teams” when you lead more than one). It is exactly the My team tab of Goals: the same goals and the same total, and See them in Goals opens it.",
 					"Its counts by status each open exactly those goals. Then “2 need attention that aren’t yours” opens Goals with those goals, filtered to Owner not you, and up to four of them are listed, each with its owner’s name first. Your own are in Your goals, so they aren’t listed twice. When nothing needs attention, it says so.",
-					"When the goals you watch, or your teams’ goals, span three or more teams (or more than twelve goals in two), they are shown as teams, worst first: the team with the most goals off track, then at risk, then with no recent update, first, as Goals orders By team. Each team’s name, its “3 need attention” and its counts by status open exactly those goals. Five teams show, then a link to the rest, by team. No person’s name is in this table: teams and goals are ranked, never people. On a phone each team is one stacked row."
+					"When the goals you watch, or your teams’ goals, are more than twelve goals in two or more teams, they are shown as teams, worst first: the team with the most goals off track, then at risk, then with no recent update, first, as Goals orders By team. Each team’s name, its “3 need attention” and its counts by status open exactly those goals. Five teams show, then a link to the rest, by team. No person’s name is in this table: teams and goals are ranked, never people. On a phone each team is one stacked row."
 				]
 			},
 			{
@@ -19778,6 +19801,7 @@ var CORE_ARTICLES = [
 					"Each row is judged as you type. A row that is off plan asks for a cause, a sentence and, when behind, how it gets back on plan.",
 					"Type numbers as you write them: a comma as the decimal mark (3,9) reads as 3.9, as in the one-by-one check-in.",
 					"A number that looks wrong (ten times last week’s, say) is asked about under its row, as on the one-by-one check-in, and the row waits until you answer. Your answer is kept in the goal’s History. A number that can’t be posted at all says “Must fix” under its row.",
+					"With the Metric library on, a row whose metric’s source has a new reading shows it in faint ink, with “From CI runner metrics, read 9:00 today.” and “Confirm 8 min” under it. A filled-in number isn’t posted until you confirm it, with that button, with “Confirm all readings” for every such row, or by typing your own (then the row asks why it differs).",
 					"Post counts the rows that are ready and posts those (“Post 2 check-ins”). A row that still needs something says so under it, and the bar above Post says how many aren’t ready; they stay in the table until they are.",
 					"After posting you land on the same confirmation as the one-by-one check-in: the week’s ring, each goal posted with its number and status, and any rows kept back.",
 					"The table and the one-by-one check-in share one draft per goal: a number typed in one is there in the other. Drafts are kept across a refresh until you post them. Use the normal check-in for milestones or a longer account."
@@ -21649,9 +21673,16 @@ var WHATS_NEW = [
 		points: [
 			"If your team has goals you don’t own, Home shows them after yours, exactly as the My team tab of Goals counts them.",
 			"Its goals that need attention and aren’t yours are listed with their owners’ names, and the link opens Goals filtered to Owner not you.",
-			"Goals you watch, or your teams’ goals, that span three or more teams are shown as teams, worst first, each count opening exactly those goals."
+			"Goals you watch, or your teams’ goals, that are more than twelve goals across teams are shown as teams, worst first, each count opening exactly those goals."
 		],
 		articles: ["home"]
+	},
+	{
+		id: "table-confirm-readings",
+		date: "2026-11-14",
+		title: "Numbers from a source are confirmed before they’re posted",
+		points: ["In the one table, a number filled in from its source says where it came from and isn’t posted until you confirm it: one tap on its row, or “Confirm all readings” for every such row.", "Typing your own number over it works as before: the row asks why it differs."],
+		articles: ["check-in-table"]
 	},
 	{
 		id: "metric-measurement",
@@ -26172,9 +26203,10 @@ async function readForTool(ctx, goal, ask) {
 		reading: null,
 		says: `No source can read ${m.metric.name}, so no reading was recorded.`
 	};
+	const decimals = goal.kind === "milestone" ? 0 : goal.decimals;
 	const last = checkInsFor(goal, ctx.snapshot.checkIns).at(-1) ?? null;
-	const value = ask.value ?? (ask.confirmed && asked.reading && typeof asked.reading === "object" ? asked.reading.value : null);
-	const state = readingState(asked.reading, last?.reading ?? null, last?.value ?? null, ctx.today, value, m.metric.decimals);
+	const value = ask.value ?? (ask.confirmed && asked.reading && typeof asked.reading === "object" ? Number(filledAt(asked.reading.value, decimals)) : null);
+	const state = readingState(asked.reading, last?.reading ?? null, last?.value ?? null, ctx.today, value, decimals);
 	const r = asked.reading && typeof asked.reading === "object" ? asked.reading : null;
 	const says = {
 		"no-slice": `${asked.source} doesn’t read ${m.metric.name} for this goal’s team or part, so no reading was recorded.`,
@@ -26187,7 +26219,7 @@ async function readForTool(ctx, goal, ask) {
 		reading: null,
 		says: says[state]
 	};
-	return { reading: recordReading(asked.source, r, value, m.metric.decimals, ask.why) ?? null };
+	return { reading: recordReading(asked.source, r, value, decimals, ask.why) ?? null };
 }
 var metricReader = {
 	module: "metrics",
@@ -26205,7 +26237,6 @@ init_rulesParts();
 init_status();
 init_vocabulary();
 init_via();
-init_reading();
 addCheckInReader(metricReader);
 var str$5 = (description, extra = {}) => ({
 	type: "string",
@@ -26965,11 +26996,11 @@ function beforeReviewText(h, past, words) {
 	return `${h.inTime} of ${h.due} goals were checked in ${by}, ${h.unasked === h.inTime ? "all without being asked" : `${h.unasked} without being asked`}.`;
 }
 function beforeReview(goals, week, rows, cycle, today, viewerId, held = true) {
-	if (week < 1 || !habitShown(goals, viewerId)) return null;
+	if (week < 1) return null;
 	const isDue = dueIn(cycle, rows.checkIns);
 	const dueDay = reviewDate(cycle, week);
 	const h = habit(goals, week, rows, dueDay, isDue);
-	if (!h.due) return null;
+	if (!h.due || !habitShown(goals.filter((g) => isDue(g, week)), viewerId)) return null;
 	const past = today.toISOString().slice(0, 10) > dueDay;
 	const { goals: _ids, ...counts } = h;
 	const words = dueWords$1(held, cycle, week, held);
@@ -27077,7 +27108,7 @@ var tools$3 = [
 			const b = beforeReview(x.items.map((i) => i.goal), Math.min(x.week, ctx.week), {
 				checkIns: ctx.snapshot.checkIns,
 				asks: ctx.snapshot.requests ?? []
-			}, ctx.cycle, ctx.today, ctx.actor.id);
+			}, ctx.cycle, ctx.today, ctx.actor.id, r.weekday === ctx.cycle.reviewDay);
 			const before = b ? {
 				says: b.says,
 				due: b.counts.due,
@@ -28333,7 +28364,7 @@ var CORE_TOOLS = [
 				needs: str("A decision or help needed, and from whom."),
 				next_step: str("The next step."),
 				reason: str(`If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”.`),
-				reading_confirmed: bool("True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded."),
+				reading_confirmed: bool("True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded. This week’s check-in only: refused with an earlier week."),
 				different_because: {
 					type: "object",
 					additionalProperties: false,
@@ -28366,6 +28397,10 @@ var CORE_TOOLS = [
 			let readings;
 			let readSays = "";
 			if (asksReading) {
+				if (typeof a.week === "number" && a.week !== ctx.week) return {
+					isError: true,
+					text: `reading_confirmed and different_because are for this week’s check-in (week ${ctx.week}) only: a source reads what it says now, not what it said in week ${a.week}. Post week ${a.week} with its value and without them.`
+				};
 				const reader = checkInReaders()[0];
 				if (reader && !isModuleOn(ctx.ws, reader.module)) return {
 					isError: true,

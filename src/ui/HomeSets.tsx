@@ -162,14 +162,14 @@ export function TeamsTable({ teams, scope, goalsWord, since }: { teams: TeamRow[
     <div className="home-teams">
       <table className="teams-table">
         <thead>
-          <tr><th scope="col">Team</th><th scope="col">Needs attention</th><th scope="col">{goalsWord}</th>{since && <th scope="col">Since {dayText(since)}</th>}</tr>
+          <tr><th scope="col">Team</th><th scope="col">{ATTENTION.needs.label}</th><th scope="col">{goalsWord}</th>{since && <th scope="col">Since {dayText(since)}</th>}</tr>
         </thead>
         <tbody>
           {shown.map((t) => (
             <tr key={t.teamId} className="teams-row" data-team={t.teamId}>
               <th scope="row" className="teams-name"><Link className="linkish" to={at(t)}>{t.name}</Link></th>
               <td className="teams-needs">
-                <span className="teams-label" aria-hidden="true">Needs attention</span>
+                <span className="teams-label" aria-hidden="true">{ATTENTION.needs.label}</span>
                 {t.needs ? <Link className="linkish" to={at(t, '&attention=1')}>{t.needs} need{t.needs === 1 ? 's' : ''} attention</Link> : <span className="muted">None</span>}
               </td>
               <td className="teams-counts">
@@ -211,7 +211,7 @@ export function TeamsTable({ teams, scope, goalsWord, since }: { teams: TeamRow[
  */
 export function WatchedGoals() {
   const app = useApp();
-  // The Watching scope (rule 4): every goal watched; the rows below leave out your own. Spanning three or more teams,
+  // The Watching scope (rule 4): every goal watched; the rows below leave out your own. More than twelve goals in two or more teams,
   // it is the teams, worst first, in place of the goal rows (loaded when drawn).
   const scope = watchedGoals(app.viewer.id, app.snapshot);
   const watched = scope.filter((g) => g.ownerId !== app.viewer.id);

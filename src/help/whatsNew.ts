@@ -45,9 +45,19 @@ export const WHATS_NEW: NewsEntry[] = [
     points: [
       'If your team has goals you don’t own, Home shows them after yours, exactly as the My team tab of Goals counts them.',
       'Its goals that need attention and aren’t yours are listed with their owners’ names, and the link opens Goals filtered to Owner not you.',
-      'Goals you watch, or your teams’ goals, that span three or more teams are shown as teams, worst first, each count opening exactly those goals.',
+      'Goals you watch, or your teams’ goals, that are more than twelve goals across teams are shown as teams, worst first, each count opening exactly those goals.',
     ],
     articles: ['home'],
+  },
+  {
+    id: 'table-confirm-readings',
+    date: '2026-11-14',
+    title: 'Numbers from a source are confirmed before they’re posted',
+    points: [
+      'In the one table, a number filled in from its source says where it came from and isn’t posted until you confirm it: one tap on its row, or “Confirm all readings” for every such row.',
+      'Typing your own number over it works as before: the row asks why it differs.',
+    ],
+    articles: ['check-in-table'],
   },
   {
     id: 'metric-measurement',

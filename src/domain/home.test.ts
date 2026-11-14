@@ -244,9 +244,10 @@ describe('Home rule 4: the sets [HOME-MANAGER]', () => {
     expect(homeSets({ id: 'me', teams: [{ id: 't', name: 'T' }] }, tabs, list, [{ id: 't', name: 'T' }]).team).toBeNull();
     expect(homeSets({ id: 'me', teams: [] }, tabs.slice(0, 1), list, []).team).toBeNull();
   });
-  it('asTeams: three or more teams, or more than twelve goals in two or more', () => {
+  it('asTeams: more than twelve goals in two or more teams', () => {
     const t = (...ids: string[]) => ids.map((teamId) => ({ teamId }));
-    expect(asTeams(t('a', 'b', 'c'))).toBe(true);
+    expect(asTeams(t('a', 'b', 'c'))).toBe(false);
+    expect(asTeams(t(...Array(4).fill('a'), ...Array(4).fill('b'), ...Array(4).fill('c')))).toBe(false);
     expect(asTeams(t(...Array(6).fill('a'), ...Array(6).fill('b')))).toBe(false);
     expect(asTeams(t(...Array(7).fill('a'), ...Array(6).fill('b')))).toBe(true);
     expect(asTeams(t(...Array(40).fill('a')))).toBe(false);

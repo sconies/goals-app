@@ -3,7 +3,7 @@
 
 # Home: your goals, your team and what you watch
 
-Home’s blocks of goals are exactly the Goals page’s scopes, with the same counts; a set spanning three or more teams is drawn as teams, worst first.
+Home’s blocks of goals are exactly the Goals page’s scopes, with the same counts; a set of more than twelve goals in two or more teams is drawn as teams, worst first.
 
 ## The rule
 
@@ -13,7 +13,7 @@ Home’s blocks of goals are exactly the Goals page’s scopes, with the same co
 
 **Not mine.** In a goals query, the owner value `-me` means "not the person asking": goals someone else owns. The filter line says it as "Owner not you". With nobody asking (a query with no viewer), it narrows nothing.
 
-**As teams** (`asTeams`). A set is drawn as teams when its goals belong to three or more teams, or it holds more than twelve goals in two or more teams. Then it is a table, one row per team, ordered as Goals orders "By team": the most goals off track first, then the most at risk, then the most with no recent update, then the most with no check-in yet, then by name. Each row: the team's name (`/goals?scope={set}&team={id}`), "{k} need attention" (the same with `&attention=1`; none: "None") and its goals' counts by status (each with `&status=…`). Five rows, then "{k} more teams, {j} need attention" (`/goals?scope={set}&group=team`). On a phone each team is a stacked row. No person's name is in the table: teams and goals are ranked, never people. Its last column, "Since {Thu 5 Nov}", is [what changed](home-changed.md) in each team.
+**As teams** (`asTeams`). A set is drawn as teams when it holds more than twelve goals in two or more teams (the spec's worked examples: Rhea's twelve watched goals in four teams are goal rows). Then it is a table, one row per team, ordered as Goals orders "By team": the most goals off track first, then the most at risk, then the most with no recent update, then the most with no check-in yet, then by name. Each row: the team's name (`/goals?scope={set}&team={id}`), "{k} need attention" (the same with `&attention=1`; none: "None") and its goals' counts by status (each with `&status=…`). Five rows, then "{k} more teams, {j} need attention" (`/goals?scope={set}&group=team`). On a phone each team is a stacked row. No person's name is in the table: teams and goals are ranked, never people. (A "Since" column comes with "Changed since".)
 
 ## Worked examples
 
@@ -22,10 +22,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Given | The rule gives |
 |---|---|
 | Tunde in the demo workspace on Thursday 5 Nov: he owns goals, is in Build & Release and watches one goal. | `Your goals · 2; Your team · Build & Release · 17 goals, 3 not theirs need attention; Watching · 1, as goal rows` |
-| Rhea: she owns goals, leads CI/CD and watches goals in several teams. | `Your goals · 8; Your team · CI/CD · 17 goals, 2 not theirs need attention; Watching · 12 goals in 4 teams, as teams, worst first: Developer Portal, Golden Paths & Self-Service Environments (4 need attention), Security Engineering (1 need attention), Infrastructure & Compute (0 need attention), Developer Experience (0 need attention)` |
+| Rhea: she owns goals, leads CI/CD and watches goals in several teams. | `Your goals · 8; Your team · CI/CD · 17 goals, 2 not theirs need attention; Watching · 12, as goal rows` |
 | Amara, the VP: she owns no goal, her team (Office of the VP) holds one goal, and she watches goals across the division. | `Your team · Office of the VP · 1 goal, 0 not theirs need attention; Watching · 56 goals in 13 teams, as teams, worst first: CI/CD (3 need attention), Security Engineering (1 need attention), Infrastructure & Compute (2 need attention), Build & Release (1 need attention), Developer Portal, Golden Paths & Self-Service Environments (3 need attention)` |
 | Oskar: he owns no goal, is in Developer Experience and watches three goals. | `Your team · Developer Experience · 15 goals, 3 not theirs need attention; Watching · 3, as goal rows` |
-| Drawn as teams? 3 goals in 3 teams; 12 goals in 2 teams; 13 goals in 2 teams; 40 goals in 1 team. | `yes, no, yes, no` |
+| Drawn as teams? 3 goals in 3 teams; 12 goals in 2 teams; 13 goals in 2 teams; 40 goals in 1 team. | `no, no, yes, no` |
 | Teams worst first: Alpha with 1 off track and 3 on track; Beta with 1 off track and 1 at risk; Gamma with 2 at risk. | `Beta, Alpha, Gamma` |
 
 ## Where it lives
@@ -75,7 +75,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - Home rule 4: the sets [HOME-MANAGER] › Amara: Watching · 56 goals in 13 teams, as teams, worst first, the counts adding up
 - Home rule 4: the sets [HOME-MANAGER] › Oskar: Watching · 3, every goal a row; his team Developer Experience is there, as it holds goals he doesn’t own
 - Home rule 4: the sets [HOME-MANAGER] › No Your team when the team scope holds only the viewer’s own goals, or there is no team
-- Home rule 4: the sets [HOME-MANAGER] › asTeams: three or more teams, or more than twelve goals in two or more
+- Home rule 4: the sets [HOME-MANAGER] › asTeams: more than twelve goals in two or more teams
 
 ### [src/domain/query.test.ts](../../../src/domain/query.test.ts)
 

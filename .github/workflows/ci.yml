@@ -1,5 +1,5 @@
-# Pull requests: a smoke gate (typecheck, the layers lint, unit tests, What's new, the generated spec, the rebuild kit, the MCP bundle, the spec scenarios and
-# the core journeys, a few minutes), the core journeys again with each feature module left out of the build, and a
+# Pull requests: a smoke gate (typecheck, the layers lint, unit tests, What's new, the generated spec, the rebuild kit, the MCP bundle, the spec scenarios,
+# the core journeys and every journey and check the change touches, phone pages slowed 4×; about 10 minutes), the core journeys again with each feature module left out of the build, and a
 # screenshot comparison against the base branch. Merges to main run the full eval suite as four
 # parallel shards, then one scorecard; a failure there comments on one rolling issue (opening it if none is open) to fix or revert
 # straight away, and the next pass closes it. Merges to main
@@ -21,7 +21,7 @@ jobs:
     name: "Smoke: typecheck, tests and core journeys"
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -53,17 +53,20 @@ jobs:
           git diff --exit-code --stat api/mcp.js || { echo "api/mcp.js is out of date. Run npm run build:mcp and commit it."; exit 1; }
       - name: "The bundle budget: the first download stays small (scripts/check-bundle.mjs)"
         run: npx vite build --logLevel warn --manifest && node scripts/check-bundle.mjs
-      - name: Spec scenarios, core journeys, design rules and console errors
-        run: npm run evals:smoke
-      - name: Smoke summary
+      # The core journeys plus every journey and check the PR's files touch (evals/touches.cjs), phone pages slowed 4×
+      # and run one process after another (Lane, 13 Nov). Shared code doesn't mean the whole suite here: that runs after
+      # the merge. The job keeps its name, so the branch rule's required check is unchanged.
+      - name: Spec scenarios, core journeys, what the change touches, design rules and console errors
+        run: npm run evals:pr -- --base "origin/${{ github.base_ref }}"
+      - name: Evals summary
         if: always()
-        run: test -f evals/out/smoke.md && cat evals/out/smoke.md >> "$GITHUB_STEP_SUMMARY" || true
+        run: test -f evals/out/changed.md && cat evals/out/changed.md >> "$GITHUB_STEP_SUMMARY" || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: smoke
           path: |
-            evals/out/smoke.md
+            evals/out/changed.md
             evals/out/*.png
           if-no-files-found: ignore
 
