@@ -170,4 +170,4 @@ Group `rhythm`.
 
 | Code | Word | Meaning | Rule | Where |
 |---|---|---|---|---|
-| `asOf` | as of week {n} | The week a status is from, said when it isn’t this week’s and there is no set check-in rhythm. | `status#goalStatus` | screens, exports, help, ai |
+| `as-of` | as of week {n} | The week a status is from, said when it isn’t this week’s and there is no set check-in rhythm. | `status#goalStatus` | screens, exports, help, ai |

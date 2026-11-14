@@ -243,7 +243,6 @@ No arguments.
 
 - “There’s no saved view called “…” that you can see.”
 - ““…” isn’t a status here. Use one of: ….”
-- “No recent update isn’t used here: there is no set check-in rhythm.”
 - “There’s no scope “…”: use mine, team, watching or all.”
 
 **Does the same as:** no action: it reads, or does something only an assistant needs.
