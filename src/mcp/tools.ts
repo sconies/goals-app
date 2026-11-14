@@ -284,7 +284,7 @@ const CORE_TOOLS: ToolDef[] = [
       level: str('Only goals at this level.', { enum: LEVELS }),
       mine: bool('Only goals you own (the same as scope "mine").'),
       scope: str('Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.', { enum: SCOPES }),
-      query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(', ')}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ['met', 'missed'])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
+      query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(', ')}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ['met', 'missed'])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks; no filter while Reviews is off), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
       view: str('The name of a saved view: one of yours, or one pinned for everyone.'),
       state: str('active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter).', { enum: ['active', 'proposed', 'stopped'] }),
       limit: { type: 'integer', minimum: 1, maximum: FIND_MAX, description: `How many goals to list, from offset: ${FIND_PAGE} unless asked, at most ${FIND_MAX}.` },
@@ -340,7 +340,8 @@ const CORE_TOOLS: ToolDef[] = [
       if (scope && scope !== 'all' && !scoped) return listed(goalPage([], a, scope === 'team' ? 'You’re in no team and lead none.' : scope === 'watching' ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : 'You own no goals this year.'));
       const inScope = scoped ? new Set(scoped.ids) : null;
       const words = [String(a.text ?? ''), query.q].filter((x) => x.trim()).join(' ');
-      const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
+      // With Reviews off `inreview=` narrows nothing, as on Goals (build review of #424).
+      const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week, undefined, reviewsOn(modulesOn(ctx.ws).on));
       const found = await allPages(localSearch(rows), 'goal', { q: words, filters: Object.fromEntries(queryEntries({ ...asked, sort: null })), sort: asked.sort ? asked.sort + (asked.dir === -1 ? '.desc' : '') : null });
       const byId = new Map(rows.goal!().summaries.map((s) => [s.goal.id, s]));
       // A module's column in the link (?metric=, Measured by): matched as Goals matches it (core/records goalColumns), and
@@ -378,7 +379,8 @@ const CORE_TOOLS: ToolDef[] = [
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
-      const j = toJson({ ws: ctx.ws, snapshot: isProposed(g) ? { ...ctx.snapshot, goals: [...ctx.snapshot.goals, g] } : ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, goals: [g] });
+      // With Reviews off, no notes said in reviews (build review of #424), as the export's JSON.
+      const j = toJson({ ws: ctx.ws, snapshot: isProposed(g) ? { ...ctx.snapshot, goals: [...ctx.snapshot.goals, g] } : ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, goals: [g], reviews: reviewsOn(modulesOn(ctx.ws).on) });
       // A proposed goal is never judged (GE10): no scorecard, no status.
       if (isProposed(g)) { const data = { cycle: j.cycle, goal: j.goals[0], state: 'proposed', notes: j.notes }; return { data, text: JSON.stringify(data, null, 2) }; }
       // The goal page's scorecard, in its words: vs plan, vs last week, to target and will it hit (domain/scorecard).

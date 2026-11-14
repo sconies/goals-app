@@ -7,7 +7,7 @@ import { localSearch } from '../adapters/localSearch';
 import { withRecent, type Recent } from '../domain/find';
 import type { Prefs } from '../ports/prefs';
 import type { Search, SearchAnswer, SearchAsk, SearchKind } from '../ports/search';
-import { goalRows, personRows, searchRows, teamRows } from './reads';
+import { goalRows, personRows, reviewsOn, searchRows, teamRows } from './reads';
 import type { Cycle, Snapshot } from '../domain/types';
 import { useApp } from './state';
 import { useGoalColumns, useModules } from '../core/app';
@@ -18,11 +18,12 @@ export function useSearch(): Search {
   const app = useApp();
   // A module's kinds (its finders) answer through the same port; with the module off, the kind is gone.
   // A module's filters (Measured by) narrow Goals' links through the same port.
-  const { screens } = useModules();
+  const { screens, on } = useModules();
   const { columns } = useGoalColumns();
+  const reviews = reviewsOn(on);
   return useMemo(
-    () => localSearch(searchRows(app.snapshot, app.cycle, app.today, app.week, columns), Object.fromEntries(screens.flatMap((m) => m.finders ?? []).map((f) => [f.kind, f.search(app.snapshot, app.viewer, app.today)]))),
-    [app.snapshot, app.cycle, app.today, app.week, app.viewer, screens, columns],
+    () => localSearch(searchRows(app.snapshot, app.cycle, app.today, app.week, columns, reviews), Object.fromEntries(screens.flatMap((m) => m.finders ?? []).map((f) => [f.kind, f.search(app.snapshot, app.viewer, app.today)]))),
+    [app.snapshot, app.cycle, app.today, app.week, app.viewer, screens, columns, reviews],
   );
 }
 

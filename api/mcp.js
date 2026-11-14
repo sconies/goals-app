@@ -2150,7 +2150,8 @@ function dueWordsOn(reviewsOn, iso, held = false) {
 		onTime: review ? "before the review" : "on time",
 		day,
 		date: `${day} ${d.getUTCDate()} ${SHORT_MONTH[d.getUTCMonth()]}`,
-		flag: `Due by ${day.slice(0, 3)} ${d.getUTCDate()} ${SHORT_MONTH[d.getUTCMonth()]}.`
+		flag: `Due by ${day.slice(0, 3)} ${d.getUTCDate()} ${SHORT_MONTH[d.getUTCMonth()]}.`,
+		review
 	};
 }
 /** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
@@ -6277,7 +6278,7 @@ function matches(s, q, ctx, tree) {
 		const st = ctx.standing?.(g);
 		if (q.checkedin === "no" ? st !== "none" : st !== "asked") return false;
 	}
-	if (q.inreview && !ctx.inReview?.(q.inreview)?.has(g.id)) return false;
+	if (q.inreview && ctx.inReview && !ctx.inReview(q.inreview)?.has(g.id)) return false;
 	if (q.quarter) {
 		if ([...s.story.quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed")?.kind !== q.quarter) return false;
 	}
@@ -15645,7 +15646,7 @@ var _virtual_faro_modules_default = [
 				"The clock's words come from one rule, dueWords (rule RS1), and match every row of spec/conformance/reviews.csv: “before Thursday’s review” only with Reviews on and a review held on the due day, otherwise “by Thursday”; switched off, no page names a review in its own words outside Workspace, Features, History's unlinked names and the closed page's sentence, and the check-in's receipt says “…are in by Thursday.” (journey U154).",
 				"A closed page says “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and every review tool, and edit_call on a note said in a review, answers “Reviews is switched off in {workspace}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features.”, the one sentence every switched-off module's tools use (check N30).",
 				"The read-back before switching off adds, after the questions line, “{n} accepted risks stay on their goals, as they were said. No new one can be accepted while Reviews is off.” (left out at nought) and “Check-ins are still due by Thursday. “Before the review” becomes “by Thursday” on Home, in the check-in and in the count of goals checked in on time.” (rule RS2; the readback row of reviews.csv).",
-				"Switched off, the workbook has no Notes sheet and no Review column on Asks; a workbook that has them loads as usual, and the preview says once “Reviews is off in {workspace}: the Notes sheet and the Review column were not read.”.",
+				"Switched off, the workbook has no Notes sheet and no Review column on Asks; a workbook that has them loads as usual, and the preview says once “Reviews is off in {workspace}, so the Notes sheet and the Review column were not read.” (naming only the ones the file has).",
 				"Switched back on after a week off, every session whose date passed while it was off moves to its next date: neither Reviews nor Home says “Not held yet” (journey U155)."
 			],
 			"gaps": [
@@ -16320,8 +16321,9 @@ var wrapUpOn = (on) => on.has("wrap-up");
 * get_my_work say it; no screen writes "review" in a deadline itself.
 */
 var dueWordsHere = (reviews, s, cycle, week, personId) => dueWords$1(reviews, cycle, week, reviews && heldOnDueDay(s.reviews, cycle, week, personId));
-/** Every goal's summary row, with what the Goals filters need beyond it. */
-function goalRows(s, cycle, today, week, columns) {
+/** Every goal's summary row, with what the Goals filters need beyond it. With `reviews` false (Reviews off) `inreview=`
+narrows nothing, as a switched-off module's column doesn't (module map F4; build review of #424). */
+function goalRows(s, cycle, today, week, columns, reviews = true) {
 	const goals = live(s.goals).filter((g) => !g.stoppedAt);
 	const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
 	const rows = {
@@ -16341,7 +16343,7 @@ function goalRows(s, cycle, today, week, columns) {
 			cycle,
 			week,
 			standing,
-			inReview,
+			...reviews ? { inReview } : {},
 			...columns ? { columns } : {}
 		}
 	};
@@ -16364,13 +16366,13 @@ function teamRows(s) {
 	};
 }
 /** The rows the browser's Search answers from, each made once per workspace as loaded and only when first asked. */
-function searchRows(s, cycle, today, week, columns) {
+function searchRows(s, cycle, today, week, columns, reviews = true) {
 	const once = (f) => {
 		let v;
 		return () => v ??= f();
 	};
 	const goals = () => {
-		const r = goalRows(s, cycle, today, week, columns);
+		const r = goalRows(s, cycle, today, week, columns, reviews);
 		return s.proposed?.length ? {
 			...r,
 			summaries: [...r.summaries, ...s.proposed.map((g) => proposedSummary(g, s, cycle, week))]
@@ -16810,14 +16812,17 @@ function numberFrom(c, g, who, today) {
 		says: g.kind === "milestone" ? null : readingHistoryLine(c, g, who, today, { timeZone: "UTC" })
 	} : null;
 }
+/** The JSON export. With Reviews off (`reviews` false) it holds no notes, questions or actions said in reviews and names
+no review, as the workbook has no Notes sheet then (build review of #424). */
 function toJson$1(x) {
 	const { sums, name, c } = prepare(x, true);
+	const reviews = x.reviews !== false;
 	const team = (id) => x.snapshot.teams.find((t) => t.id === id)?.name ?? null;
 	return {
 		format: EXPORT_FORMAT,
 		version: 1,
 		exportedAt: x.today.toISOString(),
-		about: `Goals, their status and the owner’s account of it, plans and weekly check-ins. Every state is a code with the words people read beside it: "status" is a code (${STATUS_WORDS.map((k) => withCode(STATUS[k])).join(", ")}) and "statusLabel" its words; "words" defines every code and word. "story" says why a goal is off, what the owner will do and by when; "needsAttention" is the one rule Home, reviews and the AI use. "result" is set once a goal is due. Weeks count from the cycle start (week 0).`,
+		about: `Goals, their status and the owner’s account of it, plans and weekly check-ins. Every state is a code with the words people read beside it: "status" is a code (${STATUS_WORDS.map((k) => withCode(STATUS[k])).join(", ")}) and "statusLabel" its words; "words" defines every code and word. "story" says why a goal is off, what the owner will do and by when; "needsAttention" is the one rule Home, ${reviews ? "reviews " : ""}and the AI use. "result" is set once a goal is due. Weeks count from the cycle start (week 0).`,
 		words: Object.fromEntries(DEFINED.map((k) => [k, Object.fromEntries(Object.values(GROUPS$1[k].terms).map((t) => [t.code, {
 			label: t.label,
 			meaning: t.meaning
@@ -16999,7 +17004,7 @@ function toJson$1(x) {
 				}))
 			};
 		}),
-		notes: saidIn(x.snapshot).filter((d) => sums.some((s) => s.goal.id === d.goalId) && [
+		...reviews ? { notes: saidIn(x.snapshot).filter((d) => sums.some((s) => s.goal.id === d.goalId) && [
 			"note",
 			"ask",
 			"action"
@@ -17020,7 +17025,7 @@ function toJson$1(x) {
 				answer: answerOf(d)?.text ?? null
 			} : {},
 			at: d.at
-		}))
+		})) } : {}
 	};
 }
 /** One goal's story, given room: why it's off, the recovery plan, by when, what's needed. */
@@ -19494,7 +19499,7 @@ var CORE_ARTICLES = [
 					"Start with walks through every goal due this week, one after another, as Start check-in on Home does. Or pick any goal on the list: Check in does just that one, and so does Check in on a goal’s page.",
 					"Close a check-in you opened from the list and you’re back on it; what you typed is kept, and that goal’s row says Draft kept, with Carry on.",
 					"With nothing left to do it says you’re all set for the week. Before the first check-ins are due it says when they are; if you own no goal it says so, with the goals you watch one click away.",
-					"Once all your goals are in, the receipt says when against the deadline: “All 3 of your goals are checked in for week 46, by Thursday.”, or “after Thursday” once the day has passed. When Reviews is on and a review is held on that day it says “before Thursday’s review” instead; with Reviews off, or no review that day, it never names a review.",
+					"Once all your goals are in, the receipt says when against the deadline: “All 3 of your check-ins are in by Thursday.”, or “…came after Thursday” once the day has passed. When Reviews is on and a review is held on that day it says “before Thursday’s review” instead; with Reviews off, or no review that day, it never names a review.",
 					"The top of the check-in says which week it is for and where you are in the week’s goals (“Week 46 check-in · 1 of 2”). A reload keeps your place.",
 					"Type the number. The app shows it against this week’s plan, the gap and the status the numbers suggest, as you type. The plan written to the goal’s decimals is always on plan, even when the exact plan has more decimals than you can type.",
 					`On plan, that’s it: post. Behind (under ${pct$1(RULES.onTrack)} of the planned progress) it asks for a cause and a sentence; well ahead (${pct$1(RULES.wellAhead)} or more) it asks why, and whether the target should change.`,
@@ -20850,7 +20855,7 @@ var CORE_ARTICLES = [
 					"Teams is the second tab of People. Find a team by its name or its lead’s.",
 					"Each row shows the team’s lead, or No lead (set-up doesn’t ask who leads a team), how many people are in it (its lead counts as one of them, even when their own team is another), and its goals this year counted by status, shape and word. The counts are the same numbers Goals shows by team.",
 					"Open a team to see what it is here to do, its goals by status (each count opens those goals), and its people, lead first. See its goals opens Goals for just that team; Show all lists all its people in People.",
-					"A team’s page also says how many of its goals were checked in before this week’s review, without being asked, and the last 8 weeks, as a review’s page does (with Reviews switched off, “On time this week”). Only for a team whose goals have three or more owners: nobody is named."
+					"A team’s page also says how many of its goals were checked in on time this week, without being asked, and the last 8 weeks, under “Week 46, due by Thursday 12 Nov”. When Reviews is on and a review is held that day with the team’s people in it, it is headed “Before this week’s review” and says “before it” instead. Only for a team whose goals have three or more owners: nobody is named."
 				]
 			},
 			{
@@ -26776,28 +26781,30 @@ function habitShown(goals, viewerId) {
 	if (!owners.size) return false;
 	return owners.size >= 3 || owners.size === 1 && owners.has(viewerId);
 }
-/** Rule 2's sentences for "Before this review" (spec 2.3): the heading, in the past once the due day has passed. With
-Reviews off (`reviews` false, the flag readBack.ts takes) the due day is a deadline, so the words are RS1's "on
-time, without being asked". */
-function beforeReviewText(h, past, reviews = true) {
-	const by = reviews ? "before it" : "on time";
+/** Rule 2's sentences for "Before this review" (spec 2.3): the heading, in the past once the due day has passed. When
+the deadline isn't a review (`words` from dueWords: Reviews off, or no review held that day for these goals' people)
+the words are RS1's "on time, without being asked". Without `words`, a review's own page: "before it". */
+function beforeReviewText(h, past, words) {
+	const by = !words || words.review ? "before it" : words.onTime;
 	if (!past) return `${h.inTime} of ${h.due} ${h.due === 1 ? "goal is" : "goals are"} checked in so far.`;
 	if (!h.inTime) return h.due === 1 ? `Its one goal wasn’t checked in ${by}.` : `None of the ${h.due} goals was checked in ${by}.`;
 	if (h.inTime === h.due && h.unasked === h.due) return h.due === 1 ? `Its one goal was checked in ${by}, without anyone asking.` : `All ${h.due} goals were checked in ${by}, without anyone asking.`;
 	return `${h.inTime} of ${h.due} goals were checked in ${by}, ${h.unasked === h.inTime ? "all without being asked" : `${h.unasked} without being asked`}.`;
 }
-function beforeReview(goals, week, rows, cycle, today, viewerId, reviews = true) {
-	if (week < 1 || !habitShown(goals, viewerId)) return null;
+function beforeReview(goals, week, rows, cycle, today, viewerId, held = true) {
+	if (week < 1) return null;
 	const isDue = dueIn(cycle, rows.checkIns);
 	const dueDay = reviewDate(cycle, week);
 	const h = habit(goals, week, rows, dueDay, isDue);
-	if (!h.due) return null;
+	if (!h.due || !habitShown(goals.filter((g) => isDue(g, week)), viewerId)) return null;
 	const past = today.toISOString().slice(0, 10) > dueDay;
 	const { goals: _ids, ...counts } = h;
+	const words = dueWords$1(held, cycle, week, held);
 	return {
 		counts,
 		past,
-		says: beforeReviewText(h, past, reviews),
+		words,
+		says: beforeReviewText(h, past, words),
 		weeks: habitWeeks(goals, past ? week : week - 1, rows, (w) => reviewDate(cycle, w), isDue)
 	};
 }
@@ -26897,7 +26904,7 @@ var tools$3 = [
 			const b = beforeReview(x.items.map((i) => i.goal), Math.min(x.week, ctx.week), {
 				checkIns: ctx.snapshot.checkIns,
 				asks: ctx.snapshot.requests ?? []
-			}, ctx.cycle, ctx.today, ctx.actor.id);
+			}, ctx.cycle, ctx.today, ctx.actor.id, r.weekday === ctx.cycle.reviewDay);
 			const before = b ? {
 				says: b.says,
 				due: b.counts.due,
@@ -27897,7 +27904,7 @@ var CORE_TOOLS = [
 				level: str("Only goals at this level.", { enum: LEVELS }),
 				mine: bool("Only goals you own (the same as scope \"mine\")."),
 				scope: str("Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.", { enum: SCOPES }),
-				query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
+				query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks; no filter while Reviews is off), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
 				view: str("The name of a saved view: one of yours, or one pinned for everyone."),
 				state: str("active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter).", { enum: [
 					"active",
@@ -27971,7 +27978,7 @@ var CORE_TOOLS = [
 			if (scope && scope !== "all" && !scoped) return listed(goalPage([], a, scope === "team" ? "You’re in no team and lead none." : scope === "watching" ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : "You own no goals this year."));
 			const inScope = scoped ? new Set(scoped.ids) : null;
 			const words = [String(a.text ?? ""), query.q].filter((x) => x.trim()).join(" ");
-			const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
+			const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week, void 0, reviewsOn(modulesOn(ctx.ws).on));
 			const found = await allPages(localSearch(rows), "goal", {
 				q: words,
 				filters: Object.fromEntries(queryEntries({
@@ -28069,7 +28076,8 @@ var CORE_TOOLS = [
 				cycle: ctx.cycle,
 				week: ctx.week,
 				today: ctx.today,
-				goals: [g]
+				goals: [g],
+				reviews: reviewsOn(modulesOn(ctx.ws).on)
 			});
 			if (isProposed(g)) {
 				const data = {

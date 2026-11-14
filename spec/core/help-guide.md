@@ -252,7 +252,7 @@ Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, qua
 - Start with walks through every goal due this week, one after another, as Start check-in on Home does. Or pick any goal on the list: Check in does just that one, and so does Check in on a goal’s page.
 - Close a check-in you opened from the list and you’re back on it; what you typed is kept, and that goal’s row says Draft kept, with Carry on.
 - With nothing left to do it says you’re all set for the week. Before the first check-ins are due it says when they are; if you own no goal it says so, with the goals you watch one click away.
-- Once all your goals are in, the receipt says when against the deadline: “All 3 of your goals are checked in for week 46, by Thursday.”, or “after Thursday” once the day has passed. When Reviews is on and a review is held on that day it says “before Thursday’s review” instead; with Reviews off, or no review that day, it never names a review.
+- Once all your goals are in, the receipt says when against the deadline: “All 3 of your check-ins are in by Thursday.”, or “…came after Thursday” once the day has passed. When Reviews is on and a review is held on that day it says “before Thursday’s review” instead; with Reviews off, or no review that day, it never names a review.
 - The top of the check-in says which week it is for and where you are in the week’s goals (“Week 46 check-in · 1 of 2”). A reload keeps your place.
 - Type the number. The app shows it against this week’s plan, the gap and the status the numbers suggest, as you type. The plan written to the goal’s decimals is always on plan, even when the exact plan has more decimals than you can type.
 - On plan, that’s it: post. Behind (under 95% of the planned progress) it asks for a cause and a sentence; well ahead (120% or more) it asks why, and whether the target should change.
@@ -1287,7 +1287,7 @@ Routes: `/teams`, `/teams/:teamId`, `/workspace/teams`. Requirements: `PEOPLE-DI
 - Teams is the second tab of People. Find a team by its name or its lead’s.
 - Each row shows the team’s lead, or No lead (set-up doesn’t ask who leads a team), how many people are in it (its lead counts as one of them, even when their own team is another), and its goals this year counted by status, shape and word. The counts are the same numbers Goals shows by team.
 - Open a team to see what it is here to do, its goals by status (each count opens those goals), and its people, lead first. See its goals opens Goals for just that team; Show all lists all its people in People.
-- A team’s page also says how many of its goals were checked in before this week’s review, without being asked, and the last 8 weeks, as a review’s page does (with Reviews switched off, “On time this week”). Only for a team whose goals have three or more owners: nobody is named.
+- A team’s page also says how many of its goals were checked in on time this week, without being asked, and the last 8 weeks, under “Week 46, due by Thursday 12 Nov”. When Reviews is on and a review is held that day with the team’s people in it, it is headed “Before this week’s review” and says “before it” instead. Only for a team whose goals have three or more owners: nobody is named.
 
 #### For admins
 
