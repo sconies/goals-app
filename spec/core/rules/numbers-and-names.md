@@ -43,7 +43,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | The places a check-in offers to keep for 5.5, 5.25 and 1.23456 on a whole-number goal, and for 5. | `1, 2, 3, none` |
 | 1250000, -12000 and 1250.5 shown. | `1,250,000, -12,000, 1,250.5` |
 | A start of 10 signups and a target of 5,000. | `The target (5,000 signups) is over 100 times where it starts (10 signups). Is that right?` |
-| 400 typed for the 30→75 goal, then 110. | `questioned; fine` |
+| 400, then 110, for the 30→75% goal: is each far outside its plan (`farOutside`, the plan’s width is 45)? Then what a check-in does with each: the goal is a share (its plan is within 0–100%), so over 100% is refused before anything is questioned. A growth goal from 30 to 75 in signups (not a share) given 400. | `far outside, not; refused, refused: It can’t be over 100%: this goal measures a share of something.; questioned: That’s far outside this goal’s plan (30 to 75 signups). Is 400 right?` |
 | A queue wait goal, 14 → 3 min (lower is better), given a target of 999. | `direction: This makes higher better: the target (999 min) is now above the start (14 min). It was 14 min to 3 min, lower is better. [Yes, make higher better]` |
 | The 30→75 goal given a target of 400, then of 90. | `far: The target of 400% is far outside the plan it replaces (30% to 75%). Status, progress and the forecast will all be judged against it. / fine` |
 | In the demo workspace, Tariq turns the AI-assisted reviews north star (ns-ai) round (its target the same distance on the other side of its start), with a reason; then again, confirmed. | `asks first, nothing to save; ready to save` |

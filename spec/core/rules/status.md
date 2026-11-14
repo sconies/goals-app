@@ -34,7 +34,7 @@ The calculation gives one of `on`, `risk`, `off`, `done`, `planned` (week 0) or 
 
    *ratio(v)* is step 4's ratio for *v*. Otherwise go on to step 6.
 6. Otherwise: ratio ≥ 0.95 is `on`; ≥ 0.8 is `risk`; below that `off`. It is *well ahead* at ratio ≥ 1.2 (still `on`) and *behind* below 0.95.
-7. It also carries the projection to the due week (see [the projection](projection.md)) from the earlier numbers plus this one, and *forecastMisses*: the projection's likeliest value falls short of the target in the better direction.
+7. It also carries the projection to the due week (see [the projection](projection.md)) from the earlier numbers plus this one, and *forecastMisses*: the projection's likeliest value falls short of the target in the better direction, compared as the projection gives it (to 9 decimal places, held to what the number can be), **not** rounded to the goal's decimals: a whole-number goal projected to 74.6 against a target of 75 misses, though it would show as 75.
 
 **A number to keep in range** (`range`): a limit, a side (`atMost`, `atLeast` or `between`) and a warning margin; `between` also has a *lower* bound, below the limit, which is then the upper bound (“between 99.5% and 99.95%”). A value is *out* when it is strictly past a bound on the wrong side (`atMost`: > *limit*; `atLeast`: < *limit*; `between`: > *limit* or < *lower*; a value at a bound is not out) and *near* when strictly within the margin of a bound (`atMost`: > *limit* − *margin*; `atLeast`: < *limit* + *margin*; `between`: > *limit* − *margin* or < *lower* + *margin*). Where the words or a gap name one bound of a `between` range, it is the nearer one to the number: the lower below the middle, (*lower* + *limit*) / 2, else the upper. *previous* is the number of the latest check-in with a number for an earlier week (by week, not by when it was posted).
 
@@ -53,7 +53,7 @@ The calculation gives one of `on`, `risk`, `off`, `done`, `planned` (week 0) or 
 
 **From what has been posted** (`assessPosted`, used everywhere a goal's status is shown) in week *w*:
 
-- Take the goal's check-ins up to week *w* (those with `week` ≤ *w*, from the ones posted by today), ordered by week, then by when they were posted. The latest is the one that counts, judged **in its own week**, not this week: a goal checked in last week is judged against last week's plan.
+- Take the goal's check-ins up to week *w* (those with `week` ≤ *w*, from the ones posted by today), ordered by week, then by when they were posted (equal in both: as they come in the records). The last is the one that counts, judged **in its own week**, not this week: a goal checked in last week is judged against last week's plan.
 - A number goal is judged with the plan as of that check-in's week, its number, and the numbers before it (for the projection).
 - A range goal is judged with its number and the one before it.
 - A number goal (to move or keep in range) with no check-in up to week *w* is judged in week *w* with no number: `planned` in week 0, else `none`.
@@ -63,7 +63,7 @@ The calculation gives one of `on`, `risk`, `off`, `done`, `planned` (week 0) or 
 
 `goalStatus` gives the status everyone sees, on a given day:
 
-1. *week* = the cycle's week that day. *latest* = the goal's check-in posted most recently (by when it was posted, whatever week it was for).
+1. *week* = the cycle's week that day. *latest* = the goal's check-in posted most recently (by when it was posted, whatever week it was for; two posted at the same moment: the one for the earlier week, then the one first in the records).
 2. If *latest*'s call is `done`: **Done**.
 3. Else if *week* is 0: **Not started**.
 4. Else if the cycle's last day is past ([a year's end](year-end.md)): *latest*'s call, or **No check-in yet** if there is none. After the last day no goal becomes No recent update for want of a check-in.
@@ -101,6 +101,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | A range, at least 99 with a 0.5 margin: 99.8 after 99.9; 99.3 after 99.9; 98 after 98.5. | `on, risk, off` |
 | A goal on plan in week 4, guarded by “Change failure rate” (G-41, at most 12.0%): the guard at 11.5 in week 4; at 14.0 after 11.0; at 14.0 after 13.0. | `on / risk / off: Guardrail “Change failure rate” (G-41) is over its 12.0% limit: 14.0% in week 4, 2.0 pts over, 2 weeks running.` |
 | A range between 99.5 and 99.95 with a 0.1 margin: 99.7 after 99.7; 99.9 after 99.7 (near the upper); 99.55 after 99.7 (near the lower); 99.95 after 99.7 (at the upper); 99.96 after 99.7; 99.4 after 99.3. | `on, risk, risk, risk, risk, off` |
+| The same range judged from what was posted (`assessPosted`) in week 3: 99.4 in week 1, then 99.97 in week 3 (out below, then out above); the same with a check-in for week 2 that has no number; 99.7 in week 1, then 99.97 in week 3. | `off, off, risk` |
 | The same range, said in words, and its gap at 99.96 and at 99.4 (each against the nearer bound). | `between 99.50% and 99.95% / Over the 99.95% limit / Under the 99.50% limit` |
 | Stages A (due week 3) and B (due week 7). In week 4, A done in week 3 and B expected in week 9; then B expected in week 10. | `risk, off` |
 | The same stages in week 6 with no updates at all: stage A is overdue. | `A: off, 3 weeks late; goal: off` |
