@@ -4,6 +4,7 @@
    by Workspace, which loads when it is opened (the first download). Each moves into its module's folder with SW6 and
    SW8. */
 import type { Retro, Watch } from './types';
+import { VIA_LABEL, VIA_MCP_BEFORE } from './via';
 
 /** What switching Watching off keeps. */
 export interface WatchingReadBack {
@@ -89,3 +90,63 @@ export function wrapUpOffLines(r: WrapUpReadBack): { strong: string; rest: strin
 
 /** Whether switching the Wrap-up off asks first: only with a wrap-up written, or while it is open (spec 4.2). */
 export const wrapUpAsks = (r: WrapUpReadBack) => r.written > 0 || r.open;
+
+/** What switching AI access off (or back on) names (SW2, spec 2.5 and 4.2). */
+export interface AiAccessReadBack {
+  /** The tokens not revoked whose person is still here, newest first: each stops working while AI access is off. */
+  tokens: { id: string; person: string; name: string }[];
+  /** Changes AI tools made here (marked via MCP): they stay, marked so in Activity. */
+  changes: number;
+}
+
+/** Whether a change was made through MCP: its Via mark, the one written today or the one before backlog 10a. */
+const viaMcp = (c: { diffs: readonly { field: string; to: string }[] }) => c.diffs.some((d) => d.field === 'Via' && (d.to === VIA_LABEL.mcp || d.to === VIA_MCP_BEFORE));
+
+/**
+ * Rule (SW2, spec 2.5). The tokens not revoked, each with its person's name (a person removed or left is left out: their
+ * tokens already work for nobody), newest first; and the changes in the log made through MCP.
+ */
+export function aiAccessReadBack(reads: {
+  people: readonly { id: string; name: string; removedAt?: string | null; leftAt?: string | null }[];
+  tokens: readonly { id: string; personId: string; name: string; createdAt: string; revokedAt?: string | null }[];
+  changes: readonly { diffs: readonly { field: string; to: string }[] }[];
+}): AiAccessReadBack {
+  const here = new Map(reads.people.filter((p) => !p.removedAt && !p.leftAt).map((p) => [p.id, p.name]));
+  const tokens = reads.tokens.filter((t) => !t.revokedAt && here.has(t.personId)).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((t) => ({ id: t.id, person: here.get(t.personId)!, name: t.name }));
+  return { tokens, changes: reads.changes.filter(viaMcp).length };
+}
+
+/** "Amara Nwosu’s “Claude on my laptop”, Rhea Kapoor’s “Claude” and 2 more": the first five, then how many more. */
+export function tokenNames(tokens: AiAccessReadBack['tokens']): string {
+  const named = tokens.slice(0, 5).map((t) => `${t.person}’s “${t.name}”`);
+  const more = tokens.length - named.length;
+  if (more > 0) return `${named.join(', ')} and ${more} more`;
+  return named.length > 1 ? `${named.slice(0, -1).join(', ')} and ${named[named.length - 1]}` : named.join('');
+}
+
+/** The read-back before switching AI access off (spec 4.2). */
+export function aiAccessOffLines(r: AiAccessReadBack): { strong: string; rest: string }[] {
+  const k = r.tokens.length;
+  return [
+    { strong: `${n(k, 'token stops', 'tokens stop')} working at once`, rest: `: ${tokenNames(r.tokens)}.` },
+    { strong: `${k === 1 ? 'It is' : 'They are'} kept, not revoked.`, rest: ` Switch AI access back on and ${k === 1 ? 'it works' : 'they work'} again. To end one for good, revoke it first.` },
+    { strong: 'What AI tools already changed stays', rest: `, marked “via MCP” in Activity: ${n(r.changes, 'change', 'changes')}.` },
+    { strong: 'An AI tool can’t switch this back on.', rest: ' An admin does, here.' },
+  ];
+}
+
+/** The read-back before switching AI access back on (spec 4.2): only when tokens were kept. */
+export function aiAccessOnLines(r: AiAccessReadBack): { strong: string; rest: string }[] {
+  const k = r.tokens.length;
+  return [
+    { strong: `${n(k, 'token', 'tokens')} made before will work again at once`, rest: `: ${tokenNames(r.tokens)}.` },
+    { strong: '', rest: 'Each lets an AI tool act as that person, with that person’s rights. Every change is logged as theirs, marked “via MCP”.' },
+    { strong: '', rest: 'To stop one for good, revoke it first.' },
+  ];
+}
+
+/** Whether switching AI access off, or back on, asks first: only with a token to name (spec 4.2). */
+export const aiAccessAsks = (r: AiAccessReadBack) => r.tokens.length > 0;
+
+/** Features' third line for AI access (spec 4.1): "{n} tokens are in use.", none when there are none. */
+export const aiAccessInUse = (r: AiAccessReadBack): string | null => (r.tokens.length ? (r.tokens.length === 1 ? '1 token is in use.' : `${r.tokens.length} tokens are in use.`) : null);

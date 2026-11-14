@@ -44,6 +44,7 @@ Anything a rebuild could not take from the spec alone is marked **Not self-expla
 
 | Module | What it does |
 |---|---|
+| [AI access](modules/ai-access/README.md) | Let Claude or another AI tool read and act here through MCP, as one person, with that person’s rights. |
 | [Feedback](modules/feedback/README.md) | Send feedback about Faro, or mark up a screen. It goes to the people who build Faro. |
 | [Goal map](modules/goal-map/README.md) | See every goal and what feeds it on one canvas, with the path the risk runs along. |
 | [Metric library](modules/metrics/README.md) | Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company. |

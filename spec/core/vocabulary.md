@@ -17,6 +17,7 @@ Group `status`.
 | `stale` | No recent update | The latest check-in was posted 14 days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in. Never used when there is no set check-in rhythm. Never said: “No recent check-in”, “gone quiet”, “goes quiet”, “An update is overdue”, “update is overdue”, “no check-in for 2+ weeks”, “Quiet for”. | `status#goalStatus` | screens, exports, help, ai |
 | `none` | No check-in yet | The goal has begun and nobody has checked in on it yet. 14 days after it began with still none, it has no recent update. Never said: “Waiting for its first check-in”, “Nothing reported yet”. | `status#goalStatus` | screens, exports, help, ai |
 | `planned` | Not started | Week 0: the goal is set up and its first check-in is due in week 1. | `status#goalStatus` | screens, exports, help, ai |
+| `unmeasured` | Not measured yet | The goal is measured by a number nobody collects yet, so it is held to no number until it is: no status from its plan, nothing late or quiet, and no projected year-end number. Once its number is measured, it is held to its plan again. The owner can still call it done. | `status#goalStatus` | screens, exports, help, ai |
 | `done` | Done | The owner called it done in a check-in. Done means finished wherever it is said: a goal, a stage or an action. | `status#goalStatus` | screens, exports, help, ai |
 
 ## What needs attention, and why

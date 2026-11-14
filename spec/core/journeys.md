@@ -3,7 +3,7 @@
 
 # The core journeys
 
-What people do with Faro end to end, and the checks that drive it (`npm run evals`; `[evals/journeys.cjs](../../evals/journeys.cjs)`). Journeys and checks a module owns are in its own section ([Feedback](../modules/feedback/README.md), [Goal map](../modules/goal-map/README.md), [Metric library](../modules/metrics/README.md), [Reviews](../modules/reviews/README.md), [Spreadsheets](../modules/spreadsheets/README.md), [Fields](../modules/tags/README.md), [Watching](../modules/watching/README.md), [Wrap-up](../modules/wrap-up/README.md)). Who the journeys are for: `docs/journeys.md`.
+What people do with Faro end to end, and the checks that drive it (`npm run evals`; `[evals/journeys.cjs](../../evals/journeys.cjs)`). Journeys and checks a module owns are in its own section ([AI access](../modules/ai-access/README.md), [Feedback](../modules/feedback/README.md), [Goal map](../modules/goal-map/README.md), [Metric library](../modules/metrics/README.md), [Reviews](../modules/reviews/README.md), [Spreadsheets](../modules/spreadsheets/README.md), [Fields](../modules/tags/README.md), [Watching](../modules/watching/README.md), [Wrap-up](../modules/wrap-up/README.md)). Who the journeys are for: `docs/journeys.md`.
 
 ## Journeys
 
@@ -23,7 +23,6 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U17 | Demo data sets, presenting without the bar, and deleting a workspace |  | `DEMO-MODE` `WORKSPACES` | 12 | `evals/journeys.cjs` |
 | U18 | Set a goal for the year and its plan numbers by hand |  | `PLAN-SHAPE` `GOAL-CREATE` `YEAR` | 12 | `evals/journeys.cjs` |
 | U21 | Type the week’s numbers in one table, and change several goals at once |  | `BULK-EDIT` | 14 | `evals/journeys.cjs` |
-| U22 | MCP access: an admin gives a teammate an MCP token, then revokes it; a builder token made before is labelled apart |  | `MCP-TOKENS` | 10 | `evals/journeys.cjs` |
 | U23 | See the year in quarters: where we are, each quarter met or missed, and the year’s history |  | `YEAR` | 6 | `evals/journeys.cjs` |
 | U24 | Two people change the same goal at once: the second is told, not overwritten |  | `NO-LOST-UPDATES` | 8 | `evals/journeys.cjs` |
 | U25 | Publish a goal, then post its first check-in straight away |  | `FIRST-CHECKIN` `GOAL-CREATE` | 12 | `evals/journeys.cjs` |
@@ -44,7 +43,6 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U59 | Workspace opens on About: one line under the title, the facts each leading to their section, nothing about another workspace; a member sees the same facts with whom to ask and nothing to sort out, and an admins’ section says who the admins are; on a phone About comes first, then the other sections |  | `WORKSPACE-ABOUT` `WORKSPACE-SECTIONS` | 8 | `evals/journeys.cjs` |
 | U60 | An admin makes someone an admin on Access and takes it back: Add an admin, find Rhea, her row and her page say so, Undo; Remove as admin on Grace asks first; stopping being an admin yourself offers no Undo; the only admin has no button; each change is logged |  | `ADMIN` `WORKSPACE-ADMIN` `CHANGE-LOG` | 12 | `evals/journeys.cjs` |
 | U61 | Day one tells the truth: a two-person workspace just set up has nothing to sort out and its team says No lead without a warning; with 12 people and still one admin, About says “You’re the only admin” with Choose someone |  | `WORKSPACE-ABOUT` `ONBOARDING` | 6 | `evals/journeys.cjs` |
-| U62 | Settings is about you: Your page opens your person page; no Make button for tokens; one recording line that leads to Privacy; Leave at the foot asks who takes over; the only admin is told why not; Workspace has no Leave |  | `LEAVE-WORKSPACE` `SETTINGS` | 6 | `evals/journeys.cjs` |
 | U64 | One list bar: on Activity and Help, a search that matches says how many in the same words, one that finds nothing says so with Clear the search, a filter reads as words with Remove, and the address holds the search and the filter so Back steps through them |  | `LIST-BAR` | 10 | `evals/journeys.cjs` |
 | U65 | Find from anywhere: Ctrl K (or the phone’s Find) opens one search; a key alone opens its goal with Enter; a name finds that person, their goals with See all, and their team, each a link; only Goals, People and Teams while no module adds a kind |  | `FIND-ANYWHERE` | 6 | `evals/journeys.cjs` |
 | U66 | A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back |  | `LIST-BAR` | 4 | `evals/journeys.cjs` |

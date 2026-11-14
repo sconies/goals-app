@@ -173,7 +173,7 @@ const help: Article[] = [
         'A gap or a part is listed under To sort out, on the metric’s page and in the library, with “Say how it’s measured”.',
       ] },
       { heading: 'Goals measured by a gap', list: [
-        'A goal measured by a metric with a gap is held to no number. It says “Not measured yet”, with a broken ring, instead of a status: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.',
+        'A goal measured by a metric with a gap is held to no number. Its status is “Not measured yet”, a ring with a dot at its centre, wherever it is shown: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.',
         'Once the metric is measured, in full or in part, its goals are held to their plans again, in the same save. Linking a goal to a measured metric, or unlinking it, does the same. History says so on each goal, and Undo takes it all back.',
       ] },
     ],

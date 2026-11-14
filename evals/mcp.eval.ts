@@ -1,5 +1,6 @@
 /* Spec scenarios for the AI assistants: through the MCP server, with a person's token, the assistant can do everything
    that person can do in the app, under the same rules, and every change is logged as them, via the assistant. */
+import { aiAccessOn } from '../src/app/reads';
 import { describe, expect, it } from 'vitest';
 import { serve, type Deps } from '../server/mcp';
 import { applyCommit } from '../src/data/store';
@@ -250,15 +251,18 @@ describe('AI assistants can do what the person can', () => {
     expect((await amara.call('list_views')).data!.views.map((x: { name: string }) => x.name)).toContain('Off track');
     await mateo.call('delete_view', { view_id: v.data!.id }).catch(() => undefined);
 
-    expect((await mateo.call('create_token', { person: 'Rhea', name: 'Her laptop' })).text).toMatch(/Only admins/);
-    const made = await amara.call('create_token', { person: 'Rhea', name: 'Claude on Rhea’s laptop' });
-    expect(made.data!.token).toMatch(/^gk_/);
-    const tok = amara.data().tokens!.find((t) => t.name === 'Claude on Rhea’s laptop')!;
-    expect(tok.tokenHash).toBe(await hashToken(made.data!.token));
-    // Only his own: the 'Claude on my laptop' token in the story and this one; not Lucia's, nor the one just made for Rhea.
-    expect((await mateo.call('list_tokens')).data!.tokens.map((t: { person: string }) => t.person)).toEqual(['Mateo Fernández', 'Mateo Fernández']);
-    await amara.call('revoke_token', { token_id: tok.id });
-    expect(amara.data().tokens!.find((t) => t.id === tok.id)!.revokedAt).not.toBeNull();
+    // The token tools are AI access's (SW2): built without it, they aren't there; the server stays open for the rest.
+    if (isModuleOn(null, 'ai-access')) {
+      expect((await mateo.call('create_token', { person: 'Rhea', name: 'Her laptop' })).text).toMatch(/Only admins/);
+      const made = await amara.call('create_token', { person: 'Rhea', name: 'Claude on Rhea’s laptop' });
+      expect(made.data!.token).toMatch(/^gk_/);
+      const tok = amara.data().tokens!.find((t) => t.name === 'Claude on Rhea’s laptop')!;
+      expect(tok.tokenHash).toBe(await hashToken(made.data!.token));
+      // Only his own: the 'Claude on my laptop' token in the story and this one; not Lucia's, nor the one just made for Rhea.
+      expect((await mateo.call('list_tokens')).data!.tokens.map((t: { person: string }) => t.person)).toEqual(['Mateo Fernández', 'Mateo Fernández']);
+      await amara.call('revoke_token', { token_id: tok.id });
+      expect(amara.data().tokens!.find((t) => t.id === tok.id)!.revokedAt).not.toBeNull();
+    }
 
     if (isModuleOn(null, 'feedback')) {
       await mateo.call('send_feedback', { mood: 'good', text: 'Posting from my assistant works.' });
@@ -284,7 +288,8 @@ describe('AI assistants can do what the person can', () => {
    sentence, the same pattern for every module; edit_call on a note said in a review says Reviews' too. */
 describe('a switched-off module’s tools say one sentence (N30)', () => {
   const off = (module: string, tool: string) => `${module} is switched off in Acme, so ${tool} can’t be used there. An admin can switch it on in Workspace, under Features.`;
-  for (const m of MODULES.filter((x) => x.aiTools.length)) {
+  // AI access's own tools never reach callTool while it is off: the server's door answers first (SW2), below.
+  for (const m of MODULES.filter((x) => x.aiTools.length && !aiAccessOn(new Set([x.id])))) {
     it(`[REVIEWS-OPTIONAL] N30: with ${m.name} off, each of its tools (${m.aiTools.join(', ')}) answers “${m.name} is switched off in Acme, so {tool} can’t be used there. …” and changes nothing`, async () => {
       const amara = await as('amara', TODAY, undefined, [m.id]);
       const before = amara.data().changes.length;
@@ -293,6 +298,15 @@ describe('a switched-off module’s tools say one sentence (N30)', () => {
         expect(r.error, tool).toBe(true);
         expect(r.text, tool).toBe(off(m.name, tool));
       }
+      expect(amara.data().changes.length).toBe(before);
+    });
+  }
+
+  for (const m of MODULES.filter((x) => aiAccessOn(new Set([x.id])))) {
+    it(`[AI-ACCESS-OPTIONAL] N30: with AI access off, the server's door refuses each of its tools (${m.aiTools.join(', ')}) with “AI access is switched off in Acme. …” and changes nothing`, async () => {
+      const amara = await as('amara', TODAY, undefined, [m.id]);
+      const before = amara.data().changes.length;
+      for (const tool of m.aiTools) await expect(amara.call(tool, {}), tool).rejects.toThrow('AI access is switched off in Acme. An admin can switch it on in Faro, under Workspace, Features.');
       expect(amara.data().changes.length).toBe(before);
     });
   }

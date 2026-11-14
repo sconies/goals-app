@@ -9,7 +9,7 @@ import { LABEL, STATUS_ORDER } from './vocabulary';
 /* What each status is called and means lives in the vocabulary (domain/vocabulary.ts); the thresholds in thresholds.ts. */
 export { LABEL, RULES };
 
-export const RANK: Record<DisplayStatus, number> = { done: 0, planned: 0, none: 0, on: 1, risk: 2, stale: 2, off: 3 };
+export const RANK: Record<DisplayStatus, number> = { done: 0, planned: 0, none: 0, on: 1, risk: 2, stale: 2, off: 3, unmeasured: 0 };
 
 export type Calc = Status | 'planned' | 'none';
 
@@ -209,9 +209,9 @@ export function goalStatus(goal: Goal, cycle: Cycle, checkIns: CheckIn[], today:
   const own = checkInsFor(goal, checkIns);
   const latest = own.length ? own.reduce((a, b) => (b.postedAt > a.postedAt ? b : a)) : null;
   const days = latest ? daysSince(latest.postedAt, today) : null;
-  // Held to no number (MS; domain/unmeasured): no status from its plan and nothing late or quiet, until it is measured.
-  // Only the owner calling it done counts.
-  if (isUnmeasured(goal)) return { status: latest?.status === 'done' ? 'done' : week === 0 ? 'planned' : 'none', calc: 'none', latest, greener: false, daysSinceCheckIn: days, week, asOfWeek: latest && latest.week !== week ? latest.week : null, unmeasured: true };
+  // Held to no number (MS; domain/unmeasured): its own status, Not measured yet, wherever it is shown (Lane, 14 Nov),
+  // with nothing late or quiet and no projection, until it is measured. Only the owner calling it done counts.
+  if (isUnmeasured(goal)) return { status: latest?.status === 'done' ? 'done' : 'unmeasured', calc: 'none', latest, greener: false, daysSinceCheckIn: days, week, asOfWeek: latest && latest.week !== week ? latest.week : null, unmeasured: true };
   const calc = assessPosted(goal, cycle, checkIns, week).calc;
   const quiet = daysWithoutUpdate(goal, cycle, latest, today);
   let status: DisplayStatus;

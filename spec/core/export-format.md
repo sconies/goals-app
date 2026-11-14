@@ -297,7 +297,7 @@ Everything in the cycle, each goal with its plan by week and its check-ins insid
     // range:     "unit", "decimals", "range": { mustStay: "atMost | atLeast | between", lower (between only), limit, margin }
     // milestone: "stages": [{ id, name, dueWeek }]
     // stopped:   "stopped": { at, by, reason }
-    "now": { "status": "on | risk | off | stale | none | planned | done", "statusLabel": "…", "statusMeaning": "…", "value": 29.4, "text": "29.4 days",
+    "now": { "status": "on | risk | off | stale | none | planned | unmeasured | done", "statusLabel": "…", "statusMeaning": "…", "value": 29.4, "text": "29.4 days",
              "planThisWeek": 27.7, "gap": "…", "lastCheckInWeek": 44, "forecast": "…", "projection": { "likeliest", "low", "high", "byWeek", "fittedWeeks" } },
     "story": { "since", "where", "outlook", "whyItsOff", "recoveryPlan", "byWhen", "needs", "nextStep", "warnings", "warningKinds", "feeds" },
     "needsAttention": { "needs": true, "beingHandled": null, "flags": [{ "kind": "no-path", "label": "…", "detail": "…" }] },
