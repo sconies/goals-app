@@ -2,7 +2,7 @@
 
 # Metric library: its rules
 
-The module’s 9 rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.
+The module’s 10 rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.
 
 | Rule | What it decides |
 |---|---|
@@ -14,6 +14,7 @@ The module’s 9 rules, in order. Each is a section of its own below, with its w
 | [For, which part, and what a goal takes from its metric](#for-which-part-and-what-a-goal-takes-from-its-metric) | Which part of a team’s or the company’s number a goal is measured by (rule 7), the parts other goals on the metric use, what linking asks, and why a goal with check-ins says why it is measured differently. |
 | [Changing, retiring and merging a metric](#changing-retiring-and-merging-a-metric) | What kind of change a save is (rule 8), the marks a change of meaning or direction leaves on its goals (rule 9), and retiring, bringing back and merging (rule 10): a metric that changes tells its goals. |
 | [Measured, partly measured or a gap](#measured-partly-measured-or-a-gap) | Whether a metric is measured today (rule 11), what the library does with a gap or a part, and the goals a gap holds to no number: the library fills in the goal’s field; the core’s rule reads it. |
+| [Where a metric sits, and how far to trust it](#where-a-metric-sits-and-how-far-to-trust-it) | A metric’s parent and how it relates to it (component, driver, control or breakdown), a confidence in its number, and how it could be gamed: the register’s structure, kept in the library (MQ). |
 | [A reading in a check-in](#a-reading-in-a-check-in) | Where a metric’s number comes from can fill in a goal’s check-in (NR): which state the number step is in, and what a check-in records of what the source said. A person confirms every number; nothing is ever posted for them. |
 
 ## The metric library
@@ -729,6 +730,45 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - a metric’s measurement status (MS) › holds a goal linked to a gap, and lets go of it when it is unlinked
 - a metric’s measurement status (MS) › round-trips through the rows: the status always written, the goal’s hold only when set
 - a metric’s measurement status (MS) › says so in the export: held to no number, and the word for it
+
+## Where a metric sits, and how far to trust it
+
+A metric’s parent and how it relates to it (component, driver, control or breakdown), a confidence in its number, and how it could be gamed: the register’s structure, kept in the library (MQ).
+
+### The rule
+
+**Rule 12. Where it sits** (`structureProblems`, `parentRefusal`). A metric may name a **parent**, another metric in the library, and say how it relates to it, its **level**: a `component` (part of the parent's number: they add up to it), a `driver` (moves it without being part of it), a `control` (watched so improving the parent breaks nothing else) or a `breakdown` (the parent split one way: by team, region or service). Both are optional. A level needs a parent (“Say what it is a driver of: choose its parent, or leave the level empty.”). The parent is never the metric itself, never a removed metric, and never one already under it (no loops: “Choose another parent: it’s already under this one.”).
+
+**Its children** (`childrenOf`). A metric's page lists the live metrics whose parent it is, by name, each with its level; a metric with a parent says where it sits: “A driver of Lead time for changes.” (`placeWords`; “Under …” with no level). It is not a second goal tree: goals still feed goals, and nothing here judges a goal.
+
+**Confidence and gaming.** A metric may say how far its number can be trusted: `high` (measured directly and checked), `medium` (measured, with known gaps or a manual step) or `low` (estimated, sampled or new); and, in words of at most 500 characters, how the number could be gamed, shown beside its definition. All four are kept only when said (`structured`), so a metric that says none reads as before. save_metric takes `parent`, `level`, `confidence` and `gaming`; get_metric says them, with the metric's children.
+
+### Worked examples
+
+Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
+
+| Given | The rule gives |
+|---|---|
+| CI time, a driver of Lead time for changes. | `A driver of Lead time for changes.` |
+| A metric with a level and no parent. | `Say what it is a control on: choose its parent, or leave the level empty.` |
+| Lead time for changes made a child of CI time, which is under it. | `Choose another parent: it’s already under this one.` |
+
+### Where it lives
+
+- [src/modules/metrics/rulesStructure.ts](../../../src/modules/metrics/rulesStructure.ts): `childrenOf`, `makesLoop`, `parentRefusal`, `structureProblems`, `structured`, `placeWords`, `LEVEL_WORDS`, `CONFIDENCE_WORDS`, `GAMING_MAX`
+
+### Requirements
+
+- `METRIC-STRUCTURE`: A metric keeps the register's structure (MQ): an optional parent metric and how it relates to it (component, driver, control or breakdown; a level needs a parent, and no metric is its own parent or under itself), a confidence in its number (high, medium or low) and how it could be gamed, in words beside its definition. Its page says where it sits and lists the metrics under it. save_metric takes parent, level, confidence and gaming, and get_metric says them.
+
+### Tests that check it
+
+#### [src/modules/metrics/rulesStructure.test.ts](../../../src/modules/metrics/rulesStructure.test.ts)
+
+- metric structure › shows a metric with its children, by name, and says where it sits
+- metric structure › refuses a parent that is itself, removed or under it already
+- metric structure › says what is wrong in words someone can act on
+- metric structure › is kept through the form’s rule and the database row; a metric that says none reads as before
 
 ## A reading in a check-in
 

@@ -8,6 +8,7 @@
      /metrics/<id>/edit     change a metric (focus mode)
    What is listed and in what order, a metric's goals and what it needs come from rulesLibrary.ts (rules 1 to 3). */
 import { MeasureMark } from './measureMark';
+import { CONFIDENCE_WORDS, CONFIDENCES, GAMING_MAX, LEVEL_WORDS, LEVELS, parentRefusal, placeWords, childrenOf, type MetricConfidence, type MetricLevel } from './rulesStructure';
 import { MEASUREMENT_MEANING, MEASUREMENT_NOTE_MAX, MEASUREMENTS, measurementOf } from './rulesMeasured';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
@@ -236,6 +237,11 @@ export function MetricPage() {
   const rows = goalsOfMetric(app.snapshot, app.cycle, app.today, app.week, m.id);
   const proposed = proposedOfMetric(app.snapshot, m.id);
   const line = summaryLine(rows);
+  // MQ: where it sits, its parent and the metrics under it.
+  const lib = { metrics: metricsOf(app.snapshot) };
+  const place = placeWords(m, lib);
+  const parent = m.parentId ? lib.metrics.find((x) => x.id === m.parentId) ?? null : null;
+  const kids = childrenOf(lib, m.id);
   const needs = edit ? metricNeeds(m, reads) : [];
   const by = (id: string, at: string) => `by ${app.person(id)?.name ?? 'someone who has left'} on ${dateOf(at)}`;
   const one = rows.length === 1 ? rows[0]! : null;
@@ -263,7 +269,20 @@ export function MetricPage() {
       <section className="stack metric-meaning" style={{ gap: 4 }} aria-labelledby="metric-meaning">
         <h2 className="label" id="metric-meaning">What it means and how it’s calculated</h2>
         {m.meaning ? <p className="metric-prose">{m.meaning}</p> : <p className="hint">Not said yet.{edit && <> <Link to={`${metricPath(m)}/edit?field=meaning`}>Say what it means</Link></>}</p>}
+        {/* MQ: how it could be gamed sits beside its definition. */}
+        {m.gaming && <><h3 className="label" id="metric-gaming">How it could be gamed</h3><p className="metric-prose" aria-labelledby="metric-gaming">{m.gaming}</p></>}
       </section>
+      {(place || kids.length > 0) && (
+        <section className="stack metric-structure" style={{ gap: 4 }} aria-labelledby="metric-structure" data-part="Structure">
+          <h2 className="label" id="metric-structure">Where it sits</h2>
+          {place && parent && <p className="small">{place.slice(0, place.length - parent.name.length - 1)}<Link to={metricPath(parent)}>{parent.name}</Link>.</p>}
+          {kids.length > 0 && (
+            <ul className="metric-children">
+              {kids.map((k) => <li key={k.id}><Link to={metricPath(k)}>{k.name}</Link>{k.level && <span className="hint"> · {LEVEL_WORDS[k.level].label}</span>}</li>)}
+            </ul>
+          )}
+        </section>
+      )}
       <section className="stack" id="goals" style={{ gap: 'var(--s2)' }} aria-labelledby="metric-goals">
         <h2 className="label" id="metric-goals">Goals measured by it · {rows.length}</h2>
         {rows.length ? <GoalsTable rows={rows} /> : <p className="hint">No goal uses this metric yet. A goal’s owner links it under “Measured by” when they make or change the goal.</p>}
@@ -284,6 +303,7 @@ export function MetricPage() {
         <dt>Where the number comes from</dt><dd>{m.source || 'Not said'}</dd>
         <dt>Who owns that source</dt><dd>{m.sourceOwner || 'Not said'}</dd>
         <dt>How often it refreshes</dt><dd>{m.refresh ? REFRESH_LABEL[m.refresh] : 'Not said'}</dd>
+        <dt>Confidence in the number</dt><dd>{m.confidence ? <>{CONFIDENCE_WORDS[m.confidence].label}<span className="hint"> {CONFIDENCE_WORDS[m.confidence].meaning}</span></> : 'Not said'}</dd>
         <dt>Measured today</dt><dd><MeasureMark k={measurementOf(m)} />{measurementOf(m) !== 'measured' && m.measurementNote ? <span className="hint"> {m.measurementNote}</span> : null}</dd>
         {m.caveats && <><dt>Caveats</dt><dd>{m.caveats}</dd></>}
         <dt>Added</dt><dd>{by(m.createdBy, m.createdAt)}</dd>
@@ -579,7 +599,7 @@ const FIELD_ORDER: [string, RegExp][] = [['name', /metric a name|already a metri
 /** Where a metric's form keeps its draft: one for a new metric, one for each metric being changed. */
 const metricDraftKey = (ws: string, id: string | null) => `${ws}:metric:${id ?? 'new'}`;
 
-type Draft = { name: string; meaning: string; unit: string; decimals: number; direction: MetricDirection | ''; source: string; sourceOwner: string; refresh: MetricRefresh | ''; ownerId: string; caveats: string; measurement?: MetricMeasurement; measurementNote?: string };
+type Draft = { name: string; meaning: string; unit: string; decimals: number; direction: MetricDirection | ''; source: string; sourceOwner: string; refresh: MetricRefresh | ''; ownerId: string; caveats: string; measurement?: MetricMeasurement; measurementNote?: string; level?: MetricLevel | ''; parentId?: string; confidence?: MetricConfidence | ''; gaming?: string };
 
 export function MetricForm() {
   const app = useApp();
@@ -590,7 +610,7 @@ export function MetricForm() {
   const live = before && !before.removedAt ? before : null;
   // Kept as other drafts are (src/app/drafts.ts): Close, Back or a reload never loses what was typed.
   const [d, set, clearDraft, restored] = useDraft<Draft>(metricDraftKey(app.ws.id, live?.id ?? null), () => live
-    ? { name: live.name, meaning: live.meaning, unit: live.unit, decimals: live.decimals, direction: live.direction, source: live.source, sourceOwner: live.sourceOwner, refresh: live.refresh ?? '', ownerId: live.ownerId, caveats: live.caveats, measurement: measurementOf(live), measurementNote: live.measurementNote ?? '' }
+    ? { name: live.name, meaning: live.meaning, unit: live.unit, decimals: live.decimals, direction: live.direction, source: live.source, sourceOwner: live.sourceOwner, refresh: live.refresh ?? '', ownerId: live.ownerId, caveats: live.caveats, measurement: measurementOf(live), measurementNote: live.measurementNote ?? '', level: live.level ?? '', parentId: live.parentId ?? '', confidence: live.confidence ?? '', gaming: live.gaming ?? '' }
     : { name: (params.get('name') ?? '').slice(0, METRIC_LIMITS.name), meaning: '', unit: '', decimals: 0, direction: '', source: '', sourceOwner: '', refresh: '', ownerId: app.viewer.id, caveats: '' });
   const [tried, setTried] = useState(false);
   // Fields left once: their errors show from then on, not while the first thing is being typed.
@@ -634,7 +654,7 @@ export function MetricForm() {
       </div>
     );
   }
-  const input: MetricInput = { name: d.name, meaning: d.meaning, unit: d.unit, decimals: d.decimals, direction: (d.direction || undefined) as MetricDirection, source: d.source, sourceOwner: d.sourceOwner, refresh: d.refresh || null, ownerId: d.ownerId, caveats: d.caveats, measurement: d.measurement ?? 'measured', measurementNote: d.measurementNote ?? '' };
+  const input: MetricInput = { name: d.name, meaning: d.meaning, unit: d.unit, decimals: d.decimals, direction: (d.direction || undefined) as MetricDirection, source: d.source, sourceOwner: d.sourceOwner, refresh: d.refresh || null, ownerId: d.ownerId, caveats: d.caveats, measurement: d.measurement ?? 'measured', measurementNote: d.measurementNote ?? '', level: d.level || null as never, parentId: d.parentId || null as never, confidence: d.confidence || null as never, gaming: d.gaming ?? '' };
   const next = metricFrom(input, live, { actor: app.viewer, now: app.stamp(), newId });
   const problems = metricProblems(next, app.snapshot);
   const shows = (k?: string) => tried || (!!k && left.has(k));
@@ -786,6 +806,32 @@ export function MetricForm() {
               </label>
             )}
           </div>
+        </fieldset>
+        <fieldset className="stack metric-structure-fields" style={{ gap: 'var(--s3)' }}>
+          <legend className="label">Where it sits <span className="hint">optional</span></legend>
+          <div className="field" id="metric-parent">
+            <PickOne kind="metric" label="Part of" none="Nothing: it stands on its own" value={d.parentId || null} onChange={(id) => set({ parentId: id ?? '', ...(id ? {} : { level: '' }) })}
+              hide={live ? [live.id] : []} refuse={(row) => { const o = metricsOf(app.snapshot).find((x) => x.id === row.id); return o && live ? parentRefusal({ metrics: metricsOf(app.snapshot) }, live, o) : null; }} />
+            {err(/parent/i)}
+          </div>
+          {d.parentId && (
+            <div className="field" id="metric-level"><span className="field-label" id="metric-level-l">How it relates</span>
+              <div className="seg" role="group" aria-labelledby="metric-level-l">
+                {LEVELS.map((k) => <button key={k} type="button" aria-pressed={d.level === k} onClick={() => set({ level: d.level === k ? '' : k })}>{LEVEL_WORDS[k].label}</button>)}
+              </div>
+              <span className="hint">{d.level ? LEVEL_WORDS[d.level].meaning : 'Choose one, or leave it unsaid.'}</span>
+            </div>
+          )}
+          <div className="field" id="metric-confidence"><span className="field-label" id="metric-confidence-l">Confidence in the number</span>
+            <div className="seg" role="group" aria-labelledby="metric-confidence-l">
+              {CONFIDENCES.map((k) => <button key={k} type="button" aria-pressed={d.confidence === k} onClick={() => set({ confidence: d.confidence === k ? '' : k })}>{CONFIDENCE_WORDS[k].label}</button>)}
+            </div>
+            <span className="hint">{d.confidence ? CONFIDENCE_WORDS[d.confidence].meaning : 'Not said.'}</span>
+          </div>
+          <label className="field" id="metric-gaming-field"><span className="field-label">How it could be gamed</span>
+            <textarea className="input" rows={2} maxLength={GAMING_MAX} value={d.gaming ?? ''} placeholder="Deploying tiny changes to raise the count without shipping more" onChange={(e) => set({ gaming: e.target.value })} />
+            {err(/gamed/i)}
+          </label>
         </fieldset>
         <div className="field" id="metric-owner">
           <PickOne kind="person" label="Owner" value={d.ownerId || null} onChange={(id) => set({ ownerId: id ?? '' })} invalid={about(/owner isn’t/i).length > 0} />

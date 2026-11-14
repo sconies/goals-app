@@ -7273,6 +7273,43 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   await p.context().close();
 }, []);
 
+journey('U172', ['METRIC-STRUCTURE'], 'A register’s structure kept in the library (MQ): as Rhea, Flaky test rate is made a control on Lead time for changes, with Medium confidence and how it could be gamed; its page says “A control on Lead time for changes.” with the gaming line beside its meaning, Lead time for changes lists it under Where it sits, and Lead time can’t be put under Flaky test rate (“It’s already under this one”)', 20, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/metrics/metric_flaky-rate/edit'));
+  const parent = p.getByRole('button', { name: /^Part of\b/ });
+  await parent.waitFor();
+  h.set('entry', true);
+  await pickIn(p, /^Part of\b/, 'Lead time for', /Lead time for changes/);
+  await h.click(p.getByRole('group', { name: 'How it relates' }).getByRole('button', { name: 'Control' }));
+  await h.click(p.getByRole('group', { name: 'Confidence in the number' }).getByRole('button', { name: 'Medium' }));
+  await h.fill(p.getByLabel('How it could be gamed'), 'Retrying failed tests until they pass hides the flakes.');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/metrics\/flaky-rate(\?|#|$)/);
+  h.set('progress', true);
+  await see(p.locator('.metric-structure'), 'A control on', 'the metric does not say where it sits');
+  await see(p, 'Retrying failed tests until they pass hides the flakes.', 'how it could be gamed is not beside its meaning');
+  await see(p.locator('.metric-facts'), 'Medium', 'the confidence is not among its facts');
+  await h.checkpoint('placed');
+  const s1 = await h.snapshot();
+  const m = ((s1.modules?.metrics?.metrics) ?? []).find((x) => x.id === 'metric_flaky-rate');
+  h.set('logged', m?.parentId === 'metric_lead-time' && m?.level === 'control' && m?.confidence === 'medium' && /hides the flakes/.test(m?.gaming ?? ''), 'the structure was not saved on the metric');
+  // Its parent lists it, with its level.
+  await h.click(p.locator('.metric-structure').getByRole('link', { name: 'Lead time for changes' }));
+  await p.waitForURL(/\/demo\/metrics\/lead-time(\?|#|$)/);
+  const kids = p.locator('.metric-children');
+  await see(kids, 'Flaky test rate', 'the parent does not list the metric under it');
+  h.set('attention', /Control/.test(await kids.innerText()), 'the child is listed without its level');
+  // No loops: Lead time can’t go under a metric already under it.
+  await p.goto(url('/metrics/metric_lead-time/edit'));
+  await h.click(p.getByRole('button', { name: /^Part of\b/ }));
+  await h.fill(p.locator('.pick.open').getByRole('combobox'), 'Flaky test');
+  const under = p.locator('.pick.open').getByRole('option', { name: /Flaky test rate/ }).first();
+  await under.waitFor();
+  h.set('errors', (await under.getAttribute('aria-disabled')) === 'true' && /already under this one/.test(await under.innerText()), 'a metric under this one could be chosen as its parent, or did not say why not');
+  h.set('finish', true);
+  await p.context().close();
+}, []);
+
 journey('U171', ['GUARDRAILS'], 'A goal guarded by the number it mustn’t make worse (GR): as Rhea, Base image build time is guarded by Flaky test rate, chosen by its key under More details (a goal with a number to move is listed but can’t guard, and says why); with Flaky test rate’s limit tightened past its latest number, Base image build time’s page and its check-in say “Guardrail “Flaky test rate in the main pipelines” (G-11) is over its … limit”, and Status from the numbers is no longer on track', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals/ci-docker/edit'));
