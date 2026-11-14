@@ -1235,11 +1235,12 @@ On the icon rail the Faro mark is the workspace switcher: it opens the same pane
 
 ### SMALL-MENU
 
-A module's menu row and a Goals tab wait until they have something in them (a tab also waits while it is the same list as one drawn before it; All is always drawn), in each workspace on its own: a row drawn in one never follows you into another. Hiding is only drawing: every address still opens. (Home's sections waiting too is backlog SM1h, with HM3; not built.)
+A module's menu row and a Goals tab wait until they have something in them (a tab also waits while it is the same list as one drawn before it; All is always drawn), in each workspace on its own: a row drawn in one never follows you into another. Hiding is only drawing: every address still opens. Home's sections wait too: “Goals you watch” while nothing is watched, and with one team in the workspace “Your goals” and “Your team” are one section, “The team’s goals · {n}”, the viewer's own first.
 
 - **Copy:** build it as Faro does.
+- **Rule:** [Home: your goals, your team and what you watch](rules/home-sets.md)
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
-- **Journeys and checks:** N30
+- **Journeys and checks:** N30, U49
 
 ### SMALL-QUIET
 

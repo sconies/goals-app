@@ -43,7 +43,7 @@ export function asTeamRows(list: readonly GoalAttention[], teamName: (id: string
 }
 
 /**
- * Rule 4. Home's sets are exactly the Goals scopes (`scopesFor`'s tabs), so each block's total is its tab's count.
+ * Rule 4. Home's sets are exactly the Goals scopes (`scopesFor`'s `every`, drawn as a tab or not), so each block's total is its scope's count.
  * `team` is present only when the scope exists and holds a goal the viewer doesn't own; its rows are what needs attention
  * without the viewer's own goals (the link adds `owner=-me`). A goal listed in one set is not left out of the next.
  * `attention` has each goal of the scopes (attentionFor); `teams` names every team.

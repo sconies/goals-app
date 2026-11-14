@@ -43,7 +43,7 @@ Module id `reviews`, in [src/modules/reviews/](../../../src/modules/reviews/modu
 | U30 | Numbers you can trust, a map you can use from the keyboard, and a review set-up that survives a refresh | `evals/journeys.cjs` |
 | U36 | An owner keeps last week’s account but withdraws the request; the leader’s Home and review agree on what needs them | `evals/journeys.cjs` |
 | U47 | Someone else, in another browser, opens the inbox with no sign-in, sees a markup sent from the demo with its picture, says why it won’t be fixed and sees who said so | `evals/journeys.cjs` |
-| U49 | Set up a small workspace on a Sunday, as the outside reviewer did: each field says what it needs, a team typo is caught, nothing is late, the weekly review exists, and Start over removes it all | `evals/journeys.cjs` |
+| U49 | Set up a small workspace on a Sunday, as the outside reviewer did: each field says what it needs, a team typo is caught, nothing is late, Home shows the one team’s goals as one section, the weekly review exists, and Start over removes it all | `evals/journeys.cjs` |
 | U63 | One way to pick: in a review’s set-up, people and goals are found by typing, with you and your team suggested first; a key finds its goal; arrow keys and Enter choose; the choice reads as words with a way to remove it; Escape closes; nothing on the page is a list of everyone | `evals/journeys.cjs` |
 | U67 | The menu in groups: an owner has Check-in and someone who owns nothing doesn’t; four groups with one item lit; collapsed, an icon names itself on focus; a phone has four tabs and More in the same groups | `evals/journeys.cjs` |
 | U79 | A goal’s history shows the weeks it missed, tells reviews from changes, and can be linked to | `evals/journeys.cjs` |

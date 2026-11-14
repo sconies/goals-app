@@ -9,6 +9,7 @@ const ProposalRows = lazy(() => import('../ui/HomeProposals').then((m) => ({ def
 const HomeSet = lazy(() => import('../ui/HomeSets'));
 import { useGoalCounts, useGoalList } from '../app/goals';
 import { EMPTY_QUERY } from '../domain/query';
+import { countWords } from '../domain/format';
 import { countList } from '../domain/order';
 import { gettingStarted, inviteLink, type DayOneFacts } from '../domain/dayOne';
 import { workspaceName } from '../domain/workspaceAttention';
@@ -16,7 +17,7 @@ import { dayOneRows, homeFacts, reviewName, reviewsOn, watchingOn, wrapUpOn, wra
 import { useApp } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, splitAttention } from '../domain/attention';
-import { dashboard, homeFor, type Dashboard, type HomePlan, type Waiting } from '../domain/home';
+import { dashboard, homeFor, ownFirst, theOneTeam, type Dashboard, type HomePlan, type Waiting } from '../domain/home';
 import { weekProgress, WEEKDAY } from '../domain/progress';
 import { dayText, pastText } from '../domain/review';
 import { cycleDates, dayWithYear, laterCycle, nextCycleShape, placeLine, wrapUpOpenOn } from '../domain/cycle';
@@ -71,35 +72,43 @@ function LeadOrQuiet({ plan }: { plan: HomePlan }) {
 /**
  * Your goals (section 2.1, part 6): counted once, here. Each status's count opens exactly those goals; then what needs
  * attention, what's being handled (folded) and the rest, five at a time. A row is a link to its goal; its one button
- * is "Check in" while one is due, never "Open".
+ * is "Check in" while one is due, never "Open". With one team in the workspace (small workspaces 2.1, SM1h) it is "The
+ * team's goals · {n}", the team's goals with the viewer's own first, and there is no "Your team" below it.
  */
 function YourGoals({ news }: { news?: ReactNode }) {
   const app = useApp();
   const [all, setAll] = useState(false);
-  // Your goals through the query port (AX5), worst first.
-  const mine = useGoalList(useMineAsk(app.viewer.id))?.rows.map((r) => r.goal) ?? [];
-  if (!mine.length) return null;
-  const att = attentionList(app.snapshot, app.cycle, app.today, { goals: mine });
-  const { needs, handled } = splitAttention(att);
-  const rest = mine.filter((g) => !att.some((a) => a.goal.id === g.id));
-  const counts = statusCounts(mine.map((g) => goalStatus(g, app.cycle, app.snapshot.checkIns, app.today).status));
+  const team = theOneTeam(app.snapshot.teams, app.viewer);
+  const own = (g: { ownerId: string }) => g.ownerId === app.viewer.id;
+  // Your goals (or the team's) through the query port (AX5), worst first; the team's with yours first.
+  const listed = useGoalList(useHomeAsk(app.viewer.id, team))?.rows.map((r) => r.goal) ?? [];
+  const goals = team ? ownFirst(listed, own) : listed;
+  if (!goals.length) return null;
+  const scope = team ? 'team' : 'mine';
+  const att = attentionList(app.snapshot, app.cycle, app.today, { goals });
+  const split = splitAttention(att);
+  const needs = team ? ownFirst(split.needs, (a) => own(a.goal)) : split.needs;
+  const handled = team ? ownFirst(split.handled, (a) => own(a.goal)) : split.handled;
+  const rest = goals.filter((g) => !att.some((a) => a.goal.id === g.id));
+  const counts = statusCounts(goals.map((g) => goalStatus(g, app.cycle, app.snapshot.checkIns, app.today).status));
   const shown = all ? rest : rest.slice(0, 5);
+  const title = team ? 'The team’s goals' : 'Your goals';
   return (
-    <section className="block home-mine" data-part="Your goals">
+    <section className="block home-mine" data-part={title}>
       <div className="row between">
-        <h2 className="block-title">Your goals <span className="count-pill">· {mine.length}</span></h2>
-        <Link className="small linkish" to="/goals?scope=mine">See them in Goals</Link>
+        <h2 className="block-title">{title} <span className="count-pill">· {countWords(goals.length)}</span></h2>
+        <Link className="small linkish" to={`/goals?scope=${scope}`}>See them in Goals</Link>
       </div>
       <p className="home-counts">
         {counts.map((c) => (
-          <Link key={c.status} className={'dash-count tone-' + c.status} to={`/goals?scope=mine&status=${c.status}`} aria-label={`${c.n} ${LABEL[c.status].toLowerCase()}: show ${c.n === 1 ? 'it' : 'them'}`}>
+          <Link key={c.status} className={'dash-count tone-' + c.status} to={`/goals?scope=${scope}&status=${c.status}`} aria-label={`${c.n} ${LABEL[c.status].toLowerCase()}: show ${c.n === 1 ? 'it' : 'them'}`}>
             <StatusShape k={c.status} />{c.n} {LABEL[c.status].toLowerCase()}
           </Link>
         ))}
       </p>
       {needs.length > 0 && (
         <div className="home-sub">
-          <Link className="need-group-title linkish" to="/goals?scope=mine&attention=1">{needs.length} need{needs.length === 1 ? 's' : ''} attention</Link>
+          <Link className="need-group-title linkish" to={`/goals?scope=${scope}&attention=1`}>{needs.length} need{needs.length === 1 ? 's' : ''} attention</Link>
           <AttentionList list={needs} />
         </div>
       )}
@@ -196,7 +205,7 @@ function AttentionList({ list }: { list: ReturnType<typeof attentionList> }) {
   return (
     <div className="alist">
       {list.map((a) => (
-        <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id}
+        <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id} who={a.goal.ownerId === app.viewer.id ? undefined : app.person(a.goal.ownerId)?.name ?? undefined}
           action={a.goal.ownerId === app.viewer.id && a.flags.some((f) => f.kind === 'due' || f.kind === 'stale' || f.kind === 'no-path' || f.kind === 'missed-path')
             ? <Link className="btn sm" to={'/check-in/' + a.goal.id}>Check in</Link>
             : undefined} />
@@ -274,6 +283,10 @@ function AdminCard() {
 /** Your goals, as the query port is asked for them: every goal you own. */
 /** Your goals, worst first (as What's new and Help say), then by title. */
 function useMineAsk(viewerId: string) { return useMemo(() => ({ query: { ...EMPTY_QUERY, owner: [viewerId], sort: 'worst' as const } }), [viewerId]); }
+/** Home's first section: your goals, or with one team in the workspace (SM1h) that team's goals. */
+function useHomeAsk(viewerId: string, team: string | null) {
+  return useMemo(() => ({ query: team ? { ...EMPTY_QUERY, team: [team], sort: 'worst' as const } : { ...EMPTY_QUERY, owner: [viewerId], sort: 'worst' as const } }), [viewerId, team]);
+}
 
 /** The week at a glance, its goal counts from the query port (AX5): yours, or every goal when you own none. */
 function useDashboard(): Dashboard {
@@ -307,8 +320,9 @@ export function Home() {
         <aside className="home-side split-side" aria-label="For you"><NeedsYou asks={plan.asks} also={plan.lead?.kind === 'ask'} leadAbout={plan.lead?.about ?? null} />{/* Changed since (part 8, rule 5), loaded with the sets after the first download; it also keeps the day Home was last opened (`home-seen`). */}<Suspense fallback={null}><HomeSet set="changed" /></Suspense><AdminCard /></aside>
         <div className="home-main split-b">
           <YourGoals />
-          {/* Your team (part 7, rule 4): the My team scope, when it holds a goal you don't own; nothing otherwise. Loaded
-              after the first download, as most people are in a team. */}
+          {/* Your team (part 7, rule 4): the My team scope, when it holds a goal you don't own; nothing otherwise, and
+              nothing with one team in the workspace, whose goals are the section above (SM1h). Loaded after the first
+              download, as most people are in a team. */}
           <Suspense fallback={null}><HomeSet set="team" /></Suspense>
           {/* Only while Watching is on (SW1). */}
           {watchingOn(on) && <Suspense fallback={null}><HomeSet set="watching" /></Suspense>}
