@@ -165,8 +165,10 @@ describe('the measure (rule 2) and never a person (rule 4)', () => {
     expect(beforeReviewText(all, true)).toBe('All 17 goals were checked in before it, without anyone asking.');
     const some = habit(goals, 46, rows(goals, [...Array(10).fill('unasked'), ...Array(7).fill('none')]), '2026-11-12', due);
     expect(beforeReviewText(some, true)).toBe('10 of 17 goals were checked in before it, all without being asked.');
-    // Reviews switched off: the due day is a deadline (RS1's words).
-    expect(beforeReviewText(all, true, false)).toBe('All 17 goals were checked in on time, without anyone asking.');
+    // Reviews switched off, or on with no review held that day: the due day is a deadline (RS1's words).
+    expect(beforeReviewText(all, true, dueWords(false, cycle, 46))).toBe('All 17 goals were checked in on time, without anyone asking.');
+    expect(beforeReviewText(all, true, dueWords(true, cycle, 46, false))).toBe('All 17 goals were checked in on time, without anyone asking.');
+    expect(beforeReviewText(all, true, dueWords(true, cycle, 46, true))).toBe('All 17 goals were checked in before it, without anyone asking.');
   });
   it('gives the row of weeks with words', () => {
     const goals = set(4);

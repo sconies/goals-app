@@ -58,6 +58,8 @@ export interface DueWords {
   date: string;
   /** The `due` flag's sentence: "Due by Thu 12 Nov.", with Reviews on or off. */
   flag: string;
+  /** Whether the deadline is a review (Reviews on and one held that day): the words above name it only then. */
+  review: boolean;
 }
 
 const SHORT_MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -86,19 +88,20 @@ export function dueWordsOn(reviewsOn: boolean, iso: string, held = false): DueWo
     day,
     date: `${day} ${d.getUTCDate()} ${SHORT_MONTH[d.getUTCMonth()]}`,
     flag: `Due by ${day.slice(0, 3)} ${d.getUTCDate()} ${SHORT_MONTH[d.getUTCMonth()]}.`,
+    review,
   };
 }
 
 /**
- * The confirmation's sentence, from weekCompletion: all of them in, what's still due, or what isn't due yet. All in, it
- * says when against the deadline in dueWords' words (`clock`): "…checked in for week 46, by Thursday." or "…, after
- * Thursday’s review." With no set rhythm (`cycle` says so) there is no deadline to say, and nothing is still due.
+  * The confirmation's sentence, from weekCompletion: all of them in, what's still due, or what isn't due yet. Once all are
+ * in the check-in shows the receipt instead (receiptText), which says when against the deadline in dueWords' words.
+ * With no set rhythm (`cycle` says so) there is no deadline, and nothing is still due.
  */
-export function weekDoneText(p: WeekProgress, week: number, clock?: { late: boolean; words: DueWords } | null, cycle?: Cycle): string {
+export function weekDoneText(p: WeekProgress, week: number, cycle?: Cycle): string {
   const w = weekCompletion(p);
   // With no set rhythm nothing is owed: say what is in, and no deadline, nothing still due (FT1).
   if (cycle && !rhythmOf(cycle)) return `${w.done} of ${w.total} have a check-in for week ${week}.`;
-  if (w.complete) return `${w.total === 1 ? 'Your goal is' : w.total === 2 ? 'Both your goals are' : `All ${w.total} of your goals are`} checked in for week ${week}${clock ? `, ${clock.late ? clock.words.after : clock.words.by}` : ''}.`;
+  if (w.complete) return `${w.total === 1 ? 'Your goal is' : w.total === 2 ? 'Both your goals are' : `All ${w.total} of your goals are`} checked in for week ${week}.`;
   if (p.due.length) return `${w.done} of ${w.total} checked in for week ${week}. Still due this week: ${p.due.map((g) => g.title).join(', ')}.`;
   const rest = w.total - w.done;
   return `${w.done} of ${w.total} checked in for week ${week}. ${rest === 1 ? 'The other one isn’t' : `The other ${rest} aren’t`} due until next week.`;

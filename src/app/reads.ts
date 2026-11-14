@@ -72,15 +72,23 @@ export const moduleOffWords = (name: string, workspace: string) => `${name} is o
 export const dueWordsHere = (reviews: boolean, s: Pick<Snapshot, 'reviews'>, cycle: Cycle, week: number, personId?: string): DueWords =>
   dueWords(reviews, cycle, week, reviews && heldOnDueDay(s.reviews, cycle, week, personId));
 
-/** Every goal's summary row, with what the Goals filters need beyond it. */
-export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns']): GoalRows {
+/**
+ * Whether the deadline for a set of goals is a review (RS1, Reviews switch spec 2.1): Reviews is on and a review is held
+ * on the due day with one of the goals' owners in it. A team's habit panel says "review" only then; otherwise "by Thursday".
+ */
+export const heldForGoals = (reviews: boolean, s: Pick<Snapshot, 'reviews'>, cycle: Cycle, week: number, goals: readonly Pick<Goal, 'ownerId'>[]): boolean =>
+  reviews && [...new Set(goals.map((g) => g.ownerId))].some((o) => heldOnDueDay(s.reviews, cycle, week, o));
+
+/** Every goal's summary row, with what the Goals filters need beyond it. With `reviews` false (Reviews off) `inreview=`
+    narrows nothing, as a switched-off module's column doesn't (module map F4; build review of #424). */
+export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns'], reviews = true): GoalRows {
   const goals = live(s.goals).filter((g) => !g.stoppedAt);
   // This week's standing (habit rule 1) for `checkedin=`, and a review's goals for `inreview=` (HB2).
   const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
   const rows = { checkIns: s.checkIns, asks: s.requests ?? [] };
   const standing = (g: Goal) => (week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null);
   const inReview = (id: string) => { const r = s.reviews.find((x) => x.id === id && !x.removedAt); return r ? new Set(goalsIn(r.scope, goals).map((g) => g.id)) : null; };
-  return { kind: 'goal', summaries: summariseAll(goals, s, cycle, today, week), ctx: { goals, cycle, week, standing, inReview, ...(columns ? { columns } : {}) } };
+  return { kind: 'goal', summaries: summariseAll(goals, s, cycle, today, week), ctx: { goals, cycle, week, standing, ...(reviews ? { inReview } : {}), ...(columns ? { columns } : {}) } };
 }
 
 export function personRows(s: Snapshot): PersonRows {
@@ -96,10 +104,10 @@ export function teamRows(s: Snapshot): TeamRows {
 }
 
 /** The rows the browser's Search answers from, each made once per workspace as loaded and only when first asked. */
-export function searchRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns']): LocalRows {
+export function searchRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns'], reviews = true): LocalRows {
   const once = <T,>(f: () => T) => { let v: T | undefined; return () => (v ??= f()); };
   // Find and find-and-pick list proposed goals too, each with the word where a status would be (GE10).
-  const goals = () => { const r = goalRows(s, cycle, today, week, columns); return s.proposed?.length ? { ...r, summaries: [...r.summaries, ...s.proposed.map((g) => proposedSummary(g, s, cycle, week))] } : r; };
+  const goals = () => { const r = goalRows(s, cycle, today, week, columns, reviews); return s.proposed?.length ? { ...r, summaries: [...r.summaries, ...s.proposed.map((g) => proposedSummary(g, s, cycle, week))] } : r; };
   return { goal: once(goals), person: once(() => personRows(s)), team: once(() => teamRows(s)) };
 }
 

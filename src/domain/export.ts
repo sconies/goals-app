@@ -210,14 +210,17 @@ function numberFrom(c: CheckIn, g: Goal, who: string, today: Date) {
   return r.from ? { from: r.from, sourceSaid: r.value, measuredAt: r.at, reason: r.reason, says: g.kind === 'milestone' ? null : readingHistoryLine(c, g, who, today, { timeZone: 'UTC' }) } : null;
 }
 
+/** The JSON export. With Reviews off (`reviews` false) it holds no notes, questions or actions said in reviews and names
+    no review, as the workbook has no Notes sheet then (build review of #424). */
 export function toJson(x: ExportInput) {
   const { sums, name, c } = prepare(x, true);
+  const reviews = x.reviews !== false;
   const team = (id: string | null) => x.snapshot.teams.find((t) => t.id === id)?.name ?? null;
   return {
     format: EXPORT_FORMAT,
     version: EXPORT_VERSION,
     exportedAt: x.today.toISOString(),
-    about: `Goals, their status and the owner’s account of it, plans and weekly check-ins. Every state is a code with the words people read beside it: "status" is a code (${STATUS_WORDS.map((k) => withCode(STATUS[k])).join(', ')}) and "statusLabel" its words; "words" defines every code and word. "story" says why a goal is off, what the owner will do and by when; "needsAttention" is the one rule Home, reviews and the AI use. "result" is set once a goal is due. Weeks count from the cycle start (week 0).`,
+    about: `Goals, their status and the owner’s account of it, plans and weekly check-ins. Every state is a code with the words people read beside it: "status" is a code (${STATUS_WORDS.map((k) => withCode(STATUS[k])).join(', ')}) and "statusLabel" its words; "words" defines every code and word. "story" says why a goal is off, what the owner will do and by when; "needsAttention" is the one rule Home, ${reviews ? 'reviews ' : ''}and the AI use. "result" is set once a goal is due. Weeks count from the cycle start (week 0).`,
     words: Object.fromEntries(DEFINED.map((k) => [k, Object.fromEntries(Object.values(GROUPS[k].terms as Record<string, Term>).map((t) => [t.code, { label: t.label, meaning: t.meaning }]))])),
     workspace: { id: x.ws.id, name: x.ws.name },
     cycle: { id: x.cycle.id, name: x.cycle.name, startDate: x.cycle.startDate, weeks: x.cycle.weeks, currentWeek: x.week, ...(isYear(x.cycle) ? { quarter: quarterOf(x.cycle, x.week).label, quarters: quarters(x.cycle).map((q) => ({ label: q.label, months: q.months, from: q.from, to: q.to })) } : {}) },
@@ -257,12 +260,12 @@ export function toJson(x: ExportInput) {
         })),
       };
     }),
-    notes: saidIn(x.snapshot).filter((d) => sums.some((s) => s.goal.id === d.goalId) && ['note', 'ask', 'action'].includes(d.kind)).map((d) => ({
+    ...(reviews ? { notes: saidIn(x.snapshot).filter((d) => sums.some((s) => s.goal.id === d.goalId) && ['note', 'ask', 'action'].includes(d.kind)).map((d) => ({
       goalId: d.goalId, goalKey: sums.find((s) => s.goal.id === d.goalId)?.goal.key ?? null, week: d.week, kind: d.kind === 'ask' ? 'question' : d.kind, by: name(d.byId), text: d.note,
       ...(d.kind === 'action' ? { who: name(d.assigneeId ?? '') || null, dueWeek: d.dueWeek ?? null } : {}),
       ...(d.ask ? { status: d.ask.status, statusLabel: ASK_STATUS[d.ask.status].label, answer: answerOf(d)?.text ?? null } : {}),
       at: d.at,
-    })),
+    })) } : {}),
   };
 }
 
