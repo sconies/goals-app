@@ -3677,7 +3677,7 @@ function decimalsFor(d) {
 	return Math.min(3, Math.max(0, ...typed.map((t) => typedDecimals(t))));
 }
 function planQuestion(before, after) {
-	if (before?.kind !== "metric" || after.kind !== "metric" || !planChanged(before, after)) return null;
+	if (before?.kind !== "metric" || after.kind !== "metric" || before.targetUnset || !planChanged(before, after)) return null;
 	const was = before.plan, now = after.plan;
 	const d = after.decimals, u = after.unit.trim() === "%" ? "%" : after.unit.trim() ? " " + after.unit.trim() : "";
 	const n = (x) => fixed(x, d) + u;
@@ -10763,6 +10763,15 @@ function namedHeaders(t, nearOk, whichOf) {
 	}
 	return out;
 }
+/** A goal built from a draft, laid over the stored goal it changes: the build wins on every key it decides. */
+function builtOver(existing, built) {
+	const out = {
+		...existing,
+		...built
+	};
+	for (const k of BUILT_KEYS) if (!(k in built)) delete out[k];
+	return out;
+}
 function planChanges(input) {
 	const run = planChangesInChunks(input);
 	for (;;) {
@@ -12001,10 +12010,7 @@ function* planChangesInChunks(input) {
 			id: gid,
 			createdAt: existing?.createdAt ?? new Date(Date.parse(now) + i).toISOString()
 		}, existing, started(gid), week);
-		if (existing) built = {
-			...existing,
-			...built
-		};
+		if (existing) built = builtOver(existing, built);
 		if (key) built = {
 			...built,
 			key
@@ -12020,7 +12026,6 @@ function* planChangesInChunks(input) {
 			proposedAt: null,
 			proposedBy: null
 		};
-		if (existing && d.whyHelps === "" && "whyHelps" in built) delete built.whyHelps;
 		if (action) {
 			if (existing && goalChange(existing, built, lookupNow(), actor.id, now, "x")) return raise("cant-change", "Goals", row, existing.title, `A row that says ${GOAL_ACTION_WORDS.word[action]} can’t also change the goal. Make the change, or the ${GOAL_ACTION_WORDS.word[action].toLowerCase()}, on its own.`, { column: "Action" });
 			parentLinks.pop();
@@ -13217,7 +13222,7 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, STOPS, showOf, COVERED_BY_PICK, CORRECTS_VIA, initialsOf, GoalSet;
+var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, STOPS, showOf, BUILT_KEYS, COVERED_BY_PICK, CORRECTS_VIA, initialsOf, GoalSet;
 var init_changeset = __esmMin((() => {
 	init_correctReason();
 	init_actions();
@@ -13373,6 +13378,20 @@ var init_changeset = __esmMin((() => {
 		"person left"
 	]);
 	showOf = (kind) => ADDS.has(kind) ? "added" : STOPS.has(kind) ? "stopped" : "changed";
+	BUILT_KEYS = [
+		"whyHelps",
+		"alsoHelps",
+		"unit",
+		"decimals",
+		"plan",
+		"originalPlan",
+		"rebaselinedWeek",
+		"planHistory",
+		"baseline",
+		"targetUnset",
+		"range",
+		"stages"
+	];
 	COVERED_BY_PICK = [
 		"unknown-ref",
 		"near-ref",
