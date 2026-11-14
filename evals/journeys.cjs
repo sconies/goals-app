@@ -147,6 +147,10 @@ async function pickWeek(scope, label, typed) {
   await field.fill(typed);
   await field.press('Enter');
 }
+/** Awaits a wait, and says which one it was if it times out (14 Nov: U109's three keyboard waits all read "Timeout 30000ms"). */
+async function named(what, wait) {
+  try { return await wait; } catch (e) { throw new Error(`${what}: ${String(e.message || e).split('\n')[0]}`); }
+}
 async function see(p, text, msg, timeout = 5000) {
   // p is a page, or a locator to look inside.
   const all = p.getByText(text, { exact: false });
@@ -157,7 +161,9 @@ async function see(p, text, msg, timeout = 5000) {
     for (let i = 0; i < n; i++) if (await all.nth(i).isVisible().catch(() => false)) return;
     await page.waitForTimeout(100);
   }
-  fail(msg || `expected to see “${text}”`);
+  // What was there instead, so a miss under load says what the screen showed (14 Nov, U159's intermittent miss).
+  const shown = String(await (typeof p.innerText === 'function' ? p.innerText({ timeout: 1000 }) : page.locator('body').innerText({ timeout: 1000 })).catch(() => '')).replace(/\s+/g, ' ').trim().slice(0, 240);
+  fail(`${msg || `expected to see “${text}”`}${shown ? ` [it showed: “${shown}”]` : ''}`);
 }
 
 /** Everything a journey needs: counted interactions, checkpoints and criteria. */
@@ -291,6 +297,11 @@ async function newPage(device, viewer) {
   if (process.env.EVAL_CLOCK) await ctx.clock.setSystemTime(new Date(process.env.EVAL_CLOCK));
   if (viewer) await ctx.addInitScript((v) => { if (!sessionStorage.getItem('viewer-set')) { localStorage.setItem('goals-app-viewer:platform-org', v); sessionStorage.setItem('viewer-set', '1'); } }, viewer);
   const p = await ctx.newPage();
+  // The page's last thirty console lines, of every kind, for the log a failed journey leaves beside its screenshot.
+  p.tail = [];
+  const note = (line) => { p.tail.push(line); if (p.tail.length > 30) p.tail.shift(); };
+  p.on('pageerror', (e) => note(`pageerror ${e.message}`));
+  p.on('console', (m) => note(`${m.type()} ${m.text()}`.slice(0, 400)));
   p.on('pageerror', (e) => consoleErrors.push(`${device} ${p.url()} · ${e.message}`));
   p.on('console', (m) => { if (m.type() === 'error' && !/fonts\.g|net::ERR_|Failed to load resource/.test(m.text())) consoleErrors.push(`${device} ${p.url()} · ${m.text()}`); });
   return p;
@@ -6997,11 +7008,11 @@ journey('U109', ['GOAL-DATES'], 'Dates are picked: as Tunde on the measure step,
   await from.focus();
   await p.keyboard.press('Enter');
   await p.locator('.weekpick.open').getByRole('textbox').waitFor();
-  await p.waitForFunction(() => document.activeElement?.matches('.weekpick.open input'));
+  await named('focus reaches the week box after Enter', p.waitForFunction(() => document.activeElement?.matches('.weekpick.open input')));
   await p.keyboard.press('ArrowDown');
-  await p.waitForFunction(() => document.activeElement?.matches('.weekpick.open [role="listbox"]'));
+  await named('ArrowDown moves focus into the week list', p.waitForFunction(() => document.activeElement?.matches('.weekpick.open [role="listbox"]')));
   for (let i = 0; i < 5; i++) await p.keyboard.press('ArrowUp');
-  await p.waitForFunction(() => document.activeElement?.getAttribute('aria-activedescendant')?.endsWith('w40'));
+  await named('five ArrowUps reach week 40', p.waitForFunction(() => document.activeElement?.getAttribute('aria-activedescendant')?.endsWith('w40')));
   await p.keyboard.press('Enter');
   await p.locator('.weekpick.open').waitFor({ state: 'detached' }).catch(() => {});
   h.set('a11y', /^Week 40 · 28 Sep–4 Oct 2026/.test(await from.innerText()), `the keyboard chose ${await from.innerText()}`);
@@ -8207,7 +8218,11 @@ async function platformChecks() {
         await j.fn(h, device);
       } catch (e) {
         error = String(e.message || e).split('\n')[0];
-        if (h.page) await h.page.screenshot({ path: path.join(OUT, `${j.id}-${device}.png`), fullPage: true }).catch(() => {});
+        if (h.page) {
+          await h.page.screenshot({ path: path.join(OUT, `${j.id}-${device}.png`), fullPage: true }).catch(() => {});
+          // The whole error (Playwright's call log is under its first line) and the page's last console lines.
+          fs.writeFileSync(path.join(OUT, `${j.id}-${device}.log`), [`${j.id} ${device}: ${String(e.message || e)}`, `at ${h.page.url()}`, '', 'Last console lines:', ...(h.page.tail ?? [])].join('\n') + '\n');
+        }
       }
       per[device] = { ok: !error, error, crit: h.crit, notes: h.notes, count: h.count, ms: Date.now() - started };
     }
