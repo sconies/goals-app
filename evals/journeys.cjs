@@ -6193,7 +6193,7 @@ journey('U159', ['READING-PREFILL'], 'A company-wide number never fills in a tea
   h.set('logged', true);
   await p.context().close();
 });
-journey('U160', ['READING-PREFILL', 'READING-RECORDED-ONLY'], 'The one table fills in from sources: as Rhea, Base image build time measured by Pipeline queue wait (p90) for CI/CD · main branch pipelines shows CI runner metrics’ 8 in its cell in the quiet ink, “1 number is from its source; change it if it’s wrong.” under the table and nothing in the rows already checked in this week; changing it to 10 asks why in the row before Post counts it, and posting records 10 with the reading and the reason', 11, async (h, device) => {
+journey('U160', ['READING-PREFILL', 'READING-RECORDED-ONLY'], 'The one table fills in from sources: as Rhea, Base image build time measured by Pipeline queue wait (p90) for CI/CD · main branch pipelines shows CI runner metrics’ 8 in its cell in the quiet ink, “1 number is filled in from its source. Confirm it, or change it: it isn’t posted until you do.” under the table and nothing in the rows already checked in this week; untouched it isn’t counted by Post, “Confirm 8 min” makes it ready; changing it to 10 asks why in the row before Post counts it, and posting records 10 with the reading and the reason', 11, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals/ci-docker/edit'));
   const field = p.locator('.measured-by');
@@ -6209,13 +6209,19 @@ journey('U160', ['READING-PREFILL', 'READING-RECORDED-ONLY'], 'The one table fil
   await p.waitForURL(/\/demo\/goals\/(ci-docker|G-\d+)(\?|$)/);
   h.set('entry', true);
   await p.goto(url('/quick-check-in'));
-  await see(p, '1 number is from its source; change it if it’s wrong.', 'the table does not say a number is from its source');
+  await see(p, '1 number is filled in from its source. Confirm it, or change it: it isn’t posted until you do.', 'the table does not say a number is from its source');
   const row = p.locator('.qrow').filter({ hasText: 'Base image build time' });
   const cell = row.getByRole('textbox').first();
   const quiet = await cell.evaluate((el) => el.classList.contains('qsuggested'));
   const others = await p.locator('.qrow').filter({ hasText: 'Pipeline queue wait (p90)' }).getByRole('textbox').first().inputValue();
   h.set('attention', (await cell.inputValue()) === '8' && quiet && others === '', `the cell says “${await cell.inputValue()}” (quiet ink: ${quiet}); a goal already checked in this week says “${others}”`);
   await h.checkpoint('filled in');
+  // Untouched, the filled-in number isn't posted (Lane, 13 Nov): Post counts nothing until it is confirmed.
+  const before = (await p.locator('.qfoot .btn.primary').innerText()).trim();
+  await see(row, 'From CI runner metrics, read', 'the row does not say where its number came from');
+  await h.click(row.getByRole('button', { name: 'Confirm 8 min' }));
+  await see(p.locator('.qfoot .btn.primary'), 'Post 1 check-in', 'confirming does not make the row ready');
+  h.set('attention', before === 'Post check-ins', `untouched, Post said “${before}”`);
   await h.fill(cell, '10');
   const why = row.getByLabel(/^Why is it different from what CI runner metrics said \(8 min\)\?/);
   await why.waitFor({ timeout: 5000 }).catch(async () => fail(`no reason asked in the row: “${(await row.innerText()).replace(/\s+/g, ' ')}”`));
