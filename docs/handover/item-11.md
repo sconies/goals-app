@@ -22,7 +22,7 @@ Scorecard and every gap: `docs/drill/2026-11-full-drill.md` (PR **#512**, draft,
 | 1 core rules | Pass, 43,373/43,373. 16 gaps, fixed in **#513 (merged, sent to the reviewer)** |
 | 2 core data, change engine | Pass, 205/205 + store contract 13/13, but only by reading the expected rows: inputs and ~45 of 66 sentences are only in the CSVs. 22 gaps; fixer was running on branch `drill-gaps-stage2` (no PR yet) |
 | 3 core screens | Harness pass 145/145; by hand 15 of 71 journeys full, 18 part, 38 not built (journeys are titles only). 31 gaps; **no fixer started** |
-| 4 Feedback | Builder was running |
+| 4 Feedback | Switch criteria verified by the reviewer; requirements and journeys weak. 23 gaps; no fixer started. **Its entry criterion was false**: the kit's core has no switch (4.2) |
 | 5 Goal map | Switch criteria verified; requirements and journeys weak. 22 gaps; no fixer started |
 | 6 Metric library | Builder was running |
 | 7 Reviews, 8 Spreadsheets, 9 Fields (TG1), 10 Watching, 11 Wrap-up | Not started |

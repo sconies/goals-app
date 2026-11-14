@@ -13,7 +13,7 @@ The last proof before the handoff: a fresh session rebuilds Faro stage by stage 
 | 1. The core rules | **Pass**: 43,373 of 43,373 rows | 16 (1.1 to 1.16) | #513 (all 16, merged) |
 | 2. The core data and the change engine | **Pass**: 205 of 205 rows, store contract 13 of 13; stage 1 still passes. Only after reading the expected rows by hand | 22 (2.1 to 2.22) | |
 | 3. The core screens and journeys | **Harness pass**: 145 of 145 rows; stages 1 and 2 still pass. By hand: 15 of 71 core journeys carried out fully, 18 in part, 38 not built; the core requirements not checkable from the kit | 31 (3.1 to 3.31) | |
-| 4. Module: Feedback | Running | | |
+| 4. Module: Feedback | **Switch criteria pass** (3, 4, 5: verified by the reviewer); requirements verified where a server can show them, weak where a browser or MCP server is needed (1); journeys weak (2, titles); stages 1 to 3 still pass | 23 (4.1 to 4.23) | |
 | 5. Module: Goal map | **Switch criteria pass** (3, 4: verified by the reviewer); the requirements and journeys only in part (1, 2: weak, journeys are titles); stages 1 to 3 still pass with it on | 22 (5.1 to 5.22) | |
 | 6. Module: Metric library | Running | | |
 | 7. Module: Reviews | Waiting | | |
@@ -150,4 +150,34 @@ Built as its own folder over the core. With it on, stages 1 to 3 still score 100
 | 5.20 | Workspace → Features is missing from the core | Kit |
 | 5.21 | The stage page's own listed gaps: the source files it names aren't in the kit | Kit |
 | 5.22 | The phone's View sheet isn't built | Not built |
+
+### Stage 4: Feedback
+
+Built as its own folder over the core; stages 1 to 3 still pass with it on, and its own 23 exit tests pass. The reviewer verified criteria 3 to 5 (off: no menu row and no Ctrl+Shift+M; the four addresses give Page not found with "Feedback is switched off in {workspace}. An admin can switch it on in Workspace, Features."; all eight tools refuse; sending gives "Feedback is off in {workspace}." and every record is kept and comes back) and rated 1 and 2 weak where they need a browser, a captured picture, an MCP endpoint or a journey's steps. **Its entry criterion was false:** stage 4 says the core already keeps `Workspace.modulesOff` and refuses a switched-off module's actions and tools (stage 2), but the core rebuilt from the kit has neither, so the module added the switch, the registry and a Features page to the core (as stage 5 did).
+
+| # | Gap | Evidence |
+|---|---|---|
+| 4.1 | Journeys are titles only | Kit |
+| 4.2 | The entry criterion (the core keeps the switch and refuses off actions) isn't built by stages 1 to 3 as the kit describes them | Entry criteria |
+| 4.3 | `workspace.json` has no Workspace record, so it can't say a module is off (as 5.1) | Kit |
+| 4.4 | Four different "switched off" sentences in the spec | Words |
+| 4.5 | What a refused send returns | Words |
+| 4.6 | The "still picture" was built as HTML plus SVG, not a screenshot | Not built |
+| 4.7 | The status rule's refusal words aren't given | Words |
+| 4.8 | Who counts as an admin of the shared inbox | Words |
+| 4.9 | The GitHub repository for issues isn't in the kit | Kit |
+| 4.10 | What's new has no entries for a fix to link to | Kit |
+| 4.11 | Module Help article ids are parsed differently from the core's (as 5.12) | Words |
+| 4.12 | The words after sending plain feedback | Words |
+| 4.13 | `send_feedback` has no page to record | Words |
+| 4.14 | `list_feedback`'s refusals contradict MCP-FEEDBACK | Words |
+| 4.15 | The list tools' data is an empty `{}` | Words |
+| 4.16 | The tool port's words for bad arguments and tokens | Words |
+| 4.17 | What counts as "the same part of a page" when folding | Words |
+| 4.18 | Browser-only behaviour (drawing, keys, layout) isn't checkable | Kit |
+| 4.19 | The Features page's Undo, Activity line and read-back | Not built |
+| 4.20 | No store above workspaces is described (the builders' inbox spans them) | Kit |
+| 4.21 | No record of a visit's errors | Kit |
+| 4.22 | No MCP endpoint or picture check in the core | Kit |
+| 4.23 | The `src`, migrations, `docs` and `evals` files the spec links to aren't in the kit | Kit |
 
