@@ -7517,7 +7517,7 @@ journey('U176', ['TAGS-SHEET', 'BULK-IMPORT', 'IMPORT-LEVELS'], 'A workbook with
   h.set('errors', true);
   await p.context().close();
 });
-journey('U175', ['AI-ACCESS-OPTIONAL', 'FEATURE-GROUPS', 'MODULES'], 'Amara switches AI access off (SW2): it is under Beyond this workspace, and with no token it acts at once; then Workspace has no AI access section, /workspace/ai says it is switched off, Access is the admins only and Settings has no “Your MCP tokens”; switched back on, the section is back after Access', 12, async (h, device) => {
+journey('U175', ['AI-ACCESS-OPTIONAL', 'FEATURE-GROUPS', 'MODULES'], 'Amara switches AI access off (SW2): it is under Beyond this workspace, and with no token it acts at once; then Workspace has no AI access section, /workspace/ai says it is switched off, Access is the admins only, Settings has no “Your MCP tokens” and the inbox’s Connect Claude says it is switched off, with a link to Features; switched back on, the section is back after Access', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   // On: AI access is its own section after Access (SW2), with the tokens; Access names the admins only.
   await p.goto(url('/workspace/ai'));
@@ -7547,6 +7547,14 @@ journey('U175', ['AI-ACCESS-OPTIONAL', 'FEATURE-GROUPS', 'MODULES'], 'Amara swit
   await p.locator('.page').first().waitFor();
   await see(p, 'Settings');
   if (await p.getByRole('heading', { name: /^Your MCP tokens/ }).count()) fail('Settings still has “Your MCP tokens” with AI access off');
+  // The inbox's Connect Claude says it is off, and gives no set-up for a server that refuses every call (review of #504).
+  await p.goto(url('/feedback'));
+  const inbox = p.locator('#inbox');
+  await h.click(inbox.getByRole('button', { name: 'Connect Claude' }).first());
+  const connect = inbox.locator('.connect');
+  await see(connect, 'AI access is switched off in', 'with AI access off, Connect Claude does not say so');
+  if (await connect.getByText(/claude mcp add|Make a token/).count()) fail('with AI access off, Connect Claude still gives the set-up');
+  if (!(await connect.getByRole('link', { name: 'Workspace, Features' }).count())) fail('Connect Claude does not link an admin to Workspace, Features');
   const s = await h.snapshot();
   h.set('logged', s.changes.some((c) => c.entity === 'workspace' && c.actorId === 'amara' && c.summary === 'Switched off AI access'), 'switching AI access off was not logged');
   // Back on: the section is back.
