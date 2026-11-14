@@ -80,6 +80,13 @@ export const STATUS: Record<DisplayStatus, Term<DisplayStatus>> = {
     long: 'Week 0: the goal is set up and its first check-in is due in week 1.',
     rule: 'status#goalStatus',
   }),
+  // Its own status (Lane, 14 Nov): wherever a goal held to no number is shown, it says this, never "No check-in yet".
+  unmeasured: term('unmeasured', {
+    label: 'Not measured yet', short: 'its number isn’t measured yet',
+    meaning: 'Its number isn’t measured yet, so it is held to no number: no status from its plan, nothing late, and no baseline needed.',
+    long: 'The goal is measured by a number nobody collects yet, so it is held to no number until it is: no status from its plan, nothing late or quiet, and no projected year-end number. Once its number is measured, it is held to its plan again. The owner can still call it done.',
+    rule: 'status#goalStatus',
+  }),
   done: term('done', {
     label: 'Done', short: 'finished',
     meaning: 'Finished: the owner has called it done.',
@@ -89,7 +96,7 @@ export const STATUS: Record<DisplayStatus, Term<DisplayStatus>> = {
 };
 
 /** Worst first: the order statuses are counted and listed in. */
-export const STATUS_ORDER: DisplayStatus[] = ['off', 'risk', 'stale', 'none', 'on', 'planned', 'done'];
+export const STATUS_ORDER: DisplayStatus[] = ['off', 'risk', 'stale', 'none', 'unmeasured', 'on', 'planned', 'done'];
 
 /* ---------- what needs attention, and why ---------- */
 
@@ -469,6 +476,7 @@ export const SHAPE_WORDS: Record<DisplayStatus, readonly string[]> = {
   off: [STATUS.off.label, STAGE.off.label, RESULT.missed.label, QUARTER.missed.label],
   stale: [STATUS.stale.label],
   none: [STATUS.none.label],
+  unmeasured: [STATUS.unmeasured.label],
   planned: [STATUS.planned.label, STAGE.planned.label],
   done: [STATUS.done.label],
 };

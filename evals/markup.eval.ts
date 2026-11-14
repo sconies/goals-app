@@ -157,14 +157,15 @@ describe('AI assistant tokens are made only by the database', () => {
     const listed = (await as<Record<string, unknown>>('anon', `select * from okr_token_list('acme')`)).rows;
     expect(listed.some((t) => t.id === 'tok_mateo1') && listed.every((t) => !('token_hash' in t))).toBe(true);
     await expect(as('anon', 'select okr_token_create($1, $2)', ['acme', JSON.stringify({ id: 'tok_mateo2', person_id: 'mateo', name: 'Mine', created_by: 'mateo' })])).rejects.toThrow(/Only admins/);
-    // The MCP server, through okr_token_find, acting as Mateo.
+    // The MCP server, through okr_token_find, acting as Mateo. Built without AI access (SW2) the server stays open, but
+    // list_tokens is that module's, so a core tool stands in.
     let data: Snapshot = buildPlatformOrg(new Date('2026-11-05T12:00:00Z'));
     const deps: Deps = {
       async findToken(hash) { const row = (await as<TokenRow>('anon', 'select * from okr_token_find($1)', [hash])).rows[0]; return row ? { token: { ...tokenFromRow({ ...row, person_id: 'mateo' } as TokenRow) }, workspaceId: 'platform-org' } : null; },
       workspaceName: async () => 'Platform Engineering', load: async () => data, commit: async (_w, c) => { data = applyCommit(data, c); }, touch: async () => undefined,
       now: () => new Date('2026-11-05T12:00:00Z'),
     };
-    const res = await serve(new Request('https://x/api/mcp', { method: 'POST', headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'list_tokens', arguments: {} } }) }), deps);
+    const res = await serve(new Request('https://x/api/mcp', { method: 'POST', headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: isModuleOn(null, 'ai-access') ? 'list_tokens' : 'list_views', arguments: {} } }) }), deps);
     expect(res.status).toBe(200);
     expect((await res.json() as { result: { isError: boolean } }).result.isError).toBe(false);
     // Revoked, it's no longer found.

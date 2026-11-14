@@ -10,7 +10,7 @@ import type { GoalSummary } from './summary';
 import type { Cycle, Goal, GoalKind, Level } from './types';
 import { quarterOf } from './year';
 
-export type QStatus = 'off' | 'risk' | 'stale' | 'on' | 'done' | 'planned' | 'none';
+export type QStatus = 'off' | 'risk' | 'stale' | 'on' | 'done' | 'planned' | 'none' | 'unmeasured';
 /** A reason a goal needs attention (domain/attention.ts's flags), for "Needs attention because …"; or its path to green's date slipped. */
 export type Need = Exclude<FlagKind, 'due'> | 'slipped';
 export type Result = 'completed' | 'late' | 'missed' | 'open';
@@ -63,7 +63,7 @@ export interface GoalQuery {
 
 export const EMPTY_QUERY: GoalQuery = { q: '', status: [], level: [], team: [], owner: [], kind: [], attention: false, needs: [], due: null, quiet: null, quarter: null, result: [], feeds: null, helps: false, sort: null, dir: 1, cols: {}, checkedin: null, inreview: null, moved: null, since: null };
 
-export const STATUS_OPTIONS: [QStatus, string][] = (['off', 'risk', 'stale', 'on', 'done', 'none', 'planned'] as const).map((k) => [k, LABEL[k]]);
+export const STATUS_OPTIONS: [QStatus, string][] = (['off', 'risk', 'stale', 'on', 'done', 'none', 'planned', 'unmeasured'] as const).map((k) => [k, LABEL[k]]);
 /** "Needs attention because …": each flag that makes a goal need attention, in its vocabulary words. */
 export const NEED_OPTIONS: [Need, string][] = [...ATTENTION_FLAGS.filter((k): k is Exclude<FlagKind, 'due'> => k !== 'due').map((k): [Need, string] => [k, FLAG[k].label]), ['slipped', WARNING.slipped.label]];
 /** Links and saved views from before release 2 said these; they still open the same goals. */
