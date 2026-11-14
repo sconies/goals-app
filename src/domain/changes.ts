@@ -14,7 +14,7 @@ export interface Lookup {
 
 const shapeName = { straight: 'Straight line', back: 'Back-loaded', stepped: 'Three steps' } as const;
 
-function goalFields(g: Goal, l: Lookup): Record<string, string> {
+export function goalFields(g: Goal, l: Lookup): Record<string, string> {
   const f: Record<string, string> = {
     Name: g.title,
     // Proposed (GE10): so proposing a goal, or making it active, is a change History shows.
@@ -58,7 +58,7 @@ function goalFields(g: Goal, l: Lookup): Record<string, string> {
   return f;
 }
 
-function checkInFields(c: CheckIn, g: Goal): Record<string, string> {
+export function checkInFields(c: CheckIn, g: Goal): Record<string, string> {
   const f: Record<string, string> = { 'Status call': LABEL[c.status] };
   if (g.kind !== 'milestone') f.Value = c.value == null ? '—' : fmt(c.value, g);
   if (g.kind === 'milestone' && c.stages) {

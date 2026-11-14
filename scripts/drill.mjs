@@ -12,7 +12,8 @@
      The harness runs <command> in the rebuild folder, with two arguments added: the path of a copy of workspace.json
      (in a folder of its own) and the path of a folder to write into (<rebuild folder>/drill-out, emptied first). The command writes the
      stage's files there (stage 1: status.csv, flags.csv, projection.csv, scorecard.csv and checkin.csv), with the columns
-     spec/conformance/README.md lists, and exits 0.
+     spec/conformance/README.md lists, and exits 0. Beside the copy of workspace.json is change-cases.json: stage 2's
+     cases, input only (who loads which rows into which sheet, the answers, what each starts from).
    A folder with no drill.json but the five CSVs in it is scored as it is, without running anything.
    The port contracts (spec/conformance/contracts, its README says it in full): drill.json's "shim" is a command that
    answers one JSON request per line ({ port, op, args }) with one answer per line ({ ok } or { error }); the harness
@@ -355,6 +356,9 @@ async function main(argv) {
     // A copy on its own, so the expected CSV files are not beside the input the rebuild is given.
     const workspace = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'faro-drill-')), 'workspace.json');
     fs.copyFileSync(path.join(expectedDir, 'workspace.json'), workspace);
+    // Stage 2's cases, input only (the rows, who loads them, the answers, what they start from), beside it: a rebuild
+    // reads its cases from here, never from the expected files.
+    if (fs.existsSync(path.join(expectedDir, 'change-cases.json'))) fs.copyFileSync(path.join(expectedDir, 'change-cases.json'), path.join(path.dirname(workspace), 'change-cases.json'));
     const cmd = `${m.run} ${quote(workspace)} ${quote(outDir)}`;
     say(`Running in ${target}:\n  ${cmd}`);
     const t0 = Date.now();
