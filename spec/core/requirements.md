@@ -1111,7 +1111,7 @@ Someone in or leading a team sees that team on Home as the Goals page's My team 
 - **Copy:** build it as Faro does.
 - **Rule:** [Home: your goals, your team and what you watch](rules/home-sets.md)
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
-- **Journeys and checks:** U123, U124
+- **Journeys and checks:** F25, U123, U124
 
 ### HOME-OWNER
 
@@ -1121,7 +1121,7 @@ Home opens on what is asked of you today, with one primary action, or says that 
 - **Rule:** [Home: what is asked of you today](rules/home.md)
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Tests:** `evals/attention.eval.ts` (5)
-- **Journeys and checks:** N3, N10, N26, U101, U103, U122
+- **Journeys and checks:** F25, N3, N10, N26, U101, U103, U122
 
 ## Interface
 

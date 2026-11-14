@@ -2,6 +2,8 @@
    first, the second person included. Pure: what a person has done is passed in as `facts`, kept per person and
    workspace behind the Prefs port (src/ports/prefs.ts). */
 import type { Change, Goal, Person } from './types';
+import { isEmail, normalEmail } from './people';
+import { nameProblem } from './thresholds';
 
 /** Set-up's steps, by their address under /workspace/new/ (set-up spec rule S1, small workspaces rule 3). */
 export type SetupStep = 'workspace' | 'people' | 'goals' | 'check';
@@ -23,12 +25,22 @@ export const startOf = (choice: string | undefined): SetupStart => (choice === '
 export interface SetupAnswers { name: string; me: { name: string; email: string; team: string }; start: string | undefined; goals: number; file: boolean }
 
 /**
- * Rule S1. The first step whose required answers are missing: `workspace` (a name, and you), else `goals` (no goal
+ * Whether step 1's answers would be refused by its own Continue: the workspace's name by the names rule (`nameProblem`),
+ * your name, a real email and your team. `firstUnfilled` asks the same, so a step reached any other way (the browser's
+ * Forward, a typed address) can't carry a refused answer through to Create (build review of #475).
+ */
+export function workspaceStepProblem(a: Pick<SetupAnswers, 'name' | 'me'>): boolean {
+  return !!nameProblem(a.name, 'workspace') || !a.me.name.trim() || !isEmail(normalEmail(a.me.email)) || !a.me.team.trim();
+}
+
+/**
+ * Rule S1. The first step whose required answers are missing or refused: `workspace` (a name the names rule takes, and
+ * you, with a real email: `workspaceStepProblem`), else `goals` (no goal
  * added, or "Import a spreadsheet" with no file read; "Later" needs nothing), else null. A later step's address opened
  * before then goes to it.
  */
 export function firstUnfilled(a: SetupAnswers): SetupStep | null {
-  if (!a.name.trim() || !a.me.name.trim() || !a.me.email.trim() || !a.me.team.trim()) return 'workspace';
+  if (workspaceStepProblem(a)) return 'workspace';
   const start = startOf(a.start);
   if ((start === 'own' && !a.goals) || (start === 'file' && !a.file)) return 'goals';
   return null;
