@@ -192,7 +192,26 @@ function harness(device) {
         set('a11y', !small.length, `${label}: primary button under 44px (${small.map((x) => x.text + ' ' + Math.round(x.h)).join(', ')})`);
       }
       // Let entrance motion finish first (the goal page's story runs up to 4s): an element caught mid-fade isn't its real contrast.
-      await p.evaluate(() => Promise.race([Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))), new Promise((res) => setTimeout(res, 5000))]));
+      // Motion that starts while waiting counts too: a list's new rows fade in when they arrive (motion.ts), and content
+      // loaded after the first download (Home's sets) arrives late, so wait until two frames pass with nothing running.
+      await p.evaluate(() => new Promise((res) => {
+        // First the page itself settles: nothing added or changed for 150 ms (at most 2 s), so a section loaded after the
+        // first download is on the page before its motion is waited for.
+        let t; const done = () => { mo.disconnect(); res(); };
+        const mo = new MutationObserver(() => { clearTimeout(t); t = setTimeout(done, 150); });
+        mo.observe(document.body, { childList: true, subtree: true, characterData: true });
+        t = setTimeout(done, 150); setTimeout(done, 2000);
+      }));
+      await p.evaluate(async () => {
+        const end = Date.now() + 5000;
+        const moving = () => document.getAnimations().filter((a) => (a.playState === 'running' || a.playState === 'pending') && a.effect?.getTiming().iterations !== Infinity);
+        const frames = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+        while (Date.now() < end) {
+          const running = moving();
+          if (!running.length) { await frames(); if (!moving().length) return; continue; }
+          await Promise.race([Promise.all(running.map((a) => a.finished.catch(() => {}))), new Promise((res) => setTimeout(res, Math.max(0, end - Date.now())))]);
+        }
+      });
       await p.addScriptTag({ content: AXE });
       const v = await p.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations
         .filter((x) => x.impact === 'serious' || x.impact === 'critical').map((x) => {
