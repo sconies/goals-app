@@ -251,15 +251,18 @@ describe('AI assistants can do what the person can', () => {
     expect((await amara.call('list_views')).data!.views.map((x: { name: string }) => x.name)).toContain('Off track');
     await mateo.call('delete_view', { view_id: v.data!.id }).catch(() => undefined);
 
-    expect((await mateo.call('create_token', { person: 'Rhea', name: 'Her laptop' })).text).toMatch(/Only admins/);
-    const made = await amara.call('create_token', { person: 'Rhea', name: 'Claude on Rhea’s laptop' });
-    expect(made.data!.token).toMatch(/^gk_/);
-    const tok = amara.data().tokens!.find((t) => t.name === 'Claude on Rhea’s laptop')!;
-    expect(tok.tokenHash).toBe(await hashToken(made.data!.token));
-    // Only his own: the 'Claude on my laptop' token in the story and this one; not Lucia's, nor the one just made for Rhea.
-    expect((await mateo.call('list_tokens')).data!.tokens.map((t: { person: string }) => t.person)).toEqual(['Mateo Fernández', 'Mateo Fernández']);
-    await amara.call('revoke_token', { token_id: tok.id });
-    expect(amara.data().tokens!.find((t) => t.id === tok.id)!.revokedAt).not.toBeNull();
+    // The token tools are AI access's (SW2): built without it, they aren't there; the server stays open for the rest.
+    if (isModuleOn(null, 'ai-access')) {
+      expect((await mateo.call('create_token', { person: 'Rhea', name: 'Her laptop' })).text).toMatch(/Only admins/);
+      const made = await amara.call('create_token', { person: 'Rhea', name: 'Claude on Rhea’s laptop' });
+      expect(made.data!.token).toMatch(/^gk_/);
+      const tok = amara.data().tokens!.find((t) => t.name === 'Claude on Rhea’s laptop')!;
+      expect(tok.tokenHash).toBe(await hashToken(made.data!.token));
+      // Only his own: the 'Claude on my laptop' token in the story and this one; not Lucia's, nor the one just made for Rhea.
+      expect((await mateo.call('list_tokens')).data!.tokens.map((t: { person: string }) => t.person)).toEqual(['Mateo Fernández', 'Mateo Fernández']);
+      await amara.call('revoke_token', { token_id: tok.id });
+      expect(amara.data().tokens!.find((t) => t.id === tok.id)!.revokedAt).not.toBeNull();
+    }
 
     if (isModuleOn(null, 'feedback')) {
       await mateo.call('send_feedback', { mood: 'good', text: 'Posting from my assistant works.' });
