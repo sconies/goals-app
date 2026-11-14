@@ -86,9 +86,13 @@ const RULES = [
   [/^scripts\//, []],
 ];
 
-/** What a set of changed files touches: { full, ids, unmatched }. ids: journey ids (U…) and check ids (F…, N…, P…). */
+/** What a set of changed files touches: { full, ids, unmatched, score }. ids: journey ids (U…) and check ids (F…, N…,
+    P…). score: how directly the files name each id, for PR CI's cap (capJourneys): every rule a file matches gives each
+    id it lists 1 ÷ how many ids it lists, so a file whose rule names one journey counts for that journey more than a
+    file whose rule names twenty. */
 function touches(files) {
   const ids = new Set();
+  const score = new Map();
   const unmatched = [];
   let full = false;
   for (const f of files) {
@@ -97,11 +101,31 @@ function touches(files) {
       const m = re.exec(f);
       if (!m) continue;
       hit = true;
-      for (const id of typeof what === 'function' ? what(m) : what) { if (id === FULL) full = true; else ids.add(id); }
+      const named = (typeof what === 'function' ? what(m) : what).filter((id) => id !== FULL);
+      if ((typeof what === 'function' ? what(m) : what).includes(FULL)) full = true;
+      for (const id of named) { ids.add(id); score.set(id, (score.get(id) ?? 0) + 1 / named.length); }
     }
     if (!hit) { if (/^(src|evals|server|api)\//.test(f)) { full = true; unmatched.push(f); } }
   }
-  return { full, ids: [...ids].sort((a, b) => a.localeCompare(b, 'en', { numeric: true })), unmatched };
+  return { full, ids: [...ids].sort((a, b) => a.localeCompare(b, 'en', { numeric: true })), unmatched, score };
 }
 
-module.exports = { touches, RULES };
+/** PR CI's cap (Lane, 14 Nov): at most this many journeys beyond the core ones; the rest wait for the full suite that
+    runs after the merge, so a PR touching many files still finishes inside the job's 30 minutes. */
+const PR_JOURNEY_CAP = 25;
+
+/**
+ * The journeys a pull request's CI runs: every core journey, then of the others the `cap` the changed files name most
+ * directly (touches' score; ties by id, lowest first). Returns { run, left } in id order, `left` the ones the full suite
+ * after the merge covers. Checks aren't capped.
+ */
+function capJourneys(journeys, core, score, cap = PR_JOURNEY_CAP) {
+  const byId = (a, b) => a.localeCompare(b, 'en', { numeric: true });
+  const rest = journeys.filter((id) => !core.includes(id));
+  if (rest.length <= cap) return { run: [...journeys], left: [] };
+  const ranked = [...rest].sort((a, b) => (score.get(b) ?? 0) - (score.get(a) ?? 0) || byId(a, b));
+  const kept = new Set([...ranked.slice(0, cap), ...journeys.filter((id) => core.includes(id))]);
+  return { run: journeys.filter((id) => kept.has(id)), left: rest.filter((id) => !kept.has(id)).sort(byId) };
+}
+
+module.exports = { touches, capJourneys, PR_JOURNEY_CAP, RULES };

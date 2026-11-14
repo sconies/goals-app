@@ -3207,8 +3207,14 @@ function sessionDate(r, cycle, week) {
 * dueWords then says "before Thursday’s review"; otherwise "by Thursday".
 */
 function heldOnDueDay(reviews, cycle, week, personId) {
+	return reviews.some((r) => !r.removedAt && !r.endedAt && (personId == null || r.people.includes(personId)) && sessionOnDueDay(r, cycle, week));
+}
+/** Whether this review has a session in `week` on the day check-ins are due: on the due weekday is not enough, as a
+fortnightly, monthly or quarterly review has weeks with no session (review of #432). Its page and get_review say
+"Before this review" only then. */
+function sessionOnDueDay(r, cycle, week) {
 	const w = Math.max(1, week);
-	return reviews.some((r) => !r.removedAt && !r.endedAt && r.weekday === cycle.reviewDay && (personId == null || r.people.includes(personId)) && sessionWeek(r, w, r.createdAt ? cycle : void 0) === w);
+	return r.weekday === cycle.reviewDay && sessionWeek(r, w, r.createdAt ? cycle : void 0) === w;
 }
 /**
 * What a session still has to do: goals to discuss one at a time, and goals on track to cover together. Discuss keeps
@@ -18666,6 +18672,7 @@ var help$3 = [{
 			list: [
 				"At the top of a review’s page: how many of its goals were checked in before it, and how many of those without being asked (an ask for an update is the only nudge). Before the review’s day it says how many are in so far.",
 				"Under it, “came in after an ask” and “have no check-in yet” each open exactly those goals on Goals, worst first. Then the last 8 weeks, one square each: All in, how many came after, None in, or Nothing due.",
+				"It is headed “Before this review” only in a week the review is held on the day check-ins are due. A review held on another day, or a fortnightly, monthly or quarterly one in a week it isn’t held, shows the week and its due date instead (“Week 46, due by Thursday 12 Nov”) and counts check-ins on time.",
 				"It counts weeks and goals, never people: nobody is named in it, and a set of goals with fewer than three owners doesn’t show it."
 			]
 		},
@@ -20401,7 +20408,7 @@ var CORE_ARTICLES = [
 					"Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.",
 					"In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet. Only people in the review, or an admin, can propose one there.",
 					"On a goal’s page, What feeds it lists any goals proposed to feed it under “Proposed” with how many, with no status and counted in nothing; a goal that feeds a proposed goal says “· Proposed” after its name. When the next year starts, proposed goals carry as proposed, counted apart on the start page.",
-					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).",
+					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. Both are remembered for you, not for the device: open a goal on your phone and it no longer asks on your laptop. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).",
 					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. With the filter on, the Board is one column, Proposed, and the Map draws each in its tree with a dashed outline and the word, the goals above it shown for context; opening one goes to its page. Find lists them with the word Proposed.",
 					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active, and make_goal_proposed makes an active one proposed again. A file or an assistant adding goals for other people with no State is asked once whether they start active or proposed (an admin’s file and set-up aren’t asked). A goal with check-ins can’t go back to proposed: stop it instead."
 				]
@@ -21561,6 +21568,13 @@ var WHATS_NEW = [
 			"Goals you watch, or your teams’ goals, that are more than twelve goals across teams are shown as teams, worst first, each count opening exactly those goals."
 		],
 		articles: ["home"]
+	},
+	{
+		id: "proposals-follow-you",
+		date: "2026-11-14",
+		title: "Proposed goals remember you, not the device",
+		points: ["Open a goal proposed for you on your phone and Home stops asking about it on your laptop too.", "Not yet on a goal that has waited 8 weeks puts it off everywhere you use Faro."],
+		articles: ["goal-proposed"]
 	},
 	{
 		id: "menu-shows-what-you-use",
@@ -26907,6 +26921,12 @@ function beforeReview(goals, week, rows, cycle, today, viewerId, held = true) {
 		weeks: habitWeeks(goals, past ? week : week - 1, rows, (w) => reviewDate(cycle, w), isDue)
 	};
 }
+/** The Before this review panel's heading on a review's page and in get_review (review of #432): "Before this review"
+only for a session held on the due day in that week (`onDueDay`, review.ts sessionOnDueDay); otherwise the week and
+its due date, as no review is held before the deadline. */
+function beforeReviewHeading(onDueDay, cycle, week) {
+	return onDueDay ? "Before this review" : `Week ${week}, due by ${dueWords$1(false, cycle, week).date}`;
+}
 // src/modules/reviews/tools.ts
 init_actions();
 init_removal();
@@ -27000,11 +27020,15 @@ var tools$3 = [
 					answer: answerOf(d)?.text ?? null
 				} : {}
 			}));
-			const b = beforeReview(x.items.map((i) => i.goal), Math.min(x.week, ctx.week), {
+			const wk = Math.min(x.week, ctx.week);
+			const onDueDay = sessionOnDueDay(r, ctx.cycle, wk);
+			const heading = beforeReviewHeading(onDueDay, ctx.cycle, wk);
+			const b = beforeReview(x.items.map((i) => i.goal), wk, {
 				checkIns: ctx.snapshot.checkIns,
 				asks: ctx.snapshot.requests ?? []
-			}, ctx.cycle, ctx.today, ctx.actor.id, r.weekday === ctx.cycle.reviewDay);
+			}, ctx.cycle, ctx.today, ctx.actor.id, onDueDay);
 			const before = b ? {
+				heading,
 				says: b.says,
 				due: b.counts.due,
 				inTime: b.counts.inTime,
@@ -27032,7 +27056,7 @@ var tools$3 = [
 			};
 			return {
 				data,
-				text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.${before ? ` Before this review: ${before.says} Last ${before.lastWeeks.length} weeks: ${before.lastWeeks.map((w) => `week ${w.week} ${w.says.toLowerCase()}`).join(", ")}.` : ""}\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${said(g.status)}.${g.beingHandled ? ` ${ATTENTION.handled.label}: ${g.beingHandled}.` : ""} ${g.why.join(" ")}`), "- nothing")}\nNothing flagged: ${data.healthy.map((g) => g.title).join(", ") || "none"}.`
+				text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.${before ? ` ${heading}: ${before.says} Last ${before.lastWeeks.length} weeks: ${before.lastWeeks.map((w) => `week ${w.week} ${w.says.toLowerCase()}`).join(", ")}.` : ""}\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${said(g.status)}.${g.beingHandled ? ` ${ATTENTION.handled.label}: ${g.beingHandled}.` : ""} ${g.why.join(" ")}`), "- nothing")}\nNothing flagged: ${data.healthy.map((g) => g.title).join(", ") || "none"}.`
 			};
 		}
 	},
@@ -51781,6 +51805,27 @@ var SupabaseStore = class {
 	async deleteWorkspace(ws) {
 		if (ws === EXAMPLE.id) throw new Error("The example can’t be deleted.");
 		await this.rpc("okr_delete_workspace", { ws }, "Deleting the workspace");
+	}
+	/** Every person's server-kept Prefs in a workspace (faro.person_prefs, migration 0053). */
+	async personPrefs(ws) {
+		const { data, error } = await this.db.from("person_prefs").select("person_id, key, value").eq("workspace_id", ws);
+		if (error) throw new Error(`person_prefs: ${error.message}`);
+		return (data ?? []).map((r) => ({
+			personId: r.person_id,
+			key: r.key,
+			value: r.value
+		}));
+	}
+	/** Keeps one, replacing the person's value for that key. */
+	async keepPersonPref(ws, p) {
+		const { error } = await this.db.from("person_prefs").upsert({
+			workspace_id: ws,
+			person_id: p.personId,
+			key: p.key,
+			value: p.value,
+			updated_at: (/* @__PURE__ */ new Date()).toISOString()
+		});
+		if (error) throw new Error(`person_prefs: ${error.message}`);
 	}
 };
 // src/adapters/supabase/markups.ts
