@@ -88,6 +88,8 @@ function leftOutChecks() {
   return { modules: [...left], ids: new Set(all.filter((m) => left.has(m.id)).flatMap((m) => m.journeys || [])) };
 }
 const LEFT_OUT = leftOutChecks();
+/** With no set rhythm (FARO_DEMO_RHYTHM=0, FT1), the journeys that are about what's due leave the run: touches.cjs's `rhythm`. */
+const NO_RHYTHM = process.env.FARO_DEMO_RHYTHM === '0' ? new Set(require('./touches.cjs').rhythm) : new Set();
 
 /* ---------------- build, serve, run ---------------- */
 
@@ -97,8 +99,13 @@ const EXAMPLE_AT = '2026-11-05T12:00:00.000Z';
 
 function build({ down }) {
   console.log(`\n▸ Building the app${down ? ', and a copy whose database never answers' : ''}`);
+  // FARO_DEMO_RHYTHM=0 (FT1): the example with no set check-in rhythm, for CI's "Core journeys with no rhythm".
   // FARO_MODULES_OFF: the example workspace starts with these modules switched off (src/data/examples.ts).
-  const saved = { VITE_EXAMPLE_SNAPSHOT: EXAMPLE_AT, ...(MODULES_OFF.length ? { VITE_EXAMPLE_MODULES_OFF: MODULES_OFF.join(',') } : {}) };
+  const saved = {
+    VITE_EXAMPLE_SNAPSHOT: EXAMPLE_AT,
+    ...(process.env.FARO_DEMO_RHYTHM ? { VITE_DEMO_RHYTHM: process.env.FARO_DEMO_RHYTHM } : {}),
+    ...(MODULES_OFF.length ? { VITE_EXAMPLE_MODULES_OFF: MODULES_OFF.join(',') } : {}),
+  };
   if (sh('npx', ['vite', 'build', '--logLevel', 'error'], saved).status !== 0) process.exit(2);
   // The copy talks to a local server that accepts connections and never answers: a dead database that
   // behaves the same on every machine (an unroutable address fails fast behind some proxies and hangs on others).
@@ -303,6 +310,10 @@ if (changed) {
   }
 }
 
+if (quick && NO_RHYTHM.size) {
+  console.log(`▸ With no set rhythm: leaving out ${[...quick.journeys, ...quick.checks].filter((id) => NO_RHYTHM.has(id)).join(' ') || 'nothing of this run'}`);
+  quick = { ...quick, name: `${quick.name} with no rhythm`, journeys: quick.journeys.filter((id) => !NO_RHYTHM.has(id)), checks: quick.checks.filter((id) => !NO_RHYTHM.has(id)) };
+}
 if (quick && LEFT_OUT.modules.length) {
   const skipped = [...quick.journeys, ...quick.checks].filter((id) => LEFT_OUT.ids.has(id));
   const how = MODULES_OFF.length && !process.env.FARO_WITHOUT ? 'with every module switched off' : `without ${LEFT_OUT.modules.join(', ')}`;

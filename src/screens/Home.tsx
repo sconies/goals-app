@@ -26,6 +26,8 @@ import { periodWord } from '../domain/year';
 import { LABEL } from '../domain/vocabulary';
 import { statusCounts } from '../domain/order';
 import { goalStatus } from '../domain/status';
+import { rhythmOf } from '../domain/thresholds';
+import type { Goal } from '../domain/types';
 import type { AskKind } from '../domain/types';
 import { AttentionCard, Avatar, ProgressRing, StatusShape, WarnMark } from '../ui/bits';
 import { GoalRow } from '../ui/goalRows';
@@ -69,6 +71,15 @@ function LeadOrQuiet({ plan }: { plan: HomePlan }) {
   );
 }
 
+/** With no set rhythm (FT1): whether a goal of yours gets an ordinary "Check in" button on Home: live, and no check-in
+    for this week yet. Null with a rhythm (then the button is there while one is due). */
+function useCheckInHere(): ((g: Goal) => boolean) | null {
+  const app = useApp();
+  if (rhythmOf(app.cycle)) return null;
+  return (g) => g.ownerId === app.viewer.id && !g.stoppedAt && !g.proposedAt && app.statusOf(g).status !== 'done'
+    && !app.snapshot.checkIns.some((c) => c.goalId === g.id && c.week === app.week && !c.removedAt);
+}
+
 /**
  * Your goals (section 2.1, part 6): counted once, here. Each status's count opens exactly those goals; then what needs
  * attention, what's being handled (folded) and the rest, five at a time. A row is a link to its goal; its one button
@@ -78,6 +89,7 @@ function LeadOrQuiet({ plan }: { plan: HomePlan }) {
 function YourGoals({ news }: { news?: ReactNode }) {
   const app = useApp();
   const [all, setAll] = useState(false);
+  const checkInHere = useCheckInHere();
   const team = theOneTeam(app.snapshot.teams, app.viewer);
   const own = (g: { ownerId: string }) => g.ownerId === app.viewer.id;
   // Your goals (or the team's) through the query port (AX5), worst first; the team's with yours first.
@@ -117,7 +129,10 @@ function YourGoals({ news }: { news?: ReactNode }) {
       <HandledGroup list={handled} folded />
       {rest.length > 0 && (
         <div className="home-sub">
-          <div className="glist">{shown.map((g) => <GoalRow key={g.id} g={g} density="line" />)}</div>
+          <div className="glist">{shown.map((g) => checkInHere?.(g)
+            // No set rhythm: every live goal without a check-in this week has its own button (an ordinary one, nothing due).
+            ? <div key={g.id} className="gline-with"><GoalRow g={g} density="line" /><Link className="btn sm" to={'/check-in/' + g.id}>Check in</Link></div>
+            : <GoalRow key={g.id} g={g} density="line" />)}</div>
           {rest.length > shown.length && <button type="button" className="linkish small" onClick={() => setAll(true)}>Show the {rest.length - shown.length} with nothing flagged</button>}
         </div>
       )}
@@ -202,11 +217,12 @@ function NeedsYou({ asks, also, leadAbout }: { asks: Waiting[]; also: boolean; l
 /** Your goals that need attention: each row is a link to its goal, with "Check in" when that's what it needs (never "Open"). */
 function AttentionList({ list }: { list: ReturnType<typeof attentionList> }) {
   const app = useApp();
+  const checkInHere = useCheckInHere();
   return (
     <div className="alist">
       {list.map((a) => (
         <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id} who={a.goal.ownerId === app.viewer.id ? undefined : app.person(a.goal.ownerId)?.name ?? undefined}
-          action={a.goal.ownerId === app.viewer.id && a.flags.some((f) => f.kind === 'due' || f.kind === 'stale' || f.kind === 'no-path' || f.kind === 'missed-path')
+          action={a.goal.ownerId === app.viewer.id && (a.flags.some((f) => f.kind === 'due' || f.kind === 'stale' || f.kind === 'no-path' || f.kind === 'missed-path') || !!checkInHere?.(a.goal))
             ? <Link className="btn sm" to={'/check-in/' + a.goal.id}>Check in</Link>
             : undefined} />
       ))}
@@ -355,7 +371,7 @@ function GettingStarted() {
   }, [facts, app.ws.kind, app.today]); // eslint-disable-line react-hooks/exhaustive-deps
   const save = (p: Partial<DayOneFacts>) => { const next = { ...facts, ...p }; prefs.set(...key, next); setFacts(next); };
   const watching = watchingOn(useModules().on);
-  const rows = gettingStarted(app.viewer.id, { ...dayOneRows(app.snapshot), ended: hasEnded(app.cycle, app.today), watching }, { name: workspaceName(app.ws, app.mode).name, kind: app.ws.kind, createdAt: app.ws.createdAt }, facts, app.today, WEEKDAY[app.cycle.reviewDay] ?? 'the review');
+  const rows = gettingStarted(app.viewer.id, { ...dayOneRows(app.snapshot), ended: hasEnded(app.cycle, app.today), watching }, { name: workspaceName(app.ws, app.mode).name, kind: app.ws.kind, createdAt: app.ws.createdAt }, facts, app.today, rhythmOf(app.cycle) ? WEEKDAY[app.cycle.reviewDay] ?? 'the review' : null);
   if (!rows.length) return null;
   const invite = inviteLink(location.origin, app.mode, app.ws.id);
   return (

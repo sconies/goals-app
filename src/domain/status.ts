@@ -1,7 +1,7 @@
 /* The status rules. Pure functions: same inputs, same answer, on every screen. */
 import { daysSince, currentWeek, weekDate, goalAsOf, hasEnded, planAt, projectionFor, type Point, type Projection, planEnd } from './plan';
 import type { CheckIn, Cycle, DisplayStatus, Goal, MetricGoal, MilestoneGoal, RangeGoal, StageUpdate, Status } from './types';
-import { RULES } from './thresholds';
+import { RULES, rhythmOf, staleAfterDays } from './thresholds';
 import { rangeNear, rangeOut } from './range';
 import { isUnmeasured } from './unmeasured';
 import { LABEL, STATUS_ORDER } from './vocabulary';
@@ -197,6 +197,9 @@ export interface GoalStatus {
   greener: boolean;
   daysSinceCheckIn: number | null;
   week: number;
+  /** The latest check-in's week when it isn't this week's, else null (FT1). Worked out whatever the rhythm; screens say
+      "as of week {n}" only with no set rhythm (with one, No recent update does that job). */
+  asOfWeek: number | null;
   /** Held to no number (domain/unmeasured): its status says nothing about its plan, and nothing on it is late. */
   unmeasured?: boolean;
 }
@@ -208,7 +211,7 @@ export function goalStatus(goal: Goal, cycle: Cycle, checkIns: CheckIn[], today:
   const days = latest ? daysSince(latest.postedAt, today) : null;
   // Held to no number (MS; domain/unmeasured): its own status, Not measured yet, wherever it is shown (Lane, 14 Nov),
   // with nothing late or quiet and no projection, until it is measured. Only the owner calling it done counts.
-  if (isUnmeasured(goal)) return { status: latest?.status === 'done' ? 'done' : 'unmeasured', calc: 'none', latest, greener: false, daysSinceCheckIn: days, week, unmeasured: true };
+  if (isUnmeasured(goal)) return { status: latest?.status === 'done' ? 'done' : 'unmeasured', calc: 'none', latest, greener: false, daysSinceCheckIn: days, week, asOfWeek: latest && latest.week !== week ? latest.week : null, unmeasured: true };
   const calc = assessPosted(goal, cycle, checkIns, week).calc;
   const quiet = daysWithoutUpdate(goal, cycle, latest, today);
   let status: DisplayStatus;
@@ -216,10 +219,14 @@ export function goalStatus(goal: Goal, cycle: Cycle, checkIns: CheckIn[], today:
   else if (week === 0) status = 'planned';
   // Once the cycle's last day is past nothing in it is out of date: a goal keeps the last status given (cycle-end rule 2).
   else if (hasEnded(cycle, today)) status = latest ? latest.status : 'none';
-  else if (quiet < RULES.staleDays) status = latest ? latest.status : 'none';
-  else status = 'stale';
+  else {
+    // With no set rhythm nothing goes quiet: a goal is what it last said (FT1).
+    const after = staleAfterDays(cycle);
+    status = after == null || quiet < after ? (latest ? latest.status : 'none') : 'stale';
+  }
   const greener = latest != null && RANK[latest.status] < RANK[latest.calculated];
-  return { status, calc, latest, greener, daysSinceCheckIn: days, week };
+  const asOfWeek = latest && latest.week !== week ? latest.week : null;
+  return { status, calc, latest, greener, daysSinceCheckIn: days, week, asOfWeek };
 }
 
 /**
@@ -237,14 +244,17 @@ export const projects = (goal: Goal, status: DisplayStatus) => status !== 'stale
 
 /**
  * Days since a goal's latest check-in was posted, or, with none, since it began (the cycle's start, or when it was
- * added if later). The one rule for "no recent update": stale at RULES.staleDays, and the Goals filter "No update for
- * N weeks" counts the same days in weeks.
+ * added if later), and never from before the present check-in rhythm began (`rhythmFrom`, FT1). The one rule for "no
+ * recent update": stale at staleAfterDays(cycle), and the Goals filter "Last check-in N weeks ago or more" counts the
+ * same days in weeks.
  */
 export function daysWithoutUpdate(goal: Goal, cycle: Cycle, latest: CheckIn | null, today: Date): number {
-  if (latest) return daysSince(latest.postedAt, today);
+  // Nothing is late for a time before the present rhythm began (FT1): a rhythm switched on today counts from today.
+  const rhythm = cycle.rhythmFrom ? rhythmOf(cycle)?.from ?? '' : '';
+  if (latest) return daysSince(rhythm > latest.postedAt.slice(0, 10) ? rhythm : latest.postedAt, today);
   // A plan that starts later (its From still to come, goal entry rule 13) begins then: nothing is late before it.
   const from = goal.kind === 'metric' && (goal.plan.fromWeek ?? 0) > 0 ? weekDate(cycle, goal.plan.fromWeek!) : '';
-  const began = [cycle.startDate, goal.createdAt ? goal.createdAt.slice(0, 10) : '', from].reduce((a, b) => (b > a ? b : a));
+  const began = [cycle.startDate, goal.createdAt ? goal.createdAt.slice(0, 10) : '', from, rhythm].reduce((a, b) => (b > a ? b : a));
   return daysSince(began, today);
 }
 
@@ -260,3 +270,4 @@ export function worst(statuses: DisplayStatus[]): DisplayStatus {
   if (r === 1) return 'on';
   return STATUS_ORDER.find((k) => RANK[k] === r && statuses.includes(k)) ?? statuses[0]!;
 }
+

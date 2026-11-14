@@ -272,7 +272,7 @@ export function describeQuery(q: GoalQuery, names: QueryNames): { key: string; t
   if (q.kind.length) out.push({ key: 'kind', text: q.kind.map((k) => label(KIND_OPTIONS, k)).join(' or ') });
   if (q.attention || q.needs.length) out.push({ key: 'needs', text: ATTENTION.needs.label + (q.needs.length ? ` because: ${q.needs.map((n) => label(NEED_OPTIONS, n).toLowerCase()).join(' or ')}` : '') });
   if (q.due != null) out.push({ key: 'due', text: q.due === 'quarter' ? 'Due this quarter' : `Due by week ${q.due}` });
-  if (q.quiet != null) out.push({ key: 'quiet', text: `No update for ${q.quiet}+ ${q.quiet === 1 ? 'week' : 'weeks'}` });
+  if (q.quiet != null) out.push({ key: 'quiet', text: `Last check-in ${q.quiet} ${q.quiet === 1 ? 'week' : 'weeks'} ago or more` });
   if (q.quarter) out.push({ key: 'qtr', text: `${QUARTER[q.quarter].label} last quarter` });
   if (q.result.length) out.push({ key: 'result', text: q.result.map((r) => label(RESULT_OPTIONS, r)).join(' or ') });
   if (q.feeds) out.push({ key: 'feeds', text: `In the tree of ${names.goal(q.feeds)}` });
@@ -299,7 +299,7 @@ export function queryParts(q: GoalQuery, names: QueryNames): FilterPart[] {
   if (q.kind.length) out.push({ key: 'kind', label: 'Kind', values: q.kind.map((k) => label(KIND_OPTIONS, k)) });
   if (q.needs.length) out.push({ key: 'needs', label: `${ATTENTION.needs.label} because`, values: q.needs.map((n) => label(NEED_OPTIONS, n).toLowerCase()) });
   if (q.due != null) out.push({ key: 'due', label: 'Due', values: [q.due === 'quarter' ? 'this quarter' : `by week ${q.due}`] });
-  if (q.quiet != null) out.push({ key: 'quiet', label: 'No update for', values: [`${q.quiet}+ ${q.quiet === 1 ? 'week' : 'weeks'}`] });
+  if (q.quiet != null) out.push({ key: 'quiet', label: 'Last check-in', values: [`${q.quiet} ${q.quiet === 1 ? 'week' : 'weeks'} ago or more`] });
   if (q.quarter) out.push({ key: 'qtr', label: 'Last quarter', values: [QUARTER[q.quarter].label] });
   if (q.result.length) out.push({ key: 'result', label: 'Result', values: q.result.map((r) => label(RESULT_OPTIONS, r)) });
   if (q.feeds) out.push({ key: 'feeds', label: 'In the tree of', values: [names.goal(q.feeds)] });
