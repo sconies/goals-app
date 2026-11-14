@@ -113,6 +113,9 @@ interface GoalBase {
   whyHelps?: string;
   /** Other goals it also helps, beyond the one it feeds: a dotted line on the map, not part of the tree. */
   alsoHelps?: Id[];
+  /** The goals that guard it (GR; domain/guards): goals kept in a range, whose number past its limit makes this goal
+      at risk or off track. Absent or empty: none. */
+  guards?: { goal: Id }[];
   /** Where the number comes from and who owns that source. */
   source: string;
   definition: string;
@@ -277,7 +280,7 @@ export interface Change {
   at: string;
   actorId: Id;
   goalId: Id | null;
-  entity: 'goal' | 'check-in' | 'decision' | 'workspace' | 'note' | 'review' | 'person' | 'retro' | 'cycle' | 'request' | 'view' | 'watch' | 'metric';
+  entity: 'goal' | 'check-in' | 'decision' | 'workspace' | 'note' | 'review' | 'person' | 'retro' | 'cycle' | 'request' | 'view' | 'watch' | 'metric' | 'field';
   entityId: Id;
   action: 'created' | 'edited' | 'posted' | 'approved' | 'declined' | 'acknowledged' | 'asked' | 'imported' | 'reset' | 'proposed' | 'withdrawn' | 'noted' | 'actioned' | 'removed' | 'answered' | 'linked' | 'done' | 'restored' | 'stopped' | 'ended' | 'left' | 'undone';
   summary: string;

@@ -154,6 +154,8 @@ export interface CopyCtx {
   now: string;
   /** The copies of the goals it also helps, when they carry too (never the old year's). */
   alsoHelps?: string[];
+  /** The copies of the goals that guard it, when they carry too (GR; never the old year's). */
+  guards?: string[];
 }
 
 /**
@@ -166,6 +168,7 @@ export interface CopyCtx {
  */
 export function carryCopy(g: Goal, ctx: CopyCtx): Goal {
   const base = { ...g, id: ctx.id, cycleId: ctx.next.id, parentId: ctx.parentId, alsoHelps: ctx.alsoHelps ?? [], createdAt: ctx.now, pending: null, ...(g.proposedIn ? { proposedIn: null } : {}) } as Goal;
+  if (ctx.guards?.length) base.guards = ctx.guards.map((goal) => ({ goal })); else delete base.guards;
   if (!base.parentId) base.effect = null;
   if (g.kind === 'metric' && (g.plan.endWeek ?? 0) > ctx.old.weeks) {
     const shift = (w: number) => w - ctx.old.weeks;
