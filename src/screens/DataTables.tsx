@@ -22,6 +22,7 @@ import { Preview } from '../ui/Preview';
 import { MenuButton } from '../ui/MenuButton';
 import { ColumnsSheet, readLocal, SaveLayoutSheet, useColumnMoves, writeLocal, type Local } from './DataLayout';
 import { FilterEditor } from './DataFilters';
+import { useLatestParams } from './GoalFilters';
 import {
   applyTable, columnKind, warmTableWords, describeFilter, filterEntries, parseFilters, parseSort, sortIndex,
   type ColumnKind, type PropFilter, type TableSort,
@@ -85,9 +86,13 @@ export function DataTables() {
   const filters = parseFilters(params);
   const linkSort = parseSort(params);
   /** The list's state is the address (find spec, rule 4): a choice adds a history entry, typing replaces it until it settles. */
-  const setView = (next: { q?: string; filters?: PropFilter[]; sort?: TableSort | null }, change: ListChange = 'choice') => setParams((cur) => {
+  // Each change builds on the address as it is now (useLatestParams, as Goals): on a slow phone the router can still be
+  // drawing the last filter when the next is added, and a list built on what it last drew would drop that filter.
+  const latest = useLatestParams();
+  const setView = (next: { q?: string; filters?: PropFilter[] | ((now: PropFilter[]) => PropFilter[]); sort?: TableSort | null }, change: ListChange = 'choice') => setParams(() => {
+    const cur = latest();
     const nq = next.q ?? cur.get('q') ?? '';
-    const nf = next.filters ?? parseFilters(cur);
+    const nf = typeof next.filters === 'function' ? next.filters(parseFilters(cur)) : next.filters ?? parseFilters(cur);
     const ns = next.sort !== undefined ? next.sort : parseSort(cur);
     return new URLSearchParams([['t', cur.get('t') ?? 'goals'], ...(nq ? [['q', nq] as [string, string]] : []), ...filterEntries(nf, ns)]);
   }, { replace: historyStep(change) === 'replace' });
@@ -311,7 +316,7 @@ export function DataTables() {
       {savingView && <SaveLayoutSheet tab={tab} layout={current} head={head} views={views} active={activeView} onClose={() => setSavingView(false)} />}
       {editing && <FilterEditor head={head.filter((c) => !TABLES[tab].hidden.includes(c))} kinds={kinds} values={(c) => [...new Set(rows.map((r) => r.cells[head.indexOf(c)] ?? '').filter((v) => v.trim()))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))}
         start={editing.index != null ? filters[editing.index] : undefined}
-        onSave={(f) => { setView({ filters: editing.index != null ? filters.map((x, j) => (j === editing.index ? f : x)) : [...filters, f] }); setEditing(null); setLimit(PAGE); }}
+        onSave={(f) => { const at = editing.index; setView({ filters: (now) => (at != null ? now.map((x, j) => (j === at ? f : x)) : [...now, f]) }); setEditing(null); setLimit(PAGE); }}
         onClose={() => setEditing(null)} />}
 
       <div className={'table-wrap data-wrap' + (dragging ? ' dragging' : '')} ref={wrapRef}>
