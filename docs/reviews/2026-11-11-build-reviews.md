@@ -263,6 +263,7 @@ Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon 
 | #513 Rebuild kit stage 1: the full drill's 16 gaps, in words | item 11 | 0 | 1 | 0 |
 | #497 HM7 and HB3: a leader's week on Home, the habit cell, and the admin's workspace line | 1 | 0 | 1 | 2 |
 | #517 Evals diagnostics: U109's waits named, `see()` says what was shown, a failed journey leaves a log | 1 | 0 | 1 | 0 |
+| #504 SW2: AI access behind its own switch | 4 | 0 | 1 | 2 |
 
 **High findings, and where each stands**
 
@@ -2280,3 +2281,16 @@ Not walked: a set of the viewer's own teams (`scope=team`); nobody in the demo h
 Harness only (`evals/journeys.cjs` and one line of `ci.yml`); read whole, one part run. No app code, no budget or wait changed. U109's three keyboard waits are named; a failed journey writes `{id}-{device}.log` (the whole error, the address, the last thirty console lines) beside its screenshot, and CI uploads it. #516, merged beside it, is one line of the planning handover.
 
 **1. Medium (ran). `see()` says what was shown only when it is given a locator, never a page.** The new line asks `typeof p.innerText === 'function'` to tell a locator from a page, but a page has `innerText` too, and it takes a selector: `page.innerText({ timeout: 1000 })` throws "selector: expected string, got object", the catch turns that into an empty string, and the message gets no "[it showed: …]". Ran both in Chromium: a locator answers its text, a page answers nothing. Seven of U159's thirteen `see` calls are on the page, so the miss this was written for will mostly fail as silently as before. `see` already works out `page` two lines up: test `typeof p.page === 'function'` instead, and read `page.locator('body')` for a page.
+
+### #504 SW2: AI access behind its own switch (track 4, merged 14 Nov)
+
+Read whole: the server's door, the tools' move, the read-back, the screens and U175. Not walked on screen by me (U175 is the browser run; tokens exist only in the real app). No high.
+
+- **The door** (`server/mcp.ts`): after the token is found, with the workspace's `modulesOff` (both server adapters supply it), every request but `initialize`, `tools/list` and notifications is answered with the one sentence, in a batch too; the picture address answers 403; the token's last use doesn't move. `set_feature` switching it off answers the last words and the next call is refused, and an AI tool can't switch it back on, since `set_feature` is behind the door. Tested through `serve` (`src/mcp/aiAccessDoor.test.ts`) and in `evals/mcp.eval.ts` (N30).
+- **Planning's call is as built:** a build without the module keeps the server open (`aiAccessOn(modulesOn(null).on) && …`); only the three token tools are missing, and the module's gaps say so.
+- **In the app:** `createToken` is refused through the switched actions and revoking never is; Workspace's AI access is the module's section after Access, its address says it is switched off, Settings and a person's page drop their token parts. The read-back names the first five tokens and how many more, leaves out a person who has left, and asks both ways only while a token is kept.
+- The module has its spec section, three requirements, U175, a rebuild stage (outline, with its gaps said) and a What's new entry; README, architecture, handoff, `docs/mcp.md` and the module map follow.
+
+**1. Medium (read; the refusal is the PR's own test). With AI access off, the Feedback inbox still offers "Connect Claude".** `src/markup/Connect.tsx` never asks the switch (no `aiAccessOn` anywhere in `src/markup`): an admin still gets Make a token, which answers with a toast "AI access is off in {workspace}.", and everyone still gets the host, the `claude mcp add` command and "ask Claude to review Faro’s inbox", for a server that refuses every call. A member is told to ask an admin for a token "on Workspace, under AI access", a section that isn't there. The rule is no door left showing while a switch is off; the panel should go, or say AI access is switched off, with the same sentence.
+
+**Lows.** (1) The door opens when the switch can't be read: `deps.modulesOff(...).catch(() => [])` in `server/mcp.ts:97`, and the Supabase adapter turns a read error into `[]` (`src/adapters/supabase/server.ts:86`), so a failed read of `modules_off` lets the request through as if AI access were on. (2) The two read-back sheets with tokens to name, and "See the {n} tokens", are never drawn in a browser by an eval: the demo names no tokens, so U175 only walks the path that acts at once. Their lines are unit-tested (`switchOff.test.ts`).
