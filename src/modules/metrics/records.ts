@@ -10,6 +10,7 @@
    live goals whose metric is in use. Removing a goal or a person changes no row here: a removed or stopped goal's link
    is out of the cycle with it and back with it; a metric whose owner leaves keeps them as owner, as a goal does until
    handed over. Both tables come from migration 0033 and are on okr_write's allowed list (migration 0039). */
+import { CONFIDENCES, LEVELS, structured, type MetricConfidence, type MetricLevel } from './rulesStructure';
 import { NotAllowed, type ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import type { DbRow, ModuleRecords, RecordDef } from '../../domain/records';
@@ -33,6 +34,8 @@ export const metricToRow = (ws: string, m: Metric): DbRow => ({
   // MS (migration 0046): always written, as the NOT NULL columns are, for the same reason.
   measurement: m.measurement ?? 'measured', measurement_note: m.measurement && m.measurement !== 'measured' ? m.measurementNote ?? '' : '',
   retired_at: m.retiredAt ?? null, retired_by: m.retiredBy ?? null, retired_why: m.retiredWhy ?? '', replaced_by: m.replacedBy ?? null, marks: m.marks ?? [],
+  // MQ (migration 0055): always written, null when not said, so a mixed batch never leaves a key out.
+  level: m.level ?? null, parent_id: m.parentId ?? null, confidence: m.confidence ?? null, gaming: m.gaming || null,
 });
 export const metricFromRow = (r: DbRow): Metric => ({
   id: r.id, name: String(r.name), meaning: String(r.meaning ?? ''), unit: String(r.unit), decimals: Number(r.decimals ?? 0), direction: r.direction as Metric['direction'],
@@ -41,6 +44,7 @@ export const metricFromRow = (r: DbRow): Metric => ({
   ...(r.retired_at ? { retiredAt: iso(r.retired_at), retiredBy: r.retired_by ? String(r.retired_by) : null, retiredWhy: String(r.retired_why ?? ''), replacedBy: r.replaced_by ? String(r.replaced_by) : null } : {}),
   ...(Array.isArray(r.marks) && r.marks.length ? { marks: r.marks as Metric['marks'] } : {}),
   ...(r.measurement === 'partly' || r.measurement === 'gap' ? { measurement: r.measurement, measurementNote: String(r.measurement_note ?? '') } : {}),
+  ...structured(LEVELS.includes(r.level as MetricLevel) ? (r.level as MetricLevel) : null, r.parent_id ? String(r.parent_id) : null, CONFIDENCES.includes(r.confidence as MetricConfidence) ? (r.confidence as MetricConfidence) : null, r.gaming ? String(r.gaming) : null),
 });
 export const metricLinkToRow = (ws: string, l: MetricLink): DbRow => ({ workspace_id: ws, id: l.id, goal_id: l.goalId, metric_id: l.metricId, team_id: l.teamId, part: String(l.part ?? '').trim(), linked_by: l.linkedBy, linked_at: l.linkedAt, ...set({ removed_at: l.removedAt, removed_by: l.removedBy }) });
 export const metricLinkFromRow = (r: DbRow): MetricLink => ({

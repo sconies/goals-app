@@ -38,6 +38,14 @@ export interface Metric {
   measurement?: MetricMeasurement;
   /** What's missing from the measurement, and who is sorting it out ('' or absent when measured). */
   measurementNote?: string;
+  /** Structure (MQ; rulesStructure.ts): how it relates to its parent metric (absent: not said). */
+  level?: import('./rulesStructure').MetricLevel;
+  /** The metric it is a component, driver, control or breakdown of (absent: none). */
+  parentId?: Id;
+  /** How far its number can be trusted (absent: not said). */
+  confidence?: import('./rulesStructure').MetricConfidence;
+  /** How the number could be gamed, in words (absent: not said). */
+  gaming?: string;
   createdBy: Id;
   createdAt: string;
   updatedAt: string;
