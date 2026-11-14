@@ -3,6 +3,7 @@
    and every change is logged as that person, via the AI assistant. A removed metric comes back with restore_removed
    (kind metric). In a workspace that has switched the metric library off, these say so instead of running. */
 import { MEASUREMENT_LABEL, MEASUREMENTS, measurementOf } from './rulesMeasured';
+import { childrenOf, CONFIDENCES, LEVELS, type MetricConfidence, type MetricLevel } from './rulesStructure';
 import { NotAllowed, type ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import { findGoal, isKey } from '../../domain/goalKey';
@@ -79,6 +80,10 @@ function metricData(ctx: McpContext, m: Metric) {
     youCanChange: M.canEditMetric(ctx.actor, m),
     // MS: whether it is measured today; goals measured by one with a gap are held to no number.
     measurement: measurementOf(m), measurementLabel: MEASUREMENT_LABEL[measurementOf(m)], measurementNote: m.measurementNote ?? '',
+    // MQ: where it sits, and how far to trust it.
+    level: m.level ?? null, parent: m.parentId ? { id: m.parentId, name: M.metricsOf(ctx.snapshot).find((x) => x.id === m.parentId)?.name ?? m.parentId } : null,
+    children: childrenOf({ metrics: M.metricsOf(ctx.snapshot) }, m.id).map((k) => ({ id: k.id, name: k.name, level: k.level ?? null })),
+    confidence: m.confidence ?? null, gaming: m.gaming ?? '',
     retired: m.retiredAt ? { at: m.retiredAt, by: name(ctx, m.retiredBy ?? ''), why: m.retiredWhy ?? '', replacedBy: m.replacedBy ?? null } : null,
     marks: (m.marks ?? []).map((k) => ({ week: k.week, at: k.at, kind: k.kind, why: k.why, was: k.was, now: k.now, by: name(ctx, k.by) })),
     measures: M.goalsMeasuredBy(ctx.snapshot, ctx.snapshot.goals, m.id).map((g) => {
@@ -101,6 +106,10 @@ const FIELDS = {
   caveats: str('What to watch out for when reading it.'),
   measurement: str('Whether it is measured today: “measured” (in full), “partly” (some of it, or not every period; say what’s missing) or “gap” (nobody measures it yet). Goals measured by a metric with a gap are held to no number until it is measured, and need no made-up baseline. Measured when left out of a new metric.', { enum: [...MEASUREMENTS] }),
   measurement_note: str('What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured.'),
+  parent: str('The metric it sits under, by ID or name: what it is a component, driver, control or breakdown of. Empty for none.'),
+  level: str('How it relates to its parent: “component” (part of its number), “driver” (moves it), “control” (watched so improving the parent breaks nothing else) or “breakdown” (the parent split one way). Needs a parent. Empty for not said.', { enum: [...LEVELS, ''] }),
+  confidence: str('How far its number can be trusted: “high”, “medium” or “low”. Empty for not said.', { enum: [...CONFIDENCES, ''] }),
+  gaming: str('How the number could be gamed, in words (up to 500 characters). Empty for not said.'),
 };
 
 const tools: ToolDef[] = [
@@ -168,7 +177,7 @@ const tools: ToolDef[] = [
         const stillToSay = { full: still.full, missing: still.missing, ownerLeft: still.ownerLeft, line: still.line };
         const lines = [
           `${d.name} (${d.id})`, still.line, `Unit: ${d.unit}, ${L.decimalsWords(d.decimals)} · ${d.directionLabel}`, `Meaning: ${d.meaning || '—'}`,
-          `Source: ${d.source || '—'} (owned by ${d.sourceOwner || '—'}) · refresh: ${d.refresh ?? 'not said'}`, `Owner: ${d.owner ?? '—'}`, `Caveats: ${d.caveats || '—'}`, `Measured today: ${d.measurementLabel}${d.measurement !== 'measured' && d.measurementNote ? ` (${d.measurementNote})` : ''}`,
+          `Source: ${d.source || '—'} (owned by ${d.sourceOwner || '—'}) · refresh: ${d.refresh ?? 'not said'}`, `Owner: ${d.owner ?? '—'}`, `Caveats: ${d.caveats || '—'}`, `Measured today: ${d.measurementLabel}${d.measurement !== 'measured' && d.measurementNote ? ` (${d.measurementNote})` : ''}`, ...(d.parent || d.children.length ? [`Where it sits: ${d.parent ? `${d.level ?? 'under'} of ${d.parent.name}` : 'on its own'}${d.children.length ? ` · under it: ${d.children.map((k) => `${k.name}${k.level ? ` (${k.level})` : ''}`).join(', ')}` : ''}`] : []), `Confidence: ${d.confidence ?? 'not said'}`, ...(d.gaming ? [`How it could be gamed: ${d.gaming}`] : []),
           goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}${x.inItsCheckIn ? ` · in its check-in: ${x.inItsCheckIn}` : ''}`).join('\n')}` : 'Measures no goal yet.',
           ...different.map((d) => `${d.line}${d.weeks.length ? ` (${d.weeks.map((w) => `${goals.find((x) => x.goalId === w.goalId)?.key ?? w.goalId} week ${w.week}`).join(', ')})` : ''}`),
           ...(summary ? [summary] : []),
@@ -206,6 +215,10 @@ const tools: ToolDef[] = [
           ...(a.caveats !== undefined ? { caveats: String(a.caveats) } : {}),
           ...(a.measurement !== undefined ? { measurement: String(a.measurement).toLowerCase() as MetricMeasurement } : {}),
           ...(a.measurement_note !== undefined ? { measurementNote: String(a.measurement_note) } : {}),
+          ...(a.parent !== undefined ? { parentId: a.parent ? metricOf(ctx, a.parent).id : (null as never) } : {}),
+          ...(a.level !== undefined ? { level: a.level ? (String(a.level).toLowerCase() as MetricLevel) : (null as never) } : {}),
+          ...(a.confidence !== undefined ? { confidence: a.confidence ? (String(a.confidence).toLowerCase() as MetricConfidence) : (null as never) } : {}),
+          ...(a.gaming !== undefined ? { gaming: String(a.gaming ?? '') } : {}),
           ...(a.confirm === true ? { confirm: true } : {}),
           ...(typeof a.comparable === 'boolean' ? { comparable: a.comparable } : {}),
           ...(typeof a.reason === 'string' ? { reason: a.reason } : {}),

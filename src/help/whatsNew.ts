@@ -27,6 +27,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'metric-structure',
+    date: '2026-11-14',
+    title: 'Metrics keep where they sit, and how far to trust them',
+    points: [
+      'A metric can say what it is part of, and how: a component, driver, control or breakdown of another. Its parent’s page lists the metrics under it.',
+      'Each metric can say how far its number can be trusted (high, medium or low) and how it could be gamed, beside what it means.',
+    ],
+    articles: ['metric-structure'],
+  },
+  {
     id: 'metric-measurement',
     date: '2026-11-13',
     title: 'Say when a number isn’t measured yet',

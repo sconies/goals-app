@@ -63,7 +63,7 @@ src/domain/     the rules: plans, status, check-ins, attention, review, change l
 src/data/       demo data, the store contract, the browser and Supabase stores
 src/app/        app state (workspaces, profiles, saves that log) and drafts
 src/screens/    Home (per profile), Check-in, Review, Goals, Goal page, Goal setup, Activity, Workspace
-src/modules/    feature modules, one folder each: Spreadsheets (Excel and CSV export, and import with every change shown first), the Metric library (each number goals are measured by, defined once) Reviews (walking a set of goals together on a cadence; its screens and rules are still in the core until FT3), and four more switches whose screens are still the core's: Watching (following goals you don't own), the Wrap-up (how each goal landed at the year's end), the Goal map (Goals' map layout) and Feedback (sending feedback and the builders' inbox)
+src/modules/    feature modules, one folder each: Spreadsheets (Excel and CSV export, and import with every change shown first), the Metric library (each number goals are measured by, defined once, with where it sits under another metric, a confidence and how it could be gamed) Reviews (walking a set of goals together on a cadence; its screens and rules are still in the core until FT3), and four more switches whose screens are still the core's: Watching (following goals you don't own), the Wrap-up (how each goal landed at the year's end), the Goal map (Goals' map layout) and Feedback (sending feedback and the builders' inbox)
 src/ui/         shell, status chips (shape + word), progress ring, charts
 docs/           the user journeys and the ease test
 supabase/       the Postgres schema for when the data moves to Supabase

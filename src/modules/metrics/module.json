@@ -69,7 +69,8 @@
     "metric-measured-by",
     "metric-slices",
     "metric-change",
-    "metric-measurement"
+    "metric-measurement",
+    "metric-structure"
   ],
   "requirements": [
     "METRICS-LIBRARY",
@@ -79,6 +80,7 @@
     "METRIC-PARTS",
     "METRIC-CHANGE",
     "METRIC-MEASUREMENT",
+    "METRIC-STRUCTURE",
     "READING-PREFILL",
     "READING-RECORDED-ONLY",
     "READING-SEVEN-DAYS",
@@ -98,6 +100,7 @@
     "U158",
     "U159",
     "U160",
+    "U172",
     "N29",
     "F15",
     "N16",
