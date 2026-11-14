@@ -17,6 +17,8 @@ module.exports = {
       // the goal rows on a phone.
       {
         const [c0, q] = await open(390, 844, 'oskar', '/', true);
+        // Goals you watch loads after the first download (as at 1280 below).
+        await q.waitForSelector('.home-watch .tree .trow-why', { timeout: 10000 });
         check(await css(q, '.tree .trow', 'display') === 'flex', '[Home] 1: a phone row is not stacked');
         const t = await box(q, '.tree .trow-title'), row = await box(q, '.tree .trow');
         check(t && row && t.w >= row.w - 34, `[Home] 1: phone title is ${t && Math.round(t.w)}px of a ${row && Math.round(row.w)}px row`);
@@ -28,6 +30,7 @@ module.exports = {
         let seen = false;
         for (const who of ['oskar', 'rhea', 'tunde']) {
           const [cl, l] = await open(390, 844, who, '/', true);
+          await l.waitForSelector('.tree .trow', { timeout: 10000 }).catch(() => {});
           const tag = await box(l, '.trow-title .level');
           if (tag) {
             seen = true;
