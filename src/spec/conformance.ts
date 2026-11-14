@@ -335,9 +335,9 @@ type CaseSheet = 'goals' | 'plan' | 'checkIns' | 'people';
  * What a case starts from beyond the workspace at `builtFor`: set-up from nothing (`mode: "create"`, every row new), goals
  * stopped before it (`stopped`, by key: in the archive, as a whole-cycle export carries them), the rows of other
  * sheets loaded in the same file (`sheets`), and a later moment the file is loaded at (`at`; the workspace is still as it
- * stood at `builtFor`).
+ * stood at `builtFor`), and the change's reason (`reason`, as the import's reason box gives it).
  */
-export interface CaseGiven { mode?: 'create'; stopped?: string[]; sheets?: Partial<Record<CaseSheet, Record<string, string>[]>>; at?: string }
+export interface CaseGiven { mode?: 'create'; stopped?: string[]; sheets?: Partial<Record<CaseSheet, Record<string, string>[]>>; at?: string; reason?: string }
 export interface ImportCase { case: string; actor: string; sheet: CaseSheet; rows: Record<string, string>[]; answers?: Record<string, string>; given?: CaseGiven }
 export function importCases(w: ConformanceWorkspace): ImportCase[] {
   const s = asOf(w, new Date(w.builtFor));
@@ -463,7 +463,7 @@ export function runCase(w: ConformanceWorkspace, c: ImportCase): ChangeSet {
   let k = 0;
   const sheet = (rows: Record<string, string>[]) => rows.map((r, i) => ({ __row: String(i + 2), ...Object.fromEntries(Object.entries(r).map(([h, v]) => [h.toLowerCase(), v])) }));
   const tables = { ...Object.fromEntries(Object.entries(c.given?.sheets ?? {}).map(([name, rows]) => [name, sheet(rows ?? [])])), [c.sheet]: sheet(c.rows) };
-  return planChanges({ tables, snapshot, cycle: w.cycle, week, actor: people.find((p) => p.id === c.actor)!, now: c.given?.at ?? w.builtFor, newId: (p) => `${p}_c${++k}`, via: 'spreadsheet', ...(c.given?.mode ? { mode: c.given.mode } : {}), answers: Object.fromEntries(Object.entries(c.answers ?? {}).map(([id, choice]) => [id, { choice }])) });
+  return planChanges({ tables, snapshot, cycle: w.cycle, week, actor: people.find((p) => p.id === c.actor)!, now: c.given?.at ?? w.builtFor, newId: (p) => `${p}_c${++k}`, via: 'spreadsheet', ...(c.given?.mode ? { mode: c.given.mode } : {}), ...(c.given?.reason ? { reason: c.given.reason } : {}), answers: Object.fromEntries(Object.entries(c.answers ?? {}).map(([id, choice]) => [id, { choice }])) });
 }
 
 /* ---------- what a change set saves (stage 2; KT gap 1) ---------- */
@@ -476,8 +476,12 @@ export function changeCases(w: ConformanceWorkspace): ImportCase[] {
   const s = asOf(w, new Date(w.builtFor));
   const week = currentWeek(w.cycle, new Date(w.builtFor));
   const g1 = s.goals.find((x) => x.key === 'G-1') as Extract<Goal, { kind: 'metric' }>;
+  const ownersThisWeek = s.checkIns.find((c) => c.week === week && c.authorId !== 'amara')!;
   return [
     ...importCases(w),
+    // An admin's row replacing someone else's check-in for this week corrects it, with a reason, and the check-in stays
+    // its author's (Lane, 14 Nov): the item's author is who checked in, not the admin.
+    { case: 'corrects-keeps-author', actor: 'amara', sheet: 'checkIns', rows: [{ ID: ownersThisWeek.id, 'Goal ID': ownersThisWeek.goalId, Week: String(week), 'Next step': 'Corrected from the source data' }], given: { reason: 'The tracker had last week’s number in it' } },
     // This week's check-in is the owner's to load (backlog AD: an admin's workbook brings in past weeks).
     { case: 'saves-check-in', actor: s.goals.find((x) => x.key === 'G-22')!.ownerId, sheet: 'checkIns', rows: [{ 'Goal key': 'G-22', Week: String(week), Value: '85', 'Next step': 'Roll the runner image out to the last two teams' }] },
     { case: 'saves-plan-with-reason', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', Target: String(g1.plan.target + (g1.plan.target >= g1.plan.start ? 1 : -1)), Reason: 'Agreed at the quarterly review' }] },
@@ -492,22 +496,23 @@ export function changeCases(w: ConformanceWorkspace): ImportCase[] {
     ] },
   ];
 }
-export const CHANGES_HEADER = ['case', 'row', 'actor', 'sheet', 'line', 'rows', 'answers', 'given', 'target', 'name', 'kind', 'diffs', 'counts', 'unchanged', 'needs_reason', 'saves'];
+export const CHANGES_HEADER = ['case', 'row', 'actor', 'sheet', 'line', 'rows', 'answers', 'given', 'target', 'name', 'kind', 'diffs', 'counts', 'unchanged', 'needs_reason', 'saves', 'author'];
 
 /**
  * What the change engine would save for each case. Row 0 is the case: its input, the counts (`key=n`, space-separated,
  * every count that isn't 0, in the engine's order), the unchanged rows, whether a reason is missing and whether it saves.
  * Rows 1… are its items in the engine's order: the sheet and line they came from, the goal changed (`target`, its ID;
  * empty for a person or team), the name of what changed, the kind of change,
- * and every field changed as `field: from → to`, joined by ` | `.
+ * every field changed as `field: from → to`, joined by ` | `, and a check-in's author once saved (replacing one keeps who
+ * checked in).
  */
 export function changeRowsOf(w: ConformanceWorkspace): string[][] {
   const rows: string[][] = [];
   for (const c of changeCases(w)) {
     const cs = runCase(w, c);
     const counts = Object.entries(cs.counts).filter(([, n]) => n).map(([key, n]) => `${key}=${n}`).join(' ');
-    rows.push([c.case, '0', c.actor, c.sheet, '', JSON.stringify(c.rows), c.answers ? JSON.stringify(c.answers) : '', c.given ? JSON.stringify(c.given) : '', '', '', '', '', counts, String(cs.unchanged), yes(cs.needsReason), yes(!!cs.commit)]);
-    cs.items.forEach((it, i) => rows.push([c.case, String(i + 1), '', it.sheet, String(it.row), '', '', '', it.goalId, it.goal, it.kind, it.diffs.map((d) => `${d.field}: ${d.from} → ${d.to}`).join(' | '), '', '', yes(!!it.needsReason), '']));
+    rows.push([c.case, '0', c.actor, c.sheet, '', JSON.stringify(c.rows), c.answers ? JSON.stringify(c.answers) : '', c.given ? JSON.stringify(c.given) : '', '', '', '', '', counts, String(cs.unchanged), yes(cs.needsReason), yes(!!cs.commit), '']);
+    cs.items.forEach((it, i) => rows.push([c.case, String(i + 1), '', it.sheet, String(it.row), '', '', '', it.goalId, it.goal, it.kind, it.diffs.map((d) => `${d.field}: ${d.from} → ${d.to}`).join(' | '), '', '', yes(!!it.needsReason), '', it.author ?? '']));
   }
   return rows;
 }
