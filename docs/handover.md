@@ -2,6 +2,60 @@
 
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
+## Track 1, Saturday 14 November, ~10:40 UTC (context past 300k, handing over; supersedes the 13 Nov 21:00 entry)
+
+Session: session_012kbr92yprssgsHbkpCFh3s. Planning: session_012kbr91eefh4gwCAztBncNT (report there once, finished results and blockers only).
+
+**Merged:** #432 (the HIGH on #416: "Before this review" is "on time" for a review not held on the due day; rule 4 counts the goals due). #460 (#437's mediums 2, 3, 4 and the rest of 6: reading fields refused for any week but this one; compared and filled at the goal's places, `filledAt`; a filled number reopened untouched is filled again; **Lane, 13 Nov:** a filled-in reading in the one table needs a touch, "Confirm {value}" or "Confirm all readings"; **the 09:00 fault:** the demo pins today but keeps the clock's time of day, so `readingProblem` refused every demo reading before 09:00 UTC, now a day's grace; a reading's words moved to `src/domain/readingWords.ts`, out of the first download: the real app's 334 KB was 39 bytes over on hash entropy alone).
+
+**This PR (nr2-source-name):** a reading with no source's name is refused (the last of #437's medium 5), and the metric spec's **Off** paragraph (Lane, 14 Nov: readings recorded stay with the library off; nothing new is read). Its `evals:changed` was running at handover: check the PR's CI, then auto-merge.
+
+**Open, drafts, not yet gated:**
+- **#468 HM3** (Your team; teams worst first; `owner=-me`; U123, U124 part; HOME-MANAGER). The first eval run's real failures (vocabulary word, U2, F1) are fixed in its last commits; run `evals:changed`, then mark ready and auto-merge. Its CI "without feedback" run had U3 at 9/10 with no criterion in the log: check it against main. **asTeams is "more than twelve goals in two or more teams"**, following rule 4's worked example (Rhea's 12 in 4 teams are rows) over its text ("or three or more teams"): planning knows.
+- **#469 HM4** (Changed since; `home-seen`; moved/since filter; the teams table's Since column; F25), stacked on #468: retarget to main once HM3 merges, then gate. No browser eval has run on it. Budget headroom is small (about 0.4 KB after #460). CI's "every module off" run fails U2's a11y: `color-contrast a[href$="lead-runners"] > .arow-flags` on desktop Home (HM3's AttentionCard change or the side column); check whether #468 shows it too.
+
+**Next, in order:** **main is red first** (rolling issue #459): main's full runs at 01:31, 01:42 and 02:15 UTC failed U159 (READING-PREFILL, "a company-wide number never fills in a team's goal"), 02:15 already with #460's day's grace; it passes after 09:00, so another comparison of the demo's 09:00 reading with "now" by the minute (suspects: `readingState`'s windows or `askSource`/`fillsIn` in `src/modules/metrics/rulesReading.ts` and `sources.ts`, e.g. a reading "at or before now" leaving only last week's). Reproduce with `ONLY=U159` and a clock before 09:00 UTC, fix the cause; the lasting fix planning suggests is a fixed time of day for the demo clock (14:00, per the TODAY comment), a core change: tell track 4 (session_012kbr8zGTA8fDUXo7snL4jv, mid-FD) first. Then the reviewer's findings (planning, 14 Nov 11:00), before HM3: **medium (#432)**: a fortnightly, monthly or quarterly review held on the due weekday in a week with no session still says "Before this review… checked in before it" (the demo's Quarterly, six weeks before its session); the flag tests only the weekday (`Review.tsx:272`, `reviews/tools.ts:49`): also require `sessionWeek(r, w, cycle) === w`, as `heldOnDueDay` does. **Lows (#432):** get_review's text still starts "Before this review:" where the screen says "Week 46, due by…"; no journey asserts the review page's new heading; Help's Reviews article has no line on the panel. **Low (#460):** no journey presses "Confirm all readings". Then gate #468 and #469; then **SM1h** (Home's section of SM1, with track 2's agreement); **PF1–PF2** (`docs/design/round-4/portfolio/spec.md`); **HB3** once HM7 is on main; then the lows: #437's (the table's filled cell by colour only is now labelled "From {source}"; MCP's answer doesn't say what reading was recorded; two controls under 44 px at 390 and the reason radios' four tab stops; the server's demo source from live check-ins, for the handoff; README has no line on readings), #110's, HM1's, the 13 Nov 14:25 entry's batch, #400's two, #410's two. N12 is done (#385).
+
+**Habits:**
+- Builder subagents (general-purpose, full brief, own worktree, "no browsers, targeted tests only" while an eval runs) built HM3 and HM4 well; Sonnet subagents ran the evals. Containers can restart: worktrees survive, background results arrive in the task files.
+- Memory: a full `vitest run` beside `evals:changed` gets workers killed; use `--maxWorkers=2` or wait.
+- The first-download budgets sit within bytes of the limit: a lazy chunk's new hash can move the compressed size by 30 to 70 bytes. Measure with `scripts/check-bundle.mjs` and take real bytes out of the eager chunks (a module's words in their own file), never a new tiny shared chunk (its name lands in every preload list).
+
+## Track 4, Saturday 14 November, 01:30 UTC (handing over at about 300k tokens, Lane's rule #455; supersedes the 13 Nov 20:15 entry)
+
+Session: session_012kbr931R7QEqBrfxbNv2QV. Planning is session_012kbr91eefh4gwCAztBncNT.
+
+- **Merged since 20:15:**
+  - #444, SW1: Watching, Feedback, the Goal map and the Wrap-up each behind a switch, plus the Features groups. Its journeys became U164–U166 because main's readings took U156–U158; its check is N22.
+  - #454: U2's "late" step is Watching's. The late goal on Rhea's Home is one she watches.
+  - #458: the RS1 review fixes.
+    - `inreview=` and review notes are dropped with Reviews off.
+    - `weekDoneText`'s clock branch is gone.
+    - The habit panel says "review" only when one is held that day (`heldForGoals`).
+    - U153 now expects "Week N, due by …" for CI/CD.
+- **Open:** #465, FT1 (the per-cycle check-in rhythm). Auto-merge is on.
+  - Lane exposed `faro` in the Data API; I checked it at 23:40: `okr_cycles` with `Accept-Profile: faro` returns `check_in_weeks`.
+  - Its migration, 0048, is already on main.
+  - To stay under 275 KB, `src/app/state.tsx` now loads the parity table after the first download.
+  - **It may be blocked by main:** U156, U157, U160 and U161 (metric readings) fail on main after about 00:30 UTC. Posting says "CI analytics's number is dated after now, so it can't be recorded." It looks like a reading dated by UTC day against the demo's clock. That bug is the readings track's (7c); if #465's CI is red only there, say so on the PR and tell planning.
+- **Next, in order:**
+  1. See #465 merged.
+  2. The build reviewer's SW1 mediums:
+     - Watching off: restoring or undoing a removed watch, and MCP `list_removed`/`restore_removed`, still go through and name watches. Refuse by what the save writes, as `writesReviews` does, rather than by the four names in `SWITCHED_ACTIONS` (`src/app/reads.ts`).
+     - Wrap-up off: Cycles, Workspace and the Start page still say "the wrap-up is open … N goals still to wrap up" (`src/domain/workspaceAttention.ts` 79–89, `startYear.ts` 42 and 58), and so does the tool's read-back.
+     - Watching off: `/activity?watching=all` still shows "Goals you watch" (`src/screens/Activity.tsx` 50–52).
+     - Lows are in the build review log (docs/reviews/2026-11-11-build-reviews.md on build-reviews).
+  3. Check SW1's leftovers from the 20:15 entry against main and do what is still open: `get_goal` `watchedBy`, `get_activity watching=1`, the year line's wrap-up words, the "Watching is off here" filter line, and About's "All eight are on".
+  4. SW2: the AI access switch.
+  5. FD: the first download is at 274/275 KB and live at 334/334. Trim the first download under 265 KB without raising the budgets.
+  6. The #358 lows: "Show older changes" with nothing older; the first older page lands at the top; `undo_import` past the window.
+  7. The #403 low: a worker-checked file is planned again at Save.
+- **Traps:**
+  - Ids clash across tracks: two journeys of one id stop the harness loading, so every journey shows "did not run". Choose ids at merge time, above main's highest (U166 now).
+  - When merging What's new, take main's file and re-add only this branch's feature entry.
+  - The scale and clock tests fail under load; run them alone before concluding anything.
+  - Lane's rule (#455): mechanical work goes to Sonnet subagents. That covers merging main, regenerating `api/mcp.js` and `spec/`, eval runs and docs.
+
 ## Track 7c (metrics, baselines), Friday 13 November, 23:00 UTC (context near full, handing over)
 
 **Merged:** #384 (#308's review mediums and lows), #404 (#351's review mediums and five lows; the sixth waits for 0c2), #411 (F5 `recordsOn` through `resolveModules`; F6 metric carry-over moved to journey U152), #413 (MS migration 0046), #430 (BL migration), #449 (BL: a baseline's period and "provisional"), #451 (GB migration 0050).
@@ -35,6 +89,7 @@ Follow `docs/architecture/module-map.md`. MI is track 3's, TG is track 2's, and 
 
 - **Fixed and merged:** U109 (#392, the week picker's keys outran a render on a slow phone), U98 (#389, Stop clicked after a 6,000-row check had already ended), N12 (#385, Data search re-read the query for every row), the rolling issue for full-eval failures (#390). F8 was already fixed (#336). The 67 per-commit failure issues are closed.
 - **Phone CPU:** `evals:changed` and `evals:smoke` slow phone-sized pages 4× and run their journey processes one after another (`evals/phoneCpu.cjs`, Lane, 13 Nov), so a race that only a slow phone shows turns up before the merge. The full suite after the merge runs at full speed. `PHONE_CPU=1` turns it off, to tell a slow phone from a broken one; `PHONE_CPU=4` slows a single `ONLY=`/`FINISH=` run.
+- PR CI's smoke job (the required check, name unchanged) runs `npm run evals:pr`: the core journeys plus what the PR's files touch, slowed, about 10 minutes. Shared code no longer means the whole suite before the merge (it meant that for 28 of 40 merges on 13 Nov); backlog TN narrows `evals/touches.cjs` so fewer files count as shared. Reproduce PR CI locally with `npm run evals:pr`.
 - Chromium slows a page by keeping its core busy: never run slowed browsers side by side (the full suite slowed, 4 shards on 4 cores, took 70 minutes and failed 38 requirements that pass alone).
 
 **Gotchas**
@@ -72,7 +127,7 @@ Session: session_012kbr8zT29m9btyWCVyT2QG. Planning is now session_012kbr91eefh4
 **Decided since 14:25:** #369's medium 6 is track 2's (Lane chose a shorter label on a phone); leave it out.
 
 **Next, in order:**
-0. **#410's six mediums** (build reviewer, 16:47; lows in the build reviews file on the `build-reviews` branch, PR #134): (1) on time is judged on the UTC day of the stamp (`progress.ts` `onTimeRun`, `receiptFacts`) while Home's "due today" uses the viewer's day: one due day for Home, the receipt and the run; (2) owning a Done goal sets the run to 0 for good: the run must leave Done goals out as `weekProgress` does (Farah, Diego, Marcus read 0); (3) a backfilled week counts as on time, and a week never checked in is forgiven then called "came in late" (What's new says "missed"): count a backfilled week as not on time, and word a missed week as missed; (4) taking over a goal resets the new owner's run (it counts the goal from its first due week and only their own check-ins): count a goal only from when they owned it; (5) the receipt's share image says "Done" for a goal reached but On track (`CheckInFlow.tsx`, `MomentPanel` passes `'done'`; pass the check-in's own status) and its line is cut by the footer rule; (6) the kit: conformance rows for the run, the forgiven week and the moment (a `habit.csv`, or rows in `home.csv` and `checkin.csv`), the spec's sentence on why the habit has no switch (it is core: the status rules' check-ins), and the lines in README and `docs/handoff.md`. Put the reviewer's lows with them.
+0. **#410's six mediums** (build reviewer, 16:47; lows in the build reviews file on the `build-reviews` branch, PR #134): (1) on time is judged on the UTC day of the stamp (`progress.ts` `onTimeRun`, `receiptFacts`) while Home's "due today" uses the viewer's day: one due day for Home, the receipt and the run; (2) owning a Done goal sets the run to 0 for good: the run must leave Done goals out as `weekProgress` does (Farah, Diego, Marcus read 0); (3) a backfilled week counts as on time, and a week never checked in is forgiven then called "came in late" (What's new says "missed"): count a backfilled week as not on time, and word a missed week as missed; (4) taking over a goal resets the new owner's run (it counts the goal from its first due week and only their own check-ins): count a goal only from when they owned it; (5) the receipt's share image says "Done" for a goal reached but On track (`CheckInFlow.tsx`, `MomentPanel` passes `'done'`; pass the check-in's own status) and its line is cut by the footer rule; (6) the kit: conformance rows for the run, the forgiven week and the moment (a `habit.csv`, or rows in `home.csv` and `checkin.csv`), the spec's sentence on why the habit has no switch (it is core: the status rules' check-ins), and the lines in README and `docs/handoff.md`. Put the reviewer's lows with them. **#416's** high is fixed in `hb2-session-day` (a review not held on the due day says "on time", and rule 4 counts the owners of the goals due); its two other mediums remain: `inreview=` still answers with Reviews switched off (`src/app/reads.ts` `goalRows`, and `find_goals`): it should match nothing, said once, as other switched-off filters do; and the same UTC-day fault as #410's (1).
 1. **NR1's code** (`docs/design/round-4/readings/spec.md`, and MT4's 5.1–5.3 in `docs/design/metrics-2/spec.md`): the port's optional `Slice { teamId, part }` on `reads`/`read` and the contract's extra cases; the demo's seeded series (CI analytics reads `ci-time` for the whole company; CI runner metrics reads `queue-wait` per slice, one slice with no reading this week, an eval fixture two weeks behind); rule 1 `readingState` in the module, `RULES.readingMaxDays = 7` in `thresholds.ts`; rule 2 `CheckIn.reading` (core type; `src/data/rows.ts` writes it only when set). Conformance rows in the module's `metrics.csv` file. No What's new until NR2 (no visible change).
 2. **NR2, NR3** as the spec's build plan says (the `checkin.number` place is new and core; the block and its rule live in the metrics module's chunk).
 3. **HB3** only once HM7 exists (not on main at 17:00). Home must not import `habit.ts`; `standing.ts` is the small rule Home may read.
@@ -567,6 +622,27 @@ Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this sessi
 - **Fence check (#125):** Supabase's own tables in extensions, cron and net, open to every role by default, are a warning; a direct grant to `faro_owner` still fails. 0038 is live.
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
+
+## Track 2 (one goal, goal entry, set-up), Saturday 14 November, ~01:30 UTC (SM1 done; handing over at ~250k before ST2, a large rewrite; supersedes the 13 Nov 20:45 entry)
+
+Session: session_012kbr92k9qYsKXVFBGW9Y7Y. Planning is session_012kbr91eefh4gwCAztBncNT (report there). New rules (CLAUDE.md #455): hand over at ~300k tokens (`get_session` context_usage.used_tokens); Sonnet subagents for the mechanics (merging main, What's new conflicts, api/mcp.js and spec/, eval runs, docs, watching CI).
+
+| PR or branch | What | State |
+|---|---|---|
+| #461 | SM1 (rows and tabs), from branch `sm1-waiting-rows`. Merged with main's Watching switch: `scopesFor(f, last, { watching })` returns `tabs` and `every`, and `every` leaves Watching out when it is switched off. `find_goals` keeps both refusals (Watching off; Mine with no goals). Its check is **N30** (main's N29 is readings), mapped in `evals/touches.cjs` | auto-merge on (MERGE). **U69 and U153 pass** after main was merged in (alone, slowed 4×, and in the full run): the old failures came from the branch's stale base, not SM1. The full run's only failures, U156/U157/U160/U161 and READING-*, fail on main too (#459, not track 2's) |
+| branch `tg0-migration` (no PR) | TG0: migration 0052 (goal fields), two tables in `faro` (`okr_goal_fields`, `okr_goal_field_values`, id `{goal}:{field}`), grants and row rules written out, on `module_tables` (tags, 30 and 40), change log entity `field`; spec/ regenerated | **not mergeable yet**: `spec.test.ts` "says every limit … on its rule's page" wants the four new check constraints in `src/spec/limits.ts`, each with a rule id, and the tags rule belongs in the module's own `spec.ts` (TG1). Choose: ship TG0 with the module skeleton switched off (module.json, spec.ts with rule `tags-fields`, rebuild stage), or put the limits on TG1's PR and ship the migration in it one merge ahead by splitting the PR (migration first). Check 0052 is still free |
+| this PR | TG's spec: Lane's answers 1a–7a written into section 11 (Lane, 13 Nov), and section 4 names the tables as drafted | docs only |
+
+**Next, in order:**
+1. ST2 and SM3 as one item. Set-up is still 7 steps (`src/screens/Onboarding.tsx` `SETUP_STEPS`, labels in `src/domain/arrival.ts` `SETUP_STEP_NAMES`, counting in `src/domain/dayOne.ts` `setupSteps`). ST2 (`docs/design/setup/spec.md` 1, 2.2, 2.3, 2.5–2.7, rule S1; build plan row ST2) makes each step an address under `/workspace/new/…`, removes the four templates and their two steps (outcome, goals; `src/domain/templates.ts`), keeps today's "Start blank" cards behind "Add your own". SM3 (`docs/design/round-4/small-workspaces/spec.md` 2.2, rule 3) then gives four steps, `['workspace', 'people', 'goals', 'check']`: step 1 is the workspace and you, with a "How you'll work" panel and a sheet. ST3 (how you'll work, rules S2/S3, `HOW_DEFAULT`, `howLines`) isn't built: the sheet can carry only what exists today (the year's start month, the review day, Recording), per 2.4's "States" row. Size it first; it touches many set-up journeys (U5, U11, U22, U97 and others in `evals/touches.cjs`' Onboarding line) and F19's set-up part. Run the full suite.
+2. TG: TG0 (above), TG1, TG2, as `docs/design/round-4/tags/spec.md` section 10. `faro` is in the Data API (13 Nov 23:40 UTC).
+3. The lows in the 13 Nov 17:45 entry below.
+
+**Budgets:** with #461 merged, both first downloads sit exactly at their budgets (275 of 275 KB; the real app 334 of 334 KB): anything new in the shell must take bytes out first. Set-up is lazy, so ST2 shouldn't touch it.
+
+**Habits:** a container restart loses background eval runs: push branches early, and rerun. Before blaming a branch for a failing journey, run it on main (`ONLY=…` in the main checkout) and read the open "Full evals failing on main" issue.
+
+**Prompt for the next track 2 session:** "You are track 2 of Faro's build (goal entry and set-up). Read CLAUDE.md, docs/architecture/module-map.md, then the track 2 section of docs/handover.md ('Track 2 … Saturday 14 November, ~01:30 UTC'). Check #461 merged (if not, fix what blocks it). Then do its 'Next' list in order, one PR each: ST2 with SM3, then TG (its migration on branch tg0-migration ships one merge ahead), then the lows. The first download is about 268 of 275 KB: keep anything new lazy; never raise budgets. Follow CLAUDE.md's gate (typecheck, npm test, npm run spec, evals:changed, build:mcp from a real node_modules via cp -al, never ln -s), one heavy run at a time; send mechanical work and eval runs to Sonnet subagents that return only the scorecard. Build in a worktree, check mergeable_state, then enable auto-merge (MERGE) once the gate passes, checking the PR number first. Report to the planning session (session_012kbr91eefh4gwCAztBncNT, or whichever session tells you planning has moved) once, when the list is done or blocked. Hand over at about 300k tokens of context."
 
 ## Track 2 (one goal, goal entry, set-up), Friday 13 November, ~20:45 UTC (context heavy, handing over mid-SM1; supersedes the 17:45 entry)
 

@@ -8,7 +8,7 @@ import { useApp } from '../app/state';
 import { BeforeReview } from '../ui/BeforeReview';
 import { levelIds, levelName } from '../domain/levels';
 import { weekDates } from '../domain/plan';
-import { WEEKDAY } from '../domain/progress';
+import { dueWords, WEEKDAY } from '../domain/progress';
 import { answerOf, canSpeakFor, joinLine, dayText, daysPast, goalsIn, lastHeld, nextSessionDate, nextWhen, openActions, pastText, reviewedLabel, reviewedText, reviewSession, sessionPlan, sessionState, sessionStateText, sessionWhen, walkOrder, type ReviewSession, type SessionState } from '../domain/review';
 import { outcomeTrees } from '../domain/tree';
 import type { Goal, Review as ReviewT } from '../domain/types';
@@ -267,8 +267,9 @@ export function ReviewHome() {
         </section>
       )}
       {/* Before this review (habit spec 2.3): how many of its goals were checked in before it, and the last 8 weeks. A
-          session in a later week is counted as this week so far: nothing can be in for a week that hasn't started. */}
-      <BeforeReview goals={s.items.map((a) => a.goal)} week={Math.min(s.week, app.week)} link={`inreview=${encodeURIComponent(review.id)}`} heading="Before this review" />
+          session in a later week is counted as this week so far: nothing can be in for a week that hasn't started. It is
+          judged against the workspace's due day, so a review held on another day says "on time", never "before it". */}
+      <BeforeReview goals={s.items.map((a) => a.goal)} week={Math.min(s.week, app.week)} link={`inreview=${encodeURIComponent(review.id)}`} heading={review.weekday === app.cycle.reviewDay ? 'Before this review' : `Week ${Math.min(s.week, app.week)}, due by ${dueWords(false, app.cycle, Math.min(s.week, app.week)).date}`} held={review.weekday === app.cycle.reviewDay} />
       {/* Held: what was said comes first, with every goal reviewed. */}
       {done && <SessionRecord s={s} title="What was said" reviewed="open" />}
       {!done && remaining.length > 0 && (

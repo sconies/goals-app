@@ -81,8 +81,8 @@ export interface PlaceProps {
   /**
    * The one-table check-in ("Type all your numbers in one table", NR 2.3): given the table's goals, a module hands back
    * (`onReadings`) the readings it would fill in, by goal id: only those its rule calls fresh. The table shows each in its
-   * cell in faint ink until the owner touches the row, says under the table how many are from their sources, and posting
-   * the table confirms them; a cell changed from its reading asks why in its row. Draws nothing of its own.
+   * cell in faint ink, says under the table how many are from their sources, and posts one only once the owner has
+   * confirmed it or typed over it (Lane, 13 Nov); a cell changed from its reading asks why in its row. Draws nothing of its own.
    */
   'checkin.table': { goals: Goal[]; week: number; onReadings: (r: Record<string, CheckInReading>) => void };
 }
