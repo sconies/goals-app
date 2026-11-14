@@ -30,7 +30,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/unmeasured.ts](../../../src/domain/unmeasured.ts): `isUnmeasured`, `heldToNoNumber`, `UNMEASURED`
+- [src/domain/unmeasured.ts](../../../src/domain/unmeasured.ts): `isUnmeasured`, `heldToNoNumber`
+- [src/domain/vocabulary.ts](../../../src/domain/vocabulary.ts): `STATUS`
 - [src/domain/status.ts](../../../src/domain/status.ts): `goalStatus`, `projects`
 - [src/domain/attention.ts](../../../src/domain/attention.ts): `flagsFor`
 

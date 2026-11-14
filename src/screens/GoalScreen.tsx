@@ -59,7 +59,7 @@ import { effectOn, landedMoment, openMotionLab, storyOn, storyPace } from '../ap
 import { copyGoalLink, shareGoalImage } from './goalShare';
 import { ArchivedGoalScope } from '../app/state';
 import { isProposed } from '../domain/proposed';
-import { isUnmeasured, UNMEASURED_MEANING } from '../domain/unmeasured';
+import { isUnmeasured } from '../domain/unmeasured';
 
 const ProposedGoal = lazy(() => import('./ProposedGoal').then((m) => ({ default: m.ProposedGoal })));
 /* The goals proposed to feed this one, under What feeds it (GE10): loaded only when there are some. */
@@ -370,7 +370,7 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
           {figures.baseline && <span className="bar-baseline">{figures.baseline}</span>}
         </div>
         {firstDue && !goal.stoppedAt ? <p className="small muted sc-none" data-part="Scorecard">The scorecard starts with the first check-in.</p> : card.cells.length > 0 && <ScoreGrid cells={card.cells} />}
-        {isUnmeasured(goal) && <p className="small muted bar-unmeasured" data-part="Not measured yet">{UNMEASURED_MEANING}</p>}
+        {isUnmeasured(goal) && <p className="small muted bar-unmeasured" data-part={STATUS.unmeasured.label}>{STATUS.unmeasured.meaning}</p>}
         {/* A guard past its limit (GR), beside the status: which one, its number and how far past. */}
         {!goal.stoppedAt && breaches.map((b) => <p key={b.guard.id} className="small bar-guard" data-part="Guardrail">{breachWords(b)}</p>)}
         {askedLine && <div className="bar-note">{askedLine}</div>}

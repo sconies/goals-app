@@ -1561,7 +1561,7 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
     id: 'unmeasured',
     title: 'A goal held to no number',
     summary: 'A goal whose number isn’t measured yet has no status from its plan, nothing due, late or quiet, and no projection, until it is measured: a core rule over the goal’s own field.',
-    code: [{ file: 'src/domain/unmeasured.ts', names: ['isUnmeasured', 'heldToNoNumber', 'UNMEASURED'] }, { file: 'src/domain/status.ts', names: ['goalStatus', 'projects'] }, { file: 'src/domain/attention.ts', names: ['flagsFor'] }],
+    code: [{ file: 'src/domain/unmeasured.ts', names: ['isUnmeasured', 'heldToNoNumber'] }, { file: 'src/domain/vocabulary.ts', names: ['STATUS'] }, { file: 'src/domain/status.ts', names: ['goalStatus', 'projects'] }, { file: 'src/domain/attention.ts', names: ['flagsFor'] }],
     tests: ['src/domain/unmeasured.test.ts'],
     reqs: [],
     body: `

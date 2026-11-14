@@ -10,7 +10,6 @@
    and of a quarter. Each such entry says which one it shares its meaning with (`same`). */
 import { MIN_STOP_REASON, RESTORE_DAYS, RULES, TREND_SPAN, UNDO_MS } from './thresholds';
 import type { AskKind, AskStatus, DisplayStatus } from './types';
-import { UNMEASURED, UNMEASURED_MEANING } from './unmeasured';
 
 export { MIN_STOP_REASON, RESTORE_DAYS, UNDO_MS };
 
@@ -83,8 +82,8 @@ export const STATUS: Record<DisplayStatus, Term<DisplayStatus>> = {
   }),
   // Its own status (Lane, 14 Nov): wherever a goal held to no number is shown, it says this, never "No check-in yet".
   unmeasured: term('unmeasured', {
-    label: UNMEASURED, short: 'its number isn’t measured yet',
-    meaning: UNMEASURED_MEANING,
+    label: 'Not measured yet', short: 'its number isn’t measured yet',
+    meaning: 'Its number isn’t measured yet, so it is held to no number: no status from its plan, nothing late, and no baseline needed.',
     long: 'The goal is measured by a number nobody collects yet, so it is held to no number until it is: no status from its plan, nothing late or quiet, and no projected year-end number. Once its number is measured, it is held to its plan again. The owner can still call it done.',
     rule: 'status#goalStatus',
   }),

@@ -63,7 +63,7 @@ describe('a metric’s measurement status (MS)', () => {
     // The core rule: no status from its plan, nothing late or due, no projection.
     const st = goalStatus(held, w.cycle, w.full.checkIns, today);
     expect(st).toMatchObject({ unmeasured: true, calc: 'none', greener: false });
-    expect(['none', 'done']).toContain(st.status);
+    expect(['unmeasured', 'done']).toContain(st.status);
     expect(attentionFor(held, w.scoped, w.cycle, today).flags.map((f) => f.kind)).not.toContain('due');
     // The library lists it under To sort out, saying how many goals it holds.
     expect(metricNeeds(w.metric('metric_flaky-rate'), libraryReads(w.scoped, w.x('rhea').now))[0]).toMatchObject({ id: 'gap', sentence: 'Not measured yet: 1 goal held to no number', button: 'Say how it’s measured' });

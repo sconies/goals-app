@@ -322,10 +322,8 @@ function heldToNoNumber(g, held, now) {
 		unmeasuredSince: held ? now : null
 	};
 }
-var UNMEASURED, UNMEASURED_MEANING, isUnmeasured;
+var isUnmeasured;
 var init_unmeasured = __esmMin((() => {
-	UNMEASURED = "Not measured yet";
-	UNMEASURED_MEANING = "Its number isn’t measured yet, so it is held to no number: no status from its plan, nothing late, and no baseline needed.";
 	isUnmeasured = (g) => !!g.unmeasuredSince && !g.removedAt && !g.stoppedAt;
 }));
 // src/domain/vocabulary.ts
@@ -361,7 +359,6 @@ function codeFrom(terms, input) {
 var ALL, pct$3, term, STATUS, STATUS_ORDER, statusFlag, FLAG, ATTENTION_FLAGS, ATTENTION, HANDLED_LINE, WARNING, RESULT, QUARTER, OWNER_VIEW_LABEL, OWNER_VIEW, STAGE, ASK_KIND, ASK_STATUS, SESSION, DECIDED, TREND, GAP, REMOVAL, leftName, LEFT, STOPPED, ENDED, COMMENT_REMOVED, NOTE_REMOVED, GROUPS$1, labels, LABEL, MEANING, RESULT_TEXT, RESULT_MEANING, lower, withCode, choices;
 var init_vocabulary = __esmMin((() => {
 	init_thresholds();
-	init_unmeasured();
 	ALL = [
 		"screens",
 		"exports",
@@ -428,9 +425,9 @@ var init_vocabulary = __esmMin((() => {
 			rule: "status#goalStatus"
 		}),
 		unmeasured: term("unmeasured", {
-			label: UNMEASURED,
+			label: "Not measured yet",
 			short: "its number isn’t measured yet",
-			meaning: UNMEASURED_MEANING,
+			meaning: "Its number isn’t measured yet, so it is held to no number: no status from its plan, nothing late, and no baseline needed.",
 			long: "The goal is measured by a number nobody collects yet, so it is held to no number until it is: no status from its plan, nothing late or quiet, and no projected year-end number. Once its number is measured, it is held to its plan again. The owner can still call it done.",
 			rule: "status#goalStatus"
 		}),
@@ -22056,7 +22053,9 @@ var WHATS_NEW = [
 			"It has its own shape, a ring with a dot at its centre, so it no longer reads as “No check-in yet”.",
 			"It still projects no year-end number, and nothing on it is due or late, until its number is measured. You can filter the Goals list by it."
 		],
-		articles: ["status", "metrics"],
+		articles: ["status", "metrics"]
+	},
+	{
 		id: "goal-guardrails",
 		date: "2026-11-14",
 		title: "Guardrails on a goal",

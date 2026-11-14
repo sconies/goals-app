@@ -18,7 +18,7 @@ describe('the Help index', () => {
     expect(latestNewsId()).toBe(newest.id);
     // The first download's index holds articles, moved ids and one release: nothing else that grows with each release.
     expect(Object.keys(INDEX).sort()).toEqual(['articles', 'latest', 'moved']);
-    expect(JSON.stringify(INDEX)).not.toContain(WHATS_NEW[1]!.title);
+    expect(JSON.stringify(INDEX)).not.toContain(WHATS_NEW[1]!.points[0]!);
   });
 
   it('says something is new exactly when What’s new would list a release as unread, and the newest first', () => {
