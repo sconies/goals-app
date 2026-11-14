@@ -1,15 +1,20 @@
 /* Home's sets (round 3, HM3: docs/design/home/spec.md rule 4): "Your goals", "Your team" and "Goals you watch" are
    exactly the Goals scopes, and a set of more than twelve goals in two or more teams is drawn as teams, worst first. Pure. Apart from
-   home.ts so that only the screens that draw a set load it (Home's first download stays as it was); `asTeams`, which
-   Home asks before loading them, stays in home.ts. */
+   home.ts so that only the screens that draw a set load it (Home's first download stays as it was). */
 import { attentionOrder, needsAttention, splitAttention, type GoalAttention } from './attention';
 import type { Scope, ScopeTab } from './goalsPage';
-import { asTeams } from './home';
 import { statusCounts, worstGroupsFirst } from './order';
 import type { DisplayStatus } from './types';
 import type { Standing } from './standing';
 import { dayText } from './format';
 import { WEEKDAY } from './progress';
+
+/** A set is drawn as teams when it holds more than twelve goals in two or more teams (rule 4, as its worked examples read:
+    Rhea's twelve watched goals in four teams stay goal rows; Amara's 56 in nine are teams). */
+export function asTeams(goals: readonly { teamId: string }[]): boolean {
+  const teams = new Set(goals.map((g) => g.teamId)).size;
+  return goals.length > 12 && teams >= 2;
+}
 
 /** One team of a set drawn as teams: its goals in the set, by status worst first, and how many need attention. `moved`
     (rule 5, HM4) is added by "Changed since"; until then it is absent and the table has no "Since" column. */

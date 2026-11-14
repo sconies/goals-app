@@ -386,7 +386,7 @@ export function askLead(w: Waiting | undefined): Lead | null {
     line: `“${w.said}”. ${about}${handed}`, action: { label: ASK_ACTION[w.kind], to: w.to }, also: null, ring: null, about: w.askId };
 }
 
-/* ---------- The sets (round 3, HM3: docs/design/home/spec.md rule 4; the rest is in homeSets.ts) ---------- */
+/* The sets (round 3, HM3: docs/design/home/spec.md rule 4) are in homeSets.ts, loaded after Home's first download. */
 
 /** Small workspaces 2.1 (SM1h): with one team in the workspace, "Your goals" and "Your team" would repeat each other, so
     Home draws one section, "The team's goals · {n}", the viewer's own first. That team's id when the workspace has
@@ -401,9 +401,3 @@ export function ownFirst<T>(list: readonly T[], own: (x: T) => boolean): T[] {
   return [...list.filter(own), ...list.filter((x) => !own(x))];
 }
 
-/** A set is drawn as teams when it holds more than twelve goals in two or more teams (rule 4, as its worked examples read:
-    Rhea's twelve watched goals in four teams stay goal rows; Amara's 56 in nine are teams). */
-export function asTeams(goals: readonly { teamId: string }[]): boolean {
-  const teams = new Set(goals.map((g) => g.teamId)).size;
-  return goals.length > 12 && teams >= 2;
-}

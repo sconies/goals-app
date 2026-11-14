@@ -57,6 +57,18 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['home'],
   },
   {
+    id: 'home-changed',
+    date: '2026-11-14',
+    title: 'See what changed since you last looked',
+    points: [
+      'Home says what moved since you last opened it: how many goals got worse, recovered, went quiet or were done, each count opening exactly those goals.',
+      'Up to four of them are listed, worse first, each with its status now and what it was.',
+      'When your goals are shown as teams, a last column says what moved in each team.',
+      'Goals can be filtered the same way: “Changed since Fri 6 Nov: got worse”.',
+    ],
+    articles: ['home', 'goals-filters'],
+  },
+  {
     id: 'corrections-keep-the-author',
     date: '2026-11-14',
     title: 'A correction keeps whose check-in it is',

@@ -92,6 +92,14 @@ export function standingIn(s: Pick<Snapshot, 'checkIns' | 'requests'>, cycle: Cy
 /** The live goals of the year, not stopped: every goal Goals' All counts. */
 export const liveGoals = (s: Pick<Snapshot, 'goals'>): Goal[] => live(s.goals).filter((g) => !g.stoppedAt);
 
+/**
+ * Rule 5's `moved=` (Home spec): what each goal did since a day. Its code (app/moved.ts) is registered by what reads it,
+ * Goals, Home's later parts and the MCP server, so none of it is in Home's first download; until then `moved=` matches nothing.
+ */
+type Passes = (g: Goal, kind: string, since: string | null) => boolean;
+let movedRule: ((s: Pick<Snapshot, 'checkIns'>, cycle: Cycle, today: Date) => Passes) | null = null;
+export function registerMovedRule(rule: NonNullable<typeof movedRule>) { movedRule = rule; }
+
 /** Every goal's summary row, with what the Goals filters need beyond it. With `reviews` false (Reviews off) `inreview=`
     narrows nothing, as a switched-off module's column doesn't (module map F4; build review of #424). */
 export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns'], reviews = true): GoalRows {
@@ -99,7 +107,10 @@ export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number, c
   // This week's standing (habit rule 1) for `checkedin=`, and a review's goals for `inreview=` (HB2).
   const standing = standingIn(s, cycle, week);
   const inReview = (id: string) => { const r = s.reviews.find((x) => x.id === id && !x.removedAt); return r ? new Set(goalsIn(r.scope, goals).map((g) => g.id)) : null; };
-  return { kind: 'goal', summaries: summariseAll(goals, s, cycle, today, week), ctx: { goals, cycle, week, standing, ...(reviews ? { inReview } : {}), ...(columns ? { columns } : {}) } };
+  // What each goal did since a day (Home rule 5) for `moved=`: the rule as app/moved.ts registers it, asked when a query first reads it.
+  let passes: Passes | undefined;
+  const moved: Passes = (g, kind, since) => !!(passes ??= movedRule?.(s, cycle, today))?.(g, kind, since);
+  return { kind: 'goal', summaries: summariseAll(goals, s, cycle, today, week), ctx: { goals, cycle, week, standing, moved, ...(reviews ? { inReview } : {}), ...(columns ? { columns } : {}) } };
 }
 
 export function personRows(s: Snapshot): PersonRows {
