@@ -466,7 +466,7 @@ const CORE_TOOLS: ToolDef[] = [
       const saved = (cs: ChangeSet, before: McpContext['snapshot']) => {
         if (cs.items.some((x) => x.kind === 'replaces check-in')) return null;
         const c = cs.commit?.checkIns?.find((x) => x.goalId === g.id);
-        const m = c && moment(before.checkIns.filter((x) => x.goalId === g.id), c, g);
+        const m = c && moment(before.checkIns, c, g);
         if (!c || !m) return null;
         const t = momentText(m, g, c, ctx.cycle.weeks);
         return { data: { moment: { kind: m.kind, heading: t.heading, line: t.line } }, text: `${t.heading}. ${t.line}` };

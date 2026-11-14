@@ -21422,7 +21422,7 @@ var CORE_ARTICLES = [
 				text: [
 					"The last screen says whether your check-ins were in before the deadline (“All 4 of your check-ins are in by Thursday.”; if you are in a review held that day, “… before Thursday’s review.”) and, from two weeks, how many weeks in a row you have been on time. If some came after it, it says how many, and when the next are due.",
 					"One late or missed week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. On time means by the deadline day on your own clock. A week added later never counts as on time, a goal called Done leaves your run, and a goal you take over counts only from when it became yours. Only you see your run.",
-					"When a check-in takes a goal to its target, the last screen says so quietly, with a way to copy the goal’s share image; when it brings a goal back on track after two weeks or more behind, it says that. The goal’s History marks the week “Reached its target” or “Back on track”. A correction never does."
+					"When a check-in takes a goal to its target, the last screen says so quietly, with a way to copy the goal’s share image; when it brings a goal back on track after two weeks or more behind, it says that. The goal’s History marks the week “Reached its target” or “Back on track”, judged as things stood that week: a later check-in or a change of plan never takes the mark away. A correction never does."
 				]
 			},
 			{
@@ -23425,6 +23425,13 @@ var WHATS_NEW = [
 			"goals-filters",
 			"import"
 		]
+	},
+	{
+		id: "moment-fixed-as-of-its-week",
+		date: "2026-11-14",
+		title: "A target reached stays reached in History",
+		points: ["A goal’s History marks a week “Reached its target” or “Back on track” as things stood that week, against the check-ins before it and the plan then.", "A later check-in, a second check-in that week or a change of plan no longer takes the mark away."],
+		articles: ["check-in"]
 	},
 	{
 		id: "not-measured-yet-status",
@@ -28888,24 +28895,34 @@ var tools$5 = [
 // src/domain/habit.ts
 init_format();
 init_progress();
+init_plan();
 /** Whether a value meets a metric goal's target in its direction (up when the target is above the start). */
 function meets(goal, v) {
 	if (goal.kind !== "metric" || goal.plan.target === goal.plan.start) return false;
 	return goal.plan.target > goal.plan.start ? v >= goal.plan.target : v <= goal.plan.target;
 }
+/** Whether `c` was posted before `after`: earlier in time, or at the same moment for an earlier week. */
+function postedBefore(c, after) {
+	return c.postedAt < after.postedAt || c.postedAt === after.postedAt && c.week < after.week;
+}
 /**
-* Rule 3: what a check-in makes, from the goal's earlier check-ins (any order) and this one. `reached` wins over `back`.
+* Rule 3: what a check-in makes. The moment is fixed as of the check-in's own week (Lane, 14 Nov): the rule takes the
+* goal's whole history (any order; the check-in itself and other goals' rows may be in it) and the goal as it stands,
+* and judges the check-in only against the check-ins posted before it and the plan in force in its week. A later post,
+* a backfill posted afterwards or a re-plan never changes what it made. `reached` wins over `back`.
 * Neither fires on a backfilled week; callers leave out corrections and imports, which never reach the receipt and are
 * marked on History's row as corrected (`fresh: false`).
 */
-function moment(earlier, after, goal, fresh = true) {
+function moment(checkIns, after, goal, fresh = true) {
 	if (!fresh || after.backfilled || after.removedAt) return null;
-	if (earlier.some((c) => c.id !== after.id && c.goalId === after.goalId && c.week === after.week && !c.removedAt)) return null;
+	const earlier = checkIns.filter((c) => c.id !== after.id && c.goalId === after.goalId && !c.removedAt && postedBefore(c, after));
+	if (earlier.some((c) => c.week === after.week)) return null;
+	const g = goalAsOf(goal, after.week);
 	const byWeek = /* @__PURE__ */ new Map();
-	for (const c of [...earlier].sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt))) if (c.week < after.week && !c.removedAt) byWeek.set(c.week, c);
+	for (const c of [...earlier].sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt))) if (c.week < after.week) byWeek.set(c.week, c);
 	const prior = [...byWeek.values()].sort((a, b) => b.week - a.week);
 	const before = prior[0];
-	if (after.value != null && meets(goal, after.value) && !(before?.value != null && meets(goal, before.value))) return {
+	if (after.value != null && meets(g, after.value) && !(before?.value != null && meets(g, before.value))) return {
 		kind: "reached",
 		behind: 0
 	};
@@ -28922,7 +28939,8 @@ function moment(earlier, after, goal, fresh = true) {
 	} : null;
 }
 /** The receipt's panel for a moment (spec 2.2): its heading and line. */
-function momentText(m, goal, c, weeks) {
+function momentText(m, current, c, weeks) {
+	const goal = goalAsOf(current, c.week);
 	const v = c.value == null || goal.kind === "milestone" ? "" : fmt(c.value, goal);
 	if (m.kind === "reached" && goal.kind === "metric") return {
 		heading: `${goal.title} reached its target`,
@@ -30726,7 +30744,7 @@ var CORE_TOOLS = [
 			const saved = (cs, before) => {
 				if (cs.items.some((x) => x.kind === "replaces check-in")) return null;
 				const c = cs.commit?.checkIns?.find((x) => x.goalId === g.id);
-				const m = c && moment(before.checkIns.filter((x) => x.goalId === g.id), c, g);
+				const m = c && moment(before.checkIns, c, g);
 				if (!c || !m) return null;
 				const t = momentText(m, g, c, ctx.cycle.weeks);
 				return {
