@@ -15,7 +15,7 @@ import { checkInsFor } from '../domain/status';
 import type { Cause, CheckInReading, Goal, MetricGoal, RangeGoal, ReadingWhyKind } from '../domain/types';
 import { Place } from '../core/app';
 import { MIN_CORRECT_REASON, parseNumber } from '../domain/checkin';
-import { READING_WHY, sameAtPlaces } from '../domain/reading';
+import { filledAt, READING_WHY, sameAtPlaces } from '../domain/reading';
 import { Chip, Empty, TitleTell } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { CheckBlock, MustFixBlock } from '../ui/Levels';
@@ -63,12 +63,14 @@ export function QuickCheckIn() {
   const [readings, setReadings] = useState<Record<string, CheckInReading>>({});
   const [touched, setTouched] = useState<Set<string>>(() => new Set());
   const [whyOf, setWhyOf] = useState<Record<string, { kind: ReadingWhyKind | null; text: string }>>({});
+  // A reading as its cell holds it: at the goal's places (review of #437, medium 6).
+  const filledOf = (id: string) => filledAt(readings[id]!.value, goals.find((x) => x.id === id)?.decimals ?? 0);
   const suggested = (id: string) => !!readings[id] && !touched.has(id) && !(rows[id]?.value ?? '').trim();
   const touch = (id: string) => {
     if (touched.has(id)) return;
     setTouched((t) => new Set(t).add(id));
     // Touching a row filled from its source keeps the number in it, now the owner's to change.
-    if (suggested(id)) set(id, { value: String(readings[id]!.value) });
+    if (suggested(id)) set(id, { value: filledOf(id) });
   };
   const set = (id: string, patch: Partial<Row>) => {
     const g = goals.find((x) => x.id === id);
@@ -90,7 +92,7 @@ export function QuickCheckIn() {
 
   const judged = useMemo(() => goals.map((g) => {
     const own = rows[g.id] ?? blank;
-    const r = suggested(g.id) ? { ...own, value: String(readings[g.id]!.value) } : own;
+    const r = suggested(g.id) ? { ...own, value: filledOf(g.id) } : own;
     const posted = app.snapshot.checkIns.find((c) => c.goalId === g.id && c.week === app.week) ?? null;
     const read = readings[g.id] ?? null;
     const typed = r.value.trim() ? parseNumber(r.value) ?? NaN : NaN;

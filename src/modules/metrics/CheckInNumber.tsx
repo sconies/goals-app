@@ -11,7 +11,7 @@ import { parseNumber, previousFor } from '../../domain/checkin';
 import { checkInsFor } from '../../domain/status';
 import { fmt } from '../../domain/format';
 import { MIN_CORRECT_REASON } from '../../domain/checkin';
-import { READING_WHY, readWhen } from '../../domain/reading';
+import { filledAt, READING_WHY, readWhen } from '../../domain/reading';
 import type { CheckInReading, ReadingWhyKind } from '../../domain/types';
 import { WarnMark } from '../../ui/bits';
 import { CheckBlock } from '../../ui/Levels';
@@ -55,7 +55,10 @@ export function CheckInNumber(p: PlaceProps['checkin.number']) {
 
   const source = asked?.source ?? null;
   const raw = asked && source ? asked.reading : null;
-  const decimals = m?.metric.decimals ?? (goal.kind === 'milestone' ? 0 : goal.decimals);
+  // The goal's places, as the engine judges (review of #437, medium 4), never the metric's.
+  const decimals = goal.kind === 'milestone' ? 0 : goal.decimals;
+  // The reading as the field holds it, at those places (medium 6).
+  const fill = (v: number) => p.setValue(filledAt(v, decimals));
   const typed = p.value.trim() ? parseNumber(p.value) : null;
   const state = source && m && goal.kind !== 'milestone' ? readingState(raw, p.lastReading, p.last?.value ?? null, app.today, typed, decimals) : null;
   const reading = raw && typeof raw === 'object' ? raw : null;
@@ -64,7 +67,7 @@ export function CheckInNumber(p: PlaceProps['checkin.number']) {
   useEffect(() => {
     if (filled.current || !reading || (state !== 'fresh' && state !== 'jump')) return;
     filled.current = true;
-    if (!p.value.trim()) p.setValue(String(reading.value));
+    if (!p.value.trim()) fill(reading.value);
   }, [state, reading?.value]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const num = (v: number) => (goal.kind === 'milestone' ? String(v) : fmt(v, goal));
@@ -104,14 +107,14 @@ export function CheckInNumber(p: PlaceProps['checkin.number']) {
       <>
         <p className="small"><strong>From {source}</strong>, read {when}.</p>
         <p className="hint">{p.last ? `${lastLine} ` : ''}Change the number if it’s wrong, and you’ll be asked why. You still say what changed: that is the next step.</p>
-        {reading && typed == null && <button type="button" className="linkish tap small" style={{ alignSelf: 'flex-start' }} onClick={() => p.setValue(String(reading.value))}>Put {num(reading.value)} back</button>}
+        {reading && typed == null && <button type="button" className="linkish tap small" style={{ alignSelf: 'flex-start' }} onClick={() => fill(reading.value)}>Put {num(reading.value)} back</button>}
         {skip}
       </>
     );
   } else if (shown === 'changed' && reading) {
     body = (
       <>
-        <p className="small">You typed {num(typed!)}. <strong>{source}</strong> said {num(reading.value)}, read {when}. <button type="button" className="linkish" onClick={() => p.setValue(String(reading.value))}>Put {num(reading.value)} back</button></p>
+        <p className="small">You typed {num(typed!)}. <strong>{source}</strong> said {num(reading.value)}, read {when}. <button type="button" className="linkish" onClick={() => fill(reading.value)}>Put {num(reading.value)} back</button></p>
         <div className="stack reading-why" style={{ gap: 'var(--s2)' }}>
           <h3 className="qtitle sm" id="reading-why">Why is it different?</h3>
           <div className="optlist ci-opts" role="radiogroup" aria-labelledby="reading-why">
@@ -167,7 +170,7 @@ export function CheckInNumber(p: PlaceProps['checkin.number']) {
     body = (
       <CheckBlock id="reading-jump" question={`${source} says ${num(reading.value)}. That is ${bigger ? 'ten times' : 'a tenth of'} week ${p.last.week}’s ${num(p.last.value)}. Is it right?`}
         yes={`Yes, confirm ${num(reading.value)}`} no="Type a different number" alert={p.tried}
-        onYes={() => { setJumpAnswer('yes'); p.setValue(String(reading.value)); }} onNo={() => { setJumpAnswer('no'); p.setValue(''); setTimeout(focusField, 0); }} />
+        onYes={() => { setJumpAnswer('yes'); fill(reading.value); }} onNo={() => { setJumpAnswer('no'); p.setValue(''); setTimeout(focusField, 0); }} />
     );
   } else {
     body = <p className="hint">{lastLine}</p>;
@@ -197,7 +200,7 @@ export function CheckInTableReadings({ goals, week, onReadings }: PlaceProps['ch
         // A goal already checked in this week isn't filled in again: the table would post a second check-in for it.
         if (own.some((c) => c.week === week)) continue;
         const lastValue = previousFor(own, week).number?.value ?? null;
-        if (readingState(a.reading, own.at(-1)?.reading ?? null, lastValue, app.today, null, m.metric.decimals) === 'fresh') out[g.id] = { source: a.source, value: a.reading.value, at: a.reading.at };
+        if (readingState(a.reading, own.at(-1)?.reading ?? null, lastValue, app.today, null, g.kind === 'milestone' ? 0 : g.decimals) === 'fresh') out[g.id] = { source: a.source, value: a.reading.value, at: a.reading.at };
       }
       if (live) onReadings(out);
     })();

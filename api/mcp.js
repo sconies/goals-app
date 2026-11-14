@@ -5051,7 +5051,7 @@ function readingCells(c, decimals) {
 		reason: r.why ? readingReason(r.why) : null
 	};
 }
-var READING_WHY, readingWhyLabel, sameAtPlaces, parts, readingConfirmed;
+var READING_WHY, readingWhyLabel, sameAtPlaces, filledAt, parts, readingConfirmed;
 var init_reading = __esmMin((() => {
 	init_checkin();
 	init_correctReason();
@@ -5068,6 +5068,7 @@ var init_reading = __esmMin((() => {
 		const p = Math.max(0, decimals);
 		return Number(a.toFixed(p)) === Number(b.toFixed(p));
 	};
+	filledAt = (v, decimals) => String(Number(v.toFixed(Math.max(0, decimals))));
 	parts = (d, timeZone) => {
 		const f = new Intl.DateTimeFormat("en-GB", {
 			timeZone,
@@ -25973,6 +25974,7 @@ function sourcesFrom(seed, cycle, behindWeeks = 0) {
 }
 // src/modules/metrics/readingTool.ts
 init_status();
+init_reading();
 init_rules();
 /** The sources an assistant's check-in reads: the demo's in the example, none elsewhere. */
 function toolSources(ctx) {
@@ -25994,9 +25996,10 @@ async function readForTool(ctx, goal, ask) {
 		reading: null,
 		says: `No source can read ${m.metric.name}, so no reading was recorded.`
 	};
+	const decimals = goal.kind === "milestone" ? 0 : goal.decimals;
 	const last = checkInsFor(goal, ctx.snapshot.checkIns).at(-1) ?? null;
-	const value = ask.value ?? (ask.confirmed && asked.reading && typeof asked.reading === "object" ? asked.reading.value : null);
-	const state = readingState(asked.reading, last?.reading ?? null, last?.value ?? null, ctx.today, value, m.metric.decimals);
+	const value = ask.value ?? (ask.confirmed && asked.reading && typeof asked.reading === "object" ? Number(filledAt(asked.reading.value, decimals)) : null);
+	const state = readingState(asked.reading, last?.reading ?? null, last?.value ?? null, ctx.today, value, decimals);
 	const r = asked.reading && typeof asked.reading === "object" ? asked.reading : null;
 	const says = {
 		"no-slice": `${asked.source} doesn’t read ${m.metric.name} for this goal’s team or part, so no reading was recorded.`,
@@ -26009,7 +26012,7 @@ async function readForTool(ctx, goal, ask) {
 		reading: null,
 		says: says[state]
 	};
-	return { reading: recordReading(asked.source, r, value, m.metric.decimals, ask.why) ?? null };
+	return { reading: recordReading(asked.source, r, value, decimals, ask.why) ?? null };
 }
 var metricReader = {
 	module: "metrics",
@@ -28147,7 +28150,7 @@ var CORE_TOOLS = [
 				needs: str("A decision or help needed, and from whom."),
 				next_step: str("The next step."),
 				reason: str(`If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”.`),
-				reading_confirmed: bool("True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded."),
+				reading_confirmed: bool("True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded. This week’s check-in only: refused with an earlier week."),
 				different_because: {
 					type: "object",
 					additionalProperties: false,
@@ -28180,6 +28183,10 @@ var CORE_TOOLS = [
 			let readings;
 			let readSays = "";
 			if (asksReading) {
+				if (typeof a.week === "number" && a.week !== ctx.week) return {
+					isError: true,
+					text: `reading_confirmed and different_because are for this week’s check-in (week ${ctx.week}) only: a source reads what it says now, not what it said in week ${a.week}. Post week ${a.week} with its value and without them.`
+				};
 				const reader = checkInReaders()[0];
 				if (reader && !isModuleOn(ctx.ws, reader.module)) return {
 					isError: true,

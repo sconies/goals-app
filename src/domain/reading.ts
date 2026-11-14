@@ -28,6 +28,9 @@ export const sameAtPlaces = (a: number, b: number, decimals: number) => {
   return Number(a.toFixed(p)) === Number(b.toFixed(p));
 };
 
+/** A source's number as a check-in's field holds it: at the goal's decimals (20.4567 fills a whole-minutes goal as "20"). */
+export const filledAt = (v: number, decimals: number) => String(Number(v.toFixed(Math.max(0, decimals))));
+
 /**
  * Rule 3: what a reading needs before a check-in records it, the same at every door (the engine asks it of the form, the
  * one table, the AI tools and a file alike). The reading is the source's: a finite number, measured at a time that parses,

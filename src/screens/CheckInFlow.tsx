@@ -355,6 +355,13 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   });
   const setStep = (to: Step) => { setStepState(to); try { if (to === 'measure') localStorage.removeItem(stepKey); else localStorage.setItem(stepKey, to); } catch { /* private mode */ } };
   const [trail, setTrail] = useState<Step[]>([]);
+  // A draft reopened on the number step with the number its source filled in, untouched: it isn't the owner's, so the
+  // field starts empty and the source fills it again with what it says now (review of #437, medium 3). Past the number
+  // step the owner has confirmed it, and it is theirs.
+  useEffect(() => {
+    if (draft.filled == null) return;
+    keep(step === 'measure' && draft.value === draft.filled ? { value: '', filled: undefined } : { filled: undefined });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // Where this check-in is, for the named flow (src/help/flows.ts): opened, then saying why or carrying last week's over.
   useMark('checkIn.open');
   useMark(step === 'account' ? 'checkIn.account' : step === 'carry' ? 'checkIn.carry' : null);
@@ -554,7 +561,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
             <div className="stack">
               <label className={'bignum' + (invalid ? ' invalid' : '')}>
                 <span className="sr">This week’s value</span>
-                <input ref={valueRef} inputMode="decimal" enterKeyHint="next" autoComplete="off" autoFocus value={draft.value} onChange={(ev) => set({ value: ev.target.value })}
+                <input ref={valueRef} inputMode="decimal" enterKeyHint="next" autoComplete="off" autoFocus value={draft.value} onChange={(ev) => set({ value: ev.target.value, filled: undefined })}
                   placeholder="Type it here" aria-describedby={(shown || empty ? 'value-msg ' : '') + 'value-hint'} aria-label="This week’s value" aria-invalid={invalid} />
                 {goal.unit && <span className="bignum-unit">{goal.unit}</span>}
               </label>
@@ -569,7 +576,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
                 );
               })()}
               {empty && <span id="value-msg" className="hint tone-off" role="alert">Type this week’s number.</span>}
-              {!correcting && <Place name="checkin.number" goal={goal} week={week} value={draft.value} setValue={(v) => keep({ value: v })}
+              {!correcting && <Place name="checkin.number" goal={goal} week={week} value={draft.value} setValue={(v) => keep({ value: v, filled: v })}
                 last={lastNumber?.value != null ? { week: lastNumber.week, value: lastNumber.value } : null} lastReading={previous?.reading ?? null}
                 tried={tried} onStep={setNumberStep} onReading={setReading} onSkip={onSkip} />}
               {!numberStep && <span id="value-hint" className="valuehint hint">

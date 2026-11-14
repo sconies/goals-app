@@ -6089,6 +6089,16 @@ journey('U156', ['READING-PREFILL', 'READING-RECORDED-ONLY'], 'A number filled i
   h.set('entry', filled === '20', `the field opened with “${filled}”, not the reading`);
   h.set('attention', /read \d{1,2}:\d{2} today\./.test(await block.innerText()) && !/Typed in by hand/.test(await p.locator('main, .focus').first().innerText()), 'the step does not say when it was read, or still says “Typed in by hand.”');
   await h.checkpoint('filled in');
+  // Left and reopened when the source says something else (two weeks behind), the 20 it filled in isn't kept as the
+  // owner's: no “You typed 20”, and the field is the source's to fill again (review of #437, medium 3).
+  await p.goto(url('/check-in/ns-ci?sources=behind'));
+  await see(p, 'What’s the number this week?');
+  await see(block, 'CI analytics', 'the step does not ask the source again');
+  const kept = await field.inputValue();
+  const reopened = await block.innerText();
+  h.set('attention', kept !== '20' && !/You typed/.test(reopened), `reopened, the field held “${kept}” and the step said “${reopened.slice(0, 80)}”`);
+  await p.goto(url('/check-in/ns-ci'));
+  await see(block, 'From CI analytics', 'the step does not fill in again');
   const confirm = p.getByRole('button', { name: 'Confirm 20 min' });
   h.set('progress', await confirm.isVisible(), 'the primary does not name the number');
   await h.click(confirm);
