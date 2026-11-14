@@ -1206,6 +1206,12 @@
       "use": "copy"
     },
     {
+      "id": "RHYTHM-OPTIONAL",
+      "area": "Architecture",
+      "text": "An admin chooses the check-in rhythm for a workspace: every week, or none. With none, nothing is due or late for want of a check-in, no goal reads No recent update, and a status that isn’t this week’s says which week it is from. Dates people set still count. The change says what it will do first, is logged, and can be undone.",
+      "use": "copy"
+    },
+    {
       "id": "REVIEWS-SWITCH-CLOCK",
       "area": "Architecture",
       "text": "The day check-ins are due never needs a review. One rule names the deadline: “before Thursday’s review” only when Reviews is on and a review is held that day, otherwise “by Thursday”, so with Reviews off no screen, receipt or count calls the deadline a review. Switching Reviews off says first that check-ins are still due by that day and how many accepted risks stay on their goals; a spreadsheet leaves out what is Reviews’ and an import says once that it wasn’t read; every switched-off module’s AI tools answer with one sentence; and back on, a session whose date passed while it was off is not “Not held yet”.",

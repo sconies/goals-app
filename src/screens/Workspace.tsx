@@ -11,7 +11,7 @@
    extension point: a module adds its own (AppModule `sections`, src/core/app.tsx). Old addresses
    (/workspace?inbox=1&markup=…, #people) lead to where they meant. */
 import { nameLength, nameProblem } from '../domain/thresholds';
-import { createContext, Fragment, useContext, useState, type ReactNode } from 'react';
+import { createContext, Fragment, useContext, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
 import { useModules, type WorkspaceSection } from '../core/app';
@@ -30,12 +30,14 @@ import { WarnMark } from '../ui/bits';
 import { useWidth } from '../ui/useWidth';
 import { CORE_SECTION_LABELS } from './workspaceSections';
 import { movedTo } from '../domain/directory';
-import { WORKSPACE_MEANS } from '../domain/vocabulary';
+import { STATUS, WORKSPACE_MEANS } from '../domain/vocabulary';
 import { reviewsOn, watchingOn, wrapUpOn } from '../app/reads';
 import { watchingAsks, watchingOffLines, watchingOffReadBack, wrapUpAsks, wrapUpOffLines, wrapUpOffReadBack } from '../domain/switchOff';
 import { switchOffLines, switchOffReadBack } from '../domain/reviewsOff';
 import { dueWords } from '../domain/progress';
 import { asksOf } from '../domain/asks';
+import { rhythmAbout, rhythmChoiceOf, rhythmFact, rhythmLine, rhythmReadBack, rhythmReadBackLines, rhythmToast, type RhythmChoice } from '../domain/rhythm';
+import { WEEKDAY } from '../domain/progress';
 
 /** Below this width, Workspace is About and then its other sections as a list, one section at a time (a phone). */
 const NARROW = 720;
@@ -261,7 +263,7 @@ function AboutSection() {
           {fact('People', <Link to="/people">{app.snapshot.people.length} {app.snapshot.people.length === 1 ? 'person' : 'people'} in {teams} {teams === 1 ? 'team' : 'teams'}</Link>)}
           {fact('Year', <>{yearLine(app.cycle, app.week, app.today, left, wrapUpOn(on))} <Link to="/workspace/cycles">Cycles</Link></>)}
           {fact('Admins', <>{admins}. {admin ? <Link to="/workspace/access">Access</Link> : 'Ask one of them to add someone, change a team or change a setting.'}</>)}
-          {installed.length > 0 && fact('Features', <>{featuresSentence(modOn, modOff)}{admin && <> <Link to="/workspace/features">Features</Link></>}</>)}
+          {fact('Features', <>{rhythmAbout(app.cycle)}{installed.length > 0 && <> {featuresSentence(modOn, modOff)}</>}{admin && <> <Link to="/workspace/features">Features</Link></>}</>)}
           {fact('Recording', <>{app.ws.recording !== false ? 'Faro records how the app is used here, never what anyone types.' : 'Nothing about how the app is used here is recorded.'} <Link to="/workspace/privacy">Privacy</Link></>)}
           {sections.filter((s) => s.says).map((s) => <Fragment key={s.id}>{fact(s.label, <>{s.says!(app)} <Link to={`/workspace/${s.id}`}>{s.label}</Link></>)}</Fragment>)}
         </dl>
@@ -332,6 +334,7 @@ function CyclesSection() {
                   <span className="small">{line.when}</span>
                   <span className="hint">{line.counts}</span>
                   {current && <span className="hint">{yearLine(c, app.week, app.today, left, wrapUp).replace(/^.*?\.\s/, '')}</span>}
+                  {current && <span className="hint rhythm-fact">{rhythmFact(c)}{admin && <> <Link to="/workspace/features">Change</Link></>}</span>}
                   {start && <span className="hint">Started by {app.person(start.actorId)?.name ?? 'an admin'} on {dayWithYear(start.at.slice(0, 10))}. {can?.ok ? 'It can be undone until someone checks in or changes a goal in it.' : `It can’t be undone now: ${can && !can.ok ? can.why : ''}.`}</span>}
                 </span>
                 <span className="team-actions">
@@ -538,7 +541,10 @@ function Features() {
   const { installed, on, off } = useModules();
   const [busy, setBusy] = useState<string | null>(null);
   const [asking, setAsking] = useState<string | null>(null);
-  if (!installed.length) return <p className="hint">This build has no optional features.</p>;
+  const [rhythm, setRhythm] = useState(false);
+  // The rhythm's Undo runs after the sheet has closed and the cycle has changed: it acts on the app as it is then.
+  const latest = useRef(app);
+  latest.current = app;
   const nameOf = (id: string) => installed.find((m) => m.id === id)?.name ?? id;
   const is = { reviews: (id: string) => reviewsOn(new Set([id])), watching: (id: string) => watchingOn(new Set([id])), wrapUp: (id: string) => wrapUpOn(new Set([id])) };
   const flip = async (id: string, next: boolean) => {
@@ -596,6 +602,17 @@ function Features() {
   const go = () => { const id = asking!; setAsking(null); void flip(id, false); };
   return (
     <section className="block features-block" aria-label="Features">
+      <div className="stack features-group" aria-labelledby="features-how">
+        <h2 className="label" id="features-how">How you work</h2>
+        {/* The check-in rhythm (FT1): not a module, a setting of the running year; Change opens its sheet. */}
+        <div className="switch-row feature-check rhythm-row">
+          <span className="stack" style={{ gap: 0, flex: 1, minWidth: 0 }}>
+            <span>Check-in rhythm</span>
+            <span className="hint">{rhythmLine(app.cycle)}</span>
+          </span>
+          <button type="button" className="btn sm" onClick={() => setRhythm(true)}>Change</button>
+        </div>
+      </div>
       {/* A group with no installed module is not drawn (spec 4.1). "How you work" holds settings, none of them a switch. */}
       {FEATURE_GROUPS.map((g) => {
         const ms = installed.filter((m) => (m.group ?? 'tools') === g.id);
@@ -607,10 +624,67 @@ function Features() {
         );
       })}
       <p className="hint">Switching one off hides it and keeps what it saved. Recording how the app is used is under <Link to="/workspace/privacy">Privacy</Link>. <Link to="/help/features">About features</Link></p>
+      {rhythm && <RhythmSheet latest={latest} onClose={() => setRhythm(false)} />}
       {asking && is.reviews(asking) && <ReviewsOffSheet onClose={close} onSwitch={go} />}
       {asking && is.watching(asking) && <ReadBackSheet title={`Switch off Watching in ${ws}?`} people={people} lines={watchingOffLines(watch, reviewsOn(on))} primary="Switch off Watching" onClose={close} onSwitch={go} />}
       {asking && is.wrapUp(asking) && <ReadBackSheet title={`Switch off the Wrap-up in ${ws}?`} people={people} lines={wrapUpOffLines(wrap)} primary="Switch off the Wrap-up" onClose={close} onSwitch={go} />}
     </section>
+  );
+}
+
+/** The check-in rhythm's sheet (FT1, spec 4.2): every week by a day, or no set rhythm; what changes for everyone, counted
+    by rhythmReadBack, once the choice differs from what is saved; Save, with Undo on the toast. */
+function RhythmSheet({ latest, onClose }: { latest: { current: ReturnType<typeof useApp> }; onClose: () => void }) {
+  const app = useApp();
+  const saved = rhythmChoiceOf(app.cycle);
+  const [to, setTo] = useState<RhythmChoice>(saved);
+  const [busy, setBusy] = useState(false);
+  const counts = rhythmReadBack(app.snapshot.goals, app.snapshot.checkIns, app.cycle, to, app.today);
+  const lines = rhythmReadBackLines(app.cycle, to, counts, app.today);
+  const before = { weeks: saved.weeks, dueDay: saved.dueDay, from: app.cycle.rhythmFrom ?? null };
+  const save = async () => {
+    setBusy(true);
+    try {
+      const said = rhythmToast(app.cycle, to);
+      await app.setRhythm({ weeks: to.weeks, dueDay: to.dueDay });
+      onClose();
+      app.toast(said, 'success', { label: 'Undo', run: () => { const now = latest.current; void now.setRhythm(before).then(() => now.toast('The check-in rhythm is as it was.')).catch(() => undefined); } });
+    } catch { setBusy(false); }
+  };
+  const opt = (weeks: number, label: string, line: string) => (
+    <button type="button" role="radio" aria-checked={to.weeks === weeks} className="opt rhythm-opt" onClick={() => setTo({ ...to, weeks })}>
+      <span className="stack" style={{ gap: 0 }}><span>{label}</span><span className="hint" style={{ fontWeight: 400 }}>{line}</span></span>
+    </button>
+  );
+  return (
+    <Sheet open onClose={onClose} title="Check-in rhythm">
+      <div className="stack readback" style={{ gap: 'var(--s3)' }}>
+        <div className="optlist" role="radiogroup" aria-label="Check-in rhythm">
+          {opt(1, 'Every week', `Check-ins are due by a day you choose. A goal with none for 14 days reads “${STATUS.stale.label}”.`)}
+          {opt(0, 'No set rhythm', 'Owners check in when there’s news. Nothing is due or late for want of a check-in.')}
+        </div>
+        {to.weeks === 1 && (
+          <label className="field">
+            <span className="label">Due by</span>
+            <select value={to.dueDay} onChange={(e) => setTo({ ...to, dueDay: Number(e.target.value) })}>
+              {WEEKDAY.map((d, i) => <option key={d} value={i}>{d}</option>)}
+            </select>
+          </label>
+        )}
+        {lines.length > 0 && (
+          <section aria-labelledby="rhythm-changes">
+            <h2 className="small strong" id="rhythm-changes">What changes for everyone here</h2>
+            <ul className="readback-lines">
+              {lines.map((l) => <li key={l.strong + l.rest}>{l.strong && <strong>{l.strong}</strong>}{l.rest}</li>)}
+            </ul>
+          </section>
+        )}
+        <div className="foot-row">
+          <button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn primary big-btn" disabled={busy || !lines.length} onClick={() => void save()}>Save</button>
+        </div>
+      </div>
+    </Sheet>
   );
 }
 

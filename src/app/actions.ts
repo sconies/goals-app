@@ -33,10 +33,15 @@ type GoalEntry = typeof import('../domain/goalEntry');
 let goalEntry: GoalEntry | null = null;
 export async function loadGoalEntry(): Promise<GoalEntry> { return (goalEntry ??= await import('../domain/goalEntry')); }
 const entry = (): GoalEntry => { if (!goalEntry) throw new Error('Goal entry hasn’t loaded yet: call ready() first.'); return goalEntry; };
+/* The check-in rhythm's rule (FT1) loads with its sheet, not in the first download. */
+type RhythmRules = typeof import('../domain/rhythm');
+let rhythmRules: RhythmRules | null = null;
+const rhythm = (): RhythmRules => { if (!rhythmRules) throw new Error('The rhythm’s rules haven’t loaded yet: call ready() first.'); return rhythmRules; };
 /** Loads what an action needs before it runs: the dispatcher calls it first. */
 export async function ready(name: string, input?: unknown): Promise<void> {
   if (NEEDS_ENGINE.has(name)) await loadEngine();
   if (name === 'saveGoal') await loadGoalEntry();
+  if (name === 'setRhythm') rhythmRules ??= await import('../domain/rhythm');
   await MODULE_ACTIONS[name]?.ready?.();
   // What a goal form saves with the goal (saveGoal's `also`) loads with it.
   const also = name === 'saveGoal' ? (input as SaveGoalWith | undefined)?.also : undefined;
@@ -164,6 +169,7 @@ export const ACTIONS = {
   setRecording: (x: RunContext, i: { on: boolean }) => A.setRecording(x, x.workspace, i.on),
   // Every module's records, on or off: the one switched says what the core's records need (ModuleRecords.switched).
   setModule: (x: RunContext, i: { moduleId: string; on: boolean }) => A.setModule({ ...x, records: MODULE_RECORDS }, x.workspace, x.modules, i.moduleId, i.on),
+  setRhythm: (x: RunContext, i: { weeks: number; dueDay?: number; from?: string | null }) => rhythm().setRhythm(x, x.cycle, i),
   /* A removal's Undo, straight after it (its message): every record it changed back as it was. Unlike the others, the
      input carries records: the removal as saved and the workspace just before it, which the Undo holds. */
   undoRemoval: (x: RunContext, i: { removal: Commit; before: Snapshot }) => R.undoRemoval(x, i.removal, i.before),

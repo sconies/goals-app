@@ -101,6 +101,26 @@ export function makeStoreContract(): Contract {
     steps: [step(commit({ changes: note(start, 'Kept by the store') })), step(load(), { select: comments, includes: ['Kept by the store'] })],
   });
 
+  /* The check-in rhythm (FT1): the cycle's two columns, check_in_weeks and rhythm_from (migration 0048), round trip. */
+  {
+    const c = start.cycles[0]!;
+    const cyc = (id: string, field: string) => `cycles[id=${id}].${field}`;
+    const save = (after: Cycle, text: string) => commit({ cycles: [after], changes: note(start, text) });
+    const { rhythmFrom: _from, checkInWeeks: _weeks, ...plain } = c;
+    cases.push({
+      name: 'keeps a cycle’s check-in rhythm whole: no set rhythm, every week from a day, and back',
+      steps: [
+        step(save({ ...plain, checkInWeeks: 0 }, 'No set rhythm')),
+        step(load(), all({ select: cyc(c.id, 'checkInWeeks'), equals: 0 }, there('cycles', c.id), absent(cyc(c.id, 'rhythmFrom')))),
+        // Every week is the default: it may read back as 1 or off the cycle. The day it began is kept.
+        step(save({ ...plain, checkInWeeks: 1, rhythmFrom: '2026-02-02' }, 'Every week again')),
+        step(load(), all(there('cycles', c.id), { anyOf: [absent(cyc(c.id, 'checkInWeeks')), { select: cyc(c.id, 'checkInWeeks'), equals: 1 }] }, { select: cyc(c.id, 'rhythmFrom'), equals: '2026-02-02' })),
+        step(save({ ...plain, checkInWeeks: 0 }, 'No set rhythm again')),
+        step(load(), all({ select: cyc(c.id, 'checkInWeeks'), equals: 0 }, absent(cyc(c.id, 'rhythmFrom')))),
+      ],
+    });
+  }
+
   /* Versions. */
   {
     const g = start.goals[0]!;

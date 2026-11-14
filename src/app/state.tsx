@@ -22,7 +22,6 @@ import { MODULE_RECORDS, recordsOn } from '../core/records';
 import { watchingOn } from './reads';
 import { applyCommit, EXAMPLE, examplesOf, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import type { Answers, ChangeInput, ChangeSet, CheckInPost, PostMode, Tables, Via } from '../domain/changeset';
-import { ACTIONS } from '../mcp/parity';
 import { saveRerunning } from './rerun';
 import { commitOf, loadEngine, loadGoalEntry, MODULE_ACTIONS, perform, performAny, ready, rerunsWhenStale, type ActionInput, type ActionName, type RunContext, type RunResult, type SaveGoalWith } from './actions';
 
@@ -38,13 +37,16 @@ import { avatarHues, duplicateTitles, goalTell, nameWithTell } from '../domain/p
 import { COMMENT_REMOVED, ENDED, leftName, NOTE_REMOVED, RESTORE_DAYS, UNDO_MS } from '../domain/vocabulary';
 
 /** The actions telemetry names, one trace each: every one in AppState (parity.ts lists them), except previewChanges,
-    which only works out a change, and createWorkspace, which is timed where it's defined (onboarding uses it too). */
-const TRACED = Object.keys(ACTIONS).filter((k) => k !== 'previewChanges' && k !== 'createWorkspace' && k !== 'run');
+    which only works out a change, and createWorkspace, which is timed where it's defined (onboarding uses it too).
+    parity.ts, with its reasons in words, loads after the first download: an action pressed before it has arrived (in
+    the app's first moments) runs untraced. */
+let TRACED: ReadonlySet<string> | null = null;
+void import('../mcp/parity').then(({ ACTIONS }) => { TRACED = new Set(Object.keys(ACTIONS).filter((k) => k !== 'previewChanges' && k !== 'createWorkspace' && k !== 'run')); });
 function traced(v: AppState): AppState {
   const out = { ...v } as unknown as Record<string, unknown>;
-  for (const k of TRACED) {
+  for (const k of Object.keys(out)) {
     const fn = out[k];
-    if (typeof fn === 'function') out[k] = (...args: unknown[]) => telemetry.action(k, () => (fn as (...a: unknown[]) => unknown)(...args));
+    if (typeof fn === 'function') out[k] = (...args: unknown[]) => (TRACED?.has(k) ? telemetry.action(k, () => (fn as (...a: unknown[]) => unknown)(...args)) : (fn as (...a: unknown[]) => unknown)(...args));
   }
   return out as unknown as AppState;
 }
@@ -92,6 +94,8 @@ export interface AppState {
   setRecording(on: boolean): Promise<void>;
   /** Admins: switch a feature module on or off in the open workspace (docs/architecture.md). */
   setModule(id: string, on: boolean): Promise<void>;
+  /** Admins: the check-in rhythm of the running cycle (FT1): every week (with its due day) or none. `from` is for Undo. */
+  setRhythm(to: { weeks: number; dueDay?: number; from?: string | null }): Promise<void>;
   snapshot: Snapshot;
   /** Every goal in the workspace, in every cycle (snapshot has this cycle's): for what reaches past it, like a team's goals. */
   allGoals: Goal[];
@@ -821,6 +825,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         moduleSwitches.current = step.catch(() => undefined);
         return step;
       },
+      setRhythm: async (to) => { await run('setRhythm', to); },
       setViewer: (id, arrival) => { if (!identity.choose || !wsId) return; identity.choose(wsId, id); if (arrival) arriving.current = id; setViewerId(id); },
       person: (id) => people.get(id),
       personName: (id) => { const p = people.get(id); if (!p) return id; const sh = sharedNames(); return sh.ids.has(id) && sh.twins.has(p.name.trim().toLowerCase()) ? nameWithTell(p, sc.people, lookup.teamName) : p.name; },
