@@ -18,6 +18,16 @@ Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh th
 - **Merged since, not reviewed:** none.
 - **Highs not yet confirmed fixed:** none. #452 is fixed by #467 and #416 by #432 (both re-run). What is left of #416 is a medium in #432's section: a review held on the due weekday, but not this week.
 - **To watch in #464 (GR, track 7d):** `BUILT_KEYS` (`src/domain/changeset.ts`) must name `guards` if `buildGoal` decides it; and migration 0051's check refuses a JSON null.
+- **Lane's answers, 14 Nov (relayed by planning, 12:33 UTC).** Read fixes against these, and don't raise them again:
+  - #334, an admin's pasted row over this week's check-in: treat it as a correction, with a reason and the owner kept as author (track 1).
+  - "Opened" and "Not yet" on a proposed goal: store them on the server now (track 2).
+  - A check-in added late to an ended year: keep as built.
+  - "Before this review": visible to the whole workspace; the design note's "anyone in a review" is what is wrong.
+  - Help hides a switched-off module's articles, Reviews included (track 4).
+  - Admins-only triage on a browser flag: accepted for Faro.
+  - The first-download limit stays at 275 KB (so #471's low 2 is answered).
+  - PR CI caps very large selections of journeys (track 4).
+  - Earlier: an untouched filled-in reading needs a touch before it posts (13 Nov, built in #460); readings stay visible with the Metric library off (14 Nov, in #470's spec).
 - **Mediums that become high later:** #437/#446's readings (an earlier week saved with today's reading; decimals compared two ways) the day a real number source is registered.
 - **Method, in short:** per merge, `git diff <merge>^1 <merge> -- . ':!spec' ':!api/mcp.js' ':!llms.txt' ':!evals/report.md'`; fix PRs read against the findings they answer; large features to a first-pass reviewer in its own worktree, which writes its report to a file; any high re-run before it is sent to the session on the merge's `Claude-Session` line; PGlite only, never the live database.
 
