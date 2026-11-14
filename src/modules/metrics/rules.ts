@@ -19,6 +19,7 @@ import { placesText } from '../../domain/numbers';
 import { mergeModuleRows, moduleRows, withModuleRows, type ModuleRows } from '../../domain/records';
 import type { Change, Goal, Person, Team } from '../../domain/types';
 import { heldByLink, measurementProblems, measurementWords } from './rulesMeasured';
+import { CONFIDENCE_WORDS, LEVEL_WORDS, structured, structureProblems } from './rulesStructure';
 import type { Metric, MetricDirection, MetricLink, MetricRefresh } from './types';
 
 export type { Metric, MetricDirection, MetricLink, MetricMark, MetricRefresh } from './types';
@@ -60,7 +61,7 @@ export const OPTIONAL_FIELDS = ['meaning', 'decimals', 'source', 'sourceOwner', 
 
 /** What someone gives to add or change a metric: everything but the bookkeeping. Left out, a field keeps its value
     (a new metric: empty text, 0 decimals, no refresh, owned by whoever adds it). */
-export type MetricInput = Partial<Pick<Metric, 'name' | 'meaning' | 'unit' | 'decimals' | 'direction' | 'source' | 'sourceOwner' | 'refresh' | 'ownerId' | 'caveats' | 'measurement' | 'measurementNote'>>;
+export type MetricInput = Partial<Pick<Metric, 'name' | 'meaning' | 'unit' | 'decimals' | 'direction' | 'source' | 'sourceOwner' | 'refresh' | 'ownerId' | 'caveats' | 'measurement' | 'measurementNote' | 'level' | 'parentId' | 'confidence' | 'gaming'>>;
 
 /* ---------- reading ---------- */
 
@@ -138,6 +139,8 @@ export function metricFrom(input: MetricInput, before: Metric | null, x: Pick<Ac
     caveats: (pick('caveats', '') ?? '').trim(),
     // MS (rulesMeasured.ts): left out while measured, so a metric never said otherwise reads as it always has.
     ...measured(pick('measurement', null), pick('measurementNote', '')),
+    // MQ (rulesStructure.ts): each part only when said.
+    ...structured(pick('level', null), pick('parentId', null), pick('confidence', null), pick('gaming', '')),
     createdBy: before?.createdBy ?? x.actor.id,
     createdAt: before?.createdAt ?? x.now,
     updatedAt: x.now,
@@ -171,6 +174,7 @@ export function metricProblems(m: Metric, s: Rows & { people: Person[] }): strin
   if (m.refresh != null && !REFRESHES.includes(m.refresh)) out.push(`Refresh is one of ${REFRESHES.join(', ')}, or left empty.`);
   if (!s.people.some((p) => p.id === m.ownerId)) out.push('The metric’s owner isn’t in this workspace.');
   out.push(...measurementProblems(m));
+  out.push(...structureProblems(m, { metrics: metricsOf(s) }));
   for (const [k, label] of [['meaning', 'meaning'], ['source', 'source'], ['sourceOwner', 'source’s owner'], ['caveats', 'caveats']] as const) {
     if (m[k].length > METRIC_LIMITS.text) out.push(`Keep the ${label} to ${METRIC_LIMITS.text.toLocaleString('en-GB')} characters or fewer.`);
   }
@@ -180,7 +184,8 @@ export function metricProblems(m: Metric, s: Rows & { people: Person[] }): strin
 /* ---------- the change log ---------- */
 
 /** A metric's fields as the change log reads them. */
-export function metricFields(m: Metric, s: { people: Person[] }): Record<string, string> {
+export function metricFields(m: Metric, s: { people: Person[]; modules?: ModuleRows }): Record<string, string> {
+  const parent = m.parentId ? metricsOf(s).find((v) => v.id === m.parentId)?.name ?? '—' : '—';
   return {
     Name: m.name,
     Meaning: m.meaning || '—',
@@ -193,6 +198,11 @@ export function metricFields(m: Metric, s: { people: Person[] }): Record<string,
     Owner: s.people.find((p) => p.id === m.ownerId)?.name ?? '—',
     Caveats: m.caveats || '—',
     Measured: measurementWords(m),
+    // MQ: where it sits, how far to trust it and how it could be gamed, so a save that changes only these is logged.
+    'Part of': parent,
+    'How it relates': m.level ? LEVEL_WORDS[m.level].label : '—',
+    Confidence: m.confidence ? CONFIDENCE_WORDS[m.confidence].label : '—',
+    'How it could be gamed': m.gaming || '—',
   };
 }
 

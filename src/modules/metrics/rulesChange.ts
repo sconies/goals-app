@@ -5,7 +5,7 @@
 import type { ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import type { Goal } from '../../domain/types';
-import { heldBy } from './rulesMeasured';
+import { heldBy, heldByLink } from './rulesMeasured';
 import { canEditMetric, DIRECTION_LABEL, linksOf, liveMetrics, log, metricRows, metricsOf, no, saveMetric, type Metric, type MetricInput, type MetricLink, type MetricMark } from './rules';
 
 /** Rule 3's kinds, in the order the read-back shows them. `words` saves at once; `scale` is refused. */
@@ -123,11 +123,15 @@ export function retireMetric(x: ActionContext, id: string, why: string, replaced
   if (other && !same(other.unit, m.unit)) no(`${m.name} is in ${m.unit} and ${other.name} is in ${other.unit}. It can only be replaced by a metric in the same unit.`);
   const linked = linkedGoals(x.full ?? x.snapshot, m.id);
   const next: Metric = { ...m, retiredAt: x.now, retiredBy: x.actor.id, retiredWhy: w, replacedBy: other?.id ?? null, updatedAt: x.now };
+  // MS: a retired gap is measured by nobody, so its goals are held to their plans again.
+  const hold = heldBy(x, next, (x.full ?? x.snapshot).goals, linksOf(x.full ?? x.snapshot));
   return {
     ...metricRows({ metrics: [next] }),
+    ...(hold.goals.length ? { goals: hold.goals } : {}),
     changes: [
       log(x, { entityId: m.id, action: 'stopped', summary: `Retired the metric “${m.name}”: ${w}`, diffs: [{ field: 'Retired', from: '—', to: w }] }),
       ...linked.map((g) => log(x, { entityId: m.id, goalId: g.id, action: 'edited', summary: `Its metric “${m.name}” was retired: ${w}`, diffs: [] })),
+      ...hold.changes,
     ],
   };
 }
@@ -137,9 +141,13 @@ export function unretireMetric(x: ActionContext, id: string): Commit {
   const m = metricOf(x, id);
   mayChange(x, m);
   if (!m.retiredAt) no(`“${m.name}” isn’t retired.`);
+  const back: Metric = { ...m, retiredAt: null, retiredBy: null, retiredWhy: '', replacedBy: null, updatedAt: x.now };
+  // MS: a gap brought back holds its goals to no number again.
+  const hold = heldBy(x, back, (x.full ?? x.snapshot).goals, linksOf(x.full ?? x.snapshot));
   return {
-    ...metricRows({ metrics: [{ ...m, retiredAt: null, retiredBy: null, retiredWhy: '', replacedBy: null, updatedAt: x.now }] }),
-    changes: [log(x, { entityId: m.id, action: 'restored', summary: `Brought back the metric “${m.name}”`, diffs: [{ field: 'Retired', from: m.retiredWhy || 'Yes', to: '—' }] })],
+    ...metricRows({ metrics: [back] }),
+    ...(hold.goals.length ? { goals: hold.goals } : {}),
+    changes: [log(x, { entityId: m.id, action: 'restored', summary: `Brought back the metric “${m.name}”`, diffs: [{ field: 'Retired', from: m.retiredWhy || 'Yes', to: '—' }] }), ...hold.changes],
   };
 }
 
@@ -159,12 +167,17 @@ export function mergeMetrics(x: ActionContext, fromId: string, intoId: string, w
   if (w.length > 300) no('Keep the reason to 300 characters or fewer.');
   const moving = linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === from.id && !l.removedAt);
   const moved: MetricLink[] = moving.map((l) => ({ ...l, metricId: into.id, linkedBy: x.actor.id, linkedAt: x.now }));
+  // MS: each goal moved is held as `into` holds it: to no number if it has a gap, to its plan if it is measured.
+  const goals = new Map((x.full ?? x.snapshot).goals.map((g) => [g.id, g]));
+  const holds = moved.flatMap((l) => { const g = goals.get(l.goalId); const h = g && !g.removedAt && !g.stoppedAt ? heldByLink(x, g, into) : null; return h ? [h] : []; });
   return {
     ...metricRows({ metrics: [{ ...from, retiredAt: x.now, retiredBy: x.actor.id, retiredWhy: w, replacedBy: into.id, updatedAt: x.now }], metricLinks: moved }),
+    ...(holds.length ? { goals: holds.map((h) => h.goal) } : {}),
     changes: [
       log(x, { entityId: into.id, action: 'edited', summary: `Merged “${from.name}” into “${into.name}”, moving ${goalsWord(moved.length)}: ${w}`, diffs: [{ field: 'Merged in', from: '—', to: from.name }] }),
       log(x, { entityId: from.id, action: 'stopped', summary: `Retired the metric “${from.name}”: merged into “${into.name}”`, diffs: [{ field: 'Retired', from: '—', to: w }] }),
       ...moved.map((l) => log(x, { entityId: into.id, goalId: l.goalId, action: 'edited', summary: `Measured by “${into.name}” in place of “${from.name}”, which was merged into it`, diffs: [{ field: 'Measured by', from: from.name, to: into.name }] })),
+      ...holds.map((h) => h.change),
     ],
   };
 }

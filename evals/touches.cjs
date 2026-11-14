@@ -57,6 +57,8 @@ const RULES = [
   [/^src\/domain\/reviewsOff\.ts$|^src\/screens\/NotFound\.tsx$|^src\/ui\/SwitchedOff\.tsx$|^evals\/notes\/21-switched-off\.cjs$/, ['U103', 'U104', 'U48', 'N21']],
   // SW1: the four switches whose code is still the core's, their read-backs and the Features page's groups.
   [/^src\/domain\/switchOff\.ts$|^src\/app\/reads\.ts$|^src\/domain\/home\.ts$|^src\/screens\/(Workspace|Home|GoalsScreen|GoalViews)\.tsx$|^src\/ui\/(Shell|goalRows|HomeSets)\.tsx$|^evals\/notes\/22-more-switches\.cjs$/, ['U164', 'U165', 'U166', 'N22', 'N21']],
+  // The check-in rhythm (FT1): its words, its sheet and its journeys and check.
+  [/^src\/domain\/rhythm\.ts$|^evals\/(finish\/20-no-rhythm|notes\/31-rhythm)\.cjs$/, ['U101', 'U102', 'F20', 'N31']],
   // Its clock (RS1): dueWords and the receipt, the read-back's two lines; the words with it off, and back on (N30, the tools' one
   // sentence, is a spec scenario in evals/mcp.eval.ts, which always runs).
   [/^src\/domain\/(reviewsOff|progress)\.ts$|^src\/screens\/CheckInFlow\.tsx$|^src\/mcp\/moduleOff\.ts$|^evals\/notes\/21-switched-off\.cjs$/, ['U154', 'U155', 'N21']],
@@ -135,4 +137,9 @@ function capJourneys(journeys, core, score, cap = PR_JOURNEY_CAP) {
   return { run: journeys.filter((id) => kept.has(id)), left: rest.filter((id) => !kept.has(id)).sort(byId) };
 }
 
-module.exports = { touches, capJourneys, PR_JOURNEY_CAP, RULES };
+/** The journeys about what is due, late or on time (FT1): CI's "Core journeys with no rhythm" (FARO_DEMO_RHYTHM=0)
+    runs the smoke gate without them, since with no set rhythm nothing is due. U3, U49, U63 and U80 have a rhythm half
+    and are left out whole until they split. */
+const rhythm = ['U1', 'U2', 'U3', 'U8', 'U19', 'U33', 'U38', 'U49', 'U63', 'U80'];
+
+module.exports = { touches, capJourneys, PR_JOURNEY_CAP, RULES, rhythm };

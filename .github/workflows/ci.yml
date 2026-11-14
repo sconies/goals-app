@@ -46,7 +46,9 @@ jobs:
       - name: "Rebuild kit: every feature module has a rebuild stage (spec/rebuild)"
         run: node scripts/check-rebuild.mjs
       - name: "Rebuild kit: the drill harness scores Faro's own rules at 100%"
-        run: npm run drill -- scripts/drill-faro --diffs 5
+        run: |
+          npm run drill -- scripts/drill-faro --diffs 5
+          npm run drill -- scripts/drill-faro --diffs 5 --expected spec/conformance/no-rhythm --files status,flags,scorecard,projection
       - name: The MCP server bundle matches its source
         run: |
           npm run build:mcp
@@ -146,6 +148,37 @@ jobs:
         if: always()
         with:
           name: modules-off
+          path: |
+            evals/out/smoke.md
+            evals/out/*.png
+          if-no-files-found: ignore
+
+  # The check-in rhythm (FT1): the core works with no set rhythm. The example's cycle has checkInWeeks 0, and the smoke
+  # gate leaves out the journeys about what is due (evals/touches.cjs `rhythm`).
+  no-rhythm:
+    name: Core journeys with no rhythm
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FARO_DEMO_RHYTHM: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium || { echo "::warning::apt failed; installing Chromium without system packages"; npx playwright install chromium; }
+      - name: Build with no set rhythm, and run the spec scenarios, core journeys and design rules
+        run: npm run evals:smoke
+      - name: Summary
+        if: always()
+        run: test -f evals/out/smoke.md && cat evals/out/smoke.md >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: no-rhythm
           path: |
             evals/out/smoke.md
             evals/out/*.png

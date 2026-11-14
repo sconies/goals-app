@@ -113,9 +113,10 @@ export interface DayOneRows {
 /**
  * Rule 7. "Getting started" for one person: the rows that apply and aren't done, in order; nothing when they hid it,
  * 14 days after their first visit, in the example, or in a workspace more than 28 days old they didn't just join.
- * `ws` is the workspace's name, kind and when it was made; `due` the weekday the first check-ins are due by.
+ * `ws` is the workspace's name, kind and when it was made; `due` the weekday the first check-ins are due by (null with
+ * no set rhythm: then nothing is due).
  */
-export function gettingStarted(viewerId: string, s: DayOneRows, ws: { name: string; kind: string; createdAt: string }, facts: DayOneFacts, now: Date, due: string): DayOneRow[] {
+export function gettingStarted(viewerId: string, s: DayOneRows, ws: { name: string; kind: string; createdAt: string }, facts: DayOneFacts, now: Date, due: string | null): DayOneRow[] {
   if (ws.kind === 'example' || facts.hidden || !facts.firstSeenAt) return [];
   const t = now.getTime();
   if (t - Date.parse(facts.firstSeenAt) > DAY_ONE_DAYS * DAY) return [];
@@ -125,7 +126,10 @@ export function gettingStarted(viewerId: string, s: DayOneRows, ws: { name: stri
   const mine = s.goals.filter((g) => g.ownerId === viewerId && !g.removedAt && !g.stoppedAt);
   const noCheckIn = s.ended ? [] : mine.filter((g) => !s.checkedIn.has(g.id));
   const rows: DayOneRow[] = [];
-  const firstCheckIn = (): DayOneRow => ({ id: 'first-check-in', says: noCheckIn.length === 1 ? `Post your first check-in. It’s due by ${due}.` : `Post your first check-ins. They’re due by ${due}.`, action: 'Start check-in', to: '/check-in' });
+  const firstCheckIn = (): DayOneRow => ({ id: 'first-check-in', says: due == null
+    // No set rhythm (FT1): nothing is due, so the row says what the first check-in is for.
+    ? (noCheckIn.length === 1 ? 'Post your first check-in, so everyone can see where it starts.' : 'Post your first check-ins, so everyone can see where each starts.')
+    : noCheckIn.length === 1 ? `Post your first check-in. It’s due by ${due}.` : `Post your first check-ins. They’re due by ${due}.`, action: 'Start check-in', to: '/check-in' });
   if (viewerId === creator) {
     if (noCheckIn.length) rows.push(firstCheckIn());
     const unowned = (facts.unowned ?? []).filter((id) => s.goals.some((g) => g.id === id && g.ownerId === viewerId && !g.removedAt && !g.stoppedAt));

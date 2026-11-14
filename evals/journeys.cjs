@@ -1842,7 +1842,7 @@ journey('U123', ['HOME-MANAGER'], 'The manager on Home: Rhea’s “Your team ·
   await p.context().close();
 });
 
-journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k; “Changed since Friday 6 Nov” counts open lists of that length, and the table’s last column is “Since Fri 6 Nov”', 3, async (h, device) => {
+journey('U124', ['HOME-MANAGER', 'HOME-LEADER', 'HABIT-MEASURE'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k; “Changed since Friday 6 Nov” counts open lists of that length, and the table’s last column is “Since Fri 6 Nov”; on Wed 11 Nov one cell says how many of them are checked in for week 46, and opens the rest', 3, async (h, device) => {
   // Home rule 4 (HM3): three or more teams are drawn as teams, ordered as Goals orders "By team" (worstGroupsFirst).
   const day = (d) => BASE + '/demo/?today=' + d;
   const p = h.use(await newPage(device, 'amara'));
@@ -1905,6 +1905,27 @@ journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans 
   const since = (await table.locator('thead th').last().innerText()).trim();
   if (since !== 'Since Fri 6 Nov') fail(`the teams table’s last column is “${since}”, not “Since Fri 6 Nov”`);
   await h.checkpoint('changed');
+  // How the week's check-ins stand (HM7): on Wed 11 Nov, one cell over the set drawn as teams, never a name; it opens
+  // the goals with no check-in for the week yet, and Goals counts exactly those.
+  await p.goto(day('2026-11-11'));
+  const cell = p.locator('.dash-standing');
+  await cell.waitFor({ timeout: 8000 }).catch(() => {});
+  const said = (await cell.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  const [, a, b] = said.match(/Checked in for week 46 (\d+) of (\d+) goals?/) || [];
+  const named2 = s0.people.map((x) => x.name).filter((n) => said.includes(n));
+  h.set('progress', !!a && !named2.length, `the standing cell reads “${said}”${named2.length ? `, naming ${named2.join(', ')}` : ''}`);
+  // Beside it (HB3), the same goals' measure: before the due day, “So far: {u} of {n} goals”; no name. (A cell's
+  // under-line, “Due by …” and By week, is left out on a phone.)
+  const habitSaid = (await p.locator('.dash-habit').innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  h.set('attention', /without being asked So far: \d+ of \d+ goals/.test(habitSaid) && !s0.people.some((x) => habitSaid.includes(x.name)), `the habit cell reads “${habitSaid}”`);
+  if (a) {
+    // A check on where the cell leads, not a step of the leader's task, so not counted against its budget.
+    await cell.click();
+    await p.waitForURL(/scope=watching&checkedin=no/);
+    await p.locator('.goals-line').first().waitFor();
+    const gl = await p.locator('.goals-line').first().innerText();
+    h.set('finish', new RegExp(`^${Number(b) - Number(a)} goals?\\b`).test(gl), `“${a} of ${b} goals” opened Goals saying “${gl}”`);
+  }
   h.set('errors', true);
   h.set('logged', true);
   await p.context().close();
@@ -5104,6 +5125,120 @@ journey('U104', ['REVIEWS-OPTIONAL', 'MODULES'], 'Reviews off, then back on: off
   await p.context().close();
 }, ['entry', 'parity']);
 
+journey('U101', ['RHYTHM-OPTIONAL', 'HOME-OWNER', 'CHANGE-LOG'], 'Amara sets the check-in rhythm to none: Features → Change → No set rhythm reads back what changes, counted; saved, Home has no streak and nothing due, Goals has no “no recent update”, a quiet goal says which week its status is from, Activity has the entry and Undo restores it. Switched back on, nothing is late that day and the first check-ins’ date is said', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/workspace/features'));
+  await see(p, 'Check-in rhythm');
+  await see(p, 'Every week, due by Thursday.', 'Features does not say the rhythm is every week, due by Thursday');
+  const goalsBefore = await (async () => { await p.goto(url('/goals?scope=all')); await p.locator('.goals-line').waitFor(); return p.locator('.goals-line').innerText(); })();
+  if (!/no recent update/i.test(goalsBefore)) fail(`with a rhythm Goals’ count line names no goal with no recent update: ${goalsBefore}`);
+  await p.goto(url('/workspace/features'));
+  await h.click(p.locator('.rhythm-row').getByRole('button', { name: 'Change' }));
+  const sheet = p.getByRole('dialog', { name: 'Check-in rhythm' });
+  await sheet.waitFor();
+  if (!(await sheet.getByRole('button', { name: 'Save' }).isDisabled())) fail('Save is offered before anything changed');
+  await h.click(sheet.getByRole('radio', { name: /No set rhythm/ }));
+  const says = await sheet.innerText();
+  for (const t of [/\d+ goals have nothing due\./, /stop reading “No recent update”/, /Nothing is flagged for going quiet\./, /Every check-in already posted stays as it is\./]) if (!t.test(says)) fail(`the read-back does not say ${t}: ${says.slice(0, 400)}`);
+  h.set('attention', true);
+  await h.click(sheet.getByRole('button', { name: 'Save' }));
+  await see(p, 'Check-ins have no set rhythm now.');
+  h.set('one-action', true);
+  await see(p, 'No set rhythm. Owners check in when there’s news', 'Features does not say there is no set rhythm');
+  await h.checkpoint('none');
+  // Home: no streak, nothing due.
+  await p.goto(url('/'));
+  await p.locator('.page.home').waitFor();
+  const home = await p.locator('[data-part="Home"]').innerText();
+  const owed = home.match(/On-time streak|weeks on time|check-ins? to do|are due by|is due by|Due by/);
+  if (owed) fail(`Home with no set rhythm still says “${owed[0]}”`);
+  // Goals: no “no recent update”; a status not from this week says which week.
+  await p.goto(url('/goals?scope=all'));
+  await p.locator('.goals-line').waitFor();
+  const line = await p.locator('.goals-line').innerText();
+  if (/no recent update/i.test(line)) fail(`Goals’ count line still names no recent update: ${line}`);
+  const asOf = await p.getByText(/as of week \d+/).count();
+  if (!asOf) fail('no goal on Goals says “as of week {n}”');
+  // Activity: the entry, under the workspace.
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.entity === 'workspace' && c.actorId === 'amara' && c.summary === 'Changed the check-in rhythm from every week to no set rhythm'), 'the rhythm change was not logged');
+  // Switched back on: nothing late that day, the first date said.
+  await p.goto(url('/workspace/features'));
+  await h.click(p.locator('.rhythm-row').getByRole('button', { name: 'Change' }));
+  await h.click(p.getByRole('dialog', { name: 'Check-in rhythm' }).getByRole('radio', { name: /Every week/ }));
+  const back = await p.getByRole('dialog', { name: 'Check-in rhythm' }).innerText();
+  if (!/Check-ins are due by Thursday, the first by \w{3} \d{1,2} \w{3}\./.test(back) || !/Nothing is late today\./.test(back)) fail(`switching back on does not say when the first are due and that nothing is late: ${back.slice(0, 400)}`);
+  await h.click(p.getByRole('dialog', { name: 'Check-in rhythm' }).getByRole('button', { name: 'Save' }));
+  await see(p, 'Check-ins are due every week, by Thursday.');
+  await p.goto(url('/goals?scope=all'));
+  await p.locator('.goals-line').waitFor();
+  const fresh = await p.locator('.goals-line').innerText();
+  h.set('finish', !/no recent update/i.test(fresh), `switched back on, goals read No recent update on the same day: ${fresh}`);
+  // Undo, from the toast, puts the rhythm back as it was.
+  await p.goto(url('/workspace/features'));
+  await h.click(p.locator('.rhythm-row').getByRole('button', { name: 'Change' }));
+  await h.click(p.getByRole('dialog', { name: 'Check-in rhythm' }).getByRole('radio', { name: /No set rhythm/ }));
+  await h.click(p.getByRole('dialog', { name: 'Check-in rhythm' }).getByRole('button', { name: 'Save' }));
+  await see(p, 'Check-ins have no set rhythm now.');
+  await p.getByRole('button', { name: 'Undo' }).last().click();
+  await see(p, 'The check-in rhythm is as it was.');
+  await see(p, 'Every week, due by Thursday.', 'Undo did not put the rhythm back');
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['entry', 'parity']);
+
+journey('U102', ['RHYTHM-OPTIONAL', 'UPDATE-ANYTIME'], 'Rhea checks in with nothing due: with no set rhythm, the menu’s Check-in has no count; “Check in on a goal” lists her goals with no check-in this week first; checking in on one moves it to “Checked in this week”; nothing says how many are left or a streak', 10, async (h, device) => {
+  // Amara (an admin) sets no set rhythm; then, in the same browser (the demo keeps its data there), Rhea.
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/workspace/features'));
+  await p.locator('.rhythm-row').getByRole('button', { name: 'Change' }).click();
+  await p.getByRole('dialog', { name: 'Check-in rhythm' }).getByRole('radio', { name: /No set rhythm/ }).click();
+  await p.getByRole('dialog', { name: 'Check-in rhythm' }).getByRole('button', { name: 'Save' }).click();
+  await see(p, 'Check-ins have no set rhythm now.');
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+  await p.goto(url('/check-in'));
+  await see(p, 'Check in on a goal');
+  await see(p, 'Check in when there’s news; nothing is due.');
+  const menu = await menuWords(p, device);
+  const item = (await p.locator(device === 'phone' ? 'nav.tabbar a, nav.tabbar button' : 'nav.side a.nav').filter({ hasText: 'Check-in' }).first().innerText()).trim();
+  if (/\d/.test(item)) fail(`the menu’s Check-in has a count with nothing due: ${item}`);
+  h.set('entry', menu.some((t) => /^Check-in/.test(t)), 'no Check-in in the menu for an owner');
+  const waiting = p.locator('[data-part="No check-in this week"]');
+  await waiting.waitFor();
+  const n = await waiting.locator('.ciq-row').count();
+  const doneBefore = await p.locator('[data-part="Checked in this week"] .ciq-row').count();
+  const first = waiting.locator('.ciq-row').first();
+  const title = (await first.locator('.ciq-title').innerText()).trim();
+  h.set('attention', n > 0, 'nothing listed under No check-in this week');
+  await h.click(first.getByRole('link'));
+  await p.waitForURL(/\/check-in\/[^/?]+/);
+  h.set('one-action', true);
+  // Post it as the form asks: a number when it has one, a reason when one is asked for.
+  for (let i = 0; i < 5 && !(await p.getByText('Check-in saved').isVisible().catch(() => false)) && /\/check-in\/[^/?]+/.test(new URL(p.url()).pathname); i++) {
+    const value = p.getByLabel('This week’s value');
+    if (i === 0 && await value.isVisible().catch(() => false)) await h.fill(value, await value.inputValue() || '1');
+    const why = p.getByLabel('What happened');
+    if (await why.isVisible().catch(() => false) && !(await why.inputValue())) { await p.locator('.cause-pick button, [aria-label^="Why is it"] button').first().click().catch(() => {}); await why.fill('Checking in with the latest number.'); }
+    const post = p.getByRole('button', { name: 'Post check-in' });
+    await (await post.isVisible().catch(() => false) ? post : p.getByRole('button', { name: 'Continue' })).click().catch(() => {});
+    await p.waitForTimeout(300);
+  }
+  await p.waitForURL((u) => u.pathname === '/check-in', { timeout: 8000 }).catch(() => undefined);
+  if (!/\/check-in$/.test(new URL(p.url()).pathname)) await p.goto(url('/check-in'));
+  await p.locator('[data-part="Checked in this week"]').waitFor();
+  const moved = await p.locator('[data-part="Checked in this week"]').getByText(title, { exact: false }).count();
+  const after = await p.locator('[data-part="Checked in this week"] .ciq-row').count();
+  const page = await p.locator('main').innerText();
+  const owed = page.match(/\d+ of \d+|streak|weeks on time|to do|Still due/);
+  if (owed) fail(`Check-in with no set rhythm says “${owed[0]}”`);
+  h.set('finish', moved > 0 && after === doneBefore + 1, `${title} did not move to Checked in this week`);
+  h.set('progress', true);
+  h.set('logged', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['parity']);
+
 /* REVIEWS-OFF-WORDS (RS1, docs/design/round-4/reviews-switch/spec.md 2 and 7): with Reviews off, the app's own words name
    no review outside Workspace, Features, History's unlinked names and the closed page's sentence. What people wrote
    (goal titles such as "Time to first review", asks, notes) is data, not the app's words, so it is taken out first. */
@@ -7134,6 +7269,43 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   const g2 = (after.goals ?? []).find((x) => x.id === 'lead-flaky');
   const m = ((after.modules?.metrics?.metrics) ?? []).find((x) => x.id === 'metric_flaky-rate');
   h.set('logged', !!g?.unmeasuredSince && !g2?.unmeasuredSince && (m?.measurement ?? 'measured') === 'measured', !g?.unmeasuredSince ? 'the gap did not hold the goal to no number' : 'Measured again did not let go of the goal');
+  h.set('finish', true);
+  await p.context().close();
+}, []);
+
+journey('U172', ['METRIC-STRUCTURE'], 'A register’s structure kept in the library (MQ): as Rhea, Flaky test rate is made a control on Lead time for changes, with Medium confidence and how it could be gamed; its page says “A control on Lead time for changes.” with the gaming line beside its meaning, Lead time for changes lists it under Where it sits, and Lead time can’t be put under Flaky test rate (“It’s already under this one”)', 20, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/metrics/metric_flaky-rate/edit'));
+  const parent = p.getByRole('button', { name: /^Part of\b/ });
+  await parent.waitFor();
+  h.set('entry', true);
+  await pickIn(p, /^Part of\b/, 'Lead time for', /Lead time for changes/);
+  await h.click(p.getByRole('group', { name: 'How it relates' }).getByRole('button', { name: 'Control' }));
+  await h.click(p.getByRole('group', { name: 'Confidence in the number' }).getByRole('button', { name: 'Medium' }));
+  await h.fill(p.getByLabel('How it could be gamed'), 'Retrying failed tests until they pass hides the flakes.');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/metrics\/flaky-rate(\?|#|$)/);
+  h.set('progress', true);
+  await see(p.locator('.metric-structure'), 'A control on', 'the metric does not say where it sits');
+  await see(p, 'Retrying failed tests until they pass hides the flakes.', 'how it could be gamed is not beside its meaning');
+  await see(p.locator('.metric-facts'), 'Medium', 'the confidence is not among its facts');
+  await h.checkpoint('placed');
+  const s1 = await h.snapshot();
+  const m = ((s1.modules?.metrics?.metrics) ?? []).find((x) => x.id === 'metric_flaky-rate');
+  h.set('logged', m?.parentId === 'metric_lead-time' && m?.level === 'control' && m?.confidence === 'medium' && /hides the flakes/.test(m?.gaming ?? ''), 'the structure was not saved on the metric');
+  // Its parent lists it, with its level.
+  await h.click(p.locator('.metric-structure').getByRole('link', { name: 'Lead time for changes' }));
+  await p.waitForURL(/\/demo\/metrics\/lead-time(\?|#|$)/);
+  const kids = p.locator('.metric-children');
+  await see(kids, 'Flaky test rate', 'the parent does not list the metric under it');
+  h.set('attention', /Control/.test(await kids.innerText()), 'the child is listed without its level');
+  // No loops: Lead time can’t go under a metric already under it.
+  await p.goto(url('/metrics/metric_lead-time/edit'));
+  await h.click(p.getByRole('button', { name: /^Part of\b/ }));
+  await h.fill(p.locator('.pick.open').getByRole('combobox'), 'Flaky test');
+  const under = p.locator('.pick.open').getByRole('option', { name: /Flaky test rate/ }).first();
+  await under.waitFor();
+  h.set('errors', (await under.getAttribute('aria-disabled')) === 'true' && /already under this one/.test(await under.innerText()), 'a metric under this one could be chosen as its parent, or did not say why not');
   h.set('finish', true);
   await p.context().close();
 }, []);

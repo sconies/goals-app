@@ -39,6 +39,8 @@ export interface GoalSummary {
   lastPostedAt: string | null;
   /** Days since the latest check-in was posted (or since the goal began): the one rule behind No recent update. */
   quietDays: number;
+  /** The week its status is from when that isn't this week (FT1): said as "as of week {n}" with no set rhythm. */
+  asOfWeek: number | null;
   /** What needs attention on it, and whether it's being handled (domain/attention.ts): the one Needs attention rule. */
   attention: GoalAttention;
   forecast: string | null;
@@ -85,6 +87,7 @@ export function summarise(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, we
     lastWeek: last?.week ?? null,
     lastPostedAt: last?.postedAt ?? null,
     quietDays: daysWithoutUpdate(goal, cycle, st.latest, today),
+    asOfWeek: st.asOfWeek,
     attention: attentionFor(goal, s, cycle, today),
     // A goal gone quiet, done or stopped makes no forecast, here as on its page (status projects).
     forecast: projects(goal, st.status) ? forecastText(goal, a, cycle.weeks, cycle)?.text ?? null : null,

@@ -699,6 +699,12 @@
       "use": "copy"
     },
     {
+      "id": "HOME-LEADER",
+      "area": "Home",
+      "text": "Someone whose goals span three or more teams sees them as teams, worst first, with counts that open exactly those goals, and how the week's check-ins stand over them (an admin with no such set, over every goal), opening the goals with no check-in yet; the oldest thing waiting on them can be the lead. An admin also sees the workspace's line: how many things there are to sort out, opening Workspace. Teams and goals are ranked, never people.",
+      "use": "copy"
+    },
+    {
       "id": "HOME-OWNER",
       "area": "Home",
       "text": "Home opens on what is asked of you today, with one primary action, or says that nothing is; a check-in becomes the primary action the day before it is due, when late, or when a review you are in will read it. Your goals are counted once, each count opens exactly those goals, and a completed week is one sentence with the next date.",
@@ -876,6 +882,12 @@
       "id": "METRIC-MEASUREMENT",
       "area": "Metrics",
       "text": "A gap in measurement is visible and owned, not faked (MS). Each metric says whether it is measured today, Measured, Partly or Gap, always as a shape (a filled, half-filled or broken square) and its word, with an optional line on what is missing (at most 300 characters). A metric with a gap or measured only in part is listed under To sort out on its page and in the library (\"Not measured yet: {n} goals held to no number\", \"Only partly measured\") with Say how it's measured. A goal measured by a metric with a gap is held to no number: it says Not measured yet (a broken ring and the words) instead of a status, nothing on it is due, late or quiet, and it projects nothing; linking it to a measured metric, unlinking it, or its metric being measured holds it to its plan again, in the same save, with one Undo and a line in its History. save_metric takes measurement and measurement_note, and get_metric and the export say so.",
+      "use": "copy"
+    },
+    {
+      "id": "METRIC-STRUCTURE",
+      "area": "Metrics",
+      "text": "A metric keeps the register's structure (MQ): an optional parent metric and how it relates to it (component, driver, control or breakdown; a level needs a parent, and no metric is its own parent or under itself), a confidence in its number (high, medium or low) and how it could be gamed, in words beside its definition. Its page says where it sits and lists the metrics under it. save_metric takes parent, level, confidence and gaming, and get_metric says them.",
       "use": "copy"
     },
     {
@@ -1203,6 +1215,12 @@
       "id": "REVIEWS-OPTIONAL",
       "area": "Architecture",
       "text": "An admin switches Reviews off for a workspace. Off, there is no Reviews in the menu, on Home, on a goal or in the AI’s tools; asks and next steps are unchanged; what was said in reviews stays in history. Nothing is deleted, and switching it on restores it.",
+      "use": "copy"
+    },
+    {
+      "id": "RHYTHM-OPTIONAL",
+      "area": "Architecture",
+      "text": "An admin chooses the check-in rhythm for a workspace: every week, or none. With none, nothing is due or late for want of a check-in, no goal reads No recent update, and a status that isn’t this week’s says which week it is from. Dates people set still count. The change says what it will do first, is logged, and can be undone.",
       "use": "copy"
     },
     {

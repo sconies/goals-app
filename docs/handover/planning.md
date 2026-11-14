@@ -15,13 +15,14 @@ Out of scope until after the handoff: PF1–PF2 and every review low (backlog, "
 | Track | Session | List, in order |
 |---|---|---|
 | 1 (Home, reviews, check-in) | built; merge tail in session_012kbr92NxNQoUrfKVQhmD9m (Sonnet) | #482, #491 SM1h, #497 HM7+HB3 (retarget to main after #491), #469 HM4, then U124's "Changed since" check |
-| 7d (metrics) | session_012kbr8xpLzkSPpsXPVMTjbD | see #464 GR, #502 MQ migration (Lane approved; auto-merge on), #505 MQ structure, #503 MS/BL merge; MS medium 5: "Not measured yet" everywhere (Lane, 14 Nov); MC once FT1 is on main |
-| 2 (goal entry, set-up) | session_012kbr8yZ7UiGDzWqA8TwbbQ | #495 (the #475 medium), TG1 #487 (fix its axe and contrast failures), TG2 #493; then the list is done |
-| 4 (architecture, switches) | session_012kbr8xXXTKcVTdAEGh1Ste | cap checks in PR CI (so #465 FT1 fits 30 min), #465, #498, SW2, KL (tells planning when KL merges) |
-| Reviewer (Fable) | session_012kbr8zWCPJxkmsiZx169kF (fresh 15:30) | reviews each code PR merged after cadff60d (#488) when its track messages it; hands over after about 20 PRs. Its note lives in docs/handover/reviewer.md on branch build-reviews |
+| 7d (metrics) | done; tail only | #503 and #505 finished by session_012kbr8zzN3enEt3hjY3Q66H; #510 ("Not measured yet") merged by the track 1 helper; MC deferred |
+| 2 (goal entry, set-up) | session_012kbr8yvYag7HFTg115Wbhw | TG2 #493, then SW2 #504 (option a); then done |
+| 4 (architecture, switches) | done | FT1 #465 merged; SW2 moved to track 2 |
+| 3 (import) | session_012kbr8xpJmNf6hfkkTsaf53 | MI, then U98's Stop-step flake |
+| Item 11 (full drill) | session_012kbr8y5FBfBYyNt4XKM97h | pinned to dd00ff48 (KL); core, then each module on main; late modules (#505 MQ, TG2, SW2, MI; FT1, GR, TG1 already merged) added as stages; doc rewrites last |
+| Reviewer (Fable) | session_012kbr8z4ihwvC1ZUTMGey4V (fresh 20:42) | reviews each code PR merged after 65fd1421 (#465) when its track messages it; hands over after about 20 PRs. Its note lives in docs/handover/reviewer.md on branch build-reviews |
 
 **Waiting for a free slot:**
-- **Track 3 (import),** read docs/handover/track-3.md: MI (round 2's MT6), and U98's Stop-step flake (keeps rolling issue #459 open).
 
 Each track writes its handover into its own file in `docs/handover/`, replacing the previous entry. When a track hands over, start a fresh session from the prompt it sends.
 
@@ -45,6 +46,9 @@ Each track writes its handover into its own file in `docs/handover/`, replacing 
   - "Opened" on a proposed goal is stored on the server per person.
 - **TG** (tags module): 1a–7a as recommended.
 - **The demo clock** stays unpinned (track 1 and track 4).
+
+- **MC and FT4 deferred** to after the handoff (Lane, 14 Nov).
+- **SW2 (#504):** a build without the AI-access module keeps the MCP server open; only the workspace switch shuts it (planning's call, option (a)). Track 2 has it.
 
 ## Waiting for Lane
 

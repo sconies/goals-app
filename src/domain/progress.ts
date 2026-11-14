@@ -2,6 +2,7 @@
    They count only what the owner did themselves, as the research recommends. */
 import { firstWeekFrom, hasEnded, weekDate } from './plan';
 import { goalStatus } from './status';
+import { rhythmOf } from './thresholds';
 import type { CheckIn, Cycle, Goal, Snapshot } from './types';
 
 export interface WeekProgress {
@@ -13,15 +14,22 @@ export interface WeekProgress {
 }
 
 /** The first week a goal's check-in is due: the week it was set up in, or the next one when it was set up after that week's review day; never before its plan's From. */
-export const firstDueWeek = (g: Pick<Goal, 'createdAt'> & Partial<Pick<Goal, 'kind'>> & { plan?: { fromWeek?: number } }, cycle: Cycle) =>
-  // A plan whose From is still to come is first due in that week (goal entry, rule 13: notStarted).
-  Math.max(firstWeekFrom(cycle, g.createdAt, cycle.reviewDay), g.kind === 'metric' ? g.plan?.fromWeek ?? 0 : 0);
+export const firstDueWeek = (g: Pick<Goal, 'createdAt'> & Partial<Pick<Goal, 'kind'>> & { plan?: { fromWeek?: number } }, cycle: Cycle) => {
+  // With no set rhythm nothing is ever due (FT1): callers don't ask, and the answer is "never".
+  const rhythm = rhythmOf(cycle);
+  if (!rhythm) return Infinity;
+  // A plan whose From is still to come is first due in that week (goal entry, rule 13: notStarted); nothing is due
+  // before the present rhythm began (`rhythmFrom`).
+  return Math.max(firstWeekFrom(cycle, g.createdAt, rhythm.dueDay), g.kind === 'metric' ? g.plan?.fromWeek ?? 0 : 0, cycle.rhythmFrom ? firstWeekFrom(cycle, rhythm.from, rhythm.dueDay) : 0);
+};
 
 /** The person's goals this week: which are checked in and which are still due. */
 export function weekProgress(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): WeekProgress {
   const goals = s.goals.filter((g) => g.ownerId === personId && goalStatus(g, cycle, s.checkIns, today).status !== 'done');
   const done = goals.filter((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week));
   // Week 0 is the baseline week: the first check-ins are due in week 1, and a goal set up after this week's review starts next week.
+  // With no set rhythm nothing is due or upcoming (FT1).
+  if (!rhythmOf(cycle)) return { goals, done, upcoming: [], due: [] };
   const upcoming = goals.filter((g) => !done.includes(g) && firstDueWeek(g, cycle) > week);
   // Once the cycle's last day is past, nothing in it is due (cycle-end rule 2).
   return { goals, done, upcoming, due: week < 1 || hasEnded(cycle, today) ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g)) };
@@ -61,7 +69,8 @@ const SHORT_MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Se
  * (`Cycle.reviewDay`) never needed a review, so a screen never writes "review" in a deadline itself: it asks here.
  * With Reviews on and a review held on the due day (`held`, from review.ts heldOnDueDay) the deadline is "before
  * Thursday’s review"; with no review set up on that day, or Reviews off, it is "by Thursday". The `due` flag says
- * "Due by Thu 12 Nov." either way.
+ * "Due by Thu 12 Nov." either way. With no set rhythm (FT1) there is no deadline, so nothing says one: no goal is
+ * due (firstDueWeek), receiptFacts and the habit panel (habit.ts beforeReview) are null, and Home has no due line.
  */
 export function dueWords(reviewsOn: boolean, cycle: Cycle, week: number, held = false): DueWords {
   return dueWordsOn(reviewsOn, reviewDate(cycle, Math.max(1, week)), held);
@@ -84,23 +93,30 @@ export function dueWordsOn(reviewsOn: boolean, iso: string, held = false): DueWo
 }
 
 /**
- * The confirmation's sentence, from weekCompletion: all of them in, what's still due, or what isn't due yet. Once all are
+  * The confirmation's sentence, from weekCompletion: all of them in, what's still due, or what isn't due yet. Once all are
  * in the check-in shows the receipt instead (receiptText), which says when against the deadline in dueWords' words.
+ * With no set rhythm (`cycle` says so) there is no deadline, and nothing is still due.
  */
-export function weekDoneText(p: WeekProgress, week: number): string {
+export function weekDoneText(p: WeekProgress, week: number, cycle?: Cycle): string {
   const w = weekCompletion(p);
+  // With no set rhythm nothing is owed: say what is in, and no deadline, nothing still due (FT1).
+  if (cycle && !rhythmOf(cycle)) return `${w.done} of ${w.total} have a check-in for week ${week}.`;
   if (w.complete) return `${w.total === 1 ? 'Your goal is' : w.total === 2 ? 'Both your goals are' : `All ${w.total} of your goals are`} checked in for week ${week}.`;
   if (p.due.length) return `${w.done} of ${w.total} checked in for week ${week}. Still due this week: ${p.due.map((g) => g.title).join(', ')}.`;
   const rest = w.total - w.done;
   return `${w.done} of ${w.total} checked in for week ${week}. ${rest === 1 ? 'The other one isn’t' : `The other ${rest} aren’t`} due until next week.`;
 }
 
-/** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
+/** The day a week's check-ins are due by, as an ISO date. Check-ins posted by the end of it count as on time. Callers
+    that may have no set rhythm ask `dueDate`, which says null then. */
 export function reviewDate(cycle: Cycle, week: number): string {
   const d = new Date(weekDate(cycle, week) + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() + cycle.reviewDay);
   return d.toISOString().slice(0, 10);
 }
+
+/** The day a week's check-ins are due by (ISO), or null with no set rhythm (FT1). */
+export const dueDate = (cycle: Cycle, week: number): string | null => (rhythmOf(cycle) ? reviewDate(cycle, week) : null);
 
 /** The review a goal set up today first reports to: its week, and its date as an ISO date ("first check-ins are due before Thursday 12 Nov"). */
 export function firstReview(cycle: Cycle, today: Date): { week: number; date: string } {
@@ -117,7 +133,9 @@ export function firstReview(cycle: Cycle, today: Date): { week: number; date: st
  * CF2's migration (the cycle's `streak` setting) isn't on main yet, so the forgiving run is the only one: when it lands,
  * 'on' skips the forgiving step and 'off' returns null (docs/design/workspace-settings/spec.md 2.5).
  */
-export function onTimeStreak(personId: string, s: Snapshot, cycle: Cycle, week: number): number {
+export function onTimeStreak(personId: string, s: Snapshot, cycle: Cycle, week: number): number | null {
+  // No set rhythm, no streak (FT1). With one, firstDueWeek never counts a week before the rhythm began.
+  if (!rhythmOf(cycle)) return null;
   return onTimeRun(personId, s.goals, s.checkIns, cycle, week).weeks;
 }
 
@@ -164,7 +182,8 @@ function doneWeek(g: Goal, checkIns: readonly CheckIn[]): number {
 function onTimeRun(personId: string, all: readonly Goal[], allCheckIns: readonly CheckIn[], cycle: Cycle, week: number): { weeks: number; forgiven: { week: number; missed: boolean }[] } {
   const checkIns = allCheckIns.filter((c) => !c.removedAt);
   const goals = all.filter((g) => g.ownerId === personId).map((g) => ({ g, from: ownedFrom(g, personId, checkIns, cycle), to: doneWeek(g, checkIns) }));
-  if (!goals.length) return { weeks: 0, forgiven: [] };
+  // No set rhythm, no run (FT1).
+  if (!goals.length || !rhythmOf(cycle)) return { weeks: 0, forgiven: [] };
   const dueIn = (w: number) => goals.filter((x) => x.from <= w && w <= x.to);
   const due = (w: number) => dueIn(w).length > 0;
   const mine = (gid: string, w: number) => checkIns.filter((c) => c.goalId === gid && c.week === w && c.authorId === personId);
@@ -211,9 +230,11 @@ export interface ReceiptFacts {
  * their goals, reviewDate for the due day, the run. A goal's week counts as after when its first check-in that week
  * (theirs, or someone's checking in for them) was posted after the due day. `words` is dueWords' for the person and
  * week (app/reads dueWordsHere): the habit never reads a review itself (Reviews switch spec 4).
- * `nextDue` is the next due day as an ISO date: the caller says it in words before `receiptText`.
+ * `nextDue` is the next due day as an ISO date: the caller says it in words before `receiptText`. With no set rhythm
+ * (FT1) there is no receipt (null): nothing was due, so there is no deadline to be in by and no run.
  */
-export function receiptFacts(p: WeekProgress, personId: string, s: { goals: readonly Goal[]; checkIns: readonly CheckIn[] }, cycle: Cycle, week: number, words: Pick<DueWords, 'by' | 'after'>): ReceiptFacts {
+export function receiptFacts(p: WeekProgress, personId: string, s: { goals: readonly Goal[]; checkIns: readonly CheckIn[] }, cycle: Cycle, week: number, words: Pick<DueWords, 'by' | 'after'>): ReceiptFacts | null {
+  if (!rhythmOf(cycle)) return null;
   const after = p.goals.filter((g) => {
     const first = s.checkIns.filter((c) => c.goalId === g.id && c.week === week && !c.removedAt).map((c) => c.postedAt).sort()[0];
     return first != null && !inByDueDay({ postedAt: first }, cycle, week);
@@ -255,13 +276,17 @@ export const WEEKDAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
  * Goals that have never had a check-in, and their owners: while a portfolio is starting up, "nothing needs attention"
  * can just mean nobody has reported. Shown as "2 of 4 first check-ins in" until every goal has one (product review, 3 Nov).
  */
-export function firstReports(s: Snapshot, cycle: Cycle, week: number): { total: number; reported: number; waiting: { ownerId: string; goals: number }[]; silent: string[]; due: string } | null {
+export function firstReports(s: Snapshot, cycle: Cycle, week: number): { total: number; reported: number; waiting: { ownerId: string; goals: number }[]; silent: string[]; due: string | null } | null {
   // A goal counts once its first check-in is due. A plan that starts this week (every goal set up today) is due too, so it
   // counts: day one once said "0 of 2" beside "3 goals" (deep review U6). Only a plan that starts in a later week waits.
-  const live = s.goals.filter((g) => firstDueWeek(g, cycle) <= week && (g.kind !== 'metric' || (g.plan.fromWeek ?? 0) <= week));
+  // With no set rhythm nothing is due: a goal counts once it has begun, and `due` is null (FT1).
+  const rhythm = rhythmOf(cycle);
+  const begun = (g: Goal) => (rhythm ? firstDueWeek(g, cycle) : firstWeekFrom(cycle, g.createdAt, cycle.reviewDay)) <= week;
+  const live = s.goals.filter((g) => begun(g) && (g.kind !== 'metric' || (g.plan.fromWeek ?? 0) <= week));
   const silent = live.filter((g) => !s.checkIns.some((c) => c.goalId === g.id));
   if (week < 1 || !live.length || !silent.length) return null;
   const by = new Map<string, number>();
   for (const g of silent) by.set(g.ownerId, (by.get(g.ownerId) ?? 0) + 1);
-  return { total: live.length, reported: live.length - silent.length, waiting: [...by].map(([ownerId, goals]) => ({ ownerId, goals })), silent: silent.map((g) => g.id), due: reviewDate(cycle, week) };
+  return { total: live.length, reported: live.length - silent.length, waiting: [...by].map(([ownerId, goals]) => ({ ownerId, goals })), silent: silent.map((g) => g.id), due: dueDate(cycle, week) };
 }
+

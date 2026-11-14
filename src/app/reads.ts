@@ -1,6 +1,7 @@
 /* Reads (docs/design/architecture.md, 4.4: AR4): the one place that turns the loaded workspace into what each rule
    reads. New rules in src/domain take only these rows, never the whole workspace (the layers lint checks it), so the
    internal app can hand them the same shapes from its query port instead of a loaded workspace. */
+import { rhythmOf } from '../domain/thresholds';
 import type { GoalRows, PersonRows, TeamRows } from '../domain/find';
 import { creatorOf, type DayOneRows } from '../domain/dayOne';
 import { summariseAll } from '../domain/summary';
@@ -9,7 +10,7 @@ import { proposalAsks, withProposed } from '../domain/proposed';
 import { scopeToCycle, wrapUpCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
 import type { Ask, Cycle, Goal, Person, Snapshot } from '../domain/types';
-import { checkInStanding, dueIn } from '../domain/standing';
+import { checkInStanding, dueIn, type Standing } from '../domain/standing';
 import type { ScopeFacts } from '../domain/goalsPage';
 import { agendaOf, goalsIn, heldOnDueDay, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
 import { waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession, type Waiting } from '../domain/home';
@@ -81,6 +82,17 @@ export const dueWordsHere = (reviews: boolean, s: Pick<Snapshot, 'reviews'>, cyc
 export const heldForGoals = (reviews: boolean, s: Pick<Snapshot, 'reviews'>, cycle: Cycle, week: number, goals: readonly Pick<Goal, 'ownerId'>[]): boolean =>
   reviews && [...new Set(goals.map((g) => g.ownerId))].some((o) => heldOnDueDay(s.reviews, cycle, week, o));
 
+/** Each goal's standing this week (habit rule 1), or null when it isn't due: what Goals' `checkedin=` reads and Home's
+    standing cell counts (HM7), so both count the same goals. */
+export function standingIn(s: Pick<Snapshot, 'checkIns' | 'requests'>, cycle: Cycle, week: number): (g: Goal) => Standing | null {
+  const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
+  const rows = { checkIns: s.checkIns, asks: s.requests ?? [] };
+  return (g) => (week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null);
+}
+
+/** The live goals of the year, not stopped: every goal Goals' All counts. */
+export const liveGoals = (s: Pick<Snapshot, 'goals'>): Goal[] => live(s.goals).filter((g) => !g.stoppedAt);
+
 /**
  * Rule 5's `moved=` (Home spec): what each goal did since a day. Its code (app/moved.ts) is registered by what reads it,
  * Goals, Home's later parts and the MCP server, so none of it is in Home's first download; until then `moved=` matches nothing.
@@ -94,9 +106,7 @@ export function registerMovedRule(rule: NonNullable<typeof movedRule>) { movedRu
 export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns'], reviews = true): GoalRows {
   const goals = live(s.goals).filter((g) => !g.stoppedAt);
   // This week's standing (habit rule 1) for `checkedin=`, and a review's goals for `inreview=` (HB2).
-  const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
-  const rows = { checkIns: s.checkIns, asks: s.requests ?? [] };
-  const standing = (g: Goal) => (week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null);
+  const standing = standingIn(s, cycle, week);
   const inReview = (id: string) => { const r = s.reviews.find((x) => x.id === id && !x.removedAt); return r ? new Set(goalsIn(r.scope, goals).map((g) => g.id)) : null; };
   // What each goal did since a day (Home rule 5) for `moved=`: the rule as app/moved.ts registers it, asked when a query first reads it.
   let passes: Passes | undefined;
@@ -170,7 +180,8 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   // The receipt names the due day as a review only for someone in a review held that day, while Reviews is on (T4, FT2):
   // dueWords' words (RS1), the same the check-in's receipt says.
   const words = dueWordsHere(reviews, s, cycle, week, viewerId);
-  const receipt = allIn ? receiptFacts(p, viewerId, s, cycle, week, words) : { after: 0, forgiven: null, forgivenMissed: false };
+  // With no set rhythm there is no receipt (FT1): Home says what is in, plainly.
+  const receipt = (allIn ? receiptFacts(p, viewerId, s, cycle, week, words) : null) ?? { after: 0, forgiven: null, forgivenMissed: false };
   const dueDate = reviewDate(cycle, Math.max(1, week));
   // Once the year has ended no session is held in it: a "Not held yet" lead would never go (HM1 review).
   const sessions: HomeSession[] = ended || !reviews ? [] : s.reviews.filter((r) => r.people.includes(viewerId)).map((r) => reviewSession(r, s, cycle, today, week))
@@ -191,7 +202,7 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   return {
     today: day, week, lastWeek: cycle.weeks, cycleName: cycle.name, workspace: opts.workspace,
     starts: start ? { on: start.firstDay, firstDue: start.firstDue } : null, ended: ended && !(wrapUp && wrapOpen && mine.some((g) => !s.retros.some((r) => r.goalId === g.id))),
-    rhythm: { dueDate, nextDueDate: week < cycle.weeks ? reviewDate(cycle, Math.max(1, week) + 1) : null },
+    rhythm: rhythmOf(cycle) ? { dueDate, nextDueDate: week < cycle.weeks ? reviewDate(cycle, Math.max(1, week) + 1) : null } : null,
     checkIns: {
       total: p.goals.length, done: p.done.length,
       due: p.due.map((g) => ({ id: g.id, title: g.title, number: g.kind !== 'milestone' })), draft: opts.draft,

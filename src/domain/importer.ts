@@ -81,9 +81,13 @@ export const DEFAULT_VIEWS: [string, string][] = [
   ['No update for 2 weeks or more', 'quiet=2&sort=last'],
 ];
 
-export function buildWorkspace(input: { name: string; startDate: string; people: string; goals: string; tables?: Tables; now: Date; idSuffix: string; reviewDay?: number; weeks?: number; /** Answers to the preview's groups, by group id (rule 7). */ answers?: Answers }): ImportResult {
+export function buildWorkspace(input: { name: string; startDate: string; people: string; goals: string; tables?: Tables; now: Date; idSuffix: string; reviewDay?: number; weeks?: number; /** Answers to the preview's groups, by group id (rule 7). */ answers?: Answers;
+  /** The check-in rhythm (FT1, spec 2.6): 1 every week (the default), 0 no set rhythm. */ checkInWeeks?: number;
+  /** Whether to set up the weekly review (default true until set-up asks). */ weeklyReview?: boolean }): ImportResult {
   const weeks = input.weeks ?? yearWeeks(input.startDate);
-  const cycle: Cycle = { id: 'cycle-' + input.idSuffix, name: weeks >= 48 ? yearName(input.startDate, weeks) : input.name.trim() || 'My cycle', startDate: input.startDate, weeks, reviewDay: input.reviewDay ?? 3 };
+  const cycle: Cycle = { id: 'cycle-' + input.idSuffix, name: weeks >= 48 ? yearName(input.startDate, weeks) : input.name.trim() || 'My cycle', startDate: input.startDate, weeks, reviewDay: input.reviewDay ?? 3,
+    // Every week is the default, left off the cycle (as every stored one); any other rhythm is carried so it's saved.
+    ...(input.checkInWeeks != null && input.checkInWeeks !== 1 ? { checkInWeeks: input.checkInWeeks } : {}) };
   const people = recordsOf(parseDelimited(input.people));
   const issues: ImportIssue[] = [];
   const head = (parseDelimited(input.people)[0] ?? []).map((h) => h.trim().toLowerCase());
@@ -120,12 +124,14 @@ export function buildWorkspace(input: { name: string; startDate: string; people:
   for (const i of cs.issues) (blocks(i) ? issues : notes).push({ table: i.sheet, row: i.row, message: i.name && !i.message.includes(i.name) ? `“${i.name}”: ${i.message}` : i.message });
   if (!people.length && !issues.length) issues.push({ table: 'People', row: 1, message: 'Add at least one person.' });
   const c = cs.created!;
-  // The weekly review and the pinned views, set up by the first person (you).
+  // The weekly review (unless set-up said not in Faro) and the pinned views, set up by the first person (you). With no
+  // set rhythm the "No update for 2 weeks or more" view isn't pinned: nothing goes quiet then (FT1).
   const at = input.now.toISOString(), by = c.people[0]?.id ?? 'setting-up';
+  const withReview = input.weeklyReview ?? true;
   const review: Review = { id: newId('rev', 'weekly'), name: WEEKLY_REVIEW, everyWeeks: 1, weekday: cycle.reviewDay, scope: { goals: [], trees: [], levels: levelIds(cycle) }, people: c.people.map((p) => p.id), createdBy: by, createdAt: at };
-  const views: SavedView[] = DEFAULT_VIEWS.map(([name, params]) => ({ id: newId('view', name), personId: by, name, params, pinned: true, createdAt: at, updatedAt: at, deletedAt: null }));
+  const views: SavedView[] = DEFAULT_VIEWS.filter(([, params]) => (cycle.checkInWeeks ?? 1) !== 0 || !params.startsWith('quiet=')).map(([name, params]) => ({ id: newId('view', name), personId: by, name, params, pinned: true, createdAt: at, updatedAt: at, deletedAt: null }));
   const logged: Change = { id: newId('chg', 'weekly review'), at, actorId: by, goalId: null, entity: 'review', entityId: review.id, action: 'created', summary: `Set up a review: “${review.name}”`, diffs: [{ field: 'Review', from: '—', to: review.name }] };
-  return { snapshot: { ...empty, people: c.people, teams: c.teams, goals: c.goals, checkIns: c.checkIns, requests: c.requests, reviews: [review], views, changes: [logged], ...(c.keysIssued ? { keysIssued: c.keysIssued } : {}) }, issues, ...(notes.length ? { notes } : {}), groups: cs.groups, found: cs.issues };
+  return { snapshot: { ...empty, people: c.people, teams: c.teams, goals: c.goals, checkIns: c.checkIns, requests: c.requests, reviews: withReview ? [review] : [], views, changes: withReview ? [logged] : [], ...(c.keysIssued ? { keysIssued: c.keysIssued } : {}) }, issues, ...(notes.length ? { notes } : {}), groups: cs.groups, found: cs.issues };
 }
 
 /**

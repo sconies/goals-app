@@ -17,6 +17,7 @@ import { MetricChart, QuarterMark, quarterWords, StageList } from '../ui/charts'
 import { RangeChart } from '../ui/rangeChart';
 import { Icon } from '../ui/Icon';
 import { FLAG } from '../domain/vocabulary';
+import { rhythmOf } from '../domain/thresholds';
 
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 const longDay = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -79,6 +80,8 @@ function GoalPrintView() {
   const s = sh.summary;
   const a = assessPosted(goal, app.cycle, app.snapshot.checkIns, app.week);
   const stale = s.status === 'stale';
+  // With no set rhythm (FT1) a status not from this week is printed with the week it is from.
+  const asOf = !rhythmOf(app.cycle) && s.asOfWeek != null && s.status !== 'done' ? `as of week ${s.asOfWeek}` : null;
   const series = valueSeries(s.checkIns);
   const ptgBy = s.checkIns.at(-1)?.pathToGreen?.byWeek ?? null;
   const nowQ = quarterOf(app.cycle, app.week);
@@ -100,6 +103,7 @@ function GoalPrintView() {
 
         <section className="ps-status" aria-label="Status">
           <Chip k={s.status} />
+          {asOf && <span className="ps-asof">{asOf}</span>}
           {s.story.result && <span className={'ps-result tone-' + (s.story.result.kind === 'missed' ? 'off' : 'on')}>{s.story.result.text}</span>}
           <span className="ps-now">{stale ? 'Current performance unknown' : s.now}</span>
           <span className="ps-numbers">

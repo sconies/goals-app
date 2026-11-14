@@ -11,7 +11,7 @@ Every article on Faro’s Help page, in full and in its order: what each screen 
 
 `home`. Home shows what needs you this week: one main thing to do, what people have asked of you, and the goals you own and watch.
 
-Routes: `/`. Screens: `Home`. Requirements: `HOME-OWNER`, `HOME-MANAGER`, `PROFILES`, `SHAPE-MATCHES-WORD`, `DAY-ONE`.
+Routes: `/`. Screens: `Home`. Requirements: `HOME-OWNER`, `HOME-MANAGER`, `HOME-LEADER`, `PROFILES`, `SHAPE-MATCHES-WORD`, `DAY-ONE`.
 
 #### What it’s for
 
@@ -47,6 +47,16 @@ Home is where you start each day. It answers one question first: what is asked o
 - In a workspace with one team, your goals and your team’s would repeat each other, so Home shows them once: “The team’s goals · 9”, your own first, then your teammates’, each of theirs with its owner’s name first. Its counts, its need attention link and See them in Goals open that team’s goals. There is no separate Your team, and Goals you watch is left out while you watch nothing.
 - When the goals you watch, or your teams’ goals, are more than twelve goals in two or more teams, they are shown as teams, worst first: the team with the most goals off track, then at risk, then with no recent update, first, as Goals orders By team. Each team’s name, its “3 need attention” and its counts by status open exactly those goals. Five teams show, then a link to the rest, by team. No person’s name is in this table: teams and goals are ranked, never people. On a phone each team is one stacked row.
 
+#### How the week’s check-ins stand
+
+- If your team’s goals or the goals you watch are shown as teams, or you are an admin, This week has a cell saying how the week’s check-ins stand over those goals (every goal, for an admin): “Checked in for week 46 · 45 of 55 goals · Due by Thu 12 Nov”. After the due day it says how many came in after it.
+- It counts goals, never people. It opens Goals with the goals that have no check-in for the week yet, worst first.
+- Beside it, a second cell says how many of those goals were checked in before the review without anyone asking: “91 of 118 goals · 77%”, with last week’s percentage under it and By week, which opens the review that covers them. Before the due day it says “So far”. A percentage is shown only from 20 goals, and the cell is left out when the goals have fewer than three owners.
+
+#### The workspace’s line
+
+- If you are an admin, Home has a short block headed with the workspace’s name. When the year is ending or has ended, it says so first, with the next step. Then, when something needs sorting out, “2 things to sort out” with the first of them, and See them, which opens Workspace’s About with the same list.
+
 #### Changed since
 
 - Beside the rest on a computer (after your goals and your team on a phone), “Changed since Friday 6 Nov” says what moved since you last opened Home: “1 got worse”, “2 recovered”, “1 went quiet”, “1 done”. Each count opens exactly those goals in Goals.
@@ -78,7 +88,7 @@ Requirements: `PROJECTION-RANGE`, `STATUS-BANDS`, `STATUS-DIRECTION`, `RANGE`, `
 - On track: At least 95% of the progress planned by now, inside its limit, or every stage on schedule. If the recent trend says it will still finish short, it is flagged as getting worse.
 - At risk: 80%–95% of the progress planned by now, inside a limit’s warning margin or over it for one week, or a stage up to 2 weeks late. The owner says how it gets back: its path to green.
 - Off track: Under 80% of the progress planned by now, a stage more than 2 weeks late, or over a limit two weeks running. It needs a decision, help or a new plan.
-- No recent update: The latest check-in was posted 14 days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in.
+- No recent update: The latest check-in was posted 14 days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in. Never used when there is no set check-in rhythm.
 - No check-in yet: The goal has begun and nobody has checked in on it yet. 14 days after it began with still none, it has no recent update.
 - Not started: Week 0: the goal is set up and its first check-in is due in week 1.
 - Done: The owner called it done in a check-in. Done means finished wherever it is said: a goal, a stage or an action.
@@ -285,6 +295,13 @@ Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, qua
 - Letters in a number get the same message on every screen, sheet and AI tool: type digits only, with an example at the goal’s decimal places (like 29 for a goal of whole numbers). Every number Faro shows has its thousands grouped: 1,250.
 - The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned.
 - A number that looks wrong (ten times last week’s, say) is a question you answer before posting: “Yes, it’s right” or change it. The same number as last week asks whether you measured it again. Your answer is kept in the goal’s History. A number that can’t be used says what to fix.
+
+#### With no set rhythm
+
+- An admin can choose no set rhythm for a workspace (Workspace, Features). Then Check-in is “Check in on a goal”: your goals with no check-in this week first, those you have never checked in on at the top, then those checked in this week. Each row has its own button; nothing is due, late or counted against you, and there is no streak.
+- A goal is judged by what it last said. Where that isn’t this week’s, its status says which week it is from: “On track · as of week 44”, on Goals, Home, Watching and the goal’s page. No goal reads No recent update, and History has no “No check-in” rows.
+- Home and Goals say what has a check-in this week, not what is due. On Home each of your goals without one this week has its own Check in button. Goals’ Last check-in filter still finds the goals with no check-in for some weeks.
+- On a goal that isn’t yours, “Ask the owner for an update” is there whenever its latest check-in isn’t this week’s. Its forecast is still made from the numbers there are, and says whose pace it is: “on the pace to week 44”. A printed goal says “as of week 44” beside its status.
 
 #### A number filled in from its source
 
@@ -769,7 +786,7 @@ Routes: `/goals/:goalId/edit`. Screens: `GoalEdit`. Requirements: `PLAN-CHANGE`,
 - A link can open the page at a section: add #definition, #plan or #owner to the address. Describe it on a goal with no definition opens What it is. Older links that opened one part of the form land on the matching section.
 - The owner, the team and the goals are found by typing a name or a key; a goal already under this one is listed but can’t be chosen to feed it.
 - Plan and target has the same two rows as a new goal: Baseline with From, Target with To, each week chosen from the list of weeks with their dates. Changing From or To after check-ins have started is a plan change, so it asks why.
-- Under them, Period the baseline covers and Provisional, as on New goal. Firming up a provisional baseline, changing the Baseline number while Provisional is ticked, isn’t a plan change: it asks no reason and keeps no earlier plan. Untick Provisional once the figure is firm.
+- Under them, Period the baseline covers and Provisional, as on New goal. Firming up a provisional baseline, changing the Baseline number while Provisional is ticked, isn’t a plan change: it asks no reason and keeps no earlier plan. Untick Provisional once the figure is firm. A baseline can be marked provisional only before the goal’s first check-in.
 - Plan by week shows the numbers week by week; type over any week.
 - After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s history.
 - Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about. A target on the worse side of the start for the metric that measures the goal is asked about too (“Lead time for changes is better lower, but the target is above today”), here, in a spreadsheet and through the AI assistant, and your answer is kept in the goal’s History as Checked.
@@ -1322,6 +1339,24 @@ Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-MEASUREMENT`.
 - A goal measured by a metric with a gap is held to no number. It says “Not measured yet”, with a broken ring, instead of a status: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.
 - Once the metric is measured, in full or in part, its goals are held to their plans again, in the same save. Linking a goal to a measured metric, or unlinking it, does the same. History says so on each goal, and Undo takes it all back.
 
+### Where a metric sits, and how far to trust it
+
+`metric-structure`, from the metrics module. Say what a metric is part of, how much its number can be trusted, and how it could be gamed, so the library keeps a register’s thinking.
+
+Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-STRUCTURE`.
+
+#### Where it sits
+
+- In a metric’s form, under Where it sits, choose Part of: the metric it sits under, found by typing its name. A metric can’t be its own parent, and one already under it is listed but can’t be chosen.
+- Then say how it relates, if you know: Component (part of its parent’s number: they add up to it), Driver (moves it), Control (watched so improving the parent breaks nothing else) or Breakdown (the parent split one way, by team, region or service).
+- The metric’s page says where it sits (“A driver of Lead time for changes.”), and its parent’s page lists it under Where it sits, with its level. Goals still feed goals: this is the library’s map, not a second goal tree.
+
+#### Confidence and gaming
+
+- Confidence in the number: High (measured directly and checked), Medium (known gaps or a manual step) or Low (estimated, sampled or new). Its page says it among the facts.
+- How it could be gamed: a sentence or two, up to 500 characters, shown beside what it means, so anyone reading a good number knows what to check.
+- All of it is optional. The AI assistant’s save_metric takes parent, level, confidence and gaming, so a register loads with its structure.
+
 ### Teams
 
 `teams`. The workspace’s teams, A to Z, each with its lead, its people and its goals by status; a team’s page says what it is here to do. Admins add, change and remove teams.
@@ -1419,11 +1454,13 @@ On a phone’s home screen and in the browser tab, the F sits on a deep-teal til
 
 `features`. Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace, in three groups: working together, tools, and beyond this workspace.
 
-Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`, `REVIEWS-SWITCH-CLOCK`, `WATCHING-OPTIONAL`, `FEEDBACK-OPTIONAL`, `MAP-OPTIONAL`, `WRAP-UP-OPTIONAL`, `FEATURE-GROUPS`.
+Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`, `REVIEWS-SWITCH-CLOCK`, `WATCHING-OPTIONAL`, `FEEDBACK-OPTIONAL`, `MAP-OPTIONAL`, `WRAP-UP-OPTIONAL`, `FEATURE-GROUPS`, `RHYTHM-OPTIONAL`.
 
 #### How to use it
 
 - On Workspace, Features says how this workspace works and lists the optional parts of Faro, each with what it does; About says which are on, from the same list. Goals, check-ins and people are the core and always on.
+- How you work starts with the check-in rhythm: “Every week, due by Thursday” (a goal with no check-in for 14 days reads No recent update) or “No set rhythm” (owners check in when there’s news; nothing is due or late for want of a check-in). Change opens a sheet with the two choices and, with Every week, the day check-ins are due by.
+- Before you save, the sheet says what changes for everyone here, counted: how many goals have nothing due, how many stop reading No recent update and what each would show instead, and that dates people chose and every check-in already posted stay as they are. Switched back on, nothing is late that day: the rhythm counts from today, and the sheet says when the first check-ins are due. Save says what it did, with Undo.
 - Working together holds Reviews (walking a set of goals together on a cadence), Watching (following goals you don’t own) and the Wrap-up (each owner saying how their goals landed at the end of the year). Tools holds the Metric library, Spreadsheets and the Goal map. Beyond this workspace holds Feedback, which goes to the people who build Faro. A group this Faro has nothing in isn’t shown. Each has a switch with On or Off beside it.
 - While a feature is on, its row says what it holds: how many reviews are set up, how many people watch goals here, or when the wrap-up opens and, while it is open, how many goals are wrapped up.
 - Switching off a feature that keeps something asks first: Reviews always, Watching when anyone watches a goal, the Wrap-up once a wrap-up is written or while it is open. Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, how many accepted risks stay on their goals (no new one can be accepted while it is off), that check-ins are still due by the same day, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching anything else off that keeps nothing, or anything on, acts at once.
@@ -1439,7 +1476,7 @@ Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`, `REV
 
 #### Who can
 
-Admins switch features. Everyone sees what is on.
+Admins switch features and choose the check-in rhythm. Everyone sees what is on, and Cycles says the rhythm to everyone (“Check-ins: every week, due by Thursday.” or “Check-ins: no set rhythm.”).
 
 #### For the people building Faro
 

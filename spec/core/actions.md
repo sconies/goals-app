@@ -62,9 +62,10 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | [deleteCycle](#deletecycle) | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`delete_cycle`](tools.md#delete_cycle) |
 | [undoStart](#undostart) | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`undo_start_cycle`](tools.md#undo_start_cycle) |
 | [arrive](#arrive) | Arrive: the first time you choose your name in a workspace (its arrival screen), the log says so, once | Anyone, as themselves (in the internal app the first sign-in records it: SR3) | none, on purpose ([why](#arrive)) |
-| [renameWorkspace](#renameworkspace) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`rename_workspace`](tools.md#rename_workspace) |
-| [setRecording](#setrecording) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`set_recording`](tools.md#set_recording) |
-| [setModule](#setmodule) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`set_feature`](tools.md#set_feature) |
+| [renameWorkspace](#renameworkspace) | Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace | Admins | [`rename_workspace`](tools.md#rename_workspace) |
+| [setRecording](#setrecording) | Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace | Admins | [`set_recording`](tools.md#set_recording) |
+| [setModule](#setmodule) | Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace | Admins | [`set_feature`](tools.md#set_feature) |
+| [setRhythm](#setrhythm) | Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace | Admins | [`set_rhythm`](tools.md#set_rhythm) |
 | [undoRemoval](#undoremoval) | Undo a removal straight after it (the Undo on its message): every record it changed goes back as it was | Whoever removed it, or an admin | none, on purpose ([why](#undoremoval)) |
 | [restoreRemoved](#restoreremoved) | Restore something removed, stopped or marked as left (within 30 days), and see it on Recently removed | An admin (everything), or whoever removed it (their own) | [`restore_removed`](tools.md#restore_removed), [`list_removed`](tools.md#list_removed) |
 | [createToken](#createtoken) | Make an MCP token for someone | Admins | [`create_token`](tools.md#create_token) |
@@ -1334,7 +1335,7 @@ Nothing.
 
 ## renameWorkspace
 
-**Does:** Rename the workspace; turn recording on or off; switch features on or off; delete the workspace.
+**Does:** Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace.
 
 **Input**:
 
@@ -1356,7 +1357,7 @@ Nothing.
 
 ## setRecording
 
-**Does:** Rename the workspace; turn recording on or off; switch features on or off; delete the workspace.
+**Does:** Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace.
 
 **Input**:
 
@@ -1379,7 +1380,7 @@ Nothing.
 
 ## setModule
 
-**Does:** Rename the workspace; turn recording on or off; switch features on or off; delete the workspace.
+**Does:** Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace.
 
 **Input**:
 
@@ -1400,6 +1401,33 @@ Nothing.
 - “There’s no feature called ….”
 
 **AI tools that do the same:** [`set_feature`](tools.md#set_feature)
+
+## setRhythm
+
+**Does:** Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace.
+
+**Input**:
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `weeks` | `number` | yes |  |
+| `dueDay` | `number` | no |  |
+| `from` | `string \| null` | no |  |
+
+**Result:** `Commit \| null`
+
+**Who may:** Admins.
+
+**The rule:** `setRhythm`, in `src/domain/rhythm.ts`.
+
+**Refuses with:**
+
+- “Only admins can change the check-in rhythm.”
+- “Faro checks in every week, or on no set rhythm.”
+- “Choose a day of the week.”
+- “That year is over; its rhythm can’t change.”
+
+**AI tools that do the same:** [`set_rhythm`](tools.md#set_rhythm)
 
 ## undoRemoval
 
@@ -1538,6 +1566,8 @@ From the [metrics](../modules/metrics/README.md) module.
 | `unit` | `string` | no |  |
 | `decimals` | `number` | no | Places after the decimal point it's shown with. |
 | `ownerId` | `string` | no | The person who answers for the definition: whoever added it, unless they hand it on. |
+| `level` | `MetricLevel` | no | Structure (MQ; rulesStructure.ts): how it relates to its parent metric (absent: not said). |
+| `parentId` | `string` | no | The metric it is a component, driver, control or breakdown of (absent: none). |
 | `source` | `string` | no | Where the number comes from (a dashboard, a tool, a query) and who owns that source (a team or a person, as text). |
 | `direction` | `MetricDirection` | no |  |
 | `meaning` | `string` | no | What it means and how it's calculated, in words: what's counted, over what, and what's left out. |
@@ -1546,6 +1576,8 @@ From the [metrics](../modules/metrics/README.md) module.
 | `caveats` | `string` | no | What to watch out for when reading it (a known gap, a change of method). |
 | `measurement` | `MetricMeasurement` | no | Whether it is measured today (MS; rulesMeasured.ts): absent on one never said otherwise, which is measured. Goals measured by a metric with a gap are held to no number (domain/unmeasured) until it is measured. |
 | `measurementNote` | `string` | no | What's missing from the measurement, and who is sorting it out ('' or absent when measured). |
+| `confidence` | `MetricConfidence` | no | How far its number can be trusted (absent: not said). |
+| `gaming` | `string` | no | How the number could be gamed, in words (absent: not said). |
 | `id` | `string` | no |  |
 | `confirm` | `boolean` | no |  |
 | `answers` | `Partial<Record<CheckField, string>>` | no |  |
@@ -2303,6 +2335,14 @@ export interface Metric {
   measurement?: MetricMeasurement;
   /** What's missing from the measurement, and who is sorting it out ('' or absent when measured). */
   measurementNote?: string;
+  /** Structure (MQ; rulesStructure.ts): how it relates to its parent metric (absent: not said). */
+  level?: import('./rulesStructure').MetricLevel;
+  /** The metric it is a component, driver, control or breakdown of (absent: none). */
+  parentId?: Id;
+  /** How far its number can be trusted (absent: not said). */
+  confidence?: import('./rulesStructure').MetricConfidence;
+  /** How the number could be gamed, in words (absent: not said). */
+  gaming?: string;
   createdBy: Id;
   createdAt: string;
   updatedAt: string;

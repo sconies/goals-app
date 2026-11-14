@@ -97,7 +97,9 @@ A level a workspace has: its id (stored on goals), its name, and the hint the go
 | `name` | `string` | yes |  |
 | `startDate` | `string` | yes | ISO date (yyyy-mm-dd) of week 0, the day the cycle starts. |
 | `weeks` | `number` | yes | Weeks in the cycle; checkpoints are weeks 0..weeks. |
-| `reviewDay` | `number` | yes | Day of the weekly review, 0 = Monday. Check-ins are due before it. |
+| `reviewDay` | `number` | yes | The weekday check-ins are due by, 0 = Monday (named for the weekly review it was first tied to). Unused when `checkInWeeks` is 0. |
+| `checkInWeeks` | `number` | no | Weeks between the check-ins every goal is expected to have: 1 (every week) when absent; 0 = no set rhythm. 2 and 4 are valid stored values kept for FT4; FT1's screens offer 1 and 0. |
+| `rhythmFrom` | `string` | no | The day (yyyy-mm-dd) the present rhythm began. Nothing is due or late for a time before it. The cycle's start when absent. |
 | `levels` | `LevelDef[] \| null` | no | The levels its goals can have, top first; none means Faro's three (domain/levels.ts DEFAULT_LEVELS). The rules read it, but nothing stores it yet: the database has no column for it and a goal's level must be one of Faro's three (okr_goals_level_check in schema.sql), so every cycle has Faro's three today. Levels set per workspace are R6a's. |
 | `removedAt` | `string \| null` | no | Deleted (only a cycle with no check-ins): kept, hidden, restorable. |
 | `removedBy` | `Id \| null` | no |  |

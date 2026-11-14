@@ -46,6 +46,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [The habit: the run, the receipt, a moment and the measure](habit.md) | How many weeks in a row a person has been on time, with one late week forgiven; what the check-in’s last screen says once the week’s are all in; when a check-in says a goal reached its target or came back on track; and how many of a set’s goals were checked in before the review without being asked. |
 | [Home: what is asked of you today](home.md) | Whether Home leads with one thing asked of the viewer today, and its one primary action, or says in one quiet line that nothing is. |
 | [Home: your goals, your team and what you watch](home-sets.md) | Home’s blocks of goals are exactly the Goals page’s scopes, with the same counts; a set of more than twelve goals in two or more teams is drawn as teams, worst first. |
+| [Home: a leader’s week, and the workspace’s line](home-leader.md) | How the week’s check-ins stand, as one cell, for someone whose goals are drawn as teams or an admin; and for an admin, how many things there are to sort out. |
 | [Home: what changed since you last looked](home-changed.md) | What moved since the last day Home was opened: a goal’s status on that day, by the status rule, against its status now; Home’s counts, the teams table’s last column, the Goals filter and find_goals all read the same rule. |
 
 ## The numbers the rules turn on
@@ -57,6 +58,6 @@ From `src/domain/thresholds.ts`:
 | `RULES.onTrack` | 0.95 | Share of the planned change for on track |
 | `RULES.atRisk` | 0.8 | Share of the planned change for at risk (below it is off track) |
 | `RULES.wellAhead` | 1.2 | Share of the planned change for well ahead (still on track; asks why) |
-| `RULES.staleDays` | 14 | Days without a check-in before a goal has no recent update |
+| `RULES.staleCheckIns` | 2 | Missed check-ins before a goal has no recent update: × 7 × the cycle’s check-in weeks (14 days every week); never with no set rhythm |
 | `RULES.lateWeeksOff` | 2 | Weeks late beyond which a stage is off track |
 | `TREND_SPAN` | 3 | Check-ins the trend looks back over |

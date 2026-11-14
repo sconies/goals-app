@@ -12,7 +12,9 @@ import { EMPTY_QUERY } from '../domain/query';
 import { countWords } from '../domain/format';
 import { countList } from '../domain/order';
 import { gettingStarted, inviteLink, type DayOneFacts } from '../domain/dayOne';
-import { workspaceName } from '../domain/workspaceAttention';
+import { sortOutRow, workspaceName } from '../domain/workspaceAttention';
+import { toSortOut } from '../app/toSortOut';
+import { sectionsFor } from '../core/module';
 import { dayOneRows, homeFacts, reviewName, reviewsOn, watchingOn, wrapUpOn, wrapUpScope } from '../app/reads';
 import { useApp } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
@@ -26,6 +28,8 @@ import { periodWord } from '../domain/year';
 import { LABEL } from '../domain/vocabulary';
 import { statusCounts } from '../domain/order';
 import { goalStatus } from '../domain/status';
+import { rhythmOf } from '../domain/thresholds';
+import type { Goal } from '../domain/types';
 import type { AskKind } from '../domain/types';
 import { AttentionCard, Avatar, ProgressRing, StatusShape, WarnMark } from '../ui/bits';
 import { GoalRow } from '../ui/goalRows';
@@ -69,6 +73,15 @@ function LeadOrQuiet({ plan }: { plan: HomePlan }) {
   );
 }
 
+/** With no set rhythm (FT1): whether a goal of yours gets an ordinary "Check in" button on Home: live, and no check-in
+    for this week yet. Null with a rhythm (then the button is there while one is due). */
+function useCheckInHere(): ((g: Goal) => boolean) | null {
+  const app = useApp();
+  if (rhythmOf(app.cycle)) return null;
+  return (g) => g.ownerId === app.viewer.id && !g.stoppedAt && !g.proposedAt && app.statusOf(g).status !== 'done'
+    && !app.snapshot.checkIns.some((c) => c.goalId === g.id && c.week === app.week && !c.removedAt);
+}
+
 /**
  * Your goals (section 2.1, part 6): counted once, here. Each status's count opens exactly those goals; then what needs
  * attention, what's being handled (folded) and the rest, five at a time. A row is a link to its goal; its one button
@@ -78,6 +91,7 @@ function LeadOrQuiet({ plan }: { plan: HomePlan }) {
 function YourGoals({ news }: { news?: ReactNode }) {
   const app = useApp();
   const [all, setAll] = useState(false);
+  const checkInHere = useCheckInHere();
   const team = theOneTeam(app.snapshot.teams, app.viewer);
   const own = (g: { ownerId: string }) => g.ownerId === app.viewer.id;
   // Your goals (or the team's) through the query port (AX5), worst first; the team's with yours first.
@@ -117,7 +131,10 @@ function YourGoals({ news }: { news?: ReactNode }) {
       <HandledGroup list={handled} folded />
       {rest.length > 0 && (
         <div className="home-sub">
-          <div className="glist">{shown.map((g) => <GoalRow key={g.id} g={g} density="line" />)}</div>
+          <div className="glist">{shown.map((g) => checkInHere?.(g)
+            // No set rhythm: every live goal without a check-in this week has its own button (an ordinary one, nothing due).
+            ? <div key={g.id} className="gline-with"><GoalRow g={g} density="line" /><Link className="btn sm" to={'/check-in/' + g.id}>Check in</Link></div>
+            : <GoalRow key={g.id} g={g} density="line" />)}</div>
           {rest.length > shown.length && <button type="button" className="linkish small" onClick={() => setAll(true)}>Show the {rest.length - shown.length} with nothing flagged</button>}
         </div>
       )}
@@ -202,11 +219,12 @@ function NeedsYou({ asks, also, leadAbout }: { asks: Waiting[]; also: boolean; l
 /** Your goals that need attention: each row is a link to its goal, with "Check in" when that's what it needs (never "Open"). */
 function AttentionList({ list }: { list: ReturnType<typeof attentionList> }) {
   const app = useApp();
+  const checkInHere = useCheckInHere();
   return (
     <div className="alist">
       {list.map((a) => (
         <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id} who={a.goal.ownerId === app.viewer.id ? undefined : app.person(a.goal.ownerId)?.name ?? undefined}
-          action={a.goal.ownerId === app.viewer.id && a.flags.some((f) => f.kind === 'due' || f.kind === 'stale' || f.kind === 'no-path' || f.kind === 'missed-path')
+          action={a.goal.ownerId === app.viewer.id && (a.flags.some((f) => f.kind === 'due' || f.kind === 'stale' || f.kind === 'no-path' || f.kind === 'missed-path') || !!checkInHere?.(a.goal))
             ? <Link className="btn sm" to={'/check-in/' + a.goal.id}>Check in</Link>
             : undefined} />
       ))}
@@ -215,8 +233,9 @@ function AttentionList({ list }: { list: ReturnType<typeof attentionList> }) {
 }
 
 /**
- * This week (part 4): a review you're in, as one cell. Left out when the lead is about that review, and absent when
- * there is none: Home never says "None you’re in". Your goals' counts are in "Your goals", once.
+ * This week (part 4): a review you're in, as one cell, then how the week's check-ins stand for a leader or an admin
+ * (HM7). A review cell is left out when the lead is about that review, and the row is absent when there is nothing:
+ * Home never says "None you’re in". Your goals' counts are in "Your goals", once.
  */
 function ThisWeek({ d, leadAbout }: { d: Dashboard; leadAbout: string | null }) {
   const missed = d.missed.filter((m) => m.id !== leadAbout);
@@ -224,7 +243,8 @@ function ThisWeek({ d, leadAbout }: { d: Dashboard; leadAbout: string | null }) 
   const left = d.upcoming.filter((r) => r.id !== leadAbout && !d.missed.some((m) => m.id === r.id));
   const next = left[0] ?? null;
   const sameDay = next ? left.filter((r) => r.date === next.date).length : 0;
-  if (!missed[0] && !next) return null;
+  // How the week's check-ins stand (rule 6's third cell, HM7) is loaded with the sets: alone, it is the row's only cell.
+  if (!missed[0] && !next) return <Suspense fallback={null}><HomeSet set="standing" alone /></Suspense>;
   const when = next ? (next.days === 0 ? 'today' : next.days === 1 ? 'tomorrow' : `in ${next.days} days`) : '';
   return (
     <section className="dash" aria-label="This week" data-part="This week">
@@ -243,15 +263,39 @@ function ThisWeek({ d, leadAbout }: { d: Dashboard; leadAbout: string | null }) 
           <span className="dash-sub">{next.weekday} · {when}</span>
         </Link>
       )}
+      <Suspense fallback={null}><HomeSet set="standing" /></Suspense>
     </section>
   );
 }
 
-/** For admins: the year is ending or has ended, and the next one to start (HM1 review: HM1 had dropped it before HM7). */
-function AdminCard() {
+/**
+ * The workspace's line (part 10, rule 7; HM7), for admins: headed with the workspace's name, the year's row first when
+ * it is ending or has ended, then "{n} things to sort out" with the first and how many more, opening Workspace's About
+ * (the same list, `toSortOut`). Never a lead, never a cell; nothing for a member, or when there is nothing to say.
+ */
+function WorkspaceLine() {
   const app = useApp();
-  const wrapUpHere = wrapUpOn(useModules().on);
+  const { on, screens } = useModules();
   if (!app.viewer.admin) return null;
+  const year = yearRow(app, wrapUpOn(on));
+  const sort = sortOutRow(toSortOut(app.snapshot, app.cycle, app.viewer, reviewsOn(on), sectionsFor(app.viewer, [], screens.flatMap((m) => m.sections ?? [])), screens));
+  if (!year && !sort) return null;
+  return (
+    <section className="block home-workspace" data-part="The workspace’s line">
+      <h2 className="block-title">{workspaceName(app.ws, app.mode).name}</h2>
+      {year}
+      {sort && (
+        <div className="note-card home-sort-out">
+          <span className="stack" style={{ gap: 'var(--s1)' }}><strong>{sort.says}</strong><span className="hint">{sort.line}</span></span>
+          <Link className="btn" to="/workspace">See them</Link>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** The year is ending or has ended, and the next one to start (HM1 review: HM1 had dropped it before HM7). */
+function yearRow(app: ReturnType<typeof useApp>, wrapUpHere: boolean): ReactNode {
   const later = laterCycle(app.full.cycles, app.cycle);
   const over = hasEnded(app.cycle, app.today);
   // With the Wrap-up off (SW1) the card still says the year is ending and offers the next, without the wrap-up's words.
@@ -265,13 +309,13 @@ function AdminCard() {
       : over ? `Start ${next}: it opens for everyone as soon as you start it.`
       : `${next} isn’t set up yet. It can be started now; everyone stays in ${app.cycle.name} until ${lastDay}.`;
     return (
-      <section className="block note-card">
+      <div className="note-card">
         <span className="stack" style={{ gap: 'var(--s1)' }}><strong>{over ? `${app.cycle.name} ended on ${lastDay}` : `The ${periodWord(app.cycle)} is ending`}</strong><span className="hint">{wrapping ? (left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up. ` : 'Every goal is wrapped up. ') : ''}{nextLine}</span></span>
         <span className="row" style={{ gap: 'var(--s2)' }}>
           {wrapping && <Link className="btn" to="/retro">See the wrap-up</Link>}
           <Link className="btn" to={later ? '/workspace/cycles' : '/workspace/cycles/next'}>{later ? 'See Cycles' : `Start ${next}`}</Link>
         </span>
-      </section>
+      </div>
     );
   }
   // Adding people is Getting started's row now, said only while it's true (OB3).
@@ -317,7 +361,7 @@ export function Home() {
       <ThisWeek d={useDashboard()} leadAbout={plan.lead?.about ?? null} />
       <div className="home-grid split">
         <LeadOrQuiet plan={plan} />
-        <aside className="home-side split-side" aria-label="For you"><NeedsYou asks={plan.asks} also={plan.lead?.kind === 'ask'} leadAbout={plan.lead?.about ?? null} />{/* Changed since (part 8, rule 5), loaded with the sets after the first download; it also keeps the day Home was last opened (`home-seen`). */}<Suspense fallback={null}><HomeSet set="changed" /></Suspense><AdminCard /></aside>
+        <aside className="home-side split-side" aria-label="For you"><NeedsYou asks={plan.asks} also={plan.lead?.kind === 'ask'} leadAbout={plan.lead?.about ?? null} />{/* Changed since (part 8, rule 5), loaded with the sets after the first download; it also keeps the day Home was last opened (`home-seen`). */}<Suspense fallback={null}><HomeSet set="changed" /></Suspense><WorkspaceLine /></aside>
         <div className="home-main split-b">
           <YourGoals />
           {/* Your team (part 7, rule 4): the My team scope, when it holds a goal you don't own; nothing otherwise, and
@@ -355,7 +399,7 @@ function GettingStarted() {
   }, [facts, app.ws.kind, app.today]); // eslint-disable-line react-hooks/exhaustive-deps
   const save = (p: Partial<DayOneFacts>) => { const next = { ...facts, ...p }; prefs.set(...key, next); setFacts(next); };
   const watching = watchingOn(useModules().on);
-  const rows = gettingStarted(app.viewer.id, { ...dayOneRows(app.snapshot), ended: hasEnded(app.cycle, app.today), watching }, { name: workspaceName(app.ws, app.mode).name, kind: app.ws.kind, createdAt: app.ws.createdAt }, facts, app.today, WEEKDAY[app.cycle.reviewDay] ?? 'the review');
+  const rows = gettingStarted(app.viewer.id, { ...dayOneRows(app.snapshot), ended: hasEnded(app.cycle, app.today), watching }, { name: workspaceName(app.ws, app.mode).name, kind: app.ws.kind, createdAt: app.ws.createdAt }, facts, app.today, rhythmOf(app.cycle) ? WEEKDAY[app.cycle.reviewDay] ?? 'the review' : null);
   if (!rows.length) return null;
   const invite = inviteLink(location.origin, app.mode, app.ws.id);
   return (

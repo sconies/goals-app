@@ -6,7 +6,8 @@ import type { DisplayStatus } from '../domain/types';
 import { FLAG, lower, RESULT, STATUS } from '../domain/vocabulary';
 import { StatusWord } from './bits';
 
-const LISTED = ['on', 'risk', 'off', 'stale'] as const;
+/** The statuses the legend lists, in order. */
+export const LISTED = ['on', 'risk', 'off', 'stale'] as const;
 const RESULTS = ['completed', 'late', 'missed'] as const;
 
 export function StatusLegend({ kind = 'full', statuses, className, itemClass, wordClass, label = 'Key', extra }: {
