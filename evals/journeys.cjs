@@ -1842,7 +1842,7 @@ journey('U123', ['HOME-MANAGER'], 'The manager on Home: Rhea’s “Your team ·
   await p.context().close();
 });
 
-journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k; “Changed since Friday 6 Nov” counts open lists of that length, and the table’s last column is “Since Fri 6 Nov”', 3, async (h, device) => {
+journey('U124', ['HOME-MANAGER', 'HOME-LEADER', 'HABIT-MEASURE'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k; “Changed since Friday 6 Nov” counts open lists of that length, and the table’s last column is “Since Fri 6 Nov”; on Wed 11 Nov one cell says how many of them are checked in for week 46, and opens the rest', 3, async (h, device) => {
   // Home rule 4 (HM3): three or more teams are drawn as teams, ordered as Goals orders "By team" (worstGroupsFirst).
   const day = (d) => BASE + '/demo/?today=' + d;
   const p = h.use(await newPage(device, 'amara'));
@@ -1905,6 +1905,27 @@ journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans 
   const since = (await table.locator('thead th').last().innerText()).trim();
   if (since !== 'Since Fri 6 Nov') fail(`the teams table’s last column is “${since}”, not “Since Fri 6 Nov”`);
   await h.checkpoint('changed');
+  // How the week's check-ins stand (HM7): on Wed 11 Nov, one cell over the set drawn as teams, never a name; it opens
+  // the goals with no check-in for the week yet, and Goals counts exactly those.
+  await p.goto(day('2026-11-11'));
+  const cell = p.locator('.dash-standing');
+  await cell.waitFor({ timeout: 8000 }).catch(() => {});
+  const said = (await cell.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  const [, a, b] = said.match(/Checked in for week 46 (\d+) of (\d+) goals?/) || [];
+  const named2 = s0.people.map((x) => x.name).filter((n) => said.includes(n));
+  h.set('progress', !!a && !named2.length, `the standing cell reads “${said}”${named2.length ? `, naming ${named2.join(', ')}` : ''}`);
+  // Beside it (HB3), the same goals' measure: before the due day, “So far: {u} of {n} goals”; no name. (A cell's
+  // under-line, “Due by …” and By week, is left out on a phone.)
+  const habitSaid = (await p.locator('.dash-habit').innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  h.set('attention', /without being asked So far: \d+ of \d+ goals/.test(habitSaid) && !s0.people.some((x) => habitSaid.includes(x.name)), `the habit cell reads “${habitSaid}”`);
+  if (a) {
+    // A check on where the cell leads, not a step of the leader's task, so not counted against its budget.
+    await cell.click();
+    await p.waitForURL(/scope=watching&checkedin=no/);
+    await p.locator('.goals-line').first().waitFor();
+    const gl = await p.locator('.goals-line').first().innerText();
+    h.set('finish', new RegExp(`^${Number(b) - Number(a)} goals?\\b`).test(gl), `“${a} of ${b} goals” opened Goals saying “${gl}”`);
+  }
   h.set('errors', true);
   h.set('logged', true);
   await p.context().close();

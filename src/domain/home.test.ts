@@ -3,7 +3,8 @@ import { askLead, ownFirst, theOneTeam, homeFor, homeLead, missedReviews, propos
 import { buildPlatformOrg } from '../data/platformOrg';
 import { currentCycle as currentCycleOf, scopeToCycle } from './cycle';
 import { attentionFor, type GoalAttention } from './attention';
-import { asTeams, homeSets } from './homeSets';
+import { asTeams, homeSets, standingOver, standingSet, standingWords, type SetFacts } from './homeSets';
+import { sortOutRow } from './workspaceAttention';
 import { scopesFor } from './goalsPage';
 import { watchedGoals } from './review';
 import { currentWeek, hasEnded } from './plan';
@@ -281,5 +282,30 @@ describe('Home rule 4: the sets [HOME-MANAGER]', () => {
     expect(asTeams(t(...Array(6).fill('a'), ...Array(6).fill('b')))).toBe(false);
     expect(asTeams(t(...Array(7).fill('a'), ...Array(6).fill('b')))).toBe(true);
     expect(asTeams(t(...Array(40).fill('a')))).toBe(false);
+  });
+});
+
+describe('Home rule 6’s third cell and rule 7 (HM7) [HOME-LEADER]', () => {
+  const set = (teams: boolean) => ({ teams: teams ? [] : null, names: [] }) as unknown as SetFacts & { names: string[] };
+  it('counts over a set drawn as teams, your teams’ first; an admin with neither, every goal; anyone else, nothing', () => {
+    expect(standingSet({ team: set(true), watching: set(true) }, false)).toBe('team');
+    expect(standingSet({ team: set(false), watching: set(true) }, false)).toBe('watching');
+    expect(standingSet({ team: set(false), watching: null }, true)).toBe('all');
+    expect(standingSet({ team: set(false), watching: set(false) }, false)).toBeNull();
+  });
+  it('the goals due this week: in, of, and late; none due, no cell', () => {
+    const st = { a: 'unasked', b: 'after', c: 'none', d: null, e: 'asked' } as const;
+    const f = standingOver('team', ['a', 'b', 'c', 'd', 'e'] as const, (g) => st[g]);
+    expect(f).toEqual({ set: 'team', of: 4, in: 3, late: 1 });
+    expect(standingOver('all', ['d'] as const, () => null)).toBeNull();
+    // Words: due by the Thursday, then how many came in after it; it opens the set's goals with no check-in yet.
+    expect(standingWords(f!, 46, '2026-11-12', '2026-11-11')).toEqual({ label: 'Checked in for week 46', value: '3 of 4 goals', sub: 'Due by Thu 12 Nov', to: '/goals?scope=team&checkedin=no' });
+    expect(standingWords(f!, 46, '2026-11-12', '2026-11-13').sub).toBe('1 came in after Thursday');
+    expect(standingWords({ ...f!, late: 0 }, 46, '2026-11-12', '2026-11-13').sub).toBe('Due by Thu 12 Nov');
+  });
+  it('the workspace’s line: “{n} things to sort out”, the first and how many more; nothing when there is nothing', () => {
+    expect(sortOutRow([{ says: 'No review is set up' }, { says: '2 people have no email' }])).toEqual({ says: '2 things to sort out', line: 'No review is set up, and 1 more.' });
+    expect(sortOutRow([{ says: '2 people have no email' }])).toEqual({ says: '1 thing to sort out', line: '2 people have no email.' });
+    expect(sortOutRow([])).toBeNull();
   });
 });

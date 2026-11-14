@@ -27,6 +27,26 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'home-habit-cell',
+    date: '2026-11-14',
+    title: 'A leader’s Home says how many goals were in without being asked',
+    points: [
+      'Beside how the week’s check-ins stand, one more cell: how many of those goals were checked in before the review without anyone asking, and last week’s share.',
+      'By week opens the review that covers them, with its row of weeks.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'home-leader',
+    date: '2026-11-14',
+    title: 'A leader’s Home: how the week’s check-ins stand',
+    points: [
+      'When your team’s goals or the goals you watch are shown as teams, This week says how many of them are checked in for the week, and opens the ones that aren’t yet.',
+      'Admins see it over every goal, and a line with how many things there are to sort out in the workspace.',
+    ],
+    articles: ['home'],
+  },
+  {
     id: 'metric-structure',
     date: '2026-11-14',
     title: 'Metrics keep where they sit, and how far to trust them',

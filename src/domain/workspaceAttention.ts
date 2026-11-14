@@ -132,3 +132,10 @@ export function landingLine(before: { name: string; admin?: boolean } | null, af
   return `You’re ${after.name} here, ${after.admin ? 'an admin' : 'a member'}.`;
 }
 
+
+/** Home rule 7 (HM7): an admin's row on Home for what Workspace's About lists to sort out: "{n} things to sort out", then
+    the first need's sentence and how many more. Null when there is nothing, and never a lead or a cell. */
+export function sortOutRow(needs: readonly Pick<WorkspaceNeed, 'says'>[]): { says: string; line: string } | null {
+  const n = needs.length;
+  return n ? { says: `${n} ${n === 1 ? 'thing' : 'things'} to sort out`, line: `${needs[0]!.says}${n > 1 ? `, and ${n - 1} more` : ''}.` } : null;
+}

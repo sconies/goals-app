@@ -10,7 +10,7 @@ import { proposalAsks, withProposed } from '../domain/proposed';
 import { scopeToCycle, wrapUpCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
 import type { Ask, Cycle, Goal, Person, Snapshot } from '../domain/types';
-import { checkInStanding, dueIn } from '../domain/standing';
+import { checkInStanding, dueIn, type Standing } from '../domain/standing';
 import type { ScopeFacts } from '../domain/goalsPage';
 import { agendaOf, goalsIn, heldOnDueDay, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
 import { waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession, type Waiting } from '../domain/home';
@@ -82,6 +82,17 @@ export const dueWordsHere = (reviews: boolean, s: Pick<Snapshot, 'reviews'>, cyc
 export const heldForGoals = (reviews: boolean, s: Pick<Snapshot, 'reviews'>, cycle: Cycle, week: number, goals: readonly Pick<Goal, 'ownerId'>[]): boolean =>
   reviews && [...new Set(goals.map((g) => g.ownerId))].some((o) => heldOnDueDay(s.reviews, cycle, week, o));
 
+/** Each goal's standing this week (habit rule 1), or null when it isn't due: what Goals' `checkedin=` reads and Home's
+    standing cell counts (HM7), so both count the same goals. */
+export function standingIn(s: Pick<Snapshot, 'checkIns' | 'requests'>, cycle: Cycle, week: number): (g: Goal) => Standing | null {
+  const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
+  const rows = { checkIns: s.checkIns, asks: s.requests ?? [] };
+  return (g) => (week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null);
+}
+
+/** The live goals of the year, not stopped: every goal Goals' All counts. */
+export const liveGoals = (s: Pick<Snapshot, 'goals'>): Goal[] => live(s.goals).filter((g) => !g.stoppedAt);
+
 /**
  * Rule 5's `moved=` (Home spec): what each goal did since a day. Its code (app/moved.ts) is registered by what reads it,
  * Goals, Home's later parts and the MCP server, so none of it is in Home's first download; until then `moved=` matches nothing.
@@ -95,9 +106,7 @@ export function registerMovedRule(rule: NonNullable<typeof movedRule>) { movedRu
 export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns'], reviews = true): GoalRows {
   const goals = live(s.goals).filter((g) => !g.stoppedAt);
   // This week's standing (habit rule 1) for `checkedin=`, and a review's goals for `inreview=` (HB2).
-  const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
-  const rows = { checkIns: s.checkIns, asks: s.requests ?? [] };
-  const standing = (g: Goal) => (week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null);
+  const standing = standingIn(s, cycle, week);
   const inReview = (id: string) => { const r = s.reviews.find((x) => x.id === id && !x.removedAt); return r ? new Set(goalsIn(r.scope, goals).map((g) => g.id)) : null; };
   // What each goal did since a day (Home rule 5) for `moved=`: the rule as app/moved.ts registers it, asked when a query first reads it.
   let passes: Passes | undefined;

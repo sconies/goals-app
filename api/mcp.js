@@ -16690,6 +16690,16 @@ var wrapUpOn = (on) => on.has("wrap-up");
 * get_my_work say it; no screen writes "review" in a deadline itself.
 */
 var dueWordsHere = (reviews, s, cycle, week, personId) => dueWords$1(reviews, cycle, week, reviews && heldOnDueDay(s.reviews, cycle, week, personId));
+/** Each goal's standing this week (habit rule 1), or null when it isn't due: what Goals' `checkedin=` reads and Home's
+standing cell counts (HM7), so both count the same goals. */
+function standingIn(s, cycle, week) {
+	const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
+	const rows = {
+		checkIns: s.checkIns,
+		asks: s.requests ?? []
+	};
+	return (g) => week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null;
+}
 var movedRule = null;
 function registerMovedRule(rule) {
 	movedRule = rule;
@@ -16698,12 +16708,7 @@ function registerMovedRule(rule) {
 narrows nothing, as a switched-off module's column doesn't (module map F4; build review of #424). */
 function goalRows(s, cycle, today, week, columns, reviews = true) {
 	const goals = live$1(s.goals).filter((g) => !g.stoppedAt);
-	const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
-	const rows = {
-		checkIns: s.checkIns,
-		asks: s.requests ?? []
-	};
-	const standing = (g) => week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null;
+	const standing = standingIn(s, cycle, week);
 	const inReview = (id) => {
 		const r = s.reviews.find((x) => x.id === id && !x.removedAt);
 		return r ? new Set(goalsIn(r.scope, goals).map((g) => g.id)) : null;
@@ -20047,6 +20052,18 @@ var CORE_ARTICLES = [
 				]
 			},
 			{
+				heading: "How the week’s check-ins stand",
+				list: [
+					"If your team’s goals or the goals you watch are shown as teams, or you are an admin, This week has a cell saying how the week’s check-ins stand over those goals (every goal, for an admin): “Checked in for week 46 · 45 of 55 goals · Due by Thu 12 Nov”. After the due day it says how many came in after it.",
+					"It counts goals, never people. It opens Goals with the goals that have no check-in for the week yet, worst first.",
+					"Beside it, a second cell says how many of those goals were checked in before the review without anyone asking: “91 of 118 goals · 77%”, with last week’s percentage under it and By week, which opens the review that covers them. Before the due day it says “So far”. A percentage is shown only from 20 goals, and the cell is left out when the goals have fewer than three owners."
+				]
+			},
+			{
+				heading: "The workspace’s line",
+				list: ["If you are an admin, Home has a short block headed with the workspace’s name. When the year is ending or has ended, it says so first, with the next step. Then, when something needs sorting out, “2 things to sort out” with the first of them, and See them, which opens Workspace’s About with the same list."]
+			},
+			{
 				heading: "Changed since",
 				list: [
 					"Beside the rest on a computer (after your goals and your team on a phone), “Changed since Friday 6 Nov” says what moved since you last opened Home: “1 got worse”, “2 recovered”, “1 went quiet”, “1 done”. Each count opens exactly those goals in Goals.",
@@ -20076,6 +20093,7 @@ var CORE_ARTICLES = [
 		reqs: [
 			"HOME-OWNER",
 			"HOME-MANAGER",
+			"HOME-LEADER",
 			"PROFILES",
 			"SHAPE-MATCHES-WORD",
 			"DAY-ONE"
@@ -22468,6 +22486,20 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "home-habit-cell",
+		date: "2026-11-14",
+		title: "A leader’s Home says how many goals were in without being asked",
+		points: ["Beside how the week’s check-ins stand, one more cell: how many of those goals were checked in before the review without anyone asking, and last week’s share.", "By week opens the review that covers them, with its row of weeks."],
+		articles: ["home"]
+	},
+	{
+		id: "home-leader",
+		date: "2026-11-14",
+		title: "A leader’s Home: how the week’s check-ins stand",
+		points: ["When your team’s goals or the goals you watch are shown as teams, This week says how many of them are checked in for the week, and opens the ones that aren’t yet.", "Admins see it over every goal, and a line with how many things there are to sort out in the workspace."],
+		articles: ["home"]
+	},
+	{
 		id: "metric-structure",
 		date: "2026-11-14",
 		title: "Metrics keep where they sit, and how far to trust them",
@@ -24145,6 +24177,7 @@ var MORE_RULE_PAGES = [
 	["goals-page", "The Goals page: whose goals, how they are grouped, and the switch"],
 	["home", "Home: what is asked of you today"],
 	["home-sets", "Home: your goals, your team and what you watch"],
+	["home-leader", "Home: a leader’s week, and the workspace’s line"],
 	["home-changed", "Home: what changed since you last looked"],
 	["habit", "The habit: the run, the receipt, a moment and the measure"]
 ];

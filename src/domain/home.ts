@@ -390,7 +390,6 @@ export function askLead(w: Waiting | undefined): Lead | null {
 
 /* The sets (round 3, HM3: docs/design/home/spec.md rule 4) are in homeSets.ts, loaded after Home's first download. */
 
-
 /** Small workspaces 2.1 (SM1h): with one team in the workspace, "Your goals" and "Your team" would repeat each other, so
     Home draws one section, "The team's goals · {n}", the viewer's own first. That team's id when the workspace has
     exactly one and the viewer is in it or leads it; null otherwise (and Home draws its sets as rule 4 says). */
@@ -403,3 +402,4 @@ export function theOneTeam(teams: readonly { id: string; leadId: string }[], vie
 export function ownFirst<T>(list: readonly T[], own: (x: T) => boolean): T[] {
   return [...list.filter(own), ...list.filter((x) => !own(x))];
 }
+

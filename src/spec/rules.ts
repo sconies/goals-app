@@ -5,7 +5,7 @@
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
 import { daysSinceIn, weekIn } from './zones';
 import { homeFor, longDay, ownFirst, theOneTeam, waiting, type HomeFacts } from '../domain/home';
-import { asTeamRows, asTeams, homeSets, type SetFacts } from '../domain/homeSets';
+import { asTeamRows, asTeams, homeSets, standingOver, standingSet, standingWords, type SetFacts } from '../domain/homeSets';
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision, proposedLine } from '../domain/decide';
 import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
 import { beforeStartLine, currentCycle, cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
@@ -36,7 +36,7 @@ import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPA
 import { cycleStanding, importName, leaveWorkspace, keptText, pastImports, undoPreview } from '../domain/removal';
 import { applyCommit } from '../data/store';
 import { acceptRisk, reviewCall, teamPeople } from '../domain/actions';
-import { adminsLine, cycleLine, LEAD_FROM, NEEDS_SHOWN, ONLY_ADMIN_FROM, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
+import { adminsLine, cycleLine, LEAD_FROM, NEEDS_SHOWN, ONLY_ADMIN_FROM, sortOutRow, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
 import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, sameAsWritten, typedDecimals } from '../domain/numbers';
 import { buildWorkspace, ownerToAdd, setupDefaults } from '../domain/importer';
 import { emptyText, fieldTable, FILL_SHEETS, LEVEL_WORDS, requiredLine, requiredText, requiredWord, specOf, TYPE_WORDS, wordsAndAlso } from '../domain/columns';
@@ -66,7 +66,7 @@ import { backTo, litItem, menuGroups, menuRows, pageName, phoneTabs, type PlaceN
 import { movedGoals, ownGroup, scopesFor } from '../domain/goalsPage';
 import { dayText, goalsIn, watchedGoals } from '../domain/review';
 import { countLine, filterLine, findAll, keyOf, nearMiss, noneFound, search, suggest, textMatches, wordsOf } from '../domain/find';
-import { goalRows, personRows, scopeFacts, teamRows } from '../app/reads';
+import { goalRows, liveGoals, personRows, scopeFacts, standingIn, teamRows } from '../app/reads';
 import { movesSince } from '../app/moved';
 import { changedHeading, changedSet, changedSince, movement, sinceFor, seenToday, type StatusNow } from '../domain/changed';
 import { CHECK_IN_MOMENT } from './conformance';
@@ -1804,7 +1804,7 @@ RULE_LIST.push({
   id: 'habit',
   title: 'The habit: the run, the receipt, a moment and the measure',
   summary: 'How many weeks in a row a person has been on time, with one late week forgiven; what the check-in’s last screen says once the week’s are all in; when a check-in says a goal reached its target or came back on track; and how many of a set’s goals were checked in before the review without being asked.',
-  code: [{ file: 'src/domain/progress.ts', names: ['onTimeStreak', 'forgivenIn', 'FORGIVE_AFTER', 'receiptFacts', 'receiptText'] }, { file: 'src/domain/review.ts', names: ['heldOnDueDay'] }, { file: 'src/domain/habit.ts', names: ['moment', 'momentText', 'BACK_AFTER', 'MOMENT_RESULT', 'habit', 'habitWeeks', 'weekWords', 'habitShown', 'MIN_OWNERS', 'beforeReviewText', 'beforeReview'] }, { file: 'src/domain/standing.ts', names: ['checkInStanding', 'dueIn'] }],
+  code: [{ file: 'src/domain/progress.ts', names: ['onTimeStreak', 'forgivenIn', 'FORGIVE_AFTER', 'receiptFacts', 'receiptText'] }, { file: 'src/domain/review.ts', names: ['heldOnDueDay'] }, { file: 'src/domain/habit.ts', names: ['moment', 'momentText', 'BACK_AFTER', 'MOMENT_RESULT', 'habit', 'habitWeeks', 'weekWords', 'habitShown', 'MIN_OWNERS', 'beforeReviewText', 'beforeReview', 'habitCell', 'PERCENT_FROM', 'byWeekTo'] }, { file: 'src/domain/standing.ts', names: ['checkInStanding', 'dueIn'] }],
   tests: ['src/domain/habit.test.ts'],
   reqs: ['HABIT-RECEIPT', 'HABIT-MOMENT', 'HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'],
   body: `
@@ -1824,6 +1824,8 @@ Never said: "streak lost", "broken", a nought, a count of late weeks, an exclama
 **A moment** (\`moment\`, for the goal's earlier check-ins and this one). *Reached*: a number goal's value meets its target in the goal's direction (at or above it when the target is above the start, at or below it otherwise) and the latest check-in of the week before did not. *Back*: the status is On track, the week before's was At risk or Off track, and the goal had been behind (At risk or Off track) for ${BACK_AFTER} weeks or more in a row. Reached wins over back; one per check-in. Neither fires on a correction, a second check-in in the same week, a backfilled week or an import. The receipt shows one panel above the week's lines: the check-in's own status, its shape and word, "{Goal} reached its target" and "{value}, against a target of {target}, in week {w} of {weeks}. It started the year at {start}." with **Copy the share image** (the image carries that same status); or "{Goal} is back on track" and "{value}, after {k} weeks behind plan.". The page's own **View the goal** goes to the goal. History's row for that check-in adds "Reached its target" or "Back on track" in small capitals, in the status's colour, with no capsule. \`post_check_in\` answers with the same \`moment\`. No animation beyond the receipt's own, no confetti, no banner on anyone else's screen.
 
 **The measure** is the share of goals checked in before the review without a nudge; Faro's only nudge is an ask for an update. *A check-in's standing* (\`checkInStanding\`, rule 1), for a goal due that week (\`dueIn\`: not stopped or proposed, first due by then, not done before it): \`none\` when no check-in counts for the week; \`after\` when the first was posted after the end of the due day (the week's review day); \`asked\` when it was in by then and an ask for an update on the goal was open when it was posted (asked before it, and answered at or after it, or still open); \`unasked\` otherwise. A question, a comment or a review's carried action is not a nudge, and a correction doesn't change a week's standing. *The counts* (\`habit\`, rule 2) over a set of goals: \`due\`, \`unasked\`, \`asked\`, \`after\`, \`none\`, and \`inTime\` = unasked + asked; the measure is unasked / due. *The row of weeks* (\`habitWeeks\`): the last 8 weeks up to the review's week once its due day has passed (the week before, until then), each \`all\` ("All in": every goal due was in by the due day), \`some\` ("{k} after": k came after or not at all), \`none\` ("None in") or \`nothing-due\` ("Nothing due"), drawn as a filled, half-filled or open square, or no mark: squares, because a circle is a goal's status.
+
+**A leader's Home** (\`habitCell\`, HB3). Beside [how the week's check-ins stand](home-leader.md), for the same viewer and the same set, one more cell: rule 2's measure for this week. "Before the review, without being asked" ("On time, without being asked" unless a review is held on the due day for these goals, RS1); "{u} of {n} goals · {p}%", the percentage only from \`PERCENT_FROM\` (20) goals due, \`p\` being \`u / n\` rounded; before the due day, "So far: {u} of {n} goals". Under it, "Week {w-1}: {p}%" when last week had a percentage, and "By week" (\`byWeekTo\`): the review covering most of the set's goals due this week, or the set in Goals when none covers any. Rule 4 holds: fewer than three owners among the goals due, no cell. Nothing due, no cell.
 
 **Before this review** (\`beforeReview\`, \`beforeReviewText\`), at the top of a review's page for the goals it walks (for its session's week, or this week while the session's week is still to come; the counts are judged against the workspace's due day, so a review held on any other day is headed "Week {w}, due by {Thu 19 Nov}" and worded as the deadline, never "before it"), and on a team's page for the team's goals headed "Before this week’s review": "{a} of {n} goals were checked in before it, {u} without being asked" ("…, all without being asked" when a is u; "All {n} goals were checked in before it, without anyone asking" when every one was, unasked; "None of the {n} goals was checked in before it."); before the due day, "{a} of {n} goals are checked in so far." Under it, each only when not nought, "{k} came in after an ask" (Goals \`checkedin=asked\`) and "{m} have no check-in for week {w} yet" (\`checkedin=no\`), each with the set's own parameter (\`inreview=\` or \`team=\`) and worst first, and only for this week (what \`checkedin=\` reads); then the row of weeks and "“All in” means every goal due that week was checked in before the review. Weeks, not people: nobody is named here." With Reviews switched off there is no review's page. A team's page says "review" only when Reviews is on and a review is held on the due day with one of the team's goals' owners in it (\`heldForGoals\`); otherwise, Reviews on or off, it heads the panel "Week {w}, due by {Thursday 12 Nov}", says "checked in on time" where it says "before it", and "by its {Thursday}" under the row of weeks (dueWords' words, Reviews switch spec 2.1; the habit never imports reviews). \`get_review\` gives the same as \`beforeThisReview\`.
 
@@ -1959,6 +1961,49 @@ RULE_LIST.push({
     } },
     { given: 'Drawn as teams? 3 goals in 3 teams; 12 goals in 2 teams; 13 goals in 2 teams; 40 goals in 1 team.', then: 'no, no, yes, no', run: () => [['a', 'b', 'c'], [...Array(6).fill('a'), ...Array(6).fill('b')], [...Array(7).fill('a'), ...Array(6).fill('b')], Array(40).fill('a')].map((t) => (asTeams(t.map((teamId) => ({ teamId }))) ? 'yes' : 'no')).join(', ') },
     { given: 'Teams worst first: Alpha with 1 off track and 3 on track; Beta with 1 off track and 1 at risk; Gamma with 2 at risk.', then: 'Beta, Alpha, Gamma', run: () => asTeamRows((([['a', 'Alpha', ['off', 'on', 'on', 'on']], ['b', 'Beta', ['off', 'risk']], ['c', 'Gamma', ['risk', 'risk']]] as const).flatMap(([teamId, , st]) => st.map((k, i) => ({ goal: { id: `${teamId}${i}`, teamId, ownerId: 'x', title: `${teamId}${i}` }, status: { status: k }, flags: [], weight: 0, handled: null, lookedAt: null }))) as unknown as GoalAttention[]), (id) => ({ a: 'Alpha', b: 'Beta', c: 'Gamma' } as Record<string, string>)[id]!).map((t) => t.name).join(', ') },
+  ],
+});
+
+/** How the week's check-ins stand for someone in the demo workspace on 5 Nov (HM7), as Home's cell says it, or "no cell". */
+const standingCellOf = (who: string) => {
+  const today = new Date(CHECK_IN_MOMENT);
+  const cy = currentCycle(demo!.cycles, today)!;
+  const s = scopeToCycle(demo!, cy);
+  const person = s.people.find((p) => p.id === who)!;
+  const teams = s.teams.filter((t) => t.id === person.teamId || t.leadId === who).map((t) => ({ id: t.id, name: t.name }));
+  const { every } = scopesFor({ goals: s.goals.filter((g) => !g.stoppedAt).map((g) => ({ id: g.id, ownerId: g.ownerId, teamId: g.teamId })), viewerId: who, teams, watched: new Set(watchedGoals(who, s).map((g) => g.id)) }, null);
+  const sets = homeSets({ id: who, teams }, every, s.goals.map((g) => attentionFor(g, s, cy, today)), s.teams);
+  const which = standingSet(sets, person.admin);
+  if (!which) return 'no cell';
+  const week = currentWeek(cy, today);
+  const ids = which === 'all' ? null : new Set(sets[which]!.ids);
+  const f = standingOver(which, liveGoals(s).filter((g) => !ids || ids.has(g.id)), standingIn(s, cy, week));
+  if (!f) return 'no cell';
+  const w = standingWords(f, week, reviewDate(cy, week), today.toISOString().slice(0, 10));
+  return `over ${which}: ${w.label} · ${w.value} · ${w.sub} → ${w.to}`;
+};
+
+RULE_LIST.push({
+  id: 'home-leader',
+  title: 'Home: a leader’s week, and the workspace’s line',
+  summary: 'How the week’s check-ins stand, as one cell, for someone whose goals are drawn as teams or an admin; and for an admin, how many things there are to sort out.',
+  code: [{ file: 'src/domain/homeSets.ts', names: ['standingSet', 'standingOver', 'standingWords'] }, { file: 'src/domain/workspaceAttention.ts', names: ['sortOutRow'] }, { file: 'src/app/reads.ts', names: ['standingIn'] }, { file: 'src/app/toSortOut.ts', names: ['toSortOut'] }],
+  tests: ['src/domain/home.test.ts'],
+  reqs: ['HOME-LEADER'],
+  body: `
+**How the week's check-ins stand** (Home's rule 6, its third cell). Over which goals (\`standingSet\`): a set drawn as teams ([Home's sets](home-sets.md)), the viewer's teams before what they watch; for an admin with neither, every live goal; for anyone else there is no cell, as their own goals are counted in Your goals and the check-in.
+
+Of those, the goals due this week (\`standingIn\`: [the habit](habit.md)'s rule 1, the same goals Goals' \`checkedin=\` reads): \`of\` is how many, \`in\` how many have this week's check-in, \`late\` how many of those came in after the due day (\`standingOver\`). None due: no cell.
+
+The cell (\`standingWords\`): "Checked in for week {w}" · "{in} of {of} goals" · "Due by {Thu 12 Nov}"; after the due day, when any came in late, "{late} came in after {Thursday}". It opens \`/goals?scope={team|watching|all}&checkedin=no\`: the goals with no check-in for the week yet, worst first. It never names a person.
+
+**The workspace's line** (Home's rule 7), for an admin only: headed with the workspace's name; the year's row first when the year is ending or has ended (as before); then, from the same list Workspace's About shows (\`toSortOut\`: the core's needs, each module section's, then each module's own), "{n} things to sort out" ("1 thing to sort out") with the first need's sentence and ", and {k} more", and "See them", which opens Workspace (\`sortOutRow\`). Nothing to sort out: no row. Never a lead, never a cell. A member sees none of it.
+`,
+  examples: [
+    { given: 'Amara, the VP, in the demo workspace on Thursday 5 Nov: she watches goals across thirteen teams, drawn as teams.', then: 'over watching: Checked in for week 45 · 45 of 55 goals · Due by Thu 5 Nov → /goals?scope=watching&checkedin=no', run: () => standingCellOf('amara') },
+    { given: 'Tunde: he owns goals and none of his sets is drawn as teams; he isn’t an admin.', then: 'no cell', run: () => standingCellOf('tunde') },
+    { given: 'What an admin sees to sort out: no review set up, and two people with no email.', then: '2 things to sort out: No review is set up, and 1 more.', run: () => { const r = sortOutRow([{ says: 'No review is set up' }, { says: '2 people have no email' }])!; return `${r.says}: ${r.line}`; } },
+    { given: 'Nothing to sort out.', then: 'no row', run: () => (sortOutRow([]) ? 'a row' : 'no row') },
   ],
 });
 

@@ -699,6 +699,12 @@
       "use": "copy"
     },
     {
+      "id": "HOME-LEADER",
+      "area": "Home",
+      "text": "Someone whose goals span three or more teams sees them as teams, worst first, with counts that open exactly those goals, and how the week's check-ins stand over them (an admin with no such set, over every goal), opening the goals with no check-in yet; the oldest thing waiting on them can be the lead. An admin also sees the workspace's line: how many things there are to sort out, opening Workspace. Teams and goals are ranked, never people.",
+      "use": "copy"
+    },
+    {
       "id": "HOME-OWNER",
       "area": "Home",
       "text": "Home opens on what is asked of you today, with one primary action, or says that nothing is; a check-in becomes the primary action the day before it is due, when late, or when a review you are in will read it. Your goals are counted once, each count opens exactly those goals, and a completed week is one sentence with the next date.",

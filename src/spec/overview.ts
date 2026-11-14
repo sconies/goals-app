@@ -53,6 +53,7 @@ export const MORE_RULE_PAGES: [string, string][] = [
   ['goals-page', 'The Goals page: whose goals, how they are grouped, and the switch'],
   ['home', 'Home: what is asked of you today'],
   ['home-sets', 'Home: your goals, your team and what you watch'],
+  ['home-leader', 'Home: a leader’s week, and the workspace’s line'],
   ['home-changed', 'Home: what changed since you last looked'],
   ['habit', 'The habit: the run, the receipt, a moment and the measure'],
 ];
