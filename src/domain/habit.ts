@@ -151,3 +151,34 @@ export function beforeReview(goals: readonly Goal[], week: number, rows: HabitRo
 export function beforeReviewHeading(onDueDay: boolean, cycle: Cycle, week: number): string {
   return onDueDay ? 'Before this review' : `Week ${week}, due by ${dueWords(false, cycle, week).date}`;
 }
+
+/* ---------- HB3: a leader's Home, the second cell (spec 2.4) ---------- */
+
+/** A percentage is shown only from this many goals due (spec 2.4). */
+export const PERCENT_FROM = 20;
+
+/**
+ * Home's habit cell, beside HM7's, for the same viewer and set: rule 2's measure for this week. Label "Before the review,
+ * without being asked" (RS1: "On time, …" unless a review is held on the due day for these goals); value "{u} of {n}
+ * goals · {p}%", the percentage only from 20 goals; before the due day "So far: {u} of {n} goals"; under it last week's
+ * percentage, when it had one. Null when nothing is due, or rule 4 hides it (fewer than three owners).
+ */
+export function habitCell(now: HabitCounts, before: HabitCounts | null, past: boolean, week: number, review: boolean): { label: string; value: string; sub: string | null } | null {
+  if (!now.due) return null;
+  const pct = (h: HabitCounts) => Math.round((h.unasked / h.due) * 100);
+  const of = `${now.unasked} of ${now.due} ${now.due === 1 ? 'goal' : 'goals'}`;
+  return {
+    label: `${review ? 'Before the review' : 'On time'}, without being asked`,
+    value: past ? `${of}${now.due >= PERCENT_FROM ? ` · ${pct(now)}%` : ''}` : `So far: ${of}`,
+    sub: before && before.due >= PERCENT_FROM && week > 1 ? `Week ${week - 1}: ${pct(before)}%` : null,
+  };
+}
+
+/** The cell's "By week" (spec 2.4): the first review covering most of the set's goals due this week, or the Goals view of
+    the set when none covers any. */
+export function byWeekTo(set: string, due: readonly string[], reviews: readonly { id: string; goals: readonly string[] }[]): string {
+  const ids = new Set(due);
+  let best: { id: string; n: number } | null = null;
+  for (const r of reviews) { const n = r.goals.filter((g) => ids.has(g)).length; if (n && (!best || n > best.n)) best = { id: r.id, n }; }
+  return best ? `/reviews/${best.id}` : `/goals?scope=${set}`;
+}

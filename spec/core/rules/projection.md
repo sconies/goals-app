@@ -44,6 +44,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | The latest check-in of each week counts: week 2 posted twice (5, then 7 a day later), and week 1 with 3. | `1: 3, 2: 7` |
 | The same noisy CSAT: the slope the line was fitted with, and the slope the projection gives (leaned). | `fitted -0.19, given -0.035` |
 | Whole-number goals from 0 to 10 in deploys, ms, USD, pts, TB and min; then deploys from 0 to 10.5 with 1 decimal; then % from 10 to 40. | `count, not, not, not, count, not; not; share` |
+| The 30→75 goal kept in whole numbers, 30 in week 1 and 41.15 in week 4: the likeliest value at week 13, shown, and whether it misses (compared unrounded). | `74.6, shown as 75, misses` |
+| A range kept between 99.5% and 99.95% (2 decimals, 0.1 margin; a share, as both bounds are within 0–100): 99.7, 99.8, 99.9 and 99.95 in weeks 1–4, projected to the cycle’s end (week 13) from one number a week: the bare line, the goal’s projection, and the scorecard’s hit cell in week 4, judged against the bound nearer the projected number (the upper). | `line 100.721 (100.629–100.812); held 100 (100–100); Will it stay within? Very unlikely (likely 100.00% by cycle end)` |
+| The same range, falling: 99.9, 99.8, 99.7 and 99.65 in weeks 1–4: the hit cell in week 4, now judged against the lower bound. | `Will it stay within? Very unlikely (likely 98.88% by cycle end)` |
 | The 30→75 goal with 42 in week 3 and 45 in week 6: the likeliest value at week 13, and whether it misses the target. | `52, misses` |
 
 ## Where it lives
