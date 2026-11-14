@@ -15,7 +15,7 @@ Out of scope until after the handoff: PF1–PF2 and every review low (backlog, "
 | Track | Session | List, in order |
 |---|---|---|
 | 1 (Home, reviews, check-in) | built; merge tail in session_012kbr92NxNQoUrfKVQhmD9m (Sonnet) | #482, #491 SM1h, #497 HM7+HB3 (retarget to main after #491), #469 HM4, then U124's "Changed since" check |
-| 7d (metrics) | session_012kbr8xpLzkSPpsXPVMTjbD | see #464 GR, #502 MQ migration (Lane approved; auto-merge on), #505 MQ structure, #503 MS/BL merge; MS medium 5: "Not measured yet" everywhere (Lane, 14 Nov); MC once FT1 is on main |
+| 7d (metrics) | session_012kbr8xpLzkSPpsXPVMTjbD | see #464 GR, #502 MQ migration (Lane approved; auto-merge on), #505 MQ structure, #503 MS/BL merge; MS medium 5: "Not measured yet" everywhere (Lane, 14 Nov); MC deferred (Lane, 14 Nov) |
 | 2 (goal entry, set-up) | session_012kbr8yZ7UiGDzWqA8TwbbQ | #495 (the #475 medium), TG1 #487 (fix its axe and contrast failures), TG2 #493; then the list is done |
 | 4 (architecture, switches) | session_012kbr8xXXTKcVTdAEGh1Ste | cap checks in PR CI (so #465 FT1 fits 30 min), #465, #498, SW2, KL (tells planning when KL merges) |
 | Reviewer (Fable) | session_012kbr8zWCPJxkmsiZx169kF (fresh 15:30) | reviews each code PR merged after cadff60d (#488) when its track messages it; hands over after about 20 PRs. Its note lives in docs/handover/reviewer.md on branch build-reviews |
@@ -45,6 +45,9 @@ Each track writes its handover into its own file in `docs/handover/`, replacing 
   - "Opened" on a proposed goal is stored on the server per person.
 - **TG** (tags module): 1a–7a as recommended.
 - **The demo clock** stays unpinned (track 1 and track 4).
+
+- **MC and FT4 deferred** to after the handoff (Lane, 14 Nov).
+- **SW2 (#504):** a build without the AI-access module keeps the MCP server open; only the workspace switch shuts it (planning's call, option (a)). Track 2 has it.
 
 ## Waiting for Lane
 
