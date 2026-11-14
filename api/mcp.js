@@ -9867,7 +9867,8 @@ function nothingToUndo(skipped) {
 	return skipped ? `Nothing left to undo: ${skipped === 1 ? "its one row has" : `all ${plural$3(skipped, "row", "rows")} have`} changed since.` : "Nothing to undo: it changed no rows.";
 }
 /** Everything removed, stopped, ended or marked as left in the last 30 days, newest first. After that it drops off this list; the row stays. */
-function recentlyRemoved(full, now, days = 30, records = []) {
+/** `watches: false` while Watching is switched off: its stopped watches aren't listed, as nothing can restore them then. */
+function recentlyRemoved(full, now, days = 30, records = [], show = {}) {
 	const since = Number.isFinite(days) ? (/* @__PURE__ */ new Date(now.getTime() - days * 864e5)).toISOString() : "";
 	const goalTitle = (id) => full.goals.find((g) => g.id === id)?.title ?? "A goal";
 	const out = [];
@@ -9891,7 +9892,7 @@ function recentlyRemoved(full, now, days = 30, records = []) {
 	for (const k of commentsOf(full.changes).values()) if (k.removedAt) add("comment", k.id, `${goalTitle(k.goalId)}: “${excerpt(k.text)}”`, k.removedBy, k.removedAt);
 	for (const d of full.decisions) if (d.removedAt && d.kind === "note") add("note", d.id, `${goalTitle(d.goalId)}: “${excerpt(d.note)}”`, d.removedBy, d.removedAt);
 	for (const v of full.views ?? []) if (v.deletedAt) add("view", v.id, isTableView(v) ? `${v.name} (a saved layout in Data)` : v.name, v.deletedBy, v.deletedAt);
-	for (const w of full.watches ?? []) if (w.removedAt) add("watch", w.id, `${nameIn(full, w.personId)} on ${w.kind === "level" ? `every ${w.ref} goal` : goalTitle(w.ref)}`, w.removedBy, w.removedAt);
+	for (const w of show.watches === false ? [] : full.watches ?? []) if (w.removedAt) add("watch", w.id, `${nameIn(full, w.personId)} on ${w.kind === "level" ? `every ${w.ref} goal` : goalTitle(w.ref)}`, w.removedBy, w.removedAt);
 	for (const c of full.cycles) if (c.removedAt) add("cycle", c.id, c.name, c.removedBy, c.removedAt);
 	for (const r of removedModuleRows(full, records)) add(r.kind, r.id, r.name, r.by, r.at, r.label);
 	return out.sort((a, b) => b.at.localeCompare(a.at));
@@ -10122,7 +10123,7 @@ var init_removal = __esmMin((() => {
 }));
 // src/domain/templates.ts
 /**
-* A template's stage weeks count from now, not from the start of the year: set up in week 43, "Design@3" is due in week 45.
+* Stage weeks count from now, not from the start of the year: set up in week 43, "Design@3" is due in week 45.
 * Stages are spread over the weeks left when they would run past the year's end.
 */
 function stagesFromNow(stages, week, weeks = 52) {
@@ -12496,12 +12497,15 @@ function* planChangesInChunks(input) {
 				value: String(draft.value)
 			}) === "leave") return;
 		}
-		const corrects = post?.mode === "correct" || !post && !!existing && CORRECTS_VIA.includes(via);
+		const othersThisWeek = !!existing && w === week && owned.ownerId !== actor.id;
+		const endedAdd = !existing && cycleEnded;
+		const corrects = post?.mode === "correct" || !post && (!!existing && (CORRECTS_VIA.includes(via) || othersThisWeek) || endedAdd);
 		const keeps = corrects && existing;
 		const backfilled = keeps ? !!existing.backfilled : w < week;
 		const due = new Date(Date.parse(weekDate(cycle, w) + "T09:00:00Z") + cycle.reviewDay * 864e5);
 		const at = keeps ? new Date(existing.postedAt) : backfilled && due.toISOString() < now ? due : new Date(now);
-		const made = asRecorded ? asWritten(asOf, w, draft, e, actor.id, at.toISOString(), existing?.id ?? newId("ci")) : toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId("ci"));
+		const author = existing ? existing.authorId : actor.id;
+		const made = asRecorded ? asWritten(asOf, w, draft, e, author, at.toISOString(), existing?.id ?? newId("ci")) : toCheckIn(asOf, cycle, w, draft, ctx, author, at, existing?.id ?? newId("ci"));
 		const read = post ? post.reading : input.readings?.find((x) => x.goalId === g.id && x.week === w)?.reading;
 		if (read && g.kind !== "milestone") {
 			const problem = readingProblem(read, made.value, g.decimals, now);
@@ -12556,6 +12560,7 @@ function* planChangesInChunks(input) {
 			summary: ch.summary,
 			diffs: ch.diffs,
 			backfilled,
+			author: c.authorId,
 			...corrects && !post && !correctReasonOk(why) ? { needsReason: true } : {}
 		});
 	};
@@ -12761,7 +12766,7 @@ function* planChangesInChunks(input) {
 		}
 		const own = checkInsFor(g, s.checkIns);
 		const newest = own.filter((c) => c.week === w).pop() ?? null;
-		if (p.mode === "correct" && cycleEnded) {
+		if (p.mode === "correct" && cycleEnded && newest) {
 			raise("cant-change", "Check-ins", row, g.title, endedRefusal);
 			continue;
 		}
@@ -15827,7 +15832,7 @@ var _virtual_faro_modules_default = [
 				"Back on, every person watches what they did (journey U164)."
 			],
 			"gaps": [
-				"Watching is a switch, not yet a folder of its own (SW6 moves it): its screens (src/screens/Watching.tsx; Home's “Goals you watch” in src/screens/Home.tsx; the Watch button and its sheet in src/screens/GoalScreen.tsx; the Watching tab of src/screens/GoalsScreen.tsx), its rules (src/domain/watch.ts, src/domain/review.ts watchedGoals, src/domain/home.ts groupWatched, src/domain/goalsPage.ts scopesFor) and its actions (watch and unwatch in src/domain/actions.ts) are still the core's, and so is its table (okr_watches, migration 0006). The watch actions refuse while it is off in src/app/actions.ts (performAny, SWITCHED_ACTIONS in src/app/reads.ts), and the read-back sheet is drawn by src/screens/Workspace.tsx. This folder holds its route, its Help article and its AI tools; src/app/reads.ts watchingOn is the one place that asks whether it is on.",
+				"Watching is a switch, not yet a folder of its own (SW6 moves it): its screens (src/screens/Watching.tsx; Home's “Goals you watch” in src/screens/Home.tsx; the Watch button and its sheet in src/screens/GoalScreen.tsx; the Watching tab of src/screens/GoalsScreen.tsx), its rules (src/domain/watch.ts, src/domain/review.ts watchedGoals, src/domain/home.ts groupWatched, src/domain/goalsPage.ts scopesFor) and its actions (watch and unwatch in src/domain/actions.ts) are still the core's, and so is its table (okr_watches, migration 0006). While it is off, a save that writes a watch is refused by what it writes (src/domain/watchWrites.ts writesWatches), in src/app/actions.ts performAny and in the AI tools' save (src/mcp/tools.ts), and the read-back sheet is drawn by src/screens/Workspace.tsx. This folder holds its route, its Help article and its AI tools; src/app/reads.ts watchingOn is the one place that asks whether it is on.",
 				"A watch is not yet declared as the module's record (AS part 2's records extension point is SW6's), so a build without the module still loads, carries and saves watches as the core's.",
 				"get_my_work, get_goal and get_activity are core tools: with Watching off get_my_work leaves out what you watch, but get_goal still names who watches a goal and get_activity still takes watching=1 (spec 6.2; SW3)."
 			]
@@ -19367,38 +19372,43 @@ var CORE_ARTICLES = [
 	{
 		id: "set-up",
 		title: "Setting up a workspace",
-		summary: "A workspace holds one organisation’s people, teams, goals and history. Setting one up takes about three minutes.",
+		summary: "A workspace holds one organisation’s people, teams, goals and history. Setting one up takes four steps and about three minutes.",
 		group: "start",
 		sections: [{
 			heading: "What it’s for",
-			text: ["Start your own workspace from a template, your own spreadsheet, or nothing at all. Whoever sets it up is its first admin."]
+			text: ["Start your own workspace with goals you type, your own spreadsheet, or none yet: there are no example goals to start from. Whoever sets it up is its first admin."]
 		}, {
 			heading: "How to use it",
 			list: [
-				"Start from Welcome’s Set up a workspace (or the workspace switcher’s Set up a new workspace). It asks one question per screen: the workspace’s name (three to 80 characters; it counts them as you near the limit), the month its goal year starts and whether to record how the app is used there (off unless you tick it), who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.",
+				"Start from Welcome’s Set up a workspace (or the workspace switcher’s Set up a new workspace). It takes four steps, each at its own address, so your browser’s Back and Forward move between them and a reload stays put: the workspace and you (its name, three to 80 characters, counted as you near the limit; your name, email and team), people, goals, and Check. Each field says what it needs under it; Continue says where it goes next.",
 				"In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.",
 				"Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.",
-				"Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.",
-				"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.",
+				"Set up from inside the app (from the workspace switcher or Workspace), the first step says “Setting up as” you, in one line; Change opens your name, email and team.",
+				"Under the first step, How you’ll work says the usual in one paragraph: check-ins every week, by the review’s day; a weekly review on Thursdays; the year starting in January; Recording off. Change how you’ll work opens a sheet for the month the goal year starts, the review day and whether to record how the app is used (off unless you tick it). Changed, the panel says so. Check has the same Change.",
+				"Goals offers three ways to start. Add your own (chosen to begin with) shows the outcome and up to four goals that feed it, to type in. Import a spreadsheet takes the template or a workbook (Choose a spreadsheet; a file with goals uploaded on People is used straight away). Later finishes with no goals: each owner adds theirs from New goal. Not sure what a good goal looks like? The link there opens the demo’s goals in a new tab, and your set-up is kept.",
 				"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and Check shows the same preview Import does before anything is created: how many goals and people the file adds (a goal still to fix counted too), what must be fixed, and its questions, each with its answers. A goal owned by someone nobody typed offers “Add {name}” (they join your people, with the row’s team) or “Give it to someone here”; the person you give it to stands for the row’s other owner cells that name no one here, but never for one that names someone else here, which is still Must fix. A goal’s team one letter from a team already named (“Depot” beside “Depots”) is asked about, as a person’s is. A check-in’s “Choose a goal” finds the spreadsheet’s goals. After each answer the next question takes the focus. Create workspace waits until every question is answered.",
 				"On the People sheet, a row whose Action says Example (the template’s) is skipped, and someone marked Left isn’t added: a goal they own then asks who has it. The upload says how many were skipped, and the preview how many Example goal rows. A file with no goals sheet, uploaded after one with goals, keeps those goals; a new goals file drops anyone its predecessor’s answers added.",
 				"If the preview can’t load (a lost connection), Check says so and offers Try again; nothing you typed or answered is lost.",
 				"Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.",
 				"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, is asked about on Check, already answered “Count them from this week” as a template’s are, so it isn’t late on day one. Change, then Keep the weeks as typed, puts them back.",
-				"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
+				"With Add your own, name the outcome and add up to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
 				"The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.",
-				"Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.",
+				"Check (Step 4 of 4) reads back what Create will make: you, the people, the goals, the year, the review and Recording, each with Change. Change on a step brings you straight back to Check (Back to Check). Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace.",
 				"Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.",
 				"Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.",
 				"Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.",
-				"On a phone, the small links in set-up (Start over, Change, Change people) are as easy to hit as a button.",
+				"On a phone, the small links in set-up (Start over, Change) are as easy to hit as a button. Close and keep the draft leaves at any step; coming back picks up the set-up you hadn’t finished, at its step, with Start over (which asks first).",
 				"The last screen gives you the one next thing to do, and a link to copy for your team: /join/ and the workspace. It opens this workspace and nothing else, and asks them which one they are (see Joining a workspace you were invited to). Faro sends no email: you send the link yourself.",
-				"Set up with no goals (Set goals up later), nothing is due: no check-ins until there are goals.",
+				"Set up with no goals (Later), nothing is due: no check-ins until there are goals.",
 				"Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.",
 				"In the demo, a workspace you made can start over from the Demo panel: it is removed from this browser, drafts and all. The walkthroughs there open the example, whose people and goals they follow."
 			]
 		}],
-		routes: ["/workspace/new", "/ready"],
+		routes: [
+			"/workspace/new",
+			"/workspace/new/:step",
+			"/ready"
+		],
 		screens: ["Onboarding", "Start"],
 		reqs: [
 			"ONBOARDING",
@@ -19412,6 +19422,8 @@ var CORE_ARTICLES = [
 			"new workspace",
 			"template",
 			"who are you",
+			"how you’ll work",
+			"steps",
 			"sign in",
 			"first time",
 			"goal year",
@@ -19606,6 +19618,7 @@ var CORE_ARTICLES = [
 					"Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.",
 					"Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back, and History no longer says it was corrected. The form starts from what the check-in said, so you change only what was wrong. A cycle that has ended can’t be corrected here, or anywhere else: Data’s tables, the AI assistant and a spreadsheet refuse it too.",
 					"Changing a week’s check-in in Data’s tables, or through the AI assistant, corrects it the same way: it asks why first, and History says “Corrected week 45” with your reason. An admin can correct a past check-in in Data.",
+					"A correction never changes whose check-in it is: it stays the person’s who posted it, wherever it was corrected (the form, Data, the AI assistant or a spreadsheet). History names who corrected it, with the reason: “Corrected week 45: 60% is now 61%, by Amara Okafor: …”.",
 					"Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.",
 					"Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.",
 					"The first check-in sets where a goal stands today. If the goal was set up in the last four weeks and the number isn’t where its plan starts, you’re asked: start the plan from this number (same target, due week and shape; no reason needed, with Undo), or keep the plan and say why."
@@ -19621,7 +19634,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. Anyone can ask the owner for an update from the goal’s page."]
+				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. A pasted row that replaces someone’s check-in for this week is a correction: Preview asks why first, and the check-in stays theirs. Anyone can ask the owner for an update from the goal’s page."]
 			}
 		],
 		routes: ["/check-in", "/check-in/:goalId"],
@@ -21559,6 +21572,30 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "corrections-keep-the-author",
+		date: "2026-11-14",
+		title: "A correction keeps whose check-in it is",
+		points: [
+			"Correcting someone’s check-in no longer makes it yours. It stays theirs, wherever it is corrected: the form, Data’s tables, the AI assistant or a spreadsheet.",
+			"This changes what Data and the AI assistant did until now: they made whoever corrected a check-in its author.",
+			"History names who corrected it, with the reason: “Corrected week 45: 60% is now 61%, by Amara Okafor: …”.",
+			"An admin’s pasted row that replaces someone’s check-in for this week is a correction too: Preview asks why before it saves."
+		],
+		articles: ["check-in", "data"]
+	},
+	{
+		id: "setup-four-steps",
+		date: "2026-11-14",
+		title: "Set-up in four steps you can go back through",
+		points: [
+			"Setting up a workspace is four steps: the workspace and you, people, goals and Check. Each has its own address, so your browser’s Back works and a reload stays put.",
+			"How you’ll work (the year, the review day, Recording) is one paragraph on the first step, with a sheet to change it there or on Check.",
+			"Goals starts with your own, a spreadsheet, or later. The four example templates are gone: a workspace begins with real goals or none.",
+			"Change on Check brings you straight back to it."
+		],
+		articles: ["set-up"]
+	},
+	{
 		id: "home-your-team",
 		date: "2026-11-14",
 		title: "Your team is on Home",
@@ -22934,7 +22971,10 @@ var WEEKDAYS = [
 	"Sunday"
 ];
 var n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
-function startPage(s, cycle, today) {
+/** `show`: which switched modules are on (SW1). With the Wrap-up off the page names no wrap-up, and with Watching off no
+watches; what they carry along is carried all the same. */
+function startPage(s, cycle, today, show = {}) {
+	const wrapUp = show.wrapUp !== false, watching = show.watching !== false;
 	const shape = nextCycleShape(cycle);
 	const next = {
 		...cycle,
@@ -22944,7 +22984,7 @@ function startPage(s, cycle, today) {
 	const state = cycleState(cycle, today);
 	const later = laterCycle(s.cycles, cycle);
 	const ended = state === "ended" || state === "closed";
-	const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? `It opens for everyone as soon as you start it.${state === "ended" ? ` ${cycle.name}’s wrap-up stays open until ${dayWithYear(d.wrapUpCloses)}.` : ""}` : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins and the wrap-up carry on.`}`;
+	const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? `It opens for everyone as soon as you start it.${state === "ended" && wrapUp ? ` ${cycle.name}’s wrap-up stays open until ${dayWithYear(d.wrapUpCloses)}.` : ""}` : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins${wrapUp ? " and the wrap-up" : ""} carry on.`}`;
 	if (state === "before" || state === "running") return {
 		next: shape.name,
 		canStart: false,
@@ -22992,7 +23032,7 @@ function startPage(s, cycle, today) {
 		},
 		{
 			n: rb.open,
-			says: "not wrapped up yet",
+			says: wrapUp ? "not wrapped up yet" : "go by where they stand",
 			sub: `${rb.openCarry} carry on as they are, ${rb.openFinish} finish`
 		}
 	];
@@ -23017,7 +23057,7 @@ function startPage(s, cycle, today) {
 			bold: `${n(extras.asks, "open next step or ask moves", "open next steps and asks move")} with ${extras.asks === 1 ? "its goal" : "their goals"}.`,
 			rest: extras.staying ? ` ${extras.staying} stay in ${cycle.name}, on goals that finish or stop.` : ""
 		}] : [],
-		...extras.watches ? [{
+		...extras.watches && watching ? [{
 			bold: `${n(extras.watches, "watch follows", "watches follow")} ${extras.watches === 1 ? "its goal" : "their goals"}`,
 			rest: ", for the same people."
 		}] : [],
@@ -24181,7 +24221,11 @@ var WORK_TOOLS = [
 		},
 		async run(a, ctx) {
 			if (a.confirm !== true || a.dry_run === true) {
-				const page = startPage(ctx.full ?? ctx.snapshot, ctx.cycle, ctx.today);
+				const on = modulesOn(ctx.ws).on;
+				const page = startPage(ctx.full ?? ctx.snapshot, ctx.cycle, ctx.today, {
+					wrapUp: wrapUpOn(on),
+					watching: watchingOn(on)
+				});
 				const rb = page.readBack;
 				return {
 					text: `${startPageText(page)}\n\nNothing has changed. Ask the person first, then call again with confirm: true.`,
@@ -24596,7 +24640,7 @@ var REMOVE_TOOLS = [
 			openWorldHint: false
 		},
 		async run(_a, ctx) {
-			const all = recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, void 0, recordsOn(ctx.ws)).filter((r) => canRestore(ctx.actor, r));
+			const all = recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, void 0, recordsOn(ctx.ws), { watches: watchingOn(modulesOn(ctx.ws).on) }).filter((r) => canRestore(ctx.actor, r));
 			const who = (id) => (ctx.full ?? ctx.snapshot).people.find((p) => p.id === id)?.name ?? "—";
 			return listed({ removed: all.map((r) => ({
 				kind: r.kind,
@@ -27553,6 +27597,19 @@ function writesReviews(c, stored) {
 	if (c.requests?.some((a) => !!a.reviewId && a.reviewId !== (stored.asks.find((x) => x.id === a.id)?.reviewId ?? null))) return true;
 	return false;
 }
+// src/domain/watchWrites.ts
+/**
+* Rule (SW1). A save writes Watching's records when it logs a change to a watch, stops a watch by its id, or writes
+* watches and nothing else (starting one, or bringing a stopped one back by Undo or from Recently removed). What a save
+* only carries along is not: the watches that follow goals into the next cycle, or go and come back with a cycle's start
+* and its undoing, ride with the goals or the cycle the save is about.
+*/
+function writesWatches(c) {
+	if ((c.changes ?? []).some((x) => x.entity === "watch")) return true;
+	if (c.unwatch?.length) return true;
+	if (!c.watches?.length) return false;
+	return !Object.entries(c).some(([k, v]) => k !== "changes" && k !== "watches" && (Array.isArray(v) ? v.length > 0 : v != null && typeof v === "object" ? Object.keys(v).length > 0 : false));
+}
 // src/domain/readBack.ts
 init_goalEntry();
 init_goal();
@@ -28760,9 +28817,10 @@ async function callTool(name, args, ctx) {
 		text: moduleOffSentence(moduleById(from)?.name ?? from, ctx.ws.name, name)
 	};
 	try {
-		return await t.run(args ?? {}, reviewsOn(modulesOn(ctx.ws).on) ? ctx : reviewsGuarded(ctx, name));
+		const on = modulesOn(ctx.ws).on;
+		return await t.run(args ?? {}, reviewsOn(on) && watchingOn(on) ? ctx : switchesGuarded(ctx, name, !reviewsOn(on), !watchingOn(on)));
 	} catch (e) {
-		if (e instanceof ReviewsOff) return {
+		if (e instanceof SwitchedOff) return {
 			isError: true,
 			text: e.message
 		};
@@ -28774,18 +28832,22 @@ async function callTool(name, args, ctx) {
 		};
 	}
 }
-/** A save refused because it writes Reviews' records while Reviews is off: said as the switched-off sentence alone. */
-var ReviewsOff = class extends Error {};
+/** A save refused because it writes a switched-off module's records (Reviews', Watching's): said as the switched-off
+sentence alone. */
+var SwitchedOff = class extends Error {};
 /**
-* The context a tool runs with while Reviews is off: the same, except that a save writing Reviews' records (a review, a
-* note said in one, an ask raised in one, a goal proposed in one: domain/reviewWrites) is refused and saves nothing, in
-* the switched-off sentence, whichever tool made it (build review of #371: edit_comment and delete_comment on a review
-* note, create_goal proposed in a review, restore_removed reopening an ended review). Everything else reads and writes
-* through to the context itself, which a save moves on.
+* The context a tool runs with while Reviews or Watching is off: the same, except that a save writing the switched-off
+* module's records is refused and saves nothing, in the switched-off sentence, whichever tool made it. Reviews': a
+* review, a note said in one, an ask raised in one, a goal proposed in one (domain/reviewWrites; build review of #371:
+* edit_comment and delete_comment on a review note, create_goal proposed in a review, restore_removed reopening an ended
+* review). Watching's: a watch started, stopped or brought back (domain/watchWrites; build review of #444:
+* restore_removed on a stopped watch). Everything else reads and writes through to the context itself, which a save
+* moves on.
 */
-function reviewsGuarded(ctx, tool) {
+function switchesGuarded(ctx, tool, reviewsOff, watchingOff) {
 	const save = async (c) => {
-		if (writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new ReviewsOff(moduleOffSentence("Reviews", ctx.ws.name, tool));
+		if (reviewsOff && writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new SwitchedOff(moduleOffSentence("Reviews", ctx.ws.name, tool));
+		if (watchingOff && writesWatches(c)) throw new SwitchedOff(moduleOffSentence("Watching", ctx.ws.name, tool));
 		return ctx.save(c);
 	};
 	return new Proxy(ctx, { get: (t, k, r) => k === "save" ? save : Reflect.get(t, k, r) });
