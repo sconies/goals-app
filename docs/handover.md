@@ -28,7 +28,7 @@ Session: session_012kbr8zGTA8fDUXo7snL4jv. Planning is session_012kbr91eefh4gwCA
 - **Merged:** #471, FD. The first download went 274 → 259 KB (budget 275) and live 334 → 318 KB (budget 334). The small parts Home's rows used now live in `src/ui/sparks.tsx`, `src/domain/feeder.ts` and `src/domain/rollup.ts`. `scripts/check-bundle.mjs` fails if `charts.tsx`, `goalPage.ts`, `summaryFacts.ts` or `map.ts` comes back into the first download. Lane, 14 Nov: the budget stays at 275 (the note rides in #476).
 - **Open:**
   - **#476, the SW1 review mediums.** Auto-merge is on and the gate passed.
-    - `writesWatches` (`src/domain/watchWrites.ts`) refuses a save by what it writes with Watching off, in `performAny` and in the AI tools' `switchesGuarded`; Recently removed and `list_removed` hide stopped watches.
+    - `writesWatches` (a new rule file in #476) refuses a save by what it writes with Watching off, in `performAny` and in the AI tools' `switchesGuarded`; Recently removed and `list_removed` hide stopped watches.
     - `yearLine` and `startPage` take the Wrap-up and Watching switches; `/activity?watching=` does nothing with Watching off.
     - It also proves #424 medium 1 closed (by #439) and fixes the module-map line-82 low.
   - **#465, FT1.** It conflicts with main again (#461, #471).
