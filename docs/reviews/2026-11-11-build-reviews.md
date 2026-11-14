@@ -17,6 +17,7 @@ Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh th
 - **Last merge fully reviewed:** `77fea651` (#479), the head of main at 13:40 UTC, 14 Nov. Tracks now message the reviewer a PR's number when it merges (planning, 11:01 UTC); compare main's log with this SHA whenever one arrives. Every code PR merged from #121 up to it has a row in State and a section below.
 - **Merged since, not reviewed:** none.
 - **Highs not yet confirmed fixed:** none. #452 is fixed by #467 and #416 by #432 (both re-run). What was left of #416 (a review held on the due weekday, but not this week) is fixed by #479.
+- **Who gets what (Lane, 14 Nov, relayed by planning at 13:34 UTC):** highs at once to the owning track, with a copy to planning; mediums to planning once per batch; lows are logged here only and sent to nobody (they move to the backlog, #483).
 - **To watch in #464 (GR, track 7d):** `BUILT_KEYS` (`src/domain/changeset.ts`) must name `guards` if `buildGoal` decides it; and migration 0051's check refuses a JSON null.
 - **Lane's answers, 14 Nov (relayed by planning, 12:33 UTC).** Read fixes against these, and don't raise them again:
   - #334, an admin's pasted row over this week's check-in: treat it as a correction, with a reason and the owner kept as author (track 1).
