@@ -44,6 +44,7 @@ Home is where you start each day. It answers one question first: what is asked o
 
 - If you are in a team, or lead one, and it has goals you don’t own, “Your team · CI/CD · 17 goals” follows your goals (“Your teams · 30 goals in 2 teams” when you lead more than one). It is exactly the My team tab of Goals: the same goals and the same total, and See them in Goals opens it.
 - Its counts by status each open exactly those goals. Then “2 need attention that aren’t yours” opens Goals with those goals, filtered to Owner not you, and up to four of them are listed, each with its owner’s name first. Your own are in Your goals, so they aren’t listed twice. When nothing needs attention, it says so.
+- In a workspace with one team, your goals and your team’s would repeat each other, so Home shows them once: “The team’s goals · 9”, your own first, then your teammates’, each of theirs with its owner’s name first. Its counts, its need attention link and See them in Goals open that team’s goals. There is no separate Your team, and Goals you watch is left out while you watch nothing.
 - When the goals you watch, or your teams’ goals, are more than twelve goals in two or more teams, they are shown as teams, worst first: the team with the most goals off track, then at risk, then with no recent update, first, as Goals orders By team. Each team’s name, its “3 need attention” and its counts by status open exactly those goals. Five teams show, then a link to the rest, by team. No person’s name is in this table: teams and goals are ranked, never people. On a phone each team is one stacked row.
 
 #### Changed since
@@ -1428,6 +1429,38 @@ Admins switch features and choose the check-in rhythm. Everyone sees what is on,
 #### For the people building Faro
 
 - Each feature is a module: one folder in src/modules with a module.json saying what it adds and what it needs. docs/architecture.md explains how to add one.
+
+### Fields: a workspace’s own columns on goals
+
+`fields`, from the tags module. A workspace’s own fields on goals, such as a stage or a programme: up to 6, each a short list of values or free text, set on each goal’s page. No rule reads them: they’re for finding and sorting.
+
+Routes: `/workspace/fields`. Screens: `FieldsSection`, `FieldsBlock`. Requirements: `TAGS-FIELDS`, `TAGS-OFF`.
+
+#### What it’s for
+
+Teams track things Faro has no column for: a lifecycle stage (Discover, Build, Run), a programme, a funding line. A field keeps them on the goal, out of its title, where nothing could find them. No status, flag or check-in rule reads a field.
+
+#### Workspace, Fields
+
+- Workspace, Fields lists the fields in order: each one’s name, its kind (“A list: Discover, Build, Run” or “Free text”) and how many of this year’s goals have a value.
+- An admin adds one with Add a field: a name of up to 40 characters, and for a list its values, one per line (1 to 20, each up to 40 characters, none twice). Free text holds up to 80 characters on each goal. A workspace has at most 6 fields.
+- Change renames a field or changes a list’s values; goals keep the value they have. Up and Down change the order, which is the order a goal’s page shows them in.
+- A field that is no longer wanted is retired, never deleted: every goal keeps its value and History its changes, and Bring back shows them again. A retired field’s name can be used again.
+- With no field yet, the page says “No fields yet” and offers Add a field to admins.
+
+#### On a goal
+
+- A goal’s page has a Fields block in About, after its facts: one line per field, such as “Stage · Build”, or “Stage · Not set”.
+- The goal’s owner or an admin presses Change beside a line and picks a value from the list, or types the text and presses Save. Not set clears it. No reason is asked: a field isn’t the plan.
+- History says each change on the goal: “Stage: Discover → Build”. Adding, retiring and bringing back a field is in Activity.
+
+#### With an AI assistant
+
+- list_fields lists the fields and their values (with goal_id, that goal’s values); set_goal_fields sets a goal’s values by field name, with dry_run to check first; save_field lets an admin add, change, move, retire or bring back a field. Each follows the same rules.
+
+#### Who can
+
+Admins add and change the fields. A goal’s owner or an admin sets its values. Everyone sees them. An admin can switch Fields off in Workspace, Features: the block and the section go, and every field and value is kept for when it’s switched on again.
 
 ### What the app records
 

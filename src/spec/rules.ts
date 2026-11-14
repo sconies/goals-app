@@ -4,7 +4,7 @@
    example can't drift from the code: change a rule and its example fails until it's brought up to date.
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
 import { daysSinceIn, weekIn } from './zones';
-import { homeFor, longDay, waiting, type HomeFacts } from '../domain/home';
+import { homeFor, longDay, ownFirst, theOneTeam, waiting, type HomeFacts } from '../domain/home';
 import { asTeamRows, asTeams, homeSets, type SetFacts } from '../domain/homeSets';
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision, proposedLine } from '../domain/decide';
 import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
@@ -1910,8 +1910,8 @@ const homeBlocks = (who: string) => {
   const s = scopeToCycle(demo!, cy);
   const person = s.people.find((p) => p.id === who)!;
   const teams = s.teams.filter((t) => t.id === person.teamId || t.leadId === who).map((t) => ({ id: t.id, name: t.name }));
-  const { tabs } = scopesFor({ goals: s.goals.filter((g) => !g.stoppedAt).map((g) => ({ id: g.id, ownerId: g.ownerId, teamId: g.teamId })), viewerId: who, teams, watched: new Set(watchedGoals(who, s).map((g) => g.id)) }, null);
-  const sets = homeSets({ id: who, teams }, tabs, s.goals.map((g) => attentionFor(g, s, cy, today)), s.teams);
+  const { every } = scopesFor({ goals: s.goals.filter((g) => !g.stoppedAt).map((g) => ({ id: g.id, ownerId: g.ownerId, teamId: g.teamId })), viewerId: who, teams, watched: new Set(watchedGoals(who, s).map((g) => g.id)) }, null);
+  const sets = homeSets({ id: who, teams }, every, s.goals.map((g) => attentionFor(g, s, cy, today)), s.teams);
   const how = (x: SetFacts) => (x.teams ? `${x.total} goals in ${x.teams.length} teams, as teams, worst first: ${x.teams.slice(0, 5).map((t) => `${t.name} (${t.needs} need attention)`).join(', ')}` : `${x.total}, as goal rows`);
   return [
     sets.mine ? `Your goals · ${sets.mine.total}` : '',
@@ -1924,13 +1924,17 @@ RULE_LIST.push({
   id: 'home-sets',
   title: 'Home: your goals, your team and what you watch',
   summary: 'Home’s blocks of goals are exactly the Goals page’s scopes, with the same counts; a set of more than twelve goals in two or more teams is drawn as teams, worst first.',
-  code: [{ file: 'src/domain/homeSets.ts', names: ['asTeams', 'homeSets', 'asTeamRows'] }, { file: 'src/domain/query.ts', names: ['NOT_ME'] }],
+  code: [{ file: 'src/domain/home.ts', names: ['theOneTeam', 'ownFirst'] }, { file: 'src/domain/homeSets.ts', names: ['asTeams', 'homeSets', 'asTeamRows'] }, { file: 'src/domain/query.ts', names: ['NOT_ME'] }],
   tests: ['src/domain/home.test.ts', 'src/domain/query.test.ts'],
-  reqs: ['HOME-MANAGER'],
+  reqs: ['HOME-MANAGER', 'SMALL-MENU'],
   body: `
 **The sets** (\`homeSets\`). "Your goals", "Your team" and "Goals you watch" are exactly the Goals page's scopes ([the Goals page](goals-page.md)): Mine, My team and Watching. So each block's total is its tab's count, and each count on it opens exactly those goals. A goal listed in one set is not left out of the next: each block agrees with its page. For each set: its total, its counts by status worst first, the goals that need attention ([flags](flags.md); being handled is not counted, as the Goals switch counts), and the rows Home lists.
 
 **Your team** is shown when the viewer is in a team or leads one, and the scope holds a goal they don't own. Heading "Your team · {team} · {n} goals" ("Your teams · {n} goals in {k} teams" for several), with "See them in Goals" (\`/goals?scope=team\`) and its counts by status (\`&status=…\`). Its rows are the goals that need attention without the viewer's own (those are in Your goals): "{k} need attention that aren’t yours" opens \`/goals?scope=team&attention=1&owner=-me\`, and up to four are listed, each with its owner's name first and no button. With none: "Nothing in it needs attention." ("Nothing that isn’t yours needs attention." when only the viewer's own do).
+
+**Every scope, drawn or not.** The sets read each scope whether or not Goals draws it as a tab: My team waits as a tab while it is the same list as All (small workspaces, rule 1), and its goals still belong on Home.
+
+**One team** (\`theOneTeam\`, small workspaces 2.1). When the workspace has exactly one team and the viewer is in it or leads it, "Your goals" and "Your team" would repeat each other, so Home draws one section in their place: "The team's goals · {n}", that team's goals with the viewer's own first (\`ownFirst\`), each part worst first. Its counts, its "{k} need attention" and "See them in Goals" open the My team scope; a teammate's goal that needs attention carries its owner's name. There is no "Your team" section. An admin in no team sees "Your goals" as usual.
 
 **Not mine.** In a goals query, the owner value \`-me\` means "not the person asking": goals someone else owns. The filter line says it as "Owner not you". With nobody asking (a query with no viewer), it narrows nothing.
 
@@ -1940,6 +1944,14 @@ RULE_LIST.push({
     { given: 'Rhea: she owns goals, leads CI/CD and watches goals in several teams.', then: 'Your goals · 8; Your team · CI/CD · 17 goals, 2 not theirs need attention; Watching · 12, as goal rows', run: () => homeBlocks('rhea') },
     { given: 'Amara, the VP: she owns no goal, her team (Office of the VP) holds one goal, and she watches goals across the division.', then: 'Your team · Office of the VP · 1 goal, 0 not theirs need attention; Watching · 56 goals in 13 teams, as teams, worst first: CI/CD (3 need attention), Security Engineering (1 need attention), Infrastructure & Compute (2 need attention), Build & Release (1 need attention), Developer Portal, Golden Paths & Self-Service Environments (3 need attention)', run: () => homeBlocks('amara') },
     { given: 'Oskar: he owns no goal, is in Developer Experience and watches three goals.', then: 'Your team · Developer Experience · 15 goals, 3 not theirs need attention; Watching · 3, as goal rows', run: () => homeBlocks('oskar') },
+    { given: 'Ines in a workspace with one team, Support: she owns goal a (on track); Ana owns b (off track) and Ben owns c (on track).', then: 'Goals tabs: Mine, All; Home: The team’s goals · 3, Ines’s own first: a, b, c; Your team holds b as needing attention, and is folded in', run: () => {
+      const goals = [{ id: 'b', ownerId: 'ana', teamId: 't' }, { id: 'a', ownerId: 'ines', teamId: 't' }, { id: 'c', ownerId: 'ben', teamId: 't' }];
+      const { tabs, every } = scopesFor({ goals, viewerId: 'ines', teams: [{ id: 't', name: 'Support' }], watched: new Set() }, null);
+      const att = (g: (typeof goals)[number]) => ({ goal: { ...g, title: g.id }, status: { status: g.id === 'b' ? 'off' : 'on' }, flags: g.id === 'b' ? [{ kind: 'off' }] : [], weight: g.id === 'b' ? 3 : 0, handled: null, lookedAt: null }) as unknown as GoalAttention;
+      const team = homeSets({ id: 'ines', teams: [{ id: 't', name: 'Support' }] }, every, goals.map(att), [{ id: 't', name: 'Support' }]).team;
+      const one = theOneTeam([{ id: 't', leadId: 'ana' }], { id: 'ines', teamId: 't' });
+      return `Goals tabs: ${tabs.map((t) => t.label).join(', ')}; Home: The team’s goals · ${goals.length}, Ines’s own first: ${ownFirst(goals, (g) => g.ownerId === 'ines').map((g) => g.id).join(', ')}; Your team holds ${team?.rows.map((a) => a.goal.id).join(', ')} as needing attention, and is ${one ? 'folded in' : 'drawn'}`;
+    } },
     { given: 'Drawn as teams? 3 goals in 3 teams; 12 goals in 2 teams; 13 goals in 2 teams; 40 goals in 1 team.', then: 'no, no, yes, no', run: () => [['a', 'b', 'c'], [...Array(6).fill('a'), ...Array(6).fill('b')], [...Array(7).fill('a'), ...Array(6).fill('b')], Array(40).fill('a')].map((t) => (asTeams(t.map((teamId) => ({ teamId }))) ? 'yes' : 'no')).join(', ') },
     { given: 'Teams worst first: Alpha with 1 off track and 3 on track; Beta with 1 off track and 1 at risk; Gamma with 2 at risk.', then: 'Beta, Alpha, Gamma', run: () => asTeamRows((([['a', 'Alpha', ['off', 'on', 'on', 'on']], ['b', 'Beta', ['off', 'risk']], ['c', 'Gamma', ['risk', 'risk']]] as const).flatMap(([teamId, , st]) => st.map((k, i) => ({ goal: { id: `${teamId}${i}`, teamId, ownerId: 'x', title: `${teamId}${i}` }, status: { status: k }, flags: [], weight: 0, handled: null, lookedAt: null }))) as unknown as GoalAttention[]), (id) => ({ a: 'Alpha', b: 'Beta', c: 'Gamma' } as Record<string, string>)[id]!).map((t) => t.name).join(', ') },
   ],

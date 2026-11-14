@@ -11,6 +11,10 @@ Home’s blocks of goals are exactly the Goals page’s scopes, with the same co
 
 **Your team** is shown when the viewer is in a team or leads one, and the scope holds a goal they don't own. Heading "Your team · {team} · {n} goals" ("Your teams · {n} goals in {k} teams" for several), with "See them in Goals" (`/goals?scope=team`) and its counts by status (`&status=…`). Its rows are the goals that need attention without the viewer's own (those are in Your goals): "{k} need attention that aren’t yours" opens `/goals?scope=team&attention=1&owner=-me`, and up to four are listed, each with its owner's name first and no button. With none: "Nothing in it needs attention." ("Nothing that isn’t yours needs attention." when only the viewer's own do).
 
+**Every scope, drawn or not.** The sets read each scope whether or not Goals draws it as a tab: My team waits as a tab while it is the same list as All (small workspaces, rule 1), and its goals still belong on Home.
+
+**One team** (`theOneTeam`, small workspaces 2.1). When the workspace has exactly one team and the viewer is in it or leads it, "Your goals" and "Your team" would repeat each other, so Home draws one section in their place: "The team's goals · {n}", that team's goals with the viewer's own first (`ownFirst`), each part worst first. Its counts, its "{k} need attention" and "See them in Goals" open the My team scope; a teammate's goal that needs attention carries its owner's name. There is no "Your team" section. An admin in no team sees "Your goals" as usual.
+
 **Not mine.** In a goals query, the owner value `-me` means "not the person asking": goals someone else owns. The filter line says it as "Owner not you". With nobody asking (a query with no viewer), it narrows nothing.
 
 **As teams** (`asTeams`). A set is drawn as teams when it holds more than twelve goals in two or more teams (the spec's worked examples: Rhea's twelve watched goals in four teams are goal rows). Then it is a table, one row per team, ordered as Goals orders "By team": the most goals off track first, then the most at risk, then the most with no recent update, then the most with no check-in yet, then by name. Each row: the team's name (`/goals?scope={set}&team={id}`), "{k} need attention" (the same with `&attention=1`; none: "None") and its goals' counts by status (each with `&status=…`). Five rows, then "{k} more teams, {j} need attention" (`/goals?scope={set}&group=team`). On a phone each team is a stacked row. No person's name is in the table: teams and goals are ranked, never people. (A "Since" column comes with "Changed since".)
@@ -25,17 +29,20 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Rhea: she owns goals, leads CI/CD and watches goals in several teams. | `Your goals · 8; Your team · CI/CD · 17 goals, 2 not theirs need attention; Watching · 12, as goal rows` |
 | Amara, the VP: she owns no goal, her team (Office of the VP) holds one goal, and she watches goals across the division. | `Your team · Office of the VP · 1 goal, 0 not theirs need attention; Watching · 56 goals in 13 teams, as teams, worst first: CI/CD (3 need attention), Security Engineering (1 need attention), Infrastructure & Compute (2 need attention), Build & Release (1 need attention), Developer Portal, Golden Paths & Self-Service Environments (3 need attention)` |
 | Oskar: he owns no goal, is in Developer Experience and watches three goals. | `Your team · Developer Experience · 15 goals, 3 not theirs need attention; Watching · 3, as goal rows` |
+| Ines in a workspace with one team, Support: she owns goal a (on track); Ana owns b (off track) and Ben owns c (on track). | `Goals tabs: Mine, All; Home: The team’s goals · 3, Ines’s own first: a, b, c; Your team holds b as needing attention, and is folded in` |
 | Drawn as teams? 3 goals in 3 teams; 12 goals in 2 teams; 13 goals in 2 teams; 40 goals in 1 team. | `no, no, yes, no` |
 | Teams worst first: Alpha with 1 off track and 3 on track; Beta with 1 off track and 1 at risk; Gamma with 2 at risk. | `Beta, Alpha, Gamma` |
 
 ## Where it lives
 
+- [src/domain/home.ts](../../../src/domain/home.ts): `theOneTeam`, `ownFirst`
 - [src/domain/homeSets.ts](../../../src/domain/homeSets.ts): `asTeams`, `homeSets`, `asTeamRows`
 - [src/domain/query.ts](../../../src/domain/query.ts): `NOT_ME`
 
 ## Requirements
 
 - `HOME-MANAGER`: Someone in or leading a team sees that team on Home as the Goals page's My team scope, with the goals that need attention and aren't theirs; a review they are in is the lead on its day once their own check-ins are in, and one cell otherwise; an ask says how long it has waited and is marked once late.
+- `SMALL-MENU`: A module's menu row and a Goals tab wait until they have something in them (a tab also waits while it is the same list as one drawn before it; All is always drawn), in each workspace on its own: a row drawn in one never follows you into another. Hiding is only drawing: every address still opens. Home's sections wait too: “Goals you watch” while nothing is watched, and with one team in the workspace “Your goals” and “Your team” are one section, “The team’s goals · {n}”, the viewer's own first.
 
 ## Tests that check it
 
@@ -75,6 +82,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - Home rule 4: the sets [HOME-MANAGER] › Amara: Watching · 56 goals in 13 teams, as teams, worst first, the counts adding up
 - Home rule 4: the sets [HOME-MANAGER] › Oskar: Watching · 3, every goal a row; his team Developer Experience is there, as it holds goals he doesn’t own
 - Home rule 4: the sets [HOME-MANAGER] › No Your team when the team scope holds only the viewer’s own goals, or there is no team
+- Home rule 4: the sets [HOME-MANAGER] › One team (HM3 review, SM1h): My team waits as a tab, being All, yet its scope still makes Your team; Home folds it into “The team’s goals”
 - Home rule 4: the sets [HOME-MANAGER] › a one-team workspace: My team waits on Goals (the same list as All), yet Home still shows the team’s goals that aren’t yours (review of #468)
 - Home rule 4: the sets [HOME-MANAGER] › asTeams: more than twelve goals in two or more teams
 

@@ -372,7 +372,7 @@ One saved change. Drafts are never logged; anything that leaves draft is.
 | `at` | `string` | yes |  |
 | `actorId` | `Id` | yes |  |
 | `goalId` | `Id \| null` | yes |  |
-| `entity` | `'goal' \| 'check-in' \| 'decision' \| 'workspace' \| 'note' \| 'review' \| 'person' \| 'retro' \| 'cycle' \| 'request' \| 'view' \| 'watch' \| 'metric'` | yes |  |
+| `entity` | `'goal' \| 'check-in' \| 'decision' \| 'workspace' \| 'note' \| 'review' \| 'person' \| 'retro' \| 'cycle' \| 'request' \| 'view' \| 'watch' \| 'metric' \| 'field'` | yes |  |
 | `entityId` | `Id` | yes |  |
 | `action` | `'created' \| 'edited' \| 'posted' \| 'approved' \| 'declined' \| 'acknowledged' \| 'asked' \| 'imported' \| 'reset' \| 'proposed' \| 'withdrawn' \| 'noted' \| 'actioned' \| 'removed' \| 'answered' \| 'linked' \| 'done' \| 'restored' \| 'stopped' \| 'ended' \| 'left' \| 'undone'` | yes |  |
 | `summary` | `string` | yes |  |

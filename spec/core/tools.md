@@ -96,6 +96,9 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`delete_review`](#delete_review) (reviews) | Delete a review never held | changes; removes something | [deleteReview](actions.md#deletereview) |
 | [`export`](#export) (spreadsheets) | Export the goals | reads | — |
 | [`export_table`](#export_table) (spreadsheets) | Export a data table as shown | reads | — |
+| [`list_fields`](#list_fields) (tags) | The workspace’s fields | reads | — |
+| [`set_goal_fields`](#set_goal_fields) (tags) | Set a goal’s fields | changes | [setGoalFields](actions.md#setgoalfields) |
+| [`save_field`](#save_field) (tags) | Define a field | changes | [addField](actions.md#addfield), [changeField](actions.md#changefield), [moveField](actions.md#movefield), [retireField](actions.md#retirefield), [bringBackField](actions.md#bringbackfield) |
 | [`list_watching`](#list_watching) (watching) | What you watch | reads | — |
 | [`watch`](#watch) (watching) | Watch goals | changes | [watch](actions.md#watch) |
 | [`unwatch`](#unwatch) (watching) | Stop watching | changes | [unwatch](actions.md#unwatch) |
@@ -6076,6 +6079,202 @@ From the [spreadsheets](../modules/spreadsheets/README.md) module: switched off 
 - “… Its columns: ….”
 
 **Does the same as:** no action: it reads, or does something only an assistant needs.
+
+## list_fields
+
+**The workspace’s fields.** The workspace’s own fields on goals (up to 6, such as a stage or a programme): each a list of values or free text, in order, with how many of this cycle’s goals have a value. With goal_id, that goal’s value for each. Retired fields are listed apart: their values are kept, and an admin can bring them back. No rule reads a field: they are for finding and sorting.
+
+From the [tags](../modules/tags/README.md) module: switched off with it.
+
+**Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `goal_id` | string | no | A goal’s ID or key (G-12), to give its values too. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "goal_id": {
+      "type": "string",
+      "description": "A goal’s ID or key (G-12), to give its values too."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:**
+
+- “There’s no live goal with … … in …. Use find_goals to get IDs and keys.”
+
+**Does the same as:** no action: it reads, or does something only an assistant needs.
+
+## set_goal_fields
+
+**Set a goal’s fields.** Set a goal’s values for the workspace’s fields, by field name: { "Stage": "Build" }. A list field takes one of its values (any case; kept as the list writes it); free text up to 80 characters; an empty string clears it. The goal’s owner or an admin. A value a list doesn’t hold is refused with the list’s values: ask the person, or an admin can add it with save_field. Every value is checked before any is saved. With dry_run, nothing is saved: it says what would change.
+
+From the [tags](../modules/tags/README.md) module: switched off with it.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `goal_id` | string | yes | The goal’s ID or key (G-12). |
+| `fields` | object | yes | Field name to value, e.g. { "Stage": "Build" }; "" clears it. |
+| `dry_run` | boolean | no | Say what would change without saving anything. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "goal_id",
+    "fields"
+  ],
+  "properties": {
+    "goal_id": {
+      "type": "string",
+      "description": "The goal’s ID or key (G-12)."
+    },
+    "fields": {
+      "type": "object",
+      "description": "Field name to value, e.g. { \"Stage\": \"Build\" }; \"\" clears it.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "dry_run": {
+      "type": "boolean",
+      "description": "Say what would change without saving anything."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:**
+
+- “There’s no live goal with … … in …. Use find_goals to get IDs and keys.”
+- “Give at least one field, by name. Fields: ….”
+- “There’s no field called …. Fields: ….”
+- “Only the goal’s owner or an admin can change its fields.”
+- “That field no longer exists. Reload to see the latest.”
+- “… is retired. An admin can bring it back in Workspace, Fields.”
+
+**Does the same as:** [setGoalFields](actions.md#setgoalfields), so it refuses with their words too.
+
+## save_field
+
+**Define a field.** Admins: add a field (name, kind "list" with values, or "text"), rename one or change a list’s values (field and name or values), move it up or down (move), retire it (retire: true; its values are kept and it leaves goals’ pages) or bring a retired one back (bring_back: true). At most 6 live fields; a name of up to 40 characters; a list holds 1 to 20 values of up to 40 characters, none twice; free text has none.
+
+From the [tags](../modules/tags/README.md) module: switched off with it.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `field` | string | no | The field to change, by ID or name. Leave out to add one. |
+| `name` | string | no | Its name, e.g. Stage. |
+| `kind` | one of `list`, `text` | no | For a new field: a list of values, or free text. |
+| `values` | list of string | no | A list’s values, in order. |
+| `move` | one of `up`, `down` | no | Move it one place. |
+| `retire` | boolean | no | Retire it: its values stay on goals and in History. |
+| `bring_back` | boolean | no | Bring a retired field back, with its values. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "field": {
+      "type": "string",
+      "description": "The field to change, by ID or name. Leave out to add one."
+    },
+    "name": {
+      "type": "string",
+      "description": "Its name, e.g. Stage."
+    },
+    "kind": {
+      "type": "string",
+      "description": "For a new field: a list of values, or free text.",
+      "enum": [
+        "list",
+        "text"
+      ]
+    },
+    "values": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "A list’s values, in order."
+    },
+    "move": {
+      "type": "string",
+      "description": "Move it one place.",
+      "enum": [
+        "up",
+        "down"
+      ]
+    },
+    "retire": {
+      "type": "boolean",
+      "description": "Retire it: its values stay on goals and in History."
+    },
+    "bring_back": {
+      "type": "boolean",
+      "description": "Bring a retired field back, with its values."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:**
+
+- “There’s no field called or with the ID …. Fields: …. Use list_fields.”
+- “That field no longer exists. Reload to see the latest.”
+- “… is already retired.”
+- “… isn’t retired.”
+- “That field is retired or no longer exists. Reload to see the latest.”
+
+**Does the same as:** [addField](actions.md#addfield), [changeField](actions.md#changefield), [moveField](actions.md#movefield), [retireField](actions.md#retirefield), [bringBackField](actions.md#bringbackfield), so it refuses with their words too.
 
 ## list_watching
 

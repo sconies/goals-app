@@ -1218,6 +1218,18 @@
       "use": "copy"
     },
     {
+      "id": "TAGS-FIELDS",
+      "area": "Goals",
+      "text": "A workspace defines up to six of its own fields on goals (a stage, a programme), each a list of values or free text, on Workspace, Fields: admins add, rename, reorder, retire and bring them back; everyone reads them. A goal's page shows one line per field in About, which its owner or an admin changes in place, and History says the change (“Stage: Discover → Build”). No rule reads a field; an AI assistant lists and sets them under the same rules.",
+      "use": "copy"
+    },
+    {
+      "id": "TAGS-OFF",
+      "area": "Architecture",
+      "text": "An admin switches Fields off for a workspace. Off, a goal's page has no Fields block, Workspace has no Fields section (its address says Fields is switched off), and the fields tools refuse. Every field and value is kept, and switching it on shows them again.",
+      "use": "copy"
+    },
+    {
       "id": "FEEDBACK-OPTIONAL",
       "area": "Architecture",
       "text": "An admin switches Feedback off for a workspace. Off, there is no Feedback in the menu, no way to send feedback or mark up a screen (Ctrl+Shift+M does nothing), and no inbox tool; its addresses say it is switched off. What was sent stays in the builders’ inbox.",
@@ -1262,7 +1274,7 @@
     {
       "id": "SMALL-MENU",
       "area": "Navigation",
-      "text": "A module's menu row and a Goals tab wait until they have something in them (a tab also waits while it is the same list as one drawn before it; All is always drawn), in each workspace on its own: a row drawn in one never follows you into another. Hiding is only drawing: every address still opens. (Home's sections waiting too is backlog SM1h, with HM3; not built.)",
+      "text": "A module's menu row and a Goals tab wait until they have something in them (a tab also waits while it is the same list as one drawn before it; All is always drawn), in each workspace on its own: a row drawn in one never follows you into another. Hiding is only drawing: every address still opens. Home's sections wait too: “Goals you watch” while nothing is watched, and with one team in the workspace “Your goals” and “Your team” are one section, “The team’s goals · {n}”, the viewer's own first.",
       "use": "copy"
     },
     {

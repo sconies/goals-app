@@ -88,4 +88,12 @@ export const SAMPLES: Record<string, Sample> = {
   mergeMetrics: { as: ADMIN, input: () => ({ fromId: 'metric_lead-time', intoId: 'metric_first-review' }) },
   linkGoalMetric: { as: ADMIN, input: (x) => ({ goalId: own({ ...x, actor: { ...x.actor, id: 'rhea' } }).id, metricId: ((x.snapshot.modules?.metrics?.metrics ?? []) as { id: string }[])[0]!.id, teamId: null }) },
   unlinkGoalMetric: { as: ADMIN, input: (x) => { const l = ((x.snapshot.modules?.metrics?.metricLinks ?? []) as { goalId: string }[])[0]; return { goalId: l?.goalId ?? other(x).id }; } },
+  // Fields (TG1): the demo has no field, so only adding one saves; the rest are refused naming the missing field, and
+  // still say what they read.
+  addField: { as: ADMIN, input: () => ({ name: 'Stage', kind: 'list', options: ['Discover', 'Build', 'Run'] }) },
+  changeField: { as: ADMIN, input: (x) => ({ fieldId: (((x.snapshot.modules?.tags?.fields ?? []) as { id: string }[])[0]?.id ?? 'fld_stage'), name: 'Phase', options: ['Discover', 'Build', 'Run'] }) },
+  moveField: { as: ADMIN, input: (x) => ({ fieldId: (((x.snapshot.modules?.tags?.fields ?? []) as { id: string }[])[0]?.id ?? 'fld_stage'), by: 1 }) },
+  retireField: { as: ADMIN, input: (x) => ({ fieldId: (((x.snapshot.modules?.tags?.fields ?? []) as { id: string }[])[0]?.id ?? 'fld_stage') }) },
+  bringBackField: { as: ADMIN, input: (x) => ({ fieldId: (((x.snapshot.modules?.tags?.fields ?? []) as { id: string }[])[0]?.id ?? 'fld_stage') }) },
+  setGoalFields: { as: 'rhea', input: (x) => ({ goalId: own(x).id, values: { [(((x.snapshot.modules?.tags?.fields ?? []) as { id: string }[])[0]?.id ?? 'fld_stage')]: 'Build' } }) },
 };

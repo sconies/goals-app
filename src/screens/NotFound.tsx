@@ -9,8 +9,8 @@ import { SwitchedOffLine } from '../ui/SwitchedOff';
 export function NotFound() {
   const { pathname } = useLocation();
   const { installed, on } = useModules();
-  // Its routes and its old addresses (Feedback's /inbox, say: SW1).
-  const off = installed.find((m) => !on.has(m.id) && [...m.routes, ...m.redirects.map(([from]) => from)].some((r) => matchPath(r, pathname)));
+  // Its routes, its old addresses (Feedback's /inbox, say: SW1) and its Workspace sections (Fields' /workspace/fields, TG1).
+  const off = installed.find((m) => !on.has(m.id) && [...m.routes, ...m.redirects.map(([from]) => from), ...(m.sections ?? []).map((s) => `/workspace/${s}`)].some((r) => matchPath(r, pathname)));
   return (
     <div className="page narrow not-found">
       <h1 className="title-xl">Page not found</h1>

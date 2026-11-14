@@ -35,6 +35,8 @@ const RULES = [
   // What changed since you last looked (HM4): rule 5, home-seen, the Goals filter moved/since, and Home's numbers agreeing.
   [/^src\/domain\/(changed|query)\.ts$|^src\/app\/homeSeen\.ts$|^evals\/finish\/25-home-numbers\.cjs$/, ['U124', 'F25']],
   [/^evals\/notes\/12-home\.cjs$/, ['N26']],
+  // Fields switched off (TG1): its own check, and the module's journey.
+  [/^evals\/notes\/34-fields-off\.cjs$/, ['N34', 'U174']],
   // Held at company size (N12, FS4): its fixture and check, and the search, the pickers and the list bars it times.
   [/^evals\/(fixtures\/company|finish\/11-company-size)\.cjs$|^src\/(ports\/search|adapters\/localSearch|domain\/find|app\/search|app\/reads)\.ts|^src\/ui\/(Pick|ListBar)\.tsx/, ['N12']],
   // The talk-path polish (N10): its own check, and the screens it looks at.
