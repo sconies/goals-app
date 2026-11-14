@@ -176,7 +176,7 @@ function checkIns(): CheckIn[] {
 /** The edge-case workspace, as spec/conformance/edge/workspace.json holds it. */
 export function edgeWorkspace(): ConformanceWorkspace {
   return {
-    about: 'The edge-case workspace (src/spec/edge.ts): a small workspace beside the demo, for the rules the demo never exercises (ranges at and past both bounds, numbers refused for a share, the habit’s moment across gaps and corrections, ties in posting time, a plan that starts late, being handled, a goal stopped). Read it as you read the demo’s; only stage 1’s files are made from it. See spec/conformance/README.md.',
+    about: 'The edge-case workspace (src/spec/edge.ts): a small workspace beside the demo, for the rules the demo never exercises (ranges at and past both bounds, numbers refused for a share, the habit’s moment across gaps and corrections, ties in posting time, a plan that starts late, being handled, a goal stopped). The rows for a goal whose plan starts late record today’s days-without-update, which is negative before the plan starts; backlog 0v fixes it, and these rows change with `npm run spec` when it does. Read it as you read the demo’s; only stage 1’s files are made from it. See spec/conformance/README.md.',
     builtFor: BUILT_FOR,
     edge: true,
     cycle: CYCLE,
