@@ -8,6 +8,7 @@ import { mergeCommits, NotAllowed, saveRetro, startNextCycle, type ActionContext
 import { canUndoStart, deleteCycle, stopGoal, undoStart } from './removal';
 import { applyCommit } from '../data/store';
 import { startPage } from './startYear';
+import { yearLine } from './workspaceAttention';
 import { recarry, withRecarry } from './recarry';
 import { checkInsLeftOut } from './leftOut';
 import { copyUntouched } from './copies';
@@ -212,6 +213,22 @@ describe('the start page (2.4)', () => {
     expect(p.counts.reduce((n, c) => n + c.n, 0)).toBe(p.readBack!.total);
     expect(p.startsWith.at(-1)!.bold).toBe('Check-ins every week, due by Thursday');
     expect(startPage(s, cycle, on('2027-01-11')).line).toMatch(/It opens for everyone as soon as you start it\. 2026’s wrap-up stays open until Sun 31 Jan 2027\.$/);
+  });
+  it('names no wrap-up with the Wrap-up off, and no watches with Watching off, and still counts every goal (SW1; build review of #444)', () => {
+    const p = startPage(s, cycle, on('2026-12-21'), { wrapUp: false, watching: false });
+    expect(p.line).toBe('2027 runs from Mon 4 Jan 2027 to Sun 2 Jan 2028: 52 weeks. Everyone stays in 2026 until Sun 3 Jan 2027, so the last check-ins carry on.');
+    expect(p.counts.map((c) => c.says)).toEqual(['carry on', 'finish', 'stop', 'go by where they stand']);
+    expect(p.counts.reduce((n, c) => n + c.n, 0)).toBe(p.readBack!.total);
+    expect(p.startsWith.some((x) => /watch/.test(x.bold))).toBe(false);
+    expect(startPage(s, cycle, on('2026-12-21')).startsWith.some((x) => /watch/.test(x.bold))).toBe(true);
+    expect(startPage(s, cycle, on('2027-01-11'), { wrapUp: false }).line).toMatch(/It opens for everyone as soon as you start it\.$/);
+  });
+  it('the year line says where the year stands and nothing about a wrap-up with the Wrap-up off', () => {
+    const c = { name: '2026', startDate: '2025-12-22', weeks: 53 };
+    expect(yearLine(c, 52, new Date('2026-12-22T12:00:00Z'), 31, false)).toBe('2026, week 52 of 53.');
+    expect(yearLine(c, 46, new Date('2026-11-11T12:00:00Z'), 30, false)).toBe('2026, week 46 of 53.');
+    expect(yearLine(c, 53, new Date('2027-01-04T12:00:00Z'), 88, false)).toBe('2026 ended on Sun 3 Jan 2027.');
+    expect(yearLine(c, 52, new Date('2026-12-22T12:00:00Z'), 31)).toBe('2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up.');
   });
 });
 

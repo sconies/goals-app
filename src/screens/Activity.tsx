@@ -3,6 +3,8 @@ import { useOlderChanges } from '../app/history';
 import { useSearchParams } from 'react-router';
 import { saveAndSay } from '../app/files';
 import { useApp } from '../app/state';
+import { useModules } from '../core/app';
+import { watchingOn } from '../app/reads';
 import {
   ACTIVITY_KEYS, ACTIVITY_KINDS, activityEntries, foldImports, activityParts, activityFilter, activityRows, activityWords, describeActivity, EMPTY_ACTIVITY, kindOf, parseActivity, WHEN_OPTIONS, withoutActivity,
   type ActivityQuery, type When,
@@ -47,9 +49,11 @@ export function Activity() {
   const [a, setA] = useActivityQuery();
   const [limit, setLimit] = useState(40);
   const [open, setOpen] = useState(false);
-  // Arriving from Watching keeps its scope: the goals you watch (at a level, if one was picked).
-  const level = a.watching && a.watching !== 'all' ? (a.watching as Level) : null;
-  const watched = a.watching != null ? new Set(watchedGoals(app.viewer.id, app.snapshot).filter((g) => !level || g.level === level).map((g) => g.id)) : null;
+  // Arriving from Watching keeps its scope: the goals you watch (at a level, if one was picked). With Watching switched
+  // off a link's watching= narrows nothing and says nothing (SW1; build review of #444), as inreview= does with Reviews off.
+  const watching = watchingOn(useModules().on) ? a.watching : null;
+  const level = watching && watching !== 'all' ? (watching as Level) : null;
+  const watched = watching != null ? new Set(watchedGoals(app.viewer.id, app.snapshot).filter((g) => !level || g.level === level).map((g) => g.id)) : null;
   // The load holds about a year of changes (AX5 part 2b); older ones are paged in on request, below the rest.
   const older = useOlderChanges();
   const loaded = [...app.snapshot.changes].reverse();
@@ -73,9 +77,9 @@ export function Activity() {
   }
   const chips = describeActivity(a, app.snapshot, app.cycle, app.week);
   const parts = activityParts(a, { person: (id) => app.person(id)?.name ?? id, goal: (id) => app.goal(id)?.title ?? 'a goal', team: (id) => app.team(id)?.name ?? id }, chips.find((c) => c.key === 'when')?.text ?? '');
-  const scopeText = a.watching != null ? `Goals you watch${level ? ` (${levelName(app.cycle, level)})` : ''}${a.since ? ` · since ${new Date(a.since + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })}` : ''}` : '';
+  const scopeText = watching != null ? `Goals you watch${level ? ` (${levelName(app.cycle, level)})` : ''}${a.since ? ` · since ${new Date(a.since + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })}` : ''}` : '';
   const counts = new Map(ACTIVITY_KINDS.map(([k]) => [k, inScope.filter((c) => kindOf(c) === k).length]));
-  const narrowed = chips.length > 0 || a.watching != null;
+  const narrowed = chips.length > 0 || watching != null;
   const saveCsv = () => {
     void saveAndSay(app.toast, { workspace: app.ws.name, what: 'activity', scope: narrowed ? 'filtered' : '', date: app.today }, { kind: 'csv', text: toCsv(activityRows(list, app.snapshot)) },
       `Saved ${list.length} ${list.length === 1 ? 'change' : 'changes'} as CSV`);
@@ -87,7 +91,7 @@ export function Activity() {
         <h1 className="title-xl">Activity</h1>
         <span className="small muted">Every saved change, who made it and when. Drafts aren’t logged.</span>
       </div>
-      {a.watching != null && (
+      {watching != null && (
         <p className="row" style={{ gap: 'var(--s2)' }}>
           <span className="small strong">Showing: {scopeText}</span>
           <button type="button" className="linkish small" onClick={() => { setA(() => EMPTY_ACTIVITY); setLimit(40); }}>Show all activity</button>

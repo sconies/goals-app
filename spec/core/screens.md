@@ -563,7 +563,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “Show all activity” | button | `a.watching != null` |
+| “Show all activity” | button | `watching != null` |
 | “Filters …” | button | always |
 | “Save.csv” | button | always |
 | “Show more (… older)” | button | `folded.top.length > shown.length` |
