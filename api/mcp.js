@@ -10116,7 +10116,7 @@ var init_removal = __esmMin((() => {
 }));
 // src/domain/templates.ts
 /**
-* A template's stage weeks count from now, not from the start of the year: set up in week 43, "Design@3" is due in week 45.
+* Stage weeks count from now, not from the start of the year: set up in week 43, "Design@3" is due in week 45.
 * Stages are spread over the weeks left when they would run past the year's end.
 */
 function stagesFromNow(stages, week, weeks = 52) {
@@ -15408,6 +15408,7 @@ var _virtual_faro_modules_default = [
 		],
 		redirects: [["/data/metrics", "/metrics"]],
 		navigation: ["Metrics"],
+		menu: { "waitsFor": "metrics" },
 		places: [
 			"goal.facts",
 			"goal.measure",
@@ -16452,36 +16453,43 @@ var SCOPES = [
 ];
 /**
 * Rule 1. The tabs someone has, in order: Mine (when they own a goal), My team or My teams (their team and the teams
-* they lead, when they have one), Watching, All. Opens on the scope last used when they still have it; otherwise Mine,
+* they lead, when they have one), Watching, All. A tab waits (small workspaces SM1, rule 1): it is drawn when its list
+* has a goal and isn't the same list as a tab drawn before it; All is always drawn. `every` keeps each scope whether
+* drawn or not, since every address still opens. Opens on the scope last used when it is still drawn; otherwise Mine,
 * else Watching when it has goals, else All.
 */
 function scopesFor(f, last, opts = { watching: true }) {
-	const tabs = [];
+	const every = [];
 	const mine = scopeIds(f, "mine");
-	if (mine.length) tabs.push({
+	every.push({
 		id: "mine",
 		label: "Mine",
 		ids: mine
 	});
-	if (f.teams.length) tabs.push({
+	if (f.teams.length) every.push({
 		id: "team",
 		label: f.teams.length === 1 ? "My team" : "My teams",
 		ids: scopeIds(f, "team")
 	});
-	if (opts.watching) tabs.push({
+	if (opts.watching) every.push({
 		id: "watching",
 		label: "Watching",
 		ids: scopeIds(f, "watching")
 	});
-	tabs.push({
+	every.push({
 		id: "all",
 		label: "All",
 		ids: scopeIds(f, "all")
 	});
+	const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+	const tabs = [];
+	const all = every.find((t) => t.id === "all");
+	for (const t of every) if (t === all || t.ids.length && !same(t.ids, all.ids) && !tabs.some((d) => same(d.ids, t.ids))) tabs.push(t);
 	const has = (s) => !!s && tabs.some((t) => t.id === s);
 	return {
 		tabs,
-		opens: has(last) ? last : mine.length ? "mine" : tabs.find((t) => t.id === "watching")?.ids.length ? "watching" : "all"
+		every,
+		opens: has(last) ? last : mine.length ? "mine" : every.find((t) => t.id === "watching")?.ids.length ? "watching" : "all"
 	};
 }
 /** The goals in a scope, by id, in the workspace's order. "team" is the viewer's own team and the teams they lead. */
@@ -19319,38 +19327,43 @@ var CORE_ARTICLES = [
 	{
 		id: "set-up",
 		title: "Setting up a workspace",
-		summary: "A workspace holds one organisation’s people, teams, goals and history. Setting one up takes about three minutes.",
+		summary: "A workspace holds one organisation’s people, teams, goals and history. Setting one up takes four steps and about three minutes.",
 		group: "start",
 		sections: [{
 			heading: "What it’s for",
-			text: ["Start your own workspace from a template, your own spreadsheet, or nothing at all. Whoever sets it up is its first admin."]
+			text: ["Start your own workspace with goals you type, your own spreadsheet, or none yet: there are no example goals to start from. Whoever sets it up is its first admin."]
 		}, {
 			heading: "How to use it",
 			list: [
-				"Start from Welcome’s Set up a workspace (or the workspace switcher’s Set up a new workspace). It asks one question per screen: the workspace’s name (three to 80 characters; it counts them as you near the limit), the month its goal year starts and whether to record how the app is used there (off unless you tick it), who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.",
+				"Start from Welcome’s Set up a workspace (or the workspace switcher’s Set up a new workspace). It takes four steps, each at its own address, so your browser’s Back and Forward move between them and a reload stays put: the workspace and you (its name, three to 80 characters, counted as you near the limit; your name, email and team), people, goals, and Check. Each field says what it needs under it; Continue says where it goes next.",
 				"In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.",
 				"Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.",
-				"Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.",
-				"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.",
+				"Set up from inside the app (from the workspace switcher or Workspace), the first step says “Setting up as” you, in one line; Change opens your name, email and team.",
+				"Under the first step, How you’ll work says the usual in one paragraph: check-ins every week, by the review’s day; a weekly review on Thursdays; the year starting in January; Recording off. Change how you’ll work opens a sheet for the month the goal year starts, the review day and whether to record how the app is used (off unless you tick it). Changed, the panel says so. Check has the same Change.",
+				"Goals offers three ways to start. Add your own (chosen to begin with) shows the outcome and up to four goals that feed it, to type in. Import a spreadsheet takes the template or a workbook (Choose a spreadsheet; a file with goals uploaded on People is used straight away). Later finishes with no goals: each owner adds theirs from New goal. Not sure what a good goal looks like? The link there opens the demo’s goals in a new tab, and your set-up is kept.",
 				"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and Check shows the same preview Import does before anything is created: how many goals and people the file adds (a goal still to fix counted too), what must be fixed, and its questions, each with its answers. A goal owned by someone nobody typed offers “Add {name}” (they join your people, with the row’s team) or “Give it to someone here”; the person you give it to stands for the row’s other owner cells that name no one here, but never for one that names someone else here, which is still Must fix. A goal’s team one letter from a team already named (“Depot” beside “Depots”) is asked about, as a person’s is. A check-in’s “Choose a goal” finds the spreadsheet’s goals. After each answer the next question takes the focus. Create workspace waits until every question is answered.",
 				"On the People sheet, a row whose Action says Example (the template’s) is skipped, and someone marked Left isn’t added: a goal they own then asks who has it. The upload says how many were skipped, and the preview how many Example goal rows. A file with no goals sheet, uploaded after one with goals, keeps those goals; a new goals file drops anyone its predecessor’s answers added.",
 				"If the preview can’t load (a lost connection), Check says so and offers Try again; nothing you typed or answered is lost.",
 				"Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.",
 				"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, is asked about on Check, already answered “Count them from this week” as a template’s are, so it isn’t late on day one. Change, then Keep the weeks as typed, puts them back.",
-				"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
+				"With Add your own, name the outcome and add up to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
 				"The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.",
-				"Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.",
+				"Check (Step 4 of 4) reads back what Create will make: you, the people, the goals, the year, the review and Recording, each with Change. Change on a step brings you straight back to Check (Back to Check). Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace.",
 				"Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.",
 				"Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.",
 				"Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.",
-				"On a phone, the small links in set-up (Start over, Change, Change people) are as easy to hit as a button.",
+				"On a phone, the small links in set-up (Start over, Change) are as easy to hit as a button. Close and keep the draft leaves at any step; coming back picks up the set-up you hadn’t finished, at its step, with Start over (which asks first).",
 				"The last screen gives you the one next thing to do, and a link to copy for your team: /join/ and the workspace. It opens this workspace and nothing else, and asks them which one they are (see Joining a workspace you were invited to). Faro sends no email: you send the link yourself.",
-				"Set up with no goals (Set goals up later), nothing is due: no check-ins until there are goals.",
+				"Set up with no goals (Later), nothing is due: no check-ins until there are goals.",
 				"Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.",
 				"In the demo, a workspace you made can start over from the Demo panel: it is removed from this browser, drafts and all. The walkthroughs there open the example, whose people and goals they follow."
 			]
 		}],
-		routes: ["/workspace/new", "/ready"],
+		routes: [
+			"/workspace/new",
+			"/workspace/new/:step",
+			"/ready"
+		],
 		screens: ["Onboarding", "Start"],
 		reqs: [
 			"ONBOARDING",
@@ -19364,6 +19377,8 @@ var CORE_ARTICLES = [
 			"new workspace",
 			"template",
 			"who are you",
+			"how you’ll work",
+			"steps",
 			"sign in",
 			"first time",
 			"goal year",
@@ -19764,7 +19779,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Tabs say whose goals: Mine (the goals you own), My team (your team’s, and those of any team you lead), Watching (the goals you follow) and All, each with its count. Goals opens on the tab you used last, else Mine, else Watching. A tab you don’t have (Mine when you own nothing) isn’t shown.",
+					"Tabs say whose goals: Mine (the goals you own), My team (your team’s, and those of any team you lead), Watching (the goals you follow) and All, each with its count. A tab is shown once it has goals in it and isn’t the same list as one before it (in a workspace of one team, My team is All, so it isn’t shown); All is always there. The same goes for a feature’s menu row, such as Metrics, which appears with the first metric. Every address still opens. Goals opens on the tab you used last, else Mine, else Watching. A tab you don’t have (Mine when you own nothing) isn’t shown.",
 					"Group arranges them: As trees (each top goal with what feeds it; All’s own), By team, By level, or None (one list, worst first; every other tab’s own). Needs attention · {n} is a switch beside it: on, any tab lists the goals that need attention first and those being handled below, and the line under it says why.",
 					"One line counts what’s shown and their statuses, worst first (“17 goals, worst first. 2 off track · 4 at risk …”); with Needs attention on it says how many need attention and why.",
 					"By team lists the teams worst first: the most goals off track, then the most at risk, then no recent update and no check-in yet. Each team says how many of its goals have each status, with its shape and word.",
@@ -19819,7 +19834,8 @@ var CORE_ARTICLES = [
 			"NAV-GOALS",
 			"STORY",
 			"LEVELS",
-			"BULK-EDIT"
+			"BULK-EDIT",
+			"SMALL-MENU"
 		],
 		keywords: [
 			"list",
@@ -21508,6 +21524,29 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "setup-four-steps",
+		date: "2026-11-14",
+		title: "Set-up in four steps you can go back through",
+		points: [
+			"Setting up a workspace is four steps: the workspace and you, people, goals and Check. Each has its own address, so your browser’s Back works and a reload stays put.",
+			"How you’ll work (the year, the review day, Recording) is one paragraph on the first step, with a sheet to change it there or on Check.",
+			"Goals starts with your own, a spreadsheet, or later. The four example templates are gone: a workspace begins with real goals or none.",
+			"Change on Check brings you straight back to it."
+		],
+		articles: ["set-up"]
+	},
+	{
+		id: "menu-shows-what-you-use",
+		date: "2026-11-14",
+		title: "The menu shows what you use",
+		points: [
+			"A tab on Goals appears once it has goals in it and isn’t the same list as another, so a one-team workspace shows Mine and All.",
+			"Metrics joins the menu with the first metric, and the message after saving it says so.",
+			"Nothing is switched off: every page still opens from its address, Find and Workspace."
+		],
+		articles: ["goals", "metrics"]
+	},
 	{
 		id: "table-confirm-readings",
 		date: "2026-11-14",
@@ -28007,8 +28046,8 @@ var CORE_TOOLS = [
 			const scope = a.scope ? String(a.scope) : linkScope ? linkScope : null;
 			if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
 			const watchingHere = watchingOn(modulesOn(ctx.ws).on);
-			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).tabs.find((t) => t.id === scope) : null;
-			if (scope && scope !== "all" && !scoped) return listed(goalPage([], a, scope === "team" ? "You’re in no team and lead none." : scope === "watching" ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : "You own no goals this year."));
+			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).every.find((t) => t.id === scope) : null;
+			if (scope && scope !== "all" && (!scoped || scope === "mine" && !scoped.ids.length)) return listed(goalPage([], a, scope === "team" ? "You’re in no team and lead none." : scope === "watching" ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : "You own no goals this year."));
 			const inScope = scoped ? new Set(scoped.ids) : null;
 			const words = [String(a.text ?? ""), query.q].filter((x) => x.trim()).join(" ");
 			const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week, void 0, reviewsOn(modulesOn(ctx.ws).on));

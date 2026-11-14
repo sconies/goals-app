@@ -283,3 +283,13 @@ export function backTo(path: string, search: string, trail: Trail, names: PlaceN
   if (first) return up(first, pageName(first, '', names), 'the last page');
   return up('/', 'Home', 'Home');
 }
+
+/**
+ * Small workspaces, rule 1 (SM1): a module's menu row is drawn when the module is on (the caller's list) and the
+ * collection its module.json names in `menu.waitsFor` has a live row. A module that names none is always drawn. Hiding is
+ * only drawing: the module's address still opens.
+ */
+export function rowDrawn(waitsFor: string | undefined, rows: readonly unknown[] | undefined): boolean {
+  if (!waitsFor) return true;
+  return (rows ?? []).some((r) => !(r as { removedAt?: string | null }).removedAt);
+}
