@@ -31,7 +31,9 @@ const RULES = [
   // The Search and Prefs ports and the find rules (AR1): read by the AI tools until the pickers and list bars use them.
   [/^src\/(ports\/|adapters\/(local|localSearch)\.ts|app\/reads\.ts|domain\/find\.ts)/, ['U22']],
   [/^src\/domain\/dayOne\.ts/, ['U97', 'U11', 'U86', 'U5', 'U49']],
-  [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts|^src\/domain\/homeSets\.ts|^src\/ui\/HomeSets\.tsx/, ['U86', 'U2', 'U9', 'U16', 'U33', 'U122', 'U123', 'U124', 'F1', 'N3', 'N6', 'N10', 'N26', 'P6']],
+  [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts|^src\/domain\/homeSets\.ts|^src\/ui\/HomeSets\.tsx/, ['U86', 'U2', 'U9', 'U16', 'U33', 'U122', 'U123', 'U124', 'F1', 'F25', 'N3', 'N6', 'N10', 'N26', 'P6']],
+  // What changed since you last looked (HM4): rule 5, home-seen, the Goals filter moved/since, and Home's numbers agreeing.
+  [/^src\/domain\/(changed|query)\.ts$|^src\/app\/homeSeen\.ts$|^evals\/finish\/25-home-numbers\.cjs$/, ['U124', 'F25']],
   [/^evals\/notes\/12-home\.cjs$/, ['N26']],
   // Fields switched off (TG1): its own check, and the module's journey.
   [/^evals\/notes\/34-fields-off\.cjs$/, ['N34', 'U174']],
@@ -112,14 +114,17 @@ function touches(files) {
   return { full, ids: [...ids].sort((a, b) => a.localeCompare(b, 'en', { numeric: true })), unmatched, score };
 }
 
-/** PR CI's cap (Lane, 14 Nov): at most this many journeys beyond the core ones; the rest wait for the full suite that
-    runs after the merge, so a PR touching many files still finishes inside the job's 30 minutes. */
+/** PR CI's cap (Lane, 14 Nov): at most this many journeys and checks together beyond the core ones; the rest wait for
+    the full suite that runs after the merge, so a PR touching many files still finishes inside the job's 30 minutes.
+    Checks count too (planning, 14 Nov, after #465's smoke job ran out of time on 31 journeys and 28 uncapped checks):
+    a check runs about as long as a journey. */
 const PR_JOURNEY_CAP = 25;
 
 /**
- * The journeys a pull request's CI runs: every core journey, then of the others the `cap` the changed files name most
- * directly (touches' score; ties by id, lowest first). Returns { run, left } in id order, `left` the ones the full suite
- * after the merge covers. Checks aren't capped.
+ * The journeys and checks a pull request's CI runs: every core one (the smoke journeys and checks), then of the others
+ * the `cap` the changed files name most directly (touches' score; ties by id, lowest first), journeys and checks ranked
+ * together. Returns { run, left } in the order given, `left` (in id order) the ones the full suite after the merge
+ * covers.
  */
 function capJourneys(journeys, core, score, cap = PR_JOURNEY_CAP) {
   const byId = (a, b) => a.localeCompare(b, 'en', { numeric: true });

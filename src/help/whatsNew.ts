@@ -51,6 +51,40 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['fields'],
   },
   {
+    id: 'home-one-team',
+    date: '2026-11-14',
+    title: 'With one team, Home shows the team’s goals once',
+    points: [
+      'In a workspace with one team, Home shows “The team’s goals” as one section, yours first, in place of Your goals and Your team.',
+      'Your teammates’ goals that need attention are listed with their owners’ names, so nothing of the team’s is missing from Home.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'home-changed',
+    date: '2026-11-14',
+    title: 'See what changed since you last looked',
+    points: [
+      'Home says what moved since you last opened it: how many goals got worse, recovered, went quiet or were done, each count opening exactly those goals.',
+      'Up to four of them are listed, worse first, each with its status now and what it was.',
+      'When your goals are shown as teams, a last column says what moved in each team.',
+      'Goals can be filtered the same way: “Changed since Fri 6 Nov: got worse”.',
+    ],
+    articles: ['home', 'goals-filters'],
+  },
+  {
+    id: 'corrections-keep-the-author',
+    date: '2026-11-14',
+    title: 'A correction keeps whose check-in it is',
+    points: [
+      'Correcting someone’s check-in no longer makes it yours. It stays theirs, wherever it is corrected: the form, Data’s tables, the AI assistant or a spreadsheet.',
+      'This changes what Data and the AI assistant did until now: they made whoever corrected a check-in its author.',
+      'History names who corrected it, with the reason: “Corrected week 45: 60% is now 61%, by Amara Okafor: …”.',
+      'An admin’s pasted row that replaces someone’s check-in for this week is a correction too: Preview asks why before it saves.',
+    ],
+    articles: ['check-in', 'data'],
+  },
+  {
     id: 'setup-four-steps',
     date: '2026-11-14',
     title: 'Set-up in four steps you can go back through',

@@ -91,6 +91,8 @@ export interface Item {
   backfilled?: boolean;
   /** A plan change after check-ins started: it needs a reason. */
   needsReason?: boolean;
+  /** A check-in's: whose it is once saved. Replacing one keeps who checked in (Lane, 14 Nov); the change's actor is who replaced it. */
+  author?: string;
   /** A plan change that must be confirmed before it's saved (goal planQuestion): what it asks, and the yes. */
   question?: { text: string; confirm: string };
   /** Every question the row asks and nobody has answered yet (goal entry, rule 3): its id, the column, the words. */
@@ -1511,12 +1513,22 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     // its own, and never takes one away (rule 12).
     // Data's tables and MCP replacing a week's check-in correct it, as the form does: one meaning for "correct", with a
     // reason and the same words in History (review of #225, medium 6). A workbook's round trip keeps its own words.
-    const corrects = post?.mode === 'correct' || (!post && !!existing && CORRECTS_VIA.includes(via));
+    // An admin's workbook row that replaces someone else's check-in for this week corrects it too, with a reason (Lane,
+    // 14 Nov): one rule at every door. Past weeks from a workbook keep its own words (a round trip, a backfill).
+    const othersThisWeek = !!existing && w === week && owned.ownerId !== actor.id;
+    // A week an ended year has no check-in for is added late with a reason at every door, as the form adds it (Lane,
+    // 14 Nov: replacing one is refused above; adding a missing week is allowed).
+    const endedAdd = !existing && cycleEnded;
+    const corrects = post?.mode === 'correct' || (!post && ((!!existing && (CORRECTS_VIA.includes(via) || othersThisWeek)) || endedAdd));
     const keeps = corrects && existing;
     const backfilled = keeps ? !!existing.backfilled : w < week;
     const due = new Date(Date.parse(weekDate(cycle, w) + 'T09:00:00Z') + cycle.reviewDay * 86_400_000);
     const at = keeps ? new Date(existing.postedAt) : backfilled && due.toISOString() < now ? due : new Date(now);
-    const made = asRecorded ? asWritten(asOf, w, draft, e, actor.id, at.toISOString(), existing?.id ?? newId('ci')) : toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId('ci'));
+    // Replacing a check-in keeps who checked in: the week stays theirs at every door (the form, Data, MCP, a workbook,
+    // its round trip), and History names who corrected it, with why (Lane, 14 Nov, answer (a)). Before, whoever
+    // replaced it became its author.
+    const author = existing ? existing.authorId : actor.id;
+    const made = asRecorded ? asWritten(asOf, w, draft, e, author, at.toISOString(), existing?.id ?? newId('ci')) : toCheckIn(asOf, cycle, w, draft, ctx, author, at, existing?.id ?? newId('ci'));
     // NR rule 3: a reading is recorded only as the rule allows, at every door; the owner's number stays the check-in's.
     const read = post ? post.reading : input.readings?.find((x) => x.goalId === g.id && x.week === w)?.reading;
     if (read && g.kind !== 'milestone') {
@@ -1547,7 +1559,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     ciOut.push(c);
     imported.set(g.id, [...(imported.get(g.id) ?? []), c]);
     changes.push(ch);
-    items.push({ sheet: 'Check-ins', row, goalId: g.id, goal: g.title, kind: existing ? 'replaces check-in' : 'check-in', summary: ch.summary, diffs: ch.diffs, backfilled, ...(corrects && !post && !correctReasonOk(why) ? { needsReason: true } : {}) });
+    items.push({ sheet: 'Check-ins', row, goalId: g.id, goal: g.title, kind: existing ? 'replaces check-in' : 'check-in', summary: ch.summary, diffs: ch.diffs, backfilled, author: c.authorId, ...(corrects && !post && !correctReasonOk(why) ? { needsReason: true } : {}) });
   };
   for (const { r, row } of rows) {
     if (tick()) yield progress();
@@ -1653,8 +1665,9 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     if (w > week) { raise('week-wrong', 'Check-ins', row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`); continue; }
     const own = checkInsFor(g, s.checkIns);
     const newest = own.filter((c) => c.week === w).pop() ?? null;
-    // The form meets the same refusal before it asks for a reason (check-in design 2.7).
-    if (p.mode === 'correct' && cycleEnded) { raise('cant-change', 'Check-ins', row, g.title, endedRefusal); continue; }
+    // The form meets the same refusal before it asks for a reason (check-in design 2.7). A week the ended year has no
+    // check-in for can still be added, late, with a reason (Lane, 14 Nov).
+    if (p.mode === 'correct' && cycleEnded && newest) { raise('cant-change', 'Check-ins', row, g.title, endedRefusal); continue; }
     if (p.mode !== 'correct' && w < week) { raise('week-wrong', 'Check-ins', row, g.title, `Week ${w} has passed. Correct it, or add it, with a reason.`); continue; }
     if (p.mode === 'new' && newest) { raise('cant-change', 'Check-ins', row, g.title, `Week ${w} already has a check-in. Check in again, or correct it.`); continue; }
     const reason = (p.reason ?? '').trim();

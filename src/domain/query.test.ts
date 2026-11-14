@@ -3,6 +3,7 @@ import { buildPlatformOrg } from '../data/platformOrg';
 import { currentWeek } from './plan';
 import { applyQuery, describeQuery, EMPTY_QUERY, filters, NOT_ME, parseQuery, queryEntries, queryParts, without, type GoalQuery } from './query';
 import { filterText } from './find';
+import { movedPart, movedPasses, sinceDay } from './changed';
 import { summariseAll } from './summary';
 
 const today = new Date('2026-11-05T12:00:00Z');
@@ -138,5 +139,33 @@ describe('owner=-me: not mine (Home rule 4, HM3) [HOME-MANAGER]', () => {
     const names = { team: (x: string) => x, person: (x: string) => (x === 'rhea' ? 'Rhea Kapoor' : x), goal: (x: string) => x };
     expect(queryParts(q, names).map(filterText)).toEqual(['Owner not you']);
     expect(describeQuery({ ...EMPTY_QUERY, owner: [NOT_ME] }, names).map((c) => c.text)).toEqual(['Owned by someone else']);
+  });
+});
+
+describe('moved and since: what changed (Home rule 5, HM4)', () => {
+  const names = { team: (x: string) => x, person: (x: string) => x, goal: (x: string) => x, moved: movedPart };
+  it('reads and writes moved=<kind>&since=<date> after attention; since alone is nothing', () => {
+    const q = parseQuery(new URLSearchParams('scope=watching&moved=worse&since=2026-11-06&attention=1'));
+    expect([q.moved, q.since]).toEqual(['worse', '2026-11-06']);
+    expect(new URLSearchParams(queryEntries(q)).toString()).toBe('attention=1&moved=worse&since=2026-11-06');
+    expect(filters(parseQuery(new URLSearchParams('since=2026-11-06')))).toBe(false);
+  });
+  it('says “Changed since Fri 6 Nov: got worse”, and Remove takes both away; a kind it doesn’t know has no words and is no filter', () => {
+    const q = { ...EMPTY_QUERY, moved: 'worse', since: '2026-11-06' };
+    expect(queryParts(q, names).map(filterText)).toEqual(['Changed since Fri 6 Nov: got worse']);
+    expect(describeQuery({ ...q, moved: 'any', since: '6 Nov' }, names).map((c) => c.text)).toEqual(['Changed this week: any change']);
+    expect(queryParts({ ...q, moved: 'sideways' }, names)).toEqual([]);
+    expect(without(q, 'moved')).toEqual(EMPTY_QUERY);
+    expect(movedPasses('sideways', null)).toBe(true);
+    expect(movedPasses('any', { kind: 'done', early: false })).toBe(true);
+    expect(movedPasses('worse', { kind: 'better', early: false })).toBe(false);
+    expect([sinceDay('2026-11-06'), sinceDay('6 Nov'), sinceDay(null)]).toEqual(['2026-11-06', null, null]);
+  });
+  it('keeps the goals the context passes; without it, none', () => {
+    const keep = new Set([sums[0]!.goal.id, sums[1]!.goal.id]);
+    const moved = (g: { id: string }, kind: string) => keep.has(g.id) && (kind === 'any' || g.id === sums[0]!.goal.id);
+    expect(applyQuery(sums, { ...EMPTY_QUERY, moved: 'worse', since: '2026-11-02' }, { ...ctx, moved }).map((x) => x.goal.id)).toEqual([sums[0]!.goal.id]);
+    expect(applyQuery(sums, { ...EMPTY_QUERY, moved: 'any', since: '2026-11-02' }, { ...ctx, moved }).length).toBe(2);
+    expect(applyQuery(sums, { ...EMPTY_QUERY, moved: 'any' }, ctx)).toEqual([]);
   });
 });

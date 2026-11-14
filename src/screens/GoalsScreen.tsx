@@ -1,3 +1,5 @@
+// Home rule 5's `moved=` (what changed since a day) answers once this is loaded (app/moved.ts).
+import '../app/moved';
 import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../ui/Icon';
 import { Link, useSearchParams } from 'react-router';
