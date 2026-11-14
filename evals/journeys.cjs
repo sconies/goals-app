@@ -7274,6 +7274,10 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   const listShape = p.locator('main .status-shape[data-status="unmeasured"]').first();
   await listShape.waitFor();
   await see(p.locator('main'), 'Not measured yet', 'the Goals list does not say the goal is Not measured yet');
+  // The Board has a lane for it, as for every status (#510 review), with the held goal's card in it.
+  const title = ((await h.snapshot()).goals ?? []).find((x) => x.id === 'lead-flaky').title;
+  await p.goto(url('/goals?scope=all&view=board&status=unmeasured'));
+  await see(p.getByRole('region', { name: /^Not measured yet, 1$/ }), title, 'the Board has no Not measured yet lane with the held goal’s card');
   const held = await h.snapshot();
   const g = (held.goals ?? []).find((x) => x.id === 'lead-flaky');
   // Said to be measured again: the goal is held to its plan once more.

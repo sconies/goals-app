@@ -10,13 +10,15 @@ import type { DisplayStatus } from '../domain/types';
 import { LevelTag, StatusShape, StatusWord, TitleTell } from '../ui/bits';
 import { rhythmOf } from '../domain/thresholds';
 import { Icon } from '../ui/Icon';
-import { ATTENTION } from '../domain/vocabulary';
+import { ATTENTION, STATUS_ORDER } from '../domain/vocabulary';
 import { waitingOnDecision } from '../domain/attention';
 import { hasStory, Keep, ResultTag, StoryLines } from '../ui/GoalStory';
 import { useSummaries, type ViewGroup } from './GoalViews';
 
-/** A lane per status, worst first, each titled with its own word: No check-in yet and Not started are lanes of their own. */
-const COLUMNS: { key: string; title: string; statuses: DisplayStatus[]; always: boolean }[] = (['off', 'risk', 'stale', 'none', 'planned', 'on', 'done'] as const).map((k) => ({
+/** A lane per status, worst first, each titled with its own word: No check-in yet, Not measured yet and Not started are
+    lanes of their own. The lanes are the shared status list (vocabulary STATUS_ORDER), so a new status always has one
+    (#510 review: Not measured yet had none). */
+const COLUMNS: { key: string; title: string; statuses: DisplayStatus[]; always: boolean }[] = STATUS_ORDER.map((k) => ({
   key: k, title: LABEL[k], statuses: [k], always: k === 'off' || k === 'risk' || k === 'stale' || k === 'on',
 }));
 
