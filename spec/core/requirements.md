@@ -122,7 +122,7 @@ Every save (goal, plan, check-in, comment, decision, workspace) is logged with w
 
 - **Copy:** build it as Faro does.
 - **Help:** “The activity log” (`activity`), screens `Activity`
-- **Journeys and checks:** U1, U3, U4, U5, U6, U7, U10, U11, U13, U14, U35, U37, U60, U142
+- **Journeys and checks:** U1, U3, U4, U5, U6, U7, U10, U11, U13, U14, U35, U37, U60, U101, U142
 
 ## Status rules
 
@@ -294,7 +294,7 @@ The owner can post an update at any time from the goal page. It is the same chec
 
 - **Copy:** build it as Faro does.
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`
-- **Journeys and checks:** U1
+- **Journeys and checks:** U1, U102
 
 ### OWNER-ONLY
 
@@ -664,7 +664,7 @@ The fit-and-finish review's rules hold: text follows the browser's text size; co
 
 - **Copy:** build it as Faro does.
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
-- **Journeys and checks:** F10, F15, F17, P10
+- **Journeys and checks:** F10, F15, F17, F20, P10
 
 ### FIT-AND-FINISH-AREAS
 
@@ -716,7 +716,7 @@ Whoever sets up a workspace is its admin. Admins add people and change their det
 
 - **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Workspace: Access” (`workspace-access`)
-- **Journeys and checks:** U5, U10, U14, U60, U141
+- **Journeys and checks:** N31, U5, U10, U14, U60, U141
 
 ### PEOPLE-DIRECTORY
 
@@ -1130,7 +1130,7 @@ Home opens on what is asked of you today, with one primary action, or says that 
 - **Rule:** [Home: what is asked of you today](rules/home.md)
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Tests:** `evals/attention.eval.ts` (5)
-- **Journeys and checks:** F25, N3, N10, N26, U103, U122
+- **Journeys and checks:** F25, N3, N10, N26, U101, U103, U122
 
 ## Interface
 
@@ -1470,6 +1470,14 @@ Faro is a small core with named extension points (routes, navigation, Home block
 - **Help:** “Features: switching parts of Faro on or off” (`features`)
 - **Tests:** `evals/modules.eval.ts` (4)
 - **Journeys and checks:** N21, N22, N34, U48, U103, U104, U164, U165, U166
+
+### RHYTHM-OPTIONAL
+
+An admin chooses the check-in rhythm for a workspace: every week, or none. With none, nothing is due or late for want of a check-in, no goal reads No recent update, and a status that isn’t this week’s says which week it is from. Dates people set still count. The change says what it will do first, is logged, and can be undone.
+
+- **Copy:** build it as Faro does.
+- **Help:** “Features: switching parts of Faro on or off” (`features`)
+- **Journeys and checks:** F20, N31, U101, U102
 
 ### FEATURE-GROUPS
 

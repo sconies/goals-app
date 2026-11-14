@@ -69,6 +69,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | The same check-in, a week later (Thursday 15 October, week 5): no check-in yet this week. | `off, due` |
 | Off track in week 4 with a path back by week 5; checked in again for week 6 (posted 19 October), still off track, carrying the same path. On Thursday 22 October (week 6). | `off, missed-path` |
 | Off track in week 4 (posted Monday 5 October) and nothing since: on Thursday 22 October (17 days later), the status itself has gone stale, so it is no longer flagged off track. | `stale, due` |
+| Every week, then with no set rhythm: on track in week 3 (posted Mon 28 Sept) and nothing for week 4; Thursday 8 October. | `due \| none` |
+| Every week, then with no set rhythm: at risk in week 1 (posted Mon 14 Sept) with no path to green, and nothing since; Thursday 8 October. With no rhythm it is judged by what it last said, so its real flags come back. | `stale, due \| no-path, risk` |
+| Every week, then with no set rhythm: off track in week 3 (posted Mon 28 Sept), said back on plan by week 3; Thursday 8 October. | `off, missed-path, due \| off, missed-path` |
 | At risk with no path to green, and an open decision ask on the goal (week 4, Thursday 8 October). | `decision, no-path, risk` |
 | Off track in week 4 (posted Monday 5 October), and the lead agreed an action on Tuesday 6 October, due week 6. Which group of the Needs attention list on Thursday 8 October, and on Monday 5 October before that? | `handled; needs` |
 | Off track in week 4 (posted Monday 5 October), and the lead marked it reviewed on Tuesday 6 October. On Thursday 8 October: being handled, needs attention, looked at? | `handled by nothing; needs attention: yes; looked at: reviewed` |

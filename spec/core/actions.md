@@ -62,9 +62,10 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | [deleteCycle](#deletecycle) | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`delete_cycle`](tools.md#delete_cycle) |
 | [undoStart](#undostart) | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`undo_start_cycle`](tools.md#undo_start_cycle) |
 | [arrive](#arrive) | Arrive: the first time you choose your name in a workspace (its arrival screen), the log says so, once | Anyone, as themselves (in the internal app the first sign-in records it: SR3) | none, on purpose ([why](#arrive)) |
-| [renameWorkspace](#renameworkspace) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`rename_workspace`](tools.md#rename_workspace) |
-| [setRecording](#setrecording) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`set_recording`](tools.md#set_recording) |
-| [setModule](#setmodule) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`set_feature`](tools.md#set_feature) |
+| [renameWorkspace](#renameworkspace) | Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace | Admins | [`rename_workspace`](tools.md#rename_workspace) |
+| [setRecording](#setrecording) | Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace | Admins | [`set_recording`](tools.md#set_recording) |
+| [setModule](#setmodule) | Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace | Admins | [`set_feature`](tools.md#set_feature) |
+| [setRhythm](#setrhythm) | Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace | Admins | [`set_rhythm`](tools.md#set_rhythm) |
 | [undoRemoval](#undoremoval) | Undo a removal straight after it (the Undo on its message): every record it changed goes back as it was | Whoever removed it, or an admin | none, on purpose ([why](#undoremoval)) |
 | [restoreRemoved](#restoreremoved) | Restore something removed, stopped or marked as left (within 30 days), and see it on Recently removed | An admin (everything), or whoever removed it (their own) | [`restore_removed`](tools.md#restore_removed), [`list_removed`](tools.md#list_removed) |
 | [createToken](#createtoken) | Make an MCP token for someone | Admins | [`create_token`](tools.md#create_token) |
@@ -1334,7 +1335,7 @@ Nothing.
 
 ## renameWorkspace
 
-**Does:** Rename the workspace; turn recording on or off; switch features on or off; delete the workspace.
+**Does:** Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace.
 
 **Input**:
 
@@ -1356,7 +1357,7 @@ Nothing.
 
 ## setRecording
 
-**Does:** Rename the workspace; turn recording on or off; switch features on or off; delete the workspace.
+**Does:** Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace.
 
 **Input**:
 
@@ -1379,7 +1380,7 @@ Nothing.
 
 ## setModule
 
-**Does:** Rename the workspace; turn recording on or off; switch features on or off; delete the workspace.
+**Does:** Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace.
 
 **Input**:
 
@@ -1400,6 +1401,33 @@ Nothing.
 - “There’s no feature called ….”
 
 **AI tools that do the same:** [`set_feature`](tools.md#set_feature)
+
+## setRhythm
+
+**Does:** Rename the workspace; turn recording on or off; switch features on or off; choose the check-in rhythm; delete the workspace.
+
+**Input**:
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `weeks` | `number` | yes |  |
+| `dueDay` | `number` | no |  |
+| `from` | `string \| null` | no |  |
+
+**Result:** `Commit \| null`
+
+**Who may:** Admins.
+
+**The rule:** `setRhythm`, in `src/domain/rhythm.ts`.
+
+**Refuses with:**
+
+- “Only admins can change the check-in rhythm.”
+- “Faro checks in every week, or on no set rhythm.”
+- “Choose a day of the week.”
+- “That year is over; its rhythm can’t change.”
+
+**AI tools that do the same:** [`set_rhythm`](tools.md#set_rhythm)
 
 ## undoRemoval
 

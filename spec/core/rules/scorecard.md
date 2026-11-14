@@ -105,6 +105,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Stages A (due week 3) and B (due week 7), seen in week 6: no check-in; then A done in week 4, B expected week 9; then both done (week 4 and week 8), seen in week 9. | `done: 0 of 2 (1 due by week 6); late: 1 (late, up to 3 weeks); next: Week 6 (A, due week 3) \| done: 1 of 2 (1 due by week 6); late: 1 (slipping, up to 2 weeks); next: Week 9 (B, due week 7) \| done: 2 of 2 (2 due by week 9); late: None (on schedule); next: All done (last done in week 8)` |
 | The 30→75 goal with 36, 39, 42, 45 in weeks 1–4 and 76 in week 5, called done; seen in week 7, and its forecast. | `result: Done [good] (76% in week 5); no forecast` |
 | The same, but stale. | `hit: Can’t say` |
+| The same numbers with no set check-in rhythm (FT1), seen in week 6: never stale, so it is still projected from the numbers there are, and says whose pace it is (asOfWeek 4). | `hit: Very unlikely (likely 72% by cycle end · on the pace to week 4)` |
 
 ## Where it lives
 

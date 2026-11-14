@@ -92,7 +92,7 @@ describe('the receipt (spec 2.1)', () => {
   });
   it('reads its facts from the week (receiptFacts)', () => {
     const s = weeks(41, 46, [46], 41);
-    const f = receiptFacts(weekProgress('tunde', s, cycle, 46, new Date('2026-11-13T12:00:00Z')), 'tunde', s, cycle, 46, dueWords(true, cycle, 46, true));
+    const f = receiptFacts(weekProgress('tunde', s, cycle, 46, new Date('2026-11-13T12:00:00Z')), 'tunde', s, cycle, 46, dueWords(true, cycle, 46, true))!;
     expect(f).toMatchObject({ total: 1, after: 1, week: 46, words: { by: 'before Thursday’s review', after: 'after Thursday’s review' }, run: 5, nextDue: '2026-11-19' });
   });
 });
@@ -225,11 +225,11 @@ describe('the run, after #410’s review', () => {
     s.checkIns = s.checkIns.filter((c) => c.week !== 45).concat(ci('g1', 45, false, { backfilled: true }));
     expect(onTimeStreak('tunde', s, cycle, 46)).toBe(6);
     expect(forgivenIn('tunde', s.goals, s.checkIns, cycle, 46)).toBe(45);
-    const f = receiptFacts(weekProgress('tunde', s, cycle, 46, new Date('2026-11-12T12:00:00Z')), 'tunde', s, cycle, 46, dueWords(false, cycle, 46));
+    const f = receiptFacts(weekProgress('tunde', s, cycle, 46, new Date('2026-11-12T12:00:00Z')), 'tunde', s, cycle, 46, dueWords(false, cycle, 46))!;
     expect(f.forgivenMissed).toBe(true);
     expect(receiptText(f).second).toContain('Week 45 was missed; one missed week doesn’t break a run.');
     const late = weeks(40, 46, [45], 40);
-    const fl = receiptFacts(weekProgress('tunde', late, cycle, 46, new Date('2026-11-12T12:00:00Z')), 'tunde', late, cycle, 46, dueWords(false, cycle, 46));
+    const fl = receiptFacts(weekProgress('tunde', late, cycle, 46, new Date('2026-11-12T12:00:00Z')), 'tunde', late, cycle, 46, dueWords(false, cycle, 46))!;
     expect(receiptText(fl).second).toContain('Week 45 came in late; one late week doesn’t break a run.');
   });
   it('counts a goal taken over only from when it was the new owner’s (medium 4)', () => {

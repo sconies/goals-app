@@ -8,6 +8,7 @@ import { SHORT_MEANING } from '../domain/story';
 import { isEveryday, levelRank } from '../domain/levels';
 import type { DisplayStatus } from '../domain/types';
 import { LevelTag, StatusShape, StatusWord, TitleTell } from '../ui/bits';
+import { rhythmOf } from '../domain/thresholds';
 import { Icon } from '../ui/Icon';
 import { ATTENTION } from '../domain/vocabulary';
 import { waitingOnDecision } from '../domain/attention';
@@ -49,6 +50,8 @@ export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
                   past its lane's heading still says where it stands. The level sits right on the same row. */}
               <span className="board-top">
                 <StatusWord k={s.status} className="board-status" />
+                {/* With no set rhythm, a status not from this week says which (FT1). */}
+                {!rhythmOf(app.cycle) && s.asOfWeek != null && s.status !== 'done' && <span className="hint board-asof">as of week {s.asOfWeek}</span>}
                 {!isEveryday(app.cycle, s.goal.level) && <span className="board-level"><LevelTag level={s.goal.level} /></span>}
               </span>
               <span className="board-title">{s.goal.title}</span><TitleTell goal={s.goal} />
