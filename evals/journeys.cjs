@@ -195,7 +195,11 @@ function harness(device) {
       await p.evaluate(() => Promise.race([Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))), new Promise((res) => setTimeout(res, 5000))]));
       await p.addScriptTag({ content: AXE });
       const v = await p.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations
-        .filter((x) => x.impact === 'serious' || x.impact === 'critical').map((x) => `${x.id} ${x.nodes[0].target.join(' ')}`));
+        .filter((x) => x.impact === 'serious' || x.impact === 'critical').map((x) => {
+          // A contrast failure says what axe measured, so a failure seen only in CI can be read from its log.
+          const d = x.id === 'color-contrast' ? x.nodes[0].any?.[0]?.data : null;
+          return `${x.id} ${x.nodes[0].target.join(' ')}${d ? ` (${d.fgColor} on ${d.bgColor}, ${d.contrastRatio}:1${d.messageKey ? `, ${d.messageKey}` : ''})` : ''}`;
+        }));
       set('a11y', !v.length, `${label}: ${v.slice(0, 2).join('; ')}`);
       const sideways = await p.evaluate(() => {
         const w = document.documentElement.clientWidth;
