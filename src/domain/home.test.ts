@@ -199,7 +199,7 @@ describe('Home rule 4: the sets [HOME-MANAGER]', () => {
     const p = s.people.find((x) => x.id === who)!;
     const teams = s.teams.filter((t) => t.id === p.teamId || t.leadId === who).map((t) => ({ id: t.id, name: t.name }));
     const facts = { goals: s.goals.filter((g) => !g.stoppedAt).map((g) => ({ id: g.id, ownerId: g.ownerId, teamId: g.teamId })), viewerId: who, teams, watched: new Set(watchedGoals(who, s).map((g) => g.id)) };
-    const { tabs } = scopesFor(facts, null);
+    const { every: tabs } = scopesFor(facts, null);
     return { sets: homeSets({ id: who, teams }, tabs, attention, s.teams), tabs };
   };
   const tab = (tabs: { id: string; ids: string[] }[], id: string) => tabs.find((t) => t.id === id)!.ids.length;
@@ -244,6 +244,18 @@ describe('Home rule 4: the sets [HOME-MANAGER]', () => {
     expect(homeSets({ id: 'me', teams: [{ id: 't', name: 'T' }] }, tabs, list, [{ id: 't', name: 'T' }]).team).toBeNull();
     expect(homeSets({ id: 'me', teams: [] }, tabs.slice(0, 1), list, []).team).toBeNull();
   });
+  it('a one-team workspace: My team waits on Goals (the same list as All), yet Home still shows the team’s goals that aren’t yours (review of #468)', () => {
+    const g = (id: string, ownerId: string) => ({ goal: { id, ownerId, teamId: 't', title: id }, status: { status: 'off' }, flags: [{ kind: 'off' }], weight: 1, handled: null, lookedAt: null }) as unknown as GoalAttention;
+    const list = [g('a', 'me'), g('b', 'ana'), g('c', 'ben')];
+    const facts = { goals: list.map((a) => ({ id: a.goal.id, ownerId: a.goal.ownerId, teamId: 't' })), viewerId: 'me', teams: [{ id: 't', name: 'T' }], watched: new Set<string>() };
+    const { tabs, every } = scopesFor(facts, null);
+    expect(tabs.map((t) => t.id)).not.toContain('team');
+    const team = homeSets({ id: 'me', teams: facts.teams }, every, list, facts.teams).team;
+    expect(team?.total).toBe(3);
+    expect(team?.rows.map((a) => a.goal.id)).toEqual(expect.arrayContaining(['b', 'c']));
+    expect(team?.rows.map((a) => a.goal.id)).not.toContain('a');
+  });
+
   it('asTeams: more than twelve goals in two or more teams', () => {
     const t = (...ids: string[]) => ids.map((teamId) => ({ teamId }));
     expect(asTeams(t('a', 'b', 'c'))).toBe(false);
