@@ -162,7 +162,7 @@ async function see(p, text, msg, timeout = 5000) {
     await page.waitForTimeout(100);
   }
   // What was there instead, so a miss under load says what the screen showed (14 Nov, U159's intermittent miss).
-  const shown = String(await (typeof p.innerText === 'function' ? p.innerText({ timeout: 1000 }) : page.locator('body').innerText({ timeout: 1000 })).catch(() => '')).replace(/\s+/g, ' ').trim().slice(0, 240);
+  const shown = String(await (typeof p.page === 'function' ? p.innerText({ timeout: 1000 }) : page.locator('body').innerText({ timeout: 1000 })).catch(() => '')).replace(/\s+/g, ' ').trim().slice(0, 240);
   fail(`${msg || `expected to see “${text}”`}${shown ? ` [it showed: “${shown}”]` : ''}`);
 }
 
