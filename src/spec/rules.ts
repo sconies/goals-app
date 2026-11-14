@@ -257,7 +257,7 @@ export const RULE_LIST: Rule[] = [
     tests: ['src/domain/guards.test.ts#guardrails on a goal', 'src/domain/rules.test.ts#metric status', 'src/domain/rules.test.ts#range status', 'src/domain/rules.test.ts#milestone status', 'src/domain/rules.test.ts#official status', 'evals/scenarios.eval.ts'],
     reqs: ['STATUS-BANDS', 'STATUS-DIRECTION', 'RANGE', 'MILESTONE', 'OWNER-CALL', 'GREENER', 'STALE', 'HONEST-NUMBERS'],
     body: `
-There are seven statuses (codes in brackets): ${STATUS_ORDER.map((k) => `${LABEL[k]} (\`${k}\`)`).join(', ')}, listed worst first. Their meanings are in [the vocabulary](../vocabulary.md). The numbers below come from \`RULES\` in \`src/domain/thresholds.ts\`: on track at ${pct(RULES.onTrack)}, at risk from ${pct(RULES.atRisk)}, well ahead at ${pct(RULES.wellAhead)}, stale after ${RULES.staleCheckIns} missed check-ins (${RULES.staleCheckIns} × 7 × the cycle's check-in weeks: ${RULES.staleDays} days every week; never with no set rhythm), a stage off track when more than ${RULES.lateWeeksOff} weeks late.
+There are eight statuses (codes in brackets): ${STATUS_ORDER.map((k) => `${LABEL[k]} (\`${k}\`)`).join(', ')}, listed worst first. Their meanings are in [the vocabulary](../vocabulary.md). The numbers below come from \`RULES\` in \`src/domain/thresholds.ts\`: on track at ${pct(RULES.onTrack)}, at risk from ${pct(RULES.atRisk)}, well ahead at ${pct(RULES.wellAhead)}, stale after ${RULES.staleCheckIns} missed check-ins (${RULES.staleCheckIns} × 7 × the cycle's check-in weeks: ${RULES.staleDays} days every week; never with no set rhythm), a stage off track when more than ${RULES.lateWeeksOff} weeks late.
 
 ### What the numbers say: the calculation
 
@@ -1574,25 +1574,25 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
     id: 'unmeasured',
     title: 'A goal held to no number',
     summary: 'A goal whose number isn’t measured yet has no status from its plan, nothing due, late or quiet, and no projection, until it is measured: a core rule over the goal’s own field.',
-    code: [{ file: 'src/domain/unmeasured.ts', names: ['isUnmeasured', 'heldToNoNumber', 'UNMEASURED'] }, { file: 'src/domain/status.ts', names: ['goalStatus', 'projects'] }, { file: 'src/domain/attention.ts', names: ['flagsFor'] }],
+    code: [{ file: 'src/domain/unmeasured.ts', names: ['isUnmeasured', 'heldToNoNumber'] }, { file: 'src/domain/vocabulary.ts', names: ['STATUS'] }, { file: 'src/domain/status.ts', names: ['goalStatus', 'projects'] }, { file: 'src/domain/attention.ts', names: ['flagsFor'] }],
     tests: ['src/domain/unmeasured.test.ts'],
     reqs: [],
     body: `
-**The word.** *Not measured yet*: the goal's number isn't measured, so it is held to no number. Shown as a broken ring and the words, where its status would be; never a status shape.
+**The word.** *Not measured yet* (\`unmeasured\`): the goal's number isn't measured, so it is held to no number. It is a status of its own (Lane, 14 Nov), a ring with a dot at its centre and the words, and says the same everywhere a goal's status is shown: the Goals list, the goal and metric pages, the library's counts, the workbook and the MCP tools. Never No check-in yet.
 
 **Data.** A goal is held to no number while \`unmeasuredSince\` is set and it is neither removed nor stopped (\`isUnmeasured\`). The field is the goal's own: whatever measures the goal sets and clears it (the metric library does, when the goal is linked to a metric with a gap and when that metric is measured; its section says how). These rules read the goal alone, so they hold with every module switched off.
 
-**Its status** (\`goalStatus\`). Done if the owner's latest check-in calls it done; Not started in week 0; otherwise No check-in yet (\`none\`), whatever its plan or check-ins say, and never No recent update: nothing on it goes quiet. Its calculation is \`none\`, and it is never greener than the numbers. It projects nothing (\`projects\`).
+**Its status** (\`goalStatus\`). Done if the owner's latest check-in calls it done; otherwise Not measured yet (\`unmeasured\`), in week 0 too, whatever its plan or check-ins say, and never No recent update: nothing on it goes quiet. Its calculation is \`none\`, and it is never greener than the numbers. It projects nothing (\`projects\`): no projected year-end number. In a group it ranks with Not started and Done, below On track.
 
-**Nothing due** (\`flagsFor\`). No check-in is due on it, and it has no worsening trend; it lists under its metric's To sort out instead. The export says \`unmeasured: { since }\` and the status label Not measured yet.`,
+**Nothing due** (\`flagsFor\`). No check-in is due on it, and it has no worsening trend; it lists under its metric's To sort out instead. The export says \`unmeasured: { since }\` and the status \`unmeasured\`, labelled Not measured yet.`,
     examples: (() => {
       const today = new Date(CHECK_IN_MOMENT);
       return [
-        { given: 'In the demo workspace, Flaky test rate’s goal (lead-flaky), held to no number since today.', then: 'none, calc none, projects: no', run: () => { const g = { ...goalIn('lead-flaky'), unmeasuredSince: CHECK_IN_MOMENT }; const c = demo!.cycles.find((x) => x.id === g.cycleId)!; const st = goalStatus(g, c, demo!.checkIns, today); return `${st.status}, calc ${st.calc}, projects: ${projects(g, st.status) ? 'yes' : 'no'}`; } },
+        { given: 'In the demo workspace, Flaky test rate’s goal (lead-flaky), held to no number since today.', then: 'unmeasured, calc none, projects: no', run: () => { const g = { ...goalIn('lead-flaky'), unmeasuredSince: CHECK_IN_MOMENT }; const c = demo!.cycles.find((x) => x.id === g.cycleId)!; const st = goalStatus(g, c, demo!.checkIns, today); return `${st.status}, calc ${st.calc}, projects: ${projects(g, st.status) ? 'yes' : 'no'}`; } },
         { given: 'The same goal, stopped.', then: 'not held', run: () => (isUnmeasured({ ...goalIn('lead-flaky'), unmeasuredSince: CHECK_IN_MOMENT, stoppedAt: CHECK_IN_MOMENT }) ? 'held' : 'not held') },
       ];
     })(),
-    unclear: ['The goal side asks for no baseline once a goal may be saved without one (backlog GB and BL); until then a held goal keeps the plan it was given, unjudged.', 'Lists show a held goal as No check-in yet; its page shows Not measured yet.'],
+    unclear: ['The goal side asks for no baseline once a goal may be saved without one (backlog GB and BL); until then a held goal keeps the plan it was given, unjudged.'],
   },
   /* ---------- a baseline as a field of its own (backlog BL; core) ---------- */
   {

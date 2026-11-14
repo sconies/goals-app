@@ -11,10 +11,7 @@
    Pure: no screens, storage or network. */
 import type { Goal } from './types';
 
-/** The word, one meaning: held to no number, because its number isn't measured yet. */
-export const UNMEASURED = 'Not measured yet';
-/** What it means, in a line (the goal page and Help). */
-export const UNMEASURED_MEANING = 'Its number isn’t measured yet, so it is held to no number: no status from its plan, nothing late, and no baseline needed.';
+/* Its word and meaning, Not measured yet, live once in the vocabulary (STATUS.unmeasured): a status of its own (Lane, 14 Nov). */
 
 /** Whether a goal is held to no number: set, and the goal neither removed nor stopped. */
 export const isUnmeasured = (g: Pick<Goal, 'unmeasuredSince' | 'removedAt' | 'stoppedAt'>): boolean => !!g.unmeasuredSince && !g.removedAt && !g.stoppedAt;

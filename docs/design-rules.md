@@ -17,7 +17,7 @@ This app must not look like a default AI-generated interface. These rules are en
 
 ## What we do instead
 
-- **Status is a shape plus a word, always together.** Shapes: filled circle for on track, half circle for at risk, open ring for off track, dashed ring for no recent update, ticked circle for done. They sit where the eye starts: the first thing on a row, card or node.
+- **Status is a shape plus a word, always together.** Shapes: filled circle for on track, half circle for at risk, open ring for off track, dashed ring for no recent update, a ring with a dot at its centre for not measured yet (Lane, 14 Nov), ticked circle for done. They sit where the eye starts: the first thing on a row, card or node.
 - **Emphasis through type and placement,** not colour blocks: weight, size, order, and the status word itself.
 - **Off track gets a quiet full-surface wash** (`--off-wash`) on the whole container, never an edge. At risk and no recent update get no wash; the shape and word carry them.
 - **Lists are hairline-divided rows,** not floating cards, except where the layout is cards by choice (Cards and Board views).

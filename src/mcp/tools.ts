@@ -97,7 +97,7 @@ const str = (description: string, extra: object = {}) => ({ type: 'string', desc
 const num = (description: string) => ({ type: 'number', description });
 const int = (description: string) => ({ type: 'integer', description });
 const bool = (description: string) => ({ type: 'boolean', description });
-const STATUSES: DisplayStatus[] = ['off', 'risk', 'stale', 'none', 'on', 'done', 'planned'];
+const STATUSES: DisplayStatus[] = ['off', 'risk', 'stale', 'none', 'on', 'done', 'planned', 'unmeasured'];
 const CALLS = ['on', 'risk', 'off', 'done'] as const;
 /** The words a tool says for a status, with the code beside them for anything that reads it: "Off track (off)". */
 export const statusWords = (k: DisplayStatus) => withCode(STATUS[k]);

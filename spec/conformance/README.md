@@ -40,7 +40,7 @@ Rows go by week, then goals in key order (G-1, G-2 … G-126).
 | [scorecard-words.csv](scorecard-words.csv) | 21910 | scorecard cell, goal and week (when asked) | `week`, `goal`, `cell`, `value`, `label`, `sub` |
 | [checkin.csv](checkin.csv) | 5249 | check-in in the workspace | `checkin`, `week`, `goal`, `calculated`, `reason`, `asks_target`, `needs_path`, `missing`, `call`, `greener`, `call_missing`, `moment` |
 | [find.csv](find.csv) (stage 3) | 23 | search | `kind`, `q`, `total`, `near`, `ids` |
-| [goals.csv](goals.csv) (not stage 1) | 23 | Goals query | `query`, `total`, `near`, `off`, `risk`, `stale`, `none`, `on`, `planned`, `done`, `attention`, `ids` |
+| [goals.csv](goals.csv) (not stage 1) | 23 | Goals query | `query`, `total`, `near`, `off`, `risk`, `stale`, `none`, `unmeasured`, `on`, `planned`, `done`, `attention`, `ids` |
 | [navigation.csv](navigation.csv) (stage 3) | 60 | viewer and address | `viewer`, `owns_goals`, `address`, `menu`, `tabs`, `lit`, `page` |
 | [import.csv](import.csv) (stage 2) | 70 | case of the change engine | `case`, `actor`, `sheet`, `rows`, `answers`, `given`, `kind`, `level`, `group`, `message`, `must`, `questions`, `saves`, `kinds` |
 | [changes.csv](changes.csv) (stage 2) | 135 | case of the change engine, then one per item it would save | `case`, `row`, `actor`, `sheet`, `line`, `rows`, `answers`, `given`, `target`, `name`, `kind`, `diffs`, `counts`, `unchanged`, `needs_reason`, `saves`, `author` |

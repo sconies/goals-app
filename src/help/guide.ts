@@ -124,7 +124,7 @@ const CORE_ARTICLES: Article[] = [
     summary: 'Every goal has a status, always shown as a shape and a word together.',
     group: 'start',
     sections: [
-      { heading: 'The statuses', list: (['on', 'risk', 'off', 'stale', 'none', 'planned', 'done'] as const).map((k) => define(STATUS[k])) },
+      { heading: 'The statuses', list: (['on', 'risk', 'off', 'stale', 'none', 'unmeasured', 'planned', 'done'] as const).map((k) => define(STATUS[k])) },
       { heading: 'The shapes', list: [
         `${LABEL.on}: a filled circle.`,
         `${LABEL.risk}: a half-filled circle.`,
@@ -505,7 +505,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'What it’s for', text: ['Understanding one goal in a couple of seconds, then acting on it: checking in, answering what’s asked of you, commenting or watching. Each fact is said once, in one place.', 'A proposed goal’s page is simpler: Proposed above the title, what it would measure, and Make it active, Change it or Withdraw it for those who may (see Proposed goals).'] },
       { heading: 'The summary bar', list: [
         'First line: the goal, its owner, its level and its key (G-12). Then its status as a shape and a word, and the number in the goal’s own units.',
-        'A goal whose number isn’t measured yet (the metric that measures it has a gap) says “Not measured yet”, with a broken ring, instead of a status: it is held to no number, so nothing on it is due or late and it projects nothing, until the metric is measured.',
+        'A goal whose number isn’t measured yet (the metric that measures it has a gap) has the status “Not measured yet”, a ring with a dot at its centre, everywhere it is shown: it is held to no number, so nothing on it is due or late and it projects nothing, until the metric is measured.',
         'Before a goal’s first check-in, a baseline it was given with its period is shown as its number, with “Baseline, June to September 2026, provisional” beside it; lists say “41.5 min (baseline)”. Its status is No check-in yet as before, until someone checks in.',
         'Beside the key: when it was last updated, the latest check-in’s date and its week (“Updated 6 Nov · week 45”).',
         'Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go; when lower is better, how far over the target it still is: “5 min over”), and Will it hit the target. A gap on the wrong side of a plan says “short” when higher is better and “over” when lower is better, and a number shown equal to its plan counts as met.',

@@ -28,7 +28,7 @@ export interface ShareCard {
 export const CARD_W = 1200;
 export const CARD_H = 630;
 
-const COLOUR: Record<DisplayStatus, string> = { on: '#1F8A68', risk: '#C46A0C', off: '#C8372B', stale: '#667085', done: '#3451D1', planned: '#667085', none: '#667085' };
+const COLOUR: Record<DisplayStatus, string> = { on: '#1F8A68', risk: '#C46A0C', off: '#C8372B', stale: '#667085', done: '#3451D1', planned: '#667085', none: '#667085', unmeasured: '#667085' };
 const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /** Words broken into lines of about `chars` characters, at most `max` lines, the last ending in an ellipsis if cut. */

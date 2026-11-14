@@ -7217,7 +7217,7 @@ journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Le
   await t.context().close();
 }, []);
 
-journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and owned (MS): as Rhea, Flaky test rate is said to be a Gap with what is missing; its page shows the square Gap mark and, under To sort out, “Not measured yet: 1 goal held to no number”; its goal says “Not measured yet” with the broken ring, nothing due on it. Said to be Measured again, the goal is held to its plan once more', 24, async (h, device) => {
+journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and owned (MS): as Rhea, Flaky test rate is said to be a Gap with what is missing; its page shows the square Gap mark and, under To sort out, “Not measured yet: 1 goal held to no number”; its goal says “Not measured yet” with its own status shape, on its page and in the Goals list filtered to that status, nothing due on it. Said to be Measured again, the goal is held to its plan once more', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/metrics/metric_flaky-rate/edit'));
   const group = p.getByRole('group', { name: 'Is it measured today' });
@@ -7236,7 +7236,12 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   await p.goto(url('/goals/lead-flaky'));
   const bar = p.locator('.goal-bar');
   await see(bar, 'Not measured yet', 'the goal does not say it is held to no number');
-  h.set('errors', (await bar.locator('.life-shape').count()) >= 1, 'the goal’s Not measured yet has no shape');
+  // Its own status, shape and word (Lane, 14 Nov), on its page and in the Goals list, never No check-in yet.
+  h.set('errors', (await bar.locator('.status-shape[data-status="unmeasured"]').count()) >= 1, 'the goal’s Not measured yet has no status shape of its own');
+  await p.goto(url('/goals?scope=all&status=unmeasured'));
+  const listShape = p.locator('main .status-shape[data-status="unmeasured"]').first();
+  await listShape.waitFor();
+  await see(p.locator('main'), 'Not measured yet', 'the Goals list does not say the goal is Not measured yet');
   const held = await h.snapshot();
   const g = (held.goals ?? []).find((x) => x.id === 'lead-flaky');
   // Said to be measured again: the goal is held to its plan once more.

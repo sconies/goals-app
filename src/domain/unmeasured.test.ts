@@ -4,6 +4,8 @@ import { buildPlatformOrg } from '../data/platformOrg';
 import { attentionFor } from './attention';
 import { currentCycle, scopeToCycle } from './cycle';
 import { goalStatus, projects } from './status';
+import { summarise } from './summary';
+import { LABEL, MEANING, SHAPE_WORDS } from './vocabulary';
 import { heldToNoNumber, isUnmeasured } from './unmeasured';
 
 const today = new Date('2026-11-05T12:00:00Z');
@@ -25,7 +27,7 @@ describe('a goal held to no number', () => {
     const was = goalStatus(g, cycle, scoped.checkIns, today);
     const st = goalStatus(held, cycle, scoped.checkIns, today);
     expect(was.unmeasured).toBeUndefined();
-    expect(st).toMatchObject({ status: 'none', calc: 'none', greener: false, unmeasured: true });
+    expect(st).toMatchObject({ status: 'unmeasured', calc: 'none', greener: false, unmeasured: true });
     expect(projects(held, st.status)).toBe(false);
     // Months without a check-in still aren't quiet.
     const quiet = goalStatus(held, cycle, [], new Date('2026-12-20T12:00:00Z'));
@@ -33,5 +35,21 @@ describe('a goal held to no number', () => {
     const flags = attentionFor(held, { ...scoped, goals: scoped.goals.map((x) => (x.id === held.id ? held : x)) }, cycle, today).flags.map((f) => f.kind);
     expect(flags).not.toContain('due');
     expect(flags).not.toContain('stale');
+  });
+  // Lane, 14 Nov: Not measured yet is a status of its own, said the same wherever the goal is shown, never No check-in yet.
+  it('has a status of its own, Not measured yet, in week 0 too, until its owner calls it done', () => {
+    expect(LABEL.unmeasured).toBe('Not measured yet');
+    expect(MEANING.unmeasured).toMatch(/isn’t measured yet/);
+    expect(SHAPE_WORDS.unmeasured).toEqual(['Not measured yet']);
+    expect(goalStatus(held, cycle, [], new Date(cycle.startDate + 'T12:00:00Z')).status).toBe('unmeasured');
+    const done = { id: 'c-done', goalId: held.id, week: 3, status: 'done', calculated: 'on', postedAt: '2026-11-04T09:00:00.000Z' } as unknown as (typeof scoped.checkIns)[number];
+    expect(goalStatus(held, cycle, [...scoped.checkIns, done], today).status).toBe('done');
+  });
+  it('says Not measured yet on every list row, with no projected year-end number', () => {
+    const snap = { ...scoped, goals: scoped.goals.map((x) => (x.id === held.id ? held : x)) };
+    const row = summarise(held, snap, cycle, today, goalStatus(held, cycle, scoped.checkIns, today).week);
+    expect(row.status).toBe('unmeasured');
+    expect(row.statusLabel).toBe('Not measured yet');
+    expect(row.forecast).toBeNull();
   });
 });

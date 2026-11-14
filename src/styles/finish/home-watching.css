@@ -164,7 +164,7 @@
 .diff ins.diff-status { display: inline-flex; align-items: center; gap: 6px; }
 .diff ins.diff-status .status-shape { width: 12px; height: 12px; flex: none; }
 .diff ins.tone-on { color: var(--on-fg); } .diff ins.tone-risk { color: var(--risk-fg); } .diff ins.tone-off { color: var(--off-fg); }
-.diff ins.tone-stale, .diff ins.tone-none, .diff ins.tone-planned { color: var(--stale-fg); } .diff ins.tone-done { color: var(--done-fg, var(--on-fg)); }
+.diff ins.tone-stale, .diff ins.tone-none, .diff ins.tone-unmeasured, .diff ins.tone-planned { color: var(--stale-fg); } .diff ins.tone-done { color: var(--done-fg, var(--on-fg)); }
 /* Touch: the 16px "Show the change" links get a 44px target without moving anything ([WA] 4). */
 @media (pointer: coarse) {
   .change .linkish.tiny { padding-block: 14px; margin-block: -14px; }

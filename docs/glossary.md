@@ -74,6 +74,7 @@ One meaning for every word the app uses for a state. Each is defined once, in `s
 | `stale` | No recent update | No check-in for 14 days or more, so its status can’t be trusted. | `goalStatus` (status.ts) | screens, exports, help, ai | `No recent check-in`, `gone quiet`, `goes quiet`, `An update is overdue`, `update is overdue`, `no check-in for 2+ weeks`, `Quiet for` |
 | `none` | No check-in yet | Under way, with no check-in yet. | `goalStatus` (status.ts) | screens, exports, help, ai | `Waiting for its first check-in`, `Nothing reported yet` |
 | `planned` | Not started | Hasn’t begun: its first week is still to come. | `goalStatus` (status.ts) | screens, exports, help, ai |  |
+| `unmeasured` | Not measured yet | Its number isn’t measured yet, so it is held to no number: no status from its plan, nothing late, and no baseline needed. | `goalStatus` (status.ts) | screens, exports, help, ai |  |
 | `done` | Done | Finished: the owner has called it done. | `goalStatus` (status.ts) | screens, exports, help, ai |  |
 
 ### What needs attention, and why
