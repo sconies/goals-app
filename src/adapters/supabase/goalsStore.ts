@@ -9,7 +9,7 @@ import {
   type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type FeedbackRow, type GoalRow, type PersonRow, type RequestRow,
   type RetroRow, type ReviewRow, type StageRow, type TeamRow, type TokenRow, type ViewRow, type WatchRow, type WorkspaceRow } from '../../data/rows';
 import { EXAMPLE, StaleError, type Commit, type Store } from '../../data/store';
-import type { HistoryAsk, HistoryPage, LoadWindow } from '../../ports/store';
+import type { HistoryAsk, HistoryPage, LoadWindow, PersonPref } from '../../ports/store';
 import { ANCHOR_ACTIONS, ANCHOR_ENTITIES, historySize, openCycles, wholeOnly } from '../../ports/window';
 import { hasModuleRows, type DbRow, type ModuleRecords } from '../../domain/records';
 import { MODULE_RECORDS } from '../../core/records';
@@ -214,5 +214,18 @@ export class SupabaseStore implements Store {
   async deleteWorkspace(ws: string) {
     if (ws === EXAMPLE.id) throw new Error('The example can’t be deleted.');
     await this.rpc('okr_delete_workspace', { ws }, 'Deleting the workspace');
+  }
+
+  /** Every person's server-kept Prefs in a workspace (faro.person_prefs, migration 0053). */
+  async personPrefs(ws: string): Promise<PersonPref[]> {
+    const { data, error } = await this.db.from('person_prefs').select('person_id, key, value').eq('workspace_id', ws);
+    if (error) throw new Error(`person_prefs: ${error.message}`);
+    return ((data ?? []) as { person_id: string; key: string; value: unknown }[]).map((r) => ({ personId: r.person_id, key: r.key, value: r.value }));
+  }
+
+  /** Keeps one, replacing the person's value for that key. */
+  async keepPersonPref(ws: string, p: PersonPref) {
+    const { error } = await this.db.from('person_prefs').upsert({ workspace_id: ws, person_id: p.personId, key: p.key, value: p.value, updated_at: new Date().toISOString() });
+    if (error) throw new Error(`person_prefs: ${error.message}`);
   }
 }
