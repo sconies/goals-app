@@ -274,12 +274,32 @@ function nameProblem(name, thing) {
 	if (thing === "workspace" && t.length > 80) return `Keep the name to 80 characters or fewer: it has ${t.length}.`;
 	return null;
 }
+/** The cycle's rhythm, or null with no set rhythm (`checkInWeeks` 0). Every week from the cycle's start when unset. */
+function rhythmOf(cycle) {
+	const weeks = cycle.checkInWeeks ?? 1;
+	if (weeks === 0) return null;
+	const from = cycle.rhythmFrom && cycle.rhythmFrom > cycle.startDate ? cycle.rhythmFrom : cycle.startDate;
+	return {
+		weeks,
+		dueDay: cycle.reviewDay,
+		from
+	};
+}
+/** Days without a check-in before a goal has no recent update: RULES.staleCheckIns × 7 × the cycle's check-in weeks
+(14 every week). Null with no set rhythm: then nothing goes quiet. */
+function staleAfterDays(cycle) {
+	const r = rhythmOf(cycle);
+	return r ? RULES.staleCheckIns * 7 * r.weeks : null;
+}
 var RULES, NUMBER_WORDS;
 var init_thresholds = __esmMin((() => {
 	RULES = {
 		onTrack: .95,
 		atRisk: .8,
 		wellAhead: 1.2,
+		/** Missed check-ins before a goal has no recent update: two check-ins' time, counted in the cycle's rhythm (staleAfterDays). */
+		staleCheckIns: 2,
+		/** @deprecated staleAfterDays(cycle) for a weekly cycle (14 days); kept until the vocabulary and the spec pages say the helper. */
 		staleDays: 14,
 		/** A milestone stage more than this many weeks late is off track. */
 		lateWeeksOff: 2,
@@ -357,7 +377,7 @@ function codeFrom(terms, input) {
 	const coded = /\(([^)]+)\)\s*$/.exec(String(input ?? ""));
 	return coded ? codeFrom(terms, coded[1]) : null;
 }
-var ALL, pct$3, term, STATUS, STATUS_ORDER, statusFlag, FLAG, ATTENTION_FLAGS, ATTENTION, HANDLED_LINE, WARNING, RESULT, QUARTER, OWNER_VIEW_LABEL, OWNER_VIEW, STAGE, ASK_KIND, ASK_STATUS, SESSION, DECIDED, TREND, GAP, REMOVAL, leftName, LEFT, STOPPED, ENDED, COMMENT_REMOVED, NOTE_REMOVED, GROUPS$1, labels, LABEL, MEANING, RESULT_TEXT, RESULT_MEANING, lower, withCode, choices;
+var ALL, pct$3, term, STATUS, STATUS_ORDER, statusFlag, FLAG, ATTENTION_FLAGS, ATTENTION, HANDLED_LINE, WARNING, RESULT, QUARTER, OWNER_VIEW_LABEL, OWNER_VIEW, STAGE, ASK_KIND, ASK_STATUS, SESSION, DECIDED, TREND, GAP, REMOVAL, leftName, LEFT, STOPPED, ENDED, COMMENT_REMOVED, NOTE_REMOVED, AS_OF, RHYTHM, GROUPS$1, labels, LABEL, MEANING, RESULT_TEXT, RESULT_MEANING, lower, withCode, choices;
 var init_vocabulary = __esmMin((() => {
 	init_thresholds();
 	ALL = [
@@ -398,7 +418,7 @@ var init_vocabulary = __esmMin((() => {
 			label: "No recent update",
 			short: `no check-in for ${RULES.staleDays / 7} weeks or more`,
 			meaning: `No check-in for ${RULES.staleDays} days or more, so its status can’t be trusted.`,
-			long: `The latest check-in was posted ${RULES.staleDays} days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in.`,
+			long: `The latest check-in was posted ${RULES.staleDays} days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in. Never used when there is no set check-in rhythm.`,
 			rule: "status#goalStatus",
 			retired: [
 				"No recent check-in",
@@ -910,6 +930,14 @@ var init_vocabulary = __esmMin((() => {
 	COMMENT_REMOVED = REMOVAL["comment-removed"].label;
 	NOTE_REMOVED = REMOVAL["note-removed"].label;
 	REMOVAL.edited.label;
+	AS_OF = "The week a status is from, said when it isn’t this week’s and there is no set check-in rhythm.";
+	RHYTHM = { asOf: term("as-of", {
+		label: "as of week {n}",
+		short: "the week a status is from",
+		meaning: AS_OF,
+		long: AS_OF,
+		rule: "status#goalStatus"
+	}) };
 	GROUPS$1 = {
 		status: {
 			title: "A goal’s status",
@@ -966,6 +994,10 @@ var init_vocabulary = __esmMin((() => {
 		removal: {
 			title: "Removed, stopped and ended",
 			terms: REMOVAL
+		},
+		rhythm: {
+			title: "The check-in rhythm",
+			terms: RHYTHM
 		}
 	};
 	Object.keys(GROUPS$1).flatMap((group) => Object.values(GROUPS$1[group].terms).map((term) => ({
@@ -1186,6 +1218,7 @@ function goalStatus(goal, cycle, checkIns, today) {
 		greener: false,
 		daysSinceCheckIn: days,
 		week,
+		asOfWeek: latest && latest.week !== week ? latest.week : null,
 		unmeasured: true
 	};
 	const calc = assessPosted(goal, cycle, checkIns, week).calc;
@@ -1194,16 +1227,20 @@ function goalStatus(goal, cycle, checkIns, today) {
 	if (latest?.status === "done") status = "done";
 	else if (week === 0) status = "planned";
 	else if (hasEnded(cycle, today)) status = latest ? latest.status : "none";
-	else if (quiet < RULES.staleDays) status = latest ? latest.status : "none";
-	else status = "stale";
+	else {
+		const after = staleAfterDays(cycle);
+		status = after == null || quiet < after ? latest ? latest.status : "none" : "stale";
+	}
 	const greener = latest != null && RANK[latest.status] < RANK[latest.calculated];
+	const asOfWeek = latest && latest.week !== week ? latest.week : null;
 	return {
 		status,
 		calc,
 		latest,
 		greener,
 		daysSinceCheckIn: days,
-		week
+		week,
+		asOfWeek
 	};
 }
 /**
@@ -1217,16 +1254,19 @@ function doneCheckIn(goal, checkIns, week) {
 }
 /**
 * Days since a goal's latest check-in was posted, or, with none, since it began (the cycle's start, or when it was
-* added if later). The one rule for "no recent update": stale at RULES.staleDays, and the Goals filter "No update for
-* N weeks" counts the same days in weeks.
+* added if later), and never from before the present check-in rhythm began (`rhythmFrom`, FT1). The one rule for "no
+* recent update": stale at staleAfterDays(cycle), and the Goals filter "Last check-in N weeks ago or more" counts the
+* same days in weeks.
 */
 function daysWithoutUpdate(goal, cycle, latest, today) {
-	if (latest) return daysSince(latest.postedAt, today);
+	const rhythm = cycle.rhythmFrom ? rhythmOf(cycle)?.from ?? "" : "";
+	if (latest) return daysSince(rhythm > latest.postedAt.slice(0, 10) ? rhythm : latest.postedAt, today);
 	const from = goal.kind === "metric" && (goal.plan.fromWeek ?? 0) > 0 ? weekDate(cycle, goal.plan.fromWeek) : "";
 	return daysSince([
 		cycle.startDate,
 		goal.createdAt ? goal.createdAt.slice(0, 10) : "",
-		from
+		from,
+		rhythm
 	].reduce((a, b) => b > a ? b : a), today);
 }
 var RANK, byGoalCache, projects;
@@ -2109,6 +2149,12 @@ var init_levels = __esmMin((() => {
 function weekProgress(personId, s, cycle, week, today) {
 	const goals = s.goals.filter((g) => g.ownerId === personId && goalStatus(g, cycle, s.checkIns, today).status !== "done");
 	const done = goals.filter((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week));
+	if (!rhythmOf(cycle)) return {
+		goals,
+		done,
+		upcoming: [],
+		due: []
+	};
 	const upcoming = goals.filter((g) => !done.includes(g) && firstDueWeek(g, cycle) > week);
 	return {
 		goals,
@@ -2134,7 +2180,8 @@ function weekCompletion(p) {
 * (`Cycle.reviewDay`) never needed a review, so a screen never writes "review" in a deadline itself: it asks here.
 * With Reviews on and a review held on the due day (`held`, from review.ts heldOnDueDay) the deadline is "before
 * Thursday’s review"; with no review set up on that day, or Reviews off, it is "by Thursday". The `due` flag says
-* "Due by Thu 12 Nov." either way.
+* "Due by Thu 12 Nov." either way. With no set rhythm (FT1) there is no deadline, so nothing says one: no goal is
+* due (firstDueWeek), receiptFacts and the habit panel (habit.ts beforeReview) are null, and Home has no due line.
 */
 function dueWords$1(reviewsOn, cycle, week, held = false) {
 	return dueWordsOn(reviewsOn, reviewDate(cycle, Math.max(1, week)), held);
@@ -2154,7 +2201,8 @@ function dueWordsOn(reviewsOn, iso, held = false) {
 		review
 	};
 }
-/** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
+/** The day a week's check-ins are due by, as an ISO date. Check-ins posted by the end of it count as on time. Callers
+that may have no set rhythm ask `dueDate`, which says null then. */
 function reviewDate(cycle, week) {
 	const d = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
 	d.setUTCDate(d.getUTCDate() + cycle.reviewDay);
@@ -2178,6 +2226,7 @@ function firstReview(cycle, today) {
 * 'on' skips the forgiving step and 'off' returns null (docs/design/workspace-settings/spec.md 2.5).
 */
 function onTimeStreak(personId, s, cycle, week) {
+	if (!rhythmOf(cycle)) return null;
 	return onTimeRun(personId, s.goals, s.checkIns, cycle, week).weeks;
 }
 /** Whether a check-in came in by its week's due day (`postedDay` on or before it), and was posted in its week rather than
@@ -2206,7 +2255,7 @@ function onTimeRun(personId, all, allCheckIns, cycle, week) {
 		from: ownedFrom(g, personId, checkIns, cycle),
 		to: doneWeek(g, checkIns)
 	}));
-	if (!goals.length) return {
+	if (!goals.length || !rhythmOf(cycle)) return {
 		weeks: 0,
 		forgiven: []
 	};
@@ -2241,9 +2290,11 @@ function onTimeRun(personId, all, allCheckIns, cycle, week) {
 * their goals, reviewDate for the due day, the run. A goal's week counts as after when its first check-in that week
 * (theirs, or someone's checking in for them) was posted after the due day. `words` is dueWords' for the person and
 * week (app/reads dueWordsHere): the habit never reads a review itself (Reviews switch spec 4).
-* `nextDue` is the next due day as an ISO date: the caller says it in words before `receiptText`.
+* `nextDue` is the next due day as an ISO date: the caller says it in words before `receiptText`. With no set rhythm
+* (FT1) there is no receipt (null): nothing was due, so there is no deadline to be in by and no run.
 */
 function receiptFacts(p, personId, s, cycle, week, words) {
+	if (!rhythmOf(cycle)) return null;
 	const after = p.goals.filter((g) => {
 		const first = s.checkIns.filter((c) => c.goalId === g.id && c.week === week && !c.removedAt).map((c) => c.postedAt).sort()[0];
 		return first != null && !inByDueDay({ postedAt: first }, cycle, week);
@@ -2285,7 +2336,12 @@ var firstDueWeek, SHORT_MONTH, postedDay, WEEKDAY;
 var init_progress = __esmMin((() => {
 	init_plan();
 	init_status();
-	firstDueWeek = (g, cycle) => Math.max(firstWeekFrom(cycle, g.createdAt, cycle.reviewDay), g.kind === "metric" ? g.plan?.fromWeek ?? 0 : 0);
+	init_thresholds();
+	firstDueWeek = (g, cycle) => {
+		const rhythm = rhythmOf(cycle);
+		if (!rhythm) return Infinity;
+		return Math.max(firstWeekFrom(cycle, g.createdAt, rhythm.dueDay), g.kind === "metric" ? g.plan?.fromWeek ?? 0 : 0, cycle.rhythmFrom ? firstWeekFrom(cycle, rhythm.from, rhythm.dueDay) : 0);
+	};
 	SHORT_MONTH = [
 		"Jan",
 		"Feb",
@@ -4656,8 +4712,9 @@ function nextCycleShape(old) {
 * goal that finishes or stops is dropped.
 */
 function nextCycle(old, goals, checkIns, retros, ids, now) {
+	const { rhythmFrom: _from, ...kept } = old;
 	const cycle = {
-		...old,
+		...kept,
 		id: ids.cycle,
 		...nextCycleShape(old)
 	};
@@ -6989,7 +7046,7 @@ var init_tableLayout = __esmMin((() => {
 /** A logged comment on a goal. Anyone can comment; it doesn't change the status, and it isn't an ask: it asks nothing of anyone. */
 function addNote(x, goal, text) {
 	const t = text.trim();
-	if (t.length < 2) no$3("Write the comment.");
+	if (t.length < 2) no$4("Write the comment.");
 	return { changes: [{
 		id: x.newId("chg"),
 		at: x.now,
@@ -7008,7 +7065,7 @@ function addNote(x, goal, text) {
 }
 /** Ask a goal's owner for an update: open on their Home until they check in (or answer it), or it's withdrawn. Null when it's already asked. */
 function askForUpdate(x, goal) {
-	if (goal.ownerId === x.actor.id) no$3("It’s your own goal: post a check-in instead.");
+	if (goal.ownerId === x.actor.id) no$4("It’s your own goal: post a check-in instead.");
 	if (openUpdateAsk(goal.id, x.snapshot)) return null;
 	const latest = latestOf(x, goal);
 	const { ask, change } = raiseAsk({
@@ -7028,7 +7085,7 @@ function askForUpdate(x, goal) {
 function undoUpdateAsk(x, goal) {
 	const ask = openUpdateAsk(goal.id, x.snapshot);
 	if (!ask) return null;
-	if (ask.askedBy !== x.actor.id && !x.actor.admin) no$3("Only whoever asked, or an admin, can undo the ask.");
+	if (ask.askedBy !== x.actor.id && !x.actor.admin) no$4("Only whoever asked, or an admin, can undo the ask.");
 	const w = withdrawAsk(ask, goal.id, x.actor.id, x.now, x.newId);
 	return {
 		requests: [w.request],
@@ -7038,8 +7095,8 @@ function undoUpdateAsk(x, goal) {
 /** Ask a goal's owner a question, outside a review (a review's questions come through reviewCall). Open until they answer it. */
 function askQuestion(x, goal, text, opts = {}) {
 	const t = text.trim();
-	if (t.length < 2) no$3("Write the question.");
-	if (goal.ownerId === x.actor.id) no$3("It’s your own goal: there’s no one to ask. Comment instead.");
+	if (t.length < 2) no$4("Write the question.");
+	if (goal.ownerId === x.actor.id) no$4("It’s your own goal: there’s no one to ask. Comment instead.");
 	const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : void 0;
 	if (review) maySpeak(x, review, goal);
 	const { ask, change } = raiseAsk({
@@ -7060,10 +7117,10 @@ function askQuestion(x, goal, text, opts = {}) {
 /** Agree an action on a goal: someone (the owner, unless named) does it, by a week if one is given. */
 function addAction(x, goal, text, opts = {}) {
 	const t = text.trim();
-	if (t.length < 2) no$3("Write the action.");
+	if (t.length < 2) no$4("Write the action.");
 	const who = opts.assigneeId ?? goal.ownerId;
-	if (!x.snapshot.people.some((p) => p.id === who)) no$3("The person for the action isn’t in this workspace.");
-	if (opts.dueWeek != null && !(opts.dueWeek >= 1 && opts.dueWeek <= x.cycle.weeks)) no$3(`The due week is between 1 and ${x.cycle.weeks}.`);
+	if (!x.snapshot.people.some((p) => p.id === who)) no$4("The person for the action isn’t in this workspace.");
+	if (opts.dueWeek != null && !(opts.dueWeek >= 1 && opts.dueWeek <= x.cycle.weeks)) no$4(`The due week is between 1 and ${x.cycle.weeks}.`);
 	const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : void 0;
 	if (review) maySpeak(x, review, goal);
 	const { ask, change } = raiseAsk({
@@ -7089,10 +7146,10 @@ function addAction(x, goal, text, opts = {}) {
 }
 /** Answer a decision or help, an ask for an update or a question: the person asked, or an admin (anyone, for an ask to no one in particular). */
 function answerRequest(x, r, answer) {
-	if (r.status !== "open") no$3("That ask isn’t open any more.");
-	if (r.kind === "action") no$3("An action is marked done, not answered.");
-	if (!canAnswer(r, x.actor)) no$3(`Only ${nameOf$1(x, r.recipientId) ?? "the person asked"} or an admin can answer it.`);
-	if (answer.trim().length < 2) no$3("Write the answer.");
+	if (r.status !== "open") no$4("That ask isn’t open any more.");
+	if (r.kind === "action") no$4("An action is marked done, not answered.");
+	if (!canAnswer(r, x.actor)) no$4(`Only ${nameOf$1(x, r.recipientId) ?? "the person asked"} or an admin can answer it.`);
+	if (answer.trim().length < 2) no$4("Write the answer.");
 	const { request, changes } = answerAsk(r, answer, x.actor.id, x.now, x.newId);
 	return {
 		requests: [request],
@@ -7101,9 +7158,9 @@ function answerRequest(x, r, answer) {
 }
 /** Mark an action done, with an optional note: whoever does it, whoever asked for it, or an admin. */
 function markActionDone(x, r, note = "") {
-	if (r.status !== "open") no$3("That action isn’t open any more.");
-	if (r.kind !== "action") no$3("Only an action is marked done; answer the others.");
-	if (!canMarkDone(r, x.actor)) no$3(`Only ${nameOf$1(x, r.recipientId) ?? "whoever does it"}, whoever asked for it, or an admin can mark it done.`);
+	if (r.status !== "open") no$4("That action isn’t open any more.");
+	if (r.kind !== "action") no$4("Only an action is marked done; answer the others.");
+	if (!canMarkDone(r, x.actor)) no$4(`Only ${nameOf$1(x, r.recipientId) ?? "whoever does it"}, whoever asked for it, or an admin can mark it done.`);
 	const { request, changes } = markDone(r, note, x.actor.id, x.now, x.newId);
 	return {
 		requests: [request],
@@ -7112,10 +7169,10 @@ function markActionDone(x, r, note = "") {
 }
 /** A goal's owner (or an admin) says the goal waits on a decision or help raised for another goal. */
 function linkRequest(x, r, goal) {
-	if (r.status !== "open") no$3("That request isn’t open any more.");
-	if (r.kind !== "decision") no$3("Only a decision or help can be shared by several goals.");
-	if (!ownsOrAdmin$2(x, goal)) no$3("Only the goal’s owner or an admin can link it to a request.");
-	if (r.goalIds.includes(goal.id)) no$3("That goal is already waiting on this request.");
+	if (r.status !== "open") no$4("That request isn’t open any more.");
+	if (r.kind !== "decision") no$4("Only a decision or help can be shared by several goals.");
+	if (!ownsOrAdmin$2(x, goal)) no$4("Only the goal’s owner or an admin can link it to a request.");
+	if (r.goalIds.includes(goal.id)) no$4("That goal is already waiting on this request.");
 	const { requests, changes } = linkRequest$1(r, goal, x.snapshot, x.actor.id, x.now, x.newId);
 	return {
 		requests,
@@ -7127,10 +7184,10 @@ function linkRequest(x, r, goal) {
 * goal linked to someone else's decision or help, its owner stops waiting on it (the ask stays open for the others).
 */
 function withdrawRequest(x, r, goal) {
-	if (r.status !== "open") no$3("That ask isn’t open any more.");
+	if (r.status !== "open") no$4("That ask isn’t open any more.");
 	const g = goal ?? x.snapshot.goals.find((v) => v.id === r.goalIds[0]);
-	if (!g || !r.goalIds.includes(g.id)) no$3("That goal isn’t waiting on this ask.");
-	if (!canWithdraw(r, x.actor, g)) no$3(r.kind === "decision" ? "Only the goal’s owner, whoever asked, or an admin can withdraw it." : "Only whoever asked, or an admin, can withdraw it.");
+	if (!g || !r.goalIds.includes(g.id)) no$4("That goal isn’t waiting on this ask.");
+	if (!canWithdraw(r, x.actor, g)) no$4(r.kind === "decision" ? "Only the goal’s owner, whoever asked, or an admin can withdraw it." : "Only whoever asked, or an admin, can withdraw it.");
 	const { request, changes } = withdrawAsk(r, g.id, x.actor.id, x.now, x.newId);
 	return {
 		requests: [request],
@@ -7142,8 +7199,8 @@ function withdrawRequest(x, r, goal) {
 * goals, trees and levels (build review of #322). Throws the refusal.
 */
 function maySpeak(x, review, goal) {
-	if (!canSpeakFor(review, x.actor)) no$3(speakRefusal(review));
-	if (!goalsIn(review.scope, x.snapshot.goals).some((g) => g.id === goal.id)) no$3(scopeRefusal(review, goal));
+	if (!canSpeakFor(review, x.actor)) no$4(speakRefusal(review));
+	if (!goalsIn(review.scope, x.snapshot.goals).some((g) => g.id === goal.id)) no$4(scopeRefusal(review, goal));
 }
 /**
 * What someone says about a goal in a review: seen, a note, a question for the owner, or an action. Seen and a note are
@@ -7155,7 +7212,7 @@ function reviewCall(x, goal, review, kind, note, extra = {}) {
 	const text = note.trim();
 	const week = extra.week ?? sessionWeek(review, x.week, x.cycle);
 	if (kind === "ask") {
-		if (goal.ownerId === x.actor.id) no$3("It’s your own goal: add a note instead.");
+		if (goal.ownerId === x.actor.id) no$4("It’s your own goal: add a note instead.");
 		return askQuestion(x, goal, text, {
 			reviewId: review.id,
 			week
@@ -7167,7 +7224,7 @@ function reviewCall(x, goal, review, kind, note, extra = {}) {
 		reviewId: review.id,
 		week
 	});
-	if (kind === "note" && text.length < 2) no$3("Write the note.");
+	if (kind === "note" && text.length < 2) no$4("Write the note.");
 	const d = {
 		id: x.newId("dec"),
 		goalId: goal.id,
@@ -7203,7 +7260,7 @@ function reviewCall(x, goal, review, kind, note, extra = {}) {
 * as a note whose words start "We accept the risk:" (decide.ts reads it back). Someone in the review, or an admin (RV7).
 */
 function acceptRisk(x, goal, review, reason, week) {
-	if (reason.trim().length < 5) no$3("Say why the review accepts the risk.");
+	if (reason.trim().length < 5) no$4("Say why the review accepts the risk.");
 	return reviewCall(x, goal, review, "note", acceptNote(reason), { week });
 }
 /**
@@ -7213,10 +7270,10 @@ function acceptRisk(x, goal, review, reason, week) {
 function editCall(x, d, note, extra) {
 	const ask = "goalIds" in d ? d : askById(x, d.id);
 	if (ask) {
-		if (ask.askedBy !== x.actor.id && !x.actor.admin) no$3("Only whoever asked, or an admin, can correct it.");
-		if (ask.status !== "open") no$3("It’s been answered or closed: comment instead.");
-		if (note.trim().length < 2) no$3("Write the new wording.");
-		if (extra?.assigneeId && !x.snapshot.people.some((p) => p.id === extra.assigneeId)) no$3("The person for the action isn’t in this workspace.");
+		if (ask.askedBy !== x.actor.id && !x.actor.admin) no$4("Only whoever asked, or an admin, can correct it.");
+		if (ask.status !== "open") no$4("It’s been answered or closed: comment instead.");
+		if (note.trim().length < 2) no$4("Write the new wording.");
+		if (extra?.assigneeId && !x.snapshot.people.some((p) => p.id === extra.assigneeId)) no$4("The person for the action isn’t in this workspace.");
 		const out = editAsk(ask, {
 			ask: note,
 			...ask.kind === "action" && extra ? {
@@ -7230,8 +7287,8 @@ function editCall(x, d, note, extra) {
 		};
 	}
 	const dec = d;
-	if (dec.byId !== x.actor.id && !x.actor.admin) no$3("Only whoever said it, or an admin, can correct it.");
-	if (dec.kind !== "acknowledge" && note.trim().length < 2) no$3("Write the new wording.");
+	if (dec.byId !== x.actor.id && !x.actor.admin) no$4("Only whoever said it, or an admin, can correct it.");
+	if (dec.kind !== "acknowledge" && note.trim().length < 2) no$4("Write the new wording.");
 	const after = {
 		...dec,
 		note: note.trim(),
@@ -7259,14 +7316,14 @@ function editCall(x, d, note, extra) {
 }
 /** Set up a review (anyone), or change one (someone in it, whoever set it up, or an admin). */
 function saveReview(x, review, before) {
-	if (!review.name.trim()) no$3("Give the review a name.");
-	if (!(review.everyWeeks >= 1 && review.everyWeeks <= 13)) no$3("Hold it every 1 to 13 weeks.");
-	if (!(review.weekday >= 0 && review.weekday <= 4)) no$3("Pick a weekday, Monday to Friday.");
-	if (!review.scope.goals.length && !review.scope.trees.length && !review.scope.levels.length) no$3("Pick the goals it walks: goals, a goal and what feeds it, or a level.");
+	if (!review.name.trim()) no$4("Give the review a name.");
+	if (!(review.everyWeeks >= 1 && review.everyWeeks <= 13)) no$4("Hold it every 1 to 13 weeks.");
+	if (!(review.weekday >= 0 && review.weekday <= 4)) no$4("Pick a weekday, Monday to Friday.");
+	if (!review.scope.goals.length && !review.scope.trees.length && !review.scope.levels.length) no$4("Pick the goals it walks: goals, a goal and what feeds it, or a level.");
 	const ids = new Set(x.snapshot.goals.map((g) => g.id));
-	if ([...review.scope.goals, ...review.scope.trees].some((g) => !ids.has(g))) no$3("One of the goals isn’t in this cycle.");
-	if (review.people.some((p) => !x.snapshot.people.some((q) => q.id === p))) no$3("One of the people isn’t in this workspace.");
-	if (before && !x.actor.admin && !before.people.includes(x.actor.id) && before.createdBy !== x.actor.id) no$3("Only someone in the review, whoever set it up, or an admin can change it.");
+	if ([...review.scope.goals, ...review.scope.trees].some((g) => !ids.has(g))) no$4("One of the goals isn’t in this cycle.");
+	if (review.people.some((p) => !x.snapshot.people.some((q) => q.id === p))) no$4("One of the people isn’t in this workspace.");
+	if (before && !x.actor.admin && !before.people.includes(x.actor.id) && before.createdBy !== x.actor.id) no$4("Only someone in the review, whoever set it up, or an admin can change it.");
 	const diffs = before ? [
 		...before.name !== review.name ? [{
 			field: "Name",
@@ -7328,7 +7385,7 @@ function newReview(x, v) {
 /** Watch a goal, a goal and everything feeding it, or a whole level. Null when already watched. Watching again what
 you stopped watching brings the same watch back (one watch per person and thing). */
 function watch(x, kind, ref) {
-	if (kind === "level" ? !isLevel(x.cycle, ref) : !withProposed(x.snapshot).some((g) => g.id === ref)) no$3(kind === "level" ? `There’s no level called “${ref}” here. The levels are ${levelsOf$1(x.cycle).map((l) => `${l.name} (${l.id})`).join(", ")}.` : "There’s no goal with that ID in this cycle.");
+	if (kind === "level" ? !isLevel(x.cycle, ref) : !withProposed(x.snapshot).some((g) => g.id === ref)) no$4(kind === "level" ? `There’s no level called “${ref}” here. The levels are ${levelsOf$1(x.cycle).map((l) => `${l.name} (${l.id})`).join(", ")}.` : "There’s no goal with that ID in this cycle.");
 	if (x.snapshot.watches.some((w) => w.personId === x.actor.id && w.kind === kind && w.ref === ref)) return null;
 	const old = (x.full?.watches ?? []).find((w) => w.personId === x.actor.id && w.kind === kind && w.ref === ref && w.removedAt);
 	return {
@@ -7348,8 +7405,8 @@ function watch(x, kind, ref) {
 /** Stop watching: your own watches only. Kept, and logged, so it can be undone. */
 function unwatch(x, watchId) {
 	const w = x.snapshot.watches.find((v) => v.id === watchId);
-	if (!w) no$3("There’s no watch with that ID.");
-	if (w.personId !== x.actor.id) no$3("That’s someone else’s watch.");
+	if (!w) no$4("There’s no watch with that ID.");
+	if (w.personId !== x.actor.id) no$4("That’s someone else’s watch.");
 	return {
 		watches: [{
 			...w,
@@ -7375,10 +7432,10 @@ function unwatch(x, watchId) {
 }
 /** Admins: add someone, or change their name, job title, team or admin rights. Null when nothing changed. */
 function savePerson(x, p, before) {
-	if (!x.actor.admin) no$3("Only admins can add people or change them.");
-	if (p.teamId && !x.snapshot.teams.some((t) => t.id === p.teamId)) no$3("There’s no team with that ID.");
+	if (!x.actor.admin) no$4("Only admins can add people or change them.");
+	if (p.teamId && !x.snapshot.teams.some((t) => t.id === p.teamId)) no$4("There’s no team with that ID.");
 	const problems = personProblems(p, x.snapshot.people, before);
-	if (problems.length) no$3(problems.join(" "));
+	if (problems.length) no$4(problems.join(" "));
 	const ch = personChange(before, p, lookupOf(x.snapshot).teamName, x.actor.id, x.now, x.newId("chg"));
 	if (before && !ch) return null;
 	return {
@@ -7388,14 +7445,14 @@ function savePerson(x, p, before) {
 }
 /** An owner's (or an admin's) wrap-up of a goal, in the last two weeks of the cycle. */
 function saveRetro(x, goal, v) {
-	if (!ownsOrAdmin$2(x, goal)) no$3("Only the goal’s owner or an admin can wrap it up.");
+	if (!ownsOrAdmin$2(x, goal)) no$4("Only the goal’s owner or an admin can wrap it up.");
 	const cycle = x.full?.cycles.find((c) => c.id === goal.cycleId) ?? x.cycle;
 	const today = new Date(x.now);
 	if (!wrapUpOpenOn(cycle, today)) {
 		const d = cycleDates(cycle);
-		no$3(cycleState(cycle, today) === "closed" ? `${cycle.name}’s wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : `${cycle.name}’s wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`);
+		no$4(cycleState(cycle, today) === "closed" ? `${cycle.name}’s wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : `${cycle.name}’s wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`);
 	}
-	if (v.learned.trim().length < 10) no$3("Say what was learned, in a sentence (10 characters or more).");
+	if (v.learned.trim().length < 10) no$4("Say what was learned, in a sentence (10 characters or more).");
 	const before = (x.full?.retros ?? x.snapshot.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === cycle.id) ?? null;
 	const retro = {
 		id: before?.id ?? x.newId("retro"),
@@ -7442,7 +7499,7 @@ function saveRetro(x, goal, v) {
 	if (!full) return own;
 	const later = laterCycle(full.cycles, cycle);
 	const copy = later && goal.key ? full.goals.find((g) => g.cycleId === later.id && g.key === goal.key && !g.removedAt) : void 0;
-	if (copy && retro.next === "stop" && !copyUntouched(copy, full)) no$3(`It already has check-ins in ${later.name}. Stop it there instead.`);
+	if (copy && retro.next === "stop" && !copyUntouched(copy, full)) no$4(`It already has check-ins in ${later.name}. Stop it there instead.`);
 	return own;
 }
 /** Two commits as one save: their records and changes side by side. */
@@ -7459,16 +7516,16 @@ function mergeCommits(a, b) {
 * it early moves nobody. Its change keeps what it added, so it can be undone until someone uses it (removal undoStart).
 */
 function startNextCycle(x) {
-	if (!x.actor.admin) no$3("Only admins can start the next cycle.");
+	if (!x.actor.admin) no$4("Only admins can start the next cycle.");
 	const today = new Date(x.now);
 	const full = x.full ?? x.snapshot;
 	const state = cycleState(x.cycle, today);
-	if (state === "before" || state === "running") no$3(startFromLine(x.cycle));
+	if (state === "before" || state === "running") no$4(startFromLine(x.cycle));
 	const later = laterCycle(full.cycles ?? [], x.cycle);
 	if (later) {
 		const made = full.changes.find((c) => c.entity === "cycle" && c.entityId === later.id && c.action === "created");
 		const by = made ? full.people.find((p) => p.id === made.actorId)?.name : null;
-		no$3(`${later.name} has already been started${by ? `, by ${by} on ${dayWithYear(made.at.slice(0, 10))}` : ""}.`);
+		no$4(`${later.name} has already been started${by ? `, by ${by} on ${dayWithYear(made.at.slice(0, 10))}` : ""}.`);
 	}
 	const map = /* @__PURE__ */ new Map();
 	const next = nextCycle(x.cycle, withProposed(x.snapshot), x.snapshot.checkIns, x.snapshot.retros ?? [], {
@@ -7545,15 +7602,15 @@ function startNextCycle(x) {
 /** Save a view of the goals: a new one, or one of yours (an admin: any) renamed or changed. */
 function saveView(x, v) {
 	const clean = v.name.trim().slice(0, 80);
-	if (!clean) no$3("Give the view a name.");
+	if (!clean) no$4("Give the view a name.");
 	const old = v.id ? liveView(x, v.id) : void 0;
-	if (v.id && !old) no$3("There’s no view with that ID.");
+	if (v.id && !old) no$4("There’s no view with that ID.");
 	if (isTableView(v)) {
 		const problems = layoutProblems(parseLayout(v.params));
-		if (problems.length) no$3(problems.join(" "));
+		if (problems.length) no$4(problems.join(" "));
 	}
-	if (old && isTableView(old) !== isTableView(v)) no$3(isTableView(old) ? "That view is of a data table; save a table layout to it." : "That view is of the Goals screen, not a data table.");
-	if (old && old.personId !== x.actor.id && !x.actor.admin) no$3("Only its owner or an admin can change this view.");
+	if (old && isTableView(old) !== isTableView(v)) no$4(isTableView(old) ? "That view is of a data table; save a table layout to it." : "That view is of the Goals screen, not a data table.");
+	if (old && old.personId !== x.actor.id && !x.actor.admin) no$4("Only its owner or an admin can change this view.");
 	const view = old ? {
 		...old,
 		name: clean,
@@ -7598,8 +7655,8 @@ function saveView(x, v) {
 */
 function saveTableView(x, v, head) {
 	const problems = layoutProblems(v.layout, head);
-	if (problems.length) no$3(problems.join(" "));
-	if (v.layout.cols && !v.layout.cols.length) no$3("Show at least one column.");
+	if (problems.length) no$4(problems.join(" "));
+	if (v.layout.cols && !v.layout.cols.length) no$4("Show at least one column.");
 	const widths = Object.fromEntries(Object.entries(v.layout.widths).map(([c, w]) => [c, clampWidth(v.layout.table, c, w)]));
 	return saveView(x, {
 		id: v.id,
@@ -7614,7 +7671,7 @@ function saveTableView(x, v, head) {
 function deleteView(x, id) {
 	const v = liveView(x, id);
 	if (!v) return null;
-	if (v.personId !== x.actor.id && !x.actor.admin) no$3("Only its owner, or an admin, can delete this view.");
+	if (v.personId !== x.actor.id && !x.actor.admin) no$4("Only its owner, or an admin, can delete this view.");
 	const what = isTableView(v) ? "saved layout" : v.pinned ? "pinned view" : "view";
 	return {
 		views: [{
@@ -7642,9 +7699,9 @@ function deleteView(x, id) {
 }
 /** Admins: show a view to everyone in the workspace, or stop. Null when it already is. */
 function pinView(x, id, pinned) {
-	if (!x.actor.admin) no$3("Only admins can pin a view for everyone.");
+	if (!x.actor.admin) no$4("Only admins can pin a view for everyone.");
 	const v = liveView(x, id);
-	if (!v) no$3("There’s no view with that ID.");
+	if (!v) no$4("There’s no view with that ID.");
 	if (v.pinned === pinned) return null;
 	return {
 		views: [{
@@ -7672,11 +7729,11 @@ function pinView(x, id, pinned) {
 /** Admins: a personal token for an assistant to act as someone. The store makes the secret and keeps only its hash
 (Store.issueToken): in the shared database, the database does. */
 function createToken(x, personId, name) {
-	if (!x.actor.admin) no$3("Only admins can make tokens.");
+	if (!x.actor.admin) no$4("Only admins can make tokens.");
 	const who = x.snapshot.people.find((p) => p.id === personId);
-	if (!who) no$3("There’s no one with that ID in this workspace.");
-	if (!name.trim()) no$3("Say what the token is for, e.g. “Claude on my laptop”.");
-	if (name.trim().length > 120) no$3("Keep what it’s for to 120 characters.");
+	if (!who) no$4("There’s no one with that ID in this workspace.");
+	if (!name.trim()) no$4("Say what the token is for, e.g. “Claude on my laptop”.");
+	if (name.trim().length > 120) no$4("Keep what it’s for to 120 characters.");
 	const t = {
 		id: x.newId("tok"),
 		personId,
@@ -7708,9 +7765,9 @@ function createToken(x, personId, name) {
 /** Stop a token working: an admin, or the token's person. Null when it's already revoked. */
 function revokeToken(x, id) {
 	const t = (x.snapshot.tokens ?? []).find((v) => v.id === id);
-	if (!t) no$3("There’s no token with that ID.");
+	if (!t) no$4("There’s no token with that ID.");
 	if (t.revokedAt) return null;
-	if (!x.actor.admin && t.personId !== x.actor.id) no$3("Only an admin or the token’s person can revoke it.");
+	if (!x.actor.admin && t.personId !== x.actor.id) no$4("Only an admin or the token’s person can revoke it.");
 	return {
 		tokens: [{
 			...t,
@@ -7738,7 +7795,7 @@ function sendFeedback(x, mood, text, path) {
 		"good",
 		"meh",
 		"bad"
-	].includes(mood)) no$3("Mood is good, meh or bad.");
+	].includes(mood)) no$4("Mood is good, meh or bad.");
 	return {
 		feedback: [{
 			id: x.newId("fb"),
@@ -7753,10 +7810,10 @@ function sendFeedback(x, mood, text, path) {
 }
 /** Admins: give the workspace a new name. Null when it already has that name. */
 function renameWorkspace(x, ws, name) {
-	if (!x.actor.admin) no$3("Only admins can rename the workspace.");
+	if (!x.actor.admin) no$4("Only admins can rename the workspace.");
 	const clean = name.trim().replace(/\s+/g, " ");
 	const named = nameProblem(clean, "workspace");
-	if (named) no$3(named);
+	if (named) no$4(named);
 	if (clean === ws.name) return null;
 	return {
 		workspace: { name: clean },
@@ -7782,8 +7839,8 @@ function renameWorkspace(x, ws, name) {
 * guide's "What the app records"). Off, nothing is recorded or sent for the workspace. Null when it already is.
 */
 function setRecording(x, ws, on) {
-	if (!x.actor.admin) no$3("Only admins can turn recording on or off.");
-	if (typeof on !== "boolean") no$3("Say whether to record: on or off.");
+	if (!x.actor.admin) no$4("Only admins can turn recording on or off.");
+	if (typeof on !== "boolean") no$4("Say whether to record: on or off.");
 	const was = ws.recording !== false;
 	if (was === on) return null;
 	return {
@@ -7810,9 +7867,9 @@ function setRecording(x, ws, on) {
 * build has, so a module that needs this one can be named in the log as going off with it. Null when it already is.
 */
 function setModule(x, ws, modules, id, on) {
-	if (!x.actor.admin) no$3("Only admins can switch features on or off.");
+	if (!x.actor.admin) no$4("Only admins can switch features on or off.");
 	const m = modules.find((k) => k.id === id);
-	if (!m) no$3(`There’s no feature called ${id}.`);
+	if (!m) no$4(`There’s no feature called ${id}.`);
 	const was = ws.modulesOff ?? [];
 	if (was.includes(id) === !on) return null;
 	const off = on ? was.filter((k) => k !== id) : [...was, id].sort();
@@ -7840,18 +7897,18 @@ function setModule(x, ws, modules, id, on) {
 }
 /** Admins: add a team, or rename one or change its lead. Null commit when nothing changed. */
 function saveTeam(x, t) {
-	if (!x.actor.admin) no$3("Only admins can add or change teams.");
+	if (!x.actor.admin) no$4("Only admins can add or change teams.");
 	const clean = t.name.trim().replace(/\s+/g, " ");
-	if (!clean) no$3("Give the team a name.");
-	if (clean.length > 60) no$3("Keep the team’s name to 60 characters or fewer.");
+	if (!clean) no$4("Give the team a name.");
+	if (clean.length > 60) no$4("Keep the team’s name to 60 characters or fewer.");
 	const before = t.id ? x.snapshot.teams.find((v) => v.id === t.id) : void 0;
-	if (t.id && !before) no$3("There’s no team with that ID.");
+	if (t.id && !before) no$4("There’s no team with that ID.");
 	const same = x.snapshot.teams.find((v) => v.id !== before?.id && v.name.trim().toLowerCase() === clean.toLowerCase());
-	if (same) no$3(`There’s already a team called ${same.name}.`);
+	if (same) no$4(`There’s already a team called ${same.name}.`);
 	const leadId = t.leadId === void 0 ? before?.leadId ?? "" : t.leadId ?? "";
-	if (leadId && !x.snapshot.people.some((p) => p.id === leadId)) no$3("The team lead isn’t in this workspace.");
+	if (leadId && !x.snapshot.people.some((p) => p.id === leadId)) no$4("The team lead isn’t in this workspace.");
 	const objective = t.objective === void 0 ? before?.objective ?? "" : t.objective.trim().replace(/\s+/g, " ");
-	if (objective.length > 280) no$3("Keep what the team is here to do to 280 characters or fewer.");
+	if (objective.length > 280) no$4("Keep what the team is here to do to 280 characters or fewer.");
 	const team = {
 		id: before?.id ?? x.newId("team"),
 		name: clean,
@@ -7918,15 +7975,15 @@ function teamMembers(x, teamId) {
 }
 /** Admins: remove a team. One with people or goals is emptied first: give `moveTo`, another team, and they move there. */
 function removeTeam(x, id, moveTo) {
-	if (!x.actor.admin) no$3("Only admins can remove teams.");
+	if (!x.actor.admin) no$4("Only admins can remove teams.");
 	const team = x.snapshot.teams.find((t) => t.id === id);
-	if (!team) no$3("There’s no team with that ID.");
+	if (!team) no$4("There’s no team with that ID.");
 	const { people, goals, named } = teamMembers(x, id);
 	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 	const what = [people.length ? plural(people.length, "person", "people") : "", goals.length ? plural(goals.length, "goal", "goals") : ""].filter(Boolean).join(" and ");
 	const to = moveTo ? x.snapshot.teams.find((t) => t.id === moveTo) : void 0;
-	if (moveTo && (!to || moveTo === id)) no$3("Move them to another team that’s in this workspace.");
-	if (what && !to) no$3(`${team.name} still has ${what}. Move them to another team first.`);
+	if (moveTo && (!to || moveTo === id)) no$4("Move them to another team that’s in this workspace.");
+	if (what && !to) no$4(`${team.name} still has ${what}. Move them to another team first.`);
 	const movedPeople = people.map((p) => ({
 		...p,
 		teamId: to.id
@@ -7982,11 +8039,11 @@ function removeTeam(x, id, moveTo) {
 }
 /** Admins only can delete a workspace; it has to be one of the workspace's own (not an example). */
 function canDeleteWorkspace(actor, kind, name, confirmName) {
-	if (!actor.admin) no$3("Only admins can delete the workspace.");
-	if (kind === "example") no$3("Examples can be reset, not deleted.");
-	if (confirmName.trim() !== name) no$3(`To confirm, give the workspace’s name exactly: “${name}”.`);
+	if (!actor.admin) no$4("Only admins can delete the workspace.");
+	if (kind === "example") no$4("Examples can be reset, not deleted.");
+	if (confirmName.trim() !== name) no$4(`To confirm, give the workspace’s name exactly: “${name}”.`);
 }
-var NotAllowed, no$3, lookupOf, ownsOrAdmin$2, latestOf, askById, nameOf$1, watchWhat, initialsOf$1, liveView;
+var NotAllowed, no$4, lookupOf, ownsOrAdmin$2, latestOf, askById, nameOf$1, watchWhat, initialsOf$1, liveView;
 var init_actions = __esmMin((() => {
 	init_goalRights();
 	init_proposed();
@@ -8005,7 +8062,7 @@ var init_actions = __esmMin((() => {
 	init_status();
 	init_tableLayout();
 	NotAllowed = class extends Error {};
-	no$3 = (msg) => {
+	no$4 = (msg) => {
 		throw new NotAllowed(msg);
 	};
 	lookupOf = (s) => ({
@@ -8706,21 +8763,21 @@ function activated(goal, fromWeek) {
 * which puts the goal back as it was (domain/removal undoRemoval).
 */
 function activate(x, i) {
-	const g = goalIn(x, i.goalId) ?? no$2("That goal no longer exists. Reload to see the latest.");
-	if (!isProposed(g)) no$2(`“${g.title}” is already active.`);
-	if (!mayActivate(x.actor, g)) no$2(`${nameOf(x, g.ownerId) ?? "Its owner"} or an admin can make this active.`);
+	const g = goalIn(x, i.goalId) ?? no$3("That goal no longer exists. Reload to see the latest.");
+	if (!isProposed(g)) no$3(`“${g.title}” is already active.`);
+	if (!mayActivate(x.actor, g)) no$3(`${nameOf(x, g.ownerId) ?? "Its owner"} or an admin can make this active.`);
 	const from = i.fromWeek ?? Math.max(0, x.week);
 	const to = g.kind === "metric" ? planEnd(g.plan, x.cycle.weeks) : 0;
-	if (g.kind === "metric" && (!Number.isInteger(from) || from < 0 || from >= to)) no$2(`From must be a week of this cycle before the plan’s To: week 0 to week ${to - 1}.`);
+	if (g.kind === "metric" && (!Number.isInteger(from) || from < 0 || from >= to)) no$3(`From must be a week of this cycle before the plan’s To: week 0 to week ${to - 1}.`);
 	const asked = g.kind === "metric" && from < x.week ? fromPastQuestion(g, from, x) : null;
-	if (asked && !i.confirm) no$2(`Not saved. Check with the person first: ${asked}`);
+	if (asked && !i.confirm) no$3(`Not saved. Check with the person first: ${asked}`);
 	const missing = readyToActivate(g, {
 		cycleWeeks: x.cycle.weeks,
 		week: x.week,
 		startDate: x.cycle.startDate,
 		fromWeek: from
 	});
-	if (missing.length) no$2(`“${g.title}” can’t be made active yet: ${missing.map((f) => f.text).join(" ")}`);
+	if (missing.length) no$3(`“${g.title}” can’t be made active yet: ${missing.map((f) => f.text).join(" ")}`);
 	const goal = activated(g, from);
 	const words = g.kind === "metric" ? `Made it active, from week ${from}` : "Made it active";
 	return {
@@ -8754,12 +8811,12 @@ function fromPastQuestion(g, from, x) {
 }
 /** Make an active goal with no check-ins proposed again: its owner or an admin. */
 function backToProposed(x, i) {
-	const g = goalIn(x, i.goalId) ?? no$2("That goal no longer exists. Reload to see the latest.");
-	if (isProposed(g)) no$2(`“${g.title}” is already proposed.`);
-	if (g.stoppedAt) no$2(`“${g.title}” is stopped.`);
-	if (!mayChangeGoal(x.actor, g)) no$2(`Only ${nameOf(x, g.ownerId) ?? "its owner"} (its owner) or an admin can make it proposed again.`);
-	if (g.cycleId !== x.cycle.id) no$2(`“${g.title}” is in another year, so it can’t go back to proposed.`);
-	if ((x.full ?? x.snapshot).checkIns.some((c) => c.goalId === g.id && !c.removedAt)) no$2(HAS_CHECK_INS);
+	const g = goalIn(x, i.goalId) ?? no$3("That goal no longer exists. Reload to see the latest.");
+	if (isProposed(g)) no$3(`“${g.title}” is already proposed.`);
+	if (g.stoppedAt) no$3(`“${g.title}” is stopped.`);
+	if (!mayChangeGoal(x.actor, g)) no$3(`Only ${nameOf(x, g.ownerId) ?? "its owner"} (its owner) or an admin can make it proposed again.`);
+	if (g.cycleId !== x.cycle.id) no$3(`“${g.title}” is in another year, so it can’t go back to proposed.`);
+	if ((x.full ?? x.snapshot).checkIns.some((c) => c.goalId === g.id && !c.removedAt)) no$3(HAS_CHECK_INS);
 	const goal = {
 		...g,
 		proposedAt: x.now,
@@ -8778,7 +8835,7 @@ function backToProposed(x, i) {
 		goal
 	};
 }
-var NOTHING_TO_CHECK_IN, mayActivate, no$2, goalIn, nameOf, change$1, HAS_CHECK_INS;
+var NOTHING_TO_CHECK_IN, mayActivate, no$3, goalIn, nameOf, change$1, HAS_CHECK_INS;
 var init_proposedActions = __esmMin((() => {
 	init_actions();
 	init_goalRights();
@@ -8788,7 +8845,7 @@ var init_proposedActions = __esmMin((() => {
 	init_goalEntry();
 	NOTHING_TO_CHECK_IN = "This goal is proposed, so there is nothing to check in. Make it active first.";
 	mayActivate = (actor, goal) => !!actor.admin || goal.ownerId === actor.id;
-	no$2 = (msg) => {
+	no$3 = (msg) => {
 		throw new NotAllowed(msg);
 	};
 	goalIn = (x, ref) => withProposed(x.snapshot).find((g) => g.id === ref || g.key === ref) ?? (x.allGoals ?? []).find((g) => !g.removedAt && (g.id === ref || g.key === ref));
@@ -8868,10 +8925,10 @@ function commentsOf(changes) {
 /** Correct a comment: only whoever wrote it. It then shows as edited. Null when the words are the same. */
 function editComment(x, id, text) {
 	const k = commentOf(x, id);
-	if (k.removedAt) no$1("That comment has been removed.");
-	if (k.authorId !== x.actor.id) no$1("Only whoever wrote a comment can edit it.");
+	if (k.removedAt) no$2("That comment has been removed.");
+	if (k.authorId !== x.actor.id) no$2("Only whoever wrote a comment can edit it.");
 	const t = text.trim();
-	if (t.length < 2) no$1("Write the comment.");
+	if (t.length < 2) no$2("Write the comment.");
 	if (t === k.text) return null;
 	return { changes: [log$1(x, {
 		entity: "note",
@@ -8889,8 +8946,8 @@ function editComment(x, id, text) {
 /** Remove a comment: whoever wrote it, or an admin. Its place in the thread says "Comment removed". */
 function deleteComment(x, id) {
 	const k = commentOf(x, id);
-	if (k.removedAt) no$1("That comment has already been removed.");
-	if (k.authorId !== x.actor.id && !x.actor.admin) no$1("Only whoever wrote a comment, or an admin, can remove it.");
+	if (k.removedAt) no$2("That comment has already been removed.");
+	if (k.authorId !== x.actor.id && !x.actor.admin) no$2("Only whoever wrote a comment, or an admin, can remove it.");
 	return { changes: [log$1(x, {
 		entity: "note",
 		entityId: k.id,
@@ -8902,9 +8959,9 @@ function deleteComment(x, id) {
 /** Remove a note said in a review: whoever said it, or an admin. The review's record says "Note removed" in its place. */
 function deleteNote(x, id) {
 	const d = x.snapshot.decisions.find((v) => v.id === id) ?? fullOf(x).decisions.find((v) => v.id === id && !v.removedAt);
-	if (!d || d.removedAt) no$1("There’s no note with that ID.");
-	if (d.kind !== "note") no$1("Only a note can be removed; a question or an action is withdrawn.");
-	if (d.byId !== x.actor.id && !x.actor.admin) no$1("Only whoever said it, or an admin, can remove it.");
+	if (!d || d.removedAt) no$2("There’s no note with that ID.");
+	if (d.kind !== "note") no$2("Only a note can be removed; a question or an action is withdrawn.");
+	if (d.byId !== x.actor.id && !x.actor.admin) no$2("Only whoever said it, or an admin, can remove it.");
 	return {
 		decisions: [{
 			...d,
@@ -8931,8 +8988,8 @@ function deleteNote(x, id) {
 */
 function unmarkReviewed(x, made) {
 	const marks = made.filter((d) => d.kind === "acknowledge" && !d.removedAt);
-	if (!marks.length) no$1("Those goals are no longer marked reviewed.");
-	if (marks.some((d) => d.byId !== x.actor.id) && !x.actor.admin) no$1("Only whoever marked them, or an admin, can undo it.");
+	if (!marks.length) no$2("Those goals are no longer marked reviewed.");
+	if (marks.some((d) => d.byId !== x.actor.id) && !x.actor.admin) no$2("Only whoever marked them, or an admin, can undo it.");
 	const after = marks.map((d) => ({
 		...d,
 		removedAt: x.now,
@@ -8982,7 +9039,7 @@ function leaving(x, id) {
 * They're gone from pickers, counts, reviews and Home; history keeps their name, as "Name (left)".
 */
 function markPersonLeft(x, id, to = {}) {
-	if (!x.actor.admin) no$1("Only admins can mark someone as left.");
+	if (!x.actor.admin) no$2("Only admins can mark someone as left.");
 	const p = livePerson(x, id);
 	notSelfOrLastAdmin(x, p, "mark");
 	return departs(x, p, to, `Marked ${p.name} as left`);
@@ -8993,13 +9050,13 @@ function departs(x, p, to, summary) {
 	const l = leaving(x, id);
 	const handTo = (ref, what) => {
 		if (!ref) return null;
-		if (ref === id) no$1(`Choose someone else to take over their ${what}.`);
+		if (ref === id) no$2(`Choose someone else to take over their ${what}.`);
 		return livePerson(x, ref);
 	};
 	const goalsTo = handTo(to.goalsTo, "goals");
 	const asksTo = handTo(to.asksTo, "asks");
-	if (l.goals.length && !goalsTo) no$1(`${p.name} owns ${plural$3(l.goals.length, "goal", "goals")}: choose who takes them over.`);
-	if ((l.asked.length || l.asking.length) && !asksTo) no$1(`${p.name} has ${plural$3((/* @__PURE__ */ new Set([...l.asked, ...l.asking])).size, "open ask", "open asks")}: choose who takes them over.`);
+	if (l.goals.length && !goalsTo) no$2(`${p.name} owns ${plural$3(l.goals.length, "goal", "goals")}: choose who takes them over.`);
+	if ((l.asked.length || l.asking.length) && !asksTo) no$2(`${p.name} has ${plural$3((/* @__PURE__ */ new Set([...l.asked, ...l.asking])).size, "open ask", "open asks")}: choose who takes them over.`);
 	const goals = l.goals.map((g) => ({
 		...g,
 		ownerId: goalsTo.id
@@ -9099,10 +9156,10 @@ function departs(x, p, to, summary) {
 }
 /** Admins: delete someone with no history at all (no goals, check-ins, notes or asks), say someone added by mistake. */
 function deletePerson(x, id) {
-	if (!x.actor.admin) no$1("Only admins can delete people.");
+	if (!x.actor.admin) no$2("Only admins can delete people.");
 	const p = livePerson(x, id);
 	notSelfOrLastAdmin(x, p, "delete");
-	if (hasHistory(personHistory(fullOf(x), id))) no$1(`${p.name} has history here (goals, check-ins, notes or asks): mark them as left instead, so it keeps their name.`);
+	if (hasHistory(personHistory(fullOf(x), id))) no$2(`${p.name} has history here (goals, check-ins, notes or asks): mark them as left instead, so it keeps their name.`);
 	const reviews = x.snapshot.reviews.filter((r) => r.people.includes(id)).map((r) => ({
 		...r,
 		people: r.people.filter((v) => v !== id).length ? r.people.filter((v) => v !== id) : [x.actor.id]
@@ -9189,10 +9246,10 @@ function detach(x, g, how) {
 */
 function stopGoal(x, goalId, reason) {
 	const g = liveGoal(x, goalId);
-	if (!ownsOrAdmin$1(x, g)) no$1("Only the goal’s owner or an admin can stop it.");
-	if (!goalHasCheckIns(fullOf(x), g.id)) no$1("It has no check-ins yet: delete it instead.");
+	if (!ownsOrAdmin$1(x, g)) no$2("Only the goal’s owner or an admin can stop it.");
+	if (!goalHasCheckIns(fullOf(x), g.id)) no$2("It has no check-ins yet: delete it instead.");
 	const why = reason.trim();
-	if (why.length < 10) no$1(`Say why it’s stopping, in a sentence (10 characters or more).`);
+	if (why.length < 10) no$2(`Say why it’s stopping, in a sentence (10 characters or more).`);
 	const d = detach(x, g, "stopped");
 	return {
 		goals: [{
@@ -9223,8 +9280,8 @@ function stopGoal(x, goalId, reason) {
 /** Delete a goal with no check-ins (set up by mistake): its owner or an admin. What fed it moves up; its open asks are withdrawn. */
 function deleteGoal(x, goalId) {
 	const g = liveGoal(x, goalId);
-	if (!ownsOrAdmin$1(x, g)) no$1("Only the goal’s owner or an admin can delete it.");
-	if (goalHasCheckIns(fullOf(x), g.id)) no$1("It has check-ins: stop it instead, with a reason, so its history stays.");
+	if (!ownsOrAdmin$1(x, g)) no$2("Only the goal’s owner or an admin can delete it.");
+	if (goalHasCheckIns(fullOf(x), g.id)) no$2("It has check-ins: stop it instead, with a reason, so its history stays.");
 	const d = detach(x, g, "deleted");
 	return {
 		goals: [{
@@ -9253,11 +9310,11 @@ function deleteGoal(x, goalId) {
 */
 function deleteCheckIn(x, id) {
 	const c = x.snapshot.checkIns.find((v) => v.id === id);
-	if (!c) no$1("There’s no check-in with that ID in this cycle.");
+	if (!c) no$2("There’s no check-in with that ID in this cycle.");
 	const g = x.snapshot.goals.find((v) => v.id === c.goalId);
-	if (!g) no$1("That check-in’s goal isn’t live in this cycle.");
-	if (!mayPostCheckIn(x.actor, g, "form")) no$1(ownersCheckIns(x, g, "delete"));
-	if (checkInsFor(g, x.snapshot.checkIns).at(-1)?.id !== c.id) no$1("A newer check-in has been posted since, so this one can only be corrected.");
+	if (!g) no$2("That check-in’s goal isn’t live in this cycle.");
+	if (!mayPostCheckIn(x.actor, g, "form")) no$2(ownersCheckIns(x, g, "delete"));
+	if (checkInsFor(g, x.snapshot.checkIns).at(-1)?.id !== c.id) no$2("A newer check-in has been posted since, so this one can only be corrected.");
 	const requests = [];
 	const changes = [log$1(x, {
 		entity: "check-in",
@@ -9325,7 +9382,7 @@ function endReview(x, id) {
 /** Delete a review that was never held: whoever set it up, or an admin. One that has been held is ended instead. */
 function deleteReview(x, id) {
 	const r = liveReview(x, id);
-	if (reviewHeld(fullOf(x), r.id)) no$1("It’s been held: end it instead, so its notes and actions stay.");
+	if (reviewHeld(fullOf(x), r.id)) no$2("It’s been held: end it instead, so its notes and actions stay.");
 	return {
 		reviews: [{
 			...r,
@@ -9376,13 +9433,13 @@ function cycleStanding(s, cycleId) {
 }
 /** Admins: delete a cycle no one has checked in to yet (started by mistake, say). Its goals go with it, and come back with it. */
 function deleteCycle(x, id) {
-	if (!x.actor.admin) no$1("Only admins can delete a cycle.");
+	if (!x.actor.admin) no$2("Only admins can delete a cycle.");
 	const full = fullOf(x);
 	const c = full.cycles.find((v) => v.id === id && !v.removedAt);
-	if (!c) no$1("There’s no cycle with that ID.");
-	if (!full.cycles.some((v) => v.id !== id && !v.removedAt)) no$1("It’s the only cycle, so it stays.");
-	if (startOf(full, id)) no$1("Use Undo on Cycles: it also puts back what moved with the goals.");
-	if (!cycleDeletable(full, id)) no$1("Check-ins have been posted in it, so it stays.");
+	if (!c) no$2("There’s no cycle with that ID.");
+	if (!full.cycles.some((v) => v.id !== id && !v.removedAt)) no$2("It’s the only cycle, so it stays.");
+	if (startOf(full, id)) no$2("Use Undo on Cycles: it also puts back what moved with the goals.");
+	if (!cycleDeletable(full, id)) no$2("Check-ins have been posted in it, so it stays.");
 	return {
 		cycles: [{
 			...c,
@@ -9443,12 +9500,12 @@ function canUndoStart(full, cycleId) {
 * can never come back (restore refuses a second cycle with the same start).
 */
 function undoStart(x, cycleId) {
-	if (!x.actor.admin) no$1("Only admins can undo the start of a cycle.");
+	if (!x.actor.admin) no$2("Only admins can undo the start of a cycle.");
 	const full = fullOf(x);
 	const c = full.cycles.find((v) => v.id === cycleId && !v.removedAt);
-	if (!c) no$1("There’s no cycle with that ID.");
+	if (!c) no$2("There’s no cycle with that ID.");
 	const can = canUndoStart(full, cycleId);
-	if (!can.ok) no$1(`${c.name} can’t be undone now: ${can.why}.`);
+	if (!can.ok) no$2(`${c.name} can’t be undone now: ${can.why}.`);
 	const u = startOf(full, cycleId).undo;
 	const gone = {
 		removedAt: x.now,
@@ -9519,11 +9576,11 @@ function keptReason(rows, c, of) {
 function undoPlan(x, importId) {
 	const full = fullOf(x);
 	const entry = importEntry(full, importId);
-	if (!entry) no$1("There’s no import with that ID.");
-	if (!entry.undo) no$1("That import was saved before imports could be undone.");
-	if (importUndone(full, importId)) no$1("That import has already been undone.");
-	if (changesLeftOut(full, entry.at)) no$1(IMPORT_TOO_OLD);
-	if (entry.actorId !== x.actor.id && !x.actor.admin) no$1("Only whoever made the import, or an admin, can undo it.");
+	if (!entry) no$2("There’s no import with that ID.");
+	if (!entry.undo) no$2("That import was saved before imports could be undone.");
+	if (importUndone(full, importId)) no$2("That import has already been undone.");
+	if (changesLeftOut(full, entry.at)) no$2(IMPORT_TOO_OLD);
+	if (entry.actorId !== x.actor.id && !x.actor.admin) no$2("Only whoever made the import, or an admin, can undo it.");
 	const u = entry.undo;
 	const own = new Set(full.changes.filter((c) => c.importId === importId).map((c) => c.id));
 	const undoneImports = new Set(full.changes.filter((c) => c.action === "undone" && c.entity === "workspace").map((c) => c.entityId));
@@ -9819,7 +9876,7 @@ function undoPlan(x, importId) {
 */
 function undoImport(x, importId) {
 	const out = undoPlan(x, importId);
-	if (!out.restored) no$1(nothingToUndo(out.skipped.length));
+	if (!out.restored) no$2(nothingToUndo(out.skipped.length));
 	return out;
 }
 /** Rule 9: what Undo would do, saving nothing: how many rows go back, and which stay as they are, and why. */
@@ -9897,8 +9954,8 @@ function recentlyRemoved(full, now, days = 30, records = []) {
 function restoreRemoved(x, kind, id, records = []) {
 	const full = fullOf(x);
 	const item = recentlyRemoved(full, new Date(x.now), Number.POSITIVE_INFINITY, records).find((r) => r.kind === kind && r.id === id);
-	if (!item) no$1("There’s nothing removed with that ID.");
-	if (!canRestore(x.actor, item)) no$1("Only an admin, or whoever removed it, can restore it.");
+	if (!item) no$2("There’s nothing removed with that ID.");
+	if (!canRestore(x.actor, item)) no$2("Only an admin, or whoever removed it, can restore it.");
 	const restored = (entity, summary, goalId = null, diffs = []) => log$1(x, {
 		entity,
 		entityId: id,
@@ -9912,7 +9969,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		case "left":
 		case "person": {
 			const p = full.people.find((v) => v.id === id);
-			if (x.snapshot.people.some((v) => v.id !== id && v.name.trim().toLowerCase() === p.name.trim().toLowerCase())) no$1(`Someone called ${p.name} is already here. Rename them first.`);
+			if (x.snapshot.people.some((v) => v.id !== id && v.name.trim().toLowerCase() === p.name.trim().toLowerCase())) no$2(`Someone called ${p.name} is already here. Rename them first.`);
 			return {
 				people: [{
 					...p,
@@ -10001,7 +10058,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 		case "watch": {
 			const w = (full.watches ?? []).find((y) => y.id === id);
-			if ((full.watches ?? []).some((y) => y.id !== id && !y.removedAt && y.personId === w.personId && y.kind === w.kind && y.ref === w.ref)) no$1("They already watch it again.");
+			if ((full.watches ?? []).some((y) => y.id !== id && !y.removedAt && y.personId === w.personId && y.kind === w.kind && y.ref === w.ref)) no$2("They already watch it again.");
 			return {
 				watches: [{
 					...w,
@@ -10013,7 +10070,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 		case "cycle": {
 			const c = full.cycles.find((v) => v.id === id);
-			if (full.cycles.some((v) => v.id !== id && !v.removedAt && v.startDate === c.startDate)) no$1(`Another cycle starting ${c.startDate} has been set up since, so this one can’t come back.`);
+			if (full.cycles.some((v) => v.id !== id && !v.removedAt && v.startDate === c.startDate)) no$2(`Another cycle starting ${c.startDate} has been set up since, so this one can’t come back.`);
 			return {
 				cycles: [{
 					...c,
@@ -10029,7 +10086,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 	}
 }
-var no$1, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, IMPORT_TOO_OLD, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay$1, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
+var no$2, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, IMPORT_TOO_OLD, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay$1, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
 	init_goalRights();
 	init_proposed();
@@ -10042,7 +10099,7 @@ var init_removal = __esmMin((() => {
 	init_vocabulary();
 	init_records();
 	init_leftOut();
-	no$1 = (msg) => {
+	no$2 = (msg) => {
 		throw new NotAllowed(msg);
 	};
 	fullOf = (x) => x.full ?? x.snapshot;
@@ -10059,31 +10116,31 @@ var init_removal = __esmMin((() => {
 	nameIn = (s, id) => s.people.find((p) => p.id === id)?.name ?? "—";
 	commentOf = (x, id) => {
 		const k = commentsOf(fullOf(x).changes).get(id);
-		if (!k) no$1("There’s no comment with that ID.");
+		if (!k) no$2("There’s no comment with that ID.");
 		return k;
 	};
 	IMPORT_TOO_OLD = "That import is over a year old, so it can’t be undone: too much may have changed since.";
 	hasHistory = (h) => h.goals + h.checkIns + h.notes + h.asks > 0 || h.unknown;
 	livePerson = (x, id) => {
 		const p = x.snapshot.people.find((v) => v.id === id);
-		if (!p) no$1("There’s no one with that ID in this workspace.");
+		if (!p) no$2("There’s no one with that ID in this workspace.");
 		return p;
 	};
 	notSelfOrLastAdmin = (x, p, what) => {
-		if (p.id === x.actor.id) no$1(`You can’t ${what} yourself. Ask another admin.`);
-		if (p.admin && !x.snapshot.people.some((v) => v.admin && v.id !== p.id)) no$1("They’re the only admin: make someone else an admin first.");
+		if (p.id === x.actor.id) no$2(`You can’t ${what} yourself. Ask another admin.`);
+		if (p.admin && !x.snapshot.people.some((v) => v.admin && v.id !== p.id)) no$2("They’re the only admin: make someone else an admin first.");
 	};
 	liveGoal = (x, id) => {
 		const g = withProposed(x.snapshot).find((v) => v.id === id || v.key === id);
-		if (!g) no$1("There’s no goal with that ID in this cycle.");
+		if (!g) no$2("There’s no goal with that ID in this cycle.");
 		return g;
 	};
 	goalHasCheckIns = (s, goalId) => s.checkIns.some((c) => c.goalId === goalId && !c.removedAt) || checkInsLeftOut(s, s.goals.find((g) => g.id === goalId)?.cycleId ?? "");
 	ownersCheckIns = (x, g, what) => `Only ${x.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? "its owner"} (its owner) can ${what} its check-ins.`;
 	liveReview = (x, id) => {
 		const r = x.snapshot.reviews.find((v) => v.id === id);
-		if (!r) no$1("There’s no review with that ID.");
-		if (r.createdBy !== x.actor.id && !x.actor.admin) no$1("Only whoever set up the review, or an admin, can end it.");
+		if (!r) no$2("There’s no review with that ID.");
+		if (r.createdBy !== x.actor.id && !x.actor.admin) no$2("Only whoever set up the review, or an admin, can end it.");
 		return r;
 	};
 	importEntry = (s, importId) => s.changes.find((c) => c.action === "imported" && c.entityId === importId);
@@ -13676,13 +13733,13 @@ function metricChangeQuestion(before, next, goals, links) {
 */
 function saveMetric(x, input) {
 	const before = input.id ? live$1(x, input.id) : null;
-	if (before && !ownsOrAdmin(x, before)) no(`Only ${x.snapshot.people.find((p) => p.id === before.ownerId)?.name ?? "the metric’s owner"} or an admin can change this metric.`);
-	if (before?.retiredAt) no(`“${before.name}” is retired. Bring it back before changing it.`);
+	if (before && !ownsOrAdmin(x, before)) no$1(`Only ${x.snapshot.people.find((p) => p.id === before.ownerId)?.name ?? "the metric’s owner"} or an admin can change this metric.`);
+	if (before?.retiredAt) no$1(`“${before.name}” is retired. Bring it back before changing it.`);
 	const m = metricFrom(input, before, x);
 	const problems = metricProblems(m, x.snapshot);
-	if (problems.length) no(problems.join(" "));
+	if (problems.length) no$1(problems.join(" "));
 	const ask = before ? metricChangeQuestion(before, m, (x.full ?? x.snapshot).goals, linksOf(x.full ?? x.snapshot)) : null;
-	if (ask && !input.confirm) no(ask.text.replace(/ Change it\?$/, " Ask first, then save it again with confirm."));
+	if (ask && !input.confirm) no$1(ask.text.replace(/ Change it\?$/, " Ask first, then save it again with confirm."));
 	const diffs = diffFields(before ? metricFields(before, x.snapshot) : null, metricFields(m, x.snapshot));
 	if (before && !diffs.length) return {
 		commit: null,
@@ -13708,8 +13765,8 @@ function saveMetric(x, input) {
 */
 function removeMetric(x, id) {
 	const m = live$1(x, id);
-	if (!ownsOrAdmin(x, m)) no(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? "the metric’s owner"} or an admin can remove this metric.`);
-	if (everUsed(m.id, linksOf(x.full ?? x.snapshot))) no(`${m.name} has measured goals, so it can’t be deleted. Retire it instead.`);
+	if (!ownsOrAdmin(x, m)) no$1(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? "the metric’s owner"} or an admin can remove this metric.`);
+	if (everUsed(m.id, linksOf(x.full ?? x.snapshot))) no$1(`${m.name} has measured goals, so it can’t be deleted. Retire it instead.`);
 	const links = linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === id && !l.removedAt);
 	const n = links.length;
 	return {
@@ -13771,7 +13828,7 @@ function linkProblems(goal, m) {
 }
 /** Stop measuring a goal by its metric: the goal's owner or an admin. Kept, so it can be undone. Null when it has none. */
 function unlinkGoalMetric(x, goal) {
-	if (!canLinkGoal(x.actor, goal)) no("Only the goal’s owner or an admin can choose what measures it.");
+	if (!canLinkGoal(x.actor, goal)) no$1("Only the goal’s owner or an admin can choose what measures it.");
 	const l = linksOf(x.snapshot).find((v) => v.goalId === goal.id && !v.removedAt);
 	if (!l) return null;
 	const name = metricsOf(x.full ?? x.snapshot).find((v) => v.id === l.metricId)?.name ?? "its metric";
@@ -13796,7 +13853,7 @@ function unlinkGoalMetric(x, goal) {
 		}), ...hold ? [hold.change] : []]
 	};
 }
-var MODULE, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, markLabel, everUsed, sliceName, measured, clean$1, log, live$1, ownsOrAdmin, canEditMetric, canLinkGoal;
+var MODULE, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no$1, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, markLabel, everUsed, sliceName, measured, clean$1, log, live$1, ownsOrAdmin, canEditMetric, canLinkGoal;
 var init_rules = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -13813,7 +13870,7 @@ var init_rules = __esmMin((() => {
 		[METRICS_KEY]: rows.metrics,
 		[LINKS_KEY]: rows.metricLinks
 	});
-	no = (msg) => {
+	no$1 = (msg) => {
 		throw new NotAllowed(msg);
 	};
 	DIRECTION_LABEL = {
@@ -13867,7 +13924,7 @@ var init_rules = __esmMin((() => {
 	});
 	live$1 = (x, id) => {
 		const m = metricsOf(x.snapshot).find((v) => v.id === id);
-		if (!m || m.removedAt) no("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
+		if (!m || m.removedAt) no$1("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
 		return m;
 	};
 	ownsOrAdmin = (x, m) => x.actor.admin || m.ownerId === x.actor.id;
@@ -14373,11 +14430,11 @@ function saveMetricChange(x, input) {
 	const kinds = changeKinds(before, after, linked, { relabel });
 	const why = (reason ?? "").trim();
 	const n = linked.length;
-	if (kinds.includes("scale")) no(`${goalsWord(n)} ${n === 1 ? "is" : "are"} measured by ${before.name} in ${before.unit}. A metric in ${after.unit} is a different number: add it as a new metric and move goals to it, or retire this one. If “${after.unit}” is only a new label for the same numbers, say so (relabel).`);
-	if (kinds.includes("meaning") && comparable === void 0) no("Say whether it is still the same number.");
+	if (kinds.includes("scale")) no$1(`${goalsWord(n)} ${n === 1 ? "is" : "are"} measured by ${before.name} in ${before.unit}. A metric in ${after.unit} is a different number: add it as a new metric and move goals to it, or retire this one. If “${after.unit}” is only a new label for the same numbers, say so (relabel).`);
+	if (kinds.includes("meaning") && comparable === void 0) no$1("Say whether it is still the same number.");
 	const marked = [...kinds.includes("meaning") && comparable === false ? ["definition"] : [], ...kinds.includes("direction") ? ["direction"] : []];
-	if (marked.length && !why) no(marked.includes("direction") ? "Say why the direction changes, in a line. Every goal measured by it will show this." : "Say why, in a line. Every goal measured by it will show this.");
-	if (why.length > 300) no("Keep the reason to 300 characters or fewer.");
+	if (marked.length && !why) no$1(marked.includes("direction") ? "Say why the direction changes, in a line. Every goal measured by it will show this." : "Say why, in a line. Every goal measured by it will show this.");
+	if (why.length > 300) no$1("Keep the reason to 300 characters or fewer.");
 	const words = (m) => (before.meaning.trim() !== after.meaning.trim() ? m.meaning : m.source) || m.meaning || m.source;
 	const marks = marked.map((kind) => ({
 		week: x.week,
@@ -14437,13 +14494,13 @@ function saveMetricChange(x, input) {
 function retireMetric(x, id, why, replacedBy = null) {
 	const m = metricOf$1(x, id);
 	mayChange(x, m);
-	if (m.retiredAt) no(`“${m.name}” is already retired.`);
+	if (m.retiredAt) no$1(`“${m.name}” is already retired.`);
 	const w = why.trim();
-	if (!w) no("Say why it is retired, in a line. Its goals will show this.");
-	if (w.length > 300) no("Keep the reason to 300 characters or fewer.");
+	if (!w) no$1("Say why it is retired, in a line. Its goals will show this.");
+	if (w.length > 300) no$1("Keep the reason to 300 characters or fewer.");
 	const other = replacedBy ? liveMetrics(x.snapshot).find((v) => v.id === replacedBy) : null;
-	if (replacedBy && (!other || other.id === m.id)) no("The metric it is replaced by must be one in use.");
-	if (other && !same$1(other.unit, m.unit)) no(`${m.name} is in ${m.unit} and ${other.name} is in ${other.unit}. It can only be replaced by a metric in the same unit.`);
+	if (replacedBy && (!other || other.id === m.id)) no$1("The metric it is replaced by must be one in use.");
+	if (other && !same$1(other.unit, m.unit)) no$1(`${m.name} is in ${m.unit} and ${other.name} is in ${other.unit}. It can only be replaced by a metric in the same unit.`);
 	const linked = linkedGoals(x.full ?? x.snapshot, m.id);
 	const next = {
 		...m,
@@ -14477,7 +14534,7 @@ function retireMetric(x, id, why, replacedBy = null) {
 function unretireMetric(x, id) {
 	const m = metricOf$1(x, id);
 	mayChange(x, m);
-	if (!m.retiredAt) no(`“${m.name}” isn’t retired.`);
+	if (!m.retiredAt) no$1(`“${m.name}” isn’t retired.`);
 	return {
 		...metricRows({ metrics: [{
 			...m,
@@ -14504,15 +14561,15 @@ function unretireMetric(x, id) {
 * link of `from` moves to `into` (same slice and part), and `from` is retired pointing to it; all in one save.
 */
 function mergeMetrics(x, fromId, intoId, why = "") {
-	if (!x.actor.admin) no("Only admins can merge metrics: it changes what other people’s goals are measured by.");
+	if (!x.actor.admin) no$1("Only admins can merge metrics: it changes what other people’s goals are measured by.");
 	const from = metricOf$1(x, fromId);
 	const into = metricOf$1(x, intoId);
-	if (from.id === into.id) no("Choose another metric to merge it into.");
-	if (into.retiredAt) no(`“${into.name}” is retired. Bring it back first, or merge into another.`);
-	if (from.retiredAt) no(`“${from.name}” is already retired.`);
-	if (!same$1(from.unit, into.unit)) no(`${from.name} is in ${from.unit} and ${into.name} is in ${into.unit}. Only metrics in the same unit can be merged.`);
+	if (from.id === into.id) no$1("Choose another metric to merge it into.");
+	if (into.retiredAt) no$1(`“${into.name}” is retired. Bring it back first, or merge into another.`);
+	if (from.retiredAt) no$1(`“${from.name}” is already retired.`);
+	if (!same$1(from.unit, into.unit)) no$1(`${from.name} is in ${from.unit} and ${into.name} is in ${into.unit}. Only metrics in the same unit can be merged.`);
 	const w = why.trim() || `The same number as ${into.name}.`;
-	if (w.length > 300) no("Keep the reason to 300 characters or fewer.");
+	if (w.length > 300) no$1("Keep the reason to 300 characters or fewer.");
 	const moved = linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === from.id && !l.removedAt).map((l) => ({
 		...l,
 		metricId: into.id,
@@ -14579,11 +14636,11 @@ var init_rulesChange = __esmMin((() => {
 	goalsWord = (n) => `${n} ${n === 1 ? "goal" : "goals"}`;
 	metricOf$1 = (x, id) => {
 		const m = metricsOf(x.snapshot).find((v) => v.id === id && !v.removedAt);
-		if (!m) no("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
+		if (!m) no$1("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
 		return m;
 	};
 	mayChange = (x, m) => {
-		if (!canEditMetric(x.actor, m)) no(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? "the metric’s owner"} or an admin can retire or bring back this metric.`);
+		if (!canEditMetric(x.actor, m)) no$1(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? "the metric’s owner"} or an admin can retire or bring back this metric.`);
 	};
 	retiredWords = (m) => `“${m.name}” was retired on ${onDay(m.retiredAt)}. Choose another, or bring it back.`;
 }));
@@ -14617,9 +14674,9 @@ function openChecks(x, input) {
 }
 /** Add or change a metric once every Check is answered; refused, with the questions in words, while one is open. */
 function saveMetricAsked(x, input) {
-	if (input.answers?.name?.startsWith("use:")) no("Nothing saved: use that metric instead.");
+	if (input.answers?.name?.startsWith("use:")) no$1("Nothing saved: use that metric instead.");
 	const { input: next, open } = openChecks(x, input);
-	if (open.length) no(`Answer ${open.length === 1 ? "this question" : "these questions"} first: ${open.map((c) => c.words).join(" ")}`);
+	if (open.length) no$1(`Answer ${open.length === 1 ? "this question" : "these questions"} first: ${open.map((c) => c.words).join(" ")}`);
 	const { answers: _, ...rest } = next;
 	return saveMetricChange(x, rest);
 }
@@ -14638,16 +14695,16 @@ var init_rulesSave = __esmMin((() => {
 * metric, slice and part changes nothing (null); with another, it's changed and logged.
 */
 function linkGoalMetric(x, goal, metricId, teamId = null, part = "", reason = "") {
-	if (!(!!x.full && !x.full.goals.some((g) => g.id === goal.id) && x.snapshot.goals.some((g) => g.id === goal.id)) && !canLinkGoal(x.actor, goal)) no("Only the goal’s owner or an admin can choose what measures it.");
+	if (!(!!x.full && !x.full.goals.some((g) => g.id === goal.id) && x.snapshot.goals.some((g) => g.id === goal.id)) && !canLinkGoal(x.actor, goal)) no$1("Only the goal’s owner or an admin can choose what measures it.");
 	const m = live$1(x, metricId);
-	if (m.retiredAt && linksOf(x.full ?? x.snapshot).find((l) => l.id === goal.id && !l.removedAt)?.metricId !== m.id) no(retiredWords(m));
-	if (teamId != null && !x.snapshot.teams.some((t) => t.id === teamId)) no("There’s no team with that ID. Leave the slice empty for the whole company.");
+	if (m.retiredAt && linksOf(x.full ?? x.snapshot).find((l) => l.id === goal.id && !l.removedAt)?.metricId !== m.id) no$1(retiredWords(m));
+	if (teamId != null && !x.snapshot.teams.some((t) => t.id === teamId)) no$1("There’s no team with that ID. Leave the slice empty for the whole company.");
 	const p = part.trim();
 	const fix = linkChecks(goal, m, {
 		teamId,
 		part: p
 	}, linkProblems(goal, m), linkReads(x, goal, m.id), reason).filter((c) => c.kind === "fix");
-	if (fix.length) no(fix.map((c) => c.words).join(" "));
+	if (fix.length) no$1(fix.map((c) => c.words).join(" "));
 	const old = linksOf(x.full ?? x.snapshot).find((l) => l.id === goal.id);
 	const current = old && !old.removedAt ? old : void 0;
 	if (current && current.metricId === m.id && current.teamId === teamId && (current.part ?? "").trim() === p) return null;
@@ -15951,6 +16008,7 @@ function summarise(goal, s, cycle, today, week) {
 		lastWeek: last?.week ?? null,
 		lastPostedAt: last?.postedAt ?? null,
 		quietDays: daysWithoutUpdate(goal, cycle, st.latest, today),
+		asOfWeek: st.asOfWeek,
 		attention: attentionFor(goal, s, cycle, today),
 		forecast: projects(goal, st.status) ? forecastText(goal, a, cycle.weeks, cycle)?.text ?? null : null,
 		projection: !projects(goal, st.status) || a.kind !== "metric" ? null : a.projection,
@@ -16019,6 +16077,7 @@ function proposedSummary(goal, s, cycle, week) {
 		lastWeek: null,
 		lastPostedAt: null,
 		quietDays: 0,
+		asOfWeek: null,
 		attention: {
 			goal,
 			status: {
@@ -16027,7 +16086,8 @@ function proposedSummary(goal, s, cycle, week) {
 				latest: null,
 				greener: false,
 				daysSinceCheckIn: null,
-				week
+				week,
+				asOfWeek: null
 			},
 			flags: [],
 			weight: 0,
@@ -16605,6 +16665,8 @@ init_vocabulary();
 init_columns();
 init_records();
 init_checkin();
+init_thresholds();
+init_progress();
 init_reading();
 var EXPORT_FORMAT = "goals-app.export";
 GOALS.columns.filter((c) => c.role !== "worked").map((c) => c.header);
@@ -16660,14 +16722,20 @@ var DEFINED = [
 	"stage",
 	"askStatus"
 ];
-/** Every word an export uses for a state, defined: read from the vocabulary (domain/vocabulary.ts), never restated. */
-function definitions() {
-	return DEFINED.flatMap((k) => Object.values(GROUPS$1[k].terms).filter((t) => t.where.includes("exports") && !t.same?.startsWith("status.")).map((t) => [
+/** Every word an export uses for a state, defined: read from the vocabulary (domain/vocabulary.ts), never restated.
+With no set check-in rhythm (`rhythm` false, FT1) No recent update is never used, so it isn't defined. */
+function definitions(rhythm = true) {
+	return DEFINED.flatMap((k) => Object.entries(GROUPS$1[k].terms).filter(([key, t]) => t.where.includes("exports") && !t.same?.startsWith("status.") && (rhythm || !(k === "status" && key === "stale"))).map(([, t]) => [
 		"Words",
 		t.label,
 		t.long,
 		GROUPS$1[k].title
 	]));
+}
+/** The workspace's check-in rhythm, as the Start here sheet says it (FT1). */
+function rhythmSentence(cycle) {
+	const r = rhythmOf(cycle);
+	return r ? `Check-in rhythm: every week, due by ${WEEKDAY[r.dueDay]}. A goal with no check-in for ${staleAfterDays(cycle)} days reads ${STATUS.stale.label}.` : "Check-in rhythm: none. A status is the latest check-in’s.";
 }
 /** The headers of the field table, on the Start here sheet. */
 var FIELD_TABLE_HEAD = [
@@ -16692,7 +16760,8 @@ function startHere(x, opts = {}) {
 			x.ws.id,
 			x.cycle.id
 		],
-		[opts.template ? "Fill in a row for each goal, check-in and person, then load the file on Import: you see every change before anything is saved. Headers in bold are required on a new row. Rows whose Action says Example are never imported. Each sheet is recognised by its header row, so keep the headers as they are." : "Change any column a person fills in, add rows, and load the file back on Import: you see every change before anything is saved. Worked-out columns are set in grey and ignored. Each sheet is recognised by its header row, so keep the headers as they are."]
+		[opts.template ? "Fill in a row for each goal, check-in and person, then load the file on Import: you see every change before anything is saved. Headers in bold are required on a new row. Rows whose Action says Example are never imported. Each sheet is recognised by its header row, so keep the headers as they are." : "Change any column a person fills in, add rows, and load the file back on Import: you see every change before anything is saved. Worked-out columns are set in grey and ignored. Each sheet is recognised by its header row, so keep the headers as they are."],
+		...opts.template ? [] : [[rhythmSentence(x.cycle)]]
 	];
 	for (const kind of FILL_SHEETS) {
 		const sheet = specOf(kind);
@@ -16736,7 +16805,7 @@ function startHere(x, opts = {}) {
 			"What it means",
 			"Kind"
 		],
-		...definitions()
+		...definitions(!!rhythmOf(x.cycle))
 	];
 }
 var muted = (kind, head) => head.map(String).filter((h) => isWorkedOut(kind, h));
@@ -17120,12 +17189,18 @@ function aiBrief(x) {
 	out.push("");
 	out.push("## How to read the status");
 	out.push(`The status is the owner’s call each week, checked against the numbers; a call ${lower(FLAG.greener)} says so.`);
-	for (const k of [
+	const rhythm = !!rhythmOf(x.cycle);
+	for (const k of rhythm ? [
 		"on",
 		"risk",
 		"off",
 		"stale"
+	] : [
+		"on",
+		"risk",
+		"off"
 	]) out.push(`- **${LABEL[k]}:** ${MEANING[k]}`);
+	if (!rhythm) out.push(`- ${rhythmSentence(x.cycle)}`);
 	out.push(`- **${ATTENTION.needs.label}:** ${ATTENTION.needs.long}`);
 	for (const k of [
 		"completed",
@@ -17686,7 +17761,7 @@ function sinceCell(goal, cycle, checkIns, week, stale, gain) {
 		move
 	};
 }
-function metricCard(goal, cycle, checkIns, week, stale) {
+function metricCard(goal, cycle, checkIns, week, stale, pace) {
 	const a = assessPosted(goal, cycle, checkIns, week);
 	if (a.kind !== "metric") return {
 		cells: [],
@@ -17769,7 +17844,7 @@ function metricCard(goal, cycle, checkIns, week, stale) {
 			key: "hit",
 			label,
 			value: LIKELIHOOD_WORD[l],
-			sub: `likely ${fmt(p.value, goal)} ${byWeekWords(cycle, due)}`,
+			sub: `likely ${fmt(p.value, goal)} ${byWeekWords(cycle, due)}${pace}`,
 			tone,
 			likelihood: l
 		});
@@ -17792,7 +17867,7 @@ function metricCard(goal, cycle, checkIns, week, stale) {
 		}
 	};
 }
-function rangeCard(goal, cycle, checkIns, week, stale) {
+function rangeCard(goal, cycle, checkIns, week, stale, pace) {
 	const a = assessPosted(goal, cycle, checkIns, week);
 	if (a.kind !== "range") return {
 		cells: [],
@@ -17868,7 +17943,7 @@ function rangeCard(goal, cycle, checkIns, week, stale) {
 			key: "hit",
 			label,
 			value: LIKELIHOOD_WORD[stay],
-			sub: `likely ${fmt(pr.value, goal)} ${byWeekWords(cycle, cycle.weeks)}`,
+			sub: `likely ${fmt(pr.value, goal)} ${byWeekWords(cycle, cycle.weeks)}${pace}`,
 			tone: stay === "likely" ? "good" : stay === "possible" ? "flat" : "bad",
 			likelihood: stay
 		});
@@ -17923,9 +17998,13 @@ function milestoneCard(goal, checkIns, week) {
 }
 /** A goal's scorecard from its check-ins up to `week`. `stale` when its status can't be trusted, so nothing is projected.
 A stopped goal makes no forecast: its card says how it stood (no "will it hit?" cell and no likely end on the
-chart), and the note under it says when and why it stopped. */
-function goalScorecard(goal, cycle, checkIns, week, stale) {
-	const card = goal.kind === "metric" ? metricCard(goal, cycle, checkIns, week, stale) : goal.kind === "range" ? rangeCard(goal, cycle, checkIns, week, stale) : milestoneCard(goal, checkIns, week);
+chart), and the note under it says when and why it stopped.
+`asOfWeek`: with no set rhythm (FT1), the week the latest check-in is from when it isn't this week's. The projection
+is still made from the numbers there are (age alone never makes it Can’t say), and its line says so: "likely 3.2
+days by year end · on the pace to week 44". Null with a rhythm (then No recent update says it). */
+function goalScorecard(goal, cycle, checkIns, week, stale, asOfWeek = null) {
+	const pace = asOfWeek != null && !stale ? ` · on the pace to week ${asOfWeek}` : "";
+	const card = goal.kind === "metric" ? metricCard(goal, cycle, checkIns, week, stale, pace) : goal.kind === "range" ? rangeCard(goal, cycle, checkIns, week, stale, pace) : milestoneCard(goal, checkIns, week);
 	const done = doneCheckIn(goal, checkIns, week);
 	if (!goal.stoppedAt && !done) return card;
 	const cells = card.cells.filter((c) => c.key !== "hit");
@@ -17945,6 +18024,193 @@ function goalScorecard(goal, cycle, checkIns, week, stale) {
 		}
 	};
 }
+// src/domain/rhythm.ts
+init_format();
+init_plan();
+init_progress();
+init_status();
+init_actions();
+init_cycle();
+init_thresholds();
+init_vocabulary();
+init_query();
+var rhythmChoiceOf = (cycle) => ({
+	weeks: rhythmOf(cycle) ? 1 : 0,
+	dueDay: cycle.reviewDay
+});
+/** The running cycle's line on Cycles (4.3), and the fact line for everyone (1.3). */
+function rhythmFact(cycle) {
+	const r = rhythmOf(cycle);
+	return r ? `Check-ins: every week, due by ${WEEKDAY[r.dueDay]}.` : "Check-ins: no set rhythm.";
+}
+var listStatuses = (by) => [
+	"on",
+	"risk",
+	"off",
+	"none"
+].filter((k) => by[k]).map((k) => k === "none" ? `${by[k]} with no check-in yet` : `${by[k]} ${LABEL[k].toLowerCase()}`).join(", ");
+/** What changes for everyone (4.2), once the choice differs from what is saved; [] when it doesn't. */
+function rhythmReadBackLines(cycle, to, counts, today) {
+	const was = rhythmChoiceOf(cycle);
+	if (was.weeks === to.weeks && (to.weeks === 0 || was.dueDay === to.dueDay)) return [];
+	const day = WEEKDAY[to.dueDay];
+	if (to.weeks === 0) {
+		const n = counts.live;
+		return [
+			{
+				strong: `${n} ${n === 1 ? "goal has" : "goals have"} nothing due.`,
+				rest: " Home and Check-in stop counting what’s due, and on-time streaks stop."
+			},
+			...counts.unstale ? [{
+				strong: `${counts.unstale} ${counts.unstale === 1 ? "goal stops" : "goals stop"} reading “${STATUS.stale.label}”.`,
+				rest: ` Each shows its last check-in’s status and the week it is from: ${listStatuses(counts.unstaleBy)}.`
+			}] : [],
+			{
+				strong: "Nothing is flagged for going quiet.",
+				rest: " Goals’ “Last check-in” filter still finds them."
+			},
+			{
+				strong: "",
+				rest: "Dates people chose stay: stage dates, next steps’ weeks and “back on plan by”."
+			},
+			{
+				strong: "",
+				rest: "Every check-in already posted stays as it is."
+			}
+		];
+	}
+	if (was.weeks === 0) {
+		const after = {
+			...cycle,
+			checkInWeeks: 1,
+			reviewDay: to.dueDay
+		};
+		const first = reviewDate(after, firstWeekFrom(after, today.toISOString(), to.dueDay));
+		return [
+			{
+				strong: `Check-ins are due by ${day}`,
+				rest: `, the first by ${dayText(first)}.`
+			},
+			{
+				strong: "Nothing is late today.",
+				rest: ` A goal reads “${STATUS.stale.label}” after ${staleAfterDays(after)} days without a check-in, counted from today.`
+			},
+			{
+				strong: "",
+				rest: "Streaks start from this week."
+			}
+		];
+	}
+	return [{
+		strong: "",
+		rest: `Check-ins are due by ${day} from this week. Streaks count the new day from this week.`
+	}];
+}
+/** The toast after saving (4.2). */
+function rhythmToast(cycle, to) {
+	if (to.weeks === 0) return "Check-ins have no set rhythm now.";
+	return rhythmOf(cycle) ? `Check-ins are due by ${WEEKDAY[to.dueDay]} now.` : `Check-ins are due every week, by ${WEEKDAY[to.dueDay]}.`;
+}
+function rhythmReadBack(goals, checkIns, cycle, to, today) {
+	const after = {
+		...cycle,
+		checkInWeeks: to.weeks,
+		reviewDay: to.weeks > 0 ? to.dueDay ?? cycle.reviewDay : cycle.reviewDay,
+		...(cycle.checkInWeeks ?? 1) === 0 && to.weeks > 0 ? { rhythmFrom: today.toISOString().slice(0, 10) } : {}
+	};
+	const out = {
+		live: 0,
+		unstale: 0,
+		unstaleBy: {},
+		stale: 0
+	};
+	for (const g of goals) {
+		if (g.stoppedAt || g.removedAt || g.proposedAt) continue;
+		const now = goalStatus(g, cycle, checkIns, today).status;
+		if (now === "done") continue;
+		out.live++;
+		const then = goalStatus(g, after, checkIns, today).status;
+		if (now === "stale" && then !== "stale") {
+			out.unstale++;
+			out.unstaleBy[then] = (out.unstaleBy[then] ?? 0) + 1;
+		}
+		if (now !== "stale" && then === "stale") out.stale++;
+	}
+	return out;
+}
+/**
+* The person's live goals for checking in with no set rhythm (FT1, spec 2.3): those with no check-in this week
+* (`waiting`: never-checked-in goals first, then oldest first) and those that have one (`thisWeek`). Done and stopped goals
+* are left out. A done goal is one whose latest check-in says so.
+*/
+function checkInList(personId, goals, checkIns, week) {
+	const rows = goals.filter((g) => g.ownerId === personId && !g.stoppedAt && !g.removedAt && !g.proposedAt).map((g) => {
+		const own = checkIns.filter((c) => c.goalId === g.id && !c.removedAt);
+		const latest = own.length ? own.reduce((a, b) => b.postedAt > a.postedAt ? b : a) : null;
+		return {
+			row: {
+				goalId: g.id,
+				lastWeek: latest?.week ?? null,
+				lastPostedAt: latest?.postedAt ?? null
+			},
+			done: latest?.status === "done",
+			now: own.some((c) => c.week === week)
+		};
+	}).filter((r) => !r.done);
+	return {
+		waiting: rows.filter((r) => !r.now).map((r) => r.row).sort((a, b) => (a.lastPostedAt ?? "").localeCompare(b.lastPostedAt ?? "")),
+		thisWeek: rows.filter((r) => r.now).map((r) => r.row)
+	};
+}
+/**
+* Admins: the workspace's check-in rhythm (FT1, spec 1.1): every week, due by a weekday, or no set rhythm. Kept on the
+* running cycle. Going from none to some starts the rhythm today (`rhythmFrom`), so nothing is late on the day it is
+* switched on; changing only the due day doesn't restart it. Null when nothing changed.
+*/
+var no = (msg) => {
+	throw new NotAllowed(msg);
+};
+function setRhythm(x, cycle, to) {
+	if (!x.actor.admin) no("Only admins can change the check-in rhythm.");
+	if (to.weeks !== 0 && to.weeks !== 1) no("Faro checks in every week, or on no set rhythm.");
+	if (to.weeks > 0 && to.dueDay != null && !(Number.isInteger(to.dueDay) && to.dueDay >= 0 && to.dueDay <= 6)) no("Choose a day of the week.");
+	if (cycleState(cycle, new Date(x.now)) !== "running" && cycleState(cycle, new Date(x.now)) !== "ending") no("That year is over; its rhythm can’t change.");
+	const was = cycle.checkInWeeks ?? 1;
+	const dueDay = to.weeks > 0 ? to.dueDay ?? cycle.reviewDay : cycle.reviewDay;
+	if (was === to.weeks && dueDay === cycle.reviewDay) return null;
+	const after = {
+		...cycle,
+		reviewDay: dueDay,
+		checkInWeeks: to.weeks
+	};
+	if (to.from !== void 0) {
+		if (to.from) after.rhythmFrom = to.from;
+		else delete after.rhythmFrom;
+	} else if (was === 0 && to.weeks > 0) after.rhythmFrom = x.now.slice(0, 10);
+	const day = (d) => WEEKDAY[d];
+	const said = (c) => (c.checkInWeeks ?? 1) === 0 ? "no set rhythm" : `every week, due by ${day(c.reviewDay)}`;
+	const summary = was === to.weeks ? `Changed the day check-ins are due by from ${day(cycle.reviewDay)} to ${day(dueDay)}` : to.weeks === 0 ? "Changed the check-in rhythm from every week to no set rhythm" : `Changed the check-in rhythm from no set rhythm to every week, due by ${day(dueDay)}`;
+	return {
+		cycles: [after],
+		changes: [{
+			id: x.newId("chg"),
+			at: x.now,
+			actorId: x.actor.id,
+			goalId: null,
+			entity: "workspace",
+			entityId: cycle.id,
+			action: "edited",
+			summary,
+			diffs: [{
+				field: "Check-in rhythm",
+				from: said(cycle),
+				to: said(after)
+			}]
+		}]
+	};
+}
+/** What the filter line says when a link asks for No recent update and there is no set rhythm (FT1, spec 2.6). */
+var NO_STALE_HERE = `${STATUS.stale.label} isn’t used here: there is no set check-in rhythm.`;
 // src/domain/activity.ts
 init_levels();
 init_plan();
@@ -19541,6 +19807,15 @@ var CORE_ARTICLES = [
 				]
 			},
 			{
+				heading: "With no set rhythm",
+				list: [
+					"An admin can choose no set rhythm for a workspace (Workspace, Features). Then Check-in is “Check in on a goal”: your goals with no check-in this week first, those you have never checked in on at the top, then those checked in this week. Each row has its own button; nothing is due, late or counted against you, and there is no streak.",
+					"A goal is judged by what it last said. Where that isn’t this week’s, its status says which week it is from: “On track · as of week 44”, on Goals, Home, Watching and the goal’s page. No goal reads No recent update, and History has no “No check-in” rows.",
+					"Home and Goals say what has a check-in this week, not what is due. On Home each of your goals without one this week has its own Check in button. Goals’ Last check-in filter still finds the goals with no check-in for some weeks.",
+					"On a goal that isn’t yours, “Ask the owner for an update” is there whenever its latest check-in isn’t this week’s. Its forecast is still made from the numbers there are, and says whose pace it is: “on the pace to week 44”. A printed goal says “as of week 44” beside its status."
+				]
+			},
+			{
 				heading: "A number filled in from its source",
 				list: [
 					"With the Metric library on, a goal measured by a metric whose source Faro can read opens its number step with the latest reading already in the field: “From CI analytics, read 9:02 today.” The button says the number (“Confirm 12 min”), so confirming is something you read, not a reflex. Nothing is posted until you finish the check-in, and a week you don’t check in stays a week with no check-in.",
@@ -21121,6 +21396,8 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"On Workspace, Features says how this workspace works and lists the optional parts of Faro, each with what it does; About says which are on, from the same list. Goals, check-ins and people are the core and always on.",
+					"How you work starts with the check-in rhythm: “Every week, due by Thursday” (a goal with no check-in for 14 days reads No recent update) or “No set rhythm” (owners check in when there’s news; nothing is due or late for want of a check-in). Change opens a sheet with the two choices and, with Every week, the day check-ins are due by.",
+					"Before you save, the sheet says what changes for everyone here, counted: how many goals have nothing due, how many stop reading No recent update and what each would show instead, and that dates people chose and every check-in already posted stay as they are. Switched back on, nothing is late that day: the rhythm counts from today, and the sheet says when the first check-ins are due. Save says what it did, with Undo.",
 					"Working together holds Reviews (walking a set of goals together on a cadence), Watching (following goals you don’t own) and the Wrap-up (each owner saying how their goals landed at the end of the year). Tools holds the Metric library, Spreadsheets and the Goal map. Beyond this workspace holds Feedback, which goes to the people who build Faro. A group this Faro has nothing in isn’t shown. Each has a switch with On or Off beside it.",
 					"While a feature is on, its row says what it holds: how many reviews are set up, how many people watch goals here, or when the wrap-up opens and, while it is open, how many goals are wrapped up.",
 					"Switching off a feature that keeps something asks first: Reviews always, Watching when anyone watches a goal, the Wrap-up once a wrap-up is written or while it is open. Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, how many accepted risks stay on their goals (no new one can be accepted while it is off), that check-ins are still due by the same day, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching anything else off that keeps nothing, or anything on, acts at once.",
@@ -21137,7 +21414,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Admins switch features. Everyone sees what is on."]
+				text: ["Admins switch features and choose the check-in rhythm. Everyone sees what is on, and Cycles says the rhythm to everyone (“Check-ins: every week, due by Thursday.” or “Check-ins: no set rhythm.”)."]
 			},
 			{
 				heading: "For the people building Faro",
@@ -21154,7 +21431,8 @@ var CORE_ARTICLES = [
 			"FEEDBACK-OPTIONAL",
 			"MAP-OPTIONAL",
 			"WRAP-UP-OPTIONAL",
-			"FEATURE-GROUPS"
+			"FEATURE-GROUPS",
+			"RHYTHM-OPTIONAL"
 		],
 		keywords: [
 			"features",
@@ -21506,6 +21784,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "check-in-rhythm",
+		date: "2026-11-14",
+		title: "Check-ins can have no set rhythm",
+		points: [
+			"Check-ins can have no set rhythm. An admin chooses on Workspace, Features: every week, or no set rhythm.",
+			"With none, nothing is due or late, and each goal says which week its status is from (“On track · as of week 44”).",
+			"Before it changes, the sheet says what will change for everyone, counted. Switching a rhythm back on counts from that day, so nothing is late, and Undo puts it back."
+		],
+		articles: ["features", "check-in"]
+	},
 	{
 		id: "table-confirm-readings",
 		date: "2026-11-14",
@@ -23158,8 +23447,8 @@ function systemOverview() {
 		"",
 		"- A workspace has people, teams, a cycle (a goal year or quarter counted in weeks from week 0) and goals. A goal is one of three kinds: a number to move from a start to a target along a plan, a number to keep within a limit, or dated stages.",
 		"- Each week the owner checks in: the number (or each stage), their call on the status, and the words the numbers ask for (why it is behind or ahead, and a path back to green when behind).",
-		`- The status is the owner’s call, beside what the numbers say. A number goal is on track at ${pct(RULES.onTrack)} of the planned progress or more, at risk from ${pct(RULES.atRisk)}, off track below; a range goal is at risk near or once over its limit and off track after two weeks over; a stage up to ${RULES.lateWeeksOff} weeks late is at risk, later is off track. With no check-in for ${RULES.staleDays} days a goal has no recent update.`,
-		`- Statuses, worst first: ${STATUS_ORDER.map((k) => LABEL[k]).join(", ")}. Always shown as a shape and a word.`,
+		`- The status is the owner’s call, beside what the numbers say. A number goal is on track at ${pct(RULES.onTrack)} of the planned progress or more, at risk from ${pct(RULES.atRisk)}, off track below; a range goal is at risk near or once over its limit and off track after two weeks over; a stage up to ${RULES.lateWeeksOff} weeks late is at risk, later is off track. With no check-in for ${RULES.staleDays} days (two check-ins’ time, every week) a goal has no recent update; with no set check-in rhythm, never.`,
+		`- Statuses, worst first: ${STATUS_ORDER.map((k) => k === "stale" ? `${LABEL[k]} (only with a check-in rhythm)` : LABEL[k]).join(", ")}. Always shown as a shape and a word.`,
 		"- Flags say why a goal needs attention (off track, a missed recovery date, no recent update, a decision waiting, no path to green, at risk, getting worse, a call greener than calculated). An off-track or at-risk goal is being handled, and leaves the list that needs attention, when since its latest check-in an action with an owner and a due week was agreed (or, at risk only, its request was answered), until something new happens. Someone marking it reviewed or noting it is not enough: that is a quiet line only.",
 		"- One change engine takes many changes at once (spreadsheets, bulk edits, MCP) and checks every row with the same rules as the app’s forms.",
 		"",
@@ -23220,6 +23509,7 @@ init_vocabulary();
 init_asks();
 init_review();
 init_progress();
+init_thresholds();
 init_tableLayout();
 init_goalKey();
 init_proposed();
@@ -23549,9 +23839,20 @@ var WORK_TOOLS = [
 					day: d.next.weekday
 				} : null } : {}
 			};
+			const rhythm = rhythmOf(ctx.cycle);
+			const list = rhythm ? null : checkInList(ctx.actor.id, s.goals, s.checkIns, ctx.week);
+			const noCheckInThisWeek = list ? list.waiting.map((r) => ({
+				id: r.goalId,
+				title: s.goals.find((g) => g.id === r.goalId)?.title ?? r.goalId,
+				lastWeek: r.lastWeek
+			})) : null;
 			return {
 				data: {
 					week: ctx.week,
+					...rhythm ? {} : {
+						rhythm: "none",
+						noCheckInThisWeek
+					},
 					atAGlance: glance,
 					checkInsDue: due,
 					needsAttention: attention,
@@ -23568,7 +23869,7 @@ var WORK_TOOLS = [
 					`Week ${ctx.week} for ${ctx.actor.name}.`,
 					`${d.scope === "mine" ? "Your goals" : "All goals"}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(", ") || "none"}.${d.streak ? ` On-time streak: ${d.streak} ${d.streak === 1 ? "week" : "weeks"}.` : ""}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ""}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ""}`,
 					...weekReceipt ? [[weekReceipt.first, weekReceipt.second].filter(Boolean).join(" ")] : [],
-					`Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.`,
+					rhythm ? `Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.` : `No set check-in rhythm: nothing is due. No check-in this week: ${noCheckInThisWeek.length ? noCheckInThisWeek.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.`,
 					`Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask}${when(r)} (${r.id})`).join("; ") : "none"}.`,
 					`Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question}${when(q)} (${q.id})`).join("; ") : "none"}.`,
 					`Asked for an update: ${asks.length ? asks.map((x) => `${withProposed(s).find((g) => g.id === x.goalId)?.title} by ${x.by}${when(x)} (${x.id})`).join("; ") : "none"}.`,
@@ -24343,6 +24644,55 @@ var WORK_TOOLS = [
 				data: {
 					on: [...r.on],
 					off: [...r.off.keys()]
+				}
+			};
+		}
+	},
+	{
+		name: "set_rhythm",
+		title: "Choose the check-in rhythm",
+		description: `Admins: how often every goal is expected to have a check-in in this workspace. every: "week" (due by a weekday, due_by; a goal with none for two check-ins’ time reads ${STATUS.stale.label}) or "none" (no set rhythm: owners check in when there’s news, and nothing is due or late for want of a check-in). Without confirm: true it changes nothing and says what would change, counted. With it, the change is made and logged; switching a rhythm on counts from today, so nothing is late that day.`,
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["every"],
+			properties: {
+				every: str$10("“week” or “none”.", { enum: ["week", "none"] }),
+				due_by: str$10("With every week: the weekday check-ins are due by. Leave out to keep it.", { enum: WEEKDAY }),
+				confirm: bool$1("true to make the change; leave out to see what it would do first.")
+			}
+		},
+		annotations: {
+			...WRITE$2,
+			idempotentHint: true
+		},
+		async run(a, ctx) {
+			const weeks = a.every === "none" ? 0 : a.every === "week" ? 1 : -1;
+			if (weeks < 0) throw new Error("Say every: \"week\" or every: \"none\".");
+			const dueDay = a.due_by === void 0 || a.due_by === null ? ctx.cycle.reviewDay : WEEKDAY.indexOf(String(a.due_by));
+			if (dueDay < 0) throw new Error("Choose a day of the week.");
+			const to = {
+				weeks,
+				dueDay
+			};
+			if (a.confirm !== true) {
+				if (!ctx.actor.admin) throw new Error("Only admins can change the check-in rhythm.");
+				const lines = rhythmReadBackLines(ctx.cycle, to, rhythmReadBack(ctx.snapshot.goals, ctx.snapshot.checkIns, ctx.cycle, to, ctx.today), ctx.today);
+				const text = lines.length ? `Nothing is changed yet. What changes for everyone here:\n${lines.map((l) => `- ${l.strong}${l.rest}`).join("\n")}\nCall set_rhythm again with confirm: true to make the change.` : `Nothing to change: ${rhythmFact(ctx.cycle)}`;
+				return {
+					data: {
+						changed: false,
+						rhythm: rhythmFact(ctx.cycle),
+						wouldChange: lines.map((l) => l.strong + l.rest)
+					},
+					text
+				};
+			}
+			return {
+				...await save$2(ctx, setRhythm(ax$2(ctx), ctx.cycle, to), rhythmToast(ctx.cycle, to), `Nothing to change: ${rhythmFact(ctx.cycle)}`),
+				data: {
+					rhythm: weeks ? "every week" : "none",
+					dueBy: weeks ? WEEKDAY[dueDay] : null
 				}
 			};
 		}
@@ -27523,6 +27873,8 @@ function activeReadBack(goal, c) {
 	return parts.join(" ");
 }
 // src/mcp/tools.ts
+init_thresholds();
+init_progress();
 init_levels();
 init_actions();
 init_query();
@@ -27909,7 +28261,7 @@ var CORE_TOOLS = [
 			openWorldHint: false
 		},
 		async run(_a, ctx) {
-			return { text: `You are acting as ${ctx.actor.name}${ctx.actor.admin ? " (an admin: can change any goal)" : " (can change the goals they own)"} in ${ctx.ws.name}.
+			return { text: `You are acting as ${ctx.actor.name}${ctx.actor.admin ? " (an admin: can change any goal)" : " (can change the goals they own)"} in ${ctx.ws.name}. Check-in rhythm: ${rhythmOf(ctx.cycle) ? `every week, due by ${WEEKDAY[ctx.cycle.reviewDay]}` : "none"}.
 
 ` + aiBrief({
 				ws: ctx.ws,
@@ -27987,6 +28339,7 @@ var CORE_TOOLS = [
 				linkScope = new URLSearchParams(v.params).get("scope");
 			}
 			const status = a.status ? statusIn(a.status) : null;
+			if (status === "stale" && !rhythmOf(ctx.cycle)) throw new Error(NO_STALE_HERE);
 			const named = a.owner ? ctx.snapshot.people.filter((p) => p.name.toLowerCase().includes(String(a.owner).toLowerCase())).map((p) => p.id) : null;
 			const owners = [
 				query.owner.length ? query.owner : null,
@@ -28077,6 +28430,7 @@ var CORE_TOOLS = [
 				target: s.target,
 				gap: s.gap,
 				lastCheckInWeek: s.lastWeek,
+				asOfWeek: s.asOfWeek,
 				feedsInto: s.feedsInto,
 				youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id
 			})), a, "No goal matches. Try fewer or plainer words, or another scope or status."));
@@ -28122,8 +28476,9 @@ var CORE_TOOLS = [
 					text: JSON.stringify(data, null, 2)
 				};
 			}
-			const stale = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status === "stale";
-			const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale).cells.map((c) => ({
+			const gs = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today);
+			const stale = gs.status === "stale";
+			const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale, rhythmOf(ctx.cycle) ? null : gs.asOfWeek).cells.map((c) => ({
 				label: c.label,
 				value: c.value,
 				detail: c.sub
@@ -50934,6 +51289,10 @@ var personFromRow = (r) => ({
 	...when("removedAt", r.removed_at),
 	...who("removedBy", r.removed_by)
 });
+var rhythmCols = (c) => ({
+	check_in_weeks: c.checkInWeeks ?? 1,
+	rhythm_from: c.rhythmFrom ?? null
+});
 var cycleToRow = (ws, c) => ({
 	workspace_id: ws,
 	id: c.id,
@@ -50941,20 +51300,26 @@ var cycleToRow = (ws, c) => ({
 	start_date: c.startDate,
 	weeks: c.weeks,
 	review_day: c.reviewDay,
+	...rhythmCols(c),
 	...set({
 		removed_at: c.removedAt,
 		removed_by: c.removedBy
 	})
 });
-var cycleFromRow = (r) => ({
-	id: r.id,
-	name: r.name,
-	startDate: r.start_date.slice(0, 10),
-	weeks: Number(r.weeks),
-	reviewDay: Number(r.review_day ?? 3),
-	...when("removedAt", r.removed_at),
-	...who("removedBy", r.removed_by)
-});
+var cycleFromRow = (r) => {
+	const weeks = Number(r.check_in_weeks ?? 1);
+	return {
+		id: r.id,
+		name: r.name,
+		startDate: r.start_date.slice(0, 10),
+		weeks: Number(r.weeks),
+		reviewDay: Number(r.review_day ?? 3),
+		...weeks !== 1 ? { checkInWeeks: weeks } : {},
+		...r.rhythm_from ? { rhythmFrom: String(r.rhythm_from).slice(0, 10) } : {},
+		...when("removedAt", r.removed_at),
+		...who("removedBy", r.removed_by)
+	};
+};
 function goalToRows(ws, g) {
 	return {
 		goal: {
