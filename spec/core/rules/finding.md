@@ -86,7 +86,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ### [src/adapters/parts.test.ts](../../../src/adapters/parts.test.ts)
 
-_None tagged with these requirements._
+- Prefs kept on the server, through Supabase (PP1, migration 0053) › keeps one value per person and key, reads every person’s, and keeps only the listed keys
 
 ### [src/adapters/findAll.test.ts](../../../src/adapters/findAll.test.ts)
 

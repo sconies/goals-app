@@ -85,3 +85,20 @@ searchContract('over the workspace in this browser', seededSearch);
 // The query port over the conformance workspace as it was built for: the moment goals.csv, status.csv and flags.csv read.
 goalsContract('over the workspace in this browser', conformanceBase, conformanceGoals);
 prefsContract('in this browser', memoryPrefs);
+
+describe('Prefs kept on the server, through Supabase (PP1, migration 0053)', () => {
+  it('keeps one value per person and key, reads every person’s, and keeps only the listed keys', async () => {
+    const db = await freshPostgres();
+    const s = new SupabaseStore('https://stand-in.supabase.co', 'public-key', pgSupabase(db));
+    await s.createWorkspace({ id: 'ws_pp', name: 'Prefs', kind: 'own', createdAt: '2026-11-01T00:00:00Z' }, contractWorkspace('pp1'));
+    await s.keepPersonPref('ws_pp', { personId: 'ada', key: 'proposals', value: { opened: ['g1'] } });
+    await s.keepPersonPref('ws_pp', { personId: 'ada', key: 'proposals', value: { opened: ['g1', 'g2'] } });
+    await s.keepPersonPref('ws_pp', { personId: 'bo', key: 'proposals', value: { putOff: { g3: '2027-01-09' } } });
+    const rows = (await s.personPrefs('ws_pp')).sort((a, b) => a.personId.localeCompare(b.personId));
+    expect(rows).toEqual([
+      { personId: 'ada', key: 'proposals', value: { opened: ['g1', 'g2'] } },
+      { personId: 'bo', key: 'proposals', value: { putOff: { g3: '2027-01-09' } } },
+    ]);
+    await expect(s.keepPersonPref('ws_pp', { personId: 'ada', key: 'recents', value: [] })).rejects.toThrow();
+  });
+});
