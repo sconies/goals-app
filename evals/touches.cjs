@@ -112,14 +112,17 @@ function touches(files) {
   return { full, ids: [...ids].sort((a, b) => a.localeCompare(b, 'en', { numeric: true })), unmatched, score };
 }
 
-/** PR CI's cap (Lane, 14 Nov): at most this many journeys beyond the core ones; the rest wait for the full suite that
-    runs after the merge, so a PR touching many files still finishes inside the job's 30 minutes. */
+/** PR CI's cap (Lane, 14 Nov): at most this many journeys and checks together beyond the core ones; the rest wait for
+    the full suite that runs after the merge, so a PR touching many files still finishes inside the job's 30 minutes.
+    Checks count too (planning, 14 Nov, after #465's smoke job ran out of time on 31 journeys and 28 uncapped checks):
+    a check runs about as long as a journey. */
 const PR_JOURNEY_CAP = 25;
 
 /**
- * The journeys a pull request's CI runs: every core journey, then of the others the `cap` the changed files name most
- * directly (touches' score; ties by id, lowest first). Returns { run, left } in id order, `left` the ones the full suite
- * after the merge covers. Checks aren't capped.
+ * The journeys and checks a pull request's CI runs: every core one (the smoke journeys and checks), then of the others
+ * the `cap` the changed files name most directly (touches' score; ties by id, lowest first), journeys and checks ranked
+ * together. Returns { run, left } in the order given, `left` (in id order) the ones the full suite after the merge
+ * covers.
  */
 function capJourneys(journeys, core, score, cap = PR_JOURNEY_CAP) {
   const byId = (a, b) => a.localeCompare(b, 'en', { numeric: true });
