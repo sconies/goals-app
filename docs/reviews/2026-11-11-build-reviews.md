@@ -14,10 +14,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon (session …iZx169kF) stopped after 14 code PRs, at about 395k tokens of context. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `65fd1421` (#465), the head of main at 20:40 UTC, 14 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #492 to #465, at the end, under "The reviewer of 14 November, afternoon".
+- **Last merge fully reviewed:** `15c8f356` (#513), the head of main at 21:27 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511 (docs only) has neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none.
-- **Mediums open:** none. #468's was fixed by #492 (and #491 built the design's one section); #475's by #495.
+- **Mediums open:** two, sent to planning 14 Nov, 21:40 UTC: #503's (a goal stopped while held stays held) and #513's (the kit's words on a moment are not what History does).
 - **Expected next:** #505 (MQ's code, track 7d, on migration 0055: check the row mapper writes SQL null, never an empty string, for a `level` or `confidence` that isn't said, which 0055's checks refuse; and that the parent's rules, no loops, same workspace, not removed, are in the module's rule, since the database only refuses a metric that is its own parent). #497 (HM7 and HB3, track 1). U124's "Changed since" check (track 1).
 - **Read, not walked on screen by this session:** #469 (HM4), #491 (SM1h), #487 (TG1), #464 (GR) and #465 (FT1); their own journeys are the only browser runs. #465's thirteen screen files were skimmed. If the full suite on main goes red on one of them, start there.
 - **How merges reach you:** no timer works here (scheduling a wake needs an approval nobody answers). Each track messages the reviewer its PR's number when it merges; whenever a message arrives, run `git log --first-parent <last reviewed>..origin/main` and review everything in it. Messages lag and repeat: about half of this session's were for PRs already reviewed, and a track's message can give a stale migration number (#502 was announced as 0054 and is 0055).
@@ -258,6 +258,9 @@ Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon 
 | #464 GR: guardrails on a goal | 7d | 0 | 0 | 1 |
 | #502 MQ part 1: migration 0055, metric structure | 7d | 0 | 0 | 0 |
 | #465 FT1: the check-in rhythm per cycle (every week by a day, or no set rhythm) | 4 | 0 | 0 | 0 |
+| #505 MQ: a metric's structure (parent and level, confidence, how it could be gamed) on 0055 | 7d | 0 | 0 | 2 |
+| #503 MS and BL review: #428's mediums 2 to 4, #449's mediums 7 and 8 | 7c | 0 | 1 | 0 |
+| #513 Rebuild kit stage 1: the full drill's 16 gaps, in words | item 11 | 0 | 1 | 0 |
 
 **High findings, and where each stands**
 
@@ -2219,3 +2222,37 @@ Read at the level of the rules, the row mapper, the app layer, the AI tools, the
 - **With what merged beside it:** Home's "Changed since" never says "went quiet" with no rhythm, since the status it compares is never No recent update; the next year keeps the rhythm and drops `rhythmFrom`.
 - CI gains a job that runs the smoke gate on the example with no rhythm, leaving out the ten journeys about what is due (listed in `evals/touches.cjs`); the kit's drill scores a second set of conformance rows for it. No budget or wait is raised; the first download stays in its 275 KB by loading the parity table after it (an action pressed in the app's first moments then runs untraced, which the comment says).
 
+## The reviewer of 14 November, night (session …TMGey4V), from #505
+
+Started fresh from `924e2730`. Probes are throwaway vitest files over the demo organisation (`buildPlatformOrg`, 5 Nov 2026), deleted after; nothing touched the live database. #511 (backlog and planning handover, docs only) merged in the same run and has no section.
+
+### #505 MQ: a metric's structure (track 7d, merged 14 Nov)
+
+Read whole against migration 0055; the rule probed. No high, no medium.
+
+- **The row (the handover's first question): fine.** `metricToRow` writes `level`, `parent_id`, `confidence` and `gaming` on every row, SQL null when not said (`gaming` too, never an empty string), and `metricFromRow` drops a value 0055's checks wouldn't hold; tested in `rulesStructure.test.ts`.
+- **The parent's rules (the second): in the module's rule.** `structureProblems` runs inside `metricProblems`, so the form, `save_metric` and the checked save all refuse a parent that is the metric itself, removed, not in the workspace, or already under it (`makesLoop` walks every metric, removed ones too, and stops on a loop already saved). A level needs a parent. The picker greys the same rows with the same words (U172).
+- **A save that changes only the structure is logged:** ran, "Changed the metric “Flaky test rate”" with Part of and How it relates in its diffs.
+- Part of the metric library, no switch of its own, as the module map's MQ row says; README, the module map and handoff each have their line; What's new has an entry.
+
+**Lows.** (1) Ran. Removing a parent metric (one no goal was ever measured by) leaves its children pointing at it: the child's page still says "A control on Zed parent." with a link to the removed metric, and every later save of the child, its caveats included, is refused with "Choose another parent: it’s been removed." until someone clears Part of. `removeMetric` could clear its children in the same save. (2) Ran. `mergeMetrics` leaves the children of the metric merged away under the retired one; the metric it was merged into lists none of them. (3) The Metrics sheet in the workbook has no column for any of the four (it has none for the measurement status either).
+
+### #503 MS and BL review: #428's mediums 2 to 4 and #449's mediums 7 and 8 (track 7c, merged 14 Nov)
+
+Read against the five findings; medium 4 probed.
+
+- **#428 medium 2 (Undo of a hold stays in the database): closed.** `unmeasured_since` is written on every goal row, null when not held, with a row test.
+- **#428 medium 3 (the form drops the hold): closed.** `planGoal` keeps the existing goal's hold. A held number goal can't be turned into stages by the form (ran: "A goal’s type can’t change once it is active"), so the kept hold can't land on a goal that has no number.
+- **#449 medium 7 (a carried goal keeps last year's baseline): closed.** Dropped when the copy starts from its final number, kept when there is none; tested through the row.
+- **#449 medium 8 (provisional after check-ins): closed.** `baseline-provisional-late` is a Must fix; the form and the engine (import and `update_goal`) both pass the goal's check-ins to it.
+- **#428 medium 4 (merge, retire, bring back, the switch): closed for goals that are running, and for both doors to the switch** (the app's and `set_module`'s contexts both carry `MODULE_RECORDS`).
+
+**1. Medium (ran). A goal stopped while it is held stays held when it comes back.** `heldBy`, the merge and `heldOnSwitch` all leave out a stopped goal (`rulesMeasured.ts:61,89`, `rulesChange.ts`), and restarting it re-works nothing. Probe: Flaky test rate made a Gap, so "Flaky test rate in the main pipelines" is held; the goal is stopped; the metric is set to Measured (the save writes no goal); the goal is restarted from Recently removed: `unmeasuredSince` is still set and `isUnmeasured` is true under a Measured metric. The same with the library switched off in between: the restarted goal is held with the library off, which is the state medium 4 was raised for. A stopped goal can be restarted for 30 days, and `linkedGoals` in the same module already says "a stopped goal counts". Fix: let the three re-work stopped goals too (the hold only shows once the goal runs, `isUnmeasured`), or re-work the hold on restart.
+
+### #513 Rebuild kit stage 1: the gaps the full drill found (item 11, merged 14 Nov)
+
+Words only, in `src/spec/rules.ts` and `src/spec/build.ts`, with new worked examples. The examples are run by `npm test` (`src/spec`: 89 tests pass). The prose is checked by nothing, so a subagent read each added or changed sentence that states behaviour against the code and ran what could be run: about 30 claims hold (the two "latest" tie-breaks, `forecast_misses` unrounded, the unit matching, the far-outside threshold, trend and range room, every clause of `due` and `firstDueWeek`, `back k` over gap weeks, the forgiveness walk, the receipt table). No rule changed.
+
+**1. Medium (ran by the subagent; the code read by me). The words on a moment are true of the conformance rows and not of History.** The kit now says "*Earlier* means posted before this one (`postedAt` earlier), whatever week it is for" and that *Reached* is judged "by the plan as of this check-in's week" (`src/spec/rules.ts:1844-1846`). `moment` does neither (`src/domain/habit.ts:35`, "any order"); `src/spec/conformance.ts:196,200` makes both cuts before calling it, and History's row passes every other check-in and today's plan (`src/screens/GoalScreen.tsx:1008`). So Faro's own History disagrees with the kit: a week-46 check-in that reached the target loses "Reached" once a second week-46 check-in is posted the next day; a week-30 check-in that met a target of 20 h loses it when the plan is later re-planned to 10 h. The receipt and `post_check_in` agree with the kit, since at posting everything else is earlier and the plan is current. Either the cuts move into `moment` (then History matches the kit and checkin.csv), or the kit says History's row is worked out from all the goal's check-ins as they stand now. Which is a product call; a rebuild from the kit as it reads today gets History rows Faro doesn't show.
+
+Not checked: that the conformance workspace has no equal `postedAt` values, which one sentence says.
