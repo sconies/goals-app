@@ -15,7 +15,7 @@ import { articleRef } from './lookup';
 export const MARKS = [
   'checkIn.open', 'checkIn.carry', 'checkIn.account',
   'newGoal.step-2', 'newGoal.step-3', 'newGoal.step-4',
-  'setUp.step-1', 'setUp.step-2', 'setUp.step-3', 'setUp.step-4', 'setUp.step-5', 'setUp.step-6', 'setUp.step-7',
+  'setUp.step-1', 'setUp.step-2', 'setUp.step-3', 'setUp.step-4',
   'import.read',
   'respond.open', 'respond.close',
 ] as const;
@@ -118,13 +118,10 @@ const ALL_FLOWS: Flow[] = [
   {
     id: 'set-up', title: 'Set up a workspace', article: 'set-up',
     steps: [
-      { id: 'workspace', title: 'Name the workspace', routes: ['/workspace/new'], marks: ['setUp.step-1'] },
-      { id: 'you', title: 'Say who you are', marks: ['setUp.step-2'] },
-      { id: 'team', title: 'Add your team', marks: ['setUp.step-3'] },
-      { id: 'start', title: 'Choose a starting point', marks: ['setUp.step-4'] },
-      { id: 'outcome', title: 'Set the outcome', marks: ['setUp.step-5'] },
-      { id: 'goals', title: 'Add goals', marks: ['setUp.step-6'] },
-      { id: 'check', title: 'Check it', marks: ['setUp.step-7'] },
+      { id: 'workspace', title: 'Name the workspace and say who you are', routes: ['/workspace/new'], marks: ['setUp.step-1'] },
+      { id: 'people', title: 'Add your team', marks: ['setUp.step-2'] },
+      { id: 'goals', title: 'Add goals, import them or leave them for later', marks: ['setUp.step-3'] },
+      { id: 'check', title: 'Check it', marks: ['setUp.step-4'] },
       { id: 'create', title: 'Create the workspace', actions: ['createWorkspace'] },
     ],
   },
