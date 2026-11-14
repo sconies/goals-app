@@ -27,6 +27,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-guardrails',
+    date: '2026-11-14',
+    title: 'Guardrails on a goal',
+    points: [
+      'A goal can name up to five goals that guard it: goals kept in a range, such as change failure rate at most 12%. Choose them under Change this goal, More details, Guarded by.',
+      'When a guard is past its limit, the goal it guards is at risk; two weeks running, off track. The check-in and the goal’s page say which guard and by how much.',
+    ],
+    articles: ['guardrails'],
+  },
+  {
     id: 'goal-fields',
     date: '2026-11-14',
     title: 'Fields: your workspace’s own columns on goals',

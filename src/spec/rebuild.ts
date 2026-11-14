@@ -86,6 +86,8 @@ function guide(all: Stage[], rows: Stage1Files): string {
     '',
     `**What the kit fully supports today:** ${drills.length === 1 ? `stage ${drills[0]!.n} only` : `stages ${drills.map((s) => s.n).join(', ')}`}. Stage 1 has everything a rebuild needs in this folder: the records it reads, the rules in plain words with worked examples, the conformance data for every goal in every week of the demo workspace (${total(rows)} rows in five files, one of them every check-in judged again by what a check-in must say), and a harness that runs a rebuild and scores it. Only Numbers and names is shown by worked examples alone, with no conformance rows. Stages 2 and 3 have a drill for part of what they build: stage 2’s scores the change engine (what it raises, and what each change set would save, item by item), stage 3’s the screens’ words that are rules (the menu and a page’s name, New goal’s read-back, Find, Home’s lead). The rest of each, the store, undo and the screens themselves, is still checked by hand; their pages say which.`,
     '',
+    '**Before the first stage:** read [how to run the rebuild](lessons.md), what building Faro taught us about organising the work: what to set up first, how many streams at once, how to sort review findings, and how to keep AI sessions cheap. It applies whether people or AI sessions do the work.',
+    '',
     '**Copying the code instead of rebuilding it?** The stage for that is [swap the outside parts](adapters.md): write an adapter for each part of the outside world your platform provides (the database, sign-in, files, where numbers come from), until its contract test passes. It sits beside the numbered stages, not after them: a team that copies Faro does it first and may need none of the others. Its goals store is the demo-scale port: before building on it for the whole company, read [the ports at company scale](ports-at-scale.md), the query and command ports that replace it. To prove a rebuild holds at company size, [accepting scale](scale.md) has a workspace of that size to load and the week’s turn’s budget. And before copying anything, read [don’t copy this](dont-copy.md): what is right for a demo and wrong for the internal app.',
     '',
     '**What is an outline:** every stage after 3. Their pages say what to build and what proves it, so a rebuild can start, but the proof is by hand, and each lists the gaps where the kit doesn’t yet hold what a rebuild needs. Each grows a drill as the kit grows (backlog item 8k: every item adds its module’s stage and runs its drill).',
@@ -398,6 +400,49 @@ export const CONTRACT_MAP: [string, string][] = [
 ];
 
 /** AS part 3 (deep review A7): what a team copying Faro should leave behind, each with what to do instead. */
+/**
+ * How to run the rebuild (KL, Lane, 14 Nov): what building Faro taught us about organising the work, from the retro
+ * (docs/retros/2026-11-14-lessons-learned.md, #489). It lives here, once, so the drill and the internal team both read it
+ * in spec/rebuild/lessons.md; docs/handoff.md points to it.
+ */
+export const LESSONS: { heading: string; items: string[] }[] = [
+  { heading: 'Set up before the first feature', items: [
+    '**Don\'t commit files that are generated and that every change touches.** Faro commits `spec/` (14 MB), `api/mcp.js` (2 MB) and `llms.txt`. More than 300 commits changed each one, and nearly every merge of main conflicted in them. Generate them in CI or at release, and have CI fail when they are out of date. Never ask a person or a session to merge them by hand.',
+    '**No single file that every change appends to.** In Faro, What\'s new (`src/help/whatsNew.ts`, touched by 240 commits) and the handover log were where most conflicts happened. Write one small file per entry and put them together at build time.',
+    '**Give out ids without collisions.** Journey and check ids were numbered in order, so two branches took the same one (two journeys called U87; N28). Prefix ids with the module, or generate them.',
+    '**Set budgets with headroom and an owner** (first download, page load). Faro hit its 275 KB and 334 KB limits mid-build and needed a separate piece of work (FD) to get back under them.',
+    '**Fix the clock in time-dependent checks.** Nightly jobs that read "today" failed before 09:00 UTC and turned main red.',
+  ] },
+  { heading: 'Organising the work', items: [
+    '**The core first, then one module at a time** (stages in `spec/rebuild/`). Make the decisions an area needs before building it, in one batch, not feature by feature. In Faro, ideas fed in mid-build meant designs changed while code was being written against them.',
+    '**At most two or three streams of work at once, each owning its own area.** Every extra stream multiplied merge conflicts with main (133 merges of main into branches for 339 merged pull requests) and duplicated work (two sessions built the same fix).',
+    '**One short handover note per stream, overwritten each time.** Faro\'s single append-only `docs/handover.md` grew to 213 KB and 57 sections, most of them superseded, and sessions picked up stale entries from it.',
+    '**Keep each pull request to one feature and its tests.** Spec, conformance and stage updates for that feature belong in the same PR. A shared generated output does not.',
+  ] },
+  { heading: 'Review and quality', items: [
+    '**Sort review findings by severity:** highs go at once to whoever owns the area; mediums go to the planner in one batch; lows go to the backlog. Of about 220 PRs reviewed in Faro, about 50 were fixes for earlier findings, and about 20 of those raised new findings. Fixing lows straight away kept that cycle going.',
+    '**Review the diff without generated files** (`git diff … -- . \':!spec\' \':!api/mcp.js\' \':!llms.txt\'`).',
+    '**Before a merge, run the core journeys and whatever the change touches; run the full suite after the merge**, and fix or revert at once when main is red. Faro\'s `evals:pr` and the rolling "Full evals failing on main" issue do this.',
+  ] },
+  { heading: 'If AI sessions do the building', items: [
+    '**Keep each session\'s context small.** Every turn re-reads the whole context. At 500–600k tokens, re-reading was most of Faro\'s bill (one session re-read 760M tokens to write 1.2M). Hand over at about 300k tokens. A fresh start costs 50–150k tokens.',
+    '**Use a cheaper model for mechanical work:** merging main, regenerating files, running evals, watching CI, editing docs. Keep the strongest model for design, code and review.',
+    '**Start the reviewer fresh every day**, from a short note rather than its whole log.',
+    '**Pre-approve routine tool calls before leaving sessions unattended.** Approval prompts stalled session starts while nobody was there to answer them.',
+  ] },
+];
+
+const LESSONS_INTRO = 'Faro was built in about a week by many AI sessions working side by side (`docs/retros/2026-11-14-lessons-learned.md` has the costs and the evidence). Most of what went wrong was in how the work was organised, not in the code. These lessons apply to your rebuild whether people or AI sessions do the work.';
+
+/** spec/rebuild/lessons.md: the lessons as a checklist, read before the first stage. */
+const lessons = () => GENERATED + [
+  '# How to run the rebuild: what building Faro taught us',
+  '',
+  LESSONS_INTRO,
+  '',
+  ...LESSONS.flatMap((g) => [`## ${g.heading}`, '', ...g.items.map((i) => `- [ ] ${i}`), '']),
+].join('\n');
+
 const dontCopy = () => GENERATED + [
   '# Don’t copy this',
   '',
@@ -549,6 +594,7 @@ export function rebuildFiles(mods: ModuleWithRebuild[], rows: Stage1Files, harne
     'spec/rebuild/adapters.md': adapters(browser),
     'spec/rebuild/ports-at-scale.md': portsAtScale(),
     'spec/rebuild/dont-copy.md': dontCopy(),
+    'spec/rebuild/lessons.md': lessons(),
     'spec/rebuild/drill.mjs': '// Generated by npm run spec from scripts/drill.mjs. Edit that file, not this copy.\n' + harness,
   };
   for (const s of all) if (s.module) out[`spec/rebuild/${s.file}`] = moduleStage(s, mods.find((m) => m.id === s.module)!, all);

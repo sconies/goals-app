@@ -2146,6 +2146,8 @@ export interface GoalDraft {
   whyHelps: string;
   /** Other goals it also helps (dotted lines on the map). */
   alsoHelps: string[];
+  /** The goals that guard it (GR, domain/guards), by id. Left out: as it was. */
+  guards?: string[];
   /** When the target is due, as a week from the cycle's start; empty means the end of the cycle. */
   endWeek: string;
   /** Plan numbers typed by hand, by checkpoint week. Empty means the shape decides. */

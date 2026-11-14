@@ -254,6 +254,6 @@ export function nextCycle(old: Cycle, goals: Goal[], checkIns: CheckIn[], retros
   // finishes, and one its owner stopped at the wrap-up stops. The read-back before starting counts the same.
   const carried = goals.filter((g) => g.cycleId === old.id && carries(carryKind(g, { cycle: old, checkIns, retro: retros.find((r) => r.goalId === g.id && r.cycleId === old.id) ?? null }).kind));
   const map = new Map(carried.map((g) => [g.id, ids.goal(g)]));
-  const out = carried.map((g) => carryCopy(g, { old, next: cycle, checkIns, id: map.get(g.id)!, parentId: g.parentId ? map.get(g.parentId) ?? null : null, now, alsoHelps: (g.alsoHelps ?? []).map((h) => map.get(h)).filter((h): h is string => !!h) }));
+  const out = carried.map((g) => carryCopy(g, { old, next: cycle, checkIns, id: map.get(g.id)!, parentId: g.parentId ? map.get(g.parentId) ?? null : null, now, alsoHelps: (g.alsoHelps ?? []).map((h) => map.get(h)).filter((h): h is string => !!h), guards: (g.guards ?? []).map((x) => map.get(x.goal)).filter((h): h is string => !!h) }));
   return { cycle, goals: out };
 }

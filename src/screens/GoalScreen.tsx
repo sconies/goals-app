@@ -7,6 +7,8 @@
    The words come from the domain (domain/goalPage and the modules it asks); this file lays them out. */
 import { rhythmOf } from '../domain/thresholds';
 import { canAskUpdate } from '../domain/rhythm';
+import { guardBreaches } from '../domain/guards';
+import { breachWords } from '../domain/guardWords';
 import { Place, useModules } from '../core/app';
 import { reviewsOn, watchingOn } from '../app/reads';
 import { MODULE_RECORDS } from '../core/records';
@@ -347,6 +349,7 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
   // When it was last updated: the latest check-in's date, beside its week.
   const st = app.statusOf(goal);
   const updated = updatedLine(goal, app.snapshot, !rhythmOf(app.cycle) && st.status !== 'done' ? st.asOfWeek : null);
+  const breaches = guardBreaches(goal, app.snapshot.goals, app.cycle, app.snapshot.checkIns, app.week);
   const num = figures.nowValue != null && goal.kind !== 'milestone'
     ? <CountNumber value={figures.nowValue} from={countFrom} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} duration={storyOn() ? STORY_MS * storyPace() : MOTION_MS} onLanded={storyOn() ? landedMoment : undefined} land={storyOn()} />
     : figures.now;
@@ -376,6 +379,8 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
         </div>
         {firstDue && !goal.stoppedAt ? <p className="small muted sc-none" data-part="Scorecard">The scorecard starts with the first check-in.</p> : card.cells.length > 0 && <ScoreGrid cells={card.cells} />}
         {isUnmeasured(goal) && <p className="small muted bar-unmeasured" data-part="Not measured yet">{UNMEASURED_MEANING}</p>}
+        {/* A guard past its limit (GR), beside the status: which one, its number and how far past. */}
+        {!goal.stoppedAt && breaches.map((b) => <p key={b.guard.id} className="small bar-guard" data-part="Guardrail">{breachWords(b)}</p>)}
         {askedLine && <div className="bar-note">{askedLine}</div>}
         {actions && <div className="bar-actions">{actions}</div>}
       </header>

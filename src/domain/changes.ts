@@ -25,6 +25,7 @@ function goalFields(g: Goal, l: Lookup): Record<string, string> {
     'Feeds into': g.parentId ? l.goal(g.parentId)?.title ?? '—' : 'Nothing',
     'Why it helps': g.parentId ? g.whyHelps || '—' : '—',
     'Also helps': g.alsoHelps?.length ? g.alsoHelps.map((id) => l.goal(id)?.title ?? id).join(', ') : '—',
+    'Guarded by': g.guards?.length ? g.guards.map((x) => l.goal(x.goal)?.title ?? x.goal).join(', ') : '—',
     Level: levelName(null, g.level),
     Role: g.io === 'input' ? 'Input' : 'Output',
     Guardrail: g.guardrail ? 'Yes' : 'No',
