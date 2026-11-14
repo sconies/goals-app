@@ -60,7 +60,7 @@ Two tables in `faro`, with RLS as the workspace's other tables and every grant w
 - `okr_goal_fields` (`workspace_id`, `id`, `name` 1–40, `kind` in ('list','text'), `options` jsonb (a list's 1–20 values), `position`, `created_by`, `created_at`, `retired_at`, `retired_by`), unique (`workspace_id`, lower(trim(`name`))) among live fields;
 - `okr_goal_field_values` (`id` = `{goal_id}:{field_id}`, since module records are upserted on `id`; `workspace_id`, `goal_id`, `field_id`, `value` text ≤ 80, empty when cleared, `set_by`, `set_at`).
 
-Both go on `faro.module_tables` (module `tags`, positions 30 and 40), and the change log's `entity` gains `field`. Drafted as `supabase/migrations/0052_goal_fields.sql` on branch `tg0-migration` (track 2, 14 Nov).
+Both go on `faro.module_tables` (module `tags`, positions 30 and 40), and the change log's `entity` gains `field`. Drafted as migration 0052 (goal fields) on branch `tg0-migration` (track 2, 14 Nov).
 
 Check constraints add their lines to `src/spec/limits.ts`. Module records (`src/core/records.ts`) carry them through save, removal, undo, the carry and the workbook, so no core rule reads them.
 
