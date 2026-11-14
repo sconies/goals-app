@@ -14,26 +14,33 @@ Module id `tags`, in [src/modules/tags/](../../../src/modules/tags/module.json).
 | Routes | none |
 | Old addresses | none |
 | Navigation | none |
-| Places on core screens | none |
-| Workspace sections | none |
-| Database tables | none |
-| Its own records | none |
-| AI tools | none |
-| Help articles | none |
+| Places on core screens | `goal.sections` |
+| Workspace sections | `/workspace/fields` |
+| Database tables | `goal_fields` (0052_goal_fields.sql): A workspace's own fields on goals: name, kind (list or text), a list's values, position; never deleted (retired_at when retired). 0054 holds that free text has no values.; `goal_field_values` (0052_goal_fields.sql): A goal's value for one field: one row per goal and field (id {goal_id}:{field_id}); empty when cleared. |
+| Its own records | field (`goal_fields`, filed under `modules.tags.fields`); field value (`goal_field_values`, filed under `modules.tags.fieldValues`) |
+| AI tools | `list_fields`, `set_goal_fields`, `save_field` |
+| Help articles | “Fields: a workspace’s own columns on goals” (`fields`) |
 | Outside its folder | none |
 
 ## Requirements
 
+- `TAGS-FIELDS`: A workspace defines up to six of its own fields on goals (a stage, a programme), each a list of values or free text, on Workspace, Fields: admins add, rename, reorder, retire and bring them back; everyone reads them. A goal's page shows one line per field in About, which its owner or an admin changes in place, and History says the change (“Stage: Discover → Build”). No rule reads a field; an AI assistant lists and sets them under the same rules. (Copy.)
+- `TAGS-OFF`: An admin switches Fields off for a workspace. Off, a goal's page has no Fields block, Workspace has no Fields section (its address says Fields is switched off), and the fields tools refuse. Every field and value is kept, and switching it on shows them again. (Copy.)
 
 ## Journeys and checks
 
-_None._
+| Id | What | Where |
+|---|---|---|
+| U174 | A workspace’s own field on goals (TG1): as Amara, an admin, Workspace → Fields says “No fields yet”; she adds “Stage”, a list of Discover, Build and Run, and the page lists it as “A list: Discover, Build, Run”. On a goal’s page its About has “Stage · Not set”; she sets it to Discover, then to Build, in place, and History says “Stage: Discover → Build”; a second field called “stage” is refused in the rule’s words | `evals/journeys.cjs` |
+| N34 | Fields switched off: no Fields block on a goal, no Workspace → Fields, its address says it is off, and it all comes back on | `evals/notes/34-fields-off.cjs` |
 
 ## Help
 
-_None._
+- **Fields: a workspace’s own columns on goals** (`fields`): A workspace’s own fields on goals, such as a stage or a programme: up to 6, each a short list of values or free text, set on each goal’s page. No rule reads them: they’re for finding and sorting.
 
 ## Rules, conformance and rebuild stage
 
 Its rebuild stage: [stage 9](../../rebuild/stage-9-module-tags.md) (an outline, with no drill yet).
-Its rules: [Fields: a workspace’s own columns on goals](rules.md#fields-a-workspaces-own-columns-on-goals), in plain words with worked examples (run against the code by the spec’s own test). **Not self-explanatory:** it has no conformance rows of its own yet.
+Its rules: [Fields: a workspace’s own columns on goals](rules.md#fields-a-workspaces-own-columns-on-goals), in plain words with worked examples (run against the code by the spec’s own test). Its conformance rows: [tags.csv](../../conformance/tags.csv) ([what each column is](../../conformance/README.md#the-files)).
+
+Its own records, every field: [its records](records.md).

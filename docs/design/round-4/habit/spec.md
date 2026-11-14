@@ -92,7 +92,7 @@ CF4's sheet (workspace-settings spec, 2.5) with one change: the default for a ne
 | Viewer | Sees |
 |---|---|
 | A person | Their own receipt and Home line. Nobody else's run, anywhere |
-| Anyone in a review | The review's panel and row of weeks |
+| Anyone in the workspace | A review's panel and row of weeks, on the review's page, which everyone can read (Lane, 14 Nov: not only the people in the review). It counts goals and weeks, never people |
 | Anyone | A team's panel and row, for a team of three or more owners (rule 4) |
 | A leader whose goals span three or more teams, and an admin | Home's cell (HM7's audience) |
 

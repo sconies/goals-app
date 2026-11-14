@@ -839,6 +839,21 @@ journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app:
   h.set('entry', fromCheck[0] && !fromCheck[1], `a step opened from Check has “Back to Check” ${fromCheck[0]}, and ${fromCheck[1]} Back buttons`);
   await h.click(p.getByRole('button', { name: 'Back to Check' }));
   await p.waitForURL(/\/workspace\/new\/check/);
+  // A name step 1 refuses can't reach Create another way (build review of #475): change it to "ab" on step 1, then open
+  // Check by its address (as the browser's Forward would) instead of Continue. Set-up goes back to step 1. A probe, not
+  // a step of the task, so its clicks are plain ones, as the empty-name check above.
+  await p.getByRole('button', { name: 'Change you' }).click();
+  await p.waitForURL(/\/workspace\/new\/workspace/);
+  await p.getByLabel('Workspace name', { exact: true }).fill('ab');
+  await p.waitForTimeout(400);
+  await p.goto(live('/workspace/new/check'));
+  await p.waitForURL(/\/workspace\/new\/workspace/, { timeout: 5000 }).catch(() => {});
+  const refused = [/\/workspace\/new\/workspace/.test(p.url()), await p.getByText('Create ab?').count()];
+  h.set('entry', refused[0] && !refused[1], `a refused name reached by address: at ${p.url()}, “Create ab?” shown ${refused[1]} times`);
+  await p.getByLabel('Workspace name', { exact: true }).fill('Growth');
+  await p.getByRole('button', { name: /^(Continue to people|Back to Check)$/ }).first().click();
+  if (!/\/check/.test(p.url())) await p.goto(live('/workspace/new/check'));
+  await p.waitForURL(/\/workspace\/new\/check/);
   await h.click(p.getByRole('button', { name: 'Create Growth' }));
   await see(p, 'Growth is ready');
   h.set('finish', await p.locator('.celebrate .btn.primary').isVisible(), 'no next step after setting up');
@@ -905,6 +920,7 @@ async function designProblems(r) {
     return [...new Set(out)];
   });
 }
+
 
 journey('U97', ['SETUP-FIRST-SCREEN', 'IDENTITY', 'ONBOARDING'], 'The first screen and the way in: Welcome at its own address with one main action; set-up at its own; the invitation opens the workspace it names, says who set it up and asks which one you are; a link to nothing opens nothing; Welcome back remembers', 22, async (h, device) => {
   const p = h.use(await newPage(device));
@@ -989,7 +1005,7 @@ journey('U97', ['SETUP-FIRST-SCREEN', 'IDENTITY', 'ONBOARDING'], 'The first scre
   await p.context().close();
 });
 
-journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-MODE'], 'Set up a small workspace on a Sunday, as the outside reviewer did: each field says what it needs, a team typo is caught, nothing is late, the weekly review exists, and Start over removes it all', 30, async (h, device) => {
+journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-MODE', 'SMALL-MENU'], 'Set up a small workspace on a Sunday, as the outside reviewer did: each field says what it needs, a team typo is caught, nothing is late, Home shows the one team’s goals as one section, the weekly review exists, and Start over removes it all', 30, async (h, device) => {
   // The setup review of 8 Nov, replayed: Sunday 8 November is after week 45's Thursday review.
   const sunday = (x) => BASE + '/demo' + x + (x.includes('?') ? '&' : '?') + 'today=2026-11-08';
   const p = h.use(await newPage(device, 'grace'));
@@ -1093,6 +1109,12 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   // Nothing is asked yet (the rest are due next week), and Home never says they are all in (HM1).
   const homeSays = await p.locator('.home-hero').first().innerText().catch(() => '');
   h.set('progress', said.startsWith(`1 of ${owned} checked in for week 45`) && !/^(All|Both)/.test(said) && /Nothing is asked of you today/.test(homeSays) && !/in for week/.test(homeSays), `after one early check-in the confirmation said “${said}” and Home “${homeSays.replace(/\n/g, ' ')}”`);
+  // One team (small workspaces 2.1, SM1h): Home's goals are one section, “The team’s goals · {n}”, with no Your goals,
+  // Your team or Goals you watch beside it (nothing is watched yet), and no count of nought.
+  const parts = await p.locator('.home-main [data-part]').evaluateAll((els) => els.filter((e) => e.getClientRects().length).map((e) => e.getAttribute('data-part')));
+  const teamHead = (await p.locator('[data-part="The team’s goals"] .block-title').first().innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  const live = s.goals.filter((g) => !g.stoppedAt && !g.deletedAt).length;
+  h.set('attention', teamHead === `The team’s goals · ${live}` && !parts.some((x) => ['Your goals', 'Your team', 'Goals you watch'].includes(x)), `with one team, Home's sections are ${parts.join(', ') || 'none'} and its heading reads “${teamHead}” (expected “The team’s goals · ${live}”)`);
   await p.goto(sunday('/reviews'));
   await see(p, 'Session Thu 12 Nov', 'the first review session is not next Thursday');
   // A goal page asks for what it measures while it isn't said: in About, open on a first visit, with Describe it.
@@ -1820,7 +1842,7 @@ journey('U123', ['HOME-MANAGER'], 'The manager on Home: Rhea’s “Your team ·
   await p.context().close();
 });
 
-journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k', 3, async (h, device) => {
+journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k; “Changed since Friday 6 Nov” counts open lists of that length, and the table’s last column is “Since Fri 6 Nov”', 3, async (h, device) => {
   // Home rule 4 (HM3): three or more teams are drawn as teams, ordered as Goals orders "By team" (worstGroupsFirst).
   const day = (d) => BASE + '/demo/?today=' + d;
   const p = h.use(await newPage(device, 'amara'));
@@ -1852,6 +1874,37 @@ journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans 
   await p.locator('.goals-line').first().waitFor();
   const line = await p.locator('.goals-line').first().innerText();
   h.set('finish', new RegExp(`^${k} needs? attention`).test(line), `a team’s “${k} need attention” opened Goals saying “${line}”`);
+  // Changed since (rule 5, HM4). Monday's first look counted from that Monday, and nothing had moved: the part is absent.
+  // Home last opened on Fri 6 Nov (the `home-seen` pref, per browser), on Wed 11 Nov it says what moved since, each count
+  // opening Goals with a count line of that length and the filter line in its words; the teams table's last column too.
+  await p.goto(day('2026-11-09'));
+  await block.waitFor();
+  if (await p.locator('[data-part="Changed since"]').count()) fail('“Changed since” shows on Monday though nothing moved since Monday');
+  await p.evaluate(([k, v]) => localStorage.setItem(k, v), ['faro-prefs:platform-org:amara:home-seen', JSON.stringify({ last: '2026-11-06', prev: null })]);
+  await p.goto(day('2026-11-11'));
+  const changed = p.locator('[data-part="Changed since"]');
+  await changed.waitFor();
+  const title = (await changed.locator('h2').innerText()).trim();
+  const moved = await changed.locator('.changed-counts a').evaluateAll((as) => as.map((a) => ({ kind: a.getAttribute('data-moved'), n: Number((a.textContent.match(/^(\d+)/) || [])[1]), text: a.textContent.trim(), href: a.getAttribute('href') || '' })));
+  const rows = await changed.locator('.changed-row').count();
+  const total = moved.reduce((n, m) => n + m.n, 0);
+  if (title !== 'Changed since Friday 6 Nov' || !moved.length || rows !== Math.min(4, total)) fail(`“Changed since” says “${title}”, counts ${moved.map((m) => m.text).join(', ')}, with ${rows} rows`);
+  if (await changed.locator('.changed-row .status-shape').count() !== rows) fail('a “Changed since” row has no status shape beside its word');
+  const WORDS = { worse: 'got worse', better: 'recovered', quiet: 'went quiet', done: 'done' };
+  for (const m of moved) {
+    await h.click(changed.locator(`.changed-counts a[data-moved="${m.kind}"]`));
+    await p.waitForURL(new RegExp(`scope=watching&moved=${m.kind}&since=2026-11-06`));
+    await p.locator('.goals-line').first().waitFor();
+    const said = await p.locator('.goals-line').first().innerText();
+    if (Number((said.match(/^(\d+)/) || [])[1]) !== m.n) fail(`“${m.text}” opened Goals saying “${said}”`);
+    const words = await p.locator('.filter-line').first().innerText().catch(() => '');
+    if (!words.includes(`Changed since Fri 6 Nov: ${WORDS[m.kind]}`)) fail(`“${m.text}” opened Goals whose filter line says “${words}”`);
+    await p.goBack();
+    await changed.waitFor();
+  }
+  const since = (await table.locator('thead th').last().innerText()).trim();
+  if (since !== 'Since Fri 6 Nov') fail(`the teams table’s last column is “${since}”, not “Since Fri 6 Nov”`);
+  await h.checkpoint('changed');
   h.set('errors', true);
   h.set('logged', true);
   await p.context().close();
@@ -7081,6 +7134,55 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   const g2 = (after.goals ?? []).find((x) => x.id === 'lead-flaky');
   const m = ((after.modules?.metrics?.metrics) ?? []).find((x) => x.id === 'metric_flaky-rate');
   h.set('logged', !!g?.unmeasuredSince && !g2?.unmeasuredSince && (m?.measurement ?? 'measured') === 'measured', !g?.unmeasuredSince ? 'the gap did not hold the goal to no number' : 'Measured again did not let go of the goal');
+  h.set('finish', true);
+  await p.context().close();
+}, []);
+
+journey('U174', ['TAGS-FIELDS'], 'A workspace’s own field on goals (TG1): as Amara, an admin, Workspace → Fields says “No fields yet”; she adds “Stage”, a list of Discover, Build and Run, and the page lists it as “A list: Discover, Build, Run”. On a goal’s page its About has “Stage · Not set”; she sets it to Discover, then to Build, in place, and History says “Stage: Discover → Build”; a second field called “stage” is refused in the rule’s words', 20, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/workspace/fields'));
+  await see(p, 'No fields yet', 'Workspace → Fields with no field does not say “No fields yet”');
+  h.set('entry', true);
+  await h.click(p.getByRole('button', { name: 'Add a field' }).first());
+  const sheet = p.getByRole('dialog');
+  await sheet.waitFor();
+  await h.fill(sheet.getByLabel('Name', { exact: true }), 'Stage');
+  await h.fill(sheet.getByLabel(/^Values/), 'Discover\nBuild\nRun');
+  await h.checkpoint('adding a field');
+  await h.click(sheet.getByRole('button', { name: 'Add the field' }));
+  const list = p.getByRole('list', { name: 'Fields' });
+  await see(list, 'A list: Discover, Build, Run', 'the new field is not listed with its values');
+  h.set('progress', true);
+  await h.checkpoint('fields');
+  // A second field with the same name is refused, under the form, in the rule's words.
+  await h.click(p.getByRole('button', { name: 'Add a field' }).first());
+  await h.fill(sheet.getByLabel('Name', { exact: true }), 'stage');
+  await h.click(sheet.getByRole('button', { name: 'Add the field' }));
+  await see(sheet, 'There’s already a field called “Stage”.', 'a second “stage” is not refused in the rule’s words');
+  h.set('errors', true);
+  await p.keyboard.press('Escape');
+  await sheet.waitFor({ state: 'hidden' });
+  // On a goal: the Fields block in About, changed in place.
+  await p.goto(url('/goals/lead-flaky'));
+  await p.locator('.goal-bar').waitFor();
+  await p.evaluate(() => { const d = document.querySelector('details#about'); if (d && !d.open) d.open = true; });
+  const block = p.locator('[data-part="Fields"]');
+  await block.waitFor();
+  await see(block, 'Not set', 'the goal’s Fields block does not say Stage is not set');
+  for (const v of ['Discover', 'Build']) {
+    await h.click(block.getByRole('button', { name: 'Change Stage' }));
+    await block.getByRole('combobox', { name: /Stage/ }).selectOption(v);
+    await see(block, v, `the block does not say Stage · ${v}`);
+  }
+  const line = (await block.locator('.fields-line').first().innerText()).replace(/\s+/g, ' ').trim();
+  h.set('attention', /^Stage · Build/.test(line), `the block says “${line}”`);
+  await h.checkpoint('goal fields');
+  const hist = p.locator('#history');
+  await hist.waitFor();
+  await see(hist, 'Stage: Discover → Build', 'History does not say “Stage: Discover → Build”');
+  const s = await h.snapshot();
+  const vals = s.modules?.tags?.fieldValues ?? [];
+  h.set('logged', vals.some((x) => x.goalId === 'lead-flaky' && x.value === 'Build') && s.changes.some((c) => c.entity === 'field' && c.goalId === 'lead-flaky' && c.summary === 'Stage: Discover → Build'), 'the value or its History entry was not saved');
   h.set('finish', true);
   await p.context().close();
 }, []);

@@ -11,7 +11,7 @@
    extension point: a module adds its own (AppModule `sections`, src/core/app.tsx). Old addresses
    (/workspace?inbox=1&markup=…, #people) lead to where they meant. */
 import { nameLength, nameProblem } from '../domain/thresholds';
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, Fragment, useContext, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
 import { useModules, type WorkspaceSection } from '../core/app';
@@ -182,7 +182,7 @@ function MoreSections() {
 }
 
 /** A section's heading, what it's for, and its main action. On a phone the page's own heading names it. */
-function SectionHead({ id, action, children }: { id: string; action?: ReactNode; children?: ReactNode }) {
+export function SectionHead({ id, action, children }: { id: string; action?: ReactNode; children?: ReactNode }) {
   const { all, narrow } = useWs();
   const s = all.find((x) => x.id === id);
   return (
@@ -263,7 +263,7 @@ function AboutSection() {
           {fact('Admins', <>{admins}. {admin ? <Link to="/workspace/access">Access</Link> : 'Ask one of them to add someone, change a team or change a setting.'}</>)}
           {installed.length > 0 && fact('Features', <>{featuresSentence(modOn, modOff)}{admin && <> <Link to="/workspace/features">Features</Link></>}</>)}
           {fact('Recording', <>{app.ws.recording !== false ? 'Faro records how the app is used here, never what anyone types.' : 'Nothing about how the app is used here is recorded.'} <Link to="/workspace/privacy">Privacy</Link></>)}
-          {sections.filter((s) => s.says).map((s) => <span key={s.id} style={{ display: 'contents' }}>{fact(s.label, <>{s.says!(app)} <Link to={`/workspace/${s.id}`}>{s.label}</Link></>)}</span>)}
+          {sections.filter((s) => s.says).map((s) => <Fragment key={s.id}>{fact(s.label, <>{s.says!(app)} <Link to={`/workspace/${s.id}`}>{s.label}</Link></>)}</Fragment>)}
         </dl>
       </section>
       {narrow && <MoreSections />}
