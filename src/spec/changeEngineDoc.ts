@@ -146,7 +146,7 @@ function otherDiffs(w: ConformanceWorkspace): string[][] {
   const when: [string, string][] = [
     ['Why', 'A plan change with its reason (the row’s Reason, else the import’s reason), after the record’s own fields; and a goal stopped, with its Reason.'],
     ['Why corrected', 'A check-in a row corrects, with the reason: first, before the check-in’s own fields.'],
-    ['Status', 'A goal stopped (`Stopped`) or deleted.'],
+    ['Status', 'A goal stopped (`Stopped`). A deleted goal carries none: its item is `Goal: {name} → —`, then Via.'],
     ['Open asks', 'A goal that changes owner, whose open asks of the old owner go with it.'],
     ['Via', 'Every item, last.'],
   ];

@@ -2,11 +2,15 @@
    and triage it. Any Faro token works (an ordinary one, made by an admin; there are no builder tokens any more): an
    admin makes one for themselves here, anyone else is told who can. Then the exact set-up for a Claude cloud session
    (the host, and where the token goes) or for Claude Code, and whether the server can send Claude the pictures. Tokens
-   are listed and revoked where they always are: Workspace, AI access (and Settings, for your own). */
+   are listed and revoked where they always are: Workspace, AI access (and Settings, for your own). With AI access
+   switched off (SW2), or not in this build, the server refuses every call, so the panel says that and nothing else. */
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { mcpAddress, serverCheck } from './backend';
+import { useModules } from '../core/app';
+import { aiAccessOn } from '../app/reads';
+import { SwitchedOffLine } from '../ui/SwitchedOff';
 
 const PLACEHOLDER = 'gk_…';
 
@@ -19,6 +23,16 @@ export function ConnectClaude({ local = false }: { local?: boolean }) {
   const token = made ?? PLACEHOLDER;
   const canMake = !local && app.mode === 'live' && app.viewer.admin;
   const admins = app.snapshot.people.filter((p) => p.admin && !p.leftAt && !p.removedAt).map((p) => p.name);
+  const { installed, on } = useModules();
+  if (!aiAccessOn(on)) {
+    const inBuild = installed.some((m) => aiAccessOn(new Set([m.id])));
+    return (
+      <section className="connect" aria-labelledby="connect-title">
+        <h3 className="connect-title" id="connect-title">Connect Claude</h3>
+        {inBuild ? <SwitchedOffLine name="AI access" /> : <p className="hint">This Faro has no AI access, so Claude can’t connect to it.</p>}
+      </section>
+    );
+  }
   return (
     <section className="connect" aria-labelledby="connect-title">
       <h3 className="connect-title" id="connect-title">Connect Claude</h3>

@@ -27,6 +27,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'moment-fixed-as-of-its-week',
+    date: '2026-11-14',
+    title: 'A target reached stays reached in History',
+    points: [
+      'A goal’s History marks a week “Reached its target” or “Back on track” as things stood that week, against the check-ins before it and the plan then.',
+      'A later check-in, a second check-in that week or a change of plan no longer takes the mark away.',
+    ],
+    articles: ['check-in'],
+  },
+  {
     id: 'not-measured-yet-status',
     date: '2026-11-14',
     title: 'Not measured yet is a status of its own',
