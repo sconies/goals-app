@@ -5,7 +5,7 @@ import { moduleOffSentence } from './moduleOff';
 import type { HistoryAsk, HistoryPage } from '../ports/store';
 import { LEVEL_WORDS, levelIds } from '../domain/levels';
 import { addNote, NotAllowed } from '../domain/actions';
-import { EMPTY_QUERY, parseQuery, queryEntries, type GoalQuery } from '../domain/query';
+import { EMPTY_QUERY, NOT_ME, parseQuery, queryEntries, type GoalQuery } from '../domain/query';
 import { reviewsOn, reviewWriteRows, scopeFacts, searchRows, watchingOn } from '../app/reads';
 import { scopesFor, SCOPES, type Scope } from '../domain/goalsPage';
 import { localSearch } from '../adapters/localSearch';
@@ -29,6 +29,7 @@ import { REMOVE_TOOLS } from './removeTools';
 import MODULE_TOOLS from 'virtual:faro-modules/tools';
 import { isModuleOn, moduleById, modulesOn } from '../core/registry';
 import { writesReviews } from '../domain/reviewWrites';
+import { writesWatches } from '../domain/watchWrites';
 import { MODULE_GOAL_COLUMNS, recordsOn } from '../core/records';
 import { addColumnParams } from '../domain/query';
 import { commentsOf } from '../domain/removal';
@@ -318,6 +319,9 @@ const CORE_TOOLS: ToolDef[] = [
       // Every argument becomes the Goals link it means, and the goals are found through the Search port, as the
       // screens find them (docs/design/architecture.md, 1.1): one search, one set of filters.
       const status = a.status ? statusIn(a.status) : null;
+      // `owner=-me` in a link is "not mine" (Home rule 4): the asker's own goals are left out below.
+      const notMine = query.owner.includes(NOT_ME);
+      if (notMine) query = { ...query, owner: query.owner.filter((o) => o !== NOT_ME) };
       const named = a.owner ? ctx.snapshot.people.filter((p) => p.name.toLowerCase().includes(String(a.owner).toLowerCase())).map((p) => p.id) : null;
       const owners = [query.owner.length ? query.owner : null, named, a.mine ? [ctx.actor.id] : null].filter((x): x is string[] => !!x)
         .reduce<string[] | null>((acc, x) => (acc ? acc.filter((id) => x.includes(id)) : x), null);
@@ -336,8 +340,8 @@ const CORE_TOOLS: ToolDef[] = [
       const scope = a.scope ? String(a.scope) as Scope : linkScope ? linkScope as Scope : null;
       if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
       const watchingHere = watchingOn(modulesOn(ctx.ws).on);
-      const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).tabs.find((t) => t.id === scope) : null;
-      if (scope && scope !== 'all' && !scoped) return listed(goalPage([], a, scope === 'team' ? 'You’re in no team and lead none.' : scope === 'watching' ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : 'You own no goals this year.'));
+      const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).every.find((t) => t.id === scope) : null;
+      if (scope && scope !== 'all' && (!scoped || (scope === 'mine' && !scoped.ids.length))) return listed(goalPage([], a, scope === 'team' ? 'You’re in no team and lead none.' : scope === 'watching' ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : 'You own no goals this year.'));
       const inScope = scoped ? new Set(scoped.ids) : null;
       const words = [String(a.text ?? ''), query.q].filter((x) => x.trim()).join(' ');
       // With Reviews off `inreview=` narrows nothing, as on Goals (build review of #424).
@@ -363,7 +367,7 @@ const CORE_TOOLS: ToolDef[] = [
       const wordsOf = (g: Goal) => `${g.title} ${g.key ?? ''}`.toLowerCase();
       let list = proposedOnly
         ? (ctx.snapshot.proposed ?? []).filter((g) => inScopeOf(g) && (!words.trim() || words.toLowerCase().split(/\s+/).every((w) => wordsOf(g).includes(w)))).map((g) => proposedSummary(g, ctx.snapshot, ctx.cycle, ctx.week))
-        : found.map((r) => byId.get(r.id)!).filter((x) => x && !isProposed(x.goal) && inScopeOf(x.goal) && cols.every((c) => c.fill(x.goal) === c.v));
+        : found.map((r) => byId.get(r.id)!).filter((x) => x && !isProposed(x.goal) && inScopeOf(x.goal) && cols.every((c) => c.fill(x.goal) === c.v) && !(notMine && x.goal.ownerId === ctx.actor.id));
       // The list, as the screen has it (Lane, 9 Nov): those that need attention, then those being handled.
       if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== 'handled'), ...list.filter((s) => attentionGroup(s.attention) === 'handled')];
       const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.state === 'proposed' ? null : s.status, statusLabel: s.statusLabel, state: s.state ?? 'active', needsAttention: needsAttention(s.attention), beingHandled: s.attention.handled?.text ?? null, lookedAt: s.attention.lookedAt?.text ?? null, because: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => withCode({ label: f.label, code: f.kind })), now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
@@ -575,9 +579,10 @@ export async function callTool(name: string, args: Record<string, unknown>, ctx:
   const from = TOOL_MODULE.get(name);
   if (from && !isModuleOn(ctx.ws, from)) return { isError: true, text: moduleOffSentence(moduleById(from)?.name ?? from, ctx.ws.name, name) };
   try {
-    return await t.run(args ?? {}, reviewsOn(modulesOn(ctx.ws).on) ? ctx : reviewsGuarded(ctx, name));
+    const on = modulesOn(ctx.ws).on;
+    return await t.run(args ?? {}, reviewsOn(on) && watchingOn(on) ? ctx : switchesGuarded(ctx, name, !reviewsOn(on), !watchingOn(on)));
   } catch (e) {
-    if (e instanceof ReviewsOff) return { isError: true, text: e.message };
+    if (e instanceof SwitchedOff) return { isError: true, text: e.message };
     const text = e instanceof Error ? e.message : String(e);
     // A refusal says who the token acts as, so an assistant (and the person reading) can tell "the rule says no" from "this
     // token is someone else's" (backlog N: a token made for a non-admin was taken for an admin's).
@@ -585,19 +590,23 @@ export async function callTool(name: string, args: Record<string, unknown>, ctx:
   }
 }
 
-/** A save refused because it writes Reviews' records while Reviews is off: said as the switched-off sentence alone. */
-class ReviewsOff extends Error {}
+/** A save refused because it writes a switched-off module's records (Reviews', Watching's): said as the switched-off
+    sentence alone. */
+class SwitchedOff extends Error {}
 
 /**
- * The context a tool runs with while Reviews is off: the same, except that a save writing Reviews' records (a review, a
- * note said in one, an ask raised in one, a goal proposed in one: domain/reviewWrites) is refused and saves nothing, in
- * the switched-off sentence, whichever tool made it (build review of #371: edit_comment and delete_comment on a review
- * note, create_goal proposed in a review, restore_removed reopening an ended review). Everything else reads and writes
- * through to the context itself, which a save moves on.
+ * The context a tool runs with while Reviews or Watching is off: the same, except that a save writing the switched-off
+ * module's records is refused and saves nothing, in the switched-off sentence, whichever tool made it. Reviews': a
+ * review, a note said in one, an ask raised in one, a goal proposed in one (domain/reviewWrites; build review of #371:
+ * edit_comment and delete_comment on a review note, create_goal proposed in a review, restore_removed reopening an ended
+ * review). Watching's: a watch started, stopped or brought back (domain/watchWrites; build review of #444:
+ * restore_removed on a stopped watch). Everything else reads and writes through to the context itself, which a save
+ * moves on.
  */
-function reviewsGuarded(ctx: McpContext, tool: string): McpContext {
+function switchesGuarded(ctx: McpContext, tool: string, reviewsOff: boolean, watchingOff: boolean): McpContext {
   const save = async (c: Commit) => {
-    if (writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new ReviewsOff(moduleOffSentence('Reviews', ctx.ws.name, tool));
+    if (reviewsOff && writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new SwitchedOff(moduleOffSentence('Reviews', ctx.ws.name, tool));
+    if (watchingOff && writesWatches(c)) throw new SwitchedOff(moduleOffSentence('Watching', ctx.ws.name, tool));
     return ctx.save(c);
   };
   return new Proxy(ctx, { get: (t, k, r) => (k === 'save' ? save : Reflect.get(t, k, r)) });

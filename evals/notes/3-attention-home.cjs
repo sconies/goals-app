@@ -94,7 +94,8 @@ module.exports = {
         check(primaries <= 1, `[HOME-OWNER] ${at}: ${primaries} primary actions in view`);
         check(await noSideways(p), `[HOME-OWNER] ${at}: sideways scroll`);
         // What you own and what you watch.
-        const h2 = (await p.locator('.page.home h2').allInnerTexts()).map((t) => t.replace(/\s*·?\s*\d+$/, '').trim());
+        // "Your goals · 2", "Goals you watch 3", "Goals you watch · 56 goals in 13 teams" (rule 4): the name before the count.
+        const h2 = (await p.locator('.page.home h2').allInnerTexts()).map((t) => t.replace(/\s*(·.*|\d+)$/, '').trim());
         check(owner === h2.includes('Your goals'), `[HOME-OWNER] ${at}: "Your goals" is ${owner ? 'missing' : 'shown with no goals'}`);
         check((who !== 'diego') === h2.includes('Goals you watch'), `[HOME-OWNER] ${at}: "Goals you watch" is ${who === 'diego' ? 'shown with nothing watched' : 'missing'}`);
         if (who === 'daniel') check(!(await p.locator('details.handled-fold').count()), `[ATTENTION-HANDLED] ${at}: Daniel has nothing being handled, but Home shows the fold`);
@@ -104,9 +105,11 @@ module.exports = {
           check(await fold.count() === 1 && !(await fold.evaluate((d) => d.open)), `[ATTENTION-HANDLED] ${at}: being handled is not folded on Home`);
           const summary = await fold.locator('summary').innerText().catch(() => '');
           check(/Being handled · 1/.test(summary), `[ATTENTION-HANDLED] ${at}: the fold says "${summary}"`);
+          // Amara's watched goals span three or more teams, so they are teams, worst first (rule 4): the first team leads
+          // with goals that need attention.
           const watched = section(p, 'Goals you watch');
-          const first = await watched.locator('.tree .trow').first().getAttribute('data-tone').catch(() => null);
-          check(['off', 'risk', 'stale'].includes(first), `[HOME-OWNER] ${at}: Goals you watch does not lead with an exception (${first})`);
+          const first = await watched.locator('.teams-table tbody tr').first().locator('.teams-needs').innerText().catch(() => '');
+          check(/\d+ needs? attention/.test(first), `[HOME-OWNER] ${at}: Goals you watch does not lead with a team that needs attention (${first})`);
           if (w === 1280) {
             await fold.locator('summary').click();
             const row = await fold.locator('.trow').first().innerText().catch(() => '');

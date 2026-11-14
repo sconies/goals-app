@@ -55,6 +55,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - dueWords (RS1) › Reviews on, a review on the due day: “before Thursday’s review”
 - dueWords (RS1) › Reviews on, no review set up (or none on the due day): “by Thursday”
+- dueWords (RS1) › a review’s own page says “Before this review” only in a week it is held on the due day (review of #432)
 - dueWords (RS1) › Reviews off: “by Thursday”, whatever is held
 - dueWords (RS1) › the due flag says “Due by Thu 12 Nov.” with Reviews on or off
 - dueWords (RS1) › the receipt (what the check-in shows once all are in) says the deadline in its words: “by Thursday”, or “after Thursday” once it has passed
@@ -79,6 +80,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the dispatcher, with Reviews off › refuses reopening an ended review, by Undo (undoRemoval) or from Recently removed (restoreRemoved)
 - the dispatcher, with Reviews off › still marks someone in a review as left (their reviews are carried along), and still corrects an ask’s own words
 - the AI tools, with Reviews off › edit_comment and delete_comment on a review note answer the switched-off sentence and save nothing
+- the AI tools, with Reviews off › restore_removed on an ended review answers the switched-off sentence and saves nothing, and restores it with Reviews on (#424)
 - the AI tools, with Reviews off › list_requests names no review with Reviews off, and names it with Reviews on
 - the AI tools, with Reviews off › a comment on a goal still saves
 

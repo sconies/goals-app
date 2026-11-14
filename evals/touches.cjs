@@ -31,7 +31,7 @@ const RULES = [
   // The Search and Prefs ports and the find rules (AR1): read by the AI tools until the pickers and list bars use them.
   [/^src\/(ports\/|adapters\/(local|localSearch)\.ts|app\/reads\.ts|domain\/find\.ts)/, ['U22']],
   [/^src\/domain\/dayOne\.ts/, ['U97', 'U11', 'U86', 'U5', 'U49']],
-  [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts/, ['U86', 'U2', 'U16', 'U33', 'U122', 'F1', 'N3', 'N6', 'N10', 'N26', 'P6']],
+  [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts|^src\/domain\/homeSets\.ts|^src\/ui\/HomeSets\.tsx/, ['U86', 'U2', 'U9', 'U16', 'U33', 'U122', 'U123', 'U124', 'F1', 'N3', 'N6', 'N10', 'N26', 'P6']],
   [/^evals\/notes\/12-home\.cjs$/, ['N26']],
   // Held at company size (N12, FS4): its fixture and check, and the search, the pickers and the list bars it times.
   [/^evals\/(fixtures\/company|finish\/11-company-size)\.cjs$|^src\/(ports\/search|adapters\/localSearch|domain\/find|app\/search|app\/reads)\.ts|^src\/ui\/(Pick|ListBar)\.tsx/, ['N12']],
@@ -52,7 +52,7 @@ const RULES = [
   // Reviews behind its switch (FT2): its read-back, a switched-off module's addresses, and its two journeys.
   [/^src\/domain\/reviewsOff\.ts$|^src\/screens\/NotFound\.tsx$|^src\/ui\/SwitchedOff\.tsx$|^evals\/notes\/21-switched-off\.cjs$/, ['U103', 'U104', 'U48', 'N21']],
   // SW1: the four switches whose code is still the core's, their read-backs and the Features page's groups.
-  [/^src\/domain\/switchOff\.ts$|^src\/app\/reads\.ts$|^src\/domain\/home\.ts$|^src\/screens\/(Workspace|Home|GoalsScreen|GoalViews)\.tsx$|^src\/ui\/(Shell|goalRows)\.tsx$|^evals\/notes\/22-more-switches\.cjs$/, ['U164', 'U165', 'U166', 'N22', 'N21']],
+  [/^src\/domain\/switchOff\.ts$|^src\/app\/reads\.ts$|^src\/domain\/home\.ts$|^src\/screens\/(Workspace|Home|GoalsScreen|GoalViews)\.tsx$|^src\/ui\/(Shell|goalRows|HomeSets)\.tsx$|^evals\/notes\/22-more-switches\.cjs$/, ['U164', 'U165', 'U166', 'N22', 'N21']],
   // Its clock (RS1): dueWords and the receipt, the read-back's two lines; the words with it off, and back on (N30, the tools' one
   // sentence, is a spec scenario in evals/mcp.eval.ts, which always runs).
   [/^src\/domain\/(reviewsOff|progress)\.ts$|^src\/screens\/CheckInFlow\.tsx$|^src\/mcp\/moduleOff\.ts$|^evals\/notes\/21-switched-off\.cjs$/, ['U154', 'U155', 'N21']],
@@ -71,6 +71,8 @@ const RULES = [
   // The metric library (ML1): its two checks.
   [/^evals\/(finish\/15-metrics|notes\/16-metrics)\.cjs$/, ['F15', 'N16']],
   [/^evals\/notes\/29-readings\.cjs$/, ['N29']],
+  // Small workspaces, rows and tabs that wait (SM1).
+  [/^evals\/notes\/30-small-menu\.cjs$|^src\/domain\/(goalsPage|navigation)\.ts$/, ['N30']],
   [/^src\/screens\/Print\.tsx|^src\/domain\/onePager\.ts/, ['N6']],
   [/^src\/screens\/Research\.tsx|^src\/app\/research\.ts/, ['U28', 'U40']],
   [/^src\/screens\/Help\.tsx/, ['N7']],
@@ -84,9 +86,13 @@ const RULES = [
   [/^scripts\//, []],
 ];
 
-/** What a set of changed files touches: { full, ids, unmatched }. ids: journey ids (U…) and check ids (F…, N…, P…). */
+/** What a set of changed files touches: { full, ids, unmatched, score }. ids: journey ids (U…) and check ids (F…, N…,
+    P…). score: how directly the files name each id, for PR CI's cap (capJourneys): every rule a file matches gives each
+    id it lists 1 ÷ how many ids it lists, so a file whose rule names one journey counts for that journey more than a
+    file whose rule names twenty. */
 function touches(files) {
   const ids = new Set();
+  const score = new Map();
   const unmatched = [];
   let full = false;
   for (const f of files) {
@@ -95,11 +101,31 @@ function touches(files) {
       const m = re.exec(f);
       if (!m) continue;
       hit = true;
-      for (const id of typeof what === 'function' ? what(m) : what) { if (id === FULL) full = true; else ids.add(id); }
+      const named = (typeof what === 'function' ? what(m) : what).filter((id) => id !== FULL);
+      if ((typeof what === 'function' ? what(m) : what).includes(FULL)) full = true;
+      for (const id of named) { ids.add(id); score.set(id, (score.get(id) ?? 0) + 1 / named.length); }
     }
     if (!hit) { if (/^(src|evals|server|api)\//.test(f)) { full = true; unmatched.push(f); } }
   }
-  return { full, ids: [...ids].sort((a, b) => a.localeCompare(b, 'en', { numeric: true })), unmatched };
+  return { full, ids: [...ids].sort((a, b) => a.localeCompare(b, 'en', { numeric: true })), unmatched, score };
 }
 
-module.exports = { touches, RULES };
+/** PR CI's cap (Lane, 14 Nov): at most this many journeys beyond the core ones; the rest wait for the full suite that
+    runs after the merge, so a PR touching many files still finishes inside the job's 30 minutes. */
+const PR_JOURNEY_CAP = 25;
+
+/**
+ * The journeys a pull request's CI runs: every core journey, then of the others the `cap` the changed files name most
+ * directly (touches' score; ties by id, lowest first). Returns { run, left } in id order, `left` the ones the full suite
+ * after the merge covers. Checks aren't capped.
+ */
+function capJourneys(journeys, core, score, cap = PR_JOURNEY_CAP) {
+  const byId = (a, b) => a.localeCompare(b, 'en', { numeric: true });
+  const rest = journeys.filter((id) => !core.includes(id));
+  if (rest.length <= cap) return { run: [...journeys], left: [] };
+  const ranked = [...rest].sort((a, b) => (score.get(b) ?? 0) - (score.get(a) ?? 0) || byId(a, b));
+  const kept = new Set([...ranked.slice(0, cap), ...journeys.filter((id) => core.includes(id))]);
+  return { run: journeys.filter((id) => kept.has(id)), left: rest.filter((id) => !kept.has(id)).sort(byId) };
+}
+
+module.exports = { touches, capJourneys, PR_JOURNEY_CAP, RULES };

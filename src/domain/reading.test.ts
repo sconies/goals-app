@@ -72,6 +72,8 @@ describe('rule 3: a reading is recorded only as the rule allows', () => {
     expect(readingProblem(r({ at: '2026-11-05T09:00:00Z' }), 12, 0, '2026-11-05T01:00:00Z')).toBe(null);
     expect(readingProblem(r({ at: '2026-11-06T09:00:00Z' }), 12, 0, '2026-11-05T01:00:00Z')).toMatch(/dated after now/);
     expect(readingProblem(r({ at: 'Thursday' }), 12, 0, at)).toMatch(/can’t be read/);
+    expect(readingProblem(r({ source: '  ' }), 12, 0, at)).toMatch(/needs the name of the source/);
+    expect(readingProblem(r({ source: undefined as unknown as string }), 12, 0, at)).toMatch(/needs the name of the source/);
     expect(readingProblem(r({ value: Number.NaN }), 12, 0, at)).toMatch(/can’t be read/);
     expect(readingProblem(r({ value: '12' as unknown as number }), 12, 0, at)).toMatch(/can’t be read/);
     expect(() => postCheckIn(x(fresh), post(onPlan, { ...reading(onPlan), at: '2020-01-01T09:00:00Z' }))).toThrow(/more than 7 days old/);

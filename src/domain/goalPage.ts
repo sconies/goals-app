@@ -13,7 +13,8 @@ import { onTimeStreak, reviewDate, WEEKDAY } from './progress';
 import { asksOf, canAnswer, canMarkDone, canWithdraw, isOverdue, isResolved, liveNotes, openAsksFor, writtenNotes } from './asks';
 import { dayText, goalsIn, saidIn, sessionDate, sessionWeek, type Said } from './review';
 import { assessPosted, checkInsFor, LABEL, RANK } from './status';
-import { countWord, summaryFacts, type Direction } from './summaryFacts';
+import { summaryFacts, type Direction } from './summaryFacts';
+import { countWord, feederHead } from './feeder';
 import type { Ask, AskKind, Change, CheckIn, Cycle, Decision, DisplayStatus, Goal, Person, Snapshot } from './types';
 import { NO_REASON } from './checkin';
 import { ASK_KIND, ASK_STATUS, ATTENTION, DECIDED, stagesBehind } from './vocabulary';
@@ -112,10 +113,7 @@ export function whyLine(goal: Goal, s: Snapshot, att: GoalAttention): WhyLine {
   return { text: n >= 2 ? `The same call ${countWord(n)} check-ins running, since week ${own[k]!.week}` : `Called in week ${latest.week}`, by: null, handled: null, handledText: null };
 }
 
-/** The two ways feeders are counted, always labelled, so a goal page and a list card never look contradictory. */
-export const FEEDER_SCOPE = { direct: 'Directly feeding it', tree: 'Everything under it' } as const;
-/** "Directly feeding it (four goals)", "Everything under it (16 goals)". */
-export const feederHead = (scope: keyof typeof FEEDER_SCOPE, n: number) => `${FEEDER_SCOPE[scope]} (${n === 1 ? 'one goal' : `${countWord(n)} goals`})`;
+export { FEEDER_SCOPE, feederHead } from './feeder';
 
 /** For a goal others feed: "Directly feeding it (three goals): 1 off track", on What feeds it. */
 export interface FeedsLine { total: number; counts: { status: DisplayStatus; n: number }[]; head: string; text: string }

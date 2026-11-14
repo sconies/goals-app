@@ -67,7 +67,7 @@ describe('Where people are in the named flows', () => {
     f.route('/workspace/new');
     f.mark('setUp.step-1');
     f.mark('setUp.step-2');
-    expect(brief(f.leave())).toEqual(['set-up stop you 2/8 closed']);
+    expect(brief(f.leave())).toEqual(['set-up stop people 2/5 closed']);
     expect(f.leave()).toEqual([]);
   });
 });

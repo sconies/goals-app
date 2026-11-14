@@ -3246,8 +3246,14 @@ function sessionDate(r, cycle, week) {
 * dueWords then says "before Thursday’s review"; otherwise "by Thursday".
 */
 function heldOnDueDay(reviews, cycle, week, personId) {
+	return reviews.some((r) => !r.removedAt && !r.endedAt && (personId == null || r.people.includes(personId)) && sessionOnDueDay(r, cycle, week));
+}
+/** Whether this review has a session in `week` on the day check-ins are due: on the due weekday is not enough, as a
+fortnightly, monthly or quarterly review has weeks with no session (review of #432). Its page and get_review say
+"Before this review" only then. */
+function sessionOnDueDay(r, cycle, week) {
 	const w = Math.max(1, week);
-	return reviews.some((r) => !r.removedAt && !r.endedAt && r.weekday === cycle.reviewDay && (personId == null || r.people.includes(personId)) && sessionWeek(r, w, r.createdAt ? cycle : void 0) === w);
+	return r.weekday === cycle.reviewDay && sessionWeek(r, w, r.createdAt ? cycle : void 0) === w;
 }
 /**
 * What a session still has to do: goals to discuss one at a time, and goals on track to cover together. Discuss keeps
@@ -5034,7 +5040,8 @@ var init_correctReason = __esmMin((() => {
 * can be recorded.
 */
 function readingProblem(r, value, decimals, now) {
-	const source = typeof r?.source === "string" && r.source.trim() ? r.source.trim() : "The source";
+	if (typeof r?.source !== "string" || !r.source.trim()) return "A reading needs the name of the source that read it, so it can’t be recorded.";
+	const source = r.source.trim();
 	if (typeof r?.value !== "number" || !Number.isFinite(r.value)) return `${source}’s number can’t be read, so it can’t be recorded.`;
 	const at = typeof r.at === "string" ? Date.parse(r.at) : NaN;
 	const t = typeof now === "string" ? Date.parse(now) : now.getTime();
@@ -6271,7 +6278,7 @@ function matches(s, q, ctx, tree) {
 	if (q.status.length && !q.status.includes(s.status)) return false;
 	if (q.level.length && !q.level.includes(g.level)) return false;
 	if (q.team.length && !q.team.includes(g.teamId)) return false;
-	if (q.owner.length && !q.owner.includes(g.ownerId)) return false;
+	if (q.owner.length && !q.owner.some((o) => o === g.ownerId || o === "-me" && g.ownerId !== ctx.viewerId)) return false;
 	if (q.kind.length && !q.kind.includes(g.kind)) return false;
 	for (const [k, v] of Object.entries(q.cols ?? {})) {
 		const col = ctx.columns?.[k];
@@ -9912,7 +9919,8 @@ function nothingToUndo(skipped) {
 	return skipped ? `Nothing left to undo: ${skipped === 1 ? "its one row has" : `all ${plural$3(skipped, "row", "rows")} have`} changed since.` : "Nothing to undo: it changed no rows.";
 }
 /** Everything removed, stopped, ended or marked as left in the last 30 days, newest first. After that it drops off this list; the row stays. */
-function recentlyRemoved(full, now, days = 30, records = []) {
+/** `watches: false` while Watching is switched off: its stopped watches aren't listed, as nothing can restore them then. */
+function recentlyRemoved(full, now, days = 30, records = [], show = {}) {
 	const since = Number.isFinite(days) ? (/* @__PURE__ */ new Date(now.getTime() - days * 864e5)).toISOString() : "";
 	const goalTitle = (id) => full.goals.find((g) => g.id === id)?.title ?? "A goal";
 	const out = [];
@@ -9936,7 +9944,7 @@ function recentlyRemoved(full, now, days = 30, records = []) {
 	for (const k of commentsOf(full.changes).values()) if (k.removedAt) add("comment", k.id, `${goalTitle(k.goalId)}: “${excerpt(k.text)}”`, k.removedBy, k.removedAt);
 	for (const d of full.decisions) if (d.removedAt && d.kind === "note") add("note", d.id, `${goalTitle(d.goalId)}: “${excerpt(d.note)}”`, d.removedBy, d.removedAt);
 	for (const v of full.views ?? []) if (v.deletedAt) add("view", v.id, isTableView(v) ? `${v.name} (a saved layout in Data)` : v.name, v.deletedBy, v.deletedAt);
-	for (const w of full.watches ?? []) if (w.removedAt) add("watch", w.id, `${nameIn(full, w.personId)} on ${w.kind === "level" ? `every ${w.ref} goal` : goalTitle(w.ref)}`, w.removedBy, w.removedAt);
+	for (const w of show.watches === false ? [] : full.watches ?? []) if (w.removedAt) add("watch", w.id, `${nameIn(full, w.personId)} on ${w.kind === "level" ? `every ${w.ref} goal` : goalTitle(w.ref)}`, w.removedBy, w.removedAt);
 	for (const c of full.cycles) if (c.removedAt) add("cycle", c.id, c.name, c.removedBy, c.removedAt);
 	for (const r of removedModuleRows(full, records)) add(r.kind, r.id, r.name, r.by, r.at, r.label);
 	return out.sort((a, b) => b.at.localeCompare(a.at));
@@ -10167,7 +10175,7 @@ var init_removal = __esmMin((() => {
 }));
 // src/domain/templates.ts
 /**
-* A template's stage weeks count from now, not from the start of the year: set up in week 43, "Design@3" is due in week 45.
+* Stage weeks count from now, not from the start of the year: set up in week 43, "Design@3" is due in week 45.
 * Stages are spread over the weeks left when they would run past the year's end.
 */
 function stagesFromNow(stages, week, weeks = 52) {
@@ -12542,12 +12550,15 @@ function* planChangesInChunks(input) {
 				value: String(draft.value)
 			}) === "leave") return;
 		}
-		const corrects = post?.mode === "correct" || !post && !!existing && CORRECTS_VIA.includes(via);
+		const othersThisWeek = !!existing && w === week && owned.ownerId !== actor.id;
+		const endedAdd = !existing && cycleEnded;
+		const corrects = post?.mode === "correct" || !post && (!!existing && (CORRECTS_VIA.includes(via) || othersThisWeek) || endedAdd);
 		const keeps = corrects && existing;
 		const backfilled = keeps ? !!existing.backfilled : w < week;
 		const due = new Date(Date.parse(weekDate(cycle, w) + "T09:00:00Z") + cycle.reviewDay * 864e5);
 		const at = keeps ? new Date(existing.postedAt) : backfilled && due.toISOString() < now ? due : new Date(now);
-		const made = asRecorded ? asWritten(asOf, w, draft, e, actor.id, at.toISOString(), existing?.id ?? newId("ci")) : toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId("ci"), breaches);
+		const author = existing ? existing.authorId : actor.id;
+		const made = asRecorded ? asWritten(asOf, w, draft, e, author, at.toISOString(), existing?.id ?? newId("ci")) : toCheckIn(asOf, cycle, w, draft, ctx, author, at, existing?.id ?? newId("ci"), breaches);
 		const read = post ? post.reading : input.readings?.find((x) => x.goalId === g.id && x.week === w)?.reading;
 		if (read && g.kind !== "milestone") {
 			const problem = readingProblem(read, made.value, g.decimals, now);
@@ -12602,6 +12613,7 @@ function* planChangesInChunks(input) {
 			summary: ch.summary,
 			diffs: ch.diffs,
 			backfilled,
+			author: c.authorId,
 			...corrects && !post && !correctReasonOk(why) ? { needsReason: true } : {}
 		});
 	};
@@ -12807,7 +12819,7 @@ function* planChangesInChunks(input) {
 		}
 		const own = checkInsFor(g, s.checkIns);
 		const newest = own.filter((c) => c.week === w).pop() ?? null;
-		if (p.mode === "correct" && cycleEnded) {
+		if (p.mode === "correct" && cycleEnded && newest) {
 			raise("cant-change", "Check-ins", row, g.title, endedRefusal);
 			continue;
 		}
@@ -15464,6 +15476,7 @@ var _virtual_faro_modules_default = [
 		],
 		redirects: [["/data/metrics", "/metrics"]],
 		navigation: ["Metrics"],
+		menu: { "waitsFor": "metrics" },
 		places: [
 			"goal.facts",
 			"goal.measure",
@@ -15804,6 +15817,30 @@ var _virtual_faro_modules_default = [
 		}
 	},
 	{
+		id: "tags",
+		name: "Fields",
+		summary: "Give goals a workspace’s own fields, such as a stage or a programme, to find and sort them by.",
+		group: "tools",
+		needs: [],
+		routes: [],
+		redirects: [],
+		navigation: [],
+		places: [],
+		tables: [],
+		aiTools: [],
+		help: [],
+		requirements: [],
+		journeys: [],
+		elsewhere: [],
+		rebuild: {
+			"status": "outline",
+			"builds": "Fields, as a feature a workspace can switch off: a workspace defines up to six of its own fields on goals (a stage, a programme), each a list of values or free text; a goal has at most one value per field. No rule reads a field. Today it holds its tables (migration 0052) and its rule (tags-fields); its screens, its goal block, its filters, its sheet columns and its AI tools come next (TG1, TG2).",
+			"entry": ["The core saves a module's records through module_tables and src/core/records.ts (stage 2), so the module's two tables need nothing from any core rule."],
+			"exit": ["fieldProblem and valueProblem give the tags-fields rule's worked examples (src/modules/tags/rules.test.ts).", "The database refuses a field name over 40 characters, a kind other than list or text, a list of no values or over 20, and a value over 80 characters (migration 0052's checks, src/spec/limits.ts)."],
+			"gaps": ["Its two tables, faro.goal_fields and faro.goal_field_values (migration 0052, on module_tables as module tags), are made one merge ahead of the code that uses them; records.ts claims them in TG1, and module.json lists them then.", "Nothing draws a field yet: Workspace → Fields, the goal's Fields block, the MCP tools list_fields and set_goal_fields, and the switch's off states are TG1; the filters, saved views, Data's column and the sheet's columns with the import's question are TG2 (docs/design/round-4/tags/spec.md, section 10). Until then switching Fields off changes nothing anyone can see."]
+		}
+	},
+	{
 		id: "watching",
 		name: "Watching",
 		summary: "Follow goals you don’t own: they show on your Home and under Watching in Goals.",
@@ -15852,7 +15889,7 @@ var _virtual_faro_modules_default = [
 				"Back on, every person watches what they did (journey U164)."
 			],
 			"gaps": [
-				"Watching is a switch, not yet a folder of its own (SW6 moves it): its screens (src/screens/Watching.tsx; Home's “Goals you watch” in src/screens/Home.tsx; the Watch button and its sheet in src/screens/GoalScreen.tsx; the Watching tab of src/screens/GoalsScreen.tsx), its rules (src/domain/watch.ts, src/domain/review.ts watchedGoals, src/domain/home.ts groupWatched, src/domain/goalsPage.ts scopesFor) and its actions (watch and unwatch in src/domain/actions.ts) are still the core's, and so is its table (okr_watches, migration 0006). The watch actions refuse while it is off in src/app/actions.ts (performAny, SWITCHED_ACTIONS in src/app/reads.ts), and the read-back sheet is drawn by src/screens/Workspace.tsx. This folder holds its route, its Help article and its AI tools; src/app/reads.ts watchingOn is the one place that asks whether it is on.",
+				"Watching is a switch, not yet a folder of its own (SW6 moves it): its screens (src/screens/Watching.tsx; Home's “Goals you watch” in src/screens/Home.tsx; the Watch button and its sheet in src/screens/GoalScreen.tsx; the Watching tab of src/screens/GoalsScreen.tsx), its rules (src/domain/watch.ts, src/domain/review.ts watchedGoals, src/domain/home.ts groupWatched, src/domain/goalsPage.ts scopesFor) and its actions (watch and unwatch in src/domain/actions.ts) are still the core's, and so is its table (okr_watches, migration 0006). While it is off, a save that writes a watch is refused by what it writes (src/domain/watchWrites.ts writesWatches), in src/app/actions.ts performAny and in the AI tools' save (src/mcp/tools.ts), and the read-back sheet is drawn by src/screens/Workspace.tsx. This folder holds its route, its Help article and its AI tools; src/app/reads.ts watchingOn is the one place that asks whether it is on.",
 				"A watch is not yet declared as the module's record (AS part 2's records extension point is SW6's), so a build without the module still loads, carries and saves watches as the core's.",
 				"get_my_work, get_goal and get_activity are core tools: with Watching off get_my_work leaves out what you watch, but get_goal still names who watches a goal and get_activity still takes watching=1 (spec 6.2; SW3)."
 			]
@@ -16508,36 +16545,43 @@ var SCOPES = [
 ];
 /**
 * Rule 1. The tabs someone has, in order: Mine (when they own a goal), My team or My teams (their team and the teams
-* they lead, when they have one), Watching, All. Opens on the scope last used when they still have it; otherwise Mine,
+* they lead, when they have one), Watching, All. A tab waits (small workspaces SM1, rule 1): it is drawn when its list
+* has a goal and isn't the same list as a tab drawn before it; All is always drawn. `every` keeps each scope whether
+* drawn or not, since every address still opens. Opens on the scope last used when it is still drawn; otherwise Mine,
 * else Watching when it has goals, else All.
 */
 function scopesFor(f, last, opts = { watching: true }) {
-	const tabs = [];
+	const every = [];
 	const mine = scopeIds(f, "mine");
-	if (mine.length) tabs.push({
+	every.push({
 		id: "mine",
 		label: "Mine",
 		ids: mine
 	});
-	if (f.teams.length) tabs.push({
+	if (f.teams.length) every.push({
 		id: "team",
 		label: f.teams.length === 1 ? "My team" : "My teams",
 		ids: scopeIds(f, "team")
 	});
-	if (opts.watching) tabs.push({
+	if (opts.watching) every.push({
 		id: "watching",
 		label: "Watching",
 		ids: scopeIds(f, "watching")
 	});
-	tabs.push({
+	every.push({
 		id: "all",
 		label: "All",
 		ids: scopeIds(f, "all")
 	});
+	const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+	const tabs = [];
+	const all = every.find((t) => t.id === "all");
+	for (const t of every) if (t === all || t.ids.length && !same(t.ids, all.ids) && !tabs.some((d) => same(d.ids, t.ids))) tabs.push(t);
 	const has = (s) => !!s && tabs.some((t) => t.id === s);
 	return {
 		tabs,
-		opens: has(last) ? last : mine.length ? "mine" : tabs.find((t) => t.id === "watching")?.ids.length ? "watching" : "all"
+		every,
+		opens: has(last) ? last : mine.length ? "mine" : every.find((t) => t.id === "watching")?.ids.length ? "watching" : "all"
 	};
 }
 /** The goals in a scope, by id, in the workspace's order. "team" is the viewer's own team and the teams they lead. */
@@ -17297,6 +17341,22 @@ function aiBrief(x) {
 	}
 	return out.join("\n");
 }
+// src/domain/feeder.ts
+var COUNT_WORDS = [
+	"no",
+	"one",
+	"two",
+	"three",
+	"four",
+	"five",
+	"six",
+	"seven",
+	"eight",
+	"nine",
+	"ten"
+];
+/** "two", "three" … for small counts in a sentence; digits from 11. */
+var countWord = (n) => COUNT_WORDS[n] ?? String(n);
 // src/domain/summaryFacts.ts
 init_numbers();
 init_checkin();
@@ -17313,21 +17373,6 @@ var DIRECTION = {
 	better: "recovering",
 	flat: "flat"
 };
-var COUNT_WORDS = [
-	"no",
-	"one",
-	"two",
-	"three",
-	"four",
-	"five",
-	"six",
-	"seven",
-	"eight",
-	"nine",
-	"ten"
-];
-/** "two", "three" … for small counts in a sentence; digits from 11. */
-var countWord = (n) => COUNT_WORDS[n] ?? String(n);
 var plural$1 = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 var pct$2 = (r) => `${Math.round(r * 100)}%`;
 var round$1 = (v, decimals) => Number(v.toFixed(decimals));
@@ -18689,6 +18734,7 @@ var help$3 = [{
 			list: [
 				"At the top of a review’s page: how many of its goals were checked in before it, and how many of those without being asked (an ask for an update is the only nudge). Before the review’s day it says how many are in so far.",
 				"Under it, “came in after an ask” and “have no check-in yet” each open exactly those goals on Goals, worst first. Then the last 8 weeks, one square each: All in, how many came after, None in, or Nothing due.",
+				"It is headed “Before this review” only in a week the review is held on the day check-ins are due. A review held on another day, or a fortnightly, monthly or quarterly one in a week it isn’t held, shows the week and its due date instead (“Week 46, due by Thursday 12 Nov”) and counts check-ins on time.",
 				"It counts weeks and goals, never people: nobody is named in it, and a set of goals with fewer than three owners doesn’t show it."
 			]
 		},
@@ -19207,7 +19253,7 @@ var CORE_ARTICLES = [
 					"While someone waits for your response, Home doesn’t say nothing is asked of you: it says how many asks wait. If you’re an admin, a note says when the year is ending or has ended, with Start for the next one.",
 					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions. Each says first how long it has waited or when it is due (a late one with the warning mark), then who asked, where and on what day; one that came to you with a goal you now own also says “Asked of Tunde, now yours”. Five show, then Show all. Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.",
 					"When an ask is late, due this week, or has waited a week or more, and nothing comes before it, it is the lead, with its one button (Respond, Answer, Check in or Mark done); the rest are under Also needs your response. A goal someone proposed for you is asked of you like an ask with no date: once a week has passed and no ask comes first, it is the lead, with Open it.",
-					"Your goals come next, counted once: how many there are by status, each count opening exactly those goals in Goals (“1 at risk” lists the one). Then the ones that need attention, worst first, each with Check in when that is what it needs; what is being handled, folded away; and the rest, five at a time. Each row opens its goal. Goals you watch follow.",
+					"Your goals come next, counted once: how many there are by status, each count opening exactly those goals in Goals (“1 at risk” lists the one). Then the ones that need attention, worst first, each with Check in when that is what it needs; what is being handled, folded away; and the rest, five at a time. Each row opens its goal. Your team and Goals you watch follow.",
 					"On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.",
 					"Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it.",
 					"After a release you haven’t seen, a quiet line at the foot of Home says what’s new in Faro. Open it, or dismiss it with the cross."
@@ -19220,6 +19266,14 @@ var CORE_ARTICLES = [
 			{
 				heading: "Why an ask says how long it has waited",
 				list: ["An ask with a week it is due by is due that week’s Sunday. A question raised in a review is due before the review’s next session after the one it was raised in, and stays due then: it doesn’t move on to a later session when that one passes.", "An ask with no date says how long it has waited: “Waiting since 4 Aug, 14 weeks”. The oldest come first, after anything late or due this week."]
+			},
+			{
+				heading: "Your team on Home",
+				list: [
+					"If you are in a team, or lead one, and it has goals you don’t own, “Your team · CI/CD · 17 goals” follows your goals (“Your teams · 30 goals in 2 teams” when you lead more than one). It is exactly the My team tab of Goals: the same goals and the same total, and See them in Goals opens it.",
+					"Its counts by status each open exactly those goals. Then “2 need attention that aren’t yours” opens Goals with those goals, filtered to Owner not you, and up to four of them are listed, each with its owner’s name first. Your own are in Your goals, so they aren’t listed twice. When nothing needs attention, it says so.",
+					"When the goals you watch, or your teams’ goals, are more than twelve goals in two or more teams, they are shown as teams, worst first: the team with the most goals off track, then at risk, then with no recent update, first, as Goals orders By team. Each team’s name, its “3 need attention” and its counts by status open exactly those goals. Five teams show, then a link to the rest, by team. No person’s name is in this table: teams and goals are ranked, never people. On a phone each team is one stacked row."
+				]
 			},
 			{
 				heading: "When Home has no button",
@@ -19239,6 +19293,7 @@ var CORE_ARTICLES = [
 		screens: ["Home"],
 		reqs: [
 			"HOME-OWNER",
+			"HOME-MANAGER",
 			"PROFILES",
 			"SHAPE-MATCHES-WORD",
 			"DAY-ONE"
@@ -19374,38 +19429,43 @@ var CORE_ARTICLES = [
 	{
 		id: "set-up",
 		title: "Setting up a workspace",
-		summary: "A workspace holds one organisation’s people, teams, goals and history. Setting one up takes about three minutes.",
+		summary: "A workspace holds one organisation’s people, teams, goals and history. Setting one up takes four steps and about three minutes.",
 		group: "start",
 		sections: [{
 			heading: "What it’s for",
-			text: ["Start your own workspace from a template, your own spreadsheet, or nothing at all. Whoever sets it up is its first admin."]
+			text: ["Start your own workspace with goals you type, your own spreadsheet, or none yet: there are no example goals to start from. Whoever sets it up is its first admin."]
 		}, {
 			heading: "How to use it",
 			list: [
-				"Start from Welcome’s Set up a workspace (or the workspace switcher’s Set up a new workspace). It asks one question per screen: the workspace’s name (three to 80 characters; it counts them as you near the limit), the month its goal year starts and whether to record how the app is used there (off unless you tick it), who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.",
+				"Start from Welcome’s Set up a workspace (or the workspace switcher’s Set up a new workspace). It takes four steps, each at its own address, so your browser’s Back and Forward move between them and a reload stays put: the workspace and you (its name, three to 80 characters, counted as you near the limit; your name, email and team), people, goals, and Check. Each field says what it needs under it; Continue says where it goes next.",
 				"In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.",
 				"Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.",
-				"Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.",
-				"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.",
+				"Set up from inside the app (from the workspace switcher or Workspace), the first step says “Setting up as” you, in one line; Change opens your name, email and team.",
+				"Under the first step, How you’ll work says the usual in one paragraph: check-ins every week, by the review’s day; a weekly review on Thursdays; the year starting in January; Recording off. Change how you’ll work opens a sheet for the month the goal year starts, the review day and whether to record how the app is used (off unless you tick it). Changed, the panel says so. Check has the same Change.",
+				"Goals offers three ways to start. Add your own (chosen to begin with) shows the outcome and up to four goals that feed it, to type in. Import a spreadsheet takes the template or a workbook (Choose a spreadsheet; a file with goals uploaded on People is used straight away). Later finishes with no goals: each owner adds theirs from New goal. Not sure what a good goal looks like? The link there opens the demo’s goals in a new tab, and your set-up is kept.",
 				"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and Check shows the same preview Import does before anything is created: how many goals and people the file adds (a goal still to fix counted too), what must be fixed, and its questions, each with its answers. A goal owned by someone nobody typed offers “Add {name}” (they join your people, with the row’s team) or “Give it to someone here”; the person you give it to stands for the row’s other owner cells that name no one here, but never for one that names someone else here, which is still Must fix. A goal’s team one letter from a team already named (“Depot” beside “Depots”) is asked about, as a person’s is. A check-in’s “Choose a goal” finds the spreadsheet’s goals. After each answer the next question takes the focus. Create workspace waits until every question is answered.",
 				"On the People sheet, a row whose Action says Example (the template’s) is skipped, and someone marked Left isn’t added: a goal they own then asks who has it. The upload says how many were skipped, and the preview how many Example goal rows. A file with no goals sheet, uploaded after one with goals, keeps those goals; a new goals file drops anyone its predecessor’s answers added.",
 				"If the preview can’t load (a lost connection), Check says so and offers Try again; nothing you typed or answered is lost.",
 				"Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.",
 				"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, is asked about on Check, already answered “Count them from this week” as a template’s are, so it isn’t late on day one. Change, then Keep the weeks as typed, puts them back.",
-				"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
+				"With Add your own, name the outcome and add up to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
 				"The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.",
-				"Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.",
+				"Check (Step 4 of 4) reads back what Create will make: you, the people, the goals, the year, the review and Recording, each with Change. Change on a step brings you straight back to Check (Back to Check). Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace.",
 				"Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.",
 				"Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.",
 				"Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.",
-				"On a phone, the small links in set-up (Start over, Change, Change people) are as easy to hit as a button.",
+				"On a phone, the small links in set-up (Start over, Change) are as easy to hit as a button. Close and keep the draft leaves at any step; coming back picks up the set-up you hadn’t finished, at its step, with Start over (which asks first).",
 				"The last screen gives you the one next thing to do, and a link to copy for your team: /join/ and the workspace. It opens this workspace and nothing else, and asks them which one they are (see Joining a workspace you were invited to). Faro sends no email: you send the link yourself.",
-				"Set up with no goals (Set goals up later), nothing is due: no check-ins until there are goals.",
+				"Set up with no goals (Later), nothing is due: no check-ins until there are goals.",
 				"Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.",
 				"In the demo, a workspace you made can start over from the Demo panel: it is removed from this browser, drafts and all. The walkthroughs there open the example, whose people and goals they follow."
 			]
 		}],
-		routes: ["/workspace/new", "/ready"],
+		routes: [
+			"/workspace/new",
+			"/workspace/new/:step",
+			"/ready"
+		],
 		screens: ["Onboarding", "Start"],
 		reqs: [
 			"ONBOARDING",
@@ -19419,6 +19479,8 @@ var CORE_ARTICLES = [
 			"new workspace",
 			"template",
 			"who are you",
+			"how you’ll work",
+			"steps",
 			"sign in",
 			"first time",
 			"goal year",
@@ -19613,6 +19675,7 @@ var CORE_ARTICLES = [
 					"Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.",
 					"Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back, and History no longer says it was corrected. The form starts from what the check-in said, so you change only what was wrong. A cycle that has ended can’t be corrected here, or anywhere else: Data’s tables, the AI assistant and a spreadsheet refuse it too.",
 					"Changing a week’s check-in in Data’s tables, or through the AI assistant, corrects it the same way: it asks why first, and History says “Corrected week 45” with your reason. An admin can correct a past check-in in Data.",
+					"A correction never changes whose check-in it is: it stays the person’s who posted it, wherever it was corrected (the form, Data, the AI assistant or a spreadsheet). History names who corrected it, with the reason: “Corrected week 45: 60% is now 61%, by Amara Okafor: …”.",
 					"Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.",
 					"Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.",
 					"The first check-in sets where a goal stands today. If the goal was set up in the last four weeks and the number isn’t where its plan starts, you’re asked: start the plan from this number (same target, due week and shape; no reason needed, with Undo), or keep the plan and say why."
@@ -19628,7 +19691,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. Anyone can ask the owner for an update from the goal’s page."]
+				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. A pasted row that replaces someone’s check-in for this week is a correction: Preview asks why first, and the check-in stays theirs. Anyone can ask the owner for an update from the goal’s page."]
 			}
 		],
 		routes: ["/check-in", "/check-in/:goalId"],
@@ -19819,7 +19882,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Tabs say whose goals: Mine (the goals you own), My team (your team’s, and those of any team you lead), Watching (the goals you follow) and All, each with its count. Goals opens on the tab you used last, else Mine, else Watching. A tab you don’t have (Mine when you own nothing) isn’t shown.",
+					"Tabs say whose goals: Mine (the goals you own), My team (your team’s, and those of any team you lead), Watching (the goals you follow) and All, each with its count. A tab is shown once it has goals in it and isn’t the same list as one before it (in a workspace of one team, My team is All, so it isn’t shown); All is always there. The same goes for a feature’s menu row, such as Metrics, which appears with the first metric. Every address still opens. Goals opens on the tab you used last, else Mine, else Watching. A tab you don’t have (Mine when you own nothing) isn’t shown.",
 					"Group arranges them: As trees (each top goal with what feeds it; All’s own), By team, By level, or None (one list, worst first; every other tab’s own). Needs attention · {n} is a switch beside it: on, any tab lists the goals that need attention first and those being handled below, and the line under it says why.",
 					"One line counts what’s shown and their statuses, worst first (“17 goals, worst first. 2 off track · 4 at risk …”); with Needs attention on it says how many need attention and why.",
 					"By team lists the teams worst first: the most goals off track, then the most at risk, then no recent update and no check-in yet. Each team says how many of its goals have each status, with its shape and word.",
@@ -19874,7 +19937,8 @@ var CORE_ARTICLES = [
 			"NAV-GOALS",
 			"STORY",
 			"LEVELS",
-			"BULK-EDIT"
+			"BULK-EDIT",
+			"SMALL-MENU"
 		],
 		keywords: [
 			"list",
@@ -19913,6 +19977,7 @@ var CORE_ARTICLES = [
 				"Clear search and filters, or removing the search, keeps the tab, the layout and the sort you had.",
 				`Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list, with those ${lower(ATTENTION.handled)} listed below them), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(", ")}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
 				"Under the bar, one line counts the goals that match; under it, the filters in words (“Filtered by: Status Off track · Owner Rhea Kapoor”), each with Remove. A search is never listed as a filter.",
+				"Owner not you is the goals someone else owns: Home’s “need attention that aren’t yours” opens Goals with it, so your own goals are left out.",
 				"Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest. Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere; clear the sort to see the trees again. By level and By team keep their groups.",
 				"Everything is in the link: Copy link, in Views, shares exactly what you see. Save this view…, also in Views (in View on a phone), keeps it under a name: it shows as a tab while it’s open, and Views lists it the rest of the time. Rename or delete it from Views while it’s open."
 			]
@@ -20413,7 +20478,7 @@ var CORE_ARTICLES = [
 					"Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.",
 					"In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet. Only people in the review, or an admin, can propose one there.",
 					"On a goal’s page, What feeds it lists any goals proposed to feed it under “Proposed” with how many, with no status and counted in nothing; a goal that feeds a proposed goal says “· Proposed” after its name. When the next year starts, proposed goals carry as proposed, counted apart on the start page.",
-					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).",
+					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. Both are remembered for you, not for the device: open a goal on your phone and it no longer asks on your laptop. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).",
 					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. With the filter on, the Board is one column, Proposed, and the Map draws each in its tree with a dashed outline and the word, the goals above it shown for context; opening one goes to its page. Find lists them with the word Proposed.",
 					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active, and make_goal_proposed makes an active one proposed again. A file or an assistant adding goals for other people with no State is asked once whether they start active or proposed (an admin’s file and set-up aren’t asked). A goal with check-ins can’t go back to proposed: stop it instead."
 				]
@@ -21611,6 +21676,59 @@ var WHATS_NEW = [
 		title: "Guardrails on a goal",
 		points: ["A goal can name up to five goals that guard it: goals kept in a range, such as change failure rate at most 12%. Choose them under Change this goal, More details, Guarded by.", "When a guard is past its limit, the goal it guards is at risk; two weeks running, off track. The check-in and the goal’s page say which guard and by how much."],
 		articles: ["guardrails"]
+	},
+	{
+		id: "corrections-keep-the-author",
+		date: "2026-11-14",
+		title: "A correction keeps whose check-in it is",
+		points: [
+			"Correcting someone’s check-in no longer makes it yours. It stays theirs, wherever it is corrected: the form, Data’s tables, the AI assistant or a spreadsheet.",
+			"This changes what Data and the AI assistant did until now: they made whoever corrected a check-in its author.",
+			"History names who corrected it, with the reason: “Corrected week 45: 60% is now 61%, by Amara Okafor: …”.",
+			"An admin’s pasted row that replaces someone’s check-in for this week is a correction too: Preview asks why before it saves."
+		],
+		articles: ["check-in", "data"]
+	},
+	{
+		id: "setup-four-steps",
+		date: "2026-11-14",
+		title: "Set-up in four steps you can go back through",
+		points: [
+			"Setting up a workspace is four steps: the workspace and you, people, goals and Check. Each has its own address, so your browser’s Back works and a reload stays put.",
+			"How you’ll work (the year, the review day, Recording) is one paragraph on the first step, with a sheet to change it there or on Check.",
+			"Goals starts with your own, a spreadsheet, or later. The four example templates are gone: a workspace begins with real goals or none.",
+			"Change on Check brings you straight back to it."
+		],
+		articles: ["set-up"]
+	},
+	{
+		id: "home-your-team",
+		date: "2026-11-14",
+		title: "Your team is on Home",
+		points: [
+			"If your team has goals you don’t own, Home shows them after yours, exactly as the My team tab of Goals counts them.",
+			"Its goals that need attention and aren’t yours are listed with their owners’ names, and the link opens Goals filtered to Owner not you.",
+			"Goals you watch, or your teams’ goals, that are more than twelve goals across teams are shown as teams, worst first, each count opening exactly those goals."
+		],
+		articles: ["home"]
+	},
+	{
+		id: "proposals-follow-you",
+		date: "2026-11-14",
+		title: "Proposed goals remember you, not the device",
+		points: ["Open a goal proposed for you on your phone and Home stops asking about it on your laptop too.", "Not yet on a goal that has waited 8 weeks puts it off everywhere you use Faro."],
+		articles: ["goal-proposed"]
+	},
+	{
+		id: "menu-shows-what-you-use",
+		date: "2026-11-14",
+		title: "The menu shows what you use",
+		points: [
+			"A tab on Goals appears once it has goals in it and isn’t the same list as another, so a one-team workspace shows Mine and All.",
+			"Metrics joins the menu with the first metric, and the message after saving it says so.",
+			"Nothing is switched off: every page still opens from its address, Find and Workspace."
+		],
+		articles: ["goals", "metrics"]
 	},
 	{
 		id: "table-confirm-readings",
@@ -22959,7 +23077,10 @@ var WEEKDAYS = [
 	"Sunday"
 ];
 var n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
-function startPage(s, cycle, today) {
+/** `show`: which switched modules are on (SW1). With the Wrap-up off the page names no wrap-up, and with Watching off no
+watches; what they carry along is carried all the same. */
+function startPage(s, cycle, today, show = {}) {
+	const wrapUp = show.wrapUp !== false, watching = show.watching !== false;
 	const shape = nextCycleShape(cycle);
 	const next = {
 		...cycle,
@@ -22969,7 +23090,7 @@ function startPage(s, cycle, today) {
 	const state = cycleState(cycle, today);
 	const later = laterCycle(s.cycles, cycle);
 	const ended = state === "ended" || state === "closed";
-	const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? `It opens for everyone as soon as you start it.${state === "ended" ? ` ${cycle.name}’s wrap-up stays open until ${dayWithYear(d.wrapUpCloses)}.` : ""}` : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins and the wrap-up carry on.`}`;
+	const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? `It opens for everyone as soon as you start it.${state === "ended" && wrapUp ? ` ${cycle.name}’s wrap-up stays open until ${dayWithYear(d.wrapUpCloses)}.` : ""}` : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins${wrapUp ? " and the wrap-up" : ""} carry on.`}`;
 	if (state === "before" || state === "running") return {
 		next: shape.name,
 		canStart: false,
@@ -23017,7 +23138,7 @@ function startPage(s, cycle, today) {
 		},
 		{
 			n: rb.open,
-			says: "not wrapped up yet",
+			says: wrapUp ? "not wrapped up yet" : "go by where they stand",
 			sub: `${rb.openCarry} carry on as they are, ${rb.openFinish} finish`
 		}
 	];
@@ -23042,7 +23163,7 @@ function startPage(s, cycle, today) {
 			bold: `${n(extras.asks, "open next step or ask moves", "open next steps and asks move")} with ${extras.asks === 1 ? "its goal" : "their goals"}.`,
 			rest: extras.staying ? ` ${extras.staying} stay in ${cycle.name}, on goals that finish or stop.` : ""
 		}] : [],
-		...extras.watches ? [{
+		...extras.watches && watching ? [{
 			bold: `${n(extras.watches, "watch follows", "watches follow")} ${extras.watches === 1 ? "its goal" : "their goals"}`,
 			rest: ", for the same people."
 		}] : [],
@@ -23177,6 +23298,7 @@ var MORE_RULE_PAGES = [
 	["navigation", "Navigation: the menu, the lit item and a page’s name"],
 	["goals-page", "The Goals page: whose goals, how they are grouped, and the switch"],
 	["home", "Home: what is asked of you today"],
+	["home-sets", "Home: your goals, your team and what you watch"],
 	["habit", "The habit: the run, the receipt, a moment and the measure"]
 ];
 /** The requirements under spec/requirements/internal/ (backlog 8r): what the internal rebuild must do that Faro doesn't
@@ -24205,7 +24327,11 @@ var WORK_TOOLS = [
 		},
 		async run(a, ctx) {
 			if (a.confirm !== true || a.dry_run === true) {
-				const page = startPage(ctx.full ?? ctx.snapshot, ctx.cycle, ctx.today);
+				const on = modulesOn(ctx.ws).on;
+				const page = startPage(ctx.full ?? ctx.snapshot, ctx.cycle, ctx.today, {
+					wrapUp: wrapUpOn(on),
+					watching: watchingOn(on)
+				});
 				const rb = page.readBack;
 				return {
 					text: `${startPageText(page)}\n\nNothing has changed. Ask the person first, then call again with confirm: true.`,
@@ -24620,7 +24746,7 @@ var REMOVE_TOOLS = [
 			openWorldHint: false
 		},
 		async run(_a, ctx) {
-			const all = recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, void 0, recordsOn(ctx.ws)).filter((r) => canRestore(ctx.actor, r));
+			const all = recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, void 0, recordsOn(ctx.ws), { watches: watchingOn(modulesOn(ctx.ws).on) }).filter((r) => canRestore(ctx.actor, r));
 			const who = (id) => (ctx.full ?? ctx.snapshot).people.find((p) => p.id === id)?.name ?? "—";
 			return listed({ removed: all.map((r) => ({
 				kind: r.kind,
@@ -26945,6 +27071,12 @@ function beforeReview(goals, week, rows, cycle, today, viewerId, held = true) {
 		weeks: habitWeeks(goals, past ? week : week - 1, rows, (w) => reviewDate(cycle, w), isDue)
 	};
 }
+/** The Before this review panel's heading on a review's page and in get_review (review of #432): "Before this review"
+only for a session held on the due day in that week (`onDueDay`, review.ts sessionOnDueDay); otherwise the week and
+its due date, as no review is held before the deadline. */
+function beforeReviewHeading(onDueDay, cycle, week) {
+	return onDueDay ? "Before this review" : `Week ${week}, due by ${dueWords$1(false, cycle, week).date}`;
+}
 // src/modules/reviews/tools.ts
 init_actions();
 init_removal();
@@ -27038,11 +27170,15 @@ var tools$3 = [
 					answer: answerOf(d)?.text ?? null
 				} : {}
 			}));
-			const b = beforeReview(x.items.map((i) => i.goal), Math.min(x.week, ctx.week), {
+			const wk = Math.min(x.week, ctx.week);
+			const onDueDay = sessionOnDueDay(r, ctx.cycle, wk);
+			const heading = beforeReviewHeading(onDueDay, ctx.cycle, wk);
+			const b = beforeReview(x.items.map((i) => i.goal), wk, {
 				checkIns: ctx.snapshot.checkIns,
 				asks: ctx.snapshot.requests ?? []
-			}, ctx.cycle, ctx.today, ctx.actor.id, r.weekday === ctx.cycle.reviewDay);
+			}, ctx.cycle, ctx.today, ctx.actor.id, onDueDay);
 			const before = b ? {
+				heading,
 				says: b.says,
 				due: b.counts.due,
 				inTime: b.counts.inTime,
@@ -27070,7 +27206,7 @@ var tools$3 = [
 			};
 			return {
 				data,
-				text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.${before ? ` Before this review: ${before.says} Last ${before.lastWeeks.length} weeks: ${before.lastWeeks.map((w) => `week ${w.week} ${w.says.toLowerCase()}`).join(", ")}.` : ""}\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${said(g.status)}.${g.beingHandled ? ` ${ATTENTION.handled.label}: ${g.beingHandled}.` : ""} ${g.why.join(" ")}`), "- nothing")}\nNothing flagged: ${data.healthy.map((g) => g.title).join(", ") || "none"}.`
+				text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.${before ? ` ${heading}: ${before.says} Last ${before.lastWeeks.length} weeks: ${before.lastWeeks.map((w) => `week ${w.week} ${w.says.toLowerCase()}`).join(", ")}.` : ""}\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${said(g.status)}.${g.beingHandled ? ` ${ATTENTION.handled.label}: ${g.beingHandled}.` : ""} ${g.why.join(" ")}`), "- nothing")}\nNothing flagged: ${data.healthy.map((g) => g.title).join(", ") || "none"}.`
 			};
 		}
 	},
@@ -27566,6 +27702,19 @@ function writesReviews(c, stored) {
 	if (c.goals?.some((g) => !!g.proposedIn && g.proposedIn !== (goal(g.id)?.proposedIn ?? null))) return true;
 	if (c.requests?.some((a) => !!a.reviewId && a.reviewId !== (stored.asks.find((x) => x.id === a.id)?.reviewId ?? null))) return true;
 	return false;
+}
+// src/domain/watchWrites.ts
+/**
+* Rule (SW1). A save writes Watching's records when it logs a change to a watch, stops a watch by its id, or writes
+* watches and nothing else (starting one, or bringing a stopped one back by Undo or from Recently removed). What a save
+* only carries along is not: the watches that follow goals into the next cycle, or go and come back with a cycle's start
+* and its undoing, ride with the goals or the cycle the save is about.
+*/
+function writesWatches(c) {
+	if ((c.changes ?? []).some((x) => x.entity === "watch")) return true;
+	if (c.unwatch?.length) return true;
+	if (!c.watches?.length) return false;
+	return !Object.entries(c).some(([k, v]) => k !== "changes" && k !== "watches" && (Array.isArray(v) ? v.length > 0 : v != null && typeof v === "object" ? Object.keys(v).length > 0 : false));
 }
 // src/domain/readBack.ts
 init_goalEntry();
@@ -28093,6 +28242,11 @@ var CORE_TOOLS = [
 				linkScope = new URLSearchParams(v.params).get("scope");
 			}
 			const status = a.status ? statusIn(a.status) : null;
+			const notMine = query.owner.includes("-me");
+			if (notMine) query = {
+				...query,
+				owner: query.owner.filter((o) => o !== "-me")
+			};
 			const named = a.owner ? ctx.snapshot.people.filter((p) => p.name.toLowerCase().includes(String(a.owner).toLowerCase())).map((p) => p.id) : null;
 			const owners = [
 				query.owner.length ? query.owner : null,
@@ -28111,8 +28265,8 @@ var CORE_TOOLS = [
 			const scope = a.scope ? String(a.scope) : linkScope ? linkScope : null;
 			if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
 			const watchingHere = watchingOn(modulesOn(ctx.ws).on);
-			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).tabs.find((t) => t.id === scope) : null;
-			if (scope && scope !== "all" && !scoped) return listed(goalPage([], a, scope === "team" ? "You’re in no team and lead none." : scope === "watching" ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : "You own no goals this year."));
+			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).every.find((t) => t.id === scope) : null;
+			if (scope && scope !== "all" && (!scoped || scope === "mine" && !scoped.ids.length)) return listed(goalPage([], a, scope === "team" ? "You’re in no team and lead none." : scope === "watching" ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : "You own no goals this year."));
 			const inScope = scoped ? new Set(scoped.ids) : null;
 			const words = [String(a.text ?? ""), query.q].filter((x) => x.trim()).join(" ");
 			const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week, void 0, reviewsOn(modulesOn(ctx.ws).on));
@@ -28158,7 +28312,7 @@ var CORE_TOOLS = [
 			const proposedOnly = a.state === "proposed";
 			const inScopeOf = (g) => !inScope ? true : !isProposed(g) ? inScope.has(g.id) : scope === "mine" ? g.ownerId === ctx.actor.id : scope === "team" ? scopeFacts(ctx.snapshot, ctx.actor).teams.some((t) => t.id === g.teamId) : false;
 			const wordsOf = (g) => `${g.title} ${g.key ?? ""}`.toLowerCase();
-			let list = proposedOnly ? (ctx.snapshot.proposed ?? []).filter((g) => inScopeOf(g) && (!words.trim() || words.toLowerCase().split(/\s+/).every((w) => wordsOf(g).includes(w)))).map((g) => proposedSummary(g, ctx.snapshot, ctx.cycle, ctx.week)) : found.map((r) => byId.get(r.id)).filter((x) => x && !isProposed(x.goal) && inScopeOf(x.goal) && cols.every((c) => c.fill(x.goal) === c.v));
+			let list = proposedOnly ? (ctx.snapshot.proposed ?? []).filter((g) => inScopeOf(g) && (!words.trim() || words.toLowerCase().split(/\s+/).every((w) => wordsOf(g).includes(w)))).map((g) => proposedSummary(g, ctx.snapshot, ctx.cycle, ctx.week)) : found.map((r) => byId.get(r.id)).filter((x) => x && !isProposed(x.goal) && inScopeOf(x.goal) && cols.every((c) => c.fill(x.goal) === c.v) && !(notMine && x.goal.ownerId === ctx.actor.id));
 			if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== "handled"), ...list.filter((s) => attentionGroup(s.attention) === "handled")];
 			return listed(goalPage(list.map((s) => ({
 				key: s.goal.key ?? null,
@@ -28769,9 +28923,10 @@ async function callTool(name, args, ctx) {
 		text: moduleOffSentence(moduleById(from)?.name ?? from, ctx.ws.name, name)
 	};
 	try {
-		return await t.run(args ?? {}, reviewsOn(modulesOn(ctx.ws).on) ? ctx : reviewsGuarded(ctx, name));
+		const on = modulesOn(ctx.ws).on;
+		return await t.run(args ?? {}, reviewsOn(on) && watchingOn(on) ? ctx : switchesGuarded(ctx, name, !reviewsOn(on), !watchingOn(on)));
 	} catch (e) {
-		if (e instanceof ReviewsOff) return {
+		if (e instanceof SwitchedOff) return {
 			isError: true,
 			text: e.message
 		};
@@ -28783,18 +28938,22 @@ async function callTool(name, args, ctx) {
 		};
 	}
 }
-/** A save refused because it writes Reviews' records while Reviews is off: said as the switched-off sentence alone. */
-var ReviewsOff = class extends Error {};
+/** A save refused because it writes a switched-off module's records (Reviews', Watching's): said as the switched-off
+sentence alone. */
+var SwitchedOff = class extends Error {};
 /**
-* The context a tool runs with while Reviews is off: the same, except that a save writing Reviews' records (a review, a
-* note said in one, an ask raised in one, a goal proposed in one: domain/reviewWrites) is refused and saves nothing, in
-* the switched-off sentence, whichever tool made it (build review of #371: edit_comment and delete_comment on a review
-* note, create_goal proposed in a review, restore_removed reopening an ended review). Everything else reads and writes
-* through to the context itself, which a save moves on.
+* The context a tool runs with while Reviews or Watching is off: the same, except that a save writing the switched-off
+* module's records is refused and saves nothing, in the switched-off sentence, whichever tool made it. Reviews': a
+* review, a note said in one, an ask raised in one, a goal proposed in one (domain/reviewWrites; build review of #371:
+* edit_comment and delete_comment on a review note, create_goal proposed in a review, restore_removed reopening an ended
+* review). Watching's: a watch started, stopped or brought back (domain/watchWrites; build review of #444:
+* restore_removed on a stopped watch). Everything else reads and writes through to the context itself, which a save
+* moves on.
 */
-function reviewsGuarded(ctx, tool) {
+function switchesGuarded(ctx, tool, reviewsOff, watchingOff) {
 	const save = async (c) => {
-		if (writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new ReviewsOff(moduleOffSentence("Reviews", ctx.ws.name, tool));
+		if (reviewsOff && writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new SwitchedOff(moduleOffSentence("Reviews", ctx.ws.name, tool));
+		if (watchingOff && writesWatches(c)) throw new SwitchedOff(moduleOffSentence("Watching", ctx.ws.name, tool));
 		return ctx.save(c);
 	};
 	return new Proxy(ctx, { get: (t, k, r) => k === "save" ? save : Reflect.get(t, k, r) });
@@ -29455,7 +29614,7 @@ async function sendSpans(deps, rows, workspaceId, ctx) {
 		clearTimeout(timer);
 	} catch {}
 }
-// node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
+// ../goals-app/node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
 var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 /**
 * The currently registered trace context extractor, if any.
@@ -29463,7 +29622,7 @@ var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 function getTraceContextExtractor() {
 	return globalThis[EXTRACTOR_KEY];
 }
-// node_modules/tslib/tslib.es6.mjs
+// ../goals-app/node_modules/tslib/tslib.es6.mjs
 function __rest(s, e) {
 	var t = {};
 	for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0) t[p] = s[p];
@@ -29499,12 +29658,12 @@ function __awaiter(thisArg, _arguments, P, generator) {
 		step((generator = generator.apply(thisArg, _arguments || [])).next());
 	});
 }
-// node_modules/@supabase/functions-js/dist/module/helper.js
+// ../goals-app/node_modules/@supabase/functions-js/dist/module/helper.js
 var resolveFetch$3 = (customFetch) => {
 	if (customFetch) return (...args) => customFetch(...args);
 	return (...args) => fetch(...args);
 };
-// node_modules/@supabase/functions-js/dist/module/types.js
+// ../goals-app/node_modules/@supabase/functions-js/dist/module/types.js
 /**
 * Base error for Supabase Edge Function invocations.
 *
@@ -29594,7 +29753,7 @@ var FunctionRegion;
 	FunctionRegion["UsWest1"] = "us-west-1";
 	FunctionRegion["UsWest2"] = "us-west-2";
 })(FunctionRegion || (FunctionRegion = {}));
-// node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
+// ../goals-app/node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
 /**
 * Client for invoking Supabase Edge Functions.
 */
@@ -29847,7 +30006,7 @@ var FunctionsClient = class {
 		});
 	}
 };
-// node_modules/@supabase/postgrest-js/dist/index.mjs
+// ../goals-app/node_modules/@supabase/postgrest-js/dist/index.mjs
 /**
 * Error format
 *
@@ -33821,7 +33980,7 @@ var PostgrestClient = class PostgrestClient {
 		});
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
 /**
 * Utilities for creating WebSocket instances across runtimes.
 */
@@ -33914,7 +34073,7 @@ var WebSocketFactory = class {
 		}
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/constants.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/lib/constants.js
 var DEFAULT_VERSION = `realtime-js/2.118.0`;
 var VSN_1_0_0 = "1.0.0";
 var VSN_2_0_0 = "2.0.0";
@@ -33948,7 +34107,7 @@ var CONNECTION_STATE = {
 	closing: "closing",
 	closed: "closed"
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
 var Serializer = class {
 	constructor(allowedMetadataKeys) {
 		this.HEADER_LENGTH = 1;
@@ -34090,7 +34249,7 @@ var Serializer = class {
 		return Object.fromEntries(Object.entries(obj).filter(([key]) => keys.includes(key)));
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
 /**
 * Helpers to convert the change Payload into native JS types.
 */
@@ -34276,7 +34435,7 @@ var httpEndpointURL = (socketUrl) => {
 	else wsUrl.pathname = wsUrl.pathname + "/api/broadcast";
 	return wsUrl.href;
 };
-// node_modules/@supabase/phoenix/priv/static/phoenix.mjs
+// ../goals-app/node_modules/@supabase/phoenix/priv/static/phoenix.mjs
 var closure = (value) => {
 	if (typeof value === "function") return value;
 	else {
@@ -35971,7 +36130,7 @@ var Socket = class {
 		}
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
 var PresenceAdapter = class PresenceAdapter {
 	constructor(channel, opts) {
 		const phoenixOptions = phoenixPresenceOptions(opts);
@@ -36058,7 +36217,7 @@ function phoenixPresenceOptions(opts) {
 function parseCurrentPresences(currentPresences) {
 	return (currentPresences === null || currentPresences === void 0 ? void 0 : currentPresences.metas) ? transformState(currentPresences) : [];
 }
-// node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
 var REALTIME_PRESENCE_LISTEN_EVENTS;
 (function(REALTIME_PRESENCE_LISTEN_EVENTS) {
 	REALTIME_PRESENCE_LISTEN_EVENTS["SYNC"] = "sync";
@@ -36091,7 +36250,7 @@ var RealtimePresence = class {
 		this.presenceAdapter = new PresenceAdapter(this.channel.channelAdapter, opts);
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
 /**
 * Normalize the various shapes a channel error reason can take into a real `Error`.
 *
@@ -36113,7 +36272,7 @@ function normalizeChannelError(reason) {
 	}
 	return /* @__PURE__ */ new Error("channel error: connection lost");
 }
-// node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
 var ChannelAdapter = class {
 	constructor(socket, topic, params) {
 		const phoenixParams = phoenixChannelParams(params);
@@ -36215,7 +36374,7 @@ function phoenixChannelParams(options) {
 		private: false
 	}, options.config) };
 }
-// node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
 var PostgrestReservedCharsRegexp = /[,()"\\]/;
 var needsQuoting = (value) => PostgrestReservedCharsRegexp.test(value) || value !== value.trim();
 var quote = (value) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
@@ -36350,7 +36509,7 @@ var RealtimePostgresFilterBuilder = class {
 		return this.build();
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
 var REALTIME_POSTGRES_CHANGES_LISTEN_EVENT;
 (function(REALTIME_POSTGRES_CHANGES_LISTEN_EVENT) {
 	REALTIME_POSTGRES_CHANGES_LISTEN_EVENT["ALL"] = "*";
@@ -37041,7 +37200,7 @@ var RealtimeChannel = class RealtimeChannel {
 		return records;
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
 var SocketAdapter = class {
 	constructor(endPoint, options) {
 		this.socket = new Socket(endPoint, options);
@@ -37152,7 +37311,7 @@ var SocketAdapter = class {
 		return this.socket;
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
+// ../goals-app/node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
 var CONNECTION_TIMEOUTS = {
 	HEARTBEAT_INTERVAL: 25e3,
 	RECONNECT_DELAY: 10,
@@ -37764,7 +37923,7 @@ var RealtimeClient = class {
 		if (!this.isConnected()) this.connect();
 	}
 };
-// node_modules/iceberg-js/dist/index.mjs
+// ../goals-app/node_modules/iceberg-js/dist/index.mjs
 var IcebergError = class extends Error {
 	constructor(message, opts) {
 		super(message);
@@ -38260,7 +38419,7 @@ var IcebergRestCatalog = class {
 		return this.tableOps.createTableIfNotExists(namespace, request);
 	}
 };
-// node_modules/@supabase/storage-js/dist/index.mjs
+// ../goals-app/node_modules/@supabase/storage-js/dist/index.mjs
 function _typeof$1(o) {
 	"@babel/helpers - typeof";
 	return _typeof$1 = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(o$1) {
@@ -41447,9 +41606,9 @@ var StorageClient = class extends StorageBucketApi {
 		return new StorageAnalyticsClient(this.url + "/iceberg", this.headers, this.fetch);
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/version.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/version.js
 var version$1 = "2.118.0";
-// node_modules/@supabase/auth-js/dist/module/lib/constants.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/constants.js
 /** Current session will be checked for refresh at this interval. */
 var AUTO_REFRESH_TICK_DURATION_MS = 3e4;
 var EXPIRY_MARGIN_MS = 3 * AUTO_REFRESH_TICK_DURATION_MS;
@@ -41478,7 +41637,7 @@ var BASE64URL_REGEX = /^([a-z0-9_-]{4})*($|[a-z0-9_-]{3}$|[a-z0-9_-]{2}$)$/i;
 * verifier itself never appears in a URL.
 */
 var PKCE_FLOW_ID_PARAM = "sb_flow_id";
-// node_modules/@supabase/auth-js/dist/module/lib/errors.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/errors.js
 /**
 * Base error thrown by Supabase Auth helpers.
 *
@@ -41764,7 +41923,7 @@ var AuthInvalidJwtError = class extends CustomAuthError {
 		super(message, "AuthInvalidJwtError", 400, "invalid_jwt");
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/base64url.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/base64url.js
 /**
 * Avoid modifying this file. It's part of
 * https://github.com/supabase-community/base64url-js.  Submit all fixes on
@@ -41967,7 +42126,7 @@ function bytesToBase64URL(bytes) {
 	byteToBase64URL(null, state, onChar);
 	return result.join("");
 }
-// node_modules/@supabase/auth-js/dist/module/lib/helpers.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/helpers.js
 function expiresAt(expiresIn) {
 	return Math.round(Date.now() / 1e3) + expiresIn;
 }
@@ -42365,7 +42524,7 @@ function insecureUserWarningProxy(user, suppressWarningRef) {
 function deepClone(obj) {
 	return JSON.parse(JSON.stringify(obj));
 }
-// node_modules/@supabase/auth-js/dist/module/lib/fetch.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/fetch.js
 var _getErrorMessage = (err) => {
 	if (typeof err === "object" && err !== null) {
 		const e = err;
@@ -42524,13 +42683,13 @@ function _noResolveJsonResponse(data) {
 function hasSession(data) {
 	return !!data.access_token && !!data.refresh_token && !!data.expires_in;
 }
-// node_modules/@supabase/auth-js/dist/module/lib/types.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/types.js
 var SIGN_OUT_SCOPES = [
 	"global",
 	"local",
 	"others"
 ];
-// node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
 var GoTrueAdminApi = class {
 	/**
 	* Creates an admin API client that can be used to manage users and OAuth clients.
@@ -43676,7 +43835,7 @@ var GoTrueAdminApi = class {
 		}
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
 /**
 * Returns a localStorage-like object that stores the key-value pairs in
 * memory.
@@ -43708,7 +43867,7 @@ var LockAcquireTimeoutError = class extends Error {
 		this.isAcquireTimeout = true;
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
 /**
 * https://mathiasbynens.be/notes/globalthis
 */
@@ -43727,7 +43886,7 @@ function polyfillGlobalThis() {
 		if (typeof self !== "undefined") self.globalThis = self;
 	}
 }
-// node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
 function getAddress(address) {
 	if (!/^0x[a-fA-F0-9]{40}$/.test(address)) throw new Error(`@supabase/auth-js: Address "${address}" is invalid.`);
 	return address.toLowerCase();
@@ -43767,7 +43926,7 @@ function createSiweMessage(parameters) {
 	}
 	return `${prefix}\n${suffix}`;
 }
-// node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
 /**
 * A custom Error used to return a more nuanced error detailing _why_ one of the eight documented
 * errors in the spec was raised after calling `navigator.credentials.create()` or
@@ -43957,7 +44116,7 @@ function identifyAuthenticationError({ error, options }) {
 		cause: error
 	});
 }
-// node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
 /**
 * WebAuthn abort service to manage ceremony cancellation.
 * Ensures only one WebAuthn ceremony is active at a time to prevent "operation already in progress" errors.
@@ -44563,7 +44722,7 @@ var WebAuthnApi = class {
 		}
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
 polyfillGlobalThis();
 var DEFAULT_OPTIONS = {
 	url: GOTRUE_URL,
@@ -50064,9 +50223,9 @@ var GoTrueClient = class GoTrueClient {
 	}
 };
 GoTrueClient.nextInstanceID = {};
-// node_modules/@supabase/auth-js/dist/module/AuthClient.js
+// ../goals-app/node_modules/@supabase/auth-js/dist/module/AuthClient.js
 var AuthClient = GoTrueClient;
-// node_modules/@supabase/supabase-js/dist/index.mjs
+// ../goals-app/node_modules/@supabase/supabase-js/dist/index.mjs
 var version = "2.118.0";
 var JS_ENV = "";
 var JS_RUNTIME_VERSION;
@@ -51816,6 +51975,27 @@ var SupabaseStore = class {
 	async deleteWorkspace(ws) {
 		if (ws === EXAMPLE.id) throw new Error("The example can’t be deleted.");
 		await this.rpc("okr_delete_workspace", { ws }, "Deleting the workspace");
+	}
+	/** Every person's server-kept Prefs in a workspace (faro.person_prefs, migration 0053). */
+	async personPrefs(ws) {
+		const { data, error } = await this.db.from("person_prefs").select("person_id, key, value").eq("workspace_id", ws);
+		if (error) throw new Error(`person_prefs: ${error.message}`);
+		return (data ?? []).map((r) => ({
+			personId: r.person_id,
+			key: r.key,
+			value: r.value
+		}));
+	}
+	/** Keeps one, replacing the person's value for that key. */
+	async keepPersonPref(ws, p) {
+		const { error } = await this.db.from("person_prefs").upsert({
+			workspace_id: ws,
+			person_id: p.personId,
+			key: p.key,
+			value: p.value,
+			updated_at: (/* @__PURE__ */ new Date()).toISOString()
+		});
+		if (error) throw new Error(`person_prefs: ${error.message}`);
 	}
 };
 // src/adapters/supabase/markups.ts

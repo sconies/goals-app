@@ -88,7 +88,7 @@ describe('one Watching', () => {
     expect(watching).toMatch(/p\.set\('scope', 'watching'\)/);
     const goals = readFileSync(join(__dirname, '../src/screens/GoalsScreen.tsx'), 'utf8');
     const page = readFileSync(join(__dirname, '../src/domain/goalsPage.ts'), 'utf8');
-    expect(page).toMatch(/tabs\.push\(\{ id: 'watching', label: 'Watching'/);
+    expect(page).toMatch(/every\.push\(\{ id: 'watching', label: 'Watching'/);
     expect(goals).not.toMatch(/navMode/);
     const shell = readFileSync(join(__dirname, '../src/ui/Shell.tsx'), 'utf8');
     expect(shell).not.toMatch(/navMode|NavMode/);

@@ -5,6 +5,8 @@ import { usePrefs } from '../app/search';
 import { proposalSeen, putOff } from '../app/proposalSeen';
 import { proposalAsks, type ProposalAsk } from '../domain/proposed';
 const ProposalRows = lazy(() => import('../ui/HomeProposals').then((m) => ({ default: m.ProposalRows })));
+// Your team and Goals you watch (parts 7 and 7b, rule 4) load after the first download: they sit below the lead.
+const HomeSet = lazy(() => import('../ui/HomeSets'));
 import { useGoalCounts, useGoalList } from '../app/goals';
 import { EMPTY_QUERY } from '../domain/query';
 import { countList } from '../domain/order';
@@ -13,15 +15,14 @@ import { workspaceName } from '../domain/workspaceAttention';
 import { dayOneRows, homeFacts, reviewName, reviewsOn, watchingOn, wrapUpOn, wrapUpScope } from '../app/reads';
 import { useApp } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
-import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
-import { dashboard, groupWatched, homeFor, type Dashboard, type HomePlan, type Waiting } from '../domain/home';
+import { attentionList, splitAttention } from '../domain/attention';
+import { dashboard, homeFor, type Dashboard, type HomePlan, type Waiting } from '../domain/home';
 import { weekProgress, WEEKDAY } from '../domain/progress';
-import { dayText, pastText, watchedGoals } from '../domain/review';
+import { dayText, pastText } from '../domain/review';
 import { cycleDates, dayWithYear, laterCycle, nextCycleShape, placeLine, wrapUpOpenOn } from '../domain/cycle';
 import { hasEnded } from '../domain/plan';
 import { periodWord } from '../domain/year';
-import { ATTENTION, LABEL } from '../domain/vocabulary';
-import { statusChange } from '../domain/tree';
+import { LABEL } from '../domain/vocabulary';
 import { statusCounts } from '../domain/order';
 import { goalStatus } from '../domain/status';
 import type { AskKind } from '../domain/types';
@@ -189,43 +190,6 @@ function NeedsYou({ asks, also, leadAbout }: { asks: Waiting[]; also: boolean; l
   );
 }
 
-/**
- * The goals you watch and don't own: what needs attention first (with what got worse this week), then what has gone
- * quiet; what's being handled is folded away; the rest is a count with a way to Watching.
- */
-function WatchedGoals() {
-  const app = useApp();
-  const watched = watchedGoals(app.viewer.id, app.snapshot).filter((g) => g.ownerId !== app.viewer.id);
-  if (!watched.length) return null;
-  const groups = groupWatched(watched.map((g) => app.attentionOf(g)).sort(attentionOrder));
-  const exceptions = groups.needs;
-  const worse = exceptions.filter((a) => { const moved = statusChange(a.goal, app.snapshot.checkIns); return moved?.worse && moved.week >= app.week - 1; }).length;
-  // Nothing new needs attention: the first few you watch, with how fresh they are, so Home still shows them.
-  const shown = exceptions.length ? exceptions.slice(0, 4) : groups.fine.slice(0, 3);
-  const parts = [
-    groups.needs.length ? `${groups.needs.length} need${groups.needs.length === 1 ? 's' : ''} attention${groups.quiet.length ? ` (${groups.quiet.length} with ${LABEL.stale.toLowerCase()})` : ''}` : 'Nothing new needs attention',
-    groups.handled.length ? `${groups.handled.length} ${ATTENTION.handled.label.toLowerCase()}` : '',
-    groups.fine.length ? `${groups.fine.length} with nothing flagged` : '',
-  ].filter(Boolean);
-  return (
-    <section className="block home-watch" data-part="Goals you watch">
-      <div className="row between">
-        <h2 className="block-title">Goals you watch <span className="count-pill">{watched.length}</span></h2>
-        <Link className="small linkish" to="/goals?scope=watching">See them in Goals</Link>
-      </div>
-      <p className="hint">{parts.join(' · ')}.{worse ? ` ${worse} got worse this week.` : ''}</p>
-      {shown.length > 0 && (
-        <ul className="tree">
-          {/* Each row says itself when it got worse ("Was on track in week 43") or went quiet. */}
-          {shown.map((a) => <li key={a.goal.id}><GoalRow g={a.goal} /></li>)}
-        </ul>
-      )}
-      {exceptions.length > shown.length && <Link className="small linkish" to="/goals?scope=watching&attention=1">{exceptions.length - shown.length} more need attention</Link>}
-      <HandledGroup list={groups.handled} folded />
-    </section>
-  );
-}
-
 /** Your goals that need attention: each row is a link to its goal, with "Check in" when that's what it needs (never "Open"). */
 function AttentionList({ list }: { list: ReturnType<typeof attentionList> }) {
   const app = useApp();
@@ -343,8 +307,11 @@ export function Home() {
         <aside className="home-side split-side" aria-label="For you"><NeedsYou asks={plan.asks} also={plan.lead?.kind === 'ask'} leadAbout={plan.lead?.about ?? null} /><AdminCard /></aside>
         <div className="home-main split-b">
           <YourGoals />
+          {/* Your team (part 7, rule 4): the My team scope, when it holds a goal you don't own; nothing otherwise. Loaded
+              after the first download, as most people are in a team. */}
+          <Suspense fallback={null}><HomeSet set="team" /></Suspense>
           {/* Only while Watching is on (SW1). */}
-          {watchingOn(on) && <WatchedGoals />}
+          {watchingOn(on) && <Suspense fallback={null}><HomeSet set="watching" /></Suspense>}
           {/* Modules' blocks (the home.blocks place). */}
           <Place name="home.blocks" />
           {/* New in Faro: one line at the foot, on every width (section 2.1, part 11). */}
