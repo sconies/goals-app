@@ -264,6 +264,8 @@ async function reviewedEverywhere(p, reviewId, name) {
 
 async function newPage(device, viewer) {
   const ctx = await browser.newContext({ viewport: DEVICES[device] });
+  // EVAL_CLOCK=2026-11-14T07:30:00Z sets the browser's clock, to try a time of day (the demo pins the day, not the time).
+  if (process.env.EVAL_CLOCK) await ctx.clock.setSystemTime(new Date(process.env.EVAL_CLOCK));
   if (viewer) await ctx.addInitScript((v) => { if (!sessionStorage.getItem('viewer-set')) { localStorage.setItem('goals-app-viewer:platform-org', v); sessionStorage.setItem('viewer-set', '1'); } }, viewer);
   const p = await ctx.newPage();
   p.on('pageerror', (e) => consoleErrors.push(`${device} ${p.url()} · ${e.message}`));
@@ -6098,6 +6100,7 @@ journey('U156', ['READING-PREFILL', 'READING-RECORDED-ONLY'], 'A number filled i
   const reopened = await block.innerText();
   h.set('attention', kept !== '20' && !/You typed/.test(reopened), `reopened, the field held “${kept}” and the step said “${reopened.slice(0, 80)}”`);
   await p.goto(url('/check-in/ns-ci'));
+  await see(p, 'What’s the number this week?', 'the check-in’s number step did not open');
   await see(block, 'From CI analytics', 'the step does not fill in again');
   const confirm = p.getByRole('button', { name: 'Confirm 20 min' });
   h.set('progress', await confirm.isVisible(), 'the primary does not name the number');
@@ -6116,6 +6119,7 @@ journey('U156', ['READING-PREFILL', 'READING-RECORDED-ONLY'], 'A number filled i
 journey('U157', ['READING-RECORDED-ONLY'], 'A different number, and why: as Daniel, typing 19 over CI analytics’ 20 says “You typed 19 min. CI analytics said 20 min…”, holds “Use 19 min” until a reason is chosen (Something else needs 10 characters), then posts 19; the read-back says “19 min, typed. CI analytics said 20 min: the source is behind: I have a newer number.”, and nothing is flagged: the check-in is on plan, not flagged for its data', 5, async (h, device) => {
   const p = h.use(await newPage(device, 'daniel'));
   await p.goto(url('/check-in/ns-ci'));
+  await see(p, 'What’s the number this week?', 'the check-in’s number step did not open');
   const field = p.getByLabel('This week’s value');
   await see(p.locator('.ci-reading-block'), 'From CI analytics');
   h.set('entry', (await field.inputValue()) === '20', 'the field did not open filled in');
@@ -6149,6 +6153,7 @@ journey('U157', ['READING-RECORDED-ONLY'], 'A different number, and why: as Dani
 journey('U158', ['READING-SEVEN-DAYS', 'READING-PREFILL'], 'Too old to fill in: with the demo’s sources two weeks behind (?sources=behind), Daniel’s check-in on CI pipeline time opens with the field empty and the warning “CI analytics last read this on Thu 29 Oct, 7 days ago.” and “That is too old to fill in.”; the old reading is not on the page, the primary is the step’s own and No new number this week is offered', 1, async (h, device) => {
   const p = h.use(await newPage(device, 'daniel'));
   await p.goto(url('/check-in/ns-ci?sources=behind'));
+  await see(p, 'What’s the number this week?', 'the check-in’s number step did not open');
   const block = p.locator('.ci-reading-block');
   await see(block, 'That is too old to fill in.', 'a reading more than 7 days old is not said to be too old');
   const field = p.getByLabel('This week’s value');
@@ -6182,6 +6187,7 @@ journey('U159', ['READING-PREFILL'], 'A company-wide number never fills in a tea
   await p.waitForURL(/\/demo\/goals\/(lead-ci-time|G-\d+)(\?|$)/);
   h.set('entry', true);
   await p.goto(url('/check-in/lead-ci-time'));
+  await see(p, 'What’s the number this week?', 'the check-in’s number step did not open');
   const block = p.locator('.ci-reading-block');
   await see(block, 'CI analytics measures this for the whole company, not for CI/CD on its own, so it isn’t filled in.', 'a team’s goal on a company-wide source does not say why it is not filled in');
   const value = await p.getByLabel('This week’s value').inputValue();
@@ -6266,6 +6272,7 @@ journey('U161', ['READING-SHOWN'], 'Where a number came from shows elsewhere: as
   // Confirmed.
   let p = h.use(await newPage(device, 'daniel'));
   await p.goto(url('/check-in/ns-ci'));
+  await see(p, 'What’s the number this week?', 'the check-in’s number step did not open');
   await see(p.locator('.ci-reading-block'), 'From CI analytics');
   await h.click(p.getByRole('button', { name: 'Confirm 20 min' }));
   await see(p, 'Check-in saved');
@@ -6282,6 +6289,7 @@ journey('U161', ['READING-SHOWN'], 'Where a number came from shows elsewhere: as
   // Typed over it, and why.
   p = h.use(await newPage(device, 'daniel'));
   await p.goto(url('/check-in/ns-ci'));
+  await see(p, 'What’s the number this week?', 'the check-in’s number step did not open');
   const block = p.locator('.ci-reading-block');
   await see(block, 'From CI analytics');
   await h.fill(p.getByLabel('This week’s value'), '19');
