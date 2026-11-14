@@ -14,11 +14,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh that morning (session …Bn8GD91Ct4dL). The note before it was written at 00:10 UTC by the reviewer that stopped.
 
-- **Last merge fully reviewed:** `51793844` (#432), the head of main at 02:30 UTC. Every code PR merged from #121 up to it has a row in State and a section below.
+- **Last merge fully reviewed:** `363f054b` (#467), the head of main at about 03:00 UTC, 14 Nov. Every code PR merged from #121 up to it has a row in State and a section below.
 - **Merged since, not reviewed:** none.
-- **Highs not yet confirmed fixed:**
-  - **#452**, now track 7d's (session …8zucYmfYJg7BejvdoB; planning's word), sent again 14 Nov about 02:20 UTC: a proposed number goal saved with no target can't be given one by a file or an assistant, and a row that also makes it active saves an active goal with no target. No fix merged; `src/domain/changeset.ts:1133` and `src/domain/goal.ts:189` are as they were at the merge. 7d is building GR (#464), which touches both files.
-- **#416's high is fixed** by #432 for a review held on another weekday (re-run for each of the demo's six reviews, 13 and 14 Nov). One case is left, a medium in #432's section: a review held on the due weekday, but not this week.
+- **Highs not yet confirmed fixed:** none. #452 is fixed by #467 and #416 by #432 (both re-run). What is left of #416 is a medium in #432's section: a review held on the due weekday, but not this week.
+- **To watch in #464 (GR, track 7d):** `BUILT_KEYS` (`src/domain/changeset.ts`) must name `guards` if `buildGoal` decides it; and migration 0051's check refuses a JSON null.
 - **Mediums that become high later:** #437/#446's readings (an earlier week saved with today's reading; decimals compared two ways) the day a real number source is registered.
 - **Method, in short:** per merge, `git diff <merge>^1 <merge> -- . ':!spec' ':!api/mcp.js' ':!llms.txt' ':!evals/report.md'`; fix PRs read against the findings they answer; large features to a first-pass reviewer in its own worktree, which writes its report to a file; any high re-run before it is sent to the session on the merge's `Claude-Session` line; PGlite only, never the live database.
 
@@ -216,6 +215,10 @@ Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh th
 | #457 GR part 1: migration 0051, guardrails on a goal | 7d | 0 | 0 | 0 |
 | #458 RS1 review: #424's mediums, and #416's `inreview=` | 4 | 0 | 0 | 3 |
 | #432 HB2 review: "on time" for a review not held on the due day; rule 4 counts the goals due | habit | 0 | 1 | 2 |
+| #462 CI: a pull request runs the journeys it touches, never the whole suite | planning | 0 | 0 | 0 |
+| #460 NR2 review: #437's mediums; the one table's readings need a touch | readings | 0 | 0 | 1 |
+| #466 Track 4 handover | 4 | 0 | 0 | 0 |
+| #467 GB review: a target given later, and a baseline removed (#452's high) | 7c | 0 | 0 | 1 |
 
 **High findings, and where each stands**
 
@@ -238,7 +241,7 @@ Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh th
 | #308: on a database, a save with several metric links, some with a part and some without, is refused for everyone (removing a metric, starting the next year, a workspace from the demo) | Its builder (session …92c7taPQJmK4jDJU9E), 04:06 UTC, 13 Nov | **Fixed** by #360 (re-run by me on main at `7ab34d99`): a link always writes its part, `''` when it has none, so the mixed batch saves; a schema test saves one through `okr_upsert` |
 | #358: with a second year, once the first year's check-ins fall outside the loaded window, a save that touches that year's goals adds its finished goals to the next year | A track 4 builder (session …931R7QEqBrfxbNv2QV), 12:52 UTC, 13 Nov | **Fixed** by #398 (merged 13 Nov): recarry does nothing for a year whose check-ins the window left out, and the window always keeps the newest two cycles. Re-run on main at `243959c4`, 3 Mar 2028: with two years 2026's check-ins stay loaded and nothing is added to 2027; with three years they are left out and nothing is added |
 | #416: "Before this review" is judged against the workspace's due day, not the review's own day, so a review's page and `get_review` give a false count on every review not held that day | The habit track (session …8zT29m9btyWCVyT2QG), 18:05 UTC, 13 Nov | **Fixed** by #432 for a review held on another weekday: it is headed "Week 46, due by Thursday 12 Nov" and says "on time" (re-run for all six demo reviews on 13 and 14 Nov). One case left, a medium on #432: a review on the due weekday with no session this week |
-| #452: a proposed number goal saved with no target can't be given one by a file or an assistant, and the row that also makes it active saves an active goal with no target (refused by the database, saved wrongly in the browser store) | Track 7c (session …932dXk7emNz7HTfoU1), 00:04 UTC, 14 Nov | **Open** at `51793844`: the two lines it rests on are unchanged. Sent to track 7d (session …8zucYmfYJg7BejvdoB), which now owns it, about 02:20 UTC, 14 Nov |
+| #452: a proposed number goal saved with no target can't be given one by a file or an assistant, and the row that also makes it active saves an active goal with no target (refused by the database, saved wrongly in the browser store) | Track 7c (session …932dXk7emNz7HTfoU1), 00:04 UTC, 14 Nov | **Fixed** by #467 (`363f054b`): its new tests are the reproduction, through the import and `update_goal` on the database store, and pass on main (run by me); #449's medium 6 (a baseline can't be removed) goes with it |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -2000,3 +2003,13 @@ Run: a probe over the demo's six reviews on 13 and 14 Nov, comparing each panel'
 **1. Medium (ran). A review held on the due weekday, but not this week, still says "before it".** The flag is `review.weekday === cycle.reviewDay` (`src/screens/Review.tsx:272`, `src/modules/reviews/tools.ts:49`), with no test of whether the review has a session in the week counted. Moving the demo's Quarterly business review to Thursday (next session 24 Dec, week 52) gives, on 13 Nov: heading "Before this review", "All 12 goals were checked in before it, without anyone asking.", and "checked in before the review" for eight weeks in which it held no session; Security monthly on a Thursday (next 26 Nov) does the same. This is the Quarterly case from #416's high, left open for any fortnightly, monthly or quarterly review on the due day. Fix: pass `heldOnDueDay`'s test, the weekday and `sessionWeek(r, w, cycle) === w`.
 
 **Lows.** `get_review`'s text still begins "Before this review:" and its key is `beforeThisReview` for a review the screen heads "Week 46, due by…"; no journey asserts a review page's new heading (a unit test only; U153 walks the fortnightly's "so far" state and a team's page), and Help's Reviews article has no line on the panel or its two headings.
+
+### The 03:00 UTC check, 14 Nov: #462, #460, #466 and #467
+
+**#467 (track 7c): #452's high and #449's medium 6. Fixed; run.** The engine no longer lays the build over the stored goal key by key: `builtOver` (`src/domain/changeset.ts:308`) lets the build win on every key `buildGoal` decides, so a target given later clears `targetUnset` and "Baseline period: none" clears the baseline. `planQuestion` asks nothing when the target replaced was never set. `src/adapters/targetUnset.test.ts` is my predecessor's reproduction on the database store, through a file and through `update_goal`: a target alone, a target with State active, and a baseline removed; it and `changeset.test.ts` pass on main (37 tests). Read for what the change could lose: earlier plans are safe (`replanned` returns `planHistory` whenever there is one), and the draft made from a stored goal carries `alsoHelps`, so a file without that column clears nothing. **Low:** `BUILT_KEYS` is a list kept by hand beside `buildGoal`; a key the build starts to decide (GR's `guards`, #464) must be added to it or a file can never clear it. A test that compares the list with the keys `buildGoal` can return would hold it.
+
+**#460 (readings): #437's mediums 2, 3, 4 and 6, and Lane's answer of 13 Nov. Holds as read.** `post_check_in` refuses the reading fields for any week but this one, with a sentence that says what to do; a draft reopened with the number its source filled in starts empty again (`CheckIn.filled`, with a journey); the block, the table and the server tool all compare at the goal's places and fill the field at them (`filledAt`). In the one table an untouched filled-in number is no longer posted: focus alone no longer counts as a touch, each such row has "Confirm 8 min", and Post counts nothing until then (U160 asserts it). Mediums 1 and 5 were closed by #446. Help and What's new are updated. **Low:** nothing presses "Confirm all readings" (the demo has one such row).
+
+**#462 (planning): CI.** A pull request's smoke job now runs `evals:pr`: the core journeys and what the PR's files touch, phone pages slowed, and never the whole suite, which runs after the merge. The job keeps its name. Nothing found; it does mean a change to shared code is first run in full on main.
+
+**#466:** handover only.
