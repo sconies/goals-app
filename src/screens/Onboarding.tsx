@@ -207,6 +207,10 @@ function goalsTsv(d: SetupDraft) {
   return ['Goal\tTeam\tOwner email\tOwner\tType\tUnit\tStart\tTarget\tPlan\tLimit\tMust stay\tMargin\tStages\tFeeds into\tLevel\tEffect\tSource\tDefinition', row(d.outcome, true), ...goals.map((g) => row(g, false))].join('\n');
 }
 
+/** When a workspace was last made here. Making it opens that workspace, which can draw this screen again at the step it was
+    on, and clearing the draft leaves nothing answered: neither may send it back to step 1 ahead of the move to /ready. */
+let madeAt = 0;
+
 /** Setting up a workspace in four steps, each its own address under /workspace/new/ (set-up spec ST2, small workspaces SM3). */
 export function Onboarding({ onClose }: { onClose?: () => void }) {
   const { step: slug } = useParams();
@@ -355,7 +359,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     if (slot) focusQuestion(form.current, slot); else el?.focus();
   }, [tried, at]);
   useMark(at ? STEP_MARKS[idx] ?? null : null);
-  if (at !== goesTo) {
+  if (at !== goesTo && Date.now() - madeAt > 5000) {
     const q = new URLSearchParams(search);
     q.delete('from');
     const rest = q.toString();
@@ -443,6 +447,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
       // an owner" (OB3, rule 7). No field is added to a goal.
       const unowned = result.snapshot.goals.filter((g) => unownedTitles.has(g.title)).map((g) => g.id);
       if (meId) prefs.set(wsId, meId, 'day-one', { firstSeenAt: null, unowned });
+      madeAt = Date.now();
       clear();
       nav('/ready', { replace: true });
     } catch (e) {
