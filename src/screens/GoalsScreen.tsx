@@ -209,7 +209,8 @@ export function GoalsScreen() {
     const left = tab.offsetLeft - row.offsetLeft, right = left + tab.offsetWidth;
     if (left < row.scrollLeft) row.scrollLeft = Math.max(0, left - 4);
     else if (right > row.scrollLeft + row.clientWidth - 24) row.scrollLeft = right - row.clientWidth + 24;
-  }, [scope, activeView?.id]);
+  // Again when the tabs drawn change (SM1): a tab that gets its first goal after the page opens widens the row.
+  }, [scope, activeView?.id, scopeTabs.map((t) => t.id).join()]);
   const groupWord = GROUPS.find(([k]) => k === group)![1];
   const onMap = layout === 'map';
   // The Group menu: the four, or why there's nothing to choose (the switch has its own two groups; the Map is the trees).
