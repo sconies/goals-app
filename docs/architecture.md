@@ -41,7 +41,7 @@ The core is everything outside `src/modules`. It offers these extension points, 
 | Extension point | How a module uses it | Where the core reads it |
 |---|---|---|
 | Routes | `routes` in `app.tsx` (path, element, `focus`, `title`, and `name(params, reads)`: the page's name from its thing, AR2); old addresses in module.json `redirects` | `src/App.tsx`, `src/ui/Shell.tsx` (title, focus mode) |
-| Navigation | `navigation` in `app.tsx`, each with a `group` (AR2): `work` after Reviews, `lookup` (the default) after Data; also in More on a phone. The menu, the lit item and a page's name are rules (`src/domain/navigation.ts`) | `src/ui/Shell.tsx` |
+| Navigation | `navigation` in `app.tsx`, each with a `group` (AR2): `work` after Reviews, `lookup` (the default) after Data; also in More on a phone. The menu, the lit item and a page's name are rules (`src/domain/navigation.ts`). A row can wait for the module's first record: `menu.waitsFor` in `module.json` names the records key (`rowDrawn`; small workspaces SM1) | `src/ui/Shell.tsx` |
 | Home blocks | the `home.blocks` place | `src/screens/Home.tsx`, after Watching |
 | Goal-page sections | the `goal.sections` place, given the goal | `src/screens/GoalScreen.tsx`, inside About, after its facts |
 | Workspace sections | `sections` in `app.tsx` (id, label, summary, `admins`, element, `after`); module.json `sections` lists the ids. Each is at `/workspace/<id>`, in Workspace's menu (a side menu on a computer, a list on a phone), with a Help article whose route is that address (backlog W, 8 Nov) | `src/screens/Workspace.tsx` (`useSections`), `src/App.tsx` (the routes) |

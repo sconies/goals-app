@@ -19,6 +19,9 @@
   "navigation": [
     "Metrics"
   ],
+  "menu": {
+    "waitsFor": "metrics"
+  },
   "places": [
     "goal.facts",
     "goal.measure",
