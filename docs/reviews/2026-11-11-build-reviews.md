@@ -14,10 +14,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon (session …iZx169kF) stopped after 14 code PRs, at about 395k tokens of context. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `c91db0fe` (#514), the head of main at 23:20 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511 and #516 (docs only) have neither.
+- **Last merge fully reviewed:** `72812560` (#519), the head of main at 23:25 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511, #516 and #523 (docs only) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none.
-- **Mediums open:** six, all sent to planning on 14 Nov: #503's (a goal stopped while held stays held), #513's (the kit's words on a moment are not what History does), #497's (the workspace's line is never drawn in a browser by any eval), #504's (Feedback's inbox still offers Connect Claude with AI access off) and #515's (seven sentences of the change engine's page are not what the engine does); and #510's (a goal that is Not measured yet is in no lane of the Board). #517's was fixed by #522.
+- **Mediums open:** five, all sent to planning on 14 Nov: #503's (a goal stopped while held stays held), #513's (the kit's words on a moment are not what History does), #497's (the workspace's line is never drawn in a browser by any eval) and #515's (seven sentences of the change engine's page are not what the engine does); and #510's (a goal that is Not measured yet is in no lane of the Board). #517's was fixed by #522. #504's was fixed by #519.
 - **Expected next:** #505 (MQ's code, track 7d, on migration 0055: check the row mapper writes SQL null, never an empty string, for a `level` or `confidence` that isn't said, which 0055's checks refuse; and that the parent's rules, no loops, same workspace, not removed, are in the module's rule, since the database only refuses a metric that is its own parent). #497 (HM7 and HB3, track 1). U124's "Changed since" check (track 1).
 - **Read, not walked on screen by this session:** #469 (HM4), #491 (SM1h), #487 (TG1), #464 (GR) and #465 (FT1); their own journeys are the only browser runs. #465's thirteen screen files were skimmed. If the full suite on main goes red on one of them, start there.
 - **How merges reach you:** no timer works here (scheduling a wake needs an approval nobody answers). Each track messages the reviewer its PR's number when it merges; whenever a message arrives, run `git log --first-parent <last reviewed>..origin/main` and review everything in it. Messages lag and repeat: about half of this session's were for PRs already reviewed, and a track's message can give a stale migration number (#502 was announced as 0054 and is 0055).
@@ -268,6 +268,7 @@ Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon 
 | #510 MS medium 5: Not measured yet is a status of its own | 7d | 0 | 1 | 1 |
 | #522 `see()` says what a page showed (#517's medium) | 1 | 0 | 0 | 0 |
 | #514 U98: the import's check is held for 3 s, so the Reading panel is always there | 3 | 0 | 0 | 1 |
+| #519 Connect Claude follows AI access's switch (#504's medium) | 2 | 0 | 0 | 1 |
 
 **High findings, and where each stands**
 
@@ -2337,3 +2338,9 @@ Read against #517's medium: **closed.** One line of `evals/journeys.cjs`: a loca
 Harness only, one journey; read whole. No high, no medium. The import's check runs in a worker the phone's slowed CPU never reaches, so on a fast machine 6,000 rows could finish before the Reading panel's 400 ms. `holdCheck` serves the worker's script with a few lines in front that hold only its last message ("done" or an error) until 3 s after the check was asked for; progress and rows arrive as they are made. No assertion is loosened, no budget or wait raised, and the app's code is untouched. The route (`/assets/worker-*.js`) matches the built file (`worker-BEhWFShB.js` in a build of main).
 
 **Low.** Nothing says so if the route stops matching (the worker renamed or inlined): the journey would run unheld and flake again with no word of why. A check that the route was hit once would do.
+
+### #519 Connect Claude follows AI access's switch (track 2, merged 14 Nov)
+
+Read against #504's medium: **closed.** With AI access off, the inbox's Connect Claude shows its heading and the shared switched-off line (with the link to Workspace, Features) and nothing else: no Make a token, no host, no command. The early return comes after every hook, so switching while the panel is open can't change the hook count. U175 opens the panel with the switch off and fails on "claude mcp add" or "Make a token". Help and `docs/mcp.md` say so.
+
+**Low.** In a build without the module the panel says "This Faro has no AI access, so Claude can’t connect to it", and the file's comment says the server then refuses every call. It doesn't: by planning's call on #504 that build keeps the server open, and a token made before still works.
