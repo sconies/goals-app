@@ -10,7 +10,7 @@ The last proof before the handoff: a fresh session rebuilds Faro stage by stage 
 
 | Stage | Result | Gaps found | PRs |
 |---|---|---|---|
-| 1. The core rules | **Pass**: 43,373 of 43,373 rows | 16 (1.1 to 1.16) | #513 (all 16) |
+| 1. The core rules | **Pass**: 43,373 of 43,373 rows | 16 (1.1 to 1.16) | #513 (all 16, merged) |
 | 2. The core data and the change engine | **Pass**: 205 of 205 rows, store contract 13 of 13; stage 1 still passes. Only after reading the expected rows by hand | 22 (2.1 to 2.22) | |
 | 3. The core screens and journeys | **Harness pass**: 145 of 145 rows; stages 1 and 2 still pass. By hand: 15 of 71 core journeys carried out fully, 18 in part, 38 not built; the core requirements not checkable from the kit | 31 (3.1 to 3.31) | |
 | 4. Module: Feedback | Running | | |
