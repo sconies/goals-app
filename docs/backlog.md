@@ -63,7 +63,7 @@ Lane's ideas and the follow-ups found along the way, in the order they should be
 Moved out of the build so the tracks reach item 11 sooner. Not built in Faro; the rebuild team may pick them up.
 
 - **PF1–PF2, a leader's week** (R4 part 4, `docs/design/round-4/portfolio/spec.md`): the design stands; nothing is built.
-- **Review lows.** Every low the build reviewer logs stays in its log (`docs/reviews/2026-11-11-build-reviews.md` on `build-reviews`), and the low-only batches tracks carried ("the lows" in each handover) are no longer worked. Highs and mediums are still fixed as they come; a low is fixed only when it rides with a change to the same lines anyway.
+- **Review lows.** Every low the build reviewer logs stays in its log (the 11 Nov build-reviews log, on branch `build-reviews`), and the low-only batches tracks carried ("the lows" in each handover) are no longer worked. Highs and mediums are still fixed as they come; a low is fixed only when it rides with a change to the same lines anyway.
 
 ## Ideas, not yet placed
 
