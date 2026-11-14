@@ -19,7 +19,7 @@ import { useMark } from '../../telemetry/react';
 import { Sheet as SheetBox, WarnMark } from '../../ui/bits';
 /* The group block is shared with set-up. It is imported here, not lazily: a lazy Answered suspends on its first render,
    so the focus that follows an answer found nothing and fell to the page (#336 review). */
-import { Answered as AnsweredLine, IssueGroup as SharedGroup } from '../../ui/IssueGroup';
+import { Answered as AnsweredLine, IssueGroup as SharedGroup, ReasonWords } from '../../ui/IssueGroup';
 import type { Snapshot } from '../../domain/types';
 import { isNewIn, useImportPlan } from './importPlan';
 import { stopCheck } from './checkRun';
@@ -230,8 +230,7 @@ export function Check() {
 
       {cs.items.some((x) => x.needsReason) && (
         <label className="field">
-          <span className="field-label">Why are these plans changing?</span>
-          <span className="hint">Say why to save: check-ins have started on {cs.items.filter((x) => x.needsReason).length === 1 ? 'this goal' : 'these goals'}, so the change log keeps the reason with the old and new plan. A Reason column in the file is used first.</span>
+          <ReasonWords items={cs.items} />
           <textarea ref={why} className={'input' + (tried && cs.needsReason ? ' invalid' : '')} aria-invalid={tried && cs.needsReason ? true : undefined} rows={2} value={st.reason} onChange={(e) => importStore.set({ reason: e.target.value })} />
         </label>
       )}

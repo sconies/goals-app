@@ -201,15 +201,16 @@ module.exports = {
 
     /* ---------- Setting up ---------- */
     [c, r] = await open(1280, 800, 'grace', '/workspace/new');
-    await r.getByRole('button', { name: 'Next' }).click(); await r.waitForTimeout(250);
+    await r.getByRole('button', { name: 'Continue to people' }).click(); await r.waitForTimeout(250);
     const e0 = await r.evaluate(() => { const al = [...document.querySelectorAll('[role="alert"]')].filter((x) => x.getClientRects().length); const inp = document.querySelector('.qsection input').getBoundingClientRect(); return { n: al.length, inFoot: al.some((a) => a.closest('.focus-foot')), gap: al[0] ? al[0].getBoundingClientRect().top - inp.bottom : -1, color: al[0] ? getComputedStyle(al[0]).color : '', focused: document.activeElement === document.querySelector('.qsection input') }; });
     if (e0.inFoot || !near(e0.gap, 8, 2) || e0.color !== 'rgb(180, 35, 24)' || !e0.focused) fails.push(`[W7] step 1 problem: in footer ${e0.inFoot}, ${Math.round(e0.gap)}px under the field, ${e0.color}, focused ${e0.focused}`);
     const bar = await r.evaluate(() => [...document.querySelectorAll('.steps-bar i')].map((i) => `${getComputedStyle(i).backgroundColor}/${i.getBoundingClientRect().height}`));
     if (bar[0] !== 'rgb(33, 150, 142)/6' || bar[1] !== 'rgb(210, 206, 196)/4') fails.push(`[W5] progress: ${bar.slice(0, 2).join(', ')}`);
-    await r.getByLabel('Name').first().fill('Test space');
-    await r.getByRole('button', { name: 'Next' }).click(); await r.waitForTimeout(200);
+    await r.getByLabel('Workspace name').first().fill('Test space');
+    // Opened from inside the app, the three fields about you are one line until Change (ST2).
+    await r.locator('.setup-me').getByRole('button', { name: 'Change' }).click();
     await r.getByLabel('Your name').fill('Ana Silva'); await r.getByLabel('Your team').fill('Platform'); await r.getByLabel('Your email').fill('ana.silva@example.com');
-    await r.getByRole('button', { name: 'Next' }).click(); await r.waitForTimeout(250);
+    await r.getByRole('button', { name: 'Continue to people' }).click(); await r.waitForTimeout(250);
     await r.getByLabel('Person 1: name').fill('Ana Silva');
     await r.evaluate(() => document.activeElement?.blur());
     await r.waitForTimeout(150);
@@ -220,16 +221,16 @@ module.exports = {
     // Backlog N (8 Nov): two people may share a name (the email is who someone is), so a shared name isn't marked as an error.
     if (pg.red === 'rgb(200, 55, 43)') fails.push(`[W6, N] a shared name is marked as an error (border ${pg.red})`);
     await r.getByLabel('Person 1: name').fill('Cat Lee'); await r.getByLabel('Person 1: email').fill('cat.lee@example.com');
-    await r.getByRole('button', { name: 'Next' }).click(); await r.waitForTimeout(250);
+    await r.getByRole('button', { name: 'Continue to goals' }).click(); await r.waitForTimeout(250);
     await r.locator('.opt[role="radio"]').nth(1).click(); await r.waitForTimeout(150);
     const op = await r.evaluate(() => { const o = document.querySelector('.opt[role="radio"][aria-checked="true"]'); const b = getComputedStyle(o, '::before'); return { sh: getComputedStyle(o).boxShadow, ol: getComputedStyle(o).outlineStyle, circle: [b.width, b.height, b.borderTopLeftRadius].join(' ') }; });
     if (!/2px inset/.test(op.sh) || op.ol !== 'none' || op.circle !== '16px 16px 50%') fails.push(`[W18] a chosen option: ${op.sh}, outline ${op.ol}, circle ${op.circle}`);
     await c.close();
     [c, r] = await open(360, 740, 'grace', '/workspace/new');
-    await r.getByLabel('Name').first().fill('Test space');
-    await r.getByRole('button', { name: 'Next' }).click(); await r.waitForTimeout(200);
+    await r.getByLabel('Workspace name').first().fill('Test space');
+    await r.locator('.setup-me').getByRole('button', { name: 'Change' }).click();
     await r.getByLabel('Your name').fill('Ana Silva'); await r.getByLabel('Your team').fill('Platform'); await r.getByLabel('Your email').fill('ana.silva@example.com');
-    await r.getByRole('button', { name: 'Next' }).click(); await r.waitForTimeout(250);
+    await r.getByRole('button', { name: 'Continue to people' }).click(); await r.waitForTimeout(250);
     const pp = await r.evaluate(() => { const row = document.querySelector('.pg-row'); const [n, t] = [...row.querySelectorAll('.input')].map((e) => e.getBoundingClientRect()); const c2 = row.querySelector('.pg-check').getBoundingClientRect(); return { stacked: t.top >= n.bottom + 7, same: Math.abs(n.width - t.width) < 1, third: c2.top >= t.bottom }; });
     if (!pp.stacked || !pp.same || !pp.third) fails.push(`[W4] 360 people rows: ${JSON.stringify(pp)}`);
     await c.close();

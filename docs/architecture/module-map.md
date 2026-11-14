@@ -80,7 +80,7 @@ Already built, so copy them rather than writing new ones:
 - **An AI tool, refused** (`src/mcp/tools.ts`): "{Name} is switched off in {workspace}, so {tool} can't be used there. An admin can switch it on in Workspace, under Features."
 - **An action, refused** (`src/app/actions.ts`): "{Name} is switched off in {workspace}. An admin can switch it on in Workspace, under Features."
 - **The module's address, while off** (`docs/design/feature-toggles/spec.md`): "**{Name} is switched off in {workspace}.** An admin can switch it on in Workspace, Features."
-- **The import, once per file** (the reviews-switch design's shape, with the module's own nouns): "Reviews is off in {workspace}: the Notes sheet and the Review column were not read."
+- **The import, once per file** (the reviews-switch design's shape, with the module's own nouns): "Reviews is off in {workspace}, so the Notes sheet and the Review column were not read." (naming only what the file has: `src/domain/sheets.ts`)
 
 ## 3. The items being built now
 

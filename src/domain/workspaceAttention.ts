@@ -74,13 +74,15 @@ export function adminsLine(people: Pick<Person, 'name' | 'admin'>[], max = 3): s
  * Where the year stands (rule 6; cycle-end rule 1), for About's Year fact and Cycles' current row: the week, and when the
  * wrap-up opens, or how many goals are still to wrap up once it's open. Once its last day is past it says so, and until
  * when the wrap-up stays open. A cycle not begun says when its week 1 starts. `left` is how many of its goals have no
- * wrap-up yet.
+ * wrap-up yet. With `wrapUp` false (the Wrap-up switched off) it says the week, or that the year ended, and nothing more.
  */
-export function yearLine(cycle: Pick<Cycle, 'name' | 'startDate' | 'weeks'>, week: number, today: Date, left: number): string {
+export function yearLine(cycle: Pick<Cycle, 'name' | 'startDate' | 'weeks'>, week: number, today: Date, left: number, wrapUp = true): string {
   const d = cycleDates(cycle);
   const state = cycleState(cycle, today);
   const still = left ? `${n(left, 'goal', 'goals')} still to wrap up` : 'every goal is wrapped up';
   if (state === 'before') return `${cycle.name} starts on ${day(new Date(d.firstDay + 'T00:00:00Z'))}.`;
+  // With the Wrap-up switched off (SW1) the year says only where it stands: nothing opens and nothing is still to do.
+  if (!wrapUp) return state === 'ended' || state === 'closed' ? `${cycle.name} ended on ${dayWithYear(d.lastDay)}.` : `${cycle.name}, week ${Math.max(1, Math.min(week, cycle.weeks))} of ${cycle.weeks}.`;
   if (state === 'ended') return `${cycle.name} ended on ${dayWithYear(d.lastDay)}. The wrap-up is open until ${dayWithYear(d.wrapUpCloses)}: ${still}.`;
   if (state === 'closed') return `${cycle.name} ended on ${dayWithYear(d.lastDay)}.`;
   const w = Math.max(1, Math.min(week, cycle.weeks));
