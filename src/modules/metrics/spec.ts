@@ -271,7 +271,7 @@ rules.push({
   id: 'metric-measurement',
   title: 'Measured, partly measured or a gap',
   summary: 'Whether a metric is measured today (rule 11), what the library does with a gap or a part, and the goals a gap holds to no number: the library fills in the goal’s field; the core’s rule reads it.',
-  code: [{ file: 'src/modules/metrics/rulesMeasured.ts', names: ['measurementOf', 'holdsToNoNumber', 'measurementProblems', 'measurementWords', 'heldBy', 'heldByLink'] }, { file: 'src/modules/metrics/rulesLibrary.ts', names: ['metricNeeds'] }, { file: 'src/domain/unmeasured.ts', names: ['isUnmeasured', 'heldToNoNumber'] }],
+  code: [{ file: 'src/modules/metrics/rulesMeasured.ts', names: ['measurementOf', 'holdsToNoNumber', 'measurementProblems', 'measurementWords', 'heldBy', 'heldByLink', 'heldOnSwitch'] }, { file: 'src/modules/metrics/rulesChange.ts', names: ['retireMetric', 'unretireMetric', 'mergeMetrics'] }, { file: 'src/modules/metrics/rulesLibrary.ts', names: ['metricNeeds'] }, { file: 'src/domain/unmeasured.ts', names: ['isUnmeasured', 'heldToNoNumber'] }],
   tests: ['src/modules/metrics/rulesMeasured.test.ts'],
   reqs: ['METRIC-MEASUREMENT'],
   body: `
@@ -282,7 +282,9 @@ rules.push({
 **Held to no number** (\`heldBy\`, \`heldByLink\`; the core's \`isUnmeasured\`). A goal measured by a metric with a gap is held to no number: the goal's own field \`unmeasuredSince\` is set, and the core's status rule reads it (never the library). The library sets and clears it, in the same save as the cause, with a line in the goal's History and one Undo:
 - a metric saved as a gap holds every goal it measures now (a live link; the goal neither removed nor stopped; not one with dated stages): “Held to no number until “{metric}” is measured”;
 - the metric saved as measured or partly lets go of them: “Held to its plan again, as “{metric}” is measured”;
-- a goal linked to a gap is held; linked to a measured metric, or unlinked, it is let go (“Held to its plan again”).
+- a goal linked to a gap is held; linked to a measured metric, or unlinked, it is let go (“Held to its plan again”);
+- a gap retired lets go of its goals, and brought back holds them again; a metric merged into another moves each goal to the hold of the one it is merged into;
+- with the library switched off nothing measures a goal, so every held goal is let go (“Held to its plan again, as the metric library is switched off”); switched on again, the goals measured by a gap are held once more.
 A save that leaves the gap as it was writes no goal.`,
   examples: [
     { given: 'Flaky test rate, never said otherwise.', then: 'Measured', run: () => MEASD.measurementWords(LIB_METRIC('metric_flaky-rate')) },

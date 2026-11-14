@@ -3682,7 +3682,10 @@ function startsFromProvisional(g) {
 function periodProblem(period) {
 	return period.trim().length > 60 ? `The baseline’s period can be at most 60 characters.` : null;
 }
-var init_baseline = __esmMin((() => {}));
+var PROVISIONAL_LATE;
+var init_baseline = __esmMin((() => {
+	PROVISIONAL_LATE = "A baseline can be marked provisional only before the goal’s first check-in. To move where the plan starts now, change Start and say why.";
+}));
 // src/domain/goal.ts
 function blankGoal(teamId, ownerId, parentId) {
 	return {
@@ -4511,7 +4514,8 @@ function startReadBack(ctx) {
 /**
 * A goal's copy in the next year (rule 5): a new id, in the new cycle, made now, with its key and everything else as it
 * was. A number goal that **carries** starts from its final number in week 1 (\`fromWeek\` 0), with the same target
-* and shape, due at the end of the new year: no end week, no hand-set numbers, no earlier plans. One that **keeps** its
+* and shape, due at the end of the new year: no end week, no hand-set numbers, no earlier plans, and no baseline (last year's
+* was its old start). One that **keeps** its
 * plan keeps its dates, counted from the new year's start. The copy was proposed in no review of the new year, so it
 * keeps no `proposedIn` (build review of #376). Stages not done are spread evenly over the new year
 * (\`round((i + 1) × weeks / n)\`, never after its last week). A limit is unchanged.
@@ -4551,14 +4555,18 @@ function carryCopy(g, ctx) {
 		};
 	}
 	if (g.kind === "metric") {
+		const f = finalNumber(g, ctx.checkIns, ctx.old);
 		const plan = {
-			start: finalNumber(g, ctx.checkIns, ctx.old).value ?? g.plan.start,
+			start: f.value ?? g.plan.start,
 			target: g.plan.target,
 			shape: g.plan.shape,
 			fromWeek: 0
 		};
+		const { baseline: _old, ...rest } = base;
+		const kept = f.value == null && g.baseline ? { baseline: g.baseline } : {};
 		return {
-			...base,
+			...rest,
+			...kept,
 			kind: "metric",
 			plan,
 			originalPlan: null,
@@ -7946,8 +7954,15 @@ function setModule(x, ws, modules, id, on) {
 	const needing = (root) => modules.filter((k) => k.needs.includes(root)).flatMap((k) => [k.name, ...needing(k.id)]);
 	const also = [...new Set(needing(id))];
 	const name = m.name;
+	const ids = /* @__PURE__ */ new Set([id, ...modules.filter((k) => also.includes(k.name)).map((k) => k.id)]);
+	const parts = (x.records ?? []).filter((r) => ids.has(r.module)).flatMap((r) => {
+		const p = r.switched?.(x, on);
+		return p ? [p] : [];
+	});
+	const goals = parts.flatMap((p) => p.goals ?? []);
 	return {
 		modulesOff: off,
+		...goals.length ? { goals } : {},
 		changes: [{
 			id: x.newId("chg"),
 			at: x.now,
@@ -7962,7 +7977,7 @@ function setModule(x, ws, modules, id, on) {
 				from: on ? "Off" : "On",
 				to: on ? "On" : "Off"
 			}]
-		}]
+		}, ...parts.flatMap((p) => p.changes)]
 	};
 }
 /** Admins: add a team, or rename one or change its lead. Null commit when nothing changed. */
@@ -8325,6 +8340,7 @@ function goalMustFix(d, ctx) {
 			const s = number("start", d.start, ["start-empty", ctx.existing ? "Enter where it starts." : "Enter where it starts today."]);
 			const long = periodProblem(d.baselinePeriod ?? "");
 			if (long) add("start", "baseline-period-long", long);
+			if (d.baselineProvisional && ctx.existing?.kind === "metric" && !ctx.existing.baseline?.provisional && (ctx.checkIns ?? []).some((c) => !c.removedAt)) add("start", "baseline-provisional-late", PROVISIONAL_LATE);
 			const t = number("target", d.target, ["target-empty", "Enter the target."]);
 			if (s != null && t != null && s === t) add("target", "same-as-start", `The target is the same as today (${withUnit(groupDigits(String(s)), d.unit)}). To hold a number where it is, make this a number to keep in range.`, { hold: s });
 			const stored = new Map(ctx.existing?.kind === "metric" ? (ctx.existing.plan.points ?? []).map((p) => [String(p.week), p.value]) : []);
@@ -13415,7 +13431,8 @@ var init_changeset = __esmMin((() => {
 		"to-before-from": "plan-order",
 		"week-unknown": "week-wrong",
 		"week-beyond": "week-wrong",
-		"baseline-period-long": "impossible-number"
+		"baseline-period-long": "impossible-number",
+		"baseline-provisional-late": "impossible-number"
 	};
 	ENGINE_CHECK = {
 		"below-zero": "odd-number",
@@ -13600,7 +13617,7 @@ function heldByLink(x, goal, m) {
 	};
 }
 function heldChange(x, g, m, held) {
-	const summary = held ? `Held to no number until “${m.name}” is measured` : m && !m.removedAt && measurementOf(m) !== "gap" ? `Held to its plan again, as “${m.name}” is measured` : "Held to its plan again";
+	const summary = held ? `Held to no number until “${m.name}” is measured` : m && !m.removedAt && !m.retiredAt && measurementOf(m) !== "gap" ? `Held to its plan again, as “${m.name}” is measured` : "Held to its plan again";
 	return {
 		id: x.newId("chg"),
 		at: x.now,
@@ -13617,6 +13634,40 @@ function heldChange(x, g, m, held) {
 		}]
 	};
 }
+/** What the library leaves on the goals' own field when it is switched off or on (ModuleRecords.switched). Off, nothing
+measures a goal, so every goal held to no number is held to its plan again; on, each gap holds its goals once more.
+Null when no goal moves. */
+function heldOnSwitch(x, on, metrics, links) {
+	const goals = (x.full ?? x.snapshot).goals;
+	if (!on) {
+		const held = goals.filter((g) => !!g.unmeasuredSince && !g.removedAt && !g.stoppedAt);
+		if (!held.length) return null;
+		return {
+			goals: held.map((g) => heldToNoNumber(g, false, x.now)),
+			changes: held.map((g) => ({
+				id: x.newId("chg"),
+				at: x.now,
+				actorId: x.actor.id,
+				goalId: g.id,
+				entity: "goal",
+				entityId: g.id,
+				action: "edited",
+				summary: "Held to its plan again, as the metric library is switched off",
+				diffs: [{
+					field: "Measured",
+					from: "Not yet",
+					to: "Yes"
+				}]
+			}))
+		};
+	}
+	const parts = metrics.filter((m) => holdsToNoNumber(m)).map((m) => heldBy(x, m, goals, links));
+	const out = {
+		goals: parts.flatMap((p) => p.goals),
+		changes: parts.flatMap((p) => p.changes)
+	};
+	return out.goals.length ? out : null;
+}
 var MEASUREMENTS, MEASUREMENT_LABEL, measurementOf, holdsToNoNumber, measurementWords;
 var init_rulesMeasured = __esmMin((() => {
 	init_unmeasured();
@@ -13631,7 +13682,7 @@ var init_rulesMeasured = __esmMin((() => {
 		gap: "Gap"
 	};
 	measurementOf = (m) => m.measurement ?? "measured";
-	holdsToNoNumber = (m) => !!m && !m.removedAt && measurementOf(m) === "gap";
+	holdsToNoNumber = (m) => !!m && !m.removedAt && !m.retiredAt && measurementOf(m) === "gap";
 	measurementWords = (m) => {
 		const k = measurementOf(m);
 		const note = k === "measured" ? "" : (m.measurementNote ?? "").trim();
@@ -14691,24 +14742,30 @@ function retireMetric(x, id, why, replacedBy = null) {
 		replacedBy: other?.id ?? null,
 		updatedAt: x.now
 	};
+	const hold = heldBy(x, next, (x.full ?? x.snapshot).goals, linksOf(x.full ?? x.snapshot));
 	return {
 		...metricRows({ metrics: [next] }),
-		changes: [log$1(x, {
-			entityId: m.id,
-			action: "stopped",
-			summary: `Retired the metric “${m.name}”: ${w}`,
-			diffs: [{
-				field: "Retired",
-				from: "—",
-				to: w
-			}]
-		}), ...linked.map((g) => log$1(x, {
-			entityId: m.id,
-			goalId: g.id,
-			action: "edited",
-			summary: `Its metric “${m.name}” was retired: ${w}`,
-			diffs: []
-		}))]
+		...hold.goals.length ? { goals: hold.goals } : {},
+		changes: [
+			log$1(x, {
+				entityId: m.id,
+				action: "stopped",
+				summary: `Retired the metric “${m.name}”: ${w}`,
+				diffs: [{
+					field: "Retired",
+					from: "—",
+					to: w
+				}]
+			}),
+			...linked.map((g) => log$1(x, {
+				entityId: m.id,
+				goalId: g.id,
+				action: "edited",
+				summary: `Its metric “${m.name}” was retired: ${w}`,
+				diffs: []
+			})),
+			...hold.changes
+		]
 	};
 }
 /** Bring a retired metric back (rule 5): the same people. It is as it was before it was retired. */
@@ -14716,15 +14773,18 @@ function unretireMetric(x, id) {
 	const m = metricOf$1(x, id);
 	mayChange(x, m);
 	if (!m.retiredAt) no$2(`“${m.name}” isn’t retired.`);
+	const back = {
+		...m,
+		retiredAt: null,
+		retiredBy: null,
+		retiredWhy: "",
+		replacedBy: null,
+		updatedAt: x.now
+	};
+	const hold = heldBy(x, back, (x.full ?? x.snapshot).goals, linksOf(x.full ?? x.snapshot));
 	return {
-		...metricRows({ metrics: [{
-			...m,
-			retiredAt: null,
-			retiredBy: null,
-			retiredWhy: "",
-			replacedBy: null,
-			updatedAt: x.now
-		}] }),
+		...metricRows({ metrics: [back] }),
+		...hold.goals.length ? { goals: hold.goals } : {},
 		changes: [log$1(x, {
 			entityId: m.id,
 			action: "restored",
@@ -14734,7 +14794,7 @@ function unretireMetric(x, id) {
 				from: m.retiredWhy || "Yes",
 				to: "—"
 			}]
-		})]
+		}), ...hold.changes]
 	};
 }
 /**
@@ -14757,6 +14817,12 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 		linkedBy: x.actor.id,
 		linkedAt: x.now
 	}));
+	const goals = new Map((x.full ?? x.snapshot).goals.map((g) => [g.id, g]));
+	const holds = moved.flatMap((l) => {
+		const g = goals.get(l.goalId);
+		const h = g && !g.removedAt && !g.stoppedAt ? heldByLink(x, g, into) : null;
+		return h ? [h] : [];
+	});
 	return {
 		...metricRows({
 			metrics: [{
@@ -14769,6 +14835,7 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 			}],
 			metricLinks: moved
 		}),
+		...holds.length ? { goals: holds.map((h) => h.goal) } : {},
 		changes: [
 			log$1(x, {
 				entityId: into.id,
@@ -14800,7 +14867,8 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 					from: from.name,
 					to: into.name
 				}]
-			}))
+			})),
+			...holds.map((h) => h.change)
 		]
 	};
 }
@@ -15352,6 +15420,7 @@ var METRICS_SHEET = {
 // src/modules/metrics/records.ts
 init_rulesStructure();
 init_actions();
+init_rulesMeasured();
 init_rules();
 /** Written only when there is one (a restore writes null), so rows never removed look exactly as before. */
 var set$1 = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== void 0));
@@ -15531,6 +15600,10 @@ var records$3 = {
 			week: k.week,
 			label: markLabel(k)
 		})) : [];
+	},
+	switched: (x, on) => {
+		const s = x.full ?? x.snapshot;
+		return heldOnSwitch(x, on, metricsOf(s), linksOf(s));
 	},
 	goalColumns: [{
 		param: "metric",
@@ -21363,7 +21436,7 @@ var CORE_ARTICLES = [
 					"A link can open the page at a section: add #definition, #plan or #owner to the address. Describe it on a goal with no definition opens What it is. Older links that opened one part of the form land on the matching section.",
 					"The owner, the team and the goals are found by typing a name or a key; a goal already under this one is listed but can’t be chosen to feed it.",
 					"Plan and target has the same two rows as a new goal: Baseline with From, Target with To, each week chosen from the list of weeks with their dates. Changing From or To after check-ins have started is a plan change, so it asks why.",
-					"Under them, Period the baseline covers and Provisional, as on New goal. Firming up a provisional baseline, changing the Baseline number while Provisional is ticked, isn’t a plan change: it asks no reason and keeps no earlier plan. Untick Provisional once the figure is firm.",
+					"Under them, Period the baseline covers and Provisional, as on New goal. Firming up a provisional baseline, changing the Baseline number while Provisional is ticked, isn’t a plan change: it asks no reason and keeps no earlier plan. Untick Provisional once the figure is firm. A baseline can be marked provisional only before the goal’s first check-in.",
 					"Plan by week shows the numbers week by week; type over any week.",
 					"After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s history.",
 					"Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about. A target on the worse side of the start for the metric that measures the goal is asked about too (“Lead time for changes is better lower, but the target is above today”), here, in a spreadsheet and through the AI assistant, and your answer is kept in the goal’s History as Checked.",
@@ -52696,9 +52769,9 @@ function goalToRows(ws, g) {
 				stop_reason: g.stopReason,
 				proposed_at: g.proposedAt,
 				proposed_by: g.proposedBy,
-				proposed_in: g.proposedIn,
-				unmeasured_since: g.unmeasuredSince
-			})
+				proposed_in: g.proposedIn
+			}),
+			unmeasured_since: g.unmeasuredSince ?? null
 		},
 		stages: g.kind === "milestone" ? g.stages.map((s) => ({
 			workspace_id: ws,
