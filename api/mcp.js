@@ -19146,7 +19146,7 @@ var CORE_ARTICLES = [
 				list: [
 					"If you are in a team, or lead one, and it has goals you don’t own, “Your team · CI/CD · 17 goals” follows your goals (“Your teams · 30 goals in 2 teams” when you lead more than one). It is exactly the My team tab of Goals: the same goals and the same total, and See them in Goals opens it.",
 					"Its counts by status each open exactly those goals. Then “2 need attention that aren’t yours” opens Goals with those goals, filtered to Owner not you, and up to four of them are listed, each with its owner’s name first. Your own are in Your goals, so they aren’t listed twice. When nothing needs attention, it says so.",
-					"When the goals you watch, or your teams’ goals, span three or more teams (or more than twelve goals in two), they are shown as teams, worst first: the team with the most goals off track, then at risk, then with no recent update, first, as Goals orders By team. Each team’s name, its “3 need attention” and its counts by status open exactly those goals. Five teams show, then a link to the rest, by team. No person’s name is in this table: teams and goals are ranked, never people. On a phone each team is one stacked row."
+					"When the goals you watch, or your teams’ goals, are more than twelve goals in two or more teams, they are shown as teams, worst first: the team with the most goals off track, then at risk, then with no recent update, first, as Goals orders By team. Each team’s name, its “3 need attention” and its counts by status open exactly those goals. Five teams show, then a link to the rest, by team. No person’s name is in this table: teams and goals are ranked, never people. On a phone each team is one stacked row."
 				]
 			},
 			{
@@ -21499,7 +21499,7 @@ var WHATS_NEW = [
 		points: [
 			"If your team has goals you don’t own, Home shows them after yours, exactly as the My team tab of Goals counts them.",
 			"Its goals that need attention and aren’t yours are listed with their owners’ names, and the link opens Goals filtered to Owner not you.",
-			"Goals you watch, or your teams’ goals, that span three or more teams are shown as teams, worst first, each count opening exactly those goals."
+			"Goals you watch, or your teams’ goals, that are more than twelve goals across teams are shown as teams, worst first, each count opening exactly those goals."
 		],
 		articles: ["home"]
 	},

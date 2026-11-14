@@ -21,9 +21,23 @@ module.exports = {
         const t = await box(q, '.tree .trow-title'), row = await box(q, '.tree .trow');
         check(t && row && t.w >= row.w - 34, `[Home] 1: phone title is ${t && Math.round(t.w)}px of a ${row && Math.round(row.w)}px row`);
         check(await css(q, '.tree .trow-why', '-webkit-line-clamp') === 'none', '[Home] 1: phone reason is still clamped');
-        check(await css(q, '.trow-title .level', 'margin-left') === '0px', '[Home] 8: the level tag still has a left margin');
-        check(Math.round((await box(q, '.trow-title .level')).h) === 20, '[Home] 8: the level tag is not 20px tall');
         await c0.close();
+      }
+      // [Home] 8: a goal row's level tag, on the first of these Homes that shows one at 390.
+      {
+        let seen = false;
+        for (const who of ['oskar', 'rhea', 'tunde']) {
+          const [cl, l] = await open(390, 844, who, '/', true);
+          const tag = await box(l, '.trow-title .level');
+          if (tag) {
+            seen = true;
+            check(await css(l, '.trow-title .level', 'margin-left') === '0px', '[Home] 8: the level tag still has a left margin');
+            check(Math.round(tag.h) === 20, `[Home] 8: the level tag is ${Math.round(tag.h)}px tall, not 20`);
+          }
+          await cl.close();
+          if (seen) break;
+        }
+        check(seen, '[Home] 8: no goal row on Oskar’s, Rhea’s or Tunde’s Home shows a level tag');
       }
       const [c, p] = await open(390, 844, 'amara', '/', true);
       // The teams table stacks each team on a phone, and nothing scrolls sideways (checked below).

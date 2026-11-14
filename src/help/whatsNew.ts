@@ -33,7 +33,7 @@ export const WHATS_NEW: NewsEntry[] = [
     points: [
       'If your team has goals you don’t own, Home shows them after yours, exactly as the My team tab of Goals counts them.',
       'Its goals that need attention and aren’t yours are listed with their owners’ names, and the link opens Goals filtered to Owner not you.',
-      'Goals you watch, or your teams’ goals, that span three or more teams are shown as teams, worst first, each count opening exactly those goals.',
+      'Goals you watch, or your teams’ goals, that are more than twelve goals across teams are shown as teams, worst first, each count opening exactly those goals.',
     ],
     articles: ['home'],
   },

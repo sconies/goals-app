@@ -1,5 +1,5 @@
 /* Home's sets (round 3, HM3: docs/design/home/spec.md rule 4): "Your goals", "Your team" and "Goals you watch" are
-   exactly the Goals scopes, and a set spanning three or more teams is drawn as teams, worst first. Pure. Apart from
+   exactly the Goals scopes, and a set of more than twelve goals in two or more teams is drawn as teams, worst first. Pure. Apart from
    home.ts so that only the screens that draw a set load it (Home's first download stays as it was); `asTeams`, which
    Home asks before loading them, stays in home.ts. */
 import { attentionOrder, needsAttention, splitAttention, type GoalAttention } from './attention';
