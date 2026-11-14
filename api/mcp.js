@@ -16332,16 +16332,21 @@ var wrapUpOn = (on) => on.has("wrap-up");
 * get_my_work say it; no screen writes "review" in a deadline itself.
 */
 var dueWordsHere = (reviews, s, cycle, week, personId) => dueWords$1(reviews, cycle, week, reviews && heldOnDueDay(s.reviews, cycle, week, personId));
-/** Every goal's summary row, with what the Goals filters need beyond it. With `reviews` false (Reviews off) `inreview=`
-narrows nothing, as a switched-off module's column doesn't (module map F4; build review of #424). */
-function goalRows(s, cycle, today, week, columns, reviews = true) {
-	const goals = live(s.goals).filter((g) => !g.stoppedAt);
+/** Each goal's standing this week (habit rule 1), or null when it isn't due: what Goals' `checkedin=` reads and Home's
+standing cell counts (HM7), so both count the same goals. */
+function standingIn(s, cycle, week) {
 	const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
 	const rows = {
 		checkIns: s.checkIns,
 		asks: s.requests ?? []
 	};
-	const standing = (g) => week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null;
+	return (g) => week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null;
+}
+/** Every goal's summary row, with what the Goals filters need beyond it. With `reviews` false (Reviews off) `inreview=`
+narrows nothing, as a switched-off module's column doesn't (module map F4; build review of #424). */
+function goalRows(s, cycle, today, week, columns, reviews = true) {
+	const goals = live(s.goals).filter((g) => !g.stoppedAt);
+	const standing = standingIn(s, cycle, week);
 	const inReview = (id) => {
 		const r = s.reviews.find((x) => x.id === id && !x.removedAt);
 		return r ? new Set(goalsIn(r.scope, goals).map((g) => g.id)) : null;
@@ -19210,8 +19215,21 @@ var CORE_ARTICLES = [
 				list: [
 					"If you are in a team, or lead one, and it has goals you don’t own, “Your team · CI/CD · 17 goals” follows your goals (“Your teams · 30 goals in 2 teams” when you lead more than one). It is exactly the My team tab of Goals: the same goals and the same total, and See them in Goals opens it.",
 					"Its counts by status each open exactly those goals. Then “2 need attention that aren’t yours” opens Goals with those goals, filtered to Owner not you, and up to four of them are listed, each with its owner’s name first. Your own are in Your goals, so they aren’t listed twice. When nothing needs attention, it says so.",
+					"In a workspace with one team, your goals and your team’s would repeat each other, so Home shows them once: “The team’s goals · 9”, your own first, then your teammates’, each of theirs with its owner’s name first. Its counts, its need attention link and See them in Goals open that team’s goals. There is no separate Your team, and Goals you watch is left out while you watch nothing.",
 					"When the goals you watch, or your teams’ goals, are more than twelve goals in two or more teams, they are shown as teams, worst first: the team with the most goals off track, then at risk, then with no recent update, first, as Goals orders By team. Each team’s name, its “3 need attention” and its counts by status open exactly those goals. Five teams show, then a link to the rest, by team. No person’s name is in this table: teams and goals are ranked, never people. On a phone each team is one stacked row."
 				]
+			},
+			{
+				heading: "How the week’s check-ins stand",
+				list: [
+					"If your team’s goals or the goals you watch are shown as teams, or you are an admin, This week has a cell saying how the week’s check-ins stand over those goals (every goal, for an admin): “Checked in for week 46 · 45 of 55 goals · Due by Thu 12 Nov”. After the due day it says how many came in after it.",
+					"It counts goals, never people. It opens Goals with the goals that have no check-in for the week yet, worst first.",
+					"Beside it, a second cell says how many of those goals were checked in before the review without anyone asking: “91 of 118 goals · 77%”, with last week’s percentage under it and By week, which opens the review that covers them. Before the due day it says “So far”. A percentage is shown only from 20 goals, and the cell is left out when the goals have fewer than three owners."
+				]
+			},
+			{
+				heading: "The workspace’s line",
+				list: ["If you are an admin, Home has a short block headed with the workspace’s name. When the year is ending or has ended, it says so first, with the next step. Then, when something needs sorting out, “2 things to sort out” with the first of them, and See them, which opens Workspace’s About with the same list."]
 			},
 			{
 				heading: "When Home has no button",
@@ -19232,6 +19250,7 @@ var CORE_ARTICLES = [
 		reqs: [
 			"HOME-OWNER",
 			"HOME-MANAGER",
+			"HOME-LEADER",
 			"PROFILES",
 			"SHAPE-MATCHES-WORD",
 			"DAY-ONE"
@@ -21559,6 +21578,27 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "home-habit-cell",
+		date: "2026-11-14",
+		title: "A leader’s Home says how many goals were in without being asked",
+		points: ["Beside how the week’s check-ins stand, one more cell: how many of those goals were checked in before the review without anyone asking, and last week’s share.", "By week opens the review that covers them, with its row of weeks."],
+		articles: ["home"]
+	},
+	{
+		id: "home-leader",
+		date: "2026-11-14",
+		title: "A leader’s Home: how the week’s check-ins stand",
+		points: ["When your team’s goals or the goals you watch are shown as teams, This week says how many of them are checked in for the week, and opens the ones that aren’t yet.", "Admins see it over every goal, and a line with how many things there are to sort out in the workspace."],
+		articles: ["home"]
+	},
+	{
+		id: "home-one-team",
+		date: "2026-11-14",
+		title: "With one team, Home shows the team’s goals once",
+		points: ["In a workspace with one team, Home shows “The team’s goals” as one section, yours first, in place of Your goals and Your team.", "Your teammates’ goals that need attention are listed with their owners’ names, so nothing of the team’s is missing from Home."],
+		articles: ["home"]
+	},
+	{
 		id: "home-your-team",
 		date: "2026-11-14",
 		title: "Your team is on Home",
@@ -23153,6 +23193,7 @@ var MORE_RULE_PAGES = [
 	["goals-page", "The Goals page: whose goals, how they are grouped, and the switch"],
 	["home", "Home: what is asked of you today"],
 	["home-sets", "Home: your goals, your team and what you watch"],
+	["home-leader", "Home: a leader’s week, and the workspace’s line"],
 	["habit", "The habit: the run, the receipt, a moment and the measure"]
 ];
 /** The requirements under spec/requirements/internal/ (backlog 8r): what the internal rebuild must do that Faro doesn't
