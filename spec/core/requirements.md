@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (179): build it as Faro does.
+- **Copy** (180): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -944,14 +944,6 @@ The same goals can be seen as a list, a sortable table, a board by status, or a 
 
 ## AI assistants
 
-### MCP-TOKENS
-
-An admin can make a personal token for any person, named for what it is for; it is shown once, only its SHA-256 hash is stored, and it can be revoked. An AI assistant using it through the MCP server acts as that person: the same rights and rules as the app, every change logged as theirs via MCP, writes checkable with a dry run, and a revoked or wrong token refused.
-
-- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
-- **Help:** “Workspace: Access” (`workspace-access`); “MCP access” (`ai-assistants`)
-- **Journeys and checks:** U22
-
 ### MCP-PARITY
 
 Everything a person can do in the app, their AI assistant can do through the MCP server, with exactly that person's rights and the app's rules, logged as them via the assistant: reading every screen (what needs them, goals, reviews, requests, watching, people, activity, views, tokens, the wrap-up) and every action (check-ins, goals, plans, comments, asks for an update, answering, linking and withdrawing requests, review calls, reviews, watching, people, wrap-ups, the next cycle, views, tokens, feedback, deleting the workspace). Only workspace set-up and switching stay in the app. A parity map is checked against the app's actions and screens.
@@ -959,13 +951,6 @@ Everything a person can do in the app, their AI assistant can do through the MCP
 - **Copy:** build it as Faro does.
 - **Help:** “MCP access” (`ai-assistants`)
 - **Tests:** `evals/mcp.eval.ts` (12)
-
-### TOKENS-SERVER-ONLY
-
-AI assistant tokens are made and revoked only by security-definer functions (okr_token_create, okr_token_revoke) that make the secret in the database, store only its SHA-256 hash and return it once. The public key can't read, add or change okr_api_tokens; the app lists token metadata (never the hash) with okr_token_list, and the MCP server finds a token with okr_token_find. The public key can't read okr_feedback; Workspace reads a workspace's with okr_feedback_list. AI assistants and Workspace's feedback keep working.
-
-- **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
-- **Help:** “MCP access” (`ai-assistants`)
 
 ## Leaders
 
@@ -1469,7 +1454,7 @@ Faro is a small core with named extension points (routes, navigation, Home block
 - **Copy:** build it as Faro does.
 - **Help:** “Features: switching parts of Faro on or off” (`features`)
 - **Tests:** `evals/modules.eval.ts` (4)
-- **Journeys and checks:** N21, N22, N34, U48, U103, U104, U164, U165, U166
+- **Journeys and checks:** N21, N22, N34, U48, U103, U104, U164, U165, U166, U175
 
 ### FEATURE-GROUPS
 
@@ -1477,7 +1462,7 @@ Workspace, Features lists the optional features in groups: Working together (Rev
 
 - **Copy:** build it as Faro does.
 - **Help:** “Features: switching parts of Faro on or off” (`features`)
-- **Journeys and checks:** N22, U164
+- **Journeys and checks:** N22, U164, U175
 
 ## Numbers
 

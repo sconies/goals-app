@@ -46,6 +46,15 @@ export const reviewsOffWords = (workspace: string) => switchedOffWords('Reviews'
  */
 /** Whether Watching is on: the Watching tab, Home's "Goals you watch", the Watch button and the three watching tools. */
 export const watchingOn = (on: ReadonlySet<string>): boolean => on.has('watching');
+/** Whether AI access is on (SW2): the MCP server's door, Workspace's AI access section, the tokens in Settings and on
+    People, and making a token. Revoking one never asks. */
+export const aiAccessOn = (on: ReadonlySet<string>): boolean => on.has('ai-access');
+/** What the MCP server answers every request but initialize and tools/list while AI access is off (SW2, spec 6.1). */
+export const aiAccessShutWords = (workspace: string) => `AI access is switched off in ${workspace}. An admin can switch it on in Faro, under Workspace, Features.`;
+/** What set_feature answers when it switches AI access off: the last thing that token does (spec 6.2). */
+export const aiAccessLastWords = (workspace: string) => `AI access is off in ${workspace}. This connection stops working now. An admin switches it back on in Faro.`;
+/** What the MCP server answers every token in a build without AI access (FARO_WITHOUT=ai-access, spec 6.1). */
+export const NO_AI_ACCESS = 'This Faro has no AI access.';
 /** Whether Feedback is on: its menu row and page, Send feedback, Mark up this screen (and its key) and the inbox tools. */
 export const feedbackOn = (on: ReadonlySet<string>): boolean => on.has('feedback');
 /** Whether the Goal map is on: Goals' Map layout. */
@@ -57,7 +66,7 @@ export const wrapUpOn = (on: ReadonlySet<string>): boolean => on.has('wrap-up');
 /** The core's actions that belong to a switch while its code is still the core's (SW1 spec 1.3; Reviews' and Watching's saves are refused by what they write, in actions.ts): each refuses
     while its module is off, with `moduleOffWords`. Revoking and starting the next year never refuse. */
 export const SWITCHED_ACTIONS: Readonly<Record<string, string>> = {
-  saveRetro: 'wrap-up', sendFeedback: 'feedback',
+  saveRetro: 'wrap-up', sendFeedback: 'feedback', createToken: 'ai-access',
 };
 
 /** What a switched module's action says while it is off (spec 1.3): "Watching is off in {workspace}." */

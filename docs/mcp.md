@@ -4,7 +4,7 @@ Faro has no AI built in. It has an MCP server at `/api/mcp` (it introduces itsel
 
 ## How it works
 
-- **Who it acts as.** An admin makes a personal **MCP token** for one person under Workspace → Access → MCP access (each person sees and revokes their own under Settings). The assistant then acts as that person, with exactly their rights. For example:
+- **Who it acts as.** An admin makes a personal **MCP token** for one person under Workspace → AI access (each person sees and revokes their own under Settings). The assistant then acts as that person, with exactly their rights. For example:
   - owners change their own goals; admins can change any goal; anyone can comment;
   - only the person asked (or an admin) answers an ask, and only whoever does an action, whoever agreed it, or an admin marks it done;
   - only admins add people, mark them as left, change teams, pin views, make tokens, start the next cycle, restore what anyone removed, or rename or delete the workspace.
@@ -17,6 +17,7 @@ Faro has no AI built in. It has an MCP server at `/api/mcp` (it introduces itsel
 - **Not for assistants.** A token belongs to one workspace, so an assistant can't create, switch or reset a workspace, or choose who it is. Those stay in the app.
 - **Logged.** Each change is logged as that person, marked "via MCP" (`VIA_MCP` in `src/domain/changeset.ts`). Changes made before 9 Nov say "AI assistant (MCP)" and still count as made through MCP.
 - **One shape for lists.** `find_goals`, every `list_` tool and `get_activity` answer the same way every time, filtered or not: their data as structured content, and the same data as JSON for the text (`listed` in `src/mcp/listed.ts`). A test holds every `list_` tool to it.
+- **When AI access is switched off.** The server still answers `initialize` and `tools/list`; every other request gets "AI access is switched off in {workspace}. An admin can switch it on in Faro, under Workspace, Features.", and a token's last use is not updated. Making a token is refused in the app, revoking still works, and `/workspace/ai` says it is switched off. A build without the module (`FARO_WITHOUT=ai-access`) refuses every token with "This Faro has no AI access."
 - **Tokens.** A token is shown once. Only its SHA-256 hash is stored, and it can be revoked at any time.
 
 ## Connecting

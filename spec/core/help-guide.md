@@ -1366,21 +1366,42 @@ Everyone reads Cycles and opens the wrap-up. Only admins delete a cycle or start
 
 ### Workspace: Access
 
-`workspace-access`. For admins: who the admins are, and MCP access: the MCP tokens Claude or another AI tool uses to act as someone in this workspace.
+`workspace-access`. For admins: who the admins are, where they are made, and taken back.
 
-Routes: `/workspace/access`. Requirements: `ADMIN`, `MCP-TOKENS`.
+Routes: `/workspace/access`. Requirements: `ADMIN`.
 
 #### How to use it
 
 - Admins lists everyone who is one, A to Z. Add an admin is the page’s main action: find someone by name, job title or team, then Make them an admin. The message that says so has Undo.
 - Remove as admin, on anyone’s row, asks first (“They keep their goals and history”); on your own row it’s Stop being an admin, which has no Undo: only another admin can make you one again. There is always at least one admin: the only one has no button, and their row says The only admin.
-- The same two are on a person’s page in People, under For admins, with Make an MCP token for that person.
-- MCP tokens: Make a token for someone (it’s shown once), and revoke any token. The AI tool using it then acts as that person, with their rights, and every change it makes says “via MCP”. A token made as a builder token, before the inbox opened to everyone, is labelled “builder token”: it works as an ordinary one. See MCP access.
-- In the demo, MCP tokens don’t work: its data stays in your browser, where an AI tool can’t reach it. Access says so in place of the list.
+- The same two are on a person’s page in People, under For admins, with Make an MCP token for that person while AI access is on.
+- The MCP tokens have their own section, AI access, after this one. See AI access.
 
 #### Who can
 
-Admins. Everyone finds their own MCP tokens in Settings.
+Admins.
+
+### AI access
+
+`ai`, from the ai-access module. The MCP tokens that let Claude or another AI tool act as someone here, and the switch that turns them all off.
+
+Routes: `/workspace/ai`. Requirements: `MCP-TOKENS`, `AI-ACCESS-OPTIONAL`.
+
+#### What it’s for
+
+Letting an AI tool read and act in this workspace as one person, with that person’s rights. Faro has no AI built in: this is the door other AI tools use.
+
+#### How to use it
+
+- Workspace, AI access lists every MCP token, newest first: what it’s for, whom it acts as, when it was made and last used, and Revoke. Make a token is the section’s one action; the token is shown once.
+- Every change an AI tool makes is logged as its person’s, marked “via MCP” in Activity.
+- AI access can be switched off for the whole workspace, on Workspace, Features. Before it goes off, Faro names the tokens that stop working at once and counts what AI tools already changed (that stays). The tokens are kept, not revoked: switch AI access back on and they work again, after Faro names them. To end one for good, revoke it first; See the tokens, in the same message, lists them with Revoke.
+- While it is off, an AI tool that calls Faro is told “AI access is switched off in” the workspace, and that an admin can switch it on. It still sees the list of tools. No token can be made, and Workspace, Settings and People show no tokens.
+- An AI tool can switch AI access off (as its admin), but never back on: that is the last thing its token does.
+
+#### Who can
+
+Admins make tokens, revoke any, and switch AI access. Anyone revokes their own in Settings.
 
 ### Settings
 
@@ -1417,15 +1438,16 @@ On a phone’s home screen and in the browser tab, the F sits on a deep-teal til
 
 `features`. Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace, in three groups: working together, tools, and beyond this workspace.
 
-Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`, `REVIEWS-SWITCH-CLOCK`, `WATCHING-OPTIONAL`, `FEEDBACK-OPTIONAL`, `MAP-OPTIONAL`, `WRAP-UP-OPTIONAL`, `FEATURE-GROUPS`.
+Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`, `REVIEWS-SWITCH-CLOCK`, `WATCHING-OPTIONAL`, `FEEDBACK-OPTIONAL`, `MAP-OPTIONAL`, `WRAP-UP-OPTIONAL`, `AI-ACCESS-OPTIONAL`, `FEATURE-GROUPS`.
 
 #### How to use it
 
 - On Workspace, Features says how this workspace works and lists the optional parts of Faro, each with what it does; About says which are on, from the same list. Goals, check-ins and people are the core and always on.
 - Working together holds Reviews (walking a set of goals together on a cadence), Watching (following goals you don’t own) and the Wrap-up (each owner saying how their goals landed at the end of the year). Tools holds the Metric library, Spreadsheets and the Goal map. Beyond this workspace holds Feedback, which goes to the people who build Faro. A group this Faro has nothing in isn’t shown. Each has a switch with On or Off beside it.
-- While a feature is on, its row says what it holds: how many reviews are set up, how many people watch goals here, or when the wrap-up opens and, while it is open, how many goals are wrapped up.
+- While a feature is on, its row says what it holds: how many reviews are set up, how many people watch goals here, how many MCP tokens are in use, or when the wrap-up opens and, while it is open, how many goals are wrapped up.
 - Switching off a feature that keeps something asks first: Reviews always, Watching when anyone watches a goal, the Wrap-up once a wrap-up is written or while it is open. Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, how many accepted risks stay on their goals (no new one can be accepted while it is off), that check-ins are still due by the same day, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching anything else off that keeps nothing, or anything on, acts at once.
 - Switching Watching off says that the Watching tab, “Goals you watch” and the Watch button go; how many people’s watches are kept (nobody is shown as watching while it is off); how many people own no goal and see Home through what they watch, whose Home then shows every goal that needs attention; and that goals don’t change. Switch it back on and each person watches what they did.
+- Switching AI access off names the MCP tokens that stop working at once (they are kept, not revoked), counts what AI tools already changed (it stays, marked “via MCP”), and says an AI tool can’t switch it back on. Switching it back on names the tokens that will work again. With no token, either way it acts at once. While it is off, every AI tool calling Faro here is told AI access is switched off, no token can be made, and Workspace, Settings and People show no tokens. See AI access.
 - Switching the Wrap-up off says that owners aren’t asked how their goals landed (and, while it is open, how many goals won’t be asked for), that the wrap-ups already written stay in each goal’s History, and that the year still ends: results are worked out as before, and an admin starts the next year from Cycles.
 - Switching Feedback off takes Feedback out of the menu, with Send feedback and Mark up this screen, and Ctrl+Shift+M does nothing. What was sent stays in the builders’ inbox. Switching the Goal map off takes Map out of Goals’ layouts: a link or saved view that asked for the Map opens the List and says so once.
 - Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help (and the Help link at the foot of its pages) and its MCP tools; What’s new still lists its releases. Anything that needs it goes off with it, and Features says so.
@@ -1534,7 +1556,7 @@ Requirements: `MCP-TOKENS`, `MCP-PARITY`, `TOKENS-SERVER-ONLY`.
 
 #### How to connect
 
-- An admin makes a personal MCP token for you under Workspace, Access, MCP access. The database makes it, keeps only a hash of it, and shows it once; nobody can read tokens back, not even through the app.
+- An admin makes a personal MCP token for you under Workspace, AI access. The database makes it, keeps only a hash of it, and shows it once; nobody can read tokens back, not even through the app.
 - Add the server to your AI tool with the address and token shown. For Claude Code: claude mcp add --transport http goals https://<app>/api/mcp --header "Authorization: Bearer gk_…".
 - See and revoke your MCP tokens in Settings. The full list of tools is in docs/mcp.md.
 

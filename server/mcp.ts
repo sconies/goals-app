@@ -20,6 +20,8 @@ import { SpanCollector } from '../src/telemetry/server';
 import type { McpContext } from '../src/mcp/tools';
 import { PICTURES_UNREADABLE, pictureType, type MarkupOps } from '../src/markup/ops';
 import type { FeedbackOps } from '../src/markup/feedback';
+import { modulesOn } from '../src/core/registry';
+import { aiAccessOn, aiAccessShutWords, NO_AI_ACCESS } from '../src/app/reads';
 
 export interface Deps {
   /** The live (not revoked) token with this hash, and its workspace. */
@@ -89,7 +91,12 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
   const hash = await hashToken(token);
   const found = await deps.findToken(hash);
   if (!found) return rpcError(401, 'That token isn’t valid or has been revoked. Ask an admin for a new one.', { 'WWW-Authenticate': 'Bearer error="invalid_token"' });
-  if (picture !== null) return pictureResponse(picture, deps.markups?.(hash));
+  // The door (SW2, spec 6.1): while AI access is off in the workspace, every request but initialize and tools/list is
+  // refused, saying so, and the token's last use doesn't move. A build without AI access refuses every token.
+  if (!aiAccessOn(modulesOn(null).on)) return rpcError(403, NO_AI_ACCESS);
+  const off = deps.modulesOff ? await deps.modulesOff(found.workspaceId).catch(() => [] as string[]) : [];
+  const shut = aiAccessOn(modulesOn({ modulesOff: off }).on) ? null : aiAccessShutWords(await deps.workspaceName(found.workspaceId));
+  if (picture !== null) return shut ? rpcError(403, shut) : pictureResponse(picture, deps.markups?.(hash));
 
   let body: unknown;
   try { body = await req.json(); } catch { return json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }, 400); }
@@ -183,8 +190,8 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
 
   let res: Response;
   try {
-    const out = await handleBody(body, context, traceTool);
-    await deps.touch(found.token.id, now.toISOString()).catch(() => undefined);
+    const out = shut ? await throughDoor(body, shut, (m) => handleBody(m, context, traceTool)) : await handleBody(body, context, traceTool);
+    if (!shut) await deps.touch(found.token.id, now.toISOString()).catch(() => undefined);
     res = out ? json(out) : new Response(null, { status: 202, headers: CORS });
   } catch (e) {
     const reference = logFailure('A request', e);
@@ -192,6 +199,25 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
   }
   await sendSpans(deps, spans.rows, found.workspaceId, ctx);
   return res;
+}
+
+/** What the door lets through while AI access is off: the handshake and the list of tools (so a connected tool sees why
+    each call refuses, not an empty server), and notifications, which have no answer. */
+const THROUGH_THE_DOOR = new Set(['initialize', 'tools/list']);
+type Handle = (m: unknown) => ReturnType<typeof handleBody>;
+
+/** A body while the door is shut: what it lets through is handled as ever; anything else is answered with `words`. */
+async function throughDoor(body: unknown, words: string, handle: Handle): ReturnType<typeof handleBody> {
+  const one = async (m: unknown) => {
+    const method = String((m as { method?: unknown })?.method ?? '');
+    if (THROUGH_THE_DOOR.has(method) || method.startsWith('notifications/')) return handle(m);
+    const id = (m as { id?: unknown })?.id;
+    return id === undefined ? null : { jsonrpc: '2.0' as const, id: id as string | number | null, error: { code: -32001, message: words } };
+  };
+  if (!Array.isArray(body)) return (await one(body)) as Awaited<ReturnType<typeof handleBody>>;
+  const out: unknown[] = [];
+  for (const m of body) { const r = await one(m); if (r) out.push(...(Array.isArray(r) ? r : [r])); }
+  return (out.length ? out : null) as Awaited<ReturnType<typeof handleBody>>;
 }
 
 /** GET /api/mcp?picture=<markup id>/<picture name>, with any token: the picture itself, for an assistant that only

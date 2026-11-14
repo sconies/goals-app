@@ -27,6 +27,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'ai-access-switch',
+    date: '2026-11-14',
+    title: 'AI access can be switched off',
+    points: [
+      'AI access can be switched off for a workspace, on Workspace, Features. Every MCP token stops working at once and is kept; switching it back on names them first.',
+      'The MCP tokens have their own Workspace section, AI access, after Access.',
+      'While it is off, an AI tool calling Faro is told so, no token can be made, and a token can still be revoked.',
+    ],
+    articles: ['ai', 'features'],
+  },
+  {
     id: 'goal-guardrails',
     date: '2026-11-14',
     title: 'Guardrails on a goal',

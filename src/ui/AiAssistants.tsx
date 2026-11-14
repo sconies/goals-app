@@ -1,7 +1,8 @@
 /* MCP access (backlog 10a; it was “AI assistants”): the personal MCP tokens Claude or another AI tool uses to act as one
    person through MCP. Faro has no AI built in: this is the door other AI tools use. Admins see, make and revoke every
-   token on Workspace, Access (AccessTokens); anyone sees and revokes their own in Settings (MyTokens). Tokens are made
-   only on Access or from a person's page (app redesign WR3). */
+   token on Workspace, AI access (AccessTokens; SW2); anyone sees and revokes their own in Settings (MyTokens). Tokens are
+   made only there or from a person's page (app redesign WR3). With AI access switched off none of this is shown, but for
+   the list Features opens from its read-back (TokenListSheet), where each can still be revoked. */
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
@@ -31,7 +32,7 @@ function TokenRow({ t, mine }: { t: ApiToken; mine: boolean }) {
   );
 }
 
-/** Workspace, Access (admins): every token, newest first, and Make a token (the real app only). */
+/** Workspace, AI access (admins): every token, newest first, and Make a token (the real app only). */
 export function AccessTokens() {
   const app = useApp();
   const [making, setMaking] = useState(false);
@@ -51,7 +52,7 @@ export function AccessTokens() {
   );
 }
 
-/** Settings: the tokens that act as you, with Revoke. Making one is an admin's, on Access. */
+/** Settings: the tokens that act as you, with Revoke. Making one is an admin's, on AI access. */
 export function MyTokens() {
   const app = useApp();
   const mine = useLiveTokens().filter((t) => t.personId === app.viewer.id);
@@ -60,7 +61,7 @@ export function MyTokens() {
       <h2 className="block-title" id="ai-mine">Your MCP tokens · {app.mode === 'demo' ? 0 : mine.length}</h2>
       <p className="hint" style={{ marginTop: 0 }}>A token lets Claude or another AI tool act as you through MCP, with your rights. Every change it makes is logged as yours, marked “via MCP”.</p>
       {app.mode === 'demo' ? <p className="hint">{DEMO_LINE}</p> : mine.length > 0 && <ul className="token-list" aria-label="Your MCP tokens">{mine.map((t) => <TokenRow key={t.id} t={t} mine />)}</ul>}
-      {app.mode === 'live' && <p className="hint">{app.viewer.admin ? <>Make one on <Link to="/workspace/access">Workspace, Access</Link>.</> : 'An admin makes a token for you.'}</p>}
+      {app.mode === 'live' && <p className="hint">{app.viewer.admin ? <>Make one on <Link to="/workspace/ai">Workspace, AI access</Link>.</> : 'An admin makes a token for you.'}</p>}
     </section>
   );
 }
@@ -113,6 +114,20 @@ export function TokenSheet({ onClose, personId: fixed }: { onClose: () => void; 
         <p className="hint">Until company sign-in arrives, the app itself doesn’t check who people are. A token makes clear who an AI tool acts for, and it can be revoked at any time.</p>
         <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={name.trim().length < 2 || busy}>{busy ? 'Making…' : 'Make the token'}</button></div>
       </form>
+    </Sheet>
+  );
+}
+
+/** "See the {n} tokens", over Features' read-back for AI access (SW2, spec 4.2): every live token as AI access lists it,
+    with Revoke, even while AI access is off. Closing it returns to the read-back, counted again. */
+export function TokenListSheet({ onClose }: { onClose: () => void }) {
+  const live = useLiveTokens();
+  return (
+    <Sheet open onClose={onClose} title={live.length === 1 ? '1 MCP token' : `${live.length} MCP tokens`}>
+      <div className="stack" style={{ gap: 'var(--s3)' }}>
+        {!live.length ? <p className="hint">No MCP tokens now.</p> : <ul className="token-list" aria-label="MCP tokens">{live.map((t) => <TokenRow key={t.id} t={t} mine={false} />)}</ul>}
+        <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Back</button></div>
+      </div>
     </Sheet>
   );
 }

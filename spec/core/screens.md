@@ -614,7 +614,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 - `/workspace` (`WorkspaceHome`): Workspace opens on About: for admins, what needs sorting out; then the facts about this workspace, each leading to its section. Its other sections are Cycles, Privacy and Recently removed for everyone, and Access and Features for admins. Help: “Workspace: about this one” (`workspace`).
 - `/workspace/cycles` (`WorkspaceHome`): The workspace’s goal years, newest first, with their dates, which one is running and the wrap-up; admins can delete one nobody has checked in to yet. Help: “Workspace: Cycles” (`workspace-cycles`).
-- `/workspace/access` (`WorkspaceHome`): For admins: who the admins are, and MCP access: the MCP tokens Claude or another AI tool uses to act as someone in this workspace. Help: “Workspace: Access” (`workspace-access`).
+- `/workspace/access` (`WorkspaceHome`): For admins: who the admins are, where they are made, and taken back. Help: “Workspace: Access” (`workspace-access`).
 - `/workspace/features` (`WorkspaceHome`): Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace, in three groups: working together, tools, and beyond this workspace. Help: “Features: switching parts of Faro on or off” (`features`).
 - `/workspace/privacy` (`WorkspaceHome`): The app records how it is used, never what you type, so the people building it can see what is slow, broken or hard to use. Help: “What the app records” (`recording`).
 - `/workspace/removed` (`WorkspaceHome`): Anything you make can be taken away again: people leave, goals stop, check-ins, reviews, comments and views go, an import can be undone, and nothing is ever lost. Help: “Removing, stopping and undoing” (`removing`).
@@ -668,6 +668,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Rename” | button | an admin |
 | “Yes, turn it on” | button | an admin and `asking` |
 | “Cancel” | button | an admin and `asking` |
+| “See the token / See the … tokens” | button | always |
 | “… (worked out when it shows)” | primary | always |
 | “Switch off Reviews” | primary | always |
 | “Delete this workspace…” | button | `!open` |
@@ -810,7 +811,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “… (worked out when it shows)” | primary | `see` and `!left` |
 | “Change details” | button | an admin and `!left` |
 | “Make an admin” | button | an admin and `!left` and `!p.admin` |
-| “Make an MCP token” | button | an admin and `!left` and `app.mode === 'live'` |
+| “Make an MCP token” | button | an admin and `!left` and `app.mode === 'live'` and `aiHere` |
 | “… (worked out when it shows)” | button | an admin and `!left` and `!you` |
 | “Add a team” | primary | an admin |
 | “Previous …” | link | `shown.pages > 1` and `shown.page > 1` |

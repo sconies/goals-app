@@ -48,7 +48,7 @@ The core is everything outside `src/modules`. It cannot be switched off because 
 
 **Core, and staying core** (architecture readiness review, 11 November): the goal map, markup and the scorecard were looked at and left. The map and the scorecard read core records only; markup lives mostly in one folder and may move when something needs it to.
 
-Of the features in the core today, AI access is **distinct but not yet switchable**, because its switch is designed and not built (SW2). Reviews (FT2), Watching, Feedback, the goal map and the wrap-up's own screens (SW1) are switches whose code is still in the core. Until their switch ships, each needs the sentence in its spec saying why it cannot be switched off — see fix item F1.
+Of the features in the core today, Reviews (FT2), Watching, AI access (SW2), Feedback, the goal map and the wrap-up's own screens (SW1) are switches whose code is still in the core. Until their switch ships, each needs the sentence in its spec saying why it cannot be switched off — see fix item F1.
 
 ## 2. The modules
 
@@ -60,6 +60,7 @@ Of the features in the core today, AI access is **distinct but not yet switchabl
 | Spreadsheets (`spreadsheets`) | `spreadsheets` | — | Data's Spreadsheets menu, `/data/import` and the rest of import, Goals' "Export these goals", `export` and `export_table`, four Help articles, Past imports | Module: Spreadsheets |
 | Watching (`watching`; SW1, a switch with its code still the core's) | `watching` | — | `/watching`, Goals' Watching tab, Home's "Goals you watch" and Getting started's row, the Watch button, "Watched by" and the bulk bar's Watch, `list_watching`, `watch`, `unwatch`, its Help article; `get_my_work` leaves out what is watched. Someone who owns no goal is led to every goal needing attention. Its read-back counts the watches kept | Module: Watching |
 | Wrap-up (`wrap-up`; SW1, the same) | `wrap-up` | — | `/retro` and `/retro/:goalId`, Home's wrap-up lead and "See the wrap-up", Goals' Wrap up, Cycles' "Open the wrap-up", `get_wrap_up`, `wrap_up_goal`, its Help article. Results, carrying on and starting the next year stay core. Its read-back counts the wrap-ups kept | Module: Wrap-up |
+| AI access (`ai-access`; SW2, a switch with its code still the core's) | `ai-access` | — | Every token at the server door (the MCP server answers only `initialize` and `tools/list`, and leaves a token's last use alone), making a token, the token lists on Workspace, Settings and People, `/workspace/ai` (Workspace → AI access, after Access, which now shows only who the admins are), `list_tokens`, `create_token`, `revoke_token`, its Help article. Revoking still works. Its read-back names the tokens kept. A build without the module refuses every token | Module: AI access |
 | Goal map (`goal-map`; SW1, the same) | `goal-map` | — | Goals' Map layout (a link or view asking for it opens the List and says so); its Help article; no tools | Module: Goal map |
 | Feedback (`feedback`; SW1, the same) | `feedback` | — | The Feedback menu row, `/feedback` and its old addresses, Send feedback, Mark up this screen and Ctrl+Shift+M, the seven inbox tools and `send_feedback`, its two Help articles. It acts at once: its read-back needs the builders' store counted per workspace (SW4) | Module: Feedback |
 | Fields (`tags`; TG1: its records, screens and tools; TG2's filters and sheet columns to come) | `tags` | — | Workspace → Fields (`/workspace/fields`, which says Fields is switched off), a goal's Fields block in About, `list_fields`, `set_goal_fields` and `save_field`, its Help article. The fields and values stay while it is off | Module: Fields |
@@ -69,7 +70,6 @@ Of the features in the core today, AI access is **distinct but not yet switchabl
 | Module | Switch | Needs | Off turns off | Where |
 |---|---|---|---|---|
 | Reviews | `reviews` | — | The Reviews menu row and phone tab, `/reviews…`; Home's "Next review" cell and its lead; a goal's "in {review}" and the review walk; Find's review group; eight AI tools; the Help article; the import's Notes sheet and Review column; the decision rule (`src/domain/decide.ts`) goes with it. History and Activity keep what reviews saved | FT2 then RS1 (track 4); FT3 moves the folder into `src/modules` |
-| AI access | `ai-access` | — | Every token at the server door, the token views on Access, Settings and People, `/workspace/ai`, `list_tokens`, `create_token`, `revoke_token`. Tokens are kept and named first when it comes back on | SW2 |
 
 **Two rules for every switch.** The switch's name is the module's id, every one is on by default, and none declares `needs`. A workspace that turns one off gets no menu row, no Home card, no MCP answer but the refusal, and one line in the import saying what was not read.
 
@@ -125,8 +125,7 @@ Core stage 1  the rules            (no screens, no database)
              │    └─ structure (MQ), measurement status (MS)
              ├─ Reviews        needs asks (core) and the AR2/AR3 places
              │    └─ a leader's week's review entry (PF)
-             ├─ Watching, Wrap-up, Goal map, Feedback   need the core only
-             ├─ AI access      needs the Features screen (SW1)
+             ├─ Watching, Wrap-up, AI access, Goal map, Feedback   need the core only
              └─ Tags           needs the core's field table only
 ```
 
@@ -160,7 +159,7 @@ In the order they matter. Each is small; none needs a design pass. A track that 
 
 | # | What's wrong | Where | Suggested track |
 |---|---|---|---|
-| F1 | Reviews, Watching, AI access, Feedback, the goal map and the wrap-up are distinct features that cannot be switched off, and their spec pages don't say why. Lane's rule requires the sentence until the switch ships | `src/spec/`, the Features screen's "Goals, check-ins, reviews and people are always on" (`src/screens/Workspace.tsx`) | 4, with FT2 |
+| F1 | Reviews, Watching, Feedback, the goal map and the wrap-up are distinct features that cannot be switched off, and their spec pages don't say why. Lane's rule requires the sentence until the switch ships | `src/spec/`, the Features screen's "Goals, check-ins, reviews and people are always on" (`src/screens/Workspace.tsx`) | 4, with FT2 |
 | F2 | The export writes a switched-off module's sheet. It passes every installed module's sheets, not the workspace's | `src/modules/spreadsheets/Export.tsx`, `src/modules/spreadsheets/tools.ts`, `src/domain/export.ts` | 3 |
 | F3 | `get_help` lists a switched-off module's articles to the AI; the app hides them | `src/mcp/workTools.ts` | 4 |
 | F4 | `find_goals` still filters by a switched-off module's column (`?metric=`) | `src/mcp/tools.ts` | 4 |
