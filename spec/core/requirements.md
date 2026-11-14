@@ -1239,6 +1239,14 @@ On the icon rail the Faro mark is the workspace switcher: it opens the same pane
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`
 - **Journeys and checks:** N27
 
+### SMALL-MENU
+
+A module's menu row, a Goals tab and a Home section wait until they have something in them (a tab also waits while it is the same list as one drawn before it; All is always drawn). Hiding is only drawing: every address still opens.
+
+- **Copy:** build it as Faro does.
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
+- **Journeys and checks:** N30
+
 ### SMALL-QUIET
 
 No count of nought beside a tab, a menu row or a section's name (a sentence may still say none), and an empty page says what is true, then when you'd want it, with a plain button rather than the page's primary.

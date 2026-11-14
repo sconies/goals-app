@@ -73,6 +73,8 @@ const RULES = [
   // The metric library (ML1): its two checks.
   [/^evals\/(finish\/15-metrics|notes\/16-metrics)\.cjs$/, ['F15', 'N16']],
   [/^evals\/notes\/29-readings\.cjs$/, ['N29']],
+  // Small workspaces, rows and tabs that wait (SM1).
+  [/^evals\/notes\/30-small-menu\.cjs$|^src\/domain\/(goalsPage|navigation)\.ts$/, ['N30']],
   [/^src\/screens\/Print\.tsx|^src\/domain\/onePager\.ts/, ['N6']],
   [/^src\/screens\/Research\.tsx|^src\/app\/research\.ts/, ['U28', 'U40']],
   [/^src\/screens\/Help\.tsx/, ['N7']],

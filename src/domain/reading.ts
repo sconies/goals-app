@@ -36,7 +36,8 @@ export const sameAtPlaces = (a: number, b: number, decimals: number) => {
  * can be recorded.
  */
 export function readingProblem(r: CheckInReading, value: number | null, decimals: number, now: string | Date): string | null {
-  const source = typeof r?.source === 'string' && r.source.trim() ? r.source.trim() : 'The source';
+  if (typeof r?.source !== 'string' || !r.source.trim()) return 'A reading needs the name of the source that read it, so it can’t be recorded.';
+  const source = r.source.trim();
   if (typeof r?.value !== 'number' || !Number.isFinite(r.value)) return `${source}’s number can’t be read, so it can’t be recorded.`;
   const at = typeof r.at === 'string' ? Date.parse(r.at) : NaN;
   const t = typeof now === 'string' ? Date.parse(now) : now.getTime();
