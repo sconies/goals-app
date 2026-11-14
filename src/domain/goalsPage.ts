@@ -36,15 +36,16 @@ export interface ScopeTab { id: Scope; label: string; ids: string[] }
  * they lead, when they have one), Watching, All. Opens on the scope last used when they still have it; otherwise Mine,
  * else Watching when it has goals, else All.
  */
-export function scopesFor(f: ScopeFacts, last: Scope | null): { tabs: ScopeTab[]; opens: Scope } {
+export function scopesFor(f: ScopeFacts, last: Scope | null, opts: { watching: boolean } = { watching: true }): { tabs: ScopeTab[]; opens: Scope } {
   const tabs: ScopeTab[] = [];
   const mine = scopeIds(f, 'mine');
   if (mine.length) tabs.push({ id: 'mine', label: 'Mine', ids: mine });
   if (f.teams.length) tabs.push({ id: 'team', label: f.teams.length === 1 ? 'My team' : 'My teams', ids: scopeIds(f, 'team') });
-  tabs.push({ id: 'watching', label: 'Watching', ids: scopeIds(f, 'watching') });
+  // With Watching switched off (SW1, spec 2.3) there is no Watching tab; a remembered Watching falls through below.
+  if (opts.watching) tabs.push({ id: 'watching', label: 'Watching', ids: scopeIds(f, 'watching') });
   tabs.push({ id: 'all', label: 'All', ids: scopeIds(f, 'all') });
   const has = (s: Scope | null) => !!s && tabs.some((t) => t.id === s);
-  const opens: Scope = has(last) ? last! : mine.length ? 'mine' : (tabs.find((t) => t.id === 'watching')!.ids.length ? 'watching' : 'all');
+  const opens: Scope = has(last) ? last! : mine.length ? 'mine' : (tabs.find((t) => t.id === 'watching')?.ids.length ? 'watching' : 'all');
   return { tabs, opens };
 }
 

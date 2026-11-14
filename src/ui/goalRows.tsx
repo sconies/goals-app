@@ -4,6 +4,8 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
+import { watchingOn } from '../app/reads';
+import { useModules } from '../core/app';
 import { fmt, gapBeside, nowText } from '../domain/format';
 import { readingFrom } from '../domain/reading';
 import { isEveryday, levelName } from '../domain/levels';
@@ -182,6 +184,7 @@ function descendantsOf(goal: Goal, app: App): Goal[] {
  */
 export function WatchButton({ goal, primary }: { goal: Goal; primary?: boolean }) {
   const app = useApp();
+  const watchingHere = watchingOn(useModules().on);
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState<'goal' | 'tree'>('goal');
   const w = watchOf(app.viewer.id, goal, app.snapshot);
@@ -205,6 +208,8 @@ export function WatchButton({ goal, primary }: { goal: Goal; primary?: boolean }
       setOpen(false);
     } catch { /* the save already said what went wrong */ }
   };
+  // Watching switched off (SW1): no Watch button anywhere.
+  if (!watchingHere) return null;
   return (
     <>
       <button className={'btn' + (w ? ' watching' : primary ? ' primary' : '')} aria-pressed={!!w} onClick={() => { setScope('goal'); setOpen(true); }}>

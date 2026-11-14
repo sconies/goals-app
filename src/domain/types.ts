@@ -141,6 +141,10 @@ interface GoalBase {
   /** The review (Review.id) it was proposed in, from "Propose a new goal" in the walk (GE10, decision 15); kept once it
       is made active, so the next session's "Last time" can say so. Left out when it was proposed anywhere else. */
   proposedIn?: Id | null;
+  /** Held to no number since then (MS; domain/unmeasured): what measures it isn't measured yet, so it has no status
+      from its plan, nothing on it is late, and a baseline isn't asked for. Set and cleared by whatever measures it (the
+      metric library, when it links the goal to a metric with a gap); absent or null when it is held to its plan. */
+  unmeasuredSince?: string | null;
 }
 
 export interface PendingChange {

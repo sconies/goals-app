@@ -29,12 +29,10 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`bulk_change`](#bulk_change) | Change many goals at once | changes | [planChanges](actions.md#planchanges), [postCheckIn](actions.md#postcheckin), [saveGoal](actions.md#savegoal) |
 | [`get_my_work`](#get_my_work) | What needs me | reads | — |
 | [`list_requests`](#list_requests) | Asks: decisions or help, updates, questions, actions | reads | — |
-| [`list_watching`](#list_watching) | What you watch | reads | — |
 | [`list_people`](#list_people) | People and teams | reads | — |
 | [`get_activity`](#get_activity) | The activity log | reads | — |
 | [`list_views`](#list_views) | Saved views | reads | — |
 | [`list_tokens`](#list_tokens) | AI assistant tokens | reads | — |
-| [`get_wrap_up`](#get_wrap_up) | The cycle’s wrap-up | reads | — |
 | [`get_help`](#get_help) | Help: what the app does | reads | — |
 | [`describe_system`](#describe_system) | What Faro is: an overview for an AI | reads | — |
 | [`whats_new`](#whats_new) | What’s new in the app | reads | — |
@@ -47,10 +45,7 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`undo_update_ask`](#undo_update_ask) | Withdraw an ask for an update | changes | [undoUpdateAsk](actions.md#undoupdateask) |
 | [`add_action`](#add_action) | Add a next step to a goal | changes | [addAction](actions.md#addaction) |
 | [`edit_call`](#edit_call) | Correct something said in a review | changes | [editCall](actions.md#editcall) |
-| [`watch`](#watch) | Watch goals | changes | [watch](actions.md#watch) |
-| [`unwatch`](#unwatch) | Stop watching | changes | [unwatch](actions.md#unwatch) |
 | [`save_person`](#save_person) | Add or change a person | changes | [planChanges](actions.md#planchanges), [savePerson](actions.md#saveperson) |
-| [`wrap_up_goal`](#wrap_up_goal) | Wrap up a goal | changes | [saveRetro](actions.md#saveretro) |
 | [`start_next_cycle`](#start_next_cycle) | Start the next cycle | changes; removes something | [startNextCycle](actions.md#startnextcycle) |
 | [`save_view`](#save_view) | Save a view of the goals | changes | [saveView](actions.md#saveview) |
 | [`save_table_view`](#save_table_view) | Save a data table’s layout | changes | [saveTableView](actions.md#savetableview) |
@@ -58,7 +53,6 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`pin_view`](#pin_view) | Pin a view for everyone | changes | [pinView](actions.md#pinview) |
 | [`create_token`](#create_token) | Make an MCP token | changes | [createToken](actions.md#createtoken) |
 | [`revoke_token`](#revoke_token) | Revoke a token | changes; removes something | [revokeToken](actions.md#revoketoken) |
-| [`send_feedback`](#send_feedback) | Send feedback about the app | changes | [sendFeedback](actions.md#sendfeedback) |
 | [`rename_workspace`](#rename_workspace) | Rename the workspace | changes | [renameWorkspace](actions.md#renameworkspace) |
 | [`set_recording`](#set_recording) | Turn recording on or off | changes | [setRecording](actions.md#setrecording) |
 | [`set_feature`](#set_feature) | Switch a feature on or off | changes | [setModule](actions.md#setmodule) |
@@ -78,13 +72,14 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`delete_cycle`](#delete_cycle) | Delete a cycle | changes; removes something | [deleteCycle](actions.md#deletecycle) |
 | [`undo_start_cycle`](#undo_start_cycle) | Undo starting the next cycle | changes; removes something | [undoStart](actions.md#undostart) |
 | [`undo_import`](#undo_import) | Undo an import or bulk edit | changes; removes something | [undoImport](actions.md#undoimport) |
-| [`list_markups`](#list_markups) | List markups | reads | — |
-| [`get_markup`](#get_markup) | Open a markup | reads | — |
-| [`review_inbox`](#review_inbox) | Review the inbox | reads | — |
-| [`update_markup`](#update_markup) | Change a markup | changes | — |
-| [`list_feedback`](#list_feedback) | Feedback about the app | reads | — |
-| [`get_feedback`](#get_feedback) | Open a piece of feedback | reads | — |
-| [`update_feedback`](#update_feedback) | Change a piece of feedback | changes | — |
+| [`list_markups`](#list_markups) (feedback) | List markups | reads | — |
+| [`get_markup`](#get_markup) (feedback) | Open a markup | reads | — |
+| [`review_inbox`](#review_inbox) (feedback) | Review the inbox | reads | — |
+| [`update_markup`](#update_markup) (feedback) | Change a markup | changes | — |
+| [`list_feedback`](#list_feedback) (feedback) | Feedback about the app | reads | — |
+| [`get_feedback`](#get_feedback) (feedback) | Open a piece of feedback | reads | — |
+| [`update_feedback`](#update_feedback) (feedback) | Change a piece of feedback | changes | — |
+| [`send_feedback`](#send_feedback) (feedback) | Send feedback about the app | changes | [sendFeedback](actions.md#sendfeedback) |
 | [`list_metrics`](#list_metrics) (metrics) | List the metric library | reads | — |
 | [`get_metric`](#get_metric) (metrics) | Read a metric | reads | — |
 | [`save_metric`](#save_metric) (metrics) | Add or change a metric | changes | [saveMetric](actions.md#savemetric) |
@@ -101,6 +96,11 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`delete_review`](#delete_review) (reviews) | Delete a review never held | changes; removes something | [deleteReview](actions.md#deletereview) |
 | [`export`](#export) (spreadsheets) | Export the goals | reads | — |
 | [`export_table`](#export_table) (spreadsheets) | Export a data table as shown | reads | — |
+| [`list_watching`](#list_watching) (watching) | What you watch | reads | — |
+| [`watch`](#watch) (watching) | Watch goals | changes | [watch](actions.md#watch) |
+| [`unwatch`](#unwatch) (watching) | Stop watching | changes | [unwatch](actions.md#unwatch) |
+| [`get_wrap_up`](#get_wrap_up) (wrap-up) | The cycle’s wrap-up | reads | — |
+| [`wrap_up_goal`](#wrap_up_goal) (wrap-up) | Wrap up a goal | changes | [saveRetro](actions.md#saveretro) |
 
 ## get_overview
 
@@ -385,6 +385,9 @@ No arguments.
                 says: string | null;
             } | null;
         }[];
+        unmeasured?: {
+            since: string;
+        } | undefined;
         state?: string | undefined;
         stopped?: {
             at: string;
@@ -559,6 +562,9 @@ No arguments.
                 says: string | null;
             } | null;
         }[];
+        unmeasured?: {
+            since: string;
+        } | undefined;
         state?: string | undefined;
         stopped?: {
             at: string;
@@ -1726,7 +1732,7 @@ No arguments.
 
 ```ts
 {
-    wrapUpOpen: boolean;
+    wrapUpOpen?: boolean | undefined;
     yourReviews?: {
         id: string;
         name: string;
@@ -1741,6 +1747,15 @@ No arguments.
             name: string;
             date: string;
             day: string;
+        } | null | undefined;
+        watching?: {
+            goals: number;
+            needAttention: string[];
+            beingHandled: {
+                title: string;
+                inHand: string;
+            }[];
+            noRecentUpdate: number;
         } | null | undefined;
         goals: {
             whose: 'mine' | 'all';
@@ -1757,15 +1772,6 @@ No arguments.
             forgivenWeekWas: string | null;
             first: string;
             second: string | null;
-        } | null;
-        watching: {
-            goals: number;
-            needAttention: string[];
-            beingHandled: {
-                title: string;
-                inHand: string;
-            }[];
-            noRecentUpdate: number;
         } | null;
     };
     checkInsDue: {
@@ -1929,38 +1935,6 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [AskKind](da
 
 **Does the same as:** no action: it reads, or does something only an assistant needs.
 
-## list_watching
-
-**What you watch.** Your watches (a goal, a goal and everything feeding it, or a whole level) and the goals they cover.
-
-**Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
-
-**Input:**
-
-No arguments.
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "properties": {},
-  "additionalProperties": false
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{}
-```
-
-**Refuses with:** nothing of its own beyond the shared refusals above.
-
-**Does the same as:** no action: it reads, or does something only an assistant needs.
-
 ## list_people
 
 **People and teams.** Everyone in the workspace with their email, job title, team and whether they’re an admin, and the teams.
@@ -2097,53 +2071,6 @@ No arguments.
 
 ```ts
 {}
-```
-
-**Refuses with:** nothing of its own beyond the shared refusals above.
-
-**Does the same as:** no action: it reads, or does something only an assistant needs.
-
-## get_wrap_up
-
-**The cycle’s wrap-up.** At the end of a cycle: which goals are wrapped up (result, what was learned, carry on or stop) and which are still to do.
-
-**Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
-
-**Input:**
-
-No arguments.
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "properties": {},
-  "additionalProperties": false
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{
-    open: boolean;
-    opensWeek: number;
-    opens: string;
-    lastDay: string;
-    closes: string;
-    goals: {
-        id: string;
-        title: string;
-        owner: string;
-        wrappedUp: boolean;
-        result: 'hit' | 'partly' | 'missed' | null;
-        learned: string | null;
-        next: 'stop' | 'carry' | null;
-    }[];
-}
 ```
 
 **Refuses with:** nothing of its own beyond the shared refusals above.
@@ -2766,103 +2693,6 @@ No arguments.
 
 **Does the same as:** [editCall](actions.md#editcall), so it refuses with their words too.
 
-## watch
-
-**Watch goals.** Watch a goal, a goal and everything feeding it, or every goal at a level. Watched goals are on the Watching page and in get_my_work.
-
-**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
-
-**Input:**
-
-| Argument | Type | Needed | What it is |
-|---|---|---|---|
-| `kind` | one of `goal`, `tree`, `level` | yes | What to watch. |
-| `ref` | string | yes | A goal’s ID or key (G-12), or a level (north-star, svp, team). |
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "kind",
-    "ref"
-  ],
-  "properties": {
-    "kind": {
-      "type": "string",
-      "description": "What to watch.",
-      "enum": [
-        "goal",
-        "tree",
-        "level"
-      ]
-    },
-    "ref": {
-      "type": "string",
-      "description": "A goal’s ID or key (G-12), or a level (north-star, svp, team)."
-    }
-  }
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{}
-```
-
-**Refuses with:**
-
-- “There’s no goal with … … in …. Use find_goals to get IDs and keys.”
-
-**Does the same as:** [watch](actions.md#watch), so it refuses with their words too.
-
-## unwatch
-
-**Stop watching.** Stop one of your watches: the goals it covered leave your Watching page.
-
-**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
-
-**Input:**
-
-| Argument | Type | Needed | What it is |
-|---|---|---|---|
-| `watch_id` | string | yes | The watch’s ID, from list_watching. |
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "watch_id"
-  ],
-  "properties": {
-    "watch_id": {
-      "type": "string",
-      "description": "The watch’s ID, from list_watching."
-    }
-  }
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{}
-```
-
-**Refuses with:** nothing of its own beyond the shared refusals above.
-
-**Does the same as:** [unwatch](actions.md#unwatch), so it refuses with their words too.
-
 ## save_person
 
 **Add or change a person.** Admins: add someone to the workspace, or change their name, email, job title, team or admin rights. There’s always at least one admin. Without person_id it adds a new person, who needs an email.
@@ -2931,79 +2761,6 @@ No arguments.
 - “There’s no team called …. Teams: ….”
 
 **Does the same as:** [planChanges](actions.md#planchanges), [savePerson](actions.md#saveperson), so it refuses with their words too.
-
-## wrap_up_goal
-
-**Wrap up a goal.** In the last two weeks of a cycle, the goal’s owner (or an admin) says how it landed, what was learned, and whether it carries on into the next cycle. Can be changed until the next cycle starts.
-
-**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
-
-**Input:**
-
-| Argument | Type | Needed | What it is |
-|---|---|---|---|
-| `goal_id` | string | yes | The goal’s ID or its key, e.g. G-12. |
-| `result` | one of `hit`, `partly`, `missed` | yes | How it landed. |
-| `learned` | string | yes | One thing worth knowing next time (a sentence). |
-| `next` | one of `carry`, `stop` | yes | Next cycle. |
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "goal_id",
-    "result",
-    "learned",
-    "next"
-  ],
-  "properties": {
-    "goal_id": {
-      "type": "string",
-      "description": "The goal’s ID or its key, e.g. G-12."
-    },
-    "result": {
-      "type": "string",
-      "description": "How it landed.",
-      "enum": [
-        "hit",
-        "partly",
-        "missed"
-      ]
-    },
-    "learned": {
-      "type": "string",
-      "description": "One thing worth knowing next time (a sentence)."
-    },
-    "next": {
-      "type": "string",
-      "description": "Next cycle.",
-      "enum": [
-        "carry",
-        "stop"
-      ]
-    }
-  }
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{}
-```
-
-**Refuses with:**
-
-- “There’s no goal with … … in …. Use find_goals to get IDs and keys.”
-- “result is hit, partly or missed.”
-- “next is carry or stop.”
-
-**Does the same as:** [saveRetro](actions.md#saveretro), so it refuses with their words too.
 
 ## start_next_cycle
 
@@ -3392,59 +3149,6 @@ No arguments.
 
 **Does the same as:** [revokeToken](actions.md#revoketoken), so it refuses with their words too.
 
-## send_feedback
-
-**Send feedback about the app.** Feedback about the app itself, for the people who build it: how it felt and what happened.
-
-**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
-
-**Input:**
-
-| Argument | Type | Needed | What it is |
-|---|---|---|---|
-| `mood` | one of `good`, `meh`, `bad` | yes | How it felt. |
-| `text` | string | yes | What happened, or what would help. |
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "mood",
-    "text"
-  ],
-  "properties": {
-    "mood": {
-      "type": "string",
-      "description": "How it felt.",
-      "enum": [
-        "good",
-        "meh",
-        "bad"
-      ]
-    },
-    "text": {
-      "type": "string",
-      "description": "What happened, or what would help."
-    }
-  }
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{}
-```
-
-**Refuses with:** nothing of its own beyond the shared refusals above.
-
-**Does the same as:** [sendFeedback](actions.md#sendfeedback), so it refuses with their words too.
-
 ## rename_workspace
 
 **Rename the workspace.** Admins: give the workspace a new name (up to 80 characters). Everyone sees the new name; the change is logged.
@@ -3535,7 +3239,7 @@ No arguments.
 
 ## set_feature
 
-**Switch a feature on or off.** Admins: switch one of Faro's optional features (its modules) on or off in this workspace. Off, it leaves every screen: no page, menu or tool of its own, here or for assistants; anything that needs it goes off with it. Nothing it saved is deleted, and switching it back on brings it all back. The change is logged. The features: metrics (Metric library: Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.); reviews (Reviews: Walk a set of goals together on a cadence, decide what happens next and keep what was said.); spreadsheets (Spreadsheets: Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.).
+**Switch a feature on or off.** Admins: switch one of Faro's optional features (its modules) on or off in this workspace. Off, it leaves every screen: no page, menu or tool of its own, here or for assistants; anything that needs it goes off with it. Nothing it saved is deleted, and switching it back on brings it all back. The change is logged. The features: feedback (Feedback: Send feedback about Faro, or mark up a screen. It goes to the people who build Faro.); goal-map (Goal map: See every goal and what feeds it on one canvas, with the path the risk runs along.); metrics (Metric library: Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.); reviews (Reviews: Walk a set of goals together on a cadence, decide what happens next and keep what was said.); spreadsheets (Spreadsheets: Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.); watching (Watching: Follow goals you don’t own: they show on your Home and under Watching in Goals.); wrap-up (Wrap-up: At the end of the year, each owner says how their goals landed and what they learned.).
 
 **Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
 
@@ -3543,7 +3247,7 @@ No arguments.
 
 | Argument | Type | Needed | What it is |
 |---|---|---|---|
-| `feature` | one of `metrics`, `reviews`, `spreadsheets` | yes | The feature’s id. |
+| `feature` | one of `feedback`, `goal-map`, `metrics`, `reviews`, `spreadsheets`, `watching`, `wrap-up` | yes | The feature’s id. |
 | `on` | boolean | yes | true to switch it on, false to switch it off. |
 
 <details><summary>The input schema, as JSON</summary>
@@ -3561,9 +3265,13 @@ No arguments.
       "type": "string",
       "description": "The feature’s id.",
       "enum": [
+        "feedback",
+        "goal-map",
         "metrics",
         "reviews",
-        "spreadsheets"
+        "spreadsheets",
+        "watching",
+        "wrap-up"
       ]
     },
     "on": {
@@ -4400,6 +4108,8 @@ No arguments.
 
 **List markups.** Markups people sent (a picture of a screen with a drawing and a line saying what should change), newest first, from every workspace and the demo. Filter by status or workspace.
 
+From the [feedback](../modules/feedback/README.md) module: switched off with it.
+
 **Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
 
 **Input:**
@@ -4456,6 +4166,8 @@ No arguments.
 ## get_markup
 
 **Open a markup.** One markup in full: its line, the named screen parts under the drawing, the notes, where it was sent from (page, goal or review, screen size, theme, accent, app version, the demo or a preview build), the steps before it and the errors on that visit. Its picture (the screen with the drawing on it) comes back in the answer as an image.
+
+From the [feedback](../modules/feedback/README.md) module: switched off with it.
 
 **Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
 
@@ -4550,6 +4262,8 @@ No arguments.
 
 **Review the inbox.** Everything new in the inbox in one step, ready to triage: new markups grouped by the screen part they are about (newest first, with a count), each with its line, notes, who sent it and from where, and new feedback grouped by page. The newest markup of each group comes with its picture as an image. Then use update_markup and update_feedback.
 
+From the [feedback](../modules/feedback/README.md) module: switched off with it.
+
 **Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
 
 **Input:**
@@ -4632,6 +4346,8 @@ No arguments.
 
 **Change a markup.** Set a markup’s status (admins only: new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.
 
+From the [feedback](../modules/feedback/README.md) module: switched off with it.
+
 **Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
 
 **Input:**
@@ -4705,6 +4421,8 @@ No arguments.
 
 **Feedback about the app.** What people said through Send feedback (a mood and a few words), newest first, from every workspace, each with its status (new, in-hand, fixed, wont-fix); filter by status or workspace.
 
+From the [feedback](../modules/feedback/README.md) module: switched off with it.
+
 **Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
 
 **Input:**
@@ -4763,6 +4481,8 @@ No arguments.
 
 **Open a piece of feedback.** One piece of feedback in full: its words and mood, the screen it was sent from, who sent it from which workspace and when, and its status (with the What’s new entry that fixed it, or why it won’t be fixed, and who said so).
 
+From the [feedback](../modules/feedback/README.md) module: switched off with it.
+
 **Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
 
 **Input:**
@@ -4806,6 +4526,8 @@ No arguments.
 ## update_feedback
 
 **Change a piece of feedback.** Set a piece of feedback’s status (admins only), with the inbox’s rules: new, in-hand, fixed (with fixed_in, the What’s new entry id that has the fix; its sender then sees “You raised this” there) or wont-fix (with a reason).
+
+From the [feedback](../modules/feedback/README.md) module: switched off with it.
 
 **Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
 
@@ -4875,6 +4597,61 @@ No arguments.
 **Refuses with:** nothing of its own beyond the shared refusals above.
 
 **Does the same as:** no action: it reads, or does something only an assistant needs.
+
+## send_feedback
+
+**Send feedback about the app.** Feedback about the app itself, for the people who build it: how it felt and what happened.
+
+From the [feedback](../modules/feedback/README.md) module: switched off with it.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `mood` | one of `good`, `meh`, `bad` | yes | How it felt. |
+| `text` | string | yes | What happened, or what would help. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "mood",
+    "text"
+  ],
+  "properties": {
+    "mood": {
+      "type": "string",
+      "description": "How it felt.",
+      "enum": [
+        "good",
+        "meh",
+        "bad"
+      ]
+    },
+    "text": {
+      "type": "string",
+      "description": "What happened, or what would help."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:** nothing of its own beyond the shared refusals above.
+
+**Does the same as:** [sendFeedback](actions.md#sendfeedback), so it refuses with their words too.
 
 ## list_metrics
 
@@ -5044,6 +4821,8 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `refresh` | one of `live`, `hourly`, `daily`, `weekly`, `monthly`, `quarterly`, `` | no | How often the source refreshes. Empty for not said. |
 | `owner` | string | no | Who answers for the definition, by ID, email or name. Whoever adds it, when left out. |
 | `caveats` | string | no | What to watch out for when reading it. |
+| `measurement` | one of `measured`, `partly`, `gap` | no | Whether it is measured today: “measured” (in full), “partly” (some of it, or not every period; say what’s missing) or “gap” (nobody measures it yet). Goals measured by a metric with a gap are held to no number until it is measured, and need no made-up baseline. Measured when left out of a new metric. |
+| `measurement_note` | string | no | What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured. |
 | `confirm` | boolean | no | Kept for older callers; the questions below replace it. |
 | `comparable` | boolean | no | When the meaning or source of a metric goals use changes: true if it is still the same number (better words; nothing is marked), false if the number itself changes from this week (its goals’ charts and History say so; give reason). |
 | `reason` | string | no | Why, in a line (up to 300 characters): required when the number itself changes (comparable false) or the direction changes. Every goal measured by it shows this. |
@@ -5118,6 +4897,19 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
     "caveats": {
       "type": "string",
       "description": "What to watch out for when reading it."
+    },
+    "measurement": {
+      "type": "string",
+      "description": "Whether it is measured today: “measured” (in full), “partly” (some of it, or not every period; say what’s missing) or “gap” (nobody measures it yet). Goals measured by a metric with a gap are held to no number until it is measured, and need no made-up baseline. Measured when left out of a new metric.",
+      "enum": [
+        "measured",
+        "partly",
+        "gap"
+      ]
+    },
+    "measurement_note": {
+      "type": "string",
+      "description": "What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured."
     },
     "confirm": {
       "type": "boolean",
@@ -6108,6 +5900,9 @@ From the [spreadsheets](../modules/spreadsheets/README.md) module: switched off 
                 says: string | null;
             } | null;
         }[];
+        unmeasured?: {
+            since: string;
+        } | undefined;
         state?: string | undefined;
         stopped?: {
             at: string;
@@ -6279,3 +6074,262 @@ From the [spreadsheets](../modules/spreadsheets/README.md) module: switched off 
 - “… Its columns: ….”
 
 **Does the same as:** no action: it reads, or does something only an assistant needs.
+
+## list_watching
+
+**What you watch.** Your watches (a goal, a goal and everything feeding it, or a whole level) and the goals they cover.
+
+From the [watching](../modules/watching/README.md) module: switched off with it.
+
+**Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
+
+**Input:**
+
+No arguments.
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {},
+  "additionalProperties": false
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:** nothing of its own beyond the shared refusals above.
+
+**Does the same as:** no action: it reads, or does something only an assistant needs.
+
+## watch
+
+**Watch goals.** Watch a goal, a goal and everything feeding it, or every goal at a level. Watched goals are on the Watching page and in get_my_work.
+
+From the [watching](../modules/watching/README.md) module: switched off with it.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `kind` | one of `goal`, `tree`, `level` | yes | What to watch. |
+| `ref` | string | yes | A goal’s ID or key (G-12), or a level (north-star, svp, team). |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "ref"
+  ],
+  "properties": {
+    "kind": {
+      "type": "string",
+      "description": "What to watch.",
+      "enum": [
+        "goal",
+        "tree",
+        "level"
+      ]
+    },
+    "ref": {
+      "type": "string",
+      "description": "A goal’s ID or key (G-12), or a level (north-star, svp, team)."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:**
+
+- “There’s no goal with … … in …. Use find_goals to get IDs and keys.”
+
+**Does the same as:** [watch](actions.md#watch), so it refuses with their words too.
+
+## unwatch
+
+**Stop watching.** Stop one of your watches: the goals it covered leave your Watching page.
+
+From the [watching](../modules/watching/README.md) module: switched off with it.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `watch_id` | string | yes | The watch’s ID, from list_watching. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "watch_id"
+  ],
+  "properties": {
+    "watch_id": {
+      "type": "string",
+      "description": "The watch’s ID, from list_watching."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:** nothing of its own beyond the shared refusals above.
+
+**Does the same as:** [unwatch](actions.md#unwatch), so it refuses with their words too.
+
+## get_wrap_up
+
+**The cycle’s wrap-up.** At the end of a cycle: which goals are wrapped up (result, what was learned, carry on or stop) and which are still to do.
+
+From the [wrap-up](../modules/wrap-up/README.md) module: switched off with it.
+
+**Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
+
+**Input:**
+
+No arguments.
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {},
+  "additionalProperties": false
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{
+    open: boolean;
+    opensWeek: number;
+    opens: string;
+    lastDay: string;
+    closes: string;
+    goals: {
+        id: string;
+        title: string;
+        owner: string;
+        wrappedUp: boolean;
+        result: 'hit' | 'partly' | 'missed' | null;
+        learned: string | null;
+        next: 'stop' | 'carry' | null;
+    }[];
+}
+```
+
+**Refuses with:** nothing of its own beyond the shared refusals above.
+
+**Does the same as:** no action: it reads, or does something only an assistant needs.
+
+## wrap_up_goal
+
+**Wrap up a goal.** In the last two weeks of a cycle, the goal’s owner (or an admin) says how it landed, what was learned, and whether it carries on into the next cycle. Can be changed until the next cycle starts.
+
+From the [wrap-up](../modules/wrap-up/README.md) module: switched off with it.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `goal_id` | string | yes | The goal’s ID or its key, e.g. G-12. |
+| `result` | one of `hit`, `partly`, `missed` | yes | How it landed. |
+| `learned` | string | yes | One thing worth knowing next time (a sentence). |
+| `next` | one of `carry`, `stop` | yes | Next cycle. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "goal_id",
+    "result",
+    "learned",
+    "next"
+  ],
+  "properties": {
+    "goal_id": {
+      "type": "string",
+      "description": "The goal’s ID or its key, e.g. G-12."
+    },
+    "result": {
+      "type": "string",
+      "description": "How it landed.",
+      "enum": [
+        "hit",
+        "partly",
+        "missed"
+      ]
+    },
+    "learned": {
+      "type": "string",
+      "description": "One thing worth knowing next time (a sentence)."
+    },
+    "next": {
+      "type": "string",
+      "description": "Next cycle.",
+      "enum": [
+        "carry",
+        "stop"
+      ]
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:**
+
+- “There’s no goal with … … in …. Use find_goals to get IDs and keys.”
+- “result is hit, partly or missed.”
+- “next is carry or stop.”
+
+**Does the same as:** [saveRetro](actions.md#saveretro), so it refuses with their words too.

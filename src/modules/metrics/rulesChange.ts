@@ -5,6 +5,7 @@
 import type { ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import type { Goal } from '../../domain/types';
+import { heldBy } from './rulesMeasured';
 import { canEditMetric, DIRECTION_LABEL, linksOf, liveMetrics, log, metricRows, metricsOf, no, saveMetric, type Metric, type MetricInput, type MetricLink, type MetricMark } from './rules';
 
 /** Rule 3's kinds, in the order the read-back shows them. `words` saves at once; `scale` is refused. */
@@ -87,7 +88,12 @@ export function saveMetricChange(x: ActionContext, input: ChangeInput): { commit
       : `Its unit changed from “${before.unit}” to “${after.unit}”, as “${after.name}” did`,
     diffs: goals.length ? [{ field: 'Unit', from: before.unit, to: after.unit }] : [],
   }));
-  return { metric, commit: { ...metricRows({ metrics: [metric] }), ...(goals.length ? { goals } : {}), changes: [{ ...head, summary: said }, ...perGoal] } };
+  // MS: a gap opened or closed holds its goals to no number, or to their plans again, in the same save (one Undo).
+  const relabelled = new Map(goals.map((g) => [g.id, g]));
+  const hold = heldBy(x, metric, (x.full ?? x.snapshot).goals.map((g) => relabelled.get(g.id) ?? g), linksOf(x.full ?? x.snapshot));
+  for (const g of hold.goals) relabelled.set(g.id, g);
+  const written = [...relabelled.values()];
+  return { metric, commit: { ...metricRows({ metrics: [metric] }), ...(written.length ? { goals: written } : {}), changes: [{ ...head, summary: said }, ...perGoal, ...hold.changes] } };
 }
 
 /** Rule 4's reading lives with the records (rules.ts), as the goal's chart reads it on the first download. */

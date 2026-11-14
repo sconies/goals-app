@@ -62,7 +62,7 @@ Requirements: `PROJECTION-RANGE`, `STATUS-BANDS`, `STATUS-DIRECTION`, `RANGE`, `
 - On track: At least 95% of the progress planned by now, inside its limit, or every stage on schedule. If the recent trend says it will still finish short, it is flagged as getting worse.
 - At risk: 80%–95% of the progress planned by now, inside a limit’s warning margin or over it for one week, or a stage up to 2 weeks late. The owner says how it gets back: its path to green.
 - Off track: Under 80% of the progress planned by now, a stage more than 2 weeks late, or over a limit two weeks running. It needs a decision, help or a new plan.
-- No recent update: The latest check-in was posted 14 days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in. Never used when there is no set check-in rhythm.
+- No recent update: The latest check-in was posted 14 days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in.
 - No check-in yet: The goal has begun and nobody has checked in on it yet. 14 days after it began with still none, it has no recent update.
 - Not started: Week 0: the goal is set up and its first check-in is due in week 1.
 - Done: The owner called it done in a check-in. Done means finished wherever it is said: a goal, a stage or an action.
@@ -269,13 +269,6 @@ Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, qua
 - The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned.
 - A number that looks wrong (ten times last week’s, say) is a question you answer before posting: “Yes, it’s right” or change it. The same number as last week asks whether you measured it again. Your answer is kept in the goal’s History. A number that can’t be used says what to fix.
 
-#### With no set rhythm
-
-- An admin can choose no set rhythm for a workspace (Workspace, Features). Then Check-in is “Check in on a goal”: your goals with no check-in this week first, those you have never checked in on at the top, then those checked in this week. Each row has its own button; nothing is due, late or counted against you, and there is no streak.
-- A goal is judged by what it last said. Where that isn’t this week’s, its status says which week it is from: “On track · as of week 44”, on Goals, Home, Watching and the goal’s page. No goal reads No recent update, and History has no “No check-in” rows.
-- Home and Goals say what has a check-in this week, not what is due. On Home each of your goals without one this week has its own Check in button. Goals’ Last check-in filter still finds the goals that have gone quiet.
-- On a goal that isn’t yours, “Ask the owner for an update” is there whenever its latest check-in isn’t this week’s. Its forecast is still made from the numbers there are, and says whose pace it is: “on the pace to week 44”. A printed goal says “as of week 44” beside its status.
-
 #### A number filled in from its source
 
 - With the Metric library on, a goal measured by a metric whose source Faro can read opens its number step with the latest reading already in the field: “From CI analytics, read 9:02 today.” The button says the number (“Confirm 12 min”), so confirming is something you read, not a reflex. Nothing is posted until you finish the check-in, and a week you don’t check in stays a week with no check-in.
@@ -363,7 +356,7 @@ An ask names what’s needed, who must respond and, if it matters, by when, so i
 
 ### Watching goals
 
-`watching`. Watch the goals you care about but don’t own, and see what changed in them without opening each one.
+`watching`, from the watching module. Watch the goals you care about but don’t own, and see what changed in them without opening each one.
 
 Routes: `/watching`. Screens: `Watching`. Requirements: `WATCHING`, `ASK-UNDO`, `ONE-WATCHING`, `GOAL-SAYS`, `SMALL-QUIET`.
 
@@ -507,7 +500,7 @@ Seeing results over the year without mistaking a week’s confidence for a quart
 
 ### The goal map
 
-`goal-map`. The map draws every goal and how they connect, so you can see what feeds what and where the risk runs.
+`goal-map`, from the goal-map module. The map draws every goal and how they connect, so you can see what feeds what and where the risk runs.
 
 Routes: `/goals?view=map`. Screens: `GoalMap`. Requirements: `GOAL-MAP`.
 
@@ -540,6 +533,7 @@ A proposed goal’s page is simpler: Proposed above the title, what it would mea
 #### The summary bar
 
 - First line: the goal, its owner, its level and its key (G-12). Then its status as a shape and a word, and the number in the goal’s own units.
+- A goal whose number isn’t measured yet (the metric that measures it has a gap) says “Not measured yet”, with a broken ring, instead of a status: it is held to no number, so nothing on it is due or late and it projects nothing, until the metric is measured.
 - Before a goal’s first check-in, a baseline it was given with its period is shown as its number, with “Baseline, June to September 2026, provisional” beside it; lists say “41.5 min (baseline)”. Its status is No check-in yet as before, until someone checks in.
 - Beside the key: when it was last updated, the latest check-in’s date and its week (“Updated 6 Nov · week 45”).
 - Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go; when lower is better, how far over the target it still is: “5 min over”), and Will it hit the target. A gap on the wrong side of a plan says “short” when higher is better and “over” when lower is better, and a number shown equal to its plan counts as met.
@@ -819,7 +813,7 @@ Routes: `/activity`. Screens: `Activity`. Requirements: `CHANGE-LOG`, `NOTES`, `
 
 ### Wrapping up the year, and the next one
 
-`wrap-up`. In the last two weeks of the year, owners wrap up each goal; then an admin starts the next year.
+`wrap-up`, from the wrap-up module. In the last two weeks of the year, owners wrap up each goal; then an admin starts the next year.
 
 Routes: `/retro`, `/retro/:goalId`. Screens: `Retro`. Requirements: `RETRO`, `YEAR`, `RESULTS`.
 
@@ -1265,6 +1259,23 @@ Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-CHANGE`.
 
 - An admin merges a metric into another in the same unit: every goal it measures moves to the other, keeping its For and part, and it is retired pointing there. One Undo puts it all back.
 
+### When a number isn’t measured yet
+
+`metric-measurement`, from the metrics module. Say a metric is measured, partly measured or a gap, and what happens to the goals it measures.
+
+Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-MEASUREMENT`.
+
+#### Measured, Partly or Gap
+
+- Each metric says whether it is measured today, under “Is it measured today” in its form: Measured (a filled square), Partly (a half-filled square: some of it, or not every period) or Gap (a broken square: nobody measures it yet).
+- With Partly or Gap, say what’s missing and who is sorting it out, in a line. Its page shows it beside the mark.
+- A gap or a part is listed under To sort out, on the metric’s page and in the library, with “Say how it’s measured”.
+
+#### Goals measured by a gap
+
+- A goal measured by a metric with a gap is held to no number. It says “Not measured yet”, with a broken ring, instead of a status: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.
+- Once the metric is measured, in full or in part, its goals are held to their plans again, in the same save. Linking a goal to a measured metric, or unlinking it, does the same. History says so on each goal, and Undo takes it all back.
+
 ### Teams
 
 `teams`. The workspace’s teams, A to Z, each with its lead, its people and its goals by status; a team’s page says what it is here to do. Admins add, change and remove teams.
@@ -1360,17 +1371,19 @@ On a phone’s home screen and in the browser tab, the F sits on a deep-teal til
 
 ### Features: switching parts of Faro on or off
 
-`features`. Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace: how you work (Reviews) and tools such as the Metric library and Spreadsheets.
+`features`. Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus parts an admin can switch on or off for a workspace, in three groups: working together, tools, and beyond this workspace.
 
-Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`, `REVIEWS-SWITCH-CLOCK`, `RHYTHM-OPTIONAL`.
+Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`, `REVIEWS-SWITCH-CLOCK`, `WATCHING-OPTIONAL`, `FEEDBACK-OPTIONAL`, `MAP-OPTIONAL`, `WRAP-UP-OPTIONAL`, `FEATURE-GROUPS`.
 
 #### How to use it
 
 - On Workspace, Features says how this workspace works and lists the optional parts of Faro, each with what it does; About says which are on, from the same list. Goals, check-ins and people are the core and always on.
-- How you work starts with the check-in rhythm: “Every week, due by Thursday” (a goal with no check-in for 14 days reads No recent update) or “No set rhythm” (owners check in when there’s news; nothing is due or late for want of a check-in). Change opens a sheet with the two choices and, with Every week, the day check-ins are due by.
-- Before you save, the sheet says what changes for everyone here, counted: how many goals have nothing due, how many stop reading No recent update and what each would show instead, and that dates people chose and every check-in already posted stay as they are. Switched back on, nothing is late that day: the rhythm counts from today, and the sheet says when the first check-ins are due. Save says what it did, with Undo.
-- Then Reviews: walking a set of goals together on a cadence. While it is on, it says how many reviews are set up. Tools holds the rest, such as the Metric library and Spreadsheets. Each has a switch with On or Off beside it.
-- Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, how many accepted risks stay on their goals (no new one can be accepted while it is off), that check-ins are still due by the same day, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching a tool off, or anything on, acts at once.
+- Working together holds Reviews (walking a set of goals together on a cadence), Watching (following goals you don’t own) and the Wrap-up (each owner saying how their goals landed at the end of the year). Tools holds the Metric library, Spreadsheets and the Goal map. Beyond this workspace holds Feedback, which goes to the people who build Faro. A group this Faro has nothing in isn’t shown. Each has a switch with On or Off beside it.
+- While a feature is on, its row says what it holds: how many reviews are set up, how many people watch goals here, or when the wrap-up opens and, while it is open, how many goals are wrapped up.
+- Switching off a feature that keeps something asks first: Reviews always, Watching when anyone watches a goal, the Wrap-up once a wrap-up is written or while it is open. Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, how many accepted risks stay on their goals (no new one can be accepted while it is off), that check-ins are still due by the same day, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching anything else off that keeps nothing, or anything on, acts at once.
+- Switching Watching off says that the Watching tab, “Goals you watch” and the Watch button go; how many people’s watches are kept (nobody is shown as watching while it is off); how many people own no goal and see Home through what they watch, whose Home then shows every goal that needs attention; and that goals don’t change. Switch it back on and each person watches what they did.
+- Switching the Wrap-up off says that owners aren’t asked how their goals landed (and, while it is open, how many goals won’t be asked for), that the wrap-ups already written stay in each goal’s History, and that the year still ends: results are worked out as before, and an admin starts the next year from Cycles.
+- Switching Feedback off takes Feedback out of the menu, with Send feedback and Mark up this screen, and Ctrl+Shift+M does nothing. What was sent stays in the builders’ inbox. Switching the Goal map off takes Map out of Goals’ layouts: a link or saved view that asked for the Map opens the List and says so once.
 - Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.
 - With Reviews off, asks and next steps stay on their goals and on Home, each goal’s History and Activity keep what was said in reviews, and check-ins are still due by the same day. “Before the review” becomes “by Thursday” (or whichever day it is) on Home, in the check-in and in the count of goals checked in on time.
 - With Reviews off, a spreadsheet you export has no Notes sheet and no Review column on Asks. A workbook that has them still loads; the preview says once that they were not read. An AI assistant’s review tools answer that Reviews is switched off here, in the same words as any switched-off tool.
@@ -1380,7 +1393,7 @@ Routes: `/workspace/features`. Requirements: `MODULES`, `REVIEWS-OPTIONAL`, `REV
 
 #### Who can
 
-Admins switch features and choose the check-in rhythm. Everyone sees what is on, and Cycles says the rhythm to everyone (“Check-ins: every week, due by Thursday.” or “Check-ins: no set rhythm.”).
+Admins switch features. Everyone sees what is on.
 
 #### For the people building Faro
 
@@ -1455,7 +1468,7 @@ Only admins make MCP tokens. An admin or the token’s own person can revoke one
 
 ### Send feedback, and marking up a screen
 
-`feedback`. Tell the people building Faro what should change: mark up the screen you’re on, or say in a few words how the app is working for you.
+`feedback`, from the feedback module. Tell the people building Faro what should change: mark up the screen you’re on, or say in a few words how the app is working for you.
 
 Requirements: `MARKUP`, `FEEDBACK-RAISED`.
 
@@ -1481,7 +1494,7 @@ Requirements: `MARKUP`, `FEEDBACK-RAISED`.
 
 ### The inbox
 
-`inbox`. Every markup and piece of feedback people send, from every workspace and the demo, on its own page, Feedback, beside Help. Open to anyone with no sign-in: work through it like an inbox, from New to In hand to Closed.
+`inbox`, from the feedback module. Every markup and piece of feedback people send, from every workspace and the demo, on its own page, Feedback, beside Help. Open to anyone with no sign-in: work through it like an inbox, from New to In hand to Closed.
 
 Routes: `/feedback`, `/workspace/inbox`, `/inbox`. Screens: `Feedback`. Requirements: `MARKUP-INBOX`, `FEEDBACK-INBOX`, `MCP-FEEDBACK`, `CONNECT-CLAUDE`, `MCP-PICTURES`, `INBOX-TRIAGE`, `FEEDBACK-PAGE`.
 

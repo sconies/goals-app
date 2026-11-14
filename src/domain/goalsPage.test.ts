@@ -15,6 +15,16 @@ describe('rule 1: the scopes someone has (scopesFor)', () => {
   });
 });
 
+describe('rule 1 with Watching switched off (SW1, spec 2.3)', () => {
+  it('has no Watching tab, and a remembered Watching opens Mine for an owner, else All', () => {
+    const off = { watching: false };
+    const rhea = scopesFor({ goals, viewerId: 'rhea', teams: [{ id: 'ci', name: 'CI/CD' }], watched: new Set(['c']) }, 'watching', off);
+    expect(rhea.tabs.map((t) => t.id)).toEqual(['mine', 'team', 'all']);
+    expect(rhea.opens).toBe('mine');
+    expect(scopesFor({ goals, viewerId: 'nobody', teams: [], watched: new Set(['c']) }, 'watching', off)).toMatchObject({ opens: 'all', tabs: [{ id: 'all' }] });
+  });
+});
+
 describe('rule 2: a scope’s own group', () => {
   it('is trees for All and one list for every other scope', () => expect((['mine', 'team', 'watching', 'all'] as const).map(ownGroup)).toEqual(['none', 'none', 'none', 'tree']));
 });

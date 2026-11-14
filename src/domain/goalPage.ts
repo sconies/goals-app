@@ -166,13 +166,15 @@ export function primaryAction(o: {
 /** The plain button beside the primary one: the owner's "Check in again", or anyone else's "Watch" / "Watching". With no
     set rhythm and no check-in this week, the owner's is "Check in for week {n}" (FT1): an ordinary button, nothing due. */
 export type StandingKind = 'check-in-again' | 'watch' | 'watching' | null;
-export function standingAction(o: { goal: Goal; viewer: Person; primary: Primary; watching: boolean; status: DisplayStatus; week?: number; checkedInThisWeek?: boolean }): { kind: StandingKind; label: string } {
+/** `watching` is null while Watching is switched off (SW1, spec 2.6): then no Watch button, for anyone but the owner. */
+export function standingAction(o: { goal: Goal; viewer: Person; primary: Primary; watching: boolean | null; status: DisplayStatus; week?: number; checkedInThisWeek?: boolean }): { kind: StandingKind; label: string } {
   if (o.goal.stoppedAt) return { kind: null, label: '' };
   if (o.viewer.id === o.goal.ownerId) {
     if (o.status === 'done' || o.primary.kind === 'check-in' || o.primary.kind === 'first-check-in') return { kind: null, label: '' };
     if (o.checkedInThisWeek === false && o.week) return { kind: 'check-in-again', label: `Check in for week ${o.week}` };
     return { kind: 'check-in-again', label: 'Check in again' };
   }
+  if (o.watching === null) return { kind: null, label: '' };
   return o.watching ? { kind: 'watching', label: 'Watching' } : { kind: 'watch', label: 'Watch' };
 }
 

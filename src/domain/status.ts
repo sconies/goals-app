@@ -3,6 +3,7 @@ import { daysSince, currentWeek, weekDate, goalAsOf, hasEnded, planAt, projectio
 import type { CheckIn, Cycle, DisplayStatus, Goal, MetricGoal, MilestoneGoal, RangeGoal, StageUpdate, Status } from './types';
 import { RULES, rhythmOf, staleAfterDays } from './thresholds';
 import { rangeNear, rangeOut } from './range';
+import { isUnmeasured } from './unmeasured';
 import { LABEL, STATUS_ORDER } from './vocabulary';
 
 /* What each status is called and means lives in the vocabulary (domain/vocabulary.ts); the thresholds in thresholds.ts. */
@@ -199,14 +200,19 @@ export interface GoalStatus {
   /** The latest check-in's week when it isn't this week's, else null (FT1). Worked out whatever the rhythm; screens say
       "as of week {n}" only with no set rhythm (with one, No recent update does that job). */
   asOfWeek: number | null;
+  /** Held to no number (domain/unmeasured): its status says nothing about its plan, and nothing on it is late. */
+  unmeasured?: boolean;
 }
 
 export function goalStatus(goal: Goal, cycle: Cycle, checkIns: CheckIn[], today: Date): GoalStatus {
   const week = currentWeek(cycle, today);
   const own = checkInsFor(goal, checkIns);
   const latest = own.length ? own.reduce((a, b) => (b.postedAt > a.postedAt ? b : a)) : null;
-  const calc = assessPosted(goal, cycle, checkIns, week).calc;
   const days = latest ? daysSince(latest.postedAt, today) : null;
+  // Held to no number (MS; domain/unmeasured): no status from its plan and nothing late or quiet, until it is measured.
+  // Only the owner calling it done counts.
+  if (isUnmeasured(goal)) return { status: latest?.status === 'done' ? 'done' : week === 0 ? 'planned' : 'none', calc: 'none', latest, greener: false, daysSinceCheckIn: days, week, asOfWeek: latest && latest.week !== week ? latest.week : null, unmeasured: true };
+  const calc = assessPosted(goal, cycle, checkIns, week).calc;
   const quiet = daysWithoutUpdate(goal, cycle, latest, today);
   let status: DisplayStatus;
   if (latest?.status === 'done') status = 'done';
@@ -234,7 +240,7 @@ export function doneCheckIn(goal: Goal, checkIns: CheckIn[], week?: number): Che
 }
 
 /** Whether a goal projects where it will end: not when its last check-in is too old, once it's done, or once it's stopped. */
-export const projects = (goal: Goal, status: DisplayStatus) => status !== 'stale' && status !== 'done' && !goal.stoppedAt;
+export const projects = (goal: Goal, status: DisplayStatus) => status !== 'stale' && status !== 'done' && !goal.stoppedAt && !isUnmeasured(goal);
 
 /**
  * Days since a goal's latest check-in was posted, or, with none, since it began (the cycle's start, or when it was

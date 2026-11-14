@@ -182,6 +182,19 @@ describe('database schema', () => {
     const saved = await db.query<{ id: string; retired_why: string; marks: unknown[] }>(`select id, retired_why, marks from okr_metrics where id in ('m-retired', 'm-live') order by id`);
     expect(saved.rows.map((r) => [r.id, r.retired_why, (r.marks as unknown[]).length])).toEqual([['m-live', '', 0], ['m-retired', 'Gone', 1]]);
   });
+  it('saves metrics with and without a measurement status in one batch: a measured one is written as measured with no note, never null (MS, 0046)', async () => {
+    const at = '2026-10-30T12:00:00.000Z';
+    const base = { name: '', meaning: '', unit: '%', decimals: 0, direction: 'lower' as const, source: '', sourceOwner: '', refresh: null, ownerId: 'rhea', caveats: '', createdBy: 'rhea', createdAt: at, updatedAt: at };
+    const rows = [
+      metricToRow('example', { ...base, id: 'm-gap', name: 'Gap one', measurement: 'gap', measurementNote: 'No feed yet' }),
+      metricToRow('example', { ...base, id: 'm-measured', name: 'Measured one' }),
+    ];
+    expect(rows[1]).toMatchObject({ measurement: 'measured', measurement_note: '' });
+    await db.query(`select okr_upsert('okr_metrics', $1::jsonb, 'id')`, [JSON.stringify(rows)]);
+    const saved = await db.query<{ id: string; measurement: string; measurement_note: string }>(`select id, measurement, measurement_note from okr_metrics where id in ('m-gap', 'm-measured') order by id`);
+    expect(saved.rows.map((r) => [r.id, r.measurement, r.measurement_note])).toEqual([['m-gap', 'gap', 'No feed yet'], ['m-measured', 'measured', '']]);
+    await expect(db.query(`update okr_metrics set measurement = 'sometimes' where id = 'm-gap'`)).rejects.toThrow(/okr_metrics_measurement_ok/);
+  });
   it('saves links with and without a part in one batch: a link with no part is written as empty, never null (build review of #308)', async () => {
     await db.query(`insert into okr_metrics (id, workspace_id, name, unit, direction, owner_id, created_by) values ('m-mixed', 'example', 'Mixed batch', '%', 'lower', 'rhea', 'rhea')`);
     const [a, b] = s.goals.slice(0, 2);

@@ -43,6 +43,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ### [src/domain/goalsPage.test.ts](../../../src/domain/goalsPage.test.ts)
 
 - rule 1: the scopes someone has (scopesFor) › gives Mine only to an owner, My team to someone with a team, and opens on the last, then Mine, Watching, All
+- rule 1 with Watching switched off (SW1, spec 2.3) › has no Watching tab, and a remembered Watching opens Mine for an owner, else All
 - rule 2: a scope’s own group › is trees for All and one list for every other scope
 - rule 5: a view in words (describeView) › %s → %s
 - rule 5: a view in words (describeView) › lists the filters as the filter line does

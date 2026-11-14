@@ -497,7 +497,9 @@ journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows wha
   // Lane's notes (5 Nov): Home shows "Your goals" (what needs attention, what's being handled) and "Goals you watch".
   await see(p, 'Your goals');
   await see(p, /\d+ needs? attention/);
-  await see(p, 'Goals you watch', 'home also shows the goals Rhea watches');
+  // Watching is a switch (SW1): with it off, Home has no “Goals you watch”.
+  if (built('watching')) await see(p, 'Goals you watch', 'home also shows the goals Rhea watches');
+  else if (await p.getByText('Goals you watch').count()) fail('Watching is off, but Home shows “Goals you watch”');
   await h.checkpoint('home');
   h.set('progress', await p.locator('.hero .ring').isVisible(), 'no weekly progress ring');
   const cards = p.locator('.arow');
@@ -512,7 +514,8 @@ journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows wha
     return { y: el.getBoundingClientRect().top, title: t ? t.bottom : null, fold: bar ? bar.getBoundingClientRect().top : innerHeight };
   });
   h.set('entry', top.y >= 0 && top.title != null && top.title <= top.fold - 8, `the first attention card's title ends at ${Math.round(top.title ?? -1)}px, fold ${Math.round(top.fold)}px`);
-  await see(p, 'late', 'an overdue check-in is called late');
+  // The word comes from a goal Rhea watches, so it is Watching's (SW1): with Watching off, Home has nothing late.
+  if (built('watching')) await see(p, 'late', 'an overdue check-in is called late');
   // The north star is being handled (Amara looked at it in last week's review), so the first card is a goal already
   // checked in; the week's check-in is the hero's one action.
   await h.click(p.locator('.home-hero').getByRole('link', { name: /Start check-in|Pick up where you left off/ }));
@@ -4790,7 +4793,7 @@ journey('U103', ['REVIEWS-OPTIONAL', 'MODULES', 'HOME-OWNER'], 'Amara switches R
   await p.goto(url('/workspace/features'));
   const box = p.getByRole('checkbox', { name: /^Reviews/ });
   await box.scrollIntoViewIfNeeded();
-  h.set('attention', await box.isChecked() && await see(p, 'How you work').then(() => true, () => false) && await see(p, '6 reviews are set up.').then(() => true, () => false), 'Features does not show Reviews under How you work, on, with “6 reviews are set up.”');
+  h.set('attention', await box.isChecked() && await see(p, 'Working together').then(() => true, () => false) && await see(p, '6 reviews are set up.').then(() => true, () => false), 'Features does not show Reviews under Working together, on, with “6 reviews are set up.”');
   await h.checkpoint('features');
   // Switching off asks first: the read-back counts what stays.
   await h.click(box);
@@ -5109,6 +5112,139 @@ journey('U155', ['REVIEWS-SWITCH-CLOCK', 'REVIEWS-OPTIONAL'], 'Reviews back on a
   h.set('errors', true);
   await p.context().close();
 }, ['parity', 'budget']);
+journey('U164', ['WATCHING-OPTIONAL', 'FEATURE-GROUPS', 'MODULES'], 'Amara switches Watching off: Features is in its groups, the read-back counts the watches kept, then Goals has no Watching tab, Home no “Goals you watch”, a goal no Watch button, /watching says it is off, and switching it back on brings every watch back', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/workspace/features'));
+  const box = p.getByRole('checkbox', { name: 'Watching', exact: true });
+  await box.scrollIntoViewIfNeeded();
+  // The four groups (SW1): Working together holds Reviews, Watching and the Wrap-up; Watching says how many people watch.
+  const groups = await p.locator('.features-group h2').allInnerTexts();
+  h.set('attention', JSON.stringify(groups) === JSON.stringify(['Working together', 'Tools', 'Beyond this workspace']) && await see(p, /\d+ people watch goals here\./).then(() => true, () => false), `Features’ groups are ${groups.join(' | ')}, or Watching does not say how many people watch goals`);
+  await h.checkpoint('features');
+  const s0 = await h.snapshot();
+  const here = new Set(s0.people.filter((x) => !x.removedAt && !x.leftAt).map((x) => x.id));
+  const live = (s0.watches || []).filter((w) => !w.removedAt && here.has(w.personId));
+  const watchers = new Set(live.map((w) => w.personId));
+  // Switching off asks first: the read-back counts what stays, as the rule does (watchingOffReadBack).
+  await h.click(box);
+  const sheet = p.getByRole('dialog', { name: /^Switch off Watching in / });
+  await sheet.waitFor();
+  const says = (await sheet.innerText()).replace(/\s+/g, ' ');
+  if (!says.includes(`${watchers.size} people’s ${live.length} watches are kept.`)) fail(`the read-back does not count ${watchers.size} people’s ${live.length} watches: ${says.slice(0, 300)}`);
+  if (!says.includes('Nothing is deleted. Switch Watching back on and each person watches what they did.')) fail('the read-back does not say nothing is deleted');
+  await sheet.getByRole('button', { name: 'Cancel' }).click();
+  if (!(await box.isChecked())) fail('Cancel switched Watching off');
+  await h.click(box);
+  await h.click(p.getByRole('dialog', { name: /^Switch off Watching in / }).getByRole('button', { name: 'Switch off Watching' }));
+  await see(p, 'Watching is off in');
+  h.set('one-action', true);
+  // Goals: no Watching tab.
+  await p.goto(url('/goals'));
+  await p.locator('.goals-page').first().waitFor();
+  const tabs = await p.getByRole('tablist', { name: 'Whose goals' }).getByRole('tab').allInnerTexts();
+  if (tabs.some((t) => /^Watching/.test(t.trim()))) fail(`Goals still has a Watching tab: ${tabs.join(' | ')}`);
+  // Home: no “Goals you watch”; Amara, who owns no goal, is led to the goals that need attention (Reviews still leads first when hers is due).
+  await p.goto(url('/'));
+  await p.locator('.page.home').waitFor();
+  if (await p.locator('[data-part="Goals you watch"]').count()) fail('Home still has “Goals you watch”');
+  if (/Goals you watch/.test(await p.locator('[data-part="Home"]').innerText())) fail('Home still names the goals Amara watches');
+  // A goal: no Watch button and no “Watched by”.
+  await p.goto(url('/goals/ns-lead'));
+  await p.locator('.goal-bar').waitFor();
+  if (await p.locator('.goal-bar').getByRole('button', { name: /^Watch/ }).count()) fail('a goal’s page still offers Watch');
+  if (await p.getByText('Watched by').count()) fail('a goal’s page still says Watched by');
+  // Its address says it is off.
+  await p.goto(url('/watching'));
+  await see(p, 'Page not found');
+  await see(p, 'Watching is switched off in', '/watching does not say Watching is switched off');
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.entity === 'workspace' && c.actorId === 'amara' && c.summary === 'Switched off Watching'), 'switching Watching off was not logged');
+  h.set('finish', (s.watches || []).filter((w) => !w.removedAt).length === (s0.watches || []).filter((w) => !w.removedAt).length, 'switching Watching off changed the watches');
+  // On again, then off and Undo: every watch is back.
+  await p.goto(url('/workspace/features'));
+  await box.scrollIntoViewIfNeeded();
+  await h.click(box);
+  await see(p, 'Watching is on in');
+  await p.goto(url('/'));
+  await p.locator('.page.home').waitFor();
+  await see(p, 'Goals you watch', 'Watching back on, Home has no “Goals you watch”');
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['parity', 'budget']);
+
+journey('U165', ['FEEDBACK-OPTIONAL', 'MAP-OPTIONAL', 'MODULES'], 'Feedback and the Goal map off: no Feedback in the menu, Ctrl+Shift+M opens nothing, /feedback says it is off; Goals offers four layouts and a link to the Map opens the List and says so; both back on, the Map opens', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/workspace/features'));
+  for (const name of ['Feedback', 'Goal map']) {
+    const b = p.getByRole('checkbox', { name, exact: true });
+    await b.scrollIntoViewIfNeeded();
+    await h.click(b);
+    // Neither keeps anything: each acts at once.
+    await see(p, `${name} is off in`);
+  }
+  h.set('one-action', true);
+  await p.goto(url('/'));
+  await p.locator('.page.home').waitFor();
+  const menu = await menuWords(p, device);
+  if (menu.some((t) => /^Feedback/.test(t))) fail(`the menu still has Feedback: ${menu.join(', ')}`);
+  if (device === 'desktop') {
+    await p.keyboard.press('Control+Shift+M');
+    await p.waitForTimeout(600);
+    if (await p.getByRole('dialog', { name: 'Mark up this screen' }).count()) fail('Ctrl+Shift+M opened a markup with Feedback off');
+  }
+  await p.goto(url('/feedback'));
+  await see(p, 'Page not found');
+  await see(p, 'Feedback is switched off in', '/feedback does not say Feedback is switched off');
+  // The Map asked for opens the List, said once.
+  await p.goto(url('/goals?scope=all&view=map'));
+  await see(p, 'The Goal map is off here, so this is the List.', 'a link to the Map does not say the Goal map is off');
+  if (/view=map/.test(p.url())) fail(`the address still asks for the Map: ${p.url()}`);
+  if (await p.locator('.react-flow__node').count()) fail('the Map was drawn with the Goal map off');
+  h.set('attention', true);
+  const s = await h.snapshot();
+  h.set('logged', ['Switched off Feedback', 'Switched off Goal map'].every((x) => s.changes.some((c) => c.entity === 'workspace' && c.summary === x)), 'switching Feedback or the Goal map off was not logged');
+  // Both back on: the Map opens.
+  await p.goto(url('/workspace/features'));
+  for (const name of ['Feedback', 'Goal map']) {
+    const b = p.getByRole('checkbox', { name, exact: true });
+    await b.scrollIntoViewIfNeeded();
+    await h.click(b);
+    await see(p, `${name} is on in`);
+  }
+  await p.goto(url('/goals?scope=all&view=map'));
+  await p.locator('.react-flow__node, .map-list').first().waitFor({ timeout: 10000 }).catch(() => fail('with the Goal map back on, a link to the Map does not open it'));
+  h.set('finish', true);
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['parity', 'budget', 'entry']);
+
+journey('U166', ['WRAP-UP-OPTIONAL', 'MODULES'], 'Amara switches the Wrap-up off: before it opens it acts at once, then /retro says it is off and Cycles offers no wrap-up', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/workspace/features'));
+  const box = p.getByRole('checkbox', { name: 'Wrap-up', exact: true });
+  await box.scrollIntoViewIfNeeded();
+  h.set('attention', await see(p, /Opens on .+\d{4}\./).then(() => true, () => false), 'the Wrap-up does not say when it opens');
+  await h.click(box);
+  // In week 45 nothing is written and the wrap-up isn't open: it acts at once.
+  await see(p, 'Wrap-up is off in');
+  h.set('one-action', true);
+  await p.goto(url('/retro'));
+  await see(p, 'Page not found');
+  await see(p, 'Wrap-up is switched off in', '/retro does not say the Wrap-up is switched off');
+  // Saving a wrap-up refuses in its words: src/app/actions.test.ts (the dispatcher) and the AI tool (check N22).
+  await p.goto(url('/workspace/cycles'));
+  await p.locator('.cycles-block').waitFor();
+  if (await p.getByRole('link', { name: /wrap-up/i }).count()) fail('Cycles still offers the wrap-up');
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.entity === 'workspace' && c.summary === 'Switched off Wrap-up'), 'switching the Wrap-up off was not logged');
+  h.set('finish', true);
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['parity', 'budget', 'entry']);
+
 
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
@@ -6844,6 +6980,41 @@ journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Le
   const none = (await t.getByRole('button', { name: /Retire this metric|Merge into another|Delete this metric/ }).count()) === 0;
   h.set('parity', moved?.metricId === 'metric_first-review' && none, moved?.metricId !== 'metric_first-review' ? 'the merge did not move the goal' : 'Tunde sees a button to retire, merge or delete');
   await t.context().close();
+}, []);
+
+journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and owned (MS): as Rhea, Flaky test rate is said to be a Gap with what is missing; its page shows the square Gap mark and, under To sort out, “Not measured yet: 1 goal held to no number”; its goal says “Not measured yet” with the broken ring, nothing due on it. Said to be Measured again, the goal is held to its plan once more', 24, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/metrics/metric_flaky-rate/edit'));
+  const group = p.getByRole('group', { name: 'Is it measured today' });
+  await group.waitFor();
+  h.set('entry', true);
+  await h.click(group.getByRole('button', { name: 'Gap' }));
+  await h.fill(p.getByLabel(/^What’s missing/), 'The new runners send no results yet; Aiko is adding them.');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/metrics\/flaky-rate(\?|#|$)/);
+  h.set('progress', true);
+  const sortout = p.locator('.metric-sortout');
+  await see(sortout, 'Not measured yet: 1 goal held to no number', 'To sort out does not list the gap and its goal');
+  const mark = p.locator('.metric-facts .measure-gap');
+  h.set('attention', (await mark.count()) === 1 && (await mark.locator('svg.measure-shape').count()) === 1 && /Gap/.test((await mark.textContent()) ?? ''), 'the metric page does not show the Gap shape and word');
+  await h.checkpoint('gap said');
+  await p.goto(url('/goals/lead-flaky'));
+  const bar = p.locator('.goal-bar');
+  await see(bar, 'Not measured yet', 'the goal does not say it is held to no number');
+  h.set('errors', (await bar.locator('.life-shape').count()) >= 1, 'the goal’s Not measured yet has no shape');
+  const held = await h.snapshot();
+  const g = (held.goals ?? []).find((x) => x.id === 'lead-flaky');
+  // Said to be measured again: the goal is held to its plan once more.
+  await p.goto(url('/metrics/metric_flaky-rate/edit'));
+  await h.click(p.getByRole('group', { name: 'Is it measured today' }).getByRole('button', { name: 'Measured' }));
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/metrics\/flaky-rate(\?|#|$)/);
+  const after = await h.snapshot();
+  const g2 = (after.goals ?? []).find((x) => x.id === 'lead-flaky');
+  const m = ((after.modules?.metrics?.metrics) ?? []).find((x) => x.id === 'metric_flaky-rate');
+  h.set('logged', !!g?.unmeasuredSince && !g2?.unmeasuredSince && (m?.measurement ?? 'measured') === 'measured', !g?.unmeasuredSince ? 'the gap did not hold the goal to no number' : 'Measured again did not let go of the goal');
+  h.set('finish', true);
+  await p.context().close();
 }, []);
 
 journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {

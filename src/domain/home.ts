@@ -80,8 +80,9 @@ export interface Dashboard {
   missed: MissedReview[];
 }
 
-/** With Reviews switched off (`reviews` false, FT2) there is no next review and none missed. */
-export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { reviews: boolean } = { reviews: true }): Dashboard {
+/** With Reviews switched off (`reviews` false, FT2) there is no next review and none missed; with Watching off
+    (`watching` false, SW1) nothing is watched. */
+export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { reviews: boolean; watching?: boolean } = { reviews: true }): Dashboard {
   const mine = s.goals.filter((g) => g.ownerId === personId);
   const goals: Goal[] = mine.length ? mine : s.goals;
   const watched = watchedGoals(personId, s);
@@ -90,7 +91,7 @@ export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: num
     counts: statusCounts(goals.map((g) => goalStatus(g, cycle, s.checkIns, today).status)),
     total: goals.length,
     streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
-    watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
+    watching: opts.watching !== false && s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
     ...(() => { const upcoming = opts.reviews ? nextReviews(personId, s, cycle, week, today) : []; return { next: upcoming[0] ?? null, upcoming }; })(),
     missed: opts.reviews ? missedReviews(personId, s, cycle, week, today) : [],
   };
@@ -127,6 +128,11 @@ export interface HomeFacts {
   watches: number;
   /** With Reviews off (FT2), for someone who owns no goal: how many goals they watch need attention. Absent otherwise. */
   watchNeeds?: number;
+  /** With Watching off (SW1), for someone who owns no goal: how many goals in the workspace need attention. Absent
+      otherwise; `watches` is then 0 and nothing names watching. */
+  allNeeds?: number;
+  /** Watching is switched off (SW1). */
+  watchingOff?: boolean;
   /** Rule 3: the open asks waiting on the viewer, in rule 3's order. */
   asks: Waiting[];
   /** Goals proposed for the viewer by someone else, not yet opened (goal entry rule 14, `proposalAsks`'s `for-you`). */
@@ -138,7 +144,7 @@ export interface HomeFacts {
 /** A goal proposed for the viewer by someone else that they haven't opened, as the lead reads it. */
 export interface ProposedForYou { id: string; title: string; by: string; proposedOn: string; /** The review it was proposed in, by name: said as " in {review}". */ in?: string | null }
 
-export type LeadKind = 'check-in-late' | 'check-in' | 'wrap-up' | 'review' | 'watching' | 'ask';
+export type LeadKind = 'check-in-late' | 'check-in' | 'wrap-up' | 'review' | 'watching' | 'attention' | 'ask';
 export interface Lead {
   kind: LeadKind;
   eyebrow: string;
@@ -231,6 +237,8 @@ export function homeLead(f: HomeFacts): Lead | null {
   if (session) return reviewLead(f, session);
   // 50 with Reviews off (FT2): someone who owns no goal is led to the goals they watch that need attention.
   if (f.watchNeeds) return { kind: 'watching', eyebrow: 'Goals you watch', warn: false, title: `${f.watchNeeds} need${f.watchNeeds === 1 ? 's' : ''} attention`, line: '', action: { label: 'See them', to: '/goals?scope=watching&attention=1' }, also: null, ring: null, about: null };
+  // 50 with Watching off (SW1, spec 2.2 step 4): someone who owns no goal is led to every goal that needs attention.
+  if (f.allNeeds) return { kind: 'attention', eyebrow: `In ${f.workspace}`, warn: false, title: `${f.allNeeds} ${plural(f.allNeeds, 'goal')} need${f.allNeeds === 1 ? 's' : ''} attention`, line: '', action: { label: 'See them', to: '/goals?scope=all&attention=1' }, also: null, ring: null, about: null };
   // 60: the oldest or most pressing thing waiting on the viewer (rule 3's order puts it first); then a goal proposed for
   // them, which is an ask with no date, asked on the day it was proposed, and so after any ask that leads.
   return askLead(f.asks[0]) ?? proposalLead(f.proposals ?? [], f.today);
@@ -275,7 +283,7 @@ export function quietLine(f: HomeFacts): Quiet {
   }
   // With no set rhythm nothing was owed: every goal checked in this week is said plainly, with no run (FT1).
   if (!f.rhythm && c.total > 0 && c.done >= c.total) return { sentence, line: `All ${c.total} have a check-in this week.`, buttons: [] };
-  if (!f.owns && !f.watches && !f.asks.length) return { sentence, line: `You don’t own or watch a goal in ${f.workspace} yet.`, buttons: [{ label: 'See the goals', to: '/goals?scope=all' }, { label: 'Set up a goal', to: '/goals/new' }] };
+  if (!f.owns && !f.watches && !f.asks.length) return { sentence, line: f.watchingOff ? `You don’t own a goal in ${f.workspace} yet.` : `You don’t own or watch a goal in ${f.workspace} yet.`, buttons: [{ label: 'See the goals', to: '/goals?scope=all' }, { label: 'Set up a goal', to: '/goals/new' }] };
   // Set up after this week's deadline: the first check-in is next week's, said plainly.
   if (f.rhythm && c.total > 0 && !c.done && f.rhythm.nextDueDate) return { sentence, line: `Your first ${plural(c.total, 'check-in is', 'check-ins are')} due by ${dueOn(f.rhythm.nextDueDate)}.`, buttons: [] };
   return { sentence, line: null, buttons: [] };

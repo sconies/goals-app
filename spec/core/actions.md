@@ -1566,6 +1566,8 @@ From the [metrics](../modules/metrics/README.md) module.
 | `sourceOwner` | `string` | no |  |
 | `refresh` | `MetricRefresh \| null` | no | How often the source refreshes; null when nobody has said. |
 | `caveats` | `string` | no | What to watch out for when reading it (a known gap, a change of method). |
+| `measurement` | `MetricMeasurement` | no | Whether it is measured today (MS; rulesMeasured.ts): absent on one never said otherwise, which is measured. Goals measured by a metric with a gap are held to no number (domain/unmeasured) until it is measured. |
+| `measurementNote` | `string` | no | What's missing from the measurement, and who is sorting it out ('' or absent when measured). |
 | `id` | `string` | no |  |
 | `confirm` | `boolean` | no |  |
 | `answers` | `Partial<Record<CheckField, string>>` | no |  |
@@ -2151,6 +2153,11 @@ export interface Metric {
   ownerId: Id;
   /** What to watch out for when reading it (a known gap, a change of method). */
   caveats: string;
+  /** Whether it is measured today (MS; rulesMeasured.ts): absent on one never said otherwise, which is measured. Goals
+      measured by a metric with a gap are held to no number (domain/unmeasured) until it is measured. */
+  measurement?: MetricMeasurement;
+  /** What's missing from the measurement, and who is sorting it out ('' or absent when measured). */
+  measurementNote?: string;
   createdBy: Id;
   createdAt: string;
   updatedAt: string;

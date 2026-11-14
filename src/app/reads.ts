@@ -39,6 +39,31 @@ export const reviewWriteRows = (s: Snapshot) => ({ goals: [...s.goals, ...(s.pro
 /** What a save of Reviews' records says while Reviews is off (FT2): the switched-off module's sentence (build review of #371). */
 export const reviewsOffWords = (workspace: string) => switchedOffWords('Reviews', workspace);
 
+/*
+ * SW1: the four switches whose code is still the core's, each answered here and nowhere else (feature-switches spec
+ * 1.2, check N27: no other file tests a module's id as a string). Screens pass `useModules().on`, the MCP server and the
+ * dispatcher `modulesOn(ws).on`; rules in src/domain take the answer as a boolean. A build without the module answers
+ * false. Each goes when its code moves into its folder (SW4 to SW8).
+ */
+/** Whether Watching is on: the Watching tab, Home's "Goals you watch", the Watch button and the three watching tools. */
+export const watchingOn = (on: ReadonlySet<string>): boolean => on.has('watching');
+/** Whether Feedback is on: its menu row and page, Send feedback, Mark up this screen (and its key) and the inbox tools. */
+export const feedbackOn = (on: ReadonlySet<string>): boolean => on.has('feedback');
+/** Whether the Goal map is on: Goals' Map layout. */
+export const goalMapOn = (on: ReadonlySet<string>): boolean => on.has('goal-map');
+/** Whether the Wrap-up is on: its pages, Home's wrap-up lead, "Wrap up this goal" and its two tools. Results, carrying
+    on and starting the next year are the core's and never ask. */
+export const wrapUpOn = (on: ReadonlySet<string>): boolean => on.has('wrap-up');
+
+/** The core's actions that belong to a switch while its code is still the core's (SW1 spec 1.3; Reviews' saves are refused by what they write, in actions.ts): each refuses
+    while its module is off, with `moduleOffWords`. Revoking and starting the next year never refuse. */
+export const SWITCHED_ACTIONS: Readonly<Record<string, string>> = {
+  watch: 'watching', unwatch: 'watching', saveRetro: 'wrap-up', sendFeedback: 'feedback',
+};
+
+/** What a switched module's action says while it is off (spec 1.3): "Watching is off in {workspace}." */
+export const moduleOffWords = (name: string, workspace: string) => `${name} is off in ${workspace}.`;
+
 /**
  * This week's deadline in dueWords' words (RS1), from what the rule reads: whether Reviews is on, and whether a review is
  * held on the due day (with `personId`, one that person is in: deep review T4). The check-in's receipt, Home and the AI's
@@ -108,9 +133,12 @@ export function dayOneRows(s: Pick<Snapshot, 'people' | 'goals' | 'checkIns' | '
 /** A review's name, for " in {review}" (GE10): null when it isn't in the workspace to name. */
 export const reviewName = (s: Pick<Snapshot, 'reviews'>, id: string | null | undefined): string | null => (id ? s.reviews.find((r) => r.id === id)?.name ?? null : null);
 
-export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot }; opened?: ReadonlySet<string>; putOff?: ReadonlyMap<string, string>; reviews?: boolean }): HomeFacts {
+export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot }; opened?: ReadonlySet<string>; putOff?: ReadonlyMap<string, string>; reviews?: boolean; watching?: boolean; wrapUp?: boolean }): HomeFacts {
   // Reviews switched off (FT2): no session leads or names a day, and no ask names a review.
   const reviews = opts.reviews !== false;
+  // Watching switched off (SW1): nothing is watched, and someone who owns no goal is led to every goal needing
+  // attention; the Wrap-up switched off: nobody is asked to wrap up (the year still ends).
+  const watching = opts.watching !== false, wrapUp = opts.wrapUp !== false;
   const day = today.toISOString().slice(0, 10);
   const p = weekProgress(viewerId, s, cycle, week, today);
   const mine = s.goals.filter((g) => g.ownerId === viewerId);
@@ -142,7 +170,7 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   const wrapMine = ws.goals.filter((g) => g.ownerId === viewerId);
   return {
     today: day, week, lastWeek: cycle.weeks, cycleName: cycle.name, workspace: opts.workspace,
-    starts: start ? { on: start.firstDay, firstDue: start.firstDue } : null, ended: ended && !(wrapOpen && mine.some((g) => !s.retros.some((r) => r.goalId === g.id))),
+    starts: start ? { on: start.firstDay, firstDue: start.firstDue } : null, ended: ended && !(wrapUp && wrapOpen && mine.some((g) => !s.retros.some((r) => r.goalId === g.id))),
     rhythm: rhythmOf(cycle) ? { dueDate, nextDueDate: week < cycle.weeks ? reviewDate(cycle, Math.max(1, week) + 1) : null } : null,
     checkIns: {
       total: p.goals.length, done: p.done.length,
@@ -152,11 +180,13 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
       completedToday: allIn && thisWeek.some((c) => localDay(c.postedAt) === day),
       after: receipt.after, forgiven: receipt.forgiven, forgivenMissed: !!receipt.forgivenMissed, words: { by: words.by, after: words.after },
     },
-    wrap: wrapUpOpenOn(wc, today) ? { name: wc.name, ends: cycleDates(wc).lastDay, ended: hasEnded(wc, today), left: wrapMine.filter((g) => !ws.retros.some((r) => r.goalId === g.id)).map((g) => ({ id: g.id, title: g.title })), total: wrapMine.length } : null,
+    wrap: wrapUp && wrapUpOpenOn(wc, today) ? { name: wc.name, ends: cycleDates(wc).lastDay, ended: hasEnded(wc, today), left: wrapMine.filter((g) => !ws.retros.some((r) => r.goalId === g.id)).map((g) => ({ id: g.id, title: g.title })), total: wrapMine.length } : null,
     sessions,
     owns: mine.length,
-    watches: watchedGoals(viewerId, s).filter((g) => g.ownerId !== viewerId).length,
-    ...(!reviews && !mine.length ? { watchNeeds: watchedGoals(viewerId, s).filter((g) => needsAttention(attentionFor(g, s, cycle, today))).length } : {}),
+    watches: watching ? watchedGoals(viewerId, s).filter((g) => g.ownerId !== viewerId).length : 0,
+    ...(!watching ? { watchingOff: true } : {}),
+    ...(!watching && !mine.length ? { allNeeds: live(s.goals).filter((g) => !g.stoppedAt && needsAttention(attentionFor(g, s, cycle, today))).length } : {}),
+    ...(watching && !reviews && !mine.length ? { watchNeeds: watchedGoals(viewerId, s).filter((g) => needsAttention(attentionFor(g, s, cycle, today))).length } : {}),
     asks: homeAsks(viewerId, s, cycle, week, today, reviews),
     // Goal entry rule 14: proposed for the viewer by someone else and not yet opened (what was opened is the Prefs port's).
     // Every row under "Proposed goals" (both kinds), so the quiet line never says nothing is asked beside them (#319's review).

@@ -160,6 +160,29 @@ const help: Article[] = [
     keywords: ['retire', 'retired', 'bring back', 'merge', 'delete', 'definition changed', 'same number', 'new label', 'scale', 'direction changed'],
     related: ['metric-define', 'metric-slices', 'metrics'],
   },
+  {
+    id: 'metric-measurement',
+    title: 'When a number isn’t measured yet',
+    summary: 'Say a metric is measured, partly measured or a gap, and what happens to the goals it measures.',
+    group: 'you',
+    after: 'metric-change',
+    sections: [
+      { heading: 'Measured, Partly or Gap', list: [
+        'Each metric says whether it is measured today, under “Is it measured today” in its form: Measured (a filled square), Partly (a half-filled square: some of it, or not every period) or Gap (a broken square: nobody measures it yet).',
+        'With Partly or Gap, say what’s missing and who is sorting it out, in a line. Its page shows it beside the mark.',
+        'A gap or a part is listed under To sort out, on the metric’s page and in the library, with “Say how it’s measured”.',
+      ] },
+      { heading: 'Goals measured by a gap', list: [
+        'A goal measured by a metric with a gap is held to no number. It says “Not measured yet”, with a broken ring, instead of a status: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.',
+        'Once the metric is measured, in full or in part, its goals are held to their plans again, in the same save. Linking a goal to a measured metric, or unlinking it, does the same. History says so on each goal, and Undo takes it all back.',
+      ] },
+    ],
+    routes: ['/metrics/:metricId/edit'],
+    screens: [],
+    reqs: ['METRIC-MEASUREMENT'],
+    keywords: ['gap', 'partly', 'measured', 'not measured yet', 'no number', 'baseline', 'to sort out', 'measurement'],
+    related: ['metric-define', 'metric-change', 'metrics'],
+  },
 ];
 
 export default help;

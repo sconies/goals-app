@@ -51,6 +51,8 @@ const RULES = [
   [/^src\/screens\/Inspect\.tsx|^evals\/notes\/13-review-speak\.cjs$/, ['N25']],
   // Reviews behind its switch (FT2): its read-back, a switched-off module's addresses, and its two journeys.
   [/^src\/domain\/reviewsOff\.ts$|^src\/screens\/NotFound\.tsx$|^src\/ui\/SwitchedOff\.tsx$|^evals\/notes\/21-switched-off\.cjs$/, ['U103', 'U104', 'U48', 'N21']],
+  // SW1: the four switches whose code is still the core's, their read-backs and the Features page's groups.
+  [/^src\/domain\/switchOff\.ts$|^src\/app\/reads\.ts$|^src\/domain\/home\.ts$|^src\/screens\/(Workspace|Home|GoalsScreen|GoalViews)\.tsx$|^src\/ui\/(Shell|goalRows)\.tsx$|^evals\/notes\/22-more-switches\.cjs$/, ['U164', 'U165', 'U166', 'N22', 'N21']],
   // The check-in rhythm (FT1): its words, its sheet and its journeys and check.
   [/^src\/domain\/rhythm\.ts$|^evals\/(finish\/20-no-rhythm|notes\/22-rhythm)\.cjs$/, ['U101', 'U102', 'F20', 'N23']],
   // Its clock (RS1): dueWords and the receipt, the read-back's two lines; the words with it off, and back on (N30, the tools' one
