@@ -27,7 +27,8 @@ import { FormClose } from '../ui/FormClose';
 import { Place, type MeasurePick } from '../core/app';
 import { BaselineFields } from '../ui/BaselineFields';
 import { Pick, PickOne } from '../ui/Pick';
-import { guardRefusal, MAX_GUARDS } from '../domain/guards';
+import { MAX_GUARDS } from '../domain/guards';
+import { guardRefusal } from '../domain/guardWords';
 
 /** The page's sections that an address can open at. */
 const SECTIONS = ['definition', 'plan', 'owner', 'more'];

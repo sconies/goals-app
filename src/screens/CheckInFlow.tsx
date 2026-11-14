@@ -1,4 +1,5 @@
-import { breachWords, guardBreaches } from '../domain/guards';
+import { guardBreaches } from '../domain/guards';
+import { breachWords } from '../domain/guardWords';
 import { useEffect, useRef, useState } from 'react';
 import { correctReasonAsk, correctReasonOk, MAX_CORRECT_REASON } from '../domain/correctReason';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';

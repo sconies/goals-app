@@ -28,7 +28,8 @@ import { currentWeek, daysSince, firstWeekFrom, resultWeek, isCount, isShare, NO
 import { amount, byWeekWords, goalScorecard, likelihood } from '../domain/scorecard';
 import { directionLabel, fmt, gapText, nowText, targetText } from '../domain/format';
 import { assessMetric, assessMilestone, assessPosted, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
-import { breachWords, guardBreaches, guardedCalc } from '../domain/guards';
+import { guardBreaches, guardedCalc } from '../domain/guards';
+import { breachWords } from '../domain/guardWords';
 import { isUnmeasured } from '../domain/unmeasured';
 import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPAN } from '../domain/thresholds';
 import { cycleStanding, importName, leaveWorkspace, keptText, pastImports, undoPreview } from '../domain/removal';
@@ -245,7 +246,7 @@ export const RULE_LIST: Rule[] = [
     id: 'status',
     title: 'A goal’s status',
     summary: 'What the numbers say (the calculated status), and the official status everyone sees: the owner’s call, unless it has gone stale.',
-    code: [{ file: 'src/domain/guards.ts', names: ['guardBreaches', 'guardedCalc', 'breachWords', 'guardRefusal', 'MAX_GUARDS'] }, { file: 'src/domain/status.ts', names: ['assessMetric', 'assessRange', 'assessMilestone', 'assessPosted', 'goalStatus', 'daysWithoutUpdate', 'worst', 'RANK'] }, { file: 'src/domain/thresholds.ts', names: ['RULES'] }],
+    code: [{ file: 'src/domain/guards.ts', names: ['guardBreaches', 'guardedCalc', 'MAX_GUARDS'] }, { file: 'src/domain/guardWords.ts', names: ['breachWords', 'guardRefusal'] }, { file: 'src/domain/status.ts', names: ['assessMetric', 'assessRange', 'assessMilestone', 'assessPosted', 'goalStatus', 'daysWithoutUpdate', 'worst', 'RANK'] }, { file: 'src/domain/thresholds.ts', names: ['RULES'] }],
     tests: ['src/domain/guards.test.ts#guardrails on a goal', 'src/domain/rules.test.ts#metric status', 'src/domain/rules.test.ts#range status', 'src/domain/rules.test.ts#milestone status', 'src/domain/rules.test.ts#official status', 'evals/scenarios.eval.ts'],
     reqs: ['STATUS-BANDS', 'STATUS-DIRECTION', 'RANGE', 'MILESTONE', 'OWNER-CALL', 'GREENER', 'STALE', 'HONEST-NUMBERS'],
     body: `

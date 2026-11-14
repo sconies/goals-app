@@ -5,7 +5,8 @@
    last week, to target, will it hit); the chart marks those numbers where they are; Why opens with the owner's reason;
    What feeds it opens with how the goals feeding it stand; and every section says in one line what it answers.
    The words come from the domain (domain/goalPage and the modules it asks); this file lays them out. */
-import { breachWords, guardBreaches } from '../domain/guards';
+import { guardBreaches } from '../domain/guards';
+import { breachWords } from '../domain/guardWords';
 import { Place, useModules } from '../core/app';
 import { reviewsOn, watchingOn } from '../app/reads';
 import { MODULE_RECORDS } from '../core/records';

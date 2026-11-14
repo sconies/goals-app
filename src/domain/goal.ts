@@ -165,8 +165,8 @@ export function withPlanOf(base: Goal, plan: Goal): Goal {
 
 /** The guards a draft keeps (GR): its own list, each once, never the goal itself; as they were when it says nothing. */
 function guardsOf(d: GoalDraft, id: string, existing: Goal | null): Pick<Goal, 'guards'> {
-  const ids = d.guards === undefined ? (existing?.guards ?? []).map((x) => x.goal) : d.guards;
-  const kept = [...new Set(ids)].filter((x) => x && x !== id).slice(0, MAX_GUARDS);
+  if (d.guards === undefined) return existing?.guards?.length ? { guards: existing.guards } : {};
+  const kept = [...new Set(d.guards)].filter((x) => x && x !== id).slice(0, MAX_GUARDS);
   return kept.length ? { guards: kept.map((goal) => ({ goal })) } : {};
 }
 

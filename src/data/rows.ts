@@ -87,7 +87,7 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
     created_at: g.createdAt || new Date().toISOString(),
     pending: g.pending ?? null,
     also_helps: g.alsoHelps?.length ? g.alsoHelps : null,
-    guards: g.guards?.length ? g.guards.map((x) => ({ goal: x.goal })) : null,
+    guards: g.guards?.length ? g.guards : null,
     ...set({ removed_at: g.removedAt, removed_by: g.removedBy, stopped_at: g.stoppedAt, stopped_by: g.stoppedBy, stop_reason: g.stopReason, proposed_at: g.proposedAt, proposed_by: g.proposedBy, proposed_in: g.proposedIn, unmeasured_since: g.unmeasuredSince }),
   };
   const stages = g.kind === 'milestone' ? g.stages.map((s) => ({ workspace_id: ws, id: s.id, goal_id: g.id, name: s.name, due_week: s.dueWeek })) : [];
@@ -107,7 +107,7 @@ export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
     ...(r.pending ? { pending: r.pending } : {}),
     ...(r.version != null ? { version: Number(r.version) } : {}),
     ...(r.also_helps?.length ? { alsoHelps: r.also_helps } : {}),
-    ...(Array.isArray(r.guards) && r.guards.length ? { guards: r.guards.filter((x) => x && typeof x.goal === 'string').map((x) => ({ goal: x.goal })) } : {}),
+    ...(r.guards?.length ? { guards: r.guards } : {}),
     ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by), ...when('stoppedAt', r.stopped_at), ...who('stoppedBy', r.stopped_by), ...who('stopReason', r.stop_reason),
     ...when('proposedAt', r.proposed_at), ...who('proposedBy', r.proposed_by), ...who('proposedIn', r.proposed_in), ...when('unmeasuredSince', r.unmeasured_since),
   };

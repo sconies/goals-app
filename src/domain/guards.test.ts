@@ -5,7 +5,8 @@ import { goalFromRows, goalToRows } from '../data/rows';
 import { CYCLE, metric, RANGE } from '../spec/examples';
 import { emptyDraft, evaluate } from './checkin';
 import { blankGoal, buildGoal, draftOf } from './goal';
-import { breachWords, cleanGuards, guardBreaches, guardedCalc, guardRefusal, MAX_GUARDS } from './guards';
+import { guardBreaches, guardedCalc, MAX_GUARDS } from './guards';
+import { breachWords, cleanGuards, guardRefusal } from './guardWords';
 import type { CheckIn, Goal, MetricGoal, RangeGoal } from './types';
 
 const CFR: RangeGoal = { ...RANGE, id: 'cfr', key: 'G-41' };

@@ -114,7 +114,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/guards.ts](../../../src/domain/guards.ts): `guardBreaches`, `guardedCalc`, `breachWords`, `guardRefusal`, `MAX_GUARDS`
+- [src/domain/guards.ts](../../../src/domain/guards.ts): `guardBreaches`, `guardedCalc`, `MAX_GUARDS`
+- [src/domain/guardWords.ts](../../../src/domain/guardWords.ts): `breachWords`, `guardRefusal`
 - [src/domain/status.ts](../../../src/domain/status.ts): `assessMetric`, `assessRange`, `assessMilestone`, `assessPosted`, `goalStatus`, `daysWithoutUpdate`, `worst`, `RANK`
 - [src/domain/thresholds.ts](../../../src/domain/thresholds.ts): `RULES`
 
