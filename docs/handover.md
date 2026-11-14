@@ -2,6 +2,25 @@
 
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
+## Track 1, Saturday 14 November, ~10:40 UTC (context past 300k, handing over; supersedes the 13 Nov 21:00 entry)
+
+Session: session_012kbr92yprssgsHbkpCFh3s. Planning: session_012kbr91eefh4gwCAztBncNT (report there once, finished results and blockers only).
+
+**Merged:** #432 (the HIGH on #416: "Before this review" is "on time" for a review not held on the due day; rule 4 counts the goals due). #460 (#437's mediums 2, 3, 4 and the rest of 6: reading fields refused for any week but this one; compared and filled at the goal's places, `filledAt`; a filled number reopened untouched is filled again; **Lane, 13 Nov:** a filled-in reading in the one table needs a touch, "Confirm {value}" or "Confirm all readings"; **the 09:00 fault:** the demo pins today but keeps the clock's time of day, so `readingProblem` refused every demo reading before 09:00 UTC, now a day's grace; a reading's words moved to `src/domain/readingWords.ts`, out of the first download: the real app's 334 KB was 39 bytes over on hash entropy alone).
+
+**This PR (nr2-source-name):** a reading with no source's name is refused (the last of #437's medium 5), and the metric spec's **Off** paragraph (Lane, 14 Nov: readings recorded stay with the library off; nothing new is read). Its `evals:changed` was running at handover: check the PR's CI, then auto-merge.
+
+**Open, drafts, not yet gated:**
+- **#468 HM3** (Your team; teams worst first; `owner=-me`; U123, U124 part; HOME-MANAGER). The first eval run's real failures (vocabulary word, U2, F1) are fixed in its last commits; run `evals:changed`, then mark ready and auto-merge. **asTeams is "more than twelve goals in two or more teams"**, following rule 4's worked example (Rhea's 12 in 4 teams are rows) over its text ("or three or more teams"): planning knows.
+- **#469 HM4** (Changed since; `home-seen`; moved/since filter; the teams table's Since column; F25), stacked on #468: retarget to main once HM3 merges, then gate. No browser eval has run on it. Budget headroom is small (about 0.4 KB after #460).
+
+**Next, in order:** gate #468 and #469; then **SM1h** (Home's section of SM1, with track 2's agreement); **PF1–PF2** (`docs/design/round-4/portfolio/spec.md`); **HB3** once HM7 is on main; then the lows: #437's (the table's filled cell by colour only is now labelled "From {source}"; MCP's answer doesn't say what reading was recorded; two controls under 44 px at 390 and the reason radios' four tab stops; the server's demo source from live check-ins, for the handoff; README has no line on readings), #110's, HM1's, the 13 Nov 14:25 entry's batch, #400's two, #410's two. N12 is done (#385).
+
+**Habits:**
+- Builder subagents (general-purpose, full brief, own worktree, "no browsers, targeted tests only" while an eval runs) built HM3 and HM4 well; Sonnet subagents ran the evals. Containers can restart: worktrees survive, background results arrive in the task files.
+- Memory: a full `vitest run` beside `evals:changed` gets workers killed; use `--maxWorkers=2` or wait.
+- The first-download budgets sit within bytes of the limit: a lazy chunk's new hash can move the compressed size by 30 to 70 bytes. Measure with `scripts/check-bundle.mjs` and take real bytes out of the eager chunks (a module's words in their own file), never a new tiny shared chunk (its name lands in every preload list).
+
 ## Track 4, Saturday 14 November, 01:30 UTC (handing over at about 300k tokens, Lane's rule #455; supersedes the 13 Nov 20:15 entry)
 
 Session: session_012kbr931R7QEqBrfxbNv2QV. Planning is session_012kbr91eefh4gwCAztBncNT.
