@@ -243,6 +243,7 @@ Written 14 November 2026, 15:40 UTC, when the reviewer of 14 November (session â
 | #485 PP1: a proposed goal's Opened and Not yet follow the person between devices | 2 | 0 | 1 | 2 |
 | #468 HM3: Your team on Home, and teams worst first | 1 | 0 | 1 | 2 |
 | #488 PP2: two devices open at once keep each other's Opened and Not yet (#485's medium) | 2 | 0 | 0 | 0 |
+| #492 HM3: a one-team workspace has Your team on Home again (#468's medium) | 1 | 0 | 0 | 1 |
 
 **High findings, and where each stands**
 
@@ -2107,3 +2108,12 @@ Read (the rule, the query, the markup and the styles), with two probes of the sc
 **Fixed; read, and its tests pass on main (8).** A write now reads the server's row again, merges this device's value into it and writes the result (`serverPrefs.write`), with the merge owned by the key: `mergeProposals` keeps every goal either copy opened and, for each put-off, the later day. A test is my probe (laptop A, phone B, laptop C: the server holds all three), and another holds that every server-kept key has a merge. The read and the write are two calls, so two devices acting in the same instant can still cross; at that width it is not worth more. #485's first low (a browser's older list lost on first adoption) goes too, since the first write merges.
 
 **#490** splits `docs/handover.md` into a file per role (`docs/handover/`), with one line of `CLAUDE.md`. **#489** is a retrospective and handoff notes. No code in either.
+
+## The reviewer of 14 November, afternoon (session â€¦iZx169kF), from #492
+
+### #492 HM3: #468's medium (track 1, merged 14 Nov, 15:40 UTC)
+
+**Fixed; read, and its tests pass on main (36 in `src/domain/home.test.ts`).** `useHomeSets` now reads `scopesFor(...).every`, each scope whether it is drawn as a tab or not, as `find_goals` and the Goals addresses do (`src/ui/HomeSets.tsx:33`). The new test is the case the last reviewer asked for: three goals in one team, one the viewer's; no `team` tab is drawn, and Home's team set has all three with the two that aren't the viewer's as rows. "See them in Goals" and the counts go to `/goals?scope=team`, which still opens with no tab drawn (`GoalsScreen` reads `every` for an address). #468's second low (a watched list equal to the team's or to everyone's lost "Goals you watch") goes with it. Nothing else in `src` reads the drawn tabs for a rule. Not walked on screen.
+
+**Low.** The spec's worked examples for rule 4 still read the drawn tabs (`homeBlocks`, `src/spec/rules.ts:1895`), and `homeSets`'s comment still says "`scopesFor`'s tabs" and "its tab's count". The demo's four examples come out the same either way, so `spec/` is right today; a one-team example added there would show the old answer.
+
