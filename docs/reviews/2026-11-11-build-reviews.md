@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon (session …iZx169kF) stopped after 14 code PRs, at about 395k tokens of context. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `f59199bc` (#522), the head of main at 23:15 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511 and #516 (docs only) have neither.
+- **Last merge fully reviewed:** `c91db0fe` (#514), the head of main at 23:20 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511 and #516 (docs only) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none.
 - **Mediums open:** six, all sent to planning on 14 Nov: #503's (a goal stopped while held stays held), #513's (the kit's words on a moment are not what History does), #497's (the workspace's line is never drawn in a browser by any eval), #504's (Feedback's inbox still offers Connect Claude with AI access off) and #515's (seven sentences of the change engine's page are not what the engine does); and #510's (a goal that is Not measured yet is in no lane of the Board). #517's was fixed by #522.
@@ -267,6 +267,7 @@ Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon 
 | #515 Rebuild kit stage 2: the change engine's sentences, fields and inputs | item 11 | 0 | 1 | 0 |
 | #510 MS medium 5: Not measured yet is a status of its own | 7d | 0 | 1 | 1 |
 | #522 `see()` says what a page showed (#517's medium) | 1 | 0 | 0 | 0 |
+| #514 U98: the import's check is held for 3 s, so the Reading panel is always there | 3 | 0 | 0 | 1 |
 
 **High findings, and where each stands**
 
@@ -2330,3 +2331,9 @@ Not checked: the Map (the goal's name wasn't found in the page's text at the zoo
 ### #522 `see()` says what a page showed (track 1, merged 14 Nov)
 
 Read against #517's medium: **closed.** One line of `evals/journeys.cjs`: a locator is now told from a page by `typeof p.page === 'function'`, and a page is read through `page.locator('body')`, as the finding asked. Nothing else changes. For a page the note is the body's first 240 characters, which on most screens is the menu before the content; enough to tell a blank or wrong page from a slow one.
+
+### #514 U98: the import's check held for 3 s (track 3, merged 14 Nov)
+
+Harness only, one journey; read whole. No high, no medium. The import's check runs in a worker the phone's slowed CPU never reaches, so on a fast machine 6,000 rows could finish before the Reading panel's 400 ms. `holdCheck` serves the worker's script with a few lines in front that hold only its last message ("done" or an error) until 3 s after the check was asked for; progress and rows arrive as they are made. No assertion is loosened, no budget or wait raised, and the app's code is untouched. The route (`/assets/worker-*.js`) matches the built file (`worker-BEhWFShB.js` in a build of main).
+
+**Low.** Nothing says so if the route stops matching (the worker renamed or inlined): the journey would run unheld and flake again with no word of why. A check that the route was hit once would do.
