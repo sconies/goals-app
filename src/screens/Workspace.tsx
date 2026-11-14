@@ -17,7 +17,8 @@ import { useApp } from '../app/state';
 import { useModules, type WorkspaceSection } from '../core/app';
 import { byFeatureGroup, FEATURE_GROUPS, sectionsFor } from '../core/module';
 import { Avatar, Sheet } from '../ui/bits';
-import { adminsLine, cycleLine, NEEDS_SHOWN, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
+import { adminsLine, cycleLine, NEEDS_SHOWN, workspaceName, yearLine } from '../domain/workspaceAttention';
+import { toSortOut } from '../app/toSortOut';
 import { canRestore, canUndoStart, cycleStanding, startOf } from '../domain/removal';
 import { AccessTokens } from '../ui/AiAssistants';
 import { RemoveAdmin, useSetAdmin } from '../ui/AdminControls';
@@ -227,7 +228,7 @@ function AboutSection() {
   const ws = workspaceName(app.ws, app.mode);
   // What an admin has to sort out (rule 3), then each module section's own, then what a module with no section raises
   // (AR2: toSortOut).
-  const needs = [...workspaceNeeds(app.snapshot, app.cycle, admin, { reviews: reviewsOn(on) }), ...sections.flatMap((s) => s.needs?.(app.snapshot, app.viewer) ?? []), ...screens.flatMap((m) => m.toSortOut?.(app.snapshot, app.viewer) ?? [])];
+  const needs = toSortOut(app.snapshot, app.cycle, app.viewer, reviewsOn(on), sections, screens);
   const shownNeeds = all ? needs : needs.slice(0, NEEDS_SHOWN);
   const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
   const admins = adminsLine(app.snapshot.people);
