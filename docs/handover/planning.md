@@ -18,6 +18,8 @@ Out of scope until after the handoff: PF1–PF2 and every review low (backlog, "
 | 7d (metrics) | done; tail only | #503 and #505 finished by session_012kbr8zzN3enEt3hjY3Q66H; #510 ("Not measured yet") merged by the track 1 helper; MC deferred |
 | 2 (goal entry, set-up) | session_012kbr8yvYag7HFTg115Wbhw | TG2 #493, then SW2 #504 (option a); then done |
 | 4 (architecture, switches) | done | FT1 #465 merged; SW2 moved to track 2 |
+| 3 (import) | session_012kbr8xpJmNf6hfkkTsaf53 | MI, then U98's Stop-step flake |
+| Item 11 (full drill) | session_012kbr8y5FBfBYyNt4XKM97h | pinned to dd00ff48 (KL); core, then each module on main; late modules (#505 MQ, TG2, SW2, MI; FT1, GR, TG1 already merged) added as stages; doc rewrites last |
 | Reviewer (Fable) | session_012kbr8z4ihwvC1ZUTMGey4V (fresh 20:42) | reviews each code PR merged after 65fd1421 (#465) when its track messages it; hands over after about 20 PRs. Its note lives in docs/handover/reviewer.md on branch build-reviews |
 
 **Waiting for a free slot:**
