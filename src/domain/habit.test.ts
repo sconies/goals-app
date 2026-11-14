@@ -2,7 +2,7 @@
    receipt's sentences (2.1) and the moment a check-in makes (rule 3). */
 import { describe, expect, it } from 'vitest';
 import { dueWords, forgivenIn, inByDueDay, onTimeStreak, receiptFacts, receiptText, reviewDate, weekProgress, type ReceiptFacts } from './progress';
-import { beforeReviewText, checkInStanding, habit, type HabitRows, habitShown, habitWeeks, moment, momentText, weekWords } from './habit';
+import { beforeReview, beforeReviewText, checkInStanding, habit, type HabitRows, habitShown, habitWeeks, moment, momentText, weekWords } from './habit';
 import { weekDate } from './plan';
 import type { CheckIn, Cycle, Goal, Snapshot, Status } from './types';
 
@@ -183,6 +183,21 @@ describe('the measure (rule 2) and never a person (rule 4)', () => {
     expect(habitShown(set(2), 'z')).toBe(false);
     expect(habitShown([goal('g1'), goal('g2')], 'tunde')).toBe(true);
     expect(habitShown([], 'tunde')).toBe(false);
+  });
+});
+
+describe('before this review (build review of #416)', () => {
+  const cy: Cycle = { id: 'y', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 };
+  const g = (id: string, ownerId: string, created: string) => ({ id, title: id, kind: 'metric', ownerId, createdAt: created, unit: 'h', decimals: 0, plan: { start: 40, target: 20, shape: 'straight' }, originalPlan: null, rebaselinedWeek: null }) as unknown as Goal;
+  it('counts rule 4 over the goals due, not the whole set', () => {
+    // Three owners in the set, but b's and c's goals aren't due until after week 46: only a's are counted, so nothing shows.
+    const goals = [g('g1', 'a', '2026-01-05T09:00:00Z'), g('g2', 'a', '2026-01-05T09:00:00Z'), g('g3', 'b', '2026-12-01T09:00:00Z'), g('g4', 'c', '2026-12-01T09:00:00Z')];
+    expect(beforeReview(goals, 46, { checkIns: [], asks: [] }, cy, new Date('2026-11-13T12:00:00Z'), 'z')).toBeNull();
+  });
+  it('says “on time”, not “before it”, for a review held on another day', () => {
+    const goals = ['a', 'b', 'c'].map((o, i) => g(`g${i}`, o, '2026-01-05T09:00:00Z'));
+    const b = beforeReview(goals, 46, { checkIns: [], asks: [] }, cy, new Date('2026-11-13T12:00:00Z'), 'z', false)!;
+    expect(b.says).toBe('None of the 3 goals was checked in on time.');
   });
 });
 

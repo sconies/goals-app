@@ -6,6 +6,9 @@
                                   in two processes beside the scenarios
    npm run evals:changed          the smoke gate plus every journey and check the files changed since origin/main touch
                                   (evals/touches.cjs; --base ref for another base). Shared code means the full suite
+   npm run evals:pr               what a pull request's CI runs (--changed --no-full): the same, but shared code runs the
+                                  smoke journeys and what the other files touch, not the full suite (that runs after the
+                                  merge). The quick runs slow phone pages 4× and run their journey processes in turn
    node evals/run.mjs --shard k/n one shard of the full suite (CI runs each on its own machine; shard 1 also runs the
                                   spec scenarios), leaving evals/out/journeys-k.json
    node evals/run.mjs --merge dir only merges the shards' results found under dir into the scorecard (CI)
@@ -44,6 +47,9 @@ const args = process.argv.slice(2);
 const flag = (name) => { const i = args.indexOf(name); return i < 0 ? undefined : args[i + 1] ?? ''; };
 const smoke = args.includes('--smoke');
 const changed = args.includes('--changed');
+/** --no-full: what a pull request's CI runs. A change to shared code runs the smoke journeys and what its other files touch,
+    not the whole suite, which runs after the merge (Lane, 13 Nov: one runner can't take the whole suite slowed). */
+const noFull = args.includes('--no-full');
 const mergeDir = flag('--merge');
 const oneShard = (/^(\d+)\/(\d+)$/.exec(flag('--shard') || '') || []).slice(1).map(Number);
 const subset = !!(process.env.ONLY || process.env.FINISH || process.env.CHECKS);
@@ -287,8 +293,9 @@ if (changed) {
   const files = changedFiles();
   const t = touchesOf(files);
   console.log(`▸ ${files.length} file(s) changed since ${flag('--base') || 'origin/main'}`);
-  if (t.full) console.log(`  They touch shared code${t.unmatched.length ? ` (or code no rule in evals/touches.cjs names: ${t.unmatched.slice(0, 5).join(', ')})` : ''}: running the full suite.`);
+  if (t.full && !noFull) console.log(`  They touch shared code${t.unmatched.length ? ` (or code no rule in evals/touches.cjs names: ${t.unmatched.slice(0, 5).join(', ')})` : ''}: running the full suite.`);
   else {
+    if (t.full) console.log(`  They touch shared code${t.unmatched.length ? ` (or code no rule in evals/touches.cjs names: ${t.unmatched.slice(0, 5).join(', ')})` : ''}: the full suite runs after the merge; here, the smoke journeys and what the other files touch.`);
     const ids = [...new Set([...SMOKE_JOURNEYS, ...SMOKE_CHECKS, ...t.ids])];
     quick = { name: 'Changed', journeys: ids.filter((x) => /^U/.test(x)), checks: ids.filter((x) => !/^U/.test(x)), down: true };
   }

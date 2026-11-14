@@ -27,7 +27,8 @@ import { moduleSheetRows } from './records';
 import { NO_REASON } from './checkin';
 import { rhythmOf, staleAfterDays } from './thresholds';
 import { WEEKDAY } from './progress';
-import { readingCells, readingHistoryLine } from './reading';
+import { readingCells } from './reading';
+import { readingHistoryLine } from './readingWords';
 
 export type { Cell, ExportInput } from './columns';
 /** A sheet: its name, its rows (the header first), and the columns set apart in grey: worked out, or only for reading.

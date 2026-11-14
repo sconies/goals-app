@@ -20,7 +20,7 @@ import type { Ask, Goal, Person, Review, Snapshot } from '../domain/types';
 import { CYCLE } from './examples';
 import { cell, link, table } from './md';
 import { R10, R5, R7, R8, R9 } from './platform';
-import { readingHistoryLine, readingThisWeek } from '../domain/reading';
+import { readingHistoryLine, readingThisWeek } from '../domain/readingWords';
 
 export interface InternalExample {
   given: string;

@@ -296,6 +296,21 @@ export function sheetCounts(cs: Pick<ChangeSet, 'items' | 'issues' | 'unchangedB
   return out;
 }
 
+/**
+ * The keys buildGoal decides: it writes each one, or leaves it out to mean "none" (no target yet, no baseline, nothing
+ * else it helps, no earlier plans, or a key of another kind). A goal built over a stored one keeps the stored goal's
+ * other fields (its proposal, version, removal), but never one of these that the build left out, so a target given later
+ * clears targetUnset and "Baseline period: none" clears the baseline (GB review).
+ */
+const BUILT_KEYS = ['whyHelps', 'alsoHelps', 'unit', 'decimals', 'plan', 'originalPlan', 'rebaselinedWeek', 'planHistory', 'baseline', 'targetUnset', 'range', 'stages'] as const;
+
+/** A goal built from a draft, laid over the stored goal it changes: the build wins on every key it decides. */
+export function builtOver(existing: Goal, built: Goal): Goal {
+  const out: Record<string, unknown> = { ...existing, ...built };
+  for (const k of BUILT_KEYS) if (!(k in built)) delete out[k];
+  return out as unknown as Goal;
+}
+
 /** The engine, in one go: `planChangesInChunks` run to the end. Results are the same either way. */
 
 /** The cells a person chosen for another cell of the row stands for (#336 review): ones that name no one here, someone one
@@ -1129,12 +1144,11 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     const key = existing ? existing.key : (create && normalKey(keyRef)) || formatKey(++lastKeyGiven);
     parentLinks.push({ id: gid, row, r });
     let built = buildGoal({ ...(proposing && measureEmpty(d) ? unsaidDraft(d) : d), parentId: existing?.parentId ?? '' }, cycle, { id: gid, createdAt: existing?.createdAt ?? new Date(Date.parse(now) + i).toISOString() }, existing, started(gid), week);
-    if (existing) built = { ...existing, ...built } as Goal;
+    if (existing) built = builtOver(existing, built);
     if (key) built = { ...built, key };
     // Proposed: kept as proposed, proposed now by whoever sends the row, or made active (its proposal cleared).
     if (proposing && !wasProposed) built = { ...built, proposedAt: now, proposedBy: actor.id, ...(built.proposedIn ? { proposedIn: null } : {}) };
     if (wasProposed && !proposing) built = { ...built, proposedAt: null, proposedBy: null };
-    if (existing && d.whyHelps === '' && 'whyHelps' in built) delete (built as { whyHelps?: string }).whyHelps;
     // A row that stops or deletes a goal says only that: its other columns must say what the goal says now.
     if (action) {
       if (existing && goalChange(existing, built, lookupNow(), actor.id, now, 'x')) return raise('cant-change', 'Goals', row, existing.title, `A row that says ${GOAL_ACTION_WORDS.word[action]} can’t also change the goal. Make the change, or the ${GOAL_ACTION_WORDS.word[action].toLowerCase()}, on its own.`, { column: 'Action' });

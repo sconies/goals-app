@@ -28,7 +28,7 @@ export interface NewsEntry {
 export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'check-in-rhythm',
-    date: '2026-11-13',
+    date: '2026-11-14',
     title: 'Check-ins can have no set rhythm',
     points: [
       'Check-ins can have no set rhythm. An admin chooses on Workspace, Features: every week, or no set rhythm.',
@@ -36,6 +36,16 @@ export const WHATS_NEW: NewsEntry[] = [
       'Before it changes, the sheet says what will change for everyone, counted. Switching a rhythm back on counts from that day, so nothing is late, and Undo puts it back.',
     ],
     articles: ['features', 'check-in'],
+  },
+  {
+    id: 'table-confirm-readings',
+    date: '2026-11-14',
+    title: 'Numbers from a source are confirmed before they’re posted',
+    points: [
+      'In the one table, a number filled in from its source says where it came from and isn’t posted until you confirm it: one tap on its row, or “Confirm all readings” for every such row.',
+      'Typing your own number over it works as before: the row asks why it differs.',
+    ],
+    articles: ['check-in-table'],
   },
   {
     id: 'metric-measurement',

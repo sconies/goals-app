@@ -679,7 +679,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `needs` | string | no | A decision or help needed, and from whom. |
 | `next_step` | string | no | The next step. |
 | `reason` | string | no | If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”. |
-| `reading_confirmed` | boolean | no | True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded. |
+| `reading_confirmed` | boolean | no | True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded. This week’s check-in only: refused with an earlier week. |
 | `different_because` | object | no | When the owner’s value differs from what the source reads now, why: the reading and the reason are recorded beside their number (never a flag). kind: behind (the source is behind: they have a newer number), other-count (it counts something else), wrong (it is wrong this week) or else (something else, with text of at least 10 characters). |
 | `different_because.kind` | one of `behind`, `other-count`, `wrong`, `else` | yes | Why it differs. |
 | `different_because.text` | string | no | In the owner’s words; needed for else. |
@@ -770,7 +770,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
     },
     "reading_confirmed": {
       "type": "boolean",
-      "description": "True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded."
+      "description": "True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded. This week’s check-in only: refused with an earlier week."
     },
     "different_because": {
       "type": "object",
@@ -840,6 +840,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 **Refuses with:**
 
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
+- “reading_confirmed and different_because are for this week’s check-in (week …) only: a source reads what it says now, not what it said in week …. Post week … with its value and without them.”
 - ““…” isn’t a status here. Use one of: ….”
 - “Not checked. …”
 - “Not saved. Must fix:

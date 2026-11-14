@@ -221,6 +221,8 @@ None written in its markup beyond the screen itself: it draws what it has.
 |---|---|---|
 | “Use the normal check-in” | link | `!goals.length` |
 | “Start over” | button | `goals.length > 0` and `hasDraft` |
+| “Confirm …” | button | `goals.length > 0` and `unconfirmed` and `read` |
+| “Confirm all readings” | button | `goals.length > 0` and `toConfirm.length > 0` and `toConfirm.length > 1` |
 | “Cancel” | link | `goals.length > 0` |
 | “Saving… / Post … / Post check-ins” | primary | `goals.length > 0` |
 

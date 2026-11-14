@@ -73,7 +73,7 @@ describe('rule 2: what is recorded', () => {
   // The engine writes it (rule 3: changeset.ts) and reading.ts puts it in words; neither judges a goal.
   it('is read by no rule that judges a goal: nothing in src/domain but the types, the engine that records it and its words names a check-in’s reading', () => {
     const dir = path.join(__dirname, '../../domain');
-    const readers = fs.readdirSync(dir).filter((f) => f.endsWith('.ts') && !f.includes('.test.') && !['types.ts', 'changeset.ts', 'reading.ts'].includes(f))
+    const readers = fs.readdirSync(dir).filter((f) => f.endsWith('.ts') && !f.includes('.test.') && !['types.ts', 'changeset.ts', 'reading.ts', 'readingWords.ts'].includes(f))
       .filter((f) => /\.reading\b|\breading\?\s*:|\breading:\s/.test(fs.readFileSync(path.join(dir, f), 'utf8').replace(/\/\/.*|\/\*[\s\S]*?\*\//g, '')));
     expect(readers).toEqual([]);
   });
