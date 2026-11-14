@@ -62,6 +62,8 @@ export const LIMITS: Limit[] = [
   { constraint: 'okr_views_name_check', holds: ['>= 1', '<= 80'], rule: 'finding', words: 'A saved view’s name has 1 to 80 characters.', code: 'src/domain/actions.ts#slice(0, 80)' },
   { constraint: 'okr_workspaces_name_check', holds: ['>= 1'], rule: 'workspace', words: 'A workspace has a name. (The app asks for 3 to 80 characters.)', code: 'src/domain/thresholds.ts#MAX_WORKSPACE_NAME' },
   // The metric library (a module)
+  { constraint: 'okr_metrics_gaming_len', holds: ['<= 500'], rule: 'metric-defined', words: 'How a metric could be gamed has at most 500 characters.' },
+  { constraint: 'okr_metrics_parent_not_self', holds: ['parent_id <> id'], rule: 'metric-defined', words: 'A metric is never its own parent.' },
   { constraint: 'okr_metrics_name_check', holds: ['>= 1', '<= 120'], rule: 'metric-defined', words: 'A metric’s name has 1 to 120 characters.', code: 'src/modules/metrics/rules.ts#METRIC_LIMITS' },
   { constraint: 'okr_metrics_unit_check', holds: ['>= 1', '<= 20'], rule: 'metric-defined', words: 'A metric’s unit has 1 to 20 characters.', code: 'src/modules/metrics/rules.ts#METRIC_LIMITS' },
   { constraint: 'okr_metrics_decimals_check', holds: ['decimals >= 0', 'decimals <= 4'], rule: 'metric-defined', words: 'A metric keeps 0 to 4 decimal places (a goal keeps at most 3).', code: 'src/modules/metrics/rules.ts#METRIC_LIMITS' },
