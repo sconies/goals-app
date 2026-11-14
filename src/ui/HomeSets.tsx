@@ -6,7 +6,11 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useModules } from '../core/app';
-import { liveGoals, scopeFacts, standingIn, watchingOn } from '../app/reads';
+import { heldForGoals, liveGoals, reviewsOn, scopeFacts, standingIn, watchingOn } from '../app/reads';
+import { byWeekTo, habit, habitCell, habitShown } from '../domain/habit';
+import { dueIn } from '../domain/standing';
+import { goalsIn } from '../domain/watch';
+import type { Goal } from '../domain/types';
 import { reviewDate } from '../domain/progress';
 import { useApp } from '../app/state';
 import { scopesFor } from '../domain/goalsPage';
@@ -195,12 +199,13 @@ export function StandingCell({ alone }: { alone: boolean }) {
   const app = useApp();
   const sets = useHomeSets();
   const which = standingSet(sets, app.viewer.admin);
-  const facts = useMemo(() => {
-    if (!which) return null;
+  const reviewsHere = reviewsOn(useModules().on);
+  const { facts, habitNow } = useMemo(() => {
+    if (!which) return { facts: null, habitNow: null };
     const ids = which === 'all' ? null : new Set(sets[which]!.ids);
     const goals = liveGoals(app.snapshot).filter((g) => !ids || ids.has(g.id));
-    return standingOver(which, goals, standingIn(app.snapshot, app.cycle, app.week));
-  }, [which, sets, app.snapshot, app.cycle, app.week]);
+    return { facts: standingOver(which, goals, standingIn(app.snapshot, app.cycle, app.week)), habitNow: leaderHabit(which, goals, app, reviewsHere) };
+  }, [which, sets, app, reviewsHere]);
   if (!facts) return null;
   const w = standingWords(facts, app.week, reviewDate(app.cycle, app.week), app.today.toISOString().slice(0, 10));
   const cell = (
@@ -210,7 +215,31 @@ export function StandingCell({ alone }: { alone: boolean }) {
       <span className="dash-sub">{w.sub}</span>
     </Link>
   );
-  return alone ? <section className="dash" aria-label="This week" data-part="This week">{cell}</section> : cell;
+  // HB3: rule 2's measure for the same set, beside it (habit spec 2.4).
+  const habitCellNode = habitNow && (
+    <div className="dash-cell dash-habit" data-part="Without being asked">
+      <span className="dash-label">{habitNow.label}</span>
+      <span className="dash-value">{habitNow.value}</span>
+      <span className="dash-sub">{habitNow.sub ? `${habitNow.sub} · ` : ''}<Link className="linkish" to={habitNow.to}>By week</Link></span>
+    </div>
+  );
+  return alone ? <section className="dash" aria-label="This week" data-part="This week">{cell}{habitCellNode}</section> : <>{cell}{habitCellNode}</>;
+}
+
+/** HB3: the habit cell's facts for a leader's set this week, or null (nothing due; fewer than three owners, rule 4). */
+function leaderHabit(set: string, goals: Goal[], app: ReturnType<typeof useApp>, reviewsHere: boolean) {
+  const { snapshot: s, cycle, week, today } = app;
+  if (week < 1) return null;
+  const rows = { checkIns: s.checkIns, asks: s.requests ?? [] };
+  const isDue = dueIn(cycle, s.checkIns);
+  const dueGoals = goals.filter((g) => isDue(g, week));
+  if (!habitShown(dueGoals, app.viewer.id)) return null;
+  const dueDay = reviewDate(cycle, week);
+  const now = habit(goals, week, rows, dueDay, isDue);
+  const before = week > 1 ? habit(goals, week - 1, rows, reviewDate(cycle, week - 1), isDue) : null;
+  const cell = habitCell(now, before, today.toISOString().slice(0, 10) > dueDay, week, heldForGoals(reviewsHere, s, cycle, week, dueGoals));
+  const reviews = reviewsHere ? s.reviews.filter((r) => !r.removedAt).map((r) => ({ id: r.id, goals: goalsIn(r.scope, goals).map((g) => g.id) })) : [];
+  return cell && { ...cell, to: byWeekTo(set, dueGoals.map((g) => g.id), reviews) };
 }
 
 /** What Home loads after its first download: Your team, Goals you watch, or how the week's check-ins stand. */

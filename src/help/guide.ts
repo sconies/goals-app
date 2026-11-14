@@ -99,6 +99,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'How the week’s check-ins stand', list: [
         'If your team’s goals or the goals you watch are shown as teams, or you are an admin, This week has a cell saying how the week’s check-ins stand over those goals (every goal, for an admin): “Checked in for week 46 · 45 of 55 goals · Due by Thu 12 Nov”. After the due day it says how many came in after it.',
         'It counts goals, never people. It opens Goals with the goals that have no check-in for the week yet, worst first.',
+        'Beside it, a second cell says how many of those goals were checked in before the review without anyone asking: “91 of 118 goals · 77%”, with last week’s percentage under it and By week, which opens the review that covers them. Before the due day it says “So far”. A percentage is shown only from 20 goals, and the cell is left out when the goals have fewer than three owners.',
       ] },
       { heading: 'The workspace’s line', list: [
         'If you are an admin, Home has a short block headed with the workspace’s name. When the year is ending or has ended, it says so first, with the next step. Then, when something needs sorting out, “2 things to sort out” with the first of them, and See them, which opens Workspace’s About with the same list.',

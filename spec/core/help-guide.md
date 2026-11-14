@@ -51,6 +51,7 @@ Home is where you start each day. It answers one question first: what is asked o
 
 - If your team’s goals or the goals you watch are shown as teams, or you are an admin, This week has a cell saying how the week’s check-ins stand over those goals (every goal, for an admin): “Checked in for week 46 · 45 of 55 goals · Due by Thu 12 Nov”. After the due day it says how many came in after it.
 - It counts goals, never people. It opens Goals with the goals that have no check-in for the week yet, worst first.
+- Beside it, a second cell says how many of those goals were checked in before the review without anyone asking: “91 of 118 goals · 77%”, with last week’s percentage under it and By week, which opens the review that covers them. Before the due day it says “So far”. A percentage is shown only from 20 goals, and the cell is left out when the goals have fewer than three owners.
 
 #### The workspace’s line
 

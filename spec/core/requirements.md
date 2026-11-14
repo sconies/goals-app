@@ -304,7 +304,7 @@ A review's page says how many of its goals were checked in before it, and how ma
 - **Copy:** build it as Faro does.
 - **Rule:** [The habit: the run, the receipt, a moment and the measure](rules/habit.md)
 - **Help:** “Teams” (`teams`)
-- **Journeys and checks:** U153
+- **Journeys and checks:** U124, U153
 
 ### HABIT-NEVER-A-PERSON
 
