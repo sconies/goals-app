@@ -255,6 +255,7 @@ Written 14 November 2026, 15:40 UTC, when the reviewer of 14 November (session â
 | #487 TG1: the Fields module (Workspace, Fields; a goal's Fields block; three AI tools; 0054) | 2 | 0 | 0 | 2 |
 | #508 KL: the rebuild lessons in the generated kit | 4 | 0 | 0 | 0 |
 | #464 GR: guardrails on a goal | 7d | 0 | 0 | 1 |
+| #502 MQ part 1: migration 0055, metric structure | 7d | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2201,4 +2202,8 @@ Read (the rule, the engine, the row mapper, carry and recarry, the screens' use,
 The rule lives once (`guardBreaches`, `guardedCalc` in `src/domain/guards.ts`): the check-in form, the one-table check-in, the change engine (a sheet, the AI tools, with the guards' own rows in the same file counted) and the conformance cases all pass the breaches to `evaluate`. A guard reads the goal's own `guards` field and range goals, never a module's rows, which is Lane's 2a; the module map and README say it is core with no switch and why. Guards follow their goals into the next year only when the guard carries too. The words are out of the first download.
 
 **Low (read).** Guards can be named only on the goal's edit form: the workbook has no column for them and no AI tool sets them (as `alsoHelps`), so a workspace built from another's exported workbook has none.
+
+### #502 MQ part 1: migration 0055 (track 7d, merged 14 Nov, 19:49 UTC)
+
+Read. Nothing found. Four nullable columns on `faro.okr_metrics` (`level`, `parent_id`, `confidence`, `gaming`), each with a check; every name carries `faro.`, nothing reaches outside it, the column grants to `anon` are written out as 0051 writes its own, and it is safe to run twice (columns if missing, constraints dropped and added). It ships a merge ahead of the code (#505), with its line in `supabase/README.md` and two rows in `src/spec/limits.ts`. It is 0055 on main (the track's message said 0054, which is TG1's). **To watch when the code lands (#505):** the checks on `level` and `confidence` take null or one of the listed words, so the row mapper must write SQL null, never an empty string, for "not said"; and the parent's rules (no loops, same workspace, not removed) are the app's alone.
 
