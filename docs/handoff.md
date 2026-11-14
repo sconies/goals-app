@@ -73,6 +73,38 @@ Every outside part sits behind one interface in `src/ports/`, with a contract te
 - [ ] A pilot team.
 - [ ] A security review (sign-in, the master key, the AI tools' tokens).
 
+## How to run the rebuild: what building Faro taught us
+
+Faro was built in about a week by many AI sessions working side by side (`docs/retros/2026-11-14-lessons-learned.md` has the costs and the evidence). Most of what went wrong was in how the work was organised, not in the code. These lessons apply to your rebuild whether people or AI sessions do the work.
+
+**Set up before the first feature**
+
+- [ ] **Don't commit files that are generated and that every change touches.** Faro commits `spec/` (14 MB), `api/mcp.js` (2 MB) and `llms.txt`. More than 300 commits changed each one, and nearly every merge of main conflicted in them. Generate them in CI or at release, and have CI fail when they are out of date. Never ask a person or a session to merge them by hand.
+- [ ] **No single file that every change appends to.** In Faro, What's new (`src/help/whatsNew.ts`, touched by 240 commits) and the handover log were where most conflicts happened. Write one small file per entry and put them together at build time.
+- [ ] **Give out ids without collisions.** Journey and check ids were numbered in order, so two branches took the same one (two journeys called U87; N28). Prefix ids with the module, or generate them.
+- [ ] **Set budgets with headroom and an owner** (first download, page load). Faro hit its 275 KB and 334 KB limits mid-build and needed a separate piece of work (FD) to get back under them.
+- [ ] **Fix the clock in time-dependent checks.** Nightly jobs that read "today" failed before 09:00 UTC and turned main red.
+
+**Organising the work**
+
+- [ ] **The core first, then one module at a time** (stages in `spec/rebuild/`). Make the decisions an area needs before building it, in one batch, not feature by feature. In Faro, ideas fed in mid-build meant designs changed while code was being written against them.
+- [ ] **At most two or three streams of work at once, each owning its own area.** Every extra stream multiplied merge conflicts with main (133 merges of main into branches for 339 merged pull requests) and duplicated work (two sessions built the same fix).
+- [ ] **One short handover note per stream, overwritten each time.** Faro's single append-only `docs/handover.md` grew to 213 KB and 57 sections, most of them superseded, and sessions picked up stale entries from it.
+- [ ] **Keep each pull request to one feature and its tests.** Spec, conformance and stage updates for that feature belong in the same PR. A shared generated output does not.
+
+**Review and quality**
+
+- [ ] **Sort review findings by severity:** highs go at once to whoever owns the area; mediums go to the planner in one batch; lows go to the backlog. Of about 220 PRs reviewed in Faro, about 50 were fixes for earlier findings, and about 20 of those raised new findings. Fixing lows straight away kept that cycle going.
+- [ ] **Review the diff without generated files** (`git diff … -- . ':!spec' ':!api/mcp.js' ':!llms.txt'`).
+- [ ] **Before a merge, run the core journeys and whatever the change touches; run the full suite after the merge**, and fix or revert at once when main is red. Faro's `evals:pr` and the rolling "Full evals failing on main" issue do this.
+
+**If AI sessions do the building**
+
+- [ ] **Keep each session's context small.** Every turn re-reads the whole context. At 500–600k tokens, re-reading was most of Faro's bill (one session re-read 760M tokens to write 1.2M). Hand over at about 300k tokens. A fresh start costs 50–150k tokens.
+- [ ] **Use a cheaper model for mechanical work:** merging main, regenerating files, running evals, watching CI, editing docs. Keep the strongest model for design, code and review.
+- [ ] **Start the reviewer fresh every day**, from a short note rather than its whole log.
+- [ ] **Pre-approve routine tool calls before leaving sessions unattended.** Approval prompts stalled session starts while nobody was there to answer them.
+
 ## What Faro still has to do before this is easy
 
 In backlog order (8g and 0c are done: drill 1's gaps are closed, and Faro keeps to its own schema, `faro`, in a shared project rather than a project of its own):

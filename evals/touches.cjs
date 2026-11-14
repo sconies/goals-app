@@ -31,7 +31,7 @@ const RULES = [
   // The Search and Prefs ports and the find rules (AR1): read by the AI tools until the pickers and list bars use them.
   [/^src\/(ports\/|adapters\/(local|localSearch)\.ts|app\/reads\.ts|domain\/find\.ts)/, ['U22']],
   [/^src\/domain\/dayOne\.ts/, ['U97', 'U11', 'U86', 'U5', 'U49']],
-  [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts/, ['U86', 'U2', 'U16', 'U33', 'U122', 'F1', 'N3', 'N6', 'N10', 'N26', 'P6']],
+  [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts|^src\/domain\/homeSets\.ts|^src\/ui\/HomeSets\.tsx/, ['U86', 'U2', 'U9', 'U16', 'U33', 'U122', 'U123', 'U124', 'F1', 'N3', 'N6', 'N10', 'N26', 'P6']],
   [/^evals\/notes\/12-home\.cjs$/, ['N26']],
   // Fields switched off (TG1): its own check, and the module's journey.
   [/^evals\/notes\/34-fields-off\.cjs$/, ['N34', 'U174']],
@@ -54,7 +54,7 @@ const RULES = [
   // Reviews behind its switch (FT2): its read-back, a switched-off module's addresses, and its two journeys.
   [/^src\/domain\/reviewsOff\.ts$|^src\/screens\/NotFound\.tsx$|^src\/ui\/SwitchedOff\.tsx$|^evals\/notes\/21-switched-off\.cjs$/, ['U103', 'U104', 'U48', 'N21']],
   // SW1: the four switches whose code is still the core's, their read-backs and the Features page's groups.
-  [/^src\/domain\/switchOff\.ts$|^src\/app\/reads\.ts$|^src\/domain\/home\.ts$|^src\/screens\/(Workspace|Home|GoalsScreen|GoalViews)\.tsx$|^src\/ui\/(Shell|goalRows)\.tsx$|^evals\/notes\/22-more-switches\.cjs$/, ['U164', 'U165', 'U166', 'N22', 'N21']],
+  [/^src\/domain\/switchOff\.ts$|^src\/app\/reads\.ts$|^src\/domain\/home\.ts$|^src\/screens\/(Workspace|Home|GoalsScreen|GoalViews)\.tsx$|^src\/ui\/(Shell|goalRows|HomeSets)\.tsx$|^evals\/notes\/22-more-switches\.cjs$/, ['U164', 'U165', 'U166', 'N22', 'N21']],
   // Its clock (RS1): dueWords and the receipt, the read-back's two lines; the words with it off, and back on (N30, the tools' one
   // sentence, is a spec scenario in evals/mcp.eval.ts, which always runs).
   [/^src\/domain\/(reviewsOff|progress)\.ts$|^src\/screens\/CheckInFlow\.tsx$|^src\/mcp\/moduleOff\.ts$|^evals\/notes\/21-switched-off\.cjs$/, ['U154', 'U155', 'N21']],

@@ -256,3 +256,26 @@
 /* The warning mark in the lead's eyebrow ("Not held yet", a late ask): the eyebrow's own size, never the SVG's default. */
 .home-hero .eyebrow { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .home-hero .eyebrow > svg { flex: none; width: 14px; height: 14px; }
+
+/* HM3 (docs/design/home/spec.md rule 4): Your team, and a set drawn as teams, worst first. Hairline-divided rows, status
+   as shape and word, no names of people; on a phone each team is a stacked row. */
+.home-team { display: flex; flex-direction: column; gap: var(--s2); }
+.home-team > .need-group-title.linkish { align-self: flex-start; }
+.arow-who { font-weight: 600; color: var(--fg); }
+.home-teams { display: flex; flex-direction: column; gap: var(--s2); }
+.teams-table { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
+.teams-table th, .teams-table td { text-align: left; vertical-align: top; padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line); }
+.teams-table thead th { font-weight: 600; color: var(--muted); }
+.teams-table .teams-name { font-weight: 600; overflow-wrap: anywhere; }
+.teams-table .teams-needs { white-space: nowrap; }
+.teams-table .home-counts { margin: 0; }
+.teams-table .teams-label { display: none; }
+.teams-more { align-self: flex-start; }
+@container app (max-width: 600px) {
+  .teams-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .teams-table, .teams-table tbody, .teams-table tr, .teams-table th, .teams-table td { display: block; width: auto; }
+  .teams-table tr { padding: var(--s2) 0; border-bottom: 1px solid var(--line); }
+  .teams-table th, .teams-table td { padding: 2px 0; border-bottom: 0; }
+  .teams-table .teams-needs { white-space: normal; }
+  .teams-table .teams-label { display: inline; color: var(--muted); margin-right: var(--s2); }
+}

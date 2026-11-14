@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (177): build it as Faro does.
+- **Copy** (178): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -1104,6 +1104,15 @@ A leader's attention goes to the exceptions. A weekly review walks the goals tha
 
 ## Home
 
+### HOME-MANAGER
+
+Someone in or leading a team sees that team on Home as the Goals page's My team scope, with the goals that need attention and aren't theirs; a review they are in is the lead on its day once their own check-ins are in, and one cell otherwise; an ask says how long it has waited and is marked once late.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [Home: your goals, your team and what you watch](rules/home-sets.md)
+- **Help:** “Home and your week at a glance” (`home`), screens `Home`
+- **Journeys and checks:** U123, U124
+
 ### HOME-OWNER
 
 Home opens on what is asked of you today, with one primary action, or says that nothing is; a check-in becomes the primary action the day before it is due, when late, or when a review you are in will read it. Your goals are counted once, each count opens exactly those goals, and a completed week is one sentence with the next date.
@@ -1241,7 +1250,7 @@ On the icon rail the Faro mark is the workspace switcher: it opens the same pane
 
 ### SMALL-MENU
 
-A module's menu row, a Goals tab and a Home section wait until they have something in them (a tab also waits while it is the same list as one drawn before it; All is always drawn). Hiding is only drawing: every address still opens.
+A module's menu row and a Goals tab wait until they have something in them (a tab also waits while it is the same list as one drawn before it; All is always drawn), in each workspace on its own: a row drawn in one never follows you into another. Hiding is only drawing: every address still opens. (Home's sections waiting too is backlog SM1h, with HM3; not built.)
 
 - **Copy:** build it as Faro does.
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
