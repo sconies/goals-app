@@ -285,6 +285,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - queryParts (find rule 3, on Goals) › says the reasons for needing attention when they narrow it
 - a module’s filter, declared as a column (architecture 4.2) › reads its parameter once added, compares the column, words it and removes it
 - owner=-me: not mine (Home rule 4, HM3) [HOME-MANAGER] › leaves out the asker’s own goals, round-trips through a link, and says “Owner not you”
+- moved and since: what changed (Home rule 5, HM4) › reads and writes moved=<kind>&since=<date> after attention; since alone is nothing
+- moved and since: what changed (Home rule 5, HM4) › says “Changed since Fri 6 Nov: got worse”, and Remove takes both away; a kind it doesn’t know has no words and is no filter
+- moved and since: what changed (Home rule 5, HM4) › keeps the goals the context passes; without it, none
 
 ## Looking after metrics
 

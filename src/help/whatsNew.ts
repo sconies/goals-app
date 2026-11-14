@@ -27,6 +27,40 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-fields',
+    date: '2026-11-14',
+    title: 'Fields: your workspace’s own columns on goals',
+    points: [
+      'Admins can add up to six fields on goals in Workspace, Fields, such as a stage (Discover, Build, Run) or a programme: each a short list of values or free text.',
+      'A goal’s page shows them in About, one line each, such as “Stage · Build”. Its owner or an admin changes one in place, and History says the change.',
+      'A field that is no longer wanted is retired, never deleted: goals keep their values, and it can be brought back.',
+      'An AI assistant can list the fields and set a goal’s values. Admins can switch Fields off in Workspace, Features.',
+    ],
+    articles: ['fields'],
+  },
+  {
+    id: 'home-one-team',
+    date: '2026-11-14',
+    title: 'With one team, Home shows the team’s goals once',
+    points: [
+      'In a workspace with one team, Home shows “The team’s goals” as one section, yours first, in place of Your goals and Your team.',
+      'Your teammates’ goals that need attention are listed with their owners’ names, so nothing of the team’s is missing from Home.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'home-changed',
+    date: '2026-11-14',
+    title: 'See what changed since you last looked',
+    points: [
+      'Home says what moved since you last opened it: how many goals got worse, recovered, went quiet or were done, each count opening exactly those goals.',
+      'Up to four of them are listed, worse first, each with its status now and what it was.',
+      'When your goals are shown as teams, a last column says what moved in each team.',
+      'Goals can be filtered the same way: “Changed since Fri 6 Nov: got worse”.',
+    ],
+    articles: ['home', 'goals-filters'],
+  },
+  {
     id: 'corrections-keep-the-author',
     date: '2026-11-14',
     title: 'A correction keeps whose check-in it is',

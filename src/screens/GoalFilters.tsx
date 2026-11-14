@@ -1,5 +1,6 @@
 /* Search, filters, sort and saved views for the Goals screen. Every setting lives in the URL, so a view is a link you
    can share; saving a view keeps that link under a name. What each filter means is in domain/query.ts. */
+import { movedPart } from '../domain/changed';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigationType, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
@@ -76,6 +77,8 @@ export function FilterBar({ lead, trail, after, find, sortOff }: {
     // With Reviews off `inreview=` is no filter, so it has no words either (build review of #424).
     ...(reviewsOn(on) ? { review: (id: string) => app.snapshot.reviews.find((r) => r.id === id)?.name ?? 'a review' } : {}),
     col,
+    // Home rule 5's "Changed since Fri 6 Nov: got worse" (changed.ts, loaded with Goals).
+    moved: movedPart,
   };
   // The filters in words (find rule 3). The Needs attention switch isn't a filter, and a search never is.
   const parts = queryParts(q, names);

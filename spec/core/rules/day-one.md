@@ -21,6 +21,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 |---|---|
 | The counter on Check. | `Step 4 of 4` |
 | Check’s address opened with the workspace named, you filled in, “Add your own” chosen and no goal added yet. | `goals` |
+| Step 1 changed to the name “ab” after reaching Check, then the browser’s Forward pressed instead of Continue. | `workspace` |
 | Ana set up Field Operations today with Ben, gave Ben one goal and left two unowned; what Ana sees. | `first-check-in, assign (Give 2 goals an owner.), invite` |
 | Ben opens it for the first time. | `Ana Silva set up Field Operations on 11 Nov and gave you 1 goal. / first-check-in` |
 | Ana, 15 days after her first visit. | `nothing` |
@@ -32,7 +33,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/dayOne.ts](../../../src/domain/dayOne.ts): `SETUP_STEPS`, `stepCounter`, `firstUnfilled`, `draftStep`, `startOf`, `gettingStarted`, `creatorOf`, `DAY_ONE_DAYS`, `NEW_WORKSPACE_DAYS`
+- [src/domain/dayOne.ts](../../../src/domain/dayOne.ts): `SETUP_STEPS`, `stepCounter`, `firstUnfilled`, `workspaceStepProblem`, `draftStep`, `startOf`, `gettingStarted`, `creatorOf`, `DAY_ONE_DAYS`, `NEW_WORKSPACE_DAYS`
 - [src/domain/arrival.ts](../../../src/domain/arrival.ts): `howWeWork`
 
 ## Requirements
