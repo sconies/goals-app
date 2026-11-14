@@ -12,13 +12,13 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 ## Where the next reviewer starts
 
-Written 14 November 2026, 00:10 UTC, when this reviewer stopped (Lane's decision, relayed by planning: the build reviewer restarts fresh).
+Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh that morning (session …Bn8GD91Ct4dL). The note before it was written at 00:10 UTC by the reviewer that stopped.
 
-- **Last merge fully reviewed:** `64ec07ed` (#428). Every code PR merged from #121 up to it has a row in State and a section below. The last sections are first-pass reviews I did not re-run except for their highs: #444, #446, and #428 with #449 and #452.
-- **Merged since, not reviewed:** #432 `51793844` (HB2: "before this review" judged on the review's own day; its handover line says it fixes #416's high), #458 `c9cd5583` (RS1 review mediums, for #424), #457 `9e40cdff` (migration 0051, guardrails on a goal), #455 `5583c975` (CLAUDE.md only).
+- **Last merge fully reviewed:** `51793844` (#432), the head of main at 02:30 UTC. Every code PR merged from #121 up to it has a row in State and a section below.
+- **Merged since, not reviewed:** none.
 - **Highs not yet confirmed fixed:**
-  - **#416**, habit work (sessions …8zT29m9btyWCVyT2QG, then …8y3FdWxxDaqeRvJw4c): "Before this review" was counted against the workspace's due day, not the review's own day. #432 says it fixes this; it is not verified. To verify, run for each review of the demo `beforeReview`'s sentence against the goals with a check-in stamped on or before `reviewSession().date` (the probe is described in #416's section), then mark the row Fixed in the highs table.
-  - **#452**, track 7c (session …932dXk7emNz7HTfoU1), sent 00:04 UTC, 14 Nov: a proposed number goal saved with no target can't be given one by a file or an assistant, and a row that also makes it active saves an active goal with no target. No fix merged yet.
+  - **#452**, now track 7d's (session …8zucYmfYJg7BejvdoB; planning's word), sent again 14 Nov about 02:20 UTC: a proposed number goal saved with no target can't be given one by a file or an assistant, and a row that also makes it active saves an active goal with no target. No fix merged; `src/domain/changeset.ts:1133` and `src/domain/goal.ts:189` are as they were at the merge. 7d is building GR (#464), which touches both files.
+- **#416's high is fixed** by #432 for a review held on another weekday (re-run for each of the demo's six reviews, 13 and 14 Nov). One case is left, a medium in #432's section: a review held on the due weekday, but not this week.
 - **Mediums that become high later:** #437/#446's readings (an earlier week saved with today's reading; decimals compared two ways) the day a real number source is registered.
 - **Method, in short:** per merge, `git diff <merge>^1 <merge> -- . ':!spec' ':!api/mcp.js' ':!llms.txt' ':!evals/report.md'`; fix PRs read against the findings they answer; large features to a first-pass reviewer in its own worktree, which writes its report to a file; any high re-run before it is sent to the session on the merge's `Claude-Session` line; PGlite only, never the live database.
 
@@ -213,6 +213,9 @@ Written 14 November 2026, 00:10 UTC, when this reviewer stopped (Lane's decision
 | #428 MS: a measurement status for metrics, and a goal held to no number | 7c | 0 | 4 | 2 |
 | #449 BL: a baseline as a field of its own | 7c | 0 | 3 | 2 |
 | #452 GB: a proposed number goal may leave its target unset (with migration 0050, #451) | 7c | 1 | 0 | 0 |
+| #457 GR part 1: migration 0051, guardrails on a goal | 7d | 0 | 0 | 0 |
+| #458 RS1 review: #424's mediums, and #416's `inreview=` | 4 | 0 | 0 | 3 |
+| #432 HB2 review: "on time" for a review not held on the due day; rule 4 counts the goals due | habit | 0 | 1 | 2 |
 
 **High findings, and where each stands**
 
@@ -234,8 +237,8 @@ Written 14 November 2026, 00:10 UTC, when this reviewer stopped (Lane's decision
 | #227: any member can put a check-in on someone else's goal by creating it with stages already done | Its builder (session …91EAkyS7gzPSYrnJPg), 18:15 UTC, 12 Nov | **Fixed** by #247 (read, with its tests): the set-up check-in asks the rule at the form, a sheet, MCP and `recordStagesDone`; from anyone but the owner the goal is published without it, and the stage question says who marks it |
 | #308: on a database, a save with several metric links, some with a part and some without, is refused for everyone (removing a metric, starting the next year, a workspace from the demo) | Its builder (session …92c7taPQJmK4jDJU9E), 04:06 UTC, 13 Nov | **Fixed** by #360 (re-run by me on main at `7ab34d99`): a link always writes its part, `''` when it has none, so the mixed batch saves; a schema test saves one through `okr_upsert` |
 | #358: with a second year, once the first year's check-ins fall outside the loaded window, a save that touches that year's goals adds its finished goals to the next year | A track 4 builder (session …931R7QEqBrfxbNv2QV), 12:52 UTC, 13 Nov | **Fixed** by #398 (merged 13 Nov): recarry does nothing for a year whose check-ins the window left out, and the window always keeps the newest two cycles. Re-run on main at `243959c4`, 3 Mar 2028: with two years 2026's check-ins stay loaded and nothing is added to 2027; with three years they are left out and nothing is added |
-| #416: "Before this review" is judged against the workspace's due day, not the review's own day, so a review's page and `get_review` give a false count on every review not held that day | The habit track (session …8zT29m9btyWCVyT2QG), 18:05 UTC, 13 Nov | **Open** |
-| #452: a proposed number goal saved with no target can't be given one by a file or an assistant, and the row that also makes it active saves an active goal with no target (refused by the database, saved wrongly in the browser store) | Track 7c (session …932dXk7emNz7HTfoU1), 00:04 UTC, 14 Nov | **Open** |
+| #416: "Before this review" is judged against the workspace's due day, not the review's own day, so a review's page and `get_review` give a false count on every review not held that day | The habit track (session …8zT29m9btyWCVyT2QG), 18:05 UTC, 13 Nov | **Fixed** by #432 for a review held on another weekday: it is headed "Week 46, due by Thursday 12 Nov" and says "on time" (re-run for all six demo reviews on 13 and 14 Nov). One case left, a medium on #432: a review on the due weekday with no session this week |
+| #452: a proposed number goal saved with no target can't be given one by a file or an assistant, and the row that also makes it active saves an active goal with no target (refused by the database, saved wrongly in the browser store) | Track 7c (session …932dXk7emNz7HTfoU1), 00:04 UTC, 14 Nov | **Open** at `51793844`: the two lines it rests on are unchanged. Sent to track 7d (session …8zucYmfYJg7BejvdoB), which now owns it, about 02:20 UTC, 14 Nov |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -1969,3 +1972,31 @@ Read first by a reviewing session with probes, the tools and the screens at 1440
 **3. Medium, Watching (ran). Activity's watching scope still answers:** `/activity?watching=all` shows "Showing: Goals you watch" (`src/screens/Activity.tsx:50-52`).
 
 **Lows.** The check-in page still offers "See the goals you watch"; core Help articles still describe Watching and the Map when off; switched-off addresses keep their own page titles; a view can be saved carrying `scope=watching` and `view=map` while both are off; the remembered Goals tab is overwritten while Watching is off; with Watching off someone who owns no goal is led to "37 goals need attention" after the year has ended; the build-without-Wrap-up check skips the whole "an admin starts the next cycle" scenario; conformance rows exist for Watching only. As with Reviews, these are switches over core code (21 gates in 10 core files), which each module's "gaps" says.
+
+### #457 GR part 1: migration 0051 (track 7d, merged 14 Nov)
+
+Read. Nothing found. One nullable `guards` column on `faro.okr_goals` with a shape check (null, or a list of at most five); every name carries `faro.`, nothing reaches outside it, the column grant to `anon` is written out as 0047 and 0049 write theirs, and it is safe to run twice (column if missing, constraint dropped and added). It ships a merge ahead of the code, has its line in `supabase/README.md` and its row in `src/spec/limits.ts`. To watch when the code lands (#464): the check refuses a JSON `null` (`jsonb_typeof` is 'null', not 'array'), so the row mapper must write SQL null or `[]`.
+
+### #458 RS1 review: #424's mediums (track 4, merged 14 Nov)
+
+Read against #424's four mediums and #416's medium 2. No high, no medium.
+
+- **#424 medium 2 (reads name reviews): closed.** With Reviews off the JSON export and `get_goal` hold no `notes` (tested through the MCP server in `src/app/reviewsOffReads.test.ts`; both export doors pass the flag); `list_requests` was already closed by #439.
+- **#424 medium 3 (a receipt nobody sees): closed.** `weekDoneText` lost its unused `clock` branch; Help and the spec's example now quote `receiptText`.
+- **#424 medium 4 (the habit panel's words): closed.** The words come from `dueWords`; a team's page names a review only when one is held that day with one of its goals' owners in it (`heldForGoals`), and U153 asserts CI/CD's heading.
+- **#416 medium 2 (`inreview=` with Reviews off): closed as the module map's F4 has it.** The filter narrows nothing and has no words, on Goals and in `find_goals`.
+- **#424 medium 1 (review data written with Reviews off) is not in this PR** and I did not re-run it: `src/mcp/removeTools.ts` still asks no switch.
+
+**Lows.** (1) `find_goals` with `inreview=` and Reviews off answers with every goal and no word that the filter was dropped, so an assistant asking for "goals in review X with no check-in" gets all goals with no check-in; the same is true of a switched-off `metric=`. One sentence in the answer would do. (2) `docs/architecture/module-map.md:82` still gives the import's old sentence ("Reviews is off in {workspace}: the Notes sheet…") as the one to copy; the code now says ", so … not read". (3) A team's panel says "before the review" under the row of weeks for all eight weeks on the strength of this week's review.
+
+### #432 HB2 review: #416's high (habit track, merged 14 Nov)
+
+Run: a probe over the demo's six reviews on 13 and 14 Nov, comparing each panel's heading, sentence and caption with the goals whose week-46 check-in was stamped on or before the review's own date.
+
+**#416's high: fixed for a review held on another weekday.** Five of the six demo reviews are held on a day other than Thursday. Each is now headed "Week 46, due by Thursday 12 Nov", says "…were checked in on time" and "by its Thursday" under the row; none says "before it". Data & ML sync (held Mon 9 Nov) reads "10 of 12 goals were checked in on time", which is true of Thursday (0 were in before its own session, and it no longer claims they were). Platform leadership weekly, held on the due day, keeps "before it" and its count matches (48 of 55 on 13 Nov). The counts are still against the due day, which the words now say. `get_review` passes the same flag.
+
+**#416's medium 3 (rule 4): fixed.** Owners are counted over the goals due that week; unit test added.
+
+**1. Medium (ran). A review held on the due weekday, but not this week, still says "before it".** The flag is `review.weekday === cycle.reviewDay` (`src/screens/Review.tsx:272`, `src/modules/reviews/tools.ts:49`), with no test of whether the review has a session in the week counted. Moving the demo's Quarterly business review to Thursday (next session 24 Dec, week 52) gives, on 13 Nov: heading "Before this review", "All 12 goals were checked in before it, without anyone asking.", and "checked in before the review" for eight weeks in which it held no session; Security monthly on a Thursday (next 26 Nov) does the same. This is the Quarterly case from #416's high, left open for any fortnightly, monthly or quarterly review on the due day. Fix: pass `heldOnDueDay`'s test, the weekday and `sessionWeek(r, w, cycle) === w`.
+
+**Lows.** `get_review`'s text still begins "Before this review:" and its key is `beforeThisReview` for a review the screen heads "Week 46, due by…"; no journey asserts a review page's new heading (a unit test only; U153 walks the fortnightly's "so far" state and a team's page), and Help's Reviews article has no line on the panel or its two headings.
