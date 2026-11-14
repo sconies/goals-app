@@ -1,10 +1,10 @@
-/* N23: the check-in rhythm's rules hold on screen (FT1, docs/design/feature-toggles/spec.md 4.2 and 9). run({ open, url })
+/* N31: the check-in rhythm's rules hold on screen (FT1, docs/design/feature-toggles/spec.md 4.2 and 9). run({ open, url })
    returns a list of failures. As Amara, an admin: the Change sheet's read-back counts what the rule counts
    (rhythmReadBack: the live goals, and those that stop reading No recent update), and Save is offered only once the
    choice differs. As Rhea, who isn't an admin, Features is not hers to open and the Change button is not there; the rule
    refuses her too (setRhythm, its unit test in src/domain/rhythm.test.ts). */
 module.exports = {
-  id: 'N23',
+  id: 'N31',
   area: 'rhythm',
   title: 'The check-in rhythm: the read-back counts what the rule counts; only an admin can change it',
   reqs: ['RHYTHM-OPTIONAL', 'ADMIN'],

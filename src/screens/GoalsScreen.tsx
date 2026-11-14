@@ -24,7 +24,7 @@ import { LISTED, StatusLegend } from '../ui/StatusLegend';
 import { Place, useModules } from '../core/app';
 import { FilterBar, useGoalQuery, useLatestParams, useViewActions } from './GoalFilters';
 import { MenuButton } from '../ui/MenuButton';
-import { EMPTY_QUERY, filters, SORT_OPTIONS } from '../domain/query';
+import { EMPTY_QUERY, filters, NOT_ME, SORT_OPTIONS } from '../domain/query';
 import { NO_STALE_HERE, statusUsed } from '../domain/rhythm';
 import { rhythmOf } from '../domain/thresholds';
 import { useGoalCounts, useGoalList } from '../app/goals';
@@ -90,7 +90,8 @@ export function GoalsScreen() {
       said.push(`No ${what} “${gone.join('”, “')}” in ${app.ws.name}, so that filter is off.`);
     };
     keep('team', (id) => !!app.team(id), 'team');
-    keep('owner', (id) => !!app.person(id), 'person');
+    // `-me` is "not you" (Home rule 4, HM3): no person, but always known.
+    keep('owner', (id) => id === NOT_ME || !!app.person(id), 'person');
     keep('feeds', (id) => !!app.goal(id), 'goal');
     if (next.toString() === params.toString() && !said.length) return;
     // Only while the page is still Goals: under load this effect can run after Back has already left it, and rewriting

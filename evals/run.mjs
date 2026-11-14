@@ -8,7 +8,8 @@
                                   (evals/touches.cjs; --base ref for another base). Shared code means the full suite
    npm run evals:pr               what a pull request's CI runs (--changed --no-full): the same, but shared code runs the
                                   smoke journeys and what the other files touch, not the full suite (that runs after the
-                                  merge). The quick runs slow phone pages 4× and run their journey processes in turn
+                                  merge); past 25 journeys beyond the smoke ones, only the 25 the files name most
+                                  directly (evals/touches.cjs capJourneys; Lane, 14 Nov). The quick runs slow phone pages 4× and run their journey processes in turn
    node evals/run.mjs --shard k/n one shard of the full suite (CI runs each on its own machine; shard 1 also runs the
                                   spec scenarios), leaving evals/out/journeys-k.json
    node evals/run.mjs --merge dir only merges the shards' results found under dir into the scorecard (CI)
@@ -35,7 +36,7 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, 'evals', 'out');
 const require = createRequire(import.meta.url);
 const { plan: shardPlan, checkIds, WEIGHTS, JOURNEY_WEIGHTS } = require('./shards.cjs');
-const { touches: touchesOf } = require('./touches.cjs');
+const { touches: touchesOf, capJourneys, PR_JOURNEY_CAP } = require('./touches.cjs');
 /** Journeys measured as slow on their own (seconds, a phone and a desktop), for splitting a quick run in two. */
 const QUICK_WEIGHTS = { U1: 40, U3: 45, U33: 22 };
 const PORT = Number(process.env.EVALS_PORT || 4318);
@@ -297,7 +298,14 @@ if (changed) {
   else {
     if (t.full) console.log(`  They touch shared code${t.unmatched.length ? ` (or code no rule in evals/touches.cjs names: ${t.unmatched.slice(0, 5).join(', ')})` : ''}: the full suite runs after the merge; here, the smoke journeys and what the other files touch.`);
     const ids = [...new Set([...SMOKE_JOURNEYS, ...SMOKE_CHECKS, ...t.ids])];
-    quick = { name: 'Changed', journeys: ids.filter((x) => /^U/.test(x)), checks: ids.filter((x) => !/^U/.test(x)), down: true };
+    let journeys = ids.filter((x) => /^U/.test(x));
+    // PR CI (--no-full) caps the journeys: the core ones and the 25 the files name most directly (Lane, 14 Nov).
+    if (noFull) {
+      const capped = capJourneys(journeys, SMOKE_JOURNEYS, t.score);
+      if (capped.left.length) console.log(`  ${journeys.length - SMOKE_JOURNEYS.length} journeys beyond the core ones: running the ${PR_JOURNEY_CAP} these files name most directly. The full suite after the merge runs the rest: ${capped.left.join(' ')}`);
+      journeys = capped.run;
+    }
+    quick = { name: 'Changed', journeys, checks: ids.filter((x) => !/^U/.test(x)), down: true };
   }
 }
 

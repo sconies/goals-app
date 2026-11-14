@@ -16,6 +16,7 @@ import { currentCycle, scopeToCycle, withArchivedGoal, withoutRemoved } from '..
 import { findGoal, withKeys } from '../domain/goalKey';
 import type { TableLayout } from '../domain/tableLayout';
 import { sendDemoFeedback } from './research';
+import { prefs } from './prefs';
 import { MODULES } from '../core/registry';
 import { MODULE_RECORDS, recordsOn } from '../core/records';
 import { applyCommit, EXAMPLE, examplesOf, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
@@ -441,7 +442,13 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
   // switched a module off elsewhere sees it off at its next reload, so its screens go and its next action is refused.
   // Only the tab that switched knew before. The first load has just listed the workspaces, so it doesn't ask twice.
   const loadWs = async (ws: string, switches = true) => {
-    const [snap, list] = await Promise.all([store.load(ws, appWindow((pinned ?? clock)())), switches ? store.workspaces().catch(() => null) : null]);
+    // The person-kept Prefs come with it (PP1, migration 0053): a proposed goal opened on another device reads as opened
+    // here. Without them (no server, or the read failed) this browser's are read, as before.
+    const [snap, list, kept] = await Promise.all([
+      store.load(ws, appWindow((pinned ?? clock)())), switches ? store.workspaces().catch(() => null) : null,
+      store.personPrefs && store.keepPersonPref ? store.personPrefs(ws).catch(() => null) : null,
+    ]);
+    if (kept) prefs.adopt(ws, kept, (id, p) => store.keepPersonPref!(id, p));
     const w = list?.find((x) => x.id === ws);
     if (w) adoptSwitches(ws, w.modulesOff ?? []);
     return snap;

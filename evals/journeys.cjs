@@ -192,10 +192,33 @@ function harness(device) {
         set('a11y', !small.length, `${label}: primary button under 44px (${small.map((x) => x.text + ' ' + Math.round(x.h)).join(', ')})`);
       }
       // Let entrance motion finish first (the goal page's story runs up to 4s): an element caught mid-fade isn't its real contrast.
-      await p.evaluate(() => Promise.race([Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))), new Promise((res) => setTimeout(res, 5000))]));
+      // Motion that starts while waiting counts too: a list's new rows fade in when they arrive (motion.ts), and content
+      // loaded after the first download (Home's sets) arrives late, so wait until two frames pass with nothing running.
+      await p.evaluate(() => new Promise((res) => {
+        // First the page itself settles: nothing added or changed for 150 ms (at most 2 s), so a section loaded after the
+        // first download is on the page before its motion is waited for.
+        let t; const done = () => { mo.disconnect(); res(); };
+        const mo = new MutationObserver(() => { clearTimeout(t); t = setTimeout(done, 150); });
+        mo.observe(document.body, { childList: true, subtree: true, characterData: true });
+        t = setTimeout(done, 150); setTimeout(done, 2000);
+      }));
+      await p.evaluate(async () => {
+        const end = Date.now() + 5000;
+        const moving = () => document.getAnimations().filter((a) => (a.playState === 'running' || a.playState === 'pending') && a.effect?.getTiming().iterations !== Infinity);
+        const frames = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+        while (Date.now() < end) {
+          const running = moving();
+          if (!running.length) { await frames(); if (!moving().length) return; continue; }
+          await Promise.race([Promise.all(running.map((a) => a.finished.catch(() => {}))), new Promise((res) => setTimeout(res, Math.max(0, end - Date.now())))]);
+        }
+      });
       await p.addScriptTag({ content: AXE });
       const v = await p.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations
-        .filter((x) => x.impact === 'serious' || x.impact === 'critical').map((x) => `${x.id} ${x.nodes[0].target.join(' ')}`));
+        .filter((x) => x.impact === 'serious' || x.impact === 'critical').map((x) => {
+          // A contrast failure says what axe measured, so a failure seen only in CI can be read from its log.
+          const d = x.id === 'color-contrast' ? x.nodes[0].any?.[0]?.data : null;
+          return `${x.id} ${x.nodes[0].target.join(' ')}${d ? ` (${d.fgColor} on ${d.bgColor}, ${d.contrastRatio}:1${d.messageKey ? `, ${d.messageKey}` : ''})` : ''}`;
+        }));
       set('a11y', !v.length, `${label}: ${v.slice(0, 2).join('; ')}`);
       const sideways = await p.evaluate(() => {
         const w = document.documentElement.clientWidth;
@@ -1354,6 +1377,8 @@ journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES', 'ONE
   await see(p, 'Goals you watch', 'home shows what Oskar watches');
   // One watching block on Home (one Watching): no second summary of the same goals.
   h.set('parity', await p.locator('.dash-watch').count() === 0 && await p.locator('.home-watch').count() === 1, 'Home shows the goals you watch more than once');
+  // Oskar's team (Developer Experience) comes before what he watches (Home rule 4, HM3), so the rows are a scroll away on a phone.
+  await p.locator('.home-watch').scrollIntoViewIfNeeded();
   await h.inView(p.locator('.tree .trow').first(), 'entry', 'the goals Oskar watches');
   h.set('attention', (await p.locator('.tree .trow').count()) > 0 && (await p.locator('.tree .trow .trow-why').first().innerText()).length > 10, 'watched goals are not shown with what changed or how fresh they are');
   await h.checkpoint('home');
@@ -1706,6 +1731,86 @@ journey('U122', ['HOME-OWNER'], 'The owner’s week on Home: on Monday nothing i
   h.set('errors', /Check-ins are due by Thursday 12 Nov, tomorrow/.test(lead) && /\d+ check-ins? to do/.test(lead) && await p.locator('.page.home .btn.primary').count() === 1 && await start.count() === 1, `Rhea’s Wednesday lead: “${lead.replace(/\s+/g, ' ')}”`);
   await h.click(start);
   await p.waitForURL(/\/check-in/);
+  h.set('logged', true);
+  await p.context().close();
+});
+
+journey('U123', ['HOME-MANAGER'], 'The manager on Home: Rhea’s “Your team · CI/CD” opens the My team scope of Goals with the same total; “{k} need attention that aren’t yours” lists up to four, each with its owner’s name first, and opens Goals filtered to Owner not you, whose count line says k', 4, async (h, device) => {
+  // Home rule 4 (HM3): the team set is exactly the Goals page's My team scope, so the block's total is the tab's count.
+  const day = (d) => BASE + '/demo/?today=' + d;
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(day('2026-11-11'));
+  const block = p.locator('[data-part="Your team"]');
+  await block.waitFor();
+  const head = (await block.locator('h2').innerText()).replace(/\s+/g, ' ').trim();
+  const total = Number((head.match(/· (\d+) goals?$/) || [])[1]);
+  h.set('attention', /^Your team · CI\/CD · \d+ goals?$/.test(head) && total > 0, `Your team’s heading is “${head}”`);
+  // Its counts are shapes and words that add up to the total, and open the team scope by status.
+  const counts = await block.locator('.home-counts a').evaluateAll((as) => as.map((a) => ({ text: a.innerText.trim(), href: a.getAttribute('href') || '', shape: !!a.querySelector('svg.status-shape') })));
+  h.set('progress', counts.length > 0 && counts.every((c) => c.shape && /\/goals\?scope=team&status=\w+/.test(c.href)) && counts.reduce((n, c) => n + parseInt(c.text, 10), 0) === total, `Your team’s counts: ${counts.map((c) => c.text + ' ' + c.href).join(' | ')}`);
+  // The goals that need attention and aren't hers: each row names its owner first, never Rhea, and has no button.
+  const needs = block.locator('a.home-team-needs');
+  const said = await needs.innerText();
+  const k = Number((said.match(/^(\d+) needs? attention that (isn’t|aren’t) yours$/) || [])[1]);
+  if (!k) fail(`Your team’s link says “${said}”`);
+  const rows = block.locator('.arow');
+  const who = await block.locator('.arow .arow-who').allInnerTexts();
+  h.set('finish', await rows.count() === Math.min(4, k) && who.length === Math.min(4, k) && !who.some((w) => /Rhea/.test(w)) && await block.locator('.arow .btn').count() === 0, `Your team lists ${await rows.count()} rows (owners ${who.join(', ')}) for ${k}`);
+  await h.checkpoint('home');
+  // See them in Goals: the My team scope, with the same total.
+  await h.click(block.getByRole('link', { name: 'See them in Goals' }));
+  await p.waitForURL(/\/goals\?scope=team/);
+  await p.locator('.goals-line').first().waitFor();
+  const line = await p.locator('.goals-line').first().innerText();
+  if (Number((line.match(/^(\d+) goals?/) || [])[1]) !== total) fail(`Your team says ${total} goals but Goals says “${line}”`);
+  // The link to what isn't hers opens Goals with Owner not you, and the count line says k.
+  await p.goBack();
+  await needs.waitFor();
+  await h.click(needs);
+  await p.waitForURL(/scope=team&attention=1&owner=-me/);
+  await p.locator('.goals-line').first().waitFor();
+  const theirs = await p.locator('.goals-line').first().innerText();
+  if (!new RegExp(`^${k} needs? attention`).test(theirs)) fail(`“${said}” opened Goals saying “${theirs}”`);
+  const filter = await p.locator('.filter-line').first().innerText().catch(() => '');
+  h.set('errors', /Owner not you/.test(filter), `the filter line says “${filter}”, not “Owner not you”`);
+  await h.checkpoint('goals');
+  h.set('logged', true);
+  await p.context().close();
+});
+
+journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k', 3, async (h, device) => {
+  // Home rule 4 (HM3): three or more teams are drawn as teams, ordered as Goals orders "By team" (worstGroupsFirst).
+  const day = (d) => BASE + '/demo/?today=' + d;
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(day('2026-11-09'));
+  const block = p.locator('[data-part="Goals you watch"]');
+  await block.waitFor();
+  const table = block.locator('.teams-table');
+  await table.waitFor();
+  const head = (await block.locator('h2').innerText()).replace(/\s+/g, ' ');
+  h.set('attention', /· \d+ goals in \d+ teams/.test(head), `Watching’s heading is “${head}”`);
+  // Worst first: the most off track, then at risk, then no recent update, then no check-in yet; five teams, then the rest.
+  const tally = await table.locator('tbody tr').evaluateAll((trs) => trs.map((tr) => {
+    const n = (w) => Number(((tr.querySelector('.teams-counts')?.textContent || '').match(new RegExp('(\\d+) ' + w)) || [])[1] || 0);
+    return [n('off track'), n('at risk'), n('no recent update'), n('no check-in yet')];
+  }));
+  const ordered = tally.every((t, i) => i === 0 || (() => { const a = tally[i - 1]; for (let x = 0; x < 4; x++) if (a[x] !== t[x]) return a[x] > t[x]; return true; })());
+  h.set('progress', tally.length === 5 && ordered && await block.locator('a.teams-more').count() === 1, `the teams are not five, worst first: ${JSON.stringify(tally)}`);
+  // No person's name is in the table: teams and goals are ranked, never people.
+  const s0 = await h.snapshot();
+  const text = await table.innerText();
+  const named = s0.people.map((x) => x.name).filter((n) => text.includes(n));
+  if (named.length) fail(`the teams table names ${named.join(', ')}`);
+  await h.checkpoint('home');
+  // A team's "{k} need attention" opens Goals for that team with the switch on, and its count line says k.
+  const link = table.locator('.teams-needs a').first();
+  const k = Number(((await link.innerText()).match(/^(\d+)/) || [])[1]);
+  await h.click(link);
+  await p.waitForURL(/scope=watching&team=[^&]+&attention=1/);
+  await p.locator('.goals-line').first().waitFor();
+  const line = await p.locator('.goals-line').first().innerText();
+  h.set('finish', new RegExp(`^${k} needs? attention`).test(line), `a team’s “${k} need attention” opened Goals saying “${line}”`);
+  h.set('errors', true);
   h.set('logged', true);
   await p.context().close();
 });
@@ -6444,7 +6549,9 @@ journey('U153', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: 
   const panel = p.locator('section.habit');
   await panel.waitFor({ timeout: 8000 });
   const says = (await panel.locator('.habit-sum').innerText()).trim();
-  h.set('entry', /^\d+ of \d+ goals are checked in so far\.$/.test(says), `the panel said “${says}”`);
+  // A review held on another day than the one check-ins are due is headed by the week, never "Before this review" (review of #432).
+  const head = (await p.locator('#habit-head').innerText()).trim();
+  h.set('entry', /^\d+ of \d+ goals are checked in so far\.$/.test(says) && head === 'Week 45, due by Thursday 5 Nov', `the panel said “${says}”, headed “${head}” (a fortnightly review on Tuesdays)`);
   const cells = await panel.locator('.habit-week').allInnerTexts();
   h.set('progress', cells.length === 8 && cells.every((t) => /Week \d+/.test(t) && /(All in|\d+ after|None in|Nothing due)/.test(t)), `the row of weeks: ${cells.map((t) => t.replace(/\s+/g, ' ')).join(' | ')}`);
   // [HABIT-NEVER-A-PERSON] Weeks, not people: nobody's name is anywhere in the panel.
