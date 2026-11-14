@@ -90,6 +90,11 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - From and To in a file (rule 13; GE9 review) › says a To before From in its own words, with Due week blank
 - From and To in a file (rule 13; GE9 review) › still refuses To and Due week that disagree
 - From and To in a file (rule 13; GE9 review) › asks which a bare number under From is, in a file with no Start column
+- a proposed goal given its target later (GB review, HIGH) › takes a target alone, and the goal no longer says it has none
+- a proposed goal given its target later (GB review, HIGH) › takes a target with State active: active, with its target, and nothing asked about the placeholder it replaces
+- a proposed goal given its target later (GB review, HIGH) › removes the baseline for Baseline period none, and the target stays unset
+- a proposed goal given its target later (GB review, HIGH) › lays a build over the stored goal: the build decides its own keys, the stored goal keeps the rest
+- a proposed goal given its target later (GB review, HIGH) › asks no plan question when the target it replaces was never set
 
 ### [src/domain/postCheckIn.test.ts](../../../src/domain/postCheckIn.test.ts)
 

@@ -103,6 +103,7 @@ The build makes the registry (`vite.modules.ts`): every folder with a module.jso
   - browser storage (`localStorage`, `sessionStorage`, `indexedDB`) only in `src/adapters` and `src/ports`, apart from the shrinking list in `scripts/browser-storage.json` (AX9; shown in `spec/rebuild/adapters.md`).
 - **The manifest test** (`src/core/module.test.ts`) checks each module.json against its code: routes, places, help, tools, requirements, journeys and migrations.
 - **The spec** (`spec/`, `llms.txt`; `npm run spec`, items 8a and 8b) is generated from the code: `spec/core/` for the core, `spec/modules/<id>/` from each module.json, and `spec/conformance/` with what the rules give for every goal in every week of the demo. `src/spec/spec.test.ts` and CI's spec step fail when it is out of date; `src/spec/conformance.test.ts` recomputes the conformance rows.
+- **A pull request's evals** (CI's smoke job, `npm run evals:pr`): the spec scenarios, the core journeys, and every journey and check the PR's files touch (`evals/touches.cjs`, which reads each module.json's `journeys`), phone pages slowed 4× and run one process after another. A change to shared code doesn't run the whole suite here; the full suite runs in four shards after the merge.
 - **CI's "Core journeys without <module>" job** builds Faro with `FARO_WITHOUT=<module>` (that module, and anything that needs it, left out of the bundle). It then runs the smoke gate without the module's journeys. It runs for every folder in `src/modules`.
 
 ### Adding a module
