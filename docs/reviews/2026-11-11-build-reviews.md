@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh that morning (session …Bn8GD91Ct4dL). The note before it was written at 00:10 UTC by the reviewer that stopped.
 
-- **Last merge fully reviewed:** `2d9ab884` (#485), the head of main at 14:35 UTC, 14 Nov. Expected next: #476 (a `restore_removed` test with Reviews off). One medium is open: #485's (two devices, one list).
+- **Last merge fully reviewed:** `a13e55ef` (#468), the head of main at 15:20 UTC, 14 Nov. Expected next: #476 (a `restore_removed` test with Reviews off). Two mediums are open: #485's (two devices, one list) and #468's (no "Your team" on Home with one team).
 - **Merged since, not reviewed:** none.
 - **Highs not yet confirmed fixed:** none. #452 is fixed by #467 and #416 by #432 (both re-run). What was left of #416 (a review held on the due weekday, but not this week) is fixed by #479.
 - **Who gets what (Lane, 14 Nov, relayed by planning at 13:34 UTC):** highs at once to the owning track, with a copy to planning; mediums to planning once per batch; lows are logged here only and sent to nobody (they move to the backlog, #483).
@@ -240,6 +240,7 @@ Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh th
 | #484 PP0: migration 0053, person_prefs | 2 | 0 | 0 | 1 |
 | #477 SM1 review: a menu row drawn in one workspace no longer follows you into another (#461's medium) | 2 | 0 | 0 | 0 |
 | #485 PP1: a proposed goal's Opened and Not yet follow the person between devices | 2 | 0 | 1 | 2 |
+| #468 HM3: Your team on Home, and teams worst first | 1 | 0 | 1 | 2 |
 
 **High findings, and where each stands**
 
@@ -2090,3 +2091,11 @@ Read; the medium run against the adapter with a stand-in server. This builds Lan
 **1. Medium (ran). Two devices open in the same hour lose each other's "Opened" and "Not yet".** The value is one list for the person, each device changes its own copy as loaded and sends the whole of it (`src/app/proposalSeen.ts:16-27`, `serverPrefs.set`), and nothing reads the server again before writing. Laptop loads and opens A; phone loads (sees A) and opens B; the laptop, not reloaded, opens C: the server holds A and C, and B asks again on both from the next load. The same for a put-off. It is the case the feature is for. Fix: merge on the way in (read the row, union the opened ids and keep the later put-off date, then write), or keep a row per goal instead of one list.
 
 **Lows.** (1) A browser that had opened goals before today loses them the first time another device writes: once the server has a row, it wins whole over this browser's older list, with no merge. (2) Forgetting a value (`set` with null) is kept for the visit only, so it returns on the next load; nothing forgets one today.
+
+### #468 HM3: Your team on Home, and teams worst first (track 1, merged 14 Nov)
+
+Read (the rule, the query, the markup and the styles), with two probes of the scopes; not walked on screen by me, and the full suite runs after the merge. Home's sets are the Goals scopes (`homeSets`, in its own file so Home's first download doesn't grow); a set of more than twelve goals in two or more teams is a table of teams, worst first by the same order Goals uses; every count is a link to exactly those goals, and `owner=-me` ("not you") is new on Goals and in `find_goals`. Status is a shape and a word in every cell, rows are hairline-divided, nothing is a stripe or a pill, and a phone gets stacked rows with their labels. Help, What's new, a requirement, journeys and the module map come with it.
+
+**1. Medium (ran in the rule; read for the screen). A workspace with one team has no "Your team" on Home.** `useHomeSets` reads `scopesFor(...).tabs` (`src/ui/HomeSets.tsx:31`), and since #461 a tab waits when it is the same list as All, so with one team the `team` scope isn't among them and `homeSets` returns no team set: three goals in one team, one mine, gives tabs Mine and All only. The teammates' goals that need attention are then nowhere on Home, in the workspaces SM1 is for, and What's new says "Your team on Home". The design's answer is SM1h (one section, "The team's goals", backlog row 32, not built). Until it is, read `every`, as `find_goals` does since #461. In the demo nobody is affected (one person, whose team's only goal is their own).
+
+**Lows.** (1) `YourTeam`'s comment says teams are drawn "when the scope spans three or more"; the rule is more than twelve goals in two or more teams. (2) The same reading of `tabs` drops "Goals you watch" as teams for someone whose watched list is exactly their team's or everyone's goals; nobody in the demo is.
