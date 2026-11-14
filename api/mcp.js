@@ -2100,7 +2100,7 @@ var init_proposed = __esmMin((() => {
 	};
 }));
 // src/domain/levels.ts
-var DEFAULT_LEVELS, all$1, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, isTop, levelRank, hasLevels, LEVEL_WORDS, EVERYDAY_WORD;
+var DEFAULT_LEVELS, all$1, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, isTop, levelRank, hasLevels, LEVEL_WORDS$1, EVERYDAY_WORD;
 var init_levels = __esmMin((() => {
 	DEFAULT_LEVELS = [
 		{
@@ -2133,7 +2133,7 @@ var init_levels = __esmMin((() => {
 		return i < 0 ? levelIds(c).length : i;
 	};
 	hasLevels = (c) => levelsOf$1(c).length >= 2;
-	LEVEL_WORDS = {
+	LEVEL_WORDS$1 = {
 		what: "Level",
 		word: {
 			"north-star": "north star",
@@ -2150,7 +2150,7 @@ var init_levels = __esmMin((() => {
 		},
 		prefix: { "north-star": ["north"] }
 	};
-	EVERYDAY_WORD = LEVEL_WORDS.word[everydayLevel(null)] ?? everydayLevel(null);
+	EVERYDAY_WORD = LEVEL_WORDS$1.word[everydayLevel(null)] ?? everydayLevel(null);
 }));
 // src/domain/progress.ts
 /** The person's goals this week: which are checked in and which are still due. */
@@ -3690,7 +3690,10 @@ function startsFromProvisional(g) {
 function periodProblem(period) {
 	return period.trim().length > 60 ? `The baseline’s period can be at most 60 characters.` : null;
 }
-var init_baseline = __esmMin((() => {}));
+var PROVISIONAL_LATE;
+var init_baseline = __esmMin((() => {
+	PROVISIONAL_LATE = "A baseline can be marked provisional only before the goal’s first check-in. To move where the plan starts now, change Start and say why.";
+}));
 // src/domain/goal.ts
 function blankGoal(teamId, ownerId, parentId) {
 	return {
@@ -4208,7 +4211,7 @@ var init_chartStory = __esmMin((() => {
 }));
 // src/domain/tree.ts
 /** Whether making `goal` feed `parentId` would make a loop: the parent is the goal or feeds into it. */
-function makesLoop(goalId, parentId, goals) {
+function makesLoop$1(goalId, parentId, goals) {
 	let p = parentId;
 	const seen = /* @__PURE__ */ new Set();
 	while (p && !seen.has(p)) {
@@ -4519,7 +4522,8 @@ function startReadBack(ctx) {
 /**
 * A goal's copy in the next year (rule 5): a new id, in the new cycle, made now, with its key and everything else as it
 * was. A number goal that **carries** starts from its final number in week 1 (\`fromWeek\` 0), with the same target
-* and shape, due at the end of the new year: no end week, no hand-set numbers, no earlier plans. One that **keeps** its
+* and shape, due at the end of the new year: no end week, no hand-set numbers, no earlier plans, and no baseline (last year's
+* was its old start). One that **keeps** its
 * plan keeps its dates, counted from the new year's start. The copy was proposed in no review of the new year, so it
 * keeps no `proposedIn` (build review of #376). Stages not done are spread evenly over the new year
 * (\`round((i + 1) × weeks / n)\`, never after its last week). A limit is unchanged.
@@ -4559,14 +4563,18 @@ function carryCopy(g, ctx) {
 		};
 	}
 	if (g.kind === "metric") {
+		const f = finalNumber(g, ctx.checkIns, ctx.old);
 		const plan = {
-			start: finalNumber(g, ctx.checkIns, ctx.old).value ?? g.plan.start,
+			start: f.value ?? g.plan.start,
 			target: g.plan.target,
 			shape: g.plan.shape,
 			fromWeek: 0
 		};
+		const { baseline: _old, ...rest } = base;
+		const kept = f.value == null && g.baseline ? { baseline: g.baseline } : {};
 		return {
-			...base,
+			...rest,
+			...kept,
 			kind: "metric",
 			plan,
 			originalPlan: null,
@@ -5506,7 +5514,7 @@ var init_columns = __esmMin((() => {
 				write: blank
 			},
 			e("Ref", "A label of your own for this row, so other rows in the same file can name the goal it adds before it has a key (Feeds into ref, Goal ref). Only for this file: never kept. Empty in an export.", blank, "Names the row’s goal for Feeds into ref and Goal ref in the same file"),
-			e("Level", `${oneOf(Object.values(LEVEL_WORDS.word))}: how important it is, for reporting.`, (r) => LEVEL_WORDS.word[r.g.level] ?? r.g.level),
+			e("Level", `${oneOf(Object.values(LEVEL_WORDS$1.word))}: how important it is, for reporting.`, (r) => LEVEL_WORDS$1.word[r.g.level] ?? r.g.level),
 			e("Team", "The team it belongs to, by name.", (r) => or$1(r.c.team(r.g.teamId))),
 			e("Owner", "Who owns it, by name. A name works when only one person has it; Owner email is exact.", (r) => or$1(r.c.name(r.g.ownerId))),
 			e("Owner email", "Who owns it, by email: what tells two people with the same name apart.", (r) => r.c.email(r.g.ownerId), "Changes the owner; when Owner and Owner email disagree, the one you changed counts"),
@@ -5677,7 +5685,7 @@ var init_columns = __esmMin((() => {
 			m$1("Key", "The goal’s key.", (r) => or$1(r.g.key)),
 			m$1("ID", "The goal’s ID in this cycle.", (r) => r.g.id),
 			sh$1("Goal", "The goal’s name.", (r) => r.g.title),
-			sh$1("Level", "Its level.", (r) => LEVEL_WORDS.word[r.g.level] ?? r.g.level),
+			sh$1("Level", "Its level.", (r) => LEVEL_WORDS$1.word[r.g.level] ?? r.g.level),
 			sh$1("Team", "Its team.", (r) => or$1(r.c.team(r.g.teamId))),
 			sh$1("Owner", "Who owns it.", (r) => or$1(r.c.name(r.g.ownerId))),
 			sh$1("Owner email", "Who owns it, by email.", (r) => r.c.email(r.g.ownerId)),
@@ -5832,7 +5840,7 @@ var init_columns = __esmMin((() => {
 			},
 			Level: {
 				required: { optional: EVERYDAY_WORD },
-				format: wordList(LEVEL_WORDS),
+				format: wordList(LEVEL_WORDS$1),
 				example: EVERYDAY_WORD,
 				empty: EVERYDAY_WORD,
 				also: ["goal level"]
@@ -7955,8 +7963,15 @@ function setModule(x, ws, modules, id, on) {
 	const needing = (root) => modules.filter((k) => k.needs.includes(root)).flatMap((k) => [k.name, ...needing(k.id)]);
 	const also = [...new Set(needing(id))];
 	const name = m.name;
+	const ids = /* @__PURE__ */ new Set([id, ...modules.filter((k) => also.includes(k.name)).map((k) => k.id)]);
+	const parts = (x.records ?? []).filter((r) => ids.has(r.module)).flatMap((r) => {
+		const p = r.switched?.(x, on);
+		return p ? [p] : [];
+	});
+	const goals = parts.flatMap((p) => p.goals ?? []);
 	return {
 		modulesOff: off,
+		...goals.length ? { goals } : {},
 		changes: [{
 			id: x.newId("chg"),
 			at: x.now,
@@ -7971,7 +7986,7 @@ function setModule(x, ws, modules, id, on) {
 				from: on ? "Off" : "On",
 				to: on ? "On" : "Off"
 			}]
-		}]
+		}, ...parts.flatMap((p) => p.changes)]
 	};
 }
 /** Admins: add a team, or rename one or change its lead. Null commit when nothing changed. */
@@ -8334,6 +8349,7 @@ function goalMustFix(d, ctx) {
 			const s = number("start", d.start, ["start-empty", ctx.existing ? "Enter where it starts." : "Enter where it starts today."]);
 			const long = periodProblem(d.baselinePeriod ?? "");
 			if (long) add("start", "baseline-period-long", long);
+			if (d.baselineProvisional && ctx.existing?.kind === "metric" && !ctx.existing.baseline?.provisional && (ctx.checkIns ?? []).some((c) => !c.removedAt)) add("start", "baseline-provisional-late", PROVISIONAL_LATE);
 			const t = number("target", d.target, ["target-empty", "Enter the target."]);
 			if (s != null && t != null && s === t) add("target", "same-as-start", `The target is the same as today (${withUnit(groupDigits(String(s)), d.unit)}). To hold a number where it is, make this a number to keep in range.`, { hold: s });
 			const stored = new Map(ctx.existing?.kind === "metric" ? (ctx.existing.plan.points ?? []).map((p) => [String(p.week), p.value]) : []);
@@ -11791,7 +11807,7 @@ function* planChangesInChunks(input) {
 		if (owner) d.ownerId = owner.id;
 		if (!existing && !tm && owner?.teamId && teams.get(owner.teamId)) note("default", "Goals", row, title, `Team: ${teams.get(owner.teamId).name} (the owner’s team; the row gave none).`, { column: "Team" });
 		if (tm) d.teamId = tm.id;
-		const lvl = readWord(LEVEL_WORDS, val(r, "level"), "Goals", row, label);
+		const lvl = readWord(LEVEL_WORDS$1, val(r, "level"), "Goals", row, label);
 		if (lvl === void 0) return;
 		if (lvl) d.level = lvl;
 		const kind = readWord(TYPE_WORDS, val(r, "type"), "Goals", row, label);
@@ -12250,7 +12266,7 @@ function* planChangesInChunks(input) {
 			raise("loop", "Goals", l.row, g.title, "A goal can’t feed into itself.", { column: "Feeds into" });
 			continue;
 		}
-		if (parentId && makesLoop(l.id, parentId, [...work.values()])) {
+		if (parentId && makesLoop$1(l.id, parentId, [...work.values()])) {
 			raise("loop", "Goals", l.row, g.title, "That link would make a loop: the goal it feeds already feeds into it.", { column: "Feeds into" });
 			continue;
 		}
@@ -13424,7 +13440,8 @@ var init_changeset = __esmMin((() => {
 		"to-before-from": "plan-order",
 		"week-unknown": "week-wrong",
 		"week-beyond": "week-wrong",
-		"baseline-period-long": "impossible-number"
+		"baseline-period-long": "impossible-number",
+		"baseline-provisional-late": "impossible-number"
 	};
 	ENGINE_CHECK = {
 		"below-zero": "odd-number",
@@ -13609,7 +13626,7 @@ function heldByLink(x, goal, m) {
 	};
 }
 function heldChange(x, g, m, held) {
-	const summary = held ? `Held to no number until “${m.name}” is measured` : m && !m.removedAt && measurementOf(m) !== "gap" ? `Held to its plan again, as “${m.name}” is measured` : "Held to its plan again";
+	const summary = held ? `Held to no number until “${m.name}” is measured` : m && !m.removedAt && !m.retiredAt && measurementOf(m) !== "gap" ? `Held to its plan again, as “${m.name}” is measured` : "Held to its plan again";
 	return {
 		id: x.newId("chg"),
 		at: x.now,
@@ -13626,6 +13643,40 @@ function heldChange(x, g, m, held) {
 		}]
 	};
 }
+/** What the library leaves on the goals' own field when it is switched off or on (ModuleRecords.switched). Off, nothing
+measures a goal, so every goal held to no number is held to its plan again; on, each gap holds its goals once more.
+Null when no goal moves. */
+function heldOnSwitch(x, on, metrics, links) {
+	const goals = (x.full ?? x.snapshot).goals;
+	if (!on) {
+		const held = goals.filter((g) => !!g.unmeasuredSince && !g.removedAt && !g.stoppedAt);
+		if (!held.length) return null;
+		return {
+			goals: held.map((g) => heldToNoNumber(g, false, x.now)),
+			changes: held.map((g) => ({
+				id: x.newId("chg"),
+				at: x.now,
+				actorId: x.actor.id,
+				goalId: g.id,
+				entity: "goal",
+				entityId: g.id,
+				action: "edited",
+				summary: "Held to its plan again, as the metric library is switched off",
+				diffs: [{
+					field: "Measured",
+					from: "Not yet",
+					to: "Yes"
+				}]
+			}))
+		};
+	}
+	const parts = metrics.filter((m) => holdsToNoNumber(m)).map((m) => heldBy(x, m, goals, links));
+	const out = {
+		goals: parts.flatMap((p) => p.goals),
+		changes: parts.flatMap((p) => p.changes)
+	};
+	return out.goals.length ? out : null;
+}
 var MEASUREMENTS, MEASUREMENT_LABEL, measurementOf, holdsToNoNumber, measurementWords;
 var init_rulesMeasured = __esmMin((() => {
 	init_unmeasured();
@@ -13640,12 +13691,107 @@ var init_rulesMeasured = __esmMin((() => {
 		gap: "Gap"
 	};
 	measurementOf = (m) => m.measurement ?? "measured";
-	holdsToNoNumber = (m) => !!m && !m.removedAt && measurementOf(m) === "gap";
+	holdsToNoNumber = (m) => !!m && !m.removedAt && !m.retiredAt && measurementOf(m) === "gap";
 	measurementWords = (m) => {
 		const k = measurementOf(m);
 		const note = k === "measured" ? "" : (m.measurementNote ?? "").trim();
 		return note ? `${MEASUREMENT_LABEL[k]}: ${note}` : MEASUREMENT_LABEL[k];
 	};
+}));
+// src/modules/metrics/rulesStructure.ts
+/** Whether making `parentId` the parent of `id` would make a loop (the parent is the metric or one of its children). */
+function makesLoop(s, id, parentId) {
+	const byId = new Map(s.metrics.map((m) => [m.id, m]));
+	const seen = /* @__PURE__ */ new Set();
+	for (let at = parentId; at; at = byId.get(at)?.parentId) {
+		if (at === id) return true;
+		if (seen.has(at)) return false;
+		seen.add(at);
+	}
+	return false;
+}
+/** Why `other` can't be `m`'s parent, in words; null when it can. */
+function parentRefusal(s, m, other) {
+	if (other.id === m.id) return "A metric can’t be its own parent";
+	if (other.removedAt) return "It’s been removed";
+	if (makesLoop(s, m.id, other.id)) return "It’s already under this one";
+	return null;
+}
+/** What's wrong with a metric's structure, in words someone can act on. */
+function structureProblems(m, s) {
+	const out = [];
+	if (m.level != null && !LEVELS$2.includes(m.level)) out.push("Its level is component, driver, control or breakdown, or left empty.");
+	if (m.confidence != null && !CONFIDENCES.includes(m.confidence)) out.push("Its confidence is high, medium or low, or left empty.");
+	if (m.parentId) {
+		const p = s.metrics.find((x) => x.id === m.parentId);
+		const why = p ? parentRefusal(s, m, p) : "There’s no such metric in this workspace";
+		if (why) out.push(`Choose another parent: ${why.charAt(0).toLowerCase()}${why.slice(1)}.`);
+	}
+	if (m.level && !m.parentId) out.push(`Say what it is ${LEVEL_WORDS[m.level].of}: choose its parent, or leave the level empty.`);
+	if ((m.gaming ?? "").length > 500) out.push(`Keep how it could be gamed to 500 characters or fewer.`);
+	return out;
+}
+/** The structure as a metric keeps it: each part only when said, so a metric that says none reads as before. */
+function structured(level, parentId, confidence, gaming) {
+	const g = (gaming ?? "").trim();
+	return {
+		...level ? { level } : {},
+		...parentId ? { parentId } : {},
+		...confidence ? { confidence } : {},
+		...g ? { gaming: g } : {}
+	};
+}
+var LEVELS$2, CONFIDENCES, LEVEL_WORDS, CONFIDENCE_WORDS, live$3, childrenOf;
+var init_rulesStructure = __esmMin((() => {
+	LEVELS$2 = [
+		"component",
+		"driver",
+		"control",
+		"breakdown"
+	];
+	CONFIDENCES = [
+		"high",
+		"medium",
+		"low"
+	];
+	LEVEL_WORDS = {
+		component: {
+			label: "Component",
+			of: "a component of",
+			meaning: "Part of its parent’s number: they add up to it."
+		},
+		driver: {
+			label: "Driver",
+			of: "a driver of",
+			meaning: "Moves its parent’s number, without being part of it."
+		},
+		control: {
+			label: "Control",
+			of: "a control on",
+			meaning: "Watched so that improving its parent doesn’t break something else."
+		},
+		breakdown: {
+			label: "Breakdown",
+			of: "a breakdown of",
+			meaning: "Its parent’s number split one way: by team, region or service."
+		}
+	};
+	CONFIDENCE_WORDS = {
+		high: {
+			label: "High",
+			meaning: "Measured directly and checked: the number can be trusted."
+		},
+		medium: {
+			label: "Medium",
+			meaning: "Measured, with known gaps or a manual step."
+		},
+		low: {
+			label: "Low",
+			meaning: "Estimated, sampled or new: read it with care."
+		}
+	};
+	live$3 = (s) => s.metrics.filter((m) => !m.removedAt);
+	childrenOf = (s, id) => live$3(s).filter((m) => m.parentId === id).sort((a, b) => a.name.localeCompare(b.name, "en"));
 }));
 // src/modules/metrics/rules.ts
 /** The marks a goal shows (MT3 rule 4): its metric's marks made at or after the goal was linked to it, in the goal's own
@@ -13724,6 +13870,7 @@ function metricFrom(input, before, x) {
 		ownerId: pick("ownerId", x.actor.id) || x.actor.id,
 		caveats: (pick("caveats", "") ?? "").trim(),
 		...measured(pick("measurement", null), pick("measurementNote", "")),
+		...structured(pick("level", null), pick("parentId", null), pick("confidence", null), pick("gaming", "")),
 		createdBy: before?.createdBy ?? x.actor.id,
 		createdAt: before?.createdAt ?? x.now,
 		updatedAt: x.now,
@@ -13768,6 +13915,7 @@ function metricProblems(m, s) {
 	if (m.refresh != null && !REFRESHES.includes(m.refresh)) out.push(`Refresh is one of ${REFRESHES.join(", ")}, or left empty.`);
 	if (!s.people.some((p) => p.id === m.ownerId)) out.push("The metric’s owner isn’t in this workspace.");
 	out.push(...measurementProblems(m));
+	out.push(...structureProblems(m, { metrics: metricsOf(s) }));
 	for (const [k, label] of [
 		["meaning", "meaning"],
 		["source", "source"],
@@ -13778,6 +13926,7 @@ function metricProblems(m, s) {
 }
 /** A metric's fields as the change log reads them. */
 function metricFields(m, s) {
+	const parent = m.parentId ? metricsOf(s).find((v) => v.id === m.parentId)?.name ?? "—" : "—";
 	return {
 		Name: m.name,
 		Meaning: m.meaning || "—",
@@ -13789,7 +13938,11 @@ function metricFields(m, s) {
 		Refresh: m.refresh ? REFRESH_LABEL[m.refresh] : "—",
 		Owner: s.people.find((p) => p.id === m.ownerId)?.name ?? "—",
 		Caveats: m.caveats || "—",
-		Measured: measurementWords(m)
+		Measured: measurementWords(m),
+		"Part of": parent,
+		"How it relates": m.level ? LEVEL_WORDS[m.level].label : "—",
+		Confidence: m.confidence ? CONFIDENCE_WORDS[m.confidence].label : "—",
+		"How it could be gamed": m.gaming || "—"
 	};
 }
 /**
@@ -13948,6 +14101,7 @@ var init_rules = __esmMin((() => {
 	init_numbers();
 	init_records();
 	init_rulesMeasured();
+	init_rulesStructure();
 	MODULE$1 = "metrics";
 	METRICS_KEY = "metrics";
 	LINKS_KEY = "metricLinks";
@@ -14597,24 +14751,30 @@ function retireMetric(x, id, why, replacedBy = null) {
 		replacedBy: other?.id ?? null,
 		updatedAt: x.now
 	};
+	const hold = heldBy(x, next, (x.full ?? x.snapshot).goals, linksOf(x.full ?? x.snapshot));
 	return {
 		...metricRows({ metrics: [next] }),
-		changes: [log$1(x, {
-			entityId: m.id,
-			action: "stopped",
-			summary: `Retired the metric “${m.name}”: ${w}`,
-			diffs: [{
-				field: "Retired",
-				from: "—",
-				to: w
-			}]
-		}), ...linked.map((g) => log$1(x, {
-			entityId: m.id,
-			goalId: g.id,
-			action: "edited",
-			summary: `Its metric “${m.name}” was retired: ${w}`,
-			diffs: []
-		}))]
+		...hold.goals.length ? { goals: hold.goals } : {},
+		changes: [
+			log$1(x, {
+				entityId: m.id,
+				action: "stopped",
+				summary: `Retired the metric “${m.name}”: ${w}`,
+				diffs: [{
+					field: "Retired",
+					from: "—",
+					to: w
+				}]
+			}),
+			...linked.map((g) => log$1(x, {
+				entityId: m.id,
+				goalId: g.id,
+				action: "edited",
+				summary: `Its metric “${m.name}” was retired: ${w}`,
+				diffs: []
+			})),
+			...hold.changes
+		]
 	};
 }
 /** Bring a retired metric back (rule 5): the same people. It is as it was before it was retired. */
@@ -14622,15 +14782,18 @@ function unretireMetric(x, id) {
 	const m = metricOf$1(x, id);
 	mayChange(x, m);
 	if (!m.retiredAt) no$2(`“${m.name}” isn’t retired.`);
+	const back = {
+		...m,
+		retiredAt: null,
+		retiredBy: null,
+		retiredWhy: "",
+		replacedBy: null,
+		updatedAt: x.now
+	};
+	const hold = heldBy(x, back, (x.full ?? x.snapshot).goals, linksOf(x.full ?? x.snapshot));
 	return {
-		...metricRows({ metrics: [{
-			...m,
-			retiredAt: null,
-			retiredBy: null,
-			retiredWhy: "",
-			replacedBy: null,
-			updatedAt: x.now
-		}] }),
+		...metricRows({ metrics: [back] }),
+		...hold.goals.length ? { goals: hold.goals } : {},
 		changes: [log$1(x, {
 			entityId: m.id,
 			action: "restored",
@@ -14640,7 +14803,7 @@ function unretireMetric(x, id) {
 				from: m.retiredWhy || "Yes",
 				to: "—"
 			}]
-		})]
+		}), ...hold.changes]
 	};
 }
 /**
@@ -14663,6 +14826,12 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 		linkedBy: x.actor.id,
 		linkedAt: x.now
 	}));
+	const goals = new Map((x.full ?? x.snapshot).goals.map((g) => [g.id, g]));
+	const holds = moved.flatMap((l) => {
+		const g = goals.get(l.goalId);
+		const h = g && !g.removedAt && !g.stoppedAt ? heldByLink(x, g, into) : null;
+		return h ? [h] : [];
+	});
 	return {
 		...metricRows({
 			metrics: [{
@@ -14675,6 +14844,7 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 			}],
 			metricLinks: moved
 		}),
+		...holds.length ? { goals: holds.map((h) => h.goal) } : {},
 		changes: [
 			log$1(x, {
 				entityId: into.id,
@@ -14706,7 +14876,8 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 					from: from.name,
 					to: into.name
 				}]
-			}))
+			})),
+			...holds.map((h) => h.change)
 		]
 	};
 }
@@ -15256,7 +15427,9 @@ var METRICS_SHEET = {
 	}
 };
 // src/modules/metrics/records.ts
+init_rulesStructure();
 init_actions();
+init_rulesMeasured();
 init_rules();
 /** Written only when there is one (a restore writes null), so rows never removed look exactly as before. */
 var set$1 = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== void 0));
@@ -15289,7 +15462,11 @@ var metricToRow = (ws, m) => ({
 	retired_by: m.retiredBy ?? null,
 	retired_why: m.retiredWhy ?? "",
 	replaced_by: m.replacedBy ?? null,
-	marks: m.marks ?? []
+	marks: m.marks ?? [],
+	level: m.level ?? null,
+	parent_id: m.parentId ?? null,
+	confidence: m.confidence ?? null,
+	gaming: m.gaming || null
 });
 var metricFromRow = (r) => ({
 	id: r.id,
@@ -15318,7 +15495,8 @@ var metricFromRow = (r) => ({
 	...r.measurement === "partly" || r.measurement === "gap" ? {
 		measurement: r.measurement,
 		measurementNote: String(r.measurement_note ?? "")
-	} : {}
+	} : {},
+	...structured(LEVELS$2.includes(r.level) ? r.level : null, r.parent_id ? String(r.parent_id) : null, CONFIDENCES.includes(r.confidence) ? r.confidence : null, r.gaming ? String(r.gaming) : null)
 });
 var metricLinkToRow = (ws, l) => ({
 	workspace_id: ws,
@@ -15431,6 +15609,10 @@ var records$3 = {
 			week: k.week,
 			label: markLabel(k)
 		})) : [];
+	},
+	switched: (x, on) => {
+		const s = x.full ?? x.snapshot;
+		return heldOnSwitch(x, on, metricsOf(s), linksOf(s));
 	},
 	goalColumns: [{
 		param: "metric",
@@ -15671,7 +15853,8 @@ var _virtual_faro_modules_default = [
 			"metric-measured-by",
 			"metric-slices",
 			"metric-change",
-			"metric-measurement"
+			"metric-measurement",
+			"metric-structure"
 		],
 		requirements: [
 			"METRICS-LIBRARY",
@@ -15681,6 +15864,7 @@ var _virtual_faro_modules_default = [
 			"METRIC-PARTS",
 			"METRIC-CHANGE",
 			"METRIC-MEASUREMENT",
+			"METRIC-STRUCTURE",
 			"READING-PREFILL",
 			"READING-RECORDED-ONLY",
 			"READING-SEVEN-DAYS",
@@ -15700,6 +15884,7 @@ var _virtual_faro_modules_default = [
 			"U158",
 			"U159",
 			"U160",
+			"U172",
 			"N29",
 			"F15",
 			"N16",
@@ -19209,6 +19394,49 @@ var help$5 = [
 			"metric-change",
 			"metrics"
 		]
+	},
+	{
+		id: "metric-structure",
+		title: "Where a metric sits, and how far to trust it",
+		summary: "Say what a metric is part of, how much its number can be trusted, and how it could be gamed, so the library keeps a register’s thinking.",
+		group: "you",
+		after: "metric-measurement",
+		sections: [{
+			heading: "Where it sits",
+			list: [
+				"In a metric’s form, under Where it sits, choose Part of: the metric it sits under, found by typing its name. A metric can’t be its own parent, and one already under it is listed but can’t be chosen.",
+				"Then say how it relates, if you know: Component (part of its parent’s number: they add up to it), Driver (moves it), Control (watched so improving the parent breaks nothing else) or Breakdown (the parent split one way, by team, region or service).",
+				"The metric’s page says where it sits (“A driver of Lead time for changes.”), and its parent’s page lists it under Where it sits, with its level. Goals still feed goals: this is the library’s map, not a second goal tree."
+			]
+		}, {
+			heading: "Confidence and gaming",
+			list: [
+				"Confidence in the number: High (measured directly and checked), Medium (known gaps or a manual step) or Low (estimated, sampled or new). Its page says it among the facts.",
+				"How it could be gamed: a sentence or two, up to 500 characters, shown beside what it means, so anyone reading a good number knows what to check.",
+				"All of it is optional. The AI assistant’s save_metric takes parent, level, confidence and gaming, so a register loads with its structure."
+			]
+		}],
+		routes: ["/metrics/:metricId/edit"],
+		screens: [],
+		reqs: ["METRIC-STRUCTURE"],
+		keywords: [
+			"parent",
+			"component",
+			"driver",
+			"control",
+			"breakdown",
+			"confidence",
+			"gamed",
+			"gaming",
+			"register",
+			"tree",
+			"structure"
+		],
+		related: [
+			"metric-define",
+			"metric-measurement",
+			"metrics"
+		]
 	}
 ];
 // src/modules/reviews/help.ts
@@ -21218,7 +21446,7 @@ var CORE_ARTICLES = [
 					"A link can open the page at a section: add #definition, #plan or #owner to the address. Describe it on a goal with no definition opens What it is. Older links that opened one part of the form land on the matching section.",
 					"The owner, the team and the goals are found by typing a name or a key; a goal already under this one is listed but can’t be chosen to feed it.",
 					"Plan and target has the same two rows as a new goal: Baseline with From, Target with To, each week chosen from the list of weeks with their dates. Changing From or To after check-ins have started is a plan change, so it asks why.",
-					"Under them, Period the baseline covers and Provisional, as on New goal. Firming up a provisional baseline, changing the Baseline number while Provisional is ticked, isn’t a plan change: it asks no reason and keeps no earlier plan. Untick Provisional once the figure is firm.",
+					"Under them, Period the baseline covers and Provisional, as on New goal. Firming up a provisional baseline, changing the Baseline number while Provisional is ticked, isn’t a plan change: it asks no reason and keeps no earlier plan. Untick Provisional once the figure is firm. A baseline can be marked provisional only before the goal’s first check-in.",
 					"Plan by week shows the numbers week by week; type over any week.",
 					"After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s history.",
 					"Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about. A target on the worse side of the start for the metric that measures the goal is asked about too (“Lead time for changes is better lower, but the target is above today”), here, in a spreadsheet and through the AI assistant, and your answer is kept in the goal’s History as Checked.",
@@ -22334,9 +22562,16 @@ var WHATS_NEW = [
 		articles: ["status", "metrics"]
 	},
 	{
+		id: "metric-structure",
+		date: "2026-11-14",
+		title: "Metrics keep where they sit, and how far to trust them",
+		points: ["A metric can say what it is part of, and how: a component, driver, control or breakdown of another. Its parent’s page lists the metrics under it.", "Each metric can say how far its number can be trusted (high, medium or low) and how it could be gamed, beside what it means."],
+		articles: ["metric-structure"]
+	},
+	{
 		id: "goal-guardrails",
 		date: "2026-11-14",
-		title: "Guardrails on a goal",
+		title: "Guardrails: the numbers a goal mustn’t make worse",
 		points: ["A goal can name up to five goals that guard it: goals kept in a range, such as change failure rate at most 12%. Choose them under Change this goal, More details, Guarded by.", "When a guard is past its limit, the goal it guards is at risk; two weeks running, off track. The check-in and the goal’s page say which guard and by how much."],
 		articles: ["guardrails"]
 	},
@@ -27053,6 +27288,7 @@ var metricReader = {
 };
 // src/modules/metrics/tools.ts
 init_rulesMeasured();
+init_rulesStructure();
 init_actions();
 init_goalKey();
 init_rules();
@@ -27156,6 +27392,18 @@ function metricData(ctx, m) {
 		measurement: measurementOf(m),
 		measurementLabel: MEASUREMENT_LABEL[measurementOf(m)],
 		measurementNote: m.measurementNote ?? "",
+		level: m.level ?? null,
+		parent: m.parentId ? {
+			id: m.parentId,
+			name: metricsOf(ctx.snapshot).find((x) => x.id === m.parentId)?.name ?? m.parentId
+		} : null,
+		children: childrenOf({ metrics: metricsOf(ctx.snapshot) }, m.id).map((k) => ({
+			id: k.id,
+			name: k.name,
+			level: k.level ?? null
+		})),
+		confidence: m.confidence ?? null,
+		gaming: m.gaming ?? "",
 		retired: m.retiredAt ? {
 			at: m.retiredAt,
 			by: name(ctx, m.retiredBy ?? ""),
@@ -27202,7 +27450,11 @@ var FIELDS = {
 	owner: str$6("Who answers for the definition, by ID, email or name. Whoever adds it, when left out."),
 	caveats: str$6("What to watch out for when reading it."),
 	measurement: str$6("Whether it is measured today: “measured” (in full), “partly” (some of it, or not every period; say what’s missing) or “gap” (nobody measures it yet). Goals measured by a metric with a gap are held to no number until it is measured, and need no made-up baseline. Measured when left out of a new metric.", { enum: [...MEASUREMENTS] }),
-	measurement_note: str$6("What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured.")
+	measurement_note: str$6("What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured."),
+	parent: str$6("The metric it sits under, by ID or name: what it is a component, driver, control or breakdown of. Empty for none."),
+	level: str$6("How it relates to its parent: “component” (part of its number), “driver” (moves it), “control” (watched so improving the parent breaks nothing else) or “breakdown” (the parent split one way). Needs a parent. Empty for not said.", { enum: [...LEVELS$2, ""] }),
+	confidence: str$6("How far its number can be trusted: “high”, “medium” or “low”. Empty for not said.", { enum: [...CONFIDENCES, ""] }),
+	gaming: str$6("How the number could be gamed, in words (up to 500 characters). Empty for not said.")
 };
 var tools$5 = [
 	{
@@ -27365,6 +27617,9 @@ var tools$5 = [
 					`Owner: ${d.owner ?? "—"}`,
 					`Caveats: ${d.caveats || "—"}`,
 					`Measured today: ${d.measurementLabel}${d.measurement !== "measured" && d.measurementNote ? ` (${d.measurementNote})` : ""}`,
+					...d.parent || d.children.length ? [`Where it sits: ${d.parent ? `${d.level ?? "under"} of ${d.parent.name}` : "on its own"}${d.children.length ? ` · under it: ${d.children.map((k) => `${k.name}${k.level ? ` (${k.level})` : ""}`).join(", ")}` : ""}`] : [],
+					`Confidence: ${d.confidence ?? "not said"}`,
+					...d.gaming ? [`How it could be gamed: ${d.gaming}`] : [],
 					goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}${x.inItsCheckIn ? ` · in its check-in: ${x.inItsCheckIn}` : ""}`).join("\n")}` : "Measures no goal yet.",
 					...different.map((d) => `${d.line}${d.weeks.length ? ` (${d.weeks.map((w) => `${goals.find((x) => x.goalId === w.goalId)?.key ?? w.goalId} week ${w.week}`).join(", ")})` : ""}`),
 					...summary ? [summary] : [],
@@ -27452,6 +27707,10 @@ var tools$5 = [
 					...a.caveats !== void 0 ? { caveats: String(a.caveats) } : {},
 					...a.measurement !== void 0 ? { measurement: String(a.measurement).toLowerCase() } : {},
 					...a.measurement_note !== void 0 ? { measurementNote: String(a.measurement_note) } : {},
+					...a.parent !== void 0 ? { parentId: a.parent ? metricOf(ctx, a.parent).id : null } : {},
+					...a.level !== void 0 ? { level: a.level ? String(a.level).toLowerCase() : null } : {},
+					...a.confidence !== void 0 ? { confidence: a.confidence ? String(a.confidence).toLowerCase() : null } : {},
+					...a.gaming !== void 0 ? { gaming: String(a.gaming ?? "") } : {},
 					...a.confirm === true ? { confirm: true } : {},
 					...typeof a.comparable === "boolean" ? { comparable: a.comparable } : {},
 					...typeof a.reason === "string" ? { reason: a.reason } : {},
@@ -29338,7 +29597,7 @@ var GOAL_FIELDS = {
 	owner: str("The owner’s full name, as in the workspace (when only one person has it; owner_email is exact)."),
 	owner_email: str("The owner’s email: exact, even where two people share a name."),
 	team: str("The team’s name."),
-	level: str("How important it is for reporting.", { enum: LEVELS.map((l) => LEVEL_WORDS.word[l] ?? l) }),
+	level: str("How important it is for reporting.", { enum: LEVELS.map((l) => LEVEL_WORDS$1.word[l] ?? l) }),
 	unit: str("Number goals: the unit, e.g. \"%\", \"days\", \"USD\"."),
 	decimals: int("Number goals: decimal places, 0 to 3."),
 	start: num$1("Move-a-number goals: where it starts."),
@@ -52532,9 +52791,9 @@ function goalToRows(ws, g) {
 				stop_reason: g.stopReason,
 				proposed_at: g.proposedAt,
 				proposed_by: g.proposedBy,
-				proposed_in: g.proposedIn,
-				unmeasured_since: g.unmeasuredSince
-			})
+				proposed_in: g.proposedIn
+			}),
+			unmeasured_since: g.unmeasuredSince ?? null
 		},
 		stages: g.kind === "milestone" ? g.stages.map((s) => ({
 			workspace_id: ws,

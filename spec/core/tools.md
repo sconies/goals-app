@@ -4827,6 +4827,10 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `caveats` | string | no | What to watch out for when reading it. |
 | `measurement` | one of `measured`, `partly`, `gap` | no | Whether it is measured today: “measured” (in full), “partly” (some of it, or not every period; say what’s missing) or “gap” (nobody measures it yet). Goals measured by a metric with a gap are held to no number until it is measured, and need no made-up baseline. Measured when left out of a new metric. |
 | `measurement_note` | string | no | What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured. |
+| `parent` | string | no | The metric it sits under, by ID or name: what it is a component, driver, control or breakdown of. Empty for none. |
+| `level` | one of `component`, `driver`, `control`, `breakdown`, `` | no | How it relates to its parent: “component” (part of its number), “driver” (moves it), “control” (watched so improving the parent breaks nothing else) or “breakdown” (the parent split one way). Needs a parent. Empty for not said. |
+| `confidence` | one of `high`, `medium`, `low`, `` | no | How far its number can be trusted: “high”, “medium” or “low”. Empty for not said. |
+| `gaming` | string | no | How the number could be gamed, in words (up to 500 characters). Empty for not said. |
 | `confirm` | boolean | no | Kept for older callers; the questions below replace it. |
 | `comparable` | boolean | no | When the meaning or source of a metric goals use changes: true if it is still the same number (better words; nothing is marked), false if the number itself changes from this week (its goals’ charts and History say so; give reason). |
 | `reason` | string | no | Why, in a line (up to 300 characters): required when the number itself changes (comparable false) or the direction changes. Every goal measured by it shows this. |
@@ -4914,6 +4918,35 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
     "measurement_note": {
       "type": "string",
       "description": "What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured."
+    },
+    "parent": {
+      "type": "string",
+      "description": "The metric it sits under, by ID or name: what it is a component, driver, control or breakdown of. Empty for none."
+    },
+    "level": {
+      "type": "string",
+      "description": "How it relates to its parent: “component” (part of its number), “driver” (moves it), “control” (watched so improving the parent breaks nothing else) or “breakdown” (the parent split one way). Needs a parent. Empty for not said.",
+      "enum": [
+        "component",
+        "driver",
+        "control",
+        "breakdown",
+        ""
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "description": "How far its number can be trusted: “high”, “medium” or “low”. Empty for not said.",
+      "enum": [
+        "high",
+        "medium",
+        "low",
+        ""
+      ]
+    },
+    "gaming": {
+      "type": "string",
+      "description": "How the number could be gamed, in words (up to 500 characters). Empty for not said."
     },
     "confirm": {
       "type": "boolean",

@@ -38,9 +38,19 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['status', 'metrics'],
   },
   {
+    id: 'metric-structure',
+    date: '2026-11-14',
+    title: 'Metrics keep where they sit, and how far to trust them',
+    points: [
+      'A metric can say what it is part of, and how: a component, driver, control or breakdown of another. Its parent’s page lists the metrics under it.',
+      'Each metric can say how far its number can be trusted (high, medium or low) and how it could be gamed, beside what it means.',
+    ],
+    articles: ['metric-structure'],
+  },
+  {
     id: 'goal-guardrails',
     date: '2026-11-14',
-    title: 'Guardrails on a goal',
+    title: 'Guardrails: the numbers a goal mustn’t make worse',
     points: [
       'A goal can name up to five goals that guard it: goals kept in a range, such as change failure rate at most 12%. Choose them under Change this goal, More details, Guarded by.',
       'When a guard is past its limit, the goal it guards is at risk; two weeks running, off track. The check-in and the goal’s page say which guard and by how much.',

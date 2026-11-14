@@ -13,9 +13,9 @@ A number goal’s baseline can be a figure already known for a period, often pro
 
 **Rule 2. Shown until the first check-in** (`baselineShown`, `nowText`). Before the goal's first check-in its number is the baseline: “41.5 min (baseline)” in every list, and on its page the number with “Baseline, June to September 2026, provisional” beside it, then the target. It is not a check-in: the status (No check-in yet, or Not started in week 0), the trend, the projection and what is due are worked out exactly as before. From the first check-in on, the check-in's number is shown and the baseline is not.
 
-**Rule 3. Firming it up isn't a plan change** (`startsFromProvisional`, `planChanged`). While the plan starts from a provisional baseline (its figure is the plan's start), moving that start, and nothing else in the plan, is not a plan change: no reason is asked once check-ins have started, and the plan before isn't kept. Unticking Provisional is never a plan change. A firm baseline's start moves as any start does.
+**Rule 3. Firming it up isn't a plan change** (`startsFromProvisional`, `planChanged`). While the plan starts from a provisional baseline (its figure is the plan's start), moving that start, and nothing else in the plan, is not a plan change: no reason is asked once check-ins have started, and the plan before isn't kept. Unticking Provisional is never a plan change. A firm baseline's start moves as any start does, and a baseline is marked provisional only before the goal's first check-in, so a goal with check-ins can't be made provisional to move its start unasked. A goal carried into next year from its final number leaves last year's baseline behind.
 
-**Must fix.** A period over 60 characters: “The baseline’s period can be at most 60 characters.”, at the Baseline (Start) field. A word Baseline is doesn't know: an unknown word, as every word column says.
+**Must fix.** A period over 60 characters: “The baseline’s period can be at most 60 characters.”, at the Baseline (Start) field. Provisional ticked on a firm baseline, or a new one, once the goal has check-ins: “A baseline can be marked provisional only before the goal’s first check-in. To move where the plan starts now, change Start and say why.”, at the same field. A word Baseline is doesn't know: an unknown word, as every word column says.
 
 ## Worked examples
 
@@ -36,9 +36,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/baseline.ts](../../../src/domain/baseline.ts): `baselineOf`, `baselineWords`, `baselineShown`, `startsFromProvisional`, `periodProblem`, `BASELINE_PERIOD_MAX`
+- [src/domain/baseline.ts](../../../src/domain/baseline.ts): `baselineOf`, `baselineWords`, `baselineShown`, `startsFromProvisional`, `periodProblem`, `PROVISIONAL_LATE`, `BASELINE_PERIOD_MAX`
 - [src/domain/goal.ts](../../../src/domain/goal.ts): `planChanged`, `buildGoal`
 - [src/domain/format.ts](../../../src/domain/format.ts): `nowText`
+- [src/domain/carry.ts](../../../src/domain/carry.ts): `carryCopy`
 
 ## Requirements
 
@@ -55,5 +56,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 2: shown as the number until the first check-in › from the first check-in on, the check-in’s number is shown
 - rule 3: firming up a provisional baseline is not a plan change › moving only the start of a provisional baseline is not; a firm one, or anything else moving, is
 - rule 3: firming up a provisional baseline is not a plan change › a save after check-ins asks no reason and keeps no earlier plan
+- the BL review’s mediums 7 and 8 › a baseline is marked provisional only before the goal’s first check-in, so its start can’t then move unasked
+- the BL review’s mediums 7 and 8 › a goal carried into next year from its final number leaves last year’s baseline behind
 - the Goals sheet and the tools › Baseline period and Baseline is set it, none removes it, an unknown word is a Must fix
 - the rows (migration 0049) › every goal row carries the three columns, null without a baseline, and reads back

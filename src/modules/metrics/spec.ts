@@ -10,6 +10,7 @@ import * as DEF from './rulesDefine';
 import * as PARTS from './rulesParts';
 import * as CHG from './rulesChange';
 import * as MEASD from './rulesMeasured';
+import * as STR from './rulesStructure';
 import * as RD from './rulesReading';
 import { RULES } from '../../domain/thresholds';
 import { MAX_CORRECT_REASON } from '../../domain/correctReason';
@@ -270,7 +271,7 @@ rules.push({
   id: 'metric-measurement',
   title: 'Measured, partly measured or a gap',
   summary: 'Whether a metric is measured today (rule 11), what the library does with a gap or a part, and the goals a gap holds to no number: the library fills in the goal’s field; the core’s rule reads it.',
-  code: [{ file: 'src/modules/metrics/rulesMeasured.ts', names: ['measurementOf', 'holdsToNoNumber', 'measurementProblems', 'measurementWords', 'heldBy', 'heldByLink'] }, { file: 'src/modules/metrics/rulesLibrary.ts', names: ['metricNeeds'] }, { file: 'src/domain/unmeasured.ts', names: ['isUnmeasured', 'heldToNoNumber'] }],
+  code: [{ file: 'src/modules/metrics/rulesMeasured.ts', names: ['measurementOf', 'holdsToNoNumber', 'measurementProblems', 'measurementWords', 'heldBy', 'heldByLink', 'heldOnSwitch'] }, { file: 'src/modules/metrics/rulesChange.ts', names: ['retireMetric', 'unretireMetric', 'mergeMetrics'] }, { file: 'src/modules/metrics/rulesLibrary.ts', names: ['metricNeeds'] }, { file: 'src/domain/unmeasured.ts', names: ['isUnmeasured', 'heldToNoNumber'] }],
   tests: ['src/modules/metrics/rulesMeasured.test.ts'],
   reqs: ['METRIC-MEASUREMENT'],
   body: `
@@ -281,7 +282,9 @@ rules.push({
 **Held to no number** (\`heldBy\`, \`heldByLink\`; the core's \`isUnmeasured\`). A goal measured by a metric with a gap is held to no number: the goal's own field \`unmeasuredSince\` is set, and the core's status rule reads it (never the library). The library sets and clears it, in the same save as the cause, with a line in the goal's History and one Undo:
 - a metric saved as a gap holds every goal it measures now (a live link; the goal neither removed nor stopped; not one with dated stages): “Held to no number until “{metric}” is measured”;
 - the metric saved as measured or partly lets go of them: “Held to its plan again, as “{metric}” is measured”;
-- a goal linked to a gap is held; linked to a measured metric, or unlinked, it is let go (“Held to its plan again”).
+- a goal linked to a gap is held; linked to a measured metric, or unlinked, it is let go (“Held to its plan again”);
+- a gap retired lets go of its goals, and brought back holds them again; a metric merged into another moves each goal to the hold of the one it is merged into;
+- with the library switched off nothing measures a goal, so every held goal is let go (“Held to its plan again, as the metric library is switched off”); switched on again, the goals measured by a gap are held once more.
 A save that leaves the gap as it was writes no goal.`,
   examples: [
     { given: 'Flaky test rate, never said otherwise.', then: 'Measured', run: () => MEASD.measurementWords(LIB_METRIC('metric_flaky-rate')) },
@@ -290,6 +293,26 @@ A save that leaves the gap as it was writes no goal.`,
     { given: 'Flaky test rate as a gap, measuring one goal: what it needs first.', then: 'gap: Not measured yet: 1 goal held to no number → Say how it’s measured', run: () => { const n = LIB.metricNeeds({ ...LIB_METRIC('metric_flaky-rate'), measurement: 'gap' }, reads())[0]!; return `${n.id}: ${n.sentence} → ${n.button}`; } },
   ],
   unclear: ['A partly measured metric holds its goals to their plans: the part that is measured is the number. Say what is missing so readers know.', 'The goal side asks for no baseline only once a goal may be saved without one (backlog GB and BL); until then a goal held to no number keeps the plan it was given, unjudged.'],
+});
+
+rules.push({
+  id: 'metric-structure',
+  title: 'Where a metric sits, and how far to trust it',
+  summary: 'A metric’s parent and how it relates to it (component, driver, control or breakdown), a confidence in its number, and how it could be gamed: the register’s structure, kept in the library (MQ).',
+  code: [{ file: 'src/modules/metrics/rulesStructure.ts', names: ['childrenOf', 'makesLoop', 'parentRefusal', 'structureProblems', 'structured', 'placeWords', 'LEVEL_WORDS', 'CONFIDENCE_WORDS', 'GAMING_MAX'] }],
+  tests: ['src/modules/metrics/rulesStructure.test.ts'],
+  reqs: ['METRIC-STRUCTURE'],
+  body: `
+**Rule 12. Where it sits** (\`structureProblems\`, \`parentRefusal\`). A metric may name a **parent**, another metric in the library, and say how it relates to it, its **level**: a \`component\` (part of the parent's number: they add up to it), a \`driver\` (moves it without being part of it), a \`control\` (watched so improving the parent breaks nothing else) or a \`breakdown\` (the parent split one way: by team, region or service). Both are optional. A level needs a parent (“Say what it is a driver of: choose its parent, or leave the level empty.”). The parent is never the metric itself, never a removed metric, and never one already under it (no loops: “Choose another parent: it’s already under this one.”).
+
+**Its children** (\`childrenOf\`). A metric's page lists the live metrics whose parent it is, by name, each with its level; a metric with a parent says where it sits: “A driver of Lead time for changes.” (\`placeWords\`; “Under …” with no level). It is not a second goal tree: goals still feed goals, and nothing here judges a goal.
+
+**Confidence and gaming.** A metric may say how far its number can be trusted: \`high\` (measured directly and checked), \`medium\` (measured, with known gaps or a manual step) or \`low\` (estimated, sampled or new); and, in words of at most ${STR.GAMING_MAX} characters, how the number could be gamed, shown beside its definition. All four are kept only when said (\`structured\`), so a metric that says none reads as before. save_metric takes \`parent\`, \`level\`, \`confidence\` and \`gaming\`; get_metric says them, with the metric's children.`,
+  examples: [
+    { given: 'CI time, a driver of Lead time for changes.', then: 'A driver of Lead time for changes.', run: () => STR.placeWords({ parentId: 'lead', level: 'driver' }, { metrics: [{ ...LIB_METRIC('metric_lead-time'), id: 'lead' }] }) ?? '' },
+    { given: 'A metric with a level and no parent.', then: 'Say what it is a control on: choose its parent, or leave the level empty.', run: () => STR.structureProblems({ id: 'x', level: 'control' }, { metrics: [] }).join(' ') },
+    { given: 'Lead time for changes made a child of CI time, which is under it.', then: 'Choose another parent: it’s already under this one.', run: () => { const lead = { ...LIB_METRIC('metric_lead-time'), id: 'lead' }, ci = { ...LIB_METRIC('metric_lead-time'), id: 'ci', parentId: 'lead' }; return STR.structureProblems({ id: 'lead', parentId: 'ci' }, { metrics: [lead, ci] }).join(' '); } },
+  ],
 });
 
 rules.push({
