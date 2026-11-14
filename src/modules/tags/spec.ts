@@ -37,7 +37,7 @@ A workspace defines up to **${FIELD_LIMITS.fields} live fields**, for what Faro 
     id: 'tags-filter',
     title: 'Fields: filtering goals by a field',
     summary: 'Which goals a filter on a list field keeps, on Goals, in a saved view and through find_goals.',
-    code: [{ file: 'src/modules/tags/filter.ts', names: ['filterGoals', 'fieldMatcher', 'pickedOf', 'pickedText', 'NOT_SET'] }, { file: 'src/modules/tags/records.ts', names: ['goalColumnFamilies'] }, { file: 'src/modules/tags/find.ts', names: ['fieldParams'] }],
+    code: [{ file: 'src/modules/tags/filter.ts', names: ['filterGoals', 'fieldMatcher', 'pickedOf', 'pickedText', 'NOT_SET'] }, { file: 'src/modules/tags/extras.ts', names: ['family'] }, { file: 'src/modules/tags/find.ts', names: ['fieldParams'] }],
     tests: ['src/modules/tags/filter.test.ts', 'src/modules/tags/tools.test.ts', 'src/domain/query.test.ts'],
     reqs: ['TAGS-FILTER'],
     body: `
@@ -59,7 +59,7 @@ With Fields switched off there are no filter rows, a link's \`f.\` parameters na
     id: 'tags-sheet',
     title: 'Fields: the Goals sheet’s columns',
     summary: 'How a workbook writes a goal’s fields, and how loading one back reads them.',
-    code: [{ file: 'src/modules/tags/sheet.ts', names: ['readFieldColumns', 'unknownValue'] }, { file: 'src/modules/tags/records.ts', names: ['goalSheet'] }, { file: 'src/domain/changeset.ts', names: ['planChanges'] }],
+    code: [{ file: 'src/modules/tags/sheet.ts', names: ['readFieldColumns', 'unknownValue'] }, { file: 'src/modules/tags/extras.ts', names: ['sheet'] }, { file: 'src/domain/changeset.ts', names: ['planChanges'] }],
     tests: ['src/modules/tags/sheet.test.ts'],
     reqs: ['TAGS-SHEET'],
     body: `

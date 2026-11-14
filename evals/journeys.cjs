@@ -7016,7 +7016,8 @@ journey('U175', ['TAGS-FILTER', 'SAVED-VIEWS'], 'Goals filtered by a workspaceâ€
   await remove.waitFor({ timeout: 5000 }).catch(() => {});
   h.set('attention', await remove.isVisible(), 'the filter line does not say â€œStage is Buildâ€ with Remove');
   await see(p, 'Flaky test rate in the main pipelines', 'the goal in Build is not listed');
-  const listed = async () => (await p.locator('main').innerText()).includes('Base image build time');
+  // Fields' filters load once the workspace has a field (not with the first download): the list narrows when they have.
+  const listed = async () => { await p.locator('main').getByText('Base image build time').first().waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {}); return (await p.locator('main').innerText()).includes('Base image build time'); };
   h.set('progress', !(await listed()) && /[?&]f\.fld_stage=Build/.test(p.url()), `the goal in Discover is listed, or the address (${p.url()}) does not carry the filter`);
   await h.checkpoint('filtered');
   // Saved as a view: the parameter goes with it, and the view brings the goals back.
@@ -7031,7 +7032,9 @@ journey('U175', ['TAGS-FILTER', 'SAVED-VIEWS'], 'Goals filtered by a workspaceâ€
   await see(p, 'Base image build time', 'plain Goals does not list every goal');
   await openSaved(h, p, /Building/);
   await see(p, 'Flaky test rate in the main pipelines', 'opening the view does not list the goal in Build');
-  h.set('finish', !(await listed()) && await p.getByRole('button', { name: 'Remove the filter Stage is Build' }).isVisible(), 'the view did not bring the Stage filter back');
+  const back = p.getByRole('button', { name: 'Remove the filter Stage is Build' });
+  await back.waitFor({ timeout: 5000 }).catch(() => {});
+  h.set('finish', !(await listed()) && await back.isVisible(), 'the view did not bring the Stage filter back');
   // Data's Goals table: a column per live field.
   await p.goto(url('/data?t=goals'));
   await p.locator('main table').first().waitFor();

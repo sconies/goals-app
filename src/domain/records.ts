@@ -112,11 +112,10 @@ export interface ModuleRecords {
   /** The columns it adds to Goals' rows, by their address parameter (?metric=): what each goal holds, from the open
       workspace. The app's Goals filter (core/app ModuleFilter) and the AI's find_goals read the same ones. */
   goalColumns?: { param: string; fill: (s: import('./types').Snapshot) => (g: Goal) => string | null }[];
-  /** Families of Goals filters whose parameters the open workspace names (TG2, Fields: `f.<field id>`), read by the app's
-      Goals filters, saved views and find_goals alike. */
-  goalColumnFamilies?: GoalColumnFamily[];
-  /** Columns it adds to the core's Goals sheet, after the core's (TG2, Fields: one per live field). */
-  goalSheet?: ModuleGoalColumns;
+  /** What it adds to Goals (TG2, Fields: a filter per list field, a column per field on the Goals sheet), loaded only
+      when a workspace has something for it (`has`), so a workspace without it downloads nothing for it. `prefix` is the
+      start of its filters' parameters in a Goals address, read from the first load (domain/query addColumnPrefixes). */
+  goalExtras?: { prefix?: string; has(s: { modules?: ModuleRows }): boolean; load(): Promise<GoalExtras> };
   /** What measures a goal, when the module keeps that (the metric library's link): its name and which way is better, for
       goal entry's wrong-side question (rule 3) at the doors that don't draw the module's own field (a file, the AI tools). */
   measures?(s: { modules?: ModuleRows }, goalId: string): GoalMeasure | null;
@@ -126,18 +125,26 @@ export interface ModuleRecords {
   goalMarks?(s: { modules?: ModuleRows }, goalId: string, since: string, until: string): GoalMark[];
 }
 
+/** What a module's `goalExtras` loads (TG2): a family of Goals filters, and its columns on the Goals sheet. */
+export interface GoalExtras { family?: GoalColumnFamily; sheet?: ModuleGoalColumns }
+
 /**
  * A family of Goals filters a module adds (TG2): one parameter per thing the open workspace has (Fields: `f.<field id>`
- * for each live list field), each picking one value or several. The core reads the parameters as its own (domain/query
- * addColumnPrefixes) and never what they mean.
+ * for each live list field), each picking one value or several. The core reads its parameters as its own and never
+ * what they mean.
  */
 export interface GoalColumnFamily {
-  /** The start of its parameters in a Goals address: `f.`. */
-  prefix: string;
   /** Each parameter's column in the open workspace, with the test that compares what is picked. */
   columns(s: import('./types').Snapshot): Record<string, ColumnFill>;
-  /** The same filter as a tool's argument, by name (find_goals' `fields: { Stage: "Build" }`): the module's name for
-      the switched-off sentence, the argument's name and words, and the parameters it means, or an Error saying why not. */
+  /** Its rows in Goals' Filters sheet: each a parameter, its label and the values to tick. */
+  rows(s: import('./types').Snapshot): { param: string; label: string; options: string[] }[];
+  /** The values a parameter's text picks, and the text for the values picked. */
+  picked(s: import('./types').Snapshot, param: string, text: string): string[];
+  text(s: import('./types').Snapshot, param: string, picked: readonly string[]): string;
+  /** The filter in words for the filter line ("Stage is", "Build or Run"); null when it names nothing. */
+  says(s: import('./types').Snapshot, param: string, text: string): { label: string; value: string } | null;
+  /** The same filter as a tool's argument, by name (find_goals' `fields`): the module's name for the switched-off
+      sentence, the argument's name and words, and the parameters it means, or an Error saying why not. */
   arg?: { module: string; name: string; description: string; params(s: import('./types').Snapshot, asked: Record<string, unknown>): Promise<Record<string, string>> };
 }
 
@@ -167,11 +174,10 @@ export interface ModuleGoalColumns {
   columns(s: { modules?: ModuleRows }): GoalSheetColumn[];
   /** A goal's cell under one of them. */
   cell(s: { modules?: ModuleRows }, goalId: string, header: string): string | null;
-  /** Read a file's cells back: only what differs from what is saved changes anything. It holds the module's rules, so
-      it is loaded with the change engine (`load`, core/records loadGoalSheets), never with the first download. */
+  /** Read a file's cells back: only what differs from what is saved changes anything. */
   read(x: GoalColumnsRead): GoalColumnsOutcome;
-  /** Loads what `read` needs; called before the change engine runs. */
-  load(): Promise<void>;
+  /** Its module, set by the core when it is loaded (core/records). */
+  module?: string;
 }
 
 /** A module's mark on a goal's chart: a dashed hairline at a week, its label beside it. The core knows nothing more. */

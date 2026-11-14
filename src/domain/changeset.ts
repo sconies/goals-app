@@ -46,7 +46,7 @@ import { asksFollowOwner, openAsksDiff } from './askHandover';
 import { deleteGoal, markPersonLeft, stopGoal } from './removal';
 import { reportedIn, stagesFromNow } from './templates';
 import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
-import { applyModuleRows, goalMeasureOf, hasModuleRows, type ModuleRecords, type ModuleRows } from './records';
+import { applyModuleRows, goalMeasureOf, hasModuleRows, type ModuleGoalColumns, type ModuleRecords, type ModuleRows } from './records';
 import { CHUNK } from './importLimits';
 import { ANSWERS, fold, LEAVE, groupId, groupIssues, issueOf, levelOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
 import type { Ask, Change, CheckIn, CheckInReading, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, Review, Snapshot, StageUpdate, Status, Team } from './types';
@@ -148,6 +148,9 @@ export interface ChangeInput {
   /** What a source said for a sheet's or a tool's check-in row, by goal id and week (NR rule 3: the MCP tool's
       `reading_confirmed` and `different_because`): recorded with that row's check-in under the same rule as a post's. */
   readings?: { goalId: string; week: number; reading: CheckInReading }[];
+  /** The modules' own columns on Goals, of the modules on here (core/records goalSheetsOn; TG2, Fields'): read with each
+      Goals row. Plain data can't carry them, so the import's worker loads them itself. */
+  goalSheets?: readonly ModuleGoalColumns[];
   /** The feature modules' records in this build (core/records): what measures a goal, for goal entry's wrong-side question. */
   records?: readonly ModuleRecords[];
   /** The file the rows came from, and how many of its rows the person left out before the engine saw them: the import's
@@ -1369,10 +1372,9 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
   let moduleOut: ModuleRows | undefined;
   if (!create) {
     const recAt = new Map(goalRows.map(({ r, row }) => [row, r]));
-    for (const m of input.records ?? []) {
-      const gs = m.goalSheet;
-      const heads = gs ? gs.columns(s) : [];
-      if (!gs || !heads.length) continue;
+    for (const gs of input.goalSheets ?? []) {
+      const heads = gs.columns(s);
+      if (!heads.length) continue;
       const rows = [...touched].flatMap(([id, t]) => {
         const r = t.sheet === 'Goals' && !leftSet.has(`Goals|${t.row}`) ? recAt.get(t.row) : undefined;
         const g = goalOut.get(id) ?? (t.before && !issuesAt.get(`Goals|${t.row}`)?.some((x) => x.kind === 'not-allowed') ? work.get(id) : undefined);

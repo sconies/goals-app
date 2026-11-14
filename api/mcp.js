@@ -5149,7 +5149,7 @@ function requiredLine(kind) {
 	if (kind === "checkIns") return `${req("Goal key")} (or ${req("Goal")}), ${req("Week")}, and ${req("Value")} or ${req("Stages")}.`;
 	return `${req("Name")} and ${req("Email")}.`;
 }
-var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, FIRMNESS_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$2, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, cellsOf, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, REVIEWS_COLUMN, sheetsFor, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$2, emptyText, isFillIn;
+var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, FIRMNESS_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$2, metricOf$2, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, cellsOf, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, REVIEWS_COLUMN, sheetsFor, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$2, emptyText, isFillIn;
 var init_columns = __esmMin((() => {
 	init_levels();
 	init_asks();
@@ -5366,7 +5366,7 @@ var init_columns = __esmMin((() => {
 	};
 	cellOr = (v) => v == null || v === "" ? null : v;
 	blank = () => null;
-	or$1 = (v) => v == null || v === "" ? null : v;
+	or$2 = (v) => v == null || v === "" ? null : v;
 	metricOf$2 = (g) => g.kind === "metric" ? g : null;
 	rangeOf = (g) => g.kind === "range" ? g : null;
 	parentOf = (r) => r.c.goal(r.g.parentId);
@@ -5376,7 +5376,7 @@ var init_columns = __esmMin((() => {
 	};
 	stagesSpec = (g) => g.kind === "milestone" ? g.stages.map((x) => `${x.name}@${x.dueWeek}`).join("; ") : "";
 	RESULT_COLUMNS = [
-		w("Result", "Set once the goal is due, in the result words defined under Words.", (r) => or$1(r.s.story.result?.text)),
+		w("Result", "Set once the goal is due, in the result words defined under Words.", (r) => or$2(r.s.story.result?.text)),
 		w("Q1", "The first quarter against the owner’s plan: a quarter’s target is the plan’s number at its end.", quarter(1)),
 		w("Q2", "The second quarter against the plan.", quarter(2)),
 		w("Q3", "The third quarter against the plan.", quarter(3)),
@@ -5389,7 +5389,7 @@ var init_columns = __esmMin((() => {
 		loaded: true,
 		about: "Every goal: what it is, who owns it, its plan, and where it stands. Add a row with no Key or ID for a new goal.",
 		columns: [
-			m$1("Key", "The goal’s short key in this workspace (G-12). It never changes, and a goal carried into the next cycle keeps it. Leave it empty for a new goal.", (r) => or$1(r.g.key), "Matches the goal first, so a file from last cycle still finds its goals"),
+			m$1("Key", "The goal’s short key in this workspace (G-12). It never changes, and a goal carried into the next cycle keeps it. Leave it empty for a new goal.", (r) => or$2(r.g.key), "Matches the goal first, so a file from last cycle still finds its goals"),
 			m$1("ID", "The goal’s identity in this cycle. Leave it empty for a new goal.", (r) => r.g.id, "Matches the goal when there’s no Key"),
 			e("Goal", "The goal’s name.", (r) => r.g.title),
 			{
@@ -5400,12 +5400,12 @@ var init_columns = __esmMin((() => {
 			},
 			e("Ref", "A label of your own for this row, so other rows in the same file can name the goal it adds before it has a key (Feeds into ref, Goal ref). Only for this file: never kept. Empty in an export.", blank, "Names the row’s goal for Feeds into ref and Goal ref in the same file"),
 			e("Level", `${oneOf(Object.values(LEVEL_WORDS.word))}: how important it is, for reporting.`, (r) => LEVEL_WORDS.word[r.g.level] ?? r.g.level),
-			e("Team", "The team it belongs to, by name.", (r) => or$1(r.c.team(r.g.teamId))),
-			e("Owner", "Who owns it, by name. A name works when only one person has it; Owner email is exact.", (r) => or$1(r.c.name(r.g.ownerId))),
+			e("Team", "The team it belongs to, by name.", (r) => or$2(r.c.team(r.g.teamId))),
+			e("Owner", "Who owns it, by name. A name works when only one person has it; Owner email is exact.", (r) => or$2(r.c.name(r.g.ownerId))),
 			e("Owner email", "Who owns it, by email: what tells two people with the same name apart.", (r) => r.c.email(r.g.ownerId), "Changes the owner; when Owner and Owner email disagree, the one you changed counts"),
 			e("Type", `${oneOf(Object.values(TYPE_WORDS.word))}: move a number, keep one in range, or hit dated stages.`, (r) => TYPE_WORDS.word[r.g.kind], "Sets a new goal’s type; it can’t change on an existing goal"),
 			e("State", "active or proposed.", (r) => r.g.stoppedAt ? "stopped" : r.g.proposedAt ? "proposed" : "active"),
-			e("Unit", "Number and range goals: what the number counts (%, days, ms).", (r) => r.g.kind === "milestone" ? null : or$1(r.g.unit)),
+			e("Unit", "Number and range goals: what the number counts (%, days, ms).", (r) => r.g.kind === "milestone" ? null : or$2(r.g.unit)),
 			e("Decimals", "Number and range goals: how many decimal places the number has (0 to 3).", (r) => r.g.kind === "milestone" ? null : r.g.decimals),
 			e("Start", "Number goals: where the plan starts.", (r) => metricOf$2(r.g)?.plan.start ?? null, "Changes the plan; needs a reason once check-ins have started"),
 			e("Baseline period", "Number goals: the period the baseline (Start) covers, when it is a figure you already have (June to September 2026). Shown as the goal’s number until its first check-in.", (r) => metricOf$2(r.g)?.baseline?.period ?? null),
@@ -5446,28 +5446,28 @@ var init_columns = __esmMin((() => {
 				return g ? BOUND_WORDS.word[g.range.bound] : null;
 			}),
 			e("Margin", "Range goals: how close to the limit counts as at risk.", (r) => rangeOf(r.g)?.range.margin ?? null),
-			e("Stages", "Milestone goals: each stage as Name@week, separated by semicolons.", (r) => or$1(stagesSpec(r.g))),
-			e("Feeds into", "The goal this one feeds, by name.", (r) => or$1(parentOf(r)?.title)),
-			e("Feeds into key", "The goal this one feeds, by key. Exact where names repeat.", (r) => or$1(parentOf(r)?.key), "Changes what it feeds; when Feeds into and Feeds into key disagree, the one you changed counts"),
+			e("Stages", "Milestone goals: each stage as Name@week, separated by semicolons.", (r) => or$2(stagesSpec(r.g))),
+			e("Feeds into", "The goal this one feeds, by name.", (r) => or$2(parentOf(r)?.title)),
+			e("Feeds into key", "The goal this one feeds, by key. Exact where names repeat.", (r) => or$2(parentOf(r)?.key), "Changes what it feeds; when Feeds into and Feeds into key disagree, the one you changed counts"),
 			e("Feeds into ref", "The goal this one feeds, by the Ref of its row in this file: a goal the same file adds. Empty in an export.", blank, "Changes what it feeds, like Feeds into key"),
-			e("Why it helps", "Why this goal should move the one it feeds: a hypothesis, not a proven cause.", (r) => or$1(r.g.whyHelps)),
+			e("Why it helps", "Why this goal should move the one it feeds: a hypothesis, not a proven cause.", (r) => or$2(r.g.whyHelps)),
 			e("Effect", "The effect expected on the goal it feeds, in that goal’s unit.", (r) => r.g.effect),
-			e("Source", "Where the number comes from, and who owns that source.", (r) => or$1(r.g.source)),
-			e("Definition", "Exactly what is counted.", (r) => or$1(r.g.definition)),
+			e("Source", "Where the number comes from, and who owns that source.", (r) => or$2(r.g.source)),
+			e("Definition", "Exactly what is counted.", (r) => or$2(r.g.definition)),
 			e("Reason", "Why the plan is changing, or why the goal stops. Written by you; empty in an export.", blank, "Kept in the change log with the change"),
 			w("Status", "Where the goal stands now, in the status words defined under Words below; Proposed for a proposed goal.", (r) => r.g.stoppedAt ? STOPPED : r.s.statusLabel),
-			w("Since", "How long it has stood so.", (r) => or$1(r.s.story.since)),
-			w("Now", "The latest number, or stages done.", (r) => or$1(r.s.now)),
+			w("Since", "How long it has stood so.", (r) => or$2(r.s.story.since)),
+			w("Now", "The latest number, or stages done.", (r) => or$2(r.s.now)),
 			w("Plan this week", "Number goals: the plan’s number this week.", (r) => r.s.planNow != null ? r.s.planNowText : null),
-			w("Gap", "How far it is from the plan, said the same whichever way is better.", (r) => or$1(r.s.gap)),
+			w("Gap", "How far it is from the plan, said the same whichever way is better.", (r) => or$2(r.s.gap)),
 			w("Last check-in week", "The week of its latest check-in.", (r) => r.s.lastWeek),
-			w("Forecast", "Where the recent trend takes it by its due week.", (r) => or$1(r.s.forecast)),
-			w("Why it’s off", "The owner’s latest reason, when it’s behind.", (r) => or$1(r.s.story.why)),
-			w("Recovery plan", "What the owner will do about it.", (r) => or$1(r.s.story.doing)),
-			w("By when", "When it will be back on plan, or why there’s no date.", (r) => or$1(r.s.story.byWhen)),
-			w("Needs", "The open asks for a decision or help.", (r) => or$1(r.s.story.needs)),
-			w("Next step", "The owner’s next step.", (r) => or$1(r.s.story.next)),
-			w("Warnings", "What the numbers would hide; each warning starts with its word, defined under Words.", (r) => or$1(r.s.story.warnings.join(" "))),
+			w("Forecast", "Where the recent trend takes it by its due week.", (r) => or$2(r.s.forecast)),
+			w("Why it’s off", "The owner’s latest reason, when it’s behind.", (r) => or$2(r.s.story.why)),
+			w("Recovery plan", "What the owner will do about it.", (r) => or$2(r.s.story.doing)),
+			w("By when", "When it will be back on plan, or why there’s no date.", (r) => or$2(r.s.story.byWhen)),
+			w("Needs", "The open asks for a decision or help.", (r) => or$2(r.s.story.needs)),
+			w("Next step", "The owner’s next step.", (r) => or$2(r.s.story.next)),
+			w("Warnings", "What the numbers would hide; each warning starts with its word, defined under Words.", (r) => or$2(r.s.story.warnings.join(" "))),
 			...RESULT_COLUMNS
 		]
 	};
@@ -5478,10 +5478,10 @@ var init_columns = __esmMin((() => {
 		loaded: true,
 		about: "The plan as numbers, one column per week. Type over any week to set the plan by hand.",
 		columns: [
-			m$1("Key", "The goal’s key.", (r) => or$1(r.g.key), "Matches the goal first"),
+			m$1("Key", "The goal’s key.", (r) => or$2(r.g.key), "Matches the goal first"),
 			m$1("ID", "The goal’s ID in this cycle.", (r) => r.g.id, "Matches the goal when there’s no Key"),
 			sh$1("Goal", "The goal’s name (change it on Goals).", (r) => r.g.title),
-			sh$1("Unit", "What the number counts (change it on Goals).", (r) => or$1(r.g.unit)),
+			sh$1("Unit", "What the number counts (change it on Goals).", (r) => or$2(r.g.unit)),
 			e("Start", "Where the plan starts.", (r) => r.g.plan.start, "Changes the plan; needs a reason once check-ins have started")
 		]
 	};
@@ -5505,7 +5505,7 @@ var init_columns = __esmMin((() => {
 		about: "Every check-in: the number or stages reported each week, the owner’s call and their account of it. Add a row with no ID for a new check-in, a past week included.",
 		columns: [
 			m$1("ID", "The check-in’s own identity. Leave it empty to add one.", (r) => r.ci.id, "Matches the check-in; with none, a row corrects that goal’s latest check-in for the week"),
-			m$1("Goal key", "The goal’s key.", (r) => or$1(r.g.key), "Matches the goal first"),
+			m$1("Goal key", "The goal’s key.", (r) => or$2(r.g.key), "Matches the goal first"),
 			m$1("Goal ID", "The goal’s ID in this cycle.", (r) => r.g.id, "Matches the goal when there’s no Goal key"),
 			m$1("Goal", "The goal’s name.", (r) => r.g.title, "Matches the goal by name, only when there’s no Goal key or Goal ID"),
 			m$1("Goal ref", "The goal, by the Ref of its row on Goals in this file: a goal the same file adds. Empty in an export.", blank, "Matches the goal the Goals row with that Ref adds or changes, first"),
@@ -5516,20 +5516,20 @@ var init_columns = __esmMin((() => {
 			w("Source’s number", "What the source said, when one was read.", (r) => cellsOf(r).value),
 			w("Measured at", "When the source measured it (ISO, UTC).", (r) => cellsOf(r).at),
 			sh$1("Reason for a different number", "Why the owner’s number differs from the source’s, in their words.", (r) => cellsOf(r).reason),
-			e("Stages", "Milestone goals: each stage as “Pilot: done week 6”, “Pilot: expected week 8” or “Pilot: due week 7”, separated by semicolons.", (r) => or$1(stagesText(r.g, r.ci))),
+			e("Stages", "Milestone goals: each stage as “Pilot: done week 6”, “Pilot: expected week 8” or “Pilot: due week 7”, separated by semicolons.", (r) => or$2(stagesText(r.g, r.ci))),
 			e("Call", `The owner’s status call: ${oneOf(Object.values(CALL_WORDS.word))}. Empty: the rules decide.`, (r) => CALL_WORDS.word[r.ci.status]),
-			e("Cause", `Why it’s ahead or behind: ${oneOf([...new Set(Object.values(CAUSE_WORDS.word))])}.`, (r) => or$1(r.ci.cause ? causeLabel(r.ci.cause) : null), "Required when behind or well ahead, as in the app"),
-			e("Why", "The owner’s reason, in their words.", (r) => or$1(r.ci.why), "Required when behind or well ahead, as in the app"),
-			e("Why greener", `Why the owner’s call is ${lower(FLAG.greener)}.`, (r) => or$1(r.ci.greenerWhy)),
-			e("Path to green", "What changes to get back on plan.", (r) => or$1(r.ci.pathToGreen?.what)),
+			e("Cause", `Why it’s ahead or behind: ${oneOf([...new Set(Object.values(CAUSE_WORDS.word))])}.`, (r) => or$2(r.ci.cause ? causeLabel(r.ci.cause) : null), "Required when behind or well ahead, as in the app"),
+			e("Why", "The owner’s reason, in their words.", (r) => or$2(r.ci.why), "Required when behind or well ahead, as in the app"),
+			e("Why greener", `Why the owner’s call is ${lower(FLAG.greener)}.`, (r) => or$2(r.ci.greenerWhy)),
+			e("Path to green", "What changes to get back on plan.", (r) => or$2(r.ci.pathToGreen?.what)),
 			e("Recovery", `Where getting back stands: ${oneOf(Object.values(RECOVERY_WORDS.word))}.`, (r) => r.ci.pathToGreen ? RECOVERY_WORDS.word[r.ci.pathToGreen.state ?? "plan"] : null),
 			e("Back on plan by week", "The week it’s back on plan by, when there’s a plan.", (r) => r.ci.pathToGreen?.byWeek ?? null),
-			e("Needs", "A decision or help it needs, and from whom.", (r) => or$1(r.ci.pathToGreen?.needs)),
-			e("Next step", "The owner’s next step.", (r) => or$1(r.ci.next)),
+			e("Needs", "A decision or help it needs, and from whom.", (r) => or$2(r.ci.pathToGreen?.needs)),
+			e("Next step", "The owner’s next step.", (r) => or$2(r.ci.next)),
 			w("Calculated", "What the rules said that week, in the status words.", (r) => LABEL[r.ci.calculated]),
 			w("Plan that week", "Number goals: the plan’s number in that week, as it stood then.", (r) => r.g.kind === "metric" ? Number(planAt(planAsOf(r.g, r.ci.week), r.ci.week, r.c.x.cycle.weeks).toFixed(r.g.decimals)) : null),
 			w("Posted at", "When it was posted.", (r) => r.ci.postedAt),
-			w("Posted by", "Who posted it.", (r) => or$1(r.c.name(r.ci.authorId))),
+			w("Posted by", "Who posted it.", (r) => or$2(r.c.name(r.ci.authorId))),
 			w("Posted by email", "Who posted it, by email.", (r) => r.c.email(r.ci.authorId)),
 			w("Backfilled", "“yes” for history loaded later rather than posted in its week.", (r) => r.ci.backfilled ? "yes" : null)
 		]
@@ -5550,12 +5550,12 @@ var init_columns = __esmMin((() => {
 				means: `Empty to add or change the person. ${PERSON_ACTION_WORDS.word.left} marks them as left; their goals and open asks go to Takes over.`,
 				write: blank
 			},
-			e("Job title", "Their job title.", (r) => or$1(r.p.role)),
-			e("Team", "Their team, by name.", (r) => or$1(r.c.team(r.p.teamId))),
+			e("Job title", "Their job title.", (r) => or$2(r.p.role)),
+			e("Team", "Their team, by name.", (r) => or$2(r.c.team(r.p.teamId))),
 			e("Admin", "“yes” for an admin: they can add people, change settings and change any goal.", (r) => r.p.admin ? "yes" : null),
 			e("Team objective", "On the team lead’s row: what the team is for.", (r) => {
 				const t = r.c.x.snapshot.teams.find((v) => v.id === r.p.teamId);
-				return t && t.leadId === r.p.id ? or$1(t.objective) : null;
+				return t && t.leadId === r.p.id ? or$2(t.objective) : null;
 			}, "Changes the team’s objective (on the lead’s row; empty there clears it)"),
 			e("Takes over", `With ${PERSON_ACTION_WORDS.word.left}: who takes over their goals, open asks and teams, by email (or a name only one person has). Empty in an export.`, blank, `Used with ${PERSON_ACTION_WORDS.word.left}`)
 		]
@@ -5567,17 +5567,17 @@ var init_columns = __esmMin((() => {
 		loaded: false,
 		about: "For year-end reporting: each goal’s result for the cycle and each quarter against the owner’s plan. A quarter’s target is the plan’s number at its end.",
 		columns: [
-			m$1("Key", "The goal’s key.", (r) => or$1(r.g.key)),
+			m$1("Key", "The goal’s key.", (r) => or$2(r.g.key)),
 			m$1("ID", "The goal’s ID in this cycle.", (r) => r.g.id),
 			sh$1("Goal", "The goal’s name.", (r) => r.g.title),
 			sh$1("Level", "Its level.", (r) => LEVEL_WORDS.word[r.g.level] ?? r.g.level),
-			sh$1("Team", "Its team.", (r) => or$1(r.c.team(r.g.teamId))),
-			sh$1("Owner", "Who owns it.", (r) => or$1(r.c.name(r.g.ownerId))),
+			sh$1("Team", "Its team.", (r) => or$2(r.c.team(r.g.teamId))),
+			sh$1("Owner", "Who owns it.", (r) => or$2(r.c.name(r.g.ownerId))),
 			sh$1("Owner email", "Who owns it, by email.", (r) => r.c.email(r.g.ownerId)),
-			sh$1("Target", "Its target.", (r) => or$1(r.s.target)),
+			sh$1("Target", "Its target.", (r) => or$2(r.s.target)),
 			sh$1("Due week", "The week it’s due.", (r) => r.s.dueWeek),
 			w("Status", "Where it stands now.", (r) => r.g.stoppedAt ? STOPPED : r.s.statusLabel),
-			w("Now", "The latest number, or stages done.", (r) => or$1(r.s.now)),
+			w("Now", "The latest number, or stages done.", (r) => or$2(r.s.now)),
 			...RESULT_COLUMNS
 		]
 	};
@@ -5592,16 +5592,16 @@ var init_columns = __esmMin((() => {
 			sh$1("Kind", `${oneOf(Object.values(ASK_KIND_LABEL))}.`, (r) => ASK_KIND_LABEL[r.a.kind]),
 			sh$1("Ask", "What was asked, in their words.", (r) => r.a.ask),
 			sh$1("Goals", "The goals it’s about.", (r) => r.a.goalIds.map((id) => r.c.goal(id)?.title ?? id).join("; ")),
-			sh$1("Goal keys", "Their keys.", (r) => or$1(r.a.goalIds.map((id) => r.c.goal(id)?.key ?? "").filter(Boolean).join("; "))),
+			sh$1("Goal keys", "Their keys.", (r) => or$2(r.a.goalIds.map((id) => r.c.goal(id)?.key ?? "").filter(Boolean).join("; "))),
 			sh$1("Goal IDs", "Their IDs.", (r) => r.a.goalIds.join("; ")),
-			sh$1("Asked by", "Who asked.", (r) => or$1(r.c.name(r.a.askedBy))),
-			sh$1("Asked of", "Who must respond.", (r) => r.a.recipientId ? or$1(r.c.name(r.a.recipientId)) : "Anyone"),
+			sh$1("Asked by", "Who asked.", (r) => or$2(r.c.name(r.a.askedBy))),
+			sh$1("Asked of", "Who must respond.", (r) => r.a.recipientId ? or$2(r.c.name(r.a.recipientId)) : "Anyone"),
 			w("Status", `Where it stands: ${oneOf(Object.values(ASK_STATUS_LABEL))}.`, (r) => ASK_STATUS_LABEL[r.a.status]),
 			sh$1("Due week", "The week it’s due by, if any.", (r) => r.a.dueWeek),
 			sh$1("Review", "The review it was raised in.", (r) => r.c.x.snapshot.reviews.find((v) => v.id === r.a.reviewId)?.name ?? null),
 			sh$1("Asked at", "When.", (r) => r.a.createdAt),
-			sh$1("Answer", "The answer, or the note it was marked done with.", (r) => or$1(r.a.answer)),
-			sh$1("Answered by", "Who answered.", (r) => r.a.answeredBy ? or$1(r.c.name(r.a.answeredBy)) : null),
+			sh$1("Answer", "The answer, or the note it was marked done with.", (r) => or$2(r.a.answer)),
+			sh$1("Answered by", "Who answered.", (r) => r.a.answeredBy ? or$2(r.c.name(r.a.answeredBy)) : null),
 			sh$1("Answered at", "When.", (r) => r.a.answeredAt)
 		]
 	};
@@ -5612,14 +5612,14 @@ var init_columns = __esmMin((() => {
 		loaded: false,
 		about: "What was said in reviews: notes, questions and actions, with their answers.",
 		columns: [
-			m$1("Goal key", "The goal’s key.", (r) => or$1(r.c.goal(r.d.goalId)?.key)),
+			m$1("Goal key", "The goal’s key.", (r) => or$2(r.c.goal(r.d.goalId)?.key)),
 			m$1("Goal ID", "The goal’s ID.", (r) => r.d.goalId),
 			sh$1("Goal", "The goal’s name.", (r) => r.c.goal(r.d.goalId)?.title ?? ""),
 			sh$1("Week", "The week it was said.", (r) => r.d.week),
 			sh$1("Kind", `Note, ${ASK_KIND.question.label.toLowerCase()} or ${ASK_KIND.action.label.toLowerCase()}.`, (r) => r.d.kind === "ask" ? ASK_KIND.question.label : r.d.kind === "action" ? ASK_KIND.action.label : "Note"),
 			sh$1("Said by", "Who said it.", (r) => r.c.name(r.d.byId)),
 			sh$1("Text", "What was said.", (r) => r.d.note),
-			sh$1("Who", "Who does an action.", (r) => r.d.kind === "action" ? or$1(r.c.name(r.d.assigneeId ?? "")) : null),
+			sh$1("Who", "Who does an action.", (r) => r.d.kind === "action" ? or$2(r.c.name(r.d.assigneeId ?? "")) : null),
 			sh$1("Due week", "When an action is due.", (r) => r.d.dueWeek ?? null),
 			sh$1("Review", "The review it was said in.", (r) => r.c.x.snapshot.reviews.find((v) => v.id === r.d.reviewId)?.name ?? null),
 			sh$1("Answer", "A question’s or action’s answer.", (r) => r.d.ask ? answerOf(r.d)?.text ?? null : null),
@@ -12386,10 +12386,9 @@ function* planChangesInChunks(input) {
 	let moduleOut;
 	if (!create) {
 		const recAt = new Map(goalRows.map(({ r, row }) => [row, r]));
-		for (const m of input.records ?? []) {
-			const gs = m.goalSheet;
-			const heads = gs ? gs.columns(s) : [];
-			if (!gs || !heads.length) continue;
+		for (const gs of input.goalSheets ?? []) {
+			const heads = gs.columns(s);
+			if (!heads.length) continue;
 			const rows = [...touched].flatMap(([id, t]) => {
 				const r = t.sheet === "Goals" && !leftSet.has(`Goals|${t.row}`) ? recAt.get(t.row) : void 0;
 				const g = goalOut.get(id) ?? (t.before && !issuesAt.get(`Goals|${t.row}`)?.some((x) => x.kind === "not-allowed") ? work.get(id) : void 0);
@@ -15154,7 +15153,7 @@ var SKIP = /* @__PURE__ */ new Set([
 init_columns();
 init_rules$1();
 var { match: m, shown: sh } = moduleColumn;
-var or = cellOr;
+var or$1 = cellOr;
 var METRICS_SHEET = {
 	spec: {
 		kind: "metrics",
@@ -15165,18 +15164,18 @@ var METRICS_SHEET = {
 		columns: [
 			m("ID", "The metric’s identity.", (r) => r.m.id),
 			sh("Metric", "Its name.", (r) => r.m.name),
-			sh("Meaning", "What it means and how it’s calculated.", (r) => or(r.m.meaning)),
+			sh("Meaning", "What it means and how it’s calculated.", (r) => or$1(r.m.meaning)),
 			sh("Unit", "Its unit.", (r) => r.m.unit),
 			sh("Decimals", "Places after the decimal point it’s shown with.", (r) => r.m.decimals),
 			sh("Direction", `${oneOf(Object.values(DIRECTION_LABEL))}.`, (r) => DIRECTION_LABEL[r.m.direction]),
-			sh("Source", "Where the number comes from.", (r) => or(r.m.source)),
-			sh("Source owner", "Who owns that source.", (r) => or(r.m.sourceOwner)),
+			sh("Source", "Where the number comes from.", (r) => or$1(r.m.source)),
+			sh("Source owner", "Who owns that source.", (r) => or$1(r.m.sourceOwner)),
 			sh("Refresh", `How often the source refreshes: ${oneOf(Object.values(REFRESH_LABEL))}, or empty when nobody has said.`, (r) => r.m.refresh ? REFRESH_LABEL[r.m.refresh] : null),
-			sh("Owner", "Who answers for the definition.", (r) => or(r.c.name(r.m.ownerId))),
+			sh("Owner", "Who answers for the definition.", (r) => or$1(r.c.name(r.m.ownerId))),
 			sh("Owner email", "Who answers for it, by email.", (r) => r.c.email(r.m.ownerId)),
-			sh("Caveats", "What to watch out for when reading it.", (r) => or(r.m.caveats)),
-			sh("Measures", "The goals it measures, each with its slice: a team, or the whole company.", (r) => or(r.measures.map((x) => `${x.g.title} (${x.slice})`).join("; "))),
-			sh("Goal keys", "Their keys.", (r) => or(r.measures.map((x) => x.g.key ?? "").filter(Boolean).join("; ")))
+			sh("Caveats", "What to watch out for when reading it.", (r) => or$1(r.m.caveats)),
+			sh("Measures", "The goals it measures, each with its slice: a team, or the whole company.", (r) => or$1(r.measures.map((x) => `${x.g.title} (${x.slice})`).join("; "))),
+			sh("Goal keys", "Their keys.", (r) => or$1(r.measures.map((x) => x.g.key ?? "").filter(Boolean).join("; ")))
 		]
 	},
 	keys: ["ID"],
@@ -15729,7 +15728,6 @@ var init_fields = __esmMin((() => {
 	all = (x) => fieldsOf(x.full ?? x.snapshot);
 }));
 // src/modules/tags/find.ts
-var find_exports = /* @__PURE__ */ __exportAll({ fieldParams: () => fieldParams });
 /** The parameters find_goals' `fields` means; anything else is an Error in words. */
 async function fieldParams(s, asked) {
 	const out = {};
@@ -15759,10 +15757,6 @@ var init_find = __esmMin((() => {
 	init_rules();
 }));
 // src/modules/tags/sheet.ts
-var sheet_exports = /* @__PURE__ */ __exportAll({
-	readFieldColumns: () => readFieldColumns,
-	unknownValue: () => unknownValue
-});
 /** The question for a value a list doesn't hold, in the spec's words, and its answers: Add (an admin, while the list has
 room), or leave the cells empty. */
 function unknownValue(field, value, count, canAdd) {
@@ -15914,9 +15908,90 @@ var init_sheet = __esmMin((() => {
 	k = (s) => s.trim().toLowerCase();
 	rows$2 = (n) => n === 1 ? "1 row" : `${n} rows`;
 }));
+// src/modules/tags/extras.ts
+var extras_exports = /* @__PURE__ */ __exportAll({ default: () => extras$1 });
+/** Each live list field's column, by its parameter: the goal's value (or Not set), and rule 3's test for what is picked. */
+function columns(s) {
+	const out = {};
+	const by = held(s);
+	const values = valuesOf(s);
+	for (const f of lists(s)) {
+		const fill = (g) => by.get(`${g.id}:${f.id}`) ?? "Not set";
+		let last = null;
+		fill.test = (g, text) => {
+			if (last?.text !== text) {
+				const picked = pickedOf(f, text);
+				last = {
+					text,
+					match: picked.length ? fieldMatcher(values, { [f.id]: picked }) : () => true
+				};
+			}
+			return last.match(g.id);
+		};
+		out[filterParam(f.id)] = fill;
+	}
+	return out;
+}
+var lists, fieldOf, held, or, extras$1;
+var init_extras = __esmMin((() => {
+	init_fields();
+	init_filter();
+	init_find();
+	init_sheet();
+	lists = (s) => liveFields(s).filter((f) => f.kind === "list");
+	fieldOf = (s, param) => lists(s).find((f) => filterParam(f.id) === param) ?? null;
+	held = (s) => {
+		const m = /* @__PURE__ */ new Map();
+		for (const v of valuesOf(s)) if (!v.removedAt && v.value) m.set(`${v.goalId}:${v.fieldId}`, v.value);
+		return m;
+	};
+	or = (v) => v.length > 1 ? `${v.slice(0, -1).join(", ")} or ${v[v.length - 1]}` : v[0] ?? "";
+	extras$1 = {
+		family: {
+			columns,
+			rows: (s) => lists(s).map((f) => ({
+				param: filterParam(f.id),
+				label: f.name,
+				options: [...f.options, NOT_SET]
+			})),
+			picked: (s, param, text) => {
+				const f = fieldOf(s, param);
+				return f ? pickedOf(f, text) : [];
+			},
+			text: (s, param, picked) => {
+				const f = fieldOf(s, param);
+				return f ? pickedText(f, picked) : "";
+			},
+			says: (s, param, text) => {
+				const f = fieldOf(s, param);
+				const p = f ? pickedOf(f, text) : [];
+				return f && p.length ? {
+					label: `${f.name} is`,
+					value: or(p)
+				} : null;
+			},
+			arg: {
+				module: "Fields",
+				name: "fields",
+				description: `Goals with these values of the workspace’s own list fields (list_fields), by name: {"Stage": "Build, Run"}; "${NOT_SET}" for none. Free text can’t filter.`,
+				params: fieldParams
+			}
+		},
+		sheet: {
+			columns: (s) => liveFields(s).map((f) => ({
+				header: f.name,
+				about: `The workspace’s own field: ${f.kind === "list" ? `one of ${f.options.join(", ")}` : "free text"}, or empty for none.`
+			})),
+			cell: (s, goalId, header) => {
+				const f = liveFields(s).find((x) => x.name === header);
+				return f && held(s).get(`${goalId}:${f.id}`) || null;
+			},
+			read: readFieldColumns
+		}
+	};
+}));
 // src/modules/tags/records.ts
 init_records();
-init_filter();
 var FIELDS$1 = "fields";
 var VALUES = "fieldValues";
 var iso$3 = (v) => new Date(String(v)).toISOString();
@@ -15960,103 +16035,45 @@ var valueFromRow = (r) => ({
 	setBy: String(r.set_by),
 	setAt: iso$3(r.set_at)
 });
-var field = {
-	name: "field",
-	key: FIELDS$1,
-	table: "goal_fields",
-	removable: false,
-	toRow: fieldToRow,
-	fromRow: fieldFromRow,
-	order: (a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt),
-	carry: (rows) => rows
-};
-var value = {
-	name: "field value",
-	key: VALUES,
-	table: "goal_field_values",
-	removable: false,
-	toRow: valueToRow,
-	fromRow: valueFromRow,
-	carry: (rows) => rows.filter((v) => !v.removedAt),
-	follow: (rows, copies) => rows.filter((v) => copies.has(v.goalId) && v.value).map((v) => ({
-		...v,
-		id: `${copies.get(v.goalId)}:${v.fieldId}`,
-		goalId: copies.get(v.goalId),
-		removedAt: null,
-		removedBy: null
-	})),
-	goalOf: (v) => v.goalId
-};
-var fieldsIn = (s) => moduleRows(s, "tags", FIELDS$1).filter((f) => !f.retiredAt).sort((a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt));
-var valuesIn = (s) => moduleRows(s, "tags", VALUES);
-var held = (s) => {
-	const m = /* @__PURE__ */ new Map();
-	for (const v of valuesIn(s)) if (!v.removedAt && v.value) m.set(`${v.goalId}:${v.fieldId}`, v.value);
-	return m;
-};
-/** Each live list field's column, by its parameter: the goal's value (or Not set), and rule 3's test for what is picked. */
-function filterColumns(s) {
-	const out = {};
-	const lists = fieldsIn(s).filter((f) => f.kind === "list");
-	if (!lists.length) return out;
-	const by = held(s);
-	const values = valuesIn(s);
-	for (const f of lists) {
-		const fill = (g) => by.get(`${g.id}:${f.id}`) ?? "Not set";
-		let last = null;
-		fill.test = (g, text) => {
-			if (last?.text !== text) {
-				const picked = pickedOf(f, text);
-				last = {
-					text,
-					match: picked.length ? fieldMatcher(values, { [f.id]: picked }) : () => true
-				};
-			}
-			return last.match(g.id);
-		};
-		out[filterParam(f.id)] = fill;
-	}
-	return out;
-}
-/** The reader for the Goals sheet's columns, loaded with the change engine. */
-var reader = null;
-var records$2 = {
-	records: [field, value],
-	goalColumnFamilies: [{
-		prefix: "f.",
-		columns: filterColumns,
-		arg: {
-			module: "Fields",
-			name: "fields",
-			description: `Goals with these values of the workspace’s own list fields, by name: {"Stage": "Build, Run"}; "${NOT_SET}" for none.`,
-			params: async (s, asked) => (await Promise.resolve().then(() => (init_find(), find_exports))).fieldParams(s, asked)
-		}
-	}],
-	goalSheet: {
-		columns: (s) => fieldsIn(s).map((f) => ({
-			header: f.name,
-			about: `The workspace’s own field: ${f.kind === "list" ? `one of ${f.options.join(", ")}` : "free text"}, or empty for none.`
-		})),
-		cell: (s, goalId, header) => {
-			const f = fieldsIn(s).find((x) => x.name === header);
-			return f && held(s).get(`${goalId}:${f.id}`) || null;
-		},
-		load: async () => {
-			reader ??= await Promise.resolve().then(() => (init_sheet(), sheet_exports));
-		},
-		read: (x) => {
-			if (!reader) throw new Error("Fields’ columns haven’t loaded: call loadGoalSheets() before the change engine runs.");
-			return reader.readFieldColumns(x);
-		}
-	}
-};
 // \0virtual:faro-modules/records
 var records_default = [{
 	id: "metrics",
 	part: records$3
 }, {
 	id: "tags",
-	part: records$2
+	part: {
+		records: [{
+			name: "field",
+			key: FIELDS$1,
+			table: "goal_fields",
+			removable: false,
+			toRow: fieldToRow,
+			fromRow: fieldFromRow,
+			order: (a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt),
+			carry: (rows) => rows
+		}, {
+			name: "field value",
+			key: VALUES,
+			table: "goal_field_values",
+			removable: false,
+			toRow: valueToRow,
+			fromRow: valueFromRow,
+			carry: (rows) => rows.filter((v) => !v.removedAt),
+			follow: (rows, copies) => rows.filter((v) => copies.has(v.goalId) && v.value).map((v) => ({
+				...v,
+				id: `${copies.get(v.goalId)}:${v.fieldId}`,
+				goalId: copies.get(v.goalId),
+				removedAt: null,
+				removedBy: null
+			})),
+			goalOf: (v) => v.goalId
+		}],
+		goalExtras: {
+			prefix: "f.",
+			has: (s) => moduleRows(s, "tags", FIELDS$1).some((f) => !f.retiredAt),
+			load: () => Promise.resolve().then(() => (init_extras(), extras_exports)).then((m) => m.default)
+		}
+	}
 }];
 // \0virtual:faro-modules
 var _virtual_faro_modules_default = [
@@ -16551,7 +16568,7 @@ var _virtual_faro_modules_default = [
 			"entry": [
 				"The core saves a module's records through module_tables and src/core/records.ts (stage 2), so the module's two tables need nothing from any core rule.",
 				"The core offers a Workspace section to a module (AppModule sections, /workspace/<id>) and the goal page's goal.sections place, and refuses a switched-off module's actions and AI tools (stage 2).",
-				"The core reads a module's family of Goals filters (domain/records GoalColumnFamily: parameters by their start, f.) and its columns on the Goals sheet (ModuleGoalColumns: written by every export, read back by the change engine, which asks a module's question as its own Check, module-value), and loads a module's reader with the change engine (core/records loadGoalSheets)."
+				"What a module adds to Goals loads only when a workspace has something for it (domain/records goalExtras: Fields' extras.ts, once a live field exists; core/records loadGoalExtras): a family of Goals filters (parameters by their start, f.) and its columns on the Goals sheet (written by every export, read back by the change engine, which asks the module's question as its own Check, module-value)."
 			],
 			"exit": [
 				"fieldProblem and valueProblem give the tags-fields rule's worked examples (src/modules/tags/rules.test.ts), and every row of spec/conformance/tags.csv matches.",
@@ -16588,8 +16605,7 @@ var _virtual_faro_modules_default = [
 		parity: {
 			"FieldsSection": ["list_fields", "save_field"],
 			"FieldsBlock": ["list_fields", "set_goal_fields"]
-		},
-		filters: ["fields"]
+		}
 	},
 	{
 		id: "watching",
@@ -16731,18 +16747,28 @@ var MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => (m.goalColumns ?? []).ma
 	...c,
 	module: m.module
 })));
-/** The modules' families of Goals filters (Fields' `f.<field id>`), each with its module: the app's filters and
-find_goals read them, and both leave out a switched-off module's. */
-var MODULE_GOAL_FAMILIES = MODULE_RECORDS.flatMap((m) => (m.goalColumnFamilies ?? []).map((f) => ({
-	...f,
-	module: m.module
-})));
-/** The modules' columns on the Goals sheet (Fields' one per live field), of the modules on in a workspace: a module
-that's off adds no column to any export, and its columns in a file are columns nothing reads. */
-var goalSheetsOn = (ws) => recordsOn(ws).flatMap((m) => m.goalSheet ? [m.goalSheet] : []);
-/** Loads every module's Goals-column reader (domain/records ModuleGoalColumns `load`): with the change engine, before
-it runs, wherever it runs (the app, the import's worker, the MCP server). */
-var loadGoalSheets = () => Promise.all(MODULE_RECORDS.map((m) => m.goalSheet?.load())).then(() => void 0);
+var extras = /* @__PURE__ */ new Map();
+var loading = /* @__PURE__ */ new Map();
+/** Loads what the modules add to Goals: for the workspace `s` has, only what it has something for; with no `s` (the
+change engine, the import's worker, the MCP server), every module's. */
+function loadGoalExtras(s) {
+	return Promise.all(MODULE_RECORDS.filter((m) => m.goalExtras && !extras.has(m.module) && (!s || m.goalExtras.has(s))).map((m) => {
+		if (!loading.has(m.module)) loading.set(m.module, m.goalExtras.load().then((x) => {
+			extras.set(m.module, x);
+			if (x.sheet) x.sheet.module = m.module;
+		}));
+		return loading.get(m.module);
+	})).then(() => void 0);
+}
+/** What has loaded, of the modules in `on` (all, when not given), each with its module. */
+var goalExtrasOf = (on) => [...extras].filter(([id]) => !on || on.has(id)).map(([module, x]) => ({
+	module,
+	...x
+}));
+/** The parameters' starts the modules' filters use (Fields' `f.`), known before anything loads. */
+var GOAL_PREFIXES = MODULE_RECORDS.flatMap((m) => m.goalExtras?.prefix ? [m.goalExtras.prefix] : []);
+/** The modules' columns on the Goals sheet (Fields' one per live field), of the modules on in a workspace and loaded. */
+var goalSheetsOn = (ws) => goalExtrasOf(modulesOn(ws).on).flatMap((x) => x.sheet ? [x.sheet] : []);
 /** The workbook's sheets the modules add (domain/export), in module id order: every module in this build. */
 var MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
 /** The records of the modules on in a workspace: what Recently removed lists and restores, and what a carried copy
@@ -28897,7 +28923,6 @@ async function change(ctx, tables, opts) {
 		text: `Not checked. ${big}`
 	};
 	const keyOf = (id) => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
-	await loadGoalSheets();
 	const cs = planChanges({
 		tables,
 		snapshot: ctx.snapshot,
@@ -28911,6 +28936,7 @@ async function change(ctx, tables, opts) {
 		confirm: opts.confirm,
 		answers: answersOf(opts.answers),
 		records: recordsOn(ctx.ws),
+		goalSheets: goalSheetsOn(ctx.ws),
 		...opts.readings?.length ? { readings: opts.readings } : {}
 	});
 	const errors = cs.issues.filter((x) => x.level === "must");
@@ -29193,14 +29219,6 @@ var CORE_TOOLS = [
 				scope: str("Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.", { enum: SCOPES }),
 				query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks; no filter while Reviews is off), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
 				view: str("The name of a saved view: one of yours, or one pinned for everyone."),
-				...Object.fromEntries(MODULE_GOAL_FAMILIES.flatMap((f) => f.arg ? [[f.arg.name, {
-					type: "object",
-					additionalProperties: { anyOf: [{ type: "string" }, {
-						type: "array",
-						items: { type: "string" }
-					}] },
-					description: f.arg.description
-				}]] : [])),
 				state: str("active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter).", { enum: [
 					"active",
 					"proposed",
@@ -29250,7 +29268,7 @@ var CORE_TOOLS = [
 				query = parseQuery(new URLSearchParams(v.params));
 				linkScope = new URLSearchParams(v.params).get("scope");
 			}
-			for (const f of MODULE_GOAL_FAMILIES) {
+			for (const f of familyArgs()) {
 				const v = f.arg ? a[f.arg.name] : void 0;
 				if (!f.arg || !v || typeof v !== "object" || !Object.keys(v).length) continue;
 				if (!isModuleOn(ctx.ws, f.module)) throw new Error(moduleOffSentence(f.arg.module, ctx.ws.name, `find_goals’ ${f.arg.name} filter`));
@@ -29296,7 +29314,7 @@ var CORE_TOOLS = [
 			});
 			const byId = new Map(rows.goal().summaries.map((s) => [s.goal.id, s]));
 			const sNow = ctx.full ?? ctx.snapshot;
-			const family = Object.assign({}, ...MODULE_GOAL_FAMILIES.filter((f) => isModuleOn(ctx.ws, f.module)).map((f) => f.columns(sNow)));
+			const family = Object.assign({}, ...goalExtrasOf(modulesOn(ctx.ws).on).flatMap((x) => x.family ? [x.family.columns(sNow)] : []));
 			const cols = Object.entries(asked.cols ?? {}).flatMap(([k, v]) => {
 				const c = MODULE_GOAL_COLUMNS.find((x) => x.param === k && isModuleOn(ctx.ws, x.module));
 				const col = c ? c.fill(sNow) : family[k];
@@ -29922,7 +29940,28 @@ var TOOL_MODULE = new Map(tools_default.flatMap((m) => m.part.map((t) => [t.name
 requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts; then each feature
 module's own (the spreadsheets module's export and export_table). */
 addColumnParams(MODULE_GOAL_COLUMNS.map((c) => c.param));
-addColumnPrefixes(MODULE_GOAL_FAMILIES.map((f) => f.prefix));
+addColumnPrefixes(GOAL_PREFIXES);
+{
+	const t = CORE_TOOLS.find((x) => x.name === "find_goals");
+	const base = t.inputSchema;
+	Object.defineProperty(t, "inputSchema", {
+		enumerable: true,
+		get: () => ({
+			...base,
+			properties: {
+				...base.properties,
+				...Object.fromEntries(familyArgs().map((f) => [f.arg.name, {
+					type: "object",
+					additionalProperties: { anyOf: [{ type: "string" }, {
+						type: "array",
+						items: { type: "string" }
+					}] },
+					description: f.arg.description
+				}]))
+			}
+		})
+	});
+}
 var TOOLS = [
 	...CORE_TOOLS,
 	...WORK_TOOLS,
@@ -29975,6 +30014,14 @@ function reviewsGuarded(ctx, tool) {
 }
 /** Who a token acts as, in a sentence: said with every refusal. */
 var actingAs = (p) => `This token acts as ${p.name}, who ${p.admin ? "is an admin" : "isn’t an admin"}.`;
+/** The modules' filters as find_goals arguments (Fields' `fields`), each with its module: the MCP server loads every
+module's Goals extras before it lists or runs a tool (protocol.ts), so they are here by then. */
+function familyArgs() {
+	return goalExtrasOf().flatMap((x) => x.family?.arg ? [{
+		module: x.module,
+		arg: x.family.arg
+	}] : []);
+}
 // src/mcp/protocol.ts
 /** A tool whose save is refused as stale every time it runs again: said plainly, not as the store's error. */
 var STALE_TOOL = "Someone else changed this a moment ago, so it wasn’t saved. Read it again (get_goal or get_review) and try again.";
@@ -30018,6 +30065,7 @@ async function handle(msg, context, trace) {
 	const m = msg;
 	if (!m || m.jsonrpc !== "2.0" || typeof m.method !== "string") return fail(m?.id ?? null, -32600, "Invalid request");
 	const isNote = m.id === void 0;
+	await loadGoalExtras();
 	switch (m.method) {
 		case "initialize": {
 			const asked = String(m.params?.protocolVersion ?? "");

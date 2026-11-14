@@ -8,7 +8,7 @@
 import { planChangesInChunks, type ChangeSet } from '../../domain/changeset';
 import { CHANGES_SAVE_MAX } from '../../domain/importLimits';
 import { inputOf, SLICE, type CheckReply, type CheckRequest } from './workerInput';
-import { loadGoalSheets } from '../../core/records';
+import { loadGoalExtras } from '../../core/records';
 
 const post = (r: CheckReply) => (self as unknown as { postMessage(m: CheckReply): void }).postMessage(r);
 
@@ -26,7 +26,7 @@ function send(cs: ChangeSet) {
 self.onmessage = async (e: MessageEvent<CheckRequest>) => {
   try {
     // A module's own Goals columns (Fields') are read by its rules, loaded here first.
-    if (e.data.goalSheets?.length) await loadGoalSheets();
+    if (e.data.goalSheets?.length) await loadGoalExtras();
     const run = planChangesInChunks(inputOf(e.data));
     for (;;) {
       const step = run.next();

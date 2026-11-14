@@ -151,10 +151,10 @@ No arguments.
 | `scope` | one of `mine`, `team`, `watching`, `all` | no | Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why. |
 | `query` | string | no | A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned)), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the Needs attention list, those being handled below the rest), needs (because: Off track (off), Missed its own date (missed-path), No recent update (stale), Decision or help needed (decision), No path to green (no-path), At risk (risk), Getting worse (trend), Greener than calculated (greener), Date slipped (slipped)), due (quarter or a week), quiet (no update for this many weeks), qtr (Met (met), Not met (missed)), result (Met (completed), Met late (late), Not met (missed), Not finished yet (open)), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks; no filter while Reviews is off), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse). |
 | `view` | string | no | The name of a saved view: one of yours, or one pinned for everyone. |
-| `fields` | object | no | Goals with these values of the workspace’s own list fields, by name: {"Stage": "Build, Run"}; "Not set" for none. |
 | `state` | one of `active`, `proposed`, `stopped` | no | active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter). |
 | `limit` | integer | no | How many goals to list, from offset: 50 unless asked, at most 200. |
 | `offset` | integer | no | How many matching goals to skip, for the next page (as “more” says). |
+| `fields` | object | no | Goals with these values of the workspace’s own list fields (list_fields), by name: {"Stage": "Build, Run"}; "Not set" for none. Free text can’t filter. |
 
 <details><summary>The input schema, as JSON</summary>
 
@@ -210,23 +210,6 @@ No arguments.
       "type": "string",
       "description": "The name of a saved view: one of yours, or one pinned for everyone."
     },
-    "fields": {
-      "type": "object",
-      "additionalProperties": {
-        "anyOf": [
-          {
-            "type": "string"
-          },
-          {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        ]
-      },
-      "description": "Goals with these values of the workspace’s own list fields, by name: {\"Stage\": \"Build, Run\"}; \"Not set\" for none."
-    },
     "state": {
       "type": "string",
       "description": "active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter).",
@@ -246,6 +229,23 @@ No arguments.
       "type": "integer",
       "minimum": 0,
       "description": "How many matching goals to skip, for the next page (as “more” says)."
+    },
+    "fields": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "description": "Goals with these values of the workspace’s own list fields (list_fields), by name: {\"Stage\": \"Build, Run\"}; \"Not set\" for none. Free text can’t filter."
     }
   }
 }

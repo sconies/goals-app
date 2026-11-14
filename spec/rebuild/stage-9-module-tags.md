@@ -11,7 +11,7 @@ Give goals a workspace’s own fields, such as a stage or a programme, to find a
 - Stages 1 to 3 pass their exit criteria.
 - The core saves a module's records through module_tables and src/core/records.ts (stage 2), so the module's two tables need nothing from any core rule.
 - The core offers a Workspace section to a module (AppModule sections, /workspace/<id>) and the goal page's goal.sections place, and refuses a switched-off module's actions and AI tools (stage 2).
-- The core reads a module's family of Goals filters (domain/records GoalColumnFamily: parameters by their start, f.) and its columns on the Goals sheet (ModuleGoalColumns: written by every export, read back by the change engine, which asks a module's question as its own Check, module-value), and loads a module's reader with the change engine (core/records loadGoalSheets).
+- What a module adds to Goals loads only when a workspace has something for it (domain/records goalExtras: Fields' extras.ts, once a live field exists; core/records loadGoalExtras): a family of Goals filters (parameters by their start, f.) and its columns on the Goals sheet (written by every export, read back by the change engine, which asks the module's question as its own Check, module-value).
 
 ## What to build
 

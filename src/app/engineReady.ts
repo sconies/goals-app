@@ -3,8 +3,8 @@
    screen's first render, so app.previewChanges never runs before the engine is there (src/app/actions.ts). A module's
    own Goals columns (Fields') are read by its rules, loaded beside it: Data's table edits them, never at first render. */
 import * as changeset from '../domain/changeset';
-import { loadGoalSheets } from '../core/records';
+import { loadGoalExtras } from '../core/records';
 import { setEngine } from './actions';
 
 setEngine(changeset);
-void loadGoalSheets();
+void loadGoalExtras();

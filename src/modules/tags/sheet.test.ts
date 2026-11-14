@@ -3,7 +3,7 @@
    and read back by the change engine. Exported and loaded back, nothing changes; a value a list doesn't hold is asked
    once per value, an admin may add it and anyone else leaves the cells empty; with Fields off the columns are written by
    no export and read by nothing, and the file line names them. */
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { buildPlatformOrg } from '../../data/platformOrg';
 import { applyCommit } from '../../data/store';
 import { planChanges, type ChangeSet, type Tables } from '../../domain/changeset';
@@ -15,6 +15,7 @@ import { readTables, recordsOf } from '../../domain/sheets';
 import type { ActionContext } from '../../domain/actions';
 import type { Snapshot } from '../../domain/types';
 import { addField, fieldsOf, liveFields, MODULE, setGoalFields, valueOf } from './fields';
+import extras from './extras';
 import tags from './records';
 
 const today = new Date('2026-11-05T12:00:00Z');
@@ -35,14 +36,13 @@ function withFields(): Snapshot {
   return applyCommit(s, setGoalFields(ctx(s, 'amara'), s.goals.find((g) => g.id === 'ci-docker')!, { [prog!.id]: 'Runners' })!);
 }
 const scoped = (s: Snapshot) => scopeToCycle(s, cycle);
-const grids = (s: Snapshot, on = true) => workbook({ ws: { id: 'platform-org', name: 'Platform Engineering' }, snapshot: scoped(s), cycle, week, today, goalColumns: on ? [tags.goalSheet!] : [] })
+const grids = (s: Snapshot, on = true) => workbook({ ws: { id: 'platform-org', name: 'Platform Engineering' }, snapshot: scoped(s), cycle, week, today, goalColumns: on ? [extras.sheet!] : [] })
   .map((t) => ({ name: t.name, rows: t.rows.map((r) => r.map((c) => (c == null ? '' : String(c)))) }));
 const load = (s: Snapshot, tables: Tables, who = 'amara', answers: Record<string, { choice: string }> = {}, on = true): ChangeSet =>
-  planChanges({ tables, snapshot: scoped(s), cycle, week, actor: s.people.find((p) => p.id === who)!, now: today.toISOString(), newId, via: 'spreadsheet', full: s, answers, records: on ? RECORDS : [] });
+  planChanges({ tables, snapshot: scoped(s), cycle, week, actor: s.people.find((p) => p.id === who)!, now: today.toISOString(), newId, via: 'spreadsheet', full: s, answers, records: on ? RECORDS : [], goalSheets: on ? [extras.sheet!] : [] });
 const keyOf = (s: Snapshot, id: string) => s.goals.find((g) => g.id === id)!.key!;
 const csv = (text: string) => recordsOf(text.split('\n').filter(Boolean).map((l) => l.split('|')));
 
-beforeAll(() => tags.goalSheet!.load());
 
 describe('the Goals sheet’s field columns', () => {
   it('has one column per live field, headed with its name, after the core’s; the README says what each holds', () => {

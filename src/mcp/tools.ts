@@ -29,7 +29,7 @@ import { REMOVE_TOOLS } from './removeTools';
 import MODULE_TOOLS from 'virtual:faro-modules/tools';
 import { isModuleOn, moduleById, modulesOn } from '../core/registry';
 import { writesReviews } from '../domain/reviewWrites';
-import { loadGoalSheets, MODULE_GOAL_COLUMNS, MODULE_GOAL_FAMILIES, recordsOn } from '../core/records';
+import { goalExtrasOf, goalSheetsOn, GOAL_PREFIXES, MODULE_GOAL_COLUMNS, recordsOn } from '../core/records';
 import { addColumnParams, addColumnPrefixes, columnPasses, type ColumnFill } from '../domain/query';
 import { commentsOf } from '../domain/removal';
 import { findGoal, isKey } from '../domain/goalKey';
@@ -152,9 +152,7 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
   if (big) return { isError: true, text: `Not checked. ${big}` };
   // A goal's key: as saved once it is, as the change gives it before (a dry run's key is the one it would get).
   const keyOf = (id: string): string | null => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
-  // A module's own Goals columns (Fields') are read by its rules, loaded with the engine.
-  await loadGoalSheets();
-  const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason, confirm: opts.confirm, answers: answersOf(opts.answers), records: recordsOn(ctx.ws), ...(opts.readings?.length ? { readings: opts.readings } : {}) });
+  const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason, confirm: opts.confirm, answers: answersOf(opts.answers), records: recordsOn(ctx.ws), goalSheets: goalSheetsOn(ctx.ws), ...(opts.readings?.length ? { readings: opts.readings } : {}) });
   // Every problem has a kind and a level (domain/problemLevels): Must fix, Check (a question), or how a row was read.
   const errors = cs.issues.filter((x) => x.level === 'must');
   // Goal entry's questions (rule 3) are listed goal by goal and answered by "confirm"; the import's other questions by
@@ -288,8 +286,7 @@ const CORE_TOOLS: ToolDef[] = [
       scope: str('Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.', { enum: SCOPES }),
       query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(', ')}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ['met', 'missed'])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks; no filter while Reviews is off), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
       view: str('The name of a saved view: one of yours, or one pinned for everyone.'),
-      // A module's filter by name (Fields' `fields`), declared by its records (domain/records GoalColumnFamily).
-      ...Object.fromEntries(MODULE_GOAL_FAMILIES.flatMap((f) => (f.arg ? [[f.arg.name, { type: 'object', additionalProperties: { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }] }, description: f.arg.description }]] : []))),
+
       state: str('active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter).', { enum: ['active', 'proposed', 'stopped'] }),
       limit: { type: 'integer', minimum: 1, maximum: FIND_MAX, description: `How many goals to list, from offset: ${FIND_PAGE} unless asked, at most ${FIND_MAX}.` },
       offset: { type: 'integer', minimum: 0, description: 'How many matching goals to skip, for the next page (as “more” says).' },
@@ -321,7 +318,7 @@ const CORE_TOOLS: ToolDef[] = [
       }
       // A module's filter by name (Fields' `fields: { Stage: "Build" }`) is the parameters Goals reads (?f.<field id>=Build),
       // matched as Goals matches them; with the module off it says the module-off sentence.
-      for (const f of MODULE_GOAL_FAMILIES) {
+      for (const f of familyArgs()) {
         const v = f.arg ? a[f.arg.name] : undefined;
         if (!f.arg || !v || typeof v !== 'object' || !Object.keys(v).length) continue;
         if (!isModuleOn(ctx.ws, f.module)) throw new Error(moduleOffSentence(f.arg.module, ctx.ws.name, `find_goals’ ${f.arg.name} filter`));
@@ -360,7 +357,7 @@ const CORE_TOOLS: ToolDef[] = [
       // like Goals, a switched-off module's column is no filter at all (module map F4).
       // A family's (Fields' ?f.<field id>=Build,Run) the same way.
       const sNow = ctx.full ?? ctx.snapshot;
-      const family: Record<string, ColumnFill> = Object.assign({}, ...MODULE_GOAL_FAMILIES.filter((f) => isModuleOn(ctx.ws, f.module)).map((f) => f.columns(sNow)));
+      const family: Record<string, ColumnFill> = Object.assign({}, ...goalExtrasOf(modulesOn(ctx.ws).on).flatMap((x) => (x.family ? [x.family.columns(sNow)] : [])));
       const cols = Object.entries(asked.cols ?? {}).flatMap(([k, v]) => { const c = MODULE_GOAL_COLUMNS.find((x) => x.param === k && isModuleOn(ctx.ws, x.module)); const col = c ? c.fill(sNow) : family[k]; return col && v ? [{ col, v }] : []; });
       // Proposed goals (GE10) are left out unless asked for, and then only they are listed; their scope is worked out as the
       // Goals screen's count line does, by owner or team.
@@ -579,7 +576,13 @@ export const toolModule = (name: string): string | undefined => TOOL_MODULE.get(
     module's own (the spreadsheets module's export and export_table). */
 // The modules' Goals columns are read from a link here as in the app (core/app registers them for the screens).
 addColumnParams(MODULE_GOAL_COLUMNS.map((c) => c.param));
-addColumnPrefixes(MODULE_GOAL_FAMILIES.map((f) => f.prefix));
+addColumnPrefixes(GOAL_PREFIXES);
+// find_goals' module filters by name (Fields' `fields`), as the loaded modules declare them.
+{
+  const t = CORE_TOOLS.find((x) => x.name === 'find_goals')!;
+  const base = t.inputSchema as { properties: Record<string, unknown> };
+  Object.defineProperty(t, 'inputSchema', { enumerable: true, get: () => ({ ...base, properties: { ...base.properties, ...Object.fromEntries(familyArgs().map((f) => [f.arg.name, { type: 'object', additionalProperties: { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }] }, description: f.arg.description }])) } }) });
+}
 
 export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS, ...REMOVE_TOOLS, ...MODULE_TOOLS.flatMap((m) => m.part)];
 
@@ -621,3 +624,9 @@ function reviewsGuarded(ctx: McpContext, tool: string): McpContext {
 
 /** Who a token acts as, in a sentence: said with every refusal. */
 export const actingAs = (p: { name: string; admin: boolean }) => `This token acts as ${p.name}, who ${p.admin ? 'is an admin' : 'isn’t an admin'}.`;
+
+/** The modules' filters as find_goals arguments (Fields' `fields`), each with its module: the MCP server loads every
+    module's Goals extras before it lists or runs a tool (protocol.ts), so they are here by then. */
+function familyArgs() {
+  return goalExtrasOf().flatMap((x) => (x.family?.arg ? [{ module: x.module, arg: x.family.arg }] : []));
+}

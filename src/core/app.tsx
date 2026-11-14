@@ -2,7 +2,7 @@
    adds, the navigation items, and what it puts in the named places on core screens. The core asks for them here and
    gets only the modules that are on in the open workspace (src/core/registry.ts), so a module that's switched off,
    or left out of the build, has no route, no navigation item and nothing in any place. */
-import { useMemo, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import APP from 'virtual:faro-modules/app';
 import { useApp } from '../app/state';
@@ -12,6 +12,7 @@ import type { WorkspaceNeed } from '../domain/workspaceAttention';
 import type { NavGroup } from '../domain/navigation';
 import { addColumnParams, addColumnPrefixes, type QueryContext, type QueryNames } from '../domain/query';
 import type { GoalColumnFamily } from '../domain/records';
+import { GOAL_PREFIXES, goalExtrasLoaded, goalExtrasOf, loadGoalExtras } from './records';
 import type { Finder } from '../adapters/localSearch';
 import { MODULES, modulesOn } from './registry';
 import type { PlaceName } from './module';
@@ -166,27 +167,9 @@ export interface ModuleFilter {
   says: (snapshot: Snapshot, value: string) => string | null;
 }
 
-/**
- * A family of filters a module adds to Goals (TG2, Fields: one per live list field, `?f.<field id>=Build,Run`): its
- * parameters are named by the open workspace, and each picks one value or several. Its columns are the module's records'
- * family (domain/records GoalColumnFamily), so the app and find_goals match alike.
- */
-export interface ModuleFilterFamily {
-  list: 'goals';
-  id: string;
-  family: GoalColumnFamily;
-  /** Its rows in the Filters sheet, from the open workspace: each a parameter, its label and the values to tick. */
-  rows(s: Snapshot): { param: string; label: string; options: string[] }[];
-  /** The values a parameter's text picks, and the text for the values picked. */
-  picked(s: Snapshot, param: string, text: string): string[];
-  text(s: Snapshot, param: string, picked: readonly string[]): string;
-  /** The filter in words for the filter line ("Stage is", "Build or Run"); null when it names nothing (a retired field). */
-  says(s: Snapshot, param: string, text: string): { label: string; value: string } | null;
-}
-
 // Every module filter's parameter is read from a Goals address as the core's own are (domain/query).
 addColumnParams(APP.flatMap((m) => m.part.filters ?? []).map((f) => f.param));
-addColumnPrefixes(APP.flatMap((m) => m.part.filterFamilies ?? []).map((f) => f.family.prefix));
+addColumnPrefixes(GOAL_PREFIXES);
 
 
 
@@ -227,8 +210,6 @@ export interface AppModule {
   finders?: ModuleFinder[];
   /** Filters it adds to core lists (module.json `filters`, by id). */
   filters?: ModuleFilter[];
-  /** Families of filters it adds to Goals, one per thing the open workspace has (module.json `filters`, by id). */
-  filterFamilies?: ModuleFilterFamily[];
   /** What it raises on About's "To sort out" without a Workspace section of its own (module.json `toSortOut`, AR2):
       the same shape a section's `needs` gives. */
   toSortOut?: (snapshot: Snapshot, viewer: Person) => WorkspaceNeed[];
@@ -238,6 +219,13 @@ export interface AppModule {
 export function useModules() {
   const app = useApp();
   const off = app.ws.modulesOff;
+  // What modules add to Goals loads only once the workspace has something for it (Fields: a live field), and redraws.
+  const [extras, loaded] = useState(goalExtrasLoaded);
+  useEffect(() => { void loadGoalExtras(app.snapshot).then(() => loaded(goalExtrasLoaded())); }, [app.snapshot]);
+  const base = useModulesOn(off);
+  return useMemo(() => ({ ...base, extras }), [base, extras]);
+}
+function useModulesOn(off: readonly string[] | undefined) {
   return useMemo(() => {
     const r = modulesOn({ modulesOff: off });
     return {
@@ -256,12 +244,13 @@ export function useModules() {
 /** The filters of the modules that are on, for Goals: each column by its parameter, and its words for the filter line. */
 const goalFilters = (screens: ReturnType<typeof useModules>['screens']) => screens.flatMap((m) => m.filters ?? []).filter((f) => f.list === 'goals');
 /** The goal list's module columns (Measured by …), filled from a snapshot: what the query port narrows by. */
-const goalFamilies = (screens: ReturnType<typeof useModules>['screens']) => screens.flatMap((m) => m.filterFamilies ?? []).filter((f) => f.list === 'goals');
+/** The families of Goals filters loaded for the modules on (core/records goalExtras: Fields' one per list field). */
+const goalFamilies = (screens: ReturnType<typeof useModules>['screens']) => goalExtrasOf(new Set(screens.map((m) => m.id))).flatMap((x) => (x.family ? [x.family] : []));
 export const goalColumns = (screens: ReturnType<typeof useModules>['screens'], s: Snapshot): NonNullable<QueryContext['columns']> =>
-  Object.assign(Object.fromEntries(goalFilters(screens).map((f) => [f.param, f.fill(s)])), ...goalFamilies(screens).map((f) => f.family.columns(s)));
+  Object.assign(Object.fromEntries(goalFilters(screens).map((f) => [f.param, f.fill(s)])), ...goalFamilies(screens).map((f) => f.columns(s)));
 
-export function useGoalColumns(): { columns: NonNullable<QueryContext['columns']>; col: NonNullable<QueryNames['col']>; filters: ModuleFilter[]; families: ModuleFilterFamily[] } {
-  const { screens } = useModules();
+export function useGoalColumns(): { columns: NonNullable<QueryContext['columns']>; col: NonNullable<QueryNames['col']>; filters: ModuleFilter[]; families: GoalColumnFamily[] } {
+  const { screens, extras } = useModules();
   const app = useApp();
   return useMemo(() => {
     const filters = goalFilters(screens);
@@ -271,12 +260,13 @@ export function useGoalColumns(): { columns: NonNullable<QueryContext['columns']
       families,
       columns: goalColumns(screens, app.snapshot),
       col: (param, value) => {
-        const fam = families.find((x) => param.startsWith(x.family.prefix));
-        if (fam) return fam.says(app.snapshot, param, value);
+        const fam = families.map((f) => f.says(app.snapshot, param, value)).find(Boolean);
+        if (fam) return fam;
         const f = filters.find((x) => x.param === param); const v = f?.says(app.snapshot, value); return f && v ? { label: f.label, value: v } : null;
       },
     };
-  }, [screens, app.snapshot]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screens, app.snapshot, extras]);
 }
 
 /** Whatever the modules that are on put in one place on a core screen, in module order. */

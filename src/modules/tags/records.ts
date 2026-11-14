@@ -11,10 +11,7 @@
    cleared (value ''), which is what a value with removedAt means to every reader here (fields.ts valueOf). Undo of such
    a change puts the value back (asBefore clears removedAt). Every column is always written: a batch's keys are the
    union of its rows' keys, and a key left out is written null (okr_upsert). */
-import type { ColumnFill } from '../../domain/query';
-import { moduleRows, type DbRow, type ModuleRecords, type ModuleRows, type RecordDef } from '../../domain/records';
-import type { Snapshot } from '../../domain/types';
-import { fieldMatcher, filterParam, FILTER_PREFIX, NOT_SET, pickedOf } from './filter';
+import { moduleRows, type DbRow, type ModuleRecords, type RecordDef } from '../../domain/records';
 import type { GoalFieldValue, SavedField } from './types';
 
 /* The keys fields.ts files them under (FIELDS_KEY, VALUES_KEY), written here so the first download, which carries every
@@ -67,49 +64,14 @@ const value: RecordDef<GoalFieldValue> = {
   goalOf: (v) => v.goalId,
 };
 
-/* TG2: Goals' filters (`?f.<field id>=Build,Run`) and the Goals sheet's columns, read straight from the rows so the
-   first download carries only filter.ts, not the module's rules; reading a file back (sheet.ts) loads with the engine. */
-type Rows = { modules?: ModuleRows };
-const fieldsIn = (s: Rows) => moduleRows<SavedField>(s, 'tags', FIELDS).filter((f) => !f.retiredAt).sort((a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt));
-const valuesIn = (s: Rows) => moduleRows<GoalFieldValue>(s, 'tags', VALUES);
-const held = (s: Rows) => { const m = new Map<string, string>(); for (const v of valuesIn(s)) if (!v.removedAt && v.value) m.set(`${v.goalId}:${v.fieldId}`, v.value); return m; };
-
-/** Each live list field's column, by its parameter: the goal's value (or Not set), and rule 3's test for what is picked. */
-function filterColumns(s: Snapshot): Record<string, ColumnFill> {
-  const out: Record<string, ColumnFill> = {};
-  const lists = fieldsIn(s).filter((f) => f.kind === 'list');
-  if (!lists.length) return out;
-  const by = held(s);
-  const values = valuesIn(s);
-  for (const f of lists) {
-    const fill: ColumnFill = (g) => by.get(`${g.id}:${f.id}`) ?? NOT_SET;
-    // A link's text read once per text, not once per goal.
-    let last: { text: string; match: (goalId: string) => boolean } | null = null;
-    fill.test = (g, text) => {
-      if (last?.text !== text) { const picked = pickedOf(f, text); last = { text, match: picked.length ? fieldMatcher(values, { [f.id]: picked }) : () => true }; }
-      return last.match(g.id);
-    };
-    out[filterParam(f.id)] = fill;
-  }
-  return out;
-}
-
-/** The reader for the Goals sheet's columns, loaded with the change engine. */
-let reader: typeof import('./sheet') | null = null;
-
+/* TG2: Goals' filters (`?f.<field id>=Build,Run`) and the Goals sheet's columns (extras.ts) load only when the workspace
+   has a live field, so a workspace with none downloads nothing for them. */
 const records: Omit<ModuleRecords, 'module'> = {
   records: [field, value],
-  goalColumnFamilies: [{
-    prefix: FILTER_PREFIX,
-    columns: filterColumns,
-    // find_goals' `fields`, read by find.ts, which loads only when it is used.
-    arg: { module: 'Fields', name: 'fields', description: `Goals with these values of the workspace’s own list fields, by name: {"Stage": "Build, Run"}; "${NOT_SET}" for none.`, params: async (s, asked) => (await import('./find')).fieldParams(s, asked) },
-  }],
-  goalSheet: {
-    columns: (s) => fieldsIn(s).map((f) => ({ header: f.name, about: `The workspace’s own field: ${f.kind === 'list' ? `one of ${f.options.join(', ')}` : 'free text'}, or empty for none.` })),
-    cell: (s, goalId, header) => { const f = fieldsIn(s).find((x) => x.name === header); return (f && held(s).get(`${goalId}:${f.id}`)) || null; },
-    load: async () => { reader ??= await import('./sheet'); },
-    read: (x) => { if (!reader) throw new Error('Fields’ columns haven’t loaded: call loadGoalSheets() before the change engine runs.'); return reader.readFieldColumns(x); },
+  goalExtras: {
+    prefix: 'f.',
+    has: (s) => moduleRows<{ retiredAt?: string | null }>(s, 'tags', FIELDS).some((f) => !f.retiredAt),
+    load: () => import('./extras').then((m) => m.default),
   },
 };
 export default records;

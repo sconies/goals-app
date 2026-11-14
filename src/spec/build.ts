@@ -5,6 +5,7 @@
    Organised as the code is (docs/architecture.md): spec/core/ for the core, spec/modules/<id>/ for each feature module
    from its module.json, spec/conformance/ for the conformance data, and spec/rebuild/ for the rebuild kit (8k). */
 import { contractFiles } from './contracts';
+import { loadGoalExtras } from '../core/records';
 import { ARTICLES, type Article } from '../help/guide';
 import { SCREENS } from '../mcp/parity';
 import { TOOLS, toolModule } from '../mcp/tools';
@@ -545,6 +546,8 @@ export function workspaceJson(w: ConformanceWorkspace): string {
 /** Every file the spec has, by path from the root: spec/… and llms.txt. Throws if a worked example is wrong. */
 export async function buildSpec(root: string): Promise<Record<string, string>> {
   const r: Repo = { root };
+  // What modules add to Goals (Fields' find_goals argument) is loaded as the MCP server loads it before listing tools.
+  await loadGoalExtras();
   const wrong = [...await wrongExamples(), ...wrongInternalExamples()];
   if (wrong.length) throw new Error(`These worked examples don't say what the code gives (src/spec/rules.ts):\n${wrong.join('\n')}`);
   const mods = moduleFacts(r);

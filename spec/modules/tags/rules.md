@@ -119,7 +119,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ### Where it lives
 
 - [src/modules/tags/filter.ts](../../../src/modules/tags/filter.ts): `filterGoals`, `fieldMatcher`, `pickedOf`, `pickedText`, `NOT_SET`
-- [src/modules/tags/records.ts](../../../src/modules/tags/records.ts): `goalColumnFamilies`
+- [src/modules/tags/extras.ts](../../../src/modules/tags/extras.ts): `family`
 - [src/modules/tags/find.ts](../../../src/modules/tags/find.ts): `fieldParams`
 
 ### Requirements
@@ -190,7 +190,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ### Where it lives
 
 - [src/modules/tags/sheet.ts](../../../src/modules/tags/sheet.ts): `readFieldColumns`, `unknownValue`
-- [src/modules/tags/records.ts](../../../src/modules/tags/records.ts): `goalSheet`
+- [src/modules/tags/extras.ts](../../../src/modules/tags/extras.ts): `sheet`
 - [src/domain/changeset.ts](../../../src/domain/changeset.ts): `planChanges`
 
 ### Requirements
