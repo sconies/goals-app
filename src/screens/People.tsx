@@ -13,7 +13,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { BeforeReview } from '../ui/BeforeReview';
 import { Place, useModules } from '../core/app';
-import { reviewsOn } from '../app/reads';
+import { heldForGoals, reviewsOn } from '../app/reads';
 import { dueWords } from '../domain/progress';
 import { DIRECTORY_PAGE, personLine, teamSummary } from '../domain/directory';
 import { useFound } from '../app/search';
@@ -370,6 +370,10 @@ export function TeamPage() {
   const admin = app.viewer.admin;
   const s = teamSummary({ snapshot: app.snapshot, statusOf: (g) => app.statusOf(g).status }, t.id);
   const people = [...s.people].sort((a, b) => Number(b.id === t.leadId) - Number(a.id === t.leadId) || a.name.localeCompare(b.name));
+  // The habit panel names a review only when one is held on the due day for the team's goals' owners (RS1, spec 2.1);
+  // otherwise, Reviews on or off, its words are the deadline's: "Week 46, due by Thursday 12 Nov", "on time".
+  const habitGoals = app.snapshot.goals.filter((g) => g.teamId === t.id && !g.removedAt && !g.stoppedAt);
+  const held = heldForGoals(reviewsHere, app.snapshot, app.cycle, app.week, habitGoals);
   return (
     <div className="page narrow person-page team-page">
       <BackLink to="/teams" label="Teams" />
@@ -391,7 +395,7 @@ export function TeamPage() {
         {s.byStatus.length ? <Counts counts={s.byStatus} label={`${t.name}’s goals`} to={(k) => `/goals?team=${encodeURIComponent(t.id)}&status=${k}`} /> : <p className="hint">No goals this year.</p>}
       </section>
       {/* Weeks, not people (habit spec 2.3): only for a team of three or more owners. */}
-      <BeforeReview goals={app.snapshot.goals.filter((g) => g.teamId === t.id && !g.removedAt && !g.stoppedAt)} week={app.week} link={`team=${encodeURIComponent(t.id)}`} heading={reviewsHere ? 'Before this week’s review' : `Week ${app.week}, due by ${dueWords(false, app.cycle, app.week).date}`} reviews={reviewsHere} />
+      <BeforeReview goals={habitGoals} week={app.week} link={`team=${encodeURIComponent(t.id)}`} heading={held ? 'Before this week’s review' : `Week ${app.week}, due by ${dueWords(false, app.cycle, app.week).date}`} held={held} />
       <section className="stack" style={{ gap: 'var(--s2)' }} aria-labelledby="team-people">
         <h2 className="label" id="team-people">People · {people.length}</h2>
         {!people.length ? <p className="hint">No one is in {t.name} yet.</p> : (

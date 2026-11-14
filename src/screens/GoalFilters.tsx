@@ -3,7 +3,8 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigationType, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { useGoalColumns } from '../core/app';
+import { useGoalColumns, useModules } from '../core/app';
+import { reviewsOn } from '../app/reads';
 import {
   EMPTY_QUERY, parseQuery, QUERY_KEYS, queryEntries, queryParts, SORT_OPTIONS, without,
   type GoalQuery, type SortKey,
@@ -63,6 +64,7 @@ export function FilterBar({ lead, trail, after, find, sortOff }: {
   const [q, setQ] = useGoalQuery();
   const [open, setOpen] = useState(false);
   const { col } = useGoalColumns();
+  const { on } = useModules();
   // The sheet's code arrives a moment after Goals opens, not in the first download, so Filters opens at once.
   // Mounted closed once its code is here, so opening it starts the slide at once.
   const [warm, setWarm] = useState(false);
@@ -71,7 +73,8 @@ export function FilterBar({ lead, trail, after, find, sortOff }: {
     team: (id: string) => app.team(id)?.name ?? 'a team',
     person: (id: string) => app.person(id)?.name ?? 'someone',
     goal: (id: string) => app.goal(id)?.title ?? 'a goal',
-    review: (id: string) => app.snapshot.reviews.find((r) => r.id === id)?.name ?? 'a review',
+    // With Reviews off `inreview=` is no filter, so it has no words either (build review of #424).
+    ...(reviewsOn(on) ? { review: (id: string) => app.snapshot.reviews.find((r) => r.id === id)?.name ?? 'a review' } : {}),
     col,
   };
   // The filters in words (find rule 3). The Needs attention switch isn't a filter, and a search never is.
