@@ -571,7 +571,8 @@ function Features() {
   const s = app.snapshot;
   const live = s.reviews.filter((r) => !r.removedAt && !r.endedAt).length;
   const watch = watchingOffReadBack({ people: s.people, watches: s.watches ?? [], goals: s.goals });
-  const ai = aiAccessReadBack({ people: s.people, tokens: s.tokens ?? [], changes: s.changes });
+  // The demo has no working token (they work only in the real app), so it names none, as every token list there says.
+  const ai = aiAccessReadBack({ people: s.people, tokens: app.mode === 'demo' ? [] : s.tokens ?? [], changes: s.changes });
   const wrap = wrapUpOffReadBack({ retros: s.retros ?? [], goals: s.goals, open: wrapUpOpenOn(app.cycle, app.today), next: nextCycleShape(app.cycle).name });
   // The third line (spec 4.1): from the core beside each switch's answer, until each module says its own.
   const third = (id: string): string | null => {

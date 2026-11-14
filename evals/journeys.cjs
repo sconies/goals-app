@@ -2337,7 +2337,7 @@ journey('U22', ['MCP-TOKENS'], 'MCP access: an admin gives a teammate an MCP tok
     localStorage.setItem('goals-live-workspace', 'ws_live');
     localStorage.setItem('goals-live-me:ws_live', 'amara');
   });
-  await p.goto(live('/workspace/access'));
+  await p.goto(live('/workspace/ai'));
   // An admin setting, further down the Workspace page: 'entry' is judged on everyday journeys, not this one.
   await p.getByRole('heading', { name: /^MCP tokens/ }).scrollIntoViewIfNeeded();
   h.set('attention', /A token lets Claude or another AI tool act as one person here/.test(await p.locator('.access-tokens').innerText()) && /builder token/.test(await p.locator('.access-tokens').getByText('Inbox on my phone').first().innerText()), 'MCP tokens do not say what they are, or do not label the builder token apart');
@@ -7140,6 +7140,7 @@ journey('U171', ['AI-ACCESS-OPTIONAL', 'FEATURE-GROUPS', 'MODULES'], 'Amara swit
   await p.goto(url('/workspace/features'));
   const box = p.getByRole('checkbox', { name: 'AI access', exact: true });
   await box.scrollIntoViewIfNeeded();
+  await h.inView(box, 'entry', 'AI access’s switch');
   const beyond = await p.locator('.features-group').filter({ has: p.getByRole('heading', { name: 'Beyond this workspace' }) }).innerText();
   h.set('attention', /AI access/.test(beyond), 'AI access is not under Beyond this workspace');
   await h.checkpoint('features');
