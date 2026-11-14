@@ -20,6 +20,8 @@ When #482 merges, tell the reviewer.
 
 **#469 HM4: retargeted to main.** Main is merged in locally in the worktree `../wt-hm4` (commit 14b8fef2, clean, spec current). A Sonnet agent was gating it (vitest, then `evals:changed`) and pushes only if green. If the session ends first, rerun the gate from that worktree, or fetch the branch and merge main again. Once green: update its description (it still says "stacked on HM3", "Draft"), mark it ready, turn auto-merge on, and tell the reviewer when it merges.
 
+**#492 (`hm3-one-team`, draft): the reviewer's medium on #468.** Home read the drawn tabs, so a one-team workspace (where My team waits on Goals) had no Your team. Home now reads `every`, as find_goals does; home.test.ts has a one-team case. A Sonnet agent runs its `evals:changed` after #469's. When green, mark it ready with auto-merge on, and tell the reviewer when it merges. SM1h then replaces that section for one team.
+
 **SM1h (next; not started).** `docs/design/round-4/small-workspaces/spec.md` 2.1 and rule 1:
 - "Goals you watch" is not drawn while nothing is watched.
 - With one team, "Your goals" and "Your team" become one section, "The team's goals · {n}", with the viewer's own goals first.
