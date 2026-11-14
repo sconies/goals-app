@@ -10,6 +10,18 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | Medium | Wrong behaviour someone will meet, a rule restated, a check that passes while the thing it guards exists, a missing eval for new behaviour, or a page that says what the code doesn't do |
 | Low | Real, but small or rarely met |
 
+## Where the next reviewer starts
+
+Written 14 November 2026, 00:10 UTC, when this reviewer stopped (Lane's decision, relayed by planning: the build reviewer restarts fresh).
+
+- **Last merge fully reviewed:** `64ec07ed` (#428). Every code PR merged from #121 up to it has a row in State and a section below. The last sections are first-pass reviews I did not re-run except for their highs: #444, #446, and #428 with #449 and #452.
+- **Merged since, not reviewed:** #432 `51793844` (HB2: "before this review" judged on the review's own day; its handover line says it fixes #416's high), #458 `c9cd5583` (RS1 review mediums, for #424), #457 `9e40cdff` (migration 0051, guardrails on a goal), #455 `5583c975` (CLAUDE.md only).
+- **Highs not yet confirmed fixed:**
+  - **#416**, habit work (sessions …8zT29m9btyWCVyT2QG, then …8y3FdWxxDaqeRvJw4c): "Before this review" was counted against the workspace's due day, not the review's own day. #432 says it fixes this; it is not verified. To verify, run for each review of the demo `beforeReview`'s sentence against the goals with a check-in stamped on or before `reviewSession().date` (the probe is described in #416's section), then mark the row Fixed in the highs table.
+  - **#452**, track 7c (session …932dXk7emNz7HTfoU1), sent 00:04 UTC, 14 Nov: a proposed number goal saved with no target can't be given one by a file or an assistant, and a row that also makes it active saves an active goal with no target. No fix merged yet.
+- **Mediums that become high later:** #437/#446's readings (an earlier week saved with today's reading; decimals compared two ways) the day a real number source is registered.
+- **Method, in short:** per merge, `git diff <merge>^1 <merge> -- . ':!spec' ':!api/mcp.js' ':!llms.txt' ':!evals/report.md'`; fix PRs read against the findings they answer; large features to a first-pass reviewer in its own worktree, which writes its report to a file; any high re-run before it is sent to the session on the merge's `Claude-Session` line; PGlite only, never the live database.
+
 ## State
 
 | PR | Track | High | Medium | Low |
@@ -197,6 +209,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #437 NR2: readings in the check-in | readings | 0 | 6 | 5 |
 | #404 MT3 review: #351's mediums | 7c | 0 | 0 | 0 |
 | #446 NR3: readings shown, and NR2's review mediums | readings | 0 | 4 | 7 |
+| #444 SW1: switches for Watching, the Wrap-up, the Goal map and Feedback | 4 | 0 | 3 | 8 |
+| #428 MS: a measurement status for metrics, and a goal held to no number | 7c | 0 | 4 | 2 |
+| #449 BL: a baseline as a field of its own | 7c | 0 | 3 | 2 |
+| #452 GB: a proposed number goal may leave its target unset (with migration 0050, #451) | 7c | 1 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -219,6 +235,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #308: on a database, a save with several metric links, some with a part and some without, is refused for everyone (removing a metric, starting the next year, a workspace from the demo) | Its builder (session …92c7taPQJmK4jDJU9E), 04:06 UTC, 13 Nov | **Fixed** by #360 (re-run by me on main at `7ab34d99`): a link always writes its part, `''` when it has none, so the mixed batch saves; a schema test saves one through `okr_upsert` |
 | #358: with a second year, once the first year's check-ins fall outside the loaded window, a save that touches that year's goals adds its finished goals to the next year | A track 4 builder (session …931R7QEqBrfxbNv2QV), 12:52 UTC, 13 Nov | **Fixed** by #398 (merged 13 Nov): recarry does nothing for a year whose check-ins the window left out, and the window always keeps the newest two cycles. Re-run on main at `243959c4`, 3 Mar 2028: with two years 2026's check-ins stay loaded and nothing is added to 2027; with three years they are left out and nothing is added |
 | #416: "Before this review" is judged against the workspace's due day, not the review's own day, so a review's page and `get_review` give a false count on every review not held that day | The habit track (session …8zT29m9btyWCVyT2QG), 18:05 UTC, 13 Nov | **Open** |
+| #452: a proposed number goal saved with no target can't be given one by a file or an assistant, and the row that also makes it active saves an active goal with no target (refused by the database, saved wrongly in the browser store) | Track 7c (session …932dXk7emNz7HTfoU1), 00:04 UTC, 14 Nov | **Open** |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -1923,3 +1940,32 @@ Read first by a reviewing session on PGlite with every migration through each st
 **Lows.** A blank or 5,000-character source name is recorded; through public's old names a re-save after a reload now clears a reading (not a path the live app takes); "This week's number" shows the latest check-in's whatever its week; once one check-in has a reading every other History row gains "Typed by {author}"; the JSON export and `get_goal` carry "read 9:00 today" with no zone; a correction to a different number drops the reading, so the "used a different number" count misses it; the pre-fill is still not rounded (read).
 
 **Fine.** The sentences are true for each case and invent no reason; the metric page and `get_metric` agree, leave out stopped and removed goals, and name goals and weeks, never people; the export's four columns are for reading only and an unchanged export loads back as no change; no sideways scroll, stripes or pills. Lane's item from #437 (the one table posts an untouched filled-in number as confirmed) is unchanged.
+
+### #428 MS, #449 BL and #452 GB with migration 0050 (track 7c, merged 13 Nov)
+
+Read first together by a reviewing session at `64ec07ed`, on PGlite with every migration through both database stores, through the MCP server, and on screen at 1440 and 390. I re-ran the high on main; the mediums are the first pass's and were not re-run by me.
+
+The saved shape, which was the priority: `measurement` and `measurement_note` (NOT NULL) are written on every metric row; the three baseline columns and `plan_target` are written on every goal row, null when unset; no real door (create from the demo, start next year, hand-over, stop with children, retire, merge, import, their Undo) was refused. `unmeasured_since` is the exception: written only when set.
+
+**1. High, #452 (ran, by me too). A proposed number goal saved with no target can't be given one by a file or an assistant, and the row that also makes it active saves an active goal with no target.** The engine builds the goal as `{ ...existing, ...built }` (`src/domain/changeset.ts:1132`) and `buildGoal` leaves `targetUnset` out when a target is given (`src/domain/goal.ts:189`), so the existing `targetUnset: true` survives; `rows.ts:75` then writes `plan_target` null and `changes.ts:42` reads both sides as "Not set". My probe on main (a Goals row by key): Target 0.30 alone gives no item at all; Target 0.30 with State active gives one item whose goal is active with `targetUnset` true and a null `plan_target`. The first pass ran that through both database stores: the whole file is refused with the raw "violates check constraint okr_goals_metric_plan" (and so is `update_goal` with a target and `state: active`); in the browser store it saves an active goal that reads "Target not set". Fix: don't carry `targetUnset` over from the existing goal in the engine's build; add an import and an MCP test on PGlite.
+**2. Medium, #428 (ran). Undo of "metric → Gap" leaves its goals held in the database:** the goals go back without `unmeasuredSince`, `rows.ts:88` leaves the key out, and the stored value stays, so after a reload the goal is held under a Measured metric (#376's pattern). Fix: write the key on every goal row, null when unset.
+**3. Medium, #428 (ran). The goal form drops the hold:** `planGoal` rebuilds the goal without `unmeasuredSince`; on a database memory and the row disagree until reload, and in the browser store the hold is lost while the metric is still a Gap.
+**4. Medium, #428 (ran). Merge, restore, retire and the library's switch never re-work the hold:** a Gap metric merged into a Measured one leaves its goals held; with the Metric library off a held goal stays held and nothing in the core can clear its own field.
+**5. Medium, #428 (ran). Outside the goal page a held goal says "No check-in yet", not "Not measured yet"** (`status.ts:211`): the Goals list, the metric's page, the library's counts and the workbook; `get_goal` gives the new label with the old meaning; the goal page still projects a year-end number.
+**6. Medium, #449 (ran). A baseline can't be removed by file or assistant** though the column help says "none to remove it": the same cause as the high.
+**7. Medium, #449 (ran). A goal carried into next year keeps last year's baseline beside a new start** (`src/domain/carry.ts:168`), and it shows as the goal's number until the first check-in.
+**8. Medium, #449 (ran). Marking a baseline provisional after check-ins lets the plan's start move with no reason and no kept plan, in two saves** (in one save it is refused).
+
+**Lows.** The import ignores "Provisional" with no period, and a period on a stages goal, without a word; the Provisional row is 40px on a phone; README, architecture and handoff have no line on MS or GB, and the metrics rebuild stage is still "outline"; nothing tests `unmeasured_since` through Undo or the form, or a target set by import.
+
+**Fine.** An active number goal with no target is refused at the form, the import and `create_goal`, and making one active asks for the target; an unchanged export loads back as no change, and an old workbook clears nothing; only the owner or an admin sets a measurement status; marks are a shape plus a word; `src/domain` imports no module. Migration 0050 (read by the first pass): `plan_target` may be null only while the goal is proposed.
+
+### #444 SW1: switches for Watching, the Wrap-up, the Goal map and Feedback (track 4, merged 13 Nov)
+
+Read first by a reviewing session with probes, the tools and the screens at 1440 and 390 for five people over three days, with the parent commit beside it; not re-run by me. No high. Switching changed or lost no data; start-next-year gives a byte-identical commit with the Wrap-up on, off, and every module off; with every switch on the screens match the parent's.
+
+**1. Medium, Watching (ran). With Watching off a stopped watch can still be put back, and Recently removed still names watches:** the refusal goes by a list of four action names (`SWITCHED_ACTIONS`, `src/app/reads.ts:59`), so `restoreRemoved` and `undoRemoval` of a watch, and MCP `list_removed` and `restore_removed`, go through. The same shape as #371's medium 2, which #439 fixed for Reviews by judging what the save writes.
+**2. Medium, Wrap-up (ran). With the Wrap-up off, Cycles, Workspace and the Start page still say "the wrap-up is open … 126 goals still to wrap up"** while nobody can wrap up (`src/domain/workspaceAttention.ts:79-89`, `startYear.ts:42,58`); the tool's read-back uses the same text.
+**3. Medium, Watching (ran). Activity's watching scope still answers:** `/activity?watching=all` shows "Showing: Goals you watch" (`src/screens/Activity.tsx:50-52`).
+
+**Lows.** The check-in page still offers "See the goals you watch"; core Help articles still describe Watching and the Map when off; switched-off addresses keep their own page titles; a view can be saved carrying `scope=watching` and `view=map` while both are off; the remembered Goals tab is overwritten while Watching is off; with Watching off someone who owns no goal is led to "37 goals need attention" after the year has ended; the build-without-Wrap-up check skips the whole "an admin starts the next cycle" scenario; conformance rows exist for Watching only. As with Reviews, these are switches over core code (21 gates in 10 core files), which each module's "gaps" says.
