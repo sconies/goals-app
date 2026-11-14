@@ -253,7 +253,44 @@ describe('a moment, after #410’s review', () => {
     const behind = [ci('g1', 42, false, { status: 'off' }), ci('g1', 45, false, { status: 'risk' })];
     const now = ci('g1', 46, false, { status: 'on' });
     expect(moment(behind, now, g)).toEqual({ kind: 'back', behind: 4 });
-    expect(moment([...behind, ci('g1', 46, false, { status: 'risk' })], now, g)).toBe(null);
+    expect(moment([...behind, ci('g1', 46, false, { status: 'risk', postedAt: '2026-11-09T09:00:00Z' })], now, g)).toBe(null);
+  });
+});
+
+describe('a moment is fixed as of its own week (Lane, 14 Nov)', () => {
+  const at = (week: number, value: number, p: Partial<CheckIn> = {}) => ci('g1', week, false, { value, ...p });
+  it('stays Reached after a later check-in, in a later week or the same one', () => {
+    const g = goal('g1');
+    const w45 = at(45, 22), w46 = at(46, 20);
+    expect(moment([w45, w46], w46, g)?.kind).toBe('reached');
+    // The whole history, its own row and later ones in it: the later posts are not compared with it.
+    expect(moment([w45, w46, at(47, 18), at(48, 25)], w46, g)?.kind).toBe('reached');
+    const again = at(46, 19, { postedAt: '2026-11-13T15:00:00Z' });
+    expect(moment([w45, w46, again], w46, g)?.kind).toBe('reached');
+    // The second check-in that week is the one that makes nothing.
+    expect(moment([w45, w46, again], again, g)).toBeNull();
+  });
+  it('is not compared with a check-in posted after it, even one for an earlier week', () => {
+    const g = goal('g1');
+    const w46 = at(46, 20);
+    // Week 45 at 19 was backfilled a week later: posted first, it would have meant week 46 reached nothing new.
+    const late45 = at(45, 19, { postedAt: '2026-11-20T10:00:00Z' });
+    expect(moment([late45, w46], w46, g)?.kind).toBe('reached');
+    expect(moment([{ ...late45, postedAt: '2026-11-01T10:00:00Z' }, w46], w46, g)).toBeNull();
+  });
+  it('stays Reached after a re-plan that would change the verdict, judged by the plan in force that week', () => {
+    // Week 30 met the target of 25 then in force; from week 40 the target is 20, which 25 does not meet.
+    const g = goal('g1', 0, { plan: { start: 40, target: 20, shape: 'straight' }, planHistory: [{ untilWeek: 40, plan: { start: 40, target: 25, shape: 'straight' } }] } as Partial<Goal>);
+    const w29 = at(29, 27), w30 = at(30, 25);
+    expect(moment([w29, w30], w30, g)?.kind).toBe('reached');
+    expect(momentText({ kind: 'reached', behind: 0 }, g, w30, 53).line).toBe('25 h, against a target of 25 h, in week 30 of 53. It started the year at 40 h.');
+    // And the other way: 22 in week 30 met nothing then, though it meets a later target of 22 or more.
+    const raised = goal('g1', 0, { plan: { start: 40, target: 23, shape: 'straight' }, planHistory: [{ untilWeek: 40, plan: { start: 40, target: 20, shape: 'straight' } }] } as Partial<Goal>);
+    expect(moment([at(29, 27), at(30, 22)], at(30, 22, { id: 'x30' }), raised)).toBeNull();
+  });
+  it('reads only the goal’s own check-ins', () => {
+    const g = goal('g1');
+    expect(moment([ci('g2', 45, false, { value: 18 }), at(46, 20)], at(46, 20, { id: 'own' }), g)?.kind).toBe('reached');
   });
 });
 

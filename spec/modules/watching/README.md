@@ -53,5 +53,5 @@ Each journey’s Id opens its steps and checks, read from its code ([how to read
 
 ## Rules, conformance and rebuild stage
 
-Its rebuild stage: [stage 10](../../rebuild/stage-10-module-watching.md) (an outline, with no drill yet).
+Its rebuild stage: [stage 11](../../rebuild/stage-11-module-watching.md) (an outline, with no drill yet).
 Its rules: [Watching’s switch: what goes, and the read-back](rules.md#watchings-switch-what-goes-and-the-read-back), in plain words with worked examples (run against the code by the spec’s own test). Its conformance rows: [watching.csv](../../conformance/watching.csv) ([what each column is](../../conformance/README.md#the-files)).

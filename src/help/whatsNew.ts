@@ -27,6 +27,38 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'moment-fixed-as-of-its-week',
+    date: '2026-11-14',
+    title: 'A target reached stays reached in History',
+    points: [
+      'A goal’s History marks a week “Reached its target” or “Back on track” as things stood that week, against the check-ins before it and the plan then.',
+      'A later check-in, a second check-in that week or a change of plan no longer takes the mark away.',
+    ],
+    articles: ['check-in'],
+  },
+  {
+    id: 'not-measured-yet-status',
+    date: '2026-11-14',
+    title: 'Not measured yet is a status of its own',
+    points: [
+      'A goal whose number nobody measures yet now says “Not measured yet” wherever its status is shown: the Goals list, its page, its metric’s page and the library’s counts, the workbook and the AI tools.',
+      'It has its own shape, a ring with a dot at its centre, so it no longer reads as “No check-in yet”.',
+      'It still projects no year-end number, and nothing on it is due or late, until its number is measured. You can filter the Goals list by it.',
+    ],
+    articles: ['status', 'metrics'],
+  },
+  {
+    id: 'ai-access-switch',
+    date: '2026-11-14',
+    title: 'AI access can be switched off',
+    points: [
+      'AI access can be switched off for a workspace, on Workspace, Features. Every MCP token stops working at once and is kept; switching it back on names them first.',
+      'The MCP tokens have their own Workspace section, AI access, after Access.',
+      'While it is off, an AI tool calling Faro is told so, no token can be made, and a token can still be revoked.',
+    ],
+    articles: ['ai', 'features'],
+  },
+  {
     id: 'home-habit-cell',
     date: '2026-11-14',
     title: 'A leader’s Home says how many goals were in without being asked',

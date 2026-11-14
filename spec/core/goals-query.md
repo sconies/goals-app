@@ -36,7 +36,7 @@ Every parameter a query reads, in the order a link writes them: `q`, `status`, `
 
 ## The values each filter takes, and their words
 
-- **Status (`status`):** `off` “Off track”, `risk` “At risk”, `stale` “No recent update”, `on` “On track”, `done` “Done”, `none` “No check-in yet”, `planned` “Not started”
+- **Status (`status`):** `off` “Off track”, `risk` “At risk”, `stale` “No recent update”, `on` “On track”, `done` “Done”, `none` “No check-in yet”, `planned` “Not started”, `unmeasured` “Not measured yet”
 - **Needs attention because (`needs`, with `attention=1`):** `off` “Off track”, `missed-path` “Missed its own date”, `stale` “No recent update”, `decision` “Decision or help needed”, `no-path` “No path to green”, `risk` “At risk”, `trend` “Getting worse”, `greener` “Greener than calculated”, `slipped` “Date slipped”
 - **Result (`result`):** `completed` “Met”, `late` “Met late”, `missed` “Not met”, `open` “Not finished yet”
 - **Kind (`kind`):** `metric` “Move a number”, `range` “Keep in range”, `milestone` “Dated stages”
@@ -46,4 +46,4 @@ Every parameter a query reads, in the order a link writes them: `q`, `status`, `
 
 ## The order
 
-**Worst first** (`sort=worst`, and Find’s goals unless sorted) is by the status’s rank, worst first: Off track, then At risk, No recent update (equal), then On track, then Done, Not started, No check-in yet (equal); then by title A to Z, ignoring case. With another `sort`, its natural order (A to Z, the longest since a check-in first, the soonest due first, the furthest behind plan first), `.desc` reversing it (`sort=gap.desc`), and ties worst first, then by title. With no `sort` the query keeps the order it is given: the screens give goals worst first by how much each needs attention (its worst flag, [the flags](rules/flags.md)), then the status’s rank, then the title (`worstFirst`, `src/domain/order.ts`).
+**Worst first** (`sort=worst`, and Find’s goals unless sorted) is by the status’s rank, worst first: Off track, then At risk, No recent update (equal), then On track, then Done, Not started, No check-in yet, Not measured yet (equal); then by title A to Z, ignoring case. With another `sort`, its natural order (A to Z, the longest since a check-in first, the soonest due first, the furthest behind plan first), `.desc` reversing it (`sort=gap.desc`), and ties worst first, then by title. With no `sort` the query keeps the order it is given: the screens give goals worst first by how much each needs attention (its worst flag, [the flags](rules/flags.md)), then the status’s rank, then the title (`worstFirst`, `src/domain/order.ts`).

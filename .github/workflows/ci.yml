@@ -70,6 +70,7 @@ jobs:
           path: |
             evals/out/changed.md
             evals/out/*.png
+            evals/out/*.log
           if-no-files-found: ignore
 
   # Feature modules (docs/architecture.md): the core works without each one. The list is read from src/modules.

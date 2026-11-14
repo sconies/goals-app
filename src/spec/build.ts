@@ -24,13 +24,14 @@ import { scaleFiles } from './scaleKit';
 import { readsPage } from './readsPage';
 import { rebuildFiles, STAGE_FILES, stages, type ModuleWithRebuild, type Stage, type Stage1Files } from './rebuild';
 import { ZONE_HEADER } from './zones';
-import { CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, FIND_HEADER, GOALS_HEADER, HEADERS, HOME_HEADER, IMPORT_HEADER, CHANGES_HEADER, MODULE_FILES, NAV_HEADER, READBACK_HEADER, type ConformanceWorkspace } from './conformance';
+import { changeCases, CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, FIND_HEADER, GOALS_HEADER, HEADERS, HOME_HEADER, IMPORT_HEADER, CHANGES_HEADER, MODULE_FILES, NAV_HEADER, READBACK_HEADER, type ConformanceWorkspace } from './conformance';
 import type { ModuleFacts } from '../core/module';
 import { currentWeek } from '../domain/plan';
 import { databaseFiles } from './schema';
 import { exportFormatPage, importIssuesMarkdown } from './importIssues';
 import { useLine, useShort, USES } from './uses';
 import { limitsSection } from './limits';
+import { changeEngineSections } from './changeEngineDoc';
 import { MODULE_SHEETS } from '../core/records';
 import { ALWAYS_ON } from './alwaysOn';
 import { goalsQueryPage } from './goalsQuery';
@@ -119,8 +120,8 @@ const testsFor = (tests: TestCase[], specs: string[], reqs: string[]) => tests.f
   return t.file === file && (within ? t.within[0] === within : t.file.startsWith('src/') || t.reqs.some((r) => reqs.includes(r)));
 }));
 
-function rulePage(rule: Rule, tests: TestCase[], reqText: Map<string, string>): string {
-  const out = [GENERATED('src/spec/rules.ts and the code it names'), `# ${rule.title}`, '', rule.summary, '', '## The rule', rule.body, '', ...limitsSection(rule.id)];
+function rulePage(rule: Rule, tests: TestCase[], reqText: Map<string, string>, more: string[] = []): string {
+  const out = [GENERATED('src/spec/rules.ts and the code it names'), `# ${rule.title}`, '', rule.summary, '', '## The rule', rule.body, '', ...limitsSection(rule.id), ...more];
   out.push('## Worked examples', '', 'Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.', '');
   out.push(table(['Given', 'The rule gives'], rule.examples.map((e) => [cell(e.given), `\`${cell(e.then)}\``])), '');
   if (rule.unclear?.length) out.push('## Not self-explanatory', '', ...rule.unclear.map((u) => `- ${UNCLEAR} ${u}`), '');
@@ -514,7 +515,9 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '',
     '- **import.csv** ([kinds, levels and near misses](../core/rules/import-levels.md)): stage 2’s, with changes.csv, and the spreadsheets stage’s; scored like find.csv (`"also": ["import"]` from another stage). One row per case: a set of rows loaded through the change engine on the workspace as it stood at `builtFor` (week 45), by `actor` (amara is an admin; tunde is not), into `sheet` (`goals`, `checkIns` or `people`). `rows` is the rows as JSON, column name to cell, numbered from row 2 in order; `answers` the answers given, as JSON, group id to choice (empty for none); `given`, what the case starts from beyond the workspace, as JSON (empty for nothing): `mode` `create` for set-up from nothing (every row new), `stopped`, goals by key stopped before it (in the archive, as a whole-cycle export carries them), and `sheets`, other sheets’ rows loaded in the same file. People in workspace.json have no email, so their email is empty and rows name them by name or ID. Then what the engine says: `kind`, `level` (`must` or `check`), `group` (its group id) and `message` (its sentence) of the first problem or question in the file’s order (sheet, then row; a note is neither), empty when there is none; `must` and `questions` how many Must-fix groups and Check groups; `saves` `yes` when it would save; `kinds`, every kind it raised, notes too, each once, in the order first raised, separated by spaces. Every kind the engine raises has a case ([the issue kinds](../core/import-issues.md)).',
     '',
-    '- **changes.csv** ([the change engine](../core/rules/change-engine.md)): stage 2’s, with import.csv (`"stage": 2` in `drill.json`). The same cases as import.csv, run the same way, and more that save (`saves-check-in`, `saves-plan-with-reason`, `saves-new-goal`, `saves-person`, `saves-stop`, `saves-tree-by-ref`, and `corrects-keeps-author`: an admin’s row replacing someone else’s check-in for this week, with `given.reason`, the import’s reason box). Rows are matched by `case` and `row`. Row 0 is the case: `actor`, `sheet`, `rows`, `answers` and `given` as in import.csv; `counts`, every count of the change set that isn’t 0 as `key=n` separated by spaces, in this order: `newGoals`, `goals`, `plans`, `checkIns` (every check-in, those that replace one too), `backfilled` (check-ins for an earlier week), `replaced` (check-ins that replace one already there), `people`, `newPeople`, `teams`, `stopped`, `deleted`, `left`; `unchanged`, the rows that change nothing; `needs_reason`, `yes` when a plan change needs a reason none was given; and `saves`, `yes` when the change set would save. Rows 1 on are its items, in the engine’s order (a sheet’s rows in order, then what they lead to): `sheet` (Goals, Plan, Check-ins or People) and `line` (the row in that sheet, from 2), `target` (the goal’s ID, a new one being `goal_c1` and on in the order the engine asks for IDs; empty for a person or team), `name` (the goal’s, person’s or team’s name), `kind` (`new goal`, `goal`, `plan`, `check-in`, `replaces check-in`, `person`, `new person`, `team`, `stop goal`, `delete goal` or `person left`), `diffs` (every field it changes as `Field: before → after`, the field’s label and values in the words a person reads, `—` for nothing, joined by ` | `), `needs_reason` (`yes` for a plan change after check-ins started, or a correction without a reason), and `author` (a check-in’s: who it belongs to once saved; replacing one keeps who checked in, Lane, 14 Nov; empty on row 0 and for other kinds). A case that blocks still lists the items it would make.',
+    '- **changes.csv** ([the change engine](../core/rules/change-engine.md)): stage 2’s, with import.csv (`"stage": 2` in `drill.json`). The same cases as import.csv, run the same way, and more that save (`saves-check-in`, `saves-plan-with-reason`, `saves-new-goal`, `saves-person`, `saves-stop`, `saves-tree-by-ref`, and `corrects-keeps-author`: an admin’s row replacing this week’s check-in on a goal someone else owns, with `given.reason`, the import’s reason box). Rows are matched by `case` and `row`. Row 0 is the case: `actor`, `sheet`, `rows`, `answers` and `given` as in import.csv; `counts`, every count of the change set that isn’t 0 as `key=n` separated by spaces, in this order: `newGoals`, `goals`, `plans`, `checkIns` (every check-in, those that replace one too), `backfilled` (check-ins for an earlier week), `replaced` (check-ins that replace one already there), `people`, `newPeople`, `teams`, `stopped`, `deleted`, `left`; `unchanged`, the rows that change nothing; `needs_reason`, `yes` when a plan change needs a reason none was given; and `saves`, `yes` when the change set would save. Rows 1 on are its items, in the engine’s order (a sheet’s rows in order, then what they lead to): `sheet` (Goals, Plan, Check-ins or People) and `line` (the row in that sheet, from 2), `target` (the goal’s ID, a new one being `goal_c1` and on in the order the engine asks for IDs; empty for a person or team), `name` (the goal’s, person’s or team’s name), `kind` (`new goal`, `goal`, `plan`, `check-in`, `replaces check-in`, `person`, `new person`, `team`, `stop goal`, `delete goal` or `person left`), `diffs` (every field it changes as `Field: before → after`, the field’s label and values in the words a person reads, `—` for nothing, joined by ` | `), `needs_reason` (`yes` for a plan change after check-ins started, or a correction without a reason), and `author` (a check-in’s: who it belongs to once saved; replacing one keeps who checked in, Lane, 14 Nov; empty on row 0 and for other kinds). A case that blocks still lists the items it would make.',
+    '',
+    '- **change-cases.json** (stage 2): the cases import.csv and changes.csv run, input only, in order: `[{ case, actor, sheet, rows, answers?, given? }]`, with `rows` and `given` as objects, not JSON in a cell. The harness puts a copy beside the `workspace.json` it hands a stage 2 command, so a rebuild reads its cases from there; in the CSV files those columns are the same inputs written back.',
     '- **readback.csv** ([the read-back](../core/rules/read-back.md)): stage 3’s, scored like find.csv (`"also": ["readback"]` from another stage). One row per case: a draft goal (`draft`, the fields set over a blank goal, as JSON) on New goal’s last step, seen by `viewer`, on the workspace as it stood at `builtFor` (Thursday 5 Nov 2026, week 45, the review day), with the weekly rhythm and Reviews on, each question it raises taken as answered, the level as New goal starts it when the draft doesn’t say (rule 1 of [New goal](../core/rules/new-goal.md)), no metric, and the workspace called “Platform Engineering”. The reviews a goal joins read each review’s `scope` in workspace.json. `rows` is each row as `label: sentence`, separated by ` | `; `after` the “After you publish” lines, separated by ` | `.',
     '',
     ...MODULE_FILES.flatMap((f) => [`- **${f.file}.csv**: ${f.about}`, '']),
@@ -576,7 +579,10 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
     'spec/core/tools.md': toolsPage(r, TOOLS, toolModule, GENERATED('src/mcp/tools.ts, each module’s tools.ts and src/mcp/parity.ts, by src/spec/calls.ts')),
     'spec/modules/README.md': modulesIndex(mods),
   };
-  for (const rule of RULE_LIST.filter((x) => !x.module)) out[`spec/core/rules/${rule.id}.md`] = rulePage(rule, tests, reqText);
+  const { buildPlatformOrg } = await import('../data/platformOrg/generate');
+  const w = conformanceWorkspace(buildPlatformOrg(new Date(CHECK_IN_MOMENT)));
+  // The change engine's page also has its every sentence, its fields and its log's words, read from the code (stage 2).
+  for (const rule of RULE_LIST.filter((x) => !x.module)) out[`spec/core/rules/${rule.id}.md`] = rulePage(rule, tests, reqText, rule.id === 'change-engine' ? changeEngineSections(root, w) : []);
   const owned = new Set(mods.flatMap((m) => m.journeys));
   for (const j of docs.values()) if (!owned.has(j.id)) out[`spec/core/journeys/${j.id}.md`] = journeyPage(j, '../../', 'the core ([the journeys](../journeys.md)); it runs with every module on, and the core journeys run again with each module left out');
   for (const m of mods) {
@@ -587,14 +593,14 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
     if (m.growth?.length) out[`spec/modules/${m.id}/growth.md`] = growthPage(m);
     if (m.records?.length) out[`spec/modules/${m.id}/records.md`] = recordsPage(m, r);
   }
-  const { buildPlatformOrg } = await import('../data/platformOrg/generate');
-  const w = conformanceWorkspace(buildPlatformOrg(new Date(CHECK_IN_MOMENT)));
   const files = conformanceFiles(w);
   out['spec/conformance/workspace.json'] = workspaceJson(w);
   out['spec/core/export-format.md'] = exportFormatPage(MODULE_SHEETS);
   out['spec/core/goals-query.md'] = goalsQueryPage(r, GENERATED('src/domain/query.ts, by src/spec/goalsQuery.ts'));
   out['spec/core/import-issues.md'] = GENERATED('src/domain/issueKinds.ts, src/domain/problemLevels.ts, src/domain/columns.ts and import.csv’s cases') + importIssuesMarkdown(w);
   for (const [f, text] of Object.entries(files)) out[`spec/conformance/${f}`] = text;
+  // Stage 2's cases, input only: what the harness hands a rebuild beside workspace.json (drill gap 1).
+  out['spec/conformance/change-cases.json'] = JSON.stringify(changeCases(w), null, 2) + '\n';
   out['spec/conformance/README.md'] = conformanceReadme(w, files);
   // The same workspace with no set check-in rhythm (FT1): its cycle has checkInWeeks 0. Its own folder, so the files
   // above stay byte for byte; the drill scores it with --expected spec/conformance/no-rhythm.

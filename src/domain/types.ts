@@ -199,7 +199,7 @@ export interface MilestoneGoal extends GoalBase {
 export type Goal = MetricGoal | RangeGoal | MilestoneGoal;
 
 export type Status = 'on' | 'risk' | 'off' | 'done';
-export type DisplayStatus = Status | 'stale' | 'planned' | 'none';
+export type DisplayStatus = Status | 'stale' | 'planned' | 'none' | 'unmeasured';
 
 // 'other' when none of the named causes fits (research, 2 Nov): the words then carry it.
 export type CauseBehind = 'aggressive' | 'slower' | 'blocked' | 'external' | 'data' | 'other';

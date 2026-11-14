@@ -212,9 +212,9 @@ export function twoNumbers(raw: string): { lower: string; upper: string } | null
 
 /** The columns a goal form's field is, for its problem on the Goals sheet. */
 /** A goal field's column on the Goals sheet, where a Must fix from goal entry's rule 2 (domain/goalEntry) is said. */
-const FIELD_COLUMN: Partial<Record<GoalField, string>> = { title: 'Goal', teamId: 'Team', ownerId: 'Owner', level: 'Level', parentId: 'Feeds into', start: 'Start', target: 'Target', lower: 'Limit', limit: 'Limit', margin: 'Margin', decimals: 'Decimals', effect: 'Effect', stages: 'Stages', points: 'Plan', unit: 'Unit', fromWeek: 'Plan from week', endWeek: 'Due week' };
+export const FIELD_COLUMN: Partial<Record<GoalField, string>> = { title: 'Goal', teamId: 'Team', ownerId: 'Owner', level: 'Level', parentId: 'Feeds into', start: 'Start', target: 'Target', lower: 'Limit', limit: 'Limit', margin: 'Margin', decimals: 'Decimals', effect: 'Effect', stages: 'Stages', points: 'Plan', unit: 'Unit', fromWeek: 'Plan from week', endWeek: 'Due week' };
 /** Each Must fix's kind among the engine's (domain/problemLevels): every one is a Must fix; the kind says which sort. */
-const MUST_KIND: Record<MustFixId, IssueKind> = {
+export const MUST_KIND: Record<MustFixId, IssueKind> = {
   'name-empty': 'required-empty', 'name-short': 'required-empty', 'owner-empty': 'required-empty', 'team-empty': 'required-empty', 'level-empty': 'required-empty',
   'start-empty': 'required-empty', 'target-empty': 'required-empty', 'limit-empty': 'required-empty', 'lower-empty': 'required-empty', 'stage-none': 'required-empty',
   'feeds-loop': 'loop', 'not-number': 'not-a-number', 'has-words': 'not-a-number', 'too-precise': 'precision', 'plan-point': 'not-a-number', 'decimals-lose': 'precision',
@@ -224,7 +224,7 @@ const MUST_KIND: Record<MustFixId, IssueKind> = {
 };
 
 /** Goal entry's questions (rule 3) as the engine's kinds: the unlikely numbers are one kind, grouped by question. */
-const ENGINE_CHECK: Partial<Record<GoalCheckId, IssueKind>> = {
+export const ENGINE_CHECK: Partial<Record<GoalCheckId, IssueKind>> = {
   'below-zero': 'odd-number', 'over-100': 'odd-number', 'wrong-side': 'odd-number', hundredfold: 'odd-number', billion: 'odd-number', 'margin-wide': 'odd-number', 'late-plan': 'odd-number', 'long-plan': 'odd-number',
 };
 /** The kinds that are goal entry's questions: said on their item, and answered yes, all of them, by `confirm`. */
@@ -1477,7 +1477,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     // its own, and never takes one away (rule 12).
     // Data's tables and MCP replacing a week's check-in correct it, as the form does: one meaning for "correct", with a
     // reason and the same words in History (review of #225, medium 6). A workbook's round trip keeps its own words.
-    // An admin's workbook row that replaces someone else's check-in for this week corrects it too, with a reason (Lane,
+    // An admin's workbook row that replaces this week's check-in on a goal someone else owns corrects it too, with a reason (Lane,
     // 14 Nov): one rule at every door. Past weeks from a workbook keep its own words (a round trip, a backfill).
     const othersThisWeek = !!existing && w === week && owned.ownerId !== actor.id;
     // A week an ended year has no check-in for is added late with a reason at every door, as the form adds it (Lane,
