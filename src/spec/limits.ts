@@ -39,6 +39,7 @@ export const LIMITS: Limit[] = [
   { constraint: 'okr_goals_check2', holds: ['NOT headline', 'parent_id IS NULL'], rule: 'goal-entry', words: 'A headline goal feeds nothing.' },
   { constraint: 'okr_goals_plan_from_week_check', holds: ['plan_from_week >=', '104'], rule: 'weeks-and-plans', words: 'A plan’s first week is between −104 and 104 (a plan carried from an earlier year starts before week 0).' },
   { constraint: 'okr_goals_baseline_period_len', holds: ['<= 60'], rule: 'goal-entry', words: 'The period a goal’s baseline covers has at most 60 characters.' },
+  { constraint: 'okr_goals_guards_shape', holds: ['jsonb_array_length(guards) <= 5'], rule: 'status', words: 'A goal names at most five guardrails.' },
   { constraint: 'okr_goals_baseline_whole', holds: ['baseline_value IS NOT NULL', 'baseline_provisional'], rule: 'goal-entry', words: 'A baseline’s period and its “provisional” flag only go with a baseline figure.' },
   { constraint: 'okr_goals_plan_end_week_check', holds: ['plan_end_week >= 1', 'plan_end_week <= 104'], rule: 'weeks-and-plans', words: 'A plan’s due week, when it has one, is 1 to 104.' },
   { constraint: 'okr_stages_due_week_check', holds: ['due_week >= 1'], rule: 'weeks-and-plans', words: 'A milestone stage is due in week 1 or later.' },
