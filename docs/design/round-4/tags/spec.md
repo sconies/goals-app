@@ -1,6 +1,6 @@
 # TG: tags on goals (a workspace's own fields), the `tags` module
 
-Backlog TG (Lane, 12 November, loading a metrics register through MCP). Module map: its own module behind a `tags` switch (Lane 1a, 13 November). Written by track 2, 13 November. **Not built until Lane answers section 11.**
+Backlog TG (Lane, 12 November, loading a metrics register through MCP). Module map: its own module behind a `tags` switch (Lane 1a, 13 November). Written by track 2, 13 November. **Lane answered section 11 with every recommendation, 1a to 7a (Lane, 13 Nov, relayed by planning): build it.**
 
 **Standing rules** (`CLAUDE.md`): its section of `spec/`, conformance rows, its rebuild stage (`rebuild` in `module.json`), its switch, What's new, the guide, its MCP tools in the same PR, evals, and the gate. The migration ships one merge ahead of the code that uses it (AX10), written for the `faro` schema (`supabase/README.md`).
 
@@ -57,8 +57,10 @@ The Goals sheet gains one column per live field, headed with the field's name. T
 
 Two tables in `faro`, with RLS as the workspace's other tables and every grant written out:
 
-- `goal_field` (`workspace_id`, `id`, `name`, `kind` in ('list','text'), `options` jsonb, `position`, `retired_at`, `created_at`), unique (`workspace_id`, lower(`name`)) among live fields;
-- `goal_field_value` (`workspace_id`, `goal_id`, `field_id`, `value` text ≤ 80), primary key (`goal_id`, `field_id`).
+- `okr_goal_fields` (`workspace_id`, `id`, `name` 1–40, `kind` in ('list','text'), `options` jsonb (a list's 1–20 values), `position`, `created_by`, `created_at`, `retired_at`, `retired_by`), unique (`workspace_id`, lower(trim(`name`))) among live fields;
+- `okr_goal_field_values` (`id` = `{goal_id}:{field_id}`, since module records are upserted on `id`; `workspace_id`, `goal_id`, `field_id`, `value` text ≤ 80, empty when cleared, `set_by`, `set_at`).
+
+Both go on `faro.module_tables` (module `tags`, positions 30 and 40), and the change log's `entity` gains `field`. Drafted as `supabase/migrations/0052_goal_fields.sql` on branch `tg0-migration` (track 2, 14 Nov).
 
 Check constraints add their lines to `src/spec/limits.ts`. Module records (`src/core/records.ts`) carry them through save, removal, undo, the carry and the workbook, so no core rule reads them.
 
@@ -101,7 +103,17 @@ Everything here is lazy: the Fields page, the goal's block (a `goal.facts` place
 | TG1 | The module: fields, Workspace → Fields, the goal's block, MCP, switch | M | TG0 |
 | TG2 | Filters, saved views, Data's column, the sheet's columns and the import's question | M | TG1 |
 
-## 11. Open questions for Lane (recommended answer first)
+## 11. Lane's answers (Lane, 13 Nov: every recommendation)
+
+1. **Up to six fields**, each a list or free text (1a).
+2. **Both** lists and free text: a list is filterable; free text is found by Find only (2a).
+3. **Admins** define the fields and their values; everyone may set a goal's value as they may change the goal (3a).
+4. **A value a list doesn't hold**, in a file or from MCP, is asked once per value: an admin may add it to the list, anyone else leaves those cells empty (4a).
+5. **A removed field is retired, never deleted**: its values stay on goals and History, and it can be brought back (5a).
+6. **A Fields block in About** on the goal's page, one line per field, changed in place (6a).
+7. **New goal doesn't ask** for fields: they are set on the goal's page or in the sheet after (7a).
+
+The questions as asked, kept for the record:
 
 1. **How many fields?**
    - (a) Up to six fields, each a list or free text. *Recommended: a register usually has two or three such columns, and six keeps the goal page calm.*
