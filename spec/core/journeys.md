@@ -3,7 +3,7 @@
 
 # The core journeys
 
-What people do with Faro end to end, and the checks that drive it (`npm run evals`; `[evals/journeys.cjs](../../evals/journeys.cjs)`). Journeys and checks a module owns are in its own section ([Feedback](../modules/feedback/README.md), [Goal map](../modules/goal-map/README.md), [Metric library](../modules/metrics/README.md), [Reviews](../modules/reviews/README.md), [Spreadsheets](../modules/spreadsheets/README.md), [Watching](../modules/watching/README.md), [Wrap-up](../modules/wrap-up/README.md)). Who the journeys are for: `docs/journeys.md`.
+What people do with Faro end to end, and the checks that drive it (`npm run evals`; `[evals/journeys.cjs](../../evals/journeys.cjs)`). Journeys and checks a module owns are in its own section ([Feedback](../modules/feedback/README.md), [Goal map](../modules/goal-map/README.md), [Metric library](../modules/metrics/README.md), [Reviews](../modules/reviews/README.md), [Spreadsheets](../modules/spreadsheets/README.md), [Fields](../modules/tags/README.md), [Watching](../modules/watching/README.md), [Wrap-up](../modules/wrap-up/README.md)). Who the journeys are for: `docs/journeys.md`.
 
 ## Journeys
 

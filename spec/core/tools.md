@@ -3232,7 +3232,7 @@ No arguments.
 
 ## set_feature
 
-**Switch a feature on or off.** Admins: switch one of Faro's optional features (its modules) on or off in this workspace. Off, it leaves every screen: no page, menu or tool of its own, here or for assistants; anything that needs it goes off with it. Nothing it saved is deleted, and switching it back on brings it all back. The change is logged. The features: feedback (Feedback: Send feedback about Faro, or mark up a screen. It goes to the people who build Faro.); goal-map (Goal map: See every goal and what feeds it on one canvas, with the path the risk runs along.); metrics (Metric library: Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.); reviews (Reviews: Walk a set of goals together on a cadence, decide what happens next and keep what was said.); spreadsheets (Spreadsheets: Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.); watching (Watching: Follow goals you don’t own: they show on your Home and under Watching in Goals.); wrap-up (Wrap-up: At the end of the year, each owner says how their goals landed and what they learned.).
+**Switch a feature on or off.** Admins: switch one of Faro's optional features (its modules) on or off in this workspace. Off, it leaves every screen: no page, menu or tool of its own, here or for assistants; anything that needs it goes off with it. Nothing it saved is deleted, and switching it back on brings it all back. The change is logged. The features: feedback (Feedback: Send feedback about Faro, or mark up a screen. It goes to the people who build Faro.); goal-map (Goal map: See every goal and what feeds it on one canvas, with the path the risk runs along.); metrics (Metric library: Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.); reviews (Reviews: Walk a set of goals together on a cadence, decide what happens next and keep what was said.); spreadsheets (Spreadsheets: Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.); tags (Fields: Give goals a workspace’s own fields, such as a stage or a programme, to find and sort them by.); watching (Watching: Follow goals you don’t own: they show on your Home and under Watching in Goals.); wrap-up (Wrap-up: At the end of the year, each owner says how their goals landed and what they learned.).
 
 **Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
 
@@ -3240,7 +3240,7 @@ No arguments.
 
 | Argument | Type | Needed | What it is |
 |---|---|---|---|
-| `feature` | one of `feedback`, `goal-map`, `metrics`, `reviews`, `spreadsheets`, `watching`, `wrap-up` | yes | The feature’s id. |
+| `feature` | one of `feedback`, `goal-map`, `metrics`, `reviews`, `spreadsheets`, `tags`, `watching`, `wrap-up` | yes | The feature’s id. |
 | `on` | boolean | yes | true to switch it on, false to switch it off. |
 
 <details><summary>The input schema, as JSON</summary>
@@ -3263,6 +3263,7 @@ No arguments.
         "metrics",
         "reviews",
         "spreadsheets",
+        "tags",
         "watching",
         "wrap-up"
       ]

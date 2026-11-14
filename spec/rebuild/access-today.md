@@ -12,6 +12,8 @@ The schema `faro` may be used by the public key (`anon`), anyone signed in (`aut
 
 | Table | Row rules | Granted to | Rules | Today |
 |---|---|---|---|---|
+| `goal_field_values` | on | anon: select, insert, update | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true` | Demo access: replace |
+| `goal_fields` | on | anon: select, insert, update | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true` | Demo access: replace |
 | `module_tables` | on | anon: select | “saves: read”: select for anon where `true` | Demo access: replace |
 | `okr_api_tokens` | on | nobody | none | Functions only |
 | `okr_builders` | on | nobody | none | Functions only |
@@ -20,8 +22,6 @@ The schema `faro` may be used by the public key (`anon`), anyone signed in (`aut
 | `okr_cycles` | on | anon: select, insert, update, delete | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true`<br>“demo: remove”: delete for anon where `true` | Demo access: replace |
 | `okr_decisions` | on | anon: select, insert, update, delete | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true`<br>“demo: remove”: delete for anon where `true` | Demo access: replace |
 | `okr_feedback` | on | anon: insert (7 columns) | “demo: add”: insert for anon checking `true` | Demo access: replace |
-| `okr_goal_field_values` | on | anon: select, insert, update | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true` | Demo access: replace |
-| `okr_goal_fields` | on | anon: select, insert, update | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true` | Demo access: replace |
 | `okr_goal_keys` | on | nobody | none | Functions only |
 | `okr_goal_metrics` | on | anon: select, insert, update | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true` | Demo access: replace |
 | `okr_goals` | on | anon: select, insert, update, delete | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true`<br>“demo: remove”: delete for anon where `true` | Demo access: replace |

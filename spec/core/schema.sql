@@ -11,6 +11,40 @@ set search_path = faro;
 
 -- ---------- Tables ----------
 
+create table goal_field_values (
+  id text not null,
+  workspace_id text not null,
+  goal_id text not null,
+  field_id text not null,
+  value text not null default ''::text,
+  set_by text not null,
+  set_at timestamp with time zone not null default now(),
+  constraint goal_field_values_pkey PRIMARY KEY (id),
+  constraint goal_field_values_field_id_fkey FOREIGN KEY (field_id) REFERENCES goal_fields(id) ON DELETE CASCADE,
+  constraint goal_field_values_goal_id_fkey FOREIGN KEY (goal_id) REFERENCES okr_goals(id) ON DELETE CASCADE,
+  constraint goal_field_values_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES okr_workspaces(id) ON DELETE CASCADE,
+  constraint goal_field_values_one CHECK ((id = ((goal_id || ':'::text) || field_id))),
+  constraint goal_field_values_value_check CHECK ((length(value) <= 80))
+);
+
+create table goal_fields (
+  id text not null,
+  workspace_id text not null,
+  name text not null,
+  kind text not null,
+  options jsonb not null default '[]'::jsonb,
+  position integer not null default 0,
+  created_by text not null,
+  created_at timestamp with time zone not null default now(),
+  retired_at timestamp with time zone,
+  retired_by text,
+  constraint goal_fields_pkey PRIMARY KEY (id),
+  constraint goal_fields_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES okr_workspaces(id) ON DELETE CASCADE,
+  constraint goal_fields_kind_check CHECK ((kind = ANY (ARRAY['list'::text, 'text'::text]))),
+  constraint goal_fields_name_check CHECK (((length(TRIM(BOTH FROM name)) >= 1) AND (length(TRIM(BOTH FROM name)) <= 40))),
+  constraint goal_fields_options_check CHECK (((jsonb_typeof(options) = 'array'::text) AND (jsonb_array_length(options) <= 20) AND ((kind = 'text'::text) OR (jsonb_array_length(options) >= 1))))
+);
+
 create table module_tables (
   table_name text not null,
   module text not null,
@@ -167,40 +201,6 @@ create table okr_feedback (
   constraint okr_feedback_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES okr_workspaces(id) ON DELETE CASCADE,
   constraint okr_feedback_mood_check CHECK ((mood = ANY (ARRAY['good'::text, 'meh'::text, 'bad'::text]))),
   constraint okr_feedback_status_check CHECK (((status = ANY (ARRAY['new'::text, 'in-hand'::text, 'fixed'::text, 'wont-fix'::text])) AND ((fixed_in IS NULL) OR (fixed_in ~ '^[a-z0-9][a-z0-9-]{0,79}$'::text)) AND ((wont_fix_reason IS NULL) OR ((length(TRIM(BOTH FROM wont_fix_reason)) >= 1) AND (length(TRIM(BOTH FROM wont_fix_reason)) <= 2000))) AND ((status_by IS NULL) OR (length(status_by) <= 200)) AND ((status <> 'fixed'::text) OR (fixed_in IS NOT NULL)) AND ((status <> 'wont-fix'::text) OR (wont_fix_reason IS NOT NULL))))
-);
-
-create table okr_goal_field_values (
-  id text not null,
-  workspace_id text not null,
-  goal_id text not null,
-  field_id text not null,
-  value text not null default ''::text,
-  set_by text not null,
-  set_at timestamp with time zone not null default now(),
-  constraint okr_goal_field_values_pkey PRIMARY KEY (id),
-  constraint okr_goal_field_values_field_id_fkey FOREIGN KEY (field_id) REFERENCES okr_goal_fields(id) ON DELETE CASCADE,
-  constraint okr_goal_field_values_goal_id_fkey FOREIGN KEY (goal_id) REFERENCES okr_goals(id) ON DELETE CASCADE,
-  constraint okr_goal_field_values_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES okr_workspaces(id) ON DELETE CASCADE,
-  constraint okr_goal_field_values_one CHECK ((id = ((goal_id || ':'::text) || field_id))),
-  constraint okr_goal_field_values_value_check CHECK ((length(value) <= 80))
-);
-
-create table okr_goal_fields (
-  id text not null,
-  workspace_id text not null,
-  name text not null,
-  kind text not null,
-  options jsonb not null default '[]'::jsonb,
-  position integer not null default 0,
-  created_by text not null,
-  created_at timestamp with time zone not null default now(),
-  retired_at timestamp with time zone,
-  retired_by text,
-  constraint okr_goal_fields_pkey PRIMARY KEY (id),
-  constraint okr_goal_fields_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES okr_workspaces(id) ON DELETE CASCADE,
-  constraint okr_goal_fields_kind_check CHECK ((kind = ANY (ARRAY['list'::text, 'text'::text]))),
-  constraint okr_goal_fields_name_check CHECK (((length(TRIM(BOTH FROM name)) >= 1) AND (length(TRIM(BOTH FROM name)) <= 40))),
-  constraint okr_goal_fields_options_check CHECK (((jsonb_typeof(options) = 'array'::text) AND (jsonb_array_length(options) <= 20) AND ((kind = 'text'::text) OR (jsonb_array_length(options) >= 1))))
 );
 
 create table okr_goal_keys (
@@ -702,6 +702,9 @@ create table okr_workspaces (
 
 -- ---------- Indexes ----------
 
+CREATE INDEX goal_field_values_field ON faro.goal_field_values USING btree (field_id);
+CREATE INDEX goal_field_values_ws ON faro.goal_field_values USING btree (workspace_id);
+CREATE INDEX goal_fields_ws ON faro.goal_fields USING btree (workspace_id);
 CREATE INDEX okr_api_tokens_workspace ON faro.okr_api_tokens USING btree (workspace_id);
 CREATE INDEX okr_changes_goal ON faro.okr_changes USING btree (goal_id);
 CREATE INDEX okr_changes_goal_history ON faro.okr_changes USING btree (goal_id, at DESC, id DESC) WHERE (goal_id IS NOT NULL);
@@ -715,9 +718,6 @@ CREATE INDEX okr_decisions_goal ON faro.okr_decisions USING btree (goal_id);
 CREATE INDEX okr_decisions_ws ON faro.okr_decisions USING btree (workspace_id);
 CREATE INDEX okr_feedback_newest ON faro.okr_feedback USING btree (at DESC, id DESC);
 CREATE INDEX okr_feedback_ws ON faro.okr_feedback USING btree (workspace_id);
-CREATE INDEX okr_goal_field_values_field ON faro.okr_goal_field_values USING btree (field_id);
-CREATE INDEX okr_goal_field_values_ws ON faro.okr_goal_field_values USING btree (workspace_id);
-CREATE INDEX okr_goal_fields_ws ON faro.okr_goal_fields USING btree (workspace_id);
 CREATE INDEX okr_goal_metrics_metric ON faro.okr_goal_metrics USING btree (metric_id);
 CREATE INDEX okr_goal_metrics_ws ON faro.okr_goal_metrics USING btree (workspace_id);
 CREATE INDEX okr_goals_ws ON faro.okr_goals USING btree (workspace_id);
@@ -740,8 +740,8 @@ CREATE INDEX okr_telemetry_spans_trace ON faro.okr_telemetry_spans USING btree (
 CREATE INDEX okr_telemetry_spans_workspace ON faro.okr_telemetry_spans USING btree (workspace_id, start_time);
 CREATE INDEX okr_views_workspace ON faro.okr_views USING btree (workspace_id);
 CREATE INDEX okr_watches_ws ON faro.okr_watches USING btree (workspace_id);
+CREATE UNIQUE INDEX goal_fields_ws_name ON faro.goal_fields USING btree (workspace_id, lower(TRIM(BOTH FROM name))) WHERE (retired_at IS NULL);
 CREATE UNIQUE INDEX okr_cycles_ws_start_live ON faro.okr_cycles USING btree (workspace_id, start_date) WHERE (removed_at IS NULL);
-CREATE UNIQUE INDEX okr_goal_fields_ws_name ON faro.okr_goal_fields USING btree (workspace_id, lower(TRIM(BOTH FROM name))) WHERE (retired_at IS NULL);
 CREATE UNIQUE INDEX okr_goals_cycle_key ON faro.okr_goals USING btree (workspace_id, cycle_id, key);
 CREATE UNIQUE INDEX okr_metrics_ws_name ON faro.okr_metrics USING btree (workspace_id, lower(TRIM(BOTH FROM name))) WHERE (removed_at IS NULL);
 CREATE UNIQUE INDEX okr_people_ws_email ON faro.okr_people USING btree (workspace_id, email) WHERE ((email IS NOT NULL) AND (removed_at IS NULL));
@@ -1524,6 +1524,8 @@ CREATE TRIGGER okr_workspaces_goal_keys AFTER DELETE ON faro.okr_workspaces FOR 
 
 grant usage on schema faro to anon, authenticated;
 
+alter table goal_field_values enable row level security;
+alter table goal_fields enable row level security;
 alter table module_tables enable row level security;
 alter table okr_api_tokens enable row level security;
 alter table okr_builders enable row level security;
@@ -1532,8 +1534,6 @@ alter table okr_check_ins enable row level security;
 alter table okr_cycles enable row level security;
 alter table okr_decisions enable row level security;
 alter table okr_feedback enable row level security;
-alter table okr_goal_field_values enable row level security;
-alter table okr_goal_fields enable row level security;
 alter table okr_goal_keys enable row level security;
 alter table okr_goal_metrics enable row level security;
 alter table okr_goals enable row level security;
@@ -1556,6 +1556,12 @@ alter table okr_watches enable row level security;
 alter table okr_workspaces enable row level security;
 
 create policy "markups: upload" on storage.objects for insert to anon with check (((bucket_id = 'markups'::text) AND (array_length(storage.foldername(name), 1) = 1) AND ((storage.foldername(name))[1] ~ '^mk_[0-9a-f]{16}$'::text) AND (storage.filename(name) = ANY (ARRAY['screen.png'::text, 'ink.png'::text, 'thumb.jpg'::text, 'marked.jpg'::text]))));
+create policy "demo: add" on goal_field_values for insert to anon with check (true);
+create policy "demo: change" on goal_field_values for update to anon using (true) with check (true);
+create policy "demo: read" on goal_field_values for select to anon using (true);
+create policy "demo: add" on goal_fields for insert to anon with check (true);
+create policy "demo: change" on goal_fields for update to anon using (true) with check (true);
+create policy "demo: read" on goal_fields for select to anon using (true);
 create policy "saves: read" on module_tables for select to anon using (true);
 create policy "demo: add" on okr_changes for insert to anon with check (true);
 create policy "demo: read" on okr_changes for select to anon using (true);
@@ -1573,12 +1579,6 @@ create policy "demo: change" on okr_decisions for update to anon using (true) wi
 create policy "demo: read" on okr_decisions for select to anon using (true);
 create policy "demo: remove" on okr_decisions for delete to anon using (true);
 create policy "demo: add" on okr_feedback for insert to anon with check (true);
-create policy "demo: add" on okr_goal_field_values for insert to anon with check (true);
-create policy "demo: change" on okr_goal_field_values for update to anon using (true) with check (true);
-create policy "demo: read" on okr_goal_field_values for select to anon using (true);
-create policy "demo: add" on okr_goal_fields for insert to anon with check (true);
-create policy "demo: change" on okr_goal_fields for update to anon using (true) with check (true);
-create policy "demo: read" on okr_goal_fields for select to anon using (true);
 create policy "demo: add" on okr_goal_metrics for insert to anon with check (true);
 create policy "demo: change" on okr_goal_metrics for update to anon using (true) with check (true);
 create policy "demo: read" on okr_goal_metrics for select to anon using (true);
@@ -1633,13 +1633,13 @@ create policy "demo: change" on okr_workspaces for update to anon using (true) w
 create policy "demo: read" on okr_workspaces for select to anon using (true);
 create policy "demo: remove" on okr_workspaces for delete to anon using (true);
 
+grant select, insert, update on goal_field_values to anon;
+grant select, insert, update on goal_fields to anon;
 grant select on module_tables to anon;
 grant select, insert, delete on okr_changes to anon;
 grant select, insert, update, delete on okr_check_ins to anon;
 grant select, insert, update, delete on okr_cycles to anon;
 grant select, insert, update, delete on okr_decisions to anon;
-grant select, insert, update on okr_goal_field_values to anon;
-grant select, insert, update on okr_goal_fields to anon;
 grant select, insert, update on okr_goal_metrics to anon;
 grant select, insert, update, delete on okr_goals to anon;
 grant select, insert on okr_markups to anon;
