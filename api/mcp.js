@@ -19210,6 +19210,7 @@ var CORE_ARTICLES = [
 				list: [
 					"If you are in a team, or lead one, and it has goals you don’t own, “Your team · CI/CD · 17 goals” follows your goals (“Your teams · 30 goals in 2 teams” when you lead more than one). It is exactly the My team tab of Goals: the same goals and the same total, and See them in Goals opens it.",
 					"Its counts by status each open exactly those goals. Then “2 need attention that aren’t yours” opens Goals with those goals, filtered to Owner not you, and up to four of them are listed, each with its owner’s name first. Your own are in Your goals, so they aren’t listed twice. When nothing needs attention, it says so.",
+					"In a workspace with one team, your goals and your team’s would repeat each other, so Home shows them once: “The team’s goals · 9”, your own first, then your teammates’, each of theirs with its owner’s name first. Its counts, its need attention link and See them in Goals open that team’s goals. There is no separate Your team, and Goals you watch is left out while you watch nothing.",
 					"When the goals you watch, or your teams’ goals, are more than twelve goals in two or more teams, they are shown as teams, worst first: the team with the most goals off track, then at risk, then with no recent update, first, as Goals orders By team. Each team’s name, its “3 need attention” and its counts by status open exactly those goals. Five teams show, then a link to the rest, by team. No person’s name is in this table: teams and goals are ranked, never people. On a phone each team is one stacked row."
 				]
 			},
@@ -21558,6 +21559,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "home-one-team",
+		date: "2026-11-14",
+		title: "With one team, Home shows the team’s goals once",
+		points: ["In a workspace with one team, Home shows “The team’s goals” as one section, yours first, in place of Your goals and Your team.", "Your teammates’ goals that need attention are listed with their owners’ names, so nothing of the team’s is missing from Home."],
+		articles: ["home"]
+	},
 	{
 		id: "home-your-team",
 		date: "2026-11-14",
