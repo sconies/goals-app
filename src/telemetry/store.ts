@@ -3,6 +3,7 @@
    `db.operation` the function's name; nothing is instrumented inside Postgres. The demo's browser store is timed the
    same way, as db.system=browser. The store behaves exactly as before: the span only watches. */
 import { examplesOf, type Commit, type Store } from '../data/store';
+import type { PersonPref } from '../ports/store';
 import { errorType } from './errors';
 import type { Telemetry } from './client';
 
@@ -32,5 +33,7 @@ export function tracedStore(store: Store, tel: Telemetry): Store {
     issueToken: (id, c) => timed(pg ? 'okr_token_create' : 'issue_token', () => store.issueToken(id, c)),
     ...(store.saveProblem ? { saveProblem: () => store.saveProblem!() } : {}),
     ...(store.onSaveProblem ? { onSaveProblem: (l: () => void) => store.onSaveProblem!(l) } : {}),
+    ...(store.personPrefs ? { personPrefs: (ws: string) => timed('select', () => store.personPrefs!(ws)) } : {}),
+    ...(store.keepPersonPref ? { keepPersonPref: (ws: string, p: PersonPref) => timed('upsert', () => store.keepPersonPref!(ws, p)) } : {}),
   };
 }

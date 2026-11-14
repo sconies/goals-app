@@ -37,6 +37,72 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['metric-structure'],
   },
   {
+    id: 'corrections-keep-the-author',
+    date: '2026-11-14',
+    title: 'A correction keeps whose check-in it is',
+    points: [
+      'Correcting someone’s check-in no longer makes it yours. It stays theirs, wherever it is corrected: the form, Data’s tables, the AI assistant or a spreadsheet.',
+      'This changes what Data and the AI assistant did until now: they made whoever corrected a check-in its author.',
+      'History names who corrected it, with the reason: “Corrected week 45: 60% is now 61%, by Amara Okafor: …”.',
+      'An admin’s pasted row that replaces someone’s check-in for this week is a correction too: Preview asks why before it saves.',
+    ],
+    articles: ['check-in', 'data'],
+  },
+  {
+    id: 'setup-four-steps',
+    date: '2026-11-14',
+    title: 'Set-up in four steps you can go back through',
+    points: [
+      'Setting up a workspace is four steps: the workspace and you, people, goals and Check. Each has its own address, so your browser’s Back works and a reload stays put.',
+      'How you’ll work (the year, the review day, Recording) is one paragraph on the first step, with a sheet to change it there or on Check.',
+      'Goals starts with your own, a spreadsheet, or later. The four example templates are gone: a workspace begins with real goals or none.',
+      'Change on Check brings you straight back to it.',
+    ],
+    articles: ['set-up'],
+  },
+  {
+    id: 'home-your-team',
+    date: '2026-11-14',
+    title: 'Your team is on Home',
+    points: [
+      'If your team has goals you don’t own, Home shows them after yours, exactly as the My team tab of Goals counts them.',
+      'Its goals that need attention and aren’t yours are listed with their owners’ names, and the link opens Goals filtered to Owner not you.',
+      'Goals you watch, or your teams’ goals, that are more than twelve goals across teams are shown as teams, worst first, each count opening exactly those goals.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'proposals-follow-you',
+    date: '2026-11-14',
+    title: 'Proposed goals remember you, not the device',
+    points: [
+      'Open a goal proposed for you on your phone and Home stops asking about it on your laptop too.',
+      'Not yet on a goal that has waited 8 weeks puts it off everywhere you use Faro.',
+    ],
+    articles: ['goal-proposed'],
+  },
+  {
+    id: 'menu-shows-what-you-use',
+    date: '2026-11-14',
+    title: 'The menu shows what you use',
+    points: [
+      'A tab on Goals appears once it has goals in it and isn’t the same list as another, so a one-team workspace shows Mine and All.',
+      'Metrics joins the menu with the first metric, and the message after saving it says so.',
+      'Nothing is switched off: every page still opens from its address, Find and Workspace.',
+    ],
+    articles: ['goals', 'metrics'],
+  },
+  {
+    id: 'table-confirm-readings',
+    date: '2026-11-14',
+    title: 'Numbers from a source are confirmed before they’re posted',
+    points: [
+      'In the one table, a number filled in from its source says where it came from and isn’t posted until you confirm it: one tap on its row, or “Confirm all readings” for every such row.',
+      'Typing your own number over it works as before: the row asks why it differs.',
+    ],
+    articles: ['check-in-table'],
+  },
+  {
     id: 'metric-measurement',
     date: '2026-11-13',
     title: 'Say when a number isn’t measured yet',

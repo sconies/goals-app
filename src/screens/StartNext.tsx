@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
+import { useModules } from '../core/app';
+import { watchingOn, wrapUpOn } from '../app/reads';
 import { cycleDates, dayWithYear, laterCycle, nextCycleShape } from '../domain/cycle';
 import { startPage } from '../domain/startYear';
 import { adminsLine } from '../domain/workspaceAttention';
@@ -12,9 +14,10 @@ export function StartNext() {
   const app = useApp();
   const nav = useNavigate();
   const [busy, setBusy] = useState(false);
+  const { on } = useModules();
   // Once the next year exists, this page has nothing to do: Cycles says it's ready, with Undo.
   if (laterCycle(app.full.cycles, app.cycle)) return <Navigate to="/workspace/cycles" replace />;
-  const page = startPage(app.full, app.cycle, app.today);
+  const page = startPage(app.full, app.cycle, app.today, { wrapUp: wrapUpOn(on), watching: watchingOn(on) });
   const ended = app.today.toISOString().slice(0, 10) > cycleDates(app.cycle).lastDay;
   const start = async () => {
     setBusy(true);

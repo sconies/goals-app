@@ -1532,6 +1532,8 @@ From the [metrics](../modules/metrics/README.md) module.
 | `unit` | `string` | no |  |
 | `decimals` | `number` | no | Places after the decimal point it's shown with. |
 | `ownerId` | `string` | no | The person who answers for the definition: whoever added it, unless they hand it on. |
+| `level` | `MetricLevel` | no | Structure (MQ; rulesStructure.ts): how it relates to its parent metric (absent: not said). |
+| `parentId` | `string` | no | The metric it is a component, driver, control or breakdown of (absent: none). |
 | `source` | `string` | no | Where the number comes from (a dashboard, a tool, a query) and who owns that source (a team or a person, as text). |
 | `direction` | `MetricDirection` | no |  |
 | `meaning` | `string` | no | What it means and how it's calculated, in words: what's counted, over what, and what's left out. |
@@ -1540,6 +1542,8 @@ From the [metrics](../modules/metrics/README.md) module.
 | `caveats` | `string` | no | What to watch out for when reading it (a known gap, a change of method). |
 | `measurement` | `MetricMeasurement` | no | Whether it is measured today (MS; rulesMeasured.ts): absent on one never said otherwise, which is measured. Goals measured by a metric with a gap are held to no number (domain/unmeasured) until it is measured. |
 | `measurementNote` | `string` | no | What's missing from the measurement, and who is sorting it out ('' or absent when measured). |
+| `confidence` | `MetricConfidence` | no | How far its number can be trusted (absent: not said). |
+| `gaming` | `string` | no | How the number could be gamed, in words (absent: not said). |
 | `id` | `string` | no |  |
 | `confirm` | `boolean` | no |  |
 | `answers` | `Partial<Record<CheckField, string>>` | no |  |
@@ -1887,6 +1891,9 @@ In `src/domain/checkin.ts`.
 ```ts
 export interface Draft {
   value: string;
+  /** The field as a module filled it from a source (NR), until the owner types: a filled number isn't theirs, so a
+      draft reopened with it untouched is filled again from what the source says then (review of #437, medium 3). */
+  filled?: string;
   stages: StageUpdate[];
   status: Status | null;
   cause: Cause | null;
@@ -2071,6 +2078,8 @@ export interface Item {
   backfilled?: boolean;
   /** A plan change after check-ins started: it needs a reason. */
   needsReason?: boolean;
+  /** A check-in's: whose it is once saved. Replacing one keeps who checked in (Lane, 14 Nov); the change's actor is who replaced it. */
+  author?: string;
   /** A plan change that must be confirmed before it's saved (goal planQuestion): what it asks, and the yes. */
   question?: { text: string; confirm: string };
   /** Every question the row asks and nobody has answered yet (goal entry, rule 3): its id, the column, the words. */
@@ -2130,6 +2139,14 @@ export interface Metric {
   measurement?: MetricMeasurement;
   /** What's missing from the measurement, and who is sorting it out ('' or absent when measured). */
   measurementNote?: string;
+  /** Structure (MQ; rulesStructure.ts): how it relates to its parent metric (absent: not said). */
+  level?: import('./rulesStructure').MetricLevel;
+  /** The metric it is a component, driver, control or breakdown of (absent: none). */
+  parentId?: Id;
+  /** How far its number can be trusted (absent: not said). */
+  confidence?: import('./rulesStructure').MetricConfidence;
+  /** How the number could be gamed, in words (absent: not said). */
+  gaming?: string;
   createdBy: Id;
   createdAt: string;
   updatedAt: string;

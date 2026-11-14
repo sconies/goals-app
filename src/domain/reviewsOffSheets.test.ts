@@ -41,10 +41,17 @@ describe('importing a workbook with Reviews’ parts while Reviews is off', () =
 
   it('says once that the Notes sheet and the Review column were not read, and leaves Notes out of the sheets for reading', () => {
     const line = readLine(read, 0, { reviewsOff: 'Platform Engineering' });
-    expect(line).toContain('Reviews is off in Platform Engineering: the Notes sheet and the Review column were not read.');
+    expect(line).toContain('Reviews is off in Platform Engineering, so the Notes sheet and the Review column were not read.');
     expect(line.split('Reviews is off').length).toBe(2);
     expect(line).toMatch(/Not read: Results and Asks \(for reading only\)\./);
-    expect(reviewsOffReadLine('Platform Engineering')).toBe('Reviews is off in Platform Engineering: the Notes sheet and the Review column were not read.');
+    expect(reviewsOffReadLine('Platform Engineering')).toBe('Reviews is off in Platform Engineering, so the Notes sheet and the Review column were not read.');
+  });
+
+  it('names only what the file has, and reads well with a colon in the workspace’s name (build review of #424)', () => {
+    expect(reviewsOffReadLine('Example: Platform Engineering', { sheet: true, column: false })).toBe('Reviews is off in Example: Platform Engineering, so the Notes sheet was not read.');
+    expect(reviewsOffReadLine('Platform', { sheet: false, column: true })).toBe('Reviews is off in Platform, so the Review column on Asks was not read.');
+    const notesOnly = { ...read, reviewParts: { sheet: true, column: false } };
+    expect(readLine(notesOnly, 0, { reviewsOff: 'Platform' })).toContain('so the Notes sheet was not read.');
   });
 
   it('with Reviews on, or a file without them, says nothing about Reviews', () => {

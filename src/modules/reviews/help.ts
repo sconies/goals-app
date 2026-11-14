@@ -30,6 +30,7 @@ const help: Article[] = [
       { heading: 'Before this review', list: [
         'At the top of a review’s page: how many of its goals were checked in before it, and how many of those without being asked (an ask for an update is the only nudge). Before the review’s day it says how many are in so far.',
         'Under it, “came in after an ask” and “have no check-in yet” each open exactly those goals on Goals, worst first. Then the last 8 weeks, one square each: All in, how many came after, None in, or Nothing due.',
+        'It is headed “Before this review” only in a week the review is held on the day check-ins are due. A review held on another day, or a fortnightly, monthly or quarterly one in a week it isn’t held, shows the week and its due date instead (“Week 46, due by Thursday 12 Nov”) and counts check-ins on time.',
         'It counts weeks and goals, never people: nobody is named in it, and a set of goals with fewer than three owners doesn’t show it.',
       ] },
       { heading: 'Ending one', list: [

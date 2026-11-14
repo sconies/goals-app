@@ -22,6 +22,7 @@ export interface GoalQuery {
   status: QStatus[];
   level: Level[];
   team: string[];
+  /** Owners by id; `-me` (NOT_ME) means "not the person asking" (Home rule 4, HM3), said as "Owner: not you". */
   owner: string[];
   kind: GoalKind[];
   /** Only the goals on the Needs attention list (those being handled with them, grouped below): the same rule as Home, Watching, the map, reviews and the AI (domain/attention.ts). */
@@ -64,6 +65,9 @@ const OLD_NEEDS: Record<string, Need | null> = { 'no-recovery': 'no-path', 'miss
 export const RESULT_OPTIONS: [Result, string][] = (['completed', 'late', 'missed', 'open'] as const).map((k) => [k, RESULT[k].label]);
 export const KIND_OPTIONS: [GoalKind, string][] = [['metric', 'Move a number'], ['range', 'Keep in range'], ['milestone', 'Dated stages']];
 export const SORT_OPTIONS: [SortKey, string][] = [['worst', 'Worst first'], ['title', 'Name'], ['owner', 'Owner'], ['team', 'Team'], ['level', 'Level'], ['gap', 'Furthest from plan'], ['last', 'Longest since a check-in'], ['due', 'Due soonest']];
+
+/** The owner value that means "not mine": the goals someone else owns (Home's "need attention that aren’t yours"). */
+export const NOT_ME = '-me';
 
 const list = <T extends string>(v: string | null, ok: readonly T[]): T[] => (v ? v.split(',').filter((x): x is T => (ok as readonly string[]).includes(x)) : []);
 const int = (v: string | null) => { const n = v == null ? NaN : Number(v); return Number.isInteger(n) && n > 0 ? n : null; };
@@ -147,8 +151,10 @@ export interface QueryContext {
   columns?: Record<string, (goal: Goal) => string | null>;
   /** A goal's standing this week (habit rule 1, `standing.ts`), null when it isn't due: what `checkedin=` reads. */
   standing?: (goal: Goal) => 'unasked' | 'asked' | 'after' | 'none' | null;
-  /** The goals a review walks, by the review's id; null for no such review: what `inreview=` reads. */
+  /** The goals a review walks, by the review's id; null for no such review: what `inreview=` reads. Not here while Reviews is off: `inreview=` then narrows nothing, as a switched-off module's column doesn't (module map F4). */
   inReview?: (reviewId: string) => ReadonlySet<string> | null;
+  /** Who is asking: what `owner=-me` leaves out. Without it, `-me` narrows nothing. */
+  viewerId?: string;
 }
 
 /** The goal and every goal that feeds it, all the way down. */
@@ -174,7 +180,8 @@ export function matches(s: GoalSummary, q: GoalQuery, ctx: QueryContext, tree?: 
   if (q.status.length && !q.status.includes(s.status)) return false;
   if (q.level.length && !q.level.includes(g.level)) return false;
   if (q.team.length && !q.team.includes(g.teamId)) return false;
-  if (q.owner.length && !q.owner.includes(g.ownerId)) return false;
+  // Any of the owners named; `-me`, anyone but the person asking (nobody asking: anyone).
+  if (q.owner.length && !q.owner.some((o) => o === g.ownerId || (o === NOT_ME && g.ownerId !== ctx.viewerId))) return false;
   if (q.kind.length && !q.kind.includes(g.kind)) return false;
   for (const [k, v] of Object.entries(q.cols ?? {})) { const col = ctx.columns?.[k]; if (col && col(g) !== v) return false; }
   if (q.attention || q.needs.length) {
@@ -192,7 +199,7 @@ export function matches(s: GoalSummary, q: GoalQuery, ctx: QueryContext, tree?: 
     const st = ctx.standing?.(g);
     if (q.checkedin === 'no' ? st !== 'none' : st !== 'asked') return false;
   }
-  if (q.inreview && !ctx.inReview?.(q.inreview)?.has(g.id)) return false;
+  if (q.inreview && ctx.inReview && !ctx.inReview(q.inreview)?.has(g.id)) return false;
   if (q.quarter) {
     const last = [...s.story.quarters].reverse().find((x) => x.kind === 'met' || x.kind === 'missed');
     if (last?.kind !== q.quarter) return false;
@@ -233,7 +240,7 @@ export function applyQuery(sums: GoalSummary[], q: GoalQuery, ctx: QueryContext)
 /** Names for what a query holds by id; `col` words a module filter's value ("Measured by", "Lead time"), null when no module that's on reads it. */
 export interface QueryNames {
   team: (id: string) => string; person: (id: string) => string; goal: (id: string) => string;
-  /** A review's name, for `inreview=`. */
+  /** A review's name, for `inreview=`; left out while Reviews is off, when `inreview=` is no filter and has no words. */
   review?: (id: string) => string;
   col?: (param: string, value: string) => { label: string; value: string } | null;
 }
@@ -246,7 +253,7 @@ export function describeQuery(q: GoalQuery, names: QueryNames): { key: string; t
   if (q.status.length) out.push({ key: 'status', text: q.status.map((s) => label(STATUS_OPTIONS, s)).join(' or ') });
   if (q.level.length) out.push({ key: 'level', text: q.level.map((l) => levelName(null, l)).join(' or ') });
   if (q.team.length) out.push({ key: 'team', text: q.team.map(names.team).join(' or ') });
-  if (q.owner.length) out.push({ key: 'owner', text: 'Owned by ' + q.owner.map(names.person).join(' or ') });
+  if (q.owner.length) out.push({ key: 'owner', text: 'Owned by ' + q.owner.map((o) => (o === NOT_ME ? 'someone else' : names.person(o))).join(' or ') });
   if (q.kind.length) out.push({ key: 'kind', text: q.kind.map((k) => label(KIND_OPTIONS, k)).join(' or ') });
   if (q.attention || q.needs.length) out.push({ key: 'needs', text: ATTENTION.needs.label + (q.needs.length ? ` because: ${q.needs.map((n) => label(NEED_OPTIONS, n).toLowerCase()).join(' or ')}` : '') });
   if (q.due != null) out.push({ key: 'due', text: q.due === 'quarter' ? 'Due this quarter' : `Due by week ${q.due}` });
@@ -256,7 +263,7 @@ export function describeQuery(q: GoalQuery, names: QueryNames): { key: string; t
   if (q.feeds) out.push({ key: 'feeds', text: `In the tree of ${names.goal(q.feeds)}` });
   if (q.helps) out.push({ key: 'helps', text: 'With “also helps” links' });
   if (q.checkedin) out.push({ key: 'checkedin', text: q.checkedin === 'no' ? 'No check-in this week yet' : 'Checked in after an ask' });
-  if (q.inreview) out.push({ key: 'inreview', text: `In ${names.review?.(q.inreview) ?? 'a review'}` });
+  if (q.inreview && names.review) out.push({ key: 'inreview', text: `In ${names.review(q.inreview)}` });
   for (const [k, v] of Object.entries(q.cols ?? {})) { const c = names.col?.(k, v); if (c) out.push({ key: k, text: `${c.label} ${c.value}` }); }
   return out;
 }
@@ -271,7 +278,7 @@ export function queryParts(q: GoalQuery, names: QueryNames): FilterPart[] {
   if (q.status.length) out.push({ key: 'status', label: 'Status', values: q.status.map((s) => label(STATUS_OPTIONS, s)) });
   if (q.level.length) out.push({ key: 'level', label: 'Level', values: q.level.map((l) => levelName(null, l)) });
   if (q.team.length) out.push({ key: 'team', label: 'Team', values: q.team.map(names.team) });
-  if (q.owner.length) out.push({ key: 'owner', label: 'Owner', values: q.owner.map(names.person) });
+  if (q.owner.length) out.push({ key: 'owner', label: 'Owner', values: q.owner.map((o) => (o === NOT_ME ? 'not you' : names.person(o))) });
   if (q.kind.length) out.push({ key: 'kind', label: 'Kind', values: q.kind.map((k) => label(KIND_OPTIONS, k)) });
   if (q.needs.length) out.push({ key: 'needs', label: `${ATTENTION.needs.label} because`, values: q.needs.map((n) => label(NEED_OPTIONS, n).toLowerCase()) });
   if (q.due != null) out.push({ key: 'due', label: 'Due', values: [q.due === 'quarter' ? 'this quarter' : `by week ${q.due}`] });
@@ -281,7 +288,7 @@ export function queryParts(q: GoalQuery, names: QueryNames): FilterPart[] {
   if (q.feeds) out.push({ key: 'feeds', label: 'In the tree of', values: [names.goal(q.feeds)] });
   if (q.helps) out.push({ key: 'helps', label: 'With', values: ['“also helps” links'] });
   if (q.checkedin) out.push({ key: 'checkedin', label: 'This week', values: [q.checkedin === 'no' ? 'no check-in yet' : 'checked in after an ask'] });
-  if (q.inreview) out.push({ key: 'inreview', label: 'In', values: [names.review?.(q.inreview) ?? 'a review'] });
+  if (q.inreview && names.review) out.push({ key: 'inreview', label: 'In', values: [names.review(q.inreview)] });
   for (const [k, v] of Object.entries(q.cols ?? {})) { const c = names.col?.(k, v); if (c) out.push({ key: k, label: c.label, values: [c.value] }); }
   return out;
 }

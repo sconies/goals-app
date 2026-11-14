@@ -1,19 +1,38 @@
-/* Day one (app redesign OB3): docs/design/onboarding/spec.md rules 6 and 7, each worked example a case. */
-import { arrived, creatorOf, gettingStarted, invitedTo, inviteLink, setupSteps, stepCounter, type DayOneFacts } from './dayOne';
-import { arrivalIntro, arrivalLine, draftStopped, readInvitation } from './arrival';
+/* Day one (app redesign OB3): docs/design/onboarding/spec.md rule 7 and set-up's steps (set-up spec rule S1, small
+   workspaces rule 3), each worked example a case. */
+import { arrived, creatorOf, gettingStarted, invitedTo, inviteLink, draftStep, firstUnfilled, SETUP_STEPS, stepCounter, type DayOneFacts } from './dayOne';
+import { arrivalIntro, arrivalLine, draftStopped, howWeWork, readInvitation } from './arrival';
 import { arrive } from './actions';
 import type { Goal, Person, Snapshot } from './types';
 import { dayOneRows } from '../app/reads';
 
-describe('set-up’s steps (rule 6)', () => {
-  it('counts the path chosen', () => {
-    expect(setupSteps('product')).toHaveLength(7);
-    expect(setupSteps('blank')).toHaveLength(7);
-    expect(setupSteps('later')).toEqual(['workspace', 'you', 'team', 'start', 'check']);
-    expect(setupSteps('file')).toHaveLength(5);
-    expect(stepCounter('check', 'product')).toBe('Step 7 of 7');
-    expect(stepCounter('check', 'later')).toBe('Step 5 of 5');
-    expect(stepCounter('you', '')).toBe('Step 2');
+describe('set-up’s steps (rule S1, small workspaces rule 3)', () => {
+  const me = { name: 'Ana Silva', email: 'ana@example.com', team: 'Platform' };
+  const done = { name: 'Platform Engineering', me, start: 'own', goals: 2, file: false };
+  it('is four steps, whatever way to start is chosen', () => {
+    expect(SETUP_STEPS).toEqual(['workspace', 'people', 'goals', 'check']);
+    expect(stepCounter('check')).toBe('Step 4 of 4');
+    expect(stepCounter('people')).toBe('Step 2 of 4');
+  });
+  it('sends a later step’s address back to the first step with something missing', () => {
+    expect(firstUnfilled({ ...done, name: '' })).toBe('workspace');
+    expect(firstUnfilled({ ...done, me: { ...me, email: ' ' } })).toBe('workspace');
+    expect(firstUnfilled({ ...done, goals: 0 })).toBe('goals');
+    expect(firstUnfilled({ ...done, start: 'file', goals: 0 })).toBe('goals');
+    expect(firstUnfilled({ ...done, start: 'file', goals: 0, file: true })).toBeNull();
+    expect(firstUnfilled({ ...done, start: 'later', goals: 0 })).toBeNull();
+    // A draft from before held a template's id: it counts as "Add your own".
+    expect(firstUnfilled({ ...done, start: 'product', goals: 0 })).toBe('goals');
+    expect(firstUnfilled(done)).toBeNull();
+  });
+  it('opens a draft from before the four steps at the step its answers moved to', () => {
+    expect([0, 1, 2, 3, 4, 5, 6].map((step) => draftStep({ step }))).toEqual(['workspace', 'workspace', 'people', 'goals', 'goals', 'goals', 'check']);
+    expect(draftStep({ step: 1, v: 2 })).toBe('people');
+    expect(draftStep({ step: 9, v: 2 })).toBe('check');
+  });
+  it('says how you’ll work in one paragraph, and whether it is still the usual', () => {
+    expect(howWeWork({ reviewDay: 3, startMonth: 0, recording: false })).toEqual({ says: 'Check-ins every week, by Thursday. A weekly review on Thursdays. The year starts in January. Recording is off.', usual: true });
+    expect(howWeWork({ reviewDay: 0, startMonth: 3, recording: true })).toEqual({ says: 'Check-ins every week, by Monday. A weekly review on Mondays. The year starts in April. Recording is on.', usual: false });
   });
 });
 
@@ -134,7 +153,7 @@ describe('Welcome and the arrival (set-up spec ST1: 2.1, 2.8, rules S4 and S9)',
   });
 
   it('says where a set-up left unfinished stopped (Welcome, 2.1)', () => {
-    expect(draftStopped({ step: 2, template: '', savedAt: '2026-11-09T15:00:00Z' })).toBe('Stopped at Your team, on 9 Nov. Nothing is saved yet.');
-    expect(draftStopped({ step: 6, template: 'later' })).toBe('Stopped at step 5 of 5, Check. Nothing is saved yet.');
+    expect(draftStopped({ step: 1, v: 2, savedAt: '2026-11-09T15:00:00Z' })).toBe('Stopped at step 2 of 4, People, on 9 Nov. Nothing is saved yet.');
+    expect(draftStopped({ step: 6 })).toBe('Stopped at step 4 of 4, Check. Nothing is saved yet.');
   });
 });

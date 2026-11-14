@@ -5,7 +5,7 @@ import { moduleOffSentence } from './moduleOff';
 import type { HistoryAsk, HistoryPage } from '../ports/store';
 import { LEVEL_WORDS, levelIds } from '../domain/levels';
 import { addNote, NotAllowed } from '../domain/actions';
-import { EMPTY_QUERY, parseQuery, queryEntries, type GoalQuery } from '../domain/query';
+import { EMPTY_QUERY, NOT_ME, parseQuery, queryEntries, type GoalQuery } from '../domain/query';
 import { reviewsOn, reviewWriteRows, scopeFacts, searchRows, watchingOn } from '../app/reads';
 import { scopesFor, SCOPES, type Scope } from '../domain/goalsPage';
 import { localSearch } from '../adapters/localSearch';
@@ -29,6 +29,7 @@ import { REMOVE_TOOLS } from './removeTools';
 import MODULE_TOOLS from 'virtual:faro-modules/tools';
 import { isModuleOn, moduleById, modulesOn } from '../core/registry';
 import { writesReviews } from '../domain/reviewWrites';
+import { writesWatches } from '../domain/watchWrites';
 import { MODULE_GOAL_COLUMNS, recordsOn } from '../core/records';
 import { addColumnParams } from '../domain/query';
 import { commentsOf } from '../domain/removal';
@@ -284,7 +285,7 @@ const CORE_TOOLS: ToolDef[] = [
       level: str('Only goals at this level.', { enum: LEVELS }),
       mine: bool('Only goals you own (the same as scope "mine").'),
       scope: str('Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.', { enum: SCOPES }),
-      query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(', ')}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ['met', 'missed'])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
+      query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(', ')}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ['met', 'missed'])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks; no filter while Reviews is off), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
       view: str('The name of a saved view: one of yours, or one pinned for everyone.'),
       state: str('active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter).', { enum: ['active', 'proposed', 'stopped'] }),
       limit: { type: 'integer', minimum: 1, maximum: FIND_MAX, description: `How many goals to list, from offset: ${FIND_PAGE} unless asked, at most ${FIND_MAX}.` },
@@ -318,6 +319,9 @@ const CORE_TOOLS: ToolDef[] = [
       // Every argument becomes the Goals link it means, and the goals are found through the Search port, as the
       // screens find them (docs/design/architecture.md, 1.1): one search, one set of filters.
       const status = a.status ? statusIn(a.status) : null;
+      // `owner=-me` in a link is "not mine" (Home rule 4): the asker's own goals are left out below.
+      const notMine = query.owner.includes(NOT_ME);
+      if (notMine) query = { ...query, owner: query.owner.filter((o) => o !== NOT_ME) };
       const named = a.owner ? ctx.snapshot.people.filter((p) => p.name.toLowerCase().includes(String(a.owner).toLowerCase())).map((p) => p.id) : null;
       const owners = [query.owner.length ? query.owner : null, named, a.mine ? [ctx.actor.id] : null].filter((x): x is string[] => !!x)
         .reduce<string[] | null>((acc, x) => (acc ? acc.filter((id) => x.includes(id)) : x), null);
@@ -336,11 +340,12 @@ const CORE_TOOLS: ToolDef[] = [
       const scope = a.scope ? String(a.scope) as Scope : linkScope ? linkScope as Scope : null;
       if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
       const watchingHere = watchingOn(modulesOn(ctx.ws).on);
-      const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).tabs.find((t) => t.id === scope) : null;
-      if (scope && scope !== 'all' && !scoped) return listed(goalPage([], a, scope === 'team' ? 'You’re in no team and lead none.' : scope === 'watching' ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : 'You own no goals this year.'));
+      const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).every.find((t) => t.id === scope) : null;
+      if (scope && scope !== 'all' && (!scoped || (scope === 'mine' && !scoped.ids.length))) return listed(goalPage([], a, scope === 'team' ? 'You’re in no team and lead none.' : scope === 'watching' ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : 'You own no goals this year.'));
       const inScope = scoped ? new Set(scoped.ids) : null;
       const words = [String(a.text ?? ''), query.q].filter((x) => x.trim()).join(' ');
-      const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
+      // With Reviews off `inreview=` narrows nothing, as on Goals (build review of #424).
+      const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week, undefined, reviewsOn(modulesOn(ctx.ws).on));
       const found = await allPages(localSearch(rows), 'goal', { q: words, filters: Object.fromEntries(queryEntries({ ...asked, sort: null })), sort: asked.sort ? asked.sort + (asked.dir === -1 ? '.desc' : '') : null });
       const byId = new Map(rows.goal!().summaries.map((s) => [s.goal.id, s]));
       // A module's column in the link (?metric=, Measured by): matched as Goals matches it (core/records goalColumns), and
@@ -362,7 +367,7 @@ const CORE_TOOLS: ToolDef[] = [
       const wordsOf = (g: Goal) => `${g.title} ${g.key ?? ''}`.toLowerCase();
       let list = proposedOnly
         ? (ctx.snapshot.proposed ?? []).filter((g) => inScopeOf(g) && (!words.trim() || words.toLowerCase().split(/\s+/).every((w) => wordsOf(g).includes(w)))).map((g) => proposedSummary(g, ctx.snapshot, ctx.cycle, ctx.week))
-        : found.map((r) => byId.get(r.id)!).filter((x) => x && !isProposed(x.goal) && inScopeOf(x.goal) && cols.every((c) => c.fill(x.goal) === c.v));
+        : found.map((r) => byId.get(r.id)!).filter((x) => x && !isProposed(x.goal) && inScopeOf(x.goal) && cols.every((c) => c.fill(x.goal) === c.v) && !(notMine && x.goal.ownerId === ctx.actor.id));
       // The list, as the screen has it (Lane, 9 Nov): those that need attention, then those being handled.
       if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== 'handled'), ...list.filter((s) => attentionGroup(s.attention) === 'handled')];
       const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.state === 'proposed' ? null : s.status, statusLabel: s.statusLabel, state: s.state ?? 'active', needsAttention: needsAttention(s.attention), beingHandled: s.attention.handled?.text ?? null, lookedAt: s.attention.lookedAt?.text ?? null, because: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => withCode({ label: f.label, code: f.kind })), now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
@@ -378,7 +383,8 @@ const CORE_TOOLS: ToolDef[] = [
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
-      const j = toJson({ ws: ctx.ws, snapshot: isProposed(g) ? { ...ctx.snapshot, goals: [...ctx.snapshot.goals, g] } : ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, goals: [g] });
+      // With Reviews off, no notes said in reviews (build review of #424), as the export's JSON.
+      const j = toJson({ ws: ctx.ws, snapshot: isProposed(g) ? { ...ctx.snapshot, goals: [...ctx.snapshot.goals, g] } : ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, goals: [g], reviews: reviewsOn(modulesOn(ctx.ws).on) });
       // A proposed goal is never judged (GE10): no scorecard, no status.
       if (isProposed(g)) { const data = { cycle: j.cycle, goal: j.goals[0], state: 'proposed', notes: j.notes }; return { data, text: JSON.stringify(data, null, 2) }; }
       // The goal page's scorecard, in its words: vs plan, vs last week, to target and will it hit (domain/scorecard).
@@ -409,7 +415,7 @@ const CORE_TOOLS: ToolDef[] = [
       needs: str('A decision or help needed, and from whom.'),
       next_step: str('The next step.'),
       reason: str(`If the week already has a check-in, this corrects it: why, in a sentence (${MIN_CORRECT_REASON} to 500 characters), kept as “Why corrected”.`),
-      reading_confirmed: bool('True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded.'),
+      reading_confirmed: bool('True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded. This week’s check-in only: refused with an earlier week.'),
       different_because: { type: 'object', additionalProperties: false, required: ['kind'], description: `When the owner’s value differs from what the source reads now, why: the reading and the reason are recorded beside their number (never a flag). kind: behind (the source is behind: they have a newer number), other-count (it counts something else), wrong (it is wrong this week) or else (something else, with text of at least ${MIN_CORRECT_REASON} characters).`, properties: { kind: str('Why it differs.', { enum: ['behind', 'other-count', 'wrong', 'else'] }), text: str('In the owner’s words; needed for else.') } },
       answers: ANSWERS_ARG,
       dry_run: DRY,
@@ -423,6 +429,8 @@ const CORE_TOOLS: ToolDef[] = [
       let readings: ChangeInput['readings'];
       let readSays = '';
       if (asksReading) {
+        // A source reads what it says now, so a reading goes with this week's check-in only (review of #437, medium 2).
+        if (typeof a.week === 'number' && a.week !== ctx.week) return { isError: true, text: `reading_confirmed and different_because are for this week’s check-in (week ${ctx.week}) only: a source reads what it says now, not what it said in week ${a.week}. Post week ${a.week} with its value and without them.` };
         const reader = checkInReaders()[0];
         if (reader && !isModuleOn(ctx.ws, reader.module)) return { isError: true, text: moduleOffSentence(moduleById(reader.module)?.name ?? reader.module, ctx.ws.name, 'post_check_in with reading_confirmed or different_because') };
         const got = reader ? await reader.read(ctx, g, { value: typeof a.value === 'number' ? a.value : null, confirmed: a.reading_confirmed === true, ...(diff ? { why: diff } : {}) }) : { reading: null, says: 'No number source can be read here, so no reading was recorded.' };
@@ -571,9 +579,10 @@ export async function callTool(name: string, args: Record<string, unknown>, ctx:
   const from = TOOL_MODULE.get(name);
   if (from && !isModuleOn(ctx.ws, from)) return { isError: true, text: moduleOffSentence(moduleById(from)?.name ?? from, ctx.ws.name, name) };
   try {
-    return await t.run(args ?? {}, reviewsOn(modulesOn(ctx.ws).on) ? ctx : reviewsGuarded(ctx, name));
+    const on = modulesOn(ctx.ws).on;
+    return await t.run(args ?? {}, reviewsOn(on) && watchingOn(on) ? ctx : switchesGuarded(ctx, name, !reviewsOn(on), !watchingOn(on)));
   } catch (e) {
-    if (e instanceof ReviewsOff) return { isError: true, text: e.message };
+    if (e instanceof SwitchedOff) return { isError: true, text: e.message };
     const text = e instanceof Error ? e.message : String(e);
     // A refusal says who the token acts as, so an assistant (and the person reading) can tell "the rule says no" from "this
     // token is someone else's" (backlog N: a token made for a non-admin was taken for an admin's).
@@ -581,19 +590,23 @@ export async function callTool(name: string, args: Record<string, unknown>, ctx:
   }
 }
 
-/** A save refused because it writes Reviews' records while Reviews is off: said as the switched-off sentence alone. */
-class ReviewsOff extends Error {}
+/** A save refused because it writes a switched-off module's records (Reviews', Watching's): said as the switched-off
+    sentence alone. */
+class SwitchedOff extends Error {}
 
 /**
- * The context a tool runs with while Reviews is off: the same, except that a save writing Reviews' records (a review, a
- * note said in one, an ask raised in one, a goal proposed in one: domain/reviewWrites) is refused and saves nothing, in
- * the switched-off sentence, whichever tool made it (build review of #371: edit_comment and delete_comment on a review
- * note, create_goal proposed in a review, restore_removed reopening an ended review). Everything else reads and writes
- * through to the context itself, which a save moves on.
+ * The context a tool runs with while Reviews or Watching is off: the same, except that a save writing the switched-off
+ * module's records is refused and saves nothing, in the switched-off sentence, whichever tool made it. Reviews': a
+ * review, a note said in one, an ask raised in one, a goal proposed in one (domain/reviewWrites; build review of #371:
+ * edit_comment and delete_comment on a review note, create_goal proposed in a review, restore_removed reopening an ended
+ * review). Watching's: a watch started, stopped or brought back (domain/watchWrites; build review of #444:
+ * restore_removed on a stopped watch). Everything else reads and writes through to the context itself, which a save
+ * moves on.
  */
-function reviewsGuarded(ctx: McpContext, tool: string): McpContext {
+function switchesGuarded(ctx: McpContext, tool: string, reviewsOff: boolean, watchingOff: boolean): McpContext {
   const save = async (c: Commit) => {
-    if (writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new ReviewsOff(moduleOffSentence('Reviews', ctx.ws.name, tool));
+    if (reviewsOff && writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new SwitchedOff(moduleOffSentence('Reviews', ctx.ws.name, tool));
+    if (watchingOff && writesWatches(c)) throw new SwitchedOff(moduleOffSentence('Watching', ctx.ws.name, tool));
     return ctx.save(c);
   };
   return new Proxy(ctx, { get: (t, k, r) => (k === 'save' ? save : Reflect.get(t, k, r)) });

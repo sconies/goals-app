@@ -146,7 +146,7 @@ No arguments.
 | `level` | one of `north-star`, `svp`, `team` | no | Only goals at this level. |
 | `mine` | boolean | no | Only goals you own (the same as scope "mine"). |
 | `scope` | one of `mine`, `team`, `watching`, `all` | no | Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why. |
-| `query` | string | no | A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned)), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the Needs attention list, those being handled below the rest), needs (because: Off track (off), Missed its own date (missed-path), No recent update (stale), Decision or help needed (decision), No path to green (no-path), At risk (risk), Getting worse (trend), Greener than calculated (greener), Date slipped (slipped)), due (quarter or a week), quiet (no update for this many weeks), qtr (Met (met), Not met (missed)), result (Met (completed), Met late (late), Not met (missed), Not finished yet (open)), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse). |
+| `query` | string | no | A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned)), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the Needs attention list, those being handled below the rest), needs (because: Off track (off), Missed its own date (missed-path), No recent update (stale), Decision or help needed (decision), No path to green (no-path), At risk (risk), Getting worse (trend), Greener than calculated (greener), Date slipped (slipped)), due (quarter or a week), quiet (no update for this many weeks), qtr (Met (met), Not met (missed)), result (Met (completed), Met late (late), Not met (missed), Not finished yet (open)), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks; no filter while Reviews is off), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse). |
 | `view` | string | no | The name of a saved view: one of yours, or one pinned for everyone. |
 | `state` | one of `active`, `proposed`, `stopped` | no | active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter). |
 | `limit` | integer | no | How many goals to list, from offset: 50 unless asked, at most 200. |
@@ -200,7 +200,7 @@ No arguments.
     },
     "query": {
       "type": "string",
-      "description": "A Goals link’s query string, e.g. \"scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap\". Keys: scope (as the scope argument, which wins if both are given), q, status (Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned)), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the Needs attention list, those being handled below the rest), needs (because: Off track (off), Missed its own date (missed-path), No recent update (stale), Decision or help needed (decision), No path to green (no-path), At risk (risk), Getting worse (trend), Greener than calculated (greener), Date slipped (slipped)), due (quarter or a week), quiet (no update for this many weeks), qtr (Met (met), Not met (missed)), result (Met (completed), Met late (late), Not met (missed), Not finished yet (open)), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse)."
+      "description": "A Goals link’s query string, e.g. \"scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap\". Keys: scope (as the scope argument, which wins if both are given), q, status (Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned)), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the Needs attention list, those being handled below the rest), needs (because: Off track (off), Missed its own date (missed-path), No recent update (stale), Decision or help needed (decision), No path to green (no-path), At risk (risk), Getting worse (trend), Greener than calculated (greener), Date slipped (slipped)), due (quarter or a week), quiet (no update for this many weeks), qtr (Met (met), Not met (missed)), result (Met (completed), Met late (late), Not met (missed), Not finished yet (open)), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks; no filter while Reviews is off), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse)."
     },
     "view": {
       "type": "string",
@@ -453,7 +453,7 @@ No arguments.
         kind: string;
         by: string;
         text: string;
-    }[];
+    }[] | undefined;
 }
 ```
 
@@ -634,7 +634,7 @@ No arguments.
         kind: string;
         by: string;
         text: string;
-    }[];
+    }[] | undefined;
     comments: {
         id: string;
         by: string;
@@ -678,7 +678,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `needs` | string | no | A decision or help needed, and from whom. |
 | `next_step` | string | no | The next step. |
 | `reason` | string | no | If the week already has a check-in, this corrects it: why, in a sentence (10 to 500 characters), kept as “Why corrected”. |
-| `reading_confirmed` | boolean | no | True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded. |
+| `reading_confirmed` | boolean | no | True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded. This week’s check-in only: refused with an earlier week. |
 | `different_because` | object | no | When the owner’s value differs from what the source reads now, why: the reading and the reason are recorded beside their number (never a flag). kind: behind (the source is behind: they have a newer number), other-count (it counts something else), wrong (it is wrong this week) or else (something else, with text of at least 10 characters). |
 | `different_because.kind` | one of `behind`, `other-count`, `wrong`, `else` | yes | Why it differs. |
 | `different_because.text` | string | no | In the owner’s words; needed for else. |
@@ -769,7 +769,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
     },
     "reading_confirmed": {
       "type": "boolean",
-      "description": "True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded."
+      "description": "True when the owner has confirmed the number their goal’s metric source reads now (get_goal’s metric names the source): it is read again here and recorded with the check-in, and `value` may be left out to post it. Left out: nothing is read or recorded. This week’s check-in only: refused with an earlier week."
     },
     "different_because": {
       "type": "object",
@@ -839,6 +839,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 **Refuses with:**
 
 - “There's no goal with … … in …. Use find_goals to get IDs and keys.”
+- “reading_confirmed and different_because are for this week’s check-in (week …) only: a source reads what it says now, not what it said in week …. Post week … with its value and without them.”
 - ““…” isn’t a status here. Use one of: ….”
 - “Not checked. …”
 - “Not saved. Must fix:
@@ -3231,7 +3232,7 @@ No arguments.
 
 ## set_feature
 
-**Switch a feature on or off.** Admins: switch one of Faro's optional features (its modules) on or off in this workspace. Off, it leaves every screen: no page, menu or tool of its own, here or for assistants; anything that needs it goes off with it. Nothing it saved is deleted, and switching it back on brings it all back. The change is logged. The features: feedback (Feedback: Send feedback about Faro, or mark up a screen. It goes to the people who build Faro.); goal-map (Goal map: See every goal and what feeds it on one canvas, with the path the risk runs along.); metrics (Metric library: Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.); reviews (Reviews: Walk a set of goals together on a cadence, decide what happens next and keep what was said.); spreadsheets (Spreadsheets: Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.); watching (Watching: Follow goals you don’t own: they show on your Home and under Watching in Goals.); wrap-up (Wrap-up: At the end of the year, each owner says how their goals landed and what they learned.).
+**Switch a feature on or off.** Admins: switch one of Faro's optional features (its modules) on or off in this workspace. Off, it leaves every screen: no page, menu or tool of its own, here or for assistants; anything that needs it goes off with it. Nothing it saved is deleted, and switching it back on brings it all back. The change is logged. The features: feedback (Feedback: Send feedback about Faro, or mark up a screen. It goes to the people who build Faro.); goal-map (Goal map: See every goal and what feeds it on one canvas, with the path the risk runs along.); metrics (Metric library: Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.); reviews (Reviews: Walk a set of goals together on a cadence, decide what happens next and keep what was said.); spreadsheets (Spreadsheets: Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.); tags (Fields: Give goals a workspace’s own fields, such as a stage or a programme, to find and sort them by.); watching (Watching: Follow goals you don’t own: they show on your Home and under Watching in Goals.); wrap-up (Wrap-up: At the end of the year, each owner says how their goals landed and what they learned.).
 
 **Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
 
@@ -3239,7 +3240,7 @@ No arguments.
 
 | Argument | Type | Needed | What it is |
 |---|---|---|---|
-| `feature` | one of `feedback`, `goal-map`, `metrics`, `reviews`, `spreadsheets`, `watching`, `wrap-up` | yes | The feature’s id. |
+| `feature` | one of `feedback`, `goal-map`, `metrics`, `reviews`, `spreadsheets`, `tags`, `watching`, `wrap-up` | yes | The feature’s id. |
 | `on` | boolean | yes | true to switch it on, false to switch it off. |
 
 <details><summary>The input schema, as JSON</summary>
@@ -3262,6 +3263,7 @@ No arguments.
         "metrics",
         "reviews",
         "spreadsheets",
+        "tags",
         "watching",
         "wrap-up"
       ]
@@ -4735,6 +4737,10 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `caveats` | string | no | What to watch out for when reading it. |
 | `measurement` | one of `measured`, `partly`, `gap` | no | Whether it is measured today: “measured” (in full), “partly” (some of it, or not every period; say what’s missing) or “gap” (nobody measures it yet). Goals measured by a metric with a gap are held to no number until it is measured, and need no made-up baseline. Measured when left out of a new metric. |
 | `measurement_note` | string | no | What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured. |
+| `parent` | string | no | The metric it sits under, by ID or name: what it is a component, driver, control or breakdown of. Empty for none. |
+| `level` | one of `component`, `driver`, `control`, `breakdown`, `` | no | How it relates to its parent: “component” (part of its number), “driver” (moves it), “control” (watched so improving the parent breaks nothing else) or “breakdown” (the parent split one way). Needs a parent. Empty for not said. |
+| `confidence` | one of `high`, `medium`, `low`, `` | no | How far its number can be trusted: “high”, “medium” or “low”. Empty for not said. |
+| `gaming` | string | no | How the number could be gamed, in words (up to 500 characters). Empty for not said. |
 | `confirm` | boolean | no | Kept for older callers; the questions below replace it. |
 | `comparable` | boolean | no | When the meaning or source of a metric goals use changes: true if it is still the same number (better words; nothing is marked), false if the number itself changes from this week (its goals’ charts and History say so; give reason). |
 | `reason` | string | no | Why, in a line (up to 300 characters): required when the number itself changes (comparable false) or the direction changes. Every goal measured by it shows this. |
@@ -4822,6 +4828,35 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
     "measurement_note": {
       "type": "string",
       "description": "What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured."
+    },
+    "parent": {
+      "type": "string",
+      "description": "The metric it sits under, by ID or name: what it is a component, driver, control or breakdown of. Empty for none."
+    },
+    "level": {
+      "type": "string",
+      "description": "How it relates to its parent: “component” (part of its number), “driver” (moves it), “control” (watched so improving the parent breaks nothing else) or “breakdown” (the parent split one way). Needs a parent. Empty for not said.",
+      "enum": [
+        "component",
+        "driver",
+        "control",
+        "breakdown",
+        ""
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "description": "How far its number can be trusted: “high”, “medium” or “low”. Empty for not said.",
+      "enum": [
+        "high",
+        "medium",
+        "low",
+        ""
+      ]
+    },
+    "gaming": {
+      "type": "string",
+      "description": "How the number could be gamed, in words (up to 500 characters). Empty for not said."
     },
     "confirm": {
       "type": "boolean",
@@ -5251,6 +5286,7 @@ From the [reviews](../modules/reviews/README.md) module: switched off with it.
     reviewed: number;
     of: number;
     beforeThisReview: {
+        heading: string;
         says: string;
         due: number;
         inTime: number;
@@ -5682,6 +5718,20 @@ From the [spreadsheets](../modules/spreadsheets/README.md) module: switched off 
 
 ```ts
 {
+    notes?: {
+        at: string;
+        status?: AskStatus | undefined;
+        statusLabel?: string | undefined;
+        answer?: string | null | undefined;
+        who?: string | null | undefined;
+        dueWeek?: number | null | undefined;
+        goalId: string;
+        goalKey: string | null;
+        week: number;
+        kind: string;
+        by: string;
+        text: string;
+    }[] | undefined;
     format: string;
     version: number;
     exportedAt: string;
@@ -5868,24 +5918,10 @@ From the [spreadsheets](../modules/spreadsheets/README.md) module: switched off 
         source: string | null;
         definition: string | null;
     }[];
-    notes: {
-        at: string;
-        status?: AskStatus | undefined;
-        statusLabel?: string | undefined;
-        answer?: string | null | undefined;
-        who?: string | null | undefined;
-        dueWeek?: number | null | undefined;
-        goalId: string;
-        goalKey: string | null;
-        week: number;
-        kind: string;
-        by: string;
-        text: string;
-    }[];
 }
 ```
 
-The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate](data-model.md#stageupdate), [Status](data-model.md#status), [Cause](data-model.md#cause), [RecoveryState](data-model.md#recoverystate), [PlanShape](data-model.md#planshape), [AskStatus](data-model.md#askstatus).
+The records it names: [AskStatus](data-model.md#askstatus), [DisplayStatus](data-model.md#displaystatus), [StageUpdate](data-model.md#stageupdate), [Status](data-model.md#status), [Cause](data-model.md#cause), [RecoveryState](data-model.md#recoverystate), [PlanShape](data-model.md#planshape).
 
 **Refuses with:**
 

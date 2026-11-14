@@ -34,7 +34,7 @@ export const metricToRow = (ws: string, m: Metric): DbRow => ({
   // MS (migration 0046): always written, as the NOT NULL columns are, for the same reason.
   measurement: m.measurement ?? 'measured', measurement_note: m.measurement && m.measurement !== 'measured' ? m.measurementNote ?? '' : '',
   retired_at: m.retiredAt ?? null, retired_by: m.retiredBy ?? null, retired_why: m.retiredWhy ?? '', replaced_by: m.replacedBy ?? null, marks: m.marks ?? [],
-  // MQ (migration 0052): always written, null when not said, so a mixed batch never leaves a key out.
+  // MQ (migration 0054): always written, null when not said, so a mixed batch never leaves a key out.
   level: m.level ?? null, parent_id: m.parentId ?? null, confidence: m.confidence ?? null, gaming: m.gaming || null,
 });
 export const metricFromRow = (r: DbRow): Metric => ({

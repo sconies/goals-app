@@ -53,6 +53,15 @@ describe('changes.csv (stage 2’s drill)', () => {
     expect(items('saves-plan-with-reason')[0]![col('needs_reason')]).toBe('yes');
     expect(items('saves-person')[0]![col('diffs')]).toContain('Team: CI/CD → Build & Release');
   });
+
+  it('an admin’s correction of someone else’s check-in keeps its author, with the reason first (Lane, 14 Nov)', () => {
+    expect(head('corrects-keeps-author')[col('saves')]).toBe('yes');
+    const [it] = items('corrects-keeps-author');
+    expect(it![col('kind')]).toBe('replaces check-in');
+    expect(it![col('author')]).not.toBe('');
+    expect(it![col('author')]).not.toBe('amara');
+    expect(it![col('diffs')]).toMatch(/^Why corrected: — → The tracker had last week’s number in it/);
+  });
 });
 
 describe('import.csv covers every issue kind (KT gap 2)', () => {
