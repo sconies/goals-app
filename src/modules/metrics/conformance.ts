@@ -14,6 +14,8 @@ import { goalsOfMetric, libraryReads, lineOf } from './reads';
 import { demoReadingAt } from './numbers';
 import { readingState } from './rulesReading';
 import { sliceOf } from './source';
+import { describe, planChanges, type Answers, type Tables } from '../../domain/changeset';
+import { METRICS_SHEET } from './sheet';
 
 /** Rule 1's searches: the spec's worked examples, and each filter and order once. */
 export const LIBRARY_ASKS: LibraryAsk[] = [
@@ -69,8 +71,32 @@ export function metricRowsOf(w: ConformanceWorkspace, asOf: (w: ConformanceWorks
       out.push(blank('reading', m.id, i + 1, { goal: goal.key ?? goal.id, slice: [l.teamId ?? 'company', l.part ?? ''].filter(Boolean).join(' · '), reading: r === 'no-slice' ? 'no-slice' : r ? `${r.value} at ${r.at}` : 'none', state: readingState(r, last?.reading ?? null, last?.value ?? null, moment, null, m.decimals) }));
     });
   }
+  // The Metrics sheet loaded back (MI): each case's rows through the import's engine and this module's planner, as Amara.
+  const amara = s.people.find((p) => p.id === 'amara')!;
+  const used = metricsOf(s).find((m) => !m.removedAt && !m.retiredAt && everUsed(m.id, linksOf(s)))!;
+  const spare = metricsOf(s).find((m) => !m.removedAt && !m.retiredAt && !everUsed(m.id, linksOf(s)))!;
+  let k = 0;
+  for (const c of SHEET_CASES(used, spare)) {
+    const tables: Tables = { modules: { Metrics: c.rows.map((r, i) => ({ ...Object.fromEntries(Object.entries(r).map(([h, v]) => [h.toLowerCase(), v])), __row: String(i + 2) })) } };
+    const cs = planChanges({ tables, snapshot: s, cycle, week, actor: amara, now: w.builtFor, newId: (p) => `${p}_conf${++k}`, via: 'spreadsheet', records: [{ module: 'metrics', records: [], sheets: [METRICS_SHEET] }], answers: c.answers ?? {} });
+    out.push(blank('sheet', c.case, 1, { total: String(cs.items.length), summary: describe(cs), needs: cs.issues.filter((x) => x.level !== 'note').map((x) => `${x.level === 'must' ? 'Must fix' : 'Check'}: ${x.message}`).join(' | '), state: cs.commit ? 'saves' : 'refused' }));
+  }
   return out;
 }
+
+/** The Metrics sheet's worked cases (MI): rows as a file gives them, by the demo's first used and first unused metric. */
+const SHEET_CASES = (used: { id: string; name: string; unit: string; meaning: string }, spare: { id: string }): { case: string; rows: Record<string, string>[]; answers?: Answers }[] => [
+  { case: 'adds', rows: [{ Metric: 'Retried test share', Unit: '%', Direction: 'Lower is better' }] },
+  { case: 'changes-caveats', rows: [{ ID: spare.id, Caveats: 'Read with the release calendar.' }] },
+  { case: 'unknown-id', rows: [{ ID: 'metric_nope', Metric: 'Nope' }] },
+  { case: 'name-twice', rows: [{ Metric: 'Queue depth', Unit: 'jobs', Direction: 'Lower is better' }, { Metric: 'Queue depth', Unit: 'jobs', Direction: 'Lower is better' }] },
+  { case: 'direction-unread', rows: [{ Metric: 'Queue depth', Unit: 'jobs', Direction: 'sideways' }] },
+  { case: 'unit-on-used', rows: [{ ID: used.id, Unit: `${used.unit}x` }] },
+  { case: 'meaning-on-used', rows: [{ ID: used.id, Meaning: `${used.meaning} Counted per service.` }] },
+  { case: 'retire-no-reason', rows: [{ ID: spare.id, Action: 'Retire' }] },
+  { case: 'retire', rows: [{ ID: spare.id, Action: 'Retire', Reason: 'Replaced by the new dashboard.' }] },
+  { case: 'bring-back-in-use', rows: [{ ID: spare.id, Action: 'Bring back' }] },
+];
 
 /** The goals whose links count at the moment: those rule 2 lists for any metric (a live goal of the cycle). */
 const goalsOfMetricIds = (s: Snapshot, cycle: ConformanceWorkspace['cycle'], moment: Date, week: number, live: readonly { id: string }[]) =>

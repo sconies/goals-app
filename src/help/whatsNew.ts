@@ -27,6 +27,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'metrics-sheet-in',
+    date: '2026-11-14',
+    title: 'Import metrics from a spreadsheet',
+    points: [
+      'The Metrics sheet now loads back: add or change hundreds of metrics at once, with every change shown first.',
+      'Leave ID empty to add a metric; give its ID, or its name, to change one. Action retires one, with a Reason, or brings one back.',
+      'The same questions as the metric’s form are asked once, and one Undo puts every row back. AI tools can send the same rows to bulk_change.',
+    ],
+    articles: ['metric-sheet'],
+  },
+  {
     id: 'goal-guardrails',
     date: '2026-11-14',
     title: 'Guardrails on a goal',

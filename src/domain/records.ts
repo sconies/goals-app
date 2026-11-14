@@ -16,6 +16,7 @@
 
    Plain TypeScript, like the rest of src/domain: no database, screen or network code. */
 import type { Commit } from './commit';
+import type { SheetPlanner } from './sheetPlan';
 import type { ActionContext } from './actions';
 import type { Cell, Ctx, ExportInput, SheetSpec } from './columns';
 import type { Cycle, Goal } from './types';
@@ -75,13 +76,18 @@ export interface RecordDef<T extends ModuleRow = ModuleRow> {
   };
 }
 
-/** A sheet a module adds to the workbook (domain/export), after the core's and before the README. For reading only. */
+/** A sheet a module adds to the workbook (domain/export), after the core's and before the README. For reading only,
+    unless its spec is `loaded` and it gives a planner (MI: Metrics), which the import's engine runs (domain/sheetPlan). */
 export interface ModuleSheet<C = unknown> {
   spec: SheetSpec<C, string>;
   /** The columns that say which record a row is (always written by a table from Data). */
   keys: string[];
   /** Its rows: what the export carries, for the goals it exports. */
   rows(x: ExportInput, c: Ctx, goalIds: ReadonlySet<string>): C[];
+  /** A loaded sheet: what its rows would do, with the module's own rules. */
+  plan?: SheetPlanner;
+  /** A header row made by hand that is this sheet (lower-case headers), beside the export's own. */
+  has?: (headers: ReadonlySet<string>) => boolean;
 }
 
 /**

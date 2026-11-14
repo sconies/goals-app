@@ -2,9 +2,11 @@
    data both ways: the two functions in the engine's input are made on the worker's side. */
 import type { ChangeInput, ChangeSet, PlanProgress } from '../../domain/changeset';
 import type { GoalMeasure, ModuleRecords } from '../../domain/records';
+import { MODULE_RECORDS } from '../../core/records';
 
 /** What the page sends: the engine's input without its functions, and what measures each goal. */
-export interface CheckRequest { input: Omit<ChangeInput, 'newId' | 'records'>; measures: Record<string, GoalMeasure> }
+/** `planners`: the modules whose own sheet the file has (MI: Metrics); the worker takes their records from the build. */
+export interface CheckRequest { input: Omit<ChangeInput, 'newId' | 'records'>; measures: Record<string, GoalMeasure>; planners?: string[] }
 /** What the worker sends back: progress as it goes, then the change set, or why it couldn't. */
 export type CheckReply = { type: 'progress'; progress: PlanProgress } | { type: 'items'; items: ChangeSet['items'] } | { type: 'issues'; issues: ChangeSet['issues'] } | { type: 'done'; cs: ChangeSet } | { type: 'error'; message: string };
 
@@ -16,7 +18,7 @@ const newId = (prefix: string) => prefix + '_' + Math.random().toString(36).slic
 
 /** The engine's input, its functions put back. */
 export function inputOf(req: CheckRequest): ChangeInput {
-  const records: ModuleRecords[] = [{ module: 'measures', records: [], measures: (_s, goalId) => req.measures[goalId] ?? null }];
+  const records: ModuleRecords[] = [{ module: 'measures', records: [], measures: (_s, goalId) => req.measures[goalId] ?? null }, ...MODULE_RECORDS.filter((m) => req.planners?.includes(m.module))];
   return { ...req.input, newId, records };
 }
 

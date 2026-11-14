@@ -238,24 +238,28 @@ Always written by a table from Data: Goal key, Goal ID.
 
 ## Metrics
 
-One row per metric in the library. The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Metrics are added and changed in the app. Not loaded back.
+One row per metric in the library. The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Load it back to add or change many metrics at once: by ID, or by name for a new one; an empty ID adds it. Action retires one or brings it back.
 
 | Column | Kind | What it means | When loaded back |
 |---|---|---|---|
-| ID | Matches the row | The metric’s identity. | Not loaded back |
-| Metric | For reading | Its name. | Not loaded back |
-| Meaning | For reading | What it means and how it’s calculated. | Not loaded back |
-| Unit | For reading | Its unit. | Not loaded back |
-| Decimals | For reading | Places after the decimal point it’s shown with. | Not loaded back |
-| Direction | For reading | Higher is better or Lower is better. | Not loaded back |
-| Source | For reading | Where the number comes from. | Not loaded back |
-| Source owner | For reading | Who owns that source. | Not loaded back |
-| Refresh | For reading | How often the source refreshes: Live, Hourly, Daily, Weekly, Monthly or Quarterly, or empty when nobody has said. | Not loaded back |
-| Owner | For reading | Who answers for the definition. | Not loaded back |
-| Owner email | For reading | Who answers for it, by email. | Not loaded back |
-| Caveats | For reading | What to watch out for when reading it. | Not loaded back |
-| Measures | For reading | The goals it measures, each with its slice: a team, or the whole company. | Not loaded back |
-| Goal keys | For reading | Their keys. | Not loaded back |
+| ID | Matches the row | The metric’s identity. Empty for a new metric. | Matches the row to its record; it never changes |
+| Metric | You can change it | Its name: 3 to 120 characters, used by one metric. | Changed when loaded back |
+| Action | What to do with the row | Retire or Bring back; empty for none. Retiring needs a Reason. | Done when loaded back, with the same rules and preview as the app |
+| Meaning | You can change it | What it means and how it’s calculated: what is counted, out of what or over what period, what is left out. | Changed when loaded back |
+| Unit | You can change it | Its unit, as it follows a number (%, min, deploys). A file can’t change the unit of a metric goals use. | Changed when loaded back |
+| Decimals | You can change it | Places after the decimal point it’s shown with: 0 to 4. | Changed when loaded back |
+| Direction | You can change it | Higher is better or Lower is better. | Changed when loaded back |
+| Source | You can change it | Where the number comes from: a dashboard, a query, a report. | Changed when loaded back |
+| Source owner | You can change it | Who owns that source: a team or a person. | Changed when loaded back |
+| Refresh | You can change it | How often the source refreshes: Live, Hourly, Daily, Weekly, Monthly or Quarterly, or empty when nobody has said. | Changed when loaded back |
+| Owner | You can change it | Who answers for the definition, by name (Owner email wins when both are given). | Changed when loaded back |
+| Owner email | You can change it | Who answers for it, by email; empty on a new metric: whoever loads the file. | Changed when loaded back |
+| Caveats | You can change it | What to watch out for when reading it. | Changed when loaded back |
+| Reason | You can change it | Why: needed to retire it, or when a change to its meaning or direction changes the number its goals show. | Changed when loaded back |
+| Still to say | Worked out | Fully defined, or what it still needs to say. | Worked out by the app; ignored when loaded back |
+| Retired on | Worked out | The day it was retired; empty while it is in use. | Worked out by the app; ignored when loaded back |
+| Measures | For reading | The goals it measures, each with its slice: a team, or the whole company. | For reading; not loaded back from this sheet |
+| Goal keys | For reading | Their keys. | For reading; not loaded back from this sheet |
 
 Always written by a table from Data: ID.
 

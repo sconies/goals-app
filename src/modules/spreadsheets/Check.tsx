@@ -7,13 +7,13 @@ import { Link, Navigate, useNavigate } from 'react-router';
 import { useApp } from '../../app/state';
 import { saveAndSay } from '../../app/files';
 import { readChanges } from '../../app/spreadsheet';
-import { exportOn } from '../../core/records';
+import { exportOn, sheetHeadsFor } from '../../core/records';
 import { describe, sheetCounts, type ChangeSet } from '../../domain/changeset';
 import { workbook } from '../../domain/export';
 import { leaveOut } from '../../domain/leaveOut';
 import { questionsLine, type Answer, type IssueGroup, type Sheet } from '../../domain/problemLevels';
 import { CHANGES_SAVE_MAX, tooLarge } from '../../domain/importLimits';
-import { headerRowsLine, parseDelimited, readLine, readTables, type ReadTables, type Tables } from '../../domain/sheets';
+import { headerRowsLine, parseDelimited, readKindOf, readLine, readTables, rowsOfSheet, type ReadTables, type Tables } from '../../domain/sheets';
 import { workedOutEdits } from '../../domain/workedOut';
 import { useMark } from '../../telemetry/react';
 import { Sheet as SheetBox, WarnMark } from '../../ui/bits';
@@ -31,7 +31,6 @@ import './import.css';
 
 
 const SHEETS: Sheet[] = ['Goals', 'Plan', 'Check-ins', 'People'];
-const KEY: Record<Sheet, keyof Tables> = { Goals: 'goals', Plan: 'plan', 'Check-ins': 'checkIns', People: 'people' };
 const n = (k: number, one: string, many = one + 's') => `${k.toLocaleString('en-GB')} ${k === 1 ? one : many}`;
 const blank = (r: Record<string, string>) => Object.entries(r).every(([k, v]) => k === '__row' || !String(v).trim());
 /** While a save runs, the page that asked for it: the plan worked out again against what was just saved would flash
@@ -55,12 +54,12 @@ function take(got: ReadTables, name: string, onProblem: (text: string, template?
 }
 
 /** Reads a chosen file into the import, staying on the preview. Shared by Import and the preview's own "Choose…". */
-export async function chooseFile(f: File | undefined, onProblem: (text: string, template?: boolean) => void): Promise<boolean> {
+export async function chooseFile(f: File | undefined, onProblem: (text: string, template?: boolean) => void, ws?: { modulesOff?: readonly string[] } | null): Promise<boolean> {
   if (!f) return false;
   const big = tooLarge(f.name, { bytes: f.size });
   if (big) { onProblem(big); return false; }
   let got: ReadTables;
-  try { got = await readChanges(f); } catch {
+  try { got = await readChanges(f, ws); } catch {
     onProblem(`Faro can’t read ${f.name}. Save it as .xlsx or .csv and try again.`);
     return false;
   }
@@ -68,9 +67,9 @@ export async function chooseFile(f: File | undefined, onProblem: (text: string, 
 }
 
 /** Rows pasted from a spreadsheet (tab-separated, the header row first), read as a file called “Pasted rows”. */
-export function choosePaste(text: string, onProblem: (text: string) => void): boolean {
+export function choosePaste(text: string, onProblem: (text: string) => void, ws?: { modulesOff?: readonly string[] } | null): boolean {
   // Blank lines stay, so the rows keep the numbers they had where they were copied from (IM5 review).
-  const got = readTables([{ name: 'Pasted rows', rows: parseDelimited(text, { keepBlank: true }) }]);
+  const got = readTables([{ name: 'Pasted rows', rows: parseDelimited(text, { keepBlank: true }) }], sheetHeadsFor(ws));
   if (!got.read.length) { onProblem('The first row should be the headers (Goal, Owner, Start…). Copy them from here:'); return false; }
   return take(got, 'Pasted rows', onProblem);
 }
@@ -78,7 +77,7 @@ export function choosePaste(text: string, onProblem: (text: string) => void): bo
 export function Check() {
   const app = useApp();
   // With Reviews off (RS, spec 5) the Notes sheet and a Review column on Asks are not read, and the file line says so once.
-  const lineOpts = exportOn(app.ws).reviews ? {} : { reviewsOff: app.ws.name };
+  const lineOpts = { workspace: app.ws.name, ...(exportOn(app.ws).reviews ? {} : { reviewsOff: app.ws.name }) };
   const nav = useNavigate();
   const plan = useImportPlan();
   const { st, base, left, otherWorkspace, toSave, run, tables } = plan;
@@ -94,7 +93,7 @@ export function Check() {
   useMark(cs ? 'import.read' : null);
 
   const choose = () => { if (file.current) file.current.value = ''; file.current?.click(); };
-  const picker = <input ref={file} type="file" accept=".xlsx,.zip,.csv,.tsv,.txt" className="sr" tabIndex={-1} aria-label="Choose a spreadsheet" onChange={(e) => void chooseFile(e.target.files?.[0], setProblem).then((ok) => ok && setProblem(''))} />;
+  const picker = <input ref={file} type="file" accept=".xlsx,.zip,.csv,.tsv,.txt" className="sr" tabIndex={-1} aria-label="Choose a spreadsheet" onChange={(e) => void chooseFile(e.target.files?.[0], setProblem, app.ws).then((ok) => ok && setProblem(''))} />;
 
   // A reload loses the file (it was only ever in memory): back to Import, which says so.
   if (!st.read || !base) return <Navigate to="/data/import" replace state={{ lost: true }} />;
@@ -250,9 +249,9 @@ export function Check() {
 /** Counts by sheet (2.3, item 2; domain/changeset sheetCounts): a table from 700 px; below, one sentence per sheet with
     the zero parts left out. */
 function Counts({ cs, base, read }: { cs: ChangeSet; base: Tables; read: { name: string; kind: string }[] }) {
-  const rows = SHEETS.filter((sh) => read.some((r) => r.kind === KEY[sh])).map((sh) => ({
-    sheet: read.find((r) => r.kind === KEY[sh])!.name,
-    read: (base[KEY[sh]] ?? []).filter((r) => !blank(r)).length,
+  const rows = [...SHEETS, ...Object.keys(base.modules ?? {})].filter((sh) => read.some((r) => r.kind === readKindOf(sh))).map((sh) => ({
+    sheet: read.find((r) => r.kind === readKindOf(sh))!.name,
+    read: (rowsOfSheet(base, sh) ?? []).filter((r) => !blank(r)).length,
     ...sheetCounts(cs, sh),
   }));
   const sentence = (r: (typeof rows)[number]) => {

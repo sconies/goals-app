@@ -71,7 +71,7 @@ export const MUST_KINDS = [
 export const CHECK_KINDS = [
   'near-ref', 'near-word', 'near-header', 'two-columns', 'new-team', 'same-person', 'same-goal', 'other-goal', 'other-workspace', 'past-stage',
   'past-plan', 'odd-number', 'plan-question', 'no-unit', 'decimal-comma', 'replaces-others', 'many-admins', 'totals-row', 'big-removal',
-  'feeds-lower', 'for-someone-else',
+  'feeds-lower', 'for-someone-else', 'same-number', 'aim-changes',
 ] as const;
 /** How a row was read: fine, and said on the change. */
 export const NOTE_KINDS = ['by-name', 'default', 'date-as-week', 'folded', 'same-name', 'left-alone', 'replaces', 'as-recorded', 'example'] as const;
@@ -89,8 +89,13 @@ export const LEVEL_WORD: Record<IssueLevel, string> = { must: 'Must fix', check:
 /** The level as the older three-way severity, for screens not yet rebuilt on levels (IM3 replaces them). */
 export const SEVERITY: Record<IssueLevel, 'error' | 'warning' | 'note'> = { must: 'error', check: 'warning', note: 'note' };
 
-export type Sheet = 'Goals' | 'Plan' | 'Check-ins' | 'People';
-export const SHEET_ORDER: Sheet[] = ['Goals', 'Plan', 'Check-ins', 'People'];
+/** The core's sheets; a module's own loaded sheet (Metrics) is named by its spec, so a sheet is any name. */
+export type CoreSheet = 'Goals' | 'Plan' | 'Check-ins' | 'People';
+// eslint-disable-next-line @typescript-eslint/ban-types
+export type Sheet = CoreSheet | (string & {});
+export const SHEET_ORDER: CoreSheet[] = ['Goals', 'Plan', 'Check-ins', 'People'];
+/** A sheet's place in the file's order: the core's first, then a module's. */
+export const sheetOrder = (s: Sheet) => { const i = (SHEET_ORDER as readonly string[]).indexOf(s); return i < 0 ? SHEET_ORDER.length : i; };
 
 /**
  * One way to settle a group in the preview. `choice` is the code an answer carries (`use`, `leave`, `right`…); `label` the

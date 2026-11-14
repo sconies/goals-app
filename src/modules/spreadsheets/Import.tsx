@@ -45,11 +45,11 @@ export function Import() {
   // A file read goes to the preview (/data/import/check); a new file starts afresh (answers to the last one still apply).
   const pick = async (f: File | undefined) => {
     setProblem(null);
-    if (await chooseFile(f, (text, template) => setProblem({ text, template }))) nav('/data/import/check');
+    if (await chooseFile(f, (text, template) => setProblem({ text, template }), app.ws)) nav('/data/import/check');
   };
   const paste = () => {
     setProblem(null);
-    if (choosePaste(pasted, (text) => setProblem({ text, headers: true }))) nav('/data/import/check');
+    if (choosePaste(pasted, (text) => setProblem({ text, headers: true }), app.ws)) nav('/data/import/check');
   };
   // The same file as Export's "Everything", by the same name and with the same toast (spec 2.9; #248 review).
   const workbookFile = () => saveAndSay(app.toast, { workspace: app.ws.name, what: 'goals', scope: 'all', date: app.today }, { kind: 'xlsx', sheets: workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, ...exportOn(app.ws) }) }, (f) => `Exported ${f}`);

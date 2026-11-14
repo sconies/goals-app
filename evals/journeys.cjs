@@ -7674,6 +7674,46 @@ journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals show
   h.set('progress', s.goals.filter((g) => g.title.startsWith('Paged queue')).length === 1200, 'the 1,200 goals were not all saved');
   await p.context().close();
 }, ['parity', 'entry']);
+journey('U175', ['METRIC-SHEET'], 'Metrics in and out: as Amara, a Metrics file that adds a metric and changes another’s caveats is counted “1 new metric, 1 metric changed”, a row with the same name twice and one retiring without a reason are Must fix in the form’s words, and left out the rest saves; the new metric is in the library; with the Metric library off, the same file says once that the Metrics sheet was not read', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  const file = (name, rows) => csvFile(name, 'ID,Metric,Unit,Direction,Caveats,Action,Reason\n' + rows.join('\n') + '\n');
+  const before = (await h.snapshot()).modules.metrics.metrics.find((m) => !m.removedAt && !m.retiredAt);
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(file('metrics.csv', [
+    `,Retried test share ${device},%,Lower is better,,,`,
+    `${before.id},${before.name},${before.unit},${before.direction === 'lower' ? 'Lower is better' : 'Higher is better'},Read with the release calendar.,,`,
+    `,Queue depth ${device},jobs,Lower is better,,,`,
+    `,Queue depth ${device},jobs,Lower is better,,,`,
+    `${before.id},,,,,Retire,`,
+  ]));
+  await p.waitForURL(/\/data\/import\/check$/);
+  await see(p, `Rows 4 and 5 are both called “Queue depth ${device}”. A metric’s name is used once.`, 'a name used twice is not a Must fix');
+  await see(p, 'Say why it is retired, in the Reason column. Its goals will show this.', 'retiring without a reason is not a Must fix');
+  h.set('errors', true);
+  await h.checkpoint('must fix');
+  await h.click(p.getByRole('button', { name: /^Leave .* rows? out/ }).first());
+  await see(p, '1 new metric, 1 metric changed', 'the preview does not count the metrics');
+  await h.click(p.getByRole('button', { name: /^Save / }));
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
+  const s = await h.snapshot();
+  const ms = s.modules.metrics.metrics;
+  h.set('finish', ms.some((m) => m.name === `Retried test share ${device}` && m.ownerId === 'amara') && ms.find((m) => m.id === before.id).caveats === 'Read with the release calendar.' && !ms.find((m) => m.id === before.id).retiredAt, 'the metrics were not saved as the file said');
+  await p.goto(url('/metrics'));
+  await see(p, `Retried test share ${device}`, 'the new metric is not in the library');
+  h.set('progress', true);
+  // The Metric library off: the file is read, its Metrics sheet said once and not read.
+  await p.goto(url('/workspace/features'));
+  await h.click(p.getByRole('checkbox', { name: /^Metric/ }));
+  const sheet = p.getByRole('dialog');
+  await sheet.waitFor();
+  await h.click(sheet.getByRole('button', { name: /^Switch .*off/ }));
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(file('metrics-off.csv', [`,Cache warm share ${device},%,Higher is better,,,`]));
+  await see(p, 'Metric library is off in', 'the import does not say the Metrics sheet was not read');
+  await see(p, 'so the Metrics sheet was not read.', 'the import does not say the Metrics sheet was not read');
+  h.set('attention', !(await h.snapshot()).modules.metrics.metrics.some((m) => m.name === `Cache warm share ${device}`), 'a Metrics sheet was read with the Metric library off');
+  await p.context().close();
+}, ['parity', 'logged']);
 journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/data/import'));

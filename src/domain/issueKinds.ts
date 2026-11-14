@@ -17,6 +17,9 @@ export interface KindRule {
 }
 
 export const ISSUE_KINDS: Record<IssueKind, KindRule> = {
+  // A module's own sheet (MI): the metric library's Checks, raised by its planner (modules/metrics/sheetPlan).
+  'same-number': { when: 'A Metrics row changes the meaning or source of a metric goals are measured by: is it still the same number?' },
+  'aim-changes': { when: 'A Metrics row changes the direction of a metric goals are measured by, so they would aim the other way.' },
   // Must fix
   'required-empty': { when: 'A column a new row must have is empty: a goal’s name, owner, Start or Target, Limit or Stages for its type; a person’s name or email.' },
   'not-a-number': { when: 'A number column holds text: “six”, “12 days”, an effect that isn’t a number.' },

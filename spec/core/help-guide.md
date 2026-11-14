@@ -1327,6 +1327,30 @@ Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-MEASUREMENT`.
 - A goal measured by a metric with a gap is held to no number. It says “Not measured yet”, with a broken ring, instead of a status: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.
 - Once the metric is measured, in full or in part, its goals are held to their plans again, in the same save. Linking a goal to a measured metric, or unlinking it, does the same. History says so on each goal, and Undo takes it all back.
 
+### Metrics in a spreadsheet
+
+`metric-sheet`, from the metrics module. Export the Metrics sheet, change or add rows, and load it back through the same preview, questions and Undo as any import.
+
+Requirements: `METRIC-SHEET`.
+
+#### Out and back in
+
+- Export everything from Data: the workbook’s Metrics sheet lists every metric, retired ones too with the day they were retired, and the goals each measures.
+- Change rows, or add rows with an empty ID, and load the file on Import. Loading an export unchanged changes nothing.
+- A row finds its metric by ID, or else by its name, any case. A column you leave out leaves that field as it is; an empty cell in a column you keep clears it.
+- Action retires a metric (say why in Reason) or brings one back.
+
+#### What it asks
+
+- The same as the metric’s form, in the same words: a name used twice, a direction or refresh it can’t read, an owner who isn’t in the workspace.
+- A name one letter from a metric already here asks whether the row is that metric or a new one.
+- Changing what a metric goals use means, or where its number comes from, asks “Is it still the same number?”; if the number changes, say why in Reason. A file can’t change the unit of a metric goals use: change it on the metric’s page.
+- Nothing is saved until every question is answered. The toast after saving has Undo, and the import stays under Past imports, where Undo puts every row back.
+
+#### When metrics are switched off
+
+- With the Metric library off, the import says once that the Metrics sheet was not read, and reads the rest of the file.
+
 ### Teams
 
 `teams`. The workspace’s teams, A to Z, each with its lead, its people and its goals by status; a team’s page says what it is here to do. Admins add, change and remove teams.

@@ -18,7 +18,7 @@ import { isTableView } from './tableLayout';
 import { VIA_LABEL, type Via } from './via';
 import { COMMENT_REMOVED, ENDED, LEFT, MIN_STOP_REASON, RESTORE_DAYS, STOPPED } from './vocabulary';
 import type { Ask, Change, CheckIn, Comment, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
-import { asBefore, hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsLeaving, rowsUndone, applyModuleRows, type ModuleRecords } from './records';
+import { asBefore, hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsLeaving, rowsUndone, applyModuleRows, type ModuleRecords, type ModuleRow, type ModuleRows } from './records';
 
 const no = (msg: string): never => { throw new NotAllowed(msg); };
 /** The whole workspace, every cycle and every removed record: what restoring reads. */
@@ -645,15 +645,25 @@ function undoPlan(x: ActionContext, importId: string): { commit: Commit; restore
     const back = before ?? (cur.status === 'open' ? { ...cur, status: 'withdrawn' as const, updatedAt: x.now } : null);
     if (back) requests.push(back);
   }
+  // A module's own sheet's rows (MI: metrics): each as it was, and one the import added taken back out.
+  const modules: ModuleRows = {};
+  let moduleBack = 0;
+  for (const m of u.moduleRows ?? []) for (const { id, before } of m.rows) {
+    const cur = ((full.modules?.[m.module]?.[m.key] ?? []) as ModuleRow[]).find((r) => r.id === id);
+    const back = (before as ModuleRow | null) ?? (cur && !cur.removedAt ? { ...cur, removedAt: x.now, removedBy: x.actor.id } : null);
+    if (!back) continue;
+    ((modules[m.module] ??= {})[m.key] ??= []).push(back);
+    moduleBack++;
+  }
   // Every row put back, of every kind; a goal moved up because what it fed was deleted is no row of the import's.
   const restored = goalsBack + checkIns.length + people.length + reviews.length + teams.length + removeTeams.length
-    + requests.filter((r) => ownAsks.has(r.id)).length;
+    + requests.filter((r) => ownAsks.has(r.id)).length + moduleBack;
   changes.unshift(log(x, {
     entity: 'workspace', entityId: importId, action: 'undone', importId,
     summary: `Undid ${undoneWhat(entry!)}: ${plural(restored, 'row', 'rows')} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ''}`,
     diffs: [{ field: 'Import', from: entry!.summary, to: 'Undone' }, ...(skipped.length ? [{ field: 'Skipped', from: '—', to: skipped.map(keptText).join('; ') }] : [])],
   }));
-  return { restored, skipped, commit: { ...(goals.length ? { goals } : {}), ...(checkIns.length ? { checkIns } : {}), ...(people.length ? { people } : {}), ...(requests.length ? { requests } : {}), ...(reviews.length ? { reviews } : {}), ...(teams.length ? { teams } : {}), ...(removeTeams.length ? { removeTeams } : {}), changes } };
+  return { restored, skipped, commit: { ...(goals.length ? { goals } : {}), ...(checkIns.length ? { checkIns } : {}), ...(people.length ? { people } : {}), ...(requests.length ? { requests } : {}), ...(reviews.length ? { reviews } : {}), ...(teams.length ? { teams } : {}), ...(removeTeams.length ? { removeTeams } : {}), ...(moduleBack ? { modules } : {}), changes } };
 }
 
 /** A row Undo leaves as it is, because it changed after the import (rule 9): the row, why, when and by whom. */

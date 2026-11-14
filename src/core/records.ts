@@ -4,7 +4,8 @@
    (FARO_WITHOUT) declares nothing here, so its rows are neither read nor written, and none are deleted. */
 import PARTS from 'virtual:faro-modules/records';
 import type { ModuleRecords, ModuleSheet } from '../domain/records';
-import { isModuleOn, modulesOn } from './registry';
+import type { ModuleSheetHead } from '../domain/sheets';
+import { isModuleOn, moduleById, modulesOn } from './registry';
 
 /** Every module's records, in module id order. */
 export const MODULE_RECORDS: readonly ModuleRecords[] = PARTS.map((p) => ({ ...p.part, module: p.id }));
@@ -37,3 +38,11 @@ export const sheetsOn = (ws: { modulesOff?: readonly string[] } | null | undefin
     column. Spread into workbook()'s input, so the rule lives here once. */
 export const exportOn = (ws: { modulesOff?: readonly string[] } | null | undefined): { sheets: readonly ModuleSheet[]; reviews: boolean } =>
   ({ sheets: sheetsOn(ws), reviews: isModuleOn(ws, 'reviews') });
+
+/** The modules' sheets as the file reader knows them (MI): each with whether it loads back and, when its module is off
+    in this workspace, the module's name, so the sheet is said once as not read ("Metric library is off in …"). */
+export const sheetHeadsFor = (ws: { modulesOff?: readonly string[] } | null | undefined): ModuleSheetHead[] =>
+  MODULE_RECORDS.flatMap((m) => (m.sheets ?? []).map((sh) => ({
+    name: sh.spec.name, columns: sh.spec.columns, loaded: sh.spec.loaded && !!sh.plan, ...(sh.has ? { has: sh.has } : {}),
+    off: isModuleOn(ws, m.module) ? null : moduleById(m.module)?.name ?? m.module,
+  })));

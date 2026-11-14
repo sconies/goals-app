@@ -35,7 +35,8 @@ import MODULE_TOOLS from 'virtual:faro-modules/tools';
 import { isModuleOn, moduleById, modulesOn } from '../core/registry';
 import { writesReviews } from '../domain/reviewWrites';
 import { writesWatches } from '../domain/watchWrites';
-import { MODULE_GOAL_COLUMNS, recordsOn } from '../core/records';
+import { MODULE_GOAL_COLUMNS, MODULE_RECORDS, recordsOn } from '../core/records';
+import { moduleOffLine } from '../domain/sheets';
 import { addColumnParams } from '../domain/query';
 import { commentsOf } from '../domain/removal';
 import { findGoal, isKey } from '../domain/goalKey';
@@ -149,12 +150,15 @@ const ANSWERS_ARG = { type: 'object', additionalProperties: { anyOf: [{ type: 's
 /** The answers argument, as the engine takes them. */
 const answersOf = (a: unknown): Answers => Object.fromEntries(Object.entries((a ?? {}) as Record<string, unknown>).map(([k, v]) => [k, typeof v === 'string' ? { choice: v } : { choice: String((v as { choice?: unknown }).choice ?? ''), ...((v as { value?: unknown }).value != null ? { value: String((v as { value: unknown }).value) } : {}) }]));
 
+/** The modules' own loaded sheets (MI: Metrics), each a bulk_change argument named by its sheet in lower case. */
+const LOADED_MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => (m.sheets ?? []).filter((sh) => sh.spec.loaded && sh.plan).map((sh) => ({ module: m.module, sheet: sh.spec.name, arg: sh.spec.name.toLowerCase().replace(/[^a-z]+/g, '_'), about: sh.spec.about })));
+
 /** find_goals' page: how many goals it lists unless asked, and the most it lists at once. */
 const FIND_PAGE = 50, FIND_MAX = 200;
 
 async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown; readings?: ChangeInput['readings']; saved?: (cs: ChangeSet, before: McpContext['snapshot']) => { data: Record<string, unknown>; text: string } | null }): Promise<ToolResult> {
   // The size limits every door keeps (domain/importLimits): rows read in one call, then changes saved at once.
-  const big = tooLarge('This call', { rows: (tables.goals?.length ?? 0) + (tables.plan?.length ?? 0) + (tables.checkIns?.length ?? 0) + (tables.people?.length ?? 0) }, 'call');
+  const big = tooLarge('This call', { rows: (tables.goals?.length ?? 0) + (tables.plan?.length ?? 0) + (tables.checkIns?.length ?? 0) + (tables.people?.length ?? 0) + Object.values(tables.modules ?? {}).reduce((n, r) => n + r.length, 0) }, 'call');
   if (big) return { isError: true, text: `Not checked. ${big}` };
   // A goal's key: as saved once it is, as the change gives it before (a dry run's key is the one it would get).
   const keyOf = (id: string): string | null => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
@@ -555,6 +559,7 @@ const CORE_TOOLS: ToolDef[] = [
       plan: { type: 'array', items: { type: 'object' }, description: 'Rows for the Plan sheet: Key (or ID), Start and "Week N" columns.' },
       check_ins: { type: 'array', items: { type: 'object' }, description: 'Rows for the Check-ins sheet: Goal key (or Goal ID), Week, Value or Stages, Call, Cause, Why, Why greener, Path to green, Recovery, Back on plan by week, Needs, Next step; ID to correct one check-in.' },
       people: { type: 'array', items: { type: 'object' }, description: 'Rows for the People sheet (admins): Email (or ID) to change someone; a new Email, Name and Team to add someone; Action and Takes over to mark someone as left.' },
+      ...Object.fromEntries(LOADED_MODULE_SHEETS.map((x) => [x.arg, { type: 'array', items: { type: 'object' }, description: `Rows for the ${x.sheet} sheet, with the same columns as the export. ${x.about}` }])),
       reason: str('Why plans are changing, for any plan change that needs one.'),
       confirm: CONFIRM,
       answers: ANSWERS_ARG,
@@ -562,7 +567,13 @@ const CORE_TOOLS: ToolDef[] = [
     } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
-      return change(ctx, { goals: rows(a.goals, 'goals'), plan: rows(a.plan, 'plan'), checkIns: rows(a.check_ins, 'check_ins'), people: rows(a.people, 'people') }, { dry: !a.apply, reason: a.reason as string | undefined, confirm: a.confirm === true, answers: a.answers });
+      // A module's own sheet loads only while its module is on; off, it is said once and not read (MI).
+      const given = LOADED_MODULE_SHEETS.filter((x) => Array.isArray(a[x.arg]) && (a[x.arg] as unknown[]).length);
+      const on = given.filter((x) => isModuleOn(ctx.ws, x.module));
+      const off = given.filter((x) => !isModuleOn(ctx.ws, x.module)).map((x) => moduleOffLine(moduleById(x.module)?.name ?? x.module, ctx.ws.name, x.sheet));
+      const tables: Tables = { goals: rows(a.goals, 'goals'), plan: rows(a.plan, 'plan'), checkIns: rows(a.check_ins, 'check_ins'), people: rows(a.people, 'people'), ...(on.length ? { modules: Object.fromEntries(on.map((x) => [x.sheet, rows(a[x.arg], x.arg)])) } : {}) };
+      const res = await change(ctx, tables, { dry: !a.apply, reason: a.reason as string | undefined, confirm: a.confirm === true, answers: a.answers });
+      return off.length ? { ...res, text: `${off.join(' ')}\n${res.text}`, ...(res.data ? { data: { ...res.data, notRead: off } } : {}) } : res;
     },
   },
 ];

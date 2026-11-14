@@ -159,8 +159,9 @@ const m = <C,>(header: string, means: string, write: (c: C) => Cell, loaded?: st
 const e = <C,>(header: string, means: string, write: (c: C) => Cell, loaded?: string): Column<C> => ({ header, role: 'edit', means, write, ...(loaded ? { loaded } : {}) });
 const w = <C,>(header: string, means: string, write: (c: C) => Cell): Column<C> => ({ header, role: 'worked', means, write });
 const sh = <C,>(header: string, means: string, write: (c: C) => Cell): Column<C> => ({ header, role: 'shown', means, write });
-/** Columns for a module's sheet (domain/records ModuleSheet): one that says which record a row is, and one only shown. */
-export const moduleColumn = { match: m, shown: sh };
+/** Columns for a module's sheet (domain/records ModuleSheet): one that says which record a row is, one a person fills in
+    (a loaded sheet's), one Faro works out, and one only shown. */
+export const moduleColumn = { match: m, edit: e, worked: w, shown: sh, action: <C,>(header: string, means: string, write: (c: C) => Cell): Column<C> => ({ header, role: 'action', means, write }) };
 /** A cell: empty for nothing. */
 export const cellOr = (v: string | number | null | undefined): Cell => (v == null || v === '' ? null : v);
 const blank = () => null;

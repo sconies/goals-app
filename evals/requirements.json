@@ -873,6 +873,12 @@
       "use": "copy"
     },
     {
+      "id": "METRIC-SHEET",
+      "area": "Metrics",
+      "text": "Metrics go out in the workbook and come back through the same preview, rules and undo as any import, and loading an export back changes nothing (MI, round 2's MT6). A row adds a metric (empty ID), or changes one found by ID or by name, any case; Action retires one (with a Reason) or brings one back; an absent column leaves a field as it is. Each refusal and question is the library's own, in the same words as the form: a name used twice, a direction or refresh it can't read, an owner who isn't here, a unit a file can't change on a metric goals use, a change of meaning on one (\"Is it still the same number?\"; the number changing needs a Reason), a name one letter from another. The preview counts new and changed metrics, and one Undo puts every row back. bulk_change takes a metrics list with the same columns. With the Metric library off, the sheet is said once (\"Metric library is off in {workspace}, so the Metrics sheet was not read.\") and nothing of it is read.",
+      "use": "copy"
+    },
+    {
       "id": "METRIC-MEASUREMENT",
       "area": "Metrics",
       "text": "A gap in measurement is visible and owned, not faked (MS). Each metric says whether it is measured today, Measured, Partly or Gap, always as a shape (a filled, half-filled or broken square) and its word, with an optional line on what is missing (at most 300 characters). A metric with a gap or measured only in part is listed under To sort out on its page and in the library (\"Not measured yet: {n} goals held to no number\", \"Only partly measured\") with Say how it's measured. A goal measured by a metric with a gap is held to no number: it says Not measured yet (a broken ring and the words) instead of a status, nothing on it is due, late or quiet, and it projects nothing; linking it to a measured metric, unlinking it, or its metric being measured holds it to its plan again, in the same save, with one Undo and a line in its History. save_metric takes measurement and measurement_note, and get_metric and the export say so.",

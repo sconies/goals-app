@@ -1976,7 +1976,7 @@ export interface ChangeSet {
   needsConfirm: boolean;
   /** Ready to save: null while a Must fix or an unanswered Check remains, or a reason is missing. */
   commit: Commit | null;
-  counts: { newGoals: number; goals: number; plans: number; checkIns: number; backfilled: number; replaced: number; people: number; newPeople: number; teams: number; stopped: number; deleted: number; left: number };
+  counts: { newGoals: number; goals: number; plans: number; checkIns: number; backfilled: number; replaced: number; people: number; newPeople: number; teams: number; stopped: number; deleted: number; left: number; /** A module's own sheet's rows (MI): "3 new metrics, 2 metrics changed". */ records?: { one: string; many: string; added: number; changed: number }[] };
   /** Create mode: everything the new workspace starts with (set-up reads it). */
   created?: Pick<Snapshot, 'people' | 'teams' | 'goals' | 'checkIns' | 'requests' | 'keysIssued'>;
 }
@@ -2284,7 +2284,7 @@ export interface Item {
 In `src/domain/changeset.ts`.
 
 ```ts
-export type ItemKind = 'new goal' | 'goal' | 'plan' | 'check-in' | 'replaces check-in' | 'person' | 'new person' | 'team' | 'stop goal' | 'delete goal' | 'person left';
+export type ItemKind = 'new goal' | 'goal' | 'plan' | 'check-in' | 'replaces check-in' | 'person' | 'new person' | 'team' | 'stop goal' | 'delete goal' | 'person left' | 'new record' | 'record';
 ```
 
 ### KeptRow
@@ -2473,7 +2473,7 @@ export type SaveMetricInput = MetricInput & { id?: string; confirm?: boolean; an
 In `src/domain/problemLevels.ts`.
 
 ```ts
-export type Sheet = 'Goals' | 'Plan' | 'Check-ins' | 'People';
+export type Sheet = CoreSheet | (string & {});
 ```
 
 ### TableLayout
@@ -2498,7 +2498,7 @@ export interface TableLayout {
 In `src/domain/sheets.ts`.
 
 ```ts
-export interface Tables { goals?: Rec[]; plan?: Rec[]; checkIns?: Rec[]; people?: Rec[] }
+export interface Tables { goals?: Rec[]; plan?: Rec[]; checkIns?: Rec[]; people?: Rec[]; /** A module's own loaded sheets (Metrics), by the sheet's name. */ modules?: Record<string, Rec[]> }
 ```
 
 ### TableSort
