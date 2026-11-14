@@ -1111,7 +1111,7 @@ Someone in or leading a team sees that team on Home as the Goals page's My team 
 - **Copy:** build it as Faro does.
 - **Rule:** [Home: your goals, your team and what you watch](rules/home-sets.md)
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
-- **Journeys and checks:** U123, U124
+- **Journeys and checks:** F25, U123, U124
 
 ### HOME-OWNER
 
@@ -1121,7 +1121,7 @@ Home opens on what is asked of you today, with one primary action, or says that 
 - **Rule:** [Home: what is asked of you today](rules/home.md)
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Tests:** `evals/attention.eval.ts` (5)
-- **Journeys and checks:** N3, N10, N26, U103, U122
+- **Journeys and checks:** F25, N3, N10, N26, U103, U122
 
 ## Interface
 
@@ -1250,11 +1250,12 @@ On the icon rail the Faro mark is the workspace switcher: it opens the same pane
 
 ### SMALL-MENU
 
-A module's menu row and a Goals tab wait until they have something in them (a tab also waits while it is the same list as one drawn before it; All is always drawn), in each workspace on its own: a row drawn in one never follows you into another. Hiding is only drawing: every address still opens. (Home's sections waiting too is backlog SM1h, with HM3; not built.)
+A module's menu row and a Goals tab wait until they have something in them (a tab also waits while it is the same list as one drawn before it; All is always drawn), in each workspace on its own: a row drawn in one never follows you into another. Hiding is only drawing: every address still opens. Home's sections wait too: “Goals you watch” while nothing is watched, and with one team in the workspace “Your goals” and “Your team” are one section, “The team’s goals · {n}”, the viewer's own first.
 
 - **Copy:** build it as Faro does.
+- **Rule:** [Home: your goals, your team and what you watch](rules/home-sets.md)
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`, `StoppedList`
-- **Journeys and checks:** N30
+- **Journeys and checks:** N30, U49
 
 ### SMALL-QUIET
 

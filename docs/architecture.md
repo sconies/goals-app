@@ -90,7 +90,7 @@ The build makes the registry (`vite.modules.ts`): every folder with a module.jso
 - A module is on when it is installed, not switched off, and everything in its `needs` is on (`resolveModules`).
 - The rule is `domain/actions setModule`: admins only, and the change is logged.
 - Admins switch modules on Workspace, under Features, or with the `set_feature` AI tool.
-- Off, a module has no route, navigation item, place, Help article, walkthrough or named flow, and its AI tools say it's off. Nothing it saved is deleted.
+- Off, a module has no route, navigation item, place, Help article (nor a page-foot Help link to one), walkthrough or named flow, and its AI tools say it's off. What's new still lists its releases (Lane, 14 Nov). Nothing it saved is deleted.
 
 ### What keeps it so
 

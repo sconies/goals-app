@@ -21,7 +21,7 @@ function logFailure(where, e) {
 function daysBetween(fromIso, to) {
 	const from = Date.parse(fromIso.slice(0, 10) + "T00:00:00Z");
 	const toDay = Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate());
-	return Math.floor((toDay - from) / DAY$4);
+	return Math.floor((toDay - from) / DAY$5);
 }
 /** The cycle's week today: 0 in the first seven days, capped at the last checkpoint. */
 function currentWeek(cycle, today) {
@@ -51,12 +51,12 @@ function firstWeekFrom(cycle, iso, weekday) {
 	const day = (iso ?? "").slice(0, 10);
 	if (!day || day <= cycle.startDate) return 1;
 	const w = currentWeek(cycle, /* @__PURE__ */ new Date(day + "T12:00:00Z"));
-	const due = new Date(Date.parse(weekDate(cycle, w) + "T00:00:00Z") + weekday * DAY$4).toISOString().slice(0, 10);
+	const due = new Date(Date.parse(weekDate(cycle, w) + "T00:00:00Z") + weekday * DAY$5).toISOString().slice(0, 10);
 	return Math.max(1, due < day ? w + 1 : w);
 }
 /** The ISO date of a week's checkpoint. */
 function weekDate(cycle, week) {
-	const t = Date.parse(cycle.startDate + "T00:00:00Z") + week * 7 * DAY$4;
+	const t = Date.parse(cycle.startDate + "T00:00:00Z") + week * 7 * DAY$5;
 	return new Date(t).toISOString().slice(0, 10);
 }
 /** Share of the change planned by a week, 0..1. */
@@ -249,9 +249,9 @@ function goalAsOf(g, week) {
 		plan
 	};
 }
-var DAY$4, hasEnded, planEnd, NOT_A_COUNT, DAY_ONLY, DAY_MONTH;
+var DAY$5, hasEnded, planEnd, NOT_A_COUNT, DAY_ONLY, DAY_MONTH;
 var init_plan = __esmMin((() => {
-	DAY$4 = 864e5;
+	DAY$5 = 864e5;
 	hasEnded = (cycle, today) => resultWeek(cycle, today) > cycle.weeks;
 	planEnd = (plan, weeks) => plan.endWeek ?? weeks;
 	NOT_A_COUNT = /^(days?|hours?|hrs?|mins?|minutes?|weeks?|secs?|seconds?|ms|pts?|points?|score|nps)$|usd|gbp|eur|\$|£|€|°/;
@@ -3399,11 +3399,11 @@ var init_decide = __esmMin((() => {
 /** The goal year a cycle week is in: its year, its length and the cycle week its week 1 is. */
 function spanOf(c, n) {
 	if (c.weeks < 48) {
-		const year = new Date(mondayOf(c, n) + 3 * DAY$3).getUTCFullYear(), gy = goalYear(year, 0);
+		const year = new Date(mondayOf$1(c, n) + 3 * DAY$4).getUTCFullYear(), gy = goalYear(year, 0);
 		return {
 			year,
 			weeks: gy.weeks,
-			first: Math.round((Date.parse(gy.startDate + "T00:00:00Z") - mondayOf(c, 0)) / (7 * DAY$3)) + 1
+			first: Math.round((Date.parse(gy.startDate + "T00:00:00Z") - mondayOf$1(c, 0)) / (7 * DAY$4)) + 1
 		};
 	}
 	let s = {
@@ -3412,7 +3412,7 @@ function spanOf(c, n) {
 		first: 1
 	};
 	while (n >= s.first + s.weeks) {
-		const start = new Date(mondayOf(c, s.first + s.weeks - 1)).toISOString().slice(0, 10);
+		const start = new Date(mondayOf$1(c, s.first + s.weeks - 1)).toISOString().slice(0, 10);
 		s = {
 			year: s.year + 1,
 			weeks: yearWeeks(start),
@@ -3435,7 +3435,7 @@ function yearWeek(c, n) {
 	return {
 		year: s.year,
 		week: n - s.first + 1,
-		monday: new Date(mondayOf(c, n)).toISOString().slice(0, 10)
+		monday: new Date(mondayOf$1(c, n)).toISOString().slice(0, 10)
 	};
 }
 /** A goal year seen from this cycle: its length and the cycle week its week 1 is. */
@@ -3481,7 +3481,7 @@ function readWeekCode(c, raw) {
 }
 /** "9–15 Nov 2026", "28 Sep–4 Oct 2026", "28 Dec 2026–3 Jan 2027"; without the year: "9–15 Nov", "28 Dec–3 Jan". */
 function datesOf(c, n, withYear = true) {
-	const a = new Date(mondayOf(c, n)), b = new Date(mondayOf(c, n) + 6 * DAY$3);
+	const a = new Date(mondayOf$1(c, n)), b = new Date(mondayOf$1(c, n) + 6 * DAY$4);
 	const dm = (x) => `${x.getUTCDate()} ${MONTHS$3[x.getUTCMonth()]}`;
 	if (!withYear) return a.getUTCMonth() === b.getUTCMonth() ? `${a.getUTCDate()}–${dm(b)}` : `${dm(a)}–${dm(b)}`;
 	if (a.getUTCFullYear() !== b.getUTCFullYear()) return `${dm(a)} ${a.getUTCFullYear()}–${dm(b)} ${b.getUTCFullYear()}`;
@@ -3531,10 +3531,10 @@ function weeksProblem(c, from, to) {
 	};
 	return null;
 }
-var DAY$3, MONTHS$3, mondayOf, cycleYear, noSuchWeek, weekUnknownText, lastWeekOffered, firstWeekOffered, defaultTo;
+var DAY$4, MONTHS$3, mondayOf$1, cycleYear, noSuchWeek, weekUnknownText, lastWeekOffered, firstWeekOffered, defaultTo;
 var init_weeks = __esmMin((() => {
 	init_year();
-	DAY$3 = 864e5;
+	DAY$4 = 864e5;
 	MONTHS$3 = [
 		"Jan",
 		"Feb",
@@ -3549,8 +3549,8 @@ var init_weeks = __esmMin((() => {
 		"Nov",
 		"Dec"
 	];
-	mondayOf = (c, n) => Date.parse(c.startDate + "T00:00:00Z") + n * 7 * DAY$3;
-	cycleYear = (c) => new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$3).getUTCFullYear();
+	mondayOf$1 = (c, n) => Date.parse(c.startDate + "T00:00:00Z") + n * 7 * DAY$4;
+	cycleYear = (c) => new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$4).getUTCFullYear();
 	noSuchWeek = (year, weeks) => `${year} has ${weeks} weeks. Use ${year}-W${weeks}, or ${year + 1}-W01.`;
 	weekUnknownText = (c, field, raw, now = 46) => `${field} says “${raw.trim()}”. Write a year and a week, like ${weekCode(c, Math.max(now, 1))}, or the week’s number.`;
 	lastWeekOffered = (c) => {
@@ -3898,7 +3898,7 @@ var init_goal = __esmMin((() => {
 // src/domain/year.ts
 /** The month the year starts in: the month of week 1's Thursday. */
 function startMonth(c) {
-	return new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$2).getUTCMonth();
+	return new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$3).getUTCMonth();
 }
 function quarters(c) {
 	if (!isYear(c)) return [{
@@ -3997,22 +3997,22 @@ function quarterResults(g, c, checkIns, week) {
 /** The Monday of week 1 of a goal year starting in a month (0 = January): the week with that month's first Thursday. */
 function weekOneOf(year, month) {
 	const first = Date.UTC(year, month, 1);
-	return first + (10 - (new Date(first).getUTCDay() + 6) % 7) % 7 * DAY$2 - 3 * DAY$2;
+	return first + (10 - (new Date(first).getUTCDay() + 6) % 7) % 7 * DAY$3 - 3 * DAY$3;
 }
 /** A goal year: week 0 is the week before week 1, and it runs until the next year's week 1. */
 function goalYear(year, month) {
 	const a = weekOneOf(year, month), b = weekOneOf(year + 1, month);
 	return {
-		startDate: (/* @__PURE__ */ new Date(a - 7 * DAY$2)).toISOString().slice(0, 10),
-		weeks: Math.round((b - a) / (7 * DAY$2))
+		startDate: (/* @__PURE__ */ new Date(a - 7 * DAY$3)).toISOString().slice(0, 10),
+		weeks: Math.round((b - a) / (7 * DAY$3))
 	};
 }
 /** How many weeks the goal year starting on this date has: 52, or 53 in a long calendar year. */
 function yearWeeks(startDate) {
-	const thu = new Date(Date.parse(startDate + "T00:00:00Z") + 10 * DAY$2);
+	const thu = new Date(Date.parse(startDate + "T00:00:00Z") + 10 * DAY$3);
 	return goalYear(thu.getUTCFullYear(), thu.getUTCMonth()).weeks;
 }
-var isYear, DAY$2, MONTHS$2, bornWeek;
+var isYear, DAY$3, MONTHS$2, bornWeek;
 var init_year = __esmMin((() => {
 	init_format();
 	init_range();
@@ -4021,7 +4021,7 @@ var init_year = __esmMin((() => {
 	init_status();
 	init_vocabulary();
 	isYear = (c) => c.weeks >= 48;
-	DAY$2 = 864e5;
+	DAY$3 = 864e5;
 	MONTHS$2 = [
 		"Jan",
 		"Feb",
@@ -4645,7 +4645,7 @@ function dayWithYear(iso) {
 /** "Jan–Mar 2027" for a cycle starting on a date and running some weeks. */
 function cycleName(startDate, weeks) {
 	const a = /* @__PURE__ */ new Date(startDate + "T00:00:00Z");
-	const b = new Date(Date.parse(startDate + "T00:00:00Z") + (weeks * 7 - 1) * DAY$1);
+	const b = new Date(Date.parse(startDate + "T00:00:00Z") + (weeks * 7 - 1) * DAY$2);
 	const m = (d) => d.toLocaleDateString("en-GB", {
 		month: "short",
 		timeZone: "UTC"
@@ -4694,7 +4694,7 @@ function nextCycle(old, goals, checkIns, retros, ids, now) {
 		}))
 	};
 }
-var DAY$1, addDays, laterCycle, isoDay, wrapUpOpenOn, startFromLine, WEEKDAYS$1, MONTHS$1, RESULT_LABEL;
+var DAY$2, addDays, laterCycle, isoDay, wrapUpOpenOn, startFromLine, WEEKDAYS$1, MONTHS$1, RESULT_LABEL;
 var init_cycle = __esmMin((() => {
 	init_vocabulary();
 	init_asks();
@@ -4706,8 +4706,8 @@ var init_cycle = __esmMin((() => {
 	init_status();
 	init_records();
 	init_proposed();
-	DAY$1 = 864e5;
-	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY$1).toISOString().slice(0, 10);
+	DAY$2 = 864e5;
+	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY$2).toISOString().slice(0, 10);
 	laterCycle = (cycles, c) => cycles.filter((v) => !v.removedAt && v.startDate > c.startDate).sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
 	isoDay = (d) => d.toISOString().slice(0, 10);
 	wrapUpOpenOn = (c, today) => ["ending", "ended"].includes(cycleState(c, today));
@@ -6179,7 +6179,9 @@ function parseQuery(p) {
 		dir: dir === "desc" ? -1 : 1,
 		cols: Object.fromEntries(COLUMN_PARAMS.map((k) => [k, (p.get(k) ?? "").slice(0, 200)]).filter(([, v]) => v)),
 		checkedin: p.get("checkedin") === "no" || p.get("checkedin") === "asked" ? p.get("checkedin") : null,
-		inreview: (p.get("inreview") ?? "").slice(0, 200) || null
+		inreview: (p.get("inreview") ?? "").slice(0, 200) || null,
+		moved: p.get("moved") || null,
+		since: p.get("since") || null
 	};
 }
 /** Needs attention from a link: attention=1, needs=… (because), or a link from before release 2 (needs=slipped, …). */
@@ -6202,6 +6204,10 @@ function queryEntries(q) {
 	if (q.kind.length) out.push(["kind", q.kind.join(",")]);
 	if (q.attention || q.needs.length) out.push(["attention", "1"]);
 	if (q.needs.length) out.push(["needs", q.needs.join(",")]);
+	if (q.moved) {
+		out.push(["moved", q.moved]);
+		if (q.since) out.push(["since", q.since]);
+	}
 	if (q.due != null) out.push(["due", String(q.due)]);
 	if (q.quiet != null) out.push(["quiet", String(q.quiet)]);
 	if (q.quarter) out.push(["qtr", q.quarter]);
@@ -6254,6 +6260,7 @@ function matches(s, q, ctx, tree) {
 		if (q.checkedin === "no" ? st !== "none" : st !== "asked") return false;
 	}
 	if (q.inreview && ctx.inReview && !ctx.inReview(q.inreview)?.has(g.id)) return false;
+	if (q.moved && !ctx.moved?.(g, q.moved, q.since ?? null)) return false;
 	if (q.quarter) {
 		if ([...s.story.quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed")?.kind !== q.quarter) return false;
 	}
@@ -6312,7 +6319,9 @@ var init_query = __esmMin((() => {
 		dir: 1,
 		cols: {},
 		checkedin: null,
-		inreview: null
+		inreview: null,
+		moved: null,
+		since: null
 	};
 	STATUS_OPTIONS = [
 		"off",
@@ -6364,6 +6373,8 @@ var init_query = __esmMin((() => {
 		"kind",
 		"attention",
 		"needs",
+		"moved",
+		"since",
 		"due",
 		"quiet",
 		"qtr",
@@ -16410,6 +16421,10 @@ var wrapUpOn = (on) => on.has("wrap-up");
 * get_my_work say it; no screen writes "review" in a deadline itself.
 */
 var dueWordsHere = (reviews, s, cycle, week, personId) => dueWords$1(reviews, cycle, week, reviews && heldOnDueDay(s.reviews, cycle, week, personId));
+var movedRule = null;
+function registerMovedRule(rule) {
+	movedRule = rule;
+}
 /** Every goal's summary row, with what the Goals filters need beyond it. With `reviews` false (Reviews off) `inreview=`
 narrows nothing, as a switched-off module's column doesn't (module map F4; build review of #424). */
 function goalRows(s, cycle, today, week, columns, reviews = true) {
@@ -16424,6 +16439,8 @@ function goalRows(s, cycle, today, week, columns, reviews = true) {
 		const r = s.reviews.find((x) => x.id === id && !x.removedAt);
 		return r ? new Set(goalsIn(r.scope, goals).map((g) => g.id)) : null;
 	};
+	let passes;
+	const moved = (g, kind, since) => !!(passes ??= movedRule?.(s, cycle, today))?.(g, kind, since);
 	return {
 		kind: "goal",
 		summaries: summariseAll(goals, s, cycle, today, week),
@@ -16432,6 +16449,7 @@ function goalRows(s, cycle, today, week, columns, reviews = true) {
 			cycle,
 			week,
 			standing,
+			moved,
 			...reviews ? { inReview } : {},
 			...columns ? { columns } : {}
 		}
@@ -18063,6 +18081,112 @@ function goalScorecard(goal, cycle, checkIns, week, stale) {
 		}
 	};
 }
+// src/domain/changed.ts
+init_status();
+init_format();
+/** Each kind's words, as Home's counts, the teams table and the Goals filter line say them. */
+var MOVED_WORDS = {
+	worse: "got worse",
+	better: "recovered",
+	quiet: "went quiet",
+	done: "done",
+	any: "any change"
+};
+var known = (kind) => Object.hasOwn(MOVED_WORDS, kind);
+/** A day as `since=` writes it; anything else counts from this week's Monday. */
+var isDay = (d) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d + "T00:00:00Z"));
+/** Does a goal pass `moved=<kind>`, given what it did (`movement`)? A kind it doesn't know is no filter. */
+var movedPasses = (kind, m) => !known(kind) || !!m && (kind === "any" || m.kind === kind);
+/** The day `since=` names, or null (this week's Monday) when it isn't one. */
+var sinceDay = (d) => isDay(d) ? d : null;
+var DAY$1 = 864e5;
+var shift = (iso, days) => new Date(Date.parse(iso.slice(0, 10) + "T00:00:00Z") + days * DAY$1).toISOString().slice(0, 10);
+/** The Monday of the week a day is in: what "Changed this week" counts from when Home was never opened. */
+function mondayOf(today) {
+	return shift(today, -(((/* @__PURE__ */ new Date(today.slice(0, 10) + "T00:00:00Z")).getUTCDay() + 6) % 7));
+}
+/** Statuses that say nothing yet about a plan: before a first check-in, or before the cycle's first week. */
+var UNSAID = /* @__PURE__ */ new Set(["none", "planned"]);
+/**
+* Rule 5. A goal's move between its status on `since` (`before`; null when the goal was created after it) and now:
+* `done` when it is done now and wasn't; `quiet` when it now has no recent update and hadn't (weekly rhythm only);
+* otherwise `worse` or `better` by the status rule's rank (the vocabulary's order), or null when nothing moved.
+* A first status of on track is no change; a first status at risk or off track is worse. A new check-in that keeps the
+* status is no change: Home is not a feed (History has it). `early`: worse because the owner called it behind while the
+* rules' own calculation is not (the opposite of the `greener` flag).
+*/
+function movement(before, now, weekly = true) {
+	if (before == null || before === now.status) return null;
+	if (now.status === "done") return {
+		kind: "done",
+		early: false
+	};
+	if (before === "done") return null;
+	if (now.status === "stale") return weekly ? {
+		kind: "quiet",
+		early: false
+	} : null;
+	if (UNSAID.has(now.status)) return null;
+	const was = UNSAID.has(before) ? RANK.on : RANK[before];
+	const r = RANK[now.status];
+	if (r === was) return null;
+	if (r < was) return {
+		kind: "better",
+		early: false
+	};
+	return {
+		kind: "worse",
+		early: !!now.call && !!now.calculated && RANK[now.call] > RANK[now.calculated] && RANK[now.calculated] <= RANK.on
+	};
+}
+// src/app/moved.ts
+init_status();
+/**
+* Rule 5's two statuses for a goal (the Home spec): on `since`, the status rule (goalStatus) with today = since
+* and only the check-ins posted before that day, or null when the goal was created on it or after; and now. `move` is
+* `movement` between them; `since` null counts from this week's Monday. Weekly: every cycle has a set rhythm today (FT1
+* adds the others; then `weekly` is false for them and nothing "went quiet").
+*/
+function movesSince(s, cycle, today, weekly = true) {
+	const day = today.toISOString().slice(0, 10);
+	const before = /* @__PURE__ */ new Map();
+	const upTo = (since) => {
+		let l = before.get(since);
+		if (!l) {
+			l = s.checkIns.filter((c) => c.postedAt < since);
+			before.set(since, l);
+		}
+		return l;
+	};
+	const nowOf = /* @__PURE__ */ new Map();
+	const now = (g) => {
+		let n = nowOf.get(g.id);
+		if (!n) {
+			const st = goalStatus(g, cycle, s.checkIns, today);
+			n = {
+				status: st.status,
+				call: st.latest?.status ?? null,
+				calculated: st.latest?.calculated ?? null
+			};
+			nowOf.set(g.id, n);
+		}
+		return n;
+	};
+	const was = (g, since) => {
+		const from = since ?? mondayOf(day);
+		if (g.createdAt && g.createdAt.slice(0, 10) >= from) return null;
+		return goalStatus(g, cycle, upTo(from), /* @__PURE__ */ new Date(from + "T00:00:00Z")).status;
+	};
+	return {
+		was,
+		now,
+		move: (g, since) => movement(was(g, since), now(g), weekly)
+	};
+}
+registerMovedRule((s, cycle, today) => {
+	const m = movesSince(s, cycle, today).move;
+	return (g, kind, since) => movedPasses(kind, m(g, sinceDay(since)));
+});
 // src/domain/activity.ts
 init_levels();
 init_plan();
@@ -19288,7 +19412,19 @@ var CORE_ARTICLES = [
 				list: [
 					"If you are in a team, or lead one, and it has goals you don’t own, “Your team · CI/CD · 17 goals” follows your goals (“Your teams · 30 goals in 2 teams” when you lead more than one). It is exactly the My team tab of Goals: the same goals and the same total, and See them in Goals opens it.",
 					"Its counts by status each open exactly those goals. Then “2 need attention that aren’t yours” opens Goals with those goals, filtered to Owner not you, and up to four of them are listed, each with its owner’s name first. Your own are in Your goals, so they aren’t listed twice. When nothing needs attention, it says so.",
+					"In a workspace with one team, your goals and your team’s would repeat each other, so Home shows them once: “The team’s goals · 9”, your own first, then your teammates’, each of theirs with its owner’s name first. Its counts, its need attention link and See them in Goals open that team’s goals. There is no separate Your team, and Goals you watch is left out while you watch nothing.",
 					"When the goals you watch, or your teams’ goals, are more than twelve goals in two or more teams, they are shown as teams, worst first: the team with the most goals off track, then at risk, then with no recent update, first, as Goals orders By team. Each team’s name, its “3 need attention” and its counts by status open exactly those goals. Five teams show, then a link to the rest, by team. No person’s name is in this table: teams and goals are ranked, never people. On a phone each team is one stacked row."
+				]
+			},
+			{
+				heading: "Changed since",
+				list: [
+					"Beside the rest on a computer (after your goals and your team on a phone), “Changed since Friday 6 Nov” says what moved since you last opened Home: “1 got worse”, “2 recovered”, “1 went quiet”, “1 done”. Each count opens exactly those goals in Goals.",
+					"It counts from the last day you opened Home before today, so two visits on one day count from the same day. The first time, it says “Changed this week” and counts from Monday; after a long time away, at most the last four weeks (“Changed in the last 4 weeks”).",
+					"Up to four goals follow, worse first: each with its status now, what it was, and whether it is yours, your team’s or one you watch (or its team, when your goals are shown as teams). A goal its owner called behind while its numbers were still on plan says “called early by its owner”. More than four: All in Goals lists them.",
+					"A goal moves when its status changes: a new check-in that keeps it where it was isn’t a change (its History has every check-in). It counts the goals in the widest of your sets (yours, your team’s or the ones you watch), so each count is what Goals lists. When nothing moved, it isn’t shown. With Watching switched off, the goals you watch aren’t in it.",
+					"When your goals are shown as teams, the table’s last column, “Since Thu 5 Nov”, says what moved in each team (“1 got worse”, “1 recovered”, or No change), each a link to those goals.",
+					"Faro remembers when you last opened Home in this browser, for this workspace; the internal platform keeps it for you on its server."
 				]
 			},
 			{
@@ -19320,7 +19456,9 @@ var CORE_ARTICLES = [
 			"streak",
 			"needs your response",
 			"today",
-			"this week"
+			"this week",
+			"changed since",
+			"what changed"
 		],
 		related: [
 			"check-in",
@@ -19994,6 +20132,7 @@ var CORE_ARTICLES = [
 				`Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list, with those ${lower(ATTENTION.handled)} listed below them), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(", ")}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
 				"Under the bar, one line counts the goals that match; under it, the filters in words (“Filtered by: Status Off track · Owner Rhea Kapoor”), each with Remove. A search is never listed as a filter.",
 				"Owner not you is the goals someone else owns: Home’s “need attention that aren’t yours” opens Goals with it, so your own goals are left out.",
+				"Changed since: what Home’s “Changed since” counts open. The filter line says “Changed since Fri 6 Nov: got worse” (or recovered, went quiet, done, any change); a goal counts when its status on that day and now differ in that way. Remove takes it off.",
 				"Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest. Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere; clear the sort to see the trees again. By level and By team keep their groups.",
 				"Everything is in the link: Copy link, in Views, shares exactly what you see. Save this view…, also in Views (in View on a phone), keeps it under a name: it shows as a tab while it’s open, and Views lists it the rest of the time. Rename or delete it from Views while it’s open."
 			]
@@ -21265,7 +21404,7 @@ var CORE_ARTICLES = [
 					"Switching Watching off says that the Watching tab, “Goals you watch” and the Watch button go; how many people’s watches are kept (nobody is shown as watching while it is off); how many people own no goal and see Home through what they watch, whose Home then shows every goal that needs attention; and that goals don’t change. Switch it back on and each person watches what they did.",
 					"Switching the Wrap-up off says that owners aren’t asked how their goals landed (and, while it is open, how many goals won’t be asked for), that the wrap-ups already written stay in each goal’s History, and that the year still ends: results are worked out as before, and an admin starts the next year from Cycles.",
 					"Switching Feedback off takes Feedback out of the menu, with Send feedback and Mark up this screen, and Ctrl+Shift+M does nothing. What was sent stays in the builders’ inbox. Switching the Goal map off takes Map out of Goals’ layouts: a link or saved view that asked for the Map opens the List and says so once.",
-					"Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.",
+					"Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help (and the Help link at the foot of its pages) and its MCP tools; What’s new still lists its releases. Anything that needs it goes off with it, and Features says so.",
 					"With Reviews off, asks and next steps stay on their goals and on Home, each goal’s History and Activity keep what was said in reviews, and check-ins are still due by the same day. “Before the review” becomes “by Thursday” (or whichever day it is) on Home, in the check-in and in the count of goals checked in on time.",
 					"With Reviews off, a spreadsheet you export has no Notes sheet and no Review column on Asks. A workbook that has them still loads; the preview says once that they were not read. An AI assistant’s review tools answer that Reviews is switched off here, in the same words as any switched-off tool.",
 					"Nothing a feature saved is deleted. Switch it back on and everything is as it was: every review, its people, its cadence and what was said. A session whose date passed while Reviews was off isn’t said to be not held.",
@@ -21644,6 +21783,25 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "home-one-team",
+		date: "2026-11-14",
+		title: "With one team, Home shows the team’s goals once",
+		points: ["In a workspace with one team, Home shows “The team’s goals” as one section, yours first, in place of Your goals and Your team.", "Your teammates’ goals that need attention are listed with their owners’ names, so nothing of the team’s is missing from Home."],
+		articles: ["home"]
+	},
+	{
+		id: "home-changed",
+		date: "2026-11-14",
+		title: "See what changed since you last looked",
+		points: [
+			"Home says what moved since you last opened it: how many goals got worse, recovered, went quiet or were done, each count opening exactly those goals.",
+			"Up to four of them are listed, worse first, each with its status now and what it was.",
+			"When your goals are shown as teams, a last column says what moved in each team.",
+			"Goals can be filtered the same way: “Changed since Fri 6 Nov: got worse”."
+		],
+		articles: ["home", "goals-filters"]
+	},
 	{
 		id: "corrections-keep-the-author",
 		date: "2026-11-14",
@@ -23266,6 +23424,7 @@ var MORE_RULE_PAGES = [
 	["goals-page", "The Goals page: whose goals, how they are grouped, and the switch"],
 	["home", "Home: what is asked of you today"],
 	["home-sets", "Home: your goals, your team and what you watch"],
+	["home-changed", "Home: what changed since you last looked"],
 	["habit", "The habit: the run, the receipt, a moment and the measure"]
 ];
 /** The requirements under spec/requirements/internal/ (backlog 8r): what the internal rebuild must do that Faro doesn't
@@ -28157,7 +28316,7 @@ var CORE_TOOLS = [
 				level: str("Only goals at this level.", { enum: LEVELS }),
 				mine: bool("Only goals you own (the same as scope \"mine\")."),
 				scope: str("Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.", { enum: SCOPES }),
-				query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks; no filter while Reviews is off), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
+				query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), checkedin (no: due this week with no check-in yet; asked: checked in after an ask for an update), inreview (a review’s ID: the goals it walks; no filter while Reviews is off), moved (what changed: worse, better, quiet, done or any, as Home’s “Changed since” counts it) with since (the day to count from, yyyy-mm-dd; this week’s Monday when left out), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
 				view: str("The name of a saved view: one of yours, or one pinned for everyone."),
 				state: str("active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter).", { enum: [
 					"active",
