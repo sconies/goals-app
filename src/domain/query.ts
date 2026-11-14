@@ -86,6 +86,24 @@ const COLUMN_PARAMS: string[] = [];
 export function addColumnParams(params: readonly string[]) {
   for (const k of params) if (!COLUMN_PARAMS.includes(k) && !QUERY_KEYS.includes(k)) { COLUMN_PARAMS.push(k); QUERY_KEYS.push(k); }
 }
+/** Starts of parameters a module's family of filters reads, whose rest the open workspace names (Fields: `f.<field id>`). */
+const COLUMN_PREFIXES: string[] = [];
+export function addColumnPrefixes(prefixes: readonly string[]) {
+  for (const p of prefixes) if (p && !COLUMN_PREFIXES.includes(p)) COLUMN_PREFIXES.push(p);
+}
+const familyParam = (k: string) => COLUMN_PREFIXES.some((p) => k.startsWith(p) && k.length > p.length);
+/** Whether a goals query reads a parameter: the core's, a module's (addColumnParams), or one of a family's (addColumnPrefixes). */
+export const isQueryKey = (k: string) => QUERY_KEYS.includes(k) || familyParam(k);
+/** The order a saved view and a link write parameters in: the query's own, then a family's, by name. */
+export const queryKeyRank = (k: string) => (QUERY_KEYS.includes(k) ? QUERY_KEYS.indexOf(k) : QUERY_KEYS.length);
+
+/**
+ * A module filter's column (QueryContext.columns): what a goal holds, compared with what is picked. `test`, when it has
+ * one, compares instead: a family's filter picks several values in one parameter ("Build,Run"), any of which matches.
+ */
+export type ColumnFill = ((goal: Goal) => string | null) & { test?: (goal: Goal, picked: string) => boolean };
+/** Whether a goal passes a module column's filter. */
+export const columnPasses = (col: ColumnFill, g: Goal, picked: string) => (col.test ? col.test(g, picked) : col(g) === picked);
 
 /** Read a query from a URL's search params (unknown or bad values are ignored, never an error). */
 export function parseQuery(p: URLSearchParams): GoalQuery {
@@ -108,7 +126,7 @@ export function parseQuery(p: URLSearchParams): GoalQuery {
     helps: p.get('helps') === '1',
     sort: SORT_OPTIONS.some(([k]) => k === sortKey) ? (sortKey as SortKey) : null,
     dir: dir === 'desc' ? -1 : 1,
-    cols: Object.fromEntries(COLUMN_PARAMS.map((k) => [k, (p.get(k) ?? '').slice(0, 200)]).filter(([, v]) => v)),
+    cols: Object.fromEntries([...COLUMN_PARAMS, ...[...new Set(p.keys())].filter(familyParam).slice(0, 20)].map((k) => [k, (p.get(k) ?? '').slice(0, 200)]).filter(([, v]) => v)),
     checkedin: p.get('checkedin') === 'no' || p.get('checkedin') === 'asked' ? (p.get('checkedin') as 'no' | 'asked') : null,
     inreview: (p.get('inreview') ?? '').slice(0, 200) || null,
     moved: p.get('moved') || null,
@@ -158,7 +176,7 @@ export const filters = (q: GoalQuery) => queryEntries({ ...q, sort: null }).leng
 export interface QueryContext {
   goals: Goal[]; cycle: Cycle; week: number;
   /** Each module filter's column, by its parameter: the value it holds for a goal (a metric's id), or null. A filter whose column isn't here (its module is off) narrows nothing. */
-  columns?: Record<string, (goal: Goal) => string | null>;
+  columns?: Record<string, ColumnFill>;
   /** A goal's standing this week (habit rule 1, `standing.ts`), null when it isn't due: what `checkedin=` reads. */
   standing?: (goal: Goal) => 'unasked' | 'asked' | 'after' | 'none' | null;
   /** The goals a review walks, by the review's id; null for no such review: what `inreview=` reads. Not here while Reviews is off: `inreview=` then narrows nothing, as a switched-off module's column doesn't (module map F4). */
@@ -195,7 +213,7 @@ export function matches(s: GoalSummary, q: GoalQuery, ctx: QueryContext, tree?: 
   // Any of the owners named; `-me`, anyone but the person asking (nobody asking: anyone).
   if (q.owner.length && !q.owner.some((o) => o === g.ownerId || (o === NOT_ME && g.ownerId !== ctx.viewerId))) return false;
   if (q.kind.length && !q.kind.includes(g.kind)) return false;
-  for (const [k, v] of Object.entries(q.cols ?? {})) { const col = ctx.columns?.[k]; if (col && col(g) !== v) return false; }
+  for (const [k, v] of Object.entries(q.cols ?? {})) { const col = ctx.columns?.[k]; if (col && !columnPasses(col, g, v)) return false; }
   if (q.attention || q.needs.length) {
     // Needs attention lists the goals being handled too, below the others (Lane, 9 Nov): nothing is hidden.
     if (!onAttentionList(s.attention)) return false;

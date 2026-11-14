@@ -18,7 +18,7 @@ import type { TableLayout } from '../domain/tableLayout';
 import { sendDemoFeedback } from './research';
 import { prefs } from './prefs';
 import { MODULES, modulesOn } from '../core/registry';
-import { MODULE_RECORDS, recordsOn } from '../core/records';
+import { goalSheetsOn, MODULE_RECORDS, recordsOn } from '../core/records';
 import { watchingOn } from './reads';
 import { applyCommit, EXAMPLE, examplesOf, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import type { Answers, ChangeInput, ChangeSet, CheckInPost, PostMode, Tables, Via } from '../domain/changeset';
@@ -885,7 +885,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       },
       // A change set is previewed here; applyChanges sends the same input again with apply, so what is saved is worked
       // out at save time by the rule, not trusted from the preview.
-      changeInput: (tables, via, answers, file) => { const x = ax(); return { tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via, answers, full: x.full, records: x.records, ...(file ? { file } : {}) }; },
+      changeInput: (tables, via, answers, file) => { const x = ax(); return { tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via, answers, full: x.full, records: x.records, goalSheets: goalSheetsOn(ws), ...(file ? { file } : {}) }; },
       previewChanges: (tables, via, reason, confirm, answers, file, posts) => {
         const plan: ChangePlan = { tables, via, reason, confirm, answers, ...(file ? { file } : {}), ...(posts?.length ? { posts } : {}) };
         // The preview carries the plan it was made from, so applyChanges can send it again with apply: what is saved is

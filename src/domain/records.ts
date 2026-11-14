@@ -19,6 +19,8 @@ import type { Commit } from './commit';
 import type { ActionContext } from './actions';
 import type { Cell, Ctx, ExportInput, SheetSpec } from './columns';
 import type { Cycle, Goal } from './types';
+import type { Answer, Choice } from './problemLevels';
+import type { ColumnFill } from './query';
 
 /** Every module's rows, by module id and then by the key its records are filed under. */
 export type ModuleRows = { [moduleId: string]: { [key: string]: unknown[] } };
@@ -110,6 +112,10 @@ export interface ModuleRecords {
   /** The columns it adds to Goals' rows, by their address parameter (?metric=): what each goal holds, from the open
       workspace. The app's Goals filter (core/app ModuleFilter) and the AI's find_goals read the same ones. */
   goalColumns?: { param: string; fill: (s: import('./types').Snapshot) => (g: Goal) => string | null }[];
+  /** What it adds to Goals (TG2, Fields: a filter per list field, a column per field on the Goals sheet), loaded only
+      when a workspace has something for it (`has`), so a workspace without it downloads nothing for it. `prefix` is the
+      start of its filters' parameters in a Goals address, read from the first load (domain/query addColumnPrefixes). */
+  goalExtras?: { prefix?: string; has(s: { modules?: ModuleRows }): boolean; load(): Promise<GoalExtras> };
   /** What measures a goal, when the module keeps that (the metric library's link): its name and which way is better, for
       goal entry's wrong-side question (rule 3) at the doors that don't draw the module's own field (a file, the AI tools). */
   measures?(s: { modules?: ModuleRows }, goalId: string): GoalMeasure | null;
@@ -117,6 +123,61 @@ export interface ModuleRecords {
       `goal.marks`): each a week of the cycle and its label, made in the goal's own cycle: since `since` (its start,
       yyyy-mm-dd) and before `until` (the day after its last week), so a change made next year never marks this year's goals. */
   goalMarks?(s: { modules?: ModuleRows }, goalId: string, since: string, until: string): GoalMark[];
+}
+
+/** What a module's `goalExtras` loads (TG2): a family of Goals filters, and its columns on the Goals sheet. */
+export interface GoalExtras { family?: GoalColumnFamily; sheet?: ModuleGoalColumns }
+
+/**
+ * A family of Goals filters a module adds (TG2): one parameter per thing the open workspace has (Fields: `f.<field id>`
+ * for each live list field), each picking one value or several. The core reads its parameters as its own and never
+ * what they mean.
+ */
+export interface GoalColumnFamily {
+  /** Each parameter's column in the open workspace, with the test that compares what is picked. */
+  columns(s: import('./types').Snapshot): Record<string, ColumnFill>;
+  /** Its rows in Goals' Filters sheet: each a parameter, its label and the values to tick. */
+  rows(s: import('./types').Snapshot): { param: string; label: string; options: string[] }[];
+  /** The values a parameter's text picks, and the text for the values picked. */
+  picked(s: import('./types').Snapshot, param: string, text: string): string[];
+  text(s: import('./types').Snapshot, param: string, picked: readonly string[]): string;
+  /** The filter in words for the filter line ("Stage is", "Build or Run"); null when it names nothing. */
+  says(s: import('./types').Snapshot, param: string, text: string): { label: string; value: string } | null;
+  /** The same filter as a tool's argument, by name (find_goals' `fields`): the module's name for the switched-off
+      sentence, the argument's name and words, and the parameters it means, or an Error saying why not. */
+  arg?: { module: string; name: string; description: string; params(s: import('./types').Snapshot, asked: Record<string, unknown>): Promise<Record<string, string>> };
+}
+
+/** One of a module's columns on the Goals sheet: its header, and what it holds, for the workbook's README. */
+export interface GoalSheetColumn { header: string; about: string }
+
+/** What the change engine gives a module's Goals columns to read (domain/changeset): each goal row it saves or keeps. */
+export interface GoalColumnsRead {
+  snapshot: import('./types').Snapshot;
+  actor: import('./types').Person;
+  now: string;
+  newId: (prefix: string) => string;
+  /** The rows, each with its goal as the file leaves it and the module's cells it has, by the module's header. */
+  rows: { row: number; goal: Goal; cells: Record<string, string> }[];
+  /** The answer given to a question it asked before (rule 7), by column and the value found. */
+  answer(column: string, found: string): Answer | undefined;
+  /** Raise a problem on a row: a value a column can't take (Check, asked once per column and value), or a Must fix. */
+  raise(i: { kind: 'module-value' | 'too-long' | 'not-allowed'; row: number; name: string; column: string; found?: string; message: string; answers?: Choice[] }): void;
+}
+
+/** What reading a module's Goals columns gives back: its rows to save, the History entries, and each goal's diffs. */
+export interface GoalColumnsOutcome { commit: Pick<Commit, 'modules'>; changes: import('./types').Change[]; diffs: Record<string, import('./types').Diff[]> }
+
+/** A module's columns on the core's Goals sheet (TG2): written by every export, and read back by the change engine. */
+export interface ModuleGoalColumns {
+  /** The columns, in order, from the open workspace. */
+  columns(s: { modules?: ModuleRows }): GoalSheetColumn[];
+  /** A goal's cell under one of them. */
+  cell(s: { modules?: ModuleRows }, goalId: string, header: string): string | null;
+  /** Read a file's cells back: only what differs from what is saved changes anything. */
+  read(x: GoalColumnsRead): GoalColumnsOutcome;
+  /** Its module, set by the core when it is loaded (core/records). */
+  module?: string;
 }
 
 /** A module's mark on a goal's chart: a dashed hairline at a week, its label beside it. The core knows nothing more. */

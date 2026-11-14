@@ -25,14 +25,18 @@ Module id `tags`, in [src/modules/tags/](../../../src/modules/tags/module.json).
 ## Requirements
 
 - `TAGS-FIELDS`: A workspace defines up to six of its own fields on goals (a stage, a programme), each a list of values or free text, on Workspace, Fields: admins add, rename, reorder, retire and bring them back; everyone reads them. A goal's page shows one line per field in About, which its owner or an admin changes in place, and History says the change (“Stage: Discover → Build”). No rule reads a field; an AI assistant lists and sets them under the same rules. (Copy.)
-- `TAGS-OFF`: An admin switches Fields off for a workspace. Off, a goal's page has no Fields block, Workspace has no Fields section (its address says Fields is switched off), and the fields tools refuse. Every field and value is kept, and switching it on shows them again. (Copy.)
+- `TAGS-FILTER`: Goals filters by a workspace's own list fields: the Filters sheet has a row per live list field with its values and “Not set” to tick (any of them), the filter line says “Stage is Build” with Remove, the address carries it (/goals?f.<field id>=Build) so a link and a saved view keep it, and an AI assistant's find_goals takes the same filter by name (fields: { Stage: "Build" }). Free text is not a filter. Data's Goals table has a column per live field. (Copy.)
+- `TAGS-SHEET`: Every export's Goals sheet has a column per live field, headed with its name; loaded back, a field's cell changes the goal's value under the same rules as its page, and an export loaded straight back changes nothing. A value a list doesn't hold is asked once per value (“Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?”): only an admin may add it, anyone else leaves those cells empty or fixes the file. A column headed with a name no field has is a column nothing reads. (Copy.)
+- `TAGS-OFF`: An admin switches Fields off for a workspace. Off, a goal's page has no Fields block, Workspace has no Fields section (its address says Fields is switched off), Goals has no field filters and Data no field columns, exports have no field columns and the import names a file's as columns nothing reads, and the fields tools and find_goals' fields filter refuse. Every field and value is kept, and switching it on shows them again. (Copy.)
 
 ## Journeys and checks
 
 | Id | What | Where |
 |---|---|---|
 | U174 | A workspace’s own field on goals (TG1): as Amara, an admin, Workspace → Fields says “No fields yet”; she adds “Stage”, a list of Discover, Build and Run, and the page lists it as “A list: Discover, Build, Run”. On a goal’s page its About has “Stage · Not set”; she sets it to Discover, then to Build, in place, and History says “Stage: Discover → Build”; a second field called “stage” is refused in the rule’s words | `evals/journeys.cjs` |
-| N34 | Fields switched off: no Fields block on a goal, no Workspace → Fields, its address says it is off, and it all comes back on | `evals/notes/34-fields-off.cjs` |
+| U175 | Goals filtered by a workspace’s own field (TG2): as Amara, with Stage on two goals, the Filters sheet has a Stage row (Discover · Build · Run · Not set); ticking Build lists Flaky test rate and not Base image build time, the filter line says “Stage is Build” with Remove, and the address carries it; saved as a view “Building”, plain Goals and then the view bring the same goals back, and Data’s Goals table has a Stage column | `evals/journeys.cjs` |
+| U176 | A workbook with a Stage column (TG2): as Amara, the workbook downloaded with Stage on two goals loads straight back as “Nothing would change”; a file saying “Operate” on two rows asks once “Stage says “Operate” on 2 rows. Add “Operate” to Stage, or leave these cells empty?”; added, both goals are in Operate, the list holds it, and History says it | `evals/journeys.cjs` |
+| N34 | Fields switched off: no Fields block on a goal, no Workspace → Fields, no Stage filter on Goals or column on Data, its address says it is off, and it all comes back on | `evals/notes/34-fields-off.cjs` |
 
 ## Help
 
@@ -41,6 +45,6 @@ Module id `tags`, in [src/modules/tags/](../../../src/modules/tags/module.json).
 ## Rules, conformance and rebuild stage
 
 Its rebuild stage: [stage 9](../../rebuild/stage-9-module-tags.md) (an outline, with no drill yet).
-Its rules: [Fields: a workspace’s own columns on goals](rules.md#fields-a-workspaces-own-columns-on-goals), in plain words with worked examples (run against the code by the spec’s own test). Its conformance rows: [tags.csv](../../conformance/tags.csv) ([what each column is](../../conformance/README.md#the-files)).
+Its rules: [Fields: a workspace’s own columns on goals](rules.md#fields-a-workspaces-own-columns-on-goals), [Fields: filtering goals by a field](rules.md#fields-filtering-goals-by-a-field), [Fields: the Goals sheet’s columns](rules.md#fields-the-goals-sheets-columns), in plain words with worked examples (run against the code by the spec’s own test). Its conformance rows: [tags.csv](../../conformance/tags.csv) ([what each column is](../../conformance/README.md#the-files)).
 
 Its own records, every field: [its records](records.md).

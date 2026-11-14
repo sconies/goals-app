@@ -32,19 +32,24 @@
   ],
   "requirements": [
     "TAGS-FIELDS",
+    "TAGS-FILTER",
+    "TAGS-SHEET",
     "TAGS-OFF"
   ],
   "journeys": [
     "U174",
+    "U175",
+    "U176",
     "N34"
   ],
   "elsewhere": [],
   "rebuild": {
     "status": "outline",
-    "builds": "Fields, as a feature a workspace can switch off: a workspace defines up to six of its own fields on goals (a stage, a programme), each a list of 1 to 20 values or free text; a goal has at most one value per field. No rule reads a field: it is for finding and sorting. Its two records are its own (a field, and a goal's value for one), kept, saved and carried by the core without it knowing what they are; a field is never deleted, only retired and brought back with its values. Workspace → Fields (/workspace/fields) lists the fields in order with their kind and how many goals have a value; admins add one (its one primary action), rename it, change a list's values, move it up or down, retire it and bring it back, and everyone else reads them. A goal's page has a Fields block in About, after its facts: one line per live field, “Stage · Build” or “Stage · Not set”, which the goal's owner or an admin changes in place (a select for a list, up to 80 characters of free text), with no reason asked; History says “Stage: Discover → Build”, and “Stage added”, “Stage retired”. An assistant lists the fields (list_fields), sets a goal's values by field name with dry_run (set_goal_fields) and, as an admin, defines them (save_field), under the same rules. Off, there is no Fields block and no Fields in Workspace's menu, /workspace/fields says Fields is switched off and who can switch it on, and the three tools refuse; every field and value stays, and comes back when it is switched on.",
+    "builds": "Fields, as a feature a workspace can switch off: a workspace defines up to six of its own fields on goals (a stage, a programme), each a list of 1 to 20 values or free text; a goal has at most one value per field. No rule reads a field: it is for finding and sorting. Its two records are its own (a field, and a goal's value for one), kept, saved and carried by the core without it knowing what they are; a field is never deleted, only retired and brought back with its values. Workspace → Fields (/workspace/fields) lists the fields in order with their kind and how many goals have a value; admins add one (its one primary action), rename it, change a list's values, move it up or down, retire it and bring it back, and everyone else reads them. A goal's page has a Fields block in About, after its facts: one line per live field, “Stage · Build” or “Stage · Not set”, which the goal's owner or an admin changes in place (a select for a list, up to 80 characters of free text), with no reason asked; History says “Stage: Discover → Build”, and “Stage added”, “Stage retired”. Goals' Filters sheet has a row per live list field (its values and “Not set”, any of them ticked), the filter line says “Stage is Build” with Remove, and the address carries it as /goals?f.<field id>=Build so a link and a saved view keep it; free text is not a filter. Data's Goals table and every export's Goals sheet have a column per live field, headed with its name; loaded back, a field's cell changes the goal's value under the same rules as its page, an export loaded straight back changes nothing, and a value a list doesn't hold is asked once per value (“Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?”), which only an admin may add. An assistant lists the fields (list_fields), sets a goal's values by field name with dry_run (set_goal_fields), finds goals by them (find_goals' fields) and, as an admin, defines them (save_field), under the same rules. Off, there is no Fields block, no Fields in Workspace's menu, no field filter on Goals and no field column on Data or in an export (a file's are columns nothing reads, named once), /workspace/fields says Fields is switched off and who can switch it on, and the three tools and find_goals' fields refuse; every field and value stays, and comes back when it is switched on.",
     "entry": [
       "The core saves a module's records through module_tables and src/core/records.ts (stage 2), so the module's two tables need nothing from any core rule.",
-      "The core offers a Workspace section to a module (AppModule sections, /workspace/<id>) and the goal page's goal.sections place, and refuses a switched-off module's actions and AI tools (stage 2)."
+      "The core offers a Workspace section to a module (AppModule sections, /workspace/<id>) and the goal page's goal.sections place, and refuses a switched-off module's actions and AI tools (stage 2).",
+      "What a module adds to Goals loads only when a workspace has something for it (domain/records goalExtras: Fields' extras.ts, once a live field exists; core/records loadGoalExtras): a family of Goals filters (parameters by their start, f.) and its columns on the Goals sheet (written by every export, read back by the change engine, which asks the module's question as its own Check, module-value)."
     ],
     "exit": [
       "fieldProblem and valueProblem give the tags-fields rule's worked examples (src/modules/tags/rules.test.ts), and every row of spec/conformance/tags.csv matches.",
@@ -53,11 +58,16 @@
       "Only an admin adds, renames, moves, retires or brings back a field; only the goal's owner or an admin sets its value; a seventh live field, a name a live field has, and a list value the list doesn't hold are refused with the rule's words, in the app and through the tools (src/modules/tags/fields.test.ts, tools.test.ts).",
       "A retired field leaves goals' pages and list_fields' live fields, keeps every value, and brought back shows them again.",
       "Starting the next year copies each goal's values to its copy; a copy that leaves, or a start undone, clears the copy's values (the tables have no removed_at: src/modules/tags/records.test.ts).",
-      "Switched off, a goal's page has no Fields block, Workspace's menu has no Fields, /workspace/fields is Page not found with “Fields is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and list_fields, set_goal_fields and save_field refuse with the switched-off sentence; switched back on, every value is there (check N34)."
+      "Switched off, a goal's page has no Fields block, Workspace's menu has no Fields, /workspace/fields is Page not found with “Fields is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, Goals has no Stage filter and Data no Stage column, a link's f.<field id> narrows nothing, and list_fields, set_goal_fields, save_field and find_goals' fields refuse with the switched-off sentence; switched back on, every value is there (check N34).",
+      "filterGoals gives the tags-filter rule's worked examples (src/modules/tags/filter.test.ts): a goal matches every field filtered, Not set matches a goal with no value, and a filter's text reads a value with a comma in it as one.",
+      "As Amara, with Stage on two goals, Goals' Filters sheet has a Stage row; ticking Build lists only the goal in Build, the filter line says “Stage is Build” with Remove, the address carries f.<field id>=Build, a view saved from it brings the same goals back, and Data's Goals table has a Stage column (journey U175).",
+      "The workbook downloaded with Stage on two goals loads straight back as “Nothing would change”; a file saying “Operate” on two rows asks once, and added, both goals are in Operate, the list holds it and History says “Stage: Build → Operate” via the spreadsheet (journey U176; src/modules/tags/sheet.test.ts, which also covers an admin's Add, anyone else's Leave these cells empty, free text over 80 characters and a goal the loader may not change).",
+      "find_goals' fields filter finds the same goals as the Goals link with the same filter, and refuses an unknown field, a free-text field and a value the list doesn't hold in words (src/modules/tags/tools.test.ts)."
     ],
     "gaps": [
-      "The filters (“Stage is Build” on Goals and in saved views), Data's Goals column, the Goals sheet's columns and the import's question about a value a list doesn't hold are TG2 (docs/design/round-4/tags/spec.md, section 10); find_goals' fields filter comes with them.",
-      "Through set_goal_fields, a value a list doesn't hold is refused with the list's values (an admin adds it with save_field); the import's one question per value, offering an admin to add it, is TG2's.",
+      "Find doesn't search a free-text field's words: Find searches a goal's own row (its name, key, owner, team, reason and definition), and a module adds a kind to Find, not words to a goal's row.",
+      "Undo this import puts goals, plans and check-ins back, but not a field's values or a value added to a list (the core's import undo keeps no module rows yet).",
+      "Through set_goal_fields, a value a list doesn't hold is refused with the list's values (an admin adds it with save_field); only the Goals sheet asks the question.",
       "A field's kind can't be changed once it is added: a list and free text hold values of different shapes."
     ]
   },

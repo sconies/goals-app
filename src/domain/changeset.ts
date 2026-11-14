@@ -46,7 +46,7 @@ import { asksFollowOwner, openAsksDiff } from './askHandover';
 import { deleteGoal, markPersonLeft, stopGoal } from './removal';
 import { reportedIn, stagesFromNow } from './templates';
 import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
-import { goalMeasureOf, type ModuleRecords } from './records';
+import { applyModuleRows, goalMeasureOf, hasModuleRows, type ModuleGoalColumns, type ModuleRecords, type ModuleRows } from './records';
 import { CHUNK } from './importLimits';
 import { ANSWERS, fold, LEAVE, groupId, groupIssues, issueOf, levelOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
 import type { Ask, Change, CheckIn, CheckInReading, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, Review, Snapshot, StageUpdate, Status, Team } from './types';
@@ -150,6 +150,9 @@ export interface ChangeInput {
   /** What a source said for a sheet's or a tool's check-in row, by goal id and week (NR rule 3: the MCP tool's
       `reading_confirmed` and `different_because`): recorded with that row's check-in under the same rule as a post's. */
   readings?: { goalId: string; week: number; reading: CheckInReading }[];
+  /** The modules' own columns on Goals, of the modules on here (core/records goalSheetsOn; TG2, Fields'): read with each
+      Goals row. Plain data can't carry them, so the import's worker loads them itself. */
+  goalSheets?: readonly ModuleGoalColumns[];
   /** The feature modules' records in this build (core/records): what measures a goal, for goal entry's wrong-side question. */
   records?: readonly ModuleRecords[];
   /** The file the rows came from, and how many of its rows the person left out before the engine saw them: the import's
@@ -1365,6 +1368,42 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     items.push({ sheet: t.sheet, row: t.row, goalId: id, goal: after.title, kind: !t.before ? 'new goal' : needs || (t.plan && planChanged(t.before, after)) ? 'plan' : 'goal', summary: ch.summary, diffs: ch.diffs, needsReason: needs, ...(q ? { question: { text: q.text, confirm: q.confirm } } : {}), ...(asked.length ? { questions: asked } : {}) });
   }
 
+  /* ---------- a module's own columns on Goals (TG2: Fields, one per live field) ---------- */
+  // Each Goals row saved or kept, with the module's cells it has, is read by the module (domain/records
+  // ModuleGoalColumns): it says what changes and asks what it can't take; only what differs from what is saved changes.
+  let moduleOut: ModuleRows | undefined;
+  if (!create) {
+    const recAt = new Map(goalRows.map(({ r, row }) => [row, r]));
+    for (const gs of input.goalSheets ?? []) {
+      const heads = gs.columns(s);
+      if (!heads.length) continue;
+      const rows = [...touched].flatMap(([id, t]) => {
+        const r = t.sheet === 'Goals' && !leftSet.has(`Goals|${t.row}`) ? recAt.get(t.row) : undefined;
+        const g = goalOut.get(id) ?? (t.before && !issuesAt.get(`Goals|${t.row}`)?.some((x) => x.kind === 'not-allowed') ? work.get(id) : undefined);
+        if (!r || !g) return [];
+        const cells = Object.fromEntries(heads.filter((h) => has(r, h.header.toLowerCase())).map((h) => [h.header, val(r, h.header.toLowerCase())]));
+        return Object.keys(cells).length ? [{ row: t.row, goal: g, cells }] : [];
+      });
+      if (!rows.length) continue;
+      const got = gs.read({
+        snapshot: s, actor, now, newId: (p) => newId(p), rows,
+        answer: (column, found) => answerOf('module-value', 'Goals', column, found),
+        raise: (i) => raise(i.kind, 'Goals', i.row, i.name, i.message, { column: i.column, ...(i.found ? { found: i.found } : {}), ...(i.answers ? { answers: i.answers } : {}) }),
+      });
+      moduleOut = applyModuleRows(moduleOut, got.commit.modules);
+      changes.push(...got.changes);
+      // Its changes are said on the goal's row: added to the row's change, or the row's own when nothing else changed.
+      for (const [goalId, diffs] of Object.entries(got.diffs)) {
+        const item = items.find((x) => x.goalId === goalId && x.sheet === 'Goals' && (x.kind === 'goal' || x.kind === 'plan' || x.kind === 'new goal'));
+        if (item) { item.diffs.push(...diffs); continue; }
+        const t = touched.get(goalId)!;
+        const g = goalOut.get(goalId) ?? work.get(goalId)!;
+        items.push({ sheet: 'Goals', row: t.row, goalId, goal: g.title, kind: 'goal', summary: got.changes.filter((c) => c.goalId === goalId).map((c) => c.summary).join('; '), diffs });
+        unchanged--; unchangedBy.Goals--;
+      }
+    }
+  }
+
   /* ---------- check-ins ---------- */
   const ciOut: CheckIn[] = [];
   // What each check-in written replaced (null: it's new), so the import can be undone (domain/removal undoImport).
@@ -1782,7 +1821,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     return result;
   }
   if (ok && via === 'form' && !corrects) {
-    result.commit = { goals: ordered, checkIns: ciOut, ...(reqOut.size ? { requests: [...reqOut.values()] } : {}), changes };
+    result.commit = { goals: ordered, checkIns: ciOut, ...(reqOut.size ? { requests: [...reqOut.values()] } : {}), ...(moduleOut && hasModuleRows(moduleOut) ? { modules: moduleOut } : {}), changes };
   } else if (ok) {
     const sumId = newId('chg');
     const importId = newId('imp');
@@ -1808,6 +1847,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
       goals: ordered, checkIns: ciOut,
       ...(reqOut.size ? { requests: [...reqOut.values()] } : {}),
       ...(reviewsOut.size ? { reviews: [...reviewsOut.values()] } : {}),
+      ...(moduleOut && hasModuleRows(moduleOut) ? { modules: moduleOut } : {}),
       changes: [...changes, summary],
     };
   }

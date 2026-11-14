@@ -3,7 +3,7 @@
    is a shared action (domain/actions.ts), so the assistant meets exactly the rules the person does in the app, and every
    change it makes is logged as that person, via MCP. Check-ins, goals and plans are in tools.ts. */
 import { moduleOffSentence } from './moduleOff';
-import { MODULE_RECORDS } from '../core/records';
+import { goalSheetsOn, MODULE_RECORDS } from '../core/records';
 import { levelIds } from '../domain/levels';
 import type { Commit } from '../data/store';
 import * as A from '../domain/actions';
@@ -111,7 +111,7 @@ export const lines = (l: string[], none: string) => (l.length ? l.join('\n') : n
 
 /** A data table's sheet, from the same workbook the Data screen and the exports use. */
 /** A Data table's sheet of the workbook, for this context (the spreadsheets module's export_table reads it too). */
-export const sheetOf = (ctx: McpContext, t: DataTable) => workbook({ ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, reviews: reviewsOn(modulesOn(ctx.ws).on) }).find((x) => x.name === TABLES[t].sheet)!;
+export const sheetOf = (ctx: McpContext, t: DataTable) => workbook({ ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, reviews: reviewsOn(modulesOn(ctx.ws).on), goalColumns: goalSheetsOn(ctx.ws) }).find((x) => x.name === TABLES[t].sheet)!;
 const headOf = (ctx: McpContext, t: DataTable) => (sheetOf(ctx, t).rows[0] ?? []).map((c) => String(c ?? ''));
 /** A table layout from a tool's arguments: a saved table view by name, or a table with columns, widths and a query. */
 export function layoutFrom(ctx: McpContext, a: Record<string, unknown>): TableLayout {

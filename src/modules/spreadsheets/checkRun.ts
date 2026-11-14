@@ -4,6 +4,7 @@
    in the import's store (./importStore.ts), for the inputs it was made for. */
 import { planChangesInChunks, type ChangeInput, type ChangeSet, type PlanProgress } from '../../domain/changeset';
 import { goalMeasureOf, type GoalMeasure } from '../../domain/records';
+import { loadGoalExtras } from '../../core/records';
 import { importStore, NO_RUN, onCancelRun, type RunFor } from './importStore';
 import type { CheckReply, CheckRequest } from './workerInput';
 
@@ -15,10 +16,11 @@ const same = (a: RunFor | null, b: RunFor) => !!a && a.tables === b.tables && a.
 
 /** What the engine's input becomes to cross to the worker: plain data, what measures each goal worked out here. */
 export function requestOf(input: ChangeInput): CheckRequest {
-  const { newId: _n, records, ...rest } = input;
+  const { newId: _n, records, goalSheets: _g, ...rest } = input;
   const measures: Record<string, GoalMeasure> = {};
   for (const g of input.snapshot.goals) { const m = goalMeasureOf(records, input.snapshot, g.id); if (m) measures[g.id] = m; }
-  return { input: rest, measures };
+  // The modules on here that read their own Goals columns (Fields): the worker loads their readers itself.
+  return { input: rest, measures, goalSheets: (input.goalSheets ?? []).flatMap((g) => (g.module ? [g.module] : [])) };
 }
 
 /**
@@ -54,16 +56,18 @@ export function startCheck(key: RunFor, input: () => ChangeInput): void {
   // No workers: the same engine here, a chunk at a time.
   let stopped = false;
   stop = () => { stopped = true; };
-  const gen = planChangesInChunks(input());
+  let gen: ReturnType<typeof planChangesInChunks> | null = null;
   const step = () => {
     if (stopped) return;
     try {
+      gen ??= planChangesInChunks(input());
       const s = gen.next();
       if (s.done) done(s.value);
       else { progress(s.value); setTimeout(step, 0); }
     } catch (e) { failed(e instanceof Error ? e.message : String(e)); }
   };
-  setTimeout(step, 0);
+  // A module's own Goals columns (Fields') are read by its rules, loaded first.
+  void loadGoalExtras().then(() => setTimeout(step, 0), (e) => failed(e instanceof Error ? e.message : String(e)));
 }
 
 /** Stop (spec 2.2): the check ends and nothing is kept. */

@@ -92,7 +92,7 @@ export const FIELD_TABLE_HEAD = ['Column', 'A new row', 'Format', 'Example', 'If
  * must have each column, its format, an example, what an empty cell does and what it means. The workbook adds the
  * sheets that are only for reading (the core's, then each module's), and the words its worked-out columns use. The template lists only the columns it has.
  */
-export function startHere(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today' | 'sheets' | 'reviews'>, opts: { template?: boolean } = {}): Cell[][] {
+export function startHere(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today' | 'sheets' | 'reviews' | 'goalColumns'> & { snapshot?: ExportInput['snapshot'] }, opts: { template?: boolean } = {}): Cell[][] {
   const rows: Cell[][] = [
     [`${x.ws.name}, ${x.cycle.name}. ${opts.template ? 'Template made' : 'Exported'} ${x.today.toISOString().slice(0, 10)}, week ${x.week} of ${x.cycle.weeks}. Week 0 starts ${x.cycle.startDate}.`],
     ['File of', x.ws.id, x.cycle.id],
@@ -106,6 +106,8 @@ export function startHere(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today'
     const line = kind === 'plan' ? null : requiredLine(kind);
     rows.push([], [`The ${sheet.name} sheet`, `One row per ${sheet.rowIs}. ${sheet.about}${line ? ` A new row needs: ${line}` : ''}`], FIELD_TABLE_HEAD);
     for (const c of table.filter((v) => !opts.template || isFillIn(v))) rows.push([c.header, requiredText(c, table), c.format || null, c.example || null, emptyText(c), c.means]);
+    // A module's own columns on Goals (Fields'), after the core's.
+    if (kind === 'goals' && !opts.template && x.snapshot) for (const m of x.goalColumns ?? []) for (const c of m.columns(x.snapshot)) rows.push([c.header, 'Optional', null, null, 'Not set', c.about]);
   }
   if (opts.template) return rows;
   for (const sheet of [...sheetsFor(x.reviews !== false), ...(x.sheets ?? []).map((m) => m.spec)].filter((v) => !v.loaded)) {
@@ -113,6 +115,15 @@ export function startHere(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today'
     for (const c of sheet.columns) rows.push([c.header, ROLE_WORD[c.role], null, null, null, c.means]);
   }
   return [...rows, [], ['Words', 'Word', 'What it means', 'Kind'], ...definitions()];
+}
+
+/** The modules' columns on Goals (domain/records ModuleGoalColumns, Fields' one per live field), after the core's:
+    each goal's cell under each header. */
+function withModuleColumns(rows: Cell[][], x: ExportInput, goalIds: string[]): Cell[][] {
+  const cols = (x.goalColumns ?? []).flatMap((m) => m.columns(x.snapshot).map((c) => ({ m, header: c.header })));
+  if (!cols.length) return rows;
+  const [head, ...body] = rows;
+  return [[...head!, ...cols.map((c) => c.header)], ...body.map((r, i) => [...r, ...cols.map((c) => c.m.cell(x.snapshot, goalIds[i]!, c.header))])];
 }
 
 const muted = (kind: SheetKind, head: Cell[]) => head.map(String).filter((h) => isWorkedOut(kind, h));
@@ -138,7 +149,7 @@ export function workbook(x: ExportInput): Table[] {
   const reviews = x.reviews !== false;
   const asks = sheetsFor(reviews).find((v) => v.kind === 'asks') as typeof ASKS;
   const book: [SheetKind, Cell[][]][] = [
-    ['goals', rowsOf(GOALS, goalRows)],
+    ['goals', withModuleColumns(rowsOf(GOALS, goalRows), x, goalRows.map((r) => r.g.id))],
     ['plan', planRows(x, sums, c)],
     ['checkIns', rowsOf(CHECK_INS, checkIns)],
     ['people', rowsOf(PEOPLE, x.snapshot.people.map((p) => ({ c, p })))],

@@ -70,7 +70,9 @@ describe('with Reviews switched off, every export leaves out the Notes sheet and
   const book = (off: string[]) => workbook({ ws: ws(off), snapshot: built, cycle: built.cycles[0]!, week: 10, today, ...exportOn(ws(off)) });
 
   it('exportOn carries the sheets and Reviews, from the one switch', () => {
-    expect(exportOn(ws([]))).toEqual({ sheets: MODULE_SHEETS, reviews: MODULE_IDS.includes('reviews') });
+    expect(exportOn(ws([]))).toMatchObject({ sheets: MODULE_SHEETS, reviews: MODULE_IDS.includes('reviews') });
+    // A module's Goals columns (Fields') go with its switch, as its sheets do.
+    if (MODULE_IDS.includes('tags')) expect(exportOn(ws(['tags'])).goalColumns).toEqual([]);
     expect(exportOn(ws(['reviews'])).reviews).toBe(false);
   });
 

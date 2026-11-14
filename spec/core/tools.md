@@ -154,6 +154,7 @@ No arguments.
 | `state` | one of `active`, `proposed`, `stopped` | no | active (the default), proposed or stopped: proposed goals have no status and are listed only when asked for; stopped lists the goals stopped this year, most recently stopped first, with who stopped each, when and why (the Goals screen’s State filter). |
 | `limit` | integer | no | How many goals to list, from offset: 50 unless asked, at most 200. |
 | `offset` | integer | no | How many matching goals to skip, for the next page (as “more” says). |
+| `fields` | object | no | Goals with these values of the workspace’s own list fields (list_fields), by name: {"Stage": "Build, Run"}; "Not set" for none. Free text can’t filter. |
 
 <details><summary>The input schema, as JSON</summary>
 
@@ -228,6 +229,23 @@ No arguments.
       "type": "integer",
       "minimum": 0,
       "description": "How many matching goals to skip, for the next page (as “more” says)."
+    },
+    "fields": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "description": "Goals with these values of the workspace’s own list fields (list_fields), by name: {\"Stage\": \"Build, Run\"}; \"Not set\" for none. Free text can’t filter."
     }
   }
 }

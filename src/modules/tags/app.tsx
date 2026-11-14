@@ -1,7 +1,7 @@
 /* Fields on screen (TG1): its Workspace section, /workspace/fields, and a goal's Fields block in About (the goal.sections
    place). Both load when first shown, never with the first download (scripts/check-bundle.mjs). With Fields switched
    off neither is drawn, and /workspace/fields is Page not found saying Fields is switched off. Its facts are in
-   module.json. The filters, Data's column and the sheet's columns are TG2's. */
+   module.json. Goals' filters and the sheet's columns (TG2) are extras.ts, loaded only when the workspace has a live field. */
 import { lazy, Suspense, type ComponentType } from 'react';
 import { useApp } from '../../app/state';
 import type { AppModule, PlaceProps } from '../../core/app';

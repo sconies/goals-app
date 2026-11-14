@@ -32,6 +32,7 @@ Faro can’t record it truthfully. Nothing is saved while one is left, unless an
 | `not-allowed` | The person loading the file may not make the change: a goal they don’t own and aren’t an admin for, people when they aren’t an admin, a goal at a level only its owner may set. | 1 row changes a goal you don’t own | Leave these rows out | `not-allowed` |
 | `removal-refused` | Stop with no reason, Delete on a goal with check-ins, or Left with no one to take over. | 1 row can’t be stopped or deleted as it stands | — | `removal-refused` |
 | `loop` | A goal that would feed itself, directly or round a loop of Feeds into links. | 1 goal would feed itself | — | `loop` |
+| `too-long` | A cell in a module’s own column on Goals longer than it holds: a field’s free text over 80 characters (TG2). | — | — | None. Raised by a module’s own Goals columns (src/modules/tags/sheet.ts), never by the core’s columns: its rows are the tags conformance rows (value, text-long). |
 
 ## Check (`check`)
 
@@ -60,6 +61,7 @@ Possible but unlikely: a question. The change saves once it is answered; one ans
 | `big-removal` | Five or more rows say Stop, Delete or Left. | This file stops 5 goals. Is that right? | That’s right · Leave these rows out | `big-removal` |
 | `feeds-lower` | A goal that feeds a goal at a lower level than its own. | A north star usually feeds nothing, and “Pipeline queue wait (p90)” is an SVP goal. Is this link right? | Yes, it feeds that goal · Leave these rows out | `feeds-lower` |
 | `for-someone-else` | New goals for other people with no State: asked once per file whether they start active or proposed (GE10, decision 16). Set-up never asks; confirm answers active. | One of these goals is for other people and would start as active. Is that what you mean? | Yes, active · No, start them as proposed | `for-someone-else` |
+| `module-value` | A value a module’s own column on Goals doesn’t hold: a list field’s value that isn’t one of its values (“Stage says “Operate” on 4 rows”), asked once per field and value; an admin may add it to the list, anyone else leaves those cells empty (TG2). | — | — | None. Raised by a module’s own Goals columns (src/modules/tags/sheet.ts), never by the core’s columns: its rows are the tags conformance rows (sheet). |
 
 ## Read as (`note`)
 
