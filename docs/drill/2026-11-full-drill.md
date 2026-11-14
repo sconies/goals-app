@@ -12,9 +12,9 @@ The last proof before the handoff: a fresh session rebuilds Faro stage by stage 
 |---|---|---|---|
 | 1. The core rules | **Pass**: 43,373 of 43,373 rows | 16 (1.1 to 1.16) | #513 (all 16) |
 | 2. The core data and the change engine | **Pass**: 205 of 205 rows, store contract 13 of 13; stage 1 still passes. Only after reading the expected rows by hand | 22 (2.1 to 2.22) | |
-| 3. The core screens and journeys | Running | | |
-| 4. Module: Feedback | Waiting | | |
-| 5. Module: Goal map | Waiting | | |
+| 3. The core screens and journeys | **Harness pass**: 145 of 145 rows; stages 1 and 2 still pass. By hand: 15 of 71 core journeys carried out fully, 18 in part, 38 not built; the core requirements not checkable from the kit | 31 (3.1 to 3.31) | |
+| 4. Module: Feedback | Running | | |
+| 5. Module: Goal map | Running | | |
 | 6. Module: Metric library | Waiting | | |
 | 7. Module: Reviews | Waiting | | |
 | 8. Module: Spreadsheets | Waiting | | |
@@ -83,4 +83,42 @@ The rebuild passed, 135 of 135 rows in `changes.csv` and 70 of 70 in `import.csv
 | 2.20 | The speed and chunked-run designs were simplified | Not scored |
 | 2.21 | Pages point at code files for detail (`src/domain/records.ts`) that aren't in the kit | Words |
 | 2.22 | Not built: the Plan sheet, Left on People, new teams, other-workspace files | Not scored |
+
+### Stage 3: the core screens and journeys
+
+The harness passed: `navigation.csv` 60 of 60, `readback.csv` 6 of 6, `find.csv` 23 of 23 and `home.csv` 56 of 56, with stages 1 and 2 still at 100%. The rebuild is a small server-rendered app with every core route, its named parts and one main action, and saving goes through the stage 2 engine. The exit criteria the harness doesn't score fall short: **a journey in the kit is a title and a budget, with no steps**, so of 71 core journeys the session carried out 15 fully and 18 in part, and didn't build 38 (set-up, proposed or stopped goals, stopping and deleting, quarters, Access, imports, walkthroughs). It can't drive the two widths (the kit has no portable journey runner), and the core requirements can't be checked from the kit alone. So the core is proved where the kit has data, and only outlined where it has words.
+
+| # | Gap | Evidence |
+|---|---|---|
+| 3.1 | The cases' inputs exist only in the expected CSVs (as 2.1) | Data |
+| 3.2 | The conformance README doesn't describe the Feedback-off and every-feature-off rows | `navigation.csv` |
+| 3.3 | Some page names aren't in the rule (Wrap up, Research, Workspace) | Data |
+| 3.4 | Goal addresses use the id; the rule's examples use the key | Data |
+| 3.5 | "A goal to check in on" read as not Done; weakly proved | Data |
+| 3.6 | Find's goal words are the path to green's `what` and `needs` | Data |
+| 3.7 | "Worst first" is the status rank, then titles A to Z ignoring case | Data |
+| 3.8 | Near-miss ties in Find | Guessed |
+| 3.9 | A bare number that is no goal's key | Guessed |
+| 3.10 | People "whose name starts with the search first" | Not proved |
+| 3.11 | The read-back's level words ("an SVP goal", "a north star") | Data |
+| 3.12 | Which questions read back under "You said", and their words | Data |
+| 3.13 | Weeks past the year's end ("week 13 of 2027") | Data |
+| 3.14 | The "Left as usual" conditions | Data |
+| 3.15 | The plan's number rounded to the goal's decimals | Data |
+| 3.16 | "Goals to discuss" counts every flagged goal, not only those needing attention | Data |
+| 3.17 | When a review session counts as held | Data |
+| 3.18 | Review weekdays counted from Monday = 0 | Data |
+| 3.19 | The README omits the `ask` lead kind | Data |
+| 3.20 | Ask leads' titles beyond "needs a decision" | Guessed |
+| 3.21 | Which lead wins when check-ins are due and a review is today | Data |
+| 3.22 | A goal's first due week (on Home) | Data |
+| 3.23 | What makes a week missed | Data |
+| 3.24 | Goals taken over from someone else | Not proved |
+| 3.25 | Home's one-goal and asks-waiting quiet lines | Data |
+| 3.26 | How Home ends the receipt | Data |
+| 3.27 | Journeys are titles and budgets only; "a step" isn't defined | Words |
+| 3.28 | No portable way to drive the two widths | Kit |
+| 3.29 | No status shapes for No check-in yet and Not started | Words |
+| 3.30 | Goals' filters and sort live only in a source file not in the kit | Words |
+| 3.31 | Some screen behaviours are a line, not a specification | Words |
 
