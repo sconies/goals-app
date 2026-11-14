@@ -1753,7 +1753,7 @@ journey('U123', ['HOME-MANAGER'], 'The manager on Home: Rhea’s “Your team ·
   await p.context().close();
 });
 
-journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k', 3, async (h, device) => {
+journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k; “Changed since Friday 6 Nov” counts open lists of that length, and the table’s last column is “Since Fri 6 Nov”', 3, async (h, device) => {
   // Home rule 4 (HM3): three or more teams are drawn as teams, ordered as Goals orders "By team" (worstGroupsFirst).
   const day = (d) => BASE + '/demo/?today=' + d;
   const p = h.use(await newPage(device, 'amara'));
@@ -1785,6 +1785,37 @@ journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans 
   await p.locator('.goals-line').first().waitFor();
   const line = await p.locator('.goals-line').first().innerText();
   h.set('finish', new RegExp(`^${k} needs? attention`).test(line), `a team’s “${k} need attention” opened Goals saying “${line}”`);
+  // Changed since (rule 5, HM4). Monday's first look counted from that Monday, and nothing had moved: the part is absent.
+  // Home last opened on Fri 6 Nov (the `home-seen` pref, per browser), on Wed 11 Nov it says what moved since, each count
+  // opening Goals with a count line of that length and the filter line in its words; the teams table's last column too.
+  await p.goto(day('2026-11-09'));
+  await block.waitFor();
+  if (await p.locator('[data-part="Changed since"]').count()) fail('“Changed since” shows on Monday though nothing moved since Monday');
+  await p.evaluate(([k, v]) => localStorage.setItem(k, v), ['faro-prefs:platform-org:amara:home-seen', JSON.stringify({ last: '2026-11-06', prev: null })]);
+  await p.goto(day('2026-11-11'));
+  const changed = p.locator('[data-part="Changed since"]');
+  await changed.waitFor();
+  const title = (await changed.locator('h2').innerText()).trim();
+  const moved = await changed.locator('.changed-counts a').evaluateAll((as) => as.map((a) => ({ kind: a.getAttribute('data-moved'), n: Number((a.textContent.match(/^(\d+)/) || [])[1]), text: a.textContent.trim(), href: a.getAttribute('href') || '' })));
+  const rows = await changed.locator('.changed-row').count();
+  const total = moved.reduce((n, m) => n + m.n, 0);
+  if (title !== 'Changed since Friday 6 Nov' || !moved.length || rows !== Math.min(4, total)) fail(`“Changed since” says “${title}”, counts ${moved.map((m) => m.text).join(', ')}, with ${rows} rows`);
+  if (await changed.locator('.changed-row .status-shape').count() !== rows) fail('a “Changed since” row has no status shape beside its word');
+  const WORDS = { worse: 'got worse', better: 'recovered', quiet: 'went quiet', done: 'done' };
+  for (const m of moved) {
+    await h.click(changed.locator(`.changed-counts a[data-moved="${m.kind}"]`));
+    await p.waitForURL(new RegExp(`scope=watching&moved=${m.kind}&since=2026-11-06`));
+    await p.locator('.goals-line').first().waitFor();
+    const said = await p.locator('.goals-line').first().innerText();
+    if (Number((said.match(/^(\d+)/) || [])[1]) !== m.n) fail(`“${m.text}” opened Goals saying “${said}”`);
+    const words = await p.locator('.filter-line').first().innerText().catch(() => '');
+    if (!words.includes(`Changed since Fri 6 Nov: ${WORDS[m.kind]}`)) fail(`“${m.text}” opened Goals whose filter line says “${words}”`);
+    await p.goBack();
+    await changed.waitFor();
+  }
+  const since = (await table.locator('thead th').last().innerText()).trim();
+  if (since !== 'Since Fri 6 Nov') fail(`the teams table’s last column is “${since}”, not “Since Fri 6 Nov”`);
+  await h.checkpoint('changed');
   h.set('errors', true);
   h.set('logged', true);
   await p.context().close();

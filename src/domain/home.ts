@@ -386,10 +386,4 @@ export function askLead(w: Waiting | undefined): Lead | null {
     line: `“${w.said}”. ${about}${handed}`, action: { label: ASK_ACTION[w.kind], to: w.to }, also: null, ring: null, about: w.askId };
 }
 
-/* ---------- The sets (round 3, HM3: docs/design/home/spec.md rule 4; the rest is in homeSets.ts) ---------- */
-
-/** A set is drawn as teams when its goals belong to three or more teams, or it holds more than twelve goals in two or more teams. */
-export function asTeams(goals: readonly { teamId: string }[]): boolean {
-  const teams = new Set(goals.map((g) => g.teamId)).size;
-  return teams >= 3 || (goals.length > 12 && teams >= 2);
-}
+/* The sets (round 3, HM3: docs/design/home/spec.md rule 4) are in homeSets.ts, loaded after Home's first download. */

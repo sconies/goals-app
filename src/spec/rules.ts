@@ -4,8 +4,8 @@
    example can't drift from the code: change a rule and its example fails until it's brought up to date.
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
 import { daysSinceIn, weekIn } from './zones';
-import { asTeams, homeFor, waiting, type HomeFacts } from '../domain/home';
-import { asTeamRows, homeSets, type SetFacts } from '../domain/homeSets';
+import { homeFor, longDay, waiting, type HomeFacts } from '../domain/home';
+import { asTeamRows, asTeams, homeSets, type SetFacts } from '../domain/homeSets';
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision, proposedLine } from '../domain/decide';
 import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
 import { beforeStartLine, currentCycle, cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
@@ -64,7 +64,9 @@ import { backTo, litItem, menuGroups, menuRows, pageName, phoneTabs, type PlaceN
 import { movedGoals, ownGroup, scopesFor } from '../domain/goalsPage';
 import { dayText, goalsIn, watchedGoals } from '../domain/review';
 import { countLine, filterLine, findAll, keyOf, nearMiss, noneFound, search, suggest, textMatches, wordsOf } from '../domain/find';
-import { goalRows, personRows, teamRows } from '../app/reads';
+import { goalRows, personRows, scopeFacts, teamRows } from '../app/reads';
+import { movesSince } from '../app/moved';
+import { changedHeading, changedSet, changedSince, movement, sinceFor, seenToday, type StatusNow } from '../domain/changed';
 import { CHECK_IN_MOMENT } from './conformance';
 import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
 import { goalResult } from '../domain/story';
@@ -1906,7 +1908,7 @@ RULE_LIST.push({
   id: 'home-sets',
   title: 'Home: your goals, your team and what you watch',
   summary: 'Home’s blocks of goals are exactly the Goals page’s scopes, with the same counts; a set spanning three or more teams is drawn as teams, worst first.',
-  code: [{ file: 'src/domain/home.ts', names: ['asTeams'] }, { file: 'src/domain/homeSets.ts', names: ['homeSets', 'asTeamRows'] }, { file: 'src/domain/query.ts', names: ['NOT_ME'] }],
+  code: [{ file: 'src/domain/homeSets.ts', names: ['asTeams', 'homeSets', 'asTeamRows'] }, { file: 'src/domain/query.ts', names: ['NOT_ME'] }],
   tests: ['src/domain/home.test.ts', 'src/domain/query.test.ts'],
   reqs: ['HOME-MANAGER'],
   body: `
@@ -1916,7 +1918,7 @@ RULE_LIST.push({
 
 **Not mine.** In a goals query, the owner value \`-me\` means "not the person asking": goals someone else owns. The filter line says it as "Owner not you". With nobody asking (a query with no viewer), it narrows nothing.
 
-**As teams** (\`asTeams\`). A set is drawn as teams when its goals belong to three or more teams, or it holds more than twelve goals in two or more teams. Then it is a table, one row per team, ordered as Goals orders "By team": the most goals off track first, then the most at risk, then the most with no recent update, then the most with no check-in yet, then by name. Each row: the team's name (\`/goals?scope={set}&team={id}\`), "{k} need attention" (the same with \`&attention=1\`; none: "None") and its goals' counts by status (each with \`&status=…\`). Five rows, then "{k} more teams, {j} need attention" (\`/goals?scope={set}&group=team\`). On a phone each team is a stacked row. No person's name is in the table: teams and goals are ranked, never people. (A "Since" column comes with "Changed since".)`,
+**As teams** (\`asTeams\`). A set is drawn as teams when its goals belong to three or more teams, or it holds more than twelve goals in two or more teams. Then it is a table, one row per team, ordered as Goals orders "By team": the most goals off track first, then the most at risk, then the most with no recent update, then the most with no check-in yet, then by name. Each row: the team's name (\`/goals?scope={set}&team={id}\`), "{k} need attention" (the same with \`&attention=1\`; none: "None") and its goals' counts by status (each with \`&status=…\`). Five rows, then "{k} more teams, {j} need attention" (\`/goals?scope={set}&group=team\`). On a phone each team is a stacked row. No person's name is in the table: teams and goals are ranked, never people. Its last column, "Since {Thu 5 Nov}", is [what changed](home-changed.md) in each team.`,
   examples: [
     { given: 'Tunde in the demo workspace on Thursday 5 Nov: he owns goals, is in Build & Release and watches one goal.', then: 'Your goals · 2; Your team · Build & Release · 17 goals, 3 not theirs need attention; Watching · 1, as goal rows', run: () => homeBlocks('tunde') },
     { given: 'Rhea: she owns goals, leads CI/CD and watches goals in several teams.', then: 'Your goals · 8; Your team · CI/CD · 17 goals, 2 not theirs need attention; Watching · 12 goals in 4 teams, as teams, worst first: Developer Portal, Golden Paths & Self-Service Environments (4 need attention), Security Engineering (1 need attention), Infrastructure & Compute (0 need attention), Developer Experience (0 need attention)', run: () => homeBlocks('rhea') },
@@ -1924,6 +1926,55 @@ RULE_LIST.push({
     { given: 'Oskar: he owns no goal, is in Developer Experience and watches three goals.', then: 'Your team · Developer Experience · 15 goals, 3 not theirs need attention; Watching · 3, as goal rows', run: () => homeBlocks('oskar') },
     { given: 'Drawn as teams? 3 goals in 3 teams; 12 goals in 2 teams; 13 goals in 2 teams; 40 goals in 1 team.', then: 'yes, no, yes, no', run: () => [['a', 'b', 'c'], [...Array(6).fill('a'), ...Array(6).fill('b')], [...Array(7).fill('a'), ...Array(6).fill('b')], Array(40).fill('a')].map((t) => (asTeams(t.map((teamId) => ({ teamId }))) ? 'yes' : 'no')).join(', ') },
     { given: 'Teams worst first: Alpha with 1 off track and 3 on track; Beta with 1 off track and 1 at risk; Gamma with 2 at risk.', then: 'Beta, Alpha, Gamma', run: () => asTeamRows((([['a', 'Alpha', ['off', 'on', 'on', 'on']], ['b', 'Beta', ['off', 'risk']], ['c', 'Gamma', ['risk', 'risk']]] as const).flatMap(([teamId, , st]) => st.map((k, i) => ({ goal: { id: `${teamId}${i}`, teamId, ownerId: 'x', title: `${teamId}${i}` }, status: { status: k }, flags: [], weight: 0, handled: null, lookedAt: null }))) as unknown as GoalAttention[]), (id) => ({ a: 'Alpha', b: 'Beta', c: 'Gamma' } as Record<string, string>)[id]!).map((t) => t.name).join(', ') },
+  ],
+});
+
+/** "Changed since" for one demo person on 5 Nov (rule 5), from a day: the set it counts, its counts and its first rows. */
+const changedBlock = (who: string, since: string | null) => {
+  const today = new Date(CHECK_IN_MOMENT);
+  const cy = currentCycle(demo!.cycles, today)!;
+  const s = scopeToCycle(demo!, cy);
+  const { tabs } = scopesFor(scopeFacts(s, s.people.find((p) => p.id === who)!), null);
+  const set = changedSet(tabs, who, s.goals, (id) => s.teams.find((t) => t.id === id)?.name ?? '', asTeams);
+  if (!set) return 'no set';
+  const m = movesSince(s, cy, today);
+  const c = changedSince(set.goals.map((x) => { const g = s.goals.find((y) => y.id === x.id)!; return { ...x, title: g.title, teamId: g.teamId, was: m.was(g, since), now: m.now(g) }; }), since);
+  if (!c.rows.length) return `${set.scope}: nothing moved, so the part is absent`;
+  const counts = (['worse', 'better', 'quiet', 'done'] as const).filter((k) => c.counts[k]).map((k) => `${c.counts[k]} ${({ worse: 'got worse', better: 'recovered', quiet: 'went quiet', done: 'done' })[k]}`).join(', ');
+  return `${changedHeading(since, today.toISOString().slice(0, 10), longDay)} (scope=${set.scope}): ${counts}; first: ${c.rows.slice(0, 2).map((r) => `${r.title}, ${LABEL[r.now].toLowerCase()}, was ${LABEL[r.was].toLowerCase()} · ${r.setName}`).join('; ')}`;
+};
+const moveWords = (before: DisplayStatus | null, now: StatusNow, weekly = true) => { const m = movement(before, now, weekly); return m ? m.kind + (m.early ? ', early: called early by its owner' : '') : 'null'; };
+
+RULE_LIST.push({
+  id: 'home-changed',
+  title: 'Home: what changed since you last looked',
+  summary: 'What moved since the last day Home was opened: a goal’s status on that day, by the status rule, against its status now; Home’s counts, the teams table’s last column, the Goals filter and find_goals all read the same rule.',
+  code: [{ file: 'src/domain/changed.ts', names: ['movement', 'changedSince', 'sinceFor', 'seenToday', 'changedSet', 'movesByTeam'] }, { file: 'src/app/moved.ts', names: ['movesSince'] }, { file: 'src/app/homeSeen.ts', names: ['markHomeSeen', 'homeSince'] }, { file: 'src/domain/query.ts', names: ['parseQuery', 'queryParts'] }],
+  tests: ['src/domain/changed.test.ts', 'src/domain/query.test.ts', 'src/app/changedSince.test.ts'],
+  reqs: [],
+  body: `
+**The day to count from** (\`sinceFor\`). Home keeps, per person and workspace, the last day it was opened (\`last\`) and the last day before that (\`prev\`), behind the Prefs port under \`home-seen\`. Opening Home on a new day sets \`prev = last\`, \`last = today\`; again the same day changes nothing (\`seenToday\`). It counts from \`prev\` when \`last\` is today, else from \`last\`; never more than 28 days back; and when Home was never opened, from this week's Monday. (On the internal platform it is kept per person on the server, so it follows a person across devices.)
+
+**A goal's move** (\`movement\`). The status on that day is the [status rule](status.md) asked with today = that day and only the check-ins posted before it (\`movesSince\`); a goal created on it or after has none, and no move. Then, by the status rule's rank: done now and not then, \`done\`; no recent update now and not then, \`quiet\` (weekly rhythm only); worse, \`worse\`; better, \`better\`; else none. A first status of on track is no change; a first status at risk or off track is worse. A new check-in that keeps the status is no change: Home is not a feed (History has every check-in). \`early\`: worse because the owner called it behind while the rules' own calculation is on track ("called early by its owner").
+
+**The goals counted** (\`changedSet\`): the widest of the viewer's sets ([Home's sets](home-sets.md): Mine, My team or Watching, whichever holds most goals), so every count opens exactly those goals with \`scope=\` that set. With Watching switched off, the goals watched are not in it. Each goal is said with the first set it is in ("yours", "your team", "watching"), or its team's name when the set is drawn as teams. The viewer's own goals are included.
+
+**On Home** (part 8, the side column on a computer; after the sets on a phone). Heading "Changed since {Friday 6 Nov}", "Changed this week" when never opened, "Changed in the last 4 weeks" at the cap. A line of counts, each a link to \`/goals?scope={set}&moved={kind}&since={day}\`: "{n} got worse", "{n} recovered", "{n} went quiet", "{n} done"; then up to four goals (\`changedSince\`: worse first, then quiet, better, done; each by set, then name), each with its status now (shape and word), "was {status}" and its set, and "called early by its owner" when early. More than four: "All {n} in Goals" (\`&moved=any\`). Nothing moved: the part is absent. A teams table's last column, "Since {Thu 5 Nov}", counts each team's moves the same way ("1 got worse", "1 recovered", "1 went quiet", or "No change"; done is not in it), each a link with \`&team={id}&moved={kind}&since={day}\`.
+
+**The Goals filter.** \`moved\` (\`worse\`, \`better\`, \`quiet\`, \`done\`, \`any\`) with \`since\` (yyyy-mm-dd; left out or not a date: this week's Monday), written after \`attention\` and before the query's other parts. The filter line says "Changed since Fri 6 Nov: got worse" (recovered, went quiet, done, any change), with Remove, which takes both away. find_goals reads the same query.`,
+  examples: [
+    { given: 'On track on 6 Nov, at risk now.', then: 'worse', run: () => moveWords('on', { status: 'risk', call: 'risk', calculated: 'risk' }) },
+    { given: 'At risk on 6 Nov, on track now.', then: 'better', run: () => moveWords('risk', { status: 'on' }) },
+    { given: 'Last check-in week 44, weekly rhythm: no recent update since 9 Nov, on track before.', then: 'quiet', run: () => moveWords('on', { status: 'stale' }) },
+    { given: 'The same with no set rhythm.', then: 'null', run: () => moveWords('on', { status: 'stale' }, false) },
+    { given: 'On plan by the numbers; the owner called it at risk on 10 Nov.', then: 'worse, early: called early by its owner', run: () => moveWords('on', { status: 'risk', call: 'risk', calculated: 'on' }) },
+    { given: 'Off track on both days, a new check-in between.', then: 'null', run: () => moveWords('off', { status: 'off', call: 'off', calculated: 'off' }) },
+    { given: 'A goal created after the day; and one done since.', then: 'null; done', run: () => `${moveWords(null, { status: 'risk' })}; ${moveWords('risk', { status: 'done' })}` },
+    { given: 'Rhea opened Home on Fri 6 Nov, and again on Tue 10 Nov at 09:00 and 15:00.', then: 'Changed since Friday 6 Nov, both times', run: () => { const a = seenToday({ last: '2026-11-06', prev: null }, '2026-11-10'); const b = seenToday(a, '2026-11-10'); return `${changedHeading(sinceFor({ last: '2026-11-06', prev: null }, '2026-11-10'), '2026-11-10', longDay)}, ${sinceFor(b, '2026-11-10') === '2026-11-06' ? 'both times' : 'not the second time'}`; } },
+    { given: 'Last opened on 2 Sep; today is 10 Nov.', then: 'from 2026-10-13: Changed in the last 4 weeks', run: () => { const d = sinceFor({ last: '2026-09-02', prev: null }, '2026-11-10'); return `from ${d}: ${changedHeading(d, '2026-11-10', longDay)}`; } },
+    { given: 'Never opened.', then: 'Changed this week', run: () => changedHeading(sinceFor(null, '2026-11-10'), '2026-11-10', longDay) },
+    { given: 'Amara in the demo workspace on Thursday 5 Nov, last on Home on Mon 2 Nov.', then: 'Changed since Monday 2 Nov (scope=watching): 2 recovered; first: Manual release sign-offs replaced by automated quality gates, on track, was at risk · Build & Release; Production access granted just in time, not standing, on track, was at risk · Identity & Access', run: () => changedBlock('amara', '2026-11-02') },
+    { given: 'Rhea, the same day, never on Home before.', then: 'Changed this week (scope=team): 1 recovered; first: Flaky tests quarantined within 24 hours, on track, was at risk · your team', run: () => changedBlock('rhea', null) },
   ],
 });
 

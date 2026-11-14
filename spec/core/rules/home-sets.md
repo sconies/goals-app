@@ -13,7 +13,7 @@ Home’s blocks of goals are exactly the Goals page’s scopes, with the same co
 
 **Not mine.** In a goals query, the owner value `-me` means "not the person asking": goals someone else owns. The filter line says it as "Owner not you". With nobody asking (a query with no viewer), it narrows nothing.
 
-**As teams** (`asTeams`). A set is drawn as teams when its goals belong to three or more teams, or it holds more than twelve goals in two or more teams. Then it is a table, one row per team, ordered as Goals orders "By team": the most goals off track first, then the most at risk, then the most with no recent update, then the most with no check-in yet, then by name. Each row: the team's name (`/goals?scope={set}&team={id}`), "{k} need attention" (the same with `&attention=1`; none: "None") and its goals' counts by status (each with `&status=…`). Five rows, then "{k} more teams, {j} need attention" (`/goals?scope={set}&group=team`). On a phone each team is a stacked row. No person's name is in the table: teams and goals are ranked, never people. (A "Since" column comes with "Changed since".)
+**As teams** (`asTeams`). A set is drawn as teams when its goals belong to three or more teams, or it holds more than twelve goals in two or more teams. Then it is a table, one row per team, ordered as Goals orders "By team": the most goals off track first, then the most at risk, then the most with no recent update, then the most with no check-in yet, then by name. Each row: the team's name (`/goals?scope={set}&team={id}`), "{k} need attention" (the same with `&attention=1`; none: "None") and its goals' counts by status (each with `&status=…`). Five rows, then "{k} more teams, {j} need attention" (`/goals?scope={set}&group=team`). On a phone each team is a stacked row. No person's name is in the table: teams and goals are ranked, never people. Its last column, "Since {Thu 5 Nov}", is [what changed](home-changed.md) in each team.
 
 ## Worked examples
 
@@ -30,8 +30,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/home.ts](../../../src/domain/home.ts): `asTeams`
-- [src/domain/homeSets.ts](../../../src/domain/homeSets.ts): `homeSets`, `asTeamRows`
+- [src/domain/homeSets.ts](../../../src/domain/homeSets.ts): `asTeams`, `homeSets`, `asTeamRows`
 - [src/domain/query.ts](../../../src/domain/query.ts): `NOT_ME`
 
 ## Requirements
@@ -94,3 +93,6 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - queryParts (find rule 3, on Goals) › says the reasons for needing attention when they narrow it
 - a module’s filter, declared as a column (architecture 4.2) › reads its parameter once added, compares the column, words it and removes it
 - owner=-me: not mine (Home rule 4, HM3) [HOME-MANAGER] › leaves out the asker’s own goals, round-trips through a link, and says “Owner not you”
+- moved and since: what changed (Home rule 5, HM4) › reads and writes moved=<kind>&since=<date> after attention; since alone is nothing
+- moved and since: what changed (Home rule 5, HM4) › says “Changed since Fri 6 Nov: got worse”, and Remove takes both away; a kind it doesn’t know has no words and is no filter
+- moved and since: what changed (Home rule 5, HM4) › keeps the goals the context passes; without it, none

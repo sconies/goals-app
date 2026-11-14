@@ -46,6 +46,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [The habit: the run, the receipt, a moment and the measure](habit.md) | How many weeks in a row a person has been on time, with one late week forgiven; what the check-in’s last screen says once the week’s are all in; when a check-in says a goal reached its target or came back on track; and how many of a set’s goals were checked in before the review without being asked. |
 | [Home: what is asked of you today](home.md) | Whether Home leads with one thing asked of the viewer today, and its one primary action, or says in one quiet line that nothing is. |
 | [Home: your goals, your team and what you watch](home-sets.md) | Home’s blocks of goals are exactly the Goals page’s scopes, with the same counts; a set spanning three or more teams is drawn as teams, worst first. |
+| [Home: what changed since you last looked](home-changed.md) | What moved since the last day Home was opened: a goal’s status on that day, by the status rule, against its status now; Home’s counts, the teams table’s last column, the Goals filter and find_goals all read the same rule. |
 
 ## The numbers the rules turn on
 

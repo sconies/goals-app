@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { asTeams, askLead, homeFor, homeLead, missedReviews, proposalLead, quietLine, waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession } from './home';
+import { askLead, homeFor, homeLead, missedReviews, proposalLead, quietLine, waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession } from './home';
 import { buildPlatformOrg } from '../data/platformOrg';
 import { currentCycle as currentCycleOf, scopeToCycle } from './cycle';
 import { attentionFor, type GoalAttention } from './attention';
-import { homeSets } from './homeSets';
+import { asTeams, homeSets } from './homeSets';
 import { scopesFor } from './goalsPage';
 import { watchedGoals } from './review';
 import { currentWeek, hasEnded } from './plan';
