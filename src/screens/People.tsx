@@ -13,7 +13,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { BeforeReview } from '../ui/BeforeReview';
 import { Place, useModules } from '../core/app';
-import { heldForGoals, reviewsOn } from '../app/reads';
+import { aiAccessOn, heldForGoals, reviewsOn } from '../app/reads';
 import { dueWords } from '../domain/progress';
 import { DIRECTORY_PAGE, personLine, teamSummary } from '../domain/directory';
 import { useFound } from '../app/search';
@@ -218,7 +218,10 @@ function PersonRow({ p }: { p: Person }) {
 
 export function PersonPage() {
   const app = useApp();
-  const reviewsHere = reviewsOn(useModules().on);
+  const { on } = useModules();
+  const reviewsHere = reviewsOn(on);
+  // A person's tokens only while AI access is on (SW2, spec 5).
+  const aiHere = aiAccessOn(on);
   const { personId = '' } = useParams();
   const [editing, setEditing] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -284,7 +287,7 @@ export function PersonPage() {
           <div className="row people-admin-actions">
             <button type="button" className="btn" onClick={() => setEditing(true)}>Change details</button>
             {p.admin ? <RemoveAdmin p={p} quiet={false} setAdmin={setAdmin} /> : <button type="button" className="btn" onClick={() => void setAdmin(p, true)}>Make an admin</button>}
-            {app.mode === 'live' && <button type="button" className="btn" onClick={() => setToken(true)}>Make an MCP token</button>}
+            {app.mode === 'live' && aiHere && <button type="button" className="btn" onClick={() => setToken(true)}>Make an MCP token</button>}
           </div>
           {you ? <p className="hint">To leave, use <Link to="/settings">Settings</Link>.</p> : <div className="people-admin-quiet"><button type="button" className="btn ghost" onClick={() => setLeaving(true)}>{leaveLabel(app, p)}…</button></div>}
         </section>

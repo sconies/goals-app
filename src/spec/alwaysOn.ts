@@ -14,5 +14,4 @@ export interface AlwaysOn {
 }
 
 export const ALWAYS_ON: readonly AlwaysOn[] = [
-  { id: 'ai-access', name: 'AI access', until: 'SW2', why: 'Every AI call is checked against a token at the server’s door. Switching it off needs the Features screen’s groups and a way to keep tokens named for when it comes back.' },
 ];

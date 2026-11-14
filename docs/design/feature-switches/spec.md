@@ -355,7 +355,7 @@ Not added, on purpose: a module's row in day one; a module's filter on Activity;
 
 ### 6.1 The door (SW2)
 
-`server/mcp.ts`, where the workspace and its `modulesOff` are already loaded for the token: when `ai-access` is installed and off, every request but `initialize` and `tools/list` is answered with an error whose text is "AI access is switched off in {workspace}. An admin can switch it on in Faro, under Workspace, Features." `tools/list` returns the tools as usual, each call then refusing, so a connected tool learns why and does not see an empty server. The token's `lastUsedAt` is not updated by a refused request. In a build without the module (`FARO_WITHOUT=ai-access`) the server refuses every token with "This Faro has no AI access."
+`server/mcp.ts`, where the workspace and its `modulesOff` are already loaded for the token: when `ai-access` is installed and off, every request but `initialize` and `tools/list` is answered with an error whose text is "AI access is switched off in {workspace}. An admin can switch it on in Faro, under Workspace, Features." `tools/list` returns the tools as usual, each call then refusing, so a connected tool learns why and does not see an empty server. The token's `lastUsedAt` is not updated by a refused request. In a build without the module (`FARO_WITHOUT=ai-access`) there is no switch to shut the door, so the server stays open: the core's own tools answer through it (`MCP-PARITY` is the core's), and only the token tools, which are the module's, are missing. Only a workspace's switch shuts the door.
 
 ### 6.2 Tool by tool
 
