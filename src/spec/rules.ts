@@ -4,7 +4,8 @@
    example can't drift from the code: change a rule and its example fails until it's brought up to date.
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
 import { daysSinceIn, weekIn } from './zones';
-import { homeFor, waiting, type HomeFacts } from '../domain/home';
+import { asTeams, homeFor, waiting, type HomeFacts } from '../domain/home';
+import { asTeamRows, homeSets, type SetFacts } from '../domain/homeSets';
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision, proposedLine } from '../domain/decide';
 import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
 import { beforeStartLine, currentCycle, cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
@@ -39,7 +40,7 @@ import { buildWorkspace, ownerToAdd, setupDefaults } from '../domain/importer';
 import { emptyText, fieldTable, FILL_SHEETS, LEVEL_WORDS, requiredLine, requiredText, requiredWord, specOf, TYPE_WORDS, wordsAndAlso } from '../domain/columns';
 import { AVATAR_HUES, mergePeople } from '../domain/people';
 import { gapTrend, goalTrend } from '../domain/trend';
-import { flagsFor, needsAttention, attentionFor, attentionGroup } from '../domain/attention';
+import { flagsFor, needsAttention, attentionFor, attentionGroup, type GoalAttention } from '../domain/attention';
 import { ATTENTION, ATTENTION_FLAGS, DECIDED, FLAG, HANDLED_LINE, LABEL, shortWord, STATUS_ORDER } from '../domain/vocabulary';
 import type { Ask, DisplayStatus, Goal, MetricGoal, Person, Snapshot } from '../domain/types';
 import { asksFollowOwner } from '../domain/askHandover';
@@ -1521,7 +1522,7 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
 
 **Withdrawing** is deleting (domain/removal): Recently removed for 30 days, with Undo; History says "Withdrew the proposal “{goal}”".
 
-**Home** (\`proposalAsks\`): under "Proposed goals" in "Needs your response", a goal proposed for the viewer by someone else, not yet opened ("{Name} proposed a goal for you: “{goal}”."), and one proposed 8 weeks ago or more (\`PROPOSED_ASK_WEEKS\`) for its owner: "“{goal}” has been proposed for {n} weeks. Make it active, or withdraw it." Each has "Open it"; the second also "Not yet", which puts it off for 8 more weeks. Opening the goal as its owner ends the first; once it has waited 7 days it is Home's lead when no ask is (the Home rule's \`proposalLead\`). What each person opened and put off is kept for them on the server (the Prefs port's key \`proposals\`, migration 0053's \`person_prefs\`), so it follows them between devices; until the server has it, the browser's is read. Never a status, a count or a flag. Proposing for someone else says so after the read-back: "{Owner} sees it on their Home as a proposal for them. Faro doesn’t send email."
+**Home** (\`proposalAsks\`): under "Proposed goals" in "Needs your response", a goal proposed for the viewer by someone else, not yet opened ("{Name} proposed a goal for you: “{goal}”."), and one proposed 8 weeks ago or more (\`PROPOSED_ASK_WEEKS\`) for its owner: "“{goal}” has been proposed for {n} weeks. Make it active, or withdraw it." Each has "Open it"; the second also "Not yet", which puts it off for 8 more weeks. Opening the goal as its owner ends the first; once it has waited 7 days it is Home's lead when no ask is (the Home rule's \`proposalLead\`). What each person opened and put off is kept for them on the server (the Prefs port's key \`proposals\`, migration 0053's \`person_prefs\`), so it follows them between devices; until the server has it, the browser's is read. Each write merges into the server's copy first (every goal either copy opened, and each put-off's later day: \`mergeProposals\`), so two devices open at once never undo each other's. Never a status, a count or a flag. Proposing for someone else says so after the read-back: "{Owner} sees it on their Home as a proposal for them. Faro doesn’t send email."
 
 **In a review** (decision 15): "Propose a new goal" in the walk, beside "Add an action", opens a sheet: "What should the goal be called?" (the name's Must fix), "Who will own it?" (starts as the owner of the goal on screen; "Choose who will own it."), "It will feed" (starts as the goal on screen; "Nothing: top of its own tree"), then **Propose it**. It saves through \`saveGoal\` with \`state\` proposed and \`proposedIn\` the review, nothing else said; only a new proposed goal can name a review. The goal is not on the agenda and not counted in "{n} to discuss". Its owner's Home says where: "{Name} proposed a goal for you in {review}: “{goal}”." (\`proposedInWords\`) and the lead "{Name} proposed a goal for you in {review}"; with the review gone or Reviews off, " in {review}" is left out. The next session's "Last time" (\`lastTime\`: proposed in the review on a day after the session before it, and no later than its last word) adds, after the actions: "Proposed: {goal} ({key}). {Owner} hasn’t made it active yet." or "… {Owner} made it active on {date}." (\`proposedLine\`; the date is History's "State: Proposed → Active").
 
@@ -1883,6 +1884,48 @@ Never said: "You’re all set", a deadline that has passed for someone who met i
     { given: 'Tunde, Wednesday 23 Dec (week 52), both in, the wrap-up open.', then: 'wrap-up: 2026 ends on Sunday 3 Jan · Wrap up your 2 goals · Start the wrap-up', run: () => homeSays(HOME_F({ today: '2026-12-23', week: 52, rhythm: { dueDate: '2026-12-24', nextDueDate: '2026-12-31' }, wrap: { ends: '2027-01-03', ended: false, left: [{ id: 'g1', title: 'Goal 1' }, { id: 'g2', title: 'Goal 2' }], total: 2 } }, { done: 2 })) },
   ],
   unclear: ['The ring and its words are drawn by the screen from the lead’s counts; the conformance rows (home.csv) give the lead’s kind and the quiet sentence for each demo person on each day of two weeks.'],
+});
+
+/** Home's sets in the demo workspace on 5 Nov (rule 4), as Home draws them: each block, its total and how. */
+const homeBlocks = (who: string) => {
+  const today = new Date(CHECK_IN_MOMENT);
+  const cy = currentCycle(demo!.cycles, today)!;
+  const s = scopeToCycle(demo!, cy);
+  const person = s.people.find((p) => p.id === who)!;
+  const teams = s.teams.filter((t) => t.id === person.teamId || t.leadId === who).map((t) => ({ id: t.id, name: t.name }));
+  const { tabs } = scopesFor({ goals: s.goals.filter((g) => !g.stoppedAt).map((g) => ({ id: g.id, ownerId: g.ownerId, teamId: g.teamId })), viewerId: who, teams, watched: new Set(watchedGoals(who, s).map((g) => g.id)) }, null);
+  const sets = homeSets({ id: who, teams }, tabs, s.goals.map((g) => attentionFor(g, s, cy, today)), s.teams);
+  const how = (x: SetFacts) => (x.teams ? `${x.total} goals in ${x.teams.length} teams, as teams, worst first: ${x.teams.slice(0, 5).map((t) => `${t.name} (${t.needs} need attention)`).join(', ')}` : `${x.total}, as goal rows`);
+  return [
+    sets.mine ? `Your goals · ${sets.mine.total}` : '',
+    sets.team ? `Your team · ${sets.team.names.join(', ')} · ${sets.team.total} ${sets.team.total === 1 ? 'goal' : 'goals'}, ${sets.team.rows.length} not theirs need attention` : '',
+    sets.watching ? `Watching · ${how(sets.watching)}` : '',
+  ].filter(Boolean).join('; ');
+};
+
+RULE_LIST.push({
+  id: 'home-sets',
+  title: 'Home: your goals, your team and what you watch',
+  summary: 'Home’s blocks of goals are exactly the Goals page’s scopes, with the same counts; a set of more than twelve goals in two or more teams is drawn as teams, worst first.',
+  code: [{ file: 'src/domain/home.ts', names: ['asTeams'] }, { file: 'src/domain/homeSets.ts', names: ['homeSets', 'asTeamRows'] }, { file: 'src/domain/query.ts', names: ['NOT_ME'] }],
+  tests: ['src/domain/home.test.ts', 'src/domain/query.test.ts'],
+  reqs: ['HOME-MANAGER'],
+  body: `
+**The sets** (\`homeSets\`). "Your goals", "Your team" and "Goals you watch" are exactly the Goals page's scopes ([the Goals page](goals-page.md)): Mine, My team and Watching. So each block's total is its tab's count, and each count on it opens exactly those goals. A goal listed in one set is not left out of the next: each block agrees with its page. For each set: its total, its counts by status worst first, the goals that need attention ([flags](flags.md); being handled is not counted, as the Goals switch counts), and the rows Home lists.
+
+**Your team** is shown when the viewer is in a team or leads one, and the scope holds a goal they don't own. Heading "Your team · {team} · {n} goals" ("Your teams · {n} goals in {k} teams" for several), with "See them in Goals" (\`/goals?scope=team\`) and its counts by status (\`&status=…\`). Its rows are the goals that need attention without the viewer's own (those are in Your goals): "{k} need attention that aren’t yours" opens \`/goals?scope=team&attention=1&owner=-me\`, and up to four are listed, each with its owner's name first and no button. With none: "Nothing in it needs attention." ("Nothing that isn’t yours needs attention." when only the viewer's own do).
+
+**Not mine.** In a goals query, the owner value \`-me\` means "not the person asking": goals someone else owns. The filter line says it as "Owner not you". With nobody asking (a query with no viewer), it narrows nothing.
+
+**As teams** (\`asTeams\`). A set is drawn as teams when it holds more than twelve goals in two or more teams (the spec's worked examples: Rhea's twelve watched goals in four teams are goal rows). Then it is a table, one row per team, ordered as Goals orders "By team": the most goals off track first, then the most at risk, then the most with no recent update, then the most with no check-in yet, then by name. Each row: the team's name (\`/goals?scope={set}&team={id}\`), "{k} need attention" (the same with \`&attention=1\`; none: "None") and its goals' counts by status (each with \`&status=…\`). Five rows, then "{k} more teams, {j} need attention" (\`/goals?scope={set}&group=team\`). On a phone each team is a stacked row. No person's name is in the table: teams and goals are ranked, never people. (A "Since" column comes with "Changed since".)`,
+  examples: [
+    { given: 'Tunde in the demo workspace on Thursday 5 Nov: he owns goals, is in Build & Release and watches one goal.', then: 'Your goals · 2; Your team · Build & Release · 17 goals, 3 not theirs need attention; Watching · 1, as goal rows', run: () => homeBlocks('tunde') },
+    { given: 'Rhea: she owns goals, leads CI/CD and watches goals in several teams.', then: 'Your goals · 8; Your team · CI/CD · 17 goals, 2 not theirs need attention; Watching · 12, as goal rows', run: () => homeBlocks('rhea') },
+    { given: 'Amara, the VP: she owns no goal, her team (Office of the VP) holds one goal, and she watches goals across the division.', then: 'Your team · Office of the VP · 1 goal, 0 not theirs need attention; Watching · 56 goals in 13 teams, as teams, worst first: CI/CD (3 need attention), Security Engineering (1 need attention), Infrastructure & Compute (2 need attention), Build & Release (1 need attention), Developer Portal, Golden Paths & Self-Service Environments (3 need attention)', run: () => homeBlocks('amara') },
+    { given: 'Oskar: he owns no goal, is in Developer Experience and watches three goals.', then: 'Your team · Developer Experience · 15 goals, 3 not theirs need attention; Watching · 3, as goal rows', run: () => homeBlocks('oskar') },
+    { given: 'Drawn as teams? 3 goals in 3 teams; 12 goals in 2 teams; 13 goals in 2 teams; 40 goals in 1 team.', then: 'no, no, yes, no', run: () => [['a', 'b', 'c'], [...Array(6).fill('a'), ...Array(6).fill('b')], [...Array(7).fill('a'), ...Array(6).fill('b')], Array(40).fill('a')].map((t) => (asTeams(t.map((teamId) => ({ teamId }))) ? 'yes' : 'no')).join(', ') },
+    { given: 'Teams worst first: Alpha with 1 off track and 3 on track; Beta with 1 off track and 1 at risk; Gamma with 2 at risk.', then: 'Beta, Alpha, Gamma', run: () => asTeamRows((([['a', 'Alpha', ['off', 'on', 'on', 'on']], ['b', 'Beta', ['off', 'risk']], ['c', 'Gamma', ['risk', 'risk']]] as const).flatMap(([teamId, , st]) => st.map((k, i) => ({ goal: { id: `${teamId}${i}`, teamId, ownerId: 'x', title: `${teamId}${i}` }, status: { status: k }, flags: [], weight: 0, handled: null, lookedAt: null }))) as unknown as GoalAttention[]), (id) => ({ a: 'Alpha', b: 'Beta', c: 'Gamma' } as Record<string, string>)[id]!).map((t) => t.name).join(', ') },
+  ],
 });
 
 /** Runs every example: the ones that don't give what they say. */

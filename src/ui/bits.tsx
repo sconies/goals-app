@@ -171,7 +171,8 @@ export function FlagPill({ f }: { f: Flag }) {
  * what flags it: an on-track goal that is getting worse keeps the On track shape, and says Getting worse beside the
  * warning mark, as the goal's page does.
  */
-export function AttentionCard({ a, action, to }: { a: GoalAttention; action?: ReactNode; to: string }) {
+/** `who` (Home's "Your team" rows, HM3): the owner's name, said first on the line. */
+export function AttentionCard({ a, action, to, who }: { a: GoalAttention; action?: ReactNode; to: string; who?: string }) {
   const flags = a.flags.filter((f) => f.kind !== 'due');
   const top = flags[0] ?? a.flags[0];
   if (!top) return null;
@@ -185,6 +186,7 @@ export function AttentionCard({ a, action, to }: { a: GoalAttention; action?: Re
       <Link to={to} className="arow-main">
         <span className="arow-title">{a.goal.title}</span>
         <span className="arow-why" title={a.lookedAt && !a.handled ? `${top.detail} (${a.lookedAt.text})` : top.detail}>
+          {who && <><span className="arow-who">{who}</span>{' · '}</>}
           <span className={'arow-status tone-' + k}>{LABEL[k]}</span>
           {others.length > 0 && <>{' · '}<span className="arow-flags"><WarnMark />{others.map((f) => f.label).join(' · ')}</span></>}
           {' — '}{top.detail}

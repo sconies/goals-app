@@ -12,16 +12,36 @@ import type { PersonPref } from '../ports/store';
 /** The keys kept on the server: exactly the ones migration 0053's `person_prefs_key_check` allows. */
 export const SERVER_PREF_KEYS: readonly string[] = ['proposals'];
 
-export interface ServerPrefs extends Prefs {
-  /** Takes every person's server rows for a workspace, as just loaded, and where to send this browser's changes. */
-  adopt(workspaceId: string, rows: PersonPref[], keep: (workspaceId: string, p: PersonPref) => Promise<void>): void;
+/** How the app reaches the server's rows: the store's personPrefs and keepPersonPref. */
+export interface PrefsServer {
+  read(workspaceId: string): Promise<PersonPref[]>;
+  keep(workspaceId: string, p: PersonPref): Promise<void>;
 }
 
-export function serverPrefs(local: Prefs): ServerPrefs {
+/** How a key's value on the server and this device's are made one before a write (build review of #485): each
+    device holds the value as it loaded it, so writing it whole would drop what another device added since. */
+export type PrefMerge = (onServer: unknown, here: unknown) => unknown;
+
+export interface ServerPrefs extends Prefs {
+  /** Takes every person's server rows for a workspace, as just loaded, and the server to write changes to. */
+  adopt(workspaceId: string, rows: PersonPref[], server: PrefsServer): void;
+}
+
+/** `merges` holds one merge for each of SERVER_PREF_KEYS (the key's owner says how two copies combine). */
+export function serverPrefs(local: Prefs, merges: Record<string, PrefMerge>): ServerPrefs {
   const kept = new Map<string, Map<string, unknown>>();
-  let send: ((workspaceId: string, p: PersonPref) => Promise<void>) | null = null;
+  let server: PrefsServer | null = null;
   const at = (person: string, key: string) => `${person}\u0000${key}`;
   const onServer = (key: string) => SERVER_PREF_KEYS.includes(key);
+  /** Re-reads the server, merges this device's value into what is there, keeps the result here and writes it. */
+  const write = async (srv: PrefsServer, ws: string, person: string, key: string, value: unknown) => {
+    const there = (await srv.read(ws)).find((r) => r.personId === person && r.key === key);
+    const merge = merges[key];
+    const next = there && merge ? merge(there.value, value) : value;
+    kept.get(ws)?.set(at(person, key), next);
+    local.set(ws, person, key, next);
+    await srv.keep(ws, { personId: person, key, value: next });
+  };
   return {
     get<T>(ws: string, person: string, key: string): T | null {
       const here = onServer(key) ? kept.get(ws)?.get(at(person, key)) : undefined;
@@ -29,15 +49,15 @@ export function serverPrefs(local: Prefs): ServerPrefs {
     },
     set(ws, person, key, value) {
       local.set(ws, person, key, value);
-      if (!onServer(key) || !send || !kept.has(ws)) return;
+      if (!onServer(key) || !server || !kept.has(ws)) return;
       kept.get(ws)!.set(at(person, key), value ?? null);
       // Forgetting one is for this browser and this visit: the server keeps no empty value (its column is not null).
       if (value == null) return;
-      // Kept here already; a failed send leaves the server as it was and this visit with the new value.
-      send(ws, { personId: person, key, value }).catch(() => {});
+      // Kept here already; a failed read or write leaves the server as it was and this visit with the new value.
+      write(server, ws, person, key, value).catch(() => {});
     },
-    adopt(ws, rows, keep) {
-      send = keep;
+    adopt(ws, rows, srv) {
+      server = srv;
       kept.set(ws, new Map(rows.filter((r) => onServer(r.key)).map((r) => [at(r.personId, r.key), r.value])));
     },
   };

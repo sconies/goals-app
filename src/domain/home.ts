@@ -385,3 +385,12 @@ export function askLead(w: Waiting | undefined): Lead | null {
   return { kind: 'ask', eyebrow: `Needs your response · ${w.line.charAt(0).toLowerCase()}${w.line.slice(1)}`, warn: w.warn, title: ASK_TITLE[w.kind](w.by ?? 'Someone'),
     line: `“${w.said}”. ${about}${handed}`, action: { label: ASK_ACTION[w.kind], to: w.to }, also: null, ring: null, about: w.askId };
 }
+
+/* ---------- The sets (round 3, HM3: docs/design/home/spec.md rule 4; the rest is in homeSets.ts) ---------- */
+
+/** A set is drawn as teams when it holds more than twelve goals in two or more teams (rule 4, as its worked examples read:
+    Rhea's twelve watched goals in four teams stay goal rows; Amara's 56 in nine are teams). */
+export function asTeams(goals: readonly { teamId: string }[]): boolean {
+  const teams = new Set(goals.map((g) => g.teamId)).size;
+  return goals.length > 12 && teams >= 2;
+}
