@@ -328,7 +328,7 @@ The last screen says whether your check-ins were in before the deadline (“All 
 
 One late or missed week doesn’t end a run: if the four weeks before it were on time, it is forgiven and not counted, and the next check-in says so once. On time means by the deadline day on your own clock. A week added later never counts as on time, a goal called Done leaves your run, and a goal you take over counts only from when it became yours. Only you see your run.
 
-When a check-in takes a goal to its target, the last screen says so quietly, with a way to copy the goal’s share image; when it brings a goal back on track after two weeks or more behind, it says that. The goal’s History marks the week “Reached its target” or “Back on track”. A correction never does.
+When a check-in takes a goal to its target, the last screen says so quietly, with a way to copy the goal’s share image; when it brings a goal back on track after two weeks or more behind, it says that. The goal’s History marks the week “Reached its target” or “Back on track”, judged as things stood that week: a later check-in or a change of plan never takes the mark away. A correction never does.
 
 #### Who can
 

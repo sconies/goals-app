@@ -196,8 +196,8 @@ export function checkInRows(w: ConformanceWorkspace): string[][] {
     const breaches = guardBreaches(g, w.goals, w.cycle, w.checkIns, c.week);
     const e = evaluate(g, w.cycle, c.week, bare, w.checkIns, breaches);
     const called = evaluate(g, w.cycle, c.week, { ...bare, status: c.status }, w.checkIns, breaches);
-    // The habit's moment (rule 3): what this check-in made, against the goal's check-ins posted before it.
-    const m = moment(w.checkIns.filter((x) => x.goalId === c.goalId && x.id !== c.id && x.postedAt < c.postedAt), c, g);
+    // The habit's moment (rule 3): what this check-in made; the rule itself reads only what was posted before it.
+    const m = moment(w.checkIns, c, goal);
     rows.push([c.id, String(c.week), keyOf(goal), e.calc, e.reason ?? '', yes(e.asksTarget), yes(e.needsPath), e.codes.join(' '), c.status, yes(called.greener), called.codes.join(' '), m ? `${m.kind}${m.kind === 'back' ? ` ${m.behind}` : ''}` : '']);
   }
   return rows.sort((a, b) => Number(a[1]) - Number(b[1]) || a[2]!.localeCompare(b[2]!, 'en', { numeric: true }) || a[0]!.localeCompare(b[0]!));

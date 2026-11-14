@@ -273,7 +273,7 @@ function Posted({ goal, c, updated, fixing, left, nextTitle, onNext }: { goal: G
   useEffect(() => btn.current?.focus(), []);
   const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
   // Rule 3: a target reached, or back on track. Never on a correction or a second check-in in the same week.
-  const m = moment(app.checkInsOf(goal).filter((x) => x.id !== c.id), c, goal, !fixing && !updated);
+  const m = moment(app.checkInsOf(goal), c, goal, !fixing && !updated);
   return (
     <div className="celebrate" role="status">
       <span className="tick" aria-hidden="true"><svg viewBox="0 0 48 48" width="64" height="64"><circle cx="24" cy="24" r="22" /><path d="m14 25 7 7 13-15" /></svg></span>
