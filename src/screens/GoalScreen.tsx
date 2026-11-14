@@ -1005,7 +1005,8 @@ function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere, above, latestWeek }: 
   const why = fix?.diffs.find((d) => d.field === 'Why corrected')?.to;
   // The moment it made (habit rule 3), in small capitals beside its status: never on a correction or an import.
   const imported = app.snapshot.changes.some((x) => x.entity === 'check-in' && x.entityId === c.id && x.importId);
-  const m = moment(app.checkInsOf(goal).filter((x) => x.id !== c.id), c, goal, !fix && !imported);
+  // Fixed as of its own week: the rule picks the check-ins posted before it and that week's plan.
+  const m = moment(app.checkInsOf(goal), c, goal, !fix && !imported);
   // Where its number came from (NR 2.4): from the source, or typed over it and why; "Typed by" only beside a sourced one.
   const said = goal.kind === 'milestone' ? null : readingHistoryLine(c, goal, app.person(c.authorId)?.name ?? 'someone who has left', app.today, { nearSourced: app.checkInsOf(goal).some((x) => !!x.reading) });
   return (
