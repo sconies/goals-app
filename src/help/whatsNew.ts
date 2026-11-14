@@ -38,6 +38,30 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['features', 'check-in'],
   },
   {
+    id: 'corrections-keep-the-author',
+    date: '2026-11-14',
+    title: 'A correction keeps whose check-in it is',
+    points: [
+      'Correcting someone’s check-in no longer makes it yours. It stays theirs, wherever it is corrected: the form, Data’s tables, the AI assistant or a spreadsheet.',
+      'This changes what Data and the AI assistant did until now: they made whoever corrected a check-in its author.',
+      'History names who corrected it, with the reason: “Corrected week 45: 60% is now 61%, by Amara Okafor: …”.',
+      'An admin’s pasted row that replaces someone’s check-in for this week is a correction too: Preview asks why before it saves.',
+    ],
+    articles: ['check-in', 'data'],
+  },
+  {
+    id: 'setup-four-steps',
+    date: '2026-11-14',
+    title: 'Set-up in four steps you can go back through',
+    points: [
+      'Setting up a workspace is four steps: the workspace and you, people, goals and Check. Each has its own address, so your browser’s Back works and a reload stays put.',
+      'How you’ll work (the year, the review day, Recording) is one paragraph on the first step, with a sheet to change it there or on Check.',
+      'Goals starts with your own, a spreadsheet, or later. The four example templates are gone: a workspace begins with real goals or none.',
+      'Change on Check brings you straight back to it.',
+    ],
+    articles: ['set-up'],
+  },
+  {
     id: 'home-your-team',
     date: '2026-11-14',
     title: 'Your team is on Home',

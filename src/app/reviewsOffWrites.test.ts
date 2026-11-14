@@ -94,8 +94,8 @@ describe('the dispatcher, with Reviews off', () => {
 });
 
 describe('the AI tools, with Reviews off', () => {
-  const ctx = (who: string): { ctx: McpContext; saved: Commit[] } => {
-    const x = as(who);
+  const ctx = (who: string, full?: Snapshot): { ctx: McpContext; saved: Commit[] } => {
+    const x = as(who, full);
     const saved: Commit[] = [];
     return {
       saved,
@@ -113,6 +113,23 @@ describe('the AI tools, with Reviews off', () => {
       expect(out).toMatchObject({ isError: true, text: moduleOffSentence('Reviews', 'Platform', tool) });
       expect(t.saved).toEqual([]);
     }
+  });
+
+  it('restore_removed on an ended review answers the switched-off sentence and saves nothing, and restores it with Reviews on (#424)', async () => {
+    const start = buildPlatformOrg(today);
+    const who = admin(start);
+    const review = start.reviews.find((r) => !r.endedAt && !r.removedAt)!;
+    const ended = performAny(as(who, start, false), 'endReview', { reviewId: review.id }) as { commit: Commit };
+    const after = applyCommit(start, ended.commit);
+    const off = ctx(who, after);
+    const out = await callTool('restore_removed', { kind: 'ended', id: review.id }, off.ctx);
+    expect(out).toMatchObject({ isError: true, text: moduleOffSentence('Reviews', 'Platform', 'restore_removed') });
+    expect(off.saved).toEqual([]);
+    const on = ctx(who, after);
+    on.ctx = { ...on.ctx, ws: { id: 'w', name: 'Platform' } };
+    const back = await callTool('restore_removed', { kind: 'ended', id: review.id }, on.ctx);
+    expect(back).not.toMatchObject({ isError: true });
+    expect(on.saved.length).toBe(1);
   });
 
   it('list_requests names no review with Reviews off, and names it with Reviews on', async () => {

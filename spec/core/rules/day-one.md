@@ -3,11 +3,11 @@
 
 # Day one: set-up’s steps and “Getting started”
 
-How many steps set-up counts for the path chosen, and what Home’s “Getting started” tells each person in a workspace’s first weeks.
+Set-up’s four steps and where an address opened too early goes, and what Home’s “Getting started” tells each person in a workspace’s first weeks.
 
 ## The rule
 
-**Set-up’s steps.** A template or “Start blank”: seven (workspace, you, your team, starting point, outcome, goals, check). “Set goals up later” or a spreadsheet: five, without the outcome and the goals, so Check is “Step 5 of 5”.
+**Set-up’s steps.** Always four, each its own address under `/workspace/new/`: the workspace and you, people, goals, check (“Step 4 of 4” on Check). How you’ll work (the year’s first month, the review day, Recording) is a sheet on the first step and on Check, not a step; under the first step’s fields it is one paragraph (“Check-ins every week, by Thursday. A weekly review on Thursdays. The year starts in January. Recording is off.”) and says when it is no longer the usual. Goals offers three ways to start: “Add your own” (chosen to begin with), “Import a spreadsheet” and “Later”; there are no example goals. A later step’s address opened with an earlier step’s answers missing goes to the first such step: the workspace (a name, and you), else goals (none added, or a spreadsheet chosen and none read). A draft kept from before the four steps opens at the step its answers moved to.
 
 **Who set it up** is whoever the workspace’s “Created …” change names, or else its first admin. A goal set-up left with no owner is made theirs, and its id is kept for them (the Prefs port), so Home can ask them to give it one; nothing is added to the goal.
 
@@ -19,7 +19,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 | Given | The rule gives |
 |---|---|
-| The counter on Check: a template; goals set up later. | `Step 7 of 7 / Step 5 of 5` |
+| The counter on Check. | `Step 4 of 4` |
+| Check’s address opened with the workspace named, you filled in, “Add your own” chosen and no goal added yet. | `goals` |
 | Ana set up Field Operations today with Ben, gave Ben one goal and left two unowned; what Ana sees. | `first-check-in, assign (Give 2 goals an owner.), invite` |
 | Ben opens it for the first time. | `Ana Silva set up Field Operations on 11 Nov and gave you 1 goal. / first-check-in` |
 | Ana, 15 days after her first visit. | `nothing` |
@@ -31,18 +32,22 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/dayOne.ts](../../../src/domain/dayOne.ts): `setupSteps`, `stepCounter`, `gettingStarted`, `creatorOf`, `DAY_ONE_DAYS`, `NEW_WORKSPACE_DAYS`
+- [src/domain/dayOne.ts](../../../src/domain/dayOne.ts): `SETUP_STEPS`, `stepCounter`, `firstUnfilled`, `draftStep`, `startOf`, `gettingStarted`, `creatorOf`, `DAY_ONE_DAYS`, `NEW_WORKSPACE_DAYS`
+- [src/domain/arrival.ts](../../../src/domain/arrival.ts): `howWeWork`
 
 ## Requirements
 
 - `DAY-ONE`: In a workspace's first weeks Home tells each person, the second included, what is true and what to do first ("Getting started", app redesign OB3): whoever set it up sees their first check-ins, "Give {n} goals an owner" for the goals left without one, and the invite link (or Add people while alone); someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it for good; it goes after 14 days or when everything is done; the example never shows it. Home's old "Add your people" card is gone.
-- `ONBOARDING`: Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone. Each goal feeding the outcome starts with "No owner yet"; one left so is made the setter's and remembered for Home; Check says each owner or "No owner yet" and how many have none; the counter counts the path chosen (5 steps with goals later or from a spreadsheet).
+- `ONBOARDING`: Setting up takes four steps, each its own address (/workspace/new/workspace, people, goals, check): the workspace and who you are (one line with Change when set up from inside a workspace) with How you'll work as a panel and a sheet, your team (typed, pasted or uploaded), what you are working towards (your own outcome and the goals feeding it, two to four each optionally saying how it is measured, a spreadsheet, or later; no example templates), and Check. Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone. A goal card nobody touched starts owned by the setter; one left with no owner is made the setter's and remembered for Home; Check says each owner or "No owner yet" and how many have none; the counter reads Step n of 4 whichever way to start was chosen; the browser's Back moves between steps, and Change on Check returns with Back to Check.
 
 ## Tests that check it
 
 ### [src/domain/dayOne.test.ts](../../../src/domain/dayOne.test.ts)
 
-- set-up’s steps (rule 6) › counts the path chosen
+- set-up’s steps (rule S1, small workspaces rule 3) › is four steps, whatever way to start is chosen
+- set-up’s steps (rule S1, small workspaces rule 3) › sends a later step’s address back to the first step with something missing
+- set-up’s steps (rule S1, small workspaces rule 3) › opens a draft from before the four steps at the step its answers moved to
+- set-up’s steps (rule S1, small workspaces rule 3) › says how you’ll work in one paragraph, and whether it is still the usual
 - getting started (rule 7) › who set it up is read from the change set-up writes, even with another admin listed first (review of #285)
 - getting started (rule 7) › Ana set it up with Ben, gave Ben one goal and left two unowned
 - getting started (rule 7) › Ben opens it for the first time: who set it up and what’s his

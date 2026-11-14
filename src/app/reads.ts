@@ -55,14 +55,17 @@ export const goalMapOn = (on: ReadonlySet<string>): boolean => on.has('goal-map'
     on and starting the next year are the core's and never ask. */
 export const wrapUpOn = (on: ReadonlySet<string>): boolean => on.has('wrap-up');
 
-/** The core's actions that belong to a switch while its code is still the core's (SW1 spec 1.3; Reviews' saves are refused by what they write, in actions.ts): each refuses
+/** The core's actions that belong to a switch while its code is still the core's (SW1 spec 1.3; Reviews' and Watching's saves are refused by what they write, in actions.ts): each refuses
     while its module is off, with `moduleOffWords`. Revoking and starting the next year never refuse. */
 export const SWITCHED_ACTIONS: Readonly<Record<string, string>> = {
-  watch: 'watching', unwatch: 'watching', saveRetro: 'wrap-up', sendFeedback: 'feedback',
+  saveRetro: 'wrap-up', sendFeedback: 'feedback',
 };
 
 /** What a switched module's action says while it is off (spec 1.3): "Watching is off in {workspace}." */
 export const moduleOffWords = (name: string, workspace: string) => `${name} is off in ${workspace}.`;
+/** What a save of Watching's records says while Watching is off (domain/watchWrites): Watch and Stop watching said it
+    before the rule went by what a save writes, and still do. */
+export const watchingOffWords = (workspace: string) => moduleOffWords('Watching', workspace);
 
 /**
  * This week's deadline in dueWords' words (RS1), from what the rule reads: whether Reviews is on, and whether a review is

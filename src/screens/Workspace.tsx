@@ -261,7 +261,7 @@ function AboutSection() {
           {/* What a workspace is, in one sentence, beside its name (outside review, 12 Nov). */}
           {fact('What it is', <span className="ws-means">{WORKSPACE_MEANS}</span>)}
           {fact('People', <Link to="/people">{app.snapshot.people.length} {app.snapshot.people.length === 1 ? 'person' : 'people'} in {teams} {teams === 1 ? 'team' : 'teams'}</Link>)}
-          {fact('Year', <>{yearLine(app.cycle, app.week, app.today, left)} <Link to="/workspace/cycles">Cycles</Link></>)}
+          {fact('Year', <>{yearLine(app.cycle, app.week, app.today, left, wrapUpOn(on))} <Link to="/workspace/cycles">Cycles</Link></>)}
           {fact('Admins', <>{admins}. {admin ? <Link to="/workspace/access">Access</Link> : 'Ask one of them to add someone, change a team or change a setting.'}</>)}
           {fact('Features', <>{rhythmAbout(app.cycle)}{installed.length > 0 && <> {featuresSentence(modOn, modOff)}</>}{admin && <> <Link to="/workspace/features">Features</Link></>}</>)}
           {fact('Recording', <>{app.ws.recording !== false ? 'Faro records how the app is used here, never what anyone types.' : 'Nothing about how the app is used here is recorded.'} <Link to="/workspace/privacy">Privacy</Link></>)}
@@ -333,7 +333,7 @@ function CyclesSection() {
                   <span className="removed-name">{line.title}</span>
                   <span className="small">{line.when}</span>
                   <span className="hint">{line.counts}</span>
-                  {current && <span className="hint">{yearLine(c, app.week, app.today, left).replace(/^.*?\.\s/, '')}</span>}
+                  {current && <span className="hint">{yearLine(c, app.week, app.today, left, wrapUp).replace(/^.*?\.\s/, '')}</span>}
                   {current && <span className="hint rhythm-fact">{rhythmFact(c)}{admin && <> <Link to="/workspace/features">Change</Link></>}</span>}
                   {start && <span className="hint">Started by {app.person(start.actorId)?.name ?? 'an admin'} on {dayWithYear(start.at.slice(0, 10))}. {can?.ok ? 'It can be undone until someone checks in or changes a goal in it.' : `It can’t be undone now: ${can && !can.ok ? can.why : ''}.`}</span>}
                 </span>
