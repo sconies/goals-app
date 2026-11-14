@@ -60,8 +60,8 @@ Possible but unlikely: a question. The change saves once it is answered; one ans
 | `big-removal` | Five or more rows say Stop, Delete or Left. | This file stops 5 goals. Is that right? | That’s right · Leave these rows out | `big-removal` |
 | `feeds-lower` | A goal that feeds a goal at a lower level than its own. | A north star usually feeds nothing, and “Pipeline queue wait (p90)” is an SVP goal. Is this link right? | Yes, it feeds that goal · Leave these rows out | `feeds-lower` |
 | `for-someone-else` | New goals for other people with no State: asked once per file whether they start active or proposed (GE10, decision 16). Set-up never asks; confirm answers active. | One of these goals is for other people and would start as active. Is that what you mean? | Yes, active · No, start them as proposed | `for-someone-else` |
-| `same-number` | A Metrics row changes the meaning or source of a metric goals are measured by: is it still the same number? | — | — | None.  |
-| `aim-changes` | A Metrics row changes the direction of a metric goals are measured by, so they would aim the other way. | — | — | None.  |
+| `same-number` | A Metrics row changes the meaning or source of a metric goals are measured by: is it still the same number? | — | — | None. The Metrics sheet’s planner (modules/metrics/sheetPlan.ts): spec/conformance/metrics.csv, rule sheet, case meaning-on-used. |
+| `aim-changes` | A Metrics row changes the direction of a metric goals are measured by, so they would aim the other way. | — | — | None. The Metrics sheet’s planner (modules/metrics/sheetPlan.ts), tested in modules/metrics/sheetPlan.test.ts. |
 
 ## Read as (`note`)
 

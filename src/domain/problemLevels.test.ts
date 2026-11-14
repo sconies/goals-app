@@ -206,7 +206,7 @@ describe('section 4: a case per kind, with its sentence and level', () => {
   it('raises every Must fix kind and every Check kind it owns (near-header and other-workspace come with the preview, IM3/IM5; new-team at set-up, ST4)', () => {
     const covered = new Set(cases.map(([k]) => k));
     expect(MUST_KINDS.filter((k) => !covered.has(k))).toEqual([]);
-    expect(CHECK_KINDS.filter((k) => !covered.has(k))).toEqual(['near-header', 'two-columns', 'new-team', 'other-workspace']); // near-header, two-columns: headerRow.test.ts
+    expect(CHECK_KINDS.filter((k) => !covered.has(k))).toEqual(['near-header', 'two-columns', 'new-team', 'other-workspace', 'same-number', 'aim-changes']); // near-header, two-columns: headerRow.test.ts; same-number, aim-changes: the Metrics sheet's (modules/metrics/sheetPlan.test.ts)
   });
 });
 

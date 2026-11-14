@@ -72,7 +72,8 @@
     "metric-measured-by",
     "metric-slices",
     "metric-change",
-    "metric-measurement"
+    "metric-measurement",
+    "metric-sheet"
   ],
   "requirements": [
     "METRICS-LIBRARY",

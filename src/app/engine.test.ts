@@ -12,6 +12,8 @@ const ALLOWED = new Set([
   'src/domain/importer.ts',
   'src/mcp/tools.ts',
   'src/spec/conformance.ts',
+  // The metric library's conformance rows run the Metrics sheet's cases (MI); only the spec reads them (virtual:faro-modules/conformance).
+  'src/modules/metrics/conformance.ts',
   'src/spec/rules.ts',
   'src/data/platformOrg/generate.ts',
   'src/ui/Preview.tsx',
