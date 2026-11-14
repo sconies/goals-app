@@ -1,3 +1,5 @@
+import { guardBreaches } from '../domain/guards';
+import { breachWords } from '../domain/guardWords';
 import { useEffect, useRef, useState } from 'react';
 import { correctReasonAsk, correctReasonOk, MAX_CORRECT_REASON } from '../domain/correctReason';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
@@ -365,7 +367,9 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   // Where this check-in is, for the named flow (src/help/flows.ts): opened, then saying why or carrying last week's over.
   useMark('checkIn.open');
   useMark(step === 'account' ? 'checkIn.account' : step === 'carry' ? 'checkIn.carry' : null);
-  const e = evaluate(goal, cycle, week, draft, app.snapshot.checkIns);
+  // Its guards past their limit this week (GR): they make the status from the numbers at least as bad as theirs.
+  const breaches = guardBreaches(goal, app.snapshot.goals, cycle, app.snapshot.checkIns, week);
+  const e = evaluate(goal, cycle, week, draft, app.snapshot.checkIns, breaches);
   const team = app.team(goal.teamId);
   // The levels (rules 2 and 3): a number that looks wrong, or the same as last week, is asked about and must be answered.
   const levels = checkInLevels(goal, week, draft, own);
@@ -431,7 +435,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
   // A second press, Enter then a click, or a double tap mustn't post twice: state updates too late to stop it, a ref doesn't.
   const inFlight = useRef(false);
   const post = async (d: Draft = draft) => {
-    const check = evaluate(goal, cycle, week, d, app.snapshot.checkIns);
+    const check = evaluate(goal, cycle, week, d, app.snapshot.checkIns, breaches);
     if (!check.canPost || saving || inFlight.current) { if (!inFlight.current) setTried(true); return; }
     inFlight.current = true;
     setSaving(true);
@@ -486,7 +490,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
     const carried: Partial<Draft> = { ...(dropped ? { ...last, needs: '', ptgState: last.ptgState === 'help' ? (last.ptgBy ? 'plan' : 'investigating') : last.ptgState } : last), stillTrue: true };
     const d = { ...draft, ...carried };
     set(carried);
-    const check = evaluate(goal, cycle, week, d, app.snapshot.checkIns);
+    const check = evaluate(goal, cycle, week, d, app.snapshot.checkIns, breaches);
     if (check.canPost) void post(d);
     else go('account');
   };
@@ -614,6 +618,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
                 <span className="muted">{e.status === e.calc ? 'from the numbers' : 'your call'}</span>
                 <button type="button" className="linkish tap" onClick={() => setStatusOpen(true)}>Change</button>
               </div>
+              {e.breaches.map((b) => <span key={b.guard.id} className="hint" data-guard={b.guard.id}>{breachWords(b)}</span>)}
               {tried && e.codes.includes('greener-why') && <span className="hint tone-off" role="alert">Say why it’s better than the numbers: tap Change.</span>}
               {last && <NextStepField draft={draft} set={set} open={showNext} onOpen={() => setShowNext(true)} />}
             </>

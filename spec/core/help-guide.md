@@ -744,6 +744,28 @@ Putting a goal in front of its would-be owner, or a leader, without committing t
 
 Anyone can propose a goal, for anyone. Its owner or an admin makes it active. Whoever proposed it may also change or withdraw it while it is proposed. Everyone can comment, ask its owner a question and watch it.
 
+### Guardrails on a goal
+
+`guardrails`. Name the goals that guard a goal, so meeting it by making something else worse shows on the goal itself.
+
+Requirements: `GUARDRAILS`.
+
+#### How to use it
+
+- Open the goal, choose Change this goal, and open More details. Under Guarded by, find the goals that guard it by name or key: up to five, each a goal kept in a range (“Change failure rate at most 12%”) in the same year.
+- A goal can’t guard itself, and a goal with a number to move or dated stages can’t guard: it is listed, with why it can’t be chosen.
+
+#### What it does
+
+- When a guard’s latest number is past its limit, the goal it guards is at risk; past it two weeks running, off track. A guard near its limit but still inside it changes nothing.
+- At the check-in, Status from the numbers is the worse of the goal’s own and its guards’, and the line under it says which guard, its number and how far past its limit it is: “Guardrail “Change failure rate” (G-41) is over its 12.0% limit: 14.0% in week 4, 2.0 pts over, 2 weeks running.” Off track or at risk this way asks why, as being behind does.
+- The goal’s page says the same line under its status, until the guard is back inside its limit.
+- A guard that is stopped or deleted guards nothing until it is brought back. When the year ends, a guard that carries on still guards the goals that carry with it.
+
+#### Who can
+
+The goal’s owner, or an admin.
+
 ### Changing a goal or its plan
 
 `edit-goal`. Change a goal on one page: what it is, its plan and target, who owns it and where it fits. Once check-ins have started, a plan change needs a reason.
@@ -753,7 +775,7 @@ Routes: `/goals/:goalId/edit`. Screens: `GoalEdit`. Requirements: `PLAN-CHANGE`,
 #### How to use it
 
 - Open the goal and choose Change this goal, in the “…” menu or at the foot of About this goal.
-- It is one page in four sections: What it is (the name, what it measures and the metric that measures it), Plan and target, Who and where (the owner, the team, the level, what it feeds and what it also helps) and More details (how much it moves the goal it feeds, whether it’s a guardrail, and the data source).
+- It is one page in four sections: What it is (the name, what it measures and the metric that measures it), Plan and target, Who and where (the owner, the team, the level, what it feeds and what it also helps) and More details (how much it moves the goal it feeds, whether it’s a guardrail, the goals that guard it, and the data source).
 - A link can open the page at a section: add #definition, #plan or #owner to the address. Describe it on a goal with no definition opens What it is. Older links that opened one part of the form land on the matching section.
 - The owner, the team and the goals are found by typing a name or a key; a goal already under this one is listed but can’t be chosen to feed it.
 - Plan and target has the same two rows as a new goal: Baseline with From, Target with To, each week chosen from the list of weeks with their dates. Changing From or To after check-ins have started is a plan change, so it asks why.

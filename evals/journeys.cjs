@@ -7159,6 +7159,57 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   await p.context().close();
 }, []);
 
+journey('U171', ['GUARDRAILS'], 'A goal guarded by the number it mustn’t make worse (GR): as Rhea, Base image build time is guarded by Flaky test rate, chosen by its key under More details (a goal with a number to move is listed but can’t guard, and says why); with Flaky test rate’s limit tightened past its latest number, Base image build time’s page and its check-in say “Guardrail “Flaky test rate in the main pipelines” (G-11) is over its … limit”, and Status from the numbers is no longer on track', 24, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/ci-docker/edit'));
+  await h.click(p.getByText('More details', { exact: true }));
+  const s0 = await h.snapshot();
+  const flaky = s0.goals.find((g) => g.id === 'lead-flaky');
+  const cost = s0.goals.find((g) => g.id === 'ci-cost');
+  await h.click(p.getByRole('button', { name: /^Guarded by\b/ }));
+  h.set('entry', true);
+  // A goal with a number to move is listed, not selectable, with why.
+  await h.fill(p.locator('.pick.open').getByRole('combobox'), cost.key);
+  const refused = p.locator('.pick.open').getByRole('option').first();
+  await refused.waitFor();
+  h.set('errors', (await refused.getAttribute('aria-disabled')) === 'true' && /Only a goal kept in a range can guard/.test(await refused.innerText()), 'a goal with a number to move could be chosen as a guard, or did not say why not');
+  await h.fill(p.locator('.pick.open').getByRole('combobox'), flaky.key);
+  await h.click(p.locator('.pick.open').getByRole('option', { name: /Flaky test rate/ }).first());
+  await h.click(p.locator('.pick.open').getByRole('button', { name: 'Done' }));
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/goals\/ci-docker(\?|#|$)/);
+  const s1 = await h.snapshot();
+  const guards = (s1.goals.find((g) => g.id === 'ci-docker').guards ?? []).map((x) => x.goal);
+  h.set('logged', guards.length === 1 && guards[0] === 'lead-flaky', 'the guard was not saved on the goal');
+  await h.checkpoint('guarded');
+  // Flaky test rate's limit tightened past its latest number: a plan change, so it asks why.
+  const latest = s1.checkIns.filter((c) => c.goalId === 'lead-flaky' && c.value != null).sort((a, b) => a.week - b.week).pop();
+  const atMost = flaky.range.bound !== 'atLeast';
+  const step = 10 ** -(flaky.decimals ?? 0);
+  const tight = Number((atMost ? latest.value - step : latest.value + step).toFixed(flaky.decimals ?? 0));
+  await p.goto(url('/goals/lead-flaky/edit'));
+  await h.fill(p.locator('input[data-field="limit"]'), String(tight));
+  await h.fill(p.getByLabel('Why change it?'), 'The pipelines team agreed a tighter limit this quarter.');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/goals\/lead-flaky(\?|#|$)/);
+  await p.goto(url('/goals/ci-docker'));
+  const line = p.locator('.bar-guard');
+  await see(line, /Guardrail “Flaky test rate in the main pipelines” \(G-\d+\) is (over|under) its .* limit/, 'the goal page does not say which guard is past its limit');
+  h.set('attention', true);
+  await h.checkpoint('goal page');
+  // At the check-in, the status from the numbers takes the guard in, and the line under it says why.
+  await p.goto(url('/'));
+  await h.click(p.getByRole('link', { name: /Start check-in/ }));
+  await h.progressShown('check-in');
+  const docker = s1.goals.find((g) => g.id === 'ci-docker');
+  await h.fill(p.getByLabel('This week’s value'), String(Math.round(planAt(docker.plan, NOW))));
+  await see(p, /Guardrail “Flaky test rate in the main pipelines”/, 'the check-in does not say the guard is past its limit');
+  const call = (await p.locator('.callline').innerText()).replace(/\s+/g, ' ');
+  h.set('progress', /At risk|Off track/.test(call) && /from the numbers/.test(call), 'the status from the numbers is still on track with a guard past its limit');
+  h.set('finish', true);
+  await p.context().close();
+}, []);
+
 journey('U174', ['TAGS-FIELDS'], 'A workspace’s own field on goals (TG1): as Amara, an admin, Workspace → Fields says “No fields yet”; she adds “Stage”, a list of Discover, Build and Run, and the page lists it as “A list: Discover, Build, Run”. On a goal’s page its About has “Stage · Not set”; she sets it to Discover, then to Build, in place, and History says “Stage: Discover → Build”; a second field called “stage” is refused in the rule’s words', 20, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/workspace/fields'));

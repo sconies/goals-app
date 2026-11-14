@@ -473,6 +473,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Why do we expect it to help? optional” | textarea | `d.parentId` |
 | “How much it moves “…” …” | text | `d.parentId` |
 | “It’s a guardrail” | checkbox | always |
+| “Guarded by” | Pick | always |
 | “Data source” | text | always |
 
 **States**

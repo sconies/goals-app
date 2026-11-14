@@ -33,6 +33,8 @@ export interface ReadBackContext {
   parent: { title: string; key?: string } | null;
   /** The titles of the goals it also helps. */
   alsoHelps: string[];
+  /** The titles of the goals that guard it (GR), in the order named. */
+  guardedBy?: string[];
   /** What measures it, from the goal.measure place, in words without “Measured by” (“Lead time for changes, for CI/CD.”); null for none. */
   metric: string | null;
   /** The read-back sentence of each answered question, in section 4's order. */
@@ -132,6 +134,7 @@ export function readBack(d: GoalDraft, c: ReadBackContext): ReadBack {
     `${lvl ? `It’s ${lvl}` : 'It has no level yet'} and ${c.parent ? `feeds “${c.parent.title}”${c.parent.key ? ` (${c.parent.key})` : ''}.` : 'feeds nothing: it’s at the top of its own tree.'}`,
     ...(c.alsoHelps.length ? [`It also helps ${andList(c.alsoHelps.map((t) => `“${t}”`))}.`] : []),
     ...(d.guardrail ? ['It’s a guardrail.'] : []),
+    ...(c.guardedBy?.length ? [`It’s guarded by ${andList(c.guardedBy.map((t) => `“${t}”`))}: past a limit there makes it at risk or off track.`] : []),
   ];
   rows.push({ id: 'who', label: 'Who and where', text: who.join(' '), step: 1 });
 
