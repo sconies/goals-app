@@ -31,7 +31,7 @@ Faro can’t record it truthfully. Nothing is saved while one is left, unless an
 | `cant-change` | A row changes something that never changes: an existing goal’s Type, a check-in’s week, an email taken away, a goal this file also stops. | 1 row changes something that can’t change | — | `cant-change` |
 | `not-allowed` | The person loading the file may not make the change: a goal they don’t own and aren’t an admin for, people when they aren’t an admin, a goal at a level only its owner may set. | 1 row changes a goal you don’t own | Leave these rows out | `not-allowed` |
 | `removal-refused` | Stop with no reason, Delete on a goal with check-ins, or Left with no one to take over. | 1 row can’t be stopped or deleted as it stands | — | `removal-refused` |
-| `loop` | A goal that would feed itself, directly or round a loop of Feeds into links. | 1 goal would feed itself | — | `loop` |
+| `loop` | A goal that would feed itself, directly or round a loop of Feeds into links; on the Metrics sheet, a metric whose Part of is itself or one of the metrics under it. | 1 goal would feed itself | — | `loop` |
 
 ## Check (`check`)
 

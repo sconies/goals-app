@@ -1356,6 +1356,32 @@ Routes: `/metrics/:metricId/edit`. Requirements: `METRIC-STRUCTURE`.
 - How it could be gamed: a sentence or two, up to 500 characters, shown beside what it means, so anyone reading a good number knows what to check.
 - All of it is optional. The AI assistant’s save_metric takes parent, level, confidence and gaming, so a register loads with its structure.
 
+### Metrics in a spreadsheet
+
+`metric-sheet`, from the metrics module. Export the Metrics sheet, change or add rows, and load it back through the same preview, questions and Undo as any import.
+
+Requirements: `METRIC-SHEET`.
+
+#### Out and back in
+
+- Export everything from Data: the workbook’s Metrics sheet lists every metric, retired ones too with the day they were retired, and the goals each measures.
+- Change rows, or add rows with an empty ID, and load the file on Import. Loading an export unchanged changes nothing.
+- A row finds its metric by ID, or else by its name, any case. A column you leave out, or an empty cell, keeps what the metric says.
+- Action retires a metric (say why in Reason) or brings one back.
+- Part of, How it relates, Confidence and How it could be gamed say where a metric sits and how far to trust it. Part of names another metric, by name or ID, in the library or on an earlier row.
+
+#### What it asks
+
+- The same as the metric’s form, in the same words: a name used twice, a direction or refresh it can’t read, an owner who isn’t in the workspace.
+- A Part of that would put a metric under itself, or a How it relates with no Part of, is refused in the words of the metric’s form.
+- A name one letter from a metric already here asks whether the row is that metric or a new one.
+- Changing what a metric goals use means, or where its number comes from, asks “Is it still the same number?”; if the number changes, say why in Reason. A file can’t change the unit of a metric goals use: change it on the metric’s page.
+- Nothing is saved until every question is answered. The toast after saving has Undo, and the import stays under Past imports, where Undo puts every row back.
+
+#### When metrics are switched off
+
+- With the Metric library off, the import says once that the Metrics sheet was not read, and reads the rest of the file.
+
 ### Teams
 
 `teams`. The workspace’s teams, A to Z, each with its lead, its people and its goals by status; a team’s page says what it is here to do. Admins add, change and remove teams.

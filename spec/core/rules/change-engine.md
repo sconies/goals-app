@@ -393,7 +393,7 @@ The entries a change set writes, and Undo’s, read from the code as the sentenc
 | Entry | Words |
 |---|---|
 | An import’s one summary entry (`action: imported`) | {Loaded a spreadsheet / Changes via MCP / Edited the data tables / Corrected a check-in / Bulk edit}: {{goal} · {summary} / what it counts} |
-| What it counts, after the colon (`describe`; nothing: “No changes”) | {n new people}, {n people} changed, {n teams} changed, {n new goals}, {n goals} changed, {n plans} changed, {n check-ins}[ ({backfilled} for past weeks)], {replaced} replaced, {n goals} {stopped}, {n goals} deleted, {n people} {marked as left}, joined by “, ” |
+| What it counts, after the colon (`describe`; nothing: “No changes”) | {n new people}, {n people} changed, {n teams} changed, {n new goals}, {n goals} changed, {n plans} changed, {n check-ins}[ ({backfilled} for past weeks)], {replaced} replaced, {n goals} {stopped}, {n goals} deleted, {n people} {marked as left}, {records}, joined by “, ” |
 | A goal added or changed (`goalChange`) | Changed {fields} / Created the goal “{goal}” |
 | A check-in posted or replaced (`checkInChange`) | Posted an update for week {week}: {number · status call} / Checked in for week {week}: {number · status call} |
 | A check-in a row backfills (an earlier week, not a correction) | {the check-in’s summary} (loaded later) |

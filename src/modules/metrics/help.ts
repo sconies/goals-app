@@ -172,9 +172,11 @@ const help: Article[] = [
         'Change rows, or add rows with an empty ID, and load the file on Import. Loading an export unchanged changes nothing.',
         'A row finds its metric by ID, or else by its name, any case. A column you leave out, or an empty cell, keeps what the metric says.',
         'Action retires a metric (say why in Reason) or brings one back.',
+        'Part of, How it relates, Confidence and How it could be gamed say where a metric sits and how far to trust it. Part of names another metric, by name or ID, in the library or on an earlier row.',
       ] },
       { heading: 'What it asks', list: [
         'The same as the metric’s form, in the same words: a name used twice, a direction or refresh it can’t read, an owner who isn’t in the workspace.',
+        'A Part of that would put a metric under itself, or a How it relates with no Part of, is refused in the words of the metric’s form.',
         'A name one letter from a metric already here asks whether the row is that metric or a new one.',
         'Changing what a metric goals use means, or where its number comes from, asks “Is it still the same number?”; if the number changes, say why in Reason. A file can’t change the unit of a metric goals use: change it on the metric’s page.',
         'Nothing is saved until every question is answered. The toast after saving has Undo, and the import stays under Past imports, where Undo puts every row back.',

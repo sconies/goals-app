@@ -88,6 +88,45 @@ describe('the Metrics sheet in and out (MI)', () => {
     expect(cs.commit).toBeNull();
   });
 
+  it('[METRIC-SHEET] carries where a metric sits, its confidence and how it could be gamed, in and out (MQ)', () => {
+    const cs = plan(metricsTable([
+      { ID: spare.id, 'Part of': used.name, 'How it relates': 'driver', Confidence: 'Medium', 'How it could be gamed': 'Retrying until green hides flaky tests.' },
+    ]));
+    expect(must(cs)).toEqual([]);
+    const after = applyCommit(full, cs.commit!);
+    const m = metricsOf(after).find((v) => v.id === spare.id)!;
+    expect(m).toMatchObject({ parentId: used.id, level: 'driver', confidence: 'medium', gaming: 'Retrying until green hides flaky tests.' });
+    // Out: the export says it in the same words, and loading it back changes nothing.
+    const book = workbook({ ws, snapshot: scopeToCycle(after, cycle), cycle, week, today, sheets: MODULE_SHEETS });
+    const sheet = book.find((t) => t.name === 'Metrics')!;
+    const head = sheet.rows[0]!.map(String);
+    const row = sheet.rows.find((r) => r[0] === spare.id)!;
+    const at = (col: string) => row[head.indexOf(col)];
+    expect([at('Part of'), at('How it relates'), at('Confidence'), at('How it could be gamed')]).toEqual([used.name, 'Driver', 'Medium', 'Retrying until green hides flaky tests.']);
+    const again = plan(readTables(grids(book), sheetHeadsFor({})).tables, { snap: after });
+    expect(must(again)).toEqual([]);
+    expect(again.items.filter((x) => x.sheet === 'Metrics')).toEqual([]);
+  });
+
+  it('[METRIC-SHEET] refuses a loop, a level with no parent and words it can’t read, in the library’s words (MQ)', () => {
+    const cs = plan(metricsTable([
+      { ID: spare.id, 'Part of': used.name, 'How it relates': 'Driver' },
+      { ID: used.id, 'Part of': spare.id },
+      { Metric: 'Queue depth', Unit: 'jobs', Direction: 'Lower is better', 'How it relates': 'Component' },
+      { Metric: 'Queue wait', Unit: 'min', Direction: 'Lower is better', 'How it relates': 'sibling', Confidence: 'sure' },
+      { Metric: 'Queue age', Unit: 'min', Direction: 'Lower is better', 'Part of': 'No such metric' },
+    ]));
+    expect(must(cs)).toEqual([
+      'Choose another parent: it’s already under this one.',
+      `Say what it is a component of: choose its parent, or leave the level empty.`,
+      'How it relates says “sibling”. Use Component, Driver, Control or Breakdown, or leave it empty.',
+      'Confidence says “sure”. Use High, Medium or Low, or leave it empty.',
+      'Part of says “No such metric”, which isn’t a metric in this workspace. Give the name or ID of a metric in the library or on an earlier row, or leave it empty.',
+    ]);
+    const loop = cs.issues.find((i) => i.kind === 'loop')!;
+    expect(loop).toMatchObject({ level: 'must', column: 'Part of' });
+  });
+
   it('retires with a reason and brings back; a change of meaning on a metric goals use is asked', () => {
     const retire = plan(metricsTable([{ ID: spare.id, Action: 'Retire', Reason: 'Replaced by the new dashboard.' }]));
     expect(must(retire)).toEqual([]);

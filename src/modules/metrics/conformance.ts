@@ -97,6 +97,12 @@ const SHEET_CASES = (used: { id: string; name: string; unit: string; meaning: st
   { case: 'retire-no-reason', rows: [{ ID: spare.id, Action: 'Retire' }] },
   { case: 'retire', rows: [{ ID: spare.id, Action: 'Retire', Reason: 'Replaced by the new dashboard.' }] },
   { case: 'bring-back-in-use', rows: [{ ID: spare.id, Action: 'Bring back' }] },
+  // MQ's four columns, through the library's structure rules (rulesStructure.ts).
+  { case: 'structure', rows: [{ ID: spare.id, 'Part of': used.name, 'How it relates': 'Driver', Confidence: 'Medium', 'How it could be gamed': 'Retrying until green hides flaky tests.' }] },
+  { case: 'structure-loop', rows: [{ ID: spare.id, 'Part of': used.name, 'How it relates': 'Driver' }, { ID: used.id, 'Part of': spare.id, 'How it relates': 'Breakdown' }] },
+  { case: 'level-no-parent', rows: [{ ID: spare.id, 'How it relates': 'Component' }] },
+  { case: 'relates-unread', rows: [{ ID: spare.id, 'Part of': used.name, 'How it relates': 'sibling', Confidence: 'sure' }] },
+  { case: 'parent-unknown', rows: [{ ID: spare.id, 'Part of': 'No such metric' }] },
 ];
 
 /** The goals whose links count at the moment: those rule 2 lists for any metric (a live goal of the cycle). */

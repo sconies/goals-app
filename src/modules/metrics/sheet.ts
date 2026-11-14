@@ -5,12 +5,13 @@
 import { cellOr, moduleColumn, oneOf, type Ctx } from '../../domain/columns';
 import type { ModuleSheet } from '../../domain/records';
 import type { Goal } from '../../domain/types';
-import { DIRECTION_LABEL, liveMetrics, linksOf, REFRESH_LABEL, sliceName } from './rules';
+import { DIRECTION_LABEL, liveMetrics, linksOf, metricsOf, REFRESH_LABEL, sliceName } from './rules';
 import { stillToSay } from './rulesStill';
+import { CONFIDENCE_WORDS, CONFIDENCES, GAMING_MAX, LEVEL_WORDS, LEVELS } from './rulesStructure';
 import type { Metric } from './types';
 
 /** A metric in the library, and the exported goals it measures, each with its slice. */
-export interface MetricRow { c: Ctx; m: Metric; measures: { g: Goal; slice: string }[] }
+export interface MetricRow { c: Ctx; m: Metric; measures: { g: Goal; slice: string }[]; parent: string | null }
 
 const { match: m, edit: e, worked: w, shown: sh, action: act } = moduleColumn;
 const or = cellOr;
@@ -33,6 +34,11 @@ export const METRICS_SHEET: ModuleSheet<MetricRow> = {
       e<MetricRow>('Owner', 'Who answers for the definition, by name (Owner email wins when both are given).', (r) => or(r.c.name(r.m.ownerId))),
       e<MetricRow>('Owner email', 'Who answers for it, by email; empty on a new metric: whoever loads the file.', (r) => r.c.email(r.m.ownerId)),
       e<MetricRow>('Caveats', 'What to watch out for when reading it.', (r) => or(r.m.caveats)),
+      // MQ (rulesStructure.ts): where it sits, how far to trust it and how it could be gamed.
+      e<MetricRow>('Part of', 'The metric it sits under, by name or ID: a metric in the library or on an earlier row. Empty for none.', (r) => r.parent),
+      e<MetricRow>('How it relates', `How it relates to the metric it is part of: ${oneOf(LEVELS.map((k) => LEVEL_WORDS[k].label))}. Needs Part of; empty when not said.`, (r) => (r.m.level ? LEVEL_WORDS[r.m.level].label : null)),
+      e<MetricRow>('Confidence', `How far its number can be trusted: ${oneOf(CONFIDENCES.map((k) => CONFIDENCE_WORDS[k].label))}; empty when not said.`, (r) => (r.m.confidence ? CONFIDENCE_WORDS[r.m.confidence].label : null)),
+      e<MetricRow>('How it could be gamed', `In words, up to ${GAMING_MAX} characters; empty when not said.`, (r) => or(r.m.gaming)),
       e<MetricRow>('Reason', 'Why: needed to retire it, or when a change to its meaning or direction changes the number its goals show.', () => null),
       w<MetricRow>('Still to say', 'Fully defined, or what it still needs to say.', (r) => stillToSay(r.m, !!r.c.email(r.m.ownerId)).line),
       w<MetricRow>('Retired on', 'The day it was retired; empty while it is in use.', (r) => (r.m.retiredAt ? r.m.retiredAt.slice(0, 10) : null)),
@@ -48,6 +54,7 @@ export const METRICS_SHEET: ModuleSheet<MetricRow> = {
     const s = x.snapshot;
     return liveMetrics(s, { retired: true }).map((mt) => ({
       c, m: mt,
+      parent: mt.parentId ? (metricsOf(s).find((v) => v.id === mt.parentId)?.name ?? null) : null,
       measures: linksOf(s).filter((l) => l.metricId === mt.id && !l.removedAt && ids.has(l.goalId)).flatMap((l) => { const g = s.goals.find((v) => v.id === l.goalId); return g ? [{ g, slice: sliceName(s, l.teamId) }] : []; }),
     }));
   },

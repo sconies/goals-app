@@ -34,6 +34,7 @@ export const WHATS_NEW: NewsEntry[] = [
       'The Metrics sheet now loads back: add or change hundreds of metrics at once, with every change shown first.',
       'Leave ID empty to add a metric; give its ID, or its name, to change one. Action retires one, with a Reason, or brings one back.',
       'The same questions as the metric’s form are asked once, and one Undo puts every row back. AI tools can send the same rows to bulk_change.',
+      'It carries where each metric sits and how far to trust it: Part of, How it relates, Confidence and How it could be gamed, out and back in.',
     ],
     articles: ['metric-sheet'],
   },

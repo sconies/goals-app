@@ -233,7 +233,7 @@ export interface IssueGroup {
 }
 
 const n = (k: number, one: string, many = one + 's') => `${k} ${k === 1 ? one : many}`;
-const THING: Record<string, string> = { Team: 'team', 'Takes over': 'person', Owner: 'person', 'Owner email': 'person', 'Feeds into': 'goal', Goal: 'goal', Stages: 'stage' };
+const THING: Record<string, string> = { Team: 'team', 'Takes over': 'person', Owner: 'person', 'Owner email': 'person', 'Feeds into': 'goal', Goal: 'goal', Stages: 'stage', 'Part of': 'metric' };
 
 /** A group's title: section 4's "Title of the group" for a Must fix, its question for a Check. */
 export function groupTitle(kind: IssueKind, sheet: Sheet, count: number, first: Issue): string {
@@ -260,7 +260,7 @@ export function groupTitle(kind: IssueKind, sheet: Sheet, count: number, first: 
     case 'cant-change': return `${n(count, 'row')} change${count === 1 ? 's' : ''} something that can’t change`;
     case 'not-allowed': return sheet === 'People' ? `${n(count, 'row')} change${count === 1 ? 's' : ''} people. Only an admin can add or change people` : `${n(count, 'row')} change${count === 1 ? 's' : ''} ${count === 1 ? 'a goal' : 'goals'} you don’t own`;
     case 'removal-refused': return `${n(count, 'row')} can’t be ${sheet === 'People' ? 'marked as left' : 'stopped or deleted'} as ${count === 1 ? 'it stands' : 'they stand'}`;
-    case 'loop': return `${n(count, 'goal')} would feed ${count === 1 ? 'itself' : 'themselves'}`;
+    case 'loop': return sheet === 'Metrics' ? `${n(count, 'metric')} would sit under ${count === 1 ? 'itself' : 'themselves'}` : `${n(count, 'goal')} would feed ${count === 1 ? 'itself' : 'themselves'}`;
     case 'near-ref': return `${n(count, 'row')} name${count === 1 ? 's' : ''} a ${THING[col] ?? 'record'} that isn’t here: “${v}”. Did you mean ${first.suggest}?`;
     case 'near-word': return `${col} says “${v}” on ${n(count, 'row')}. Read it as ${first.suggest}?`;
     case 'near-header': return first.message;

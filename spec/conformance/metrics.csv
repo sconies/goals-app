@@ -118,3 +118,8 @@ sheet,meaning-on-used,1,0,,,,,,,,,No changes,Check: Lead time for changes: 1 goa
 sheet,retire-no-reason,1,0,,,,,,,,,No changes,"Must fix: Say why it is retired, in the Reason column. Its goals will show this.",,,,,,refused
 sheet,retire,1,1,,,,,,,,,1 metric changed,,,,,,,saves
 sheet,bring-back-in-use,1,0,,,,,,,,,No changes,Must fix: Bring back: CI compute cost per pipeline run isn’t retired.,,,,,,refused
+sheet,structure,1,1,,,,,,,,,1 metric changed,,,,,,,saves
+sheet,structure-loop,1,1,,,,,,,,,1 metric changed,Must fix: Choose another parent: it’s already under this one.,,,,,,refused
+sheet,level-no-parent,1,0,,,,,,,,,No changes,"Must fix: Say what it is a component of: choose its parent, or leave the level empty.",,,,,,refused
+sheet,relates-unread,1,0,,,,,,,,,No changes,"Must fix: How it relates says “sibling”. Use Component, Driver, Control or Breakdown, or leave it empty. | Must fix: Confidence says “sure”. Use High, Medium or Low, or leave it empty.",,,,,,refused
+sheet,parent-unknown,1,0,,,,,,,,,No changes,"Must fix: Part of says “No such metric”, which isn’t a metric in this workspace. Give the name or ID of a metric in the library or on an earlier row, or leave it empty.",,,,,,refused

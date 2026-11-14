@@ -40,7 +40,7 @@ export const ISSUE_KINDS: Record<IssueKind, KindRule> = {
   'cant-change': { when: 'A row changes something that never changes: an existing goal’s Type, a check-in’s week, an email taken away, a goal this file also stops.' },
   'not-allowed': { when: 'The person loading the file may not make the change: a goal they don’t own and aren’t an admin for, people when they aren’t an admin, a goal at a level only its owner may set.' },
   'removal-refused': { when: 'Stop with no reason, Delete on a goal with check-ins, or Left with no one to take over.' },
-  loop: { when: 'A goal that would feed itself, directly or round a loop of Feeds into links.' },
+  loop: { when: 'A goal that would feed itself, directly or round a loop of Feeds into links; on the Metrics sheet, a metric whose Part of is itself or one of the metrics under it.' },
   // Check
   'near-ref': { when: 'A person, team, goal or stage name within reach of exactly one that is here (one edit under 8 folded characters, two from 8).' },
   'near-word': { when: 'A word column’s word within reach of exactly one of its words or their other spellings.' },

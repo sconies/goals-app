@@ -5,6 +5,7 @@
    As on every sheet, a row already here needs no column: an absent column or an empty cell keeps what the metric says. */
 import { NotAllowed, type ActionContext } from '../../domain/actions';
 import { normalEmail } from '../../domain/people';
+import { oneOf } from '../../domain/columns';
 import { fold, LEAVE } from '../../domain/problemLevels';
 import { applyModuleRows } from '../../domain/records';
 import type { SheetPlanApi, SheetPlanItem, SheetPlanResult } from '../../domain/sheetPlan';
@@ -13,11 +14,12 @@ import type { Change, Goal } from '../../domain/types';
 import { nameChecks } from './rulesDefine';
 import { linkedGoals, retireMetric, saveMetricChange, unretireMetric } from './rulesChange';
 import { METRICS_KEY, metricsOf, MODULE, REFRESH_LABEL, type Metric, type MetricInput } from './rules';
+import { CONFIDENCE_WORDS, CONFIDENCES, LEVEL_WORDS, LEVELS, parentRefusal, structureProblems } from './rulesStructure';
 
 const goalsWord = (n: number) => `${n} ${n === 1 ? 'goal is' : 'goals are'}`;
 
 /** A column under the export's header, or a name a register often uses for it (3.1, header aliases). */
-const ALIASES: Record<string, string[]> = { metric: ['metric', 'name'], meaning: ['meaning', 'description', 'definition'], direction: ['direction', 'better'], 'owner email': ['owner email', 'owner e-mail'] };
+const ALIASES: Record<string, string[]> = { metric: ['metric', 'name'], meaning: ['meaning', 'description', 'definition'], direction: ['direction', 'better'], 'owner email': ['owner email', 'owner e-mail'], 'part of': ['part of', 'parent', 'parent metric'], 'how it relates': ['how it relates', 'level', 'relation'], 'how it could be gamed': ['how it could be gamed', 'gaming'] };
 const cell = (api: SheetPlanApi, r: Rec, col: string): { has: boolean; v: string } => {
   for (const k of ALIASES[col] ?? [col]) if (api.has(r, k)) return { has: true, v: api.val(r, k) };
   return { has: false, v: '' };
@@ -26,6 +28,8 @@ const cell = (api: SheetPlanApi, r: Rec, col: string): { has: boolean; v: string
 
 const DIRECTION_WORDS: Record<string, Metric['direction']> = { 'higher is better': 'higher', higher: 'higher', up: 'higher', 'lower is better': 'lower', lower: 'lower', down: 'lower' };
 const REFRESH_WORDS = Object.fromEntries(Object.entries(REFRESH_LABEL).map(([k, v]) => [fold(v), k])) as Record<string, Metric['refresh']>;
+const LEVEL_BY_WORD = Object.fromEntries(LEVELS.map((k) => [fold(LEVEL_WORDS[k].label), k]));
+const CONFIDENCE_BY_WORD = Object.fromEntries(CONFIDENCES.map((k) => [fold(CONFIDENCE_WORDS[k].label), k]));
 const ACTION_WORDS: Record<string, 'retire' | 'back'> = { retire: 'retire', 'bring back': 'back', 'bring it back': 'back' };
 
 /** The fields a row gives that differ from the metric as it is (nothing given: nothing differs). */
@@ -103,6 +107,20 @@ export function planMetricsSheet(api: SheetPlanApi): SheetPlanResult {
       if (named.length === 1) input.ownerId = named[0]!.id;
       else { api.raise(named.length ? 'ambiguous-ref' : 'unknown-ref', row, label, named.length ? `Owner “${ownerName.v}” matches ${named.length} people. Give the Owner email.` : `Owner “${ownerName.v}” isn’t a person in ${ws}. Give the Owner email of someone here, or leave it empty to own it yourself.`, { column: 'Owner', found: ownerName.v }); bad = true; }
     }
+    // MQ (rulesStructure.ts): where it sits, how far to trust it and how it could be gamed. Part of names a metric in the
+    // library or on an earlier row, by ID or name.
+    const part = cell(api, r, 'part of');
+    if (part.v) {
+      const p = all.find((m) => m.id === part.v) ?? all.find((m) => fold(m.name) === fold(part.v));
+      if (p) input.parentId = p.id;
+      else { api.raise('unknown-ref', row, label, `Part of says “${part.v}”, which isn’t a metric in ${ws}. Give the name or ID of a metric in the library or on an earlier row, or leave it empty.`, { column: 'Part of', found: part.v }); bad = true; }
+    }
+    const rel = cell(api, r, 'how it relates');
+    if (rel.v) { const l = LEVEL_BY_WORD[fold(rel.v)]; if (l) input.level = l; else must('How it relates', `How it relates says “${rel.v}”. Use ${oneOf(LEVELS.map((k) => LEVEL_WORDS[k].label))}, or leave it empty.`, rel.v); }
+    const conf = cell(api, r, 'confidence');
+    if (conf.v) { const k = CONFIDENCE_BY_WORD[fold(conf.v)]; if (k) input.confidence = k; else must('Confidence', `Confidence says “${conf.v}”. Use ${oneOf(CONFIDENCES.map((c) => CONFIDENCE_WORDS[c].label))}, or leave it empty.`, conf.v); }
+    const gaming = cell(api, r, 'how it could be gamed');
+    if (gaming.v) input.gaming = gaming.v;
     if (bad) continue;
 
     // One letter from a metric already here (rule 1 nameChecks): asked, never guessed.
@@ -113,6 +131,20 @@ export function planMetricsSheet(api: SheetPlanApi): SheetPlanResult {
         const a = api.ask('near-ref', row, label, `This is one letter from “${other.name}” (${other.unit}, ${linkedGoals(full ?? snap, other.id).length} goals).`, { column: 'Metric', found: name.v, suggest: other.name, answers: [{ choice: 'use', label: `Change “${other.name}” with this row` }, { choice: 'new', label: `Add “${name.v}” as a new metric` }, LEAVE] });
         if (a === 'leave' || a === null) continue;
         if (a.choice === 'use') { was = other; delete input.name; }
+      }
+    }
+
+    // The library's own refusals (rulesStructure structureProblems), in its words: a parent that would make a loop, or a
+    // level with no parent, is a Must fix on this row.
+    if ('parentId' in input || 'level' in input || 'gaming' in input) {
+      const shape = { id: was?.id ?? '', level: input.level ?? was?.level, parentId: input.parentId ?? was?.parentId, confidence: input.confidence ?? was?.confidence, gaming: input.gaming ?? was?.gaming };
+      const problems = structureProblems(shape, { metrics: metricsOf(snap) });
+      if (problems.length) {
+        const parent = shape.parentId ? metricsOf(snap).find((m) => m.id === shape.parentId) : undefined;
+        const loop = !!(was && parent && parentRefusal({ metrics: metricsOf(snap) }, was, parent));
+        const noParent = !!shape.level && !shape.parentId;
+        api.raise(loop ? 'loop' : noParent ? 'required-empty' : 'cant-change', row, label, problems.join(' '), { column: loop || noParent ? 'Part of' : 'How it could be gamed', ...(loop ? { found: part.v } : {}) });
+        continue;
       }
     }
 
