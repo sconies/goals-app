@@ -359,7 +359,9 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     if (slot) focusQuestion(form.current, slot); else el?.focus();
   }, [tried, at]);
   useMark(at ? STEP_MARKS[idx] ?? null : null);
-  if (at !== goesTo && Date.now() - madeAt > 5000) {
+  // Just made: /ready is on its way, so nothing is drawn here (never an empty step, and never a move back to step 1).
+  if (Date.now() - madeAt < 5000) return null;
+  if (at !== goesTo) {
     const q = new URLSearchParams(search);
     q.delete('from');
     const rest = q.toString();
