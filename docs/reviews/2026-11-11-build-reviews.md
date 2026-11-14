@@ -12,13 +12,15 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 ## Where the next reviewer starts
 
-Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh that morning (session …Bn8GD91Ct4dL). The note before it was written at 00:10 UTC by the reviewer that stopped.
+Written 14 November 2026, 15:40 UTC, when the reviewer of 14 November (session …Bn8GD91Ct4dL) stopped after 19 code PRs. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `a13e55ef` (#468), the head of main at 15:20 UTC, 14 Nov. Expected next: #476 (a `restore_removed` test with Reviews off). Two mediums are open: #485's (two devices, one list) and #468's (no "Your team" on Home with one team).
+- **Last merge fully reviewed:** `cadff60d` (#488), the head of main at 15:35 UTC, 14 Nov. Every code PR merged from #121 up to it has a row in State and a section below. This session's are #457 to #488, at the end.
 - **Merged since, not reviewed:** none.
-- **Highs not yet confirmed fixed:** none. #452 is fixed by #467 and #416 by #432 (both re-run). What was left of #416 (a review held on the due weekday, but not this week) is fixed by #479.
-- **Who gets what (Lane, 14 Nov, relayed by planning at 13:34 UTC):** highs at once to the owning track, with a copy to planning; mediums to planning once per batch; lows are logged here only and sent to nobody (they move to the backlog, #483).
-- **To watch in #464 (GR, track 7d):** `BUILT_KEYS` (`src/domain/changeset.ts`) must name `guards` if `buildGoal` decides it; and migration 0051's check refuses a JSON null.
+- **Highs open:** none. #416 is fixed by #432 and #479, #452 by #467; both re-run.
+- **Mediums open:** one. **#468** (track 1, session …8xPMKxizxiksy71mcL has it): a workspace with one team has no "Your team" on Home, because Home reads the drawn tabs (`src/ui/HomeSets.tsx:31`). To verify the fix: three goals in one team, one the viewer's, must give a team set; or the design's one section (backlog SM1h).
+- **Expected next:** #476 (track 4: a test of `restore_removed` through the MCP server with Reviews off; #424's medium 1 is already closed, this only adds the test); #464 (GR, track 7d: guardrails on a goal. Check `guards` is in `BUILT_KEYS` in `src/domain/changeset.ts`, and that the row mapper writes SQL null or `[]`, never a JSON null, which migration 0051's check refuses); TG1 (track 2: the generic module save must cope with `goal_fields` and `goal_field_values`, which have no `removed_at`).
+- **How merges reach you:** no timer works here (scheduling a wake needs an approval nobody answers). Each track messages the reviewer its PR's number when it merges; whenever a message arrives, run `git log --first-parent <last reviewed>..origin/main` and review everything in it, as a track's message can lag or be missed.
+- **Who gets what (Lane, 14 Nov):** highs at once to the owning track, with a copy to planning; mediums to planning once per batch; lows are logged here only and sent to nobody (they move to the backlog, #483). Planning is session_012kbr91eefh4gwCAztBncNT.
 - **Lane's answers, 14 Nov (relayed by planning, 12:33 UTC).** Read fixes against these, and don't raise them again:
   - #334, an admin's pasted row over this week's check-in: treat it as a correction, with a reason and the owner kept as author (track 1).
   - "Opened" and "Not yet" on a proposed goal: store them on the server now (track 2).
@@ -29,8 +31,7 @@ Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh th
   - The first-download limit stays at 275 KB (so #471's low 2 is answered).
   - PR CI caps very large selections of journeys (track 4).
   - Earlier: an untouched filled-in reading needs a touch before it posts (13 Nov, built in #460); readings stay visible with the Metric library off (14 Nov, in #470's spec).
-- **Mediums that become high later:** #437/#446's readings (an earlier week saved with today's reading; decimals compared two ways) the day a real number source is registered.
-- **Method, in short:** per merge, `git diff <merge>^1 <merge> -- . ':!spec' ':!api/mcp.js' ':!llms.txt' ':!evals/report.md'`; fix PRs read against the findings they answer; large features to a first-pass reviewer in its own worktree, which writes its report to a file; any high re-run before it is sent to the session on the merge's `Claude-Session` line; PGlite only, never the live database.
+- **Method, in short:** per merge, `git diff <merge>^1 <merge> -- . ':!spec' ':!api/mcp.js' ':!llms.txt' ':!evals/report.md'`, piped through `grep '^[+-]' | cut -c1-500` to keep it small; fix PRs read against the findings they answer; a probe as a throwaway vitest file under `src/zz/` (write to stderr, delete it after) for a rule, and a Sonnet subagent with Playwright for a screen; PGlite only, never the live database. Before saying a door is open, look for the refusal in the action the tool calls, not only in the tool's file (my mistake on #424). Don't read another session's events to check a message arrived: the answer is huge.
 
 ## State
 
@@ -241,6 +242,7 @@ Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh th
 | #477 SM1 review: a menu row drawn in one workspace no longer follows you into another (#461's medium) | 2 | 0 | 0 | 0 |
 | #485 PP1: a proposed goal's Opened and Not yet follow the person between devices | 2 | 0 | 1 | 2 |
 | #468 HM3: Your team on Home, and teams worst first | 1 | 0 | 1 | 2 |
+| #488 PP2: two devices open at once keep each other's Opened and Not yet (#485's medium) | 2 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2099,3 +2101,9 @@ Read (the rule, the query, the markup and the styles), with two probes of the sc
 **1. Medium (ran in the rule; read for the screen). A workspace with one team has no "Your team" on Home.** `useHomeSets` reads `scopesFor(...).tabs` (`src/ui/HomeSets.tsx:31`), and since #461 a tab waits when it is the same list as All, so with one team the `team` scope isn't among them and `homeSets` returns no team set: three goals in one team, one mine, gives tabs Mine and All only. The teammates' goals that need attention are then nowhere on Home, in the workspaces SM1 is for, and What's new says "Your team on Home". The design's answer is SM1h (one section, "The team's goals", backlog row 32, not built). Until it is, read `every`, as `find_goals` does since #461. In the demo nobody is affected (one person, whose team's only goal is their own).
 
 **Lows.** (1) `YourTeam`'s comment says teams are drawn "when the scope spans three or more"; the rule is more than twelve goals in two or more teams. (2) The same reading of `tabs` drops "Goals you watch" as teams for someone whose watched list is exactly their team's or everyone's goals; nobody in the demo is.
+
+### #488 PP2: #485's medium (track 2, merged 14 Nov); #490 and #489, docs
+
+**Fixed; read, and its tests pass on main (8).** A write now reads the server's row again, merges this device's value into it and writes the result (`serverPrefs.write`), with the merge owned by the key: `mergeProposals` keeps every goal either copy opened and, for each put-off, the later day. A test is my probe (laptop A, phone B, laptop C: the server holds all three), and another holds that every server-kept key has a merge. The read and the write are two calls, so two devices acting in the same instant can still cross; at that width it is not worth more. #485's first low (a browser's older list lost on first adoption) goes too, since the first write merges.
+
+**#490** splits `docs/handover.md` into a file per role (`docs/handover/`), with one line of `CLAUDE.md`. **#489** is a retrospective and handoff notes. No code in either.
