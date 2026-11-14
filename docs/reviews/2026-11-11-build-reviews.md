@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh that morning (session …Bn8GD91Ct4dL). The note before it was written at 00:10 UTC by the reviewer that stopped.
 
-- **Last merge fully reviewed:** `afa488da` (#484), the head of main at 13:50 UTC, 14 Nov. Expected next: #485 (PP0's code), #476 (a `restore_removed` test with Reviews off) and #477 (the fix for #461's medium, to re-run: set up a new workspace from the demo and look for a Metrics row before any reload). Tracks now message the reviewer a PR's number when it merges (planning, 11:01 UTC); compare main's log with this SHA whenever one arrives. Every code PR merged from #121 up to it has a row in State and a section below.
+- **Last merge fully reviewed:** `20c45115` (#477), the head of main at 14:15 UTC, 14 Nov. Expected next: #485 (PP0's code) and #476 (a `restore_removed` test with Reviews off). No medium is open.
 - **Merged since, not reviewed:** none.
 - **Highs not yet confirmed fixed:** none. #452 is fixed by #467 and #416 by #432 (both re-run). What was left of #416 (a review held on the due weekday, but not this week) is fixed by #479.
 - **Who gets what (Lane, 14 Nov, relayed by planning at 13:34 UTC):** highs at once to the owning track, with a copy to planning; mediums to planning once per batch; lows are logged here only and sent to nobody (they move to the backlog, #483).
@@ -238,6 +238,7 @@ Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh th
 | #480 PR CI runs the core journeys and the 25 the PR's files name most directly | 4 | 0 | 0 | 0 |
 | #479 Before this review only when held on the due day that week (#432's medium) | readings | 0 | 0 | 0 |
 | #484 PP0: migration 0053, person_prefs | 2 | 0 | 0 | 1 |
+| #477 SM1 review: a menu row drawn in one workspace no longer follows you into another (#461's medium) | 2 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2076,3 +2077,7 @@ Read against the faro rules. Two tables, `faro.goal_fields` and `faro.goal_field
 Read against the faro rules; it is Lane's answer of 14 Nov ("Opened" kept on the server). One table, `faro.person_prefs`, a row per workspace, person and key, the key held to a list (`proposals` only) and the value to 16 KB. Named without `okr_`, grants and row rules written out as 0052's, nothing outside `faro`, safe to run twice, a merge ahead of its code (#485), with its README line and limits rows. Nothing found above a low.
 
 **Low.** `person_id` has no reference to `okr_people`, so a deleted person's rows stay until the workspace goes. Harmless at this size; the rebuild's spec should say who clears them.
+
+### #477 SM1 review: #461's medium (track 2, merged 14 Nov)
+
+**Fixed; the reproduction re-run at `20c45115`.** The rows drawn are kept per workspace (`src/ui/Shell.tsx`, the set is replaced when `app.ws.id` changes). The same steps as before, with no reload: a new workspace set up from the demo has no Metrics row; Example data has it; back in the new workspace it is gone; after a reload, still gone. N30 now builds a workspace with metrics and one without, switches between them through the switcher and asserts the row at each step, which closes #461's first low. The requirement no longer claims Home's sections (the second low): it says they are backlog SM1h, not built.
