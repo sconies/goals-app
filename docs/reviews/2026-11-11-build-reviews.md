@@ -256,6 +256,7 @@ Written 14 November 2026, 15:40 UTC, when the reviewer of 14 November (session â
 | #508 KL: the rebuild lessons in the generated kit | 4 | 0 | 0 | 0 |
 | #464 GR: guardrails on a goal | 7d | 0 | 0 | 1 |
 | #502 MQ part 1: migration 0055, metric structure | 7d | 0 | 0 | 0 |
+| #465 FT1: the check-in rhythm per cycle (every week by a day, or no set rhythm) | 4 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2206,4 +2207,14 @@ The rule lives once (`guardBreaches`, `guardedCalc` in `src/domain/guards.ts`): 
 ### #502 MQ part 1: migration 0055 (track 7d, merged 14 Nov, 19:49 UTC)
 
 Read. Nothing found. Four nullable columns on `faro.okr_metrics` (`level`, `parent_id`, `confidence`, `gaming`), each with a check; every name carries `faro.`, nothing reaches outside it, the column grants to `anon` are written out as 0051 writes its own, and it is safe to run twice (columns if missing, constraints dropped and added). It ships a merge ahead of the code (#505), with its line in `supabase/README.md` and two rows in `src/spec/limits.ts`. It is 0055 on main (the track's message said 0054, which is TG1's). **To watch when the code lands (#505):** the checks on `level` and `confidence` take null or one of the listed words, so the row mapper must write SQL null, never an empty string, for "not said"; and the parent's rules (no loops, same workspace, not removed) are the app's alone.
+
+### #465 FT1: the check-in rhythm per cycle (track 4, merged 14 Nov, 20:36 UTC)
+
+Read at the level of the rules, the row mapper, the app layer, the AI tools, the import and export, and CI's new job; its tests pass on main (89 across `rhythm`, `schema` and `habit`). The screens (thirteen files, small changes each) were skimmed, not read line by line, and nothing was walked on screen by me: U101, U102, F20, N31 and CI's "Core journeys with no rhythm" are its browser checks. No high, no medium, nothing to log.
+
+- **One rule.** `rhythmOf` and `staleAfterDays` (`src/domain/thresholds.ts`) are what the status rule asks: with no set rhythm nothing reads No recent update and a goal is what it last said; a rhythm switched on counts from that day (`rhythmFrom`), so nothing is late on the day. The only uses of the fixed 14 left are the vocabulary's words, which hold for a weekly cycle and aren't shown with none.
+- **A setting, not a module:** the status rule turns on it, which is the module map's test for a setting. It is kept on the running cycle, admins only, refused on a year that is over, logged, with Undo; `set_rhythm` reads back what would change, counted, before `confirm`, from the same functions as the sheet.
+- **The save.** Every cycle row writes `check_in_weeks` and `rhythm_from` (1 and null when unset), so a save of two cycles can't null the not-null column (the #308 shape), with a schema test.
+- **With what merged beside it:** Home's "Changed since" never says "went quiet" with no rhythm, since the status it compares is never No recent update; the next year keeps the rhythm and drops `rhythmFrom`.
+- CI gains a job that runs the smoke gate on the example with no rhythm, leaving out the ten journeys about what is due (listed in `evals/touches.cjs`); the kit's drill scores a second set of conformance rows for it. No budget or wait is raised; the first download stays in its 275 KB by loading the parity table after it (an action pressed in the app's first moments then runs untraced, which the comment says).
 
