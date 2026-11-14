@@ -282,6 +282,7 @@ Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, qua
 - Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.
 - Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back, and History no longer says it was corrected. The form starts from what the check-in said, so you change only what was wrong. A cycle that has ended can’t be corrected here, or anywhere else: Data’s tables, the AI assistant and a spreadsheet refuse it too.
 - Changing a week’s check-in in Data’s tables, or through the AI assistant, corrects it the same way: it asks why first, and History says “Corrected week 45” with your reason. An admin can correct a past check-in in Data.
+- A correction never changes whose check-in it is: it stays the person’s who posted it, wherever it was corrected (the form, Data, the AI assistant or a spreadsheet). History names who corrected it, with the reason: “Corrected week 45: 60% is now 61%, by Amara Okafor: …”.
 - Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.
 - Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.
 - The first check-in sets where a goal stands today. If the goal was set up in the last four weeks and the number isn’t where its plan starts, you’re asked: start the plan from this number (same target, due week and shape; no reason needed, with Undo), or keep the plan and say why.
@@ -296,7 +297,7 @@ When a check-in takes a goal to its target, the last screen says so quietly, wit
 
 #### Who can
 
-Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. Anyone can ask the owner for an update from the goal’s page.
+Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. A pasted row that replaces someone’s check-in for this week is a correction: Preview asks why first, and the check-in stays theirs. Anyone can ask the owner for an update from the goal’s page.
 
 ### Typing all your numbers in one table
 

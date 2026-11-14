@@ -27,6 +27,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'corrections-keep-the-author',
+    date: '2026-11-14',
+    title: 'A correction keeps whose check-in it is',
+    points: [
+      'Correcting someone’s check-in no longer makes it yours. It stays theirs, wherever it is corrected: the form, Data’s tables, the AI assistant or a spreadsheet.',
+      'This changes what Data and the AI assistant did until now: they made whoever corrected a check-in its author.',
+      'History names who corrected it, with the reason: “Corrected week 45: 60% is now 61%, by Amara Okafor: …”.',
+      'An admin’s pasted row that replaces someone’s check-in for this week is a correction too: Preview asks why before it saves.',
+    ],
+    articles: ['check-in', 'data'],
+  },
+  {
     id: 'menu-shows-what-you-use',
     date: '2026-11-14',
     title: 'The menu shows what you use',

@@ -107,7 +107,9 @@ describe('deleting a check-in and undoing an import ask the same rule', () => {
     const cs = planChanges({ tables: { checkIns: [row] }, snapshot, cycle, week, actor: person('amara'), now: today.toISOString(), newId, via: 'spreadsheet', reason: 'Loaded from the source data' });
     const after = applyCommit(snapshot, cs.commit!);
     const c = checkInsFor(goal, after.checkIns).at(-1)!;
-    expect(c.authorId).toBe('amara');
+    // The correction keeps who checked in (Lane, 14 Nov); the admin is the change's actor.
+    expect(c.authorId).toBe(latest.authorId);
+    expect(cs.commit!.changes.find((x) => x.entity === 'check-in')!.actorId).toBe('amara');
     expect(canDeleteCheckIn(after, goal, c, mateo)).toBe(true);
     // Mateo hands the goal to Rhea: his own check-in is now Rhea's goal's.
     const mine = applyCommit(fresh, postCheckIn(as('mateo', fresh), { goalId: goal.id, week, draft: { ...emptyDraft(goal, null), value: onPlan }, mode: 'new' }).commit);

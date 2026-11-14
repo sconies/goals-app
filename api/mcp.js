@@ -12491,12 +12491,14 @@ function* planChangesInChunks(input) {
 			}) === "leave") return;
 		}
 		const othersThisWeek = !!existing && w === week && owned.ownerId !== actor.id;
-		const corrects = post?.mode === "correct" || !post && !!existing && (CORRECTS_VIA.includes(via) || othersThisWeek);
+		const endedAdd = !existing && cycleEnded;
+		const corrects = post?.mode === "correct" || !post && (!!existing && (CORRECTS_VIA.includes(via) || othersThisWeek) || endedAdd);
 		const keeps = corrects && existing;
 		const backfilled = keeps ? !!existing.backfilled : w < week;
 		const due = new Date(Date.parse(weekDate(cycle, w) + "T09:00:00Z") + cycle.reviewDay * 864e5);
 		const at = keeps ? new Date(existing.postedAt) : backfilled && due.toISOString() < now ? due : new Date(now);
-		const made = asRecorded ? asWritten(asOf, w, draft, e, actor.id, at.toISOString(), existing?.id ?? newId("ci")) : toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId("ci"));
+		const author = existing ? existing.authorId : actor.id;
+		const made = asRecorded ? asWritten(asOf, w, draft, e, author, at.toISOString(), existing?.id ?? newId("ci")) : toCheckIn(asOf, cycle, w, draft, ctx, author, at, existing?.id ?? newId("ci"));
 		const read = post ? post.reading : input.readings?.find((x) => x.goalId === g.id && x.week === w)?.reading;
 		if (read && g.kind !== "milestone") {
 			const problem = readingProblem(read, made.value, g.decimals, now);
@@ -12551,6 +12553,7 @@ function* planChangesInChunks(input) {
 			summary: ch.summary,
 			diffs: ch.diffs,
 			backfilled,
+			author: c.authorId,
 			...corrects && !post && !correctReasonOk(why) ? { needsReason: true } : {}
 		});
 	};
@@ -12756,7 +12759,7 @@ function* planChangesInChunks(input) {
 		}
 		const own = checkInsFor(g, s.checkIns);
 		const newest = own.filter((c) => c.week === w).pop() ?? null;
-		if (p.mode === "correct" && cycleEnded) {
+		if (p.mode === "correct" && cycleEnded && newest) {
 			raise("cant-change", "Check-ins", row, g.title, endedRefusal);
 			continue;
 		}
@@ -19591,6 +19594,7 @@ var CORE_ARTICLES = [
 					"Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.",
 					"Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back, and History no longer says it was corrected. The form starts from what the check-in said, so you change only what was wrong. A cycle that has ended can’t be corrected here, or anywhere else: Data’s tables, the AI assistant and a spreadsheet refuse it too.",
 					"Changing a week’s check-in in Data’s tables, or through the AI assistant, corrects it the same way: it asks why first, and History says “Corrected week 45” with your reason. An admin can correct a past check-in in Data.",
+					"A correction never changes whose check-in it is: it stays the person’s who posted it, wherever it was corrected (the form, Data, the AI assistant or a spreadsheet). History names who corrected it, with the reason: “Corrected week 45: 60% is now 61%, by Amara Okafor: …”.",
 					"Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.",
 					"Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.",
 					"The first check-in sets where a goal stands today. If the goal was set up in the last four weeks and the number isn’t where its plan starts, you’re asked: start the plan from this number (same target, due week and shape; no reason needed, with Undo), or keep the plan and say why."
@@ -19606,7 +19610,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. Anyone can ask the owner for an update from the goal’s page."]
+				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a check-in that exists in Data, and bring in everyone’s past weeks from a spreadsheet, but not add this week’s new check-in for someone: one pasted row is refused, saying a workbook brings in past weeks. A pasted row that replaces someone’s check-in for this week is a correction: Preview asks why first, and the check-in stays theirs. Anyone can ask the owner for an update from the goal’s page."]
 			}
 		],
 		routes: ["/check-in", "/check-in/:goalId"],
@@ -21542,6 +21546,18 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "corrections-keep-the-author",
+		date: "2026-11-14",
+		title: "A correction keeps whose check-in it is",
+		points: [
+			"Correcting someone’s check-in no longer makes it yours. It stays theirs, wherever it is corrected: the form, Data’s tables, the AI assistant or a spreadsheet.",
+			"This changes what Data and the AI assistant did until now: they made whoever corrected a check-in its author.",
+			"History names who corrected it, with the reason: “Corrected week 45: 60% is now 61%, by Amara Okafor: …”.",
+			"An admin’s pasted row that replaces someone’s check-in for this week is a correction too: Preview asks why before it saves."
+		],
+		articles: ["check-in", "data"]
+	},
 	{
 		id: "menu-shows-what-you-use",
 		date: "2026-11-14",
