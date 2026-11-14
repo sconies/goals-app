@@ -10,21 +10,30 @@ Give goals a workspace’s own fields, such as a stage or a programme, to find a
 
 - Stages 1 to 3 pass their exit criteria.
 - The core saves a module's records through module_tables and src/core/records.ts (stage 2), so the module's two tables need nothing from any core rule.
+- The core offers a Workspace section to a module (AppModule sections, /workspace/<id>) and the goal page's goal.sections place, and refuses a switched-off module's actions and AI tools (stage 2).
 
 ## What to build
 
-Fields, as a feature a workspace can switch off: a workspace defines up to six of its own fields on goals (a stage, a programme), each a list of values or free text; a goal has at most one value per field. No rule reads a field. Today it holds its tables (migration 0052) and its rule (tags-fields); its screens, its goal block, its filters, its sheet columns and its AI tools come next (TG1, TG2).
+Fields, as a feature a workspace can switch off: a workspace defines up to six of its own fields on goals (a stage, a programme), each a list of 1 to 20 values or free text; a goal has at most one value per field. No rule reads a field: it is for finding and sorting. Its two records are its own (a field, and a goal's value for one), kept, saved and carried by the core without it knowing what they are; a field is never deleted, only retired and brought back with its values. Workspace → Fields (/workspace/fields) lists the fields in order with their kind and how many goals have a value; admins add one (its one primary action), rename it, change a list's values, move it up or down, retire it and bring it back, and everyone else reads them. A goal's page has a Fields block in About, after its facts: one line per live field, “Stage · Build” or “Stage · Not set”, which the goal's owner or an admin changes in place (a select for a list, up to 80 characters of free text), with no reason asked; History says “Stage: Discover → Build”, and “Stage added”, “Stage retired”. An assistant lists the fields (list_fields), sets a goal's values by field name with dry_run (set_goal_fields) and, as an admin, defines them (save_field), under the same rules. Off, there is no Fields block and no Fields in Workspace's menu, /workspace/fields says Fields is switched off and who can switch it on, and the three tools refuse; every field and value stays, and comes back when it is switched on.
 
 What it adds to the core (routes, places on core screens, AI tools, Help) is in [its section](../modules/tags/README.md#what-it-adds-to-the-core).
 
+It keeps records of its own, which the core stores without knowing what they are: field (`goal_fields`), field value (`goal_field_values`). Every field is in [its records](../modules/tags/records.md); how the core keeps a module’s records is stage 2’s (`src/domain/records.ts`): declared rows each way, what a new cycle carries, and how a removed one comes back, saved with the core’s in one transaction.
+
 ## Exit criteria
 
-1. Its requirements hold: none listed (words in [its section](../modules/tags/README.md#requirements)).
-2. Its journeys and checks can be done: none listed ([its section](../modules/tags/README.md#journeys-and-checks)).
-3. fieldProblem and valueProblem give the tags-fields rule's worked examples (src/modules/tags/rules.test.ts).
-4. The database refuses a field name over 40 characters, a kind other than list or text, a list of no values or over 20, and a value over 80 characters (migration 0052's checks, src/spec/limits.ts).
+1. Its requirements hold: `TAGS-FIELDS`, `TAGS-OFF` (words in [its section](../modules/tags/README.md#requirements)).
+2. Its journeys and checks can be done: U174, N34 ([its section](../modules/tags/README.md#journeys-and-checks)).
+3. fieldProblem and valueProblem give the tags-fields rule's worked examples (src/modules/tags/rules.test.ts), and every row of spec/conformance/tags.csv matches.
+4. The database refuses a field name over 40 characters, a kind other than list or text, a list of no values or over 20, free text with values (0054), and a value over 80 characters (src/spec/limits.ts).
+5. As an admin, Workspace → Fields with no field says “No fields yet” and “Add a field”; adding “Stage” with Discover, Build and Run lists it as “A list: Discover, Build, Run”; setting a goal's Stage on its page to Discover and then Build shows “Stage · Build”, and its History says “Stage: Discover → Build” (journey U174).
+6. Only an admin adds, renames, moves, retires or brings back a field; only the goal's owner or an admin sets its value; a seventh live field, a name a live field has, and a list value the list doesn't hold are refused with the rule's words, in the app and through the tools (src/modules/tags/fields.test.ts, tools.test.ts).
+7. A retired field leaves goals' pages and list_fields' live fields, keeps every value, and brought back shows them again.
+8. Starting the next year copies each goal's values to its copy; a copy that leaves, or a start undone, clears the copy's values (the tables have no removed_at: src/modules/tags/records.test.ts).
+9. Switched off, a goal's page has no Fields block, Workspace's menu has no Fields, /workspace/fields is Page not found with “Fields is switched off in {workspace}. An admin can switch it on in Workspace, Features.”, and list_fields, set_goal_fields and save_field refuse with the switched-off sentence; switched back on, every value is there (check N34).
 
 ## Gaps in the kit
 
-- Its two tables, faro.goal_fields and faro.goal_field_values (migration 0052, on module_tables as module tags), are made one merge ahead of the code that uses them; records.ts claims them in TG1, and module.json lists them then.
-- Nothing draws a field yet: Workspace → Fields, the goal's Fields block, the MCP tools list_fields and set_goal_fields, and the switch's off states are TG1; the filters, saved views, Data's column and the sheet's columns with the import's question are TG2 (docs/design/round-4/tags/spec.md, section 10). Until then switching Fields off changes nothing anyone can see.
+- The filters (“Stage is Build” on Goals and in saved views), Data's Goals column, the Goals sheet's columns and the import's question about a value a list doesn't hold are TG2 (docs/design/round-4/tags/spec.md, section 10); find_goals' fields filter comes with them.
+- Through set_goal_fields, a value a list doesn't hold is refused with the list's values (an admin adds it with save_field); the import's one question per value, offering an admin to add it, is TG2's.
+- A field's kind can't be changed once it is added: a list and free text hold values of different shapes.

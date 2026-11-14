@@ -11,13 +11,15 @@ const rules: Rule[] = [
     id: 'tags-fields',
     title: 'Fields: a workspace’s own columns on goals',
     summary: 'What a workspace’s own field must say, how many there may be, and what a goal’s value for one may be.',
-    code: [{ file: 'src/modules/tags/rules.ts', names: ['fieldProblem', 'valueProblem', 'FIELD_LIMITS'] }],
-    tests: ['src/modules/tags/rules.test.ts'],
-    reqs: [],
+    code: [{ file: 'src/modules/tags/rules.ts', names: ['fieldProblem', 'valueProblem', 'FIELD_LIMITS'] }, { file: 'src/modules/tags/fields.ts', names: ['addField', 'changeField', 'moveField', 'retireField', 'bringBackField', 'setGoalFields'] }],
+    tests: ['src/modules/tags/rules.test.ts', 'src/modules/tags/fields.test.ts', 'src/modules/tags/tools.test.ts'],
+    reqs: ['TAGS-FIELDS'],
     body: `
-A workspace defines up to **${FIELD_LIMITS.fields} live fields**, for what Faro has no column for: a lifecycle stage, a programme, a funding line. Each is a **list of values** (1 to ${FIELD_LIMITS.values} of them, each 1 to ${FIELD_LIMITS.option} characters, none twice whatever the case) or **free text**. A field's **name** is 1 to ${FIELD_LIMITS.name} characters, and no other live field has it, whatever the case. Spaces at either end don't count.
+A workspace defines up to **${FIELD_LIMITS.fields} live fields**, for what Faro has no column for: a lifecycle stage, a programme, a funding line. Each is a **list of values** (1 to ${FIELD_LIMITS.values} of them, each 1 to ${FIELD_LIMITS.option} characters, none twice whatever the case) or **free text**, which has no values. A field's **name** is 1 to ${FIELD_LIMITS.name} characters, and no other live field has it, whatever the case. Spaces at either end don't count.
 
 **A goal's value.** A goal has at most one value per field. For a list it is one of the list's values, matched whatever the case and kept as the list writes it; for free text, at most ${FIELD_LIMITS.value} characters. Empty clears it.
+
+**Who may.** Admins add, rename, reorder, retire and bring back fields; a goal's owner or an admin sets its values; everyone reads them. A change of value is said on the goal's History as “Stage: Discover → Build” (“Not set” for none), and no reason is asked.
 
 **Retired, never deleted.** A field that is no longer wanted is retired: every goal keeps its value, and History its changes; it can be brought back, with its values. A retired field's name may be used again.
 

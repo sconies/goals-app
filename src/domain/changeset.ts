@@ -13,6 +13,7 @@
    Check is a question that blocks saving until it is answered (`answers`, by group id), and one answer covers every row
    with the same question; a note says how a row was read. A name or word one letter out is asked about ("Did you mean
    Platform?"), never guessed and never silently refused. */
+import { guardBreaches, guardIds } from './guards';
 import { correctReasonAsk, correctReasonOk } from './correctReason';
 import type { Commit } from './commit';
 import type { ActionContext } from './actions';
@@ -304,7 +305,7 @@ export function sheetCounts(cs: Pick<ChangeSet, 'items' | 'issues' | 'unchangedB
  * other fields (its proposal, version, removal), but never one of these that the build left out, so a target given later
  * clears targetUnset and "Baseline period: none" clears the baseline (GB review).
  */
-const BUILT_KEYS = ['whyHelps', 'alsoHelps', 'unit', 'decimals', 'plan', 'originalPlan', 'rebaselinedWeek', 'planHistory', 'baseline', 'targetUnset', 'range', 'stages'] as const;
+const BUILT_KEYS = ['whyHelps', 'alsoHelps', 'unit', 'decimals', 'plan', 'originalPlan', 'rebaselinedWeek', 'planHistory', 'baseline', 'targetUnset', 'range', 'stages', 'guards'] as const;
 
 /** A goal built from a draft, laid over the stored goal it changes: the build wins on every key it decides. */
 export function builtOver(existing: Goal, built: Goal): Goal {
@@ -1437,7 +1438,9 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     if (!post && !TYPED_ON_SCREEN.includes(via) && g.kind !== 'milestone' && commaDecimal(draft.value) && ask('decimal-comma', 'Check-ins', row, g.title, `“${draft.value}” was read as ${parseNumber(draft.value)}: a comma as the decimal mark.`, { answers: ANSWERS.sure, suggest: String(parseNumber(draft.value)), found: '' }) === 'leave') return;
     // A week before the plan was changed is judged against the plan that applied then.
     const asOf: Goal = goalAsOf(g, w);
-    const e = evaluate(asOf, cycle, w, draft, ctx);
+    // Its guards past their limit that week (GR), from what's saved and what this change brings for them.
+    const breaches = guardIds(g).length ? guardBreaches(g, s.goals, cycle, [...s.checkIns, ...guardIds(g).flatMap((id) => imported.get(id) ?? [])], w) : [];
+    const e = evaluate(asOf, cycle, w, draft, ctx, breaches);
     // Setting up from another workspace's export, its history is a record: a past week whose account the new plan would
     // ask more of (a cause and a why) is taken as it was written, as long as it says what every check-in must (a path
     // back when the call is behind, a reason when the call is better than the numbers). Its number has to be a number.
@@ -1489,7 +1492,7 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
     // its round trip), and History names who corrected it, with why (Lane, 14 Nov, answer (a)). Before, whoever
     // replaced it became its author.
     const author = existing ? existing.authorId : actor.id;
-    const made = asRecorded ? asWritten(asOf, w, draft, e, author, at.toISOString(), existing?.id ?? newId('ci')) : toCheckIn(asOf, cycle, w, draft, ctx, author, at, existing?.id ?? newId('ci'));
+    const made = asRecorded ? asWritten(asOf, w, draft, e, author, at.toISOString(), existing?.id ?? newId('ci')) : toCheckIn(asOf, cycle, w, draft, ctx, author, at, existing?.id ?? newId('ci'), breaches);
     // NR rule 3: a reading is recorded only as the rule allows, at every door; the owner's number stays the check-in's.
     const read = post ? post.reading : input.readings?.find((x) => x.goalId === g.id && x.week === w)?.reading;
     if (read && g.kind !== 'milestone') {

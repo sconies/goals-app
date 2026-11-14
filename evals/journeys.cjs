@@ -7138,6 +7138,106 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   await p.context().close();
 }, []);
 
+journey('U171', ['GUARDRAILS'], 'A goal guarded by the number it mustn’t make worse (GR): as Rhea, Base image build time is guarded by Flaky test rate, chosen by its key under More details (a goal with a number to move is listed but can’t guard, and says why); with Flaky test rate’s limit tightened past its latest number, Base image build time’s page and its check-in say “Guardrail “Flaky test rate in the main pipelines” (G-11) is over its … limit”, and Status from the numbers is no longer on track', 24, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/ci-docker/edit'));
+  await h.click(p.getByText('More details', { exact: true }));
+  const s0 = await h.snapshot();
+  const flaky = s0.goals.find((g) => g.id === 'lead-flaky');
+  const cost = s0.goals.find((g) => g.id === 'ci-cost');
+  await h.click(p.getByRole('button', { name: /^Guarded by\b/ }));
+  h.set('entry', true);
+  // A goal with a number to move is listed, not selectable, with why.
+  await h.fill(p.locator('.pick.open').getByRole('combobox'), cost.key);
+  const refused = p.locator('.pick.open').getByRole('option').first();
+  await refused.waitFor();
+  h.set('errors', (await refused.getAttribute('aria-disabled')) === 'true' && /Only a goal kept in a range can guard/.test(await refused.innerText()), 'a goal with a number to move could be chosen as a guard, or did not say why not');
+  await h.fill(p.locator('.pick.open').getByRole('combobox'), flaky.key);
+  await h.click(p.locator('.pick.open').getByRole('option', { name: /Flaky test rate/ }).first());
+  await h.click(p.locator('.pick.open').getByRole('button', { name: 'Done' }));
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/goals\/ci-docker(\?|#|$)/);
+  const s1 = await h.snapshot();
+  const guards = (s1.goals.find((g) => g.id === 'ci-docker').guards ?? []).map((x) => x.goal);
+  h.set('logged', guards.length === 1 && guards[0] === 'lead-flaky', 'the guard was not saved on the goal');
+  await h.checkpoint('guarded');
+  // Flaky test rate's limit tightened past its latest number: a plan change, so it asks why.
+  const latest = s1.checkIns.filter((c) => c.goalId === 'lead-flaky' && c.value != null).sort((a, b) => a.week - b.week).pop();
+  const atMost = flaky.range.bound !== 'atLeast';
+  const step = 10 ** -(flaky.decimals ?? 0);
+  const tight = Number((atMost ? latest.value - step : latest.value + step).toFixed(flaky.decimals ?? 0));
+  await p.goto(url('/goals/lead-flaky/edit'));
+  await h.fill(p.locator('input[data-field="limit"]'), String(tight));
+  await h.fill(p.getByLabel('Why change it?'), 'The pipelines team agreed a tighter limit this quarter.');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/goals\/lead-flaky(\?|#|$)/);
+  await p.goto(url('/goals/ci-docker'));
+  const line = p.locator('.bar-guard');
+  await see(line, /Guardrail “Flaky test rate in the main pipelines” \(G-\d+\) is (over|under) its .* limit/, 'the goal page does not say which guard is past its limit');
+  h.set('attention', true);
+  await h.checkpoint('goal page');
+  // At the check-in, the status from the numbers takes the guard in, and the line under it says why.
+  await p.goto(url('/'));
+  await h.click(p.getByRole('link', { name: /Start check-in/ }));
+  await h.progressShown('check-in');
+  const docker = s1.goals.find((g) => g.id === 'ci-docker');
+  await h.fill(p.getByLabel('This week’s value'), String(Math.round(planAt(docker.plan, NOW))));
+  await see(p, /Guardrail “Flaky test rate in the main pipelines”/, 'the check-in does not say the guard is past its limit');
+  const call = (await p.locator('.callline').innerText()).replace(/\s+/g, ' ');
+  h.set('progress', /At risk|Off track/.test(call) && /from the numbers/.test(call), 'the status from the numbers is still on track with a guard past its limit');
+  h.set('finish', true);
+  await p.context().close();
+}, []);
+
+journey('U174', ['TAGS-FIELDS'], 'A workspace’s own field on goals (TG1): as Amara, an admin, Workspace → Fields says “No fields yet”; she adds “Stage”, a list of Discover, Build and Run, and the page lists it as “A list: Discover, Build, Run”. On a goal’s page its About has “Stage · Not set”; she sets it to Discover, then to Build, in place, and History says “Stage: Discover → Build”; a second field called “stage” is refused in the rule’s words', 20, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/workspace/fields'));
+  await see(p, 'No fields yet', 'Workspace → Fields with no field does not say “No fields yet”');
+  h.set('entry', true);
+  await h.click(p.getByRole('button', { name: 'Add a field' }).first());
+  const sheet = p.getByRole('dialog');
+  await sheet.waitFor();
+  await h.fill(sheet.getByLabel('Name', { exact: true }), 'Stage');
+  await h.fill(sheet.getByLabel(/^Values/), 'Discover\nBuild\nRun');
+  await h.checkpoint('adding a field');
+  await h.click(sheet.getByRole('button', { name: 'Add the field' }));
+  const list = p.getByRole('list', { name: 'Fields' });
+  await see(list, 'A list: Discover, Build, Run', 'the new field is not listed with its values');
+  h.set('progress', true);
+  await h.checkpoint('fields');
+  // A second field with the same name is refused, under the form, in the rule's words.
+  await h.click(p.getByRole('button', { name: 'Add a field' }).first());
+  await h.fill(sheet.getByLabel('Name', { exact: true }), 'stage');
+  await h.click(sheet.getByRole('button', { name: 'Add the field' }));
+  await see(sheet, 'There’s already a field called “Stage”.', 'a second “stage” is not refused in the rule’s words');
+  h.set('errors', true);
+  await p.keyboard.press('Escape');
+  await sheet.waitFor({ state: 'hidden' });
+  // On a goal: the Fields block in About, changed in place.
+  await p.goto(url('/goals/lead-flaky'));
+  await p.locator('.goal-bar').waitFor();
+  await p.evaluate(() => { const d = document.querySelector('details#about'); if (d && !d.open) d.open = true; });
+  const block = p.locator('[data-part="Fields"]');
+  await block.waitFor();
+  await see(block, 'Not set', 'the goal’s Fields block does not say Stage is not set');
+  for (const v of ['Discover', 'Build']) {
+    await h.click(block.getByRole('button', { name: 'Change Stage' }));
+    await block.getByRole('combobox', { name: /Stage/ }).selectOption(v);
+    await see(block, v, `the block does not say Stage · ${v}`);
+  }
+  const line = (await block.locator('.fields-line').first().innerText()).replace(/\s+/g, ' ').trim();
+  h.set('attention', /^Stage · Build/.test(line), `the block says “${line}”`);
+  await h.checkpoint('goal fields');
+  const hist = p.locator('#history');
+  await hist.waitFor();
+  await see(hist, 'Stage: Discover → Build', 'History does not say “Stage: Discover → Build”');
+  const s = await h.snapshot();
+  const vals = s.modules?.tags?.fieldValues ?? [];
+  h.set('logged', vals.some((x) => x.goalId === 'lead-flaky' && x.value === 'Build') && s.changes.some((c) => c.entity === 'field' && c.goalId === 'lead-flaky' && c.summary === 'Stage: Discover → Build'), 'the value or its History entry was not saved');
+  h.set('finish', true);
+  await p.context().close();
+}, []);
+
 journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   // The metric a letter away, added first, fully said, so the typo has something to be close to. From the library.

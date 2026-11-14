@@ -62,6 +62,12 @@
       "use": "copy"
     },
     {
+      "id": "GUARDRAILS",
+      "area": "Status rules",
+      "text": "A goal can name up to five range goals that guard it: a guard past its limit makes it at risk, two weeks running off track, and the check-in and goal page say which guard and by how much.",
+      "use": "copy"
+    },
+    {
       "id": "OWNER-CALL",
       "area": "Status rules",
       "text": "The owner's call is the official status shown everywhere, with the calculated status beside it.",
@@ -1209,6 +1215,18 @@
       "id": "WATCHING-OPTIONAL",
       "area": "Architecture",
       "text": "An admin switches Watching off for a workspace. Off, there is no Watching tab, no “Goals you watch”, no Watch button and no watching tool; someone who owns no goal is led to the goals that need attention. Switching it off first says how many people’s watches are kept. Every watch is kept, and switching it on restores each person’s.",
+      "use": "copy"
+    },
+    {
+      "id": "TAGS-FIELDS",
+      "area": "Goals",
+      "text": "A workspace defines up to six of its own fields on goals (a stage, a programme), each a list of values or free text, on Workspace, Fields: admins add, rename, reorder, retire and bring them back; everyone reads them. A goal's page shows one line per field in About, which its owner or an admin changes in place, and History says the change (“Stage: Discover → Build”). No rule reads a field; an AI assistant lists and sets them under the same rules.",
+      "use": "copy"
+    },
+    {
+      "id": "TAGS-OFF",
+      "area": "Architecture",
+      "text": "An admin switches Fields off for a workspace. Off, a goal's page has no Fields block, Workspace has no Fields section (its address says Fields is switched off), and the fields tools refuse. Every field and value is kept, and switching it on shows them again.",
       "use": "copy"
     },
     {

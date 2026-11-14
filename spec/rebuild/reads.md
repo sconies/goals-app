@@ -22,7 +22,7 @@ Faro’s own code builds an index of every check-in the first time it is asked f
 
 ## Each action
 
-Each action of [the command port](../core/actions.md), run once as the person named, with an input picked from the demo (`src/spec/readsSamples.ts`). A refused action shows what it read before it said no, with its words: the demo’s date or records don’t allow it, and it reads more once allowed. **Every record of** names the lists an action read whole: what a server has to narrow first. 26 of 62 actions do today, because the rules that take the whole workspace (`scripts/whole-workspace.json`) look through a list where an index would do. The goal an action names is looked up by its id (`goals … past the rest by id`), which a server does with its key.
+Each action of [the command port](../core/actions.md), run once as the person named, with an input picked from the demo (`src/spec/readsSamples.ts`). A refused action shows what it read before it said no, with its words: the demo’s date or records don’t allow it, and it reads more once allowed. **Every record of** names the lists an action read whole: what a server has to narrow first. 26 of 68 actions do today, because the rules that take the whole workspace (`scripts/whole-workspace.json`) look through a list where an index would do. The goal an action names is looked up by its id (`goals … past the rest by id`), which a server does with its key.
 
 | Action | As | On the demo | Records used (of the list), and what the rest were looked past by | Every record of |
 |---|---|---|---|---|
@@ -88,3 +88,9 @@ Each action of [the command port](../core/actions.md), run once as the person na
 | `retireMetric` | amara | saved | `goals` 1 of 126, past the rest by `id`; `modules.metrics.metricLinks` 1 of 12, past the rest by `metricId`; `modules.metrics.metrics` 1 of 13 | — |
 | `unretireMetric` | amara | refused: ““Lead time for changes” isn’t retired.” | `modules.metrics.metrics` 1 of 13 | — |
 | `mergeMetrics` | amara | saved | `goals` 1 of 126, past the rest by `id`; `modules.metrics.metricLinks` 1 of 12, past the rest by `metricId`; `modules.metrics.metrics` 2 of 13, past the rest by `id` | — |
+| `addField` | amara | saved | nothing in the workspace’s lists | — |
+| `changeField` | amara | refused: “That field no longer exists. Reload to see the latest.” | nothing in the workspace’s lists | — |
+| `moveField` | amara | refused: “That field is retired or no longer exists. Reload to see the latest.” | nothing in the workspace’s lists | — |
+| `retireField` | amara | refused: “That field no longer exists. Reload to see the latest.” | nothing in the workspace’s lists | — |
+| `bringBackField` | amara | refused: “That field no longer exists. Reload to see the latest.” | nothing in the workspace’s lists | — |
+| `setGoalFields` | rhea | refused: “That field no longer exists. Reload to see the latest.” | `goals` 0 of 126, past the rest by `id`, `ownerId` | — |

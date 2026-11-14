@@ -1,6 +1,7 @@
 /* Type every number for the week in one table. Each row is judged as you type with the same rules as the
    check-in; a row that's behind or ahead opens just the fields it needs. Saved together through the bulk-change engine. */
 // The change engine, for this screen's previews (src/app/engineReady.ts).
+import { guardBreaches } from '../domain/guards';
 import '../app/engineReady';
 import { useMemo, useRef, useState, type SelectHTMLAttributes } from 'react';
 import { checkInDraftKey, checkInStepKey, clearDraft, peekDraft, writeDraft } from '../app/drafts';
@@ -112,8 +113,8 @@ export function QuickCheckIn() {
     // A number its source read, unchanged, was measured again: "the same as last week?" is answered by the reading.
     const rowAnswers: Answers = { ...answers[g.id], ...(read && !differs ? Object.fromEntries(checks.filter((c) => c.id === 'same-as-last').map((c) => [c.id, c.key])) : {}) };
     const open = unanswered(checks, rowAnswers);
-    return { g, r, posted, d, e: evaluate(g, app.cycle, app.week, d, app.snapshot.checkIns), problem, open, read, differs, whyOk, reading, unconfirmed, rowAnswers };
-  }), [goals, rows, app.snapshot.checkIns, app.cycle, app.week, answers, readings, touched, whyOf]); // eslint-disable-line react-hooks/exhaustive-deps
+    return { g, r, posted, d, e: evaluate(g, app.cycle, app.week, d, app.snapshot.checkIns, guardBreaches(g, app.snapshot.goals, app.cycle, app.snapshot.checkIns, app.week)), problem, open, read, differs, whyOk, reading, unconfirmed, rowAnswers };
+  }), [goals, rows, app.snapshot.goals, app.snapshot.checkIns, app.cycle, app.week, answers, readings, touched, whyOf]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filled = judged.filter((x) => x.e);
   const ready = filled.filter((x) => x.e!.canPost && !x.open.length && x.whyOk);

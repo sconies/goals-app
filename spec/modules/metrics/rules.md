@@ -365,6 +365,8 @@ A metric is **usable** with three things: a name, a unit and which way is better
 
 Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
 
+- How a metric could be gamed has at most 500 characters. (`okr_metrics_gaming_len`)
+- A metric is never its own parent. (`okr_metrics_parent_not_self`)
 - A metric’s name has 1 to 120 characters. (`okr_metrics_name_check`; the code holds it too, in `src/modules/metrics/rules.ts`)
 - A metric’s unit has 1 to 20 characters. (`okr_metrics_unit_check`; the code holds it too, in `src/modules/metrics/rules.ts`)
 - A metric keeps 0 to 4 decimal places (a goal keeps at most 3). (`okr_metrics_decimals_check`; the code holds it too, in `src/modules/metrics/rules.ts`)

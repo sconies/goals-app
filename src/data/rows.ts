@@ -31,6 +31,8 @@ export interface GoalRow extends W, Removal {
   /** A range between two numbers (migration 0042): its lower bound; range_limit is then the upper one. Null otherwise. */
   range_lower?: number | null;
   range_margin: number | null; created_at: string; pending?: Goal['pending']; version?: number; also_helps?: string[] | null;
+  /** GR (migration 0051): the goals that guard it, as [{ goal }]; null when none. Written on every row. */
+  guards?: { goal: string }[] | null;
   plan_history?: { untilWeek: number; plan: MetricPlan }[] | null;
   /** A baseline of its own (migration 0049, BL): its figure, period and flag; all null when there is none. */
   baseline_value?: number | null; baseline_period?: string | null; baseline_provisional?: boolean | null;
@@ -85,6 +87,7 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
     created_at: g.createdAt || new Date().toISOString(),
     pending: g.pending ?? null,
     also_helps: g.alsoHelps?.length ? g.alsoHelps : null,
+    guards: g.guards?.length ? g.guards : null,
     ...set({ removed_at: g.removedAt, removed_by: g.removedBy, stopped_at: g.stoppedAt, stopped_by: g.stoppedBy, stop_reason: g.stopReason, proposed_at: g.proposedAt, proposed_by: g.proposedBy, proposed_in: g.proposedIn }),
     // MS: written on every row, null when the goal isn't held, so Undo of a hold and a mixed batch clear it (MS review, medium 2).
     unmeasured_since: g.unmeasuredSince ?? null,
@@ -106,6 +109,7 @@ export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
     ...(r.pending ? { pending: r.pending } : {}),
     ...(r.version != null ? { version: Number(r.version) } : {}),
     ...(r.also_helps?.length ? { alsoHelps: r.also_helps } : {}),
+    ...(r.guards?.length ? { guards: r.guards } : {}),
     ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by), ...when('stoppedAt', r.stopped_at), ...who('stoppedBy', r.stopped_by), ...who('stopReason', r.stop_reason),
     ...when('proposedAt', r.proposed_at), ...who('proposedBy', r.proposed_by), ...who('proposedIn', r.proposed_in), ...when('unmeasuredSince', r.unmeasured_since),
   };
