@@ -3,6 +3,7 @@
    changed since the last update, and where the app projects it lands by its due date, as a range. For number goals,
    ranges and dated stages alike. Pure: the goal page, its shared image and anything else asks here, never restates it. */
 import { fixed } from './numbers';
+import { countWord } from './feeder';
 import { isShare, previousFor } from './checkin';
 import { fmt, fmtDiff, NO_VALUE, staysText, rangeText } from './format';
 import { rangeOut, rangeRoom, rangeSide } from './range';
@@ -45,9 +46,7 @@ export { TREND_SPAN };
 /** The trend's word as the summary bar's arrow reads it. */
 const DIRECTION: Record<TrendWord, Direction> = { worse: 'worsening', better: 'recovering', flat: 'flat' };
 
-const COUNT_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
-/** "two", "three" … for small counts in a sentence; digits from 11. */
-export const countWord = (n: number) => COUNT_WORDS[n] ?? String(n);
+export { countWord };
 const plural = (n: number, one: string, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 const pct = (r: number) => `${Math.round(r * 100)}%`;
 const round = (v: number, decimals: number) => Number(v.toFixed(decimals));

@@ -50,6 +50,27 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['home'],
   },
   {
+    id: 'proposals-follow-you',
+    date: '2026-11-14',
+    title: 'Proposed goals remember you, not the device',
+    points: [
+      'Open a goal proposed for you on your phone and Home stops asking about it on your laptop too.',
+      'Not yet on a goal that has waited 8 weeks puts it off everywhere you use Faro.',
+    ],
+    articles: ['goal-proposed'],
+  },
+  {
+    id: 'menu-shows-what-you-use',
+    date: '2026-11-14',
+    title: 'The menu shows what you use',
+    points: [
+      'A tab on Goals appears once it has goals in it and isn’t the same list as another, so a one-team workspace shows Mine and All.',
+      'Metrics joins the menu with the first metric, and the message after saving it says so.',
+      'Nothing is switched off: every page still opens from its address, Find and Workspace.',
+    ],
+    articles: ['goals', 'metrics'],
+  },
+  {
     id: 'table-confirm-readings',
     date: '2026-11-14',
     title: 'Numbers from a source are confirmed before they’re posted',

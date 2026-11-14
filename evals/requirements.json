@@ -1254,6 +1254,12 @@
       "use": "copy"
     },
     {
+      "id": "SMALL-MENU",
+      "area": "Navigation",
+      "text": "A module's menu row and a Goals tab wait until they have something in them (a tab also waits while it is the same list as one drawn before it; All is always drawn), in each workspace on its own: a row drawn in one never follows you into another. Hiding is only drawing: every address still opens. (Home's sections waiting too is backlog SM1h, with HM3; not built.)",
+      "use": "copy"
+    },
+    {
       "id": "SMALL-QUIET",
       "area": "Navigation",
       "text": "No count of nought beside a tab, a menu row or a section's name (a sentence may still say none), and an empty page says what is true, then when you'd want it, with a plain button rather than the page's primary.",

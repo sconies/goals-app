@@ -7,7 +7,7 @@ import { weekProgress } from '../domain/progress';
 import { reviewSession, sessionToDo } from '../domain/review';
 import type { SavedView } from '../domain/types';
 import { Avatar, Sheet } from './bits';
-import { CORE_NAV, GROUP_NAMES, isForm, litItem, litTab, menuGroups, menuViews, moreFor, pageName, phoneTabs, type NavId } from '../domain/navigation';
+import { CORE_NAV, GROUP_NAMES, isForm, litItem, litTab, menuGroups, menuViews, moreFor, pageName, phoneTabs, rowDrawn, type NavId } from '../domain/navigation';
 import { recentsOf, usePrefs } from '../app/search';
 import { DemoEntry, DemoPanel } from './Demo';
 import { ResearchBar } from './ResearchBar';
@@ -156,7 +156,7 @@ function ShellBody({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(t);
   }, [pathname, search]);
   // Feedback switched off (SW1): no sheet, no markup and no key. The ref keeps the listener below current.
-  const { screens, on } = useModules();
+  const { screens, on, installed } = useModules();
   const feedback = feedbackOn(on);
   const feedbackRef = useRef(feedback);
   feedbackRef.current = feedback;
@@ -178,7 +178,16 @@ function ShellBody({ children }: { children: ReactNode }) {
   const ownsGoals = app.snapshot.goals.some((g) => g.ownerId === app.viewer.id && !g.stoppedAt && app.statusOf(g).status !== 'done');
   const views = useViews();
   const prefs = usePrefs();
-  const moduleNav = screens.flatMap((m) => m.navigation ?? []);
+  // A module's row waits for its first record (SM1, rule 1); once drawn it stays until the next visit. Kept per
+  // workspace: switching workspace doesn't remount the shell, and a row drawn in one must not follow you into another.
+  const drawnOnce = useRef<{ ws: string; ids: Set<string> }>({ ws: app.ws.id, ids: new Set() });
+  if (drawnOnce.current.ws !== app.ws.id) drawnOnce.current = { ws: app.ws.id, ids: new Set() };
+  const moduleNav = screens.flatMap((m) => m.navigation ?? []).filter((n) => {
+    const facts = installed.find((f) => f.navigation.includes(n.label));
+    const key = facts?.menu?.waitsFor;
+    if (rowDrawn(key, facts && key ? app.snapshot.modules?.[facts.id]?.[key] : undefined)) drawnOnce.current.ids.add(n.id);
+    return drawnOnce.current.ids.has(n.id);
+  });
   // Reviews switched off (FT2): no row, no count and no tab.
   const reviews = reviewsOn(on);
   const groups = menuGroups(ownsGoals, moduleNav, reviews, feedback);
