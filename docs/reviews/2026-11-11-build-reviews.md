@@ -14,10 +14,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon (session …iZx169kF) stopped after 14 code PRs, at about 395k tokens of context. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `7f448f29` (#517), the head of main at 22:15 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511 and #516 (docs only) have neither.
+- **Last merge fully reviewed:** `b4a84b8d` (#515), the head of main at 22:50 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511 and #516 (docs only) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none.
-- **Mediums open:** three, sent to planning 14 Nov (21:40 and 22:05 UTC): #503's (a goal stopped while held stays held), #513's (the kit's words on a moment are not what History does) and #497's (the workspace's line is never drawn in a browser by any eval); and #517's (`see()` on a page never says what it showed), sent 22:20 UTC.
+- **Mediums open:** six, all sent to planning on 14 Nov: #503's (a goal stopped while held stays held), #513's (the kit's words on a moment are not what History does), #497's (the workspace's line is never drawn in a browser by any eval), #517's (`see()` on a page never says what it showed), #504's (Feedback's inbox still offers Connect Claude with AI access off) and #515's (seven sentences of the change engine's page are not what the engine does).
 - **Expected next:** #505 (MQ's code, track 7d, on migration 0055: check the row mapper writes SQL null, never an empty string, for a `level` or `confidence` that isn't said, which 0055's checks refuse; and that the parent's rules, no loops, same workspace, not removed, are in the module's rule, since the database only refuses a metric that is its own parent). #497 (HM7 and HB3, track 1). U124's "Changed since" check (track 1).
 - **Read, not walked on screen by this session:** #469 (HM4), #491 (SM1h), #487 (TG1), #464 (GR) and #465 (FT1); their own journeys are the only browser runs. #465's thirteen screen files were skimmed. If the full suite on main goes red on one of them, start there.
 - **How merges reach you:** no timer works here (scheduling a wake needs an approval nobody answers). Each track messages the reviewer its PR's number when it merges; whenever a message arrives, run `git log --first-parent <last reviewed>..origin/main` and review everything in it. Messages lag and repeat: about half of this session's were for PRs already reviewed, and a track's message can give a stale migration number (#502 was announced as 0054 and is 0055).
@@ -264,6 +264,7 @@ Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon 
 | #497 HM7 and HB3: a leader's week on Home, the habit cell, and the admin's workspace line | 1 | 0 | 1 | 2 |
 | #517 Evals diagnostics: U109's waits named, `see()` says what was shown, a failed journey leaves a log | 1 | 0 | 1 | 0 |
 | #504 SW2: AI access behind its own switch | 4 | 0 | 1 | 2 |
+| #515 Rebuild kit stage 2: the change engine's sentences, fields and inputs | item 11 | 0 | 1 | 0 |
 
 **High findings, and where each stands**
 
@@ -2294,3 +2295,20 @@ Read whole: the server's door, the tools' move, the read-back, the screens and U
 **1. Medium (read; the refusal is the PR's own test). With AI access off, the Feedback inbox still offers "Connect Claude".** `src/markup/Connect.tsx` never asks the switch (no `aiAccessOn` anywhere in `src/markup`): an admin still gets Make a token, which answers with a toast "AI access is off in {workspace}.", and everyone still gets the host, the `claude mcp add` command and "ask Claude to review Faro’s inbox", for a server that refuses every call. A member is told to ask an admin for a token "on Workspace, under AI access", a section that isn't there. The rule is no door left showing while a switch is off; the panel should go, or say AI access is switched off, with the same sentence.
 
 **Lows.** (1) The door opens when the switch can't be read: `deps.modulesOff(...).catch(() => [])` in `server/mcp.ts:97`, and the Supabase adapter turns a read error into `[]` (`src/adapters/supabase/server.ts:86`), so a failed read of `modules_off` lets the request through as if AI access were on. (2) The two read-back sheets with tokens to name, and "See the {n} tokens", are never drawn in a browser by an eval: the demo names no tokens, so U175 only walks the path that acts at once. Their lines are unit-tested (`switchOff.test.ts`).
+
+### #515 Rebuild kit stage 2: the change engine's words (item 11, merged 14 Nov)
+
+Words and the kit's inputs: the change engine's page gains every sentence it can say (read from the engine's source by a parser, `src/spec/engineWords.ts`, with a test that every sentence the conformance cases raise is in the table), its fields and its log; the drill hands a rebuild `change-cases.json`, input only, beside `workspace.json`. Four things in `src/domain` are exported and nothing else there changes. `src/spec`: 91 tests pass. The hand-written paragraphs are checked by nothing, so a subagent ran or read each against the engine over the demo workspace (week 45): about 45 claims hold, 13 of them run (ID counting, the order of items, check-ins by goal ID then week, the from-now formula over 1,220 inputs, create mode never committing).
+
+**1. Medium (ran by the subagent; three read by me in the code). Seven sentences of the page are not what the engine does.** A rebuild from them differs from Faro in each case:
+- "leaves its row out until it is answered: `near-ref`": not for Feeds into. A new goal whose Feeds into is one letter out, unanswered, is still listed as an item, without the link (`changeset.ts:1201-1209`).
+- "When a reason is needed (a)" lists Start, Target, Plan and the weeks. `planChanged` (`goal.ts:153-155`) also takes a range goal's bound, limit, lower and margin and a stages goal's names and due weeks: G-11's Limit 2 to 3, and G-7's last stage 40 to 41, each needed a reason.
+- "an admin's row replaces someone else's check-in for this week": the test is the goal's owner, not who posted the check-in (`changeset.ts:1482`). An admin replacing her own check-in on Rhea's goal is asked for a reason; replacing Rhea's check-in on the admin's own goal isn't.
+- "every Must fix on a row's own cells ends that row", with two exceptions named: there is a third. A row that repeats another's goal (`duplicate`) keeps its item (`changeset.ts:912-916`).
+- "then a set-up goal's stages marked done": create mode never makes them (it offers only `from-now` and `keep`); an update does.
+- "a reason of 10 to 500 characters with letters in it": at least three letters (`correctReason.ts:10`); "ab12345678" is refused.
+- In `changeEngineDoc.ts`, "`Status`: a goal stopped (`Stopped`) or deleted": a deleted goal's entry has no Status (`removal.ts:318`).
+
+A narrower one: a set-up row with a name the workspace has is "on two rows" only when it names the same team or none.
+
+Not checked: the order of issues within one row (read only), and the store and module-record sentences in `rebuild.ts`.
