@@ -5,7 +5,7 @@ import { serve, type Deps } from '../../../server/mcp';
 import { applyCommit } from '../../data/store';
 import { buildPlatformOrg } from '../../data/platformOrg';
 import { hashToken, newToken } from '../../mcp/protocol';
-import { filledAt } from '../../domain/reading';
+import { filledAt } from '../../domain/readingWords';
 import type { ApiToken, MetricGoal, Snapshot } from '../../domain/types';
 
 const today = new Date('2026-11-05T12:00:00Z');

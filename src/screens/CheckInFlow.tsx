@@ -32,7 +32,7 @@ import { NO_REASON, resumeWalk, type KeptWalk } from '../domain/checkin';
 import { LABEL as STATUS_WORD, STAGE } from '../domain/vocabulary';
 import { RULES } from '../domain/thresholds';
 import { Place, useModules, type NumberStep } from '../core/app';
-import { readingLine } from '../domain/reading';
+import { readingLine } from '../domain/readingWords';
 import { dueWordsHere, reviewsOn } from '../app/reads';
 
 /**

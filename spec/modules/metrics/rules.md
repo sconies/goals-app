@@ -787,7 +787,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - [src/modules/metrics/sources.ts](../../../src/modules/metrics/sources.ts): `sourcesFrom`, `demoBehindWeeks`
 - [src/modules/metrics/CheckInNumber.tsx](../../../src/modules/metrics/CheckInNumber.tsx): `CheckInNumber`, `CheckInTableReadings`
 - [src/modules/metrics/readingTool.ts](../../../src/modules/metrics/readingTool.ts): `readForTool`, `toolSources`
-- [src/domain/reading.ts](../../../src/domain/reading.ts): `readingProblem`, `keptReading`, `READING_WHY`, `readWhen`, `readingLine`, `readingThisWeek`, `readingHistoryLine`, `readingFrom`, `readingCells`
+- [src/domain/reading.ts](../../../src/domain/reading.ts): `readingProblem`, `keptReading`, `READING_WHY`, `readingFrom`, `readingCells`
+- [src/domain/readingWords.ts](../../../src/domain/readingWords.ts): `readWhen`, `readingLine`, `readingThisWeek`, `readingHistoryLine`, `filledAt`
 - [src/domain/thresholds.ts](../../../src/domain/thresholds.ts): `RULES`
 
 ### Requirements

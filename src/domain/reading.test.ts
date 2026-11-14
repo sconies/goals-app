@@ -5,7 +5,8 @@ import { NotAllowed } from './actions';
 import { planChanges, postCheckIn, type CheckInPost } from './changeset';
 import { emptyDraft } from './checkin';
 import { currentWeek, planAt } from './plan';
-import { readingFrom, readingHistoryLine, readingLine, readingProblem, readingThisWeek, readWhen } from './reading';
+import { readingFrom, readingProblem } from './reading';
+import { readingHistoryLine, readingLine, readingThisWeek, readWhen } from './readingWords';
 import type { CheckInReading, MetricGoal, Snapshot } from './types';
 
 const today = new Date('2026-11-05T12:00:00Z');

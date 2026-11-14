@@ -6,7 +6,7 @@ import { checkInsFor } from '../../domain/status';
 import type { CheckInReading, Goal, ReadingWhyKind } from '../../domain/types';
 import type { CheckInReader } from '../../mcp/checkInReaders';
 import type { McpContext } from '../../mcp/tools';
-import { filledAt } from '../../domain/reading';
+import { filledAt } from '../../domain/readingWords';
 import { measureOf } from './rules';
 import { askSource, readingState, recordReading } from './rulesReading';
 import { sliceOf, type NumberSource } from './source';

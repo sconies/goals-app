@@ -5008,31 +5008,10 @@ function keptReading(r, value, decimals) {
 		...why ? { why } : {}
 	};
 }
-/**
-* When a source measured a number, in the viewer's zone (2.1): "9:02 today", "16:40 yesterday", otherwise
-* "9:00 on Thu 5 Nov". `today` is the app's today; `timeZone` is left out for the viewer's own.
-*/
-function readWhen(at, today, timeZone) {
-	const a = parts(new Date(at), timeZone);
-	if (a.day === parts(today, timeZone).day) return `${a.time} today`;
-	if (a.day === parts(/* @__PURE__ */ new Date(today.getTime() - 864e5), timeZone).day) return `${a.time} yesterday`;
-	return `${a.time} on ${a.long}`;
-}
 /** The reason in a sentence: "The source counts something else: “It leaves out…”", or the choice alone, ending in a stop. */
 function readingReason(w) {
 	const words = w.text?.trim();
 	return words ? `${readingWhyLabel(w.kind)}: “${words}”` : `${readingWhyLabel(w.kind).replace(/\.$/, "")}.`;
-}
-/**
-* A History row's second line for a check-in (2.4, MT4 5.3 with the reason): "From CI analytics, read 9:02 on Thu 12 Nov.
-* Rhea Kapoor checked in." or "Typed by Rhea Kapoor. CI analytics said 13 min. The source counts something else: “…”".
-* A check-in with no reading says "Typed by {name}." only beside one that has (`nearSourced`); otherwise null.
-*/
-function readingHistoryLine(c, g, name, today, opts = {}) {
-	const r = c.reading;
-	if (!r || c.value == null) return opts.nearSourced && c.value != null ? `Typed by ${name}.` : null;
-	if (readingConfirmed(c, g.decimals)) return `From ${r.source}, read ${readWhen(r.at, today, opts.timeZone)}. ${name} checked in.`;
-	return `Typed by ${name}. ${r.source} said ${fmt(r.value, g)}.${r.why ? ` ${readingReason(r.why)}` : ""}`;
 }
 /** The Check-ins sheet's columns for a check-in's reading (MT4 3.3, NR 2.4), worked out and never loaded back: Number
 from ("Typed", or the source's name), Source’s number, Measured at (ISO, UTC) and Reason for a different number.
@@ -5052,12 +5031,11 @@ function readingCells(c, decimals) {
 		reason: r.why ? readingReason(r.why) : null
 	};
 }
-var READING_WHY, readingWhyLabel, sameAtPlaces, filledAt, parts, readingConfirmed;
+var READING_WHY, readingWhyLabel, sameAtPlaces, readingConfirmed;
 var init_reading = __esmMin((() => {
 	init_checkin();
 	init_correctReason();
 	init_thresholds();
-	init_format();
 	READING_WHY = [
 		["behind", "The source is behind: I have a newer number"],
 		["other-count", "The source counts something else"],
@@ -5068,25 +5046,6 @@ var init_reading = __esmMin((() => {
 	sameAtPlaces = (a, b, decimals) => {
 		const p = Math.max(0, decimals);
 		return Number(a.toFixed(p)) === Number(b.toFixed(p));
-	};
-	filledAt = (v, decimals) => String(Number(v.toFixed(Math.max(0, decimals))));
-	parts = (d, timeZone) => {
-		const f = new Intl.DateTimeFormat("en-GB", {
-			timeZone,
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-			weekday: "short",
-			hour: "numeric",
-			minute: "2-digit",
-			hourCycle: "h23"
-		});
-		const o = Object.fromEntries(f.formatToParts(d).map((p) => [p.type, p.value]));
-		return {
-			day: `${o.year}-${o.month}-${o.day}`,
-			time: `${Number(o.hour)}:${o.minute}`,
-			long: `${o.weekday} ${o.day} ${o.month}`
-		};
 	};
 	readingConfirmed = (c, decimals) => !!c.reading && c.value != null && sameAtPlaces(c.value, c.reading.value, decimals);
 }));
@@ -16567,8 +16526,52 @@ function localSearch(rows, finders = {}) {
 		}
 	};
 }
-// src/domain/export.ts
+// src/domain/readingWords.ts
 init_changeset();
+init_format();
+init_reading();
+/** A source's number as a check-in's field holds it: at the goal's decimals (20.4567 fills a whole-minutes goal as "20"). */
+var filledAt = (v, decimals) => String(Number(v.toFixed(Math.max(0, decimals))));
+var parts = (d, timeZone) => {
+	const f = new Intl.DateTimeFormat("en-GB", {
+		timeZone,
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+		weekday: "short",
+		hour: "numeric",
+		minute: "2-digit",
+		hourCycle: "h23"
+	});
+	const o = Object.fromEntries(f.formatToParts(d).map((p) => [p.type, p.value]));
+	return {
+		day: `${o.year}-${o.month}-${o.day}`,
+		time: `${Number(o.hour)}:${o.minute}`,
+		long: `${o.weekday} ${o.day} ${o.month}`
+	};
+};
+/**
+* When a source measured a number, in the viewer's zone (2.1): "9:02 today", "16:40 yesterday", otherwise
+* "9:00 on Thu 5 Nov". `today` is the app's today; `timeZone` is left out for the viewer's own.
+*/
+function readWhen(at, today, timeZone) {
+	const a = parts(new Date(at), timeZone);
+	if (a.day === parts(today, timeZone).day) return `${a.time} today`;
+	if (a.day === parts(/* @__PURE__ */ new Date(today.getTime() - 864e5), timeZone).day) return `${a.time} yesterday`;
+	return `${a.time} on ${a.long}`;
+}
+/**
+* A History row's second line for a check-in (2.4, MT4 5.3 with the reason): "From CI analytics, read 9:02 on Thu 12 Nov.
+* Rhea Kapoor checked in." or "Typed by Rhea Kapoor. CI analytics said 13 min. The source counts something else: “…”".
+* A check-in with no reading says "Typed by {name}." only beside one that has (`nearSourced`); otherwise null.
+*/
+function readingHistoryLine(c, g, name, today, opts = {}) {
+	const r = c.reading;
+	if (!r || c.value == null) return opts.nearSourced && c.value != null ? `Typed by ${name}.` : null;
+	if (readingConfirmed(c, g.decimals)) return `From ${r.source}, read ${readWhen(r.at, today, opts.timeZone)}. ${name} checked in.`;
+	return `Typed by ${name}. ${r.source} said ${fmt(r.value, g)}.${r.why ? ` ${readingReason(r.why)}` : ""}`;
+}
+// src/domain/export.ts
 init_unmeasured();
 init_proposed();
 init_goal();
@@ -25987,7 +25990,6 @@ function sourcesFrom(seed, cycle, behindWeeks = 0) {
 }
 // src/modules/metrics/readingTool.ts
 init_status();
-init_reading();
 init_rules();
 /** The sources an assistant's check-in reads: the demo's in the example, none elsewhere. */
 function toolSources(ctx) {
@@ -26043,7 +26045,6 @@ init_rulesParts();
 init_status();
 init_vocabulary();
 init_via();
-init_reading();
 addCheckInReader(metricReader);
 var str$5 = (description, extra = {}) => ({
 	type: "string",

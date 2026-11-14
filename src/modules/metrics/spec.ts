@@ -13,7 +13,8 @@ import * as MEASD from './rulesMeasured';
 import * as RD from './rulesReading';
 import { RULES } from '../../domain/thresholds';
 import { MAX_CORRECT_REASON } from '../../domain/correctReason';
-import { readingHistoryLine, readingLine, readingProblem } from '../../domain/reading';
+import { readingProblem } from '../../domain/reading';
+import { readingHistoryLine, readingLine } from '../../domain/readingWords';
 import { checkReads, lineOf } from './reads';
 import * as SAVE from './rulesSave';
 import { goalsOfMetric, libraryReads } from './reads';
@@ -295,7 +296,7 @@ rules.push({
   id: 'metric-reading',
   title: 'A reading in a check-in',
   summary: 'Where a metric’s number comes from can fill in a goal’s check-in (NR): which state the number step is in, and what a check-in records of what the source said. A person confirms every number; nothing is ever posted for them.',
-  code: [{ file: 'src/modules/metrics/rulesReading.ts', names: ['readingState', 'askSource', 'readingRevised', 'recordReading', 'sameAt', 'isJump', 'fillsIn', 'fillsInWords', 'differentNumbers', 'differentWords', 'READING_WEEKS'] }, { file: 'src/modules/metrics/source.ts', names: ['Slice', 'NumberSource', 'sliceOf'] }, { file: 'src/modules/metrics/numbers.ts', names: ['DEMO_SERIES', 'seededSeries', 'demoSources'] }, { file: 'src/modules/metrics/sources.ts', names: ['sourcesFrom', 'demoBehindWeeks'] }, { file: 'src/modules/metrics/CheckInNumber.tsx', names: ['CheckInNumber', 'CheckInTableReadings'] }, { file: 'src/modules/metrics/readingTool.ts', names: ['readForTool', 'toolSources'] }, { file: 'src/domain/reading.ts', names: ['readingProblem', 'keptReading', 'READING_WHY', 'readWhen', 'readingLine', 'readingThisWeek', 'readingHistoryLine', 'readingFrom', 'readingCells'] }, { file: 'src/domain/thresholds.ts', names: ['RULES'] }],
+  code: [{ file: 'src/modules/metrics/rulesReading.ts', names: ['readingState', 'askSource', 'readingRevised', 'recordReading', 'sameAt', 'isJump', 'fillsIn', 'fillsInWords', 'differentNumbers', 'differentWords', 'READING_WEEKS'] }, { file: 'src/modules/metrics/source.ts', names: ['Slice', 'NumberSource', 'sliceOf'] }, { file: 'src/modules/metrics/numbers.ts', names: ['DEMO_SERIES', 'seededSeries', 'demoSources'] }, { file: 'src/modules/metrics/sources.ts', names: ['sourcesFrom', 'demoBehindWeeks'] }, { file: 'src/modules/metrics/CheckInNumber.tsx', names: ['CheckInNumber', 'CheckInTableReadings'] }, { file: 'src/modules/metrics/readingTool.ts', names: ['readForTool', 'toolSources'] }, { file: 'src/domain/reading.ts', names: ['readingProblem', 'keptReading', 'READING_WHY', 'readingFrom', 'readingCells'] }, { file: 'src/domain/readingWords.ts', names: ['readWhen', 'readingLine', 'readingThisWeek', 'readingHistoryLine', 'filledAt'] }, { file: 'src/domain/thresholds.ts', names: ['RULES'] }],
   tests: ['src/modules/metrics/rulesReading.test.ts', 'src/modules/metrics/numbers.test.ts', 'src/domain/reading.test.ts', 'src/modules/metrics/readingTool.test.ts'],
   reqs: ['READING-PREFILL', 'READING-RECORDED-ONLY', 'READING-SEVEN-DAYS', 'READING-SHOWN'],
   body: `
