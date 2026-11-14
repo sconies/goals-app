@@ -14,10 +14,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon (session …iZx169kF) stopped after 14 code PRs, at about 395k tokens of context. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `a11d6092` (#510), the head of main at 23:10 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511 and #516 (docs only) have neither.
+- **Last merge fully reviewed:** `f59199bc` (#522), the head of main at 23:15 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511 and #516 (docs only) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none.
-- **Mediums open:** seven, all sent to planning on 14 Nov: #503's (a goal stopped while held stays held), #513's (the kit's words on a moment are not what History does), #497's (the workspace's line is never drawn in a browser by any eval), #517's (`see()` on a page never says what it showed), #504's (Feedback's inbox still offers Connect Claude with AI access off) and #515's (seven sentences of the change engine's page are not what the engine does); and #510's (a goal that is Not measured yet is in no lane of the Board).
+- **Mediums open:** six, all sent to planning on 14 Nov: #503's (a goal stopped while held stays held), #513's (the kit's words on a moment are not what History does), #497's (the workspace's line is never drawn in a browser by any eval), #504's (Feedback's inbox still offers Connect Claude with AI access off) and #515's (seven sentences of the change engine's page are not what the engine does); and #510's (a goal that is Not measured yet is in no lane of the Board). #517's was fixed by #522.
 - **Expected next:** #505 (MQ's code, track 7d, on migration 0055: check the row mapper writes SQL null, never an empty string, for a `level` or `confidence` that isn't said, which 0055's checks refuse; and that the parent's rules, no loops, same workspace, not removed, are in the module's rule, since the database only refuses a metric that is its own parent). #497 (HM7 and HB3, track 1). U124's "Changed since" check (track 1).
 - **Read, not walked on screen by this session:** #469 (HM4), #491 (SM1h), #487 (TG1), #464 (GR) and #465 (FT1); their own journeys are the only browser runs. #465's thirteen screen files were skimmed. If the full suite on main goes red on one of them, start there.
 - **How merges reach you:** no timer works here (scheduling a wake needs an approval nobody answers). Each track messages the reviewer its PR's number when it merges; whenever a message arrives, run `git log --first-parent <last reviewed>..origin/main` and review everything in it. Messages lag and repeat: about half of this session's were for PRs already reviewed, and a track's message can give a stale migration number (#502 was announced as 0054 and is 0055).
@@ -266,6 +266,7 @@ Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon 
 | #504 SW2: AI access behind its own switch | 4 | 0 | 1 | 2 |
 | #515 Rebuild kit stage 2: the change engine's sentences, fields and inputs | item 11 | 0 | 1 | 0 |
 | #510 MS medium 5: Not measured yet is a status of its own | 7d | 0 | 1 | 1 |
+| #522 `see()` says what a page showed (#517's medium) | 1 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2325,3 +2326,7 @@ Read whole against #428's medium 5 and Lane's answer of 14 Nov; walked by a suba
 **Low.** The workbook's Goals sheet lists the status codes in its own description from `STATUS_WORDS` (`src/domain/export.ts:79`), which doesn't have `unmeasured`, though the Status column now carries it.
 
 Not checked: the Map (the goal's name wasn't found in the page's text at the zoom tried, which may only be a folded tree), and a phone's width.
+
+### #522 `see()` says what a page showed (track 1, merged 14 Nov)
+
+Read against #517's medium: **closed.** One line of `evals/journeys.cjs`: a locator is now told from a page by `typeof p.page === 'function'`, and a page is read through `page.locator('body')`, as the finding asked. Nothing else changes. For a page the note is the body's first 240 characters, which on most screens is the menu before the content; enough to tell a blank or wrong page from a slow one.
