@@ -1,27 +1,44 @@
-/* Day one (app redesign OB3, docs/design/onboarding/spec.md rules 6 and 7): set-up's steps for the starting point
-   chosen, and "Getting started" on Home: for each person in a workspace's first weeks, what is true and what to do
+/* Day one (app redesign OB3, docs/design/onboarding/spec.md rule 7; set-up spec rule S1): set-up's four steps, and "Getting started" on Home: for each person in a workspace's first weeks, what is true and what to do
    first, the second person included. Pure: what a person has done is passed in as `facts`, kept per person and
    workspace behind the Prefs port (src/ports/prefs.ts). */
 import type { Change, Goal, Person } from './types';
 
-/** Set-up's steps, by the screen's id. */
-export type SetupStep = 'workspace' | 'you' | 'team' | 'start' | 'outcome' | 'goals' | 'check';
-const ALL: SetupStep[] = ['workspace', 'you', 'team', 'start', 'outcome', 'goals', 'check'];
+/** Set-up's steps, by their address under /workspace/new/ (set-up spec rule S1, small workspaces rule 3). */
+export type SetupStep = 'workspace' | 'people' | 'goals' | 'check';
+/** Always these four: "how you'll work" is a sheet on the first step and on Check, not a step. */
+export const SETUP_STEPS: readonly SetupStep[] = ['workspace', 'people', 'goals', 'check'];
+export const isSetupStep = (s: string | undefined): s is SetupStep => !!s && (SETUP_STEPS as readonly string[]).includes(s);
 
-/**
- * Rule 6. The steps for the starting point chosen: a template or "Start blank", all seven; "Set goals up later" or a
- * spreadsheet, five (no outcome and no goals: Check is "Step 5 of 5"). Before a choice, null: steps say "Step {n}".
- */
-export function setupSteps(choice: string): SetupStep[] | null {
-  if (!choice) return null;
-  return choice === 'later' || choice === 'file' ? ALL.filter((s) => s !== 'outcome' && s !== 'goals') : ALL;
+/** The counter for a step: "Step 4 of 4" on Check, whatever way to start was chosen. */
+export function stepCounter(step: SetupStep): string {
+  return `Step ${SETUP_STEPS.indexOf(step) + 1} of ${SETUP_STEPS.length}`;
 }
 
-/** The counter for a step: "Step 5 of 5", or "Step 2" before the starting point is chosen. */
-export function stepCounter(step: SetupStep, choice: string): string {
-  const steps = setupSteps(choice);
-  if (!steps) return `Step ${ALL.indexOf(step) + 1}`;
-  return `Step ${steps.indexOf(step) + 1} of ${steps.length}`;
+/** How a workspace's goals start, chosen on the Goals step: added here, from a spreadsheet, or by each owner later. */
+export type SetupStart = 'own' | 'file' | 'later';
+/** The choice a draft holds; a draft from before (a template's id, or "blank") counts as "Add your own". */
+export const startOf = (choice: string | undefined): SetupStart => (choice === 'file' || choice === 'later' ? choice : 'own');
+
+/** What `firstUnfilled` reads from a draft. */
+export interface SetupAnswers { name: string; me: { name: string; email: string; team: string }; start: string | undefined; goals: number; file: boolean }
+
+/**
+ * Rule S1. The first step whose required answers are missing: `workspace` (a name, and you), else `goals` (no goal
+ * added, or "Import a spreadsheet" with no file read; "Later" needs nothing), else null. A later step's address opened
+ * before then goes to it.
+ */
+export function firstUnfilled(a: SetupAnswers): SetupStep | null {
+  if (!a.name.trim() || !a.me.name.trim() || !a.me.email.trim() || !a.me.team.trim()) return 'workspace';
+  const start = startOf(a.start);
+  if ((start === 'own' && !a.goals) || (start === 'file' && !a.file)) return 'goals';
+  return null;
+}
+
+/** A draft's step. One kept from before set-up had four steps (seven, numbered from 0) opens at the step its answers moved to. */
+const OLD_STEPS: SetupStep[] = ['workspace', 'workspace', 'people', 'goals', 'goals', 'goals', 'check'];
+export function draftStep(d: { step?: number; v?: number }): SetupStep {
+  const list = d.v === 2 ? SETUP_STEPS : OLD_STEPS;
+  return list[Math.min(Math.max(d.step ?? 0, 0), list.length - 1)]!;
 }
 
 /** What a person has done in a workspace, kept per person and workspace (the Prefs port). */

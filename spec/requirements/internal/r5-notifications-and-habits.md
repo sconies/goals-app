@@ -35,7 +35,7 @@ Delivery is the platform’s (its mail service, its Slack and Teams apps, its ph
 - The on-time streak is `onTimeStreak` in `src/domain/progress.ts`, shown on Home and as “N weeks in a row on time” when a week’s last check-in is posted (`src/screens/CheckInFlow.tsx`). It counts only check-ins the owner posted by the review day, and a late week starts it again at 0: it doesn’t forgive yet (CF4 in the designs).
 - Home ranks goals and teams, never people. No measure of the habit is built; the planned Home cell (HM7) counts goals checked in by the due day, which is the measure without “without a nudge”, since Faro sends none.
 - Who you are is a pick kept per workspace in the browser (`src/adapters/local.ts`); the rebuild’s one sign-in replaces it ([R2](r2-single-sign-on.md)).
-- Feedback is one inbox across every workspace and the demo; only admins change a status (`mayTriage` in `src/markup/model.ts`, Lane, 12 Nov).
+- Feedback is one inbox across every workspace and the demo; only admins change a status (`mayTriage` in `src/markup/model.ts`, Lane, 12 Nov). In Faro that check runs in the browser, on the person picked, which is accepted for Faro (Lane, 14 Nov); the rebuild enforces it on the server ([R1](r1-sign-in-and-access.md)).
 
 ## Worked examples
 

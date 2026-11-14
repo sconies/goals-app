@@ -3,6 +3,8 @@
    comment, undo an import, and list and restore what was removed, exactly as the person it acts for could. Every change
    is logged as that person, via the AI assistant. */
 import { MODULE_RECORDS, recordsOn } from '../core/records';
+import { modulesOn } from '../core/registry';
+import { watchingOn } from '../app/reads';
 import type { Commit } from '../data/store';
 import { editCall, type ActionContext } from '../domain/actions';
 import { findGoal, isKey } from '../domain/goalKey';
@@ -49,7 +51,7 @@ export const REMOVE_TOOLS: ToolDef[] = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(_a, ctx) {
-      const all = R.recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, undefined, recordsOn(ctx.ws)).filter((r) => R.canRestore(ctx.actor, r));
+      const all = R.recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, undefined, recordsOn(ctx.ws), { watches: watchingOn(modulesOn(ctx.ws).on) }).filter((r) => R.canRestore(ctx.actor, r));
       const who = (id: string | null) => (ctx.full ?? ctx.snapshot).people.find((p) => p.id === id)?.name ?? '—';
       const list = all.map((r) => ({ kind: r.kind, label: r.label, id: r.id, name: r.name, removedBy: who(r.by), at: r.at }));
       return listed({ removed: list });

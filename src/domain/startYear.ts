@@ -30,14 +30,17 @@ export interface StartPage {
 /** The rows the start page reads: the cycles; the goals, check-ins and wrap-ups; and what comes with a goal. */
 export interface StartRows { cycles: Cycle[]; goals: Goal[]; checkIns: CheckIn[]; retros?: Retro[]; requests?: Ask[]; watches?: Watch[]; reviews?: Review[] }
 
-export function startPage(s: StartRows, cycle: Cycle, today: Date): StartPage {
+/** `show`: which switched modules are on (SW1). With the Wrap-up off the page names no wrap-up, and with Watching off no
+    watches; what they carry along is carried all the same. */
+export function startPage(s: StartRows, cycle: Cycle, today: Date, show: { wrapUp?: boolean; watching?: boolean } = {}): StartPage {
+  const wrapUp = show.wrapUp !== false, watching = show.watching !== false;
   const shape = nextCycleShape(cycle);
   const next = { ...cycle, ...shape };
   const nd = cycleDates(next), d = cycleDates(cycle);
   const state = cycleState(cycle, today);
   const later = laterCycle(s.cycles, cycle);
   const ended = state === 'ended' || state === 'closed';
-  const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? `It opens for everyone as soon as you start it.${state === 'ended' ? ` ${cycle.name}’s wrap-up stays open until ${dayWithYear(d.wrapUpCloses)}.` : ''}` : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins and the wrap-up carry on.`}`;
+  const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? `It opens for everyone as soon as you start it.${state === 'ended' && wrapUp ? ` ${cycle.name}’s wrap-up stays open until ${dayWithYear(d.wrapUpCloses)}.` : ''}` : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins${wrapUp ? ' and the wrap-up' : ''} carry on.`}`;
   if (state === 'before' || state === 'running') {
     return { next: shape.name, canStart: false, whyNot: startFromLine(cycle), line, counts: [], startsWith: [], readBack: null };
   }
@@ -56,7 +59,7 @@ export function startPage(s: StartRows, cycle: Cycle, today: Date): StartPage {
     { n: rb.carry, says: 'carry on', sub: rb.keep ? `${rb.keep} keep their plan and dates` : '' },
     { n: rb.finish, says: 'finish', sub: 'they met their target' },
     { n: rb.stop, says: 'stop', sub: 'their owners said so' },
-    { n: rb.open, says: 'not wrapped up yet', sub: `${rb.openCarry} carry on as they are, ${rb.openFinish} finish` },
+    { n: rb.open, says: wrapUp ? 'not wrapped up yet' : 'go by where they stand', sub: `${rb.openCarry} carry on as they are, ${rb.openFinish} finish` },
   ];
   const startsWith = [
     ...(rb.carried - rb.proposed ? [{ bold: n(rb.carried - rb.proposed, 'goal', 'goals'), rest: `, each with its key, owner, team, level and metric. A number goal starts from its final number, from week 1; its target is unchanged and due at the end of ${shape.name}.` }] : []),
@@ -64,7 +67,7 @@ export function startPage(s: StartRows, cycle: Cycle, today: Date): StartPage {
     ...(rb.stageGoals ? [{ bold: n(rb.stageGoals, 'goal with stages', 'goals with stages'), rest: ` carry the ${n(rb.stagesLeft, 'stage', 'stages')} not done, spread evenly over ${shape.name}. Their owners are asked to check the dates.` }] : []),
     ...(rb.loseParent ? [{ bold: `${n(rb.loseParent, 'goal loses its', 'goals lose their')} “Feeds into”`, rest: ', because the goal above finishes or stops.' }] : []),
     ...(extras.asks ? [{ bold: `${n(extras.asks, 'open next step or ask moves', 'open next steps and asks move')} with ${extras.asks === 1 ? 'its goal' : 'their goals'}.`, rest: extras.staying ? ` ${extras.staying} stay in ${cycle.name}, on goals that finish or stop.` : '' }] : []),
-    ...(extras.watches ? [{ bold: `${n(extras.watches, 'watch follows', 'watches follow')} ${extras.watches === 1 ? 'its goal' : 'their goals'}`, rest: ', for the same people.' }] : []),
+    ...(extras.watches && watching ? [{ bold: `${n(extras.watches, 'watch follows', 'watches follow')} ${extras.watches === 1 ? 'its goal' : 'their goals'}`, rest: ', for the same people.' }] : []),
     ...(rb.handSet ? [{ bold: `${n(rb.handSet, 'goal sets its', 'goals set their')} weekly plan numbers by hand.`, rest: ` Those numbers were for ${cycle.name}; in ${shape.name} the plan is a straight line until the owner sets them again.` }] : []),
     ...(extras.reviews ? [{ bold: `${n(extras.reviews, 'review carries', 'reviews carry')} on`, rest: ` with the same people and days, on ${shape.name}’s goals.` }] : []),
     { bold: `Check-ins every week, due by ${WEEKDAYS[cycle.reviewDay]}`, rest: `, as in ${cycle.name}. The first are due ${dayWithYear(reviewDate(next as Cycle, 1))}.` },

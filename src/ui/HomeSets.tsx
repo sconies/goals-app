@@ -27,11 +27,13 @@ import { HandledGroup } from './HandledGroup';
 /** Five teams, then "{k} more teams, {j} need attention" to the scope by team. */
 export const TEAMS_SHOWN = 5;
 
-/** The Goals scopes' tabs for the viewer (Watching only while it is on): what Home's sets and "Changed since" read. */
+/** The Goals scopes for the viewer, drawn as tabs or not (Watching only while it is on): what Home's sets and "Changed since" read. */
 function useTabs(): ScopeTab[] {
   const { snapshot, viewer } = useApp();
   const watching = watchingOn(useModules().on);
-  return useMemo(() => scopesFor(scopeFacts(snapshot, viewer), null, { watching }).tabs, [snapshot, viewer, watching]);
+  // Every scope, drawn as a tab or not (as find_goals reads them): in a one-team workspace My team waits on Goals, being
+  // the same list as All, but its goals still belong on Home (review of #468, medium; #492).
+  return useMemo(() => scopesFor(scopeFacts(snapshot, viewer), null, { watching }).every, [snapshot, viewer, watching]);
 }
 
 /** Home's sets (rule 4): exactly the Goals scopes, so each block's total is its tab's count. */

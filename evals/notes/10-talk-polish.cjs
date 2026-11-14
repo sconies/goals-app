@@ -128,18 +128,21 @@ module.exports = {
     {
       const [c, r] = await open(390, 844, 'grace', '/workspace/new', true);
       const tall = (name) => r.getByRole('button', { name, exact: true }).first().evaluate((e) => Math.round(e.getBoundingClientRect().height)).catch(() => 0);
+      // Set-up from inside the app is one line about you, with Change (ST2); the goal year's Change is on Check.
       const h0 = await tall('Change');
-      chk(h0 >= 44, `D3: set-up's “Change” (the goal year) is ${h0}px tall at 390`);
-      await r.getByLabel('Name').first().fill('Test space');
-      await r.getByRole('button', { name: 'Next' }).click(); await settle(r, 250);
+      chk(h0 >= 44, `D3: set-up's “Change” (you) is ${h0}px tall at 390`);
+      await r.getByLabel('Workspace name').first().fill('Test space');
+      await r.getByRole('button', { name: 'Change', exact: true }).first().click();
       await r.getByLabel('Your name').fill('Ana Silva'); await r.getByLabel('Your team').fill('Platform'); await r.getByLabel('Your email').fill('ana.silva@example.com');
-      await r.getByRole('button', { name: 'Next' }).click(); await settle(r, 250);
+      await r.getByRole('button', { name: 'Continue to people' }).click(); await settle(r, 250);
       await r.getByLabel('Person 1: name').fill('Cat Lee'); await r.getByLabel('Person 1: email').fill('cat.lee@example.com');
-      await r.getByRole('button', { name: 'Next' }).click(); await settle(r, 250);
-      await r.getByRole('radio', { name: /Set goals up later/ }).click();
-      await r.getByRole('button', { name: 'Next' }).click(); await settle(r, 400);
+      await r.getByRole('button', { name: 'Continue to goals' }).click(); await settle(r, 250);
+      await r.getByRole('radio', { name: /^Later/ }).click();
+      await r.getByRole('button', { name: 'Continue to check' }).click(); await settle(r, 400);
       const h1 = await tall('Change people');
       chk(h1 >= 44, `D3: set-up's “Change people” is ${h1}px tall at 390`);
+      const hw = await tall('Change how you’ll work');
+      chk(hw >= 44, `D3: set-up's “Change how you’ll work” is ${hw}px tall at 390`);
       await r.reload(); await settle(r, 800);
       const h2 = await tall('Start over');
       chk(h2 >= 44, `D3: set-up's “Start over” is ${h2}px tall at 390`);
