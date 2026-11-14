@@ -148,6 +148,9 @@ export interface PlaceNames {
 }
 
 
+/** Set-up's steps, by their address (set-up spec section 1). */
+const SETUP_TITLES: Record<string, string> = { workspace: 'Set up: the workspace and you', people: 'Set up: people', goals: 'Set up: goals', check: 'Set up: check' };
+
 /** The places named the same wherever they are. */
 const FIXED: Record<string, string> = {
   '/': 'Home', '/goals': 'Goals', '/watching': 'Goals', '/goals/new': 'New goal', '/check-in': 'Check-in', '/quick-check-in': 'Check-in, all in one table',
@@ -172,6 +175,7 @@ export function pageName(path: string, search: string, names: PlaceNames): strin
   if (FIXED[path]) return FIXED[path]!;
   const m = (re: RegExp) => re.exec(path)?.slice(1).map((x) => decodeURIComponent(x));
   let x: string[] | undefined;
+  if ((x = m(/^\/workspace\/new\/([^/]+)$/))) return SETUP_TITLES[x[0]!] ?? 'Set up a workspace';
   if ((x = m(/^\/goals\/new\/([^/]+)$/))) return NEW_GOAL_STEPS.find((st) => st.slug === x![0])?.title ?? 'New goal';
   if ((x = m(/^\/goals\/([^/]+)(\/edit|\/print)?$/))) {
     const t = names.goal(x[0]!);
@@ -278,4 +282,14 @@ export function backTo(path: string, search: string, trail: Trail, names: PlaceN
   const first = firsts.find((f) => path.startsWith(f + '/'));
   if (first) return up(first, pageName(first, '', names), 'the last page');
   return up('/', 'Home', 'Home');
+}
+
+/**
+ * Small workspaces, rule 1 (SM1): a module's menu row is drawn when the module is on (the caller's list) and the
+ * collection its module.json names in `menu.waitsFor` has a live row. A module that names none is always drawn. Hiding is
+ * only drawing: the module's address still opens.
+ */
+export function rowDrawn(waitsFor: string | undefined, rows: readonly unknown[] | undefined): boolean {
+  if (!waitsFor) return true;
+  return (rows ?? []).some((r) => !(r as { removedAt?: string | null }).removedAt);
 }

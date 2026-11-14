@@ -3,7 +3,7 @@
    A scope is worked out for the person asking (`facts`: who they are, their teams, what they watch); with no sort the
    order is worst first, then by title (domain/query compare).
    The internal app's adapter asks its server instead and changes no screen. */
-import { applyQuery, type GoalQuery } from '../domain/query';
+import { applyQuery, type GoalQuery, type QueryContext } from '../domain/query';
 import { nearMiss, goalWords, type GoalRows } from '../domain/find';
 import { goalsCounted, scopeIds, type ScopeFacts } from '../domain/goalsPage';
 import type { GoalSummary } from '../domain/summary';
@@ -20,9 +20,11 @@ export function localGoals(rows: () => GoalRows, facts?: () => ScopeFacts): Goal
     const keep = new Set(scopeIds(facts(), ask.scope));
     return r.summaries.filter((s) => keep.has(s.goal.id));
   };
+  // Who is asking, for `owner=-me` ("not mine", Home rule 4).
+  const withViewer = (ctx: QueryContext): QueryContext => (facts ? { ...ctx, viewerId: facts().viewerId } : ctx);
   // The query's matches; a search that finds nothing tries its near miss (find rule 5), as Goals does.
   const matched = (ask: Pick<GoalAsk, 'query' | 'scope'>): { list: GoalSummary[]; near?: string } => {
-    const sums = inScope(ask), ctx = rows().ctx;
+    const sums = inScope(ask), ctx = withViewer(rows().ctx);
     // No sort is worst first, then by title: a rule a server can answer too, not the order goals are stored in.
     const query: GoalQuery = ask.query.sort ? ask.query : { ...ask.query, sort: 'worst', dir: 1 };
     const list = applyQuery(sums, query, ctx);
@@ -43,7 +45,7 @@ export function localGoals(rows: () => GoalRows, facts?: () => ScopeFacts): Goal
   };
   const counts = (ask: Pick<GoalAsk, 'query' | 'scope'>): GoalCounts => {
     const { list } = matched(ask);
-    return { total: list.length, ...goalsCounted(list, applyQuery(inScope(ask), { ...ask.query, attention: false, needs: [], sort: null }, rows().ctx)) };
+    return { total: list.length, ...goalsCounted(list, applyQuery(inScope(ask), { ...ask.query, attention: false, needs: [], sort: null }, withViewer(rows().ctx))) };
   };
   return {
     now: { goals, counts },

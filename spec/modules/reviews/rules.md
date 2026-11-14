@@ -14,11 +14,11 @@ How the day check-ins are due is said with Reviews on or off, and what switching
 
 ### The rule
 
-**Rule RS1. One phrase for the clock** (`dueWords(reviewsOn, cycle, week, held)`). Check-ins are due by the end of the cycle's due day (`reviewDay`), which never needed a review. A review is **held on the due day** when one not ended or removed has its weekday on that day and a session that week (`heldOnDueDay`). With Reviews on and a review held that day the deadline is “before Thursday’s review” (past it, “after Thursday’s review”; as a label, “before the review”); with no review that day, or Reviews off, it is “by Thursday” (“after Thursday”; “on time”). The `due` flag says “Due by Thu 12 Nov.” either way, and Home names the deadline as a date (“Check-ins are due by Thursday 12 Nov”), never a review. No screen writes “review” in a deadline itself: the check-in's receipt ends “…checked in for week 46, by Thursday.”, and the habit measure, when it is built, takes its words here too.
+**Rule RS1. One phrase for the clock** (`dueWords(reviewsOn, cycle, week, held)`). Check-ins are due by the end of the cycle's due day (`reviewDay`), which never needed a review. A review is **held on the due day** when one not ended or removed has its weekday on that day and a session that week (`heldOnDueDay`). With Reviews on and a review held that day the deadline is “before Thursday’s review” (past it, “after Thursday’s review”; as a label, “before the review”); with no review that day, or Reviews off, it is “by Thursday” (“after Thursday”; “on time”). The `due` flag says “Due by Thu 12 Nov.” either way, and Home names the deadline as a date (“Check-ins are due by Thursday 12 Nov”), never a review. No screen writes “review” in a deadline itself: the check-in's receipt says “All 3 of your check-ins are in by Thursday.”, and the habit panel on a team's page takes its words here too: “review” only when one is held that day with one of the team's goals' owners in it (`heldForGoals`), otherwise “on time” and “by its Thursday”, Reviews on or off.
 
 **Rule RS2. The read-back's two lines.** Before Reviews is switched off, after the line about questions: “**{n} accepted risks stay on their goals**, as they were said. No new one can be accepted while Reviews is off.”, counting the notes that start “We accept the risk: ”, not removed, on goals not removed, and left out at nought; then always “**Check-ins are still due by {Thursday}.** “Before the review” becomes “by {Thursday}” on Home, in the check-in and in the count of goals checked in on time.”
 
-**Elsewhere with Reviews off.** The workbook has no Notes sheet and no Review column on Asks; a workbook that has them is not refused, and the preview says once “Reviews is off in {workspace}: the Notes sheet and the Review column were not read.”. Every review tool, and edit_call on a note said in a review, answers “Reviews is switched off in {workspace}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features.”, the sentence every switched-off module's tools use.
+**Elsewhere with Reviews off.** The workbook has no Notes sheet and no Review column on Asks, and the JSON export (and get_goal) no `notes`: nothing said in a review; a workbook that has them is not refused, and the preview says once “Reviews is off in {workspace}, so the Notes sheet and the Review column were not read.” (naming only the ones the file has). Every review tool, and edit_call on a note said in a review, answers “Reviews is switched off in {workspace}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features.”, the sentence every switched-off module's tools use. `inreview=` is no filter on Goals or in find_goals, and has no words on the filter line, as a switched-off module's column isn't (module map F4); no screen offers it then, since the review's page that links it is gone.
 
 **What is refused with Reviews off** (`writesReviews`, build review of #371). Not a list of actions: whatever touches Reviews' records. An action whose input names a review (a review's id or settings, or a goal's “proposed in”) is refused before its rule runs; then any save, from the app or an AI tool, that logs a change to a review or a note, writes a note or a new review, raises an ask in a review, or proposes a goal in one. So correcting or removing a review note, Undo of an ended review and restoring one from Recently removed are refused too. What a save only carries along still runs: answering a question raised in a review, correcting an ask's words, editing a goal once proposed in one, the reviews someone leaves when marked as left, the reviews a carried goal joins. An action says “Reviews is switched off in {workspace}. An admin can switch it on in Workspace, under Features.”, as any switched-off module's action does; an AI tool, the tools' sentence above. Each reload of the workspace brings its switches, so a tab open from before the switch is refused from its next reload; the internal app checks at the server (the ports at company scale, rule 5).
 
@@ -33,15 +33,16 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | The same, but the workspace has no review set up (or only one on Tuesdays). | `by Thursday / by Thursday` |
 | The same with Reviews off. | `by Thursday` |
 | The due flag, Reviews on and off. | `Due by Thu 12 Nov. / Due by Thu 12 Nov.` |
-| Rhea’s receipt with all 3 of her goals in on Wednesday, Reviews off; then on Friday. | `All 3 of your goals are checked in for week 46, by Thursday. / All 3 of your goals are checked in for week 46, after Thursday.` |
+| Rhea’s receipt with all 3 of her goals in on Wednesday, Reviews off; then on Friday. | `All 3 of your check-ins are in by Thursday. / All 3 of your check-ins are in. All of them came after Thursday.` |
 | Switching Reviews off: 2 risks accepted on live goals, one more on a goal since removed, due Thursday. | `2 accepted risks stay on their goals, as they were said. No new one can be accepted while Reviews is off. \| Check-ins are still due by Thursday. “Before the review” becomes “by Thursday” on Home, in the check-in and in the count of goals checked in on time.` |
 
 ### Where it lives
 
-- [src/domain/progress.ts](../../../src/domain/progress.ts): `dueWords`, `dueWordsOn`, `weekDoneText`
+- [src/domain/progress.ts](../../../src/domain/progress.ts): `dueWords`, `dueWordsOn`, `receiptText`
 - [src/domain/review.ts](../../../src/domain/review.ts): `heldOnDueDay`
 - [src/domain/reviewsOff.ts](../../../src/domain/reviewsOff.ts): `switchOffReadBack`, `switchOffLines`
 - [src/domain/reviewWrites.ts](../../../src/domain/reviewWrites.ts): `writesReviews`
+- [src/app/reads.ts](../../../src/app/reads.ts): `heldForGoals`
 
 ### Requirements
 
@@ -54,9 +55,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - dueWords (RS1) › Reviews on, a review on the due day: “before Thursday’s review”
 - dueWords (RS1) › Reviews on, no review set up (or none on the due day): “by Thursday”
+- dueWords (RS1) › a review’s own page says “Before this review” only in a week it is held on the due day (review of #432)
 - dueWords (RS1) › Reviews off: “by Thursday”, whatever is held
 - dueWords (RS1) › the due flag says “Due by Thu 12 Nov.” with Reviews on or off
-- dueWords (RS1) › the receipt says the deadline in its words: “by Thursday”, or “after Thursday” once it has passed
+- dueWords (RS1) › the receipt (what the check-in shows once all are in) says the deadline in its words: “by Thursday”, or “after Thursday” once it has passed
+- dueWords (RS1) › Help’s Check in article quotes the receipt the check-in shows (build review of #424)
+- dueWords (RS1) › Help’s Teams article names the panel’s headings the page has (build review of #424)
 
 #### [src/domain/reviewsOff.test.ts](../../../src/domain/reviewsOff.test.ts)
 
@@ -76,8 +80,19 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the dispatcher, with Reviews off › refuses reopening an ended review, by Undo (undoRemoval) or from Recently removed (restoreRemoved)
 - the dispatcher, with Reviews off › still marks someone in a review as left (their reviews are carried along), and still corrects an ask’s own words
 - the AI tools, with Reviews off › edit_comment and delete_comment on a review note answer the switched-off sentence and save nothing
+- the AI tools, with Reviews off › restore_removed on an ended review answers the switched-off sentence and saves nothing, and restores it with Reviews on (#424)
 - the AI tools, with Reviews off › list_requests names no review with Reviews off, and names it with Reviews on
 - the AI tools, with Reviews off › a comment on a goal still saves
+
+#### [src/app/reviewsOffReads.test.ts](../../../src/app/reviewsOffReads.test.ts)
+
+- inreview= with Reviews off › narrows Goals to the review’s goals while Reviews is on, and narrows nothing while it is off
+- inreview= with Reviews off › has no words on the filter line while Reviews is off
+- inreview= with Reviews off › find_goals: the review’s goals while Reviews is on, every goal while it is off
+- the JSON export with Reviews off › holds the notes said in reviews while Reviews is on, and none while it is off (as notes_csv is refused)
+- the JSON export with Reviews off › get_goal holds no review notes while Reviews is off
+- a team’s habit panel names a review only when one is held that day for its people (RS1, spec 2.1) › is held for a team whose owners are in Thursday’s Platform leadership weekly, not for one whose aren’t, and never with Reviews off
+- a team’s habit panel names a review only when one is held that day for its people (RS1, spec 2.1) › with Reviews on and no review that day, the panel says the plain deadline words
 
 #### [src/domain/reviewsOffSheets.test.ts](../../../src/domain/reviewsOffSheets.test.ts)
 
@@ -85,6 +100,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the workbook with Reviews off › leaves out the Notes sheet and the Review column on Asks with Reviews off, and Start here doesn’t describe them
 - importing a workbook with Reviews’ parts while Reviews is off › is not refused: the loaded sheets are read as usual, and the file is marked as having Reviews’ parts
 - importing a workbook with Reviews’ parts while Reviews is off › says once that the Notes sheet and the Review column were not read, and leaves Notes out of the sheets for reading
+- importing a workbook with Reviews’ parts while Reviews is off › names only what the file has, and reads well with a colon in the workspace’s name (build review of #424)
 - importing a workbook with Reviews’ parts while Reviews is off › with Reviews on, or a file without them, says nothing about Reviews
 
 #### [src/modules/reviews/tools.test.ts](../../../src/modules/reviews/tools.test.ts)

@@ -1,9 +1,10 @@
 // @vitest-environment node
 /* Rule RS1 (docs/design/round-4/reviews-switch/spec.md 4): one phrase for the clock, dueWords. The table's three rows,
    the due flag's sentence, and the receipt that says it. */
-import { dueWords, dueWordsOn, weekDoneText, type WeekProgress } from './progress';
-import { heldOnDueDay } from './review';
-import type { Cycle, Goal, Review } from './types';
+import { dueWords, dueWordsOn, receiptText } from './progress';
+import { heldOnDueDay, sessionOnDueDay } from './review';
+import { articleById, articleWords } from '../help/guide';
+import type { Cycle, Review } from './types';
 
 // Week 46 of 2026 is 9–15 Nov; check-ins are due on Thursday 12 Nov.
 const cycle: Cycle = { id: 'c', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 };
@@ -25,6 +26,15 @@ describe('dueWords (RS1)', () => {
     expect(dueWords(true, cycle, 46, false).by).toBe('by Thursday');
   });
 
+  it('a review’s own page says “Before this review” only in a week it is held on the due day (review of #432)', () => {
+    expect(sessionOnDueDay(review(), cycle, 46)).toBe(true);
+    // A four-weekly review on the due weekday, in a week with no session: not “before this review”.
+    const four = review({ everyWeeks: 4 });
+    const held = [45, 46, 47, 48].filter((w) => sessionOnDueDay(four, cycle, w));
+    expect(held).toEqual([48]);
+    expect(sessionOnDueDay(review({ weekday: 1 }), cycle, 46)).toBe(false);
+  });
+
   it('Reviews off: “by Thursday”, whatever is held', () => {
     const w = dueWords(false, cycle, 46, true);
     expect([w.by, w.after, w.onTime, w.day, w.date]).toEqual(['by Thursday', 'after Thursday', 'on time', 'Thursday', 'Thursday 12 Nov']);
@@ -36,11 +46,22 @@ describe('dueWords (RS1)', () => {
     expect(dueWordsOn(false, '2026-11-12').flag).toBe(dueWords(false, cycle, 46).flag);
   });
 
-  it('the receipt says the deadline in its words: “by Thursday”, or “after Thursday” once it has passed', () => {
-    const g = { id: 'g', title: 'G' } as Goal;
-    const p: WeekProgress = { goals: [g, g, g], done: [g, g, g], due: [], upcoming: [] };
-    expect(weekDoneText(p, 46, { late: false, words: dueWords(false, cycle, 46) })).toBe('All 3 of your goals are checked in for week 46, by Thursday.');
-    expect(weekDoneText(p, 46, { late: true, words: dueWords(false, cycle, 46) })).toBe('All 3 of your goals are checked in for week 46, after Thursday.');
-    expect(weekDoneText(p, 46, { late: false, words: dueWords(true, cycle, 46, true) })).toBe('All 3 of your goals are checked in for week 46, before Thursday’s review.');
+  it('the receipt (what the check-in shows once all are in) says the deadline in its words: “by Thursday”, or “after Thursday” once it has passed', () => {
+    const r = (after: number, words: ReturnType<typeof dueWords>) => receiptText({ total: 3, after, week: 46, words, run: 0, forgiven: null, nextDue: null }).first;
+    expect(r(0, dueWords(false, cycle, 46))).toBe('All 3 of your check-ins are in by Thursday.');
+    expect(r(3, dueWords(false, cycle, 46))).toBe('All 3 of your check-ins are in. All of them came after Thursday.');
+    expect(r(0, dueWords(true, cycle, 46, true))).toBe('All 3 of your check-ins are in before Thursday’s review.');
+  });
+
+  it('Help’s Check in article quotes the receipt the check-in shows (build review of #424)', () => {
+    const words = articleWords(articleById('check-in')!);
+    expect(words).toContain(`“${receiptText({ total: 3, after: 0, week: 46, words: dueWords(false, cycle, 46), run: 0, forgiven: null, nextDue: null }).first}”`.toLowerCase());
+    expect(words).not.toContain('checked in for week 46, by thursday');
+  });
+
+  it('Help’s Teams article names the panel’s headings the page has (build review of #424)', () => {
+    const words = articleWords(articleById('teams')!);
+    expect(words).toContain(`“week 46, due by ${dueWords(false, cycle, 46).date.toLowerCase()}”`);
+    expect(words).not.toContain('“on time this week”');
   });
 });

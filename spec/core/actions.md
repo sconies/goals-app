@@ -1887,6 +1887,9 @@ In `src/domain/checkin.ts`.
 ```ts
 export interface Draft {
   value: string;
+  /** The field as a module filled it from a source (NR), until the owner types: a filled number isn't theirs, so a
+      draft reopened with it untouched is filled again from what the source says then (review of #437, medium 3). */
+  filled?: string;
   stages: StageUpdate[];
   status: Status | null;
   cause: Cause | null;
@@ -2071,6 +2074,8 @@ export interface Item {
   backfilled?: boolean;
   /** A plan change after check-ins started: it needs a reason. */
   needsReason?: boolean;
+  /** A check-in's: whose it is once saved. Replacing one keeps who checked in (Lane, 14 Nov); the change's actor is who replaced it. */
+  author?: string;
   /** A plan change that must be confirmed before it's saved (goal planQuestion): what it asks, and the yes. */
   question?: { text: string; confirm: string };
   /** Every question the row asks and nobody has answered yet (goal entry, rule 3): its id, the column, the words. */

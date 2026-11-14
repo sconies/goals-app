@@ -300,7 +300,7 @@
     {
       "id": "ONBOARDING",
       "area": "Onboarding",
-      "text": "Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone. Each goal feeding the outcome starts with \"No owner yet\"; one left so is made the setter's and remembered for Home; Check says each owner or \"No owner yet\" and how many have none; the counter counts the path chosen (5 steps with goals later or from a spreadsheet).",
+      "text": "Setting up takes four steps, each its own address (/workspace/new/workspace, people, goals, check): the workspace and who you are (one line with Change when set up from inside a workspace) with How you'll work as a panel and a sheet, your team (typed, pasted or uploaded), what you are working towards (your own outcome and the goals feeding it, two to four each optionally saying how it is measured, a spreadsheet, or later; no example templates), and Check. Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone. A goal card nobody touched starts owned by the setter; one left with no owner is made the setter's and remembered for Home; Check says each owner or \"No owner yet\" and how many have none; the counter reads Step n of 4 whichever way to start was chosen; the browser's Back moves between steps, and Change on Check returns with Back to Check.",
       "use": "replace",
       "by": "R6a"
     },
@@ -684,6 +684,12 @@
       "id": "ATTENTION-HANDLED",
       "area": "Attention",
       "text": "Needs attention means new since something was agreed (Lane, 10 Nov): a goal that is red or amber is being handled only when, since its latest check-in, an action with an owner and a due week was agreed (and isn't overdue), or, when it is amber, its request was answered, and nothing new has happened since. A red goal stays counted until it has an action. A goal only marked reviewed or noted still needs attention, and says who looked. It is shown as being handled everywhere (Home, Watching, reviews, the AI), with one line saying what that means, and never hidden: wherever the goals that need attention are listed (the Needs attention tab and filter in every layout, the map, Home, Watching, the AI's find_goals), those being handled are listed below them, a count of goals that need attention counts the first group and says so, and on the Board a goal being handled says so on its card.",
+      "use": "copy"
+    },
+    {
+      "id": "HOME-MANAGER",
+      "area": "Home",
+      "text": "Someone in or leading a team sees that team on Home as the Goals page's My team scope, with the goals that need attention and aren't theirs; a review they are in is the lead on its day once their own check-ins are in, and one cell otherwise; an ask says how long it has waited and is marked once late.",
       "use": "copy"
     },
     {
@@ -1248,6 +1254,12 @@
       "use": "copy"
     },
     {
+      "id": "SMALL-MENU",
+      "area": "Navigation",
+      "text": "A module's menu row and a Goals tab wait until they have something in them (a tab also waits while it is the same list as one drawn before it; All is always drawn), in each workspace on its own: a row drawn in one never follows you into another. Hiding is only drawing: every address still opens. (Home's sections waiting too is backlog SM1h, with HM3; not built.)",
+      "use": "copy"
+    },
+    {
       "id": "SMALL-QUIET",
       "area": "Navigation",
       "text": "No count of nought beside a tab, a menu row or a section's name (a sentence may still say none), and an empty page says what is true, then when you'd want it, with a plain button rather than the page's primary.",
@@ -1327,7 +1339,7 @@
     },
     {
       "id": "U11",
-      "title": "Real app: from empty to a filled-in workspace with a template, then a teammate joins",
+      "title": "Real app: from empty to a filled-in workspace in four steps with its goals typed, the browser’s Back and a Change on Check return where they should, then a teammate joins",
       "who": "Anyone starting fresh",
       "budget": 14
     },

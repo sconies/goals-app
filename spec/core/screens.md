@@ -20,7 +20,7 @@ Words worked out when the screen shows (from the goal, the person or the week) a
 [src/screens/Start.tsx](../../src/screens/Start.tsx)
 
 - `/join/:workspaceId/*` (`Join`): An invitation is a link that opens one workspace: it says who set it up and what it holds, then asks which one you are. Help: “Joining a workspace you were invited to” (`joining`).
-- `/ready` (`Ready`): A workspace holds one organisation’s people, teams, goals and history. Setting one up takes about three minutes. Help: “Setting up a workspace” (`set-up`).
+- `/ready` (`Ready`): A workspace holds one organisation’s people, teams, goals and history. Setting one up takes four steps and about three minutes. Help: “Setting up a workspace” (`set-up`).
 - `/join/:workspaceId/*` (`Join`): An invitation is a link that opens one workspace: it says who set it up and what it holds, then asks which one you are. Help: “Joining a workspace you were invited to” (`joining`).
 
 - **Named parts:** “Which one are you?”, “This invitation doesn’t open a workspace”, “Open another workspace”
@@ -64,7 +64,7 @@ Words worked out when the screen shows (from the goal, the person or the week) a
 
 - `/` (`Home`): Home shows what needs you this week: one main thing to do, what people have asked of you, and the goals you own and watch. Help: “Home and your week at a glance” (`home`).
 
-- **Named parts:** “Your goals”, “Goals you watch”, “Getting started”, “This week (region)”, “For you (region)”
+- **Named parts:** “Your goals”, “Getting started”, “This week (region)”, “For you (region)”
 - **Main action:** The lead’s, or none: what is asked of you today (late check-ins, check-ins due tomorrow or before today’s review, the wrap-up, a review on its day), or one quiet line that nothing is.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_my_work`, `get_overview`
@@ -220,6 +220,8 @@ None written in its markup beyond the screen itself: it draws what it has.
 |---|---|---|
 | “Use the normal check-in” | link | `!goals.length` |
 | “Start over” | button | `goals.length > 0` and `hasDraft` |
+| “Confirm …” | button | `goals.length > 0` and `unconfirmed` and `read` |
+| “Confirm all readings” | button | `goals.length > 0` and `toConfirm.length > 0` and `toConfirm.length > 1` |
 | “Cancel” | link | `goals.length > 0` |
 | “Saving… / Post … / Post check-ins” | primary | `goals.length > 0` |
 
@@ -561,7 +563,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “Show all activity” | button | `a.watching != null` |
+| “Show all activity” | button | `watching != null` |
 | “Filters …” | button | always |
 | “Save.csv” | button | always |
 | “Show more (… older)” | button | `folded.top.length > shown.length` |
@@ -675,9 +677,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 [src/screens/Onboarding.tsx](../../src/screens/Onboarding.tsx)
 
-- `/workspace/new` (`Onboarding`): A workspace holds one organisation’s people, teams, goals and history. Setting one up takes about three minutes. Help: “Setting up a workspace” (`set-up`).
+- `/workspace/new` (`Onboarding`): A workspace holds one organisation’s people, teams, goals and history. Setting one up takes four steps and about three minutes. Help: “Setting up a workspace” (`set-up`).
+- `/workspace/new/:step` (`Onboarding`): A workspace holds one organisation’s people, teams, goals and history. Setting one up takes four steps and about three minutes. Help: “Setting up a workspace” (`set-up`).
 
-- **Named parts:** “What’s this workspace for?”, “Who are you?”, “Who else is on it?”, “Where do you want to start?”, “What outcome are you after?”, “What feeds it?”
+- **Named parts:** “What’s this workspace for, and who are you?”, “Who’s on it?”, “What are you working towards?”, “What outcome are you after?”, “What feeds it?”
 - **Main action:** Set up a workspace, one question a screen.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** none, on purpose: Setting up a new workspace happens before there is a token for it.
@@ -690,17 +693,17 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 | Field | Kind | Shown when |
 |---|---|---|
-| “Name” | text | `d.step === 0` |
-| “The goal year starts in …” | select | `d.step === 0` and `cycleOpen` |
-| “Weekly review on …” | select | `d.step === 0` and `cycleOpen` |
-| “Record how the app is used here Off unless you tick it. On, Faro records the pages people open, the buttons t…” | checkbox | `d.step === 0` |
-| “Your name” | text | `d.step === 1` |
-| “Your team” | text | `d.step === 1` |
-| “Your email” | email | `d.step === 1` |
-| “Person …: name” | text | `d.step === 2` |
-| “Person …: email” | email | `d.step === 2` |
-| “Person …: team” | text | `d.step === 2` |
-| “Person …: admin” | checkbox | `d.step === 2` |
+| “Workspace name” | text | `step === 'workspace'` |
+| “Your name” | text | `step === 'workspace'` and `!known` |
+| “Your team” | text | `step === 'workspace'` and `!known` |
+| “Your email” | email | `step === 'workspace'` and `!known` |
+| “Person …: name” | text | `step === 'people'` |
+| “Person …: email” | email | `step === 'people'` |
+| “Person …: team” | text | `step === 'people'` |
+| “Person …: admin” | checkbox | `step === 'people'` |
+| “The goal year starts in …” | select | always |
+| “Weekly review on …” | select | always |
+| “Record how the app is used here Off unless you tick it. On, Faro records the pages people open, the buttons t…” | checkbox | always |
 | “Outcome / Goal” | text | always |
 | “Today …” | text | `g.kind === 'metric'` |
 | “Target …” | text | `g.kind === 'metric'` |
@@ -724,27 +727,26 @@ None written in its markup beyond the screen itself: it draws what it has.
 | Button | Kind | Shown when |
 |---|---|---|
 | “Try again” | button | always |
-| “Start over” | button | `restored` |
-| “Change” | button | `d.step === 0` and `!cycleOpen` |
-| “Same as above (…)” | button | `d.step === 2` and `!r.team.trim() && above && above !== d.me.team.trim()` |
-| “(Remove person …)” | button | `d.step === 2` |
-| “Use …” | button | `d.step === 2` and `typo` |
-| “It’s a different team” | button | `d.step === 2` and `typo` |
-| “Add a person” | button | `d.step === 2` |
-| “Download the Excel template” | button | `d.step === 2` |
-| “Undo” | button | `d.step === 2` and `fileNote` and `undoUpload` |
-| “Goals from your spreadsheet As uploaded, with their plans and check-ins” | button | `d.step === 3` and `!!d.fileTables?.goals?.length` |
-| “Start blank Type your own outcome and goals” | button | `d.step === 3` |
-| “Set goals up later Each owner adds theirs in the app” | button | `d.step === 3` |
-| “Remove this goal” | button | `d.step === 5` |
-| “Undo” | button | `d.step === 5` and `removed` |
-| “Add a goal” | button | `d.step === 5` |
-| “Change name or year” | button | `d.step === 6` |
-| “Change people” | button | `d.step === 6` |
-| “Change the north star” | button | `d.step === 6` and `result.snapshot.goals.length > 0` and `!skipGoalSteps` |
-| “Change the goals” | button | `d.step === 6` and `result.snapshot.goals.length > 0` and `!skipGoalSteps` |
-| “Back” | button | `d.step > 0` |
+| “Change” | button | always |
+| “Start over” | button | `restored` and `startingOver` |
+| “Keep it” | button | `restored` and `startingOver` |
+| “Start over” | button | `restored` and `!startingOver` |
+| “Change” | button | `step === 'workspace'` and `known` |
+| “Change how you’ll work” | button | `step === 'workspace'` |
+| “Same as above (…)” | button | `step === 'people'` and `!r.team.trim() && above && above !== d.me.team.trim()` |
+| “(Remove person …)” | button | `step === 'people'` |
+| “Use …” | button | `step === 'people'` and `typo` |
+| “It’s a different team” | button | `step === 'people'` and `typo` |
+| “Add a person” | button | `step === 'people'` |
+| “Download the Excel template” | button | `step === 'people'` |
+| “Undo” | button | `step === 'people'` and `fileNote` and `undoUpload` |
+| “Remove this goal” | button | `step === 'goals'` and `start === 'own'` |
+| “Undo” | button | `step === 'goals'` and `start === 'own'` and `removed` |
+| “Add a goal” | button | `step === 'goals'` and `start === 'own'` |
+| “Download the template” | button | `step === 'goals'` and `start === 'file'` |
+| “Back” | button | `idx > 0` and `!fromCheck` |
 | “… (worked out when it shows)” | primary | always |
+| “Done” | primary | always |
 | “Move a number” | button | `!headline` |
 | “Keep a number in range” | button | `!headline` |
 | “Hit dated stages” | button | `!headline` |

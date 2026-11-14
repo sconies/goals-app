@@ -20,7 +20,7 @@ import type { Ask, Goal, Person, Review, Snapshot } from '../domain/types';
 import { CYCLE } from './examples';
 import { cell, link, table } from './md';
 import { R10, R5, R7, R8, R9 } from './platform';
-import { readingHistoryLine, readingThisWeek } from '../domain/reading';
+import { readingHistoryLine, readingThisWeek } from '../domain/readingWords';
 
 export interface InternalExample {
   given: string;
@@ -338,7 +338,7 @@ export const INTERNAL: InternalRequirement[] = [
     decided: [
       'The working figures (30,000 goals a cycle, 2,000 people in the busiest hour) and the budgets (2 s, 1 s, 500 ms, 300 KB; 5 minutes and 4 hours for a restore) are proposals for the internal team to confirm, not measurements.',
       'Pages of 50 rows, with keyset paging, as Faro already pages its loads.',
-      'Faro shows the pattern at its own size (backlog AX4): CI fails a change when the first download (the entry script and every file the page preloads with it) passes a stated size (`scripts/check-bundle.mjs`, 275 KB compressed: 262 KB on 12 Nov plus a 3 KB margin, raised by 10 KB on 13 Nov (Lane), under R4’s 300: every page but Home loads when it is opened, as do the guide, What’s new, the spreadsheet tools and the change engine, and the first download carries only Help’s index of article titles and routes and the newest release, so a release never grows it. AX4 first measured the entry alone, 241 KB; the check now counts every file the page preloads with it, which is what a first visit really waits for), or when the real app’s, which also waits for the Supabase store and client before it draws, passes 334 KB (321 on 12 Nov plus the same margin, raised by 10 KB with it), or when the demo workspace made ten times bigger passes a stated weight or time to summarise every goal (`src/spec/scale.test.ts`). Each limit is the size on the day it was set plus a 3 KB margin (`MARGIN_KB`): lowered as the size comes down, and raised only when Lane decides it.',
+      'Faro shows the pattern at its own size (backlog AX4): CI fails a change when the first download (the entry script and every file the page preloads with it) passes a stated size (`scripts/check-bundle.mjs`, 275 KB compressed: 262 KB on 12 Nov plus a 3 KB margin, raised by 10 KB on 13 Nov (Lane), under R4’s 300; 259 KB on 14 Nov, when Home’s goal rows stopped pulling in the goal page’s charts and words and the map’s layout (backlog FD), and the check fails if those come back into the first download: every page but Home loads when it is opened, as do the guide, What’s new, the spreadsheet tools and the change engine, and the first download carries only Help’s index of article titles and routes and the newest release, so a release never grows it. AX4 first measured the entry alone, 241 KB; the check now counts every file the page preloads with it, which is what a first visit really waits for), or when the real app’s, which also waits for the Supabase store and client before it draws, passes 334 KB (321 on 12 Nov plus the same margin, raised by 10 KB with it), or when the demo workspace made ten times bigger passes a stated weight or time to summarise every goal (`src/spec/scale.test.ts`). Each limit is the size on the day it was set plus a 3 KB margin (`MARGIN_KB`): lowered as the size comes down, and raised only when Lane decides it.',
     ],
   },
   R5,

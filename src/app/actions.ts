@@ -53,8 +53,9 @@ import type { Commit } from '../domain/commit';
 import MODULE_PARTS from 'virtual:faro-modules/actions';
 import { recordsOn } from '../core/records';
 import { isModuleOn, moduleById, modulesOn } from '../core/registry';
-import { moduleOffWords, reviewsOffWords, reviewsOn, reviewWriteRows, SWITCHED_ACTIONS, switchedOffWords } from './reads';
+import { moduleOffWords, reviewsOffWords, reviewsOn, reviewWriteRows, SWITCHED_ACTIONS, switchedOffWords, watchingOffWords, watchingOn } from './reads';
 import { writesReviews } from '../domain/reviewWrites';
+import { writesWatches } from '../domain/watchWrites';
 
 /** What the dispatcher hands each action: the rules' context, and the workspace itself for the few that change it. */
 export interface RunContext extends A.ActionContext {
@@ -228,12 +229,16 @@ export function performAny(x: RunContext, name: string, input: unknown): unknown
   // names and what it would save rather than which action it is (build review of #371): an input naming a review is
   // refused before its rule runs, so the rule never offers a review's way out; then a save that writes a review, a note
   // said in one, an ask raised in one or a goal proposed in one (Undo of an ended review, a review note corrected).
-  const off = !reviewsOn(modulesOn(x.workspace).on);
+  const on = modulesOn(x.workspace).on;
+  const off = !reviewsOn(on);
   if (off && namesReview(input)) throw new A.NotAllowed(reviewsOffWords(x.workspace.name));
   const out = fn ? fn(x, input) : mod!.run(x, input);
-  if (off) {
+  // Watching's records likewise (build review of #444): Watch, Stop watching, Undo and Recently removed alike.
+  const watchingOff = !watchingOn(on);
+  if (off || watchingOff) {
     const c = commitOf(name, out, input);
-    if (c && writesReviews(c, reviewWriteRows(x.full ?? x.snapshot))) throw new A.NotAllowed(reviewsOffWords(x.workspace.name));
+    if (c && off && writesReviews(c, reviewWriteRows(x.full ?? x.snapshot))) throw new A.NotAllowed(reviewsOffWords(x.workspace.name));
+    if (c && watchingOff && writesWatches(c)) throw new A.NotAllowed(watchingOffWords(x.workspace.name));
   }
   return out;
 }

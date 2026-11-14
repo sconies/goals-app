@@ -8,7 +8,7 @@ import { cycleUntil } from '../../domain/records';
 import { canLinkGoal, linkProblems, measureOf, metricsOf } from './rules';
 import { markLabel, marksFor, onDay } from './rulesChange';
 import { WarnMark } from '../../ui/bits';
-import { readingThisWeek } from '../../domain/reading';
+import { readingThisWeek } from '../../domain/readingWords';
 import { decimalsWords, directionWords, findMetrics, liveLinks, metricPath, type LibraryRow } from './rulesLibrary';
 import { libraryReads } from './reads';
 import './metrics.css';

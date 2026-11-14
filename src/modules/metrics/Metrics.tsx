@@ -26,13 +26,14 @@ import { MenuButton } from '../../ui/MenuButton';
 import { PickOne } from '../../ui/Pick';
 import { useWidth } from '../../ui/useWidth';
 import { canEditMetric, DIRECTION_LABEL, everUsed, liveMetrics, linksOf, METRIC_LIMITS, metricFrom, metricProblems, metricsOf, REFRESH_LABEL, REFRESHES, type Metric, type MetricDirection, type MetricInput, type MetricRefresh } from './rules';
+import { MENU_NOW } from './names';
 import type { MetricMeasurement } from './types';
 import { decimalsWords, directionWords, findMetrics, goalsByStatus, LIBRARY_PAGE, LIBRARY_SORTS, metricAt, metricNeeds, metricPath, movedMetrics, needsLine, ownerName, summaryLine, unitsInUse, type LibraryAsk, type LibrarySort, type MetricGoalRow } from './rulesLibrary';
 import { checkReads, goalsOfMetric, libraryReads, lineOf, proposedOfMetric } from './reads';
 import { countLine, metricChecks, STILL_FIELD, stillToSay, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
 import { CheckSaid, FixLine } from '../../ui/Levels';
 import { changeKinds, linkedGoals } from './rulesChange';
-import { readWhen } from '../../domain/reading';
+import { readWhen } from '../../domain/readingWords';
 import { checkInsFor } from '../../domain/status';
 import { differentNumbers, differentWords, fillsIn, fillsInWords } from './rulesReading';
 import { sliceOf, type NumberSource } from './source';
@@ -701,12 +702,13 @@ export function MetricForm() {
     try {
       // The answers go with the save: the action asks the same Checks and refuses while one is open.
       const answers = Object.fromEntries(checks.flatMap((c) => (answered[c.field] && answered[c.field]!.at === valueOf(c.field) ? [[c.field, answered[c.field]!.choice]] : [])));
+      const first = !live && !metricsOf(app.snapshot).some((m) => !m.removedAt);
       // A change says so with Undo (the action's `said`), which takes back its marks too; adding one says it here.
       const name = d.name.trim() || live?.name || '';
       const said = live ? (marking || unitIs === 'label' ? `Changed ${name}. ${plural(linked.length, 'goal says', 'goals say')} so.` : `Saved ${name}`) : undefined;
       const out = await app.run('saveMetric', { ...input, answers, ...(live ? { id: live.id, ...(question ? { comparable, relabel: unitIs === 'label', ...(why.trim() ? { reason: why.trim() } : {}) } : {}) } : {}) }, said ? { said } : {}) as { metric: Metric; commit: unknown };
       clearDraft();
-      if (!live) app.toast(`Added ${out.metric.name}`);
+      if (!live) app.toast(`Added ${out.metric.name}${first ? `. ${MENU_NOW}` : ''}`);
       else if (!out.commit) app.toast(`Saved ${out.metric.name}`);
       void nav(metricPath(out.metric), { replace: true });
     } catch { setBusy(false); }

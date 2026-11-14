@@ -475,7 +475,8 @@ export const WORK_TOOLS: ToolDef[] = [
     annotations: { ...WRITE, destructiveHint: true },
     async run(a, ctx) {
       if (a.confirm !== true || a.dry_run === true) {
-        const page = startPage(ctx.full ?? ctx.snapshot, ctx.cycle, ctx.today);
+        const on = modulesOn(ctx.ws).on;
+        const page = startPage(ctx.full ?? ctx.snapshot, ctx.cycle, ctx.today, { wrapUp: wrapUpOn(on), watching: watchingOn(on) });
         const rb = page.readBack;
         return { text: `${startPageText(page)}\n\nNothing has changed. Ask the person first, then call again with confirm: true.`, data: { next: page.next, canStart: page.canStart, whyNot: page.whyNot, counts: page.counts, ...(rb ? { carried: rb.carried, total: rb.total } : {}) } };
       }

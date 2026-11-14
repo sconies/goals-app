@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { applyCommit } from '../data/store';
-import { planChanges, records, type ChangeInput, type Rec } from './changeset';
+import { builtOver, planChanges, records, type ChangeInput, type Rec } from './changeset';
 import { sheetKindOf } from './columns';
 import { toCsv, workbook } from './export';
 import { parseTable } from './importer';
@@ -8,9 +8,9 @@ import { currentWeek, planAt } from './plan';
 import { cycleDates } from './cycle';
 import { goalStatus } from './status';
 import { buildPlatformOrg } from '../data/platformOrg';
-import type { MetricGoal } from './types';
+import type { MetricGoal, Snapshot } from './types';
 import type { ModuleRecords } from './records';
-import { blankGoal } from './goal';
+import { blankGoal, planQuestion } from './goal';
 import { goalMustFix } from './goalEntry';
 
 const today = new Date('2026-11-05T12:00:00Z');
@@ -325,5 +325,54 @@ describe('From and To in a file (rule 13; GE9 review)', () => {
     // With a Start column, From is a week; and a year and a week is never in doubt.
     expect(errors(planChanges(base('amara', { goals: [rec({ ID: 'mttr-pir', Start: '', From: '40' })] }, { confirm: true })))).toEqual([]);
     expect(errors(planChanges(base('amara', { goals: [rec({ ID: 'mttr-pir', From: '2026-W40' })] }, { confirm: true })))).toEqual([]);
+  });
+});
+
+describe('a proposed goal given its target later (GB review, HIGH)', () => {
+  // A number goal with no check-ins, proposed with a baseline and its target unset.
+  const g = s.goals.find((x) => x.kind === 'metric' && x.cycleId === cycle.id && !x.removedAt && !x.stoppedAt && !s.checkIns.some((c) => c.goalId === x.id)) as MetricGoal;
+  const target = g.plan.target;
+  const unset: MetricGoal = { ...g, proposedAt: today.toISOString(), proposedBy: g.ownerId, targetUnset: true, plan: { ...g.plan, target: g.plan.start }, baseline: { value: g.plan.start, period: 'June to September 2026', provisional: true } };
+  const snap: Snapshot = { ...s, goals: s.goals.map((x) => (x.id === g.id ? unset : x)) };
+  const plan = (o: Record<string, string>) => planChanges(base('amara', { goals: [rec({ ID: g.id, ...o })] }, { snapshot: snap }));
+  const saved = (cs: ReturnType<typeof planChanges>) => cs.commit!.goals!.find((x) => x.id === g.id) as MetricGoal;
+
+  it('takes a target alone, and the goal no longer says it has none', () => {
+    const cs = plan({ Target: String(target) });
+    expect(real(cs)).toEqual([]);
+    expect(cs.items).toHaveLength(1);
+    expect(saved(cs)).toMatchObject({ plan: { target }, baseline: unset.baseline, proposedAt: unset.proposedAt });
+    expect(saved(cs).targetUnset).toBeUndefined();
+  });
+
+  it('takes a target with State active: active, with its target, and nothing asked about the placeholder it replaces', () => {
+    const cs = plan({ Target: String(target), State: 'active' });
+    expect(real(cs)).toEqual([]);
+    expect(saved(cs)).toMatchObject({ plan: { target }, proposedAt: null });
+    expect(saved(cs).targetUnset).toBeUndefined();
+  });
+
+  it('removes the baseline for Baseline period none, and the target stays unset', () => {
+    const cs = plan({ 'Baseline period': 'none' });
+    expect(real(cs)).toEqual([]);
+    expect(cs.items).toHaveLength(1);
+    expect(saved(cs).baseline ?? null).toBeNull();
+    expect(saved(cs).targetUnset).toBe(true);
+  });
+
+  it('lays a build over the stored goal: the build decides its own keys, the stored goal keeps the rest', () => {
+    const built: MetricGoal = { ...g, plan: { ...g.plan, target } };
+    delete (built as Partial<MetricGoal>).baseline;
+    const over = builtOver({ ...unset, version: 4 }, built) as MetricGoal;
+    expect(over).toMatchObject({ version: 4, proposedAt: unset.proposedAt, plan: { target } });
+    expect('targetUnset' in over || 'baseline' in over).toBe(false);
+    // A goal that changes kind keeps nothing of its old kind.
+    const { plan: _p, originalPlan: _o, rebaselinedWeek: _r, baseline: _b, ...shared } = g;
+    const asRange = builtOver(unset, { ...shared, kind: 'range', range: { bound: 'atMost', limit: 5, margin: 0 } });
+    expect('plan' in asRange || 'originalPlan' in asRange).toBe(false);
+  });
+
+  it('asks no plan question when the target it replaces was never set', () => {
+    expect(planQuestion(unset, { ...unset, targetUnset: undefined, plan: { ...unset.plan, target: unset.plan.start - 1000 } })).toBeNull();
   });
 });
