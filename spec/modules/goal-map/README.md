@@ -48,5 +48,5 @@ Module id `goal-map`, in [src/modules/goal-map/](../../../src/modules/goal-map/m
 
 ## Rules, conformance and rebuild stage
 
-Its rebuild stage: [stage 5](../../rebuild/stage-5-module-goal-map.md) (an outline, with no drill yet).
+Its rebuild stage: [stage 6](../../rebuild/stage-6-module-goal-map.md) (an outline, with no drill yet).
 **Not self-explanatory:** it has no rules section or conformance rows of its own yet. It uses only the core rules (its imports go through [the change engine](../../core/rules/change-engine.md)), and its behaviour is in its code, its Help articles and the journeys above.

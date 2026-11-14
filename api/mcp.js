@@ -1,5 +1,4 @@
 // \0rolldown/runtime.js
-var __defProp = Object.defineProperty;
 var __esmMin = (fn, res, err) => () => {
 	if (err) throw err[0];
 	try {
@@ -7,15 +6,6 @@ var __esmMin = (fn, res, err) => () => {
 	} catch (e) {
 		throw err = [e], e;
 	}
-};
-var __exportAll = (all, no_symbols) => {
-	let target = {};
-	for (var name in all) __defProp(target, name, {
-		get: all[name],
-		enumerable: true
-	});
-	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
-	return target;
 };
 // server/log.ts
 /** Writes the failure to standard error and returns its reference. Never throws. */
@@ -352,9 +342,8 @@ function heldToNoNumber(g, held, now) {
 		unmeasuredSince: held ? now : null
 	};
 }
-var UNMEASURED, isUnmeasured;
+var isUnmeasured;
 var init_unmeasured = __esmMin((() => {
-	UNMEASURED = "Not measured yet";
 	isUnmeasured = (g) => !!g.unmeasuredSince && !g.removedAt && !g.stoppedAt;
 }));
 // src/domain/vocabulary.ts
@@ -455,6 +444,13 @@ var init_vocabulary = __esmMin((() => {
 			long: "Week 0: the goal is set up and its first check-in is due in week 1.",
 			rule: "status#goalStatus"
 		}),
+		unmeasured: term("unmeasured", {
+			label: "Not measured yet",
+			short: "its number isn’t measured yet",
+			meaning: "Its number isn’t measured yet, so it is held to no number: no status from its plan, nothing late, and no baseline needed.",
+			long: "The goal is measured by a number nobody collects yet, so it is held to no number until it is: no status from its plan, nothing late or quiet, and no projected year-end number. Once its number is measured, it is held to its plan again. The owner can still call it done.",
+			rule: "status#goalStatus"
+		}),
 		done: term("done", {
 			label: "Done",
 			short: "finished",
@@ -468,6 +464,7 @@ var init_vocabulary = __esmMin((() => {
 		"risk",
 		"stale",
 		"none",
+		"unmeasured",
 		"on",
 		"planned",
 		"done"
@@ -1028,7 +1025,7 @@ var init_vocabulary = __esmMin((() => {
 		late: RESULT.late.meaning,
 		missed: RESULT.missed.meaning
 	};
-	STATUS.on.label, RESULT.completed.label, RESULT.late.label, QUARTER.met.label, STATUS.risk.label, STAGE.risk.label, STATUS.off.label, STAGE.off.label, RESULT.missed.label, QUARTER.missed.label, STATUS.stale.label, STATUS.none.label, STATUS.planned.label, STAGE.planned.label, STATUS.done.label;
+	STATUS.on.label, RESULT.completed.label, RESULT.late.label, QUARTER.met.label, STATUS.risk.label, STAGE.risk.label, STATUS.off.label, STAGE.off.label, RESULT.missed.label, QUARTER.missed.label, STATUS.stale.label, STATUS.none.label, STATUS.unmeasured.label, STATUS.planned.label, STAGE.planned.label, STATUS.done.label;
 	lower = (t) => t.label.charAt(0).toLowerCase() + t.label.slice(1);
 	withCode = (t) => `${t.label} (${t.code})`;
 	choices = (terms, only) => (only ?? Object.keys(terms)).map((k) => withCode(terms[k])).join(", ");
@@ -1222,7 +1219,7 @@ function goalStatus(goal, cycle, checkIns, today) {
 	const latest = own.length ? own.reduce((a, b) => b.postedAt > a.postedAt ? b : a) : null;
 	const days = latest ? daysSince(latest.postedAt, today) : null;
 	if (isUnmeasured(goal)) return {
-		status: latest?.status === "done" ? "done" : week === 0 ? "planned" : "none",
+		status: latest?.status === "done" ? "done" : "unmeasured",
 		calc: "none",
 		latest,
 		greener: false,
@@ -1293,7 +1290,8 @@ var init_status = __esmMin((() => {
 		on: 1,
 		risk: 2,
 		stale: 2,
-		off: 3
+		off: 3,
+		unmeasured: 0
 	};
 	byGoalCache = /* @__PURE__ */ new WeakMap();
 	projects = (goal, status) => status !== "stale" && status !== "done" && !goal.stoppedAt && !isUnmeasured(goal);
@@ -1889,18 +1887,6 @@ function applyModuleRows(s, c) {
 	}
 	return out;
 }
-/** Two commits' module rows together, in order (a goal's save and its link, made in one form). */
-function mergeModuleRows(a, b) {
-	if (!a) return b;
-	if (!b) return a;
-	const out = { ...a };
-	for (const [mod, keys] of Object.entries(b)) {
-		const mine = { ...out[mod] ?? {} };
-		for (const [key, rows] of Object.entries(keys)) mine[key] = [...mine[key] ?? [], ...rows];
-		out[mod] = mine;
-	}
-	return out;
-}
 /**
 * What the open cycle keeps of every module's rows (domain/cycle scopeToCycle): each declared record's `carry`, or its
 * rows not removed. Rows of a module this build doesn't have stay exactly as they are: nothing is read into them, and
@@ -2114,7 +2100,7 @@ var init_proposed = __esmMin((() => {
 	};
 }));
 // src/domain/levels.ts
-var DEFAULT_LEVELS, all$1, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, isTop, levelRank, hasLevels, LEVEL_WORDS, EVERYDAY_WORD;
+var DEFAULT_LEVELS, all$1, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, isTop, levelRank, hasLevels, LEVEL_WORDS$1, EVERYDAY_WORD;
 var init_levels = __esmMin((() => {
 	DEFAULT_LEVELS = [
 		{
@@ -2147,7 +2133,7 @@ var init_levels = __esmMin((() => {
 		return i < 0 ? levelIds(c).length : i;
 	};
 	hasLevels = (c) => levelsOf$1(c).length >= 2;
-	LEVEL_WORDS = {
+	LEVEL_WORDS$1 = {
 		what: "Level",
 		word: {
 			"north-star": "north star",
@@ -2164,7 +2150,7 @@ var init_levels = __esmMin((() => {
 		},
 		prefix: { "north-star": ["north"] }
 	};
-	EVERYDAY_WORD = LEVEL_WORDS.word[everydayLevel(null)] ?? everydayLevel(null);
+	EVERYDAY_WORD = LEVEL_WORDS$1.word[everydayLevel(null)] ?? everydayLevel(null);
 }));
 // src/domain/progress.ts
 /** The person's goals this week: which are checked in and which are still due. */
@@ -3704,7 +3690,10 @@ function startsFromProvisional(g) {
 function periodProblem(period) {
 	return period.trim().length > 60 ? `The baseline’s period can be at most 60 characters.` : null;
 }
-var init_baseline = __esmMin((() => {}));
+var PROVISIONAL_LATE;
+var init_baseline = __esmMin((() => {
+	PROVISIONAL_LATE = "A baseline can be marked provisional only before the goal’s first check-in. To move where the plan starts now, change Start and say why.";
+}));
 // src/domain/goal.ts
 function blankGoal(teamId, ownerId, parentId) {
 	return {
@@ -4222,7 +4211,7 @@ var init_chartStory = __esmMin((() => {
 }));
 // src/domain/tree.ts
 /** Whether making `goal` feed `parentId` would make a loop: the parent is the goal or feeds into it. */
-function makesLoop(goalId, parentId, goals) {
+function makesLoop$1(goalId, parentId, goals) {
 	let p = parentId;
 	const seen = /* @__PURE__ */ new Set();
 	while (p && !seen.has(p)) {
@@ -4533,7 +4522,8 @@ function startReadBack(ctx) {
 /**
 * A goal's copy in the next year (rule 5): a new id, in the new cycle, made now, with its key and everything else as it
 * was. A number goal that **carries** starts from its final number in week 1 (\`fromWeek\` 0), with the same target
-* and shape, due at the end of the new year: no end week, no hand-set numbers, no earlier plans. One that **keeps** its
+* and shape, due at the end of the new year: no end week, no hand-set numbers, no earlier plans, and no baseline (last year's
+* was its old start). One that **keeps** its
 * plan keeps its dates, counted from the new year's start. The copy was proposed in no review of the new year, so it
 * keeps no `proposedIn` (build review of #376). Stages not done are spread evenly over the new year
 * (\`round((i + 1) × weeks / n)\`, never after its last week). A limit is unchanged.
@@ -4573,14 +4563,18 @@ function carryCopy(g, ctx) {
 		};
 	}
 	if (g.kind === "metric") {
+		const f = finalNumber(g, ctx.checkIns, ctx.old);
 		const plan = {
-			start: finalNumber(g, ctx.checkIns, ctx.old).value ?? g.plan.start,
+			start: f.value ?? g.plan.start,
 			target: g.plan.target,
 			shape: g.plan.shape,
 			fromWeek: 0
 		};
+		const { baseline: _old, ...rest } = base;
+		const kept = f.value == null && g.baseline ? { baseline: g.baseline } : {};
 		return {
-			...base,
+			...rest,
+			...kept,
 			kind: "metric",
 			plan,
 			originalPlan: null,
@@ -5270,7 +5264,7 @@ function requiredLine(kind) {
 	if (kind === "checkIns") return `${req("Goal key")} (or ${req("Goal")}), ${req("Week")}, and ${req("Value")} or ${req("Stages")}.`;
 	return `${req("Name")} and ${req("Email")}.`;
 }
-var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, FIRMNESS_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e$1, w$1, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$2, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, cellsOf, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, REVIEWS_COLUMN, sheetsFor, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$2, emptyText, isFillIn;
+var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, FIRMNESS_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$2, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, cellsOf, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, REVIEWS_COLUMN, sheetsFor, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$2, emptyText, isFillIn;
 var init_columns = __esmMin((() => {
 	init_levels();
 	init_asks();
@@ -5462,14 +5456,14 @@ var init_columns = __esmMin((() => {
 		write,
 		...loaded ? { loaded } : {}
 	});
-	e$1 = (header, means, write, loaded) => ({
+	e = (header, means, write, loaded) => ({
 		header,
 		role: "edit",
 		means,
 		write,
 		...loaded ? { loaded } : {}
 	});
-	w$1 = (header, means, write) => ({
+	w = (header, means, write) => ({
 		header,
 		role: "worked",
 		means,
@@ -5483,15 +5477,7 @@ var init_columns = __esmMin((() => {
 	});
 	moduleColumn = {
 		match: m$1,
-		edit: e$1,
-		worked: w$1,
-		shown: sh$1,
-		action: (header, means, write) => ({
-			header,
-			role: "action",
-			means,
-			write
-		})
+		shown: sh$1
 	};
 	cellOr = (v) => v == null || v === "" ? null : v;
 	blank = () => null;
@@ -5505,11 +5491,11 @@ var init_columns = __esmMin((() => {
 	};
 	stagesSpec = (g) => g.kind === "milestone" ? g.stages.map((x) => `${x.name}@${x.dueWeek}`).join("; ") : "";
 	RESULT_COLUMNS = [
-		w$1("Result", "Set once the goal is due, in the result words defined under Words.", (r) => or$1(r.s.story.result?.text)),
-		w$1("Q1", "The first quarter against the owner’s plan: a quarter’s target is the plan’s number at its end.", quarter(1)),
-		w$1("Q2", "The second quarter against the plan.", quarter(2)),
-		w$1("Q3", "The third quarter against the plan.", quarter(3)),
-		w$1("Q4", "The fourth quarter against the plan.", quarter(4))
+		w("Result", "Set once the goal is due, in the result words defined under Words.", (r) => or$1(r.s.story.result?.text)),
+		w("Q1", "The first quarter against the owner’s plan: a quarter’s target is the plan’s number at its end.", quarter(1)),
+		w("Q2", "The second quarter against the plan.", quarter(2)),
+		w("Q3", "The third quarter against the plan.", quarter(3)),
+		w("Q4", "The fourth quarter against the plan.", quarter(4))
 	];
 	GOALS = {
 		kind: "goals",
@@ -5520,83 +5506,83 @@ var init_columns = __esmMin((() => {
 		columns: [
 			m$1("Key", "The goal’s short key in this workspace (G-12). It never changes, and a goal carried into the next cycle keeps it. Leave it empty for a new goal.", (r) => or$1(r.g.key), "Matches the goal first, so a file from last cycle still finds its goals"),
 			m$1("ID", "The goal’s identity in this cycle. Leave it empty for a new goal.", (r) => r.g.id, "Matches the goal when there’s no Key"),
-			e$1("Goal", "The goal’s name.", (r) => r.g.title),
+			e("Goal", "The goal’s name.", (r) => r.g.title),
 			{
 				header: "Action",
 				role: "action",
 				means: `Empty to add or change the goal. ${GOAL_ACTION_WORDS.word.stop} stops a goal with check-ins (say why in Reason); ${GOAL_ACTION_WORDS.word.delete} deletes one with none, set up by mistake.`,
 				write: blank
 			},
-			e$1("Ref", "A label of your own for this row, so other rows in the same file can name the goal it adds before it has a key (Feeds into ref, Goal ref). Only for this file: never kept. Empty in an export.", blank, "Names the row’s goal for Feeds into ref and Goal ref in the same file"),
-			e$1("Level", `${oneOf(Object.values(LEVEL_WORDS.word))}: how important it is, for reporting.`, (r) => LEVEL_WORDS.word[r.g.level] ?? r.g.level),
-			e$1("Team", "The team it belongs to, by name.", (r) => or$1(r.c.team(r.g.teamId))),
-			e$1("Owner", "Who owns it, by name. A name works when only one person has it; Owner email is exact.", (r) => or$1(r.c.name(r.g.ownerId))),
-			e$1("Owner email", "Who owns it, by email: what tells two people with the same name apart.", (r) => r.c.email(r.g.ownerId), "Changes the owner; when Owner and Owner email disagree, the one you changed counts"),
-			e$1("Type", `${oneOf(Object.values(TYPE_WORDS.word))}: move a number, keep one in range, or hit dated stages.`, (r) => TYPE_WORDS.word[r.g.kind], "Sets a new goal’s type; it can’t change on an existing goal"),
-			e$1("State", "active or proposed.", (r) => r.g.stoppedAt ? "stopped" : r.g.proposedAt ? "proposed" : "active"),
-			e$1("Unit", "Number and range goals: what the number counts (%, days, ms).", (r) => r.g.kind === "milestone" ? null : or$1(r.g.unit)),
-			e$1("Decimals", "Number and range goals: how many decimal places the number has (0 to 3).", (r) => r.g.kind === "milestone" ? null : r.g.decimals),
-			e$1("Start", "Number goals: where the plan starts.", (r) => metricOf$2(r.g)?.plan.start ?? null, "Changes the plan; needs a reason once check-ins have started"),
-			e$1("Baseline period", "Number goals: the period the baseline (Start) covers, when it is a figure you already have (June to September 2026). Shown as the goal’s number until its first check-in.", (r) => metricOf$2(r.g)?.baseline?.period ?? null),
-			e$1("Baseline is", `Number goals with a baseline period: ${oneOf(Object.values(FIRMNESS_WORDS.word))}. Firming up a provisional baseline isn’t a plan change.`, (r) => {
+			e("Ref", "A label of your own for this row, so other rows in the same file can name the goal it adds before it has a key (Feeds into ref, Goal ref). Only for this file: never kept. Empty in an export.", blank, "Names the row’s goal for Feeds into ref and Goal ref in the same file"),
+			e("Level", `${oneOf(Object.values(LEVEL_WORDS$1.word))}: how important it is, for reporting.`, (r) => LEVEL_WORDS$1.word[r.g.level] ?? r.g.level),
+			e("Team", "The team it belongs to, by name.", (r) => or$1(r.c.team(r.g.teamId))),
+			e("Owner", "Who owns it, by name. A name works when only one person has it; Owner email is exact.", (r) => or$1(r.c.name(r.g.ownerId))),
+			e("Owner email", "Who owns it, by email: what tells two people with the same name apart.", (r) => r.c.email(r.g.ownerId), "Changes the owner; when Owner and Owner email disagree, the one you changed counts"),
+			e("Type", `${oneOf(Object.values(TYPE_WORDS.word))}: move a number, keep one in range, or hit dated stages.`, (r) => TYPE_WORDS.word[r.g.kind], "Sets a new goal’s type; it can’t change on an existing goal"),
+			e("State", "active or proposed.", (r) => r.g.stoppedAt ? "stopped" : r.g.proposedAt ? "proposed" : "active"),
+			e("Unit", "Number and range goals: what the number counts (%, days, ms).", (r) => r.g.kind === "milestone" ? null : or$1(r.g.unit)),
+			e("Decimals", "Number and range goals: how many decimal places the number has (0 to 3).", (r) => r.g.kind === "milestone" ? null : r.g.decimals),
+			e("Start", "Number goals: where the plan starts.", (r) => metricOf$2(r.g)?.plan.start ?? null, "Changes the plan; needs a reason once check-ins have started"),
+			e("Baseline period", "Number goals: the period the baseline (Start) covers, when it is a figure you already have (June to September 2026). Shown as the goal’s number until its first check-in.", (r) => metricOf$2(r.g)?.baseline?.period ?? null),
+			e("Baseline is", `Number goals with a baseline period: ${oneOf(Object.values(FIRMNESS_WORDS.word))}. Firming up a provisional baseline isn’t a plan change.`, (r) => {
 				const b = metricOf$2(r.g)?.baseline;
 				return b ? FIRMNESS_WORDS.word[b.provisional ? "provisional" : "firm"] : null;
 			}),
-			e$1("Target", "Number goals: where the plan ends, by its due week.", (r) => {
+			e("Target", "Number goals: where the plan ends, by its due week.", (r) => {
 				const m = metricOf$2(r.g);
 				return m && !m.targetUnset ? m.plan.target : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
-			e$1("Plan", `Number goals: the plan’s shape, ${oneOf(Object.values(SHAPE_WORDS.word))}.`, (r) => {
+			e("Plan", `Number goals: the plan’s shape, ${oneOf(Object.values(SHAPE_WORDS.word))}.`, (r) => {
 				const g = metricOf$2(r.g);
 				return g ? SHAPE_WORDS.word[g.plan.shape] : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
-			e$1("From", "Number goals: the week the plan starts from (2026-W46).", (r) => {
+			e("From", "Number goals: the week the plan starts from (2026-W46).", (r) => {
 				const g = metricOf$2(r.g);
 				return g ? weekCode(r.c.x.cycle, g.plan.fromWeek ?? 0) : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
-			e$1("Plan from week", "Number goals: the week the plan starts from (0 for the cycle’s start, later for a goal set up mid-cycle).", (r) => {
+			e("Plan from week", "Number goals: the week the plan starts from (0 for the cycle’s start, later for a goal set up mid-cycle).", (r) => {
 				const g = metricOf$2(r.g);
 				return g ? g.plan.fromWeek ?? 0 : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
-			e$1("To", "Number goals: the week the target is due (2027-W13).", (r) => {
+			e("To", "Number goals: the week the target is due (2027-W13).", (r) => {
 				const g = metricOf$2(r.g);
 				return g ? weekCode(r.c.x.cycle, planEnd(g.plan, r.c.x.cycle.weeks)) : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
-			e$1("Due week", "Number goals: the week the target is due, counted from the cycle’s start.", (r) => {
+			e("Due week", "Number goals: the week the target is due, counted from the cycle’s start.", (r) => {
 				const g = metricOf$2(r.g);
 				return g ? planEnd(g.plan, r.c.x.cycle.weeks) : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
-			e$1("Limit", "Range goals: the number it must stay within, or both of two (99.5–99.95).", (r) => {
+			e("Limit", "Range goals: the number it must stay within, or both of two (99.5–99.95).", (r) => {
 				const g = rangeOf(r.g)?.range;
 				return g ? g.lower != null ? `${g.lower}–${g.limit}` : g.limit : null;
 			}),
-			e$1("Must stay", `Range goals: ${oneOf(Object.values(BOUND_WORDS.word))} the limit.`, (r) => {
+			e("Must stay", `Range goals: ${oneOf(Object.values(BOUND_WORDS.word))} the limit.`, (r) => {
 				const g = rangeOf(r.g);
 				return g ? BOUND_WORDS.word[g.range.bound] : null;
 			}),
-			e$1("Margin", "Range goals: how close to the limit counts as at risk.", (r) => rangeOf(r.g)?.range.margin ?? null),
-			e$1("Stages", "Milestone goals: each stage as Name@week, separated by semicolons.", (r) => or$1(stagesSpec(r.g))),
-			e$1("Feeds into", "The goal this one feeds, by name.", (r) => or$1(parentOf(r)?.title)),
-			e$1("Feeds into key", "The goal this one feeds, by key. Exact where names repeat.", (r) => or$1(parentOf(r)?.key), "Changes what it feeds; when Feeds into and Feeds into key disagree, the one you changed counts"),
-			e$1("Feeds into ref", "The goal this one feeds, by the Ref of its row in this file: a goal the same file adds. Empty in an export.", blank, "Changes what it feeds, like Feeds into key"),
-			e$1("Why it helps", "Why this goal should move the one it feeds: a hypothesis, not a proven cause.", (r) => or$1(r.g.whyHelps)),
-			e$1("Effect", "The effect expected on the goal it feeds, in that goal’s unit.", (r) => r.g.effect),
-			e$1("Source", "Where the number comes from, and who owns that source.", (r) => or$1(r.g.source)),
-			e$1("Definition", "Exactly what is counted.", (r) => or$1(r.g.definition)),
-			e$1("Reason", "Why the plan is changing, or why the goal stops. Written by you; empty in an export.", blank, "Kept in the change log with the change"),
-			w$1("Status", "Where the goal stands now, in the status words defined under Words below; Proposed for a proposed goal.", (r) => r.g.stoppedAt ? STOPPED : r.s.statusLabel),
-			w$1("Since", "How long it has stood so.", (r) => or$1(r.s.story.since)),
-			w$1("Now", "The latest number, or stages done.", (r) => or$1(r.s.now)),
-			w$1("Plan this week", "Number goals: the plan’s number this week.", (r) => r.s.planNow != null ? r.s.planNowText : null),
-			w$1("Gap", "How far it is from the plan, said the same whichever way is better.", (r) => or$1(r.s.gap)),
-			w$1("Last check-in week", "The week of its latest check-in.", (r) => r.s.lastWeek),
-			w$1("Forecast", "Where the recent trend takes it by its due week.", (r) => or$1(r.s.forecast)),
-			w$1("Why it’s off", "The owner’s latest reason, when it’s behind.", (r) => or$1(r.s.story.why)),
-			w$1("Recovery plan", "What the owner will do about it.", (r) => or$1(r.s.story.doing)),
-			w$1("By when", "When it will be back on plan, or why there’s no date.", (r) => or$1(r.s.story.byWhen)),
-			w$1("Needs", "The open asks for a decision or help.", (r) => or$1(r.s.story.needs)),
-			w$1("Next step", "The owner’s next step.", (r) => or$1(r.s.story.next)),
-			w$1("Warnings", "What the numbers would hide; each warning starts with its word, defined under Words.", (r) => or$1(r.s.story.warnings.join(" "))),
+			e("Margin", "Range goals: how close to the limit counts as at risk.", (r) => rangeOf(r.g)?.range.margin ?? null),
+			e("Stages", "Milestone goals: each stage as Name@week, separated by semicolons.", (r) => or$1(stagesSpec(r.g))),
+			e("Feeds into", "The goal this one feeds, by name.", (r) => or$1(parentOf(r)?.title)),
+			e("Feeds into key", "The goal this one feeds, by key. Exact where names repeat.", (r) => or$1(parentOf(r)?.key), "Changes what it feeds; when Feeds into and Feeds into key disagree, the one you changed counts"),
+			e("Feeds into ref", "The goal this one feeds, by the Ref of its row in this file: a goal the same file adds. Empty in an export.", blank, "Changes what it feeds, like Feeds into key"),
+			e("Why it helps", "Why this goal should move the one it feeds: a hypothesis, not a proven cause.", (r) => or$1(r.g.whyHelps)),
+			e("Effect", "The effect expected on the goal it feeds, in that goal’s unit.", (r) => r.g.effect),
+			e("Source", "Where the number comes from, and who owns that source.", (r) => or$1(r.g.source)),
+			e("Definition", "Exactly what is counted.", (r) => or$1(r.g.definition)),
+			e("Reason", "Why the plan is changing, or why the goal stops. Written by you; empty in an export.", blank, "Kept in the change log with the change"),
+			w("Status", "Where the goal stands now, in the status words defined under Words below; Proposed for a proposed goal.", (r) => r.g.stoppedAt ? STOPPED : r.s.statusLabel),
+			w("Since", "How long it has stood so.", (r) => or$1(r.s.story.since)),
+			w("Now", "The latest number, or stages done.", (r) => or$1(r.s.now)),
+			w("Plan this week", "Number goals: the plan’s number this week.", (r) => r.s.planNow != null ? r.s.planNowText : null),
+			w("Gap", "How far it is from the plan, said the same whichever way is better.", (r) => or$1(r.s.gap)),
+			w("Last check-in week", "The week of its latest check-in.", (r) => r.s.lastWeek),
+			w("Forecast", "Where the recent trend takes it by its due week.", (r) => or$1(r.s.forecast)),
+			w("Why it’s off", "The owner’s latest reason, when it’s behind.", (r) => or$1(r.s.story.why)),
+			w("Recovery plan", "What the owner will do about it.", (r) => or$1(r.s.story.doing)),
+			w("By when", "When it will be back on plan, or why there’s no date.", (r) => or$1(r.s.story.byWhen)),
+			w("Needs", "The open asks for a decision or help.", (r) => or$1(r.s.story.needs)),
+			w("Next step", "The owner’s next step.", (r) => or$1(r.s.story.next)),
+			w("Warnings", "What the numbers would hide; each warning starts with its word, defined under Words.", (r) => or$1(r.s.story.warnings.join(" "))),
 			...RESULT_COLUMNS
 		]
 	};
@@ -5611,7 +5597,7 @@ var init_columns = __esmMin((() => {
 			m$1("ID", "The goal’s ID in this cycle.", (r) => r.g.id, "Matches the goal when there’s no Key"),
 			sh$1("Goal", "The goal’s name (change it on Goals).", (r) => r.g.title),
 			sh$1("Unit", "What the number counts (change it on Goals).", (r) => or$1(r.g.unit)),
-			e$1("Start", "Where the plan starts.", (r) => r.g.plan.start, "Changes the plan; needs a reason once check-ins have started")
+			e("Start", "Where the plan starts.", (r) => r.g.plan.start, "Changes the plan; needs a reason once check-ins have started")
 		]
 	};
 	WEEK_COLUMN = {
@@ -5639,28 +5625,28 @@ var init_columns = __esmMin((() => {
 			m$1("Goal", "The goal’s name.", (r) => r.g.title, "Matches the goal by name, only when there’s no Goal key or Goal ID"),
 			m$1("Goal ref", "The goal, by the Ref of its row on Goals in this file: a goal the same file adds. Empty in an export.", blank, "Matches the goal the Goals row with that Ref adds or changes, first"),
 			m$1("Week", "The week it reports on, counted from the cycle’s start (week 1 onwards).", (r) => r.ci.week, "Matches the week; a check-in’s week never changes"),
-			w$1("Week starting", "The date that week starts.", (r) => weekDate(r.c.x.cycle, r.ci.week)),
-			e$1("Value", "Number and range goals: the number that week.", (r) => r.ci.value),
-			w$1("Number from", "“Typed”, or the name of the source the number was filled in from. Empty when no source was read.", (r) => cellsOf(r).from),
-			w$1("Source’s number", "What the source said, when one was read.", (r) => cellsOf(r).value),
-			w$1("Measured at", "When the source measured it (ISO, UTC).", (r) => cellsOf(r).at),
+			w("Week starting", "The date that week starts.", (r) => weekDate(r.c.x.cycle, r.ci.week)),
+			e("Value", "Number and range goals: the number that week.", (r) => r.ci.value),
+			w("Number from", "“Typed”, or the name of the source the number was filled in from. Empty when no source was read.", (r) => cellsOf(r).from),
+			w("Source’s number", "What the source said, when one was read.", (r) => cellsOf(r).value),
+			w("Measured at", "When the source measured it (ISO, UTC).", (r) => cellsOf(r).at),
 			sh$1("Reason for a different number", "Why the owner’s number differs from the source’s, in their words.", (r) => cellsOf(r).reason),
-			e$1("Stages", "Milestone goals: each stage as “Pilot: done week 6”, “Pilot: expected week 8” or “Pilot: due week 7”, separated by semicolons.", (r) => or$1(stagesText(r.g, r.ci))),
-			e$1("Call", `The owner’s status call: ${oneOf(Object.values(CALL_WORDS.word))}. Empty: the rules decide.`, (r) => CALL_WORDS.word[r.ci.status]),
-			e$1("Cause", `Why it’s ahead or behind: ${oneOf([...new Set(Object.values(CAUSE_WORDS.word))])}.`, (r) => or$1(r.ci.cause ? causeLabel(r.ci.cause) : null), "Required when behind or well ahead, as in the app"),
-			e$1("Why", "The owner’s reason, in their words.", (r) => or$1(r.ci.why), "Required when behind or well ahead, as in the app"),
-			e$1("Why greener", `Why the owner’s call is ${lower(FLAG.greener)}.`, (r) => or$1(r.ci.greenerWhy)),
-			e$1("Path to green", "What changes to get back on plan.", (r) => or$1(r.ci.pathToGreen?.what)),
-			e$1("Recovery", `Where getting back stands: ${oneOf(Object.values(RECOVERY_WORDS.word))}.`, (r) => r.ci.pathToGreen ? RECOVERY_WORDS.word[r.ci.pathToGreen.state ?? "plan"] : null),
-			e$1("Back on plan by week", "The week it’s back on plan by, when there’s a plan.", (r) => r.ci.pathToGreen?.byWeek ?? null),
-			e$1("Needs", "A decision or help it needs, and from whom.", (r) => or$1(r.ci.pathToGreen?.needs)),
-			e$1("Next step", "The owner’s next step.", (r) => or$1(r.ci.next)),
-			w$1("Calculated", "What the rules said that week, in the status words.", (r) => LABEL[r.ci.calculated]),
-			w$1("Plan that week", "Number goals: the plan’s number in that week, as it stood then.", (r) => r.g.kind === "metric" ? Number(planAt(planAsOf(r.g, r.ci.week), r.ci.week, r.c.x.cycle.weeks).toFixed(r.g.decimals)) : null),
-			w$1("Posted at", "When it was posted.", (r) => r.ci.postedAt),
-			w$1("Posted by", "Who posted it.", (r) => or$1(r.c.name(r.ci.authorId))),
-			w$1("Posted by email", "Who posted it, by email.", (r) => r.c.email(r.ci.authorId)),
-			w$1("Backfilled", "“yes” for history loaded later rather than posted in its week.", (r) => r.ci.backfilled ? "yes" : null)
+			e("Stages", "Milestone goals: each stage as “Pilot: done week 6”, “Pilot: expected week 8” or “Pilot: due week 7”, separated by semicolons.", (r) => or$1(stagesText(r.g, r.ci))),
+			e("Call", `The owner’s status call: ${oneOf(Object.values(CALL_WORDS.word))}. Empty: the rules decide.`, (r) => CALL_WORDS.word[r.ci.status]),
+			e("Cause", `Why it’s ahead or behind: ${oneOf([...new Set(Object.values(CAUSE_WORDS.word))])}.`, (r) => or$1(r.ci.cause ? causeLabel(r.ci.cause) : null), "Required when behind or well ahead, as in the app"),
+			e("Why", "The owner’s reason, in their words.", (r) => or$1(r.ci.why), "Required when behind or well ahead, as in the app"),
+			e("Why greener", `Why the owner’s call is ${lower(FLAG.greener)}.`, (r) => or$1(r.ci.greenerWhy)),
+			e("Path to green", "What changes to get back on plan.", (r) => or$1(r.ci.pathToGreen?.what)),
+			e("Recovery", `Where getting back stands: ${oneOf(Object.values(RECOVERY_WORDS.word))}.`, (r) => r.ci.pathToGreen ? RECOVERY_WORDS.word[r.ci.pathToGreen.state ?? "plan"] : null),
+			e("Back on plan by week", "The week it’s back on plan by, when there’s a plan.", (r) => r.ci.pathToGreen?.byWeek ?? null),
+			e("Needs", "A decision or help it needs, and from whom.", (r) => or$1(r.ci.pathToGreen?.needs)),
+			e("Next step", "The owner’s next step.", (r) => or$1(r.ci.next)),
+			w("Calculated", "What the rules said that week, in the status words.", (r) => LABEL[r.ci.calculated]),
+			w("Plan that week", "Number goals: the plan’s number in that week, as it stood then.", (r) => r.g.kind === "metric" ? Number(planAt(planAsOf(r.g, r.ci.week), r.ci.week, r.c.x.cycle.weeks).toFixed(r.g.decimals)) : null),
+			w("Posted at", "When it was posted.", (r) => r.ci.postedAt),
+			w("Posted by", "Who posted it.", (r) => or$1(r.c.name(r.ci.authorId))),
+			w("Posted by email", "Who posted it, by email.", (r) => r.c.email(r.ci.authorId)),
+			w("Backfilled", "“yes” for history loaded later rather than posted in its week.", (r) => r.ci.backfilled ? "yes" : null)
 		]
 	};
 	PEOPLE = {
@@ -5672,21 +5658,21 @@ var init_columns = __esmMin((() => {
 		columns: [
 			m$1("Email", "Their email: what matches them, and tells two people with the same name apart. Required for someone new.", (r) => r.c.email(r.p.id), "Matches the person; with their ID in the row, a new email replaces the old one"),
 			m$1("ID", "The person’s own identity. It never changes.", (r) => r.p.id, "Matches the person first"),
-			e$1("Name", "Their full name.", (r) => r.p.name),
+			e("Name", "Their full name.", (r) => r.p.name),
 			{
 				header: "Action",
 				role: "action",
 				means: `Empty to add or change the person. ${PERSON_ACTION_WORDS.word.left} marks them as left; their goals and open asks go to Takes over.`,
 				write: blank
 			},
-			e$1("Job title", "Their job title.", (r) => or$1(r.p.role)),
-			e$1("Team", "Their team, by name.", (r) => or$1(r.c.team(r.p.teamId))),
-			e$1("Admin", "“yes” for an admin: they can add people, change settings and change any goal.", (r) => r.p.admin ? "yes" : null),
-			e$1("Team objective", "On the team lead’s row: what the team is for.", (r) => {
+			e("Job title", "Their job title.", (r) => or$1(r.p.role)),
+			e("Team", "Their team, by name.", (r) => or$1(r.c.team(r.p.teamId))),
+			e("Admin", "“yes” for an admin: they can add people, change settings and change any goal.", (r) => r.p.admin ? "yes" : null),
+			e("Team objective", "On the team lead’s row: what the team is for.", (r) => {
 				const t = r.c.x.snapshot.teams.find((v) => v.id === r.p.teamId);
 				return t && t.leadId === r.p.id ? or$1(t.objective) : null;
 			}, "Changes the team’s objective (on the lead’s row; empty there clears it)"),
-			e$1("Takes over", `With ${PERSON_ACTION_WORDS.word.left}: who takes over their goals, open asks and teams, by email (or a name only one person has). Empty in an export.`, blank, `Used with ${PERSON_ACTION_WORDS.word.left}`)
+			e("Takes over", `With ${PERSON_ACTION_WORDS.word.left}: who takes over their goals, open asks and teams, by email (or a name only one person has). Empty in an export.`, blank, `Used with ${PERSON_ACTION_WORDS.word.left}`)
 		]
 	};
 	RESULTS = {
@@ -5699,14 +5685,14 @@ var init_columns = __esmMin((() => {
 			m$1("Key", "The goal’s key.", (r) => or$1(r.g.key)),
 			m$1("ID", "The goal’s ID in this cycle.", (r) => r.g.id),
 			sh$1("Goal", "The goal’s name.", (r) => r.g.title),
-			sh$1("Level", "Its level.", (r) => LEVEL_WORDS.word[r.g.level] ?? r.g.level),
+			sh$1("Level", "Its level.", (r) => LEVEL_WORDS$1.word[r.g.level] ?? r.g.level),
 			sh$1("Team", "Its team.", (r) => or$1(r.c.team(r.g.teamId))),
 			sh$1("Owner", "Who owns it.", (r) => or$1(r.c.name(r.g.ownerId))),
 			sh$1("Owner email", "Who owns it, by email.", (r) => r.c.email(r.g.ownerId)),
 			sh$1("Target", "Its target.", (r) => or$1(r.s.target)),
 			sh$1("Due week", "The week it’s due.", (r) => r.s.dueWeek),
-			w$1("Status", "Where it stands now.", (r) => r.g.stoppedAt ? STOPPED : r.s.statusLabel),
-			w$1("Now", "The latest number, or stages done.", (r) => or$1(r.s.now)),
+			w("Status", "Where it stands now.", (r) => r.g.stoppedAt ? STOPPED : r.s.statusLabel),
+			w("Now", "The latest number, or stages done.", (r) => or$1(r.s.now)),
 			...RESULT_COLUMNS
 		]
 	};
@@ -5725,7 +5711,7 @@ var init_columns = __esmMin((() => {
 			sh$1("Goal IDs", "Their IDs.", (r) => r.a.goalIds.join("; ")),
 			sh$1("Asked by", "Who asked.", (r) => or$1(r.c.name(r.a.askedBy))),
 			sh$1("Asked of", "Who must respond.", (r) => r.a.recipientId ? or$1(r.c.name(r.a.recipientId)) : "Anyone"),
-			w$1("Status", `Where it stands: ${oneOf(Object.values(ASK_STATUS_LABEL))}.`, (r) => ASK_STATUS_LABEL[r.a.status]),
+			w("Status", `Where it stands: ${oneOf(Object.values(ASK_STATUS_LABEL))}.`, (r) => ASK_STATUS_LABEL[r.a.status]),
 			sh$1("Due week", "The week it’s due by, if any.", (r) => r.a.dueWeek),
 			sh$1("Review", "The review it was raised in.", (r) => r.c.x.snapshot.reviews.find((v) => v.id === r.a.reviewId)?.name ?? null),
 			sh$1("Asked at", "When.", (r) => r.a.createdAt),
@@ -5854,7 +5840,7 @@ var init_columns = __esmMin((() => {
 			},
 			Level: {
 				required: { optional: EVERYDAY_WORD },
-				format: wordList(LEVEL_WORDS),
+				format: wordList(LEVEL_WORDS$1),
 				example: EVERYDAY_WORD,
 				empty: EVERYDAY_WORD,
 				also: ["goal level"]
@@ -6461,7 +6447,8 @@ var init_query = __esmMin((() => {
 		"on",
 		"done",
 		"none",
-		"planned"
+		"planned",
+		"unmeasured"
 	].map((k) => [k, LABEL[k]]);
 	NEED_OPTIONS = [...ATTENTION_FLAGS.filter((k) => k !== "due").map((k) => [k, FLAG[k].label]), ["slipped", WARNING.slipped.label]];
 	OLD_NEEDS = {
@@ -7976,8 +7963,15 @@ function setModule(x, ws, modules, id, on) {
 	const needing = (root) => modules.filter((k) => k.needs.includes(root)).flatMap((k) => [k.name, ...needing(k.id)]);
 	const also = [...new Set(needing(id))];
 	const name = m.name;
+	const ids = /* @__PURE__ */ new Set([id, ...modules.filter((k) => also.includes(k.name)).map((k) => k.id)]);
+	const parts = (x.records ?? []).filter((r) => ids.has(r.module)).flatMap((r) => {
+		const p = r.switched?.(x, on);
+		return p ? [p] : [];
+	});
+	const goals = parts.flatMap((p) => p.goals ?? []);
 	return {
 		modulesOff: off,
+		...goals.length ? { goals } : {},
 		changes: [{
 			id: x.newId("chg"),
 			at: x.now,
@@ -7992,7 +7986,7 @@ function setModule(x, ws, modules, id, on) {
 				from: on ? "Off" : "On",
 				to: on ? "On" : "Off"
 			}]
-		}]
+		}, ...parts.flatMap((p) => p.changes)]
 	};
 }
 /** Admins: add a team, or rename one or change its lead. Null commit when nothing changed. */
@@ -8355,6 +8349,7 @@ function goalMustFix(d, ctx) {
 			const s = number("start", d.start, ["start-empty", ctx.existing ? "Enter where it starts." : "Enter where it starts today."]);
 			const long = periodProblem(d.baselinePeriod ?? "");
 			if (long) add("start", "baseline-period-long", long);
+			if (d.baselineProvisional && ctx.existing?.kind === "metric" && !ctx.existing.baseline?.provisional && (ctx.checkIns ?? []).some((c) => !c.removedAt)) add("start", "baseline-provisional-late", PROVISIONAL_LATE);
 			const t = number("target", d.target, ["target-empty", "Enter the target."]);
 			if (s != null && t != null && s === t) add("target", "same-as-start", `The target is the same as today (${withUnit(groupDigits(String(s)), d.unit)}). To hold a number where it is, make this a number to keep in range.`, { hold: s });
 			const stored = new Map(ctx.existing?.kind === "metric" ? (ctx.existing.plan.points ?? []).map((p) => [String(p.week), p.value]) : []);
@@ -9937,20 +9932,7 @@ function undoPlan(x, importId) {
 		} : null);
 		if (back) requests.push(back);
 	}
-	const modules = {};
-	let moduleBack = 0;
-	for (const m of u.moduleRows ?? []) for (const { id, before } of m.rows) {
-		const cur = (full.modules?.[m.module]?.[m.key] ?? []).find((r) => r.id === id);
-		const back = before ?? (cur && !cur.removedAt ? {
-			...cur,
-			removedAt: x.now,
-			removedBy: x.actor.id
-		} : null);
-		if (!back) continue;
-		((modules[m.module] ??= {})[m.key] ??= []).push(back);
-		moduleBack++;
-	}
-	const restored = goalsBack + checkIns.length + people.length + reviews.length + teams.length + removeTeams.length + requests.filter((r) => ownAsks.has(r.id)).length + moduleBack;
+	const restored = goalsBack + checkIns.length + people.length + reviews.length + teams.length + removeTeams.length + requests.filter((r) => ownAsks.has(r.id)).length;
 	changes.unshift(log$2(x, {
 		entity: "workspace",
 		entityId: importId,
@@ -9978,7 +9960,6 @@ function undoPlan(x, importId) {
 			...reviews.length ? { reviews } : {},
 			...teams.length ? { teams } : {},
 			...removeTeams.length ? { removeTeams } : {},
-			...moduleBack ? { modules } : {},
 			changes
 		}
 	};
@@ -10401,7 +10382,7 @@ function groupTitle(kind, sheet, count, first) {
 		case "ambiguous-ref": return `${n$1(count, "row")} say “${v}”, and more than one ${THING[col] ?? "record"} is called that`;
 		case "conflicting-refs": return `${n$1(count, "row")} name${count === 1 ? "s" : ""} two different ${THING[col] === "goal" ? "goals" : "people"}`;
 		case "bad-key": return /look like/.test(first.message) ? `${n$1(count, "key")} ${count === 1 ? "doesn’t" : "don’t"} look like G-12` : `${n$1(count, col === "ID" || col === "Goal ID" ? "ID" : "key")} ${count === 1 ? "isn’t" : "aren’t"} here`;
-		case "duplicate": return sheet === "People" ? `${n$1(count, "person", "people")} appear on more than one row` : sheet === "Check-ins" ? `${n$1(count, "check-in")} appear on more than one row` : sheet === "Goals" ? `${n$1(count, "goal")} appear on more than one row` : `${n$1(count, "row")} repeat${count === 1 ? "s" : ""} another row`;
+		case "duplicate": return sheet === "People" ? `${n$1(count, "person", "people")} appear on more than one row` : sheet === "Check-ins" ? `${n$1(count, "check-in")} appear on more than one row` : `${n$1(count, "goal")} appear on more than one row`;
 		case "type-unclear": return `${n$1(count, "new goal")} ${count === 1 ? "doesn’t" : "don’t"} say what type ${count === 1 ? "it is" : "they are"}`;
 		case "plan-order": return `${n$1(count, "plan")} ${count === 1 ? "ends" : "end"} before ${count === 1 ? "it starts" : "they start"}, or ${count === 1 ? "has" : "have"} weeks outside ${count === 1 ? "it" : "them"}`;
 		case "stage-format": return `${n$1(count, "row")} ${count === 1 ? "has" : "have"} stages that can’t be read`;
@@ -10465,7 +10446,7 @@ function groupIssues(issues) {
 		};
 	}).sort((a, b) => LEVEL_RANK[a.level] - LEVEL_RANK[b.level] || b.count - a.count);
 }
-var fold$1, MUST_KINDS, CHECK_KINDS, levelOf, SEVERITY, SHEET_ORDER, sheetOrder, groupId, LEAVE, RIGHT, ANSWERS, n$1, THING, LEVEL_RANK;
+var fold$1, MUST_KINDS, CHECK_KINDS, levelOf, SEVERITY, SHEET_ORDER, groupId, LEAVE, RIGHT, ANSWERS, n$1, THING, LEVEL_RANK;
 var init_problemLevels = __esmMin((() => {
 	init_find();
 	fold$1 = (s) => fold$2(s).replace(/&/g, " and ").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
@@ -10512,9 +10493,7 @@ var init_problemLevels = __esmMin((() => {
 		"totals-row",
 		"big-removal",
 		"feeds-lower",
-		"for-someone-else",
-		"same-number",
-		"aim-changes"
+		"for-someone-else"
 	];
 	levelOf = (kind) => MUST_KINDS.includes(kind) ? "must" : CHECK_KINDS.includes(kind) ? "check" : "note";
 	SEVERITY = {
@@ -10528,10 +10507,6 @@ var init_problemLevels = __esmMin((() => {
 		"Check-ins",
 		"People"
 	];
-	sheetOrder = (s) => {
-		const i = SHEET_ORDER.indexOf(s);
-		return i < 0 ? SHEET_ORDER.length : i;
-	};
 	groupId = (kind, sheet, column, found) => [
 		kind,
 		sheet,
@@ -10770,7 +10745,7 @@ function headerMatch(kind, header) {
 		as: null
 	};
 }
-var LOADED, ALSO_READ, ALL_KINDS, NAMES, alsoOf, moduleOffLine;
+var LOADED, ALSO_READ, ALL_KINDS, NAMES, alsoOf;
 var init_sheets = __esmMin((() => {
 	init_columns();
 	init_problemLevels();
@@ -10802,7 +10777,6 @@ var init_sheets = __esmMin((() => {
 	];
 	NAMES = new Map(ALL_KINDS.map((k) => [k, namesOf(k)]));
 	alsoOf = (kind, header) => NAMES.get(kind).has(fold$1(header)) && fold$1(NAMES.get(kind).get(fold$1(header))) !== fold$1(header);
-	moduleOffLine = (module, workspace, sheet) => `${module} is off${workspace ? ` in ${workspace}` : ""}, so the ${sheet} sheet was not read.`;
 }));
 // src/domain/importLimits.ts
 /** Why a file (or, through the AI tools, one call's rows) is refused for its size (spec 2.1): too many rows, or too many
@@ -10837,8 +10811,7 @@ function describe(cs) {
 		c.replaced && `${c.replaced} replaced`,
 		c.stopped && `${plural$2(c.stopped, "goal")} ${lower({ label: STOPPED })}`,
 		c.deleted && `${plural$2(c.deleted, "goal")} deleted`,
-		c.left && `${plural$2(c.left, "person", "people")} ${lower({ label: LEFT })}`,
-		...(c.records ?? []).flatMap((r) => [r.added && `${r.added} new ${r.added === 1 ? r.one : r.many}`, r.changed && `${plural$2(r.changed, r.one, r.many)} changed`])
+		c.left && `${plural$2(c.left, "person", "people")} ${lower({ label: LEFT })}`
 	].filter(Boolean);
 	return parts.length ? parts.join(", ") : "No changes";
 }
@@ -10939,7 +10912,6 @@ function* planChangesInChunks(input) {
 		"Check-ins": 0,
 		People: 0
 	};
-	for (const k of Object.keys(input.tables.modules ?? {})) unchangedBy[k] = 0;
 	/** A row that says what's already there. */
 	const same = (sheet) => {
 		unchanged++;
@@ -10964,7 +10936,7 @@ function* planChangesInChunks(input) {
 	const note = (kind, sheet, row, name, message, x = {}) => raise(kind, sheet, row, name, message, x);
 	/** The answer given to a group, if any (rule 7). */
 	const answerOf = (kind, sheet, column, found) => answers[groupId(kind, sheet, column, found)];
-	const total = (input.tables.goals?.length ?? 0) + (input.tables.plan?.length ?? 0) + (input.tables.checkIns?.length ?? 0) + (input.tables.people?.length ?? 0) + Object.values(input.tables.modules ?? {}).reduce((n, r) => n + r.length, 0);
+	const total = (input.tables.goals?.length ?? 0) + (input.tables.plan?.length ?? 0) + (input.tables.checkIns?.length ?? 0) + (input.tables.people?.length ?? 0);
 	let done = 0, seenItems = 0, seenIssues = 0;
 	const so = {
 		added: 0,
@@ -11520,51 +11492,6 @@ function* planChangesInChunks(input) {
 		}
 	}
 	if (create && !people.size && (input.tables.people ?? []).length && !issues.some((x) => x.level === "must")) raise("required-empty", "People", 1, "", "Add at least one person.", { column: "Name" });
-	const planned = [];
-	for (const [sheet, recs] of Object.entries(input.tables.modules ?? {})) {
-		const owner = (input.records ?? []).find((m) => m.sheets?.some((x) => x.spec.name === sheet && x.plan));
-		const plan = owner?.sheets?.find((x) => x.spec.name === sheet)?.plan;
-		if (!owner || !plan || create) continue;
-		const rows = recs.map((r, i) => ({
-			r,
-			row: rowOf(r, i)
-		})).filter(({ r }) => !blankRow(r) && !(fold$1(val(r, "action")) === "example" && ++examples));
-		done += recs.length;
-		const result = plan({
-			sheet,
-			rows,
-			x: {
-				snapshot: s,
-				cycle,
-				week,
-				actor,
-				now,
-				newId,
-				...input.full ? { full: input.full } : {},
-				...input.records ? { records: input.records } : {}
-			},
-			val,
-			has,
-			same: () => same(sheet),
-			raise: (kind, row, name, message, extra = {}) => raise(kind, sheet, row, name, message, extra),
-			ask: (kind, row, name, message, extra) => ask(kind, sheet, row, name, message, extra)
-		});
-		planned.push({
-			sheet,
-			module: owner.module,
-			result
-		});
-		for (const it of result.items) items.push({
-			sheet,
-			row: it.row,
-			goalId: "",
-			goal: it.name,
-			kind: it.act === "added" ? "new record" : "record",
-			summary: it.summary,
-			diffs: it.diffs
-		});
-		if (tick()) yield progress();
-	}
 	const work = new GoalSet(withProposed(s));
 	const fileIds = /* @__PURE__ */ new Map();
 	const goalByRef = (r) => r ? work.get(fileIds.get(r) ?? r) ?? work.byRef(r) : void 0;
@@ -11880,7 +11807,7 @@ function* planChangesInChunks(input) {
 		if (owner) d.ownerId = owner.id;
 		if (!existing && !tm && owner?.teamId && teams.get(owner.teamId)) note("default", "Goals", row, title, `Team: ${teams.get(owner.teamId).name} (the owner’s team; the row gave none).`, { column: "Team" });
 		if (tm) d.teamId = tm.id;
-		const lvl = readWord(LEVEL_WORDS, val(r, "level"), "Goals", row, label);
+		const lvl = readWord(LEVEL_WORDS$1, val(r, "level"), "Goals", row, label);
 		if (lvl === void 0) return;
 		if (lvl) d.level = lvl;
 		const kind = readWord(TYPE_WORDS, val(r, "type"), "Goals", row, label);
@@ -12339,7 +12266,7 @@ function* planChangesInChunks(input) {
 			raise("loop", "Goals", l.row, g.title, "A goal can’t feed into itself.", { column: "Feeds into" });
 			continue;
 		}
-		if (parentId && makesLoop(l.id, parentId, [...work.values()])) {
+		if (parentId && makesLoop$1(l.id, parentId, [...work.values()])) {
 			raise("loop", "Goals", l.row, g.title, "That link would make a loop: the goal it feeds already feeds into it.", { column: "Feeds into" });
 			continue;
 		}
@@ -13221,7 +13148,7 @@ function* planChangesInChunks(input) {
 		to: VIA_LABEL[via]
 	});
 	const corrects = (input.posts ?? []).some((p) => p.mode === "correct");
-	issues.sort((a, b) => sheetOrder(a.sheet) - sheetOrder(b.sheet) || a.row - b.row);
+	issues.sort((a, b) => SHEET_ORDER.indexOf(a.sheet) - SHEET_ORDER.indexOf(b.sheet) || a.row - b.row);
 	const counts = {
 		newGoals: items.filter((x) => x.kind === "new goal").length,
 		goals: items.filter((x) => x.kind === "goal").length,
@@ -13234,16 +13161,7 @@ function* planChangesInChunks(input) {
 		teams: items.filter((x) => x.kind === "team").length,
 		stopped: items.filter((x) => x.kind === "stop goal").length,
 		deleted: items.filter((x) => x.kind === "delete goal").length,
-		left: items.filter((x) => x.kind === "person left").length,
-		...planned.length ? { records: planned.map((p) => {
-			const mine = items.filter((x) => x.sheet === p.sheet);
-			return {
-				one: p.result.noun[0],
-				many: p.result.noun[1],
-				added: mine.filter((x) => x.kind === "new record").length,
-				changed: mine.filter((x) => x.kind === "record").length
-			};
-		}) } : {}
+		left: items.filter((x) => x.kind === "person left").length
 	};
 	const needsConfirm = issues.some((x) => x.kind === "plan-question");
 	const ok = !issues.some((x) => x.level === "must" || x.level === "check") && !needsReason && items.length > 0;
@@ -13289,10 +13207,6 @@ function* planChangesInChunks(input) {
 	else if (ok) {
 		const sumId = newId("chg");
 		const importId = newId("imp");
-		for (const p of planned) changes.push(...p.result.commit.changes ?? []);
-		const moduleRowsOut = planned.reduce((m, p) => mergeModuleRows(m, p.result.commit.modules), void 0);
-		const moduleUndo = planned.flatMap((p) => p.result.undo);
-		const moduleGoals = planned.flatMap((p) => p.result.commit.goals ?? []).filter((g) => !ordered.some((o) => o.id === g.id));
 		for (const ch of changes) ch.importId = importId;
 		const requestsBefore = asksOf(s);
 		const summary = {
@@ -13334,22 +13248,16 @@ function* planChangesInChunks(input) {
 				...teamsOut.size ? { teams: [...teamsOut.keys()].map((id) => ({
 					id,
 					before: savedTeam.get(id) ?? null
-				})) } : {},
-				...moduleUndo.length ? { moduleRows: moduleUndo } : {}
+				})) } : {}
 			}
 		};
-		for (const g of moduleGoals) summary.undo.goals.push({
-			id: g.id,
-			before: savedGoal.get(g.id) ?? null
-		});
 		result.commit = {
 			...peopleOut.size ? { people: [...peopleOut.values()] } : {},
 			...teamsOut.size ? { teams: [...teamsOut.values()] } : {},
-			goals: [...ordered, ...moduleGoals],
+			goals: ordered,
 			checkIns: ciOut,
 			...reqOut.size ? { requests: [...reqOut.values()] } : {},
 			...reviewsOut.size ? { reviews: [...reviewsOut.values()] } : {},
-			...moduleRowsOut ? { modules: moduleRowsOut } : {},
 			changes: [...changes, summary]
 		};
 	}
@@ -13532,7 +13440,8 @@ var init_changeset = __esmMin((() => {
 		"to-before-from": "plan-order",
 		"week-unknown": "week-wrong",
 		"week-beyond": "week-wrong",
-		"baseline-period-long": "impossible-number"
+		"baseline-period-long": "impossible-number",
+		"baseline-provisional-late": "impossible-number"
 	};
 	ENGINE_CHECK = {
 		"below-zero": "odd-number",
@@ -13581,8 +13490,7 @@ var init_changeset = __esmMin((() => {
 	ADDS = /* @__PURE__ */ new Set([
 		"new goal",
 		"new person",
-		"check-in",
-		"new record"
+		"check-in"
 	]);
 	STOPS = /* @__PURE__ */ new Set([
 		"stop goal",
@@ -13718,7 +13626,7 @@ function heldByLink(x, goal, m) {
 	};
 }
 function heldChange(x, g, m, held) {
-	const summary = held ? `Held to no number until “${m.name}” is measured` : m && !m.removedAt && measurementOf(m) !== "gap" ? `Held to its plan again, as “${m.name}” is measured` : "Held to its plan again";
+	const summary = held ? `Held to no number until “${m.name}” is measured` : m && !m.removedAt && !m.retiredAt && measurementOf(m) !== "gap" ? `Held to its plan again, as “${m.name}” is measured` : "Held to its plan again";
 	return {
 		id: x.newId("chg"),
 		at: x.now,
@@ -13735,6 +13643,40 @@ function heldChange(x, g, m, held) {
 		}]
 	};
 }
+/** What the library leaves on the goals' own field when it is switched off or on (ModuleRecords.switched). Off, nothing
+measures a goal, so every goal held to no number is held to its plan again; on, each gap holds its goals once more.
+Null when no goal moves. */
+function heldOnSwitch(x, on, metrics, links) {
+	const goals = (x.full ?? x.snapshot).goals;
+	if (!on) {
+		const held = goals.filter((g) => !!g.unmeasuredSince && !g.removedAt && !g.stoppedAt);
+		if (!held.length) return null;
+		return {
+			goals: held.map((g) => heldToNoNumber(g, false, x.now)),
+			changes: held.map((g) => ({
+				id: x.newId("chg"),
+				at: x.now,
+				actorId: x.actor.id,
+				goalId: g.id,
+				entity: "goal",
+				entityId: g.id,
+				action: "edited",
+				summary: "Held to its plan again, as the metric library is switched off",
+				diffs: [{
+					field: "Measured",
+					from: "Not yet",
+					to: "Yes"
+				}]
+			}))
+		};
+	}
+	const parts = metrics.filter((m) => holdsToNoNumber(m)).map((m) => heldBy(x, m, goals, links));
+	const out = {
+		goals: parts.flatMap((p) => p.goals),
+		changes: parts.flatMap((p) => p.changes)
+	};
+	return out.goals.length ? out : null;
+}
 var MEASUREMENTS, MEASUREMENT_LABEL, measurementOf, holdsToNoNumber, measurementWords;
 var init_rulesMeasured = __esmMin((() => {
 	init_unmeasured();
@@ -13749,12 +13691,107 @@ var init_rulesMeasured = __esmMin((() => {
 		gap: "Gap"
 	};
 	measurementOf = (m) => m.measurement ?? "measured";
-	holdsToNoNumber = (m) => !!m && !m.removedAt && measurementOf(m) === "gap";
+	holdsToNoNumber = (m) => !!m && !m.removedAt && !m.retiredAt && measurementOf(m) === "gap";
 	measurementWords = (m) => {
 		const k = measurementOf(m);
 		const note = k === "measured" ? "" : (m.measurementNote ?? "").trim();
 		return note ? `${MEASUREMENT_LABEL[k]}: ${note}` : MEASUREMENT_LABEL[k];
 	};
+}));
+// src/modules/metrics/rulesStructure.ts
+/** Whether making `parentId` the parent of `id` would make a loop (the parent is the metric or one of its children). */
+function makesLoop(s, id, parentId) {
+	const byId = new Map(s.metrics.map((m) => [m.id, m]));
+	const seen = /* @__PURE__ */ new Set();
+	for (let at = parentId; at; at = byId.get(at)?.parentId) {
+		if (at === id) return true;
+		if (seen.has(at)) return false;
+		seen.add(at);
+	}
+	return false;
+}
+/** Why `other` can't be `m`'s parent, in words; null when it can. */
+function parentRefusal(s, m, other) {
+	if (other.id === m.id) return "A metric can’t be its own parent";
+	if (other.removedAt) return "It’s been removed";
+	if (makesLoop(s, m.id, other.id)) return "It’s already under this one";
+	return null;
+}
+/** What's wrong with a metric's structure, in words someone can act on. */
+function structureProblems(m, s) {
+	const out = [];
+	if (m.level != null && !LEVELS$2.includes(m.level)) out.push("Its level is component, driver, control or breakdown, or left empty.");
+	if (m.confidence != null && !CONFIDENCES.includes(m.confidence)) out.push("Its confidence is high, medium or low, or left empty.");
+	if (m.parentId) {
+		const p = s.metrics.find((x) => x.id === m.parentId);
+		const why = p ? parentRefusal(s, m, p) : "There’s no such metric in this workspace";
+		if (why) out.push(`Choose another parent: ${why.charAt(0).toLowerCase()}${why.slice(1)}.`);
+	}
+	if (m.level && !m.parentId) out.push(`Say what it is ${LEVEL_WORDS[m.level].of}: choose its parent, or leave the level empty.`);
+	if ((m.gaming ?? "").length > 500) out.push(`Keep how it could be gamed to 500 characters or fewer.`);
+	return out;
+}
+/** The structure as a metric keeps it: each part only when said, so a metric that says none reads as before. */
+function structured(level, parentId, confidence, gaming) {
+	const g = (gaming ?? "").trim();
+	return {
+		...level ? { level } : {},
+		...parentId ? { parentId } : {},
+		...confidence ? { confidence } : {},
+		...g ? { gaming: g } : {}
+	};
+}
+var LEVELS$2, CONFIDENCES, LEVEL_WORDS, CONFIDENCE_WORDS, live$3, childrenOf;
+var init_rulesStructure = __esmMin((() => {
+	LEVELS$2 = [
+		"component",
+		"driver",
+		"control",
+		"breakdown"
+	];
+	CONFIDENCES = [
+		"high",
+		"medium",
+		"low"
+	];
+	LEVEL_WORDS = {
+		component: {
+			label: "Component",
+			of: "a component of",
+			meaning: "Part of its parent’s number: they add up to it."
+		},
+		driver: {
+			label: "Driver",
+			of: "a driver of",
+			meaning: "Moves its parent’s number, without being part of it."
+		},
+		control: {
+			label: "Control",
+			of: "a control on",
+			meaning: "Watched so that improving its parent doesn’t break something else."
+		},
+		breakdown: {
+			label: "Breakdown",
+			of: "a breakdown of",
+			meaning: "Its parent’s number split one way: by team, region or service."
+		}
+	};
+	CONFIDENCE_WORDS = {
+		high: {
+			label: "High",
+			meaning: "Measured directly and checked: the number can be trusted."
+		},
+		medium: {
+			label: "Medium",
+			meaning: "Measured, with known gaps or a manual step."
+		},
+		low: {
+			label: "Low",
+			meaning: "Estimated, sampled or new: read it with care."
+		}
+	};
+	live$3 = (s) => s.metrics.filter((m) => !m.removedAt);
+	childrenOf = (s, id) => live$3(s).filter((m) => m.parentId === id).sort((a, b) => a.name.localeCompare(b.name, "en"));
 }));
 // src/modules/metrics/rules.ts
 /** The marks a goal shows (MT3 rule 4): its metric's marks made at or after the goal was linked to it, in the goal's own
@@ -13833,6 +13870,7 @@ function metricFrom(input, before, x) {
 		ownerId: pick("ownerId", x.actor.id) || x.actor.id,
 		caveats: (pick("caveats", "") ?? "").trim(),
 		...measured(pick("measurement", null), pick("measurementNote", "")),
+		...structured(pick("level", null), pick("parentId", null), pick("confidence", null), pick("gaming", "")),
 		createdBy: before?.createdBy ?? x.actor.id,
 		createdAt: before?.createdAt ?? x.now,
 		updatedAt: x.now,
@@ -13877,6 +13915,7 @@ function metricProblems(m, s) {
 	if (m.refresh != null && !REFRESHES.includes(m.refresh)) out.push(`Refresh is one of ${REFRESHES.join(", ")}, or left empty.`);
 	if (!s.people.some((p) => p.id === m.ownerId)) out.push("The metric’s owner isn’t in this workspace.");
 	out.push(...measurementProblems(m));
+	out.push(...structureProblems(m, { metrics: metricsOf(s) }));
 	for (const [k, label] of [
 		["meaning", "meaning"],
 		["source", "source"],
@@ -13887,6 +13926,7 @@ function metricProblems(m, s) {
 }
 /** A metric's fields as the change log reads them. */
 function metricFields(m, s) {
+	const parent = m.parentId ? metricsOf(s).find((v) => v.id === m.parentId)?.name ?? "—" : "—";
 	return {
 		Name: m.name,
 		Meaning: m.meaning || "—",
@@ -13898,7 +13938,11 @@ function metricFields(m, s) {
 		Refresh: m.refresh ? REFRESH_LABEL[m.refresh] : "—",
 		Owner: s.people.find((p) => p.id === m.ownerId)?.name ?? "—",
 		Caveats: m.caveats || "—",
-		Measured: measurementWords(m)
+		Measured: measurementWords(m),
+		"Part of": parent,
+		"How it relates": m.level ? LEVEL_WORDS[m.level].label : "—",
+		Confidence: m.confidence ? CONFIDENCE_WORDS[m.confidence].label : "—",
+		"How it could be gamed": m.gaming || "—"
 	};
 }
 /**
@@ -14057,6 +14101,7 @@ var init_rules = __esmMin((() => {
 	init_numbers();
 	init_records();
 	init_rulesMeasured();
+	init_rulesStructure();
 	MODULE$1 = "metrics";
 	METRICS_KEY = "metrics";
 	LINKS_KEY = "metricLinks";
@@ -14302,7 +14347,7 @@ var init_names = __esmMin((() => {
 	]);
 	nameWords = (name) => new Set(fold$2(name.replace(/\([^)]*\)|\[[^\]]*\]/g, " ")).split(/[^\p{L}\p{N}%]+/u).filter((w) => w && !FILLER.has(w)));
 }));
-// src/modules/metrics/rulesStill.ts
+// src/modules/metrics/rulesDefine.ts
 /**
 * Rule 1. What a metric still needs to say. A metric with a name, a unit and a direction is usable; `missing` lists, in
 * order, what it means (meaning empty), where the number comes from (source empty), who owns that source (empty) and how
@@ -14323,19 +14368,6 @@ function stillToSay(m, ownerIsHere) {
 		line
 	};
 }
-var STILL_TO_SAY, FULLY_DEFINED, OWNER_LEFT;
-var init_rulesStill = __esmMin((() => {
-	STILL_TO_SAY = [
-		["what it means", "meaning"],
-		["where the number comes from", "source"],
-		["who owns that source", "sourceOwner"],
-		["how often it refreshes", "refresh"]
-	];
-	Object.fromEntries(STILL_TO_SAY);
-	FULLY_DEFINED = "Fully defined";
-	OWNER_LEFT = "Its owner has left.";
-}));
-// src/modules/metrics/rulesDefine.ts
 /**
 * Rule 1. Up to two names close to `name`, closest first. **former**: `name` is a name a metric in use used to have
 * (its rename in the change log). **letters**: the two names, bared, differ by one edit for names up to 12 characters and
@@ -14508,13 +14540,21 @@ function answersFrom(raw) {
 	}
 	return out;
 }
-var bare$1, UNIT_SPELLINGS, unitBare, TIME_UNIT, PER_TIME, OUT_OF, OUT_OF_WHAT, unansweredChecks;
+var STILL_TO_SAY, FULLY_DEFINED, OWNER_LEFT, bare$1, UNIT_SPELLINGS, unitBare, TIME_UNIT, PER_TIME, OUT_OF, OUT_OF_WHAT, unansweredChecks;
 var init_rulesDefine = __esmMin((() => {
 	init_actions();
 	init_fold();
 	init_edits();
 	init_names();
-	init_rulesStill();
+	STILL_TO_SAY = [
+		["what it means", "meaning"],
+		["where the number comes from", "source"],
+		["who owns that source", "sourceOwner"],
+		["how often it refreshes", "refresh"]
+	];
+	Object.fromEntries(STILL_TO_SAY);
+	FULLY_DEFINED = "Fully defined";
+	OWNER_LEFT = "Its owner has left.";
 	bare$1 = (s) => fold$2(s).replace(/[^\p{L}\p{N}%]+/gu, " ").trim();
 	UNIT_SPELLINGS = {
 		percent: "%",
@@ -14631,7 +14671,7 @@ function saveMetricChange(x, input) {
 	const kinds = changeKinds(before, after, linked, { relabel });
 	const why = (reason ?? "").trim();
 	const n = linked.length;
-	if (kinds.includes("scale")) no$2(`${goalsWord$1(n)} ${n === 1 ? "is" : "are"} measured by ${before.name} in ${before.unit}. A metric in ${after.unit} is a different number: add it as a new metric and move goals to it, or retire this one. If “${after.unit}” is only a new label for the same numbers, say so (relabel).`);
+	if (kinds.includes("scale")) no$2(`${goalsWord(n)} ${n === 1 ? "is" : "are"} measured by ${before.name} in ${before.unit}. A metric in ${after.unit} is a different number: add it as a new metric and move goals to it, or retire this one. If “${after.unit}” is only a new label for the same numbers, say so (relabel).`);
 	if (kinds.includes("meaning") && comparable === void 0) no$2("Say whether it is still the same number.");
 	const marked = [...kinds.includes("meaning") && comparable === false ? ["definition"] : [], ...kinds.includes("direction") ? ["direction"] : []];
 	if (marked.length && !why) no$2(marked.includes("direction") ? "Say why the direction changes, in a line. Every goal measured by it will show this." : "Say why, in a line. Every goal measured by it will show this.");
@@ -14655,7 +14695,7 @@ function saveMetricChange(x, input) {
 		unit: after.unit
 	}) : [];
 	const head = dry.commit.changes[0];
-	const said = marks.length ? `${head.summary}${why ? `: ${why}` : ""}` : kinds.includes("relabel") ? `Changed the unit of “${after.name}” from “${before.unit}” to “${after.unit}” on it and its ${goalsWord$1(n)}` : head.summary;
+	const said = marks.length ? `${head.summary}${why ? `: ${why}` : ""}` : kinds.includes("relabel") ? `Changed the unit of “${after.name}” from “${before.unit}” to “${after.unit}” on it and its ${goalsWord(n)}` : head.summary;
 	const perGoal = (marks.length ? linked.filter((g) => g.cycleId === x.cycle.id) : goals.length ? linked : []).map((g) => log$1(x, {
 		entityId: after.id,
 		goalId: g.id,
@@ -14711,24 +14751,30 @@ function retireMetric(x, id, why, replacedBy = null) {
 		replacedBy: other?.id ?? null,
 		updatedAt: x.now
 	};
+	const hold = heldBy(x, next, (x.full ?? x.snapshot).goals, linksOf(x.full ?? x.snapshot));
 	return {
 		...metricRows({ metrics: [next] }),
-		changes: [log$1(x, {
-			entityId: m.id,
-			action: "stopped",
-			summary: `Retired the metric “${m.name}”: ${w}`,
-			diffs: [{
-				field: "Retired",
-				from: "—",
-				to: w
-			}]
-		}), ...linked.map((g) => log$1(x, {
-			entityId: m.id,
-			goalId: g.id,
-			action: "edited",
-			summary: `Its metric “${m.name}” was retired: ${w}`,
-			diffs: []
-		}))]
+		...hold.goals.length ? { goals: hold.goals } : {},
+		changes: [
+			log$1(x, {
+				entityId: m.id,
+				action: "stopped",
+				summary: `Retired the metric “${m.name}”: ${w}`,
+				diffs: [{
+					field: "Retired",
+					from: "—",
+					to: w
+				}]
+			}),
+			...linked.map((g) => log$1(x, {
+				entityId: m.id,
+				goalId: g.id,
+				action: "edited",
+				summary: `Its metric “${m.name}” was retired: ${w}`,
+				diffs: []
+			})),
+			...hold.changes
+		]
 	};
 }
 /** Bring a retired metric back (rule 5): the same people. It is as it was before it was retired. */
@@ -14736,15 +14782,18 @@ function unretireMetric(x, id) {
 	const m = metricOf$1(x, id);
 	mayChange(x, m);
 	if (!m.retiredAt) no$2(`“${m.name}” isn’t retired.`);
+	const back = {
+		...m,
+		retiredAt: null,
+		retiredBy: null,
+		retiredWhy: "",
+		replacedBy: null,
+		updatedAt: x.now
+	};
+	const hold = heldBy(x, back, (x.full ?? x.snapshot).goals, linksOf(x.full ?? x.snapshot));
 	return {
-		...metricRows({ metrics: [{
-			...m,
-			retiredAt: null,
-			retiredBy: null,
-			retiredWhy: "",
-			replacedBy: null,
-			updatedAt: x.now
-		}] }),
+		...metricRows({ metrics: [back] }),
+		...hold.goals.length ? { goals: hold.goals } : {},
 		changes: [log$1(x, {
 			entityId: m.id,
 			action: "restored",
@@ -14754,7 +14803,7 @@ function unretireMetric(x, id) {
 				from: m.retiredWhy || "Yes",
 				to: "—"
 			}]
-		})]
+		}), ...hold.changes]
 	};
 }
 /**
@@ -14777,6 +14826,12 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 		linkedBy: x.actor.id,
 		linkedAt: x.now
 	}));
+	const goals = new Map((x.full ?? x.snapshot).goals.map((g) => [g.id, g]));
+	const holds = moved.flatMap((l) => {
+		const g = goals.get(l.goalId);
+		const h = g && !g.removedAt && !g.stoppedAt ? heldByLink(x, g, into) : null;
+		return h ? [h] : [];
+	});
 	return {
 		...metricRows({
 			metrics: [{
@@ -14789,11 +14844,12 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 			}],
 			metricLinks: moved
 		}),
+		...holds.length ? { goals: holds.map((h) => h.goal) } : {},
 		changes: [
 			log$1(x, {
 				entityId: into.id,
 				action: "edited",
-				summary: `Merged “${from.name}” into “${into.name}”, moving ${goalsWord$1(moved.length)}: ${w}`,
+				summary: `Merged “${from.name}” into “${into.name}”, moving ${goalsWord(moved.length)}: ${w}`,
 				diffs: [{
 					field: "Merged in",
 					from: "—",
@@ -14820,11 +14876,12 @@ function mergeMetrics(x, fromId, intoId, why = "") {
 					from: from.name,
 					to: into.name
 				}]
-			}))
+			})),
+			...holds.map((h) => h.change)
 		]
 	};
 }
-var same$1, onDay, goalsWord$1, metricOf$1, mayChange, retiredWords;
+var same$1, onDay, goalsWord, metricOf$1, mayChange, retiredWords;
 var init_rulesChange = __esmMin((() => {
 	init_rulesMeasured();
 	init_rules();
@@ -14834,7 +14891,7 @@ var init_rulesChange = __esmMin((() => {
 		month: "short",
 		timeZone: "UTC"
 	});
-	goalsWord$1 = (n) => `${n} ${n === 1 ? "goal" : "goals"}`;
+	goalsWord = (n) => `${n} ${n === 1 ? "goal" : "goals"}`;
 	metricOf$1 = (x, id) => {
 		const m = metricsOf(x.snapshot).find((v) => v.id === id && !v.removedAt);
 		if (!m) no$2("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
@@ -15324,410 +15381,39 @@ var SKIP = /* @__PURE__ */ new Set([
 	"createdAt",
 	"updatedAt"
 ]);
-// src/modules/metrics/sheetPlan.ts
-var sheetPlan_exports = /* @__PURE__ */ __exportAll({ planMetricsSheet: () => planMetricsSheet });
-function planMetricsSheet(api) {
-	const { x: x0, rows } = api;
-	const ws = "this workspace";
-	let snap = x0.snapshot;
-	let full = x0.full;
-	const ctx = () => ({
-		...x0,
-		snapshot: snap,
-		...full ? { full } : {}
-	});
-	const apply = (c) => {
-		const goals = (list) => c.goals?.length ? list.map((g) => c.goals.find((v) => v.id === g.id) ?? g) : list;
-		snap = {
-			...snap,
-			modules: applyModuleRows(snap.modules, c.modules) ?? {},
-			goals: goals(snap.goals)
-		};
-		if (full) full = {
-			...full,
-			modules: applyModuleRows(full.modules, c.modules) ?? {},
-			goals: goals(full.goals)
-		};
-	};
-	const items = [];
-	const changes = [];
-	const goalsOut = /* @__PURE__ */ new Map();
-	const before = /* @__PURE__ */ new Map();
-	const byName = /* @__PURE__ */ new Map();
-	const byId = /* @__PURE__ */ new Map();
-	const people = snap.people;
-	for (const { r, row } of rows) {
-		const idCell = api.val(r, "id");
-		const name = cell(api, r, "metric");
-		const label = name.v || idCell || `Row ${row}`;
-		const all = metricsOf(snap).filter((m) => !m.removedAt);
-		let was;
-		if (idCell) {
-			was = all.find((m) => m.id === idCell);
-			if (!was) {
-				api.raise("bad-key", row, label, `ID “${idCell}” isn’t a metric in ${ws}. Leave ID empty to add a new metric, or use an ID from an export.`, {
-					column: "ID",
-					found: idCell
-				});
-				continue;
-			}
-			if (byId.has(idCell)) {
-				api.raise("duplicate", row, label, `Rows ${byId.get(idCell)} and ${row} have the same ID.`, {
-					column: "ID",
-					found: idCell
-				});
-				continue;
-			}
-			byId.set(idCell, row);
-		} else if (name.v) was = all.find((m) => fold$1(m.name) === fold$1(name.v));
-		if (name.v) {
-			const k = fold$1(name.v);
-			if (byName.has(k)) {
-				api.raise("duplicate", row, label, `Rows ${byName.get(k)} and ${row} are both called “${name.v}”. A metric’s name is used once.`, {
-					column: "Metric",
-					found: name.v
-				});
-				continue;
-			}
-			byName.set(k, row);
-		} else if (!was) {
-			api.raise("required-empty", row, label, "Give the metric a name.", { column: "Metric" });
-			continue;
-		}
-		const actRaw = api.val(r, "action");
-		const act = actRaw ? ACTION_WORDS[fold$1(actRaw)] : null;
-		if (act === void 0) {
-			api.raise("unknown-word", row, label, `Action says “${actRaw}”. Use Retire or Bring back, or leave it empty.`, {
-				column: "Action",
-				found: actRaw
-			});
-			continue;
-		}
-		const input = {};
-		let bad = false;
-		const must = (column, message, found = "") => {
-			api.raise(found ? "unknown-word" : "required-empty", row, label, message, {
-				column,
-				...found ? { found } : {}
-			});
-			bad = true;
-		};
-		if (name.has && name.v) input.name = name.v;
-		for (const [col, key] of [
-			["meaning", "meaning"],
-			["source", "source"],
-			["source owner", "sourceOwner"],
-			["caveats", "caveats"],
-			["unit", "unit"]
-		]) {
-			const c = cell(api, r, col);
-			if (c.v) input[key] = c.v;
-		}
-		const dec = cell(api, r, "decimals");
-		if (dec.has && dec.v) {
-			if (/^[0-4]$/.test(dec.v)) input.decimals = Number(dec.v);
-			else {
-				api.raise("not-a-number", row, label, `Decimals says “${dec.v}”. Use a whole number from 0 to 4.`, {
-					column: "Decimals",
-					found: dec.v
-				});
-				bad = true;
-			}
-		}
-		const dir = cell(api, r, "direction");
-		if (dir.has && dir.v) {
-			const d = DIRECTION_WORDS[fold$1(dir.v)];
-			if (d) input.direction = d;
-			else must("Direction", `Direction says “${dir.v}”. Use Higher is better or Lower is better.`, dir.v);
-		}
-		const ref = cell(api, r, "refresh");
-		if (ref.v) {
-			const f = REFRESH_WORDS[fold$1(ref.v)];
-			if (f) input.refresh = f;
-			else must("Refresh", `Refresh says “${ref.v}”. Use Live, Hourly, Daily, Weekly, Monthly or Quarterly, or leave it empty.`, ref.v);
-		}
-		const email = cell(api, r, "owner email");
-		const ownerName = cell(api, r, "owner");
-		if (email.v) {
-			const p = people.find((v) => normalEmail(v.email) === normalEmail(email.v));
-			if (!p) {
-				api.raise("unknown-ref", row, label, `Owner email “${email.v}” isn’t a person in ${ws}. Add them on the People sheet, or leave it empty to own it yourself.`, {
-					column: "Owner email",
-					found: email.v
-				});
-				bad = true;
-			} else if (p.leftAt) {
-				api.raise("unknown-ref", row, label, `${p.name} has left ${ws}. Choose someone else.`, {
-					column: "Owner email",
-					found: email.v
-				});
-				bad = true;
-			} else input.ownerId = p.id;
-		} else if (ownerName.v && (!was || fold$1(people.find((p) => p.id === was.ownerId)?.name ?? "") !== fold$1(ownerName.v))) {
-			const named = people.filter((p) => !p.leftAt && fold$1(p.name) === fold$1(ownerName.v));
-			if (named.length === 1) input.ownerId = named[0].id;
-			else {
-				api.raise(named.length ? "ambiguous-ref" : "unknown-ref", row, label, named.length ? `Owner “${ownerName.v}” matches ${named.length} people. Give the Owner email.` : `Owner “${ownerName.v}” isn’t a person in ${ws}. Give the Owner email of someone here, or leave it empty to own it yourself.`, {
-					column: "Owner",
-					found: ownerName.v
-				});
-				bad = true;
-			}
-		}
-		if (bad) continue;
-		if (!was && name.v) {
-			const near = nameChecks(name.v, all.filter((m) => !m.retiredAt).map((m) => ({
-				id: m.id,
-				name: m.name
-			})))[0];
-			if (near) {
-				const other = all.find((m) => m.id === near.other.id);
-				const a = api.ask("near-ref", row, label, `This is one letter from “${other.name}” (${other.unit}, ${linkedGoals(full ?? snap, other.id).length} goals).`, {
-					column: "Metric",
-					found: name.v,
-					suggest: other.name,
-					answers: [
-						{
-							choice: "use",
-							label: `Change “${other.name}” with this row`
-						},
-						{
-							choice: "new",
-							label: `Add “${name.v}” as a new metric`
-						},
-						LEAVE
-					]
-				});
-				if (a === "leave" || a === null) continue;
-				if (a.choice === "use") {
-					was = other;
-					delete input.name;
-				}
-			}
-		}
-		if (act && !was) {
-			api.raise("cant-change", row, label, `${name.v || label} isn’t a metric in ${ws} yet, so it can’t be ${act === "retire" ? "retired" : "brought back"}. Leave Action empty to add it.`, {
-				column: "Action",
-				found: actRaw
-			});
-			continue;
-		}
-		if (act === "back" && was && !was.retiredAt) {
-			api.raise("cant-change", row, label, `Bring back: ${was.name} isn’t retired.`, {
-				column: "Action",
-				found: actRaw
-			});
-			continue;
-		}
-		const changing = !was || differs(was, input);
-		if (!changing && !act) {
-			api.same();
-			continue;
-		}
-		if (!changing && act === "retire" && was?.retiredAt) {
-			api.same();
-			continue;
-		}
-		const reason = api.val(r, "reason");
-		const n = was ? linkedGoals(full ?? snap, was.id).length : 0;
-		let comparable;
-		if (was && n && changing) {
-			if (input.unit !== void 0 && input.unit.trim() !== was.unit) {
-				api.raise("cant-change", row, label, `It is in ${was.unit} and ${goalsWord(n)} measured by it. A file can’t change its unit: change it on the metric’s page, where its goals are shown first.`, {
-					column: "Unit",
-					found: input.unit
-				});
-				continue;
-			}
-			if (input.meaning !== void 0 && input.meaning.trim() !== was.meaning.trim() || input.source !== void 0 && input.source.trim() !== was.source.trim()) {
-				const a = api.ask("same-number", row, was.name, `${was.name}: ${goalsWord(n)} measured by it. Is it still the same number?`, {
-					column: "Meaning",
-					answers: [
-						{
-							choice: "same",
-							label: "Same number, better words"
-						},
-						{
-							choice: "changes",
-							label: "The number changes from this week"
-						},
-						LEAVE
-					]
-				});
-				if (a === "leave" || a === null) continue;
-				comparable = a.choice === "same";
-			}
-			if (input.direction && input.direction !== was.direction) {
-				const a = api.ask("aim-changes", row, was.name, `${was.name}: its ${goalsWord(n).replace(/ (is|are)$/, "")} would aim the other way.`, {
-					column: "Direction",
-					answers: [{
-						choice: "change",
-						label: "Change it"
-					}, LEAVE]
-				});
-				if (a === "leave" || a === null) continue;
-			}
-			if ((comparable === false || input.direction && input.direction !== was.direction) && !reason) {
-				api.raise("required-empty", row, label, `Say why, in the Reason column: ${goalsWord(n)} measured by ${was.name} and will show it.`, { column: "Reason" });
-				continue;
-			}
-		}
-		if (act === "retire" && !reason) {
-			api.raise("required-empty", row, label, "Say why it is retired, in the Reason column. Its goals will show this.", { column: "Reason" });
-			continue;
-		}
-		const mark = {
-			snap,
-			full
-		};
-		const rowChanges = [];
-		let saved = was;
-		try {
-			const step = (c) => {
-				apply(c);
-				rowChanges.push(...c.changes);
-				for (const g of c.goals ?? []) goalsOut.set(g.id, g);
-			};
-			if (act === "back") step(unretireMetric(ctx(), was.id));
-			if (changing) {
-				const res = saveMetricChange(ctx(), {
-					...input,
-					...was ? { id: was.id } : {},
-					confirm: true,
-					...comparable !== void 0 ? { comparable } : {},
-					...reason ? { reason } : {}
-				});
-				if (res.commit) step(res.commit);
-				saved = res.metric;
-			}
-			if (act === "retire") step(retireMetric(ctx(), saved.id, reason));
-		} catch (e) {
-			if (!(e instanceof NotAllowed)) throw e;
-			({snap, full} = mark);
-			api.raise(/^Only /.test(e.message) ? "not-allowed" : "cant-change", row, label, e.message, {});
-			continue;
-		}
-		if (!rowChanges.length) {
-			api.same();
-			continue;
-		}
-		const id = saved.id;
-		if (!before.has(id)) before.set(id, was ? metricsOf(x0.snapshot).find((m) => m.id === id) ?? null : null);
-		changes.push(...rowChanges);
-		const head = rowChanges.find((c) => !c.goalId) ?? rowChanges[0];
-		items.push({
-			row,
-			name: saved.name,
-			act: !was ? "added" : act === "retire" ? "retired" : act === "back" ? "back" : "changed",
-			summary: head.summary,
-			diffs: rowChanges.flatMap((c) => c.goalId ? [] : c.diffs)
-		});
-	}
-	const metrics = metricsOf(snap).filter((m) => before.has(m.id));
-	return {
-		items,
-		commit: {
-			modules: metrics.length ? { [MODULE$1]: { [METRICS_KEY]: metrics } } : void 0,
-			changes,
-			...goalsOut.size ? { goals: [...goalsOut.values()] } : {}
-		},
-		undo: before.size ? [{
-			module: MODULE$1,
-			key: METRICS_KEY,
-			rows: [...before].map(([id, b]) => ({
-				id,
-				before: b
-			}))
-		}] : [],
-		noun: ["metric", "metrics"]
-	};
-}
-var goalsWord, ALIASES, cell, DIRECTION_WORDS, REFRESH_WORDS, ACTION_WORDS, differs;
-var init_sheetPlan = __esmMin((() => {
-	init_actions();
-	init_people();
-	init_problemLevels();
-	init_records();
-	init_rulesDefine();
-	init_rulesChange();
-	init_rules();
-	goalsWord = (n) => `${n} ${n === 1 ? "goal is" : "goals are"}`;
-	ALIASES = {
-		metric: ["metric", "name"],
-		meaning: [
-			"meaning",
-			"description",
-			"definition"
-		],
-		direction: ["direction", "better"],
-		"owner email": ["owner email", "owner e-mail"]
-	};
-	cell = (api, r, col) => {
-		for (const k of ALIASES[col] ?? [col]) if (api.has(r, k)) return {
-			has: true,
-			v: api.val(r, k)
-		};
-		return {
-			has: false,
-			v: ""
-		};
-	};
-	DIRECTION_WORDS = {
-		"higher is better": "higher",
-		higher: "higher",
-		up: "higher",
-		"lower is better": "lower",
-		lower: "lower",
-		down: "lower"
-	};
-	REFRESH_WORDS = Object.fromEntries(Object.entries(REFRESH_LABEL).map(([k, v]) => [fold$1(v), k]));
-	ACTION_WORDS = {
-		retire: "retire",
-		"bring back": "back",
-		"bring it back": "back"
-	};
-	differs = (before, input) => Object.keys(input).some((k) => (typeof before[k] === "string" ? String(before[k]).trim() : before[k] ?? null) !== (typeof input[k] === "string" ? String(input[k]).trim() : input[k] ?? null));
-}));
 // src/modules/metrics/sheet.ts
 init_columns();
 init_rules();
-init_rulesStill();
-var { match: m, edit: e, worked: w, shown: sh, action: act } = moduleColumn;
+var { match: m, shown: sh } = moduleColumn;
 var or = cellOr;
 var METRICS_SHEET = {
 	spec: {
 		kind: "metrics",
 		name: "Metrics",
 		rowIs: "metric in the library",
-		loaded: true,
-		about: "The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Load it back to add or change many metrics at once: by ID, or by name for a new one; an empty ID adds it. Action retires one or brings it back.",
+		loaded: false,
+		about: "The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Metrics are added and changed in the app.",
 		columns: [
-			m("ID", "The metric’s identity. Empty for a new metric.", (r) => r.m.id),
-			e("Metric", "Its name: 3 to 120 characters, used by one metric.", (r) => r.m.name),
-			act("Action", "Retire or Bring back; empty for none. Retiring needs a Reason.", () => null),
-			e("Meaning", "What it means and how it’s calculated: what is counted, out of what or over what period, what is left out.", (r) => or(r.m.meaning)),
-			e("Unit", "Its unit, as it follows a number (%, min, deploys). A file can’t change the unit of a metric goals use.", (r) => r.m.unit),
-			e("Decimals", "Places after the decimal point it’s shown with: 0 to 4.", (r) => r.m.decimals),
-			e("Direction", `${oneOf(Object.values(DIRECTION_LABEL))}.`, (r) => DIRECTION_LABEL[r.m.direction]),
-			e("Source", "Where the number comes from: a dashboard, a query, a report.", (r) => or(r.m.source)),
-			e("Source owner", "Who owns that source: a team or a person.", (r) => or(r.m.sourceOwner)),
-			e("Refresh", `How often the source refreshes: ${oneOf(Object.values(REFRESH_LABEL))}, or empty when nobody has said.`, (r) => r.m.refresh ? REFRESH_LABEL[r.m.refresh] : null),
-			e("Owner", "Who answers for the definition, by name (Owner email wins when both are given).", (r) => or(r.c.name(r.m.ownerId))),
-			e("Owner email", "Who answers for it, by email; empty on a new metric: whoever loads the file.", (r) => r.c.email(r.m.ownerId)),
-			e("Caveats", "What to watch out for when reading it.", (r) => or(r.m.caveats)),
-			e("Reason", "Why: needed to retire it, or when a change to its meaning or direction changes the number its goals show.", () => null),
-			w("Still to say", "Fully defined, or what it still needs to say.", (r) => stillToSay(r.m, !!r.c.email(r.m.ownerId)).line),
-			w("Retired on", "The day it was retired; empty while it is in use.", (r) => r.m.retiredAt ? r.m.retiredAt.slice(0, 10) : null),
+			m("ID", "The metric’s identity.", (r) => r.m.id),
+			sh("Metric", "Its name.", (r) => r.m.name),
+			sh("Meaning", "What it means and how it’s calculated.", (r) => or(r.m.meaning)),
+			sh("Unit", "Its unit.", (r) => r.m.unit),
+			sh("Decimals", "Places after the decimal point it’s shown with.", (r) => r.m.decimals),
+			sh("Direction", `${oneOf(Object.values(DIRECTION_LABEL))}.`, (r) => DIRECTION_LABEL[r.m.direction]),
+			sh("Source", "Where the number comes from.", (r) => or(r.m.source)),
+			sh("Source owner", "Who owns that source.", (r) => or(r.m.sourceOwner)),
+			sh("Refresh", `How often the source refreshes: ${oneOf(Object.values(REFRESH_LABEL))}, or empty when nobody has said.`, (r) => r.m.refresh ? REFRESH_LABEL[r.m.refresh] : null),
+			sh("Owner", "Who answers for the definition.", (r) => or(r.c.name(r.m.ownerId))),
+			sh("Owner email", "Who answers for it, by email.", (r) => r.c.email(r.m.ownerId)),
+			sh("Caveats", "What to watch out for when reading it.", (r) => or(r.m.caveats)),
 			sh("Measures", "The goals it measures, each with its slice: a team, or the whole company.", (r) => or(r.measures.map((x) => `${x.g.title} (${x.slice})`).join("; "))),
 			sh("Goal keys", "Their keys.", (r) => or(r.measures.map((x) => x.g.key ?? "").filter(Boolean).join("; ")))
 		]
 	},
 	keys: ["ID"],
-	loadPlan: () => Promise.resolve().then(() => (init_sheetPlan(), sheetPlan_exports)).then((m) => m.planMetricsSheet),
-	has: isMetricsHeader,
 	rows: (x, c, ids) => {
 		const s = x.snapshot;
-		return liveMetrics(s, { retired: true }).map((mt) => ({
+		return liveMetrics(s).map((mt) => ({
 			c,
 			m: mt,
 			measures: linksOf(s).filter((l) => l.metricId === mt.id && !l.removedAt && ids.has(l.goalId)).flatMap((l) => {
@@ -15740,13 +15426,10 @@ var METRICS_SHEET = {
 		}));
 	}
 };
-/** A header row made by hand that is the Metrics sheet (3.1): Metric (or Name with Unit and Direction), and Unit,
-Direction or Measures. */
-function isMetricsHeader(h) {
-	return h.has("metric") && (h.has("unit") || h.has("direction") || h.has("measures")) || h.has("name") && h.has("unit") && h.has("direction");
-}
 // src/modules/metrics/records.ts
+init_rulesStructure();
 init_actions();
+init_rulesMeasured();
 init_rules();
 /** Written only when there is one (a restore writes null), so rows never removed look exactly as before. */
 var set$1 = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== void 0));
@@ -15779,7 +15462,11 @@ var metricToRow = (ws, m) => ({
 	retired_by: m.retiredBy ?? null,
 	retired_why: m.retiredWhy ?? "",
 	replaced_by: m.replacedBy ?? null,
-	marks: m.marks ?? []
+	marks: m.marks ?? [],
+	level: m.level ?? null,
+	parent_id: m.parentId ?? null,
+	confidence: m.confidence ?? null,
+	gaming: m.gaming || null
 });
 var metricFromRow = (r) => ({
 	id: r.id,
@@ -15808,7 +15495,8 @@ var metricFromRow = (r) => ({
 	...r.measurement === "partly" || r.measurement === "gap" ? {
 		measurement: r.measurement,
 		measurementNote: String(r.measurement_note ?? "")
-	} : {}
+	} : {},
+	...structured(LEVELS$2.includes(r.level) ? r.level : null, r.parent_id ? String(r.parent_id) : null, CONFIDENCES.includes(r.confidence) ? r.confidence : null, r.gaming ? String(r.gaming) : null)
 });
 var metricLinkToRow = (ws, l) => ({
 	workspace_id: ws,
@@ -15922,6 +15610,10 @@ var records$3 = {
 			label: markLabel(k)
 		})) : [];
 	},
+	switched: (x, on) => {
+		const s = x.full ?? x.snapshot;
+		return heldOnSwitch(x, on, metricsOf(s), linksOf(s));
+	},
 	goalColumns: [{
 		param: "metric",
 		fill: (s) => {
@@ -16009,6 +15701,53 @@ var records_default = [{
 }];
 // \0virtual:faro-modules
 var _virtual_faro_modules_default = [
+	{
+		id: "ai-access",
+		name: "AI access",
+		summary: "Let Claude or another AI tool read and act here through MCP, as one person, with that person’s rights.",
+		group: "beyond",
+		needs: [],
+		routes: [],
+		redirects: [],
+		navigation: [],
+		places: [],
+		sections: ["ai"],
+		tables: [],
+		aiTools: [
+			"list_tokens",
+			"create_token",
+			"revoke_token"
+		],
+		help: ["ai"],
+		requirements: [
+			"MCP-TOKENS",
+			"TOKENS-SERVER-ONLY",
+			"AI-ACCESS-OPTIONAL"
+		],
+		journeys: [
+			"U22",
+			"U62",
+			"U175"
+		],
+		elsewhere: [],
+		rebuild: {
+			"status": "outline",
+			"builds": "AI access, as a feature a workspace can switch off. An admin makes a personal MCP token for someone (shown once, only its hash kept) and anyone revokes their own; an AI tool using the token acts as that person through the MCP server, with that person's rights, every change logged as theirs “via MCP”. The tokens are listed on their own Workspace section, AI access (/workspace/ai, admins), in Settings (your own) and on a person's page (Make an MCP token). Off, the server refuses every token of the workspace with one sentence, but still lists its tools; no token can be made; Workspace, Settings and People show no tokens; /workspace/ai says it is switched off. Tokens are kept, not revoked: switching it back on makes them work again. An admin switches it on Workspace, Features, after a read-back that names the tokens.",
+			"entry": ["The core keeps a workspace's switched-off modules (Workspace.modulesOff) and refuses a switched-off module's actions (stage 2).", "The MCP server answers JSON-RPC over HTTP with a bearer token, loading the token's workspace and its modulesOff for every request (the AI tools' stage)."],
+			"exit": [
+				"Switched off, every MCP request but initialize and tools/list is answered with “AI access is switched off in {workspace}. An admin can switch it on in Faro, under Workspace, Features.”, tools/list still lists the tools, and the token's lastUsedAt does not move.",
+				"Switched off, making a token is refused with “AI access is off in {workspace}.”, and revoking one still works.",
+				"Switched off, Workspace has no AI access section (/workspace/ai is Page not found with “AI access is switched off in {workspace}. An admin can switch it on in Workspace, Features.”), Settings has no “Your MCP tokens” and a person's page has no Make an MCP token (journey U175).",
+				"Switching off first reads back, from the rule aiAccessReadBack, the tokens that stop working (the first five by person and name, then how many more) and the changes AI tools made here; switching back on, only when tokens were kept, names those that work again. With no token it acts at once.",
+				"set_feature switching AI access off answers “AI access is off in {workspace}. This connection stops working now. An admin switches it back on in Faro.”"
+			],
+			"gaps": [
+				"AI access is a switch, not yet a folder of its own (SW7 moves it): its screens (src/ui/AiAssistants.tsx; the AI access section in src/screens/Workspace.tsx; the tokens in src/screens/Settings.tsx and src/screens/People.tsx), its rules (src/domain/actions.ts createToken and revokeToken; the read-back in src/domain/switchOff.ts) and its table (okr_api_tokens, migration 0010) are still the core's, and so is the door in server/mcp.ts. This folder holds its section, its Help article and its AI tools; src/app/reads.ts aiAccessOn is the one place that asks whether it is on.",
+				"A token is not yet declared as the module's record (AS part 2's records extension point is SW7's, with a field the store transforms for its secret), so a build without the module still loads and saves tokens as the core's; its server stays open, answering the core’s tools, and only the token tools are missing.",
+				"No conformance rows: the demo workspace has no tokens (they work only in the real app), so there is nothing to count."
+			]
+		}
+	},
 	{
 		id: "feedback",
 		name: "Feedback",
@@ -16162,7 +15901,7 @@ var _virtual_faro_modules_default = [
 			"metric-slices",
 			"metric-change",
 			"metric-measurement",
-			"metric-sheet"
+			"metric-structure"
 		],
 		requirements: [
 			"METRICS-LIBRARY",
@@ -16172,7 +15911,7 @@ var _virtual_faro_modules_default = [
 			"METRIC-PARTS",
 			"METRIC-CHANGE",
 			"METRIC-MEASUREMENT",
-			"METRIC-SHEET",
+			"METRIC-STRUCTURE",
 			"READING-PREFILL",
 			"READING-RECORDED-ONLY",
 			"READING-SEVEN-DAYS",
@@ -16192,13 +15931,14 @@ var _virtual_faro_modules_default = [
 			"U158",
 			"U159",
 			"U160",
+			"U172",
 			"N29",
 			"F15",
 			"N16",
 			"U170"
 		],
 		elsewhere: [],
-		rebuild: /* @__PURE__ */ JSON.parse("{\"status\":\"outline\",\"builds\":\"The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric. Defining one well: three things to be usable, the rest said later and named in words (“Fully defined” or “Still to say: …”, never a score), and three questions answered once before saving (a close name, a unit spelt another way, a percentage that doesn’t say out of what), with each Must fix and Check under its field. For, and which part: a link is for a team or the whole company and optionally one part of that number (“tier-1 services”), the parts in use offered under the field; the goal takes the metric’s unit and direction, its target stays its own; another goal on the same number, or a part spelt like one in use, is asked about once; and a goal with check-ins says why it is measured differently, in its History. Looking after one: what it still needs, a confirm before changing a unit or direction goals use, and on Workspace → About how many metrics have no owner. Measurement status: each metric says whether it is measured today (Measured, Partly or Gap, a shape and a word, with what is missing); a gap or a part is listed under To sort out, and a goal measured by a gap is held to no number (the core’s rule over the goal’s own field, which the library fills in when it links the goal and when the metric is measured). The Metrics sheet in and out: the workbook’s Metrics sheet loads back through the core’s change engine, by a planner the module gives its sheet, with the library’s own rules, the import’s questions and one Undo.\",\"entry\":[\"The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.\",\"Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice.\"],\"exit\":[\"A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.\",\"Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.\",\"A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.\",\"A metric that has measured a goal can’t be deleted (“Retire it instead.”); one that never has is deleted, and Undo or Recently removed brings it back.\",\"The demo workspace’s 13 metrics and 12 links load (two of them for one part: CI/CD · main branch pipelines, CI/CD · main pipelines), and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).\",\"Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there.\",\"Starting the next year carries every goal’s metric link to its copy: the same metric, team and part (journey U152; the core’s carry journey, U115, checks nothing of the module’s).\",\"The library finds what each of rule 1’s worked examples says, a metric’s goals are rule 2’s rows in its order, and what a metric needs is rule 3’s, in order: every row of spec/conformance/metrics.csv matches.\",\"The library is in the menu after People (under More on a phone); the old addresses of Metrics under Data lead to the library, a metric or the form; a metric’s row in the library counts the same goals by status as its page’s table lists (journey U81, checks F15 and N16).\",\"In New goal, “Measured by” comes first on the measure step: a metric found by typing shows its meaning, fills in the unit, decimals and which way is better on a goal nobody typed them for, measures it for the goal’s team or the whole company, and Check says so; one added there is chosen; a goal with dated stages has none (journey U82, rule 5’s worked examples).\",\"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first (the read-back, MT3); admins see on Workspace → About how many metrics have no owner (journey U83).\",\"Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105).\",\"A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146).\",\"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples).\",\"A metric said to be a Gap holds every goal it measures to no number in the same save (the goal says Not measured yet and nothing on it is due); said to be measured, partly or in full, or unlinked, the goal is held to its plan again; the library lists the gap under To sort out.\",\"A number source reads a metric for a link’s slice (a team or the whole company, and a part) or says it doesn’t, and passes the source contract; a reading’s state in a check-in is rule 1’s (no-slice, unreachable, missing, old after 7 days, same, jump, changed, fresh), and what a check-in records of it is rule 2’s, which nothing that judges a goal reads (the reading rule’s worked examples; the `reading` rows of spec/conformance/metrics.csv).\",\"The check-in’s number step (the core’s place checkin.number) opens with a fresh reading in the field, “From {source}, read {when}.” and “Confirm {value} {unit}”; a different number asks why from four reasons before “Use {typed} {unit}”; a reading more than 7 days old is neither filled in nor shown; a company-wide source never fills in a team’s goal; the read-back says where the number came from; the one table fills fresh readings in the quiet ink and asks why in a changed row; and rule 3 (a differing number needs a reason) holds at the form, the table and post_check_in’s reading_confirmed and different_because alike (journeys U156 to U160). With the module off the step is as it was.\",\"Where a number came from shows beyond the check-in, from what each check-in recorded: the goal’s Measured by says “This week’s number” from its latest check-in, each History row says it came from the source or was typed over it and why, the metric’s page says for each goal how its check-in gets its number and, over the last 8 weeks, how many numbers filled in from the source were typed over (goals and weeks, never people; rule 4), a review’s agenda says “· from {source}” after a confirmed number, and the Check-ins sheet has four columns for reading that load back as no change; get_goal and get_metric say the same (journey U161). Real connectors are R12’s (spec/requirements/internal/r12-number-sources.md).\",\"The Metrics sheet loads back (MI): an export loaded unchanged plans nothing; a row with no ID adds a metric owned by whoever loads it; a row with an ID changes that metric, and Retire with a Reason retires it; a name used twice, an ID that isn’t here and a unit change on a metric goals use are each a Must fix in the form’s words; one Undo puts every row back; with the module off the sheet is said once and not read.\"],\"gaps\":[\"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).\",\"The goals table is where slices side by side and numbers read from the source would grow (growth.md: dimensions an admin defines; numbers from the source).\",\"Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md.\"]}"),
+		rebuild: /* @__PURE__ */ JSON.parse("{\"status\":\"outline\",\"builds\":\"The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric. Defining one well: three things to be usable, the rest said later and named in words (“Fully defined” or “Still to say: …”, never a score), and three questions answered once before saving (a close name, a unit spelt another way, a percentage that doesn’t say out of what), with each Must fix and Check under its field. For, and which part: a link is for a team or the whole company and optionally one part of that number (“tier-1 services”), the parts in use offered under the field; the goal takes the metric’s unit and direction, its target stays its own; another goal on the same number, or a part spelt like one in use, is asked about once; and a goal with check-ins says why it is measured differently, in its History. Looking after one: what it still needs, a confirm before changing a unit or direction goals use, and on Workspace → About how many metrics have no owner. Measurement status: each metric says whether it is measured today (Measured, Partly or Gap, a shape and a word, with what is missing); a gap or a part is listed under To sort out, and a goal measured by a gap is held to no number (the core’s rule over the goal’s own field, which the library fills in when it links the goal and when the metric is measured).\",\"entry\":[\"The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.\",\"Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice.\"],\"exit\":[\"A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.\",\"Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.\",\"A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.\",\"A metric that has measured a goal can’t be deleted (“Retire it instead.”); one that never has is deleted, and Undo or Recently removed brings it back.\",\"The demo workspace’s 13 metrics and 12 links load (two of them for one part: CI/CD · main branch pipelines, CI/CD · main pipelines), and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).\",\"Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there.\",\"Starting the next year carries every goal’s metric link to its copy: the same metric, team and part (journey U152; the core’s carry journey, U115, checks nothing of the module’s).\",\"The library finds what each of rule 1’s worked examples says, a metric’s goals are rule 2’s rows in its order, and what a metric needs is rule 3’s, in order: every row of spec/conformance/metrics.csv matches.\",\"The library is in the menu after People (under More on a phone); the old addresses of Metrics under Data lead to the library, a metric or the form; a metric’s row in the library counts the same goals by status as its page’s table lists (journey U81, checks F15 and N16).\",\"In New goal, “Measured by” comes first on the measure step: a metric found by typing shows its meaning, fills in the unit, decimals and which way is better on a goal nobody typed them for, measures it for the goal’s team or the whole company, and Check says so; one added there is chosen; a goal with dated stages has none (journey U82, rule 5’s worked examples).\",\"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first (the read-back, MT3); admins see on Workspace → About how many metrics have no owner (journey U83).\",\"Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105).\",\"A link takes a part of at most 60 characters; a part spelt like one in use and another goal on the same metric, team and part are each a Check answered once; a goal with check-ins whose metric, team or part changes is refused without a reason, and the History entry gives it; the form offers the parts in use, and a goal’s About lists For, What it means, From the metric, where the number comes from and the goal’s own target (rule 7’s worked examples; journey U146).\",\"Changing a metric goals use reads back first (MT3, rule 3): reworded caveats or a new name save at once; a new meaning or source asks “Is it still the same number?”, and “The number itself changes” is refused without a reason, then marks every goal’s chart (“Definition changed, week {w}”, a dashed hairline with its label beside it) and History, which Undo takes back; a new direction needs a reason and marks them too; a new unit is a new label (every goal’s unit changes in the same save) or a different scale, refused. Retiring a metric with goals keeps their links and numbers, leaves it out of the pickers and the library’s list, refuses a new goal it, and says so on each goal; Bring it back undoes that. Admins merge a metric into another in the same unit: every goal moves, the old one is retired pointing to the new, one Undo puts it back; a non-admin is refused (journey U106, rules 3 to 5’s worked examples).\",\"A metric said to be a Gap holds every goal it measures to no number in the same save (the goal says Not measured yet and nothing on it is due); said to be measured, partly or in full, or unlinked, the goal is held to its plan again; the library lists the gap under To sort out.\",\"A number source reads a metric for a link’s slice (a team or the whole company, and a part) or says it doesn’t, and passes the source contract; a reading’s state in a check-in is rule 1’s (no-slice, unreachable, missing, old after 7 days, same, jump, changed, fresh), and what a check-in records of it is rule 2’s, which nothing that judges a goal reads (the reading rule’s worked examples; the `reading` rows of spec/conformance/metrics.csv).\",\"The check-in’s number step (the core’s place checkin.number) opens with a fresh reading in the field, “From {source}, read {when}.” and “Confirm {value} {unit}”; a different number asks why from four reasons before “Use {typed} {unit}”; a reading more than 7 days old is neither filled in nor shown; a company-wide source never fills in a team’s goal; the read-back says where the number came from; the one table fills fresh readings in the quiet ink and asks why in a changed row; and rule 3 (a differing number needs a reason) holds at the form, the table and post_check_in’s reading_confirmed and different_because alike (journeys U156 to U160). With the module off the step is as it was.\",\"Where a number came from shows beyond the check-in, from what each check-in recorded: the goal’s Measured by says “This week’s number” from its latest check-in, each History row says it came from the source or was typed over it and why, the metric’s page says for each goal how its check-in gets its number and, over the last 8 weeks, how many numbers filled in from the source were typed over (goals and weeks, never people; rule 4), a review’s agenda says “· from {source}” after a confirmed number, and the Check-ins sheet has four columns for reading that load back as no change; get_goal and get_metric say the same (journey U161). Real connectors are R12’s (spec/requirements/internal/r12-number-sources.md).\"],\"gaps\":[\"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).\",\"The goals table is where slices side by side and numbers read from the source would grow (growth.md: dimensions an admin defines; numbers from the source).\",\"Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md.\"]}"),
 		growth: [
 			{
 				"idea": "Draft and Ready states",
@@ -16681,13 +16421,6 @@ var exportOn = (ws) => ({
 	sheets: sheetsOn(ws),
 	reviews: isModuleOn(ws, "reviews")
 });
-/** Loads every module sheet's planner not loaded yet (MI): each door that runs the engine on a file with a module's own
-sheet awaits this first (the import's reader, its worker, bulk_change). Loaded once, kept on the sheet. */
-async function loadSheetPlanners() {
-	await Promise.all(MODULE_SHEETS.filter((sh) => sh.loadPlan && !sh.plan).map(async (sh) => {
-		sh.plan = await sh.loadPlan();
-	}));
-}
 // src/mcp/moduleOff.ts
 /** "Reviews is switched off in {ws}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features." */
 var moduleOffSentence = (module, workspace, tool) => `${module} is switched off in ${workspace}, so ${tool} can’t be used there. An admin can switch it on in Workspace, under Features.`;
@@ -17077,6 +16810,13 @@ var reviewWriteRows = (s) => ({
 });
 /** Whether Watching is on: the Watching tab, Home's "Goals you watch", the Watch button and the three watching tools. */
 var watchingOn = (on) => on.has("watching");
+/** Whether AI access is on (SW2): the MCP server's door, Workspace's AI access section, the tokens in Settings and on
+People, and making a token. Revoking one never asks. */
+var aiAccessOn = (on) => on.has("ai-access");
+/** What the MCP server answers every request but initialize and tools/list while AI access is off (SW2, spec 6.1). */
+var aiAccessShutWords = (workspace) => `AI access is switched off in ${workspace}. An admin can switch it on in Faro, under Workspace, Features.`;
+/** What set_feature answers when it switches AI access off: the last thing that token does (spec 6.2). */
+var aiAccessLastWords = (workspace) => `AI access is off in ${workspace}. This connection stops working now. An admin switches it back on in Faro.`;
 /** Whether the Wrap-up is on: its pages, Home's wrap-up lead, "Wrap up this goal" and its two tools. Results, carrying
 on and starting the next year are the core's and never ask. */
 var wrapUpOn = (on) => on.has("wrap-up");
@@ -17086,6 +16826,16 @@ var wrapUpOn = (on) => on.has("wrap-up");
 * get_my_work say it; no screen writes "review" in a deadline itself.
 */
 var dueWordsHere = (reviews, s, cycle, week, personId) => dueWords$1(reviews, cycle, week, reviews && heldOnDueDay(s.reviews, cycle, week, personId));
+/** Each goal's standing this week (habit rule 1), or null when it isn't due: what Goals' `checkedin=` reads and Home's
+standing cell counts (HM7), so both count the same goals. */
+function standingIn(s, cycle, week) {
+	const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
+	const rows = {
+		checkIns: s.checkIns,
+		asks: s.requests ?? []
+	};
+	return (g) => week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null;
+}
 var movedRule = null;
 function registerMovedRule(rule) {
 	movedRule = rule;
@@ -17094,12 +16844,7 @@ function registerMovedRule(rule) {
 narrows nothing, as a switched-off module's column doesn't (module map F4; build review of #424). */
 function goalRows(s, cycle, today, week, columns, reviews = true) {
 	const goals = live$1(s.goals).filter((g) => !g.stoppedAt);
-	const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
-	const rows = {
-		checkIns: s.checkIns,
-		asks: s.requests ?? []
-	};
-	const standing = (g) => week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null;
+	const standing = standingIn(s, cycle, week);
 	const inReview = (id) => {
 		const r = s.reviews.find((x) => x.id === id && !x.removedAt);
 		return r ? new Set(goalsIn(r.scope, goals).map((g) => g.id)) : null;
@@ -17756,7 +17501,7 @@ function toJson$1(x) {
 				...isUnmeasured(g) ? { unmeasured: { since: g.unmeasuredSince } } : {},
 				now: {
 					status: s.status,
-					statusLabel: g.stoppedAt ? STOPPED : isUnmeasured(g) ? UNMEASURED : s.statusLabel,
+					statusLabel: g.stoppedAt ? STOPPED : s.statusLabel,
 					statusMeaning: MEANING[s.status],
 					value: s.nowValue,
 					text: s.now,
@@ -19101,7 +18846,7 @@ function parseActivity(p) {
 		since: date(p.get("since"))
 	};
 }
-var VIA$3 = (c) => c.diffs.find((d) => d.field === "Via")?.to ?? null;
+var VIA$4 = (c) => c.diffs.find((d) => d.field === "Via")?.to ?? null;
 var PLAN_FIELDS = [
 	"Start",
 	"Target",
@@ -19114,7 +18859,7 @@ var PLAN_FIELDS = [
 ];
 /** What kind of change this is. A goal change that touches its plan or target counts as a plan change. */
 function kindOf(c) {
-	if (VIA$3(c) === VIA_LABEL.mcp || VIA$3(c) === "AI assistant (MCP)") return "ai";
+	if (VIA$4(c) === VIA_LABEL.mcp || VIA$4(c) === "AI assistant (MCP)") return "ai";
 	if (c.action === "imported" || c.action === "undone") return "imports";
 	if (c.entity === "check-in") return "checkins";
 	if (c.entity === "metric" || c.entity === "field") return "goals";
@@ -19203,6 +18948,53 @@ function activityFilter(a, x) {
 		return true;
 	};
 }
+// src/modules/ai-access/help.ts
+var help$8 = [{
+	id: "ai",
+	title: "AI access",
+	summary: "The MCP tokens that let Claude or another AI tool act as someone here, and the switch that turns them all off.",
+	group: "you",
+	after: "workspace-access",
+	sections: [
+		{
+			heading: "What it’s for",
+			text: ["Letting an AI tool read and act in this workspace as one person, with that person’s rights. Faro has no AI built in: this is the door other AI tools use."]
+		},
+		{
+			heading: "How to use it",
+			list: [
+				"Workspace, AI access lists every MCP token, newest first: what it’s for, whom it acts as, when it was made and last used, and Revoke. Make a token is the section’s one action; the token is shown once.",
+				"Every change an AI tool makes is logged as its person’s, marked “via MCP” in Activity.",
+				"AI access can be switched off for the whole workspace, on Workspace, Features. Before it goes off, Faro names the tokens that stop working at once and counts what AI tools already changed (that stays). The tokens are kept, not revoked: switch AI access back on and they work again, after Faro names them. To end one for good, revoke it first; See the tokens, in the same message, lists them with Revoke.",
+				"While it is off, an AI tool that calls Faro is told “AI access is switched off in” the workspace, and that an admin can switch it on. It still sees the list of tools. No token can be made, and Workspace, Settings and People show no tokens.",
+				"An AI tool can switch AI access off (as its admin), but never back on: that is the last thing its token does."
+			]
+		},
+		{
+			heading: "Who can",
+			text: ["Admins make tokens, revoke any, and switch AI access. Anyone revokes their own in Settings."]
+		}
+	],
+	routes: ["/workspace/ai"],
+	screens: [],
+	reqs: ["MCP-TOKENS", "AI-ACCESS-OPTIONAL"],
+	keywords: [
+		"ai access",
+		"mcp token",
+		"token",
+		"integrations",
+		"api access",
+		"bots",
+		"key",
+		"revoke",
+		"switch off ai"
+	],
+	related: [
+		"ai-assistants",
+		"workspace-access",
+		"features"
+	]
+}];
 // src/modules/feedback/help.ts
 var help$7 = [{
 	id: "feedback",
@@ -19674,53 +19466,6 @@ var help$5 = [
 		]
 	},
 	{
-		id: "metric-sheet",
-		title: "Metrics in a spreadsheet",
-		summary: "Export the Metrics sheet, change or add rows, and load it back through the same preview, questions and Undo as any import.",
-		group: "you",
-		after: "metric-change",
-		sections: [
-			{
-				heading: "Out and back in",
-				list: [
-					"Export everything from Data: the workbook’s Metrics sheet lists every metric, retired ones too with the day they were retired, and the goals each measures.",
-					"Change rows, or add rows with an empty ID, and load the file on Import. Loading an export unchanged changes nothing.",
-					"A row finds its metric by ID, or else by its name, any case. A column you leave out, or an empty cell, keeps what the metric says.",
-					"Action retires a metric (say why in Reason) or brings one back."
-				]
-			},
-			{
-				heading: "What it asks",
-				list: [
-					"The same as the metric’s form, in the same words: a name used twice, a direction or refresh it can’t read, an owner who isn’t in the workspace.",
-					"A name one letter from a metric already here asks whether the row is that metric or a new one.",
-					"Changing what a metric goals use means, or where its number comes from, asks “Is it still the same number?”; if the number changes, say why in Reason. A file can’t change the unit of a metric goals use: change it on the metric’s page.",
-					"Nothing is saved until every question is answered. The toast after saving has Undo, and the import stays under Past imports, where Undo puts every row back."
-				]
-			},
-			{
-				heading: "When metrics are switched off",
-				list: ["With the Metric library off, the import says once that the Metrics sheet was not read, and reads the rest of the file."]
-			}
-		],
-		routes: [],
-		screens: [],
-		reqs: ["METRIC-SHEET"],
-		keywords: [
-			"metrics sheet",
-			"import metrics",
-			"spreadsheet",
-			"workbook",
-			"load back",
-			"bulk"
-		],
-		related: [
-			"metric-change",
-			"metric-define",
-			"metrics"
-		]
-	},
-	{
 		id: "metric-measurement",
 		title: "When a number isn’t measured yet",
 		summary: "Say a metric is measured, partly measured or a gap, and what happens to the goals it measures.",
@@ -19735,7 +19480,7 @@ var help$5 = [
 			]
 		}, {
 			heading: "Goals measured by a gap",
-			list: ["A goal measured by a metric with a gap is held to no number. It says “Not measured yet”, with a broken ring, instead of a status: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.", "Once the metric is measured, in full or in part, its goals are held to their plans again, in the same save. Linking a goal to a measured metric, or unlinking it, does the same. History says so on each goal, and Undo takes it all back."]
+			list: ["A goal measured by a metric with a gap is held to no number. Its status is “Not measured yet”, a ring with a dot at its centre, wherever it is shown: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.", "Once the metric is measured, in full or in part, its goals are held to their plans again, in the same save. Linking a goal to a measured metric, or unlinking it, does the same. History says so on each goal, and Undo takes it all back."]
 		}],
 		routes: ["/metrics/:metricId/edit"],
 		screens: [],
@@ -19753,6 +19498,49 @@ var help$5 = [
 		related: [
 			"metric-define",
 			"metric-change",
+			"metrics"
+		]
+	},
+	{
+		id: "metric-structure",
+		title: "Where a metric sits, and how far to trust it",
+		summary: "Say what a metric is part of, how much its number can be trusted, and how it could be gamed, so the library keeps a register’s thinking.",
+		group: "you",
+		after: "metric-measurement",
+		sections: [{
+			heading: "Where it sits",
+			list: [
+				"In a metric’s form, under Where it sits, choose Part of: the metric it sits under, found by typing its name. A metric can’t be its own parent, and one already under it is listed but can’t be chosen.",
+				"Then say how it relates, if you know: Component (part of its parent’s number: they add up to it), Driver (moves it), Control (watched so improving the parent breaks nothing else) or Breakdown (the parent split one way, by team, region or service).",
+				"The metric’s page says where it sits (“A driver of Lead time for changes.”), and its parent’s page lists it under Where it sits, with its level. Goals still feed goals: this is the library’s map, not a second goal tree."
+			]
+		}, {
+			heading: "Confidence and gaming",
+			list: [
+				"Confidence in the number: High (measured directly and checked), Medium (known gaps or a manual step) or Low (estimated, sampled or new). Its page says it among the facts.",
+				"How it could be gamed: a sentence or two, up to 500 characters, shown beside what it means, so anyone reading a good number knows what to check.",
+				"All of it is optional. The AI assistant’s save_metric takes parent, level, confidence and gaming, so a register loads with its structure."
+			]
+		}],
+		routes: ["/metrics/:metricId/edit"],
+		screens: [],
+		reqs: ["METRIC-STRUCTURE"],
+		keywords: [
+			"parent",
+			"component",
+			"driver",
+			"control",
+			"breakdown",
+			"confidence",
+			"gamed",
+			"gaming",
+			"register",
+			"tree",
+			"structure"
+		],
+		related: [
+			"metric-define",
+			"metric-measurement",
 			"metrics"
 		]
 	}
@@ -20237,6 +20025,10 @@ var help$2 = [{
 // \0virtual:faro-modules/help
 var help_default = [
 	{
+		id: "ai-access",
+		part: help$8
+	},
+	{
 		id: "feedback",
 		part: help$7
 	},
@@ -20447,6 +20239,18 @@ var CORE_ARTICLES = [
 				]
 			},
 			{
+				heading: "How the week’s check-ins stand",
+				list: [
+					"If your team’s goals or the goals you watch are shown as teams, or you are an admin, This week has a cell saying how the week’s check-ins stand over those goals (every goal, for an admin): “Checked in for week 46 · 45 of 55 goals · Due by Thu 12 Nov”. After the due day it says how many came in after it.",
+					"It counts goals, never people. It opens Goals with the goals that have no check-in for the week yet, worst first.",
+					"Beside it, a second cell says how many of those goals were checked in before the review without anyone asking: “91 of 118 goals · 77%”, with last week’s percentage under it and By week, which opens the review that covers them. Before the due day it says “So far”. A percentage is shown only from 20 goals, and the cell is left out when the goals have fewer than three owners."
+				]
+			},
+			{
+				heading: "The workspace’s line",
+				list: ["If you are an admin, Home has a short block headed with the workspace’s name. When the year is ending or has ended, it says so first, with the next step. Then, when something needs sorting out, “2 things to sort out” with the first of them, and See them, which opens Workspace’s About with the same list."]
+			},
+			{
 				heading: "Changed since",
 				list: [
 					"Beside the rest on a computer (after your goals and your team on a phone), “Changed since Friday 6 Nov” says what moved since you last opened Home: “1 got worse”, “2 recovered”, “1 went quiet”, “1 done”. Each count opens exactly those goals in Goals.",
@@ -20476,6 +20280,7 @@ var CORE_ARTICLES = [
 		reqs: [
 			"HOME-OWNER",
 			"HOME-MANAGER",
+			"HOME-LEADER",
 			"PROFILES",
 			"SHAPE-MATCHES-WORD",
 			"DAY-ONE"
@@ -20511,6 +20316,7 @@ var CORE_ARTICLES = [
 					"off",
 					"stale",
 					"none",
+					"unmeasured",
 					"planned",
 					"done"
 				].map((k) => define(STATUS[k]))
@@ -21326,7 +21132,7 @@ var CORE_ARTICLES = [
 				heading: "The summary bar",
 				list: [
 					"First line: the goal, its owner, its level and its key (G-12). Then its status as a shape and a word, and the number in the goal’s own units.",
-					"A goal whose number isn’t measured yet (the metric that measures it has a gap) says “Not measured yet”, with a broken ring, instead of a status: it is held to no number, so nothing on it is due or late and it projects nothing, until the metric is measured.",
+					"A goal whose number isn’t measured yet (the metric that measures it has a gap) has the status “Not measured yet”, a ring with a dot at its centre, everywhere it is shown: it is held to no number, so nothing on it is due or late and it projects nothing, until the metric is measured.",
 					"Before a goal’s first check-in, a baseline it was given with its period is shown as its number, with “Baseline, June to September 2026, provisional” beside it; lists say “41.5 min (baseline)”. Its status is No check-in yet as before, until someone checks in.",
 					"Beside the key: when it was last updated, the latest check-in’s date and its week (“Updated 6 Nov · week 45”).",
 					"Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go; when lower is better, how far over the target it still is: “5 min over”), and Will it hit the target. A gap on the wrong side of a plan says “short” when higher is better and “over” when lower is better, and a number shown equal to its plan counts as met.",
@@ -21763,7 +21569,7 @@ var CORE_ARTICLES = [
 					"A link can open the page at a section: add #definition, #plan or #owner to the address. Describe it on a goal with no definition opens What it is. Older links that opened one part of the form land on the matching section.",
 					"The owner, the team and the goals are found by typing a name or a key; a goal already under this one is listed but can’t be chosen to feed it.",
 					"Plan and target has the same two rows as a new goal: Baseline with From, Target with To, each week chosen from the list of weeks with their dates. Changing From or To after check-ins have started is a plan change, so it asks why.",
-					"Under them, Period the baseline covers and Provisional, as on New goal. Firming up a provisional baseline, changing the Baseline number while Provisional is ticked, isn’t a plan change: it asks no reason and keeps no earlier plan. Untick Provisional once the figure is firm.",
+					"Under them, Period the baseline covers and Provisional, as on New goal. Firming up a provisional baseline, changing the Baseline number while Provisional is ticked, isn’t a plan change: it asks no reason and keeps no earlier plan. Untick Provisional once the figure is firm. A baseline can be marked provisional only before the goal’s first check-in.",
 					"Plan by week shows the numbers week by week; type over any week.",
 					"After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s history.",
 					"Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about. A target on the worse side of the start for the metric that measures the goal is asked about too (“Lead time for changes is better lower, but the target is above today”), here, in a spreadsheet and through the AI assistant, and your answer is kept in the goal’s History as Checked.",
@@ -22316,37 +22122,34 @@ var CORE_ARTICLES = [
 	{
 		id: "workspace-access",
 		title: "Workspace: Access",
-		summary: "For admins: who the admins are, and MCP access: the MCP tokens Claude or another AI tool uses to act as someone in this workspace.",
+		summary: "For admins: who the admins are, where they are made, and taken back.",
 		group: "you",
 		sections: [{
 			heading: "How to use it",
 			list: [
 				"Admins lists everyone who is one, A to Z. Add an admin is the page’s main action: find someone by name, job title or team, then Make them an admin. The message that says so has Undo.",
 				"Remove as admin, on anyone’s row, asks first (“They keep their goals and history”); on your own row it’s Stop being an admin, which has no Undo: only another admin can make you one again. There is always at least one admin: the only one has no button, and their row says The only admin.",
-				"The same two are on a person’s page in People, under For admins, with Make an MCP token for that person.",
-				"MCP tokens: Make a token for someone (it’s shown once), and revoke any token. The AI tool using it then acts as that person, with their rights, and every change it makes says “via MCP”. A token made as a builder token, before the inbox opened to everyone, is labelled “builder token”: it works as an ordinary one. See MCP access.",
-				"In the demo, MCP tokens don’t work: its data stays in your browser, where an AI tool can’t reach it. Access says so in place of the list."
+				"The same two are on a person’s page in People, under For admins, with Make an MCP token for that person while AI access is on.",
+				"The MCP tokens have their own section, AI access, after this one. See AI access."
 			]
 		}, {
 			heading: "Who can",
-			text: ["Admins. Everyone finds their own MCP tokens in Settings."]
+			text: ["Admins."]
 		}],
 		routes: ["/workspace/access"],
 		screens: [],
-		reqs: ["ADMIN", "MCP-TOKENS"],
+		reqs: ["ADMIN"],
 		keywords: [
 			"access",
 			"admins",
 			"add an admin",
 			"make admin",
 			"remove admin",
-			"who is an admin",
-			"revoke",
-			"assistant access"
+			"who is an admin"
 		],
 		related: [
 			"workspace",
-			"ai-assistants",
+			"ai",
 			"people"
 		]
 	},
@@ -22482,9 +22285,10 @@ var CORE_ARTICLES = [
 					"How you work starts with the check-in rhythm: “Every week, due by Thursday” (a goal with no check-in for 14 days reads No recent update) or “No set rhythm” (owners check in when there’s news; nothing is due or late for want of a check-in). Change opens a sheet with the two choices and, with Every week, the day check-ins are due by.",
 					"Before you save, the sheet says what changes for everyone here, counted: how many goals have nothing due, how many stop reading No recent update and what each would show instead, and that dates people chose and every check-in already posted stay as they are. Switched back on, nothing is late that day: the rhythm counts from today, and the sheet says when the first check-ins are due. Save says what it did, with Undo.",
 					"Working together holds Reviews (walking a set of goals together on a cadence), Watching (following goals you don’t own) and the Wrap-up (each owner saying how their goals landed at the end of the year). Tools holds the Metric library, Spreadsheets and the Goal map. Beyond this workspace holds Feedback, which goes to the people who build Faro. A group this Faro has nothing in isn’t shown. Each has a switch with On or Off beside it.",
-					"While a feature is on, its row says what it holds: how many reviews are set up, how many people watch goals here, or when the wrap-up opens and, while it is open, how many goals are wrapped up.",
+					"While a feature is on, its row says what it holds: how many reviews are set up, how many people watch goals here, how many MCP tokens are in use, or when the wrap-up opens and, while it is open, how many goals are wrapped up.",
 					"Switching off a feature that keeps something asks first: Reviews always, Watching when anyone watches a goal, the Wrap-up once a wrap-up is written or while it is open. Switching Reviews off asks first. It says, for everyone here, that Reviews leaves the menu and Home, how many reviews stay in the record with what was said in them, how many open next steps and questions raised in a review stay open, how many accepted risks stay on their goals (no new one can be accepted while it is off), that check-ins are still due by the same day, and that nothing is deleted. Cancel changes nothing; Switch off Reviews does it. Switching anything else off that keeps nothing, or anything on, acts at once.",
 					"Switching Watching off says that the Watching tab, “Goals you watch” and the Watch button go; how many people’s watches are kept (nobody is shown as watching while it is off); how many people own no goal and see Home through what they watch, whose Home then shows every goal that needs attention; and that goals don’t change. Switch it back on and each person watches what they did.",
+					"Switching AI access off names the MCP tokens that stop working at once (they are kept, not revoked), counts what AI tools already changed (it stays, marked “via MCP”), and says an AI tool can’t switch it back on. Switching it back on names the tokens that will work again. With no token, either way it acts at once. While it is off, every AI tool calling Faro here is told AI access is switched off, no token can be made, and Workspace, Settings and People show no tokens. See AI access.",
 					"Switching the Wrap-up off says that owners aren’t asked how their goals landed (and, while it is open, how many goals won’t be asked for), that the wrap-ups already written stay in each goal’s History, and that the year still ends: results are worked out as before, and an admin starts the next year from Cycles.",
 					"Switching Feedback off takes Feedback out of the menu, with Send feedback and Mark up this screen, and Ctrl+Shift+M does nothing. What was sent stays in the builders’ inbox. Switching the Goal map off takes Map out of Goals’ layouts: a link or saved view that asked for the Map opens the List and says so once.",
 					"Switched off, a feature leaves every screen: its pages (an old link says it is switched off, and who can switch it on), its menus and buttons, its Help (and the Help link at the foot of its pages) and its MCP tools; What’s new still lists its releases. Anything that needs it goes off with it, and Features says so.",
@@ -22514,6 +22318,7 @@ var CORE_ARTICLES = [
 			"FEEDBACK-OPTIONAL",
 			"MAP-OPTIONAL",
 			"WRAP-UP-OPTIONAL",
+			"AI-ACCESS-OPTIONAL",
 			"FEATURE-GROUPS",
 			"RHYTHM-OPTIONAL"
 		],
@@ -22641,7 +22446,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to connect",
 				list: [
-					"An admin makes a personal MCP token for you under Workspace, Access, MCP access. The database makes it, keeps only a hash of it, and shows it once; nobody can read tokens back, not even through the app.",
+					"An admin makes a personal MCP token for you under Workspace, AI access. The database makes it, keeps only a hash of it, and shows it once; nobody can read tokens back, not even through the app.",
 					"Add the server to your AI tool with the address and token shown. For Claude Code: claude mcp add --transport http goals https://<app>/api/mcp --header \"Authorization: Bearer gk_…\".",
 					"See and revoke your MCP tokens in Settings. The full list of tools is in docs/mcp.md."
 				]
@@ -22868,20 +22673,52 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
-		id: "metrics-sheet-in",
+		id: "not-measured-yet-status",
 		date: "2026-11-14",
-		title: "Import metrics from a spreadsheet",
+		title: "Not measured yet is a status of its own",
 		points: [
-			"The Metrics sheet now loads back: add or change hundreds of metrics at once, with every change shown first.",
-			"Leave ID empty to add a metric; give its ID, or its name, to change one. Action retires one, with a Reason, or brings one back.",
-			"The same questions as the metric’s form are asked once, and one Undo puts every row back. AI tools can send the same rows to bulk_change."
+			"A goal whose number nobody measures yet now says “Not measured yet” wherever its status is shown: the Goals list, its page, its metric’s page and the library’s counts, the workbook and the AI tools.",
+			"It has its own shape, a ring with a dot at its centre, so it no longer reads as “No check-in yet”.",
+			"It still projects no year-end number, and nothing on it is due or late, until its number is measured. You can filter the Goals list by it."
 		],
-		articles: ["metric-sheet"]
+		articles: ["status", "metrics"]
+	},
+	{
+		id: "ai-access-switch",
+		date: "2026-11-14",
+		title: "AI access can be switched off",
+		points: [
+			"AI access can be switched off for a workspace, on Workspace, Features. Every MCP token stops working at once and is kept; switching it back on names them first.",
+			"The MCP tokens have their own Workspace section, AI access, after Access.",
+			"While it is off, an AI tool calling Faro is told so, no token can be made, and a token can still be revoked."
+		],
+		articles: ["ai", "features"]
+	},
+	{
+		id: "home-habit-cell",
+		date: "2026-11-14",
+		title: "A leader’s Home says how many goals were in without being asked",
+		points: ["Beside how the week’s check-ins stand, one more cell: how many of those goals were checked in before the review without anyone asking, and last week’s share.", "By week opens the review that covers them, with its row of weeks."],
+		articles: ["home"]
+	},
+	{
+		id: "home-leader",
+		date: "2026-11-14",
+		title: "A leader’s Home: how the week’s check-ins stand",
+		points: ["When your team’s goals or the goals you watch are shown as teams, This week says how many of them are checked in for the week, and opens the ones that aren’t yet.", "Admins see it over every goal, and a line with how many things there are to sort out in the workspace."],
+		articles: ["home"]
+	},
+	{
+		id: "metric-structure",
+		date: "2026-11-14",
+		title: "Metrics keep where they sit, and how far to trust them",
+		points: ["A metric can say what it is part of, and how: a component, driver, control or breakdown of another. Its parent’s page lists the metrics under it.", "Each metric can say how far its number can be trusted (high, medium or low) and how it could be gamed, beside what it means."],
+		articles: ["metric-structure"]
 	},
 	{
 		id: "goal-guardrails",
 		date: "2026-11-14",
-		title: "Guardrails on a goal",
+		title: "Guardrails: the numbers a goal mustn’t make worse",
 		points: ["A goal can name up to five goals that guard it: goals kept in a range, such as change failure rate at most 12%. Choose them under Change this goal, More details, Guarded by.", "When a guard is past its limit, the goal it guards is at risk; two weeks running, off track. The check-in and the goal’s page say which guard and by how much."],
 		articles: ["guardrails"]
 	},
@@ -24549,6 +24386,7 @@ var MORE_RULE_PAGES = [
 	["goals-page", "The Goals page: whose goals, how they are grouped, and the switch"],
 	["home", "Home: what is asked of you today"],
 	["home-sets", "Home: your goals, your team and what you watch"],
+	["home-leader", "Home: a leader’s week, and the workspace’s line"],
 	["home-changed", "Home: what changed since you last looked"],
 	["habit", "The habit: the run, the receipt, a moment and the measure"]
 ];
@@ -24707,7 +24545,7 @@ init_removal();
 init_via();
 /** A status as the assistant reads it: the words people see, with the code beside them. */
 var said = (k) => withCode(STATUS[k]);
-var str$11 = (description, extra = {}) => ({
+var str$12 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -24736,7 +24574,7 @@ var WRITE$3 = {
 	idempotentHint: false,
 	openWorldHint: false
 };
-var VIA$2 = VIA_MCP;
+var VIA$3 = VIA_MCP;
 var ax$3 = (ctx) => ({
 	snapshot: ctx.snapshot,
 	cycle: ctx.cycle,
@@ -24755,7 +24593,7 @@ async function save$3(ctx, c, done, nothing) {
 		...c,
 		changes: c.changes.map((x) => ({
 			...x,
-			diffs: [...x.diffs, VIA$2]
+			diffs: [...x.diffs, VIA$3]
 		}))
 	});
 	return { text: `${done} (as ${ctx.actor.name}).` };
@@ -25079,20 +24917,20 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$11(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
+				status: str$12(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
 					"open",
 					"answered",
 					"done",
 					"withdrawn"
 				])}, or all.`),
-				kind: str$11("Only one kind.", { enum: [
+				kind: str$12("Only one kind.", { enum: [
 					"decision",
 					"update",
 					"question",
 					"action"
 				] }),
 				for_me: bool$1("Only asks waiting on you (or asked of anyone)."),
-				goal_id: str$11("Only asks on a goal (its ID or key).")
+				goal_id: str$12("Only asks on a goal (its ID or key).")
 			}
 		},
 		annotations: READ$5,
@@ -25150,7 +24988,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				query: str$11("An Activity link’s query string."),
+				query: str$12("An Activity link’s query string."),
 				limit: int$3("How many changes, newest first (default 50, at most 500).")
 			}
 		},
@@ -25211,26 +25049,6 @@ var WORK_TOOLS = [
 		}
 	},
 	{
-		name: "list_tokens",
-		title: "AI assistant tokens",
-		description: "Tokens that let an AI assistant act as someone: every live one for an admin, otherwise your own. Never the token itself.",
-		inputSchema: {
-			type: "object",
-			properties: {},
-			additionalProperties: false
-		},
-		annotations: READ$5,
-		async run(_a, ctx) {
-			return listed({ tokens: (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({
-				id: t.id,
-				name: t.name,
-				person: name$1(ctx, t.personId),
-				createdAt: t.createdAt,
-				lastUsedAt: t.lastUsedAt
-			})) });
-		}
-	},
-	{
 		name: "get_help",
 		title: "Help: what the app does",
 		description: "The app’s own guide, the same as its Help pages: one article per screen or feature, saying what it is for, how to use it and who can. Give an article’s id for the whole article, or a search for the articles that match; with neither, every article’s id, title and summary.",
@@ -25238,8 +25056,8 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				id: str$11("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
-				search: str$11("Words to look for, e.g. \"plan change reason\". Every word must appear.")
+				id: str$12("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
+				search: str$12("Words to look for, e.g. \"plan change reason\". Every word must appear.")
 			}
 		},
 		annotations: READ$5,
@@ -25318,7 +25136,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				since: str$11("Only entries on or after this date (yyyy-mm-dd)."),
+				since: str$12("Only entries on or after this date (yyyy-mm-dd)."),
 				limit: int$3("How many entries, newest first (default all).")
 			}
 		},
@@ -25352,8 +25170,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "answer"],
 			properties: {
-				request_id: str$11("The ask’s ID, from list_requests or get_my_work."),
-				answer: str$11("The answer, decision or help offered.")
+				request_id: str$12("The ask’s ID, from list_requests or get_my_work."),
+				answer: str$12("The answer, decision or help offered.")
 			}
 		},
 		annotations: WRITE$3,
@@ -25371,8 +25189,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$11("The action’s ID, from list_requests (kind action) or get_my_work."),
-				note: str$11("Optional: what was done.")
+				request_id: str$12("The action’s ID, from list_requests (kind action) or get_my_work."),
+				note: str$12("Optional: what was done.")
 			}
 		},
 		annotations: WRITE$3,
@@ -25389,8 +25207,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "question"],
 			properties: {
-				goal_id: str$11("The goal’s ID or its key, e.g. G-12."),
-				question: str$11("The question.")
+				goal_id: str$12("The goal’s ID or its key, e.g. G-12."),
+				question: str$12("The question.")
 			}
 		},
 		annotations: WRITE$3,
@@ -25408,8 +25226,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "goal_id"],
 			properties: {
-				request_id: str$11("The request’s ID."),
-				goal_id: str$11("The goal that waits on it (its ID or key).")
+				request_id: str$12("The request’s ID."),
+				goal_id: str$12("The goal that waits on it (its ID or key).")
 			}
 		},
 		annotations: WRITE$3,
@@ -25426,8 +25244,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$11("The ask’s ID."),
-				goal_id: str$11("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
+				request_id: str$12("The ask’s ID."),
+				goal_id: str$12("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
 			}
 		},
 		annotations: WRITE$3,
@@ -25444,7 +25262,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$11("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$12("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: {
 			...WRITE$3,
@@ -25463,7 +25281,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$11("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$12("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: WRITE$3,
 		async run(a, ctx) {
@@ -25483,9 +25301,9 @@ var WORK_TOOLS = [
 				"who"
 			],
 			properties: {
-				goal_id: str$11("The goal’s ID or its key, e.g. G-12."),
-				text: str$11("What needs doing."),
-				who: str$11("Who does it (name or ID)."),
+				goal_id: str$12("The goal’s ID or its key, e.g. G-12."),
+				text: str$12("What needs doing."),
+				who: str$12("Who does it (name or ID)."),
 				due_week: int$3("The week it’s due by.")
 			}
 		},
@@ -25507,9 +25325,9 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["call_id", "text"],
 			properties: {
-				call_id: str$11("Its ID, from get_review."),
-				text: str$11("The new wording."),
-				who: str$11("Actions: who does it."),
+				call_id: str$12("Its ID, from get_review."),
+				text: str$12("The new wording."),
+				who: str$12("Actions: who does it."),
 				due_week: int$3("Actions: the week it’s due by (0 for none).")
 			}
 		},
@@ -25544,11 +25362,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				person_id: str$11("The person to change (their ID or email). Leave out to add someone."),
-				name: str$11("Their full name."),
-				email: str$11("Their email: required for someone new."),
-				job_title: str$11("Their job title."),
-				team: str$11("Their team (name or ID); empty string for none."),
+				person_id: str$12("The person to change (their ID or email). Leave out to add someone."),
+				name: str$12("Their full name."),
+				email: str$12("Their email: required for someone new."),
+				job_title: str$12("Their job title."),
+				team: str$12("Their team (name or ID); empty string for none."),
 				admin: bool$1("Whether they’re an admin.")
 			}
 		},
@@ -25626,9 +25444,9 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "query"],
 			properties: {
-				view_id: str$11("The view to change."),
-				name: str$11("Its name."),
-				query: str$11("The Goals query, e.g. \"status=off,risk&sort=gap\".")
+				view_id: str$12("The view to change."),
+				name: str$12("Its name."),
+				query: str$12("The Goals query, e.g. \"status=off,risk&sort=gap\".")
 			}
 		},
 		annotations: WRITE$3,
@@ -25653,16 +25471,16 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "table"],
 			properties: {
-				view_id: str$11("The saved layout to change."),
-				name: str$11("Its name."),
-				table: str$11("Which data table.", { enum: TABLE_ORDER }),
+				view_id: str$12("The saved layout to change."),
+				name: str$12("Its name."),
+				table: str$12("Which data table.", { enum: TABLE_ORDER }),
 				columns: ids$2("The columns to show, in order, by their names as the table heads them (e.g. \"Key\", \"Owner\", \"Status\"). Leave out for the usual columns."),
 				widths: {
 					type: "object",
 					additionalProperties: { type: "number" },
 					description: `Column widths in pixels by column name, e.g. {"Owner": 200}. Kept between each column’s least width (56 to 120) and 640.`
 				},
-				query: str$11("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
+				query: str$12("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
 			}
 		},
 		annotations: WRITE$3,
@@ -25687,7 +25505,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["view_id"],
-			properties: { view_id: str$11("The view’s ID, from list_views.") }
+			properties: { view_id: str$12("The view’s ID, from list_views.") }
 		},
 		annotations: {
 			...WRITE$3,
@@ -25707,7 +25525,7 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["view_id", "pinned"],
 			properties: {
-				view_id: str$11("The view’s ID."),
+				view_id: str$12("The view’s ID."),
 				pinned: bool$1("True to pin it for everyone, false to stop.")
 			}
 		},
@@ -25720,55 +25538,6 @@ var WORK_TOOLS = [
 		}
 	},
 	{
-		name: "create_token",
-		title: "Make an MCP token",
-		description: "Admins: make a personal MCP token, so an AI tool can act as someone (with exactly their rights). The token is returned once; only its hash is kept. Give it to that person privately.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["person", "name"],
-			properties: {
-				person: str$11("Who it acts as (name or ID)."),
-				name: str$11("What it’s for, e.g. \"Claude on Maya’s laptop\".")
-			}
-		},
-		annotations: WRITE$3,
-		async run(a, ctx) {
-			const p = personOf$2(ctx, a.person);
-			const c = createToken(ax$3(ctx), p.id, String(a.name ?? ""));
-			const token = await ctx.issueToken({
-				...c,
-				changes: c.changes.map((x) => ({
-					...x,
-					diffs: [...x.diffs, VIA$2]
-				}))
-			});
-			return {
-				text: `Made a token for ${p.name} (as ${ctx.actor.name}). Here it is, shown once: ${token}`,
-				data: { token }
-			};
-		}
-	},
-	{
-		name: "revoke_token",
-		title: "Revoke a token",
-		description: "Stop a token working: an admin, or the token’s person. Revoking the token this assistant uses ends its access.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["token_id"],
-			properties: { token_id: str$11("The token’s ID, from list_tokens.") }
-		},
-		annotations: {
-			...WRITE$3,
-			destructiveHint: true,
-			idempotentHint: true
-		},
-		async run(a, ctx) {
-			return save$3(ctx, revokeToken(ax$3(ctx), String(a.token_id ?? "")), "Revoked the token", "That token is already revoked.");
-		}
-	},
-	{
 		name: "rename_workspace",
 		title: "Rename the workspace",
 		description: "Admins: give the workspace a new name (up to 80 characters). Everyone sees the new name; the change is logged.",
@@ -25776,7 +25545,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["name"],
-			properties: { name: str$11("The new name.") }
+			properties: { name: str$12("The new name.") }
 		},
 		annotations: {
 			...WRITE$3,
@@ -25819,7 +25588,7 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["feature", "on"],
 			properties: {
-				feature: str$11("The feature’s id.", { enum: MODULES.map((m) => m.id) }),
+				feature: str$12("The feature’s id.", { enum: MODULES.map((m) => m.id) }),
 				on: bool$1("true to switch it on, false to switch it off.")
 			}
 		},
@@ -25833,8 +25602,10 @@ var WORK_TOOLS = [
 			const m = MODULES.find((x) => x.id === id);
 			const res = await save$3(ctx, setModule(ax$3(ctx), ctx.ws, MODULES, id, a.on), `${a.on ? "Switched on" : "Switched off"} ${m?.name ?? id} in ${ctx.ws.name}`, `Nothing to change: ${m?.name ?? id} is already ${a.on ? "on" : "off"}.`);
 			const r = modulesOn(ctx.ws);
+			const last = !a.on && !res.isError && !aiAccessOn(r.on) && aiAccessOn(modulesOn(null).on);
 			return {
 				...res,
+				...last ? { text: aiAccessLastWords(ctx.ws.name) } : {},
 				data: {
 					on: [...r.on],
 					off: [...r.off.keys()]
@@ -25851,8 +25622,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["every"],
 			properties: {
-				every: str$11("“week” or “none”.", { enum: ["week", "none"] }),
-				due_by: str$11("With every week: the weekday check-ins are due by. Leave out to keep it.", { enum: WEEKDAY }),
+				every: str$12("“week” or “none”.", { enum: ["week", "none"] }),
+				due_by: str$12("With every week: the weekday check-ins are due by. Leave out to keep it.", { enum: WEEKDAY }),
 				confirm: bool$1("true to make the change; leave out to see what it would do first.")
 			}
 		},
@@ -25900,10 +25671,10 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name"],
 			properties: {
-				team: str$11("The team to change (name or ID). Leave out to add a team."),
-				name: str$11("The team’s name."),
-				lead: str$11("The team lead (a person’s name or ID); empty string for none."),
-				purpose: str$11("What the team is here to do, in a sentence or two; empty string to clear it. Leave out to keep it.")
+				team: str$12("The team to change (name or ID). Leave out to add a team."),
+				name: str$12("The team’s name."),
+				lead: str$12("The team lead (a person’s name or ID); empty string for none."),
+				purpose: str$12("What the team is here to do, in a sentence or two; empty string to clear it. Leave out to keep it.")
 			}
 		},
 		annotations: WRITE$3,
@@ -25931,8 +25702,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["team"],
 			properties: {
-				team: str$11("The team to remove (name or ID)."),
-				move_to: str$11("Where its people and goals go (a team’s name or ID).")
+				team: str$12("The team to remove (name or ID)."),
+				move_to: str$12("Where its people and goals go (a team’s name or ID).")
 			}
 		},
 		annotations: {
@@ -25957,7 +25728,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["confirm_name"],
-			properties: { confirm_name: str$11("The workspace’s exact name.") }
+			properties: { confirm_name: str$12("The workspace’s exact name.") }
 		},
 		annotations: {
 			readOnlyHint: false,
@@ -25985,7 +25756,7 @@ init_removal();
 init_status();
 init_vocabulary();
 init_via();
-var str$10 = (description, extra = {}) => ({
+var str$11 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -26006,7 +25777,7 @@ var WRITE$2 = {
 	idempotentHint: false,
 	openWorldHint: false
 };
-var VIA$1 = VIA_MCP;
+var VIA$2 = VIA_MCP;
 /** The kinds restore_removed takes: the core's, and each feature module's removable records (domain/records). */
 var KINDS = removedKinds(MODULE_RECORDS);
 var ax$2 = (ctx) => ({
@@ -26025,7 +25796,7 @@ async function save$2(ctx, c, done) {
 		...c,
 		changes: c.changes.map((x) => ({
 			...x,
-			diffs: [...x.diffs, VIA$1]
+			diffs: [...x.diffs, VIA$2]
 		}))
 	});
 	return { text: `${done} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
@@ -26079,8 +25850,8 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["kind", "id"],
 			properties: {
-				kind: str$10("Its kind, from list_removed.", { enum: KINDS }),
-				id: str$10("Its ID, from list_removed.")
+				kind: str$11("Its kind, from list_removed.", { enum: KINDS }),
+				id: str$11("Its ID, from list_removed.")
 			}
 		},
 		annotations: WRITE$2,
@@ -26091,7 +25862,7 @@ var REMOVE_TOOLS = [
 				...c,
 				changes: c.changes.map((x) => ({
 					...x,
-					diffs: [...x.diffs, VIA$1]
+					diffs: [...x.diffs, VIA$2]
 				}))
 			});
 			return { text: `${c.changes[0]?.summary ?? "Restored"} (as ${ctx.actor.name}).` };
@@ -26106,9 +25877,9 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["person"],
 			properties: {
-				person: str$10("Their ID or full name."),
-				goals_to: str$10("Who takes over their goals: an ID or full name."),
-				asks_to: str$10("Who takes over their open asks: an ID or full name.")
+				person: str$11("Their ID or full name."),
+				goals_to: str$11("Who takes over their goals: an ID or full name."),
+				asks_to: str$11("Who takes over their open asks: an ID or full name.")
 			}
 		},
 		annotations: REMOVE,
@@ -26128,7 +25899,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["person"],
-			properties: { person: str$10("Their ID or full name.") }
+			properties: { person: str$11("Their ID or full name.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -26145,8 +25916,8 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "reason"],
 			properties: {
-				goal_id: str$10("The goal’s ID or key, e.g. G-12."),
-				reason: str$10("Why it’s stopping, in a sentence (10 characters or more).")
+				goal_id: str$11("The goal’s ID or key, e.g. G-12."),
+				reason: str$11("Why it’s stopping, in a sentence (10 characters or more).")
 			}
 		},
 		annotations: REMOVE,
@@ -26163,7 +25934,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$10("The goal’s ID or key, e.g. G-12.") }
+			properties: { goal_id: str$11("The goal’s ID or key, e.g. G-12.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -26179,8 +25950,8 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				check_in_id: str$10("The check-in’s ID, from get_goal."),
-				goal_id: str$10("Or: the goal’s ID or key…"),
+				check_in_id: str$11("The check-in’s ID, from get_goal."),
+				goal_id: str$11("Or: the goal’s ID or key…"),
 				week: int$2("…and the week of its latest check-in.")
 			}
 		},
@@ -26206,8 +25977,8 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["comment_id", "text"],
 			properties: {
-				comment_id: str$10("The comment’s or note’s ID."),
-				text: str$10("The corrected words.")
+				comment_id: str$11("The comment’s or note’s ID."),
+				text: str$11("The corrected words.")
 			}
 		},
 		annotations: WRITE$2,
@@ -26221,7 +25992,7 @@ var REMOVE_TOOLS = [
 					...c,
 					changes: c.changes.map((x) => ({
 						...x,
-						diffs: [...x.diffs, VIA$1]
+						diffs: [...x.diffs, VIA$2]
 					}))
 				});
 				return { text: `Corrected the note (as ${ctx.actor.name}).` };
@@ -26232,7 +26003,7 @@ var REMOVE_TOOLS = [
 				...c,
 				changes: c.changes.map((x) => ({
 					...x,
-					diffs: [...x.diffs, VIA$1]
+					diffs: [...x.diffs, VIA$2]
 				}))
 			});
 			return { text: `Edited the comment (as ${ctx.actor.name}).` };
@@ -26246,7 +26017,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["comment_id"],
-			properties: { comment_id: str$10("The comment’s or note’s ID.") }
+			properties: { comment_id: str$11("The comment’s or note’s ID.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -26263,7 +26034,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["cycle_id"],
-			properties: { cycle_id: str$10("The cycle’s ID.") }
+			properties: { cycle_id: str$11("The cycle’s ID.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -26279,7 +26050,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["cycle_id"],
-			properties: { cycle_id: str$10("The started cycle’s ID, from get_workspace.") }
+			properties: { cycle_id: str$11("The started cycle’s ID, from get_workspace.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -26296,7 +26067,7 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["import_id"],
 			properties: {
-				import_id: str$10("The import’s ID (imp_…), from get_activity."),
+				import_id: str$11("The import’s ID (imp_…), from get_activity."),
 				dry_run: {
 					type: "boolean",
 					description: "Say what Undo would do without saving anything."
@@ -26326,7 +26097,7 @@ var REMOVE_TOOLS = [
 				...out.commit,
 				changes: out.commit.changes.map((x) => ({
 					...x,
-					diffs: [...x.diffs, VIA$1]
+					diffs: [...x.diffs, VIA$2]
 				}))
 			});
 			return {
@@ -26336,6 +26107,86 @@ var REMOVE_TOOLS = [
 				},
 				text: `Undid the import (as ${ctx.actor.name}): ${out.restored} ${out.restored === 1 ? "row" : "rows"} put back.${out.skipped.length ? ` Skipped, as changed since: ${out.skipped.map(keptText).join("; ")}.` : ""}`
 			};
+		}
+	}
+];
+// src/modules/ai-access/tools.ts
+init_actions();
+init_via();
+var str$10 = (description, extra = {}) => ({
+	type: "string",
+	description,
+	...extra
+});
+var VIA$1 = VIA_MCP;
+var tools$7 = [
+	{
+		name: "list_tokens",
+		title: "AI assistant tokens",
+		description: "Tokens that let an AI assistant act as someone: every live one for an admin, otherwise your own. Never the token itself.",
+		inputSchema: {
+			type: "object",
+			properties: {},
+			additionalProperties: false
+		},
+		annotations: READ$5,
+		async run(_a, ctx) {
+			return listed({ tokens: (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({
+				id: t.id,
+				name: t.name,
+				person: name$1(ctx, t.personId),
+				createdAt: t.createdAt,
+				lastUsedAt: t.lastUsedAt
+			})) });
+		}
+	},
+	{
+		name: "create_token",
+		title: "Make an MCP token",
+		description: "Admins: make a personal MCP token, so an AI tool can act as someone (with exactly their rights). The token is returned once; only its hash is kept. Give it to that person privately.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["person", "name"],
+			properties: {
+				person: str$10("Who it acts as (name or ID)."),
+				name: str$10("What it’s for, e.g. \"Claude on Maya’s laptop\".")
+			}
+		},
+		annotations: WRITE$3,
+		async run(a, ctx) {
+			const p = personOf$2(ctx, a.person);
+			const c = createToken(ax$3(ctx), p.id, String(a.name ?? ""));
+			const token = await ctx.issueToken({
+				...c,
+				changes: c.changes.map((x) => ({
+					...x,
+					diffs: [...x.diffs, VIA$1]
+				}))
+			});
+			return {
+				text: `Made a token for ${p.name} (as ${ctx.actor.name}). Here it is, shown once: ${token}`,
+				data: { token }
+			};
+		}
+	},
+	{
+		name: "revoke_token",
+		title: "Revoke a token",
+		description: "Stop a token working: an admin, or the token’s person. Revoking the token this assistant uses ends its access.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["token_id"],
+			properties: { token_id: str$10("The token’s ID, from list_tokens.") }
+		},
+		annotations: {
+			...WRITE$3,
+			destructiveHint: true,
+			idempotentHint: true
+		},
+		async run(a, ctx) {
+			return save$3(ctx, revokeToken(ax$3(ctx), String(a.token_id ?? "")), "Revoked the token", "That token is already revoked.");
 		}
 	}
 ];
@@ -27598,6 +27449,7 @@ var metricReader = {
 };
 // src/modules/metrics/tools.ts
 init_rulesMeasured();
+init_rulesStructure();
 init_actions();
 init_goalKey();
 init_rules();
@@ -27701,6 +27553,18 @@ function metricData(ctx, m) {
 		measurement: measurementOf(m),
 		measurementLabel: MEASUREMENT_LABEL[measurementOf(m)],
 		measurementNote: m.measurementNote ?? "",
+		level: m.level ?? null,
+		parent: m.parentId ? {
+			id: m.parentId,
+			name: metricsOf(ctx.snapshot).find((x) => x.id === m.parentId)?.name ?? m.parentId
+		} : null,
+		children: childrenOf({ metrics: metricsOf(ctx.snapshot) }, m.id).map((k) => ({
+			id: k.id,
+			name: k.name,
+			level: k.level ?? null
+		})),
+		confidence: m.confidence ?? null,
+		gaming: m.gaming ?? "",
 		retired: m.retiredAt ? {
 			at: m.retiredAt,
 			by: name(ctx, m.retiredBy ?? ""),
@@ -27747,7 +27611,11 @@ var FIELDS = {
 	owner: str$6("Who answers for the definition, by ID, email or name. Whoever adds it, when left out."),
 	caveats: str$6("What to watch out for when reading it."),
 	measurement: str$6("Whether it is measured today: “measured” (in full), “partly” (some of it, or not every period; say what’s missing) or “gap” (nobody measures it yet). Goals measured by a metric with a gap are held to no number until it is measured, and need no made-up baseline. Measured when left out of a new metric.", { enum: [...MEASUREMENTS] }),
-	measurement_note: str$6("What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured.")
+	measurement_note: str$6("What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured."),
+	parent: str$6("The metric it sits under, by ID or name: what it is a component, driver, control or breakdown of. Empty for none."),
+	level: str$6("How it relates to its parent: “component” (part of its number), “driver” (moves it), “control” (watched so improving the parent breaks nothing else) or “breakdown” (the parent split one way). Needs a parent. Empty for not said.", { enum: [...LEVELS$2, ""] }),
+	confidence: str$6("How far its number can be trusted: “high”, “medium” or “low”. Empty for not said.", { enum: [...CONFIDENCES, ""] }),
+	gaming: str$6("How the number could be gamed, in words (up to 500 characters). Empty for not said.")
 };
 var tools$5 = [
 	{
@@ -27910,6 +27778,9 @@ var tools$5 = [
 					`Owner: ${d.owner ?? "—"}`,
 					`Caveats: ${d.caveats || "—"}`,
 					`Measured today: ${d.measurementLabel}${d.measurement !== "measured" && d.measurementNote ? ` (${d.measurementNote})` : ""}`,
+					...d.parent || d.children.length ? [`Where it sits: ${d.parent ? `${d.level ?? "under"} of ${d.parent.name}` : "on its own"}${d.children.length ? ` · under it: ${d.children.map((k) => `${k.name}${k.level ? ` (${k.level})` : ""}`).join(", ")}` : ""}`] : [],
+					`Confidence: ${d.confidence ?? "not said"}`,
+					...d.gaming ? [`How it could be gamed: ${d.gaming}`] : [],
 					goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}${x.inItsCheckIn ? ` · in its check-in: ${x.inItsCheckIn}` : ""}`).join("\n")}` : "Measures no goal yet.",
 					...different.map((d) => `${d.line}${d.weeks.length ? ` (${d.weeks.map((w) => `${goals.find((x) => x.goalId === w.goalId)?.key ?? w.goalId} week ${w.week}`).join(", ")})` : ""}`),
 					...summary ? [summary] : [],
@@ -27997,6 +27868,10 @@ var tools$5 = [
 					...a.caveats !== void 0 ? { caveats: String(a.caveats) } : {},
 					...a.measurement !== void 0 ? { measurement: String(a.measurement).toLowerCase() } : {},
 					...a.measurement_note !== void 0 ? { measurementNote: String(a.measurement_note) } : {},
+					...a.parent !== void 0 ? { parentId: a.parent ? metricOf(ctx, a.parent).id : null } : {},
+					...a.level !== void 0 ? { level: a.level ? String(a.level).toLowerCase() : null } : {},
+					...a.confidence !== void 0 ? { confidence: a.confidence ? String(a.confidence).toLowerCase() : null } : {},
+					...a.gaming !== void 0 ? { gaming: String(a.gaming ?? "") } : {},
 					...a.confirm === true ? { confirm: true } : {},
 					...typeof a.comparable === "boolean" ? { comparable: a.comparable } : {},
 					...typeof a.reason === "string" ? { reason: a.reason } : {},
@@ -29448,6 +29323,10 @@ var tools = [{
 // \0virtual:faro-modules/tools
 var tools_default = [
 	{
+		id: "ai-access",
+		part: tools$7
+	},
+	{
 		id: "feedback",
 		part: tools$6
 	},
@@ -29580,7 +29459,6 @@ init_status();
 init_attention();
 init_vocabulary();
 init_review();
-init_sheets();
 init_removal();
 init_goalKey();
 init_proposed();
@@ -29611,7 +29489,8 @@ var STATUSES = [
 	"none",
 	"on",
 	"done",
-	"planned"
+	"planned",
+	"unmeasured"
 ];
 var CALLS = [
 	"on",
@@ -29681,18 +29560,11 @@ var answersOf = (a) => Object.fromEntries(Object.entries(a ?? {}).map(([k, v]) =
 	choice: String(v.choice ?? ""),
 	...v.value != null ? { value: String(v.value) } : {}
 }]));
-/** The modules' own loaded sheets (MI: Metrics), each a bulk_change argument named by its sheet in lower case. */
-var LOADED_MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => (m.sheets ?? []).filter((sh) => sh.spec.loaded && (sh.plan || sh.loadPlan)).map((sh) => ({
-	module: m.module,
-	sheet: sh.spec.name,
-	arg: sh.spec.name.toLowerCase().replace(/[^a-z]+/g, "_"),
-	about: sh.spec.about
-})));
 /** find_goals' page: how many goals it lists unless asked, and the most it lists at once. */
 var FIND_PAGE = 50;
 var FIND_MAX = 200;
 async function change(ctx, tables, opts) {
-	const big = tooLarge("This call", { rows: (tables.goals?.length ?? 0) + (tables.plan?.length ?? 0) + (tables.checkIns?.length ?? 0) + (tables.people?.length ?? 0) + Object.values(tables.modules ?? {}).reduce((n, r) => n + r.length, 0) }, "call");
+	const big = tooLarge("This call", { rows: (tables.goals?.length ?? 0) + (tables.plan?.length ?? 0) + (tables.checkIns?.length ?? 0) + (tables.people?.length ?? 0) }, "call");
 	if (big) return {
 		isError: true,
 		text: `Not checked. ${big}`
@@ -29890,7 +29762,7 @@ var GOAL_FIELDS = {
 	owner: str("The owner’s full name, as in the workspace (when only one person has it; owner_email is exact)."),
 	owner_email: str("The owner’s email: exact, even where two people share a name."),
 	team: str("The team’s name."),
-	level: str("How important it is for reporting.", { enum: LEVELS.map((l) => LEVEL_WORDS.word[l] ?? l) }),
+	level: str("How important it is for reporting.", { enum: LEVELS.map((l) => LEVEL_WORDS$1.word[l] ?? l) }),
 	unit: str("Number goals: the unit, e.g. \"%\", \"days\", \"USD\"."),
 	decimals: int("Number goals: decimal places, 0 to 3."),
 	start: num$1("Move-a-number goals: where it starts."),
@@ -30674,11 +30546,6 @@ var CORE_TOOLS = [
 					items: { type: "object" },
 					description: "Rows for the People sheet (admins): Email (or ID) to change someone; a new Email, Name and Team to add someone; Action and Takes over to mark someone as left."
 				},
-				...Object.fromEntries(LOADED_MODULE_SHEETS.map((x) => [x.arg, {
-					type: "array",
-					items: { type: "object" },
-					description: `Rows for the ${x.sheet} sheet, with the same columns as the export. ${x.about}`
-				}])),
 				reason: str("Why plans are changing, for any plan change that needs one."),
 				confirm: CONFIRM,
 				answers: ANSWERS_ARG,
@@ -30692,31 +30559,17 @@ var CORE_TOOLS = [
 			openWorldHint: false
 		},
 		async run(a, ctx) {
-			const given = LOADED_MODULE_SHEETS.filter((x) => Array.isArray(a[x.arg]) && a[x.arg].length);
-			const on = given.filter((x) => isModuleOn(ctx.ws, x.module));
-			const off = given.filter((x) => !isModuleOn(ctx.ws, x.module)).map((x) => moduleOffLine(moduleById(x.module)?.name ?? x.module, ctx.ws.name, x.sheet));
-			const tables = {
+			return change(ctx, {
 				goals: rows$1(a.goals, "goals"),
 				plan: rows$1(a.plan, "plan"),
 				checkIns: rows$1(a.check_ins, "check_ins"),
-				people: rows$1(a.people, "people"),
-				...on.length ? { modules: Object.fromEntries(on.map((x) => [x.sheet, rows$1(a[x.arg], x.arg)])) } : {}
-			};
-			if (on.length) await loadSheetPlanners();
-			const res = await change(ctx, tables, {
+				people: rows$1(a.people, "people")
+			}, {
 				dry: !a.apply,
 				reason: a.reason,
 				confirm: a.confirm === true,
 				answers: a.answers
 			});
-			return off.length ? {
-				...res,
-				text: `${off.join(" ")}\n${res.text}`,
-				...res.data ? { data: {
-					...res.data,
-					notRead: off
-				} } : {}
-			} : res;
 		}
 	}
 ];
@@ -31222,7 +31075,9 @@ async function serve(req, deps) {
 	const hash = await hashToken(token);
 	const found = await deps.findToken(hash);
 	if (!found) return rpcError(401, "That token isn’t valid or has been revoked. Ask an admin for a new one.", { "WWW-Authenticate": "Bearer error=\"invalid_token\"" });
-	if (picture !== null) return pictureResponse(picture, deps.markups?.(hash));
+	const off = deps.modulesOff ? await deps.modulesOff(found.workspaceId).catch(() => []) : [];
+	const shut = aiAccessOn(modulesOn(null).on) && !aiAccessOn(modulesOn({ modulesOff: off }).on) ? aiAccessShutWords(await deps.workspaceName(found.workspaceId)) : null;
+	if (picture !== null) return shut ? rpcError(403, shut) : pictureResponse(picture, deps.markups?.(hash));
 	let body;
 	try {
 		body = await req.json();
@@ -31382,8 +31237,8 @@ async function serve(req, deps) {
 	};
 	let res;
 	try {
-		const out = await handleBody(body, context, traceTool);
-		await deps.touch(found.token.id, now.toISOString()).catch(() => void 0);
+		const out = shut ? await throughDoor(body, shut, (m) => handleBody(m, context, traceTool)) : await handleBody(body, context, traceTool);
+		if (!shut) await deps.touch(found.token.id, now.toISOString()).catch(() => void 0);
 		res = out ? json(out) : new Response(null, {
 			status: 202,
 			headers: CORS
@@ -31402,6 +31257,32 @@ async function serve(req, deps) {
 	}
 	await sendSpans(deps, spans.rows, found.workspaceId, ctx);
 	return res;
+}
+/** What the door lets through while AI access is off: the handshake and the list of tools (so a connected tool sees why
+each call refuses, not an empty server), and notifications, which have no answer. */
+var THROUGH_THE_DOOR = /* @__PURE__ */ new Set(["initialize", "tools/list"]);
+/** A body while the door is shut: what it lets through is handled as ever; anything else is answered with `words`. */
+async function throughDoor(body, words, handle) {
+	const one = async (m) => {
+		const method = String(m?.method ?? "");
+		if (THROUGH_THE_DOOR.has(method) || method.startsWith("notifications/")) return handle(m);
+		const id = m?.id;
+		return id === void 0 ? null : {
+			jsonrpc: "2.0",
+			id,
+			error: {
+				code: -32001,
+				message: words
+			}
+		};
+	};
+	if (!Array.isArray(body)) return await one(body);
+	const out = [];
+	for (const m of body) {
+		const r = await one(m);
+		if (r) out.push(...Array.isArray(r) ? r : [r]);
+	}
+	return out.length ? out : null;
 }
 /** GET /api/mcp?picture=<markup id>/<picture name>, with any token: the picture itself, for an assistant that only
 fetches addresses. Plain words when the server has no inbox or pictures can't be read. */
@@ -53103,9 +52984,9 @@ function goalToRows(ws, g) {
 				stop_reason: g.stopReason,
 				proposed_at: g.proposedAt,
 				proposed_by: g.proposedBy,
-				proposed_in: g.proposedIn,
-				unmeasured_since: g.unmeasuredSince
-			})
+				proposed_in: g.proposedIn
+			}),
+			unmeasured_since: g.unmeasuredSince ?? null
 		},
 		stages: g.kind === "milestone" ? g.stages.map((s) => ({
 			workspace_id: ws,

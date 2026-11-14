@@ -1,29 +1,18 @@
-## Track 7c (metrics, baselines), Friday 13 November, 23:00 UTC (context near full, handing over)
+## Track 7d (metrics and the register rows), Saturday 14 November, 20:45 UTC (session_012kbr8xpLzkSPpsXPVMTjbD, about 250k tokens of context, handing over before MC)
 
-**Merged:** #384 (#308's review mediums and lows), #404 (#351's review mediums and five lows; the sixth waits for 0c2), #411 (F5 `recordsOn` through `resolveModules`; F6 metric carry-over moved to journey U152), #413 (MS migration 0046), #430 (BL migration), #449 (BL: a baseline's period and "provisional"), #451 (GB migration 0050).
+**Merged this session:** #464 (GR, guardrails; sent to the build reviewer) and #502 (MQ's migration). Main had taken 0054 (TG1), so MQ's migration merged as **0055** (`0055_metric_structure.sql`).
 
-**Open, auto-merge on:**
-- **#428 MS** (branch `ms-status`, worktree `../wt-ms`): conflicted with main again after BL merged. Its journey is being renumbered to U165, because main took U160; the track's fork is pushing that with the spec and `api/mcp.js` rebuilt. Check it landed and CI is green.
-- **#452 GB** (branch `gb-baseline-only`): a proposed goal may have a baseline and no target. Waiting on CI.
+**Open:**
+- **#510 MS medium 5** (`ms-unmeasured-status`, draft): "Not measured yet" is a status of its own (Lane, 14 Nov). `DisplayStatus` gains `unmeasured`: `goalStatus` gives it to a held goal (week 0 too; only Done outranks it), with its word and meaning only in `STATUS.unmeasured` (vocabulary) and a shape of its own (a ring with a dot at its centre). The Goals list, its status filter, the goal and metric pages, the library's counts, the workbook, get_goal and find_goals follow. The goal page's `LifeMark` for it is gone. Local gate passed: the full suite ran. U170 scores 10. U51, U123, U124 and U164–U166 score under 10 on main too (checked alone at 246126a8). CI was running at 20:35. When it is green: make it ready, turn on auto-merge, and send its number to the build reviewer.
+- **#503 (MS/BL review mediums) and #505 (MQ structure):** owned by the earlier 7d session (session_012kbr8zzN3enEt3hjY3Q66H), which was finishing them. Planning said not to touch them. #505's diff still carries the migration as 0054; it needs main merged in (0055 is on main now).
 
-**Next, in planning's order** (session_012kbr91eefh4gwCAztBncNT):
-1. **MC**, monthly cadence: a core setting, not a switch.
-2. **GR**: the limit and its status rule are core goal fields; naming a metric is the metrics module's optional part.
-3. **MQ**: part of the metric library, no new switch.
-
-Follow `docs/architecture/module-map.md`. MI is track 3's, TG is track 2's, and WM is dropped.
-
-**Decisions for planning or Lane (from the builds):**
-- MS: Partly still holds a goal to its plan; only Gap holds it to no number.
-- MS: lists show a held goal as "No check-in yet", and only its page says "Not measured yet". A list status of its own needs a design call.
-- BL: range goals get no baseline yet. New goal folds the period into one "Baseline known for a period?" link, so F16's two phone screens still hold.
-- GB closes MS's gap: a goal on a Gap metric can go in as proposed with only its unit and baseline.
+**Next: MC** (monthly cadence), unblocked now that FT1 (#465) has merged. Backlog row MC; module-map row MC: a core setting per goal (or per metric) on FT1's field, not a switch, core stage 1.
+- FT1's field: `Cycle.checkInWeeks` (1 every week, 0 no set rhythm; 2 and 4 are stored values kept for FT4) and `Cycle.rhythmFrom`. FT4 (every two weeks or every month for the whole cycle) isn't built. The module map lists FT4 as an MC dependency, so ask planning whether MC ships monthly per goal on its own, or waits for FT4.
+- What MC must do: a goal (or its metric) read monthly has one check-in due a month, "No recent update" counts from that, and the chart joins monthly points.
 
 **Gotchas learned:**
-- **Journey ids collide between tracks.** U150, U153, U160 and U161 all clashed today, and a duplicate stops every CI job. Take the next id above main's highest at push time, and recheck after every merge of main.
-- **A conflicted PR gets no CI at all.** Main moves fast: after merging main, push quickly, then refetch and check `mergeable`.
-- **One eval run at a time on the machine.** Parallel runs fail P9, N4, N6, N12, N18, F6 and unit-test timeouts. Forks wait on `pgrep -f evals` first.
-- **Rebuild `api/mcp.js` after any journey renumber;** it embeds the module's journey ids.
-- **Row mappers must write every NOT NULL column on every row,** with a PGlite mixed-batch test.
-- **U31, U134 and U148–U151 score below 10 on main itself.**
-
+- **Migration numbers collide like journey ids.** Check `supabase/migrations` on main before pushing a migration, and rename it (with the README line and the PR's SQL heading) if main took the number.
+- **A new display status reaches further than the type checker shows.** These also list the statuses: the goals contract (`src/ports/contracts/cases/goals.ts`), find_goals' choices (`src/mcp/tools.ts` `STATUSES`), Help's statuses article, CSS tone classes (`tone-none` and so on), `docs/glossary.md` (`npm run glossary`) and `docs/export-format.md` (`npm run export-format`). The ONE-VOCABULARY eval refuses a status word written anywhere but the vocabulary.
+- **`src/help/lookup.test.ts`** checked that the second-newest What's new title wasn't in the Help index. That fails when the title matches a guide article ("Guardrails on a goal"), so it now checks the entry's first line.
+- **`evals:changed` on shared code runs the full suite in four shards.** Journeys that drop there (U69, U72 and U147 did) can score 10 alone. Rerun them with `ONLY=`, and compare with main in a detached worktree before blaming the change.
+- Earlier gotchas still hold: hard-link `node_modules` (`cp -al`), never symlink it; one eval run at a time; `evals:changed`'s exit code isn't the verdict; a conflicted PR gets no CI.

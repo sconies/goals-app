@@ -202,7 +202,7 @@ const help: Article[] = [
         'A gap or a part is listed under To sort out, on the metric’s page and in the library, with “Say how it’s measured”.',
       ] },
       { heading: 'Goals measured by a gap', list: [
-        'A goal measured by a metric with a gap is held to no number. It says “Not measured yet”, with a broken ring, instead of a status: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.',
+        'A goal measured by a metric with a gap is held to no number. Its status is “Not measured yet”, a ring with a dot at its centre, wherever it is shown: nothing on it is due, late or quiet, and it projects nothing. It needs no made-up baseline.',
         'Once the metric is measured, in full or in part, its goals are held to their plans again, in the same save. Linking a goal to a measured metric, or unlinking it, does the same. History says so on each goal, and Undo takes it all back.',
       ] },
     ],
@@ -211,6 +211,30 @@ const help: Article[] = [
     reqs: ['METRIC-MEASUREMENT'],
     keywords: ['gap', 'partly', 'measured', 'not measured yet', 'no number', 'baseline', 'to sort out', 'measurement'],
     related: ['metric-define', 'metric-change', 'metrics'],
+  },
+  {
+    id: 'metric-structure',
+    title: 'Where a metric sits, and how far to trust it',
+    summary: 'Say what a metric is part of, how much its number can be trusted, and how it could be gamed, so the library keeps a register’s thinking.',
+    group: 'you',
+    after: 'metric-measurement',
+    sections: [
+      { heading: 'Where it sits', list: [
+        'In a metric’s form, under Where it sits, choose Part of: the metric it sits under, found by typing its name. A metric can’t be its own parent, and one already under it is listed but can’t be chosen.',
+        'Then say how it relates, if you know: Component (part of its parent’s number: they add up to it), Driver (moves it), Control (watched so improving the parent breaks nothing else) or Breakdown (the parent split one way, by team, region or service).',
+        'The metric’s page says where it sits (“A driver of Lead time for changes.”), and its parent’s page lists it under Where it sits, with its level. Goals still feed goals: this is the library’s map, not a second goal tree.',
+      ] },
+      { heading: 'Confidence and gaming', list: [
+        'Confidence in the number: High (measured directly and checked), Medium (known gaps or a manual step) or Low (estimated, sampled or new). Its page says it among the facts.',
+        'How it could be gamed: a sentence or two, up to 500 characters, shown beside what it means, so anyone reading a good number knows what to check.',
+        'All of it is optional. The AI assistant’s save_metric takes parent, level, confidence and gaming, so a register loads with its structure.',
+      ] },
+    ],
+    routes: ['/metrics/:metricId/edit'],
+    screens: [],
+    reqs: ['METRIC-STRUCTURE'],
+    keywords: ['parent', 'component', 'driver', 'control', 'breakdown', 'confidence', 'gamed', 'gaming', 'register', 'tree', 'structure'],
+    related: ['metric-define', 'metric-measurement', 'metrics'],
   },
 ];
 

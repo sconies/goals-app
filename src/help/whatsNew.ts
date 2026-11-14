@@ -38,9 +38,61 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['metric-sheet'],
   },
   {
+    id: 'not-measured-yet-status',
+    date: '2026-11-14',
+    title: 'Not measured yet is a status of its own',
+    points: [
+      'A goal whose number nobody measures yet now says “Not measured yet” wherever its status is shown: the Goals list, its page, its metric’s page and the library’s counts, the workbook and the AI tools.',
+      'It has its own shape, a ring with a dot at its centre, so it no longer reads as “No check-in yet”.',
+      'It still projects no year-end number, and nothing on it is due or late, until its number is measured. You can filter the Goals list by it.',
+    ],
+    articles: ['status', 'metrics'],
+  },
+  {
+    id: 'ai-access-switch',
+    date: '2026-11-14',
+    title: 'AI access can be switched off',
+    points: [
+      'AI access can be switched off for a workspace, on Workspace, Features. Every MCP token stops working at once and is kept; switching it back on names them first.',
+      'The MCP tokens have their own Workspace section, AI access, after Access.',
+      'While it is off, an AI tool calling Faro is told so, no token can be made, and a token can still be revoked.',
+    ],
+    articles: ['ai', 'features'],
+  },
+  {
+    id: 'home-habit-cell',
+    date: '2026-11-14',
+    title: 'A leader’s Home says how many goals were in without being asked',
+    points: [
+      'Beside how the week’s check-ins stand, one more cell: how many of those goals were checked in before the review without anyone asking, and last week’s share.',
+      'By week opens the review that covers them, with its row of weeks.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'home-leader',
+    date: '2026-11-14',
+    title: 'A leader’s Home: how the week’s check-ins stand',
+    points: [
+      'When your team’s goals or the goals you watch are shown as teams, This week says how many of them are checked in for the week, and opens the ones that aren’t yet.',
+      'Admins see it over every goal, and a line with how many things there are to sort out in the workspace.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'metric-structure',
+    date: '2026-11-14',
+    title: 'Metrics keep where they sit, and how far to trust them',
+    points: [
+      'A metric can say what it is part of, and how: a component, driver, control or breakdown of another. Its parent’s page lists the metrics under it.',
+      'Each metric can say how far its number can be trusted (high, medium or low) and how it could be gamed, beside what it means.',
+    ],
+    articles: ['metric-structure'],
+  },
+  {
     id: 'goal-guardrails',
     date: '2026-11-14',
-    title: 'Guardrails on a goal',
+    title: 'Guardrails: the numbers a goal mustn’t make worse',
     points: [
       'A goal can name up to five goals that guard it: goals kept in a range, such as change failure rate at most 12%. Choose them under Change this goal, More details, Guarded by.',
       'When a guard is past its limit, the goal it guards is at risk; two weeks running, off track. The check-in and the goal’s page say which guard and by how much.',

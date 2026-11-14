@@ -147,6 +147,10 @@ async function pickWeek(scope, label, typed) {
   await field.fill(typed);
   await field.press('Enter');
 }
+/** Awaits a wait, and says which one it was if it times out (14 Nov: U109's three keyboard waits all read "Timeout 30000ms"). */
+async function waitNamed(what, wait) {
+  try { return await wait; } catch (e) { throw new Error(`${what}: ${String(e.message || e).split('\n')[0]}`); }
+}
 async function see(p, text, msg, timeout = 5000) {
   // p is a page, or a locator to look inside.
   const all = p.getByText(text, { exact: false });
@@ -157,7 +161,9 @@ async function see(p, text, msg, timeout = 5000) {
     for (let i = 0; i < n; i++) if (await all.nth(i).isVisible().catch(() => false)) return;
     await page.waitForTimeout(100);
   }
-  fail(msg || `expected to see “${text}”`);
+  // What was there instead, so a miss under load says what the screen showed (14 Nov, U159's intermittent miss).
+  const shown = String(await (typeof p.page === 'function' ? p.innerText({ timeout: 1000 }) : page.locator('body').innerText({ timeout: 1000 })).catch(() => '')).replace(/\s+/g, ' ').trim().slice(0, 240);
+  fail(`${msg || `expected to see “${text}”`}${shown ? ` [it showed: “${shown}”]` : ''}`);
 }
 
 /** Everything a journey needs: counted interactions, checkpoints and criteria. */
@@ -291,6 +297,11 @@ async function newPage(device, viewer) {
   if (process.env.EVAL_CLOCK) await ctx.clock.setSystemTime(new Date(process.env.EVAL_CLOCK));
   if (viewer) await ctx.addInitScript((v) => { if (!sessionStorage.getItem('viewer-set')) { localStorage.setItem('goals-app-viewer:platform-org', v); sessionStorage.setItem('viewer-set', '1'); } }, viewer);
   const p = await ctx.newPage();
+  // The page's last thirty console lines, of every kind, for the log a failed journey leaves beside its screenshot.
+  p.tail = [];
+  const note = (line) => { p.tail.push(line); if (p.tail.length > 30) p.tail.shift(); };
+  p.on('pageerror', (e) => note(`pageerror ${e.message}`));
+  p.on('console', (m) => note(`${m.type()} ${m.text()}`.slice(0, 400)));
   p.on('pageerror', (e) => consoleErrors.push(`${device} ${p.url()} · ${e.message}`));
   p.on('console', (m) => { if (m.type() === 'error' && !/fonts\.g|net::ERR_|Failed to load resource/.test(m.text())) consoleErrors.push(`${device} ${p.url()} · ${m.text()}`); });
   return p;
@@ -1842,7 +1853,7 @@ journey('U123', ['HOME-MANAGER'], 'The manager on Home: Rhea’s “Your team ·
   await p.context().close();
 });
 
-journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k; “Changed since Friday 6 Nov” counts open lists of that length, and the table’s last column is “Since Fri 6 Nov”', 3, async (h, device) => {
+journey('U124', ['HOME-MANAGER', 'HOME-LEADER', 'HABIT-MEASURE'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k; “Changed since Friday 6 Nov” counts open lists of that length, and the table’s last column is “Since Fri 6 Nov”; on Wed 11 Nov one cell says how many of them are checked in for week 46, and opens the rest', 3, async (h, device) => {
   // Home rule 4 (HM3): three or more teams are drawn as teams, ordered as Goals orders "By team" (worstGroupsFirst).
   const day = (d) => BASE + '/demo/?today=' + d;
   const p = h.use(await newPage(device, 'amara'));
@@ -1905,6 +1916,27 @@ journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans 
   const since = (await table.locator('thead th').last().innerText()).trim();
   if (since !== 'Since Fri 6 Nov') fail(`the teams table’s last column is “${since}”, not “Since Fri 6 Nov”`);
   await h.checkpoint('changed');
+  // How the week's check-ins stand (HM7): on Wed 11 Nov, one cell over the set drawn as teams, never a name; it opens
+  // the goals with no check-in for the week yet, and Goals counts exactly those.
+  await p.goto(day('2026-11-11'));
+  const cell = p.locator('.dash-standing');
+  await cell.waitFor({ timeout: 8000 }).catch(() => {});
+  const said = (await cell.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  const [, a, b] = said.match(/Checked in for week 46 (\d+) of (\d+) goals?/) || [];
+  const named2 = s0.people.map((x) => x.name).filter((n) => said.includes(n));
+  h.set('progress', !!a && !named2.length, `the standing cell reads “${said}”${named2.length ? `, naming ${named2.join(', ')}` : ''}`);
+  // Beside it (HB3), the same goals' measure: before the due day, “So far: {u} of {n} goals”; no name. (A cell's
+  // under-line, “Due by …” and By week, is left out on a phone.)
+  const habitSaid = (await p.locator('.dash-habit').innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  h.set('attention', /without being asked So far: \d+ of \d+ goals/.test(habitSaid) && !s0.people.some((x) => habitSaid.includes(x.name)), `the habit cell reads “${habitSaid}”`);
+  if (a) {
+    // A check on where the cell leads, not a step of the leader's task, so not counted against its budget.
+    await cell.click();
+    await p.waitForURL(/scope=watching&checkedin=no/);
+    await p.locator('.goals-line').first().waitFor();
+    const gl = await p.locator('.goals-line').first().innerText();
+    h.set('finish', new RegExp(`^${Number(b) - Number(a)} goals?\\b`).test(gl), `“${a} of ${b} goals” opened Goals saying “${gl}”`);
+  }
   h.set('errors', true);
   h.set('logged', true);
   await p.context().close();
@@ -2343,7 +2375,7 @@ journey('U22', ['MCP-TOKENS'], 'MCP access: an admin gives a teammate an MCP tok
     localStorage.setItem('goals-live-workspace', 'ws_live');
     localStorage.setItem('goals-live-me:ws_live', 'amara');
   });
-  await p.goto(live('/workspace/access'));
+  await p.goto(live('/workspace/ai'));
   // An admin setting, further down the Workspace page: 'entry' is judged on everyday journeys, not this one.
   await p.getByRole('heading', { name: /^MCP tokens/ }).scrollIntoViewIfNeeded();
   h.set('attention', /A token lets Claude or another AI tool act as one person here/.test(await p.locator('.access-tokens').innerText()) && /builder token/.test(await p.locator('.access-tokens').getByText('Inbox on my phone').first().innerText()), 'MCP tokens do not say what they are, or do not label the builder token apart');
@@ -6976,11 +7008,11 @@ journey('U109', ['GOAL-DATES'], 'Dates are picked: as Tunde on the measure step,
   await from.focus();
   await p.keyboard.press('Enter');
   await p.locator('.weekpick.open').getByRole('textbox').waitFor();
-  await p.waitForFunction(() => document.activeElement?.matches('.weekpick.open input'));
+  await waitNamed('focus reaches the week box after Enter', p.waitForFunction(() => document.activeElement?.matches('.weekpick.open input')));
   await p.keyboard.press('ArrowDown');
-  await p.waitForFunction(() => document.activeElement?.matches('.weekpick.open [role="listbox"]'));
+  await waitNamed('ArrowDown moves focus into the week list', p.waitForFunction(() => document.activeElement?.matches('.weekpick.open [role="listbox"]')));
   for (let i = 0; i < 5; i++) await p.keyboard.press('ArrowUp');
-  await p.waitForFunction(() => document.activeElement?.getAttribute('aria-activedescendant')?.endsWith('w40'));
+  await waitNamed('five ArrowUps reach week 40', p.waitForFunction(() => document.activeElement?.getAttribute('aria-activedescendant')?.endsWith('w40')));
   await p.keyboard.press('Enter');
   await p.locator('.weekpick.open').waitFor({ state: 'detached' }).catch(() => {});
   h.set('a11y', /^Week 40 · 28 Sep–4 Oct 2026/.test(await from.innerText()), `the keyboard chose ${await from.innerText()}`);
@@ -7217,7 +7249,7 @@ journey('U106', ['METRIC-CHANGE'], 'A metric changes and is retired: as Rhea, Le
   await t.context().close();
 }, []);
 
-journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and owned (MS): as Rhea, Flaky test rate is said to be a Gap with what is missing; its page shows the square Gap mark and, under To sort out, “Not measured yet: 1 goal held to no number”; its goal says “Not measured yet” with the broken ring, nothing due on it. Said to be Measured again, the goal is held to its plan once more', 24, async (h, device) => {
+journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and owned (MS): as Rhea, Flaky test rate is said to be a Gap with what is missing; its page shows the square Gap mark and, under To sort out, “Not measured yet: 1 goal held to no number”; its goal says “Not measured yet” with its own status shape, on its page and in the Goals list filtered to that status, nothing due on it. Said to be Measured again, the goal is held to its plan once more', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/metrics/metric_flaky-rate/edit'));
   const group = p.getByRole('group', { name: 'Is it measured today' });
@@ -7236,7 +7268,12 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   await p.goto(url('/goals/lead-flaky'));
   const bar = p.locator('.goal-bar');
   await see(bar, 'Not measured yet', 'the goal does not say it is held to no number');
-  h.set('errors', (await bar.locator('.life-shape').count()) >= 1, 'the goal’s Not measured yet has no shape');
+  // Its own status, shape and word (Lane, 14 Nov), on its page and in the Goals list, never No check-in yet.
+  h.set('errors', (await bar.locator('.status-shape[data-status="unmeasured"]').count()) >= 1, 'the goal’s Not measured yet has no status shape of its own');
+  await p.goto(url('/goals?scope=all&status=unmeasured'));
+  const listShape = p.locator('main .status-shape[data-status="unmeasured"]').first();
+  await listShape.waitFor();
+  await see(p.locator('main'), 'Not measured yet', 'the Goals list does not say the goal is Not measured yet');
   const held = await h.snapshot();
   const g = (held.goals ?? []).find((x) => x.id === 'lead-flaky');
   // Said to be measured again: the goal is held to its plan once more.
@@ -7248,6 +7285,43 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   const g2 = (after.goals ?? []).find((x) => x.id === 'lead-flaky');
   const m = ((after.modules?.metrics?.metrics) ?? []).find((x) => x.id === 'metric_flaky-rate');
   h.set('logged', !!g?.unmeasuredSince && !g2?.unmeasuredSince && (m?.measurement ?? 'measured') === 'measured', !g?.unmeasuredSince ? 'the gap did not hold the goal to no number' : 'Measured again did not let go of the goal');
+  h.set('finish', true);
+  await p.context().close();
+}, []);
+
+journey('U172', ['METRIC-STRUCTURE'], 'A register’s structure kept in the library (MQ): as Rhea, Flaky test rate is made a control on Lead time for changes, with Medium confidence and how it could be gamed; its page says “A control on Lead time for changes.” with the gaming line beside its meaning, Lead time for changes lists it under Where it sits, and Lead time can’t be put under Flaky test rate (“It’s already under this one”)', 20, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/metrics/metric_flaky-rate/edit'));
+  const parent = p.getByRole('button', { name: /^Part of\b/ });
+  await parent.waitFor();
+  h.set('entry', true);
+  await pickIn(p, /^Part of\b/, 'Lead time for', /Lead time for changes/);
+  await h.click(p.getByRole('group', { name: 'How it relates' }).getByRole('button', { name: 'Control' }));
+  await h.click(p.getByRole('group', { name: 'Confidence in the number' }).getByRole('button', { name: 'Medium' }));
+  await h.fill(p.getByLabel('How it could be gamed'), 'Retrying failed tests until they pass hides the flakes.');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/demo\/metrics\/flaky-rate(\?|#|$)/);
+  h.set('progress', true);
+  await see(p.locator('.metric-structure'), 'A control on', 'the metric does not say where it sits');
+  await see(p, 'Retrying failed tests until they pass hides the flakes.', 'how it could be gamed is not beside its meaning');
+  await see(p.locator('.metric-facts'), 'Medium', 'the confidence is not among its facts');
+  await h.checkpoint('placed');
+  const s1 = await h.snapshot();
+  const m = ((s1.modules?.metrics?.metrics) ?? []).find((x) => x.id === 'metric_flaky-rate');
+  h.set('logged', m?.parentId === 'metric_lead-time' && m?.level === 'control' && m?.confidence === 'medium' && /hides the flakes/.test(m?.gaming ?? ''), 'the structure was not saved on the metric');
+  // Its parent lists it, with its level.
+  await h.click(p.locator('.metric-structure').getByRole('link', { name: 'Lead time for changes' }));
+  await p.waitForURL(/\/demo\/metrics\/lead-time(\?|#|$)/);
+  const kids = p.locator('.metric-children');
+  await see(kids, 'Flaky test rate', 'the parent does not list the metric under it');
+  h.set('attention', /Control/.test(await kids.innerText()), 'the child is listed without its level');
+  // No loops: Lead time can’t go under a metric already under it.
+  await p.goto(url('/metrics/metric_lead-time/edit'));
+  await h.click(p.getByRole('button', { name: /^Part of\b/ }));
+  await h.fill(p.locator('.pick.open').getByRole('combobox'), 'Flaky test');
+  const under = p.locator('.pick.open').getByRole('option', { name: /Flaky test rate/ }).first();
+  await under.waitFor();
+  h.set('errors', (await under.getAttribute('aria-disabled')) === 'true' && /already under this one/.test(await under.innerText()), 'a metric under this one could be chosen as its parent, or did not say why not');
   h.set('finish', true);
   await p.context().close();
 }, []);
@@ -7351,6 +7425,53 @@ journey('U174', ['TAGS-FIELDS'], 'A workspace’s own field on goals (TG1): as A
   h.set('finish', true);
   await p.context().close();
 }, []);
+
+journey('U175', ['AI-ACCESS-OPTIONAL', 'FEATURE-GROUPS', 'MODULES'], 'Amara switches AI access off (SW2): it is under Beyond this workspace, and with no token it acts at once; then Workspace has no AI access section, /workspace/ai says it is switched off, Access is the admins only and Settings has no “Your MCP tokens”; switched back on, the section is back after Access', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  // On: AI access is its own section after Access (SW2), with the tokens; Access names the admins only.
+  await p.goto(url('/workspace/ai'));
+  await see(p, 'The MCP tokens that let an AI tool act as someone here.', 'AI access is not its own Workspace section');
+  await p.goto(url('/workspace/features'));
+  const box = p.getByRole('checkbox', { name: 'AI access', exact: true });
+  await box.scrollIntoViewIfNeeded();
+  await h.inView(box, 'entry', 'AI access’s switch');
+  const beyond = await p.locator('.features-group').filter({ has: p.getByRole('heading', { name: 'Beyond this workspace' }) }).innerText();
+  h.set('attention', /AI access/.test(beyond), 'AI access is not under Beyond this workspace');
+  await h.checkpoint('features');
+  // The demo has no token (they work only in the real app), so switching off acts at once: nothing to name.
+  await h.click(box);
+  await see(p, 'AI access is off in');
+  if (await p.getByRole('dialog', { name: /^Switch off AI access in / }).count()) fail('with no token, switching AI access off still asked first');
+  h.set('one-action', true);
+  // Its section is gone: not in the menu, and its address says it is off.
+  await p.goto(url('/workspace/access'));
+  await see(p, 'Who the admins are.');
+  if (/MCP tokens/.test(await p.locator('.page.workspace').innerText())) fail('Access still lists MCP tokens with AI access off');
+  if (device === 'desktop' && await p.getByRole('navigation', { name: 'Workspace sections' }).getByRole('link', { name: 'AI access' }).count()) fail('Workspace’s menu still has AI access');
+  await p.goto(url('/workspace/ai'));
+  await see(p, 'Page not found');
+  await see(p, 'AI access is switched off in', '/workspace/ai does not say AI access is switched off');
+  // Settings: no “Your MCP tokens”.
+  await p.goto(url('/settings'));
+  await p.locator('.page').first().waitFor();
+  await see(p, 'Settings');
+  if (await p.getByRole('heading', { name: /^Your MCP tokens/ }).count()) fail('Settings still has “Your MCP tokens” with AI access off');
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.entity === 'workspace' && c.actorId === 'amara' && c.summary === 'Switched off AI access'), 'switching AI access off was not logged');
+  // Back on: the section is back.
+  await p.goto(url('/workspace/features'));
+  await box.scrollIntoViewIfNeeded();
+  await h.click(box);
+  await see(p, 'AI access is on in');
+  await p.goto(url('/workspace/ai'));
+  await see(p, 'The MCP tokens that let an AI tool act as someone here.', 'AI access back on, its section is not back');
+  await p.goto(url('/settings'));
+  await see(p, 'Your MCP tokens', 'AI access back on, Settings has no “Your MCP tokens”');
+  h.set('finish', true);
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['parity', 'budget']);
 
 journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
@@ -7528,6 +7649,18 @@ journey('U87', ['FIELD-TABLE', 'SPREADSHEETS-ON-DATA'], 'What a file needs, befo
 
 /** A CSV as Playwright sets it on a file input. */
 const csvFile = (name, text) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(text) });
+/* The import's check runs in a worker, at the machine's own speed: the phone's slowed CPU (evals/phoneCpu.cjs) never
+   reaches it. On a fast machine 6,000 rows were checked before the Reading panel was due (it waits 400 ms, spec 2.2), so
+   U98 saw no Reading panel, and earlier no Stop, now and then on main's full suite. A slow machine is the case the
+   panel is for, so the page is given one: the worker's script is served with its last answer ("done", or an error)
+   held until `ms` after the check was asked for. Progress and the rows still arrive as they are made; only the end waits. */
+async function holdCheck(p, ms) {
+  const shim = `(()=>{let t0=performance.now();self.addEventListener('message',()=>{t0=performance.now();});const post=self.postMessage.bind(self);self.postMessage=(m,...r)=>{const left=${ms}-(performance.now()-t0);if(m&&(m.type==='done'||m.type==='error')&&left>0)setTimeout(()=>post(m,...r),left);else post(m,...r);};})();\n`;
+  await p.route(/\/assets\/worker-[^/]*\.js$/, async (route) => {
+    const res = await route.fetch();
+    await route.fulfill({ response: res, body: shim + (await res.text()), headers: { ...res.headers(), 'content-type': 'text/javascript' } });
+  });
+}
 
 journey('U88', ['IMPORT-LEVELS', 'IMPORT-PREVIEW'], 'One answer for many rows: as Amara, a file with 14 rows for team “CI/DC”, 3 new goals with no owner and a stage in week 2 gives Must fix “3 rows, 1 kind of problem”, two questions and no Save; “Use CI/CD” closes its question to one line; the 3 rows to fix download with Problem first; the corrected file says “Your 1 answer still applies.”; answering the stage question enables Save; the changes list says “the owner’s team; the row gave none”', 20, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
@@ -7637,6 +7770,8 @@ journey('U96', ['IMPORT-PREVIEW'], 'Leave a row out and save the rest: as Amara,
 journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals shows “Reading” with how far the check has got and what it has found so far; checked, it is not saved but offered as 2 files of 5,000 rows, which download with the file’s name; a file of 30,000 stopped while it is checked says nothing was saved, and nothing is; a file of 1,200 goals is checked off the page’s thread, its changes drawn 50 at a time, and saves', 16, async (h, device) => {
   const rows = (k, word) => 'Goal,Owner,Team,Unit,Start,Target\n' + Array.from({ length: k }, (_, i) => `${word} queue ${i + 1},Rhea Kapoor,CI/CD,min,10,5\n`).join('');
   const p = h.use(await newPage(device, 'amara'));
+  // Every check here takes at least 3 s, as on a slow machine, so the Reading panel (due at 0.4 s) and its Stop are there.
+  await holdCheck(p, 3000);
   await p.goto(url('/data/import'));
   const big = csvFile('u97.csv', rows(6000, 'Sized'));
   await p.getByLabel('Choose a spreadsheet').setInputFiles(big);
@@ -7653,9 +7788,8 @@ journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals show
   h.set('finish', names.length === 2 && /^u97-part-1-of-2/.test(names[0] ?? '') && /^u97-part-2-of-2/.test(names[1] ?? ''), `the parts are named ${names.join(', ')}`);
   await h.checkpoint('too many');
   await h.click(p.getByRole('button', { name: 'Choose another file' }));
-  // Stop is on the Reading panel only while the check runs. 6,000 rows are checked about a second after the panel shows,
-  // so Stop could be gone before the click (U98 failed this way on main, both devices: a 30 s click timeout). A file of
-  // 30,000 rows, the most Import takes, keeps it checking for seconds, and longer on a slower machine, not shorter.
+  // Stop is on the Reading panel only while the check runs: held (holdCheck), the check of the most rows Import takes
+  // can't end before the click, however fast the machine.
   await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('u97-most.csv', rows(30000, 'Sized')));
   await see(p, 'Reading u97-most.csv', 'a file of the most rows Import takes shows no Reading panel', 10000);
   await h.click(p.getByRole('button', { name: 'Stop' }));
@@ -8193,7 +8327,11 @@ async function platformChecks() {
         await j.fn(h, device);
       } catch (e) {
         error = String(e.message || e).split('\n')[0];
-        if (h.page) await h.page.screenshot({ path: path.join(OUT, `${j.id}-${device}.png`), fullPage: true }).catch(() => {});
+        if (h.page) {
+          await h.page.screenshot({ path: path.join(OUT, `${j.id}-${device}.png`), fullPage: true }).catch(() => {});
+          // The whole error (Playwright's call log is under its first line) and the page's last console lines.
+          fs.writeFileSync(path.join(OUT, `${j.id}-${device}.log`), [`${j.id} ${device}: ${String(e.message || e)}`, `at ${h.page.url()}`, '', 'Last console lines:', ...(h.page.tail ?? [])].join('\n') + '\n');
+        }
       }
       per[device] = { ok: !error, error, crit: h.crit, notes: h.notes, count: h.count, ms: Date.now() - started };
     }

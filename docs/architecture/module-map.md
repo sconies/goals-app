@@ -41,14 +41,14 @@ The core is everything outside `src/modules`. It cannot be switched off because 
 | Proposed goals (GE10) | `src/domain/proposed.ts`, `proposedActions.ts`, `proposedSummary.ts` | `changeset.ts` reads the state, and Lane decided no switch and no workspace setting (21a, 11 November) |
 | Find | `src/domain/find.ts`, `src/app/search.ts`, `src/ports/search.ts` | A module adds a finder to it; without it a module has nowhere to be found |
 | Goals, Data and saved views | `src/screens/GoalsScreen.tsx`, `DataTables.tsx`, `src/screens/savedViews.ts` | The lists a module adds filters and tools to |
-| Home's frame | `src/domain/home.ts`, `src/screens/Home.tsx` | It holds the `home.blocks` place; its own cells and blocks (Your goals, Your team, or with one team "The team’s goals", a set drawn as teams, rule 4's `homeSets`; Changed since, rule 5's `changedSince` over `home-seen`) read core records only, the Goals scopes' |
+| Home's frame | `src/domain/home.ts`, `src/screens/Home.tsx` | It holds the `home.blocks` place; its own cells and blocks (Your goals, Your team, or with one team "The team’s goals", a set drawn as teams, rule 4's `homeSets`; Changed since, rule 5's `changedSince` over `home-seen`; how the week's check-ins stand and the admin's workspace line, HM7) read core records only, the Goals scopes' |
 | Set-up and the first week | `src/screens/Onboarding.tsx`, `src/domain/dayOne.ts`, `arrival.ts`, `firstWeek.test.ts` | A workspace has to exist before a switch can be turned off |
 | The module machinery | `src/core/module.ts`, `registry.ts`, `records.ts`, `app.tsx` | The places, the manifest, `resolveModules`, module records in save, carry, removal and the workbook |
 | The spec and the kit | `src/spec/`, `spec/`, `llms.txt` | Generated from the code, modules included |
 
 **Core, and staying core** (architecture readiness review, 11 November): the goal map, markup and the scorecard were looked at and left. The map and the scorecard read core records only; markup lives mostly in one folder and may move when something needs it to.
 
-Of the features in the core today, AI access is **distinct but not yet switchable**, because its switch is designed and not built (SW2). Reviews (FT2), Watching, Feedback, the goal map and the wrap-up's own screens (SW1) are switches whose code is still in the core. Until their switch ships, each needs the sentence in its spec saying why it cannot be switched off — see fix item F1.
+Of the features in the core today, Reviews (FT2), Watching, AI access (SW2), Feedback, the goal map and the wrap-up's own screens (SW1) are switches whose code is still in the core. Until their switch ships, each needs the sentence in its spec saying why it cannot be switched off — see fix item F1.
 
 ## 2. The modules
 
@@ -60,6 +60,7 @@ Of the features in the core today, AI access is **distinct but not yet switchabl
 | Spreadsheets (`spreadsheets`) | `spreadsheets` | — | Data's Spreadsheets menu, `/data/import` and the rest of import, Goals' "Export these goals", `export` and `export_table`, four Help articles, Past imports | Module: Spreadsheets |
 | Watching (`watching`; SW1, a switch with its code still the core's) | `watching` | — | `/watching`, Goals' Watching tab, Home's "Goals you watch" and Getting started's row, the Watch button, "Watched by" and the bulk bar's Watch, `list_watching`, `watch`, `unwatch`, its Help article; `get_my_work` leaves out what is watched. Someone who owns no goal is led to every goal needing attention. Its read-back counts the watches kept | Module: Watching |
 | Wrap-up (`wrap-up`; SW1, the same) | `wrap-up` | — | `/retro` and `/retro/:goalId`, Home's wrap-up lead and "See the wrap-up", Goals' Wrap up, Cycles' "Open the wrap-up", `get_wrap_up`, `wrap_up_goal`, its Help article. Results, carrying on and starting the next year stay core. Its read-back counts the wrap-ups kept | Module: Wrap-up |
+| AI access (`ai-access`; SW2, a switch with its code still the core's) | `ai-access` | — | Every token at the server door (the MCP server answers only `initialize` and `tools/list`, and leaves a token's last use alone), making a token, the token lists on Workspace, Settings and People, `/workspace/ai` (Workspace → AI access, after Access, which now shows only who the admins are), `list_tokens`, `create_token`, `revoke_token`, its Help article. Revoking still works. Its read-back names the tokens kept. A build without the module refuses every token | Module: AI access |
 | Goal map (`goal-map`; SW1, the same) | `goal-map` | — | Goals' Map layout (a link or view asking for it opens the List and says so); its Help article; no tools | Module: Goal map |
 | Feedback (`feedback`; SW1, the same) | `feedback` | — | The Feedback menu row, `/feedback` and its old addresses, Send feedback, Mark up this screen and Ctrl+Shift+M, the seven inbox tools and `send_feedback`, its two Help articles. It acts at once: its read-back needs the builders' store counted per workspace (SW4) | Module: Feedback |
 | Fields (`tags`; TG1: its records, screens and tools; TG2's filters and sheet columns to come) | `tags` | — | Workspace → Fields (`/workspace/fields`, which says Fields is switched off), a goal's Fields block in About, `list_fields`, `set_goal_fields` and `save_field`, its Help article. The fields and values stay while it is off | Module: Fields |
@@ -69,7 +70,6 @@ Of the features in the core today, AI access is **distinct but not yet switchabl
 | Module | Switch | Needs | Off turns off | Where |
 |---|---|---|---|---|
 | Reviews | `reviews` | — | The Reviews menu row and phone tab, `/reviews…`; Home's "Next review" cell and its lead; a goal's "in {review}" and the review walk; Find's review group; eight AI tools; the Help article; the import's Notes sheet and Review column; the decision rule (`src/domain/decide.ts`) goes with it. History and Activity keep what reviews saved | FT2 then RS1 (track 4); FT3 moves the folder into `src/modules` |
-| AI access | `ai-access` | — | Every token at the server door, the token views on Access, Settings and People, `/workspace/ai`, `list_tokens`, `create_token`, `revoke_token`. Tokens are kept and named first when it comes back on | SW2 |
 
 **Two rules for every switch.** The switch's name is the module's id, every one is on by default, and none declares `needs`. A workspace that turns one off gets no menu row, no Home card, no MCP answer but the refusal, and one line in the import saying what was not read.
 
@@ -99,7 +99,7 @@ Each row says whether the item is a module of its own, part of an existing modul
 | **MI / MT6** the Metrics sheet in and out | **Part of the metric library**, read by the spreadsheets engine. The sheet and how its rows read back are declared by the module (`records.ts`, `module.json` `records`; the `sheets` seam: `ModuleSheet.plan` and `.has`, run by the engine through `src/domain/sheetPlan.ts`; built in MT6, 14 November, with the Goals sheet's Measured by / Measured for / Part columns, the template's Metrics sheet and the check for two or more new rows with no Owner email left for later); the engine stays ignorant of what a metric is | `metrics` (and the sheet is only read while `spreadsheets` is on too) | Both modules on. **Neither declares `needs`**: a module that needed the other could not be switched off alone | With either off, the sheet is absent and the import says so once | The metrics stage |
 | **MS** measurement status | **Split (Lane 3a, 13 November).** Measured / Partly / Gap, the library's view of it and its "To sort out" row are the metric library's. The goal side ("held to no number", no baseline needed) is a **core** rule over a core field the module fills in when the link is made | `metrics` for the library side; none for the goal rule | MT1, GB | With `metrics` off, no library view and no new Gaps; goals already marked keep their rule | The metrics stage, plus core stage 1 |
 | **GR** guardrails | **Split (Lane 2a, 13 November).** Core part built (14 November, `src/domain/guards.ts`): a goal names range goals that guard it. Naming a library metric is still to build. A guardrail's limit and the status rule that reads it are **core** fields on the goal, because the status rules may not read a module's rows. Naming a metric for a guardrail is the metric library's contribution, through a place beside "Measured by" | None for the rule; `metrics` for naming a metric | MT2 | With `metrics` off, a guardrail can still be a number with a limit; it just can't name a metric | Core stage 1, plus the metrics stage |
-| **MQ** metric structure | **Part of the metric library** (level, parent, confidence, how it could be gamed) | `metrics` | MT1, MI | With `metrics` off, all of it | The metrics stage |
+| **MQ** metric structure | **Part of the metric library** (level, parent, confidence, how it could be gamed). Built 14 November: `src/modules/metrics/rulesStructure.ts` | `metrics` | MT1, MI | With `metrics` off, all of it | The metrics stage |
 | **TG** tags or custom fields | **Its own module** (`tags`; Lane 1a, 13 November): a workspace's fields are records of its own, nothing in `src/domain` reads them, and the design says explicitly they are not a place for status or anything a rule reads | `tags` | — (the field table is core) | The fields block on a goal, Workspace → Fields, Goals' filters and the saved-view parameters, its sheet columns, its AI tools, its Help article. Its rows stay | Its own stage |
 | **FT1** check-in rhythm | **Core setting** (`Cycle.checkInWeeks`), not a switch | None | NV3, OB2 | Nothing | Core stage 1 |
 | **FT2 + RS1** reviews as a switch | The `reviews` **switch**, with reviews' code still in the core until FT3 moves the folder | `reviews` | AR2, AR3; RS1 also needs HB1 and HB2 | See the reviews row above | Core stage 3 until FT3, then its own stage |
@@ -125,8 +125,7 @@ Core stage 1  the rules            (no screens, no database)
              │    └─ structure (MQ), measurement status (MS)
              ├─ Reviews        needs asks (core) and the AR2/AR3 places
              │    └─ a leader's week's review entry (PF)
-             ├─ Watching, Wrap-up, Goal map, Feedback   need the core only
-             ├─ AI access      needs the Features screen (SW1)
+             ├─ Watching, Wrap-up, AI access, Goal map, Feedback   need the core only
              └─ Tags           needs the core's field table only
 ```
 
@@ -160,7 +159,7 @@ In the order they matter. Each is small; none needs a design pass. A track that 
 
 | # | What's wrong | Where | Suggested track |
 |---|---|---|---|
-| F1 | Reviews, Watching, AI access, Feedback, the goal map and the wrap-up are distinct features that cannot be switched off, and their spec pages don't say why. Lane's rule requires the sentence until the switch ships | `src/spec/`, the Features screen's "Goals, check-ins, reviews and people are always on" (`src/screens/Workspace.tsx`) | 4, with FT2 |
+| F1 | Reviews, Watching, Feedback, the goal map and the wrap-up are distinct features that cannot be switched off, and their spec pages don't say why. Lane's rule requires the sentence until the switch ships | `src/spec/`, the Features screen's "Goals, check-ins, reviews and people are always on" (`src/screens/Workspace.tsx`) | 4, with FT2 |
 | F2 | The export writes a switched-off module's sheet. It passes every installed module's sheets, not the workspace's | `src/modules/spreadsheets/Export.tsx`, `src/modules/spreadsheets/tools.ts`, `src/domain/export.ts` | 3 |
 | F3 | `get_help` lists a switched-off module's articles to the AI; the app hides them | `src/mcp/workTools.ts` | 4 |
 | F4 | `find_goals` still filters by a switched-off module's column (`?metric=`) | `src/mcp/tools.ts` | 4 |

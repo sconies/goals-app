@@ -11,7 +11,7 @@ export const GOALS_VIEWER = 'rhea';
 /** What a case starts from: the conformance workspace as it stood at its builtFor, asked by Rhea. */
 export interface GoalsGiven { workspace: 'workspace.json'; viewer: string }
 /** The statuses a count gives, in the vocabulary's order. */
-const STATUSES = ['off', 'risk', 'stale', 'none', 'on', 'planned', 'done'] as const;
+const STATUSES = ['off', 'risk', 'stale', 'none', 'unmeasured', 'on', 'planned', 'done'] as const;
 const PAGE = 50;
 
 function csv(text: string): Record<string, string>[] {

@@ -10,7 +10,7 @@ import { proposalAsks, withProposed } from '../domain/proposed';
 import { scopeToCycle, wrapUpCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
 import type { Ask, Cycle, Goal, Person, Snapshot } from '../domain/types';
-import { checkInStanding, dueIn } from '../domain/standing';
+import { checkInStanding, dueIn, type Standing } from '../domain/standing';
 import type { ScopeFacts } from '../domain/goalsPage';
 import { agendaOf, goalsIn, heldOnDueDay, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
 import { waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession, type Waiting } from '../domain/home';
@@ -47,6 +47,13 @@ export const reviewsOffWords = (workspace: string) => switchedOffWords('Reviews'
  */
 /** Whether Watching is on: the Watching tab, Home's "Goals you watch", the Watch button and the three watching tools. */
 export const watchingOn = (on: ReadonlySet<string>): boolean => on.has('watching');
+/** Whether AI access is on (SW2): the MCP server's door, Workspace's AI access section, the tokens in Settings and on
+    People, and making a token. Revoking one never asks. */
+export const aiAccessOn = (on: ReadonlySet<string>): boolean => on.has('ai-access');
+/** What the MCP server answers every request but initialize and tools/list while AI access is off (SW2, spec 6.1). */
+export const aiAccessShutWords = (workspace: string) => `AI access is switched off in ${workspace}. An admin can switch it on in Faro, under Workspace, Features.`;
+/** What set_feature answers when it switches AI access off: the last thing that token does (spec 6.2). */
+export const aiAccessLastWords = (workspace: string) => `AI access is off in ${workspace}. This connection stops working now. An admin switches it back on in Faro.`;
 /** Whether Feedback is on: its menu row and page, Send feedback, Mark up this screen (and its key) and the inbox tools. */
 export const feedbackOn = (on: ReadonlySet<string>): boolean => on.has('feedback');
 /** Whether the Goal map is on: Goals' Map layout. */
@@ -58,7 +65,7 @@ export const wrapUpOn = (on: ReadonlySet<string>): boolean => on.has('wrap-up');
 /** The core's actions that belong to a switch while its code is still the core's (SW1 spec 1.3; Reviews' and Watching's saves are refused by what they write, in actions.ts): each refuses
     while its module is off, with `moduleOffWords`. Revoking and starting the next year never refuse. */
 export const SWITCHED_ACTIONS: Readonly<Record<string, string>> = {
-  saveRetro: 'wrap-up', sendFeedback: 'feedback',
+  saveRetro: 'wrap-up', sendFeedback: 'feedback', createToken: 'ai-access',
 };
 
 /** What a switched module's action says while it is off (spec 1.3): "Watching is off in {workspace}." */
@@ -82,6 +89,17 @@ export const dueWordsHere = (reviews: boolean, s: Pick<Snapshot, 'reviews'>, cyc
 export const heldForGoals = (reviews: boolean, s: Pick<Snapshot, 'reviews'>, cycle: Cycle, week: number, goals: readonly Pick<Goal, 'ownerId'>[]): boolean =>
   reviews && [...new Set(goals.map((g) => g.ownerId))].some((o) => heldOnDueDay(s.reviews, cycle, week, o));
 
+/** Each goal's standing this week (habit rule 1), or null when it isn't due: what Goals' `checkedin=` reads and Home's
+    standing cell counts (HM7), so both count the same goals. */
+export function standingIn(s: Pick<Snapshot, 'checkIns' | 'requests'>, cycle: Cycle, week: number): (g: Goal) => Standing | null {
+  const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
+  const rows = { checkIns: s.checkIns, asks: s.requests ?? [] };
+  return (g) => (week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null);
+}
+
+/** The live goals of the year, not stopped: every goal Goals' All counts. */
+export const liveGoals = (s: Pick<Snapshot, 'goals'>): Goal[] => live(s.goals).filter((g) => !g.stoppedAt);
+
 /**
  * Rule 5's `moved=` (Home spec): what each goal did since a day. Its code (app/moved.ts) is registered by what reads it,
  * Goals, Home's later parts and the MCP server, so none of it is in Home's first download; until then `moved=` matches nothing.
@@ -95,9 +113,7 @@ export function registerMovedRule(rule: NonNullable<typeof movedRule>) { movedRu
 export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns'], reviews = true): GoalRows {
   const goals = live(s.goals).filter((g) => !g.stoppedAt);
   // This week's standing (habit rule 1) for `checkedin=`, and a review's goals for `inreview=` (HB2).
-  const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
-  const rows = { checkIns: s.checkIns, asks: s.requests ?? [] };
-  const standing = (g: Goal) => (week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null);
+  const standing = standingIn(s, cycle, week);
   const inReview = (id: string) => { const r = s.reviews.find((x) => x.id === id && !x.removedAt); return r ? new Set(goalsIn(r.scope, goals).map((g) => g.id)) : null; };
   // What each goal did since a day (Home rule 5) for `moved=`: the rule as app/moved.ts registers it, asked when a query first reads it.
   let passes: Passes | undefined;

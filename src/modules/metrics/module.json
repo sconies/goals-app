@@ -73,6 +73,7 @@
     "metric-slices",
     "metric-change",
     "metric-measurement",
+    "metric-structure",
     "metric-sheet"
   ],
   "requirements": [
@@ -83,6 +84,7 @@
     "METRIC-PARTS",
     "METRIC-CHANGE",
     "METRIC-MEASUREMENT",
+    "METRIC-STRUCTURE",
     "METRIC-SHEET",
     "READING-PREFILL",
     "READING-RECORDED-ONLY",
@@ -103,6 +105,7 @@
     "U158",
     "U159",
     "U160",
+    "U172",
     "N29",
     "F15",
     "N16",
