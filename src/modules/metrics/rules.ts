@@ -19,7 +19,7 @@ import { placesText } from '../../domain/numbers';
 import { mergeModuleRows, moduleRows, withModuleRows, type ModuleRows } from '../../domain/records';
 import type { Change, Goal, Person, Team } from '../../domain/types';
 import { heldByLink, measurementProblems, measurementWords } from './rulesMeasured';
-import { structured, structureProblems } from './rulesStructure';
+import { CONFIDENCE_WORDS, LEVEL_WORDS, structured, structureProblems } from './rulesStructure';
 import type { Metric, MetricDirection, MetricLink, MetricRefresh } from './types';
 
 export type { Metric, MetricDirection, MetricLink, MetricMark, MetricRefresh } from './types';
@@ -184,7 +184,8 @@ export function metricProblems(m: Metric, s: Rows & { people: Person[] }): strin
 /* ---------- the change log ---------- */
 
 /** A metric's fields as the change log reads them. */
-export function metricFields(m: Metric, s: { people: Person[] }): Record<string, string> {
+export function metricFields(m: Metric, s: { people: Person[]; modules?: ModuleRows }): Record<string, string> {
+  const parent = m.parentId ? metricsOf(s).find((v) => v.id === m.parentId)?.name ?? '—' : '—';
   return {
     Name: m.name,
     Meaning: m.meaning || '—',
@@ -197,6 +198,11 @@ export function metricFields(m: Metric, s: { people: Person[] }): Record<string,
     Owner: s.people.find((p) => p.id === m.ownerId)?.name ?? '—',
     Caveats: m.caveats || '—',
     Measured: measurementWords(m),
+    // MQ: where it sits, how far to trust it and how it could be gamed, so a save that changes only these is logged.
+    'Part of': parent,
+    'How it relates': m.level ? LEVEL_WORDS[m.level].label : '—',
+    Confidence: m.confidence ? CONFIDENCE_WORDS[m.confidence].label : '—',
+    'How it could be gamed': m.gaming || '—',
   };
 }
 
