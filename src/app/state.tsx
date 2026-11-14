@@ -444,7 +444,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       store.load(ws, appWindow((pinned ?? clock)())), switches ? store.workspaces().catch(() => null) : null,
       store.personPrefs && store.keepPersonPref ? store.personPrefs(ws).catch(() => null) : null,
     ]);
-    if (kept) prefs.adopt(ws, kept, (id, p) => store.keepPersonPref!(id, p));
+    if (kept) prefs.adopt(ws, kept, { read: (id) => store.personPrefs!(id), keep: (id, p) => store.keepPersonPref!(id, p) });
     const w = list?.find((x) => x.id === ws);
     if (w) adoptSwitches(ws, w.modulesOff ?? []);
     return snap;
