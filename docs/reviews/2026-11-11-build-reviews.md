@@ -244,6 +244,7 @@ Written 14 November 2026, 15:40 UTC, when the reviewer of 14 November (session �
 | #468 HM3: Your team on Home, and teams worst first | 1 | 0 | 1 | 2 |
 | #488 PP2: two devices open at once keep each other's Opened and Not yet (#485's medium) | 2 | 0 | 0 | 0 |
 | #492 HM3: a one-team workspace has Your team on Home again (#468's medium) | 1 | 0 | 0 | 1 |
+| #475 ST2 + SM3: set-up in four steps, each an address; no example templates | 2 | 0 | 1 | 1 |
 
 **High findings, and where each stands**
 
@@ -2116,4 +2117,12 @@ Read (the rule, the query, the markup and the styles), with two probes of the sc
 **Fixed; read, and its tests pass on main (36 in `src/domain/home.test.ts`).** `useHomeSets` now reads `scopesFor(...).every`, each scope whether it is drawn as a tab or not, as `find_goals` and the Goals addresses do (`src/ui/HomeSets.tsx:33`). The new test is the case the last reviewer asked for: three goals in one team, one the viewer's; no `team` tab is drawn, and Home's team set has all three with the two that aren't the viewer's as rows. "See them in Goals" and the counts go to `/goals?scope=team`, which still opens with no tab drawn (`GoalsScreen` reads `every` for an address). #468's second low (a watched list equal to the team's or to everyone's lost "Goals you watch") goes with it. Nothing else in `src` reads the drawn tabs for a rule. Not walked on screen.
 
 **Low.** The spec's worked examples for rule 4 still read the drawn tabs (`homeBlocks`, `src/spec/rules.ts:1895`), and `homeSets`'s comment still says "`scopesFor`'s tabs" and "its tab's count". The demo's four examples come out the same either way, so `spec/` is right today; a one-team example added there would show the old answer.
+
+### #475 ST2 + SM3: set-up in four steps, each an address (track 2, merged 14 Nov, 15:57 UTC)
+
+Read (the rule, the screen, Help, What's new, the spec's rule, the journeys' changes), and walked on screen in a production build with the browser store (a Sonnet subagent with Playwright, desktop, four runs). Set-up is four addresses under `/workspace/new/`; `firstUnfilled` sends a later address back to the first step with a required answer missing; How you'll work is a panel and a sheet; the four templates are gone from `src/domain/templates.ts` with nothing left reading them; a draft from the seven-step set-up opens at the step its answers moved to. The panel has a hairline on every side, no stripe. A clean Create reached `/ready` in about 90 ms with no blank screen. No budget or wait was loosened in the evals.
+
+**1. Medium (ran on screen). The browser's Forward takes a workspace name the rule refuses through to Create.** Fill step 1 properly, go on to Check, press Back to step 1, change the name to "ab" and press Forward three times instead of Continue: Check says "Create ab?", shows no error, and Create makes it ("ab is ready"). The rule is 3 to 80 characters (`nameProblem`, which Workspace's rename holds). Step 1's check runs only in `next()` (`ok.workspace`, `src/screens/Onboarding.tsx`), `firstUnfilled` asks only that the name isn't blank, and Check's own test (`ok.check`) is the import's issues, which don't include the workspace's name. Before this PR a step could only be left through Next. A typed address does the same. An email that isn't one is caught on the same route, at Create ("“notanemail” doesn’t look like an email."), since the import reads it. To fix: have `firstUnfilled` (or the redirect beside it) use the steps' own `ok`, at least `nameProblem`, so Check can't be reached past a step that wouldn't let Continue through; and a case in the journey.
+
+**Low.** By the same route with "Add your own" and an outcome that has a title and no numbers, Check reads "Goals: None yet. Each owner adds theirs from New goal." and only Create says "“Weekly active users”: Enter where it starts today." Nothing wrong is saved; the read-back is untrue until then. The fix for 1 covers it if it uses `ok.goals`.
 
