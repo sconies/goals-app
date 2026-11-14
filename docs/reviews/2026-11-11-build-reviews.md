@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh that morning (session …Bn8GD91Ct4dL). The note before it was written at 00:10 UTC by the reviewer that stopped.
 
-- **Last merge fully reviewed:** `363f054b` (#467), the head of main at about 03:00 UTC, 14 Nov. Every code PR merged from #121 up to it has a row in State and a section below.
+- **Last merge fully reviewed:** `6d56b382` (#470), the head of main at 11:40 UTC, 14 Nov. Tracks now message the reviewer a PR's number when it merges (planning, 11:01 UTC); compare main's log with this SHA whenever one arrives. Every code PR merged from #121 up to it has a row in State and a section below.
 - **Merged since, not reviewed:** none.
 - **Highs not yet confirmed fixed:** none. #452 is fixed by #467 and #416 by #432 (both re-run). What is left of #416 is a medium in #432's section: a review held on the due weekday, but not this week.
 - **To watch in #464 (GR, track 7d):** `BUILT_KEYS` (`src/domain/changeset.ts`) must name `guards` if `buildGoal` decides it; and migration 0051's check refuses a JSON null.
@@ -219,6 +219,7 @@ Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh th
 | #460 NR2 review: #437's mediums; the one table's readings need a touch | readings | 0 | 0 | 1 |
 | #466 Track 4 handover | 4 | 0 | 0 | 0 |
 | #467 GB review: a target given later, and a baseline removed (#452's high) | 7c | 0 | 0 | 1 |
+| #470 A reading with no source's name is refused; readings stay with the Metric library off | readings | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2013,3 +2014,7 @@ Run: a probe over the demo's six reviews on 13 and 14 Nov, comparing each panel'
 **#462 (planning): CI.** A pull request's smoke job now runs `evals:pr`: the core journeys and what the PR's files touch, phone pages slowed, and never the whole suite, which runs after the merge. The job keeps its name. Nothing found; it does mean a change to shared code is first run in full on main.
 
 **#466:** handover only.
+
+### #470 A reading with no source's name is refused (readings, merged 14 Nov); #463 handover
+
+Read, and its test run (16 pass). `readingProblem` refuses a reading whose source has no name where it used to write "The source"; this closes the last part of #437's medium 5. The metric library's spec gains an "Off" paragraph that records Lane's answer of 14 Nov: with the library off nothing new is read, and readings already recorded stay visible. Nothing found. #463 is a handover and a design note.
