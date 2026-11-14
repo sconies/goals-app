@@ -3207,8 +3207,14 @@ function sessionDate(r, cycle, week) {
 * dueWords then says "before Thursday’s review"; otherwise "by Thursday".
 */
 function heldOnDueDay(reviews, cycle, week, personId) {
+	return reviews.some((r) => !r.removedAt && !r.endedAt && (personId == null || r.people.includes(personId)) && sessionOnDueDay(r, cycle, week));
+}
+/** Whether this review has a session in `week` on the day check-ins are due: on the due weekday is not enough, as a
+fortnightly, monthly or quarterly review has weeks with no session (review of #432). Its page and get_review say
+"Before this review" only then. */
+function sessionOnDueDay(r, cycle, week) {
 	const w = Math.max(1, week);
-	return reviews.some((r) => !r.removedAt && !r.endedAt && r.weekday === cycle.reviewDay && (personId == null || r.people.includes(personId)) && sessionWeek(r, w, r.createdAt ? cycle : void 0) === w);
+	return r.weekday === cycle.reviewDay && sessionWeek(r, w, r.createdAt ? cycle : void 0) === w;
 }
 /**
 * What a session still has to do: goals to discuss one at a time, and goals on track to cover together. Discuss keeps
@@ -18666,6 +18672,7 @@ var help$3 = [{
 			list: [
 				"At the top of a review’s page: how many of its goals were checked in before it, and how many of those without being asked (an ask for an update is the only nudge). Before the review’s day it says how many are in so far.",
 				"Under it, “came in after an ask” and “have no check-in yet” each open exactly those goals on Goals, worst first. Then the last 8 weeks, one square each: All in, how many came after, None in, or Nothing due.",
+				"It is headed “Before this review” only in a week the review is held on the day check-ins are due. A review held on another day, or a fortnightly, monthly or quarterly one in a week it isn’t held, shows the week and its due date instead (“Week 46, due by Thursday 12 Nov”) and counts check-ins on time.",
 				"It counts weeks and goals, never people: nobody is named in it, and a set of goals with fewer than three owners doesn’t show it."
 			]
 		},
@@ -26885,6 +26892,12 @@ function beforeReview(goals, week, rows, cycle, today, viewerId, held = true) {
 		weeks: habitWeeks(goals, past ? week : week - 1, rows, (w) => reviewDate(cycle, w), isDue)
 	};
 }
+/** The Before this review panel's heading on a review's page and in get_review (review of #432): "Before this review"
+only for a session held on the due day in that week (`onDueDay`, review.ts sessionOnDueDay); otherwise the week and
+its due date, as no review is held before the deadline. */
+function beforeReviewHeading(onDueDay, cycle, week) {
+	return onDueDay ? "Before this review" : `Week ${week}, due by ${dueWords$1(false, cycle, week).date}`;
+}
 // src/modules/reviews/tools.ts
 init_actions();
 init_removal();
@@ -26978,11 +26991,15 @@ var tools$3 = [
 					answer: answerOf(d)?.text ?? null
 				} : {}
 			}));
-			const b = beforeReview(x.items.map((i) => i.goal), Math.min(x.week, ctx.week), {
+			const wk = Math.min(x.week, ctx.week);
+			const onDueDay = sessionOnDueDay(r, ctx.cycle, wk);
+			const heading = beforeReviewHeading(onDueDay, ctx.cycle, wk);
+			const b = beforeReview(x.items.map((i) => i.goal), wk, {
 				checkIns: ctx.snapshot.checkIns,
 				asks: ctx.snapshot.requests ?? []
-			}, ctx.cycle, ctx.today, ctx.actor.id, r.weekday === ctx.cycle.reviewDay);
+			}, ctx.cycle, ctx.today, ctx.actor.id, onDueDay);
 			const before = b ? {
+				heading,
 				says: b.says,
 				due: b.counts.due,
 				inTime: b.counts.inTime,
@@ -27010,7 +27027,7 @@ var tools$3 = [
 			};
 			return {
 				data,
-				text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.${before ? ` Before this review: ${before.says} Last ${before.lastWeeks.length} weeks: ${before.lastWeeks.map((w) => `week ${w.week} ${w.says.toLowerCase()}`).join(", ")}.` : ""}\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${said(g.status)}.${g.beingHandled ? ` ${ATTENTION.handled.label}: ${g.beingHandled}.` : ""} ${g.why.join(" ")}`), "- nothing")}\nNothing flagged: ${data.healthy.map((g) => g.title).join(", ") || "none"}.`
+				text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.${before ? ` ${heading}: ${before.says} Last ${before.lastWeeks.length} weeks: ${before.lastWeeks.map((w) => `week ${w.week} ${w.says.toLowerCase()}`).join(", ")}.` : ""}\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${said(g.status)}.${g.beingHandled ? ` ${ATTENTION.handled.label}: ${g.beingHandled}.` : ""} ${g.why.join(" ")}`), "- nothing")}\nNothing flagged: ${data.healthy.map((g) => g.title).join(", ") || "none"}.`
 			};
 		}
 	},

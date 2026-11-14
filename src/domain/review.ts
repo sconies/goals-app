@@ -34,8 +34,15 @@ export function sessionDate(r: Review, cycle: Cycle, week: number): string {
  * dueWords then says "before Thursday’s review"; otherwise "by Thursday".
  */
 export function heldOnDueDay(reviews: readonly Review[], cycle: Cycle, week: number, personId?: string): boolean {
+  return reviews.some((r) => !r.removedAt && !r.endedAt && (personId == null || r.people.includes(personId)) && sessionOnDueDay(r, cycle, week));
+}
+
+/** Whether this review has a session in `week` on the day check-ins are due: on the due weekday is not enough, as a
+    fortnightly, monthly or quarterly review has weeks with no session (review of #432). Its page and get_review say
+    "Before this review" only then. */
+export function sessionOnDueDay(r: Review, cycle: Cycle, week: number): boolean {
   const w = Math.max(1, week);
-  return reviews.some((r) => !r.removedAt && !r.endedAt && r.weekday === cycle.reviewDay && (personId == null || r.people.includes(personId)) && sessionWeek(r, w, r.createdAt ? cycle : undefined) === w);
+  return r.weekday === cycle.reviewDay && sessionWeek(r, w, r.createdAt ? cycle : undefined) === w;
 }
 
 /**
