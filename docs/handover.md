@@ -40,6 +40,33 @@ Session: session_012kbr92yprssgsHbkpCFh3s. Planning: session_012kbr91eefh4gwCAzt
 - Memory: a full `vitest run` beside `evals:changed` gets workers killed; use `--maxWorkers=2` or wait.
 - The first-download budgets sit within bytes of the limit: a lazy chunk's new hash can move the compressed size by 30 to 70 bytes. Measure with `scripts/check-bundle.mjs` and take real bytes out of the eager chunks (a module's words in their own file), never a new tiny shared chunk (its name lands in every preload list).
 
+## Track 4, Saturday 14 November, 13:00 UTC (handing over at about 320k tokens, Lane's rule #455; supersedes the 01:30 entry)
+
+Session: session_012kbr8zGTA8fDUXo7snL4jv. Planning is session_012kbr91eefh4gwCAztBncNT; the build reviewer is session_012kbr8xhnbxBn8GD91Ct4dL (send it each merged code PR's number in one line).
+
+- **Merged:** #471, FD. The first download went 274 → 259 KB (budget 275) and live 334 → 318 KB (budget 334). The small parts Home's rows used now live in `src/ui/sparks.tsx`, `src/domain/feeder.ts` and `src/domain/rollup.ts`. `scripts/check-bundle.mjs` fails if `charts.tsx`, `goalPage.ts`, `summaryFacts.ts` or `map.ts` comes back into the first download. Lane, 14 Nov: the budget stays at 275 (the note rides in #476).
+- **Open:**
+  - **#476, the SW1 review mediums.** Auto-merge is on and the gate passed.
+    - `writesWatches` (a new rule file in #476) refuses a save by what it writes with Watching off, in `performAny` and in the AI tools' `switchesGuarded`; Recently removed and `list_removed` hide stopped watches.
+    - `yearLine` and `startPage` take the Wrap-up and Watching switches; `/activity?watching=` does nothing with Watching off.
+    - It also proves #424 medium 1 closed (by #439) and fixes the module-map line-82 low.
+  - **#465, FT1.** It conflicts with main again (#461, #471).
+    - I merged main into it locally, but the merge was not pushed (the container's worktree is gone). Redo it: take main's `api/mcp.js` and `src/help/whatsNew.ts`, re-add FT1's `check-in-rhythm` entry at the top, then rebuild `api/mcp.js` and `spec/`. With FT1 the first download is 258 KB.
+    - Its smoke job timed out at 30 minutes: its 89 files picked 67 journeys. Push the merge only after the PR cap below is on main, or it times out again.
+- **Open: #480, the PR cap** (Lane, 14 Nov). Auto-merge is on, and the gate passed (the full suite).
+  - `evals/touches.cjs` `touches()` returns a `score`: each rule a file matches gives each id it names 1 ÷ how many ids it names.
+  - `capJourneys` keeps the core six journeys and the 25 highest; `evals/run.mjs` applies it under `--no-full` only.
+  - FT1's 89 files go from 65 journeys to 31.
+- **Next, in order:**
+  1. See #476 and #480 merged. Then redo FT1's merge of main (above), run its gate, and push; its smoke job should now fit in 30 minutes.
+  2. Lane, 14 Nov: Help hides a switched-off module's articles (Reviews included, as the Metric library already does); What's new keeps them.
+  3. #458 lows from planning: `find_goals` with `inreview=` or `metric=` for a switched-off module should say once that the filter was dropped; a team's panel says "before the review" for all eight past weeks on the strength of this week's review. (The module-map low is done in #476.)
+  4. The 01:30 entry's items 3, 4, 6 and 7: SW1 leftovers (`get_goal` `watchedBy`, `get_activity watching=1`, the "Watching is off here" filter line, About's "All eight are on"); SW2, the AI access switch; the #358 lows; the #403 low.
+- **Traps:**
+  - Journey scores below 10 don't fail the gate. On main: U31 9, U102 7.8, U134 9 (the stale-proposal row's "attention"), U148 7, U149 6, U151 8, U164 7.5–8.8, U165 8.6, U166 8.6. N12 is a timing flake under load.
+  - Track 1 owns U159: the demo's time of day is not pinned (agreed with track 1), and `EVAL_CLOCK` stays inside the eval harness.
+  - Push nothing before `evals:changed` passes. I pushed FD's branch early once; open the PR only after the gate.
+
 ## Track 4, Saturday 14 November, 01:30 UTC (handing over at about 300k tokens, Lane's rule #455; supersedes the 13 Nov 20:15 entry)
 
 Session: session_012kbr931R7QEqBrfxbNv2QV. Planning is session_012kbr91eefh4gwCAztBncNT.
@@ -641,6 +668,27 @@ Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this sessi
 - **Fence check (#125):** Supabase's own tables in extensions, cron and net, open to every role by default, are a warning; a direct grant to `faro_owner` still fails. 0038 is live.
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
+
+## Track 2 (one goal, goal entry, set-up), Saturday 14 November, ~12:50 UTC (ST2+SM3 and TG0 up, SM1 merged; handing over at ~385k; supersedes the 01:30 entry)
+
+Session: session_012kbr91CRakr63WeKqKBY7N. Planning is session_012kbr91eefh4gwCAztBncNT (report there once). Standing rule (planning, 14 Nov): when one of your code PRs merges, send its number in one line to the build reviewer, session_012kbr8xhnbxBn8GD91Ct4dL. #461 was sent.
+
+| PR or branch | What | State |
+|---|---|---|
+| #461 | SM1 (rows and tabs) | **merged** 12:33. Its last fix (e5990105): the lit tab follows the tabs as they size (ResizeObserver and MutationObserver), which cured F5 L&T 2 on a slowed phone |
+| #477 `sm1-review-fixes` | The reviewer's three findings on #461: `drawnOnce` in `src/ui/Shell.tsx` kept per workspace (Metrics followed you into a workspace with none); N30 opens a workspace with no metric afresh and by switching (fails without the fix, passes with it); SMALL-MENU's words match what is built (Home's sections are SM1h) | draft. typecheck, tests, spec, `FINISH=N30` pass. **The full `evals:changed` was running in the old container when it handed over: run it again** (the shell is shared code), then mark ready and enable auto-merge (MERGE). Planning asked for these fixes **before ST2 merges** |
+| #475 `st2-setup-steps` | ST2 + SM3: set-up in four steps, each an address (`/workspace/new/{workspace,people,goals,check}`), How you'll work a panel and a sheet, Goals' three doors (Add your own, Import a spreadsheet, Later), Check with Change and "Back to Check"; the four templates removed; rule `day-one` rewritten (`SETUP_STEPS`, `firstUnfilled`, `draftStep`, `startOf`; `howWeWork` in `arrival.ts`); N17 on form goals; journeys walk the new flow | draft, merged with main after SM1. Full `evals:changed`: 128/129 journeys 10/10, U31 9/10 (budget, the same on main), N6 under load only (passes alone on both). U5, U11, U86 alone slowed: 10/10. **Wait for #477 to merge, merge main in, check CI, then mark ready and enable auto-merge** |
+| #472 `tg0-migration` | TG0: migration 0052, tables **`goal_fields` and `goal_field_values`** (no `okr_` prefix: 0035 makes a `public` redirect for every `okr_` table, so the fence's run-twice check failed with one), plus `src/modules/tags/` (rules.ts `fieldProblem`, `valueProblem`, `FIELD_LIMITS`; spec.ts rule `tags-fields`; module.json with an outline stage and **no tables yet**: records.ts claims them in TG1), four lines in `src/spec/limits.ts`, docs | ready, **auto-merge on** (CI green, local `evals:changed` passed). A "Fields" switch shows in Features and does nothing until TG1 |
+
+**Next, in order:**
+1. #477, then #475 (above).
+2. **New (Lane, 14 Nov, via planning):** "Opened" and "Not yet" on a proposed goal are stored on the server per person, not per browser, so opening a goal on a phone marks it opened on the laptop too. A small table in `faro` (grants written out, no `okr_` prefix, see #472), its migration one merge ahead of the code. Before TG1.
+3. TG1 (the module: `records.ts` for the two tables and module.json's `tables`; Workspace → Fields; the goal's Fields block; `list_fields`, `set_goal_fields`; the switch's off states; the change log's `field` entity in `src/domain/types.ts`), then TG2 (filters, saved views, Data's column, the sheet's columns, the import's question). `docs/design/round-4/tags/spec.md` sections 2–7 and 10.
+4. The lows in the 13 Nov 17:45 entry below.
+
+**Habits:** a container restart loses background eval runs: push early and rerun. Before blaming a branch for a failing journey, run it on main (`ONLY=…`). Single checks: `FINISH=N30 npm run evals`. A new table in `faro` gets no `okr_` prefix (above).
+
+**Prompt for the next track 2 session:** "You are track 2 of Faro's build (goal entry and set-up). Read CLAUDE.md, docs/architecture/module-map.md, then the track 2 section of docs/handover.md ('Track 2 … Saturday 14 November, ~12:50 UTC'). Do its 'Next' list in order, one PR each: finish #477 (rerun the full evals:changed) and #475, then the proposed-goal 'Opened' per person on the server (its migration ships one merge ahead), then TG1 and TG2, then the lows. Keep anything new out of the first download; never raise budgets. Follow CLAUDE.md's gate (typecheck, npm test, npm run spec, evals:changed, build:mcp from a real node_modules via cp -al), one heavy run at a time; send mechanical work and eval runs to Sonnet subagents that return only the scorecard. Build in a worktree, check mergeable_state, then enable auto-merge (MERGE) once the gate passes, checking the PR number first. When a code PR merges, send its number to the build reviewer (session_012kbr8xhnbxBn8GD91Ct4dL). Report to planning (session_012kbr91eefh4gwCAztBncNT) once, when the list is done or blocked. Hand over at about 300k tokens of context."
 
 ## Track 2 (one goal, goal entry, set-up), Saturday 14 November, ~01:30 UTC (SM1 done; handing over at ~250k before ST2, a large rewrite; supersedes the 13 Nov 20:45 entry)
 
