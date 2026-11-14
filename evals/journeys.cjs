@@ -148,7 +148,7 @@ async function pickWeek(scope, label, typed) {
   await field.press('Enter');
 }
 /** Awaits a wait, and says which one it was if it times out (14 Nov: U109's three keyboard waits all read "Timeout 30000ms"). */
-async function named(what, wait) {
+async function waitNamed(what, wait) {
   try { return await wait; } catch (e) { throw new Error(`${what}: ${String(e.message || e).split('\n')[0]}`); }
 }
 async function see(p, text, msg, timeout = 5000) {
@@ -7008,11 +7008,11 @@ journey('U109', ['GOAL-DATES'], 'Dates are picked: as Tunde on the measure step,
   await from.focus();
   await p.keyboard.press('Enter');
   await p.locator('.weekpick.open').getByRole('textbox').waitFor();
-  await named('focus reaches the week box after Enter', p.waitForFunction(() => document.activeElement?.matches('.weekpick.open input')));
+  await waitNamed('focus reaches the week box after Enter', p.waitForFunction(() => document.activeElement?.matches('.weekpick.open input')));
   await p.keyboard.press('ArrowDown');
-  await named('ArrowDown moves focus into the week list', p.waitForFunction(() => document.activeElement?.matches('.weekpick.open [role="listbox"]')));
+  await waitNamed('ArrowDown moves focus into the week list', p.waitForFunction(() => document.activeElement?.matches('.weekpick.open [role="listbox"]')));
   for (let i = 0; i < 5; i++) await p.keyboard.press('ArrowUp');
-  await named('five ArrowUps reach week 40', p.waitForFunction(() => document.activeElement?.getAttribute('aria-activedescendant')?.endsWith('w40')));
+  await waitNamed('five ArrowUps reach week 40', p.waitForFunction(() => document.activeElement?.getAttribute('aria-activedescendant')?.endsWith('w40')));
   await p.keyboard.press('Enter');
   await p.locator('.weekpick.open').waitFor({ state: 'detached' }).catch(() => {});
   h.set('a11y', /^Week 40 · 28 Sep–4 Oct 2026/.test(await from.innerText()), `the keyboard chose ${await from.innerText()}`);
