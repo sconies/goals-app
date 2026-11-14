@@ -46,6 +46,15 @@ Home is where you start each day. It answers one question first: what is asked o
 - Its counts by status each open exactly those goals. Then “2 need attention that aren’t yours” opens Goals with those goals, filtered to Owner not you, and up to four of them are listed, each with its owner’s name first. Your own are in Your goals, so they aren’t listed twice. When nothing needs attention, it says so.
 - When the goals you watch, or your teams’ goals, are more than twelve goals in two or more teams, they are shown as teams, worst first: the team with the most goals off track, then at risk, then with no recent update, first, as Goals orders By team. Each team’s name, its “3 need attention” and its counts by status open exactly those goals. Five teams show, then a link to the rest, by team. No person’s name is in this table: teams and goals are ranked, never people. On a phone each team is one stacked row.
 
+#### Changed since
+
+- Beside the rest on a computer (after your goals and your team on a phone), “Changed since Friday 6 Nov” says what moved since you last opened Home: “1 got worse”, “2 recovered”, “1 went quiet”, “1 done”. Each count opens exactly those goals in Goals.
+- It counts from the last day you opened Home before today, so two visits on one day count from the same day. The first time, it says “Changed this week” and counts from Monday; after a long time away, at most the last four weeks (“Changed in the last 4 weeks”).
+- Up to four goals follow, worse first: each with its status now, what it was, and whether it is yours, your team’s or one you watch (or its team, when your goals are shown as teams). A goal its owner called behind while its numbers were still on plan says “called early by its owner”. More than four: All in Goals lists them.
+- A goal moves when its status changes: a new check-in that keeps it where it was isn’t a change (its History has every check-in). It counts the goals in the widest of your sets (yours, your team’s or the ones you watch), so each count is what Goals lists. When nothing moved, it isn’t shown. With Watching switched off, the goals you watch aren’t in it.
+- When your goals are shown as teams, the table’s last column, “Since Thu 5 Nov”, says what moved in each team (“1 got worse”, “1 recovered”, or No change), each a link to those goals.
+- Faro remembers when you last opened Home in this browser, for this workspace; the internal platform keeps it for you on its server.
+
 #### When Home has no button
 
 - Before the day your check-ins are due, Home says “Nothing is asked of you today.” and when they are due, with Check in early if you want to get ahead. When asks or proposed goals wait for you, it says so instead (“A proposed goal waits for your response.”).
@@ -441,6 +450,7 @@ Routes: `/goals?q=*`, `/goals?status=*`. Screens: `GoalFilters`, `GoalFilterShee
 - Filters cover status, level, team, owner and type; needs attention (the same goals Home and Watching list, with those being handled listed below them), narrowed if you like to why: off track, missed its own date, no recent update, decision or help needed, no path to green, at risk, getting worse, greener than calculated; due date; no update for some weeks (counted the way no recent update is); last quarter met or not met; result; a goal’s tree; and also-helps links.
 - Under the bar, one line counts the goals that match; under it, the filters in words (“Filtered by: Status Off track · Owner Rhea Kapoor”), each with Remove. A search is never listed as a filter.
 - Owner not you is the goals someone else owns: Home’s “need attention that aren’t yours” opens Goals with it, so your own goals are left out.
+- Changed since: what Home’s “Changed since” counts open. The filter line says “Changed since Fri 6 Nov: got worse” (or recovered, went quiet, done, any change); a goal counts when its status on that day and now differ in that way. Remove takes it off.
 - Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest. Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere; clear the sort to see the trees again. By level and By team keep their groups.
 - Everything is in the link: Copy link, in Views, shares exactly what you see. Save this view…, also in Views (in View on a phone), keeps it under a name: it shows as a tab while it’s open, and Views lists it the rest of the time. Rename or delete it from Views while it’s open.
 

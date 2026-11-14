@@ -279,3 +279,19 @@
   .teams-table .teams-needs { white-space: normal; }
   .teams-table .teams-label { display: inline; color: var(--muted); margin-right: var(--s2); }
 }
+
+/* HM4 (docs/design/home/spec.md rule 5): Changed since, in the side column; stacked, after the sets and before the
+   workspace's line. Hairline-divided rows; the status now is a shape and a word, what it was is words. */
+.home-changed { display: flex; flex-direction: column; gap: var(--s2); }
+.changed-list { list-style: none; margin: 0; padding: 0; }
+.changed-row { display: flex; flex-direction: column; gap: 2px; padding: var(--s2) 0; border-bottom: 1px solid var(--line); }
+.changed-row:last-child { border-bottom: 0; }
+.changed-title { font-weight: 600; overflow-wrap: anywhere; align-self: flex-start; }
+.changed-now { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.changed-now > svg { flex: none; width: 14px; height: 14px; }
+.changed-all { align-self: flex-start; }
+.teams-table .teams-moved { white-space: nowrap; }
+@container page (max-width: 959px) {
+  .page.home .home-side > .home-changed { order: 3; }
+}
+@container app (max-width: 600px) { .teams-table .teams-moved { white-space: normal; } }
