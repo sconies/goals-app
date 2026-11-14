@@ -54,7 +54,7 @@ const RULES = [
   // SW1: the four switches whose code is still the core's, their read-backs and the Features page's groups.
   [/^src\/domain\/switchOff\.ts$|^src\/app\/reads\.ts$|^src\/domain\/home\.ts$|^src\/screens\/(Workspace|Home|GoalsScreen|GoalViews)\.tsx$|^src\/ui\/(Shell|goalRows|HomeSets)\.tsx$|^evals\/notes\/22-more-switches\.cjs$/, ['U164', 'U165', 'U166', 'N22', 'N21']],
   // The check-in rhythm (FT1): its words, its sheet and its journeys and check.
-  [/^src\/domain\/rhythm\.ts$|^evals\/(finish\/20-no-rhythm|notes\/22-rhythm)\.cjs$/, ['U101', 'U102', 'F20', 'N31']],
+  [/^src\/domain\/rhythm\.ts$|^evals\/(finish\/20-no-rhythm|notes\/31-rhythm)\.cjs$/, ['U101', 'U102', 'F20', 'N31']],
   // Its clock (RS1): dueWords and the receipt, the read-back's two lines; the words with it off, and back on (N30, the tools' one
   // sentence, is a spec scenario in evals/mcp.eval.ts, which always runs).
   [/^src\/domain\/(reviewsOff|progress)\.ts$|^src\/screens\/CheckInFlow\.tsx$|^src\/mcp\/moduleOff\.ts$|^evals\/notes\/21-switched-off\.cjs$/, ['U154', 'U155', 'N21']],
