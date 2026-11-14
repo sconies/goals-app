@@ -4882,7 +4882,7 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await see(p, 'Add or change goals, plans, check-ins and people from a spreadsheet.');
   await p.getByLabel('Choose a spreadsheet').setInputFiles(edited);
   await see(p, '1 goal changed, 1 goal stopped', 'the preview does not say exactly the two changes');
-  await see(p, 'Read Goals, Plan, Check-ins and People', 'the preview does not say which sheets it read');
+  await see(p, 'Read Goals, Plan, Check-ins, People and Metrics', 'the preview does not say which sheets it read');
   await h.checkpoint('import preview');
   await h.click(p.getByRole('link', { name: 'Show the 2 changes' }));
   await p.waitForURL(/\/data\/import\/check\/changes/);
