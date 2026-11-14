@@ -28,8 +28,8 @@ function useHomeSets(): Sets {
   const watching = watchingOn(useModules().on);
   return useMemo(() => {
     const facts = scopeFacts(snapshot, viewer);
-    // Every scope, drawn as a Goals tab or not: My team waits when it is the same list as All (small workspaces rule 1),
-    // and its goals still belong on Home (as find_goals reads `every`).
+    // Every scope, drawn as a tab or not (as find_goals reads them): in a one-team workspace My team waits on Goals,
+    // being the same list as All, but its goals that need attention still belong on Home (review of #468, medium).
     const { every } = scopesFor(facts, null, { watching });
     const ids = new Set(every.filter((t) => t.id !== 'all').flatMap((t) => t.ids));
     const attention = snapshot.goals.filter((g) => ids.has(g.id)).map((g) => attentionOf(g));
