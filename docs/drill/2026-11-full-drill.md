@@ -11,8 +11,8 @@ The last proof before the handoff: a fresh session rebuilds Faro stage by stage 
 | Stage | Result | Gaps found | PRs |
 |---|---|---|---|
 | 1. The core rules | **Pass**: 43,373 of 43,373 rows | 16 (1.1 to 1.16) | #513 (all 16) |
-| 2. The core data and the change engine | Running | | |
-| 3. The core screens and journeys | Waiting | | |
+| 2. The core data and the change engine | **Pass**: 205 of 205 rows, store contract 13 of 13; stage 1 still passes. Only after reading the expected rows by hand | 22 (2.1 to 2.22) | |
+| 3. The core screens and journeys | Running | | |
 | 4. Module: Feedback | Waiting | | |
 | 5. Module: Goal map | Waiting | | |
 | 6. Module: Metric library | Waiting | | |
@@ -54,4 +54,33 @@ The rebuild passed: 43,373 of 43,373 rows on the first stage 1 rebuild, after th
 | 1.16 | The receipt's words beyond the worked examples are guessed | Words | #513 |
 
 In #513 the code showed the drill's guess was wrong on 1.3 (the week before is the latest earlier week with a check-in), 1.9 (both numbers are refused for a share) and 1.12 (a full tie takes the later record). The demo data doesn't exercise any of the three, so the rebuild still passed: that, more than the words, is the gap.
+
+### Stage 2: the core data and the change engine
+
+The rebuild passed, 135 of 135 rows in `changes.csv` and 70 of 70 in `import.csv`, plus the store contract's 13 cases, with stage 1 still at 100%. But it passed first time only because the session read the expected rows case by case before writing the engine: **most of the engine's words and many of its behaviours are in the conformance data, not the kit's words.** That is the stage's main gap. The exit criteria the harness doesn't score (the store, undo, one workspace never changing another's, module records riding in the same save) were checked by hand with the session's own tests. The last of these can't be checked against Faro's own mechanism, which is only in `src/domain/records.ts`.
+
+| # | Gap | Evidence |
+|---|---|---|
+| 2.1 | The cases' inputs exist only inside the expected CSVs; the rebuild copied their input columns out | `import.csv`, `changes.csv` |
+| 2.2 | About 45 of the 66 row sentences appear nowhere in the kit outside `import.csv` | `import.csv` |
+| 2.3 | What a group id's column and value are, kind by kind | Data |
+| 2.4 | Which problems stop a row making an item, and which keep it | Data |
+| 2.5 | The order problems are raised in (`kinds`) | Data |
+| 2.6 | The labels, order and value words of field-by-field changes | Data |
+| 2.7 | How new ids are numbered (one counter for people, stages and goals) | Data |
+| 2.8 | Check-in items come in goal-id order, not sheet order | Data |
+| 2.9 | Set-up mode never saves; people and teams stay; who a check-in belongs to | Data |
+| 2.10 | When a replacing row with no Call is judged again | Data |
+| 2.11 | When a reason is needed, case by case and item by item | Data |
+| 2.12 | Which weeks "Count them from this week" moves stages to | Data |
+| 2.13 | The Owner ID column is read but isn't in any column table | Words |
+| 2.14 | Headers appear lowercased in messages | Data |
+| 2.15 | How several missing check-in parts join into one sentence | Data |
+| 2.16 | The check-in worked example can't run on `workspace.json` as given (mttr-pir already has week 45) | Worked example |
+| 2.17 | The stage 2 page doesn't link the store contract | Words |
+| 2.18 | Saves that point across workspaces are refused (the kit's own listed gap) | Words |
+| 2.19 | The change-log entries for an import and undo's reasons are the rebuild's own words | Guessed |
+| 2.20 | The speed and chunked-run designs were simplified | Not scored |
+| 2.21 | Pages point at code files for detail (`src/domain/records.ts`) that aren't in the kit | Words |
+| 2.22 | Not built: the Plan sheet, Left on People, new teams, other-workspace files | Not scored |
 
