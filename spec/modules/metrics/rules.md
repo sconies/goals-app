@@ -185,6 +185,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 2: a metric’s goals › a goal with no check-in yet says No value yet and is left out of the line; a stopped goal or an unlinked one is not listed
 - rule 2: a metric’s goals › says no line when the goals keep different decimals
 - rule 2: a metric’s goals › counts by status, worst first, only the statuses there are
+- rule 2: a metric’s goals › counts a goal held to no number as Not measured yet, never No check-in yet (Lane, 14 Nov)
 - rule 3: what a metric needs › Lead time for changes needs nothing; CI compute cost, added in the seed and unused, needs a goal
 - rule 3: what a metric needs › one added today in a goal form, linked, with only a name, unit and direction: a meaning and a source
 - rule 3: what a metric needs › the same with its owner marked as left: the owner first; with no owner at all, said so

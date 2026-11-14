@@ -1,16 +1,14 @@
 /* Where a record is in its life, not how it's doing: Stopped (a goal), Ended (a review), Left (a person), Removed.
    Like a status it's always a shape and a word together (design rules), but its shapes are its own, so a status shape
    still only ever means a status. */
-import { UNMEASURED } from '../domain/unmeasured';
 import { ENDED, LEFT, REMOVED, STOPPED } from '../domain/vocabulary';
 
-export type Life = 'stopped' | 'ended' | 'left' | 'removed' | 'unmeasured';
-const WORD: Record<Life, string> = { stopped: STOPPED, ended: ENDED, left: LEFT, removed: REMOVED, unmeasured: UNMEASURED };
+export type Life = 'stopped' | 'ended' | 'left' | 'removed';
+const WORD: Record<Life, string> = { stopped: STOPPED, ended: ENDED, left: LEFT, removed: REMOVED };
 
-/** The shape alone: a ring with a bar across (stopped), a square in it (ended), a slash (left), a cross (removed); a
-    broken ring (held to no number: its number isn't measured yet, domain/unmeasured). */
+/** The shape alone: a ring with a bar across (stopped), a square in it (ended), a slash (left), a cross (removed). Held to
+    no number is a status of its own, Not measured yet (StatusShape; Lane, 14 Nov). */
 export function LifeShape({ k }: { k: Life }) {
-  if (k === 'unmeasured') return <svg className="life-shape" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="2.6 2.1" /></svg>;
   return (
     <svg className="life-shape" viewBox="0 0 16 16" aria-hidden="true">
       <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.6" />

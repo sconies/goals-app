@@ -21,6 +21,8 @@ export function StatusShape({ k }: { k: DisplayStatus }) {
   if (k === 'risk') return <svg key={k} {...at}><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" /></svg>;
   if (k === 'off') return <svg key={k} {...at}><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" /></svg>;
   if (k === 'done') return <svg key={k} {...at}><circle cx="8" cy="8" r="7" fill="currentColor" /><path d="m5 8.2 2 2 4-4.4" fill="none" stroke="var(--surface)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  // Not measured yet: a ring with a dot at its centre, a reading still to come (Lane, 14 Nov: a status of its own).
+  if (k === 'unmeasured') return <svg key={k} {...at}><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" /><circle cx="8" cy="8" r="1.8" fill="currentColor" /></svg>;
   return <svg key={k} {...at}><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="2.5 2.5" /></svg>;
 }
 
@@ -29,7 +31,7 @@ export function WarnMark() {
   return <svg viewBox="0 0 16 16" width="1em" height="1em" aria-hidden="true"><path d="M8 1.8 15 14H1z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M8 6.2v3.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><circle cx="8" cy="11.8" r="1" fill="currentColor" /></svg>;
 }
 
-const chipClass = (k: DisplayStatus) => (k === 'none' ? 'planned' : k);
+const chipClass = (k: DisplayStatus) => (k === 'none' || k === 'unmeasured' ? 'planned' : k);
 
 export function Chip({ k, label, className }: { k: DisplayStatus; label?: string; className?: string }) {
   return (

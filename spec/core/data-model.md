@@ -261,7 +261,7 @@ type Status = 'on' | 'risk' | 'off' | 'done'
 ### DisplayStatus
 
 ```ts
-type DisplayStatus = Status | 'stale' | 'planned' | 'none'
+type DisplayStatus = Status | 'stale' | 'planned' | 'none' | 'unmeasured'
 ```
 
 ### CauseBehind
