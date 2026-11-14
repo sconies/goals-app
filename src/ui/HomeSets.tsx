@@ -15,7 +15,7 @@ import { changedHeading, changedSet, changedSince, mondayOf, movesByTeam, MOVED_
 import { dayText } from '../domain/format';
 import { longDay } from '../domain/home';
 import { attentionOrder } from '../domain/attention';
-import { groupWatched } from '../domain/home';
+import { groupWatched, theOneTeam } from '../domain/home';
 import { asTeams, homeSets, type SetFacts, type Sets, type TeamRow } from '../domain/homeSets';
 import { watchedGoals } from '../domain/review';
 import { statusChange } from '../domain/tree';
@@ -98,14 +98,16 @@ function SetCounts({ set, scope }: { set: Pick<SetFacts, 'byStatus'>; scope: 'te
 }
 
 /**
- * Your team (part 7): the Goals page's My team scope, when it holds a goal you don't own. Its counts open exactly those
+ * Your team (part 7): the Goals page's My team scope, when it holds a goal you don't own, and not with one team in the
+ * workspace (SM1h). Its counts open exactly those
  * goals; then the goals that need attention and aren't yours (up to four, each with its owner's name first, no button),
  * or the teams worst first when the scope spans three or more.
  */
 export function YourTeam() {
   const app = useApp();
   const set = useHomeSets().team;
-  if (!set) return null;
+  // With one team in the workspace its goals are Home's first section, "The team's goals" (SM1h).
+  if (!set || theOneTeam(app.snapshot.teams, app.viewer)) return null;
   const several = set.names.length > 1;
   const k = set.rows.length;
   return (
