@@ -15,7 +15,7 @@ The last proof before the handoff: a fresh session rebuilds Faro stage by stage 
 | 3. The core screens and journeys | **Harness pass**: 145 of 145 rows; stages 1 and 2 still pass. By hand: 15 of 71 core journeys carried out fully, 18 in part, 38 not built; the core requirements not checkable from the kit | 31 (3.1 to 3.31) | |
 | 4. Module: Feedback | **Switch criteria pass** (3, 4, 5: verified by the reviewer); requirements verified where a server can show them, weak where a browser or MCP server is needed (1); journeys weak (2, titles); stages 1 to 3 still pass | 23 (4.1 to 4.23) | |
 | 5. Module: Goal map | **Switch criteria pass** (3, 4: verified by the reviewer); the requirements and journeys only in part (1, 2: weak, journeys are titles); stages 1 to 3 still pass with it on | 22 (5.1 to 5.22) | |
-| 6. Module: Metric library | Running | | |
+| 6. Module: Metric library | **Builder's tests pass** (15 of 20 criteria fully, 5 in part); its own conformance rows 109 of 109; stages 1 to 3 pass with it on and off. Not yet independently reviewed | 20 (6.1 to 6.20) | |
 | 7. Module: Reviews | Waiting | | |
 | 8. Module: Spreadsheets | Waiting | | |
 | 9. Module: Fields (TG1) | Waiting | | |
@@ -180,4 +180,31 @@ Built as its own folder over the core; stages 1 to 3 still pass with it on, and 
 | 4.21 | No record of a visit's errors | Kit |
 | 4.22 | No MCP endpoint or picture check in the core | Kit |
 | 4.23 | The `src`, migrations, `docs` and `evals` files the spec links to aren't in the kit | Kit |
+
+### Stage 6: Metric library
+
+Built as its own folder over the core; stages 1 to 3 pass with it on, and with it off on a copy of the workspace; its own conformance file, `metrics.csv`, scores 109 of 109; its 21 exit tests pass (criteria 3 to 17 in full; 1, 2, 18, 19 and 20 in part, for want of a browser, journey steps, the source contract and parts of the core: the one table, `post_check_in`'s readings, the review agenda, `get_goal`). **Not yet checked by an independent reviewer** (the session handed over first). **The records extension point had to be invented:** how a module declares its records to the core's store, undo, Recently removed, restore, carry and export is only in `src/domain/records.ts`, so the builder wrote `records.mjs` from the README's words; stage 3 also builds none of the places, hooks or module routes the module READMEs name, the next-year cycle, or the core rule "held to no number".
+
+| # | Gap | Evidence |
+|---|---|---|
+| 6.1 | How a module declares its records, and what calls each part (`records.ts` isn't in the kit) | Kit |
+| 6.2 | Stage 3 builds none of the places, hooks or module routes the module READMEs name | Kit |
+| 6.3 | `workspace.json` can't say a module is off (as 4.3, 5.1) | Kit |
+| 6.4 | Places the stage needs are missing from the README's list (Workspace → About, New goal's Check line, the chart's marks) | Words |
+| 6.5 | The module-off sentence has no words | Words |
+| 6.6 | Rule 1's worked examples contradict rule 4's close-name Check and rule 7's other-goal Check | Words |
+| 6.7 | Many refusal sentences | Guessed |
+| 6.8 | A name's minimum length: 3 in the rule, 1 in the records' limits | Words |
+| 6.9 | Rule 4's "differ by at most one" is ambiguous | Words |
+| 6.10 | The name Check's answer is `keep` in rules.md and `keep:<id>` in tools.md | Words |
+| 6.11 | The demo's source series (which goal each follows, `add`, `short`) are only in code | Kit |
+| 6.12 | The 17 searches in `metrics.csv` appear only in the expected file | Data |
+| 6.13 | The source contract is missing; its 5-second limit can't be built with a synchronous read | Kit |
+| 6.14 | Journeys are titles; U159's goal isn't in the demo | Kit |
+| 6.15 | `post_check_in` and the one table aren't in the core as the kit describes it | Kit |
+| 6.16 | Recorded readings: whether they show in History with the module off | Words |
+| 6.17 | Whether a new goal and its metric link save as one commit | Words |
+| 6.18 | Starting the next year is simplified; the copied link's date is a guess | Guessed |
+| 6.19 | Form niceties not built (a draft kept through a reload, "Use different ones") | Not built |
+| 6.20 | The source code the spec links to is absent | Kit |
 

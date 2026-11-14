@@ -24,7 +24,7 @@ Scorecard and every gap: `docs/drill/2026-11-full-drill.md` (PR **#512**, draft,
 | 3 core screens | Harness pass 145/145; by hand 15 of 71 journeys full, 18 part, 38 not built (journeys are titles only). 31 gaps; **no fixer started** |
 | 4 Feedback | Switch criteria verified by the reviewer; requirements and journeys weak. 23 gaps; no fixer started. **Its entry criterion was false**: the kit's core has no switch (4.2) |
 | 5 Goal map | Switch criteria verified; requirements and journeys weak. 22 gaps; no fixer started |
-| 6 Metric library | Builder was running |
+| 6 Metric library | Builder's 21 tests pass, `metrics.csv` 109/109, stages 1 to 3 pass on and off; **not independently reviewed** (re-run with a reviewer if needed). 20 gaps; the records extension point (6.1) had to be invented |
 | 7 Reviews, 8 Spreadsheets, 9 Fields (TG1), 10 Watching, 11 Wrap-up | Not started |
 
 To add when merged: GR (#464), MQ (#502 merged; #505 to come), FT1 (#465), TG2 (#493), SW2 (#504), MI. MC is deferred (Lane, 14 Nov).
