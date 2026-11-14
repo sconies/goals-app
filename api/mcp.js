@@ -17240,6 +17240,22 @@ function aiBrief(x) {
 	}
 	return out.join("\n");
 }
+// src/domain/feeder.ts
+var COUNT_WORDS = [
+	"no",
+	"one",
+	"two",
+	"three",
+	"four",
+	"five",
+	"six",
+	"seven",
+	"eight",
+	"nine",
+	"ten"
+];
+/** "two", "three" … for small counts in a sentence; digits from 11. */
+var countWord = (n) => COUNT_WORDS[n] ?? String(n);
 // src/domain/summaryFacts.ts
 init_numbers();
 init_checkin();
@@ -17256,21 +17272,6 @@ var DIRECTION = {
 	better: "recovering",
 	flat: "flat"
 };
-var COUNT_WORDS = [
-	"no",
-	"one",
-	"two",
-	"three",
-	"four",
-	"five",
-	"six",
-	"seven",
-	"eight",
-	"nine",
-	"ten"
-];
-/** "two", "three" … for small counts in a sentence; digits from 11. */
-var countWord = (n) => COUNT_WORDS[n] ?? String(n);
 var plural$1 = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 var pct$2 = (r) => `${Math.round(r * 100)}%`;
 var round$1 = (v, decimals) => Number(v.toFixed(decimals));
