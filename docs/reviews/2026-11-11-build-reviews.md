@@ -251,6 +251,7 @@ Written 14 November 2026, 15:40 UTC, when the reviewer of 14 November (session â
 | #469 HM4: Changed since you last looked | 1 | 0 | 0 | 3 |
 | #498 Help: a switched-off module's page has no Help link to its hidden article | 4 | 0 | 0 | 0 |
 | #501 PR CI caps checks as well as journeys | 4 | 0 | 0 | 0 |
+| #491 SM1h: with one team, Home shows The team's goals once | 1 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2168,4 +2169,8 @@ Read. Nothing found. `HelpLinks` draws no link when the page's article belongs t
 ### #501 PR CI caps checks as well as journeys (track 4, merged 14 Nov, 18:42 UTC)
 
 Read; its test passes on main (5 in `src/spec/prEvalsCap.test.ts`). Nothing found. PR CI's cap of 25 now counts journeys and F/N/P checks together beyond the core ones, ranked by how directly the PR's files name them; the core journeys and the design check P6 (`SMOKE_CHECKS`) always run, and what is left is printed and waits for the full suite after the merge. `CLAUDE.md`'s quality-gate line says so, and gives the reason as planning's of 14 Nov (after #465's job ran out of time), where the cap itself was Lane's. No budget or wait is raised. It does mean a PR touching many files can merge with some of its own checks not yet run; the full suite on main is then the only run of them.
+
+### #491 SM1h: with one team, Home shows "The team's goals" once (track 1, merged 14 Nov, 18:44 UTC)
+
+Read; its tests pass on main (37 in `src/domain/home.test.ts`); not walked on screen by me (U49 now checks the heading and that no "Your goals", "Your team" or "Goals you watch" is beside it). Nothing found. `theOneTeam` (exactly one team, and the viewer is in it or leads it) is a pure rule in `src/domain/home.ts`; Home's first section then lists that team's goals through the query port with the viewer's own first, a teammate's row carries its owner's name, its counts and links go to `scope=team`, and "Your team" is not drawn. An admin in no team keeps "Your goals". Help, What's new, the requirement, the rule's words with a worked example and the module map's line come with it. **#492's low is closed here:** the spec's rule 4 examples (`homeBlocks`) and `homeSets`'s comment now read every scope.
 
