@@ -482,7 +482,7 @@ export function changeCases(w: ConformanceWorkspace): ImportCase[] {
   const ownersThisWeek = s.checkIns.find((c) => c.week === week && c.authorId !== 'amara')!;
   return [
     ...importCases(w),
-    // An admin's row replacing someone else's check-in for this week corrects it, with a reason, and the check-in stays
+    // An admin's row replacing this week's check-in on a goal someone else owns corrects it, with a reason, and the check-in stays
     // its author's (Lane, 14 Nov): the item's author is who checked in, not the admin.
     { case: 'corrects-keeps-author', actor: 'amara', sheet: 'checkIns', rows: [{ ID: ownersThisWeek.id, 'Goal ID': ownersThisWeek.goalId, Week: String(week), 'Next step': 'Corrected from the source data' }], given: { reason: 'The tracker had last week’s number in it' } },
     // This week's check-in is the owner's to load (backlog AD: an admin's workbook brings in past weeks).
