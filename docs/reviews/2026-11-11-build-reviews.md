@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh that morning (session …Bn8GD91Ct4dL). The note before it was written at 00:10 UTC by the reviewer that stopped.
 
-- **Last merge fully reviewed:** `d40c0044` (#473), the head of main at 12:35 UTC, 14 Nov. Tracks now message the reviewer a PR's number when it merges (planning, 11:01 UTC); compare main's log with this SHA whenever one arrives. Every code PR merged from #121 up to it has a row in State and a section below.
+- **Last merge fully reviewed:** `47cf666b` (#461), the head of main at 12:50 UTC, 14 Nov. Tracks now message the reviewer a PR's number when it merges (planning, 11:01 UTC); compare main's log with this SHA whenever one arrives. Every code PR merged from #121 up to it has a row in State and a section below.
 - **Merged since, not reviewed:** none.
 - **Highs not yet confirmed fixed:** none. #452 is fixed by #467 and #416 by #432 (both re-run). What is left of #416 is a medium in #432's section: a review held on the due weekday, but not this week.
 - **To watch in #464 (GR, track 7d):** `BUILT_KEYS` (`src/domain/changeset.ts`) must name `guards` if `buildGoal` decides it; and migration 0051's check refuses a JSON null.
@@ -232,6 +232,7 @@ Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh th
 | #470 A reading with no source's name is refused; readings stay with the Metric library off | readings | 0 | 0 | 0 |
 | #471 FD: the first download leaves out the goal page's charts and words and the map's layout | 4 | 0 | 0 | 2 |
 | #473 U159 waits for the number step; EVAL_CLOCK in the harness | readings | 0 | 0 | 0 |
+| #461 SM1: a module's menu row and a Goals tab wait until they have something in them | 2 | 0 | 1 | 2 |
 
 **High findings, and where each stands**
 
@@ -2040,3 +2041,11 @@ Read. A move with nothing rewritten: the sparklines and their scale go to `src/u
 ### #473 U159 waits for the number step (readings, merged 14 Nov)
 
 Read. Journeys only: six waits for the number step's heading before its reading block is looked for, and `EVAL_CLOCK` to set the browser's time of day in a run. No app code. Nothing found.
+
+### #461 SM1: rows and tabs that wait (track 2, merged 14 Nov)
+
+Read; the medium run in a browser by a helper session at `47cf666b` (the demo with the browser store, 1440 wide). A Goals tab is drawn when it has goals and isn't the same list as All or as a tab before it; every scope's address still opens (`scopesFor` returns `every` beside `tabs`, and `find_goals` reads `every`). The Metrics row waits for the first live metric (`menu.waitsFor` in the module's manifest, `rowDrawn` in `src/domain/navigation.ts`), and the toast after the first metric says it is now in the menu. Help, What's new, a requirement (SMALL-MENU) and a check (N30) come with it.
+
+**1. Medium (ran). The Metrics row follows you into a workspace that has no metrics.** `drawnOnce` (`src/ui/Shell.tsx:182`) remembers every row drawn since the shell mounted, and a workspace switch doesn't remount it. From the demo, "Set up a new workspace" ("Empty Co", goals later): the new workspace's menu has Metrics at once; switching to Example data and back, the same; after a reload the row is gone. So the first thing SM1 is for, a new small workspace, shows the row whenever it is set up or reached from one that has metrics. Fix: keep what was drawn per workspace (key the set by `app.ws.id`, or clear it when the workspace changes). N30 only opens the demo, where the row is always there; a check that opens an empty workspace after the demo would hold this.
+
+**Lows.** (1) N30 asserts the row is drawn in the demo and never that it waits in a workspace with no metric, in the menu or on a phone. (2) SMALL-MENU's words include "a Home section", which this PR does not build (it is "rows and tabs"); the requirement reads as met.
