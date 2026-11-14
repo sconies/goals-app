@@ -31,3 +31,6 @@ export function closeNames(name: string, metrics: readonly Metric[], except?: st
   }
   return scored.sort((a, b) => a.d - b.d || fold(a.m.name).localeCompare(fold(b.m.name))).slice(0, 2).map((x) => x.m);
 }
+
+/** Said when the first metric is saved, which draws the Metrics row in the menu (small workspaces, rule 1). */
+export const MENU_NOW = 'Metrics is now in the menu.';

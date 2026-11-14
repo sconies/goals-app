@@ -11,6 +11,7 @@ import { parseNumber } from '../../domain/checkin';
 import { WarnMark } from '../../ui/bits';
 import { PickOne } from '../../ui/Pick';
 import { canLinkGoal, DIRECTION_LABEL, linkOf, metricsOf, type Metric, type MetricDirection } from './rules';
+import { MENU_NOW } from './names';
 import { checkReads } from './reads';
 import { metricChecks, unansweredChecks, unitChecks, type CheckField } from './rulesDefine';
 import { linkReads } from './rulesLink';
@@ -149,10 +150,12 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
     if (addOpen.length) { setAddErr('Answer the question above first.'); return; }
     setBusy(true); setAddErr('');
     try {
+      // The first metric draws the Metrics row (small workspaces, rule 1): the toast says so.
+      const first = !metricsOf(app.snapshot).some((m) => !m.removedAt);
       const out = await app.run('saveMetric', { name: adding.name, unit: adding.unit, direction: (adding.direction || undefined) as MetricDirection, meaning: adding.meaning, decimals: dp, ownerId: app.viewer.id, answers: addAnswers }) as { metric: Metric };
       setAddAnswers({});
       setAdding(null);
-      app.toast(`Added ${out.metric.name}. Say more about it on its page when you can.`);
+      app.toast(`Added ${out.metric.name}. Say more about it on its page when you can.${first ? ` ${MENU_NOW}` : ''}`);
       pickMetric(out.metric);
     } catch (e) {
       setAddErr(e instanceof Error ? e.message : 'It couldn’t be added just now.');

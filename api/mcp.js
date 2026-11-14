@@ -15414,6 +15414,7 @@ var _virtual_faro_modules_default = [
 		],
 		redirects: [["/data/metrics", "/metrics"]],
 		navigation: ["Metrics"],
+		menu: { "waitsFor": "metrics" },
 		places: [
 			"goal.facts",
 			"goal.measure",
@@ -15751,6 +15752,30 @@ var _virtual_faro_modules_default = [
 				"bulk_change"
 			],
 			"ColumnsHelp": ["get_help", "export"]
+		}
+	},
+	{
+		id: "tags",
+		name: "Fields",
+		summary: "Give goals a workspace’s own fields, such as a stage or a programme, to find and sort them by.",
+		group: "tools",
+		needs: [],
+		routes: [],
+		redirects: [],
+		navigation: [],
+		places: [],
+		tables: [],
+		aiTools: [],
+		help: [],
+		requirements: [],
+		journeys: [],
+		elsewhere: [],
+		rebuild: {
+			"status": "outline",
+			"builds": "Fields, as a feature a workspace can switch off: a workspace defines up to six of its own fields on goals (a stage, a programme), each a list of values or free text; a goal has at most one value per field. No rule reads a field. Today it holds its tables (migration 0052) and its rule (tags-fields); its screens, its goal block, its filters, its sheet columns and its AI tools come next (TG1, TG2).",
+			"entry": ["The core saves a module's records through module_tables and src/core/records.ts (stage 2), so the module's two tables need nothing from any core rule."],
+			"exit": ["fieldProblem and valueProblem give the tags-fields rule's worked examples (src/modules/tags/rules.test.ts).", "The database refuses a field name over 40 characters, a kind other than list or text, a list of no values or over 20, and a value over 80 characters (migration 0052's checks, src/spec/limits.ts)."],
+			"gaps": ["Its two tables, faro.goal_fields and faro.goal_field_values (migration 0052, on module_tables as module tags), are made one merge ahead of the code that uses them; records.ts claims them in TG1, and module.json lists them then.", "Nothing draws a field yet: Workspace → Fields, the goal's Fields block, the MCP tools list_fields and set_goal_fields, and the switch's off states are TG1; the filters, saved views, Data's column and the sheet's columns with the import's question are TG2 (docs/design/round-4/tags/spec.md, section 10). Until then switching Fields off changes nothing anyone can see."]
 		}
 	},
 	{
@@ -16458,36 +16483,43 @@ var SCOPES = [
 ];
 /**
 * Rule 1. The tabs someone has, in order: Mine (when they own a goal), My team or My teams (their team and the teams
-* they lead, when they have one), Watching, All. Opens on the scope last used when they still have it; otherwise Mine,
+* they lead, when they have one), Watching, All. A tab waits (small workspaces SM1, rule 1): it is drawn when its list
+* has a goal and isn't the same list as a tab drawn before it; All is always drawn. `every` keeps each scope whether
+* drawn or not, since every address still opens. Opens on the scope last used when it is still drawn; otherwise Mine,
 * else Watching when it has goals, else All.
 */
 function scopesFor(f, last, opts = { watching: true }) {
-	const tabs = [];
+	const every = [];
 	const mine = scopeIds(f, "mine");
-	if (mine.length) tabs.push({
+	every.push({
 		id: "mine",
 		label: "Mine",
 		ids: mine
 	});
-	if (f.teams.length) tabs.push({
+	if (f.teams.length) every.push({
 		id: "team",
 		label: f.teams.length === 1 ? "My team" : "My teams",
 		ids: scopeIds(f, "team")
 	});
-	if (opts.watching) tabs.push({
+	if (opts.watching) every.push({
 		id: "watching",
 		label: "Watching",
 		ids: scopeIds(f, "watching")
 	});
-	tabs.push({
+	every.push({
 		id: "all",
 		label: "All",
 		ids: scopeIds(f, "all")
 	});
+	const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+	const tabs = [];
+	const all = every.find((t) => t.id === "all");
+	for (const t of every) if (t === all || t.ids.length && !same(t.ids, all.ids) && !tabs.some((d) => same(d.ids, t.ids))) tabs.push(t);
 	const has = (s) => !!s && tabs.some((t) => t.id === s);
 	return {
 		tabs,
-		opens: has(last) ? last : mine.length ? "mine" : tabs.find((t) => t.id === "watching")?.ids.length ? "watching" : "all"
+		every,
+		opens: has(last) ? last : mine.length ? "mine" : every.find((t) => t.id === "watching")?.ids.length ? "watching" : "all"
 	};
 }
 /** The goals in a scope, by id, in the workspace's order. "team" is the viewer's own team and the teams they lead. */
@@ -17247,6 +17279,22 @@ function aiBrief(x) {
 	}
 	return out.join("\n");
 }
+// src/domain/feeder.ts
+var COUNT_WORDS = [
+	"no",
+	"one",
+	"two",
+	"three",
+	"four",
+	"five",
+	"six",
+	"seven",
+	"eight",
+	"nine",
+	"ten"
+];
+/** "two", "three" … for small counts in a sentence; digits from 11. */
+var countWord = (n) => COUNT_WORDS[n] ?? String(n);
 // src/domain/summaryFacts.ts
 init_numbers();
 init_checkin();
@@ -17263,21 +17311,6 @@ var DIRECTION = {
 	better: "recovering",
 	flat: "flat"
 };
-var COUNT_WORDS = [
-	"no",
-	"one",
-	"two",
-	"three",
-	"four",
-	"five",
-	"six",
-	"seven",
-	"eight",
-	"nine",
-	"ten"
-];
-/** "two", "three" … for small counts in a sentence; digits from 11. */
-var countWord = (n) => COUNT_WORDS[n] ?? String(n);
 var plural$1 = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 var pct$2 = (r) => `${Math.round(r * 100)}%`;
 var round$1 = (v, decimals) => Number(v.toFixed(decimals));
@@ -19770,7 +19803,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Tabs say whose goals: Mine (the goals you own), My team (your team’s, and those of any team you lead), Watching (the goals you follow) and All, each with its count. Goals opens on the tab you used last, else Mine, else Watching. A tab you don’t have (Mine when you own nothing) isn’t shown.",
+					"Tabs say whose goals: Mine (the goals you own), My team (your team’s, and those of any team you lead), Watching (the goals you follow) and All, each with its count. A tab is shown once it has goals in it and isn’t the same list as one before it (in a workspace of one team, My team is All, so it isn’t shown); All is always there. The same goes for a feature’s menu row, such as Metrics, which appears with the first metric. Every address still opens. Goals opens on the tab you used last, else Mine, else Watching. A tab you don’t have (Mine when you own nothing) isn’t shown.",
 					"Group arranges them: As trees (each top goal with what feeds it; All’s own), By team, By level, or None (one list, worst first; every other tab’s own). Needs attention · {n} is a switch beside it: on, any tab lists the goals that need attention first and those being handled below, and the line under it says why.",
 					"One line counts what’s shown and their statuses, worst first (“17 goals, worst first. 2 off track · 4 at risk …”); with Needs attention on it says how many need attention and why.",
 					"By team lists the teams worst first: the most goals off track, then the most at risk, then no recent update and no check-in yet. Each team says how many of its goals have each status, with its shape and word.",
@@ -19825,7 +19858,8 @@ var CORE_ARTICLES = [
 			"NAV-GOALS",
 			"STORY",
 			"LEVELS",
-			"BULK-EDIT"
+			"BULK-EDIT",
+			"SMALL-MENU"
 		],
 		keywords: [
 			"list",
@@ -21514,6 +21548,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "menu-shows-what-you-use",
+		date: "2026-11-14",
+		title: "The menu shows what you use",
+		points: [
+			"A tab on Goals appears once it has goals in it and isn’t the same list as another, so a one-team workspace shows Mine and All.",
+			"Metrics joins the menu with the first metric, and the message after saving it says so.",
+			"Nothing is switched off: every page still opens from its address, Find and Workspace."
+		],
+		articles: ["goals", "metrics"]
+	},
 	{
 		id: "table-confirm-readings",
 		date: "2026-11-14",
@@ -28023,8 +28068,8 @@ var CORE_TOOLS = [
 			const scope = a.scope ? String(a.scope) : linkScope ? linkScope : null;
 			if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
 			const watchingHere = watchingOn(modulesOn(ctx.ws).on);
-			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).tabs.find((t) => t.id === scope) : null;
-			if (scope && scope !== "all" && !scoped) return listed(goalPage([], a, scope === "team" ? "You’re in no team and lead none." : scope === "watching" ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : "You own no goals this year."));
+			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null, { watching: watchingHere }).every.find((t) => t.id === scope) : null;
+			if (scope && scope !== "all" && (!scoped || scope === "mine" && !scoped.ids.length)) return listed(goalPage([], a, scope === "team" ? "You’re in no team and lead none." : scope === "watching" ? `Watching is switched off in ${ctx.ws.name}. Leave the scope out to see every goal.` : "You own no goals this year."));
 			const inScope = scoped ? new Set(scoped.ids) : null;
 			const words = [String(a.text ?? ""), query.q].filter((x) => x.trim()).join(" ");
 			const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week, void 0, reviewsOn(modulesOn(ctx.ws).on));
