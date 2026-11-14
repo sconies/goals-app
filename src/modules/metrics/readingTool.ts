@@ -6,6 +6,7 @@ import { checkInsFor } from '../../domain/status';
 import type { CheckInReading, Goal, ReadingWhyKind } from '../../domain/types';
 import type { CheckInReader } from '../../mcp/checkInReaders';
 import type { McpContext } from '../../mcp/tools';
+import { filledAt } from '../../domain/readingWords';
 import { measureOf } from './rules';
 import { askSource, readingState, recordReading } from './rulesReading';
 import { sliceOf, type NumberSource } from './source';
@@ -23,9 +24,11 @@ export async function readForTool(ctx: McpContext, goal: Goal, ask: { value: num
   if (!m) return { reading: null, says: `“${goal.title}” isn’t measured by a metric with a number source, so no reading was recorded.` };
   const asked = await askSource(toolSources(ctx), m.metric, sliceOf(m.link), ctx.today);
   if (!asked.source) return { reading: null, says: `No source can read ${m.metric.name}, so no reading was recorded.` };
+  // The goal's places, as the engine judges (review of #437, medium 4): a goal may keep more or fewer than its metric.
+  const decimals = goal.kind === 'milestone' ? 0 : goal.decimals;
   const last = checkInsFor(goal, ctx.snapshot.checkIns).at(-1) ?? null;
-  const value = ask.value ?? (ask.confirmed && asked.reading && typeof asked.reading === 'object' ? asked.reading.value : null);
-  const state = readingState(asked.reading, last?.reading ?? null, last?.value ?? null, ctx.today, value, m.metric.decimals);
+  const value = ask.value ?? (ask.confirmed && asked.reading && typeof asked.reading === 'object' ? Number(filledAt(asked.reading.value, decimals)) : null);
+  const state = readingState(asked.reading, last?.reading ?? null, last?.value ?? null, ctx.today, value, decimals);
   const r = asked.reading && typeof asked.reading === 'object' ? asked.reading : null;
   const says: Record<string, string> = {
     'no-slice': `${asked.source} doesn’t read ${m.metric.name} for this goal’s team or part, so no reading was recorded.`,
@@ -35,7 +38,7 @@ export async function readForTool(ctx: McpContext, goal: Goal, ask: { value: num
     same: `${asked.source} has no new reading since the last check-in, so none was recorded.`,
   };
   if (!r || says[state]) return { reading: null, says: says[state] };
-  return { reading: recordReading(asked.source, r, value, m.metric.decimals, ask.why) ?? null };
+  return { reading: recordReading(asked.source, r, value, decimals, ask.why) ?? null };
 }
 
 export const metricReader: CheckInReader = { module: 'metrics', read: readForTool };

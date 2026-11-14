@@ -5,7 +5,8 @@ import { serve, type Deps } from '../../../server/mcp';
 import { applyCommit } from '../../data/store';
 import { buildPlatformOrg } from '../../data/platformOrg';
 import { hashToken, newToken } from '../../mcp/protocol';
-import type { ApiToken, Snapshot } from '../../domain/types';
+import { filledAt } from '../../domain/readingWords';
+import type { ApiToken, MetricGoal, Snapshot } from '../../domain/types';
 
 const today = new Date('2026-11-05T12:00:00Z');
 const built = buildPlatformOrg(today);
@@ -13,9 +14,10 @@ const built = buildPlatformOrg(today);
 // example's check-ins before this week, continues week 44's 20 by its last step: 19 at 09:00 today.
 const fresh = (s: Snapshot) => { s.checkIns = s.checkIns.filter((c) => !(c.goalId === 'ns-ci' && c.week === 45)); };
 
-async function setup(modulesOff: string[] = []) {
+async function setup(modulesOff: string[] = [], edit?: (s: Snapshot) => void) {
   let data: Snapshot = structuredClone(built);
   fresh(data);
+  edit?.(data);
   const token = newToken();
   const t: ApiToken = { id: 'tok1', personId: 'daniel', name: 'Test', tokenHash: await hashToken(token), createdBy: 'grace', createdAt: today.toISOString(), lastUsedAt: null, revokedAt: null };
   const deps: Deps = {
@@ -77,5 +79,30 @@ describe('the AI sees where a number came from, as the screens show it (NR 2.4)'
     const m = await call('get_metric', { metric: 'metric_ci-time' });
     expect(m.structuredContent).toMatchObject({ goals: [{ goalId: 'ns-ci', inItsCheckIn: 'Filled in from CI analytics · last read 9:00 today' }], differentNumbers: [{ source: 'CI analytics', checkIns: 1, different: 1, weeks: [{ goalId: 'ns-ci', week: 45 }] }] });
     expect(m.content[0]!.text).toMatch(/In the last 8 weeks, 1 of 1 check-in filled in from CI analytics used a different number\. \(G-\d+ week 45\)/);
+  });
+});
+
+describe('after #437’s review', () => {
+  it('refuses reading fields for any week but this one (medium 2): a source reads what it says now', async () => {
+    const { call, latest } = await setup();
+    const before = latest();
+    const r = await call('post_check_in', { goal_id: 'ns-ci', week: 43, reading_confirmed: true });
+    expect(r.isError).toBe(true);
+    expect(r.content[0]!.text).toMatch(/for this week’s check-in \(week 45\) only/);
+    expect(latest()).toBe(before);
+    expect((await call('post_check_in', { goal_id: 'ns-ci', week: 45, reading_confirmed: true })).isError).toBe(false);
+  });
+
+  it('compares at the goal’s places, not the metric’s (medium 4): a reason given for 19.4 against 19 is kept', async () => {
+    const { call, latest } = await setup([], (s) => { (s.goals.find((g) => g.id === 'ns-ci') as MetricGoal).decimals = 1; });
+    const r = await call('post_check_in', { goal_id: 'ns-ci', value: 19.4, different_because: { kind: 'behind' } });
+    expect(r.isError, r.content[0]!.text).toBe(false);
+    expect(latest()).toMatchObject({ value: 19.4, reading: { value: 19, why: { kind: 'behind' } } });
+  });
+
+  it('fills a field at the goal’s places (medium 6)', () => {
+    expect(filledAt(20.4567, 0)).toBe('20');
+    expect(filledAt(20.4567, 2)).toBe('20.46');
+    expect(filledAt(20, 2)).toBe('20');
   });
 });
