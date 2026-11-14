@@ -14,10 +14,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon (session …iZx169kF) stopped after 14 code PRs, at about 395k tokens of context. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `72812560` (#519), the head of main at 23:25 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511, #516 and #523 (docs only) have neither.
+- **Last merge fully reviewed:** `add23bfa` (#524), the head of main at 23:35 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511, #516 and #523 (docs only) have neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none.
-- **Mediums open:** five, all sent to planning on 14 Nov: #503's (a goal stopped while held stays held), #513's (the kit's words on a moment are not what History does), #497's (the workspace's line is never drawn in a browser by any eval) and #515's (seven sentences of the change engine's page are not what the engine does); and #510's (a goal that is Not measured yet is in no lane of the Board). #517's was fixed by #522. #504's was fixed by #519.
+- **Mediums open:** three, all sent to planning on 14 Nov: #503's (a goal stopped while held stays held), #513's (the kit's words on a moment are not what History does) and #510's (a goal that is Not measured yet is in no lane of the Board). Fixed since: #517's by #522, #504's by #519, #497's by #526, #515's by #524.
 - **Expected next:** #505 (MQ's code, track 7d, on migration 0055: check the row mapper writes SQL null, never an empty string, for a `level` or `confidence` that isn't said, which 0055's checks refuse; and that the parent's rules, no loops, same workspace, not removed, are in the module's rule, since the database only refuses a metric that is its own parent). #497 (HM7 and HB3, track 1). U124's "Changed since" check (track 1).
 - **Read, not walked on screen by this session:** #469 (HM4), #491 (SM1h), #487 (TG1), #464 (GR) and #465 (FT1); their own journeys are the only browser runs. #465's thirteen screen files were skimmed. If the full suite on main goes red on one of them, start there.
 - **How merges reach you:** no timer works here (scheduling a wake needs an approval nobody answers). Each track messages the reviewer its PR's number when it merges; whenever a message arrives, run `git log --first-parent <last reviewed>..origin/main` and review everything in it. Messages lag and repeat: about half of this session's were for PRs already reviewed, and a track's message can give a stale migration number (#502 was announced as 0054 and is 0055).
@@ -269,6 +269,8 @@ Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon 
 | #522 `see()` says what a page showed (#517's medium) | 1 | 0 | 0 | 0 |
 | #514 U98: the import's check is held for 3 s, so the Reading panel is always there | 3 | 0 | 0 | 1 |
 | #519 Connect Claude follows AI access's switch (#504's medium) | 2 | 0 | 0 | 1 |
+| #526 U176: the admin's workspace line, drawn (#497's medium) | 1 | 0 | 0 | 0 |
+| #524 The change engine's kit sentences match the engine (#515's medium) | item 11 | 0 | 0 | 1 |
 
 **High findings, and where each stands**
 
@@ -2344,3 +2346,13 @@ Harness only, one journey; read whole. No high, no medium. The import's check ru
 Read against #504's medium: **closed.** With AI access off, the inbox's Connect Claude shows its heading and the shared switched-off line (with the link to Workspace, Features) and nothing else: no Make a token, no host, no command. The early return comes after every hook, so switching while the panel is open can't change the hook count. U175 opens the panel with the switch off and fails on "claude mcp add" or "Make a token". Help and `docs/mcp.md` say so.
 
 **Low.** In a build without the module the panel says "This Faro has no AI access, so Claude can’t connect to it", and the file's comment says the server then refuses every call. It doesn't: by planning's call on #504 that build keeps the server open, and a token made before still works.
+
+### #526 U176: the admin's workspace line, drawn (track 1, merged 14 Nov)
+
+Harness only; read against #497's medium: **closed.** U61's seeded workspace is lifted into `seedFieldWorkspace` and shared. U176 seeds it twice (two people: no line; twelve people and one admin: a line), reads n from "{n} things to sort out", checks the block's heading, the first need's sentence and ", and k more.", follows "See them" and counts About's To sort out rows against n, then looks as a member and finds none of it. The design check now draws Rosa's Home in that workspace and fails if the line isn't there, so P6 sees the row. The check holds while the needs fit About's first screenful; here there are two or three.
+
+### #524 The change engine's kit sentences match the engine (item 11, merged 14 Nov)
+
+Read against #515's medium, sentence by sentence: **closed, all seven and the narrower one.** `near-ref` on Feeds into keeps the item; `duplicate` found as a later row is read keeps the first row's item, and the set-up case says "the same team or none"; stages marked done come from an update only; `planChanged` is spelled out for number, range and stages goals and a change of type (true: `goal.ts:150`); the reason needs at least three letters (`correctReasonOk`); "this week's check-in on a goal someone else owns (whose the goal is decides, not who posted the check-in)"; a deleted goal carries no Status. Each has a worked example that runs the case the finding gave, so `npm test` now holds the words to the engine (`src/spec`: 91 pass). The engine's own comment and its test's title say the owner rule the same way. No rule changed.
+
+**Low.** "When a reason is needed" still leaves out one exception: firming up a provisional baseline moves Start and is not a plan change (`goal.ts:151-152`). The baseline rule's own page says it.
