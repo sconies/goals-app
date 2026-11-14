@@ -7565,6 +7565,18 @@ journey('U87', ['FIELD-TABLE', 'SPREADSHEETS-ON-DATA'], 'What a file needs, befo
 
 /** A CSV as Playwright sets it on a file input. */
 const csvFile = (name, text) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(text) });
+/* The import's check runs in a worker, at the machine's own speed: the phone's slowed CPU (evals/phoneCpu.cjs) never
+   reaches it. On a fast machine 6,000 rows were checked before the Reading panel was due (it waits 400 ms, spec 2.2), so
+   U98 saw no Reading panel, and earlier no Stop, now and then on main's full suite. A slow machine is the case the
+   panel is for, so the page is given one: the worker's script is served with its last answer ("done", or an error)
+   held until `ms` after the check was asked for. Progress and the rows still arrive as they are made; only the end waits. */
+async function holdCheck(p, ms) {
+  const shim = `(()=>{let t0=performance.now();self.addEventListener('message',()=>{t0=performance.now();});const post=self.postMessage.bind(self);self.postMessage=(m,...r)=>{const left=${ms}-(performance.now()-t0);if(m&&(m.type==='done'||m.type==='error')&&left>0)setTimeout(()=>post(m,...r),left);else post(m,...r);};})();\n`;
+  await p.route(/\/assets\/worker-[^/]*\.js$/, async (route) => {
+    const res = await route.fetch();
+    await route.fulfill({ response: res, body: shim + (await res.text()), headers: { ...res.headers(), 'content-type': 'text/javascript' } });
+  });
+}
 
 journey('U88', ['IMPORT-LEVELS', 'IMPORT-PREVIEW'], 'One answer for many rows: as Amara, a file with 14 rows for team “CI/DC”, 3 new goals with no owner and a stage in week 2 gives Must fix “3 rows, 1 kind of problem”, two questions and no Save; “Use CI/CD” closes its question to one line; the 3 rows to fix download with Problem first; the corrected file says “Your 1 answer still applies.”; answering the stage question enables Save; the changes list says “the owner’s team; the row gave none”', 20, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
@@ -7674,6 +7686,8 @@ journey('U96', ['IMPORT-PREVIEW'], 'Leave a row out and save the rest: as Amara,
 journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals shows “Reading” with how far the check has got and what it has found so far; checked, it is not saved but offered as 2 files of 5,000 rows, which download with the file’s name; a file of 30,000 stopped while it is checked says nothing was saved, and nothing is; a file of 1,200 goals is checked off the page’s thread, its changes drawn 50 at a time, and saves', 16, async (h, device) => {
   const rows = (k, word) => 'Goal,Owner,Team,Unit,Start,Target\n' + Array.from({ length: k }, (_, i) => `${word} queue ${i + 1},Rhea Kapoor,CI/CD,min,10,5\n`).join('');
   const p = h.use(await newPage(device, 'amara'));
+  // Every check here takes at least 3 s, as on a slow machine, so the Reading panel (due at 0.4 s) and its Stop are there.
+  await holdCheck(p, 3000);
   await p.goto(url('/data/import'));
   const big = csvFile('u97.csv', rows(6000, 'Sized'));
   await p.getByLabel('Choose a spreadsheet').setInputFiles(big);
@@ -7690,9 +7704,8 @@ journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals show
   h.set('finish', names.length === 2 && /^u97-part-1-of-2/.test(names[0] ?? '') && /^u97-part-2-of-2/.test(names[1] ?? ''), `the parts are named ${names.join(', ')}`);
   await h.checkpoint('too many');
   await h.click(p.getByRole('button', { name: 'Choose another file' }));
-  // Stop is on the Reading panel only while the check runs. 6,000 rows are checked about a second after the panel shows,
-  // so Stop could be gone before the click (U98 failed this way on main, both devices: a 30 s click timeout). A file of
-  // 30,000 rows, the most Import takes, keeps it checking for seconds, and longer on a slower machine, not shorter.
+  // Stop is on the Reading panel only while the check runs: held (holdCheck), the check of the most rows Import takes
+  // can't end before the click, however fast the machine.
   await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('u97-most.csv', rows(30000, 'Sized')));
   await see(p, 'Reading u97-most.csv', 'a file of the most rows Import takes shows no Reading panel', 10000);
   await h.click(p.getByRole('button', { name: 'Stop' }));
