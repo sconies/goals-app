@@ -16,6 +16,8 @@ import { MODULE_RECORDS } from '../../core/records';
 
 /** A database function that isn't there: the database is missing migrations. Said apart from a request that failed. */
 const missing = (error: { code?: string; message: string }) => error.code === 'PGRST202' || /Could not find the function|function .* does not exist/i.test(error.message);
+/** A table the schema asked for doesn't have (PostgREST's PGRST205, or Postgres's own words). */
+const noTable = (e: Error) => /Could not find the table|relation .* does not exist/i.test(e.message);
 const MISSING = (fn: string) => `The database has no ${fn}: apply the migrations in supabase/migrations.`;
 
 /** A value in a PostgREST filter, quoted so commas, dots and colons in it (a time, say) read as part of it. */
@@ -119,8 +121,11 @@ export class SupabaseStore implements Store {
       // fails fails the load: an empty list would look like a workspace with none.
       this.listed<FeedbackRow>('okr_feedback_list', ws), this.listed<TokenRow>('okr_token_list', ws),
       this.all<ViewRow>('okr_views', ws), this.all<RequestRow>('okr_requests', ws),
-      // Each feature module's own tables, as it declares them (domain/records).
-      loadModules(this.records, (table) => this.all<DbRow>(table, ws)),
+      // Each feature module's own tables, as it declares them (domain/records). A module table made after 0035 has no
+      // redirect in public (supabase/README.md): while the Data API doesn't offer faro, the app can't see it, so a module
+      // table that isn't there reads as having no rows rather than failing the whole load (the Fields module's
+      // goal_fields, TG1), as a module left out of the build would. Every other failure fails the load.
+      loadModules(this.records, (table) => this.all<DbRow>(table, ws).catch((e: Error) => { if (noTable(e)) return null; throw e; })),
     ]);
     if (!cycles.length) throw new Error('This workspace has no cycle yet.');
     // Questions, actions and asks for an update saved before one ask model (migration 0023 converts them) read as asks.

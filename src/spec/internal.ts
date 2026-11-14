@@ -110,6 +110,8 @@ export const ACCESS: Access[] = [
   { area: 'Metrics', what: 'Retire a metric, or bring one back (MT3)', who: 'Its owner, or an admin', code: ['src/modules/metrics/rulesChange.ts#retireMetric', 'src/modules/metrics/rulesChange.ts#unretireMetric'] },
   { area: 'Metrics', what: 'Merge one metric into another in the same unit (MT3)', who: 'Admins', code: ['src/modules/metrics/rulesChange.ts#mergeMetrics'] },
   { area: 'Metrics', what: 'Say which metric measures a goal, or stop', who: 'The goal’s owner, or an admin', code: ['src/modules/metrics/rulesLink.ts#linkGoalMetric', `${MX}unlinkGoalMetric`, `${MX}canLinkGoal`] },
+  { area: 'Fields', what: 'Add, rename, reorder, retire or bring back a workspace’s field (TG1)', who: 'Admins', code: ['src/modules/tags/fields.ts#addField', 'src/modules/tags/fields.ts#changeField', 'src/modules/tags/fields.ts#moveField', 'src/modules/tags/fields.ts#retireField', 'src/modules/tags/fields.ts#bringBackField', 'src/modules/tags/fields.ts#canDefineFields'] },
+  { area: 'Fields', what: 'Set a goal’s value for a field (TG1)', who: 'The goal’s owner, or an admin', code: ['src/modules/tags/fields.ts#setGoalFields', 'src/modules/tags/fields.ts#canSetFields'] },
 ];
 
 /* ---------- the people the examples use ---------- */

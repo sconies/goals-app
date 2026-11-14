@@ -14,9 +14,11 @@ What a workspace’s own field must say, how many there may be, and what a goal�
 
 ### The rule
 
-A workspace defines up to **6 live fields**, for what Faro has no column for: a lifecycle stage, a programme, a funding line. Each is a **list of values** (1 to 20 of them, each 1 to 40 characters, none twice whatever the case) or **free text**. A field's **name** is 1 to 40 characters, and no other live field has it, whatever the case. Spaces at either end don't count.
+A workspace defines up to **6 live fields**, for what Faro has no column for: a lifecycle stage, a programme, a funding line. Each is a **list of values** (1 to 20 of them, each 1 to 40 characters, none twice whatever the case) or **free text**, which has no values. A field's **name** is 1 to 40 characters, and no other live field has it, whatever the case. Spaces at either end don't count.
 
 **A goal's value.** A goal has at most one value per field. For a list it is one of the list's values, matched whatever the case and kept as the list writes it; for free text, at most 80 characters. Empty clears it.
+
+**Who may.** Admins add, rename, reorder, retire and bring back fields; a goal's owner or an admin sets its values; everyone reads them. A change of value is said on the goal's History as “Stage: Discover → Build” (“Not set” for none), and no reason is asked.
 
 **Retired, never deleted.** A field that is no longer wanted is retired: every goal keeps its value, and History its changes; it can be brought back, with its values. A retired field's name may be used again.
 
@@ -28,6 +30,7 @@ Faro’s database holds these as well as the rule; a rebuild holds them wherever
 
 - A field’s name has 1 to 40 characters (spaces at either end not counted). (`goal_fields_name_check`; the code holds it too, in `src/modules/tags/rules.ts`)
 - A list field has 1 to 20 values; a free-text field has none. (Each value’s length, and that none is there twice, are the rule’s: the database can’t check a list’s items one by one.) (`goal_fields_options_check`; the code holds it too, in `src/modules/tags/rules.ts`)
+- A free-text field has no values. (`goal_fields_text_no_options`; the code holds it too, in `src/modules/tags/rules.ts`)
 - A goal’s value for a field has at most 80 characters; empty means not set. (`goal_field_values_value_check`; the code holds it too, in `src/modules/tags/rules.ts`)
 - A goal has one value per field: the value’s id is the goal’s id and the field’s, joined by a colon. (`goal_field_values_one`)
 
@@ -48,9 +51,11 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ### Where it lives
 
 - [src/modules/tags/rules.ts](../../../src/modules/tags/rules.ts): `fieldProblem`, `valueProblem`, `FIELD_LIMITS`
+- [src/modules/tags/fields.ts](../../../src/modules/tags/fields.ts): `addField`, `changeField`, `moveField`, `retireField`, `bringBackField`, `setGoalFields`
 
 ### Requirements
 
+- `TAGS-FIELDS`: A workspace defines up to six of its own fields on goals (a stage, a programme), each a list of values or free text, on Workspace, Fields: admins add, rename, reorder, retire and bring them back; everyone reads them. A goal's page shows one line per field in About, which its owner or an admin changes in place, and History says the change (“Stage: Discover → Build”). No rule reads a field; an AI assistant lists and sets them under the same rules.
 
 ### Tests that check it
 
@@ -59,5 +64,23 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - a field (rule 1) › needs a name of 1 to 40 characters that no other live field has
 - a field (rule 1) › holds at most six live fields
 - a field (rule 1) › gives a list 1 to 20 distinct values of 1 to 40 characters
+- a field (rule 1) › gives free text no values (migration 0054 holds the same)
 - a goal’s value (rule 2) › keeps a list’s value as the list writes it, and refuses one it doesn’t hold
 - a goal’s value (rule 2) › clears with an empty value, and keeps free text to 80 characters
+
+#### [src/modules/tags/fields.test.ts](../../../src/modules/tags/fields.test.ts)
+
+- defining fields (admins) › adds a field, saying “Stage added”; refuses anyone who isn’t an admin
+- defining fields (admins) › renames, reorders, retires and brings back, each in History
+- a goal’s values › sets a list value as the list writes it, and History says “Stage: Discover → Build”
+- a goal’s values › refuses someone who isn’t the owner or an admin, a value the list doesn’t hold, and a retired field
+- the records, on tables with no removed_at › are filed under the keys the rules read
+- the records, on tables with no removed_at › write every column, never removed_at, and read back the same
+- the records, on tables with no removed_at › a value the core marks removed (a copy that leaves, a start undone) is written cleared, and Undo puts it back
+- the records, on tables with no removed_at › a new cycle keeps every field, retired ones too, and the values not cleared; a copied goal takes its values
+- the records, on tables with no removed_at › keeps a goal’s values in the workspace as saved
+
+#### [src/modules/tags/tools.test.ts](../../../src/modules/tags/tools.test.ts)
+
+- fields tools › an admin defines a field; the owner sets a goal’s value by name, checked first with dry_run
+- fields tools › refuses every tool while Fields is off, and keeps the values

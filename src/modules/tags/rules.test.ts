@@ -28,6 +28,9 @@ describe('a field (rule 1)', () => {
     expect(fieldProblem({ ...stage, options: ['Build', 'build'] }, [])).toBe('“build” is in the list twice.');
     expect(fieldProblem(notes, [])).toBeNull();
   });
+  it('gives free text no values (migration 0054 holds the same)', () => {
+    expect(fieldProblem({ ...notes, options: ['Build'] }, [])).toBe('A free-text field has no values: choose A list of values, or leave the values out.');
+  });
 });
 
 describe('a goal’s value (rule 2)', () => {

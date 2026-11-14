@@ -182,7 +182,7 @@ function MoreSections() {
 }
 
 /** A section's heading, what it's for, and its main action. On a phone the page's own heading names it. */
-function SectionHead({ id, action, children }: { id: string; action?: ReactNode; children?: ReactNode }) {
+export function SectionHead({ id, action, children }: { id: string; action?: ReactNode; children?: ReactNode }) {
   const { all, narrow } = useWs();
   const s = all.find((x) => x.id === id);
   return (

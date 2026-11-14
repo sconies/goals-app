@@ -1401,6 +1401,38 @@ Admins switch features. Everyone sees what is on.
 
 - Each feature is a module: one folder in src/modules with a module.json saying what it adds and what it needs. docs/architecture.md explains how to add one.
 
+### Fields: a workspace’s own columns on goals
+
+`fields`, from the tags module. A workspace’s own fields on goals, such as a stage or a programme: up to 6, each a short list of values or free text, set on each goal’s page. No rule reads them: they’re for finding and sorting.
+
+Routes: `/workspace/fields`. Screens: `FieldsSection`, `FieldsBlock`. Requirements: `TAGS-FIELDS`, `TAGS-OFF`.
+
+#### What it’s for
+
+Teams track things Faro has no column for: a lifecycle stage (Discover, Build, Run), a programme, a funding line. A field keeps them on the goal, out of its title, where nothing could find them. No status, flag or check-in rule reads a field.
+
+#### Workspace, Fields
+
+- Workspace, Fields lists the fields in order: each one’s name, its kind (“A list: Discover, Build, Run” or “Free text”) and how many of this year’s goals have a value.
+- An admin adds one with Add a field: a name of up to 40 characters, and for a list its values, one per line (1 to 20, each up to 40 characters, none twice). Free text holds up to 80 characters on each goal. A workspace has at most 6 fields.
+- Change renames a field or changes a list’s values; goals keep the value they have. Up and Down change the order, which is the order a goal’s page shows them in.
+- A field that is no longer wanted is retired, never deleted: every goal keeps its value and History its changes, and Bring back shows them again. A retired field’s name can be used again.
+- With no field yet, the page says “No fields yet” and offers Add a field to admins.
+
+#### On a goal
+
+- A goal’s page has a Fields block in About, after its facts: one line per field, such as “Stage · Build”, or “Stage · Not set”.
+- The goal’s owner or an admin presses Change beside a line and picks a value from the list, or types the text and presses Save. Not set clears it. No reason is asked: a field isn’t the plan.
+- History says each change on the goal: “Stage: Discover → Build”. Adding, retiring and bringing back a field is in Activity.
+
+#### With an AI assistant
+
+- list_fields lists the fields and their values (with goal_id, that goal’s values); set_goal_fields sets a goal’s values by field name, with dry_run to check first; save_field lets an admin add, change, move, retire or bring back a field. Each follows the same rules.
+
+#### Who can
+
+Admins add and change the fields. A goal’s owner or an admin sets its values. Everyone sees them. An admin can switch Fields off in Workspace, Features: the block and the section go, and every field and value is kept for when it’s switched on again.
+
 ### What the app records
 
 `recording`. The app records how it is used, never what you type, so the people building it can see what is slow, broken or hard to use.

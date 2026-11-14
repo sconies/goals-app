@@ -1,0 +1,8 @@
+/* Fields (TG1): the Workspace section's rows and a goal's Fields block. Quiet: no colour of its own, no badge. */
+.fields-block { margin-top: var(--s4); }
+.fields-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.fields-line { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
+.fields-name { font-weight: 600; }
+.fields-edit { display: inline-flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.fields-edit input { max-width: 22rem; }
+.field-sheet fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: var(--s2); }

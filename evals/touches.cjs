@@ -33,6 +33,8 @@ const RULES = [
   [/^src\/domain\/dayOne\.ts/, ['U97', 'U11', 'U86', 'U5', 'U49']],
   [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts/, ['U86', 'U2', 'U16', 'U33', 'U122', 'F1', 'N3', 'N6', 'N10', 'N26', 'P6']],
   [/^evals\/notes\/12-home\.cjs$/, ['N26']],
+  // Fields switched off (TG1): its own check, and the module's journey.
+  [/^evals\/notes\/34-fields-off\.cjs$/, ['N34', 'U174']],
   // Held at company size (N12, FS4): its fixture and check, and the search, the pickers and the list bars it times.
   [/^evals\/(fixtures\/company|finish\/11-company-size)\.cjs$|^src\/(ports\/search|adapters\/localSearch|domain\/find|app\/search|app\/reads)\.ts|^src\/ui\/(Pick|ListBar)\.tsx/, ['N12']],
   // The talk-path polish (N10): its own check, and the screens it looks at.
