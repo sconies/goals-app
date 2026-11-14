@@ -1,15 +1,39 @@
-## Track 3 (import), Friday 13 November, 03:30 UTC: IM8 and the review lows done (supersedes the 01:10 entry's list)
+## Track 3 (import and spreadsheets), Saturday 14 November, 23:15 UTC: MI and U98 up; two review mediums in their gate (replaces the 13 Nov entry)
 
-**Done**
-- **#336, IM8** (merged). Set-up's upload goes through the import preview: create mode takes answers (`buildWorkspace`), the group block is shared from `src/ui/IssueGroup.tsx`, and the set-up preview (`src/ui/SetupFilePreview.tsx`) loads lazily. An owner the People sheet lacks offers "Add {name}" (`ownerToAdd`) or "Give it to someone here". `past-stage` is asked in create mode, answered "Count them from this week" by default (`setupDefaults`); `keepFileWeeks` and `stagesFromJoining` are gone. Journey **U147** (U146 was taken), `SETUP-UPLOAD`. The PR also:
-  - fixed F8 on main: the hidden View sheet holds a copy of the toast;
-  - gave the speed tests timeouts above their own limits;
-  - removed Export's dead standalone button.
-- **#347, the review lows** (auto-merge on; check it merged): IM3's two engine findings and the shared count helper, every IM4 and IM5 low, the #257 and #248 lows, and U29 on a phone (the walkthrough now lazy-loads). Two lows were left as they are: the year is already in the file name, and the zipped CSVs stay three clicks away. The full suite passed except U12 (8.8) and U31 (9), which are not import's.
+**Up for merge (all drafts; none merged yet, so nothing has gone to the reviewer or item 11)**
 
-**Next for track 3:** nothing open from the reviews. U99 (the set-up design's whole SETUP-UPLOAD journey: People paste, a team typo at set-up) belongs to the set-up track's ST6.
+- **#514, U98's Stop-step flake (`u98-hold-check`).** CI is green.
+  - Cause: the Reading panel shows only after 400 ms of checking. The check runs in a worker at the machine's own speed, and phone CPU slowing never reaches workers. On a fast full-suite shard, 6,000 rows were checked before the panel was due.
+  - Fix: `holdCheck` in `evals/journeys.cjs`, used only by U98. It serves the worker script with its last answer held until 3 s after the check was asked for.
+  - Proven: with the hold at 40 s, the over-limit step times out.
+- **#520, MI: the Metrics sheet in and out (`mi-metrics-sheet`).** CI was running at handover.
+  - What it adds:
+    - a new core seam, `src/domain/sheetPlan.ts`: a module's loaded sheet gives a planner (`ModuleSheet.loadPlan`/`plan`/`has`), and `changeset.ts` runs it before Goals;
+    - `Tables.modules` for the module's sheets;
+    - `ImportUndo.moduleRows`, undone in `removal.ts` `undoPlan`;
+    - the metrics planner, `src/modules/metrics/sheetPlan.ts`;
+    - `bulk_change` takes `metrics`;
+    - the "Metric library is off in {ws}, so the Metrics sheet was not read." line, plus a line on Import when a file holds only that sheet;
+    - journey U175, requirement `METRIC-SHEET`, conformance rule `sheet` (10 cases), Help `metric-sheet`, and What's new `metrics-sheet-in`.
+  - First download: 262.6 of 275 KB (main 261.3).
+  - Left for later:
+    - the Goals sheet's Measured by / Measured for / Part columns (MT6 spec 3.2);
+    - the template's Metrics sheet;
+    - the Check for 2+ new rows with no Owner email.
+  - #505 (MQ) was unmerged at build. Whichever lands second carries MQ's four fields into the sheet's columns and the planner's input.
+  - **When it merges:** tell the reviewer (session_012kbr8z4ihwvC1ZUTMGey4V, per planning's message) and item 11 (session_012kbr8y5FBfBYyNt4XKM97h, to add MI as a drill stage).
+- **`board-lane`: two reviewer mediums, gate running in a subagent at handover.** No PR yet. When the gate passes, open it as a draft.
+  1. **#503:** a goal stopped while held stayed held when restarted. `heldBy` and `heldOnSwitch` now keep stopped and removed goals in step.
+  2. **#510:** the Board had no Not measured yet lane. `GoalBoard` now reads its lanes from `STATUS_ORDER`, and U170 checks the lane.
+  - Planning asked for auto-merge. The permission check refused it here (merging is Lane's call), so the PR is a draft without it. Tell the reviewer the PR number when it merges.
+- The worktree `../goals-held` (`held-restart`) is superseded by `board-lane`. Nothing was pushed from it.
+
+**Next for track 3:** see the three PRs through CI and merge, then report once to planning. MI's leftovers above are for planning to place in the backlog.
 
 **Gotchas (new)**
-- Don't run `npm test` and `evals:changed` at once: the container restarted.
-- The newest What's new entry and a lazy route's dependency list both sit in the first download. A new shared chunk adds its name to the list, and so does a hash change. Near the budget, measure to two decimals: `sed 's/toFixed(0)/toFixed(2)/' scripts/check-bundle.mjs`.
-
+- **Module code in the worker:** a module's code reaches the import's worker only through `worker: { plugins: () => [faroModules()] }` in `vite.config.ts`. Without it, the build fails resolving `virtual:faro-modules/records`.
+- **Shared records are in the first download:** anything a module's records or sheet imports statically ships with it. Keep planners and their rules behind `loadPlan` (`core/records` `loadSheetPlanners`). `rulesStill.ts` was split out of `rulesDefine.ts` for this reason.
+- **Empty cells:** as on every sheet, an empty cell keeps what the record says. Clearing by an empty cell made an empty Unit read as a unit change.
+- **Ports:** run evals in a second worktree with `EVALS_PORT=4902` (or higher) so they don't collide with another run.
+- **`ONLY` vs `FINISH`:** `ONLY` selects journeys; checks need `FINISH=N18`.
+- **Load flakes:** N18 (the page stopped 211–243 ms against a 200 ms limit) and U42 failed under the four-shard full run and passed alone, twice today.
