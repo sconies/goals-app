@@ -5,7 +5,6 @@
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { beforeReview, weekWords, type HabitWeek } from '../domain/habit';
-import { dueWords } from '../domain/progress';
 import type { Goal } from '../domain/types';
 
 /** A square mark for a week (never a circle: a circle is a goal's status). */
@@ -22,11 +21,12 @@ function WeekMark({ mark }: { mark: HabitWeek['mark'] }) {
 
 /**
  * The panel and the row for `goals` in `week`. `link` is the Goals parameter that names the set (`inreview=…` or
- * `team=…`), so each count opens exactly its goals. `heading` is the panel's label.
+ * `team=…`), so each count opens exactly its goals. `heading` is the panel's label. `held`: the deadline is a review
+ * (app/reads heldForGoals; a review's own page leaves it true), so the words name one only then (RS1).
  */
-export function BeforeReview({ goals, week, link, heading, reviews = true }: { goals: Goal[]; week: number; link: string; heading: string; reviews?: boolean }) {
+export function BeforeReview({ goals, week, link, heading, held = true }: { goals: Goal[]; week: number; link: string; heading: string; held?: boolean }) {
   const app = useApp();
-  const b = beforeReview(goals, week, { checkIns: app.snapshot.checkIns, asks: app.snapshot.requests ?? [] }, app.cycle, app.today, app.viewer.id, reviews);
+  const b = beforeReview(goals, week, { checkIns: app.snapshot.checkIns, asks: app.snapshot.requests ?? [] }, app.cycle, app.today, app.viewer.id, held);
   if (!b) return null;
   const h = b.counts, row = b.weeks;
   const to = (v: string) => `/goals?${link}&checkedin=${v}&sort=worst`;
@@ -53,7 +53,7 @@ export function BeforeReview({ goals, week, link, heading, reviews = true }: { g
               </li>
             ))}
           </ol>
-          <p className="tiny muted">“All in” means every goal due that week was checked in {reviews ? 'before the review' : `by its ${dueWords(false, app.cycle, week).day}`}. Weeks, not people: nobody is named here.</p>
+          <p className="tiny muted">“All in” means every goal due that week was checked in {b.words.review ? b.words.onTime : `by its ${b.words.day}`}. Weeks, not people: nobody is named here.</p>
         </>
       )}
     </section>
