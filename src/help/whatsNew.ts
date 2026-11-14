@@ -51,6 +51,39 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['fields'],
   },
   {
+    id: 'setup-four-steps',
+    date: '2026-11-14',
+    title: 'Set-up in four steps you can go back through',
+    points: [
+      'Setting up a workspace is four steps: the workspace and you, people, goals and Check. Each has its own address, so your browser’s Back works and a reload stays put.',
+      'How you’ll work (the year, the review day, Recording) is one paragraph on the first step, with a sheet to change it there or on Check.',
+      'Goals starts with your own, a spreadsheet, or later. The four example templates are gone: a workspace begins with real goals or none.',
+      'Change on Check brings you straight back to it.',
+    ],
+    articles: ['set-up'],
+  },
+  {
+    id: 'home-your-team',
+    date: '2026-11-14',
+    title: 'Your team is on Home',
+    points: [
+      'If your team has goals you don’t own, Home shows them after yours, exactly as the My team tab of Goals counts them.',
+      'Its goals that need attention and aren’t yours are listed with their owners’ names, and the link opens Goals filtered to Owner not you.',
+      'Goals you watch, or your teams’ goals, that are more than twelve goals across teams are shown as teams, worst first, each count opening exactly those goals.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'proposals-follow-you',
+    date: '2026-11-14',
+    title: 'Proposed goals remember you, not the device',
+    points: [
+      'Open a goal proposed for you on your phone and Home stops asking about it on your laptop too.',
+      'Not yet on a goal that has waited 8 weeks puts it off everywhere you use Faro.',
+    ],
+    articles: ['goal-proposed'],
+  },
+  {
     id: 'menu-shows-what-you-use',
     date: '2026-11-14',
     title: 'The menu shows what you use',

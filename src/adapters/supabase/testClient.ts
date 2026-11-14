@@ -40,7 +40,7 @@ function table(db: Sql, schema: string, bare: string) {
   let order = '';
   let limit = '';
   let single = false;
-  let op: { kind: 'select' } | { kind: 'update'; patch: Record<string, unknown>; returning: boolean } | { kind: 'insert'; rows: object[] } | { kind: 'delete' } = { kind: 'select' };
+  let op: { kind: 'select' } | { kind: 'update'; patch: Record<string, unknown>; returning: boolean } | { kind: 'insert'; rows: object[]; upsert?: boolean } | { kind: 'delete' } = { kind: 'select' };
   const p = (v: unknown) => { params.push(v !== null && typeof v === 'object' && !Array.isArray(v) ? JSON.stringify(v) : v); return `$${params.length}`; };
   const run = async (): Promise<Result> => {
     try {
@@ -48,7 +48,9 @@ function table(db: Sql, schema: string, bare: string) {
       if (op.kind === 'insert') {
         for (const row of op.rows) {
           const cols = Object.keys(row).map(ident);
-          await db.query(`insert into ${name} (${cols.join(', ')}) select ${cols.join(', ')} from json_populate_record(null::${name}, $1::json)`, [JSON.stringify(row)]);
+          // upsert: on the table's primary key, as supabase-js's default (only person_prefs uses it).
+          const onKey = op.upsert ? ` on conflict on constraint ${ident(bare + '_pkey')} do update set ${cols.map((c) => `${c} = excluded.${c}`).join(', ')}` : '';
+          await db.query(`insert into ${name} (${cols.join(', ')}) select ${cols.join(', ')} from json_populate_record(null::${name}, $1::json)${onKey}`, [JSON.stringify(row)]);
         }
         return { data: null, error: null };
       }
@@ -92,6 +94,7 @@ function table(db: Sql, schema: string, bare: string) {
     maybeSingle: () => { single = true; return q; },
     update: (patch: Record<string, unknown>) => { op = { kind: 'update', patch, returning: false }; return q; },
     insert: (rows: object | object[]) => { op = { kind: 'insert', rows: Array.isArray(rows) ? rows : [rows] }; return q; },
+    upsert: (rows: object | object[]) => { op = { kind: 'insert', rows: Array.isArray(rows) ? rows : [rows], upsert: true }; return q; },
     delete: () => { op = { kind: 'delete' }; return q; },
     then: <A, B>(ok: (r: Result) => A, ko?: (e: unknown) => B) => run().then(ok, ko),
   };

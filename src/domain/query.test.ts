@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { buildPlatformOrg } from '../data/platformOrg';
 import { currentWeek } from './plan';
-import { applyQuery, describeQuery, EMPTY_QUERY, filters, parseQuery, queryEntries, queryParts, without, type GoalQuery } from './query';
+import { applyQuery, describeQuery, EMPTY_QUERY, filters, NOT_ME, parseQuery, queryEntries, queryParts, without, type GoalQuery } from './query';
 import { filterText } from './find';
 import { summariseAll } from './summary';
 
@@ -120,5 +120,23 @@ describe('a module’s filter, declared as a column (architecture 4.2)', () => {
     expect(q.columnPasses(col, { id: 'a' } as never, 'Build,Run')).toBe(true);
     expect(q.columnPasses(col, { id: 'b' } as never, 'Build,Run')).toBe(false);
     expect(q.without(parsed, 'fam.stage').cols).toEqual({});
+  });
+});
+
+describe('owner=-me: not mine (Home rule 4, HM3) [HOME-MANAGER]', () => {
+  it('leaves out the asker’s own goals, round-trips through a link, and says “Owner not you”', () => {
+    const q = parseQuery(new URLSearchParams('owner=-me&attention=1'));
+    expect(q.owner).toEqual([NOT_ME]);
+    expect(parseQuery(new URLSearchParams(queryEntries(q)))).toEqual(q);
+    const theirs = applyQuery(sums, { ...EMPTY_QUERY, owner: [NOT_ME] }, { ...ctx, viewerId: 'rhea' });
+    expect(theirs.length).toBe(sums.filter((x) => x.goal.ownerId !== 'rhea').length);
+    expect(theirs.some((x) => x.goal.ownerId === 'rhea')).toBe(false);
+    // With nobody asking, it narrows nothing.
+    expect(applyQuery(sums, { ...EMPTY_QUERY, owner: [NOT_ME] }, ctx).length).toBe(sums.length);
+    // Owners are “any of”: Rhea, or anyone but the asker.
+    expect(applyQuery(sums, { ...EMPTY_QUERY, owner: ['rhea', NOT_ME] }, { ...ctx, viewerId: 'rhea' }).length).toBe(sums.length);
+    const names = { team: (x: string) => x, person: (x: string) => (x === 'rhea' ? 'Rhea Kapoor' : x), goal: (x: string) => x };
+    expect(queryParts(q, names).map(filterText)).toEqual(['Owner not you']);
+    expect(describeQuery({ ...EMPTY_QUERY, owner: [NOT_ME] }, names).map((c) => c.text)).toEqual(['Owned by someone else']);
   });
 });

@@ -2,7 +2,7 @@
    this browser today. The internal app swaps these two lines for its server's and changes no screen. Screens and
    pickers call useSearch() and usePrefs(), never the find rules. */
 import { useEffect, useMemo, useState } from 'react';
-import { browserPrefs } from '../adapters/local';
+import { prefs } from './prefs';
 import { localSearch } from '../adapters/localSearch';
 import { withRecent, type Recent } from '../domain/find';
 import type { Prefs } from '../ports/prefs';
@@ -12,7 +12,6 @@ import type { Cycle, Snapshot } from '../domain/types';
 import { useApp } from './state';
 import { useGoalColumns, useModules } from '../core/app';
 
-const prefs = browserPrefs('faro-prefs:');
 
 export function useSearch(): Search {
   const app = useApp();

@@ -26,7 +26,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [The carry rule, and what comes with a goal](carry.md) | How a goal that carries on is set up in the next year, what comes with it, and how its copy stays true until someone uses it. |
 | [The workspace: cycles, teams, names, leaving and what needs attention](workspace.md) | What Workspace says about each cycle and team, the longest name a workspace may have, who may leave, and what its overview lists as needing attention. |
 | [The directory: who People lists, what a search finds, and where old addresses lead](directory.md) | People’s order and search, a page at a time; the line beside a person; a team’s people and goals by status; and where People’s and Teams’ old Workspace addresses now lead. |
-| [Day one: set-up’s steps and “Getting started”](day-one.md) | How many steps set-up counts for the path chosen, and what Home’s “Getting started” tells each person in a workspace’s first weeks. |
+| [Day one: set-up’s steps and “Getting started”](day-one.md) | Set-up’s four steps and where an address opened too early goes, and what Home’s “Getting started” tells each person in a workspace’s first weeks. |
 | [Welcome and the invitation](welcome.md) | Which workspace opens (only one someone chose), what an invitation is and what it opens, and what the arrival says about each person. |
 | [The goal map](map.md) | The critical path, what the map shows when folded, what a parent says about the goals under it, which trees are in trouble, and finding a goal by name or key. |
 | [Acting on a goal: its buttons, and next steps and asks](goal-act.md) | Which main button a goal’s page offers whoever is looking, the plain button beside it, and the one list of everything asked and agreed on the goal, each row with at most one button. |
@@ -45,6 +45,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [The Goals page: whose goals, how they are grouped, and the switch](goals-page.md) | Which scope tabs someone has and which opens, each scope’s own grouping, what the Needs attention switch counts, the line that counts the goals shown, and how old addresses and saved views open. |
 | [The habit: the run, the receipt, a moment and the measure](habit.md) | How many weeks in a row a person has been on time, with one late week forgiven; what the check-in’s last screen says once the week’s are all in; when a check-in says a goal reached its target or came back on track; and how many of a set’s goals were checked in before the review without being asked. |
 | [Home: what is asked of you today](home.md) | Whether Home leads with one thing asked of the viewer today, and its one primary action, or says in one quiet line that nothing is. |
+| [Home: your goals, your team and what you watch](home-sets.md) | Home’s blocks of goals are exactly the Goals page’s scopes, with the same counts; a set of more than twelve goals in two or more teams is drawn as teams, worst first. |
 
 ## The numbers the rules turn on
 

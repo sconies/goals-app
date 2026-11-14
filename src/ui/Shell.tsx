@@ -178,13 +178,15 @@ function ShellBody({ children }: { children: ReactNode }) {
   const ownsGoals = app.snapshot.goals.some((g) => g.ownerId === app.viewer.id && !g.stoppedAt && app.statusOf(g).status !== 'done');
   const views = useViews();
   const prefs = usePrefs();
-  // A module's row waits for its first record (SM1, rule 1); once drawn it stays until the next visit.
-  const drawnOnce = useRef(new Set<string>());
+  // A module's row waits for its first record (SM1, rule 1); once drawn it stays until the next visit. Kept per
+  // workspace: switching workspace doesn't remount the shell, and a row drawn in one must not follow you into another.
+  const drawnOnce = useRef<{ ws: string; ids: Set<string> }>({ ws: app.ws.id, ids: new Set() });
+  if (drawnOnce.current.ws !== app.ws.id) drawnOnce.current = { ws: app.ws.id, ids: new Set() };
   const moduleNav = screens.flatMap((m) => m.navigation ?? []).filter((n) => {
     const facts = installed.find((f) => f.navigation.includes(n.label));
     const key = facts?.menu?.waitsFor;
-    if (rowDrawn(key, facts && key ? app.snapshot.modules?.[facts.id]?.[key] : undefined)) drawnOnce.current.add(n.id);
-    return drawnOnce.current.has(n.id);
+    if (rowDrawn(key, facts && key ? app.snapshot.modules?.[facts.id]?.[key] : undefined)) drawnOnce.current.ids.add(n.id);
+    return drawnOnce.current.ids.has(n.id);
   });
   // Reviews switched off (FT2): no row, no count and no tab.
   const reviews = reviewsOn(on);

@@ -16,8 +16,10 @@ import { currentCycle, scopeToCycle, withArchivedGoal, withoutRemoved } from '..
 import { findGoal, withKeys } from '../domain/goalKey';
 import type { TableLayout } from '../domain/tableLayout';
 import { sendDemoFeedback } from './research';
-import { MODULES } from '../core/registry';
+import { prefs } from './prefs';
+import { MODULES, modulesOn } from '../core/registry';
 import { goalSheetsOn, MODULE_RECORDS, recordsOn } from '../core/records';
+import { watchingOn } from './reads';
 import { applyCommit, EXAMPLE, examplesOf, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import type { Answers, ChangeInput, ChangeSet, CheckInPost, PostMode, Tables, Via } from '../domain/changeset';
 import { ACTIONS } from '../mcp/parity';
@@ -437,7 +439,13 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
   // switched a module off elsewhere sees it off at its next reload, so its screens go and its next action is refused.
   // Only the tab that switched knew before. The first load has just listed the workspaces, so it doesn't ask twice.
   const loadWs = async (ws: string, switches = true) => {
-    const [snap, list] = await Promise.all([store.load(ws, appWindow((pinned ?? clock)())), switches ? store.workspaces().catch(() => null) : null]);
+    // The person-kept Prefs come with it (PP1, migration 0053): a proposed goal opened on another device reads as opened
+    // here. Without them (no server, or the read failed) this browser's are read, as before.
+    const [snap, list, kept] = await Promise.all([
+      store.load(ws, appWindow((pinned ?? clock)())), switches ? store.workspaces().catch(() => null) : null,
+      store.personPrefs && store.keepPersonPref ? store.personPrefs(ws).catch(() => null) : null,
+    ]);
+    if (kept) prefs.adopt(ws, kept, { read: (id) => store.personPrefs!(id), keep: (id, p) => store.keepPersonPref!(id, p) });
     const w = list?.find((x) => x.id === ws);
     if (w) adoptSwitches(ws, w.modulesOff ?? []);
     return snap;
@@ -910,7 +918,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       undoImport: async (importId) => { const out = await run('undoImport', { importId }); return { restored: out.restored, skipped: out.skipped }; },
       undoPreview: (importId) => R.undoPreview(rx(), importId),
       restoreRemoved: async (kind, id) => { await run('restoreRemoved', { kind, id }); },
-      recentlyRemoved: () => R.recentlyRemoved(snapshot, now, undefined, recordsOn(ws)),
+      recentlyRemoved: () => R.recentlyRemoved(snapshot, now, undefined, recordsOn(ws), { watches: watchingOn(modulesOn(ws).on) }),
       comment: (id) => (comments ??= R.commentsOf(sc.changes)).get(id),
       pinView: async (id, pinned) => { await run('pinView', { viewId: id, pinned }); },
       revokeToken: async (id) => { await run('revokeToken', { tokenId: id }); },

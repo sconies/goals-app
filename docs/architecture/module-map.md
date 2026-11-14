@@ -41,7 +41,7 @@ The core is everything outside `src/modules`. It cannot be switched off because 
 | Proposed goals (GE10) | `src/domain/proposed.ts`, `proposedActions.ts`, `proposedSummary.ts` | `changeset.ts` reads the state, and Lane decided no switch and no workspace setting (21a, 11 November) |
 | Find | `src/domain/find.ts`, `src/app/search.ts`, `src/ports/search.ts` | A module adds a finder to it; without it a module has nowhere to be found |
 | Goals, Data and saved views | `src/screens/GoalsScreen.tsx`, `DataTables.tsx`, `src/screens/savedViews.ts` | The lists a module adds filters and tools to |
-| Home's frame | `src/domain/home.ts`, `src/screens/Home.tsx` | It holds the `home.blocks` place; its own cells read core records only |
+| Home's frame | `src/domain/home.ts`, `src/screens/Home.tsx` | It holds the `home.blocks` place; its own cells and blocks (Your goals, Your team, a set drawn as teams, rule 4's `homeSets`) read core records only, the Goals scopes' |
 | Set-up and the first week | `src/screens/Onboarding.tsx`, `src/domain/dayOne.ts`, `arrival.ts`, `firstWeek.test.ts` | A workspace has to exist before a switch can be turned off |
 | The module machinery | `src/core/module.ts`, `registry.ts`, `records.ts`, `app.tsx` | The places, the manifest, `resolveModules`, module records in save, carry, removal and the workbook |
 | The spec and the kit | `src/spec/`, `spec/`, `llms.txt` | Generated from the code, modules included |
@@ -80,7 +80,7 @@ Already built, so copy them rather than writing new ones:
 - **An AI tool, refused** (`src/mcp/tools.ts`): "{Name} is switched off in {workspace}, so {tool} can't be used there. An admin can switch it on in Workspace, under Features."
 - **An action, refused** (`src/app/actions.ts`): "{Name} is switched off in {workspace}. An admin can switch it on in Workspace, under Features."
 - **The module's address, while off** (`docs/design/feature-toggles/spec.md`): "**{Name} is switched off in {workspace}.** An admin can switch it on in Workspace, Features."
-- **The import, once per file** (the reviews-switch design's shape, with the module's own nouns): "Reviews is off in {workspace}: the Notes sheet and the Review column were not read."
+- **The import, once per file** (the reviews-switch design's shape, with the module's own nouns): "Reviews is off in {workspace}, so the Notes sheet and the Review column were not read." (naming only what the file has: `src/domain/sheets.ts`)
 
 ## 3. The items being built now
 

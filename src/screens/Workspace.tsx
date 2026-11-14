@@ -11,7 +11,7 @@
    extension point: a module adds its own (AppModule `sections`, src/core/app.tsx). Old addresses
    (/workspace?inbox=1&markup=…, #people) lead to where they meant. */
 import { nameLength, nameProblem } from '../domain/thresholds';
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, Fragment, useContext, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
 import { useModules, type WorkspaceSection } from '../core/app';
@@ -259,11 +259,11 @@ function AboutSection() {
           {/* What a workspace is, in one sentence, beside its name (outside review, 12 Nov). */}
           {fact('What it is', <span className="ws-means">{WORKSPACE_MEANS}</span>)}
           {fact('People', <Link to="/people">{app.snapshot.people.length} {app.snapshot.people.length === 1 ? 'person' : 'people'} in {teams} {teams === 1 ? 'team' : 'teams'}</Link>)}
-          {fact('Year', <>{yearLine(app.cycle, app.week, app.today, left)} <Link to="/workspace/cycles">Cycles</Link></>)}
+          {fact('Year', <>{yearLine(app.cycle, app.week, app.today, left, wrapUpOn(on))} <Link to="/workspace/cycles">Cycles</Link></>)}
           {fact('Admins', <>{admins}. {admin ? <Link to="/workspace/access">Access</Link> : 'Ask one of them to add someone, change a team or change a setting.'}</>)}
           {installed.length > 0 && fact('Features', <>{featuresSentence(modOn, modOff)}{admin && <> <Link to="/workspace/features">Features</Link></>}</>)}
           {fact('Recording', <>{app.ws.recording !== false ? 'Faro records how the app is used here, never what anyone types.' : 'Nothing about how the app is used here is recorded.'} <Link to="/workspace/privacy">Privacy</Link></>)}
-          {sections.filter((s) => s.says).map((s) => <span key={s.id} style={{ display: 'contents' }}>{fact(s.label, <>{s.says!(app)} <Link to={`/workspace/${s.id}`}>{s.label}</Link></>)}</span>)}
+          {sections.filter((s) => s.says).map((s) => <Fragment key={s.id}>{fact(s.label, <>{s.says!(app)} <Link to={`/workspace/${s.id}`}>{s.label}</Link></>)}</Fragment>)}
         </dl>
       </section>
       {narrow && <MoreSections />}
@@ -331,7 +331,7 @@ function CyclesSection() {
                   <span className="removed-name">{line.title}</span>
                   <span className="small">{line.when}</span>
                   <span className="hint">{line.counts}</span>
-                  {current && <span className="hint">{yearLine(c, app.week, app.today, left).replace(/^.*?\.\s/, '')}</span>}
+                  {current && <span className="hint">{yearLine(c, app.week, app.today, left, wrapUp).replace(/^.*?\.\s/, '')}</span>}
                   {start && <span className="hint">Started by {app.person(start.actorId)?.name ?? 'an admin'} on {dayWithYear(start.at.slice(0, 10))}. {can?.ok ? 'It can be undone until someone checks in or changes a goal in it.' : `It can’t be undone now: ${can && !can.ok ? can.why : ''}.`}</span>}
                 </span>
                 <span className="team-actions">
