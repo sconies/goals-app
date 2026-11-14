@@ -124,6 +124,8 @@ export interface ReadTables {
   rowCount: number;
   /** The file has what is Reviews' (RS, spec 5): a Notes sheet, or a Review column on Asks. Neither is ever loaded. */
   reviews?: boolean;
+  /** Which of them it has, for the line that says so: the Notes sheet, the Review column on Asks. */
+  reviewParts?: { sheet: boolean; column: boolean };
 }
 
 /** Headers the change engine reads besides each sheet's own columns. */
@@ -235,7 +237,8 @@ export function readTables(grids: NamedGrid[], moduleSheets: readonly { name: st
     if (!kind) { out.skipped.push({ name: g.name, why: 'not-faro' }); if (!out.firstHeaders.length) out.firstHeaders = first.map((h) => h.trim()).filter(Boolean).slice(0, 5); }
     else if (!key) {
       out.skipped.push({ name: g.name, why: 'reading-only', kind });
-      if (kind === 'notes' || (kind === 'asks' && head.columns.some((c) => c.header.toLowerCase() === REVIEWS_COLUMN.toLowerCase()))) out.reviews = true;
+      const sheet = kind === 'notes', column = kind === 'asks' && head.columns.some((c) => c.header.toLowerCase() === REVIEWS_COLUMN.toLowerCase());
+      if (sheet || column) { out.reviews = true; out.reviewParts = { sheet: sheet || !!out.reviewParts?.sheet, column: column || !!out.reviewParts?.column }; }
     }
     else if (out.tables[key]) out.skipped.push({ name: g.name, why: 'second' });
     else {
@@ -261,15 +264,19 @@ export function readTables(grids: NamedGrid[], moduleSheets: readonly { name: st
 export const headerRowsLine = (read: Pick<ReadTables, 'headerRows'>): string =>
   read.headerRows.map((h) => `Row ${h.row} of ${h.sheet} is the header row; ${h.row - 1} ${h.row === 2 ? 'row' : 'rows'} above it ${h.row === 2 ? 'was' : 'were'} skipped.`).join(' ');
 
-/** What the preview says once when Reviews is off and the file has what is Reviews' (RS, spec 5). */
-export const reviewsOffReadLine = (workspace: string) => `Reviews is off in ${workspace}: the ${REVIEWS_SHEET} sheet and the ${REVIEWS_COLUMN} column were not read.`;
+/** What the preview says once when Reviews is off and the file has what is Reviews' (RS, spec 5), naming only what the
+    file has (both when not said). "so", not a colon: a workspace's name can hold one ("Example: Platform Engineering"). */
+export const reviewsOffReadLine = (workspace: string, has: { sheet: boolean; column: boolean } = { sheet: true, column: true }) => {
+  const what = has.sheet && has.column ? `the ${REVIEWS_SHEET} sheet and the ${REVIEWS_COLUMN} column were` : has.sheet ? `the ${REVIEWS_SHEET} sheet was` : `the ${REVIEWS_COLUMN} column on Asks was`;
+  return `Reviews is off in ${workspace}, so ${what} not read.`;
+};
 
 /**
  * Rule 5. What was read, in one sentence (the preview's file line, 2.3): "Read Goals and Check-ins. Not read: Results
  * (for reading only); Budget (not a Faro sheet); the column Notes on Goals." Parts with nothing are left out; the Start
  * here sheet is never mentioned. Then the example rows left out, when there are any.
  */
-export function readLine(read: Pick<ReadTables, 'read' | 'skipped' | 'unknownColumns' | 'reviews'>, examples = 0, opts: { reviewsOff?: string } = {}): string {
+export function readLine(read: Pick<ReadTables, 'read' | 'skipped' | 'unknownColumns' | 'reviews' | 'reviewParts'>, examples = 0, opts: { reviewsOff?: string } = {}): string {
   // With Reviews off (RS, spec 5) the Notes sheet is said once, in its own sentence at the end, not as a sheet for reading.
   const off = opts.reviewsOff != null && !!read.reviews;
   const by = (why: SkipWhy) => read.skipped.filter((x) => x.why === why && !(off && x.kind === 'notes')).map((x) => x.name);
@@ -279,6 +286,6 @@ export function readLine(read: Pick<ReadTables, 'read' | 'skipped' | 'unknownCol
     by('second').length ? `${andList(by('second'))} (a second sheet of the same kind; only the first is read)` : '',
     ...read.unknownColumns.map((u) => `the column${u.headers.length === 1 ? '' : 's'} ${andList(u.headers)} on ${u.sheet}`),
   ].filter(Boolean);
-  const parts = [read.read.length ? `Read ${andList(read.read.map((x) => x.name))}.` : 'Nothing was read.', not.length ? `Not read: ${not.join('; ')}.` : '', examples ? `${examples} example row${examples === 1 ? '' : 's'} left out.` : '', off ? reviewsOffReadLine(opts.reviewsOff!) : ''];
+  const parts = [read.read.length ? `Read ${andList(read.read.map((x) => x.name))}.` : 'Nothing was read.', not.length ? `Not read: ${not.join('; ')}.` : '', examples ? `${examples} example row${examples === 1 ? '' : 's'} left out.` : '', off ? reviewsOffReadLine(opts.reviewsOff!, read.reviewParts) : ''];
   return parts.filter(Boolean).join(' ');
 }

@@ -6,7 +6,7 @@
    The run and the receipt's sentences are progress.ts's (`onTimeStreak`, `forgivenIn`, `receiptText`). */
 import { fmt } from './format';
 import { checkInStanding, dueIn, type HabitRows, type Standing } from './standing';
-import { reviewDate } from './progress';
+import { dueWords, reviewDate, type DueWords } from './progress';
 import type { CheckIn, Cycle, Goal } from './types';
 
 export { checkInStanding, dueIn, type HabitRows, type Standing };
@@ -113,11 +113,11 @@ export function habitShown(goals: readonly Pick<Goal, 'ownerId'>[], viewerId: st
   return owners.size >= MIN_OWNERS || (owners.size === 1 && owners.has(viewerId));
 }
 
-/** Rule 2's sentences for "Before this review" (spec 2.3): the heading, in the past once the due day has passed. With
-    Reviews off (`reviews` false, the flag readBack.ts takes) the due day is a deadline, so the words are RS1's "on
-    time, without being asked". */
-export function beforeReviewText(h: HabitCounts, past: boolean, reviews = true): string {
-  const by = reviews ? 'before it' : 'on time';
+/** Rule 2's sentences for "Before this review" (spec 2.3): the heading, in the past once the due day has passed. When
+    the deadline isn't a review (`words` from dueWords: Reviews off, or no review held that day for these goals' people)
+    the words are RS1's "on time, without being asked". Without `words`, a review's own page: "before it". */
+export function beforeReviewText(h: HabitCounts, past: boolean, words?: Pick<DueWords, 'review' | 'onTime'>): string {
+  const by = !words || words.review ? 'before it' : words.onTime;
   if (!past) return `${h.inTime} of ${h.due} ${h.due === 1 ? 'goal is' : 'goals are'} checked in so far.`;
   if (!h.inTime) return h.due === 1 ? `Its one goal wasn’t checked in ${by}.` : `None of the ${h.due} goals was checked in ${by}.`;
   if (h.inTime === h.due && h.unasked === h.due) return h.due === 1 ? `Its one goal was checked in ${by}, without anyone asking.` : `All ${h.due} goals were checked in ${by}, without anyone asking.`;
@@ -125,10 +125,12 @@ export function beforeReviewText(h: HabitCounts, past: boolean, reviews = true):
 }
 
 /** What "Before this review" says for a set of goals in a week (spec 2.3), as the review's page, a team's page and
-    `get_review` all read it; null when rule 4 hides it or nothing was due. `past`: the due day has gone by. */
-export interface BeforeReview { counts: HabitCounts; past: boolean; says: string; weeks: HabitWeek[] }
+    `get_review` all read it; null when rule 4 hides it or nothing was due. `past`: the due day has gone by; `words`: the
+    deadline in dueWords' words, which name a review only when `held` (RS1: Reviews on and a review held on the due day
+    for these goals' people, app/reads heldForGoals; a review's own page leaves it true). */
+export interface BeforeReview { counts: HabitCounts; past: boolean; says: string; weeks: HabitWeek[]; words: DueWords }
 
-export function beforeReview(goals: readonly Goal[], week: number, rows: HabitRows, cycle: Cycle, today: Date, viewerId: string, reviews = true): BeforeReview | null {
+export function beforeReview(goals: readonly Goal[], week: number, rows: HabitRows, cycle: Cycle, today: Date, viewerId: string, held = true): BeforeReview | null {
   if (week < 1 || !habitShown(goals, viewerId)) return null;
   const isDue = dueIn(cycle, rows.checkIns);
   const dueDay = reviewDate(cycle, week);
@@ -136,5 +138,6 @@ export function beforeReview(goals: readonly Goal[], week: number, rows: HabitRo
   if (!h.due) return null;
   const past = today.toISOString().slice(0, 10) > dueDay;
   const { goals: _ids, ...counts } = h;
-  return { counts, past, says: beforeReviewText(h, past, reviews), weeks: habitWeeks(goals, past ? week : week - 1, rows, (w) => reviewDate(cycle, w), isDue) };
+  const words = dueWords(held, cycle, week, held);
+  return { counts, past, words, says: beforeReviewText(h, past, words), weeks: habitWeeks(goals, past ? week : week - 1, rows, (w) => reviewDate(cycle, w), isDue) };
 }
