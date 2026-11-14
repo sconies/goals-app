@@ -255,6 +255,10 @@ One row per metric in the library. The metric library: every number goals are me
 | Owner | You can change it | Who answers for the definition, by name (Owner email wins when both are given). | Changed when loaded back |
 | Owner email | You can change it | Who answers for it, by email; empty on a new metric: whoever loads the file. | Changed when loaded back |
 | Caveats | You can change it | What to watch out for when reading it. | Changed when loaded back |
+| Part of | You can change it | The metric it sits under, by name or ID: a metric in the library or on an earlier row. Empty for none. | Changed when loaded back |
+| How it relates | You can change it | How it relates to the metric it is part of: Component, Driver, Control or Breakdown. Needs Part of; empty when not said. | Changed when loaded back |
+| Confidence | You can change it | How far its number can be trusted: High, Medium or Low; empty when not said. | Changed when loaded back |
+| How it could be gamed | You can change it | In words, up to 500 characters; empty when not said. | Changed when loaded back |
 | Reason | You can change it | Why: needed to retire it, or when a change to its meaning or direction changes the number its goals show. | Changed when loaded back |
 | Still to say | Worked out | Fully defined, or what it still needs to say. | Worked out by the app; ignored when loaded back |
 | Retired on | Worked out | The day it was retired; empty while it is in use. | Worked out by the app; ignored when loaded back |
