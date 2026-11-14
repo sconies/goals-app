@@ -437,8 +437,8 @@ Routes: `/goals?q=*`, `/goals?status=*`. Screens: `GoalFilters`, `GoalFilterShee
 - Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition. Type or paste as fast as you like: the goals follow a moment after you stop.
 - Search for a goal’s key to find it, however it’s typed: G-48, g48 or just 48. A key finds only its own goal; a bare number also finds goals with that number in their words.
 - Clear search and filters, or removing the search, keeps the tab, the layout and the sort you had.
-- Filters cover status, level, team, owner and type; needs attention (the same goals Home and Watching list, with those being handled listed below them), narrowed if you like to why: off track, missed its own date, no recent update, decision or help needed, no path to green, at risk, getting worse, greener than calculated; due date; no update for some weeks (counted the way no recent update is); last quarter met or not met; result; a goal’s tree; and also-helps links.
-- Under the bar, one line counts the goals that match; under it, the filters in words (“Filtered by: Status Off track · Owner Rhea Kapoor”), each with Remove. A search is never listed as a filter.
+- Filters cover status, level, team, owner and type; needs attention (the same goals Home and Watching list, with those being handled listed below them), narrowed if you like to why: off track, missed its own date, no recent update, decision or help needed, no path to green, at risk, getting worse, greener than calculated; due date; no update for some weeks (counted the way no recent update is); last quarter met or not met; result; a goal’s tree; and also-helps links. When the workspace has its own fields (Fields), each list field has a row too, such as “Stage: Discover · Build · Run · Not set”: tick any of them, and Not set finds goals with no value. A free-text field isn’t a filter.
+- Under the bar, one line counts the goals that match; under it, the filters in words (“Filtered by: Status Off track · Owner Rhea Kapoor”, or “Stage is Build” for a field), each with Remove. A search is never listed as a filter.
 - Owner not you is the goals someone else owns: Home’s “need attention that aren’t yours” opens Goals with it, so your own goals are left out.
 - Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest. Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere; clear the sort to see the trees again. By level and By team keep their groups.
 - Everything is in the link: Copy link, in Views, shares exactly what you see. Save this view…, also in Views (in View on a phone), keeps it under a name: it shows as a tab while it’s open, and Views lists it the rest of the time. Rename or delete it from Views while it’s open.
@@ -877,6 +877,7 @@ Routes: `/data`. Screens: `DataTables`, `DataFilters`, `DataLayout`. Requirement
 - Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.
 - Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.
 - Export and Import are where files come and go (when the workspace has Spreadsheets on). Export saves this table as shown, as .xlsx or .csv, with the visible columns in order, filtered and sorted, and says how many rows and columns that is; Everything… opens the one Export, the whole workbook. Import opens the Import page, which has the template (its first sheet, Start here, says what every column needs: Help’s Every column, and what it needs is the same table) and Past imports. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.
+- When the workspace has its own fields (Fields), the Goals table has a column for each, headed with its name, shown from the start: filter or sort by it like any other.
 - IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email.
 
 #### Changing data
@@ -906,6 +907,7 @@ Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/cha
 - Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.
 - To build a whole tree in one file, give each new goal’s row a Ref of your own (top, a1, anything, each row its own). Another row then names it in Feeds into ref, and a check-in in Goal ref, before it has a key. Refs belong to the file: they are never kept, and an export leaves them empty.
 - Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.
+- A workspace’s own fields (Fields) are columns on Goals, headed with each field’s name: a cell changes the goal’s value, an empty one clears it, and a value a list doesn’t hold is asked about once (“Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?”); only an admin can add it. With Fields switched off, those columns are named as columns nothing reads.
 - The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over: an email, or a name only one person has). The same rules as the app apply, and the preview shows what each does.
 - Every row is checked with the app’s own rules, and Check this import shows the result before anything is saved: the file and what was read (sheets and columns it didn’t read are named), counts by sheet, then what must be fixed, then questions, then what will be saved. Show the changes lists every change in the file’s order, 50 at a time, with each field before and after and how a value Faro supplied was worked out (“the owner’s team; the row gave none”).
 - Plan changes after check-ins need a reason. A plan change that flips which way is better, or puts a number far outside the old plan, is a question, and saves only once you say yes.
@@ -1413,7 +1415,7 @@ Admins switch features. Everyone sees what is on.
 
 `fields`, from the tags module. A workspace’s own fields on goals, such as a stage or a programme: up to 6, each a short list of values or free text, set on each goal’s page. No rule reads them: they’re for finding and sorting.
 
-Routes: `/workspace/fields`. Screens: `FieldsSection`, `FieldsBlock`. Requirements: `TAGS-FIELDS`, `TAGS-OFF`.
+Routes: `/workspace/fields`. Screens: `FieldsSection`, `FieldsBlock`. Requirements: `TAGS-FIELDS`, `TAGS-FILTER`, `TAGS-SHEET`, `TAGS-OFF`.
 
 #### What it’s for
 
@@ -1433,13 +1435,27 @@ Teams track things Faro has no column for: a lifecycle stage (Discover, Build, R
 - The goal’s owner or an admin presses Change beside a line and picks a value from the list, or types the text and presses Save. Not set clears it. No reason is asked: a field isn’t the plan.
 - History says each change on the goal: “Stage: Discover → Build”. Adding, retiring and bringing back a field is in Activity.
 
+#### Finding goals by a field
+
+- Goals’ Filters has a row for each list field, such as “Stage: Discover · Build · Run · Not set”. Tick any of them; Not set finds goals with no value. The filter line says “Stage is Build”, with Remove.
+- The filter is in the link, so Copy link and Save this view… keep it. Renaming the field keeps the view working.
+- A free-text field isn’t a filter. Data’s Goals table has a column for every field, to sort, filter or edit like any other.
+
+#### In a spreadsheet
+
+- Every export’s Goals sheet has a column for each field, headed with its name: the goal’s value, or empty for none.
+- Change a cell and load the file back on Import: the goal takes the value, under the same rules as its page, and History says it. An empty cell clears the value. A file exported and loaded straight back changes nothing.
+- A value a list doesn’t hold is asked once, however many rows say it: “Stage says “Operate” on 4 rows. Add “Operate” to Stage, or leave these cells empty?” Only an admin can add it to the list; anyone else leaves those cells empty, or fixes the file.
+- A column headed with a name no field has is named as a column nothing reads.
+
 #### With an AI assistant
 
 - list_fields lists the fields and their values (with goal_id, that goal’s values); set_goal_fields sets a goal’s values by field name, with dry_run to check first; save_field lets an admin add, change, move, retire or bring back a field. Each follows the same rules.
+- find_goals finds goals by their fields: fields: { "Stage": "Build" }, several values of one field as “Build, Run”, and “Not set” for none.
 
 #### Who can
 
-Admins add and change the fields. A goal’s owner or an admin sets its values. Everyone sees them. An admin can switch Fields off in Workspace, Features: the block and the section go, and every field and value is kept for when it’s switched on again.
+Admins add and change the fields, and add a value to a list from a spreadsheet. A goal’s owner or an admin sets its values. Everyone sees them and filters by them. An admin can switch Fields off in Workspace, Features: the block, the section, the filters and the columns go (a file’s field columns are then columns nothing reads), and every field and value is kept for when it’s switched on again.
 
 ### What the app records
 

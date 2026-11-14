@@ -159,6 +159,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - queryParts (find rule 3, on Goals) › says the reasons for needing attention when they narrow it
 - a module’s filter, declared as a column (architecture 4.2) › reads its parameter once added, compares the column, words it and removes it
 - a module’s filter, declared as a column (architecture 4.2) › reads a family’s parameters by their start (Fields’ f.<field id>), and a column’s test picks several values
+- owner=-me: not mine (Home rule 4, HM3) [HOME-MANAGER] › leaves out the asker’s own goals, round-trips through a link, and says “Owner not you”
 
 ## Fields: the Goals sheet’s columns
 
