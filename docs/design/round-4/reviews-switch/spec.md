@@ -101,7 +101,7 @@ FT2's: an admin switches it; everyone else sees the app without it. On a closed 
 
 ## 5. The import, the MCP server and the rebuild kit
 
-- **Export**: as the import spec has it, `workbook()` leaves out the Notes sheet and the Review column on Asks. **Import**: a workbook that has them is not refused; the preview says once, "Reviews is off in {ws}: the Notes sheet and the Review column were not read.", and the rest is checked as usual.
+- **Export**: as the import spec has it, `workbook()` leaves out the Notes sheet and the Review column on Asks. **Import**: a workbook that has them is not refused; the preview says once, "Reviews is off in {ws}, so the Notes sheet and the Review column were not read.", and the rest is checked as usual.
 - **MCP**: `list_reviews`, `get_review`, `review_call`, `edit_call`, `save_review`, `end_review` and `delete_review` answer with the sentence the built tools already use for a module that is off ("Reviews is switched off in {ws}, so {tool} can’t be used there. An admin can switch it on in Workspace, under Features."), in place of FT2's section 6 wording, so there is one pattern. `get_my_work` leaves `reviews` out. Nothing else changes: `post_check_in` and the asks tools never needed a review.
 - **The rebuild kit**: FT2's `module.json` for Reviews (`rebuild: { status: "outline" }`, `stage-6-module-reviews.md`) gains conformance rows for this file: the clock's words with the module off; the habit measure's examples with no reviews; a closed page's sentence; switching back on. R5 gains one line: the measure is "on time, unasked" where a workspace holds no reviews.
 
