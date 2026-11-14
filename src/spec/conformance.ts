@@ -37,6 +37,8 @@ export interface ConformanceWorkspace {
   about: string;
   /** The moment the workspace was built for. Every record is as it stood then. */
   builtFor: string;
+  /** The edge-case workspace (src/spec/edge.ts, spec/conformance/edge): only stage 1's files are made from it. */
+  edge?: boolean;
   cycle: Cycle;
   people: Pick<Person, 'id' | 'name' | 'teamId' | 'admin'>[];
   teams: Team[];
@@ -561,8 +563,16 @@ export function readBackRowsOf(w: ConformanceWorkspace): string[][] {
 const field = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
 export const toCsv = (head: string[], rows: string[][]) => [head, ...rows].map((r) => r.map(field).join(',')).join('\n') + '\n';
 
-/** The CSV files, by name. */
+/** Stage 1's files and scorecard-words.csv: all that is made from the edge-case workspace (src/spec/edge.ts). */
+export const EDGE_FILES = ['status', 'flags', 'projection', 'scorecard', 'scorecard-words', 'checkin'] as const;
+export function edgeFiles(w: ConformanceWorkspace): Record<string, string> {
+  const t = conformanceTables(w);
+  return Object.fromEntries(EDGE_FILES.map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])]));
+}
+
+/** The CSV files, by name: from the edge-case workspace, only stage 1's (edgeFiles). */
 export function conformanceFiles(w: ConformanceWorkspace): Record<string, string> {
+  if (w.edge) return edgeFiles(w);
   const t = conformanceTables(w);
   return {
     ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'changes.csv': toCsv(CHANGES_HEADER, changeRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w)), 'zone.csv': toCsv(ZONE_HEADER, zoneRowsOf(w.zone)),

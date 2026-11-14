@@ -24,7 +24,7 @@ import { scaleFiles } from './scaleKit';
 import { readsPage } from './readsPage';
 import { rebuildFiles, STAGE_FILES, stages, type ModuleWithRebuild, type Stage, type Stage1Files } from './rebuild';
 import { ZONE_HEADER } from './zones';
-import { changeCases, CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, FIND_HEADER, GOALS_HEADER, HEADERS, HOME_HEADER, IMPORT_HEADER, CHANGES_HEADER, MODULE_FILES, NAV_HEADER, READBACK_HEADER, type ConformanceWorkspace } from './conformance';
+import { changeCases, CHECK_IN_MOMENT, EDGE_FILES, conformanceFiles, conformanceWorkspace, FIND_HEADER, GOALS_HEADER, HEADERS, HOME_HEADER, IMPORT_HEADER, CHANGES_HEADER, MODULE_FILES, NAV_HEADER, READBACK_HEADER, type ConformanceWorkspace } from './conformance';
 import type { ModuleFacts } from '../core/module';
 import { currentWeek } from '../domain/plan';
 import { databaseFiles } from './schema';
@@ -34,6 +34,7 @@ import { limitsSection } from './limits';
 import { changeEngineSections } from './changeEngineDoc';
 import { MODULE_SHEETS } from '../core/records';
 import { ALWAYS_ON } from './alwaysOn';
+import { EDGE_GOALS, EDGE_NOTES, edgeWorkspace } from './edge';
 
 /** The files of the no-rhythm conformance set (FT1, spec 8). */
 export const NO_RHYTHM_FILES = ['status', 'flags', 'scorecard', 'projection'] as const;
@@ -441,8 +442,9 @@ function growthPage(m: ModuleFacts): string {
 
 /* ---------- conformance ---------- */
 
-function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string>): string {
+function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string>, we: ConformanceWorkspace, edge: Record<string, string>): string {
   const rows = (f: string) => files[f]!.trimEnd().split('\n').length - 1;
+  const edgeRows = (f: string) => edge[f]!.trimEnd().split('\n').length - 1;
   return GENERATED('src/spec/conformance.ts') + [
     '# Conformance data',
     '',
@@ -469,7 +471,7 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '',
     `${UNCLEAR} goals are taken as they are now in every week: their plan history (\`planHistory\`) says which plan applied when, but other edits (a stage’s due week, a goal linked to an ask later) are not replayed. The rows are made the same way, so a rebuild that reads workspace.json the same way matches them.`,
     '',
-    `${UNCLEAR} two different check-ins are “the latest”: the official status (and \`latest_week\`, \`greener\`, days without an update) takes the one posted most recently, by \`postedAt\`; the calculation, projection and scorecard take the last by week, then posting. They differ when a check-in for an earlier week is posted later (a backfill). Ties are broken the same way in both, from a goal’s check-ins sorted by week, then \`postedAt\`, keeping \`workspace.json\`’s order where both are equal: the official status walks that list and takes a new latest only on a strictly later \`postedAt\`, so of two posted at the same moment it keeps the one for the earlier week (the earlier record when the weeks are equal too); the calculation takes the last of the list, so of two for the same week posted at the same moment it takes the later record. (The conformance workspace has no such ties.)`,
+    `${UNCLEAR} two different check-ins are “the latest”: the official status (and \`latest_week\`, \`greener\`, days without an update) takes the one posted most recently, by \`postedAt\`; the calculation, projection and scorecard take the last by week, then posting. They differ when a check-in for an earlier week is posted later (a backfill). Ties are broken the same way in both, from a goal’s check-ins sorted by week, then \`postedAt\`, keeping \`workspace.json\`’s order where both are equal: the official status walks that list and takes a new latest only on a strictly later \`postedAt\`, so of two posted at the same moment it keeps the one for the earlier week (the earlier record when the weeks are equal too); the calculation takes the last of the list, so of two for the same week posted at the same moment it takes the later record. (The demo workspace has no such ties; [the edge-case workspace](#the-edge-case-workspace-edge) has both, on E-9 and E-10.)`,
     '',
     'Rows go by week, then goals in key order (G-1, G-2 … G-126).',
     '',
@@ -522,11 +524,18 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '',
     'Numbers are written with up to 6 decimal places and no trailing zeros; text with commas or quotes is quoted as CSV does. Every yes-or-no column (`greener`, `needs_attention`, `forecast_misses`, `asks_target`, `needs_path`) is written `yes` or `no`; a list of codes (`flags`, `missing`, `call_missing`) is separated by single spaces and empty when there are none.',
     '',
+    '## The edge-case workspace (edge/)',
+    '',
+    `The demo exercises most rules on most days, but not all: the full drill’s first stage 1 rebuild guessed three rules wrong and still scored 100%, because the demo has no range kept between two bounds, no ties in posting time and no correction that should or shouldn’t stop a moment. [edge/workspace.json](edge/workspace.json) is a second, small workspace of those cases (${we.goals.length} goals, ${we.checkIns.length} check-ins, a ${we.cycle.weeks}-week goal year starting ${we.cycle.startDate}, built for ${we.builtFor}, week ${currentWeek(we.cycle, new Date(we.builtFor))}), with the same fields, read the same way. Its records are inputs written by hand (\`src/spec/edge.ts\`); every row in the files beside it is made from them by the same code as the demo’s. Only stage 1’s files are made from it: ${EDGE_FILES.filter((f) => f !== 'scorecard-words').map((f) => `[${f}.csv](edge/${f}.csv) (${edgeRows(`${f}.csv`)} rows)`).join(', ')}, and [scorecard-words.csv](edge/scorecard-words.csv) when asked. The drill runs the rebuild on it as well, whenever one of those files is scored, and fails a rebuild that misses a row there as it does on the demo. It has \`"edge": true\`, which only says so: a rebuild reads it like any other workspace, and needn’t write the other files from it.`,
+    '',
+    table(['Goal', 'Its case (and the drill gap it closes)'], EDGE_GOALS.map((g) => [`${g.key} ${g.title}`, EDGE_NOTES[g.key!] ?? ''])),
+    '',
     '## How a rebuild proves itself',
     '',
     '1. Read `workspace.json`.',
     '2. For each week from 0 to the week it was built for, take the workspace as it stood at that week’s moment (above), and for each goal there, in key order, compute the status, flags, projection and scorecard with the rebuilt rules; and for each check-in in the workspace, what a check-in must say.',
     '3. Write the five files with the same columns and compare them row by row with these. Every difference is a rule that differs: the first few rows that differ, for one goal, usually name it.',
+    '4. Do the same with `edge/workspace.json`, and compare with the files in `edge/`.',
     '',
     'A rebuild of the status rules alone can compare `status.csv` first, then the projection, then the flags (which need the trend and asks), then the scorecard.',
     '',
@@ -589,20 +598,27 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   for (const [f, text] of Object.entries(files)) out[`spec/conformance/${f}`] = text;
   // Stage 2's cases, input only: what the harness hands a rebuild beside workspace.json (drill gap 1).
   out['spec/conformance/change-cases.json'] = JSON.stringify(changeCases(w), null, 2) + '\n';
-  out['spec/conformance/README.md'] = conformanceReadme(w, files);
   // The same workspace with no set check-in rhythm (FT1): its cycle has checkInWeeks 0. Its own folder, so the files
   // above stay byte for byte; the drill scores it with --expected spec/conformance/no-rhythm.
   const w0: typeof w = { ...w, cycle: { ...w.cycle, checkInWeeks: 0 } };
   const t0 = conformanceFiles(w0);
   out['spec/conformance/no-rhythm/workspace.json'] = workspaceJson(w0);
   for (const f of NO_RHYTHM_FILES) out[`spec/conformance/no-rhythm/${f}.csv`] = t0[`${f}.csv`]!;
+  // The edge-case workspace (item 11): the cases the demo never has, in its own folder; the drill scores stage 1's files
+  // from it too.
+  const we = edgeWorkspace();
+  const te = conformanceFiles(we);
+  out['spec/conformance/edge/workspace.json'] = workspaceJson(we);
+  for (const [f, text] of Object.entries(te)) out[`spec/conformance/edge/${f}`] = text;
+  out['spec/conformance/README.md'] = conformanceReadme(w, files, we, te);
   Object.assign(out, contractFiles((f) => out[`spec/conformance/${f}`] ?? (() => { throw new Error(`No conformance file ${f}.`); })()));
   // Stage 1's scored files only: scorecard-words.csv, find.csv and the rest are scored when asked.
   const stage1 = ['status', 'flags', 'projection', 'scorecard', 'checkin'] as const;
   const rows = Object.fromEntries(stage1.map((f) => [f, { rows: files[`${f}.csv`]!.trimEnd().split('\n').length - 1, header: HEADERS[f] }])) as Stage1Files;
   Object.assign(out, internalFiles());
   const later = Object.fromEntries([...STAGE_FILES[2], ...STAGE_FILES[3]].map((f) => [f, { rows: files[`${f}.csv`]!.trimEnd().split('\n').length - 1, header: files[`${f}.csv`]!.split('\n')[0]!.split(',') }]));
-  Object.assign(out, rebuildFiles(mods as ModuleWithRebuild[], rows, read(r, 'scripts/drill.mjs'), JSON.parse(read(r, 'scripts/browser-storage.json')).files, later));
+  const edgeRows = stage1.reduce((a, f) => a + te[`${f}.csv`]!.trimEnd().split('\n').length - 1, 0);
+  Object.assign(out, rebuildFiles(mods as ModuleWithRebuild[], rows, read(r, 'scripts/drill.mjs'), JSON.parse(read(r, 'scripts/browser-storage.json')).files, later, edgeRows));
   Object.assign(out, scaleFiles(out['spec/conformance/workspace.json']!, read(r, 'scripts/seed.mjs')));
   out['spec/rebuild/reads.md'] = await readsPage();
   Object.assign(out, await databaseFiles(root));

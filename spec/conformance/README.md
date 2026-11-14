@@ -25,7 +25,7 @@ Weeks 0 to the cycle’s week at `builtFor` (`currentWeek(cycle, builtFor)`: 45 
 
 **Not self-explanatory:** goals are taken as they are now in every week: their plan history (`planHistory`) says which plan applied when, but other edits (a stage’s due week, a goal linked to an ask later) are not replayed. The rows are made the same way, so a rebuild that reads workspace.json the same way matches them.
 
-**Not self-explanatory:** two different check-ins are “the latest”: the official status (and `latest_week`, `greener`, days without an update) takes the one posted most recently, by `postedAt`; the calculation, projection and scorecard take the last by week, then posting. They differ when a check-in for an earlier week is posted later (a backfill). Ties are broken the same way in both, from a goal’s check-ins sorted by week, then `postedAt`, keeping `workspace.json`’s order where both are equal: the official status walks that list and takes a new latest only on a strictly later `postedAt`, so of two posted at the same moment it keeps the one for the earlier week (the earlier record when the weeks are equal too); the calculation takes the last of the list, so of two for the same week posted at the same moment it takes the later record. (The conformance workspace has no such ties.)
+**Not self-explanatory:** two different check-ins are “the latest”: the official status (and `latest_week`, `greener`, days without an update) takes the one posted most recently, by `postedAt`; the calculation, projection and scorecard take the last by week, then posting. They differ when a check-in for an earlier week is posted later (a backfill). Ties are broken the same way in both, from a goal’s check-ins sorted by week, then `postedAt`, keeping `workspace.json`’s order where both are equal: the official status walks that list and takes a new latest only on a strictly later `postedAt`, so of two posted at the same moment it keeps the one for the earlier week (the earlier record when the weeks are equal too); the calculation takes the last of the list, so of two for the same week posted at the same moment it takes the later record. (The demo workspace has no such ties; [the edge-case workspace](#the-edge-case-workspace-edge) has both, on E-9 and E-10.)
 
 Rows go by week, then goals in key order (G-1, G-2 … G-126).
 
@@ -88,11 +88,34 @@ What each column is, and the rule that gives it:
 
 Numbers are written with up to 6 decimal places and no trailing zeros; text with commas or quotes is quoted as CSV does. Every yes-or-no column (`greener`, `needs_attention`, `forecast_misses`, `asks_target`, `needs_path`) is written `yes` or `no`; a list of codes (`flags`, `missing`, `call_missing`) is separated by single spaces and empty when there are none.
 
+## The edge-case workspace (edge/)
+
+The demo exercises most rules on most days, but not all: the full drill’s first stage 1 rebuild guessed three rules wrong and still scored 100%, because the demo has no range kept between two bounds, no ties in posting time and no correction that should or shouldn’t stop a moment. [edge/workspace.json](edge/workspace.json) is a second, small workspace of those cases (15 goals, 71 check-ins, a 13-week goal year starting 2026-01-05, built for 2026-04-02T12:00:00.000Z, week 12), with the same fields, read the same way. Its records are inputs written by hand (`src/spec/edge.ts`); every row in the files beside it is made from them by the same code as the demo’s. Only stage 1’s files are made from it: [status.csv](edge/status.csv) (185 rows), [flags.csv](edge/flags.csv) (185 rows), [projection.csv](edge/projection.csv) (185 rows), [scorecard.csv](edge/scorecard.csv) (734 rows), [checkin.csv](edge/checkin.csv) (71 rows), and [scorecard-words.csv](edge/scorecard-words.csv) when asked. The drill runs the rebuild on it as well, whenever one of those files is scored, and fails a rebuild that misses a row there as it does on the demo. It has `"edge": true`, which only says so: a rebuild reads it like any other workspace, and needn’t write the other files from it.
+
+| Goal | Its case (and the drill gap it closes) |
+|---|---|
+| E-1 Availability kept between two bounds | A range kept between 99.5 and 99.95 (margin 0.1): inside, near each bound, at each bound, past each bound, and back (1.8). |
+| E-2 Change failure rate at most 12% | At most 12 (margin 2): at the margin’s edge, inside it, at the limit and just past it (1.8). |
+| E-3 Test coverage at least 80% | At least 80 (margin 5): the same from below, and two numbers for one week, the later posted the same day (1.14). |
+| E-4 Signups who finish set-up | A share planned from 30 to 75%: 110 and 400 are both refused as over 100% (1.9). |
+| E-5 Growth on last year | Planned from 50 to 150%, so not a share: 120 is only questioned; −5% is refused (1.7, 1.9). |
+| E-6 Services with a runbook | The target met in week 2, nothing for week 3, met again in week 4: the week before is week 2, so no moment; met again in week 7 after falling short (1.3). |
+| E-7 Alerts with an owner | Corrections: a second check-in for week 2 (no moment); week 5 posted before week 4, which then reaches the target (a moment); a late week; a backfilled week (no moment) (1.3). |
+| E-8 Deploys a day | Behind in weeks 2, 3 and 5 with nothing for week 4, then on track: back 4; behind for one week: nothing (1.2). |
+| E-9 Builds under ten minutes | Two check-ins for one week posted at the same moment, twice, in each record order: the status keeps the first record, the calculation the last (1.12). |
+| E-10 Hours of on-call each week | Weeks 4 and 5 posted at the same moment: the status keeps week 4’s, the calculation week 5’s (1.12); later a time unit below zero, refused (1.7). |
+| E-11 Cost per build | Added in week 3 with a plan from week 5: nothing due before it (1.6); money below zero, refused (1.7). |
+| E-12 Pages answered in five minutes | Off track with a path back by week 5 and an action agreed after: in hand, then needing attention again once the path’s week passes (1.5). |
+| E-13 Legacy jobs moved | Stopped in week 6: in every file up to week 5, then gone. |
+| E-14 Cache warm-up time | Milliseconds below zero: not a time unit for that rule, so not refused (1.7). |
+| E-15 Customer effort score | Held to no number: no status from its plan and nothing due, even with a check-in (1.6). |
+
 ## How a rebuild proves itself
 
 1. Read `workspace.json`.
 2. For each week from 0 to the week it was built for, take the workspace as it stood at that week’s moment (above), and for each goal there, in key order, compute the status, flags, projection and scorecard with the rebuilt rules; and for each check-in in the workspace, what a check-in must say.
 3. Write the five files with the same columns and compare them row by row with these. Every difference is a rule that differs: the first few rows that differ, for one goal, usually name it.
+4. Do the same with `edge/workspace.json`, and compare with the files in `edge/`.
 
 A rebuild of the status rules alone can compare `status.csv` first, then the projection, then the flags (which need the trend and asks), then the scorecard.
 
