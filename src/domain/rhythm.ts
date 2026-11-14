@@ -165,7 +165,10 @@ export function setRhythm(x: ActionContext, cycle: Cycle, to: { weeks: number; d
 }
 
 /** The statuses a cycle's goals can have, to filter by: without No recent update when there is no set rhythm (FT1). */
-export const statusOptions = (cycle: Cycle): [QStatus, string][] => (rhythmOf(cycle) ? STATUS_OPTIONS : STATUS_OPTIONS.filter(([k]) => k !== 'stale'));
+export const statusOptions = (cycle: Cycle): [QStatus, string][] => STATUS_OPTIONS.filter(([k]) => statusUsed(cycle, k));
+/** Whether a status can be a goal's in this cycle: every one, but No recent update only with a set rhythm (FT1). The
+    filter's options and the status legend both ask this. */
+export const statusUsed = (cycle: Cycle, k: string): boolean => k !== 'stale' || !!rhythmOf(cycle);
 /** What the filter line says when a link asks for No recent update and there is no set rhythm (FT1, spec 2.6). */
 export const NO_STALE_HERE = `${STATUS.stale.label} isn’t used here: there is no set check-in rhythm.`;
 

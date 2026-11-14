@@ -11,7 +11,7 @@
    extension point: a module adds its own (AppModule `sections`, src/core/app.tsx). Old addresses
    (/workspace?inbox=1&markup=…, #people) lead to where they meant. */
 import { nameLength, nameProblem } from '../domain/thresholds';
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
 import { useModules, type WorkspaceSection } from '../core/app';
@@ -542,6 +542,9 @@ function Features() {
   const [busy, setBusy] = useState<string | null>(null);
   const [asking, setAsking] = useState<string | null>(null);
   const [rhythm, setRhythm] = useState(false);
+  // The rhythm's Undo runs after the sheet has closed and the cycle has changed: it acts on the app as it is then.
+  const latest = useRef(app);
+  latest.current = app;
   const nameOf = (id: string) => installed.find((m) => m.id === id)?.name ?? id;
   const is = { reviews: (id: string) => reviewsOn(new Set([id])), watching: (id: string) => watchingOn(new Set([id])), wrapUp: (id: string) => wrapUpOn(new Set([id])) };
   const flip = async (id: string, next: boolean) => {
@@ -621,7 +624,7 @@ function Features() {
         );
       })}
       <p className="hint">Switching one off hides it and keeps what it saved. Recording how the app is used is under <Link to="/workspace/privacy">Privacy</Link>. <Link to="/help/features">About features</Link></p>
-      {rhythm && <RhythmSheet onClose={() => setRhythm(false)} />}
+      {rhythm && <RhythmSheet latest={latest} onClose={() => setRhythm(false)} />}
       {asking && is.reviews(asking) && <ReviewsOffSheet onClose={close} onSwitch={go} />}
       {asking && is.watching(asking) && <ReadBackSheet title={`Switch off Watching in ${ws}?`} people={people} lines={watchingOffLines(watch, reviewsOn(on))} primary="Switch off Watching" onClose={close} onSwitch={go} />}
       {asking && is.wrapUp(asking) && <ReadBackSheet title={`Switch off the Wrap-up in ${ws}?`} people={people} lines={wrapUpOffLines(wrap)} primary="Switch off the Wrap-up" onClose={close} onSwitch={go} />}
@@ -631,7 +634,7 @@ function Features() {
 
 /** The check-in rhythm's sheet (FT1, spec 4.2): every week by a day, or no set rhythm; what changes for everyone, counted
     by rhythmReadBack, once the choice differs from what is saved; Save, with Undo on the toast. */
-function RhythmSheet({ onClose }: { onClose: () => void }) {
+function RhythmSheet({ latest, onClose }: { latest: { current: ReturnType<typeof useApp> }; onClose: () => void }) {
   const app = useApp();
   const saved = rhythmChoiceOf(app.cycle);
   const [to, setTo] = useState<RhythmChoice>(saved);
@@ -645,7 +648,7 @@ function RhythmSheet({ onClose }: { onClose: () => void }) {
       const said = rhythmToast(app.cycle, to);
       await app.setRhythm({ weeks: to.weeks, dueDay: to.dueDay });
       onClose();
-      app.toast(said, 'success', { label: 'Undo', run: () => { void app.setRhythm(before).then(() => app.toast('The check-in rhythm is as it was.')).catch(() => undefined); } });
+      app.toast(said, 'success', { label: 'Undo', run: () => { const now = latest.current; void now.setRhythm(before).then(() => now.toast('The check-in rhythm is as it was.')).catch(() => undefined); } });
     } catch { setBusy(false); }
   };
   const opt = (weeks: number, label: string, line: string) => (

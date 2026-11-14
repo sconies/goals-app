@@ -20,12 +20,12 @@ import { forgetGoneLayout, GONE_LAYOUT, GONE_LAYOUT_NOTE, LAYOUTS, LayoutMenu, l
 import { GoalTable } from './GoalTable';
 import { GoalBoard } from './GoalBoard';
 import { HistoryGrid } from './GoalHistory';
-import { StatusLegend } from '../ui/StatusLegend';
+import { LISTED, StatusLegend } from '../ui/StatusLegend';
 import { Place, useModules } from '../core/app';
 import { FilterBar, useGoalQuery, useLatestParams, useViewActions } from './GoalFilters';
 import { MenuButton } from '../ui/MenuButton';
 import { EMPTY_QUERY, filters, SORT_OPTIONS } from '../domain/query';
-import { NO_STALE_HERE } from '../domain/rhythm';
+import { NO_STALE_HERE, statusUsed } from '../domain/rhythm';
 import { rhythmOf } from '../domain/thresholds';
 import { useGoalCounts, useGoalList } from '../app/goals';
 import { NoneFound } from '../ui/ListBar';
@@ -405,7 +405,7 @@ export function GoalsScreen() {
 
       {!alt && !refined && show === 'mine' && <ul className="tree">{[...mine].sort(worstFirst(app)).map((g) => <li key={g.id}><GoalRow g={g} showOwner={false} /></li>)}</ul>}
       {/* The key sits after the goals: every row already shows its status in words. */}
-      {app.snapshot.goals.length > 0 && shown.length > 0 && layout !== 'map' && <StatusLegend />}
+      {app.snapshot.goals.length > 0 && shown.length > 0 && layout !== 'map' && <StatusLegend statuses={LISTED.filter((k) => statusUsed(app.cycle, k))} />}
       {/* A phone has no page title (its top bar says Goals), so New goal closes the page. */}
       <p className="row goals-phone-end"><Link className="btn ghost sm" to="/goals/new">New goal</Link></p>
     </div>

@@ -25,7 +25,11 @@ module.exports = {
         await p.goto(url(route));
         await p.locator('main').first().waitFor();
         await p.waitForTimeout(300);
-        const text = await p.locator('main').innerText().catch(() => '');
+        // What the screen says, less what people wrote or asked: a goal's own title ("…completed on time") and an ask's
+        // date ("Due by Tue 10 Nov · Daniel asked in …", the date a question is wanted by, not a check-in) aren't the rhythm.
+        const raw = await p.locator('main').innerText().catch(() => '');
+        const titles = new Set((await p.locator('main .trow-name, main h1').allInnerTexts().catch(() => [])).map((t) => t.trim()));
+        const text = raw.split('\n').filter((l) => !titles.has(l.trim()) && !/^(Was )?due by .* · .+ asked\b/i.test(l.trim())).join('\n');
         for (const re of NEVER) { const m = text.match(re); if (m) fails.push(`${width}px ${route}: says “${m[0]}” with no set rhythm`); }
         if (/history=/.test(route) && /Week \d+ · No check-in|No check-ins \(\d+ weeks\)/.test(text)) fails.push(`${width}px ${route}: History has a “No check-in” row with no set rhythm`);
       }
