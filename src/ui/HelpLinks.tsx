@@ -4,6 +4,7 @@
    the Help screens themselves are src/screens/Help.tsx. */
 import { Link, useLocation } from 'react-router';
 import { articleForPath } from '../help/lookup';
+import { useModules } from '../core/app';
 import { markWhatsNewSeen, useUnreadNews } from '../help/seen';
 import { Icon } from './Icon';
 
@@ -13,9 +14,11 @@ const NO_PAGE_HELP = /^\/(help|whats-new)(\/|$)|\/print$/;
 /** The small Help link at the foot of every page: it opens the guide's article for the page you're on. */
 export function PageHelp() {
   const { pathname, search } = useLocation();
+  const { on } = useModules();
   if (NO_PAGE_HELP.test(pathname)) return null;
   const a = articleForPath(pathname, search);
-  if (!a) return null;
+  // A switched-off module's article is hidden (Lane, 14 Nov), so its page has no Help link: the page says it's off.
+  if (!a || (a.module && !on.has(a.module))) return null;
   return (
     <footer className="page-help">
       <Link to={'/help/' + a.id} className="page-help-link" title={a.title} data-article={a.id}>
