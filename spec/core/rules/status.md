@@ -139,6 +139,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - guardrails on a goal › the calculated status is the worse of the goal’s own and its worst guard’s
 - guardrails on a goal › a check-in on plan with a guard past its limit is off track, and asks why
 - guardrails on a goal › is kept through the form and the database row, at most five, never itself
+- guardrails on a goal › clearing every guard removes them through the engine’s build; a draft that says nothing keeps them
 
 ### [src/domain/rules.test.ts](../../../src/domain/rules.test.ts)
 

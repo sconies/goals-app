@@ -17,6 +17,7 @@ import type { Cause, CheckInReading, Goal, MetricGoal, RangeGoal, ReadingWhyKind
 import { Place } from '../core/app';
 import { MIN_CORRECT_REASON, parseNumber } from '../domain/checkin';
 import { READING_WHY, sameAtPlaces } from '../domain/reading';
+import { filledAt, readWhen } from '../domain/readingWords';
 import { Chip, Empty, TitleTell } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { CheckBlock, MustFixBlock } from '../ui/Levels';
@@ -60,16 +61,19 @@ export function QuickCheckIn() {
   // Questions answered yes, by goal (rule 2): the same Checks as the one-by-one check-in, under each row.
   const [answers, setAnswers] = useState<Record<string, Answers>>({});
   // Numbers a module can read from their sources (place checkin.table; NR 2.3), by goal: shown in faint ink in a row
-  // nobody has touched, posted (and so confirmed) with the table; a row changed from its reading says why.
+  // nobody has touched. A filled-in number needs a touch (Lane, 13 Nov): an untouched row isn't posted; the owner
+  // confirms it (one tap per row, or "Confirm all readings") or changes it, and a row changed from its reading says why.
   const [readings, setReadings] = useState<Record<string, CheckInReading>>({});
   const [touched, setTouched] = useState<Set<string>>(() => new Set());
   const [whyOf, setWhyOf] = useState<Record<string, { kind: ReadingWhyKind | null; text: string }>>({});
+  // A reading as its cell holds it: at the goal's places (review of #437, medium 6).
+  const filledOf = (id: string) => filledAt(readings[id]!.value, goals.find((x) => x.id === id)?.decimals ?? 0);
   const suggested = (id: string) => !!readings[id] && !touched.has(id) && !(rows[id]?.value ?? '').trim();
   const touch = (id: string) => {
     if (touched.has(id)) return;
     setTouched((t) => new Set(t).add(id));
-    // Touching a row filled from its source keeps the number in it, now the owner's to change.
-    if (suggested(id)) set(id, { value: String(readings[id]!.value) });
+    // Confirming or typing in a row filled from its source keeps the number in it, now the owner's.
+    if (suggested(id)) set(id, { value: filledOf(id) });
   };
   const set = (id: string, patch: Partial<Row>) => {
     const g = goals.find((x) => x.id === id);
@@ -91,7 +95,8 @@ export function QuickCheckIn() {
 
   const judged = useMemo(() => goals.map((g) => {
     const own = rows[g.id] ?? blank;
-    const r = suggested(g.id) ? { ...own, value: String(readings[g.id]!.value) } : own;
+    const unconfirmed = suggested(g.id);
+    const r = unconfirmed ? { ...own, value: filledOf(g.id) } : own;
     const posted = app.snapshot.checkIns.find((c) => c.goalId === g.id && c.week === app.week) ?? null;
     const read = readings[g.id] ?? null;
     const typed = r.value.trim() ? parseNumber(r.value) ?? NaN : NaN;
@@ -99,7 +104,8 @@ export function QuickCheckIn() {
     const w = whyOf[g.id];
     const whyOk = !differs || (!!w?.kind && (w.kind !== 'else' || w.text.trim().length >= MIN_CORRECT_REASON));
     const reading: CheckInReading | null = read && r.value.trim() && whyOk ? { ...read, ...(differs && w?.kind ? { why: { kind: w.kind, ...(w.text.trim() ? { text: w.text.trim() } : {}) } } : {}) } : null;
-    if (!r.value.trim()) return { g, r, posted, d: null, e: null, problem: null, open: [], read, differs, whyOk, reading, rowAnswers: answers[g.id] ?? {} };
+    // Empty, or filled in from its source and not yet confirmed: nothing to post (Lane, 13 Nov).
+    if (!r.value.trim() || unconfirmed) return { g, r, posted, d: null, e: null, problem: null, open: [], read, differs, whyOk, reading: null, unconfirmed, rowAnswers: answers[g.id] ?? {} };
     // The number itself comes first: until it's a possible value there's no status to show or reason to ask for.
     const problem = numberCheck(g, r.value, app.snapshot.checkIns, app.week);
     const d: Draft = { ...emptyDraft(g, null), value: r.value, cause: r.cause, why: r.why, ptgWhat: r.path, ptgBy: r.by, ptgState: 'plan' };
@@ -107,7 +113,7 @@ export function QuickCheckIn() {
     // A number its source read, unchanged, was measured again: "the same as last week?" is answered by the reading.
     const rowAnswers: Answers = { ...answers[g.id], ...(read && !differs ? Object.fromEntries(checks.filter((c) => c.id === 'same-as-last').map((c) => [c.id, c.key])) : {}) };
     const open = unanswered(checks, rowAnswers);
-    return { g, r, posted, d, e: evaluate(g, app.cycle, app.week, d, app.snapshot.checkIns, guardBreaches(g, app.snapshot.goals, app.cycle, app.snapshot.checkIns, app.week)), problem, open, read, differs, whyOk, reading, rowAnswers };
+    return { g, r, posted, d, e: evaluate(g, app.cycle, app.week, d, app.snapshot.checkIns, guardBreaches(g, app.snapshot.goals, app.cycle, app.snapshot.checkIns, app.week)), problem, open, read, differs, whyOk, reading, unconfirmed, rowAnswers };
   }), [goals, rows, app.snapshot.goals, app.snapshot.checkIns, app.cycle, app.week, answers, readings, touched, whyOf]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filled = judged.filter((x) => x.e);
@@ -116,7 +122,8 @@ export function QuickCheckIn() {
   const toAnswer = filled.filter((x) => !x.problem?.block && x.open.length).length;
   const toSayWhy = filled.filter((x) => !x.problem?.block && !x.open.length && x.e!.canPost && !x.whyOk).length;
   const needReasons = filled.length - ready.length - badNumbers - toAnswer - toSayWhy;
-  const fromSources = judged.filter((x) => x.read && x.r.value.trim() && !x.differs).length;
+  const toConfirm = judged.filter((x) => x.unconfirmed);
+  const confirmAll = () => { for (const x of toConfirm) touch(x.g.id); };
   // A second press while saving does nothing (a ref, because state updates too late to stop a quick double tap).
   const inFlight = useRef(false);
   // Post counts the rows that are ready, and posts those; a row that isn't ready stays in the table, as a draft (U12).
@@ -125,7 +132,7 @@ export function QuickCheckIn() {
     setTried(true);
     if (!ready.length) return;
     // Each row posts as the form does (rule 13), with what it answered, so History keeps the answer (build review of #160).
-    // A number from its source is posted with its reading, so posting the table confirms it (NR 2.3; rule 3).
+    // A number from its source, confirmed or changed, is posted with its reading (NR 2.3; rule 3).
     const posts: CheckInPost[] = ready.map(({ g, d, posted, reading, rowAnswers }) => ({ goalId: g.id, week: app.week, draft: { ...d!, answers: rowAnswers }, mode: posted ? 'again' : 'new', ...(reading ? { reading } : {}) }));
     const cs = app.previewChanges({}, 'bulk', undefined, undefined, undefined, undefined, posts);
     if (!cs.commit) { app.toast(cs.issues[0]?.message ?? 'Nothing to save', 'error'); return; }
@@ -142,11 +149,11 @@ export function QuickCheckIn() {
   };
   const weeks = Array.from({ length: Math.max(0, app.cycle.weeks - app.week) }, (_, k) => app.week + 1 + k);
 
-  const notReady = [badNumbers ? `${badNumbers} ${badNumbers === 1 ? 'row needs' : 'rows need'} a possible number` : '', toAnswer ? `${toAnswer} ${toAnswer === 1 ? 'row has' : 'rows have'} a question to answer` : '', toSayWhy ? `${toSayWhy} ${toSayWhy === 1 ? 'row needs' : 'rows need'} to say why it differs from its source` : '', needReasons ? `${needReasons} ${needReasons === 1 ? 'row needs' : 'rows need'} a reason or a path to green` : ''].filter(Boolean).join('; ');
+  const notReady = [badNumbers ? `${badNumbers} ${badNumbers === 1 ? 'row needs' : 'rows need'} a possible number` : '', toAnswer ? `${toAnswer} ${toAnswer === 1 ? 'row has' : 'rows have'} a question to answer` : '', toSayWhy ? `${toSayWhy} ${toSayWhy === 1 ? 'row needs' : 'rows need'} to say why it differs from its source` : '', needReasons ? `${needReasons} ${needReasons === 1 ? 'row needs' : 'rows need'} a reason or a path to green` : '', toConfirm.length ? `${toConfirm.length} ${toConfirm.length === 1 ? 'number from its source isn’t' : 'numbers from their sources aren’t'} confirmed` : ''].filter(Boolean).join('; ');
   // Rows that aren't ready are said before Post, so a count that leaves them out is never a surprise.
   const summary = tried && !filled.length
-    ? 'Type at least one number.'
-    : filled.length > ready.length
+    ? (toConfirm.length ? 'Confirm the numbers from their sources, or type your own.' : 'Type at least one number.')
+    : filled.length > ready.length || (ready.length > 0 && toConfirm.length > 0)
       ? (ready.length ? `Not posted until they’re ready: ${notReady}.` : notReady.charAt(0).toUpperCase() + notReady.slice(1) + '.')
       : '';
 
@@ -166,7 +173,7 @@ export function QuickCheckIn() {
         <form className="stack" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
           {hasDraft && <p className="restored small">Picked up the numbers you hadn’t posted yet. <button type="button" className="linkish" onClick={startOver}>Start over</button></p>}
           <div className="glist qgrid">
-            {judged.map(({ g, r, posted, e: judgedE, problem, open, read, differs, whyOk }) => {
+            {judged.map(({ g, r, posted, e: judgedE, problem, open, read, differs, whyOk, unconfirmed }) => {
               const invalidNumber = !!problem?.block;
               const e = invalidNumber ? null : judgedE;
               const last = checkInsFor(g, app.snapshot.checkIns).filter((c) => c.value != null).pop();
@@ -193,11 +200,17 @@ export function QuickCheckIn() {
                     {/* The unit stays beside the number once it's typed; the field is empty until you type. */}
                     <label className={'qvalue input' + (invalidNumber ? ' invalid' : '')}>
                       <span className="sr">{g.title}: this week’s number{g.unit ? ` in ${g.unit}` : ''}</span>
-                      <input data-q={g.id} inputMode="decimal" autoComplete="off" value={r.value} className={suggested(g.id) ? 'qsuggested' : undefined} onFocus={() => touch(g.id)} onChange={(ev) => { touch(g.id); set(g.id, { value: ev.target.value }); }} aria-invalid={invalidNumber || undefined} aria-describedby={problem ? `q-${g.id}-problem` : undefined} />
+                      <input data-q={g.id} inputMode="decimal" autoComplete="off" value={r.value} className={unconfirmed ? 'qsuggested' : undefined} onChange={(ev) => { touch(g.id); set(g.id, { value: ev.target.value }); }} aria-invalid={invalidNumber || undefined} aria-describedby={problem ? `q-${g.id}-problem` : undefined} />
                       {g.unit && <span className="qunit" aria-hidden="true">{g.unit}</span>}
                     </label>
                     <span className={'qstatus' + (e ? '' : ' empty')}>{e ? <Chip k={e.status} /> : <span className="hint">—</span>}</span>
                   </div>
+                  {/* A number filled in from its source says so, and is posted only once confirmed (Lane, 13 Nov). */}
+                  {unconfirmed && read && (
+                    <div className="qrow-more">
+                      <p className="hint qfrom">From {read.source}, read {readWhen(read.at, app.today)}. <button type="button" className="linkish tap" onClick={() => touch(g.id)}>Confirm {fmt(Number(r.value), g)}</button></p>
+                    </div>
+                  )}
                   {/* A number that can't be posted is a Must fix block under the row, as on the form (rule 2). */}
                   {problem?.block && (
                     <div className="qrow-more">
@@ -263,7 +276,12 @@ export function QuickCheckIn() {
             })}
           </div>
           <Place name="checkin.table" goals={goals} week={app.week} onReadings={setReadings} />
-          {fromSources > 0 && <p className="hint qsources">{fromSources === 1 ? '1 number is from its source; change it if it’s wrong.' : `${fromSources} numbers are from their sources; change any that are wrong.`}</p>}
+          {toConfirm.length > 0 && (
+            <p className="hint qsources">
+              {toConfirm.length === 1 ? '1 number is filled in from its source. Confirm it, or change it: it isn’t posted until you do.' : `${toConfirm.length} numbers are filled in from their sources. Confirm each, or change it: one nobody confirms isn’t posted.`}
+              {toConfirm.length > 1 && <> <button type="button" className="linkish tap" onClick={confirmAll}>Confirm all readings</button></>}
+            </p>
+          )}
           {milestones.length > 0 && <p className="hint">Stage goals ({milestones.map((g: Goal) => g.title).join(', ')}) use the <Link to="/check-in">normal check-in</Link>.</p>}
           {/* Post stays in sight however long the table gets; what's still wrong is said just above it. */}
           <div className="qfoot">

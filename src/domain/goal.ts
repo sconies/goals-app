@@ -124,7 +124,8 @@ export function decimalsFor(d: Pick<GoalDraft, 'kind' | 'decimals' | 'start' | '
 export interface PlanQuestion { code: 'direction' | 'far'; text: string; confirm: string }
 
 export function planQuestion(before: Goal | null, after: Goal): PlanQuestion | null {
-  if (before?.kind !== 'metric' || after.kind !== 'metric' || !planChanged(before, after)) return null;
+  // A target given to a goal that had none (GB) replaces no plan: its stored target only held the start.
+  if (before?.kind !== 'metric' || after.kind !== 'metric' || before.targetUnset || !planChanged(before, after)) return null;
   const was = before.plan, now = after.plan;
   const d = after.decimals, u = after.unit.trim() === '%' ? '%' : after.unit.trim() ? ' ' + after.unit.trim() : '';
   const n = (x: number) => fixed(x, d) + u;

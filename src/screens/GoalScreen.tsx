@@ -19,7 +19,7 @@ import { useSeen } from '../app/goalSeen';
 import { useDraft } from '../app/drafts';
 import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt } from '../domain/format';
-import { readingHistoryLine } from '../domain/reading';
+import { readingHistoryLine } from '../domain/readingWords';
 import { isEveryday, levelName } from '../domain/levels';
 import { notStarted, planHistoryOf, resultWeek, valueSeries, weekDates } from '../domain/plan';
 import { weekSays } from '../domain/weeks';

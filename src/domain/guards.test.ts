@@ -3,6 +3,7 @@
    them applied, their words, and the check-in and the database row that carry them. */
 import { goalFromRows, goalToRows } from '../data/rows';
 import { CYCLE, metric, RANGE } from '../spec/examples';
+import { builtOver } from './changeset';
 import { emptyDraft, evaluate } from './checkin';
 import { blankGoal, buildGoal, draftOf } from './goal';
 import { guardBreaches, guardedCalc, MAX_GUARDS } from './guards';
@@ -72,5 +73,12 @@ describe('guardrails on a goal', () => {
     expect(goalFromRows(goal, []).guards).toEqual([{ goal: 'cfr' }]);
     expect(goalToRows('ws', CFR).goal.guards).toBeNull();
     expect(goalFromRows(goalToRows('ws', CFR).goal, []).guards).toBeUndefined();
+  });
+
+  it('clearing every guard removes them through the engine’s build; a draft that says nothing keeps them', () => {
+    const cleared = buildGoal({ ...draftOf(SPEED), guards: [] }, CYCLE, { id: 'speed', createdAt: SPEED.createdAt }, SPEED, false, 2);
+    expect(builtOver(SPEED, cleared).guards).toBeUndefined();
+    const { guards: _, ...silent } = draftOf(SPEED);
+    expect(builtOver(SPEED, buildGoal(silent, CYCLE, { id: 'speed', createdAt: SPEED.createdAt }, SPEED, false, 2)).guards).toEqual([{ goal: 'cfr' }]);
   });
 });
