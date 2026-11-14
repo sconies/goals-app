@@ -6375,7 +6375,9 @@ journey('U153', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: 
   const panel = p.locator('section.habit');
   await panel.waitFor({ timeout: 8000 });
   const says = (await panel.locator('.habit-sum').innerText()).trim();
-  h.set('entry', /^\d+ of \d+ goals are checked in so far\.$/.test(says), `the panel said “${says}”`);
+  // A review held on another day than the one check-ins are due is headed by the week, never "Before this review" (review of #432).
+  const head = (await p.locator('#habit-head').innerText()).trim();
+  h.set('entry', /^\d+ of \d+ goals are checked in so far\.$/.test(says) && head === 'Week 45, due by Thursday 5 Nov', `the panel said “${says}”, headed “${head}” (a fortnightly review on Tuesdays)`);
   const cells = await panel.locator('.habit-week').allInnerTexts();
   h.set('progress', cells.length === 8 && cells.every((t) => /Week \d+/.test(t) && /(All in|\d+ after|None in|Nothing due)/.test(t)), `the row of weeks: ${cells.map((t) => t.replace(/\s+/g, ' ')).join(' | ')}`);
   // [HABIT-NEVER-A-PERSON] Weeks, not people: nobody's name is anywhere in the panel.
