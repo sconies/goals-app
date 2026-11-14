@@ -147,6 +147,10 @@ async function pickWeek(scope, label, typed) {
   await field.fill(typed);
   await field.press('Enter');
 }
+/** Awaits a wait, and says which one it was if it times out (14 Nov: U109's three keyboard waits all read "Timeout 30000ms"). */
+async function waitNamed(what, wait) {
+  try { return await wait; } catch (e) { throw new Error(`${what}: ${String(e.message || e).split('\n')[0]}`); }
+}
 async function see(p, text, msg, timeout = 5000) {
   // p is a page, or a locator to look inside.
   const all = p.getByText(text, { exact: false });
@@ -157,7 +161,9 @@ async function see(p, text, msg, timeout = 5000) {
     for (let i = 0; i < n; i++) if (await all.nth(i).isVisible().catch(() => false)) return;
     await page.waitForTimeout(100);
   }
-  fail(msg || `expected to see “${text}”`);
+  // What was there instead, so a miss under load says what the screen showed (14 Nov, U159's intermittent miss).
+  const shown = String(await (typeof p.innerText === 'function' ? p.innerText({ timeout: 1000 }) : page.locator('body').innerText({ timeout: 1000 })).catch(() => '')).replace(/\s+/g, ' ').trim().slice(0, 240);
+  fail(`${msg || `expected to see “${text}”`}${shown ? ` [it showed: “${shown}”]` : ''}`);
 }
 
 /** Everything a journey needs: counted interactions, checkpoints and criteria. */
@@ -291,6 +297,11 @@ async function newPage(device, viewer) {
   if (process.env.EVAL_CLOCK) await ctx.clock.setSystemTime(new Date(process.env.EVAL_CLOCK));
   if (viewer) await ctx.addInitScript((v) => { if (!sessionStorage.getItem('viewer-set')) { localStorage.setItem('goals-app-viewer:platform-org', v); sessionStorage.setItem('viewer-set', '1'); } }, viewer);
   const p = await ctx.newPage();
+  // The page's last thirty console lines, of every kind, for the log a failed journey leaves beside its screenshot.
+  p.tail = [];
+  const note = (line) => { p.tail.push(line); if (p.tail.length > 30) p.tail.shift(); };
+  p.on('pageerror', (e) => note(`pageerror ${e.message}`));
+  p.on('console', (m) => note(`${m.type()} ${m.text()}`.slice(0, 400)));
   p.on('pageerror', (e) => consoleErrors.push(`${device} ${p.url()} · ${e.message}`));
   p.on('console', (m) => { if (m.type() === 'error' && !/fonts\.g|net::ERR_|Failed to load resource/.test(m.text())) consoleErrors.push(`${device} ${p.url()} · ${m.text()}`); });
   return p;
@@ -2364,7 +2375,7 @@ journey('U22', ['MCP-TOKENS'], 'MCP access: an admin gives a teammate an MCP tok
     localStorage.setItem('goals-live-workspace', 'ws_live');
     localStorage.setItem('goals-live-me:ws_live', 'amara');
   });
-  await p.goto(live('/workspace/access'));
+  await p.goto(live('/workspace/ai'));
   // An admin setting, further down the Workspace page: 'entry' is judged on everyday journeys, not this one.
   await p.getByRole('heading', { name: /^MCP tokens/ }).scrollIntoViewIfNeeded();
   h.set('attention', /A token lets Claude or another AI tool act as one person here/.test(await p.locator('.access-tokens').innerText()) && /builder token/.test(await p.locator('.access-tokens').getByText('Inbox on my phone').first().innerText()), 'MCP tokens do not say what they are, or do not label the builder token apart');
@@ -6997,11 +7008,11 @@ journey('U109', ['GOAL-DATES'], 'Dates are picked: as Tunde on the measure step,
   await from.focus();
   await p.keyboard.press('Enter');
   await p.locator('.weekpick.open').getByRole('textbox').waitFor();
-  await p.waitForFunction(() => document.activeElement?.matches('.weekpick.open input'));
+  await waitNamed('focus reaches the week box after Enter', p.waitForFunction(() => document.activeElement?.matches('.weekpick.open input')));
   await p.keyboard.press('ArrowDown');
-  await p.waitForFunction(() => document.activeElement?.matches('.weekpick.open [role="listbox"]'));
+  await waitNamed('ArrowDown moves focus into the week list', p.waitForFunction(() => document.activeElement?.matches('.weekpick.open [role="listbox"]')));
   for (let i = 0; i < 5; i++) await p.keyboard.press('ArrowUp');
-  await p.waitForFunction(() => document.activeElement?.getAttribute('aria-activedescendant')?.endsWith('w40'));
+  await waitNamed('five ArrowUps reach week 40', p.waitForFunction(() => document.activeElement?.getAttribute('aria-activedescendant')?.endsWith('w40')));
   await p.keyboard.press('Enter');
   await p.locator('.weekpick.open').waitFor({ state: 'detached' }).catch(() => {});
   h.set('a11y', /^Week 40 · 28 Sep–4 Oct 2026/.test(await from.innerText()), `the keyboard chose ${await from.innerText()}`);
@@ -7414,6 +7425,53 @@ journey('U174', ['TAGS-FIELDS'], 'A workspace’s own field on goals (TG1): as A
   h.set('finish', true);
   await p.context().close();
 }, []);
+
+journey('U175', ['AI-ACCESS-OPTIONAL', 'FEATURE-GROUPS', 'MODULES'], 'Amara switches AI access off (SW2): it is under Beyond this workspace, and with no token it acts at once; then Workspace has no AI access section, /workspace/ai says it is switched off, Access is the admins only and Settings has no “Your MCP tokens”; switched back on, the section is back after Access', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  // On: AI access is its own section after Access (SW2), with the tokens; Access names the admins only.
+  await p.goto(url('/workspace/ai'));
+  await see(p, 'The MCP tokens that let an AI tool act as someone here.', 'AI access is not its own Workspace section');
+  await p.goto(url('/workspace/features'));
+  const box = p.getByRole('checkbox', { name: 'AI access', exact: true });
+  await box.scrollIntoViewIfNeeded();
+  await h.inView(box, 'entry', 'AI access’s switch');
+  const beyond = await p.locator('.features-group').filter({ has: p.getByRole('heading', { name: 'Beyond this workspace' }) }).innerText();
+  h.set('attention', /AI access/.test(beyond), 'AI access is not under Beyond this workspace');
+  await h.checkpoint('features');
+  // The demo has no token (they work only in the real app), so switching off acts at once: nothing to name.
+  await h.click(box);
+  await see(p, 'AI access is off in');
+  if (await p.getByRole('dialog', { name: /^Switch off AI access in / }).count()) fail('with no token, switching AI access off still asked first');
+  h.set('one-action', true);
+  // Its section is gone: not in the menu, and its address says it is off.
+  await p.goto(url('/workspace/access'));
+  await see(p, 'Who the admins are.');
+  if (/MCP tokens/.test(await p.locator('.page.workspace').innerText())) fail('Access still lists MCP tokens with AI access off');
+  if (device === 'desktop' && await p.getByRole('navigation', { name: 'Workspace sections' }).getByRole('link', { name: 'AI access' }).count()) fail('Workspace’s menu still has AI access');
+  await p.goto(url('/workspace/ai'));
+  await see(p, 'Page not found');
+  await see(p, 'AI access is switched off in', '/workspace/ai does not say AI access is switched off');
+  // Settings: no “Your MCP tokens”.
+  await p.goto(url('/settings'));
+  await p.locator('.page').first().waitFor();
+  await see(p, 'Settings');
+  if (await p.getByRole('heading', { name: /^Your MCP tokens/ }).count()) fail('Settings still has “Your MCP tokens” with AI access off');
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.entity === 'workspace' && c.actorId === 'amara' && c.summary === 'Switched off AI access'), 'switching AI access off was not logged');
+  // Back on: the section is back.
+  await p.goto(url('/workspace/features'));
+  await box.scrollIntoViewIfNeeded();
+  await h.click(box);
+  await see(p, 'AI access is on in');
+  await p.goto(url('/workspace/ai'));
+  await see(p, 'The MCP tokens that let an AI tool act as someone here.', 'AI access back on, its section is not back');
+  await p.goto(url('/settings'));
+  await see(p, 'Your MCP tokens', 'AI access back on, Settings has no “Your MCP tokens”');
+  h.set('finish', true);
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['parity', 'budget']);
 
 journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
@@ -8212,7 +8270,11 @@ async function platformChecks() {
         await j.fn(h, device);
       } catch (e) {
         error = String(e.message || e).split('\n')[0];
-        if (h.page) await h.page.screenshot({ path: path.join(OUT, `${j.id}-${device}.png`), fullPage: true }).catch(() => {});
+        if (h.page) {
+          await h.page.screenshot({ path: path.join(OUT, `${j.id}-${device}.png`), fullPage: true }).catch(() => {});
+          // The whole error (Playwright's call log is under its first line) and the page's last console lines.
+          fs.writeFileSync(path.join(OUT, `${j.id}-${device}.log`), [`${j.id} ${device}: ${String(e.message || e)}`, `at ${h.page.url()}`, '', 'Last console lines:', ...(h.page.tail ?? [])].join('\n') + '\n');
+        }
       }
       per[device] = { ok: !error, error, crit: h.crit, notes: h.notes, count: h.count, ms: Date.now() - started };
     }
