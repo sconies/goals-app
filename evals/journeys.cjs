@@ -192,10 +192,33 @@ function harness(device) {
         set('a11y', !small.length, `${label}: primary button under 44px (${small.map((x) => x.text + ' ' + Math.round(x.h)).join(', ')})`);
       }
       // Let entrance motion finish first (the goal page's story runs up to 4s): an element caught mid-fade isn't its real contrast.
-      await p.evaluate(() => Promise.race([Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))), new Promise((res) => setTimeout(res, 5000))]));
+      // Motion that starts while waiting counts too: a list's new rows fade in when they arrive (motion.ts), and content
+      // loaded after the first download (Home's sets) arrives late, so wait until two frames pass with nothing running.
+      await p.evaluate(() => new Promise((res) => {
+        // First the page itself settles: nothing added or changed for 150 ms (at most 2 s), so a section loaded after the
+        // first download is on the page before its motion is waited for.
+        let t; const done = () => { mo.disconnect(); res(); };
+        const mo = new MutationObserver(() => { clearTimeout(t); t = setTimeout(done, 150); });
+        mo.observe(document.body, { childList: true, subtree: true, characterData: true });
+        t = setTimeout(done, 150); setTimeout(done, 2000);
+      }));
+      await p.evaluate(async () => {
+        const end = Date.now() + 5000;
+        const moving = () => document.getAnimations().filter((a) => (a.playState === 'running' || a.playState === 'pending') && a.effect?.getTiming().iterations !== Infinity);
+        const frames = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+        while (Date.now() < end) {
+          const running = moving();
+          if (!running.length) { await frames(); if (!moving().length) return; continue; }
+          await Promise.race([Promise.all(running.map((a) => a.finished.catch(() => {}))), new Promise((res) => setTimeout(res, Math.max(0, end - Date.now())))]);
+        }
+      });
       await p.addScriptTag({ content: AXE });
       const v = await p.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations
-        .filter((x) => x.impact === 'serious' || x.impact === 'critical').map((x) => `${x.id} ${x.nodes[0].target.join(' ')}`));
+        .filter((x) => x.impact === 'serious' || x.impact === 'critical').map((x) => {
+          // A contrast failure says what axe measured, so a failure seen only in CI can be read from its log.
+          const d = x.id === 'color-contrast' ? x.nodes[0].any?.[0]?.data : null;
+          return `${x.id} ${x.nodes[0].target.join(' ')}${d ? ` (${d.fgColor} on ${d.bgColor}, ${d.contrastRatio}:1${d.messageKey ? `, ${d.messageKey}` : ''})` : ''}`;
+        }));
       set('a11y', !v.length, `${label}: ${v.slice(0, 2).join('; ')}`);
       const sideways = await p.evaluate(() => {
         const w = document.documentElement.clientWidth;
@@ -264,6 +287,8 @@ async function reviewedEverywhere(p, reviewId, name) {
 
 async function newPage(device, viewer) {
   const ctx = await browser.newContext({ viewport: DEVICES[device] });
+  // EVAL_CLOCK=2026-11-14T07:30:00Z sets the browser's clock, to try a time of day (the demo pins the day, not the time).
+  if (process.env.EVAL_CLOCK) await ctx.clock.setSystemTime(new Date(process.env.EVAL_CLOCK));
   if (viewer) await ctx.addInitScript((v) => { if (!sessionStorage.getItem('viewer-set')) { localStorage.setItem('goals-app-viewer:platform-org', v); sessionStorage.setItem('viewer-set', '1'); } }, viewer);
   const p = await ctx.newPage();
   p.on('pageerror', (e) => consoleErrors.push(`${device} ${p.url()} · ${e.message}`));
@@ -6211,6 +6236,7 @@ journey('U156', ['READING-PREFILL', 'READING-RECORDED-ONLY'], 'A number filled i
   const reopened = await block.innerText();
   h.set('attention', kept !== '20' && !/You typed/.test(reopened), `reopened, the field held “${kept}” and the step said “${reopened.slice(0, 80)}”`);
   await p.goto(url('/check-in/ns-ci'));
+  await see(p, 'What’s the number this week?', 'the check-in’s number step did not open');
   await see(block, 'From CI analytics', 'the step does not fill in again');
   const confirm = p.getByRole('button', { name: 'Confirm 20 min' });
   h.set('progress', await confirm.isVisible(), 'the primary does not name the number');
@@ -6229,6 +6255,7 @@ journey('U156', ['READING-PREFILL', 'READING-RECORDED-ONLY'], 'A number filled i
 journey('U157', ['READING-RECORDED-ONLY'], 'A different number, and why: as Daniel, typing 19 over CI analytics’ 20 says “You typed 19 min. CI analytics said 20 min…”, holds “Use 19 min” until a reason is chosen (Something else needs 10 characters), then posts 19; the read-back says “19 min, typed. CI analytics said 20 min: the source is behind: I have a newer number.”, and nothing is flagged: the check-in is on plan, not flagged for its data', 5, async (h, device) => {
   const p = h.use(await newPage(device, 'daniel'));
   await p.goto(url('/check-in/ns-ci'));
+  await see(p, 'What’s the number this week?', 'the check-in’s number step did not open');
   const field = p.getByLabel('This week’s value');
   await see(p.locator('.ci-reading-block'), 'From CI analytics');
   h.set('entry', (await field.inputValue()) === '20', 'the field did not open filled in');
@@ -6262,6 +6289,7 @@ journey('U157', ['READING-RECORDED-ONLY'], 'A different number, and why: as Dani
 journey('U158', ['READING-SEVEN-DAYS', 'READING-PREFILL'], 'Too old to fill in: with the demo’s sources two weeks behind (?sources=behind), Daniel’s check-in on CI pipeline time opens with the field empty and the warning “CI analytics last read this on Thu 29 Oct, 7 days ago.” and “That is too old to fill in.”; the old reading is not on the page, the primary is the step’s own and No new number this week is offered', 1, async (h, device) => {
   const p = h.use(await newPage(device, 'daniel'));
   await p.goto(url('/check-in/ns-ci?sources=behind'));
+  await see(p, 'What’s the number this week?', 'the check-in’s number step did not open');
   const block = p.locator('.ci-reading-block');
   await see(block, 'That is too old to fill in.', 'a reading more than 7 days old is not said to be too old');
   const field = p.getByLabel('This week’s value');
@@ -6295,6 +6323,7 @@ journey('U159', ['READING-PREFILL'], 'A company-wide number never fills in a tea
   await p.waitForURL(/\/demo\/goals\/(lead-ci-time|G-\d+)(\?|$)/);
   h.set('entry', true);
   await p.goto(url('/check-in/lead-ci-time'));
+  await see(p, 'What’s the number this week?', 'the check-in’s number step did not open');
   const block = p.locator('.ci-reading-block');
   await see(block, 'CI analytics measures this for the whole company, not for CI/CD on its own, so it isn’t filled in.', 'a team’s goal on a company-wide source does not say why it is not filled in');
   const value = await p.getByLabel('This week’s value').inputValue();
@@ -6379,6 +6408,7 @@ journey('U161', ['READING-SHOWN'], 'Where a number came from shows elsewhere: as
   // Confirmed.
   let p = h.use(await newPage(device, 'daniel'));
   await p.goto(url('/check-in/ns-ci'));
+  await see(p, 'What’s the number this week?', 'the check-in’s number step did not open');
   await see(p.locator('.ci-reading-block'), 'From CI analytics');
   await h.click(p.getByRole('button', { name: 'Confirm 20 min' }));
   await see(p, 'Check-in saved');
@@ -6395,6 +6425,7 @@ journey('U161', ['READING-SHOWN'], 'Where a number came from shows elsewhere: as
   // Typed over it, and why.
   p = h.use(await newPage(device, 'daniel'));
   await p.goto(url('/check-in/ns-ci'));
+  await see(p, 'What’s the number this week?', 'the check-in’s number step did not open');
   const block = p.locator('.ci-reading-block');
   await see(block, 'From CI analytics');
   await h.fill(p.getByLabel('This week’s value'), '19');
@@ -6435,7 +6466,9 @@ journey('U153', ['HABIT-MEASURE', 'HABIT-NEVER-A-PERSON'], 'Before this review: 
   const panel = p.locator('section.habit');
   await panel.waitFor({ timeout: 8000 });
   const says = (await panel.locator('.habit-sum').innerText()).trim();
-  h.set('entry', /^\d+ of \d+ goals are checked in so far\.$/.test(says), `the panel said “${says}”`);
+  // A review held on another day than the one check-ins are due is headed by the week, never "Before this review" (review of #432).
+  const head = (await p.locator('#habit-head').innerText()).trim();
+  h.set('entry', /^\d+ of \d+ goals are checked in so far\.$/.test(says) && head === 'Week 45, due by Thursday 5 Nov', `the panel said “${says}”, headed “${head}” (a fortnightly review on Tuesdays)`);
   const cells = await panel.locator('.habit-week').allInnerTexts();
   h.set('progress', cells.length === 8 && cells.every((t) => /Week \d+/.test(t) && /(All in|\d+ after|None in|Nothing due)/.test(t)), `the row of weeks: ${cells.map((t) => t.replace(/\s+/g, ' ')).join(' | ')}`);
   // [HABIT-NEVER-A-PERSON] Weeks, not people: nobody's name is anywhere in the panel.

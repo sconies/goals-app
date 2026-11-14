@@ -11,6 +11,7 @@ Each feature module is one folder, `src/modules/<id>/`, with a `module.json` say
 | [Metric library](metrics/README.md) | Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company. | nothing |
 | [Reviews](reviews/README.md) | Walk a set of goals together on a cadence, decide what happens next and keep what was said. | nothing |
 | [Spreadsheets](spreadsheets/README.md) | Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved. | nothing |
+| [Fields](tags/README.md) | Give goals a workspace’s own fields, such as a stage or a programme, to find and sort them by. | nothing |
 | [Watching](watching/README.md) | Follow goals you don’t own: they show on your Home and under Watching in Goals. | nothing |
 | [Wrap-up](wrap-up/README.md) | At the end of the year, each owner says how their goals landed and what they learned. | nothing |
 
