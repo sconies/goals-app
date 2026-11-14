@@ -25,3 +25,12 @@ export function putOff(p: Prefs, ws: string, person: string, goalId: string, tod
   const until = new Date(today.getTime() + PROPOSED_ASK_WEEKS * 7 * 86_400_000).toISOString().slice(0, 10);
   p.set(ws, person, KEY, { ...k, putOff: { ...(k.putOff ?? {}), [goalId]: until } });
 }
+
+/** Two copies of one person's `proposals` made one (the Prefs server's merge, adapters/serverPrefs): every goal either
+    opened, and for each put-off ask the later day. So two devices open at once never undo each other's. */
+export function mergeProposals(a: unknown, b: unknown): Kept {
+  const x = (a ?? {}) as Kept, y = (b ?? {}) as Kept;
+  const putOff: Record<string, string> = { ...(x.putOff ?? {}) };
+  for (const [goal, until] of Object.entries(y.putOff ?? {})) if (!putOff[goal] || until > putOff[goal]!) putOff[goal] = until;
+  return { opened: [...new Set([...(x.opened ?? []), ...(y.opened ?? [])])], putOff };
+}
