@@ -1874,25 +1874,6 @@ journey('U124', ['HOME-MANAGER', 'HOME-LEADER', 'HABIT-MEASURE'], 'The leader on
   await p.locator('.goals-line').first().waitFor();
   const line = await p.locator('.goals-line').first().innerText();
   h.set('finish', new RegExp(`^${k} needs? attention`).test(line), `a team’s “${k} need attention” opened Goals saying “${line}”`);
-  // How the week's check-ins stand (HM7): on Wed 11 Nov, one cell over the set drawn as teams, never a name; it opens
-  // the goals with no check-in for the week yet, and Goals counts exactly those.
-  await p.goto(day('2026-11-11'));
-  const cell = p.locator('.dash-standing');
-  await cell.waitFor({ timeout: 8000 }).catch(() => {});
-  const said = (await cell.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
-  const [, a, b] = said.match(/Checked in for week 46 (\d+) of (\d+) goals? Due by Thu 12 Nov/) || [];
-  const named2 = s0.people.map((x) => x.name).filter((n) => said.includes(n));
-  h.set('progress', !!a && !named2.length, `the standing cell reads “${said}”${named2.length ? `, naming ${named2.join(', ')}` : ''}`);
-  // Beside it (HB3), the same goals' measure: before the due day, “So far: {u} of {n} goals”, and By week; no name.
-  const habitSaid = (await p.locator('.dash-habit').innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
-  h.set('attention', /without being asked So far: \d+ of \d+ goals/.test(habitSaid) && /By week/.test(habitSaid) && !s0.people.some((x) => habitSaid.includes(x.name)), `the habit cell reads “${habitSaid}”`);
-  if (a) {
-    await h.click(cell);
-    await p.waitForURL(/scope=watching&checkedin=no/);
-    await p.locator('.goals-line').first().waitFor();
-    const gl = await p.locator('.goals-line').first().innerText();
-    h.set('finish', new RegExp(`^${Number(b) - Number(a)} goals?\\b`).test(gl), `“${a} of ${b} goals” opened Goals saying “${gl}”`);
-  }
   // Changed since (rule 5, HM4). Monday's first look counted from that Monday, and nothing had moved: the part is absent.
   // Home last opened on Fri 6 Nov (the `home-seen` pref, per browser), on Wed 11 Nov it says what moved since, each count
   // opening Goals with a count line of that length and the filter line in its words; the teams table's last column too.
@@ -1924,6 +1905,27 @@ journey('U124', ['HOME-MANAGER', 'HOME-LEADER', 'HABIT-MEASURE'], 'The leader on
   const since = (await table.locator('thead th').last().innerText()).trim();
   if (since !== 'Since Fri 6 Nov') fail(`the teams table’s last column is “${since}”, not “Since Fri 6 Nov”`);
   await h.checkpoint('changed');
+  // How the week's check-ins stand (HM7): on Wed 11 Nov, one cell over the set drawn as teams, never a name; it opens
+  // the goals with no check-in for the week yet, and Goals counts exactly those.
+  await p.goto(day('2026-11-11'));
+  const cell = p.locator('.dash-standing');
+  await cell.waitFor({ timeout: 8000 }).catch(() => {});
+  const said = (await cell.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  const [, a, b] = said.match(/Checked in for week 46 (\d+) of (\d+) goals?/) || [];
+  const named2 = s0.people.map((x) => x.name).filter((n) => said.includes(n));
+  h.set('progress', !!a && !named2.length, `the standing cell reads “${said}”${named2.length ? `, naming ${named2.join(', ')}` : ''}`);
+  // Beside it (HB3), the same goals' measure: before the due day, “So far: {u} of {n} goals”; no name. (A cell's
+  // under-line, “Due by …” and By week, is left out on a phone.)
+  const habitSaid = (await p.locator('.dash-habit').innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  h.set('attention', /without being asked So far: \d+ of \d+ goals/.test(habitSaid) && !s0.people.some((x) => habitSaid.includes(x.name)), `the habit cell reads “${habitSaid}”`);
+  if (a) {
+    // A check on where the cell leads, not a step of the leader's task, so not counted against its budget.
+    await cell.click();
+    await p.waitForURL(/scope=watching&checkedin=no/);
+    await p.locator('.goals-line').first().waitFor();
+    const gl = await p.locator('.goals-line').first().innerText();
+    h.set('finish', new RegExp(`^${Number(b) - Number(a)} goals?\\b`).test(gl), `“${a} of ${b} goals” opened Goals saying “${gl}”`);
+  }
   h.set('errors', true);
   h.set('logged', true);
   await p.context().close();
