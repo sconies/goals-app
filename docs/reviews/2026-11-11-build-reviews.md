@@ -14,7 +14,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh that morning (session …Bn8GD91Ct4dL). The note before it was written at 00:10 UTC by the reviewer that stopped.
 
-- **Last merge fully reviewed:** `6d56b382` (#470), the head of main at 11:40 UTC, 14 Nov. Tracks now message the reviewer a PR's number when it merges (planning, 11:01 UTC); compare main's log with this SHA whenever one arrives. Every code PR merged from #121 up to it has a row in State and a section below.
+- **Last merge fully reviewed:** `bc86e79b` (#471), the head of main at 12:15 UTC, 14 Nov. Tracks now message the reviewer a PR's number when it merges (planning, 11:01 UTC); compare main's log with this SHA whenever one arrives. Every code PR merged from #121 up to it has a row in State and a section below.
 - **Merged since, not reviewed:** none.
 - **Highs not yet confirmed fixed:** none. #452 is fixed by #467 and #416 by #432 (both re-run). What is left of #416 is a medium in #432's section: a review held on the due weekday, but not this week.
 - **To watch in #464 (GR, track 7d):** `BUILT_KEYS` (`src/domain/changeset.ts`) must name `guards` if `buildGoal` decides it; and migration 0051's check refuses a JSON null.
@@ -220,6 +220,7 @@ Written 14 November 2026, about 02:30 UTC, by the reviewer that started fresh th
 | #466 Track 4 handover | 4 | 0 | 0 | 0 |
 | #467 GB review: a target given later, and a baseline removed (#452's high) | 7c | 0 | 0 | 1 |
 | #470 A reading with no source's name is refused; readings stay with the Metric library off | readings | 0 | 0 | 0 |
+| #471 FD: the first download leaves out the goal page's charts and words and the map's layout | 4 | 0 | 0 | 2 |
 
 **High findings, and where each stands**
 
@@ -2018,3 +2019,9 @@ Run: a probe over the demo's six reviews on 13 and 14 Nov, comparing each panel'
 ### #470 A reading with no source's name is refused (readings, merged 14 Nov); #463 handover
 
 Read, and its test run (16 pass). `readingProblem` refuses a reading whose source has no name where it used to write "The source"; this closes the last part of #437's medium 5. The metric library's spec gains an "Off" paragraph that records Lane's answer of 14 Nov: with the library off nothing new is read, and readings already recorded stay visible. Nothing found. #463 is a handover and a design note.
+
+### #471 FD: the first download, 274 to 259 KB (track 4, merged 14 Nov)
+
+Read. A move with nothing rewritten: the sparklines and their scale go to `src/ui/sparks.tsx`, the feeder words to `src/domain/feeder.ts` and the roll-up to `src/domain/rollup.ts`, each re-exported from where it was, so no caller changes but Home's rows. `scripts/check-bundle.mjs` now also fails when one of four named modules is in the first download.
+
+**Lows.** (1) The new guard finds a module by its chunk's name, and the bundler names a shared chunk after its first module only, so `goalPage.ts` folded into a chunk named for another file would pass; the size limit is still the check that holds. (2) The limit stays at 275 KB with the download at 259, so 16 KB can come back before CI says anything; 262 (the figure plus the 3 KB margin the limit was first set with) would keep the gain. That is planning's or Lane's to decide.
