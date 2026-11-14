@@ -24,7 +24,7 @@ The last proof before the handoff: a fresh session rebuilds Faro stage by stage 
 
 ### To add when merged
 
-Modules not on main at `dd00ff48`, each added later as a stage of its own with its section, conformance rows, stage and switch: GR (#464, merged after the pin), MQ (migration #502 merged after the pin; structure #505 to come), FT1 (#465, merged after the pin), TG2 (#493), SW2 (#504), MC and MI.
+Modules not on main at `dd00ff48`, each added later as a stage of its own with its section, conformance rows, stage and switch: GR (#464, merged after the pin), MQ (migration #502 merged after the pin; structure #505 to come), FT1 (#465, merged after the pin), TG2 (#493), SW2 (#504) and MI. (MC was deferred by Lane on 14 Nov, so it is no longer on this list.)
 
 ## Gaps
 
