@@ -17,6 +17,10 @@ describe('set-up’s steps (rule S1, small workspaces rule 3)', () => {
   it('sends a later step’s address back to the first step with something missing', () => {
     expect(firstUnfilled({ ...done, name: '' })).toBe('workspace');
     expect(firstUnfilled({ ...done, me: { ...me, email: ' ' } })).toBe('workspace');
+    // A name or email step 1 would refuse, reached by Forward or a typed address (build review of #475).
+    expect(firstUnfilled({ ...done, name: 'ab' })).toBe('workspace');
+    expect(firstUnfilled({ ...done, name: 'x'.repeat(83) })).toBe('workspace');
+    expect(firstUnfilled({ ...done, me: { ...me, email: 'not an email' } })).toBe('workspace');
     expect(firstUnfilled({ ...done, goals: 0 })).toBe('goals');
     expect(firstUnfilled({ ...done, start: 'file', goals: 0 })).toBe('goals');
     expect(firstUnfilled({ ...done, start: 'file', goals: 0, file: true })).toBeNull();

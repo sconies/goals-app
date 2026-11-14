@@ -1107,7 +1107,7 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
     id: 'day-one',
     title: 'Day one: set-up’s steps and “Getting started”',
     summary: 'Set-up’s four steps and where an address opened too early goes, and what Home’s “Getting started” tells each person in a workspace’s first weeks.',
-    code: [{ file: 'src/domain/dayOne.ts', names: ['SETUP_STEPS', 'stepCounter', 'firstUnfilled', 'draftStep', 'startOf', 'gettingStarted', 'creatorOf', 'DAY_ONE_DAYS', 'NEW_WORKSPACE_DAYS'] }, { file: 'src/domain/arrival.ts', names: ['howWeWork'] }],
+    code: [{ file: 'src/domain/dayOne.ts', names: ['SETUP_STEPS', 'stepCounter', 'firstUnfilled', 'workspaceStepProblem', 'draftStep', 'startOf', 'gettingStarted', 'creatorOf', 'DAY_ONE_DAYS', 'NEW_WORKSPACE_DAYS'] }, { file: 'src/domain/arrival.ts', names: ['howWeWork'] }],
     tests: ['src/domain/dayOne.test.ts'],
     reqs: ['DAY-ONE', 'ONBOARDING'],
     body: `
@@ -1119,6 +1119,7 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
     examples: [
       { given: 'The counter on Check.', then: 'Step 4 of 4', run: () => stepCounter('check') },
       { given: 'Check’s address opened with the workspace named, you filled in, “Add your own” chosen and no goal added yet.', then: 'goals', run: () => String(firstUnfilled({ name: 'Growth', me: { name: 'Rosa Lind', email: 'rosa@example.com', team: 'Growth' }, start: 'own', goals: 0, file: false })) },
+      { given: 'Step 1 changed to the name “ab” after reaching Check, then the browser’s Forward pressed instead of Continue.', then: 'workspace', run: () => String(firstUnfilled({ name: 'ab', me: { name: 'Rosa Lind', email: 'rosa@example.com', team: 'Growth' }, start: 'later', goals: 0, file: false })) },
       { given: 'Ana set up Field Operations today with Ben, gave Ben one goal and left two unowned; what Ana sees.', then: 'first-check-in, assign (Give 2 goals an owner.), invite', run: () => { const r = gettingStarted('ana', dayOneRows(dayOneWs(['ana', 'ana', 'ana', 'ben'])), DAY_WS, { firstSeenAt: DAY_MADE, unowned: ['g1', 'g2'] }, DAY_NOW, 'Thursday'); return r.map((x) => (x.id === 'assign' ? `assign (${x.says})` : x.id)).join(', '); } },
       { given: 'Ben opens it for the first time.', then: 'Ana Silva set up Field Operations on 11 Nov and gave you 1 goal. / first-check-in', run: () => { const r = gettingStarted('ben', dayOneRows(dayOneWs(['ana', 'ben'])), DAY_WS, { firstSeenAt: DAY_MADE }, DAY_NOW, 'Thursday'); return `${r[0]!.says} / ${r.slice(1).map((x) => x.id).join(', ')}`; } },
       { given: 'Ana, 15 days after her first visit.', then: 'nothing', run: () => gettingStarted('ana', dayOneRows(dayOneWs(['ana'])), DAY_WS, { firstSeenAt: DAY_MADE }, new Date('2026-11-26T15:00:00Z'), 'Thursday').map((x) => x.id).join(', ') || 'nothing' },

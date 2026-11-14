@@ -839,6 +839,21 @@ journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app:
   h.set('entry', fromCheck[0] && !fromCheck[1], `a step opened from Check has “Back to Check” ${fromCheck[0]}, and ${fromCheck[1]} Back buttons`);
   await h.click(p.getByRole('button', { name: 'Back to Check' }));
   await p.waitForURL(/\/workspace\/new\/check/);
+  // A name step 1 refuses can't reach Create another way (build review of #475): change it to "ab" on step 1, then open
+  // Check by its address (as the browser's Forward would) instead of Continue. Set-up goes back to step 1. A probe, not
+  // a step of the task, so its clicks are plain ones, as the empty-name check above.
+  await p.getByRole('button', { name: 'Change you' }).click();
+  await p.waitForURL(/\/workspace\/new\/workspace/);
+  await p.getByLabel('Workspace name', { exact: true }).fill('ab');
+  await p.waitForTimeout(400);
+  await p.goto(live('/workspace/new/check'));
+  await p.waitForURL(/\/workspace\/new\/workspace/, { timeout: 5000 }).catch(() => {});
+  const refused = [/\/workspace\/new\/workspace/.test(p.url()), await p.getByText('Create ab?').count()];
+  h.set('entry', refused[0] && !refused[1], `a refused name reached by address: at ${p.url()}, “Create ab?” shown ${refused[1]} times`);
+  await p.getByLabel('Workspace name', { exact: true }).fill('Growth');
+  await p.getByRole('button', { name: /^(Continue to people|Back to Check)$/ }).first().click();
+  if (!/\/check/.test(p.url())) await p.goto(live('/workspace/new/check'));
+  await p.waitForURL(/\/workspace\/new\/check/);
   await h.click(p.getByRole('button', { name: 'Create Growth' }));
   await see(p, 'Growth is ready');
   h.set('finish', await p.locator('.celebrate .btn.primary').isVisible(), 'no next step after setting up');
@@ -905,6 +920,7 @@ async function designProblems(r) {
     return [...new Set(out)];
   });
 }
+
 
 journey('U97', ['SETUP-FIRST-SCREEN', 'IDENTITY', 'ONBOARDING'], 'The first screen and the way in: Welcome at its own address with one main action; set-up at its own; the invitation opens the workspace it names, says who set it up and asks which one you are; a link to nothing opens nothing; Welcome back remembers', 22, async (h, device) => {
   const p = h.use(await newPage(device));
