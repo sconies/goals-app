@@ -31,7 +31,9 @@ const RULES = [
   // The Search and Prefs ports and the find rules (AR1): read by the AI tools until the pickers and list bars use them.
   [/^src\/(ports\/|adapters\/(local|localSearch)\.ts|app\/reads\.ts|domain\/find\.ts)/, ['U22']],
   [/^src\/domain\/dayOne\.ts/, ['U97', 'U11', 'U86', 'U5', 'U49']],
-  [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts|^src\/domain\/homeSets\.ts|^src\/ui\/HomeSets\.tsx/, ['U86', 'U2', 'U9', 'U16', 'U33', 'U122', 'U123', 'U124', 'F1', 'N3', 'N6', 'N10', 'N26', 'P6']],
+  [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts|^src\/domain\/homeSets\.ts|^src\/ui\/HomeSets\.tsx/, ['U86', 'U2', 'U9', 'U16', 'U33', 'U122', 'U123', 'U124', 'F1', 'F25', 'N3', 'N6', 'N10', 'N26', 'P6']],
+  // What changed since you last looked (HM4): rule 5, home-seen, the Goals filter moved/since, and Home's numbers agreeing.
+  [/^src\/domain\/(changed|query)\.ts$|^src\/app\/homeSeen\.ts$|^evals\/finish\/25-home-numbers\.cjs$/, ['U124', 'F25']],
   [/^evals\/notes\/12-home\.cjs$/, ['N26']],
   // Fields switched off (TG1): its own check, and the module's journey.
   [/^evals\/notes\/34-fields-off\.cjs$/, ['N34', 'U174']],

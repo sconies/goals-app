@@ -1,17 +1,22 @@
 /* Your team, Goals you watch, and teams worst first (docs/design/home/spec.md 2.1 parts 7 and 7b, "Teams, worst first";
    rule 4). Loaded after Home's first download (they sit below the lead), so it stays within its budget. The sets are the Goals scopes (domain/homeSets.ts),
    worked out from the facts the Goals tabs read (app/reads scopeFacts). No person's name is in the teams table: teams
-   and goals are ranked, never people. Its "Since" column comes with "Changed since" (rule 5, HM4); until then the table
-   has three columns. */
-import { useMemo } from 'react';
+   and goals are ranked, never people. Its "Since" column is rule 5's (HM4), as is "Changed since" (part 8, the side
+   column), which is here too so that its code also loads after the first download. */
+import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router';
 import { useModules } from '../core/app';
 import { scopeFacts, watchingOn } from '../app/reads';
+import { movesSince } from '../app/moved';
 import { useApp } from '../app/state';
-import { scopesFor } from '../domain/goalsPage';
+import { homeSince, markHomeSeen } from '../app/homeSeen';
+import { scopesFor, type ScopeTab } from '../domain/goalsPage';
+import { changedHeading, changedSet, changedSince, mondayOf, movesByTeam, MOVED_WORDS, type Changed, type MoveKind, type ThenNow } from '../domain/changed';
+import { dayText } from '../domain/format';
+import { longDay } from '../domain/home';
 import { attentionOrder } from '../domain/attention';
-import { asTeams, groupWatched } from '../domain/home';
-import { homeSets, type SetFacts, type Sets, type TeamRow } from '../domain/homeSets';
+import { groupWatched } from '../domain/home';
+import { asTeams, homeSets, type SetFacts, type Sets, type TeamRow } from '../domain/homeSets';
 import { watchedGoals } from '../domain/review';
 import { statusChange } from '../domain/tree';
 import { ATTENTION, LABEL } from '../domain/vocabulary';
@@ -22,19 +27,61 @@ import { HandledGroup } from './HandledGroup';
 /** Five teams, then "{k} more teams, {j} need attention" to the scope by team. */
 export const TEAMS_SHOWN = 5;
 
+/** The Goals scopes for the viewer, drawn as tabs or not (Watching only while it is on): what Home's sets and "Changed since" read. */
+function useTabs(): ScopeTab[] {
+  const { snapshot, viewer } = useApp();
+  const watching = watchingOn(useModules().on);
+  // Every scope, drawn as a tab or not (as find_goals reads them): in a one-team workspace My team waits on Goals, being
+  // the same list as All, but its goals still belong on Home (review of #468, medium; #492).
+  return useMemo(() => scopesFor(scopeFacts(snapshot, viewer), null, { watching }).every, [snapshot, viewer, watching]);
+}
+
 /** Home's sets (rule 4): exactly the Goals scopes, so each block's total is its tab's count. */
 function useHomeSets(): Sets {
   const { snapshot, viewer, attentionOf } = useApp();
-  const watching = watchingOn(useModules().on);
+  const tabs = useTabs();
   return useMemo(() => {
-    const facts = scopeFacts(snapshot, viewer);
-    // Every scope, drawn as a tab or not (as find_goals reads them): in a one-team workspace My team waits on Goals,
-    // being the same list as All, but its goals that need attention still belong on Home (review of #468, medium).
-    const { every } = scopesFor(facts, null, { watching });
-    const ids = new Set(every.filter((t) => t.id !== 'all').flatMap((t) => t.ids));
+    const ids = new Set(tabs.filter((t) => t.id !== 'all').flatMap((t) => t.ids));
     const attention = snapshot.goals.filter((g) => ids.has(g.id)).map((g) => attentionOf(g));
-    return homeSets({ id: viewer.id, teams: facts.teams }, every, attention, snapshot.teams);
-  }, [snapshot, viewer, attentionOf, watching]);
+    return homeSets({ id: viewer.id, teams: scopeFacts(snapshot, viewer).teams }, tabs, attention, snapshot.teams);
+  }, [snapshot, viewer, attentionOf, tabs]);
+}
+
+/**
+ * Rule 5: the day "Changed since" counts from (`sinceFor` over `home-seen`; null when Home was never opened), the date
+ * its links carry (that day, or this week's Monday), and what each goal did since: the status rule on that day, with the
+ * check-ins posted before it, and now.
+ */
+function useSince() {
+  const app = useApp();
+  const today = app.today.toISOString().slice(0, 10);
+  const since = homeSince(app.ws.id, app.viewer.id, today);
+  const moves = useMemo(() => movesSince(app.snapshot, app.cycle, app.today), [app.snapshot, app.cycle, app.today]);
+  return { since, from: since ?? mondayOf(today), today, moves };
+}
+
+/** What moved in a list of goals (by id) since `from`: rule 5's counts and rows. */
+function movedIn(ids: readonly string[], sets: Map<string, Pick<ThenNow, 'set' | 'setName'>> | null, s: ReturnType<typeof useSince>, goals: ReturnType<typeof useApp>['snapshot']['goals']): Changed {
+  const byId = new Map(goals.map((g) => [g.id, g]));
+  const list = ids.flatMap((id) => {
+    const g = byId.get(id);
+    if (!g) return [];
+    const set = sets?.get(id) ?? { set: 'watching' as const, setName: '' };
+    return [{ id, title: g.title, teamId: g.teamId, ...set, was: s.moves.was(g, s.from), now: s.moves.now(g) }];
+  });
+  return changedSince(list, s.since);
+}
+
+/** A table's teams with their "Since" column (rule 4's TeamRow.moved): what moved in each, in the set's goals. */
+function useTeamsMoved(teams: TeamRow[], scope: 'team' | 'watching'): { teams: TeamRow[]; from: string } {
+  const app = useApp();
+  const tabs = useTabs();
+  const s = useSince();
+  return useMemo(() => {
+    const ids = tabs.find((t) => t.id === scope)?.ids ?? [];
+    const by = movesByTeam(movedIn(ids, null, s, app.snapshot.goals).rows);
+    return { teams: teams.map((t) => ({ ...t, moved: by.get(t.teamId) ?? { worse: 0, better: 0, quiet: 0 } })), from: s.from };
+  }, [teams, scope, tabs, s.from, s.moves, app.snapshot.goals]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 /** A set's counts by status, worst first, each a shape and a word, and each a link to exactly those goals. */
@@ -72,7 +119,7 @@ export function YourTeam() {
         ? <Link className="need-group-title linkish home-team-needs" to="/goals?scope=team&attention=1&owner=-me">{k} need{k === 1 ? 's' : ''} attention that {k === 1 ? 'isn’t' : 'aren’t'} yours</Link>
         : <p className="hint">{set.needs.length ? 'Nothing that isn’t yours needs attention.' : 'Nothing in it needs attention.'}</p>}
       {set.teams
-        ? <TeamsTable teams={set.teams} scope="team" goalsWord="Its goals in your teams" />
+        ? <MovedTeamsTable teams={set.teams} scope="team" goalsWord="Its goals in your teams" />
         : k > 0 && <div className="alist">{set.rows.slice(0, 4).map((a) => <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id} who={app.person(a.goal.ownerId)?.name ?? undefined} />)}</div>}
     </section>
   );
@@ -94,13 +141,21 @@ export function WatchTeams() {
       </div>
       {k > 0 ? <Link className="need-group-title linkish home-team-needs" to="/goals?scope=watching&attention=1">{k} need{k === 1 ? 's' : ''} attention</Link> : <p className="hint">Nothing in it needs attention.</p>}
       <SetCounts set={set} scope="watching" />
-      <TeamsTable teams={set.teams} scope="watching" goalsWord="Its goals you watch" />
+      <MovedTeamsTable teams={set.teams} scope="watching" goalsWord="Its goals you watch" />
       <HandledGroup list={set.handled} folded />
     </section>
   );
 }
 
-export function TeamsTable({ teams, scope, goalsWord }: { teams: TeamRow[]; scope: 'team' | 'watching'; goalsWord: string }) {
+/** The teams table with its "Since {Thu 5 Nov}" column (rule 5). */
+function MovedTeamsTable(p: { teams: TeamRow[]; scope: 'team' | 'watching'; goalsWord: string }) {
+  const { teams, from } = useTeamsMoved(p.teams, p.scope);
+  return <TeamsTable {...p} teams={teams} since={from} />;
+}
+
+const MOVED_ORDER: Exclude<MoveKind, 'done'>[] = ['worse', 'quiet', 'better'];
+
+export function TeamsTable({ teams, scope, goalsWord, since }: { teams: TeamRow[]; scope: 'team' | 'watching'; goalsWord: string; since?: string }) {
   const shown = teams.slice(0, TEAMS_SHOWN);
   const more = teams.slice(TEAMS_SHOWN);
   const at = (t: TeamRow, extra = '') => `/goals?scope=${scope}&team=${encodeURIComponent(t.teamId)}${extra}`;
@@ -109,7 +164,7 @@ export function TeamsTable({ teams, scope, goalsWord }: { teams: TeamRow[]; scop
     <div className="home-teams">
       <table className="teams-table">
         <thead>
-          <tr><th scope="col">Team</th><th scope="col">{ATTENTION.needs.label}</th><th scope="col">{goalsWord}</th></tr>
+          <tr><th scope="col">Team</th><th scope="col">{ATTENTION.needs.label}</th><th scope="col">{goalsWord}</th>{since && <th scope="col">Since {dayText(since)}</th>}</tr>
         </thead>
         <tbody>
           {shown.map((t) => (
@@ -129,6 +184,16 @@ export function TeamsTable({ teams, scope, goalsWord }: { teams: TeamRow[]; scop
                   ))}
                 </span>
               </td>
+              {since && (
+                <td className="teams-moved">
+                  <span className="teams-label" aria-hidden="true">Since {dayText(since)}</span>
+                  {MOVED_ORDER.some((k) => t.moved?.[k])
+                    ? <span className="home-counts">{MOVED_ORDER.filter((k) => t.moved?.[k]).map((k) => (
+                        <Link key={k} className="dash-count" to={at(t, `&moved=${k}&since=${since}`)} aria-label={`${t.name}: ${t.moved![k]} ${MOVED_WORDS[k]} since ${dayText(since)}`}>{t.moved![k]} {MOVED_WORDS[k]}</Link>
+                      ))}</span>
+                    : <span className="muted">No change</span>}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
@@ -183,7 +248,54 @@ export function WatchedGoals() {
   );
 }
 
-/** What Home loads after its first download: Your team, or Goals you watch. */
-export default function HomeSet({ set }: { set: 'team' | 'watching' }) {
-  return set === 'team' ? <YourTeam /> : <WatchedGoals />;
+/** The counts line's kinds, in its order; "went quiet" is weekly only (every cycle is weekly today). */
+const COUNT_ORDER: MoveKind[] = ['worse', 'better', 'quiet', 'done'];
+
+/**
+ * Changed since {Friday 6 Nov} (part 8, rule 5), in the side column: a line of counts, each a link to exactly those goals
+ * in Goals, then up to four goals, worse first, each with its status now (shape and word), what it was and which set it
+ * is in. More than four: "All {n} in Goals". Nothing moved: absent. Never opened before: "Changed this week".
+ */
+export function ChangedSince() {
+  const app = useApp();
+  const tabs = useTabs();
+  const s = useSince();
+  // Opening Home on a new day keeps it as the last look (`home-seen`): the day counted from stays the one before. Here,
+  // not in Home's first download; this part is drawn (or is nothing) on every Home.
+  useEffect(() => { markHomeSeen(app.ws.id, app.viewer.id, s.today); }, [app.ws.id, app.viewer.id, s.today]);
+  const changed = useMemo(() => {
+    const set = changedSet(tabs, app.viewer.id, app.snapshot.goals, (id) => app.team(id)?.name ?? '', asTeams);
+    if (!set) return null;
+    return { scope: set.scope, ...movedIn(set.goals.map((g) => g.id), new Map(set.goals.map((g) => [g.id, g])), s, app.snapshot.goals) };
+  }, [tabs, app.viewer.id, app.snapshot.goals, s.from, s.moves]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!changed?.rows.length) return null;
+  const to = (k: MoveKind | 'any') => `/goals?scope=${changed.scope}&moved=${k}&since=${s.from}`;
+  const n = changed.rows.length;
+  return (
+    <section className="block home-changed" data-part="Changed since" data-since={s.from}>
+      <h2 className="block-title">{changedHeading(s.since, s.today, longDay)}</h2>
+      <p className="home-counts changed-counts">
+        {COUNT_ORDER.filter((k) => changed.counts[k]).map((k) => (
+          <Link key={k} className="dash-count" data-moved={k} to={to(k)}>{changed.counts[k]} {MOVED_WORDS[k]}</Link>
+        ))}
+      </p>
+      <ul className="changed-list">
+        {changed.rows.slice(0, 4).map((r) => (
+          <li key={r.id} className="changed-row" data-moved={r.kind}>
+            <Link className="changed-title linkish" to={'/goals/' + r.id}>{r.title}</Link>
+            <span className="changed-meta small">
+              <span className={'changed-now tone-' + r.now}><StatusShape k={r.now} />{LABEL[r.now]}</span>
+              <span className="muted"> · was {LABEL[r.was].toLowerCase()} · {r.setName}{r.early ? ' · called early by its owner' : ''}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      {n > 4 && <Link className="small linkish changed-all" to={to('any')}>All {n} in Goals</Link>}
+    </section>
+  );
+}
+
+/** What Home loads after its first download: Your team, Goals you watch, or Changed since. */
+export default function HomeSet({ set }: { set: 'team' | 'watching' | 'changed' }) {
+  return set === 'team' ? <YourTeam /> : set === 'watching' ? <WatchedGoals /> : <ChangedSince />;
 }
