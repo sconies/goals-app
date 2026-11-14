@@ -250,6 +250,7 @@ Written 14 November 2026, 15:40 UTC, when the reviewer of 14 November (session â
 | #495 Set-up: a name step 1 refuses can't reach Create by Forward or a typed address (#475's medium) | 2 | 0 | 0 | 0 |
 | #469 HM4: Changed since you last looked | 1 | 0 | 0 | 3 |
 | #498 Help: a switched-off module's page has no Help link to its hidden article | 4 | 0 | 0 | 0 |
+| #501 PR CI caps checks as well as journeys | 4 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -2163,4 +2164,8 @@ Read (the rule, the app layer, the query, the screen, the styles, the harness ch
 ### #498 Help: a switched-off module's page-foot link (track 4, merged 14 Nov, 17:57 UTC); #483 and #499, docs
 
 Read. Nothing found. `HelpLinks` draws no link when the page's article belongs to a module that is off (Lane, 14 Nov: Help hides a switched-off module's articles); N21 now checks, for each module off, that Help lists none of its articles, that the page's link doesn't open one, and that What's new still lists Reviews' release. Help's and `docs/architecture.md`'s sentences say the same. **#483** is the backlog (PF1, PF2 and review lows deferred to after the handoff) and planning's handover; **#499** is track 4's handover. No code in either.
+
+### #501 PR CI caps checks as well as journeys (track 4, merged 14 Nov, 18:42 UTC)
+
+Read; its test passes on main (5 in `src/spec/prEvalsCap.test.ts`). Nothing found. PR CI's cap of 25 now counts journeys and F/N/P checks together beyond the core ones, ranked by how directly the PR's files name them; the core journeys and the design check P6 (`SMOKE_CHECKS`) always run, and what is left is printed and waits for the full suite after the merge. `CLAUDE.md`'s quality-gate line says so, and gives the reason as planning's of 14 Nov (after #465's job ran out of time), where the cap itself was Lane's. No budget or wait is raised. It does mean a PR touching many files can merge with some of its own checks not yet run; the full suite on main is then the only run of them.
 
