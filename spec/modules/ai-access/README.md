@@ -34,7 +34,7 @@ Module id `ai-access`, in [src/modules/ai-access/](../../../src/modules/ai-acces
 |---|---|---|
 | U22 | MCP access: an admin gives a teammate an MCP token, then revokes it; a builder token made before is labelled apart | `evals/journeys.cjs` |
 | U62 | Settings is about you: Your page opens your person page; no Make button for tokens; one recording line that leads to Privacy; Leave at the foot asks who takes over; the only admin is told why not; Workspace has no Leave | `evals/journeys.cjs` |
-| U171 | Amara switches AI access off (SW2): it is under Beyond this workspace, and with no token it acts at once; then Workspace has no AI access section, /workspace/ai says it is switched off, Access is the admins only and Settings has no “Your MCP tokens”; switched back on, the section is back after Access | `evals/journeys.cjs` |
+| U175 | Amara switches AI access off (SW2): it is under Beyond this workspace, and with no token it acts at once; then Workspace has no AI access section, /workspace/ai says it is switched off, Access is the admins only and Settings has no “Your MCP tokens”; switched back on, the section is back after Access | `evals/journeys.cjs` |
 
 ## Help
 

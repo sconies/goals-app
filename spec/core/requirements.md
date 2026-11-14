@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (177): build it as Faro does.
+- **Copy** (180): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -161,6 +161,15 @@ Milestone: a stage up to 2 weeks late is at risk, more is off track; an overdue 
 - **Rule:** [A goal’s status](rules/status.md)
 - **Help:** “What the statuses mean” (`status`)
 - **Tests:** `evals/scenarios.eval.ts` (6)
+
+### GUARDRAILS
+
+A goal can name up to five range goals that guard it: a guard past its limit makes it at risk, two weeks running off track, and the check-in and goal page say which guard and by how much.
+
+- **Copy:** build it as Faro does.
+- **Help:** “Guardrails on a goal” (`guardrails`)
+- **Tests:** `evals/scenarios.eval.ts` (3)
+- **Journeys and checks:** U171
 
 ### OWNER-CALL
 
@@ -1445,7 +1454,7 @@ Faro is a small core with named extension points (routes, navigation, Home block
 - **Copy:** build it as Faro does.
 - **Help:** “Features: switching parts of Faro on or off” (`features`)
 - **Tests:** `evals/modules.eval.ts` (4)
-- **Journeys and checks:** N21, N22, U48, U103, U104, U164, U165, U166, U171
+- **Journeys and checks:** N21, N22, N34, U48, U103, U104, U164, U165, U166, U175
 
 ### FEATURE-GROUPS
 
@@ -1453,7 +1462,7 @@ Workspace, Features lists the optional features in groups: Working together (Rev
 
 - **Copy:** build it as Faro does.
 - **Help:** “Features: switching parts of Faro on or off” (`features`)
-- **Journeys and checks:** N22, U164, U171
+- **Journeys and checks:** N22, U164, U175
 
 ## Numbers
 

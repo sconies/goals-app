@@ -109,6 +109,13 @@ Read from Faro’s shared actions: each line names the function that enforces it
 | Merge one metric into another in the same unit (MT3) | Admins | [`mergeMetrics`](../../../src/modules/metrics/rulesChange.ts) |
 | Say which metric measures a goal, or stop | The goal’s owner, or an admin | [`linkGoalMetric`](../../../src/modules/metrics/rulesLink.ts), [`unlinkGoalMetric`](../../../src/modules/metrics/rules.ts), [`canLinkGoal`](../../../src/modules/metrics/rules.ts) |
 
+### Fields
+
+| What | Who may | Enforced today by |
+|---|---|---|
+| Add, rename, reorder, retire or bring back a workspace’s field (TG1) | Admins | [`addField`](../../../src/modules/tags/fields.ts), [`changeField`](../../../src/modules/tags/fields.ts), [`moveField`](../../../src/modules/tags/fields.ts), [`retireField`](../../../src/modules/tags/fields.ts), [`bringBackField`](../../../src/modules/tags/fields.ts), [`canDefineFields`](../../../src/modules/tags/fields.ts) |
+| Set a goal’s value for a field (TG1) | The goal’s owner, or an admin | [`setGoalFields`](../../../src/modules/tags/fields.ts), [`canSetFields`](../../../src/modules/tags/fields.ts) |
+
 ## What Faro does today
 
 - The app asks “Who are you?” and remembers the answer on the device (Help, “Saying who you are”; `src/screens/Start.tsx`).

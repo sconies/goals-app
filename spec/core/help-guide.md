@@ -734,6 +734,28 @@ Putting a goal in front of its would-be owner, or a leader, without committing t
 
 Anyone can propose a goal, for anyone. Its owner or an admin makes it active. Whoever proposed it may also change or withdraw it while it is proposed. Everyone can comment, ask its owner a question and watch it.
 
+### Guardrails on a goal
+
+`guardrails`. Name the goals that guard a goal, so meeting it by making something else worse shows on the goal itself.
+
+Requirements: `GUARDRAILS`.
+
+#### How to use it
+
+- Open the goal, choose Change this goal, and open More details. Under Guarded by, find the goals that guard it by name or key: up to five, each a goal kept in a range (“Change failure rate at most 12%”) in the same year.
+- A goal can’t guard itself, and a goal with a number to move or dated stages can’t guard: it is listed, with why it can’t be chosen.
+
+#### What it does
+
+- When a guard’s latest number is past its limit, the goal it guards is at risk; past it two weeks running, off track. A guard near its limit but still inside it changes nothing.
+- At the check-in, Status from the numbers is the worse of the goal’s own and its guards’, and the line under it says which guard, its number and how far past its limit it is: “Guardrail “Change failure rate” (G-41) is over its 12.0% limit: 14.0% in week 4, 2.0 pts over, 2 weeks running.” Off track or at risk this way asks why, as being behind does.
+- The goal’s page says the same line under its status, until the guard is back inside its limit.
+- A guard that is stopped or deleted guards nothing until it is brought back. When the year ends, a guard that carries on still guards the goals that carry with it.
+
+#### Who can
+
+The goal’s owner, or an admin.
+
 ### Changing a goal or its plan
 
 `edit-goal`. Change a goal on one page: what it is, its plan and target, who owns it and where it fits. Once check-ins have started, a plan change needs a reason.
@@ -743,7 +765,7 @@ Routes: `/goals/:goalId/edit`. Screens: `GoalEdit`. Requirements: `PLAN-CHANGE`,
 #### How to use it
 
 - Open the goal and choose Change this goal, in the “…” menu or at the foot of About this goal.
-- It is one page in four sections: What it is (the name, what it measures and the metric that measures it), Plan and target, Who and where (the owner, the team, the level, what it feeds and what it also helps) and More details (how much it moves the goal it feeds, whether it’s a guardrail, and the data source).
+- It is one page in four sections: What it is (the name, what it measures and the metric that measures it), Plan and target, Who and where (the owner, the team, the level, what it feeds and what it also helps) and More details (how much it moves the goal it feeds, whether it’s a guardrail, the goals that guard it, and the data source).
 - A link can open the page at a section: add #definition, #plan or #owner to the address. Describe it on a goal with no definition opens What it is. Older links that opened one part of the form land on the matching section.
 - The owner, the team and the goals are found by typing a name or a key; a goal already under this one is listed but can’t be chosen to feed it.
 - Plan and target has the same two rows as a new goal: Baseline with From, Target with To, each week chosen from the list of weeks with their dates. Changing From or To after check-ins have started is a plan change, so it asks why.
@@ -1442,6 +1464,38 @@ Admins switch features. Everyone sees what is on.
 #### For the people building Faro
 
 - Each feature is a module: one folder in src/modules with a module.json saying what it adds and what it needs. docs/architecture.md explains how to add one.
+
+### Fields: a workspace’s own columns on goals
+
+`fields`, from the tags module. A workspace’s own fields on goals, such as a stage or a programme: up to 6, each a short list of values or free text, set on each goal’s page. No rule reads them: they’re for finding and sorting.
+
+Routes: `/workspace/fields`. Screens: `FieldsSection`, `FieldsBlock`. Requirements: `TAGS-FIELDS`, `TAGS-OFF`.
+
+#### What it’s for
+
+Teams track things Faro has no column for: a lifecycle stage (Discover, Build, Run), a programme, a funding line. A field keeps them on the goal, out of its title, where nothing could find them. No status, flag or check-in rule reads a field.
+
+#### Workspace, Fields
+
+- Workspace, Fields lists the fields in order: each one’s name, its kind (“A list: Discover, Build, Run” or “Free text”) and how many of this year’s goals have a value.
+- An admin adds one with Add a field: a name of up to 40 characters, and for a list its values, one per line (1 to 20, each up to 40 characters, none twice). Free text holds up to 80 characters on each goal. A workspace has at most 6 fields.
+- Change renames a field or changes a list’s values; goals keep the value they have. Up and Down change the order, which is the order a goal’s page shows them in.
+- A field that is no longer wanted is retired, never deleted: every goal keeps its value and History its changes, and Bring back shows them again. A retired field’s name can be used again.
+- With no field yet, the page says “No fields yet” and offers Add a field to admins.
+
+#### On a goal
+
+- A goal’s page has a Fields block in About, after its facts: one line per field, such as “Stage · Build”, or “Stage · Not set”.
+- The goal’s owner or an admin presses Change beside a line and picks a value from the list, or types the text and presses Save. Not set clears it. No reason is asked: a field isn’t the plan.
+- History says each change on the goal: “Stage: Discover → Build”. Adding, retiring and bringing back a field is in Activity.
+
+#### With an AI assistant
+
+- list_fields lists the fields and their values (with goal_id, that goal’s values); set_goal_fields sets a goal’s values by field name, with dry_run to check first; save_field lets an admin add, change, move, retire or bring back a field. Each follows the same rules.
+
+#### Who can
+
+Admins add and change the fields. A goal’s owner or an admin sets its values. Everyone sees them. An admin can switch Fields off in Workspace, Features: the block and the section go, and every field and value is kept for when it’s switched on again.
 
 ### What the app records
 

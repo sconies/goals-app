@@ -35,6 +35,8 @@ const RULES = [
   // What changed since you last looked (HM4): rule 5, home-seen, the Goals filter moved/since, and Home's numbers agreeing.
   [/^src\/domain\/(changed|query)\.ts$|^src\/app\/homeSeen\.ts$|^evals\/finish\/25-home-numbers\.cjs$/, ['U124', 'F25']],
   [/^evals\/notes\/12-home\.cjs$/, ['N26']],
+  // Fields switched off (TG1): its own check, and the module's journey.
+  [/^evals\/notes\/34-fields-off\.cjs$/, ['N34', 'U174']],
   // Held at company size (N12, FS4): its fixture and check, and the search, the pickers and the list bars it times.
   [/^evals\/(fixtures\/company|finish\/11-company-size)\.cjs$|^src\/(ports\/search|adapters\/localSearch|domain\/find|app\/search|app\/reads)\.ts|^src\/ui\/(Pick|ListBar)\.tsx/, ['N12']],
   // The talk-path polish (N10): its own check, and the screens it looks at.
@@ -56,7 +58,7 @@ const RULES = [
   // SW1: the four switches whose code is still the core's, their read-backs and the Features page's groups.
   [/^src\/domain\/switchOff\.ts$|^src\/app\/reads\.ts$|^src\/domain\/home\.ts$|^src\/screens\/(Workspace|Home|GoalsScreen|GoalViews)\.tsx$|^src\/ui\/(Shell|goalRows|HomeSets)\.tsx$|^evals\/notes\/22-more-switches\.cjs$/, ['U164', 'U165', 'U166', 'N22', 'N21']],
   // AI access behind its switch (SW2): its section, its tokens, the server's door.
-  [/^src\/ui\/AiAssistants\.tsx$|^src\/domain\/switchOff\.ts$|^src\/screens\/(Workspace|Settings|People|NotFound)\.tsx$|^server\/mcp\.ts$/, ['U171']],
+  [/^src\/ui\/AiAssistants\.tsx$|^src\/domain\/switchOff\.ts$|^src\/screens\/(Workspace|Settings|People|NotFound)\.tsx$|^server\/mcp\.ts$/, ['U175']],
   // Its clock (RS1): dueWords and the receipt, the read-back's two lines; the words with it off, and back on (N30, the tools' one
   // sentence, is a spec scenario in evals/mcp.eval.ts, which always runs).
   [/^src\/domain\/(reviewsOff|progress)\.ts$|^src\/screens\/CheckInFlow\.tsx$|^src\/mcp\/moduleOff\.ts$|^evals\/notes\/21-switched-off\.cjs$/, ['U154', 'U155', 'N21']],

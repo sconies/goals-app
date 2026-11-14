@@ -62,6 +62,12 @@
       "use": "copy"
     },
     {
+      "id": "GUARDRAILS",
+      "area": "Status rules",
+      "text": "A goal can name up to five range goals that guard it: a guard past its limit makes it at risk, two weeks running off track, and the check-in and goal page say which guard and by how much.",
+      "use": "copy"
+    },
+    {
       "id": "OWNER-CALL",
       "area": "Status rules",
       "text": "The owner's call is the official status shown everywhere, with the calculated status beside it.",
@@ -1215,6 +1221,18 @@
       "id": "AI-ACCESS-OPTIONAL",
       "area": "Architecture",
       "text": "An admin switches AI access off for a workspace. Off, the MCP server refuses every token of the workspace with one sentence that says so (it still lists its tools, and a refused request doesn’t count as a token’s use), no token can be made, and Workspace, Settings and People show no tokens; a token can still be revoked. Switching it off first names the tokens that stop working, and switching it back on names those that work again. Tokens are kept, not revoked.",
+      "use": "copy"
+    },
+    {
+      "id": "TAGS-FIELDS",
+      "area": "Goals",
+      "text": "A workspace defines up to six of its own fields on goals (a stage, a programme), each a list of values or free text, on Workspace, Fields: admins add, rename, reorder, retire and bring them back; everyone reads them. A goal's page shows one line per field in About, which its owner or an admin changes in place, and History says the change (“Stage: Discover → Build”). No rule reads a field; an AI assistant lists and sets them under the same rules.",
+      "use": "copy"
+    },
+    {
+      "id": "TAGS-OFF",
+      "area": "Architecture",
+      "text": "An admin switches Fields off for a workspace. Off, a goal's page has no Fields block, Workspace has no Fields section (its address says Fields is switched off), and the fields tools refuse. Every field and value is kept, and switching it on shows them again.",
       "use": "copy"
     },
     {

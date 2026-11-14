@@ -21,10 +21,10 @@ What it adds to the core (routes, places on core screens, AI tools, Help) is in 
 ## Exit criteria
 
 1. Its requirements hold: `MCP-TOKENS`, `TOKENS-SERVER-ONLY`, `AI-ACCESS-OPTIONAL` (words in [its section](../modules/ai-access/README.md#requirements)).
-2. Its journeys and checks can be done: U22, U62, U171 ([its section](../modules/ai-access/README.md#journeys-and-checks)).
+2. Its journeys and checks can be done: U22, U62, U175 ([its section](../modules/ai-access/README.md#journeys-and-checks)).
 3. Switched off, every MCP request but initialize and tools/list is answered with “AI access is switched off in {workspace}. An admin can switch it on in Faro, under Workspace, Features.”, tools/list still lists the tools, and the token's lastUsedAt does not move.
 4. Switched off, making a token is refused with “AI access is off in {workspace}.”, and revoking one still works.
-5. Switched off, Workspace has no AI access section (/workspace/ai is Page not found with “AI access is switched off in {workspace}. An admin can switch it on in Workspace, Features.”), Settings has no “Your MCP tokens” and a person's page has no Make an MCP token (journey U171).
+5. Switched off, Workspace has no AI access section (/workspace/ai is Page not found with “AI access is switched off in {workspace}. An admin can switch it on in Workspace, Features.”), Settings has no “Your MCP tokens” and a person's page has no Make an MCP token (journey U175).
 6. Switching off first reads back, from the rule aiAccessReadBack, the tokens that stop working (the first five by person and name, then how many more) and the changes AI tools made here; switching back on, only when tokens were kept, names those that work again. With no token it acts at once.
 7. set_feature switching AI access off answers “AI access is off in {workspace}. This connection stops working now. An admin switches it back on in Faro.”
 

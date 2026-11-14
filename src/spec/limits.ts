@@ -62,8 +62,11 @@ export const LIMITS: Limit[] = [
   { constraint: 'okr_views_name_check', holds: ['>= 1', '<= 80'], rule: 'finding', words: 'A saved view’s name has 1 to 80 characters.', code: 'src/domain/actions.ts#slice(0, 80)' },
   { constraint: 'okr_workspaces_name_check', holds: ['>= 1'], rule: 'workspace', words: 'A workspace has a name. (The app asks for 3 to 80 characters.)', code: 'src/domain/thresholds.ts#MAX_WORKSPACE_NAME' },
   // The metric library (a module)
+  { constraint: 'okr_metrics_gaming_len', holds: ['<= 500'], rule: 'metric-defined', words: 'How a metric could be gamed has at most 500 characters.' },
+  { constraint: 'okr_metrics_parent_not_self', holds: ['parent_id <> id'], rule: 'metric-defined', words: 'A metric is never its own parent.' },
   { constraint: 'goal_fields_name_check', holds: ['>= 1', '<= 40'], rule: 'tags-fields', words: 'A field’s name has 1 to 40 characters (spaces at either end not counted).', code: 'src/modules/tags/rules.ts#FIELD_LIMITS' },
   { constraint: 'goal_fields_options_check', holds: ["jsonb_typeof(options) = 'array'", 'jsonb_array_length(options) <= 20', 'jsonb_array_length(options) >= 1'], rule: 'tags-fields', words: 'A list field has 1 to 20 values; a free-text field has none. (Each value’s length, and that none is there twice, are the rule’s: the database can’t check a list’s items one by one.)', code: 'src/modules/tags/rules.ts#FIELD_LIMITS' },
+  { constraint: 'goal_fields_text_no_options', holds: ["kind = 'list'", 'jsonb_array_length(options) = 0'], rule: 'tags-fields', words: 'A free-text field has no values.', code: 'src/modules/tags/rules.ts#fieldProblem' },
   { constraint: 'person_prefs_key_check', holds: ["'proposals'"], rule: 'proposed', words: 'A preference kept on the server for a person is one of the listed keys: today only what they opened and put off among proposed goals. Everything else a person chose stays in their browser.' },
   { constraint: 'person_prefs_value_check', holds: ['<= 16384'], rule: 'proposed', words: 'A preference kept on the server for a person is at most 16 KB.' },
   { constraint: 'goal_field_values_value_check', holds: ['length(value) <= 80'], rule: 'tags-fields', words: 'A goal’s value for a field has at most 80 characters; empty means not set.', code: 'src/modules/tags/rules.ts#FIELD_LIMITS' },
