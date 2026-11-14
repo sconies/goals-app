@@ -1784,7 +1784,7 @@ journey('U123', ['HOME-MANAGER'], 'The manager on Home: Rhea’s “Your team ·
   await p.context().close();
 });
 
-journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k', 3, async (h, device) => {
+journey('U124', ['HOME-MANAGER', 'HOME-LEADER'], 'The leader on Home: Amara’s Watching spans thirteen teams, so it is a table of teams, worst first, with no person’s name in it; a team’s “{k} need attention” opens Goals whose count line says k; on Wed 11 Nov one cell says how many of them are checked in for week 46, and opens the rest', 3, async (h, device) => {
   // Home rule 4 (HM3): three or more teams are drawn as teams, ordered as Goals orders "By team" (worstGroupsFirst).
   const day = (d) => BASE + '/demo/?today=' + d;
   const p = h.use(await newPage(device, 'amara'));
@@ -1816,6 +1816,22 @@ journey('U124', ['HOME-MANAGER'], 'The leader on Home: Amara’s Watching spans 
   await p.locator('.goals-line').first().waitFor();
   const line = await p.locator('.goals-line').first().innerText();
   h.set('finish', new RegExp(`^${k} needs? attention`).test(line), `a team’s “${k} need attention” opened Goals saying “${line}”`);
+  // How the week's check-ins stand (HM7): on Wed 11 Nov, one cell over the set drawn as teams, never a name; it opens
+  // the goals with no check-in for the week yet, and Goals counts exactly those.
+  await p.goto(day('2026-11-11'));
+  const cell = p.locator('.dash-standing');
+  await cell.waitFor({ timeout: 8000 }).catch(() => {});
+  const said = (await cell.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  const [, a, b] = said.match(/Checked in for week 46 (\d+) of (\d+) goals? Due by Thu 12 Nov/) || [];
+  const named2 = s0.people.map((x) => x.name).filter((n) => said.includes(n));
+  h.set('progress', !!a && !named2.length, `the standing cell reads “${said}”${named2.length ? `, naming ${named2.join(', ')}` : ''}`);
+  if (a) {
+    await h.click(cell);
+    await p.waitForURL(/scope=watching&checkedin=no/);
+    await p.locator('.goals-line').first().waitFor();
+    const gl = await p.locator('.goals-line').first().innerText();
+    h.set('finish', new RegExp(`^${Number(b) - Number(a)} goals?\\b`).test(gl), `“${a} of ${b} goals” opened Goals saying “${gl}”`);
+  }
   h.set('errors', true);
   h.set('logged', true);
   await p.context().close();

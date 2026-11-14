@@ -6,12 +6,13 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useModules } from '../core/app';
-import { scopeFacts, watchingOn } from '../app/reads';
+import { liveGoals, scopeFacts, standingIn, watchingOn } from '../app/reads';
+import { reviewDate } from '../domain/progress';
 import { useApp } from '../app/state';
 import { scopesFor } from '../domain/goalsPage';
 import { attentionOrder } from '../domain/attention';
 import { asTeams, groupWatched, theOneTeam } from '../domain/home';
-import { homeSets, type SetFacts, type Sets, type TeamRow } from '../domain/homeSets';
+import { homeSets, standingOver, standingSet, standingWords, type SetFacts, type Sets, type TeamRow } from '../domain/homeSets';
 import { watchedGoals } from '../domain/review';
 import { statusChange } from '../domain/tree';
 import { ATTENTION, LABEL } from '../domain/vocabulary';
@@ -185,7 +186,34 @@ export function WatchedGoals() {
   );
 }
 
-/** What Home loads after its first download: Your team, or Goals you watch. */
-export default function HomeSet({ set }: { set: 'team' | 'watching' }) {
-  return set === 'team' ? <YourTeam /> : <WatchedGoals />;
+/**
+ * How the week's check-ins stand (rule 6, cell 3; HM7): for someone with a set drawn as teams, over that set; for an admin
+ * with none, over every goal. "Checked in for week {w}" · "{a} of {b} goals" · when they are due, or after that how many
+ * came in late; it opens the set's goals with no check-in yet. Goals, never people. Alone, it is This week's only cell.
+ */
+export function StandingCell({ alone }: { alone: boolean }) {
+  const app = useApp();
+  const sets = useHomeSets();
+  const which = standingSet(sets, app.viewer.admin);
+  const facts = useMemo(() => {
+    if (!which) return null;
+    const ids = which === 'all' ? null : new Set(sets[which]!.ids);
+    const goals = liveGoals(app.snapshot).filter((g) => !ids || ids.has(g.id));
+    return standingOver(which, goals, standingIn(app.snapshot, app.cycle, app.week));
+  }, [which, sets, app.snapshot, app.cycle, app.week]);
+  if (!facts) return null;
+  const w = standingWords(facts, app.week, reviewDate(app.cycle, app.week), app.today.toISOString().slice(0, 10));
+  const cell = (
+    <Link className="dash-cell dash-standing" to={w.to} data-part="How the week’s check-ins stand">
+      <span className="dash-label">{w.label}</span>
+      <span className="dash-value">{w.value}</span>
+      <span className="dash-sub">{w.sub}</span>
+    </Link>
+  );
+  return alone ? <section className="dash" aria-label="This week" data-part="This week">{cell}</section> : cell;
+}
+
+/** What Home loads after its first download: Your team, Goals you watch, or how the week's check-ins stand. */
+export default function HomeSet({ set, alone = false }: { set: 'team' | 'watching' | 'standing'; alone?: boolean }) {
+  return set === 'team' ? <YourTeam /> : set === 'watching' ? <WatchedGoals /> : <StandingCell alone={alone} />;
 }

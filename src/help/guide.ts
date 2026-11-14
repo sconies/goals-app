@@ -96,6 +96,13 @@ const CORE_ARTICLES: Article[] = [
         'In a workspace with one team, your goals and your team’s would repeat each other, so Home shows them once: “The team’s goals · 9”, your own first, then your teammates’, each of theirs with its owner’s name first. Its counts, its need attention link and See them in Goals open that team’s goals. There is no separate Your team, and Goals you watch is left out while you watch nothing.',
         'When the goals you watch, or your teams’ goals, are more than twelve goals in two or more teams, they are shown as teams, worst first: the team with the most goals off track, then at risk, then with no recent update, first, as Goals orders By team. Each team’s name, its “3 need attention” and its counts by status open exactly those goals. Five teams show, then a link to the rest, by team. No person’s name is in this table: teams and goals are ranked, never people. On a phone each team is one stacked row.',
       ] },
+      { heading: 'How the week’s check-ins stand', list: [
+        'If your team’s goals or the goals you watch are shown as teams, or you are an admin, This week has a cell saying how the week’s check-ins stand over those goals (every goal, for an admin): “Checked in for week 46 · 45 of 55 goals · Due by Thu 12 Nov”. After the due day it says how many came in after it.',
+        'It counts goals, never people. It opens Goals with the goals that have no check-in for the week yet, worst first.',
+      ] },
+      { heading: 'The workspace’s line', list: [
+        'If you are an admin, Home has a short block headed with the workspace’s name. When the year is ending or has ended, it says so first, with the next step. Then, when something needs sorting out, “2 things to sort out” with the first of them, and See them, which opens Workspace’s About with the same list.',
+      ] },
       { heading: 'When Home has no button', list: [
         'Before the day your check-ins are due, Home says “Nothing is asked of you today.” and when they are due, with Check in early if you want to get ahead. When asks or proposed goals wait for you, it says so instead (“A proposed goal waits for your response.”).',
         'Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in, it says what the check-in’s last screen said: whether they were in before the deadline, and how many weeks in a row you have been on time, from two weeks.',
@@ -106,7 +113,7 @@ const CORE_ARTICLES: Article[] = [
     ],
     routes: ['/'],
     screens: ['Home'],
-    reqs: ['HOME-OWNER', 'HOME-MANAGER', 'PROFILES', 'SHAPE-MATCHES-WORD', 'DAY-ONE'],
+    reqs: ['HOME-OWNER', 'HOME-MANAGER', 'HOME-LEADER', 'PROFILES', 'SHAPE-MATCHES-WORD', 'DAY-ONE'],
     keywords: ['dashboard', 'start', 'streak', 'needs your response', 'today', 'this week'],
     related: ['check-in', 'needs-attention', 'requests', 'watching'],
   },

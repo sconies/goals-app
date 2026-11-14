@@ -84,6 +84,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - Home rule 4: the sets [HOME-MANAGER] › No Your team when the team scope holds only the viewer’s own goals, or there is no team
 - Home rule 4: the sets [HOME-MANAGER] › One team (HM3 review, SM1h): My team waits as a tab, being All, yet its scope still makes Your team; Home folds it into “The team’s goals”
 - Home rule 4: the sets [HOME-MANAGER] › asTeams: more than twelve goals in two or more teams
+- Home rule 6’s third cell and rule 7 (HM7) [HOME-LEADER] › counts over a set drawn as teams, your teams’ first; an admin with neither, every goal; anyone else, nothing
+- Home rule 6’s third cell and rule 7 (HM7) [HOME-LEADER] › the goals due this week: in, of, and late; none due, no cell
+- Home rule 6’s third cell and rule 7 (HM7) [HOME-LEADER] › the workspace’s line: “{n} things to sort out”, the first and how many more; nothing when there is nothing
 
 ### [src/domain/query.test.ts](../../../src/domain/query.test.ts)
 

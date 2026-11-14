@@ -27,6 +27,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'home-leader',
+    date: '2026-11-14',
+    title: 'A leader’s Home: how the week’s check-ins stand',
+    points: [
+      'When your team’s goals or the goals you watch are shown as teams, This week says how many of them are checked in for the week, and opens the ones that aren’t yet.',
+      'Admins see it over every goal, and a line with how many things there are to sort out in the workspace.',
+    ],
+    articles: ['home'],
+  },
+  {
     id: 'home-one-team',
     date: '2026-11-14',
     title: 'With one team, Home shows the team’s goals once',

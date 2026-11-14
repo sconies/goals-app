@@ -9,7 +9,7 @@ import { proposalAsks, withProposed } from '../domain/proposed';
 import { scopeToCycle, wrapUpCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
 import type { Ask, Cycle, Goal, Person, Snapshot } from '../domain/types';
-import { checkInStanding, dueIn } from '../domain/standing';
+import { checkInStanding, dueIn, type Standing } from '../domain/standing';
 import type { ScopeFacts } from '../domain/goalsPage';
 import { agendaOf, goalsIn, heldOnDueDay, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
 import { waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession, type Waiting } from '../domain/home';
@@ -78,14 +78,23 @@ export const dueWordsHere = (reviews: boolean, s: Pick<Snapshot, 'reviews'>, cyc
 export const heldForGoals = (reviews: boolean, s: Pick<Snapshot, 'reviews'>, cycle: Cycle, week: number, goals: readonly Pick<Goal, 'ownerId'>[]): boolean =>
   reviews && [...new Set(goals.map((g) => g.ownerId))].some((o) => heldOnDueDay(s.reviews, cycle, week, o));
 
+/** Each goal's standing this week (habit rule 1), or null when it isn't due: what Goals' `checkedin=` reads and Home's
+    standing cell counts (HM7), so both count the same goals. */
+export function standingIn(s: Pick<Snapshot, 'checkIns' | 'requests'>, cycle: Cycle, week: number): (g: Goal) => Standing | null {
+  const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
+  const rows = { checkIns: s.checkIns, asks: s.requests ?? [] };
+  return (g) => (week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null);
+}
+
+/** The live goals of the year, not stopped: every goal Goals' All counts. */
+export const liveGoals = (s: Pick<Snapshot, 'goals'>): Goal[] => live(s.goals).filter((g) => !g.stoppedAt);
+
 /** Every goal's summary row, with what the Goals filters need beyond it. With `reviews` false (Reviews off) `inreview=`
     narrows nothing, as a switched-off module's column doesn't (module map F4; build review of #424). */
 export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns'], reviews = true): GoalRows {
   const goals = live(s.goals).filter((g) => !g.stoppedAt);
   // This week's standing (habit rule 1) for `checkedin=`, and a review's goals for `inreview=` (HB2).
-  const due = dueIn(cycle, s.checkIns), dueDay = reviewDate(cycle, week);
-  const rows = { checkIns: s.checkIns, asks: s.requests ?? [] };
-  const standing = (g: Goal) => (week >= 1 && due(g, week) ? checkInStanding(g, week, rows, dueDay) : null);
+  const standing = standingIn(s, cycle, week);
   const inReview = (id: string) => { const r = s.reviews.find((x) => x.id === id && !x.removedAt); return r ? new Set(goalsIn(r.scope, goals).map((g) => g.id)) : null; };
   return { kind: 'goal', summaries: summariseAll(goals, s, cycle, today, week), ctx: { goals, cycle, week, standing, ...(reviews ? { inReview } : {}), ...(columns ? { columns } : {}) } };
 }

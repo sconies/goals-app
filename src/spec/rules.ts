@@ -5,7 +5,7 @@
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
 import { daysSinceIn, weekIn } from './zones';
 import { asTeams, homeFor, ownFirst, theOneTeam, waiting, type HomeFacts } from '../domain/home';
-import { asTeamRows, homeSets, type SetFacts } from '../domain/homeSets';
+import { asTeamRows, homeSets, standingOver, standingSet, standingWords, type SetFacts } from '../domain/homeSets';
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision, proposedLine } from '../domain/decide';
 import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
 import { beforeStartLine, currentCycle, cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
@@ -34,7 +34,7 @@ import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPA
 import { cycleStanding, importName, leaveWorkspace, keptText, pastImports, undoPreview } from '../domain/removal';
 import { applyCommit } from '../data/store';
 import { acceptRisk, reviewCall, teamPeople } from '../domain/actions';
-import { adminsLine, cycleLine, LEAD_FROM, NEEDS_SHOWN, ONLY_ADMIN_FROM, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
+import { adminsLine, cycleLine, LEAD_FROM, NEEDS_SHOWN, ONLY_ADMIN_FROM, sortOutRow, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
 import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, sameAsWritten, typedDecimals } from '../domain/numbers';
 import { buildWorkspace, ownerToAdd, setupDefaults } from '../domain/importer';
 import { emptyText, fieldTable, FILL_SHEETS, LEVEL_WORDS, requiredLine, requiredText, requiredWord, specOf, TYPE_WORDS, wordsAndAlso } from '../domain/columns';
@@ -64,7 +64,7 @@ import { backTo, litItem, menuGroups, menuRows, pageName, phoneTabs, type PlaceN
 import { movedGoals, ownGroup, scopesFor } from '../domain/goalsPage';
 import { dayText, goalsIn, watchedGoals } from '../domain/review';
 import { countLine, filterLine, findAll, keyOf, nearMiss, noneFound, search, suggest, textMatches, wordsOf } from '../domain/find';
-import { goalRows, personRows, teamRows } from '../app/reads';
+import { goalRows, liveGoals, personRows, standingIn, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
 import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
 import { goalResult } from '../domain/story';
@@ -1936,6 +1936,49 @@ RULE_LIST.push({
     } },
     { given: 'Drawn as teams? 3 goals in 3 teams; 12 goals in 2 teams; 13 goals in 2 teams; 40 goals in 1 team.', then: 'no, no, yes, no', run: () => [['a', 'b', 'c'], [...Array(6).fill('a'), ...Array(6).fill('b')], [...Array(7).fill('a'), ...Array(6).fill('b')], Array(40).fill('a')].map((t) => (asTeams(t.map((teamId) => ({ teamId }))) ? 'yes' : 'no')).join(', ') },
     { given: 'Teams worst first: Alpha with 1 off track and 3 on track; Beta with 1 off track and 1 at risk; Gamma with 2 at risk.', then: 'Beta, Alpha, Gamma', run: () => asTeamRows((([['a', 'Alpha', ['off', 'on', 'on', 'on']], ['b', 'Beta', ['off', 'risk']], ['c', 'Gamma', ['risk', 'risk']]] as const).flatMap(([teamId, , st]) => st.map((k, i) => ({ goal: { id: `${teamId}${i}`, teamId, ownerId: 'x', title: `${teamId}${i}` }, status: { status: k }, flags: [], weight: 0, handled: null, lookedAt: null }))) as unknown as GoalAttention[]), (id) => ({ a: 'Alpha', b: 'Beta', c: 'Gamma' } as Record<string, string>)[id]!).map((t) => t.name).join(', ') },
+  ],
+});
+
+/** How the week's check-ins stand for someone in the demo workspace on 5 Nov (HM7), as Home's cell says it, or "no cell". */
+const standingCellOf = (who: string) => {
+  const today = new Date(CHECK_IN_MOMENT);
+  const cy = currentCycle(demo!.cycles, today)!;
+  const s = scopeToCycle(demo!, cy);
+  const person = s.people.find((p) => p.id === who)!;
+  const teams = s.teams.filter((t) => t.id === person.teamId || t.leadId === who).map((t) => ({ id: t.id, name: t.name }));
+  const { every } = scopesFor({ goals: s.goals.filter((g) => !g.stoppedAt).map((g) => ({ id: g.id, ownerId: g.ownerId, teamId: g.teamId })), viewerId: who, teams, watched: new Set(watchedGoals(who, s).map((g) => g.id)) }, null);
+  const sets = homeSets({ id: who, teams }, every, s.goals.map((g) => attentionFor(g, s, cy, today)), s.teams);
+  const which = standingSet(sets, person.admin);
+  if (!which) return 'no cell';
+  const week = currentWeek(cy, today);
+  const ids = which === 'all' ? null : new Set(sets[which]!.ids);
+  const f = standingOver(which, liveGoals(s).filter((g) => !ids || ids.has(g.id)), standingIn(s, cy, week));
+  if (!f) return 'no cell';
+  const w = standingWords(f, week, reviewDate(cy, week), today.toISOString().slice(0, 10));
+  return `over ${which}: ${w.label} · ${w.value} · ${w.sub} → ${w.to}`;
+};
+
+RULE_LIST.push({
+  id: 'home-leader',
+  title: 'Home: a leader’s week, and the workspace’s line',
+  summary: 'How the week’s check-ins stand, as one cell, for someone whose goals are drawn as teams or an admin; and for an admin, how many things there are to sort out.',
+  code: [{ file: 'src/domain/homeSets.ts', names: ['standingSet', 'standingOver', 'standingWords'] }, { file: 'src/domain/workspaceAttention.ts', names: ['sortOutRow'] }, { file: 'src/app/reads.ts', names: ['standingIn'] }, { file: 'src/app/toSortOut.ts', names: ['toSortOut'] }],
+  tests: ['src/domain/home.test.ts'],
+  reqs: ['HOME-LEADER'],
+  body: `
+**How the week's check-ins stand** (Home's rule 6, its third cell). Over which goals (\`standingSet\`): a set drawn as teams ([Home's sets](home-sets.md)), the viewer's teams before what they watch; for an admin with neither, every live goal; for anyone else there is no cell, as their own goals are counted in Your goals and the check-in.
+
+Of those, the goals due this week (\`standingIn\`: [the habit](habit.md)'s rule 1, the same goals Goals' \`checkedin=\` reads): \`of\` is how many, \`in\` how many have this week's check-in, \`late\` how many of those came in after the due day (\`standingOver\`). None due: no cell.
+
+The cell (\`standingWords\`): "Checked in for week {w}" · "{in} of {of} goals" · "Due by {Thu 12 Nov}"; after the due day, when any came in late, "{late} came in after {Thursday}". It opens \`/goals?scope={team|watching|all}&checkedin=no\`: the goals with no check-in for the week yet, worst first. It never names a person.
+
+**The workspace's line** (Home's rule 7), for an admin only: headed with the workspace's name; the year's row first when the year is ending or has ended (as before); then, from the same list Workspace's About shows (\`toSortOut\`: the core's needs, each module section's, then each module's own), "{n} things to sort out" ("1 thing to sort out") with the first need's sentence and ", and {k} more", and "See them", which opens Workspace (\`sortOutRow\`). Nothing to sort out: no row. Never a lead, never a cell. A member sees none of it.
+`,
+  examples: [
+    { given: 'Amara, the VP, in the demo workspace on Thursday 5 Nov: she watches goals across thirteen teams, drawn as teams.', then: 'over watching: Checked in for week 45 · 45 of 55 goals · Due by Thu 5 Nov → /goals?scope=watching&checkedin=no', run: () => standingCellOf('amara') },
+    { given: 'Tunde: he owns goals and none of his sets is drawn as teams; he isn’t an admin.', then: 'no cell', run: () => standingCellOf('tunde') },
+    { given: 'What an admin sees to sort out: no review set up, and two people with no email.', then: '2 things to sort out: No review is set up, and 1 more.', run: () => { const r = sortOutRow([{ says: 'No review is set up' }, { says: '2 people have no email' }])!; return `${r.says}: ${r.line}`; } },
+    { given: 'Nothing to sort out.', then: 'no row', run: () => (sortOutRow([]) ? 'a row' : 'no row') },
   ],
 });
 
