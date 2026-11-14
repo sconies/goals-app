@@ -945,7 +945,7 @@ journey('U97', ['SETUP-FIRST-SCREEN', 'IDENTITY', 'ONBOARDING'], 'The first scre
   await p.context().close();
 });
 
-journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-MODE'], 'Set up a small workspace on a Sunday, as the outside reviewer did: each field says what it needs, a team typo is caught, nothing is late, the weekly review exists, and Start over removes it all', 30, async (h, device) => {
+journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-MODE', 'SMALL-MENU'], 'Set up a small workspace on a Sunday, as the outside reviewer did: each field says what it needs, a team typo is caught, nothing is late, Home shows the one team’s goals as one section, the weekly review exists, and Start over removes it all', 30, async (h, device) => {
   // The setup review of 8 Nov, replayed: Sunday 8 November is after week 45's Thursday review.
   const sunday = (x) => BASE + '/demo' + x + (x.includes('?') ? '&' : '?') + 'today=2026-11-08';
   const p = h.use(await newPage(device, 'grace'));
@@ -1049,6 +1049,12 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   // Nothing is asked yet (the rest are due next week), and Home never says they are all in (HM1).
   const homeSays = await p.locator('.home-hero').first().innerText().catch(() => '');
   h.set('progress', said.startsWith(`1 of ${owned} checked in for week 45`) && !/^(All|Both)/.test(said) && /Nothing is asked of you today/.test(homeSays) && !/in for week/.test(homeSays), `after one early check-in the confirmation said “${said}” and Home “${homeSays.replace(/\n/g, ' ')}”`);
+  // One team (small workspaces 2.1, SM1h): Home's goals are one section, “The team’s goals · {n}”, with no Your goals,
+  // Your team or Goals you watch beside it (nothing is watched yet), and no count of nought.
+  const parts = await p.locator('.home-main [data-part]').evaluateAll((els) => els.filter((e) => e.getClientRects().length).map((e) => e.getAttribute('data-part')));
+  const teamHead = (await p.locator('[data-part="The team’s goals"] .block-title').first().innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  const live = s.goals.filter((g) => !g.stoppedAt && !g.deletedAt).length;
+  h.set('attention', teamHead === `The team’s goals · ${live}` && !parts.some((x) => ['Your goals', 'Your team', 'Goals you watch'].includes(x)), `with one team, Home's sections are ${parts.join(', ') || 'none'} and its heading reads “${teamHead}” (expected “The team’s goals · ${live}”)`);
   await p.goto(sunday('/reviews'));
   await see(p, 'Session Thu 12 Nov', 'the first review session is not next Thursday');
   // A goal page asks for what it measures while it isn't said: in About, open on a first visit, with Describe it.

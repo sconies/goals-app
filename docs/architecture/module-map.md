@@ -41,7 +41,7 @@ The core is everything outside `src/modules`. It cannot be switched off because 
 | Proposed goals (GE10) | `src/domain/proposed.ts`, `proposedActions.ts`, `proposedSummary.ts` | `changeset.ts` reads the state, and Lane decided no switch and no workspace setting (21a, 11 November) |
 | Find | `src/domain/find.ts`, `src/app/search.ts`, `src/ports/search.ts` | A module adds a finder to it; without it a module has nowhere to be found |
 | Goals, Data and saved views | `src/screens/GoalsScreen.tsx`, `DataTables.tsx`, `src/screens/savedViews.ts` | The lists a module adds filters and tools to |
-| Home's frame | `src/domain/home.ts`, `src/screens/Home.tsx` | It holds the `home.blocks` place; its own cells and blocks (Your goals, Your team, a set drawn as teams, rule 4's `homeSets`) read core records only, the Goals scopes' |
+| Home's frame | `src/domain/home.ts`, `src/screens/Home.tsx` | It holds the `home.blocks` place; its own cells and blocks (Your goals, Your team, or with one team "The team’s goals", a set drawn as teams, rule 4's `homeSets`) read core records only, the Goals scopes' |
 | Set-up and the first week | `src/screens/Onboarding.tsx`, `src/domain/dayOne.ts`, `arrival.ts`, `firstWeek.test.ts` | A workspace has to exist before a switch can be turned off |
 | The module machinery | `src/core/module.ts`, `registry.ts`, `records.ts`, `app.tsx` | The places, the manifest, `resolveModules`, module records in save, carry, removal and the workbook |
 | The spec and the kit | `src/spec/`, `spec/`, `llms.txt` | Generated from the code, modules included |

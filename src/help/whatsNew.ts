@@ -27,6 +27,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'home-one-team',
+    date: '2026-11-14',
+    title: 'With one team, Home shows the team’s goals once',
+    points: [
+      'In a workspace with one team, Home shows “The team’s goals” as one section, yours first, in place of Your goals and Your team.',
+      'Your teammates’ goals that need attention are listed with their owners’ names, so nothing of the team’s is missing from Home.',
+    ],
+    articles: ['home'],
+  },
+  {
     id: 'home-your-team',
     date: '2026-11-14',
     title: 'Your team is on Home',

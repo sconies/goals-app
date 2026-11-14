@@ -10,7 +10,7 @@ import { scopeFacts, watchingOn } from '../app/reads';
 import { useApp } from '../app/state';
 import { scopesFor } from '../domain/goalsPage';
 import { attentionOrder } from '../domain/attention';
-import { asTeams, groupWatched } from '../domain/home';
+import { asTeams, groupWatched, theOneTeam } from '../domain/home';
 import { homeSets, type SetFacts, type Sets, type TeamRow } from '../domain/homeSets';
 import { watchedGoals } from '../domain/review';
 import { statusChange } from '../domain/tree';
@@ -28,10 +28,12 @@ function useHomeSets(): Sets {
   const watching = watchingOn(useModules().on);
   return useMemo(() => {
     const facts = scopeFacts(snapshot, viewer);
-    const { tabs } = scopesFor(facts, null, { watching });
-    const ids = new Set(tabs.filter((t) => t.id !== 'all').flatMap((t) => t.ids));
+    // Every scope, drawn as a Goals tab or not: My team waits when it is the same list as All (small workspaces rule 1),
+    // and its goals still belong on Home (as find_goals reads `every`).
+    const { every } = scopesFor(facts, null, { watching });
+    const ids = new Set(every.filter((t) => t.id !== 'all').flatMap((t) => t.ids));
     const attention = snapshot.goals.filter((g) => ids.has(g.id)).map((g) => attentionOf(g));
-    return homeSets({ id: viewer.id, teams: facts.teams }, tabs, attention, snapshot.teams);
+    return homeSets({ id: viewer.id, teams: facts.teams }, every, attention, snapshot.teams);
   }, [snapshot, viewer, attentionOf, watching]);
 }
 
@@ -49,14 +51,16 @@ function SetCounts({ set, scope }: { set: Pick<SetFacts, 'byStatus'>; scope: 'te
 }
 
 /**
- * Your team (part 7): the Goals page's My team scope, when it holds a goal you don't own. Its counts open exactly those
+ * Your team (part 7): the Goals page's My team scope, when it holds a goal you don't own, and not with one team in the
+ * workspace (SM1h). Its counts open exactly those
  * goals; then the goals that need attention and aren't yours (up to four, each with its owner's name first, no button),
  * or the teams worst first when the scope spans three or more.
  */
 export function YourTeam() {
   const app = useApp();
   const set = useHomeSets().team;
-  if (!set) return null;
+  // With one team in the workspace its goals are Home's first section, "The team's goals" (SM1h).
+  if (!set || theOneTeam(app.snapshot.teams, app.viewer)) return null;
   const several = set.names.length > 1;
   const k = set.rows.length;
   return (

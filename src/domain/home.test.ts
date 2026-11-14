@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { asTeams, askLead, homeFor, homeLead, missedReviews, proposalLead, quietLine, waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession } from './home';
+import { asTeams, askLead, ownFirst, theOneTeam, homeFor, homeLead, missedReviews, proposalLead, quietLine, waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession } from './home';
 import { buildPlatformOrg } from '../data/platformOrg';
 import { currentCycle as currentCycleOf, scopeToCycle } from './cycle';
 import { attentionFor, type GoalAttention } from './attention';
@@ -243,6 +243,24 @@ describe('Home rule 4: the sets [HOME-MANAGER]', () => {
     const tabs = [{ id: 'mine' as const, label: 'Mine', ids: ['a', 'b'] }, { id: 'team' as const, label: 'My team', ids: ['a', 'b'] }];
     expect(homeSets({ id: 'me', teams: [{ id: 't', name: 'T' }] }, tabs, list, [{ id: 't', name: 'T' }]).team).toBeNull();
     expect(homeSets({ id: 'me', teams: [] }, tabs.slice(0, 1), list, []).team).toBeNull();
+  });
+  it('One team (HM3 review, SM1h): My team waits as a tab, being All, yet its scope still makes Your team; Home folds it into “The team’s goals”', () => {
+    const g = (id: string, ownerId: string, status: 'on' | 'off') => ({ goal: { id, ownerId, teamId: 't', title: id }, status: { status }, flags: status === 'off' ? [{ kind: 'off' }] : [], weight: status === 'off' ? 3 : 0, handled: null, lookedAt: null }) as unknown as GoalAttention;
+    const list = [g('a', 'me', 'on'), g('b', 'ana', 'off'), g('c', 'ben', 'on')];
+    const facts = { goals: list.map((a) => ({ id: a.goal.id, ownerId: a.goal.ownerId, teamId: 't' })), viewerId: 'me', teams: [{ id: 't', name: 'Support' }], watched: new Set<string>() };
+    const { tabs, every } = scopesFor(facts, null);
+    expect(tabs.map((t) => t.id)).toEqual(['mine', 'all']);
+    // Read from the drawn tabs, a teammate's goal off track was nowhere on Home; read from every scope, it is there.
+    expect(homeSets({ id: 'me', teams: facts.teams }, tabs, list, facts.teams).team).toBeNull();
+    const team = homeSets({ id: 'me', teams: facts.teams }, every, list, facts.teams).team!;
+    expect([team.total, team.rows.map((a) => a.goal.id)]).toEqual([3, ['b']]);
+    // And with one team in the workspace, Home draws that team's goals as one section, the viewer's own first.
+    const teams = [{ id: 't', leadId: 'ana' }];
+    expect(theOneTeam(teams, { id: 'me', teamId: 't' })).toBe('t');
+    expect(theOneTeam(teams, { id: 'ana', teamId: null })).toBe('t');
+    expect(theOneTeam(teams, { id: 'admin', teamId: null })).toBeNull();
+    expect(theOneTeam([...teams, { id: 'u', leadId: 'ben' }], { id: 'me', teamId: 't' })).toBeNull();
+    expect(ownFirst(['b', 'a', 'c', 'd'], (x) => x === 'a' || x === 'd')).toEqual(['a', 'd', 'b', 'c']);
   });
   it('asTeams: more than twelve goals in two or more teams', () => {
     const t = (...ids: string[]) => ids.map((teamId) => ({ teamId }));
