@@ -320,6 +320,7 @@ A faster weekly check-in when most of your goals are on plan.
 - Each row is judged as you type. A row that is off plan asks for a cause, a sentence and, when behind, how it gets back on plan.
 - Type numbers as you write them: a comma as the decimal mark (3,9) reads as 3.9, as in the one-by-one check-in.
 - A number that looks wrong (ten times last week’s, say) is asked about under its row, as on the one-by-one check-in, and the row waits until you answer. Your answer is kept in the goal’s History. A number that can’t be posted at all says “Must fix” under its row.
+- With the Metric library on, a row whose metric’s source has a new reading shows it in faint ink, with “From CI runner metrics, read 9:00 today.” and “Confirm 8 min” under it. A filled-in number isn’t posted until you confirm it, with that button, with “Confirm all readings” for every such row, or by typing your own (then the row asks why it differs).
 - Post counts the rows that are ready and posts those (“Post 2 check-ins”). A row that still needs something says so under it, and the bar above Post says how many aren’t ready; they stay in the table until they are.
 - After posting you land on the same confirmation as the one-by-one check-in: the week’s ring, each goal posted with its number and status, and any rows kept back.
 - The table and the one-by-one check-in share one draft per goal: a number typed in one is there in the other. Drafts are kept across a refresh until you post them. Use the normal check-in for milestones or a longer account.
