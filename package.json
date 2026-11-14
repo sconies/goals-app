@@ -17,6 +17,7 @@
     "evals": "node evals/run.mjs",
     "evals:smoke": "node evals/run.mjs --smoke",
     "evals:changed": "node evals/run.mjs --changed",
+    "evals:pr": "node evals/run.mjs --changed --no-full",
     "migrate": "node scripts/migrate.mjs",
     "fence": "node scripts/check-fence.mjs",
     "faro:export": "node scripts/faro-data.mjs export",

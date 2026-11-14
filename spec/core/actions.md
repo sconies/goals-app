@@ -1887,6 +1887,9 @@ In `src/domain/checkin.ts`.
 ```ts
 export interface Draft {
   value: string;
+  /** The field as a module filled it from a source (NR), until the owner types: a filled number isn't theirs, so a
+      draft reopened with it untouched is filled again from what the source says then (review of #437, medium 3). */
+  filled?: string;
   stages: StageUpdate[];
   status: Status | null;
   cause: Cause | null;

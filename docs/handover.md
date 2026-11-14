@@ -2,6 +2,41 @@
 
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
+## Track 4, Saturday 14 November, 01:30 UTC (handing over at about 300k tokens, Lane's rule #455; supersedes the 13 Nov 20:15 entry)
+
+Session: session_012kbr931R7QEqBrfxbNv2QV. Planning is session_012kbr91eefh4gwCAztBncNT.
+
+- **Merged since 20:15:**
+  - #444, SW1: Watching, Feedback, the Goal map and the Wrap-up each behind a switch, plus the Features groups. Its journeys became U164–U166 because main's readings took U156–U158; its check is N22.
+  - #454: U2's "late" step is Watching's. The late goal on Rhea's Home is one she watches.
+  - #458: the RS1 review fixes.
+    - `inreview=` and review notes are dropped with Reviews off.
+    - `weekDoneText`'s clock branch is gone.
+    - The habit panel says "review" only when one is held that day (`heldForGoals`).
+    - U153 now expects "Week N, due by …" for CI/CD.
+- **Open:** #465, FT1 (the per-cycle check-in rhythm). Auto-merge is on.
+  - Lane exposed `faro` in the Data API; I checked it at 23:40: `okr_cycles` with `Accept-Profile: faro` returns `check_in_weeks`.
+  - Its migration, 0048, is already on main.
+  - To stay under 275 KB, `src/app/state.tsx` now loads the parity table after the first download.
+  - **It may be blocked by main:** U156, U157, U160 and U161 (metric readings) fail on main after about 00:30 UTC. Posting says "CI analytics's number is dated after now, so it can't be recorded." It looks like a reading dated by UTC day against the demo's clock. That bug is the readings track's (7c); if #465's CI is red only there, say so on the PR and tell planning.
+- **Next, in order:**
+  1. See #465 merged.
+  2. The build reviewer's SW1 mediums:
+     - Watching off: restoring or undoing a removed watch, and MCP `list_removed`/`restore_removed`, still go through and name watches. Refuse by what the save writes, as `writesReviews` does, rather than by the four names in `SWITCHED_ACTIONS` (`src/app/reads.ts`).
+     - Wrap-up off: Cycles, Workspace and the Start page still say "the wrap-up is open … N goals still to wrap up" (`src/domain/workspaceAttention.ts` 79–89, `startYear.ts` 42 and 58), and so does the tool's read-back.
+     - Watching off: `/activity?watching=all` still shows "Goals you watch" (`src/screens/Activity.tsx` 50–52).
+     - Lows are in the build review log (docs/reviews/2026-11-11-build-reviews.md on build-reviews).
+  3. Check SW1's leftovers from the 20:15 entry against main and do what is still open: `get_goal` `watchedBy`, `get_activity watching=1`, the year line's wrap-up words, the "Watching is off here" filter line, and About's "All eight are on".
+  4. SW2: the AI access switch.
+  5. FD: the first download is at 274/275 KB and live at 334/334. Trim the first download under 265 KB without raising the budgets.
+  6. The #358 lows: "Show older changes" with nothing older; the first older page lands at the top; `undo_import` past the window.
+  7. The #403 low: a worker-checked file is planned again at Save.
+- **Traps:**
+  - Ids clash across tracks: two journeys of one id stop the harness loading, so every journey shows "did not run". Choose ids at merge time, above main's highest (U166 now).
+  - When merging What's new, take main's file and re-add only this branch's feature entry.
+  - The scale and clock tests fail under load; run them alone before concluding anything.
+  - Lane's rule (#455): mechanical work goes to Sonnet subagents. That covers merging main, regenerating `api/mcp.js` and `spec/`, eval runs and docs.
+
 ## Track 7c (metrics, baselines), Friday 13 November, 23:00 UTC (context near full, handing over)
 
 **Merged:** #384 (#308's review mediums and lows), #404 (#351's review mediums and five lows; the sixth waits for 0c2), #411 (F5 `recordsOn` through `resolveModules`; F6 metric carry-over moved to journey U152), #413 (MS migration 0046), #430 (BL migration), #449 (BL: a baseline's period and "provisional"), #451 (GB migration 0050).
@@ -35,6 +70,7 @@ Follow `docs/architecture/module-map.md`. MI is track 3's, TG is track 2's, and 
 
 - **Fixed and merged:** U109 (#392, the week picker's keys outran a render on a slow phone), U98 (#389, Stop clicked after a 6,000-row check had already ended), N12 (#385, Data search re-read the query for every row), the rolling issue for full-eval failures (#390). F8 was already fixed (#336). The 67 per-commit failure issues are closed.
 - **Phone CPU:** `evals:changed` and `evals:smoke` slow phone-sized pages 4× and run their journey processes one after another (`evals/phoneCpu.cjs`, Lane, 13 Nov), so a race that only a slow phone shows turns up before the merge. The full suite after the merge runs at full speed. `PHONE_CPU=1` turns it off, to tell a slow phone from a broken one; `PHONE_CPU=4` slows a single `ONLY=`/`FINISH=` run.
+- PR CI's smoke job (the required check, name unchanged) runs `npm run evals:pr`: the core journeys plus what the PR's files touch, slowed, about 10 minutes. Shared code no longer means the whole suite before the merge (it meant that for 28 of 40 merges on 13 Nov); backlog TN narrows `evals/touches.cjs` so fewer files count as shared. Reproduce PR CI locally with `npm run evals:pr`.
 - Chromium slows a page by keeping its core busy: never run slowed browsers side by side (the full suite slowed, 4 shards on 4 cores, took 70 minutes and failed 38 requirements that pass alone).
 
 **Gotchas**

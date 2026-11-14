@@ -26,7 +26,7 @@ import { metricReader, toolSources } from './readingTool';
 import { differentNumbers, differentWords, fillsIn, fillsInWords } from './rulesReading';
 import { sliceOf as readSlice } from './source';
 import { checkInsFor } from '../../domain/status';
-import { readWhen } from '../../domain/reading';
+import { readWhen } from '../../domain/readingWords';
 
 // post_check_in's reading_confirmed and different_because read the goal's source here (NR rule 3).
 addCheckInReader(metricReader);
