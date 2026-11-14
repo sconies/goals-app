@@ -26792,11 +26792,11 @@ function beforeReviewText(h, past, words) {
 	return `${h.inTime} of ${h.due} goals were checked in ${by}, ${h.unasked === h.inTime ? "all without being asked" : `${h.unasked} without being asked`}.`;
 }
 function beforeReview(goals, week, rows, cycle, today, viewerId, held = true) {
-	if (week < 1 || !habitShown(goals, viewerId)) return null;
+	if (week < 1) return null;
 	const isDue = dueIn(cycle, rows.checkIns);
 	const dueDay = reviewDate(cycle, week);
 	const h = habit(goals, week, rows, dueDay, isDue);
-	if (!h.due) return null;
+	if (!h.due || !habitShown(goals.filter((g) => isDue(g, week)), viewerId)) return null;
 	const past = today.toISOString().slice(0, 10) > dueDay;
 	const { goals: _ids, ...counts } = h;
 	const words = dueWords$1(held, cycle, week, held);
@@ -26904,7 +26904,7 @@ var tools$3 = [
 			const b = beforeReview(x.items.map((i) => i.goal), Math.min(x.week, ctx.week), {
 				checkIns: ctx.snapshot.checkIns,
 				asks: ctx.snapshot.requests ?? []
-			}, ctx.cycle, ctx.today, ctx.actor.id);
+			}, ctx.cycle, ctx.today, ctx.actor.id, r.weekday === ctx.cycle.reviewDay);
 			const before = b ? {
 				says: b.says,
 				due: b.counts.due,
