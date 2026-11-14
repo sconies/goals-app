@@ -35,7 +35,7 @@ import { startPage, startPageText } from '../domain/startYear';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 import { listed } from './listed';
 import { MODULES, modulesOn } from '../core/registry';
-import { dueWordsHere, reviewsOn, watchingOn, wrapUpOn } from '../app/reads';
+import { aiAccessLastWords, aiAccessOn, dueWordsHere, reviewsOn, watchingOn, wrapUpOn } from '../app/reads';
 import { RULE_PAGES, systemOverview } from '../spec/overview';
 import { VIA_MCP } from '../domain/via';
 
@@ -291,17 +291,6 @@ export const WORK_TOOLS: ToolDef[] = [
       return listed({ views: list });
     },
   },
-  {
-    name: 'list_tokens',
-    title: 'AI assistant tokens',
-    description: 'Tokens that let an AI assistant act as someone: every live one for an admin, otherwise your own. Never the token itself.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-    annotations: READ,
-    async run(_a, ctx) {
-      const list = (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({ id: t.id, name: t.name, person: name(ctx, t.personId), createdAt: t.createdAt, lastUsedAt: t.lastUsedAt }));
-      return listed({ tokens: list });
-    },
-  },
 
   {
     name: 'get_help',
@@ -534,29 +523,7 @@ export const WORK_TOOLS: ToolDef[] = [
     async run(a, ctx) { return save(ctx, A.pinView(ax(ctx), String(a.view_id ?? ''), !!a.pinned), a.pinned ? 'Pinned the view for everyone' : 'Unpinned the view', 'It already is.'); },
   },
 
-  /* ---------- Tokens and feedback ---------- */
-  {
-    name: 'create_token',
-    title: 'Make an MCP token',
-    description: 'Admins: make a personal MCP token, so an AI tool can act as someone (with exactly their rights). The token is returned once; only its hash is kept. Give it to that person privately.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['person', 'name'], properties: { person: str('Who it acts as (name or ID).'), name: str('What it’s for, e.g. "Claude on Maya’s laptop".') } },
-    annotations: WRITE,
-    async run(a, ctx) {
-      const p = personOf(ctx, a.person);
-      const c = A.createToken(ax(ctx), p.id, String(a.name ?? ''));
-      // The secret is made where the token is kept (the database), and only its hash is stored.
-      const token = await ctx.issueToken({ ...c, changes: c.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA] })) });
-      return { text: `Made a token for ${p.name} (as ${ctx.actor.name}). Here it is, shown once: ${token}`, data: { token } };
-    },
-  },
-  {
-    name: 'revoke_token',
-    title: 'Revoke a token',
-    description: 'Stop a token working: an admin, or the token’s person. Revoking the token this assistant uses ends its access.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['token_id'], properties: { token_id: str('The token’s ID, from list_tokens.') } },
-    annotations: { ...WRITE, destructiveHint: true, idempotentHint: true },
-    async run(a, ctx) { return save(ctx, A.revokeToken(ax(ctx), String(a.token_id ?? '')), 'Revoked the token', 'That token is already revoked.'); },
-  },
+  /* ---------- Feedback (the tokens' tools are AI access's: src/modules/ai-access/tools.ts) ---------- */
   {
     name: 'rename_workspace',
     title: 'Rename the workspace',
@@ -593,7 +560,9 @@ export const WORK_TOOLS: ToolDef[] = [
       const m = MODULES.find((x) => x.id === id);
       const res = await save(ctx, A.setModule(ax(ctx), ctx.ws, MODULES, id, a.on), `${a.on ? 'Switched on' : 'Switched off'} ${m?.name ?? id} in ${ctx.ws.name}`, `Nothing to change: ${m?.name ?? id} is already ${a.on ? 'on' : 'off'}.`);
       const r = modulesOn(ctx.ws);
-      return { ...res, data: { on: [...r.on], off: [...r.off.keys()] } };
+      // Switching AI access off is the last thing this token does (SW2, spec 6.2): its answer says the connection stops.
+      const last = !a.on && !res.isError && !aiAccessOn(r.on) && aiAccessOn(modulesOn(null).on);
+      return { ...res, ...(last ? { text: aiAccessLastWords(ctx.ws.name) } : {}), data: { on: [...r.on], off: [...r.off.keys()] } };
     },
   },
   {

@@ -1212,6 +1212,12 @@
       "use": "copy"
     },
     {
+      "id": "AI-ACCESS-OPTIONAL",
+      "area": "Architecture",
+      "text": "An admin switches AI access off for a workspace. Off, the MCP server refuses every token of the workspace with one sentence that says so (it still lists its tools, and a refused request doesn’t count as a token’s use), no token can be made, and Workspace, Settings and People show no tokens; a token can still be revoked. Switching it off first names the tokens that stop working, and switching it back on names those that work again. Tokens are kept, not revoked.",
+      "use": "copy"
+    },
+    {
       "id": "FEEDBACK-OPTIONAL",
       "area": "Architecture",
       "text": "An admin switches Feedback off for a workspace. Off, there is no Feedback in the menu, no way to send feedback or mark up a screen (Ctrl+Shift+M does nothing), and no inbox tool; its addresses say it is switched off. What was sent stays in the builders’ inbox.",

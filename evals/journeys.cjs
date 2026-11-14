@@ -7132,6 +7132,52 @@ journey('U170', ['METRIC-MEASUREMENT'], 'A gap in measurement is visible and own
   await p.context().close();
 }, []);
 
+journey('U171', ['AI-ACCESS-OPTIONAL', 'FEATURE-GROUPS', 'MODULES'], 'Amara switches AI access off (SW2): it is under Beyond this workspace, and with no token it acts at once; then Workspace has no AI access section, /workspace/ai says it is switched off, Access is the admins only and Settings has no “Your MCP tokens”; switched back on, the section is back after Access', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  // On: AI access is its own section after Access (SW2), with the tokens; Access names the admins only.
+  await p.goto(url('/workspace/ai'));
+  await see(p, 'The MCP tokens that let an AI tool act as someone here.', 'AI access is not its own Workspace section');
+  await p.goto(url('/workspace/features'));
+  const box = p.getByRole('checkbox', { name: 'AI access', exact: true });
+  await box.scrollIntoViewIfNeeded();
+  const beyond = await p.locator('.features-group').filter({ has: p.getByRole('heading', { name: 'Beyond this workspace' }) }).innerText();
+  h.set('attention', /AI access/.test(beyond), 'AI access is not under Beyond this workspace');
+  await h.checkpoint('features');
+  // The demo has no token (they work only in the real app), so switching off acts at once: nothing to name.
+  await h.click(box);
+  await see(p, 'AI access is off in');
+  if (await p.getByRole('dialog', { name: /^Switch off AI access in / }).count()) fail('with no token, switching AI access off still asked first');
+  h.set('one-action', true);
+  // Its section is gone: not in the menu, and its address says it is off.
+  await p.goto(url('/workspace/access'));
+  await see(p, 'Who the admins are.');
+  if (/MCP tokens/.test(await p.locator('.page.workspace').innerText())) fail('Access still lists MCP tokens with AI access off');
+  if (device === 'desktop' && await p.getByRole('navigation', { name: 'Workspace sections' }).getByRole('link', { name: 'AI access' }).count()) fail('Workspace’s menu still has AI access');
+  await p.goto(url('/workspace/ai'));
+  await see(p, 'Page not found');
+  await see(p, 'AI access is switched off in', '/workspace/ai does not say AI access is switched off');
+  // Settings: no “Your MCP tokens”.
+  await p.goto(url('/settings'));
+  await p.locator('.page').first().waitFor();
+  await see(p, 'Settings');
+  if (await p.getByRole('heading', { name: /^Your MCP tokens/ }).count()) fail('Settings still has “Your MCP tokens” with AI access off');
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.entity === 'workspace' && c.actorId === 'amara' && c.summary === 'Switched off AI access'), 'switching AI access off was not logged');
+  // Back on: the section is back.
+  await p.goto(url('/workspace/features'));
+  await box.scrollIntoViewIfNeeded();
+  await h.click(box);
+  await see(p, 'AI access is on in');
+  await p.goto(url('/workspace/ai'));
+  await see(p, 'The MCP tokens that let an AI tool act as someone here.', 'AI access back on, its section is not back');
+  await p.goto(url('/settings'));
+  await see(p, 'Your MCP tokens', 'AI access back on, Settings has no “Your MCP tokens”');
+  h.set('finish', true);
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['parity', 'budget']);
+
 journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   // The metric a letter away, added first, fully said, so the typo has something to be close to. From the library.

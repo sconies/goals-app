@@ -32,7 +32,6 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`list_people`](#list_people) | People and teams | reads | — |
 | [`get_activity`](#get_activity) | The activity log | reads | — |
 | [`list_views`](#list_views) | Saved views | reads | — |
-| [`list_tokens`](#list_tokens) | AI assistant tokens | reads | — |
 | [`get_help`](#get_help) | Help: what the app does | reads | — |
 | [`describe_system`](#describe_system) | What Faro is: an overview for an AI | reads | — |
 | [`whats_new`](#whats_new) | What’s new in the app | reads | — |
@@ -51,8 +50,6 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`save_table_view`](#save_table_view) | Save a data table’s layout | changes | [saveTableView](actions.md#savetableview) |
 | [`delete_view`](#delete_view) | Delete a saved view | changes; removes something | [deleteView](actions.md#deleteview) |
 | [`pin_view`](#pin_view) | Pin a view for everyone | changes | [pinView](actions.md#pinview) |
-| [`create_token`](#create_token) | Make an MCP token | changes | [createToken](actions.md#createtoken) |
-| [`revoke_token`](#revoke_token) | Revoke a token | changes; removes something | [revokeToken](actions.md#revoketoken) |
 | [`rename_workspace`](#rename_workspace) | Rename the workspace | changes | [renameWorkspace](actions.md#renameworkspace) |
 | [`set_recording`](#set_recording) | Turn recording on or off | changes | [setRecording](actions.md#setrecording) |
 | [`set_feature`](#set_feature) | Switch a feature on or off | changes | [setModule](actions.md#setmodule) |
@@ -71,6 +68,9 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`delete_cycle`](#delete_cycle) | Delete a cycle | changes; removes something | [deleteCycle](actions.md#deletecycle) |
 | [`undo_start_cycle`](#undo_start_cycle) | Undo starting the next cycle | changes; removes something | [undoStart](actions.md#undostart) |
 | [`undo_import`](#undo_import) | Undo an import or bulk edit | changes; removes something | [undoImport](actions.md#undoimport) |
+| [`list_tokens`](#list_tokens) (ai-access) | AI assistant tokens | reads | — |
+| [`create_token`](#create_token) (ai-access) | Make an MCP token | changes | [createToken](actions.md#createtoken) |
+| [`revoke_token`](#revoke_token) (ai-access) | Revoke a token | changes; removes something | [revokeToken](actions.md#revoketoken) |
 | [`list_markups`](#list_markups) (feedback) | List markups | reads | — |
 | [`get_markup`](#get_markup) (feedback) | Open a markup | reads | — |
 | [`review_inbox`](#review_inbox) (feedback) | Review the inbox | reads | — |
@@ -2038,38 +2038,6 @@ No arguments.
 
 **Does the same as:** no action: it reads, or does something only an assistant needs.
 
-## list_tokens
-
-**AI assistant tokens.** Tokens that let an AI assistant act as someone: every live one for an admin, otherwise your own. Never the token itself.
-
-**Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
-
-**Input:**
-
-No arguments.
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "properties": {},
-  "additionalProperties": false
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{}
-```
-
-**Refuses with:** nothing of its own beyond the shared refusals above.
-
-**Does the same as:** no action: it reads, or does something only an assistant needs.
-
 ## get_help
 
 **Help: what the app does.** The app’s own guide, the same as its Help pages: one article per screen or feature, saying what it is for, how to use it and who can. Give an article’s id for the whole article, or a search for the articles that match; with neither, every article’s id, title and summary.
@@ -3048,100 +3016,6 @@ No arguments.
 
 **Does the same as:** [pinView](actions.md#pinview), so it refuses with their words too.
 
-## create_token
-
-**Make an MCP token.** Admins: make a personal MCP token, so an AI tool can act as someone (with exactly their rights). The token is returned once; only its hash is kept. Give it to that person privately.
-
-**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
-
-**Input:**
-
-| Argument | Type | Needed | What it is |
-|---|---|---|---|
-| `person` | string | yes | Who it acts as (name or ID). |
-| `name` | string | yes | What it’s for, e.g. "Claude on Maya’s laptop". |
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "person",
-    "name"
-  ],
-  "properties": {
-    "person": {
-      "type": "string",
-      "description": "Who it acts as (name or ID)."
-    },
-    "name": {
-      "type": "string",
-      "description": "What it’s for, e.g. \"Claude on Maya’s laptop\"."
-    }
-  }
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{
-    token: string;
-}
-```
-
-**Refuses with:**
-
-- “There’s no one called … in this workspace. Use list_people.”
-
-**Does the same as:** [createToken](actions.md#createtoken), so it refuses with their words too.
-
-## revoke_token
-
-**Revoke a token.** Stop a token working: an admin, or the token’s person. Revoking the token this assistant uses ends its access.
-
-**Kind:** changes; removes something. Hints: readOnlyHint false, destructiveHint true, idempotentHint true, openWorldHint false.
-
-**Input:**
-
-| Argument | Type | Needed | What it is |
-|---|---|---|---|
-| `token_id` | string | yes | The token’s ID, from list_tokens. |
-
-<details><summary>The input schema, as JSON</summary>
-
-```json
-{
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "token_id"
-  ],
-  "properties": {
-    "token_id": {
-      "type": "string",
-      "description": "The token’s ID, from list_tokens."
-    }
-  }
-}
-```
-
-</details>
-
-**Gives back:** the text, and `data`:
-
-```ts
-{}
-```
-
-**Refuses with:** nothing of its own beyond the shared refusals above.
-
-**Does the same as:** [revokeToken](actions.md#revoketoken), so it refuses with their words too.
-
 ## rename_workspace
 
 **Rename the workspace.** Admins: give the workspace a new name (up to 80 characters). Everyone sees the new name; the change is logged.
@@ -3232,7 +3106,7 @@ No arguments.
 
 ## set_feature
 
-**Switch a feature on or off.** Admins: switch one of Faro's optional features (its modules) on or off in this workspace. Off, it leaves every screen: no page, menu or tool of its own, here or for assistants; anything that needs it goes off with it. Nothing it saved is deleted, and switching it back on brings it all back. The change is logged. The features: feedback (Feedback: Send feedback about Faro, or mark up a screen. It goes to the people who build Faro.); goal-map (Goal map: See every goal and what feeds it on one canvas, with the path the risk runs along.); metrics (Metric library: Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.); reviews (Reviews: Walk a set of goals together on a cadence, decide what happens next and keep what was said.); spreadsheets (Spreadsheets: Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.); tags (Fields: Give goals a workspace’s own fields, such as a stage or a programme, to find and sort them by.); watching (Watching: Follow goals you don’t own: they show on your Home and under Watching in Goals.); wrap-up (Wrap-up: At the end of the year, each owner says how their goals landed and what they learned.).
+**Switch a feature on or off.** Admins: switch one of Faro's optional features (its modules) on or off in this workspace. Off, it leaves every screen: no page, menu or tool of its own, here or for assistants; anything that needs it goes off with it. Nothing it saved is deleted, and switching it back on brings it all back. The change is logged. The features: ai-access (AI access: Let Claude or another AI tool read and act here through MCP, as one person, with that person’s rights.); feedback (Feedback: Send feedback about Faro, or mark up a screen. It goes to the people who build Faro.); goal-map (Goal map: See every goal and what feeds it on one canvas, with the path the risk runs along.); metrics (Metric library: Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.); reviews (Reviews: Walk a set of goals together on a cadence, decide what happens next and keep what was said.); spreadsheets (Spreadsheets: Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.); tags (Fields: Give goals a workspace’s own fields, such as a stage or a programme, to find and sort them by.); watching (Watching: Follow goals you don’t own: they show on your Home and under Watching in Goals.); wrap-up (Wrap-up: At the end of the year, each owner says how their goals landed and what they learned.).
 
 **Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
 
@@ -3240,7 +3114,7 @@ No arguments.
 
 | Argument | Type | Needed | What it is |
 |---|---|---|---|
-| `feature` | one of `feedback`, `goal-map`, `metrics`, `reviews`, `spreadsheets`, `tags`, `watching`, `wrap-up` | yes | The feature’s id. |
+| `feature` | one of `ai-access`, `feedback`, `goal-map`, `metrics`, `reviews`, `spreadsheets`, `tags`, `watching`, `wrap-up` | yes | The feature’s id. |
 | `on` | boolean | yes | true to switch it on, false to switch it off. |
 
 <details><summary>The input schema, as JSON</summary>
@@ -3258,6 +3132,7 @@ No arguments.
       "type": "string",
       "description": "The feature’s id.",
       "enum": [
+        "ai-access",
         "feedback",
         "goal-map",
         "metrics",
@@ -4017,6 +3892,138 @@ No arguments.
 **Refuses with:** nothing of its own beyond the shared refusals above.
 
 **Does the same as:** [undoImport](actions.md#undoimport), so it refuses with their words too.
+
+## list_tokens
+
+**AI assistant tokens.** Tokens that let an AI assistant act as someone: every live one for an admin, otherwise your own. Never the token itself.
+
+From the [ai-access](../modules/ai-access/README.md) module: switched off with it.
+
+**Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
+
+**Input:**
+
+No arguments.
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {},
+  "additionalProperties": false
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:** nothing of its own beyond the shared refusals above.
+
+**Does the same as:** no action: it reads, or does something only an assistant needs.
+
+## create_token
+
+**Make an MCP token.** Admins: make a personal MCP token, so an AI tool can act as someone (with exactly their rights). The token is returned once; only its hash is kept. Give it to that person privately.
+
+From the [ai-access](../modules/ai-access/README.md) module: switched off with it.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint false, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `person` | string | yes | Who it acts as (name or ID). |
+| `name` | string | yes | What it’s for, e.g. "Claude on Maya’s laptop". |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "person",
+    "name"
+  ],
+  "properties": {
+    "person": {
+      "type": "string",
+      "description": "Who it acts as (name or ID)."
+    },
+    "name": {
+      "type": "string",
+      "description": "What it’s for, e.g. \"Claude on Maya’s laptop\"."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{
+    token: string;
+}
+```
+
+**Refuses with:**
+
+- “There’s no one called … in this workspace. Use list_people.”
+
+**Does the same as:** [createToken](actions.md#createtoken), so it refuses with their words too.
+
+## revoke_token
+
+**Revoke a token.** Stop a token working: an admin, or the token’s person. Revoking the token this assistant uses ends its access.
+
+From the [ai-access](../modules/ai-access/README.md) module: switched off with it.
+
+**Kind:** changes; removes something. Hints: readOnlyHint false, destructiveHint true, idempotentHint true, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `token_id` | string | yes | The token’s ID, from list_tokens. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "token_id"
+  ],
+  "properties": {
+    "token_id": {
+      "type": "string",
+      "description": "The token’s ID, from list_tokens."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{}
+```
+
+**Refuses with:** nothing of its own beyond the shared refusals above.
+
+**Does the same as:** [revokeToken](actions.md#revoketoken), so it refuses with their words too.
 
 ## list_markups
 

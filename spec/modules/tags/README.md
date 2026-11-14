@@ -35,5 +35,5 @@ _None._
 
 ## Rules, conformance and rebuild stage
 
-Its rebuild stage: [stage 9](../../rebuild/stage-9-module-tags.md) (an outline, with no drill yet).
+Its rebuild stage: [stage 10](../../rebuild/stage-10-module-tags.md) (an outline, with no drill yet).
 Its rules: [Fields: a workspace’s own columns on goals](rules.md#fields-a-workspaces-own-columns-on-goals), in plain words with worked examples (run against the code by the spec’s own test). **Not self-explanatory:** it has no conformance rows of its own yet.
