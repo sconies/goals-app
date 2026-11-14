@@ -1114,7 +1114,7 @@ Someone whose goals span three or more teams sees them as teams, worst first, wi
 - **Copy:** build it as Faro does.
 - **Rule:** [Home: a leader’s week, and the workspace’s line](rules/home-leader.md)
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
-- **Journeys and checks:** U124
+- **Journeys and checks:** U124, U176
 
 ### HOME-OWNER
 
