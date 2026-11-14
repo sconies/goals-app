@@ -102,7 +102,10 @@ export const levelsOf = (v: unknown): Level[] => {
 // askWaiting), where a question past its session is late, not only one past its due week. Only an open ask can be late.
 const askLate = (ctx: McpContext, r: Ask): boolean => (r.status === 'open' ? (askWaiting(r, r.recipientId ?? ctx.actor.id, ctx.snapshot, ctx.cycle, ctx.week, ctx.today, reviewsOn(modulesOn(ctx.ws).on))?.late ?? isOverdue(r, ctx.week)) : false);
 const requestData = (ctx: McpContext, r: ReturnType<typeof requestOf>) => ({
-  id: r.id, kind: r.kind, ask: r.kind === 'decision' ? askText(r, ctx.snapshot.people) : r.ask, status: r.status, statusLabel: ASK_STATUS[r.status].label, dueWeek: r.dueWeek, overdue: askLate(ctx, r), review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null, askedBy: name(ctx, r.askedBy), askedOf: r.recipientId ? name(ctx, r.recipientId) : 'anyone',
+  id: r.id, kind: r.kind, ask: r.kind === 'decision' ? askText(r, ctx.snapshot.people) : r.ask, status: r.status, statusLabel: ASK_STATUS[r.status].label, dueWeek: r.dueWeek, overdue: askLate(ctx, r),
+  // The review it was raised in, only while Reviews is on: switched off, no answer names a review (build review of #371).
+  ...(reviewsOn(modulesOn(ctx.ws).on) ? { review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null } : {}),
+  askedBy: name(ctx, r.askedBy), askedOf: r.recipientId ? name(ctx, r.recipientId) : 'anyone',
   goals: r.goalIds.map((g) => { const x = withProposed(ctx.snapshot).find((y) => y.id === g); return { id: g, key: x?.key ?? null, title: x?.title ?? g }; }), raisedAt: r.createdAt,
   answer: r.answer, answeredBy: r.answeredBy ? name(ctx, r.answeredBy) : null, youCanAnswer: r.status === 'open' && canAnswer(r, ctx.actor), youCanMarkDone: r.status === 'open' && canMarkDone(r, ctx.actor),
 });
@@ -671,7 +674,7 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'set_rhythm',
     title: 'Choose the check-in rhythm',
-    description: 'Admins: how often every goal is expected to have a check-in in this workspace. every: "week" (due by a weekday, due_by; a goal with none for two check-ins’ time reads No recent update) or "none" (no set rhythm: owners check in when there’s news, and nothing is due or late for want of a check-in). Without confirm: true it changes nothing and says what would change, counted. With it, the change is made and logged; switching a rhythm on counts from today, so nothing is late that day.',
+    description: `Admins: how often every goal is expected to have a check-in in this workspace. every: "week" (due by a weekday, due_by; a goal with none for two check-ins’ time reads ${STATUS.stale.label}) or "none" (no set rhythm: owners check in when there’s news, and nothing is due or late for want of a check-in). Without confirm: true it changes nothing and says what would change, counted. With it, the change is made and logged; switching a rhythm on counts from today, so nothing is late that day.`,
     inputSchema: { type: 'object', additionalProperties: false, required: ['every'], properties: {
       every: str('“week” or “none”.', { enum: ['week', 'none'] }), due_by: str('With every week: the weekday check-ins are due by. Leave out to keep it.', { enum: WEEKDAY }),
       confirm: bool('true to make the change; leave out to see what it would do first.'),

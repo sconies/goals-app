@@ -1562,6 +1562,7 @@ fieldset > legend { padding: 0; }
 /* Baseline beside From, Target beside To: a number and its week on one row, at every width (2.4, item 3). */
 .week-rows { display: grid; grid-template-columns: minmax(96px, 1fr) minmax(0, 1.4fr); gap: var(--s3) var(--s4); align-items: start; }
 @media (max-width: 640px) { .week-rows { grid-template-columns: minmax(72px, 0.5fr) minmax(0, 1.5fr); gap: var(--s2) var(--s3); } }
+.baseline-open { min-height: 44px; padding: 0; vertical-align: middle; }
 .weekpick-open { white-space: normal; height: auto; }
 .weekpick-is-inline { display: none; }
 /* On a phone, what the week is sits beside its label, so a number and its week take one row's height. */

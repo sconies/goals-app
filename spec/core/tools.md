@@ -377,6 +377,13 @@ No arguments.
             postedAt: string;
             postedBy: string | null;
             backfilled: boolean;
+            numberFrom: {
+                from: string;
+                sourceSaid: number | null;
+                measuredAt: string | null;
+                reason: string | null;
+                says: string | null;
+            } | null;
         }[];
         state?: string | undefined;
         stopped?: {
@@ -399,7 +406,7 @@ No arguments.
         } | undefined;
         plan?: {
             start: number;
-            target: number;
+            target: number | null;
             shape: PlanShape;
             from: string;
             to: string;
@@ -544,6 +551,13 @@ No arguments.
             postedAt: string;
             postedBy: string | null;
             backfilled: boolean;
+            numberFrom: {
+                from: string;
+                sourceSaid: number | null;
+                measuredAt: string | null;
+                reason: string | null;
+                says: string | null;
+            } | null;
         }[];
         state?: string | undefined;
         stopped?: {
@@ -566,7 +580,7 @@ No arguments.
         } | undefined;
         plan?: {
             start: number;
-            target: number;
+            target: number | null;
             shape: PlanShape;
             from: string;
             to: string;
@@ -851,7 +865,9 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `unit` | string | no | Number goals: the unit, e.g. "%", "days", "USD". |
 | `decimals` | integer | no | Number goals: decimal places, 0 to 3. |
 | `start` | number | no | Move-a-number goals: where it starts. |
-| `target` | number | no | Move-a-number goals: the target. |
+| `baseline_period` | string | no | Move-a-number goals: the period the baseline (start) covers, when it is a figure you already have, e.g. "June to September 2026" (at most 60 characters). Given, start is shown as the goal’s number, marked as the baseline, until its first check-in. "none" removes it. |
+| `baseline_is` | one of `provisional`, `firm` | no | Move-a-number goals with a baseline period: provisional (it may still be firmed up: changing start then isn’t a plan change and needs no reason) or firm. |
+| `target` | number | no | Move-a-number goals: the target. A proposed goal may leave it out and keep only its start (a baseline and nothing else yet): it says "Target not set", and needs a target before it is made active. |
 | `plan_shape` | one of `straight`, `back-loaded`, `stepped` | no | Move-a-number goals: how the plan moves from start to target. |
 | `from` | string | no | Move-a-number goals: the week the baseline (start) was true and the plan starts, as a year and a week, e.g. "2026-W46". Left out: this week for a new goal. |
 | `to` | string | no | Move-a-number goals: the week the target is due, as a year and a week, e.g. "2027-W13": up to the last week of next year. Left out: the end of this goal year. |
@@ -922,9 +938,21 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
       "type": "number",
       "description": "Move-a-number goals: where it starts."
     },
+    "baseline_period": {
+      "type": "string",
+      "description": "Move-a-number goals: the period the baseline (start) covers, when it is a figure you already have, e.g. \"June to September 2026\" (at most 60 characters). Given, start is shown as the goal’s number, marked as the baseline, until its first check-in. \"none\" removes it."
+    },
+    "baseline_is": {
+      "type": "string",
+      "description": "Move-a-number goals with a baseline period: provisional (it may still be firmed up: changing start then isn’t a plan change and needs no reason) or firm.",
+      "enum": [
+        "provisional",
+        "firm"
+      ]
+    },
     "target": {
       "type": "number",
-      "description": "Move-a-number goals: the target."
+      "description": "Move-a-number goals: the target. A proposed goal may leave it out and keep only its start (a baseline and nothing else yet): it says \"Target not set\", and needs a target before it is made active."
     },
     "plan_shape": {
       "type": "string",
@@ -1194,7 +1222,9 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `unit` | string | no | Number goals: the unit, e.g. "%", "days", "USD". |
 | `decimals` | integer | no | Number goals: decimal places, 0 to 3. |
 | `start` | number | no | Move-a-number goals: where it starts. |
-| `target` | number | no | Move-a-number goals: the target. |
+| `baseline_period` | string | no | Move-a-number goals: the period the baseline (start) covers, when it is a figure you already have, e.g. "June to September 2026" (at most 60 characters). Given, start is shown as the goal’s number, marked as the baseline, until its first check-in. "none" removes it. |
+| `baseline_is` | one of `provisional`, `firm` | no | Move-a-number goals with a baseline period: provisional (it may still be firmed up: changing start then isn’t a plan change and needs no reason) or firm. |
+| `target` | number | no | Move-a-number goals: the target. A proposed goal may leave it out and keep only its start (a baseline and nothing else yet): it says "Target not set", and needs a target before it is made active. |
 | `plan_shape` | one of `straight`, `back-loaded`, `stepped` | no | Move-a-number goals: how the plan moves from start to target. |
 | `from` | string | no | Move-a-number goals: the week the baseline (start) was true and the plan starts, as a year and a week, e.g. "2026-W46". Left out: this week for a new goal. |
 | `to` | string | no | Move-a-number goals: the week the target is due, as a year and a week, e.g. "2027-W13": up to the last week of next year. Left out: the end of this goal year. |
@@ -1270,9 +1300,21 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
       "type": "number",
       "description": "Move-a-number goals: where it starts."
     },
+    "baseline_period": {
+      "type": "string",
+      "description": "Move-a-number goals: the period the baseline (start) covers, when it is a figure you already have, e.g. \"June to September 2026\" (at most 60 characters). Given, start is shown as the goal’s number, marked as the baseline, until its first check-in. \"none\" removes it."
+    },
+    "baseline_is": {
+      "type": "string",
+      "description": "Move-a-number goals with a baseline period: provisional (it may still be firmed up: changing start then isn’t a plan change and needs no reason) or firm.",
+      "enum": [
+        "provisional",
+        "firm"
+      ]
+    },
     "target": {
       "type": "number",
-      "description": "Move-a-number goals: the target."
+      "description": "Move-a-number goals: the target. A proposed goal may leave it out and keep only its start (a baseline and nothing else yet): it says \"Target not set\", and needs a target before it is made active."
     },
     "plan_shape": {
       "type": "string",
@@ -1751,13 +1793,6 @@ No arguments.
         waiting: string;
         late: boolean;
         handedFrom: string | null;
-        id: string;
-        kind: AskKind;
-        ask: string;
-        status: AskStatus;
-        statusLabel: string;
-        dueWeek: number | null;
-        review: string | null;
         askedBy: string;
         askedOf: string;
         goals: {
@@ -1770,6 +1805,13 @@ No arguments.
         answeredBy: string | null;
         youCanAnswer: boolean;
         youCanMarkDone: boolean;
+        review?: string | null | undefined;
+        id: string;
+        kind: AskKind;
+        ask: string;
+        status: AskStatus;
+        statusLabel: string;
+        dueWeek: number | null;
     }[];
     questionsOnYourGoals: {
         id: string;
@@ -1777,7 +1819,7 @@ No arguments.
         goal: string | undefined;
         question: string;
         by: string;
-        review: string | null;
+        review: string | null | undefined;
         waiting: string;
         late: boolean;
         handedFrom: string | null;
@@ -6058,6 +6100,13 @@ From the [spreadsheets](../modules/spreadsheets/README.md) module: switched off 
             postedAt: string;
             postedBy: string | null;
             backfilled: boolean;
+            numberFrom: {
+                from: string;
+                sourceSaid: number | null;
+                measuredAt: string | null;
+                reason: string | null;
+                says: string | null;
+            } | null;
         }[];
         state?: string | undefined;
         stopped?: {
@@ -6080,7 +6129,7 @@ From the [spreadsheets](../modules/spreadsheets/README.md) module: switched off 
         } | undefined;
         plan?: {
             start: number;
-            target: number;
+            target: number | null;
             shape: PlanShape;
             from: string;
             to: string;

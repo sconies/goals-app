@@ -29,6 +29,8 @@ The workbook's first sheet, **Start here**, is this table (with a "File of" row 
 | Unit | Optional | Text | days | No unit, never “%” by default: a Check asks once a file whether the numbers are plain counts. On a row already here, empty clears it |
 | Decimals | Optional | 0, 1, 2 or 3 | 1 | The most decimal places typed in Start, Target or Limit, up to 3 |
 | Start | Required for a number goal | A number | 5 | Must fix for a number goal |
+| Baseline period | Optional | Text, at most 60 characters; none to remove it | June to September 2026 | As it is |
+| Baseline is | Optional | provisional or firm | provisional | As it is |
 | Target | Required for a number goal | A number, different from Start | 1 | Must fix for a number goal |
 | Plan | Optional | straight, back-loaded or stepped | back-loaded | straight |
 | From | Optional | A year and a week | 2026-W46 | This week |
@@ -74,6 +76,7 @@ Worked out: none.
 | Goal ref | Optional | The Ref of a row on Goals in this file | top | Goal key, Goal ID or Goal says which goal |
 | Week | Required | A whole number from 1 to this week; a date in the cycle is read as its week | 46 | Must fix |
 | Value | Required for a number or range goal | A number, at the goal’s decimal places | 6 | Must fix for a number or range goal |
+| Reason for a different number | For reading | Text | The source counts something else: “It leaves out release branches.” | Never read: a reason is given in the check-in |
 | Stages | Required for a stages goal | “Pilot: done week 6; Rollout: expected week 9” | Pilot: done week 6 | Must fix for a stages goal |
 | Call | Optional | On track, At risk, Off track or Done | At risk | The rules decide |
 | Cause | Required when it’s behind, or well ahead | Plan too aggressive, Delivery slower, Blocked by a dependency, External factor, Data problem, Something else, Plan too cautious, Change landed early or One-off, won’t last | Plan too aggressive | Must fix when it’s behind or well ahead. On a row already here, empty clears it |
@@ -85,7 +88,7 @@ Worked out: none.
 | Needs | Optional | Text | A decision on runner budget from Amara | Nothing needed. On a row already here, empty clears it |
 | Next step | Optional | Text | Order runners | Nothing said. On a row already here, empty clears it |
 
-Worked out: Week starting, Calculated, Plan that week, Posted at, Posted by, Posted by email, Backfilled.
+Worked out: Week starting, Number from, Source’s number, Measured at, Calculated, Plan that week, Posted at, Posted by, Posted by email, Backfilled.
 
 **People**. A new row needs: Name and Email.
 

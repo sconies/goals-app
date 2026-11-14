@@ -30,7 +30,7 @@ import { WarnMark } from '../ui/bits';
 import { useWidth } from '../ui/useWidth';
 import { CORE_SECTION_LABELS } from './workspaceSections';
 import { movedTo } from '../domain/directory';
-import { WORKSPACE_MEANS } from '../domain/vocabulary';
+import { STATUS, WORKSPACE_MEANS } from '../domain/vocabulary';
 import { reviewsOn } from '../app/reads';
 import { switchOffLines, switchOffReadBack } from '../domain/reviewsOff';
 import { dueWords } from '../domain/progress';
@@ -627,7 +627,7 @@ function RhythmSheet({ onClose }: { onClose: () => void }) {
     <Sheet open onClose={onClose} title="Check-in rhythm">
       <div className="stack readback" style={{ gap: 'var(--s3)' }}>
         <div className="optlist" role="radiogroup" aria-label="Check-in rhythm">
-          {opt(1, 'Every week', 'Check-ins are due by a day you choose. A goal with none for 14 days reads “No recent update”.')}
+          {opt(1, 'Every week', `Check-ins are due by a day you choose. A goal with none for 14 days reads “${STATUS.stale.label}”.`)}
           {opt(0, 'No set rhythm', 'Owners check in when there’s news. Nothing is due or late for want of a check-in.')}
         </div>
         {to.weeks === 1 && (

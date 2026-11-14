@@ -29,6 +29,11 @@ import { checkReads, goalsOfMetric, libraryReads, lineOf, proposedOfMetric } fro
 import { countLine, metricChecks, STILL_FIELD, stillToSay, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
 import { CheckSaid, FixLine } from '../../ui/Levels';
 import { changeKinds, linkedGoals } from './rulesChange';
+import { readWhen } from '../../domain/reading';
+import { checkInsFor } from '../../domain/status';
+import { differentNumbers, differentWords, fillsIn, fillsInWords } from './rulesReading';
+import { sliceOf, type NumberSource } from './source';
+import { sourcesFrom } from './sources';
 import './metrics.css';
 
 const METRICS = { thing: 'metric', things: 'metrics' };
@@ -75,9 +80,11 @@ export function MetricsLibrary() {
   const dir = (['lower', 'higher'] as const).find((d) => d === params.get('dir'));
   const unused = params.get('unused') === '1';
   const sortout = params.get('sortout') === '1';
+  // Retired metrics (MT3) are left out of the list; ?retired=1 lists only them, so one can be found and brought back.
+  const retired = params.get('retired') === '1';
   const sort = (LIBRARY_SORTS.find(([k]) => k === params.get('sort'))?.[0] ?? 'name') as LibrarySort;
   const page = Number(params.get('page') ?? 1) || 1;
-  const ask: LibraryAsk = { q, unit, teamId, ownerId, dir, unused, sortout, sort, page };
+  const ask: LibraryAsk = { q, unit, teamId, ownerId, dir, unused, sortout, retired, sort, page };
   const found = findMetrics(reads, ask);
   const live = reads.metrics.filter((m) => !m.removedAt).length;
   /** One history entry per choice; typing in the search replaces the entry as it goes. */
@@ -99,8 +106,10 @@ export function MetricsLibrary() {
     ...(dir ? [{ key: 'dir', label: 'Which way is better', values: [dir] }] : []),
     ...(unused ? [{ key: 'unused', label: 'No goals use it', values: ['yes'] }] : []),
     ...(sortout ? [{ key: 'sortout', label: 'Something to sort out', values: ['yes'] }] : []),
+    ...(retired ? [{ key: 'retired', label: 'Retired', values: ['yes'] }] : []),
   ];
-  const clearFilters = () => set({ unit: null, team: null, owner: null, dir: null, unused: null, sortout: null });
+  const clearFilters = () => set({ unit: null, team: null, owner: null, dir: null, unused: null, sortout: null, retired: null });
+  const retiredCount = reads.metrics.filter((m) => !m.removedAt && m.retiredAt).length;
   const unitMenu = <MenuButton label="Unit" display={`Unit: ${unit || 'any'}`} items={[{ label: 'Any unit', current: !unit, onClick: () => set({ unit: null }) }, ...unitsInUse(reads.metrics).map((u) => ({ label: u, current: u === unit, onClick: () => set({ unit: u }) }))]} />;
   const teamMenu = <MenuButton label="Used by" display={`Used by: ${teamId ? teamName(teamId) : 'any team'}`} items={[{ label: 'Any team', current: !teamId, onClick: () => set({ team: null }) }, { label: 'The whole company', current: teamId === 'company', onClick: () => set({ team: 'company' }) }, ...usedBy.map((t) => ({ label: t.name, current: t.id === teamId, onClick: () => set({ team: t.id }) }))]} />;
   const sortMenu = <SortMenu options={LIBRARY_SORTS} value={sort} onSort={(v) => set({ sort: v === 'name' ? null : v })} />;
@@ -115,6 +124,7 @@ export function MetricsLibrary() {
       </div>
       <label className="check"><input type="checkbox" checked={unused} onChange={(e) => set({ unused: e.target.checked ? '1' : null })} /><span>No goals use it</span></label>
       <label className="check"><input type="checkbox" checked={sortout} onChange={(e) => set({ sortout: e.target.checked ? '1' : null })} /><span>Something to sort out</span></label>
+      <label className="check"><input type="checkbox" checked={retired} onChange={(e) => set({ retired: e.target.checked ? '1' : null })} /><span>Retired metrics only</span></label>
     </div>
   );
   if (moved) return <Navigate to={moved} replace />;
@@ -159,6 +169,7 @@ export function MetricsLibrary() {
           {found.page < found.pages && <Link className="btn sm" to={`?${pageParams(params, found.page + 1)}`}>Next {Math.min(LIBRARY_PAGE, found.total - found.to)}</Link>}
         </nav>
       )}
+      {!retired && retiredCount > 0 && <p className="hint metric-retired-link"><Link to="/metrics?retired=1">{retiredCount === 1 ? 'See the retired metric' : `See the ${retiredCount} retired metrics`}</Link></p>}
       <Sheet open={filtering} onClose={() => setFiltering(false)} title="Filters">{more}</Sheet>
     </div>
   );
@@ -167,7 +178,8 @@ export function MetricsLibrary() {
 const pageParams = (params: URLSearchParams, page: number) => { const n = new URLSearchParams(params); if (page > 1) n.set('page', String(page)); else n.delete('page'); return n.toString(); };
 
 function EmptyLibrary() {
-  return <EmptyResult title="No metrics yet." action={<Link className="btn primary" to="/metrics/new">Add a metric</Link>}>A metric says exactly what a number means, so every goal that uses it means the same thing.</EmptyResult>;
+  // Small workspaces 2.4: says when you'd want one; its button is a plain one, not the page's primary.
+  return <EmptyResult title="No metrics yet" action={<Link className="btn" to="/metrics/new">Add a metric</Link>}>You don’t need one until two goals share a number. Then say what it means once, here, and both goals mean the same thing.</EmptyResult>;
 }
 
 /** A metric in the library: a link to it, its unit, direction and owner, its goals by status, and (for its owner and
@@ -179,7 +191,7 @@ function MetricRow({ metric: m, owner, goalIds, needs }: { metric: Metric; owner
     <Link className="metric-row" to={metricPath(m)}>
       <span className="metric-text">
         <span className="metric-name">{m.name}</span>
-        <span className="hint">{m.unit} · {directionWords(m.direction)} · {owner ? `owned by ${owner}` : 'no owner'}</span>
+        <span className="hint">{m.unit} · {directionWords(m.direction)} · {owner ? `owned by ${owner}` : 'no owner'}{m.retiredAt ? ' · retired' : ''}</span>
       </span>
       <span className="metric-side small">
         {statuses.length ? <StatusCounts statuses={statuses} label={`${m.name}’s goals`} /> : <span className="metric-none">No goals yet</span>}
@@ -272,6 +284,7 @@ export function MetricPage() {
         <dt>Added</dt><dd>{by(m.createdBy, m.createdAt)}</dd>
         <dt>Last changed</dt><dd>{by(lastChangedBy(app.snapshot.changes, m), m.updatedAt)}</dd>
       </dl>
+      {rows.length > 0 && !!m.source.trim() && <ReadingsTable metric={m} rows={rows} />}
       {needs.length > 0 && (
         <section className="stack metric-sortout" style={{ gap: 'var(--s2)' }} aria-labelledby="metric-sortout">
           <h2 className="label" id="metric-sortout">To sort out</h2>
@@ -342,6 +355,63 @@ function GoalsTable({ rows }: { rows: MetricGoalRow[] }) {
         ))}
       </tbody>
     </table>
+  );
+}
+
+/** The sources registered for the open workspace (the demo's in the example; none in a workspace of your own). Null
+    until known: the example's seed loads once. */
+function useSources(): NumberSource[] | null {
+  const app = useApp();
+  const [sources, setSources] = useState<NumberSource[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    void app.exampleSeed().catch(() => null).then((seed) => { if (live) setSources(sourcesFrom(seed, app.cycle)); });
+    return () => { live = false; };
+  }, [app.ws.id, app.cycle.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  return sources;
+}
+
+/** Under “Where the number comes from” (NR 2.4, rule 4): how each goal's check-in gets its number, then how often a
+    number filled in from the source was typed over in the last 8 weeks, with those goals and weeks. Goals, never people. */
+function ReadingsTable({ metric: m, rows }: { metric: Metric; rows: MetricGoalRow[] }) {
+  const app = useApp();
+  const sources = useSources();
+  const [open, setOpen] = useState(false);
+  if (!sources) return null;
+  const links = linksOf(app.snapshot).filter((l) => l.metricId === m.id && !l.removedAt);
+  const cells = rows.map((r) => {
+    const link = links.find((l) => l.goalId === r.goal.id);
+    return { r, words: link ? fillsInWords(fillsIn(sources, m, sliceOf(link), checkInsFor(r.goal, app.snapshot.checkIns)), (at) => readWhen(at, app.today)) : '' };
+  });
+  const decimals = new Map(rows.map((r) => [r.goal.id, r.goal.kind === 'milestone' ? 0 : r.goal.decimals] as [string, number]));
+  const counts = differentNumbers(app.snapshot.checkIns, decimals, app.week);
+  const title = (id: string) => rows.find((r) => r.goal.id === id)?.goal.title ?? id;
+  return (
+    <section className="stack metric-readings" style={{ gap: 'var(--s2)' }} aria-labelledby="metric-readings" data-part="In each goal’s check-in">
+      <h2 className="label" id="metric-readings">In each goal’s check-in</h2>
+      <table className="metric-reads">
+        <thead><tr><th scope="col">Goal</th><th scope="col">For</th><th scope="col">In its check-in</th></tr></thead>
+        <tbody>
+          {cells.map(({ r, words }) => (
+            <tr key={r.goal.id}>
+              <td className="mg-goal"><Link to={`/goals/${encodeURIComponent(r.goal.id)}`}>{r.goal.title}</Link></td>
+              <td className="mg-for" data-label="For">{r.slice}</td>
+              <td className="mg-read" data-label="In its check-in">{words}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {counts.map((d) => (
+        <div key={d.source} className="stack" style={{ gap: 'var(--s1)' }}>
+          <p className="small metric-different">{differentWords(d)}{d.k > 0 && <> <button type="button" className="linkish" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Hide them' : 'See them'}</button></>}</p>
+          {open && d.k > 0 && (
+            <ul className="metric-mini metric-different-weeks">
+              {d.weeks.map((w) => <li key={`${w.goalId}-${w.week}`}><Link to={`/goals/${encodeURIComponent(w.goalId)}?history=checkins&week=${w.week}#history`}>{title(w.goalId)}, week {w.week}</Link></li>)}
+            </ul>
+          )}
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -627,9 +697,13 @@ export function MetricForm() {
     try {
       // The answers go with the save: the action asks the same Checks and refuses while one is open.
       const answers = Object.fromEntries(checks.flatMap((c) => (answered[c.field] && answered[c.field]!.at === valueOf(c.field) ? [[c.field, answered[c.field]!.choice]] : [])));
-      const out = await app.run('saveMetric', { ...input, answers, ...(live ? { id: live.id, ...(question ? { comparable, relabel: unitIs === 'label', ...(why.trim() ? { reason: why.trim() } : {}) } : {}) } : {}) }) as { metric: Metric };
+      // A change says so with Undo (the action's `said`), which takes back its marks too; adding one says it here.
+      const name = d.name.trim() || live?.name || '';
+      const said = live ? (marking || unitIs === 'label' ? `Changed ${name}. ${plural(linked.length, 'goal says', 'goals say')} so.` : `Saved ${name}`) : undefined;
+      const out = await app.run('saveMetric', { ...input, answers, ...(live ? { id: live.id, ...(question ? { comparable, relabel: unitIs === 'label', ...(why.trim() ? { reason: why.trim() } : {}) } : {}) } : {}) }, said ? { said } : {}) as { metric: Metric; commit: unknown };
       clearDraft();
-      app.toast(live ? (marking || unitIs === 'label' ? `Changed ${out.metric.name}. ${plural(linked.length, 'goal says', 'goals say')} so.` : `Saved ${out.metric.name}`) : `Added ${out.metric.name}`);
+      if (!live) app.toast(`Added ${out.metric.name}`);
+      else if (!out.commit) app.toast(`Saved ${out.metric.name}`);
       void nav(metricPath(out.metric), { replace: true });
     } catch { setBusy(false); }
   };
@@ -640,10 +714,13 @@ export function MetricForm() {
       </label>
       {hint && <span className="hint">{hint}</span>}
       {re && err(re, k)}
+      {k === 'name' && retiredSame && <Link className="small" to={metricPath(retiredSame)}>Open {retiredSame.name} to bring it back</Link>}
       {(k === 'name' || k === 'unit') && checkFor(k)}
     </div>
   );
   const owner = app.person(d.ownerId);
+  // A retired metric with this name: the form links to it, so it can be brought back rather than made twice.
+  const retiredSame = d.name.trim() ? liveMetrics(app.snapshot, { retired: true }).find((v) => v.retiredAt && v.id !== live?.id && !v.name.localeCompare(d.name.trim(), 'en', { sensitivity: 'base' })) : undefined;
   const slow = d.refresh === 'monthly' || d.refresh === 'quarterly';
   return (
     <div className="focus metric-form">
@@ -707,7 +784,7 @@ export function MetricForm() {
         {tried && <div className="stack">{problems.filter((p) => !FIELD_PROBLEM.test(p)).map((p) => <div key={p} className="level-block level-fix" role="alert"><span className="level-head"><WarnMark /><span className="level-word">Must fix</span></span><span>{p}</span></div>)}</div>}
         {asking && question && live && (
           <ChangeReadBack before={live} after={next} kinds={question} linked={linked} unitChanging={unitChanging} comparable={comparable} setComparable={setComparable} unitIs={unitIs} setUnitIs={setUnitIs} why={why} setWhy={setWhy} tried={whyTried} marking={marking}
-            onSave={() => void save(true)} onKeep={() => { setAsking(false); setComparable(undefined); setUnitIs(undefined); setWhy(''); setWhyTried(false); set({ unit: live.unit, direction: live.direction, meaning: live.meaning, source: live.source, decimals: live.decimals }); }} />
+            onSave={() => void save(true)} onClose={() => setAsking(false)} onKeep={() => { setAsking(false); setComparable(undefined); setUnitIs(undefined); setWhy(''); setWhyTried(false); set({ unit: live.unit, direction: live.direction, meaning: live.meaning, source: live.source, decimals: live.decimals }); }} />
         )}
         <div className="stack metric-foot" style={{ gap: 'var(--s1)' }}>
           {count && <p className="small metric-count" role="status">{count}</p>}
@@ -720,11 +797,12 @@ export function MetricForm() {
   );
 }
 
-/** The change read-back (MT3, spec 2.2): what a change does to the goals a metric measures, before it is saved. */
+/** The change read-back (MT3, spec 2.2): what a change does to the goals a metric measures, before it is saved. A sheet,
+    so it takes the focus, scrolls on a phone and is the one primary action while it is open. */
 function ChangeReadBack(p: {
   before: Metric; after: Metric; kinds: string[]; linked: { title: string; decimals: number; aimsUp: boolean | null }[]; unitChanging: boolean;
   comparable: boolean | undefined; setComparable: (v: boolean) => void; unitIs: 'label' | 'scale' | undefined; setUnitIs: (v: 'label' | 'scale') => void;
-  why: string; setWhy: (v: string) => void; tried: boolean; marking: boolean; onSave: () => void; onKeep: () => void;
+  why: string; setWhy: (v: string) => void; tried: boolean; marking: boolean; onSave: () => void; onKeep: () => void; onClose: () => void;
 }) {
   const { before: b, after: a, kinds, linked } = p;
   const n = linked.length;
@@ -736,8 +814,8 @@ function ChangeReadBack(p: {
   const names = goalNames(linked.map((g) => g.title));
   const primary = kinds.filter((k) => k !== 'words').length > 1 ? 'Save these changes' : meaning ? (sourceOnly ? 'Change the source' : 'Change the meaning') : p.unitChanging ? 'Change the unit' : kinds.includes('direction') ? 'Change the direction' : 'Save changes';
   return (
-    <div className="metric-readback stack" role="alertdialog" aria-labelledby="metric-readback" style={{ gap: 'var(--s3)' }}>
-      <h2 className="title-m" id="metric-readback">{title}</h2>
+    <Sheet open onClose={p.onClose} title={title}>
+    <div className="metric-readback stack" style={{ gap: 'var(--s3)' }}>
       {meaning && (
         <>
           <dl className="metric-facts">
@@ -775,7 +853,8 @@ function ChangeReadBack(p: {
         <span>{names}</span>
         <span>{p.marking ? `Each goal’s chart and History will say “${meaning && p.comparable === false ? 'Definition' : 'Direction'} changed”, with your reason. Their numbers and plans don’t change.` : meaning && p.comparable === true ? 'Nothing changes on these goals but the words they show.' : ''}</span>
       </div>
-      <div className="row"><button type="button" className="btn primary" disabled={p.unitIs === 'scale'} onClick={p.onSave}>{primary}</button><button type="button" className="btn ghost" onClick={p.onKeep}>Keep it as it was</button></div>
+      <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={p.onKeep}>Keep it as it was</button><button type="button" className="btn primary big-btn" disabled={p.unitIs === 'scale'} onClick={p.onSave}>{primary}</button></div>
     </div>
+    </Sheet>
   );
 }

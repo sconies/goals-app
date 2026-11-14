@@ -8,7 +8,7 @@ import type { HistoryAsk, HistoryPage } from '../ports/store';
 import { LEVEL_WORDS, levelIds } from '../domain/levels';
 import { addNote, NotAllowed } from '../domain/actions';
 import { EMPTY_QUERY, parseQuery, queryEntries, type GoalQuery } from '../domain/query';
-import { scopeFacts, searchRows } from '../app/reads';
+import { reviewsOn, reviewWriteRows, scopeFacts, searchRows } from '../app/reads';
 import { scopesFor, SCOPES, type Scope } from '../domain/goalsPage';
 import { localSearch } from '../adapters/localSearch';
 import type { FoundRow, Search, SearchAsk } from '../ports/search';
@@ -21,6 +21,7 @@ import { goalScorecard } from '../domain/scorecard';
 import { goalStatus } from '../domain/status';
 import { attentionGroup, needsAttention } from '../domain/attention';
 import { ATTENTION, choices, codeFrom, COMMENT_REMOVED, FLAG, QUARTER, RESULT, STATUS, STOPPED, withCode } from '../domain/vocabulary';
+import { NO_STALE_HERE } from '../domain/rhythm';
 import { watchedGoals } from '../domain/review';
 import { NEED_OPTIONS } from '../domain/query';
 import { WORK_TOOLS } from './workTools';
@@ -31,7 +32,8 @@ import { FEEDBACK_TOOLS } from './feedbackTools';
 import type { FeedbackOps } from '../markup/feedback';
 import { REMOVE_TOOLS } from './removeTools';
 import MODULE_TOOLS from 'virtual:faro-modules/tools';
-import { isModuleOn, moduleById } from '../core/registry';
+import { isModuleOn, moduleById, modulesOn } from '../core/registry';
+import { writesReviews } from '../domain/reviewWrites';
 import { MODULE_GOAL_COLUMNS, recordsOn } from '../core/records';
 import { addColumnParams } from '../domain/query';
 import { commentsOf } from '../domain/removal';
@@ -242,7 +244,9 @@ const GOAL_FIELDS = {
   unit: str('Number goals: the unit, e.g. "%", "days", "USD".'),
   decimals: int('Number goals: decimal places, 0 to 3.'),
   start: num('Move-a-number goals: where it starts.'),
-  target: num('Move-a-number goals: the target.'),
+  baseline_period: str('Move-a-number goals: the period the baseline (start) covers, when it is a figure you already have, e.g. "June to September 2026" (at most 60 characters). Given, start is shown as the goal’s number, marked as the baseline, until its first check-in. "none" removes it.'),
+  baseline_is: str('Move-a-number goals with a baseline period: provisional (it may still be firmed up: changing start then isn’t a plan change and needs no reason) or firm.', { enum: ['provisional', 'firm'] }),
+  target: num('Move-a-number goals: the target. A proposed goal may leave it out and keep only its start (a baseline and nothing else yet): it says "Target not set", and needs a target before it is made active.'),
   plan_shape: str('Move-a-number goals: how the plan moves from start to target.', { enum: ['straight', 'back-loaded', 'stepped'] }),
   from: str('Move-a-number goals: the week the baseline (start) was true and the plan starts, as a year and a week, e.g. "2026-W46". Left out: this week for a new goal.'),
   to: str('Move-a-number goals: the week the target is due, as a year and a week, e.g. "2027-W13": up to the last week of next year. Left out: the end of this goal year.'),
@@ -258,7 +262,7 @@ const GOAL_FIELDS = {
   definition: str('Exactly what is counted.'),
   state: str('active (the default for a new goal) or proposed: a proposed goal is visible to everyone, has no status and nothing due, and needs no plan yet; its owner or an admin makes it active (make_goal_active). A goal with check-ins can’t go back to proposed.', { enum: ['active', 'proposed'] }),
 };
-const GOAL_COLS: Record<string, string> = { title: 'goal', owner: 'owner', owner_email: 'owner email', team: 'team', level: 'level', unit: 'unit', decimals: 'decimals', start: 'start', target: 'target', plan_shape: 'plan', from: 'from', to: 'to', due_week: 'due week', limit: 'limit', must_stay: 'must stay', margin: 'margin', stages: 'stages', feeds_into_id: 'feeds into id', why_it_helps: 'why it helps', source: 'source', definition: 'definition', state: 'state' };
+const GOAL_COLS: Record<string, string> = { title: 'goal', owner: 'owner', owner_email: 'owner email', team: 'team', level: 'level', unit: 'unit', decimals: 'decimals', start: 'start', baseline_period: 'baseline period', baseline_is: 'baseline is', target: 'target', plan_shape: 'plan', from: 'from', to: 'to', due_week: 'due week', limit: 'limit', must_stay: 'must stay', margin: 'margin', stages: 'stages', feeds_into_id: 'feeds into id', why_it_helps: 'why it helps', source: 'source', definition: 'definition', state: 'state' };
 
 
 const CORE_TOOLS: ToolDef[] = [
@@ -320,7 +324,7 @@ const CORE_TOOLS: ToolDef[] = [
       // screens find them (docs/design/architecture.md, 1.1): one search, one set of filters.
       const status = a.status ? statusIn(a.status) : null;
       // With no set rhythm (FT1) no goal reads No recent update: asking for it is said plainly, not answered with nothing.
-      if (status === 'stale' && !rhythmOf(ctx.cycle)) throw new Error('No recent update isn’t used here: there is no set check-in rhythm.');
+      if (status === 'stale' && !rhythmOf(ctx.cycle)) throw new Error(NO_STALE_HERE);
       const named = a.owner ? ctx.snapshot.people.filter((p) => p.name.toLowerCase().includes(String(a.owner).toLowerCase())).map((p) => p.id) : null;
       const owners = [query.owner.length ? query.owner : null, named, a.mine ? [ctx.actor.id] : null].filter((x): x is string[] => !!x)
         .reduce<string[] | null>((acc, x) => (acc ? acc.filter((id) => x.includes(id)) : x), null);
@@ -575,13 +579,32 @@ export async function callTool(name: string, args: Record<string, unknown>, ctx:
   const from = TOOL_MODULE.get(name);
   if (from && !isModuleOn(ctx.ws, from)) return { isError: true, text: moduleOffSentence(moduleById(from)?.name ?? from, ctx.ws.name, name) };
   try {
-    return await t.run(args ?? {}, ctx);
+    return await t.run(args ?? {}, reviewsOn(modulesOn(ctx.ws).on) ? ctx : reviewsGuarded(ctx, name));
   } catch (e) {
+    if (e instanceof ReviewsOff) return { isError: true, text: e.message };
     const text = e instanceof Error ? e.message : String(e);
     // A refusal says who the token acts as, so an assistant (and the person reading) can tell "the rule says no" from "this
     // token is someone else's" (backlog N: a token made for a non-admin was taken for an admin's).
     return { isError: true, text: e instanceof NotAllowed ? `${text} ${actingAs(ctx.actor)}` : text, cause: e };
   }
+}
+
+/** A save refused because it writes Reviews' records while Reviews is off: said as the switched-off sentence alone. */
+class ReviewsOff extends Error {}
+
+/**
+ * The context a tool runs with while Reviews is off: the same, except that a save writing Reviews' records (a review, a
+ * note said in one, an ask raised in one, a goal proposed in one: domain/reviewWrites) is refused and saves nothing, in
+ * the switched-off sentence, whichever tool made it (build review of #371: edit_comment and delete_comment on a review
+ * note, create_goal proposed in a review, restore_removed reopening an ended review). Everything else reads and writes
+ * through to the context itself, which a save moves on.
+ */
+function reviewsGuarded(ctx: McpContext, tool: string): McpContext {
+  const save = async (c: Commit) => {
+    if (writesReviews(c, reviewWriteRows(ctx.full ?? ctx.snapshot))) throw new ReviewsOff(moduleOffSentence('Reviews', ctx.ws.name, tool));
+    return ctx.save(c);
+  };
+  return new Proxy(ctx, { get: (t, k, r) => (k === 'save' ? save : Reflect.get(t, k, r)) });
 }
 
 /** Who a token acts as, in a sentence: said with every refusal. */

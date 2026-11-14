@@ -2,6 +2,7 @@ import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from '
 import { Icon } from '../ui/Icon';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
+import { countWords } from '../domain/format';
 import { periodNow, wrapUpOpenOn } from '../domain/cycle';
 import { attentionGroup, attentionList, splitAttention } from '../domain/attention';
 import { levelIds, levelName } from '../domain/levels';
@@ -118,6 +119,8 @@ export function GoalsScreen() {
   const [query, setQuery] = useGoalQuery();
   const narrowed = filters(query);
   const refined = narrowed || !!query.sort || scope !== 'all';
+  // Watching nothing, with nothing narrowed: the empty Watching page (small workspaces 2.4), never "No goals match".
+  const watchingNothing = scope === 'watching' && !narrowed && !app.snapshot.watches.some((w) => w.personId === app.viewer.id);
   const attentionOn = query.attention || query.needs.length > 0;
   // A search that finds nothing tries a near miss (find rule 5): the goals that match it are shown, and said so.
   // Through the query port (AX5): the scope's goals that match, in the query's order, or its near miss's.
@@ -266,7 +269,7 @@ export function GoalsScreen() {
           <div className="seg tabs one-row" role="tablist" aria-label="Whose goals" ref={tabRow}>
             {scopeTabs.map((t) => (
               <button key={t.id} role="tab" aria-selected={scope === t.id && !activeView} onClick={() => pickScope(t.id)}>
-                {t.label}<span className="tabcount">{t.ids.length}</span>
+                {t.label}{/* A nought isn't printed (small workspaces rule 2). */}{countWords(t.ids.length) && <span className="tabcount">{countWords(t.ids.length)}</span>}
               </button>
             ))}
             {/* A saved view is a tab only while it's open; the rest wait in the Views menu. */}
@@ -319,9 +322,9 @@ export function GoalsScreen() {
       {linkNote && <p className="hint link-note" role="status">{linkNote}</p>}
       {/* Until every goal has had its first check-in, the switch says how far that has got (goals spec, 2.1, item 6). */}
       {switchOn && <FirstReports />}
-      {refined && (shown.length === 0 || near) && <NoneFound things={GOAL_WORDS} q={query.q} filtered={filters({ ...query, q: '' })} near={near} onClearSearch={() => setQuery((cur) => ({ ...cur, q: '' }))} onClearFilters={() => setQuery((cur) => ({ ...EMPTY_QUERY, q: cur.q, sort: cur.sort, dir: cur.dir }))} />}
+      {refined && !watchingNothing && (shown.length === 0 || near) && <NoneFound things={GOAL_WORDS} q={query.q} filtered={filters({ ...query, q: '' })} near={near} onClearSearch={() => setQuery((cur) => ({ ...cur, q: '' }))} onClearFilters={() => setQuery((cur) => ({ ...EMPTY_QUERY, q: cur.q, sort: cur.sort, dir: cur.dir }))} />}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
-      {alt && !refined && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody goals={shown} /> : <div className="calm"><Icon name="check-circle" size={15} /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
+      {alt && (!refined || watchingNothing) && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody goals={shown} /> : <div className="calm"><Icon name="check-circle" size={15} /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
       {alt && shown.length > 0 && layout === 'table' && <GoalTable groups={groups} />}
       {alt && shown.length > 0 && layout === 'board' && <GoalBoard groups={groups} />}
       {alt && shown.length > 0 && layout === 'history' && <HistoryGrid groups={groups} />}
@@ -394,7 +397,7 @@ export function GoalsScreen() {
         );
       })}
 
-      {watchingList && (shown.length > 0 || !refined) && <WatchingBody goals={shown} />}
+      {watchingList && (shown.length > 0 || !refined || watchingNothing) && <WatchingBody goals={shown} />}
 
       {!alt && !refined && show === 'mine' && <ul className="tree">{[...mine].sort(worstFirst(app)).map((g) => <li key={g.id}><GoalRow g={g} showOwner={false} /></li>)}</ul>}
       {/* The key sits after the goals: every row already shows its status in words. */}

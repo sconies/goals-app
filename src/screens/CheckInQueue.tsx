@@ -12,7 +12,7 @@ import { weekDates } from '../domain/plan';
 import { summarise } from '../domain/summary';
 import type { Goal } from '../domain/types';
 import { StatusWord } from '../ui/bits';
-import { LABEL } from '../domain/vocabulary';
+import { LABEL, STATUS } from '../domain/vocabulary';
 
 /** Where a form opened from here goes back to when it's closed: the queue, not Home. */
 export const FROM_QUEUE = { from: 'queue' } as const;
@@ -130,7 +130,7 @@ function NoRhythmList() {
   const row = (r: CheckInRow, now: boolean) => {
     const g = goal(r);
     const s = sum(g);
-    const said = now ? `Checked in ${day(r.lastPostedAt!)} · ${s.now}` : r.lastWeek == null ? 'No check-in yet' : `Last check-in week ${r.lastWeek} · ${s.now}`;
+    const said = now ? `Checked in ${day(r.lastPostedAt!)} · ${s.now}` : r.lastWeek == null ? STATUS.none.label : `Last check-in week ${r.lastWeek} · ${s.now}`;
     const label = now ? 'Check in again' : r.lastWeek == null ? 'Post the first check-in' : 'Check in';
     return (
       <li key={g.id} className="ciq-row">

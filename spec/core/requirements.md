@@ -9,7 +9,7 @@ Every requirement in `evals/requirements.json` that no module owns (a module’s
 
 **Copy, replace or demo only.** Every requirement, a module’s included, carries one of three tags (`use` in `evals/requirements.json`):
 
-- **Copy** (165): build it as Faro does.
+- **Copy** (168): build it as Faro does.
 - **Replace** (22): the internal platform does this its own way; Faro’s is a stand-in. The tag names the internal requirement that says how: `PERSIST` (R4), `A11Y` (R10), `ONBOARDING` (R6a), `IDENTITY` (R1), `SETUP-FIRST-SCREEN` (R1), `ADMIN` (R1), `MCP-TOKENS` (R1), `FEEDBACK-PAGE` (R5), `TELEMETRY-SIGNALS` (R9), `TELEMETRY-PRIVACY` (R9), `TELEMETRY-FLOWS` (R9), `TELEMETRY-RETENTION` (R9), `TELEMETRY-SWITCH` (R9), `MARKUP` (R1), `MARKUP-INBOX` (R1), `TOKENS-SERVER-ONLY` (R1), `CONNECT-CLAUDE` (R1), `MCP-PICTURES` (R1), `FEEDBACK-INBOX` (R5), `INBOX-TRIAGE` (R5), `MCP-FEEDBACK` (R1), `FEEDBACK-RAISED` (R5).
 - **Demo only** (9): Faro’s own, for the demo and its builders. Don’t build it. `DEMO-MODE`, `DEMO-FEEDBACK`, `WALKTHROUGHS`, `RESEARCH`, `OLD-ADDRESSES`, `STALE-RELOAD`, `DEMO-STORAGE`, `BRAND`, `LAUNCH`. See [don’t copy this](../rebuild/dont-copy.md).
 
@@ -122,7 +122,7 @@ Every save (goal, plan, check-in, comment, decision, workspace) is logged with w
 
 - **Copy:** build it as Faro does.
 - **Help:** “The activity log” (`activity`), screens `Activity`
-- **Journeys and checks:** U1, U3, U4, U5, U6, U7, U10, U11, U13, U14, U35, U37, U60, U101, U142
+- **Journeys and checks:** U1, U3, U4, U5, U6, U7, U10, U11, U13, U14, U35, U37, U60, U142
 
 ## Status rules
 
@@ -285,7 +285,7 @@ The owner can post an update at any time from the goal page. It is the same chec
 
 - **Copy:** build it as Faro does.
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`, `CheckInNumber`
-- **Journeys and checks:** U1, U102
+- **Journeys and checks:** U1
 
 ### OWNER-ONLY
 
@@ -376,7 +376,7 @@ A goal can be proposed before anyone is held to it: it is visible and can be dis
 - **Copy:** build it as Faro does.
 - **Rule:** [Proposed goals](rules/proposed.md)
 - **Help:** “Proposed goals” (`goal-proposed`), screens `ProposedGoal`, `ProposedList`
-- **Journeys and checks:** U134, U148, U149, U150
+- **Journeys and checks:** U134, U148, U149, U150, U163
 
 ### NEW-GOAL-TRUTH
 
@@ -387,6 +387,24 @@ A goal is never late or behind because of when it was typed in: a date already p
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Tests:** `evals/onboarding.eval.ts` (1)
 - **Journeys and checks:** U85
+
+### GOAL-BASELINE
+
+A baseline can be a figure of its own (BL). A number goal's Baseline can say the period it covers ("June to September 2026", at most 60 characters) and whether it is provisional, in New goal, Change a goal, the Goals sheet (Baseline period, Baseline is) and the tools (baseline_period, baseline_is). Until the goal's first check-in, it is shown as the goal's number, marked as the baseline: "41.5 min (baseline)" in lists, and the number with "Baseline, {period}, provisional" on its page; its status is worked out as before. Firming up a provisional baseline, moving the start it is, is not a plan change: it asks for no reason and keeps no earlier plan.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [A baseline of its own](rules/baseline.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Journeys and checks:** U162
+
+### GOAL-NO-TARGET
+
+A goal can go in with a baseline and nothing else yet (GB). While a number goal is proposed, its target may be left out: it keeps its baseline and unit, has no status, nothing due and is in no count, says "Target not set" (on its page, with Set the target, and in lists as "{baseline} now, target not set"), and is made active only once a target is set. New goal, Change a goal, the Goals sheet and the tools all allow it; an active goal still needs a target.
+
+- **Copy:** build it as Faro does.
+- **Rule:** [Proposed goals](rules/proposed.md)
+- **Help:** “Proposed goals” (`goal-proposed`), screens `ProposedGoal`, `ProposedList`
+- **Journeys and checks:** U163
 
 ### GOAL-PAGE
 
@@ -637,7 +655,7 @@ The fit-and-finish review's rules hold: text follows the browser's text size; co
 
 - **Copy:** build it as Faro does.
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
-- **Journeys and checks:** F10, F15, F17, F20, P10
+- **Journeys and checks:** F10, F15, F17, P10
 
 ### FIT-AND-FINISH-AREAS
 
@@ -689,7 +707,7 @@ Whoever sets up a workspace is its admin. Admins add people and change their det
 
 - **Replace:** the internal platform does this its own way; Faro’s is a stand-in. See [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md).
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Workspace: Access” (`workspace-access`)
-- **Journeys and checks:** N23, U5, U10, U14, U60, U141
+- **Journeys and checks:** U5, U10, U14, U60, U141
 
 ### PEOPLE-DIRECTORY
 
@@ -1128,7 +1146,7 @@ Home opens on what is asked of you today, with one primary action, or says that 
 - **Rule:** [Home: what is asked of you today](rules/home.md)
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Tests:** `evals/attention.eval.ts` (5)
-- **Journeys and checks:** N3, N10, N26, U101, U103, U122
+- **Journeys and checks:** N3, N10, N26, U103, U122
 
 ## Interface
 
@@ -1262,6 +1280,14 @@ On the icon rail the Faro mark is the workspace switcher: it opens the same pane
 - **Copy:** build it as Faro does.
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`
 - **Journeys and checks:** N27
+
+### SMALL-QUIET
+
+No count of nought beside a tab, a menu row or a section's name (a sentence may still say none), and an empty page says what is true, then when you'd want it, with a plain button rather than the page's primary.
+
+- **Copy:** build it as Faro does.
+- **Help:** “Watching goals” (`watching`), screens `Watching`
+- **Journeys and checks:** N28
 
 ## Finding
 
@@ -1523,14 +1549,6 @@ Faro is a small core with named extension points (routes, navigation, Home block
 - **Help:** “Features: switching parts of Faro on or off” (`features`)
 - **Tests:** `evals/modules.eval.ts` (4)
 - **Journeys and checks:** N21, U48, U103, U104
-
-### RHYTHM-OPTIONAL
-
-An admin chooses the check-in rhythm for a workspace: every week, or none. With none, nothing is due or late for want of a check-in, no goal reads No recent update, and a status that isn’t this week’s says which week it is from. Dates people set still count. The change says what it will do first, is logged, and can be undone.
-
-- **Copy:** build it as Faro does.
-- **Help:** “Features: switching parts of Faro on or off” (`features`)
-- **Journeys and checks:** F20, N23, U101, U102
 
 ## Numbers
 

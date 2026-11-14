@@ -18,7 +18,7 @@ import { isTop, levelName } from '../domain/levels';
 import { sameTitleGoals } from '../domain/people';
 import { NEW_GOAL_STEPS, parentSuggestions, startLevel, stepIndex } from '../domain/newGoal';
 import { readBack, reviewsJoining, underWay } from '../domain/readBack';
-import { measureEmpty } from '../domain/proposed';
+import { baselineOnly, measureEmpty } from '../domain/proposed';
 
 /** The fields that say how a goal is measured: optional, all together, while it is proposed (rule 14). */
 const MEASURE_FIELDS: string[] = ['start', 'target', 'limit', 'stages'];
@@ -35,7 +35,9 @@ import { rangeSays, spanSays } from '../domain/weekChoices';
 import { FormClose } from '../ui/FormClose';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
-import { Place, useFilled, type MeasurePick } from '../core/app';
+import { Place, useFilled, useModules, type MeasurePick } from '../core/app';
+import { reviewsOn } from '../app/reads';
+import { BaselineFields } from '../ui/BaselineFields';
 import { Pick, PickOne } from '../ui/Pick';
 import { recentsOf, usePrefs } from '../app/search';
 
@@ -85,6 +87,8 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const [d, set, clear, restored] = useDraft<WizardDraft>(goalDraftKey(app.ws.id, null), () => ({ ...blankGoal(viewerTeam, app.viewer.id, defaultParent), step: 0 }));
   const [tried, setTried] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
+  // The baseline's period (BL) starts folded into one link on the plan's line, so the step still fits two phone screens.
+  const [baselineOpen, setBaselineOpen] = useState(false);
   // The goal this draft was published as: from then on nothing here asks again or says what's missing; the goal's page
   // opens with the toast (the wizard stays drawn while that page loads).
   const [published, setPublished] = useState<string | null>(null);
@@ -285,13 +289,15 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const noMetric = !measure;
 
   // The read-back (goal entry, rule 5): the goal in sentences, each row with Change to its step, then what happens after
-  // it is published. The rhythm and Reviews switches (FT) aren't built yet: weekly, and Reviews on (spec, 11).
+  // it is published. The rhythm is weekly (FT1 not built); with Reviews switched off it names no review (build review of
+  // #371): no “It joins …” line.
+  const reviewsHere = reviewsOn(useModules().on);
   const said = checks.filter((c) => c.id !== 'stage-past' && c.readBack && answers[c.slot] === c.key).map((c) => c.readBack);
   const read = step === 3 ? readBack(goal, {
     cycle, week, today: app.today, level, owner: owner ? { name: owner.name, isViewer: owner.id === app.viewer.id } : null, teamName: teamName(d.teamId),
     parent: parent ? { title: parent.title, key: parent.key } : null, alsoHelps: alsoHelps.map((g) => g.title),
-    metric: measure && number ? measure.says ?? 'The metric chosen on step 3.' : null, answers: said, rhythm: 'weekly', reviewsOn: true,
-    reviewsJoined: level ? reviewsJoining({ id: 'new-goal', level, parentId: d.parentId || null, title: d.title }, app.snapshot.reviews, app.snapshot.goals, cycle) : [],
+    metric: measure && number ? measure.says ?? 'The metric chosen on step 3.' : null, answers: said, rhythm: 'weekly', reviewsOn: reviewsHere,
+    reviewsJoined: level && reviewsHere ? reviewsJoining({ id: 'new-goal', level, parentId: d.parentId || null, title: d.title }, app.snapshot.reviews, app.snapshot.goals, cycle) : [],
     wsName: app.ws.name, state,
   }) : null;
   const choices = underWay({ owner: owner ? { name: owner.name, isViewer: owner.id === app.viewer.id } : null, rhythm: 'weekly', week, from: d.kind === 'metric' ? span.from : undefined });
@@ -419,13 +425,16 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
                   <div className="field">
                     <label className="stack" style={{ gap: 4 }}><span className="small strong">Target</span><input className="input big-input" inputMode="decimal" data-field="target" value={d.target} onChange={(e) => set({ target: e.target.value })} onBlur={leave('target')} aria-invalid={invalid('target')} aria-describedby={invalid('target') ? 'target-fix' : undefined} /></label>
                     {showErr('target')}{keepOffer('target')}{holdOffer}
+                    {/* A baseline and nothing else yet (GB): with no target agreed, propose it with just the baseline. */}
+                    {!proposing && baselineOnly(d) && <button type="button" className="linkish propose-no-target small" onClick={() => set({ state: 'proposed' })}>No target agreed yet? Propose it with just the baseline</button>}
                   </div>
                   <div onBlur={leave('endWeek')}>
                     <WeekPick cycle={cycle} week={week} field="to" from={span.from} label="To" labelClass="small strong" value={endChoice} onChange={setTo} invalid={invalid('endWeek')} dataField="endWeek" />
                     {showErr('endWeek')}{questions('endWeek')}
                   </div>
                 </div>
-                <p className="small muted span-says" role="status">{spanSays(cycle, span.from, endChoice, week)}</p>
+                <p className="small muted span-says" role="status">{spanSays(cycle, span.from, endChoice, week)}{!(baselineOpen || d.baselinePeriod) && <> <button type="button" className="linkish baseline-open" onClick={() => setBaselineOpen(true)}>Baseline known for a period?</button></>}</p>
+                {(baselineOpen || !!d.baselinePeriod) && <BaselineFields period={d.baselinePeriod ?? ''} provisional={!!d.baselineProvisional} onChange={set} invalid={invalid('start')} focus={baselineOpen && !d.baselinePeriod} />}
                 {questions('start')}
                 {questions('target')}
                 {decimalsLine}

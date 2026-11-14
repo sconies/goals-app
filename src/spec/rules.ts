@@ -18,15 +18,16 @@ import { splitTables } from '../domain/splitFile';
 import { CHECK_KINDS, MUST_KINDS, near, whereText } from '../domain/problemLevels';
 import { readHeader, readLine, readTables } from '../domain/sheets';
 import { leaveOut } from '../domain/leaveOut';
-import { planQuestion } from '../domain/goal';
+import { planChanged, planQuestion } from '../domain/goal';
+import { baselineOf, baselineShown, baselineWords } from '../domain/baseline';
 import { checkInLevels, emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, previousFor, stepState, unanswered, valueProblem, type Answers, type Draft } from '../domain/checkin';
 import { notStarted } from '../domain/plan';
 import { cycleWeek, readWeekCode, weekCode, weekSays, yearWeek } from '../domain/weeks';
 import { planSays, readWeek, spanSays, weekChoices } from '../domain/weekChoices';
 import { currentWeek, daysSince, firstWeekFrom, resultWeek, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
 import { amount, byWeekWords, goalScorecard, likelihood } from '../domain/scorecard';
-import { directionLabel, fmt, gapText } from '../domain/format';
-import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
+import { directionLabel, fmt, gapText, nowText, targetText } from '../domain/format';
+import { assessMetric, assessMilestone, assessPosted, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
 import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPAN } from '../domain/thresholds';
 import { cycleStanding, importName, leaveWorkspace, keptText, pastImports, undoPreview } from '../domain/removal';
 import { applyCommit } from '../data/store';
@@ -45,7 +46,7 @@ import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } fro
 import { rebase, REBASE_WEEKS, rebaseOffer } from '../domain/checkin';
 import { parentSuggestions, PARENT_SUGGESTIONS, planNote, startLevel } from '../domain/newGoal';
 import { activeReadBack, leftAsUsual, readBack, reviewsJoining, underWay, type ReadBackContext } from '../domain/readBack';
-import { judged } from '../domain/proposed';
+import { judged, TARGET_NOT_SET } from '../domain/proposed';
 import { goalCounts, measureUnsaid, withProposedCount } from '../domain/proposedSummary';
 import { mayActivate, NOTHING_TO_CHECK_IN, proposalAsks, readyToActivate } from '../domain/proposedActions';
 import { proposedMustFix, TYPE_FIXED } from '../domain/goalEntry';
@@ -1507,9 +1508,9 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
     id: 'proposed',
     title: 'Proposed goals',
     summary: 'A goal can be proposed before anyone is held to it: visible to everyone, never judged, nothing due, counted apart, and made active by one deliberate act of its owner or an admin.',
-    code: [{ file: 'src/domain/proposed.ts', names: ['isProposed', 'judged', 'withProposed', 'measureEmpty', 'withdrawnSummary', 'proposalAsks', 'proposedInWords'] }, { file: 'src/domain/decide.ts', names: ['lastTime', 'proposedLine'] }, { file: 'src/domain/proposedSummary.ts', names: ['goalCounts', 'withProposedCount', 'measureUnsaid', 'proposedSummary'] }, { file: 'src/domain/proposedActions.ts', names: ['mayActivate', 'readyToActivate', 'activate', 'activated', 'backToProposed'] }, { file: 'src/domain/goalEntry.ts', names: ['proposedMustFix', 'unsaidDraft'] }, { file: 'src/domain/goalRights.ts', names: ['mayChangeGoal'] }, { file: 'src/domain/cycle.ts', names: ['scopeToCycle'] }, { file: 'src/domain/readBack.ts', names: ['underWay', 'afterProposing', 'activeReadBack'] }, { file: 'src/domain/carry.ts', names: ['carryKind'] }],
+    code: [{ file: 'src/domain/proposed.ts', names: ['isProposed', 'judged', 'withProposed', 'measureEmpty', 'baselineOnly', 'targetNotSet', 'withdrawnSummary', 'proposalAsks', 'proposedInWords'] }, { file: 'src/domain/decide.ts', names: ['lastTime', 'proposedLine'] }, { file: 'src/domain/proposedSummary.ts', names: ['goalCounts', 'withProposedCount', 'measureUnsaid', 'proposedSummary'] }, { file: 'src/domain/proposedActions.ts', names: ['mayActivate', 'readyToActivate', 'activate', 'activated', 'backToProposed'] }, { file: 'src/domain/goalEntry.ts', names: ['proposedMustFix', 'unsaidDraft'] }, { file: 'src/domain/goalRights.ts', names: ['mayChangeGoal'] }, { file: 'src/domain/cycle.ts', names: ['scopeToCycle'] }, { file: 'src/domain/readBack.ts', names: ['underWay', 'afterProposing', 'activeReadBack'] }, { file: 'src/domain/carry.ts', names: ['carryKind'] }],
     tests: ['src/domain/proposed.test.ts'],
-    reqs: ['GOAL-PROPOSED'],
+    reqs: ['GOAL-PROPOSED', 'GOAL-NO-TARGET'],
     body: `
 **The words.** *Proposed*: the goal's state, visible, not judged, nothing due. *Active*: every other goal that isn't stopped, said only where the two are set side by side. *Propose*: save a new goal as proposed. *Make it active*: the act that starts it (not "approve": nobody is asked for permission; not "start", which From already means). *Withdraw*: remove a proposed goal.
 
@@ -1519,7 +1520,7 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
 
 **Counted apart.** \`goalCounts\` gives active and proposed apart, and a count line adds "{n} proposed": "2 goals, worst first. 1 proposed". With the State filter on Proposed (\`state=proposed\`), Goals lists them newest first; the Board is one column, "Proposed"; the Map draws each in its tree with the goals above it for context, as a node with a dashed outline and the word, on no critical path and in no "Under it", and opening one goes to its page. Without the filter neither draws one. State's third choice, Stopped (\`state=stopped\`), lists the scope's goals stopped this year, most recently stopped first: Stopped (its life shape and the word), the title, "{key} · {owner} · {team} · stopped {4 Nov}{ by {name}}" and the reason; every layout lists them, as they are on no Board or Map. The tools' \`find_goals\` takes \`state: "stopped"\` for the same list, with \`stoppedAt\`, \`stoppedBy\` and \`stopReason\`.
 
-**Saving.** A new goal is proposed when "Is it under way?" is answered "Not yet: propose it", a file's State says proposed, or a tool's state does. While proposed, the type's own required fields (Baseline and Target, the Limit, the stages) are optional all together (\`proposedMustFix\`): a proposal that says none of them is stored as dated stages with no stages (\`measureUnsaid\`) and every screen says "How it’s measured isn’t said yet."; one that says part of it is judged as any goal is. No reason is ever asked of a change to a proposed goal. Its type can still change: the edit page has Type (Move a number · Keep a number in range · Hit dated stages) under "It’s proposed, so its type can still change."; an active goal's is refused at the save: "${TYPE_FIXED}"
+**Saving.** A new goal is proposed when "Is it under way?" is answered "Not yet: propose it", a file's State says proposed, or a tool's state does. While proposed, the type's own required fields (Baseline and Target, the Limit, the stages) are optional all together (\`proposedMustFix\`): a proposal that says none of them is stored as dated stages with no stages (\`measureUnsaid\`) and every screen says "How it’s measured isn’t said yet."; one that says part of it is judged as any goal is, with one exception. **A baseline and nothing else yet** (backlog GB, Lane 12 Nov): a number goal with a Baseline and no Target saves (\`baselineOnly\`) as a number goal with \`targetUnset\` (\`targetNotSet\`), its unit and baseline kept and the database's target null (migration 0050, \`okr_goals_metric_plan\`: only a proposed goal may have none). It says "${TARGET_NOT_SET}" where its target goes (with Set the target on its page), "{baseline} now, target not set" in lists, and its read-back "A number at {baseline} now. No target is set yet: set one before it is made active."; making it active runs rule 2's full list, so it waits for a target. A target with no Baseline is still a Must fix: the baseline is what such a goal is. No reason is ever asked of a change to a proposed goal. Its type can still change: the edit page has Type (Move a number · Keep a number in range · Hit dated stages) under "It’s proposed, so its type can still change."; an active goal's is refused at the save: "${TYPE_FIXED}"
 
 **Who.** Anyone may propose a goal for anyone. Its owner or an admin makes it active (\`mayActivate\`); whoever proposed it may also change or withdraw it while it is proposed (\`mayChangeGoal\`).
 
@@ -1543,7 +1544,8 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
       const fix = (x: GoalDraft) => proposedMustFix(x, { cycleWeeks: 53, week: 46, existing: null, door: 'form', startDate: '2025-12-22' }).map((f) => f.id).join(', ') || 'nothing';
       return [
         { given: 'Tunde’s 40% → 90% proposed, and two active goals: judged, and counted.', then: '2 judged; 2 goals, worst first. 1 proposed', run: () => { const gs = [goal({ id: 'a', proposedAt: null }), goal({ id: 'b', proposedAt: null }), goal()]; const c = goalCounts(gs); return `${judged(gs).length} judged; ${withProposedCount(countLine({ thing: 'goal', things: 'goals' }, c.active, false, 'worst first'), c.proposed)}`; } },
-        { given: 'Proposing with nothing measured; with only a Baseline; with both numbers.', then: 'nothing / target-empty / nothing', run: () => [fix(d({ start: '', target: '' })), fix(d({ target: '' })), fix(d())].join(' / ') },
+        { given: 'Proposing with nothing measured; with only a Baseline; with only a Target; with both numbers.', then: 'nothing / nothing / start-empty / nothing', run: () => [fix(d({ start: '', target: '' })), fix(d({ target: '' })), fix(d({ start: '' })), fix(d())].join(' / ') },
+        { given: 'Tunde’s proposal saved with a Baseline of 40% and no Target (GB): its target, and what making it active needs.', then: `${TARGET_NOT_SET}; target-empty`, run: () => { const g = goal({ targetUnset: true, plan: { start: 40, target: 40, shape: 'straight' } } as Partial<Goal>); return `${targetText(g)}; ${readyToActivate(g, { cycleWeeks: 53, week: 46, startDate: '2025-12-22' }).map((f) => f.id).join(', ')}`; } },
         { given: 'A proposal stored with nothing measured: is it unsaid, and what does making it active need?', then: 'unsaid; stage-none', run: () => { const g = goal({ kind: 'milestone', stages: [] } as Partial<Goal>); return `${measureUnsaid(g) ? 'unsaid' : 'said'}; ${readyToActivate(g, { cycleWeeks: 53, week: 46, startDate: '2025-12-22' }).map((f) => f.id).join(', ')}`; } },
         { given: 'Rhea (not an admin) proposed it for Tunde: who may make it active, and who may change it (Tunde, Rhea, Oskar)?', then: 'activate: yes, no, no; change: yes, yes, no', run: () => { const g = goal({ proposedBy: 'rhea' }); const w = (id: string) => ({ id, admin: false }); const yn = (b: boolean) => (b ? 'yes' : 'no'); return `activate: ${['tunde', 'rhea', 'oskar'].map((p) => yn(mayActivate(w(p), g))).join(', ')}; change: ${['tunde', 'rhea', 'oskar'].map((p) => yn(mayChangeGoal(w(p), g))).join(', ')}`; } },
         { given: 'Tunde makes G-132 active on Wednesday 25 Nov (week 48), From this week.', then: 'From 40% in week 48 (23–29 Nov 2026) to 90% by week 53 (28 Dec 2026–3 Jan 2027): 5 weeks, not the 7 you proposed. Its first check-in is due by Thursday 26 Nov, then every week.', run: () => activeReadBack(goal(), { cycle: cy, week: 48, today: new Date('2026-11-25T12:00:00Z'), rhythm: 'weekly', fromWeek: 48 }) },
@@ -1554,6 +1556,38 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
       ];
     })(),
     unclear: ['A Map node and a Board column for proposed goals (with the filter on), Home’s two rows, “Make it proposed again” in the goal’s menu, the metric page’s listing and Reviews’ “Propose a new goal” were specified (2.15) and are built; the rules they need are here.', 'Whether a goal for someone else should start proposed: New goal starts on “Not yet” for one (decision 16); a file or a tool starts it active unless State says proposed.'],
+  },
+
+  /* ---------- a baseline as a field of its own (backlog BL; core) ---------- */
+  {
+    id: 'baseline',
+    title: 'A baseline of its own',
+    summary: 'A number goal’s baseline can be a figure already known for a period, often provisional: shown as its number until the first check-in, and firmed up without a plan change.',
+    code: [{ file: 'src/domain/baseline.ts', names: ['baselineOf', 'baselineWords', 'baselineShown', 'startsFromProvisional', 'periodProblem', 'BASELINE_PERIOD_MAX'] }, { file: 'src/domain/goal.ts', names: ['planChanged', 'buildGoal'] }, { file: 'src/domain/format.ts', names: ['nowText'] }],
+    tests: ['src/domain/baseline.test.ts'],
+    reqs: ['GOAL-BASELINE'],
+    body: `
+**Data.** A number goal (\`kind: 'metric'\`) may carry \`baseline: { value, period, provisional }\`: the figure, the period it covers in words (“June to September 2026”, at most 60 characters) and whether it may still be firmed up. Stored in three nullable columns, all null when there is none; a period or the flag never goes without the figure.
+
+**Rule 1. When a goal has one** (\`baselineOf\`). When its period is given: the figure is the plan's start (Baseline in the form, Start on the Goals sheet, \`start\` in the tools). No period, no baseline of its own; “none” on the sheet or in the tools removes it. The flag is “provisional” or “firm” (firm when not said).
+
+**Rule 2. Shown until the first check-in** (\`baselineShown\`, \`nowText\`). Before the goal's first check-in its number is the baseline: “41.5 min (baseline)” in every list, and on its page the number with “Baseline, June to September 2026, provisional” beside it, then the target. It is not a check-in: the status (No check-in yet, or Not started in week 0), the trend, the projection and what is due are worked out exactly as before. From the first check-in on, the check-in's number is shown and the baseline is not.
+
+**Rule 3. Firming it up isn't a plan change** (\`startsFromProvisional\`, \`planChanged\`). While the plan starts from a provisional baseline (its figure is the plan's start), moving that start, and nothing else in the plan, is not a plan change: no reason is asked once check-ins have started, and the plan before isn't kept. Unticking Provisional is never a plan change. A firm baseline's start moves as any start does.
+
+**Must fix.** A period over 60 characters: “The baseline’s period can be at most 60 characters.”, at the Baseline (Start) field. A word Baseline is doesn't know: an unknown word, as every word column says.`,
+    examples: (() => {
+      const today = new Date(CHECK_IN_MOMENT);
+      const base = () => { const g = goalIn('lead-merge') as Extract<Goal, { kind: 'metric' }>; return { ...g, baseline: { value: g.plan.start, period: 'June to September 2026', provisional: true } }; };
+      return [
+        { given: 'Merge-to-deploy time (lead-merge) with a provisional baseline of its plan’s start for June to September 2026, before any check-in.', then: 'Baseline, June to September 2026, provisional', run: () => baselineWords(baselineShown(base(), false)!) },
+        { given: 'The same goal, its number in a list before the first check-in.', then: 'ends “(baseline)”', run: () => { const g = base(); const c = demo!.cycles.find((x) => x.id === g.cycleId)!; return nowText(g, assessPosted(g, c, [], currentWeek(c, today))).endsWith('(baseline)') ? 'ends “(baseline)”' : 'no'; } },
+        { given: 'Its start moved by 1 while the baseline is provisional.', then: 'not a plan change', run: () => { const g = base(); return planChanged(g, { ...g, plan: { ...g.plan, start: g.plan.start + 1 } }) ? 'a plan change' : 'not a plan change'; } },
+        { given: 'The same move with a firm baseline.', then: 'a plan change', run: () => { const g = base(); const firm = { ...g, baseline: { ...g.baseline, provisional: false } }; return planChanged(firm, { ...firm, plan: { ...firm.plan, start: firm.plan.start + 1 } }) ? 'a plan change' : 'not a plan change'; } },
+        { given: 'Start 12 with no period given.', then: 'no baseline', run: () => (baselineOf(12, '', true) ? 'a baseline' : 'no baseline') },
+      ];
+    })(),
+    unclear: ['A range goal has no start, so no baseline of its own yet.', 'A goal with a baseline and no target or date (backlog GB) builds on this: there the baseline is the number and nothing is judged until a target is set; it also lets a goal measured by a metric with a gap (MS) go in without a made-up start.'],
   },
 
   /* ---------- a goal not born late (onboarding spec, rules 3 and 4; OB2) ---------- */
@@ -1661,7 +1695,7 @@ RULE_LIST.push({
 
 **The lit item** (one at most): a goal opened in a review's walk (\`?review=\`) lights Reviews; Goals at a saved view's exact address lights that view instead of Goals; otherwise the item whose place the address is in: Home only at \`/\`; Check-in for a check-in and the table; Goals for every goal, its edit and print pages, and the wrap-up (\`/retro\`); New goal for New goal and its steps; People for People and Teams; Workspace for its sections but not set-up (\`/workspace/new\`); Help for Help and What's new; a module's item for its pages. \`/ready\`, \`/research\`, set-up and a page not found light nothing. **On a phone** the tab that holds the lit row is lit; a row in More lights More.
 
-**A page's name** (the browser's title, then "· {workspace} · Faro"; the phone's top bar shows the part before the first " · "): a module's page names itself; the fixed places by name, and Goals is "Goals" on every tab; a goal by its title ("Change {title}" to edit, "{title}, to print", "Check in: {title}", "Wrap up: {title}", "{title} · {review}" in a review's walk); a review, a person, a team and a Help article by their own name; a Workspace section as "{section} · Workspace"; the wrap-up as "Wrap up {year}"; something not there as "Goal not found" (or review, person, team); any other address "Page not found". So six goals opened in turn give six titles.
+**A page's name** (the browser's title, then "· {workspace} · Faro"; the phone's top bar shows the part before the first " · "): a module's page names itself; the fixed places by name, and Goals is "Goals" on every tab; a goal by its title ("Change {title}" to edit, "{title}, to print", "Check in: {title}", "Wrap up: {title}", "{title} · {review}" in a review's walk); a review, a person, a team and a Help article by their own name; a Workspace section as "{section} · Workspace"; the wrap-up as "Wrap up {year}"; something not there as "Goal not found" (or review, person, team); any other address, and a switched-off module's address, "Page not found", the page it shows (with Reviews off a goal in a review's walk is "{title}" alone). So six goals opened in turn give six titles.
 
 **The back link** ("‹ {where}", above the title) is never on a place's first page (Home, Check-in, Goals, Reviews, People, Teams, Activity, Data, Workspace, Settings, Help, Feedback, and a module's own), nor on a form, whose one way out is its closing control. Elsewhere it goes back to the last earlier page in the tab that isn't a form (check-in, the table, New goal, an edit, set-up, a wrap-up) and isn't this page (in a review's walk, the walk's other goals count as this page), named in the navigation's words: Home, Goals, "your goals" on Mine, a saved view's name, a goal's title, a review's name. Pressing it goes back that many entries, so the browser's Forward still works, and the browser's Back onto a form you left steps over it the same way. Arriving from outside, it goes to the page's parent: the goal a goal feeds (or Goals), the goal for its print page, the review for a goal in its walk and for its summary, Reviews, People, Teams, Help (for an article and What's new), Workspace for a section, a module's first page for its other pages; otherwise Home.`,
   examples: [
@@ -1672,6 +1706,7 @@ RULE_LIST.push({
     { given: 'With Reviews switched off: the phone’s tabs for someone with a goal to check in on, and for someone without.', then: 'home checkin goals people / home goals people activity', run: () => [phoneTabs(true, false), phoneTabs(false, false)].map((x) => x.join(' ')).join(' / ') },
     { given: 'The lit item at /goals/lead-mq, /goals/lead-mq?review=weekly, /goals/new, /retro, /teams/cicd, /whats-new and /research.', then: 'goals, reviews, new, goals, people, help, none', run: () => ['/goals/lead-mq', '/goals/lead-mq?review=weekly', '/goals/new', '/retro', '/teams/cicd', '/whats-new', '/research'].map((a) => { const [p = '/', q = ''] = a.split('?'); return litItem(p, q, menuRows(menuGroups(true))) ?? 'none'; }).join(', ') },
     { given: 'The page’s name at /goals?scope=watching, /goals/G-1, its edit page, /goals/G-1?review=weekly, /check-in/G-1, /workspace/access, a module’s page for the metric “Lead time for changes”, and an unknown goal.', then: 'Goals / Lead time for changes / Change Lead time for changes / Lead time for changes · Platform leadership weekly / Check in: Lead time for changes / Access · Workspace / Lead time for changes (metric) / Goal not found', run: () => ['/goals?scope=watching', '/goals/G-1', '/goals/G-1/edit', '/goals/G-1?review=weekly', '/check-in/G-1', '/workspace/access', '/metrics/lead-time', '/goals/G-99'].map((a) => { const [p = '/', q = ''] = a.split('?'); return pageName(p, q, NAV_NAMES); }).join(' / ') },
+    { given: 'With Reviews switched off: the page’s name at /reviews/weekly and /reviews (addresses of a switched-off module), and at /goals/G-1?review=weekly.', then: 'Page not found / Page not found / Lead time for changes', run: () => { const off: PlaceNames = { ...NAV_NAMES, review: () => null, off: (p) => p === '/reviews' || p.startsWith('/reviews/') }; return ['/reviews/weekly', '/reviews', '/goals/G-1?review=weekly'].map((a) => { const [p = '/', q = ''] = a.split('?'); return pageName(p, q, off); }).join(' / '); } },
     { given: 'The back link: Goals on Mine → Lead time for changes; Goals → a goal → Edit → Save → the goal; a new tab on Merge-to-deploy time (which feeds Lead time for changes); a new tab on Lead time for changes; Settings from a goal; Home → Rhea’s page; a new tab on Rhea’s page.', then: '‹ your goals (1 back) / ‹ Goals (3 back) / ‹ Lead time for changes (/goals/G-1) / ‹ Goals (/goals) / none / ‹ Home (1 back) / ‹ People (/people)', run: () => ([['/goals/G-1', ['/goals?scope=mine']], ['/goals/G-1', ['/goals?scope=all', '/goals/G-1', '/goals/G-1/edit']], ['/goals/G-7', []], ['/goals/G-1', []], ['/settings', ['/goals/G-1']], ['/people/rhea', ['/']], ['/people/rhea', []]] as [string, string[]][]).map(([a, t]) => { const b = backTo(a, '', [...t, a].map((path) => ({ path })), NAV_NAMES); return b ? `‹ ${b.label} (${b.steps ? `${b.steps} back` : b.to})` : 'none'; }).join(' / ') },
   ],
 });

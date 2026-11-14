@@ -1,4 +1,5 @@
 /* The change log: what changed, field by field, in words a reader understands. */
+import { baselineWords } from './baseline';
 import { causeLabel } from './checkin';
 import { fmt, kindLabel, staysText } from './format';
 import { levelName } from './levels';
@@ -38,11 +39,13 @@ function goalFields(g: Goal, l: Lookup): Record<string, string> {
   }
   if (g.kind === 'metric') {
     f.Start = fmt(g.plan.start, g);
-    f.Target = fmt(g.plan.target, g);
+    f.Target = g.targetUnset ? 'Not set' : fmt(g.plan.target, g);
     f['Plan shape'] = shapeName[g.plan.shape];
     f['Plan from week'] = g.plan.fromWeek ? `Week ${g.plan.fromWeek}` : '—';
     f['Target due'] = g.plan.endWeek ? `Week ${g.plan.endWeek}` : '—';
     f['Plan numbers'] = g.plan.points?.length ? g.plan.points.map((p) => `wk ${p.week}: ${fmt(p.value, g)}`).join(', ') : '—';
+    // A baseline of its own (BL, domain/baseline): its period and how firm it is; its figure is the Start above.
+    f.Baseline = g.baseline ? baselineWords(g.baseline) : '—';
   }
   if (g.kind === 'range') {
     const says = staysText(g);

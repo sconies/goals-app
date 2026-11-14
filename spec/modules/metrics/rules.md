@@ -100,6 +100,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › lists the library and reads one metric in full, with the goals it measures
 - metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
 - metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
@@ -197,6 +198,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › lists the library and reads one metric in full, with the goals it measures
 - metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
 - metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
@@ -441,6 +443,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › lists the library and reads one metric in full, with the goals it measures
 - metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
 - metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
@@ -554,6 +557,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › lists the library and reads one metric in full, with the goals it measures
 - metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
 - metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
@@ -572,11 +576,11 @@ What kind of change a save is (rule 8), the marks a change of meaning or directi
 
 ### The rule
 
-**Rule 8. What kind of change** (`changeKinds(before, after, linkedGoals, { relabel })`). Every kind that applies, in this order: `scale` (the unit differs, goals are linked, and it isn't said to be a new label: refused), `relabel` (the same, said to be a new label: every linked goal's unit changes in the same save), `direction` (needs a reason), `meaning` (the meaning or the source differs: asks whether it is still the same number, `comparable`; when it isn't, a reason), `decimals` (fewer places than a linked goal shows: named, nothing asked). Anything else, or any change to a metric no live goal uses, is `words` and saves at once; nothing different is `none`. A reason is at most 300 characters. The form reads the change back before saving (title, Was and Will be, the goals named, the six first then “and {k} more”); `save_metric` takes `comparable`, `reason` and `relabel`.
+**Rule 8. What kind of change** (`changeKinds(before, after, linkedGoals, { relabel })`). Every kind that applies, in this order: `scale` (the unit differs, goals are linked, and it isn't said to be a new label: refused), `relabel` (the same, said to be a new label: every linked goal's unit changes in the same save), `direction` (needs a reason), `meaning` (the meaning or the source differs: asks whether it is still the same number, `comparable`; when it isn't, a reason), `decimals` (fewer places than a linked goal shows: named, nothing asked). Anything else, or any change to a metric no live goal uses, is `words` and saves at once; nothing different is `none`. A reason is at most 300 characters. The goals counted (`linkedGoals`) are every one with a link in force that isn't removed, a stopped one included (it can be restored). The form reads the change back in a sheet before saving (title, Was and Will be, a change of source alone showing the two sources, the goals named, the six first then “and {k} more”); `save_metric` takes `comparable`, `reason` and `relabel`, and with fewer decimals names the goals that show more (`moreDecimals`).
 
-**Rule 9. Marks** (`marksFor(metric, link, since)`). A save with the number changed (`comparable: false`) or a new direction keeps a mark on the metric: `{ week, at, by, kind: definition | direction, why, was, now }`, oldest first. A goal shows the marks made at or after it was linked, and since its cycle began: on its chart a dashed hairline at the week labelled beside it (“Definition changed, week {w}”, “Direction changed, week {w}”, through the core's `goal.marks` point), in its History the entry with the reason, and under About the line with “See both definitions”. Undo takes the mark back with the change.
+**Rule 9. Marks** (`marksFor(metric, link, since, until)`). A save with the number changed (`comparable: false`) or a new direction keeps a mark on the metric: `{ week, at, by, kind: definition | direction, why, was, now }`, oldest first. A goal shows the marks made at or after it was linked, in its own cycle (since it began and before the day after its last week, so a change made next year leaves this year's goals alone; only this cycle's goals are told in History): on its chart a dashed hairline at the week labelled beside it (“Definition changed, week {w}”, “Direction changed, week {w}”, through the core's `goal.marks` point), in its History the entry with the reason, and under About the line with “See both definitions”. Undo takes the mark back with the change.
 
-**Rule 10. Retire, bring back, merge** (`retireMetric`, `unretireMetric`, `mergeMetrics`, `everUsed`). A metric that has ever measured a goal (`everUsed`) can't be deleted: “{name} has measured goals, so it can’t be deleted. Retire it instead.” Its owner or an admin retires it with a reason (and optionally a live metric in the same unit that replaces it): its links stay, its goals keep their numbers and say “Measured by {metric}, retired {date}”, it leaves `liveMetrics` (the pickers and the library's list) but `measureOf` and `findMetric` still find it, and no new goal can be linked to it. Bring it back clears the four fields. Admins merge a live metric into another live one in the same unit: every live link moves (same slice and part), the first is retired pointing to the second, and each moved goal's History says so. Each is one save with one Undo.
+**Rule 10. Retire, bring back, merge** (`retireMetric`, `unretireMetric`, `mergeMetrics`, `everUsed`). A metric that has ever measured a goal (`everUsed`) can't be deleted: “{name} has measured goals, so it can’t be deleted. Retire it instead.” Its owner or an admin retires it with a reason (and optionally a live metric in the same unit that replaces it): its links stay, its goals keep their numbers and say “Measured by {metric}, retired {date}”, it leaves `liveMetrics` (the pickers and the library's list) but `measureOf` and `findMetric` still find it, and no new goal can be linked to it. The library lists retired ones apart (`?retired=1`, “See the {n} retired metrics” under the list), and a new metric with a retired one's name is refused in words that say it is retired, with a link to it. Bring it back clears the four fields. Admins merge a live metric into another live one in the same unit: every live link moves (same slice and part), the first is retired pointing to the second, and each moved goal's History says so. Each is one save with one Undo.
 
 ### Worked examples
 
@@ -596,7 +600,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - **Not self-explanatory:** The mark’s week is the cycle week the change is saved in; a change saved between cycles marks week 0 of the next.
 - **Not self-explanatory:** Merging two metrics in different directions is a Check on the form (“Merge anyway”), not a rule: the rule merges either way.
-- **Not self-explanatory:** The library lists retired metrics only through list_metrics (retired: true) and a metric’s own page; a Retired filter on the page itself is left for MT5 or later.
+- **Not self-explanatory:** Marks on a chart: two in one week are one line with both labels, and only the latest three weeks are drawn (the core’s `goalMarksOf`); History keeps them all.
 
 ### Where it lives
 
@@ -613,6 +617,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - rule 3: what kind of change › follows the spec’s table
 - rule 3: what kind of change › a change of meaning asks whether it is the same number, and a reason when it isn’t; it marks the goal (rule 4)
+- rule 3: what kind of change › a mark belongs to the year it was made in: a goal of another year neither shows it nor is told (#351 review)
+- rule 3: what kind of change › a source changed alone marks the two sources, not the meaning twice (#351 review)
+- rule 3: what kind of change › a stopped goal still counts: its metric’s unit and direction are asked about, and it is told (#351 review)
 - rule 3: what kind of change › a change of direction needs a reason; a new unit is a label or refused; a relabel changes the goals’ unit too
 - rule 5: retiring, bringing back, merging › retires a metric with a goal: the link stays, the pickers leave it out, a new goal can’t use it, and it comes back
 - rule 5: retiring, bringing back, merging › a never-used metric is deleted, a used one refused
@@ -651,6 +658,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - metric library tools › lists the library and reads one metric in full, with the goals it measures
 - metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
 - metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › fewer decimal places names the goals that show more, which keep theirs (#351 review)
 - metric library tools › refuses someone who may not change a metric before asking them anything, and says a bad answer plainly (#281)
 - metric library tools › changes a metric only for its owner or an admin
 - metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
@@ -669,7 +677,7 @@ Where a metric’s number comes from can fill in a goal’s check-in (NR): which
 
 ### The rule
 
-A **number source** (`NumberSource`, the module's port) reads a metric, optionally for a link's **slice** (`{ teamId, part }`: a team or the whole company, and a part or all of it). A source that reads only the whole company reads no team's slice: a company-wide number is never put in a team's goal. `read(metric, at, slice)` gives the latest reading measured at or before `at` (`{ value, at }`, `at` when the source measured it), null when it has none, and throws only when it can't be reached. The step asks once when it opens (`askSource`).
+A **number source** (`NumberSource`, the module's port) reads a metric, optionally for a link's **slice** (`{ teamId, part }`: a team or the whole company, and a part or all of it). A source that reads only the whole company reads no team's slice: a company-wide number is never put in a team's goal. `read(metric, at, slice)` gives the latest reading measured at or before `at` (`{ value, at }`, `at` when the source measured it), null when it has none, and throws only when it can't be reached. The step asks once when it opens (`askSource`); a source whose `reads` throws, that takes more than 5 seconds, or whose answer isn't a finite number measured at a time that parses and isn't after now, is unreachable.
 
 **Rule 1. A reading's state** (`readingState(reading, lastReading, lastValue, now, typed, decimals)`). The first that applies: **no-slice**, the source reads the metric but not this slice; **unreachable**, it threw; **missing**, no reading; **old**, measured more than 7 days before now (one limit for every metric, and an old value is never offered); **same**, the goal's latest check-in recorded a reading measured at or after this one; **jump**, the reading is ten times or a tenth of the last number (by size; from a last number of 0, a size of 10 or more); **changed**, the owner typed a number that differs from the reading at the metric's decimals; otherwise **fresh**. `readingRevised` says when the source, asked again for the last reading's moment, now gives another number.
 
@@ -677,9 +685,13 @@ A **number source** (`NumberSource`, the module's port) reads a metric, optional
 
 **The number step** (the core's place `checkin.number`, drawn by `CheckInNumber` in the module's own chunk; nothing in the first download). Drawn when the goal is measured by a metric a registered source reads; the source is asked once when the step opens, never on Home. Each state of rule 1 is one row: **fresh**, the field holds the reading, "From {source}, read {when}." and "Week {w}: {last}. Change the number if it’s wrong, and you’ll be asked why. You still say what changed: that is the next step.", the primary "Confirm {value} {unit}", and "No new number this week"; **changed**, the owner's number, "You typed {typed}. {source} said {value}, read {when}." with "Put {value} back", "Why is it different?" (the four reasons of `READING_WHY`; "Say more" is needed only with "Something else", at least 10 characters) and "Kept with this check-in, beside what {source} said. It doesn’t change the goal’s status and nobody is told.", the primary "Use {typed} {unit}", waiting until a reason is chosen; **same**, empty, "No new reading since your last check-in: {source} still says {value}, read {when}.", the primary "No new number this week" and "Type a different number"; **old**, empty, the warning mark and "{source} last read this on {date}, {n} days ago. That is too old to fill in. Type this week’s number, or say there isn’t one.", with no old value anywhere; **no-slice**, empty, "{source} measures this for the whole company, not for {team} on its own, so it isn’t filled in." and the goal's "Where to get it"; **missing**, "{source} has no number for this yet. Type this week’s number."; **unreachable**, "{source} couldn’t be reached just now. Type the number, or try again." with Try again; **jump**, a Check: "{source} says {value}. That is ten times (a tenth of) week {w}’s {last}. Is it right?", "Yes, confirm {value}" or "Type a different number". "Read {when}" is in the viewer's zone (`readWhen`): "9:02 today", "16:40 yesterday", otherwise "9:00 on Thu 5 Nov". With a source involved the step drops "Typed in by hand."; with the module off the step is as it always was. A confirmed reading answers the step's own "the same as last week?".
 
-**Rule 3. The same rule everywhere** (`readingProblem`, `keptReading`: the core engine's, in `planChanges`). A reading goes with a check-in from the form (`CheckInPost.reading`), the one table (each row's) and the AI tool (`readings` beside its row); the engine refuses one whose number differs from the check-in's with no reason ("{source} said {value}. Say why your number is different."), or "Something else" with under 10 characters, and keeps the reason only when the numbers differ. post_check_in takes `reading_confirmed` (the owner confirmed the number the source reads now; `value` may then be left out) and `different_because` (`{ kind, text }`): the server asks the same source (`readForTool`) and records what rule 1 calls fresh or changed; without them nothing is read or recorded, as with the import. With the module off it says the module-off sentence.
+**Rule 3. The same rule everywhere** (`readingProblem`, `keptReading`: the core engine's, in `planChanges`). A reading goes with a check-in from the form (`CheckInPost.reading`), the one table (each row's) and the AI tool (`readings` beside its row); the engine refuses one whose number differs from the check-in's with no reason ("{source} said {value}. Say why your number is different."), or "Something else" with under 10 characters; it also refuses a reason's words over 500 characters, a reading whose number isn't finite, and one measured at a time that doesn't parse, after now or more than 7 days before it; and it keeps the reason only when the numbers differ. A week's check-in saved again with no reading keeps the one it had only while its number is unchanged; every check-in row writes `reading`, null when there is none, so a database never keeps a stale one. post_check_in takes `reading_confirmed` (the owner confirmed the number the source reads now; `value` may then be left out) and `different_because` (`{ kind, text }`): the server asks the same source (`readForTool`) and records what rule 1 calls fresh or changed; without them nothing is read or recorded, as with the import. With the module off it says the module-off sentence.
 
 **The read-back** (`readingLine`): the check-in's receipt gains "{value} {unit}, from {source}, read {when}. Confirmed by you." or "{typed} {unit}, typed. {source} said {value} {unit}: {reason in lower case}."
+
+**Where it shows elsewhere** (NR3; the words are the core's, `src/domain/reading.ts`, since the record is the core's `CheckIn.reading`; Faro keeps no series of readings, so each place says what a check-in recorded). The goal's **Measured by** gains "This week’s number" from its latest check-in (`readingThisWeek`): "{value} {unit}, from {source}, read {when}. Confirmed by {name}." or "{typed} {unit}, typed by {name}. {source} said {value} {unit}.", and nothing when it recorded none. Each **History** row's second line (`readingHistoryLine`): "From {source}, read {when}. {name} checked in." or "Typed by {name}. {source} said {value} {unit}. {Reason}: “{words}”", and "Typed by {name}." on a goal any of whose check-ins was filled in. A **review's agenda** row says " · from {source}" after a confirmed number, in the quiet ink, and nothing after a typed one (`readingFrom`: no mark, no flag). The **Check-ins sheet** gains Number from ("Typed", or the source), Source’s number, Measured at (ISO, UTC) and Reason for a different number after Value, worked out or for reading and never loaded back (`readingCells`). get_goal's check-ins carry `numberFrom` with History's line.
+
+**Rule 4. The metric's page** (`fillsIn`, `differentNumbers`). Under "Where the number comes from", for a metric that names a source, "In each goal’s check-in" lists its goals (Goal, For, In its check-in): **filled**, a registered source reads the metric for the goal's slice, "Filled in from {source} · last read {when}" (when the goal's latest recorded reading was measured; left out before any); **no-slice**, one reads it but not that slice, "Typed by hand: {source} has no number per team"; **none**, "Typed by hand: no source can be read". No source is asked. Under it, per source, the check-ins of the metric's goals in the last 8 weeks up to this week (removed ones aside) that recorded a reading from it are `n`, and those whose number isn't the reading's at the goal's decimals are `k`: "In the last 8 weeks, {k} of {n} check-ins filled in from {source} used a different number." with "See them", the goals and weeks (each opening that goal's History at the week). It names goals and weeks, never people; get_metric gives the same (`inItsCheckIn` on each goal, `differentNumbers`).
 
 **The one table** (the core's place `checkin.table`, `CheckInTableReadings`): a goal not yet checked in this week whose reading is fresh shows it in its cell in the quiet ink until the owner touches the row; under the table, "{n} numbers are from their sources; change any that are wrong."; posting the table confirms them; a cell changed from its reading asks "Why is it different from what {source} said ({value})?" in its row before it counts as ready. Nothing is posted that the owner did not post.
 
@@ -702,24 +714,27 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Rule 3: CI analytics said 12; the owner posts 14 with no reason. | `CI analytics said 12. Say why your number is different.` |
 | Rule 3: the same, “Something else: moved”. | `Say more about why your number is different from what CI analytics said, in at least 10 characters.` |
 | The read-back: 14 min typed, CI analytics said 12 min, the source counts something else. | `14 min, typed. CI analytics said 12 min: the source counts something else.` |
+| Rule 4: a goal measured for CI/CD by a metric CI analytics reads only for the whole company. | `Typed by hand: CI analytics has no number per team` |
+| Rule 4: in the last 8 weeks, 12 and 15 typed over 12 and 13 from CI analytics. | `In the last 8 weeks, 1 of 2 check-ins filled in from CI analytics used a different number.` |
+| History: 15 min typed by Rhea Kapoor; CI analytics said 13 min; it counts something else. | `Typed by Rhea Kapoor. CI analytics said 13 min. The source counts something else.` |
 | Recorded: CI analytics said 12 at Thu 09:02; the owner used 14 because the source is behind. | `{"source":"CI analytics","value":12,"at":"2026-11-12T09:02:00Z","why":{"kind":"behind"}}` |
 
 ### Not self-explanatory
 
 - **Not self-explanatory:** NR’s table gives 120 against a last 13 as a jump; MT4’s Check, which NR keeps, is ten times or more, and 120 is 9.2 times, so it is fresh: the example here uses 130.
 - **Not self-explanatory:** On the server the demo’s sources are made from the example’s check-ins before this week, not the example as first built (the server can’t rebuild it); a correction of an earlier week there moves the series.
-- **Not self-explanatory:** Where the reading’s other places show it (“Measured by”, History, the metric’s page, the agenda, the export) is NR3.
+- **Not self-explanatory:** The 8-week count shows whenever a check-in was filled in from the source, “0 of n” included, and See them only when some used a different number. See them opens a list of goals and weeks, each linking to that goal’s History at the week, rather than one History across goals (none exists).
 - **Not self-explanatory:** The demo has one goal on each read slice; Build & Release · release pipelines is read but no goal is linked to it yet.
 
 ### Where it lives
 
-- [src/modules/metrics/rulesReading.ts](../../../src/modules/metrics/rulesReading.ts): `readingState`, `askSource`, `readingRevised`, `recordReading`, `sameAt`, `isJump`
+- [src/modules/metrics/rulesReading.ts](../../../src/modules/metrics/rulesReading.ts): `readingState`, `askSource`, `readingRevised`, `recordReading`, `sameAt`, `isJump`, `fillsIn`, `fillsInWords`, `differentNumbers`, `differentWords`, `READING_WEEKS`
 - [src/modules/metrics/source.ts](../../../src/modules/metrics/source.ts): `Slice`, `NumberSource`, `sliceOf`
 - [src/modules/metrics/numbers.ts](../../../src/modules/metrics/numbers.ts): `DEMO_SERIES`, `seededSeries`, `demoSources`
 - [src/modules/metrics/sources.ts](../../../src/modules/metrics/sources.ts): `sourcesFrom`, `demoBehindWeeks`
 - [src/modules/metrics/CheckInNumber.tsx](../../../src/modules/metrics/CheckInNumber.tsx): `CheckInNumber`, `CheckInTableReadings`
 - [src/modules/metrics/readingTool.ts](../../../src/modules/metrics/readingTool.ts): `readForTool`, `toolSources`
-- [src/domain/reading.ts](../../../src/domain/reading.ts): `readingProblem`, `keptReading`, `READING_WHY`, `readWhen`, `readingLine`
+- [src/domain/reading.ts](../../../src/domain/reading.ts): `readingProblem`, `keptReading`, `READING_WHY`, `readWhen`, `readingLine`, `readingThisWeek`, `readingHistoryLine`, `readingFrom`, `readingCells`
 - [src/domain/thresholds.ts](../../../src/domain/thresholds.ts): `RULES`
 
 ### Requirements
@@ -727,6 +742,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - `READING-PREFILL`: When a goal is measured by a metric that a registered number source reads for the link's own slice (its team and part), the check-in's number step asks the source once when it opens and fills the field with the latest reading: "From {source}, read {when}." (in the viewer's zone: "9:02 today", "16:40 yesterday", else "9:00 on Thu 5 Nov") and the step's primary names the number ("Confirm 12 min"). Nothing is ever posted for the owner: a week with a reading and no check-in has no check-in. A source that reads only the whole company never fills in a team's goal ("{source} measures this for the whole company, not for {team} on its own, so it isn't filled in."); no source, no number yet, nothing new since the last check-in and a source that can't be reached each say so, and the step is otherwise as without a source. With the Metric library off, the step is exactly as it was.
 - `READING-RECORDED-ONLY`: A number typed over a reading asks "Why is it different?" with four choices (the source is behind: I have a newer number; counts something else; is wrong this week; something else, which needs at least 10 characters of Say more) before "Use {typed} {unit}". The owner's number is the check-in's; the reading (source, value, when measured) and the reason are recorded beside it, by the same rule at every door (the form, the one table, post_check_in's reading_confirmed and different_because), and the read-back says "{value}, from {source}, read {when}. Confirmed by you." or "{typed}, typed. {source} said {value}: {reason}." Nothing reads the reason to decide a status, a flag, an attention count or an order: no review flag, no mark against the owner.
 - `READING-SEVEN-DAYS`: A reading more than 7 days old (RULES.readingMaxDays, one limit for every metric) is not filled in and its value is not shown anywhere on the step: "{source} last read this on {date}, {n} days ago. That is too old to fill in. Type this week's number, or say there isn't one." with the warning mark, the step's Continue and No new number this week.
+- `READING-SHOWN`: Where a check-in's number came from shows beyond the check-in, from what the check-in recorded (Faro keeps no series of readings): the goal's Measured by says "This week's number" from its latest check-in ("{value}, from {source}, read {when}. Confirmed by {name}." or "{typed}, typed by {name}. {source} said {value}.", nothing when it recorded none); each History row says "From {source}, read {when}. {name} checked in." or "Typed by {name}. {source} said {value}. {Reason}: “{words}”"; the metric's page lists its goals with "In its check-in" ("Filled in from {source} · last read {when}", "Typed by hand: {source} has no number per team" or "Typed by hand: no source can be read") and "In the last 8 weeks, {k} of {n} check-ins filled in from {source} used a different number." with See them (goals and weeks, never people); a review's agenda row says "· from {source}" in the quiet ink after a confirmed number, and nothing for a typed one; the Check-ins sheet has Number from, Source's number, Measured at and Reason for a different number, for reading, never loaded back; get_goal and get_metric say the same.
 
 ### Tests that check it
 
@@ -736,9 +752,13 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 1: a reading’s state › says revised when the source now gives another number for the last reading’s moment
 - asking a source › never gives a team the company’s number
 - asking a source › says unreachable when the source throws, and nothing when no source reads the metric
+- asking a source that misbehaves (review of NR2, medium 3) › is unreachable when reads() throws, when it takes too long, or when its answer isn’t a reading
+- asking a source that misbehaves (review of NR2, medium 3) › still gives a good answer, and none when the source has none
 - rule 2: what is recorded › keeps the reason only when the number differs, and nothing when nothing was read
 - rule 2: what is recorded › is read by no rule that judges a goal: nothing in src/domain but the types, the engine that records it and its words names a check-in’s reading
 - rule 2: the row › writes reading only when set, and reads it back
+- rule 4: where a reading shows on the metric’s page › says how each goal’s check-in gets its number, asking no source
+- rule 4: where a reading shows on the metric’s page › counts, over the last 8 weeks, the check-ins filled in from a source that used a different number
 
 #### [src/modules/metrics/numbers.test.ts](../../../src/modules/metrics/numbers.test.ts)
 
@@ -753,13 +773,21 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 3: a reading is recorded only as the rule allows › records a different number with its reason, and drops a reason the numbers don’t need
 - rule 3: a reading is recorded only as the rule allows › applies the same rule to a sheet’s or a tool’s row (the readings beside the rows)
 - rule 3: a reading is recorded only as the rule allows › asks nothing when the numbers are one at the goal’s decimals
+- rule 3: a reading is recorded only as the rule allows › records only a reading rule 2 allows: a finite number, measured at a real time within 7 days, a known reason with words of 10 to 500 characters
+- a re-saved check-in and its reading (review of NR2, medium 1) › keeps the reading when the number is unchanged and the correction carries none
+- a re-saved check-in and its reading (review of NR2, medium 1) › drops it when the number changes, and takes the correction’s own when it carries one
+- a re-saved check-in and its reading (review of NR2, medium 1) › always writes the row’s reading, null when there is none, so a re-save clears what the database had
 - the read-back (2.3) › says a confirmed reading, read today in the viewer’s zone
 - the read-back (2.3) › says a typed number beside what the source said, with the reason in lower case
 - the read-back (2.3) › says nothing when nothing was read
 - the read-back (2.3) › says when in the viewer’s zone: today, yesterday, or the day
+- where a reading shows elsewhere (2.4) › says this week’s number under Measured by, only from what the latest check-in recorded
+- where a reading shows elsewhere (2.4) › says a History row’s second line, with the reason and the owner’s words
+- where a reading shows elsewhere (2.4) › names the source on a review’s agenda only for a confirmed number
 
 #### [src/modules/metrics/readingTool.test.ts](../../../src/modules/metrics/readingTool.test.ts)
 
 - post_check_in reads the goal’s source (NR rule 3) › records a confirmed reading, the value taken from it
 - post_check_in reads the goal’s source (NR rule 3) › refuses a different number with no reason, and records it with one
 - post_check_in reads the goal’s source (NR rule 3) › reads nothing without them, and says the module-off sentence with the metric library off
+- the AI sees where a number came from, as the screens show it (NR 2.4) › get_goal says each check-in’s reading in History’s words; get_metric says how each goal fills in and how often it was typed over

@@ -58,7 +58,8 @@ import type { Commit } from '../domain/commit';
 import MODULE_PARTS from 'virtual:faro-modules/actions';
 import { recordsOn } from '../core/records';
 import { isModuleOn, moduleById, modulesOn } from '../core/registry';
-import { reviewsOffWords, reviewsOn } from './reads';
+import { reviewsOffWords, reviewsOn, reviewWriteRows, switchedOffWords } from './reads';
+import { writesReviews } from '../domain/reviewWrites';
 
 /** What the dispatcher hands each action: the rules' context, and the workspace itself for the few that change it. */
 export interface RunContext extends A.ActionContext {
@@ -183,18 +184,22 @@ export type ActionResult<N extends ActionName> = ReturnType<(typeof ACTIONS)[N]>
 
 /**
  * A feature module's action (AS part 2): registered in the same table by the module's actions.ts, read through the
- * registry (virtual:faro-modules/actions), so app/state.tsx carries no method for it. `said` is what a removal says,
- * with Undo, as the core's removals do.
+ * registry (virtual:faro-modules/actions), so app/state.tsx carries no method for it. `said` is what a removal or a
+ * change says, with Undo, as the core's removals do.
  */
 export interface ModuleAction<I = any, O = any> {
   run(x: RunContext, input: I): O;
   /** The AI tools that do the same, so an assistant can do whatever a person can (src/mcp/parity.test.ts). */
   tools: string[];
+  /** What the toast says, with Undo; an empty string: no toast (the screen says its own). */
   said?(out: NonNullable<O>, input: I): string;
   /** Loads what `run` needs, when that is too large for the first download: the dispatcher awaits it first (`ready`). */
   ready?(): Promise<void>;
   /** Its input carries a whole record as the person last saw it, so a stale save isn't run again (AX6, `rerunsWhenStale`). */
   wholeRecord?: boolean;
+  /** The person confirms it against what they were shown (a sheet saying what it does), so a stale save isn't run again
+      on something they haven't seen (AX6, `rerunsWhenStale`). */
+  confirmed?: boolean;
 }
 /** What a module's actions.ts default-exports: its actions, by name. */
 export type ModuleActions = Record<string, ModuleAction>;
@@ -206,8 +211,9 @@ export const MODULE_ACTIONS: Readonly<Record<string, ModuleAction & { module: st
 /** Every action's name: the core's, then the modules'. The command port lists the same (src/app/actions.test.ts). */
 export const actionNames = (): string[] => [...Object.keys(ACTIONS), ...Object.keys(MODULE_ACTIONS)];
 
-/** The core's actions that are Reviews' (FT2): refused while it is off, as a switched-off module's are. */
-export const REVIEW_ACTIONS: ReadonlySet<string> = new Set(['saveReview', 'reviewCall', 'acceptRisk', 'markReviewed', 'unmarkReviewed', 'endReview', 'deleteReview']);
+/** Whether an action's input names a review: a `reviewId`, a review's settings (`review`), or a goal's `proposedIn`. */
+const namesReview = (input: unknown): boolean =>
+  !!input && typeof input === 'object' && ['reviewId', 'review', 'proposedIn'].some((k) => (input as Record<string, unknown>)[k] != null);
 
 /** Run one action's rule: what it would save, or NotAllowed. Nothing is saved here (app/state.tsx `run` saves it). */
 export function perform<N extends ActionName>(x: RunContext, name: N, input: ActionInput<N>): ActionResult<N> {
@@ -217,15 +223,22 @@ export function perform<N extends ActionName>(x: RunContext, name: N, input: Act
 /** Run any action's rule by name, the core's or a module's: what app/state.tsx `run` calls. */
 export function performAny(x: RunContext, name: string, input: unknown): unknown {
   const fn = (ACTIONS as Record<string, (x: RunContext, i: unknown) => unknown>)[name];
-  // Reviews' actions are still the core's until FT3, and refuse as a module's do while Reviews is off (FT2): so does
-  // correcting a note said in a review (an ask's own words can still be corrected).
-  if ((REVIEW_ACTIONS.has(name) || (name === 'editCall' && !A.findAsk(x, (input as { callId: string }).callId))) && !reviewsOn(modulesOn(x.workspace).on)) throw new A.NotAllowed(reviewsOffWords(x.workspace.name));
-  if (fn) return fn(x, input);
-  const mod = MODULE_ACTIONS[name];
-  if (!mod) throw new Error(`There’s no action called ${String(name)}.`);
+  const mod = fn ? null : MODULE_ACTIONS[name];
+  if (!fn && !mod) throw new Error(`There’s no action called ${String(name)}.`);
   // A module switched off in the workspace runs nothing, as its AI tools say it's off.
-  if (!isModuleOn(x.workspace, mod.module)) throw new A.NotAllowed(`${moduleById(mod.module)?.name ?? mod.module} is switched off in ${x.workspace.name}. An admin can switch it on in Workspace, under Features.`);
-  return mod.run(x, input);
+  if (mod && !isModuleOn(x.workspace, mod.module)) throw new A.NotAllowed(switchedOffWords(moduleById(mod.module)?.name ?? mod.module, x.workspace.name));
+  // Reviews' records are still the core's until FT3. While Reviews is off, whatever touches them is refused, by what it
+  // names and what it would save rather than which action it is (build review of #371): an input naming a review is
+  // refused before its rule runs, so the rule never offers a review's way out; then a save that writes a review, a note
+  // said in one, an ask raised in one or a goal proposed in one (Undo of an ended review, a review note corrected).
+  const off = !reviewsOn(modulesOn(x.workspace).on);
+  if (off && namesReview(input)) throw new A.NotAllowed(reviewsOffWords(x.workspace.name));
+  const out = fn ? fn(x, input) : mod!.run(x, input);
+  if (off) {
+    const c = commitOf(name, out, input);
+    if (c && writesReviews(c, reviewWriteRows(x.full ?? x.snapshot))) throw new A.NotAllowed(reviewsOffWords(x.workspace.name));
+  }
+  return out;
 }
 
 /** The commit an action's result carries, if any: a Commit, `{ commit, … }`, or null. A change set's only with `apply`. */
@@ -242,8 +255,18 @@ export function commitOf(name: ActionName | string, out: unknown, input: unknown
  * told and shown the latest, as before. A module's action says the same with `wholeRecord`.
  */
 const WHOLE_RECORD = new Set<string>(['saveGoal', 'saveReview', 'planChanges', 'undoRemoval']);
+/**
+ * Actions the person confirms against what they were shown first: a preview, a read-back or a sheet that says what
+ * happens (what a goal's removal moves up, who takes over a leaver's goals, which goals move with a team, the dates a
+ * proposed goal goes active with, what undoing an import puts back, the next cycle's read-back). Run again on the latest,
+ * they could do something the person never saw (another goal handed over, other dates), with nothing said. So these
+ * aren't re-run either: the person is told and shown the latest, to check and confirm again. A module's action says the
+ * same with `confirmed`. Plain actions (a note, a watch, a restore) re-run without a word: their input is all they mean.
+ */
+const CONFIRMED = new Set<string>(['activate', 'backToProposed', 'stopGoal', 'deleteGoal', 'deletePerson', 'markPersonLeft', 'leaveWorkspace', 'removeTeam', 'undoImport', 'deleteCycle', 'startNextCycle']);
 /** Whether a save refused as stale may run this action again on the latest (AX6). */
-export const rerunsWhenStale = (name: string) => !WHOLE_RECORD.has(name) && !MODULE_ACTIONS[name]?.wholeRecord;
+export const rerunsWhenStale = (name: string) =>
+  !WHOLE_RECORD.has(name) && !CONFIRMED.has(name) && !MODULE_ACTIONS[name]?.wholeRecord && !MODULE_ACTIONS[name]?.confirmed;
 
 /** What `run` gives back: the rule's result, or for a token the secret, shown once. */
 export type RunResult<N extends ActionName> = N extends 'createToken' ? string : ActionResult<N>;

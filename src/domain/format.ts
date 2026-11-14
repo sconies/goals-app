@@ -20,9 +20,12 @@ export function fmt(v: number, g: Numeric): string {
 /** The words for a goal with no number yet: the same in every list, card, headline and export. */
 export const NO_VALUE = 'No value yet';
 
-/** A goal's number as it's shown: its latest value, how many stages are done, or "No value yet". */
+/** A goal's number as it's shown: its latest value, how many stages are done, its baseline before the first check-in
+    ("41.5 min (baseline)", domain/baseline rule 2), or "No value yet". */
 export function nowText(g: Goal, a: Assessment): string {
-  return a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? NO_VALUE : fmt(a.actual, g);
+  if (a.kind === 'milestone') return `${a.doneCount} of ${a.stages.length} stages`;
+  if (a.actual == null && g.kind === 'metric' && g.baseline) return `${fmt(g.baseline.value, g)} (baseline)`;
+  return a.actual == null || g.kind === 'milestone' ? NO_VALUE : fmt(a.actual, g);
 }
 
 /** A difference: "4 pts" for percentages, "1.2 days" otherwise. */
@@ -73,7 +76,7 @@ export function staysText(g: RangeGoal): string {
 }
 
 export function targetText(g: Goal): string {
-  if (g.kind === 'metric') return fmt(g.plan.target, g);
+  if (g.kind === 'metric') return g.targetUnset ? 'Target not set' : fmt(g.plan.target, g);
   if (g.kind === 'range') return g.range.bound === 'between' ? `${fmt(g.range.lower!, g)}–${fmt(g.range.limit, g)}` : (g.range.bound === 'atMost' ? '≤ ' : '≥ ') + fmt(g.range.limit, g);
   const last = g.stages[g.stages.length - 1];
   return last ? 'All by week ' + last.dueWeek : 'No stages';
@@ -136,3 +139,12 @@ export const dayText = (iso: string): string => {
   if (t === undefined) { t = DAY_TEXT.format(new Date(day + 'T00:00:00Z')); dayTexts.set(day, t); }
   return t;
 };
+
+/**
+ * Small workspaces, rule 2: a count beside a tab, a menu row or a section's name is left out at nought ("Watching", not
+ * "Watching 0"). A sentence may still say none. With a noun, "3 goals"; at nought, nothing.
+ */
+export function countWords(n: number, noun?: { one: string; many: string }): string {
+  if (!(n > 0)) return '';
+  return noun ? `${n} ${n === 1 ? noun.one : noun.many}` : String(n);
+}

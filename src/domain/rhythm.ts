@@ -10,7 +10,7 @@ import { cycleState } from './cycle';
 import type { Commit } from './commit';
 import { rhythmOf, staleAfterDays } from './thresholds';
 import type { CheckIn, Cycle, DisplayStatus, Goal, Person } from './types';
-import { LABEL } from './vocabulary';
+import { LABEL, STATUS } from './vocabulary';
 import { STATUS_OPTIONS, type QStatus } from './query';
 
 /** A rhythm to choose: every week by a weekday, or none. */
@@ -22,7 +22,7 @@ export const rhythmChoiceOf = (cycle: Cycle): RhythmChoice => ({ weeks: rhythmOf
 export function rhythmLine(cycle: Cycle): string {
   const r = rhythmOf(cycle);
   if (!r) return 'No set rhythm. Owners check in when there’s news; nothing is due or late for want of a check-in.';
-  return `Every week, due by ${WEEKDAY[r.dueDay]}. A goal with no check-in for ${staleAfterDays(cycle)} days reads “No recent update”.`;
+  return `Every week, due by ${WEEKDAY[r.dueDay]}. A goal with no check-in for ${staleAfterDays(cycle)} days reads “${STATUS.stale.label}”.`;
 }
 
 /** The running cycle's line on Cycles (4.3), and the fact line for everyone (1.3). */
@@ -52,7 +52,7 @@ export function rhythmReadBackLines(cycle: Cycle, to: RhythmChoice, counts: Rhyt
     const n = counts.live;
     return [
       { strong: `${n} ${n === 1 ? 'goal has' : 'goals have'} nothing due.`, rest: ' Home and Check-in stop counting what’s due, and on-time streaks stop.' },
-      ...(counts.unstale ? [{ strong: `${counts.unstale} ${counts.unstale === 1 ? 'goal stops' : 'goals stop'} reading “No recent update”.`, rest: ` Each shows its last check-in’s status and the week it is from: ${listStatuses(counts.unstaleBy)}.` }] : []),
+      ...(counts.unstale ? [{ strong: `${counts.unstale} ${counts.unstale === 1 ? 'goal stops' : 'goals stop'} reading “${STATUS.stale.label}”.`, rest: ` Each shows its last check-in’s status and the week it is from: ${listStatuses(counts.unstaleBy)}.` }] : []),
       { strong: 'Nothing is flagged for going quiet.', rest: ' Goals’ “Last check-in” filter still finds them.' },
       { strong: '', rest: 'Dates people chose stay: stage dates, next steps’ weeks and “back on plan by”.' },
       { strong: '', rest: 'Every check-in already posted stays as it is.' },
@@ -63,7 +63,7 @@ export function rhythmReadBackLines(cycle: Cycle, to: RhythmChoice, counts: Rhyt
     const first = reviewDate(after, firstWeekFrom(after, today.toISOString(), to.dueDay));
     return [
       { strong: `Check-ins are due by ${day}`, rest: `, the first by ${dayText(first)}.` },
-      { strong: 'Nothing is late today.', rest: ` A goal reads “No recent update” after ${staleAfterDays(after)} days without a check-in, counted from today.` },
+      { strong: 'Nothing is late today.', rest: ` A goal reads “${STATUS.stale.label}” after ${staleAfterDays(after)} days without a check-in, counted from today.` },
       { strong: '', rest: 'Streaks start from this week.' },
     ];
   }
@@ -167,7 +167,7 @@ export function setRhythm(x: ActionContext, cycle: Cycle, to: { weeks: number; d
 /** The statuses a cycle's goals can have, to filter by: without No recent update when there is no set rhythm (FT1). */
 export const statusOptions = (cycle: Cycle): [QStatus, string][] => (rhythmOf(cycle) ? STATUS_OPTIONS : STATUS_OPTIONS.filter(([k]) => k !== 'stale'));
 /** What the filter line says when a link asks for No recent update and there is no set rhythm (FT1, spec 2.6). */
-export const NO_STALE_HERE = 'No recent update isn’t used here: there is no set check-in rhythm.';
+export const NO_STALE_HERE = `${STATUS.stale.label} isn’t used here: there is no set check-in rhythm.`;
 
 /**
  * Whether the viewer may ask the owner for an update (FT1, spec 2.5): not the owner, the goal live, its latest check-in
