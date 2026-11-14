@@ -20398,7 +20398,7 @@ var CORE_ARTICLES = [
 					"Make it proposed again: an active goal with no check-ins, from its “…” menu (its owner or an admin). It then has no status and nothing is due until it is made active; the message has Undo. Once a goal has a check-in the item isn’t there, and its Change page says to stop it instead.",
 					"In a review’s walk, Propose a new goal saves one with only a name, who will own it (the goal on screen’s owner to start with) and what it will feed. It isn’t on the agenda, and the next session’s Last time says whether its owner has made it active yet. Only people in the review, or an admin, can propose one there.",
 					"On a goal’s page, What feeds it lists any goals proposed to feed it under “Proposed” with how many, with no status and counted in nothing; a goal that feeds a proposed goal says “· Proposed” after its name. When the next year starts, proposed goals carry as proposed, counted apart on the start page.",
-					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).",
+					"On its owner’s Home, under Needs your response, Proposed goals lists one proposed for you by someone else until you open it (“Rhea proposed a goal for you: …”, or “… for you in Developer Productivity fortnightly: …” when it was proposed in a review), and one that has waited 8 weeks or more (“… has been proposed for 9 weeks. Make it active, or withdraw it.”). Open it goes to the goal; Not yet puts the second off for 8 more weeks. Both are remembered for you, not for the device: open a goal on your phone and it no longer asks on your laptop. One proposed for you a week or more ago, not yet opened, is Home’s lead when nothing else is asked of you first (“Rhea proposed a goal for you”, with Open it).",
 					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. With the filter on, the Board is one column, Proposed, and the Map draws each in its tree with a dashed outline and the word, the goals above it shown for context; opening one goes to its page. Find lists them with the word Proposed.",
 					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active, and make_goal_proposed makes an active one proposed again. A file or an assistant adding goals for other people with no State is asked once whether they start active or proposed (an admin’s file and set-up aren’t asked). A goal with check-ins can’t go back to proposed: stop it instead."
 				]
@@ -21548,6 +21548,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "proposals-follow-you",
+		date: "2026-11-14",
+		title: "Proposed goals remember you, not the device",
+		points: ["Open a goal proposed for you on your phone and Home stops asking about it on your laptop too.", "Not yet on a goal that has waited 8 weeks puts it off everywhere you use Faro."],
+		articles: ["goal-proposed"]
+	},
 	{
 		id: "menu-shows-what-you-use",
 		date: "2026-11-14",
@@ -51771,6 +51778,27 @@ var SupabaseStore = class {
 	async deleteWorkspace(ws) {
 		if (ws === EXAMPLE.id) throw new Error("The example can’t be deleted.");
 		await this.rpc("okr_delete_workspace", { ws }, "Deleting the workspace");
+	}
+	/** Every person's server-kept Prefs in a workspace (faro.person_prefs, migration 0053). */
+	async personPrefs(ws) {
+		const { data, error } = await this.db.from("person_prefs").select("person_id, key, value").eq("workspace_id", ws);
+		if (error) throw new Error(`person_prefs: ${error.message}`);
+		return (data ?? []).map((r) => ({
+			personId: r.person_id,
+			key: r.key,
+			value: r.value
+		}));
+	}
+	/** Keeps one, replacing the person's value for that key. */
+	async keepPersonPref(ws, p) {
+		const { error } = await this.db.from("person_prefs").upsert({
+			workspace_id: ws,
+			person_id: p.personId,
+			key: p.key,
+			value: p.value,
+			updated_at: (/* @__PURE__ */ new Date()).toISOString()
+		});
+		if (error) throw new Error(`person_prefs: ${error.message}`);
 	}
 };
 // src/adapters/supabase/markups.ts

@@ -47,6 +47,9 @@ export interface HistoryAsk {
 /** A page of change-log entries, newest first, and where the next page starts (null when there are no more). */
 export interface HistoryPage { changes: Change[]; next: HistoryKey | null }
 
+/** One small value kept on the server for a person in a workspace (the Prefs port's server side, migration 0053). */
+export interface PersonPref { personId: string; key: string; value: unknown }
+
 /** Where the app keeps its records. The browser, Supabase and plain-Postgres stores implement it, and each passes the same contract test (src/ports/contracts/store.ts). */
 export interface Store {
   readonly kind: 'browser' | 'supabase' | 'postgres';
@@ -78,5 +81,12 @@ export interface Store {
   saveProblem?(): string | null;
   /** Called whenever saveProblem changes. Returns a function that stops listening. */
   onSaveProblem?(listener: () => void): () => void;
+  /**
+   * The few Prefs kept on the server so they follow a person between devices (src/adapters/serverPrefs.ts): every
+   * person's in the workspace. Only a store with a server has them; the browser store keeps Prefs in the browser.
+   */
+  personPrefs?(workspaceId: string): Promise<PersonPref[]>;
+  /** Keeps one of them, replacing what the server had for that person and key. */
+  keepPersonPref?(workspaceId: string, p: PersonPref): Promise<void>;
 }
 
