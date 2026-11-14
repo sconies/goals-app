@@ -27,6 +27,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-fields',
+    date: '2026-11-14',
+    title: 'Fields: your workspace’s own columns on goals',
+    points: [
+      'Admins can add up to six fields on goals in Workspace, Fields, such as a stage (Discover, Build, Run) or a programme: each a short list of values or free text.',
+      'A goal’s page shows them in About, one line each, such as “Stage · Build”. Its owner or an admin changes one in place, and History says the change.',
+      'A field that is no longer wanted is retired, never deleted: goals keep their values, and it can be brought back.',
+      'An AI assistant can list the fields and set a goal’s values. Admins can switch Fields off in Workspace, Features.',
+    ],
+    articles: ['fields'],
+  },
+  {
     id: 'home-one-team',
     date: '2026-11-14',
     title: 'With one team, Home shows the team’s goals once',
