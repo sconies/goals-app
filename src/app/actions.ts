@@ -51,7 +51,7 @@ import type { TableLayout } from '../domain/tableLayout';
 import type { CheckInReading, Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
 import type { Commit } from '../domain/commit';
 import MODULE_PARTS from 'virtual:faro-modules/actions';
-import { recordsOn } from '../core/records';
+import { MODULE_RECORDS, recordsOn } from '../core/records';
 import { isModuleOn, moduleById, modulesOn } from '../core/registry';
 import { moduleOffWords, reviewsOffWords, reviewsOn, reviewWriteRows, SWITCHED_ACTIONS, switchedOffWords, watchingOffWords, watchingOn } from './reads';
 import { writesReviews } from '../domain/reviewWrites';
@@ -162,7 +162,8 @@ export const ACTIONS = {
   arrive: (x: RunContext, _i: Record<string, never>) => A.arrive(x, x.workspace),
   renameWorkspace: (x: RunContext, i: { name: string }) => A.renameWorkspace(x, x.workspace, i.name),
   setRecording: (x: RunContext, i: { on: boolean }) => A.setRecording(x, x.workspace, i.on),
-  setModule: (x: RunContext, i: { moduleId: string; on: boolean }) => A.setModule(x, x.workspace, x.modules, i.moduleId, i.on),
+  // Every module's records, on or off: the one switched says what the core's records need (ModuleRecords.switched).
+  setModule: (x: RunContext, i: { moduleId: string; on: boolean }) => A.setModule({ ...x, records: MODULE_RECORDS }, x.workspace, x.modules, i.moduleId, i.on),
   /* A removal's Undo, straight after it (its message): every record it changed back as it was. Unlike the others, the
      input carries records: the removal as saved and the workspace just before it, which the Undo holds. */
   undoRemoval: (x: RunContext, i: { removal: Commit; before: Snapshot }) => R.undoRemoval(x, i.removal, i.before),

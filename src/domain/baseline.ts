@@ -8,7 +8,9 @@
  * Rule 2. Until the goal's first check-in, the baseline is shown as its number (format.ts nowText: "41.5 min (baseline)"), marked as the baseline, with its period
  *         and "provisional" when it is. It is not a check-in: status, the trend and what is due are worked out as before.
  * Rule 3. Firming up a provisional baseline is not a plan change: while the plan starts from a provisional baseline,
- *         moving that start (and nothing else in the plan) neither asks why nor keeps the old plan.
+ *         moving that start (and nothing else in the plan) neither asks why nor keeps the old plan. A baseline is marked
+ *         provisional only before the goal's first check-in, so a goal with check-ins can't be made provisional to move
+ *         its start unasked.
  */
 import type { Baseline, Goal } from './types';
 
@@ -37,6 +39,9 @@ export function baselineShown(g: Goal, hasNumber: boolean): Baseline | null {
 export function startsFromProvisional(g: Goal): boolean {
   return g.kind === 'metric' && !!g.baseline?.provisional && g.baseline.value === g.plan.start;
 }
+
+/** Rule 3's guard, in words: a baseline is marked provisional only before the goal's first check-in. */
+export const PROVISIONAL_LATE = 'A baseline can be marked provisional only before the goal’s first check-in. To move where the plan starts now, change Start and say why.';
 
 /** The period's problem in words, or null: at most 60 characters. */
 export function periodProblem(period: string): string | null {

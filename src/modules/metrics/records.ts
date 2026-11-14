@@ -13,6 +13,7 @@
 import { NotAllowed, type ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import type { DbRow, ModuleRecords, RecordDef } from '../../domain/records';
+import { heldOnSwitch } from './rulesMeasured';
 import { LINKS_KEY, linkOf, linksOf, markLabel, marksFor, metricRows, metricsOf, METRICS_KEY } from './rules';
 import { METRICS_SHEET } from './sheet';
 import type { Metric, MetricLink } from './types';
@@ -114,6 +115,8 @@ const records: Omit<ModuleRecords, 'module'> = {
     const m = l ? metricsOf(s).find((x) => x.id === l.metricId) : undefined;
     return m && l ? marksFor(m, l, since, until).map((k) => ({ week: k.week, label: markLabel(k) })) : [];
   },
+  // MS: switched off, the library lets go of the goals it held to no number; switched on, it holds them again.
+  switched: (x, on) => { const s = x.full ?? x.snapshot; return heldOnSwitch(x, on, metricsOf(s), linksOf(s)); },
   goalColumns: [{ param: 'metric', fill: (s) => { const by = new Map(linksOf(s).filter((l) => !l.removedAt).map((l) => [l.goalId, l.metricId])); return (g) => by.get(g.id) ?? null; } }],
 };
 export default records;

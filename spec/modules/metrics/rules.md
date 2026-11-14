@@ -686,7 +686,9 @@ Whether a metric is measured today (rule 11), what the library does with a gap o
 **Held to no number** (`heldBy`, `heldByLink`; the core's `isUnmeasured`). A goal measured by a metric with a gap is held to no number: the goal's own field `unmeasuredSince` is set, and the core's status rule reads it (never the library). The library sets and clears it, in the same save as the cause, with a line in the goal's History and one Undo:
 - a metric saved as a gap holds every goal it measures now (a live link; the goal neither removed nor stopped; not one with dated stages): “Held to no number until “{metric}” is measured”;
 - the metric saved as measured or partly lets go of them: “Held to its plan again, as “{metric}” is measured”;
-- a goal linked to a gap is held; linked to a measured metric, or unlinked, it is let go (“Held to its plan again”).
+- a goal linked to a gap is held; linked to a measured metric, or unlinked, it is let go (“Held to its plan again”);
+- a gap retired lets go of its goals, and brought back holds them again; a metric merged into another moves each goal to the hold of the one it is merged into;
+- with the library switched off nothing measures a goal, so every held goal is let go (“Held to its plan again, as the metric library is switched off”); switched on again, the goals measured by a gap are held once more.
 A save that leaves the gap as it was writes no goal.
 
 ### Worked examples
@@ -707,7 +709,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ### Where it lives
 
-- [src/modules/metrics/rulesMeasured.ts](../../../src/modules/metrics/rulesMeasured.ts): `measurementOf`, `holdsToNoNumber`, `measurementProblems`, `measurementWords`, `heldBy`, `heldByLink`
+- [src/modules/metrics/rulesMeasured.ts](../../../src/modules/metrics/rulesMeasured.ts): `measurementOf`, `holdsToNoNumber`, `measurementProblems`, `measurementWords`, `heldBy`, `heldByLink`, `heldOnSwitch`
+- [src/modules/metrics/rulesChange.ts](../../../src/modules/metrics/rulesChange.ts): `retireMetric`, `unretireMetric`, `mergeMetrics`
 - [src/modules/metrics/rulesLibrary.ts](../../../src/modules/metrics/rulesLibrary.ts): `metricNeeds`
 - [src/domain/unmeasured.ts](../../../src/domain/unmeasured.ts): `isUnmeasured`, `heldToNoNumber`
 
@@ -722,7 +725,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - a metric’s measurement status (MS) › is measured unless someone says otherwise, and a gap or a part says what’s missing
 - a metric’s measurement status (MS) › holds the goals a gap measures to no number, in the same save, and to their plans again once measured
 - a metric’s measurement status (MS) › holds a goal linked to a gap, and lets go of it when it is unlinked
-- a metric’s measurement status (MS) › round-trips through the rows: the status always written, the goal’s hold only when set
+- a metric’s measurement status (MS) › round-trips through the rows: the status and the goal’s hold always written, null when not held
+- a metric’s measurement status (MS) › re-works the hold when its metric is retired, brought back or merged (MS review, medium 4)
+- a metric’s measurement status (MS) › lets go of every held goal when the library is switched off, and holds them again when it is on (MS review, medium 4)
+- a metric’s measurement status (MS) › keeps the hold when the goal’s own form is saved (MS review, medium 3)
 - a metric’s measurement status (MS) › says so in the export: held to no number, and the word for it
 
 ## A reading in a check-in

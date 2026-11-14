@@ -1578,7 +1578,7 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
     id: 'baseline',
     title: 'A baseline of its own',
     summary: 'A number goal’s baseline can be a figure already known for a period, often provisional: shown as its number until the first check-in, and firmed up without a plan change.',
-    code: [{ file: 'src/domain/baseline.ts', names: ['baselineOf', 'baselineWords', 'baselineShown', 'startsFromProvisional', 'periodProblem', 'BASELINE_PERIOD_MAX'] }, { file: 'src/domain/goal.ts', names: ['planChanged', 'buildGoal'] }, { file: 'src/domain/format.ts', names: ['nowText'] }],
+    code: [{ file: 'src/domain/baseline.ts', names: ['baselineOf', 'baselineWords', 'baselineShown', 'startsFromProvisional', 'periodProblem', 'PROVISIONAL_LATE', 'BASELINE_PERIOD_MAX'] }, { file: 'src/domain/goal.ts', names: ['planChanged', 'buildGoal'] }, { file: 'src/domain/format.ts', names: ['nowText'] }, { file: 'src/domain/carry.ts', names: ['carryCopy'] }],
     tests: ['src/domain/baseline.test.ts'],
     reqs: ['GOAL-BASELINE'],
     body: `
@@ -1588,9 +1588,9 @@ A From before this week is asked at every door (rule 3's from-past, in New goal'
 
 **Rule 2. Shown until the first check-in** (\`baselineShown\`, \`nowText\`). Before the goal's first check-in its number is the baseline: “41.5 min (baseline)” in every list, and on its page the number with “Baseline, June to September 2026, provisional” beside it, then the target. It is not a check-in: the status (No check-in yet, or Not started in week 0), the trend, the projection and what is due are worked out exactly as before. From the first check-in on, the check-in's number is shown and the baseline is not.
 
-**Rule 3. Firming it up isn't a plan change** (\`startsFromProvisional\`, \`planChanged\`). While the plan starts from a provisional baseline (its figure is the plan's start), moving that start, and nothing else in the plan, is not a plan change: no reason is asked once check-ins have started, and the plan before isn't kept. Unticking Provisional is never a plan change. A firm baseline's start moves as any start does.
+**Rule 3. Firming it up isn't a plan change** (\`startsFromProvisional\`, \`planChanged\`). While the plan starts from a provisional baseline (its figure is the plan's start), moving that start, and nothing else in the plan, is not a plan change: no reason is asked once check-ins have started, and the plan before isn't kept. Unticking Provisional is never a plan change. A firm baseline's start moves as any start does, and a baseline is marked provisional only before the goal's first check-in, so a goal with check-ins can't be made provisional to move its start unasked. A goal carried into next year from its final number leaves last year's baseline behind.
 
-**Must fix.** A period over 60 characters: “The baseline’s period can be at most 60 characters.”, at the Baseline (Start) field. A word Baseline is doesn't know: an unknown word, as every word column says.`,
+**Must fix.** A period over 60 characters: “The baseline’s period can be at most 60 characters.”, at the Baseline (Start) field. Provisional ticked on a firm baseline, or a new one, once the goal has check-ins: “A baseline can be marked provisional only before the goal’s first check-in. To move where the plan starts now, change Start and say why.”, at the same field. A word Baseline is doesn't know: an unknown word, as every word column says.`,
     examples: (() => {
       const today = new Date(CHECK_IN_MOMENT);
       const base = () => { const g = goalIn('lead-merge') as Extract<Goal, { kind: 'metric' }>; return { ...g, baseline: { value: g.plan.start, period: 'June to September 2026', provisional: true } }; };
