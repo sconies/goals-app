@@ -23,6 +23,388 @@ The one way many changes come in at once: a spreadsheet, set-up, the bulk check-
 
 **What it gives:** the items (each a change to one record, with its field-by-field differences), what was unchanged, the issues (errors that block, warnings to check, notes on how a row was read), whether a reason is needed, counts, and the commit (null while anything blocks). In "create" mode (set-up) the workspace starts empty and every row is new.
 
+**One workspace at a time.** The engine reads one workspace's records and nothing else, so every name, key and ID a row gives is matched within that workspace, and a commit names only that workspace's records: its people, teams, cycle and goals, and a check-in's or an ask's goal. A store keeps it so: a save whose records name a record kept under another workspace (an owner, a team, a cycle, a parent goal, a check-in's goal) is refused whole, never saved in part; where each workspace is kept apart, a save can only reach its own.
+
+**Which rows make items.** A row that a Must fix stops makes no item: every Must fix on a row's own cells ends that row. Some are found once a row's item is made, so the item stays (and nothing saves while they are there): a goal's link (Feeds into, Feeds into key, Feeds into ID, Feeds into ref: `bad-key`, `ambiguous-ref`, `unknown-ref`, `conflicting-refs`, `loop`; the goal is listed without the link) and a person's own checks on People (`personProblems`: an email that isn't one or that someone has, the only admin). A change to someone else's goal, by someone who isn't an admin, is said once the change is known (`not-allowed`) and makes no item. A question about what a cell means leaves its row out until it is answered: `near-ref`, `near-word`, `near-header` and `two-columns` (the column isn't read), `other-goal` and `totals-row`. Every other question lets the row read on as it says, so its item is listed: `same-goal`, `same-person`, `for-someone-else`, `odd-number`, `no-unit`, `decimal-comma`, `past-stage`, `past-plan`, `feeds-lower`, `plan-question`, `many-admins`, `replaces-others` and `big-removal`. An answer of "Leave these rows out" leaves the row out either way; a note never stops anything.
+
+**The order problems are raised in.** Issues are listed by sheet (Goals, Plan, Check-ins, People), then row; row 1 is the header row, whose questions (`near-header`, `two-columns`) come first. Within one row they keep the order the engine raised them, which is the order it reads: a row that repeats another's key, ID or Ref (`duplicate`) first; then a Goals row's key, ID and Action; whether it is another goal (`other-goal`), a totals row or a goal already here (`same-goal`); its owner (`by-name` once matched by name); its team (`default` when it takes the owner's); Level, Type (`default` when read from the columns), Unit, the numbers (a comma decimal), From and To, the plan's weeks, Limit, Stages and stages already past; State; the goal form's Must fix, a name another goal has (`same-name`) and the form's questions; then, once every Goals row is read, its link (and `feeds-lower`); then the Plan sheet; then each goal's change as a whole (`not-allowed`, `plan-question`); then Check-ins, each row from its goal and week to its number and its parts (`replaces` when it replaces someone's), and `replaces-others` last; then People's own checks, and Stop, Delete and Left as the removal rules judge them (`removal-refused`, and `big-removal` on People). import.csv's `kinds` lists every kind raised, notes too, each once, in that order.
+
+**New IDs.** The engine asks `newId(prefix, hint)` for each record as it makes it, in the order it reads: the People sheet's rows first (a team a row adds, then the person), then the Goals rows in order (a team the row adds, a new goal's stages, one each, then the goal), then the change log's entries, the check-ins and asks, and the import's id. A row that stops before its goal is made asks for no goal ID, though stages it read first have had theirs. The drill gives every prefix one counter, `<prefix>_c<n>` from 1, so a new goal's ID counts every ID asked for before it: three stages and then the goal make `goal_c4`; a new person and three stages, `goal_c5`.
+
+**The order of items.** Goals first, in the order their rows first changed them (Goals rows, then the Plan sheet); then a set-up goal's stages marked done; then check-ins, ordered by their goal's ID (alphabetically, as JavaScript's `localeCompare` orders them) and then by week, not by the sheet's rows, so each week is judged with the weeks before it; then people (People rows in order), teams, the goals a row stops or deletes, and the people marked as left.
+
+**A row that replaces a check-in.** A Check-ins row for a goal and week that has a check-in (the check-in its ID names, else that week's newest) is compared with it column by column: Call (an empty Call counts as the same), Value as a number, Stages, Cause, Why, Why greener, Path to green, Back on plan by week, Needs, Recovery (only when a Path to green is given) and Next step; a column the row leaves out takes the saved check-in's value. When every one is the same the row is unchanged and isn't judged again. When any differs the week is judged afresh, as a new check-in would be: with the row's Call, or, with none, the call the rules work out, which may not be the call saved (a Value changed with no Call can move Off track to At risk).
+
+**When a reason is needed.** The change set needs a reason (`needsReason`: row 0's `needs_reason` in changes.csv) when (a) a goal's plan changes (Start, Target, Plan, From or Plan from week, To or Due week, its plan numbers: `planChanged`) after its first check-in, and neither its row's Reason nor the import's reason says why; or (b) a check-in row corrects one without a reason of 10 to 500 characters with letters in it. A row corrects when it replaces a check-in through Data's tables or MCP, when an admin's row replaces someone else's check-in for this week, and when it adds a week to a year that has ended. An item's own `needs_reason` differs by kind: a plan item says yes whenever its change needs a reason, given or not (the reason given is its Why); a check-in item only while its reason is missing.
+
+**Set-up from a file** ("create" mode). A change set made in create mode never saves: its commit is always null, and what it would make is in `created` (people, teams, goals, check-ins, asks and the keys issued), which set-up saves as the new workspace. The engine starts from the records it is given: set-up gives it none, so every row is new; the drill's create cases give it the workspace at `builtFor`, whose people, teams and goals stay, are matched as usual, and are a new row's twins (a goal's name the workspace has is "on two rows"). Teams it adds are not items; people are. Everyone counts as an admin while a workspace is set up, a goal keeps the key its row gives, and a new check-in belongs to whoever loads the file (the actor), not the goal's owner: setting up from nothing, that is the first person on People, who becomes the first admin. Replacing a check-in, at any door, keeps who checked in.
+
+**"Count them from this week"** (`past-stage`'s answer `from-now`, `stagesFromNow`) moves every stage of the goal, not only those past: each to this week plus its own week scaled into the weeks left, `week + max(1, round(due × scale))`, where `scale = min(1, (weeks in the year − week) ÷ the latest due week)`, and never past the year's last week. "Keep the weeks as typed" (set-up's other answer) leaves them as written.
+
+**Its sentences, fields and log** are below the rule, read from the code: every sentence it says, kind by kind, with the column and value its group is known by; how a check-in row's missing parts are said together; each item's fields, in order, with the words their values are written in; the columns it reads that no export writes; and the change log's entries.
+
+## Every sentence it says
+
+Each problem, question and note is one of these 235 sentences, read by `src/spec/engineWords.ts` from the engine’s own source (`src/domain/changeset.ts`) and from the rules it shares, where those make the sentence: the goal form’s Must fix and questions (`goalMustFix`, `goalChecks` in `src/domain/goalEntry.ts`), a check-in’s number (`valueProblem` in `src/domain/checkin.ts`), the people rules (`personProblems`) and the removal rules (`src/domain/removal.ts`). `src/spec/engineWords.test.ts` checks that every sentence the conformance cases raise matches one of them, under its kind.
+
+- **{placeholder}**: a value put in: a cell as the row wrote it (`{cell}`), a goal’s or person’s name, a week, a number written as the goal writes it (with its unit, digits grouped: “1,500%”). `{sheet}` is Goals, Plan, Check-ins or People.
+- **[words]**: said only sometimes; **{a / b}**: one or the other, as the case is.
+- A sentence that takes in another (“Week 45: ” and a number’s problem; “Feeds into ref: ” and why the ref names nothing) is listed whole, once for each sentence it takes in. A person cell the row can’t read is said in the person cell’s own sentence (the rows with sheet `{sheet}`); on People, Takes over’s is “Takes over: ” and that sentence.
+- **Group column** and **group value** are the third and fourth parts of the group’s id, `kind:sheet:column:value`, kind by kind: each part is lower-cased with every run of spaces as `-`, and the value is folded first (accents off, “&” as “and”, anything but letters and digits as a space, trimmed). A part with nothing is left empty, so `required-empty:goals:owner:` has no value and `not-allowed:goals::` neither column nor value. The sheet part is the sheet’s name: `goals`, `plan`, `check-ins`, `people`.
+- **Headers are lower-cased.** The engine reads a sheet’s headers in lower case (a file’s “Targett” is `targett`), so a sentence that names a header as the row wrote it says it in lower case: “A column on Goals is called “targett”. Read it as Target?”. A column the engine names itself keeps its own words (Target, Owner email).
+
+| Kind | Level | Sheet | Group column | Group value | Words |
+|---|---|---|---|---|---|
+| `required-empty` | must | People | `Name` | — | Add their name. |
+| `required-empty` | must | People | `Email` | — | Add {name}’s email: everyone new needs one. |
+| `required-empty` | must | People | `Team` | — | {name} has no team. |
+| `required-empty` | must | People | `Name` | — | Add a name. |
+| `required-empty` | must | People | `Email` | — | Add their email. |
+| `required-empty` | must | People | `Name` | — | Add at least one person. |
+| `required-empty` | must | Goals | `Goal` | — | Name the goal in the Goal column. |
+| `required-empty` | must | Goals | `Owner` | — | A new goal needs an owner: Owner email, or Owner. |
+| `required-empty` | must | Goals | `Goal` | — | Give the {goal / person / team…} a name. |
+| `required-empty` | must | Goals | `Goal` | — | Give the {goal / person / team…} a name of at least {two} characters. |
+| `required-empty` | must | Goals | `Goal` | — | Keep the name to 80 characters or fewer: it has {its length}. |
+| `required-empty` | must | Goals | `Owner` | — | Choose who owns it. |
+| `required-empty` | must | Goals | `Team` | — | {owner} isn’t in a team. Choose the team this goal is for. |
+| `required-empty` | must | Goals | `Team` | — | Choose a team. |
+| `required-empty` | must | Goals | `Level` | — | Choose a level. |
+| `required-empty` | must | Goals | `Start` | — | Enter where it starts. |
+| `required-empty` | must | Goals | `Start` | — | Enter where it starts today. |
+| `required-empty` | must | Goals | `Target` | — | Enter the target. |
+| `required-empty` | must | Goals | `Limit` | — | Enter the lower number. |
+| `required-empty` | must | Goals | `Limit` | — | Enter the upper number. |
+| `required-empty` | must | Goals | `Limit` | — | Enter the limit. |
+| `required-empty` | must | Goals | `Stages` | — | Add at least one stage. |
+| `required-empty` | must | Plan | `Key` | — | Add the goal’s key or ID so the plan can be matched to it. |
+| `required-empty` | must | Check-ins | `Value` | — | Week {week} needs a Value. |
+| `required-empty` | must | Check-ins | `Goal key` | — | Say which goal: Goal key, or Goal. |
+| `required-empty` | must | Check-ins | `Week` | — | Check-ins start in week 1; week 0 is the start of the year. |
+| `required-empty` | must | Check-ins | `Week` | — | Week should be a whole number from 1, counted from the start of the year. |
+| `required-empty` | must | Check-ins | — | — | Say why, in a sentence of at least 10 characters (at most 500), so anyone reading week {this week} later knows. |
+| `not-a-number` | must | Goals | `Effect` | — | “{cell}” isn’t a number. Type digits only, like {example number}. |
+| `not-a-number` | must | Goals | `{its column}` | — | [Week {week}: ]“{cell}” isn’t a number. Type digits only, like {example number}. |
+| `not-a-number` | must | Goals | `{its column}` | — | [Week {week}: ]“{cell}” has words in it. Type the number only, like {week}; {this goal counts {unit} / the unit goes in Unit}. |
+| `not-a-number` | must | Plan | `{column}` | — | {column}: “{cell}” isn’t a number. Type digits only, like {example number}. |
+| `not-a-number` | must | Check-ins | `Value` | — | Week {week}: “{cell}” isn’t a number. Type digits only, like {example number}. |
+| `formula` | must | Goals | `{column}` | — | {column} holds a formula (“{cell}”), not a number. In Excel, copy the column and paste it as values. |
+| `formula` | must | Plan | `{column}` | — | {column} holds a formula (“{cell}”), not a number. In Excel, copy the column and paste it as values. |
+| `formula` | must | Check-ins | `Value` | — | Value holds a formula (“{cell}”), not a number. In Excel, copy the column and paste it as values. |
+| `precision` | must | Goals | `{its column}` | — | [Week {week}: ]{cell} has {n decimal places}, but this goal keeps {n decimal places}, so it would show as {shown}. Type {shown}, or keep {n decimal places} for this goal. |
+| `precision` | must | Goals | `{its column}` | — | [Week {week}: ]{cell} has {n decimal places}, but a goal keeps at most {n decimal places}, so it would show as {shown}. Type {shown}. |
+| `precision` | must | Goals | `Decimals` | — | {how many} check-in{ has / s have} more decimal places than {n decimal places} (week[s] {weeks}[ and more]). Keep {n decimal places}, or correct those check-ins first. |
+| `precision` | must | Plan | `{column}` | — | {column}: {cell} has {n decimal places}, but this goal keeps {n decimal places}, so it would show as {shown}. Type {shown}, or set the goal’s Decimals to {places typed}. |
+| `precision` | must | Check-ins | `Value` | — | Week {week}: {cell} has {n decimal places}, but this goal keeps {n decimal places}, so it would show as {shown}. Type {shown}, or set the goal’s Decimals to {places typed}. |
+| `impossible-number` | must | Goals | `Start` | — | The baseline’s period can be at most 60 characters. |
+| `impossible-number` | must | Goals | `Start` | — | A baseline can be marked provisional only before the goal’s first check-in. To move where the plan starts now, change Start and say why. |
+| `impossible-number` | must | Goals | `Target` | — | The target is the same as today ({start}). To hold a number where it is, make this a number to keep in range. |
+| `impossible-number` | must | Goals | `Limit` | — | The lower number ({lower number}) must be below the upper one ({upper number}). |
+| `impossible-number` | must | Goals | `Margin` | — | Enter a warning margin of zero or more, or leave it empty. |
+| `impossible-number` | must | Plan | `Week {due week}` | — | The target has to differ from the start. |
+| `impossible-number` | must | Check-ins | `Value` | — | Week {week}: It can’t be below zero[ {unit}]. |
+| `impossible-number` | must | Check-ins | `Value` | — | Week {week}: It can’t be below zero[ {unit}]: this goal counts things. |
+| `impossible-number` | must | Check-ins | `Value` | — | Week {week}: It can’t be over 100%: this goal measures a share of something. |
+| `unknown-word` | must | {sheet} | `{column}` | `{cell}` | {column} says “{cell}”. Use {its words, as “a, b or c”}. |
+| `unknown-word` | must | People | `Admin` | `{cell}` | Admin should be yes or no, not “{cell}”. |
+| `unknown-word` | must | People | `Email` | — | “{email}” doesn’t look like an email. |
+| `unknown-word` | must | Goals | `State` | `{cell}` | State says “{cell}”. Use active or proposed. |
+| `unknown-word` | must | Goals | `Decimals` | — | Decimals says “{cell}”. Use 0, 1, 2 or 3. |
+| `unknown-word` | must | {sheet} | `{column}` | `{cell}` | “{cell}” isn’t an email. |
+| `unknown-ref` | must | {sheet} | `Team` | `{cell}` | There’s no team called “{cell}”.[ Ask an admin to add it, or check the spelling.] |
+| `unknown-ref` | must | {sheet} | `{column}` | `{cell}` | There’s no goal called “{cell}”. |
+| `unknown-ref` | must | {sheet} | `{column}` | `{cell}` | “{goal}” feeds into “{cell}”, which isn’t a goal in {year}. |
+| `unknown-ref` | must | {sheet} | `{column}` | `{cell}` | There’s no goal called “{goal as written}”. Add the Goal key column to be exact. |
+| `unknown-ref` | must | {sheet} | `{column}` | `{email}` | No one here has the email {email}. Add them on the People sheet, or check it. |
+| `unknown-ref` | must | {sheet} | `{column}` | `{cell}` | “{cell}” isn’t in this workspace. Add them on the People sheet, or check the spelling. |
+| `ambiguous-ref` | must | People | `Name` | `{name}` | {how many} people are called “{name}”. Add their email or ID to say which. |
+| `ambiguous-ref` | must | {sheet} | `{column}` | `{cell}` | Several goals are called “{cell}”. Use the key to say which. |
+| `ambiguous-ref` | must | {sheet} | `{column}` | `{cell}` | Several goals are called “{cell}”. Use Feeds into key to say which. |
+| `ambiguous-ref` | must | {sheet} | `{column}` | `{cell}` | There’s no goal called “{goal as written}” that only one goal has. Add the Goal key column to be exact. |
+| `ambiguous-ref` | must | {sheet} | `{column}` | `{cell}` | {how many} people are called “{name}”. Use their email instead ({email or email}). |
+| `conflicting-refs` | must | Goals | `{column}` | — | {column} and {other column} name different goals. Change just one of them. |
+| `conflicting-refs` | must | Check-ins | `Goal ref` | — | Goal ref and the other goal columns name different goals. Change just one of them. |
+| `conflicting-refs` | must | {sheet} | `{Owner / Takes over}` | — | {Owner and Owner email} name different people ({name and name}). Change just one of them. |
+| `bad-key` | must | People | `ID` | `{ID}` | There’s no person with ID {ID}. Leave ID empty to add someone. |
+| `bad-key` | must | Goals | `Key` | `{key}` | Key “{key}” should look like G-12. |
+| `bad-key` | must | Goals | `Key` | `{key}` | There’s no goal with key {key} in {year}. Leave Key and ID empty to add a new goal. |
+| `bad-key` | must | Goals | `ID` | `{ID}` | There’s no goal with ID {ID} in {year}. Leave ID empty to add a new goal. |
+| `bad-key` | must | Goals | `Feeds into ref` | `{cell}` | Feeds into ref: No row on Goals has the Ref “{cell}”. |
+| `bad-key` | must | Goals | `Feeds into ref` | `{cell}` | Feeds into ref: Ref “{cell}” is on more than one row on Goals. |
+| `bad-key` | must | Goals | `Feeds into ref` | `{cell}` | Feeds into ref: Ref “{cell}” names Goals row {row}, which isn’t saved: fix that row first. |
+| `bad-key` | must | Goals | `{Feeds into key / Feeds into ID}` | `{cell}` | {Feeds into key / Feeds into ID} {cell} isn’t a goal in {year}. |
+| `bad-key` | must | Plan | `{Key / ID}` | `{key or ID}` | There’s no goal with key {key}. |
+| `bad-key` | must | Plan | `{Key / ID}` | `{key or ID}` | There’s no goal with ID {ID}. |
+| `bad-key` | must | Check-ins | `Goal ref` | `{ref}` | Goal ref: No row on Goals has the Ref “{cell}”. |
+| `bad-key` | must | Check-ins | `Goal ref` | `{ref}` | Goal ref: Ref “{cell}” is on more than one row on Goals. |
+| `bad-key` | must | Check-ins | `Goal ref` | `{ref}` | Goal ref: Ref “{cell}” names Goals row {row}, which isn’t saved: fix that row first. |
+| `bad-key` | must | Check-ins | `{Goal key / Goal ID}` | `{ID}` | There’s no goal with {key {key} / ID {ID}}. |
+| `bad-key` | must | Check-ins | `ID` | `{ID}` | There’s no check-in with ID {ID} on this goal. Leave ID empty to add a check-in. |
+| `bad-key` | must | Check-ins | — | — | That goal no longer exists. Reload to see the latest. |
+| `bad-key` | must | {sheet} | `{column ID}` | `{cell}` | There’s no person with ID {cell}. |
+| `duplicate` | must | People | `Email` | — | {person here} already has the email {email}: each person needs their own. |
+| `duplicate` | must | People | `Email` | — | {person} has another row in this file. Give each person one row. |
+| `duplicate` | must | People | `Email` | — | {name} already has the email {email}. |
+| `duplicate` | must | {sheet} | `{column}` | — | {name} is on rows {list}. Give each person one row. |
+| `duplicate` | must | {sheet} | `{column}` | — | Key {name} is on rows {rows}. Give each goal one row. |
+| `duplicate` | must | {sheet} | `{column}` | — | “{name}” is on rows {rows}. Give each goal one row. |
+| `duplicate` | must | {sheet} | `{column}` | — | “{name}” has the same week on rows {rows}. Give each goal one row a week. |
+| `duplicate` | must | Goals | `Ref` | `{ref}` | Ref “{ref}” is on rows {rows}. Give each row its own Ref. |
+| `duplicate` | must | Goals | `Key` | — | “{goal}” has another row in this file. Give each goal one row. |
+| `duplicate` | must | Goals | `Goal` | `{name in the row}` | “{goal here}” is on rows {row} and {row}. Give each goal one row. |
+| `duplicate` | must | Goals | `Goal` | — | “{name in the row}” is on two rows. Give each goal one row. |
+| `type-unclear` | must | Goals | `Type` | — | Type is empty and the row has {columns filled in}. Say {metric, range or milestone}. |
+| `type-unclear` | must | Goals | `Type` | — | Type is empty and the row has no Start and Target, Limit or Stages. Add them, or say the type. |
+| `plan-order` | must | Goals | `{its column}` | — | To ({week}, {its dates}) isn’t after From ({week}, {its dates}). The plan has to run forwards. |
+| `plan-order` | must | Plan | `Week {week}` | — | Week {week} is outside the plan, which runs from week {first week} to week {due week}. Change Plan from week or Due week on Goals first. |
+| `stage-format` | must | Goals | `Stages` | — | “{stage as written}” has no week. Write it as Name@week, like Pilot@52. |
+| `stage-format` | must | Goals | `Stages` | — | Every stage needs a name. |
+| `stage-format` | must | Goals | `Stages` | — | “{stage as written}”: {year} has {weeks} weeks. Use {year}-W{weeks}, or {next year}-W01. |
+| `stage-format` | must | Goals | `Stages` | — | “{stage as written}”: {field} says “{cell}”. Write a year and a week, like {this week as 2026-W45}, or the week’s number. |
+| `stage-format` | must | Goals | `Stages` | — | “{stage as written}”: “{cell}” isn’t in {year}, which runs {first day of the year} to {last day of the year}. |
+| `stage-format` | must | Goals | `Stages` | — | “{stage as written}”: week {week} is past the end of {year} (week {weeks in the year}). |
+| `stage-format` | must | Goals | `Stages` | — | Give this stage a name. |
+| `stage-format` | must | Goals | `Stages` | — | Two stages are called “{name}”. Give each its own name, such as “{name} review”. |
+| `stage-format` | must | Goals | `Stages` | — | “{stage}” needs a due week between 1 and {weeks in the year}: it says “{due week}”. |
+| `stage-format` | must | Goals | `Stages` | — | Choose the week “{name}” is due. |
+| `stage-format` | must | Goals | `Stages` | — | Choose the week this stage is due. |
+| `stage-format` | must | Check-ins | `Stages` | — | Stages: “{stage as written}” should look like “Pilot: done week 6” or “Pilot: expected week 8”, using the stage’s name. |
+| `week-wrong` | must | Goals | `{column}` | — | From says “{cell}”: a starting number, or a week? Put a starting number under Start, or write the week as a year and a week, like {this week as 2026-W45}. |
+| `week-wrong` | must | Goals | `{column}` | — | {year} has {weeks} weeks. Use {year}-W{weeks}, or {next year}-W01. |
+| `week-wrong` | must | Goals | `{column}` | — | {field} says “{cell}”. Write a year and a week, like {this week as 2026-W45}, or the week’s number. |
+| `week-wrong` | must | Goals | `{column}` | — | “{cell}” isn’t in {year}, which runs {first day of the year} to {last day of the year}. |
+| `week-wrong` | must | Goals | `{column}` | — | {column} says {week} and {other column} says {other week}. Change just one of them. |
+| `week-wrong` | must | Goals | `{its column}` | — | {From / To} says “{cell}”. Write a year and a week, or the week’s number. |
+| `week-wrong` | must | Goals | `{its column}` | — | To can be as late as {week} ({its dates}), the end of next year. |
+| `week-wrong` | must | Goals | `{its column}` | — | From can be as late as {week} ({its dates}), the end of next year. |
+| `week-wrong` | must | Goals | `{its column}` | — | From can be as early as week 1 of {previous year}. |
+| `week-wrong` | must | Check-ins | `Week` | — | {year} has {weeks} weeks. Use {year}-W{weeks}, or {next year}-W01. |
+| `week-wrong` | must | Check-ins | `Week` | — | {field} says “{cell}”. Write a year and a week, like {this week as 2026-W45}, or the week’s number. |
+| `week-wrong` | must | Check-ins | `Week` | — | “{cell}” isn’t in {year}, which runs {first day of the year} to {last day of the year}. |
+| `week-wrong` | must | Check-ins | `Week` | — | Check-ins start in week 1; week 0 is the start of the year. |
+| `week-wrong` | must | Check-ins | `Week` | — | Week should be a whole number from 1, counted from the start of the year. |
+| `week-wrong` | must | Check-ins | `Week` | — | Week {week} hasn’t happened yet; it’s week {this week}. |
+| `week-wrong` | must | Check-ins | `Back on plan by week` | — | Back on plan by week: “{cell}” isn’t a week. |
+| `week-wrong` | must | Check-ins | — | — | Week {week} has passed. Correct it, or add it, with a reason. |
+| `checkin-incomplete` | must | Check-ins | — | — | The same as week {week}: {unit}. Did you measure it again this week? Answer it first. |
+| `checkin-incomplete` | must | Check-ins | — | `{what it lacks, joined by “; ”}` | Week {week} needs {what it lacks, joined by “; ”}. |
+| `checkin-incomplete` | must | Check-ins | — | — | A reading needs the name of the source that read it, so it can’t be recorded. |
+| `checkin-incomplete` | must | Check-ins | — | — | {source}’s number can’t be read, so it can’t be recorded. |
+| `checkin-incomplete` | must | Check-ins | — | — | When {source} measured its number can’t be read, so it can’t be recorded. |
+| `checkin-incomplete` | must | Check-ins | — | — | {source}’s number is dated after now, so it can’t be recorded. |
+| `checkin-incomplete` | must | Check-ins | — | — | {source}’s number is more than {days} days old, so it can’t be recorded. |
+| `checkin-incomplete` | must | Check-ins | — | — | Say why your number is different in at most 500 characters. |
+| `checkin-incomplete` | must | Check-ins | — | — | {source} said {their number}. Say why your number is different. |
+| `checkin-incomplete` | must | Check-ins | — | — | Say more about why your number is different from what {source} said, in at least 10 characters. |
+| `cant-change` | must | People | `Email` | — | Their email can be changed, not taken away. Type it back in. |
+| `cant-change` | must | People | `Email` | — | Their email can be changed, not taken away. |
+| `cant-change` | must | People | `Admin` | — | The only admin stays one: make someone else an admin first. |
+| `cant-change` | must | Goals | `Key` | — | Key {key} isn’t this goal’s key ({its key}). A goal’s key never changes. |
+| `cant-change` | must | Goals | `Type` | — | A goal’s type can’t change. Add a new goal instead. |
+| `cant-change` | must | Goals | `State` | `state-has-check-ins` | “{goal}” has check-ins, so it can’t go back to proposed. Stop it instead. |
+| `cant-change` | must | Goals | `Stages` | — | “{name}” was done in week {done week}, so it can’t be removed. Rename it, or leave it. |
+| `cant-change` | must | Goals | `Action` | — | A row that says {action} can’t also change the goal. Make the change, or the {action}, on its own. |
+| `cant-change` | must | Plan | `Key` | — | Key {key} isn’t this goal’s key ({its key}). A goal’s key never changes. |
+| `cant-change` | must | Plan | `Key` | — | Only number goals have plan numbers. |
+| `cant-change` | must | Plan | — | — | This file also stops or deletes “{goal}”, so its plan can’t change in it. |
+| `cant-change` | must | Check-ins | — | — | Nothing is different from what week {week} already says. |
+| `cant-change` | must | Check-ins | — | — | {year} has ended, so its check-ins can’t be corrected. |
+| `cant-change` | must | Check-ins | — | — | This file also says {action} for “{goal}”, so its check-ins can’t change in it. Make the change, or the {action}, on its own. |
+| `cant-change` | must | Check-ins | `Goal key` | — | Key {key} isn’t this goal’s key ({its key}). A goal’s key never changes. |
+| `cant-change` | must | Check-ins | `Goal key` | — | This goal is proposed, so there is nothing to check in. Make it active first. |
+| `cant-change` | must | Check-ins | `Week` | — | Check-in {ID} is for week {its week}; a check-in’s week can’t change. |
+| `cant-change` | must | Check-ins | — | — | Week {week} already has a check-in. Check in again, or correct it. |
+| `not-allowed` | must | People | — | — | Only an admin can mark someone as left. |
+| `not-allowed` | must | People | — | — | Only an admin can add people. |
+| `not-allowed` | must | People | — | — | Only an admin can change people. |
+| `not-allowed` | must | People | — | — | Only an admin can change a team’s objective. |
+| `not-allowed` | must | Goals | — | — | You can’t add this goal. |
+| `not-allowed` | must | Goals | — | — | Only {owner} (its owner) or an admin can change “{goal}”. |
+| `not-allowed` | must | Goals | `State` | — | {owner} or an admin can make this active. |
+| `not-allowed` | must | Plan | — | — | Only {owner} (its owner) or an admin can change “{goal}”. |
+| `not-allowed` | must | {sheet} | — | — | Only {owner} (its owner) or an admin can change “{goal}”. |
+| `not-allowed` | must | Check-ins | — | — | Only {owner} (its owner) can check in on “{goal}”.{what that door is for} |
+| `removal-refused` | must | People | `Action` | — | {Left} needs someone already here: their email or ID. |
+| `removal-refused` | must | Goals | `Action` | — | {action} is for a goal already in a workspace; leave Action empty when setting one up. |
+| `removal-refused` | must | Goals | `Action` | — | {action} needs the goal’s Key, to say which goal. To add “{name in the row}” instead, leave Action empty. |
+| `removal-refused` | must | Goals | `Action` | — | There’s no goal with that ID in this cycle. |
+| `removal-refused` | must | Goals | `Action` | — | Only the goal’s owner or an admin can stop it. |
+| `removal-refused` | must | Goals | `Action` | — | It has no check-ins yet: delete it instead. |
+| `removal-refused` | must | Goals | `Action` | — | Say why it’s stopping, in a sentence (10 characters or more). |
+| `removal-refused` | must | Goals | `Action` | — | Only the goal’s owner or an admin can delete it. |
+| `removal-refused` | must | Goals | `Action` | — | It has check-ins: stop it instead, with a reason, so its history stays. |
+| `removal-refused` | must | People | `Takes over` | — | Only admins can mark someone as left. |
+| `removal-refused` | must | People | `Takes over` | — | There’s no one with that ID in this workspace. |
+| `removal-refused` | must | People | `Takes over` | — | You can’t {what they do} yourself. Ask another admin. |
+| `removal-refused` | must | People | `Takes over` | — | They’re the only admin: make someone else an admin first. |
+| `removal-refused` | must | People | `Takes over` | — | Choose someone else to take over their {what they do}. |
+| `removal-refused` | must | People | `Takes over` | — | {person} owns {n goals}: say who takes them over in Takes over. |
+| `removal-refused` | must | People | `Takes over` | — | {person} has {n open asks}: say who takes them over in Takes over. |
+| `loop` | must | Goals | `Feeds into` | — | That link would make a loop: “{goal it feeds}” already feeds into this goal. |
+| `loop` | must | Goals | `Feeds into` | — | A goal can’t feed into itself. |
+| `loop` | must | Goals | `Feeds into` | — | That link would make a loop: the goal it feeds already feeds into it. |
+| `{its first Must fix’s kind}` | must | Goals | `State` | — | “{goal}” can’t be made active yet: {what it lacks, in the goal form’s words} |
+| `near-ref` | check | {sheet} | `Team` | `{cell}` | There’s no team called “{cell}”. Did you mean {name here}? |
+| `near-ref` | check | {sheet} | `{column}` | `{cell}` | “{cell}” isn’t a goal here. Did you mean “{goal here}” ({key})? |
+| `near-ref` | check | Check-ins | `Stages` | `{cell}` | “{stage as written}” isn’t a stage of “{goal}”. Did you mean {name here}? |
+| `near-ref` | check | {sheet} | `{column}` | `{email}` | No one here has {email}. Did you mean {email here}? |
+| `near-ref` | check | {sheet} | `{column}` | `{cell}` | “{cell}” isn’t here. Did you mean {name here}? |
+| `near-word` | check | {sheet} | `{column}` | `{cell}` | {column} says “{cell}”. Read it as {word}? |
+| `near-word` | check | Goals | `{Must stay}` | `{cell}` | Limit has two numbers and Must stay says “{cell}”. Read it as between? |
+| `near-header` | check | {sheet} | `Header` | `{header}` | A column on {sheet} is called “{header}”. Read it as {column}? |
+| `two-columns` | check | {sheet} | `Header` | `{column}` | Two columns on {sheet} are read as {column}: {“header” and “header”}. Which should be read? |
+| `same-person` | check | People | `Name` | `{name} {email}` | “{name}” ({email}) looks like {person here}[ ({their email or team})], who is already here. |
+| `same-goal` | check | Goals | `Goal` | `{name in the row}` | A goal called “{goal here}” is already here ({key, team}). Is this a new goal, or the same one? |
+| `other-goal` | check | Goals | `Key` | `{key}` | {key} is “{goal}” here, owned by {owner}. Row {row} calls it “{name in the row}”[, with another owner and team]. Is it the same goal? |
+| `past-stage` | check | Goals | `Stages` | — | {n stages} of “{goal}” {is / are} due before this week (week {this week}): {stages as Name@week}{, so it would start late. / . {Is it / Are they} done?{who may say they are done}} |
+| `past-plan` | check | Goals | `Due week` | — | “{goal}” has a plan that ended in week {due week}; it’s week {this week}. |
+| `odd-number` | check | Goals | `{its column}` | `below-zero` | {number} is below zero. That’s fine for a change or a balance. Is it right here? |
+| `odd-number` | check | Goals | `{its column}` | `over-100` | The {start or target} is over 100%. That’s fine for growth, but a share of something (coverage, adoption) can’t pass 100%. Is {number}% right? |
+| `odd-number` | check | Goals | `Target` | `hundredfold` | The target ({target}) is {over 100 times / under a hundredth of} where it starts ({start}). Is that right? |
+| `odd-number` | check | Goals | `Target` | `wrong-side` | “{name}” is better {better}, but the target ({target}) is {above / below} today ({start}). Is that the plan? |
+| `odd-number` | check | Goals | `{its column}` | `billion` | {number} is a billion or more. Is it right? |
+| `odd-number` | check | Goals | `Margin` | `margin-wide` | With a limit of {limit} and a warning {margin} away, it would almost always read at risk. Is {margin} right? |
+| `odd-number` | check | Goals | `Plan` | `late-plan` | This plan leaves {share}% of the change to the last {k} of {n} weeks. Is that the plan? |
+| `odd-number` | check | Check-ins | `Value` | `{over 100% / far outside the plan / past the target / far from the last number}` | Week {week}: That’s over 100%. Is that right? |
+| `odd-number` | check | Check-ins | `Value` | `{over 100% / far outside the plan / past the target / far from the last number}` | Week {week}: That’s far outside this goal’s plan ({start} to {target}{unit}). Is {cell} right? |
+| `odd-number` | check | Check-ins | `Value` | `{over 100% / far outside the plan / past the target / far from the last number}` | Week {week}: That’s past the target of {target}[ {unit}]. Is {cell} right? |
+| `odd-number` | check | Check-ins | `Value` | `{over 100% / far outside the plan / past the target / far from the last number}` | Week {week}: Last week was {last number}. Is {cell} right? |
+| `plan-question` | check | {sheet} | — | `{direction / far}` | This makes {better} better: the target ({new target}) is now {above / below} the start ({new start}). It was {old start} to {old target}, {higher / lower} is better. |
+| `plan-question` | check | {sheet} | — | `{direction / far}` | The {start or target} of {number} is far outside the plan it replaces ({old start} to {old target}). Status, progress and the forecast will all be judged against it. |
+| `no-unit` | check | Goals | `Unit` | — | This number has no unit. Is it a plain count? |
+| `decimal-comma` | check | Goals | — | — | “{cell}” was read as {number read}: a comma as the decimal mark. |
+| `decimal-comma` | check | Check-ins | — | — | “{cell}” was read as {number read}: a comma as the decimal mark. |
+| `replaces-others` | check | Check-ins | — | — | {n rows} replace check-ins other people posted. |
+| `many-admins` | check | People | `Admin` | — | {n people} would become admins. Is that right? |
+| `totals-row` | check | Goals | `Goal` | `{name in the row}` | Row {row} is called “{name in the row}” and has no owner. It looks like a totals row. |
+| `big-removal` | check | Goals | `Action` | — | This file {{what it does} and {what else it does} / what it does}. Is that right? |
+| `big-removal` | check | People | `Action` | — | This file {{what it does} and {what else it does} / what it does}. Is that right? |
+| `feeds-lower` | check | Goals | `Feeds into` | `{level}>{level}` | {capital} usually feeds {feeds}, and “{title}” is {a level}. Is this link right? |
+| `for-someone-else` | check | Goals | `State` | `for-someone-else` | “{goal}” is for {owner} and would start as active. Is that what you mean? |
+| `by-name` | note | {sheet} | — | — | “{name}” matched by name: {person}[ ({email})]. An email column is exact. |
+| `default` | note | Goals | `Team` | — | Team: {team} (the owner’s team; the row gave none). |
+| `default` | note | Goals | `Type` | — | Type: {type} (from {Start and Target / Limit / Stages}; the row gave none). |
+| `date-as-week` | note | {sheet} | — | — | “{cell}” was read as week {week}. |
+| `same-name` | note | People | — | — | {person here}[ ({their team or job title})] is already here. That’s fine: their email tells you apart, and Faro shows a team or job title beside the name. |
+| `same-name` | note | Goals | — | — | Another goal is called “{goal here}” ({key, team}). That’s allowed; Faro shows each one’s key beside the title so people can tell them apart. |
+| `left-alone` | note | {sheet} | — | — | “{goal}” is {stopped}, so its rows are left as they are. |
+| `replaces` | note | Check-ins | — | — | Replaces {whose it was}’s check-in for week {week}. |
+| `as-recorded` | note | Check-ins | — | — | Week {week} is taken as it was recorded. |
+
+## What a check-in row lacks, in one sentence
+
+A check-in row that the check-in screen would not post (`checkin-incomplete`) is one sentence: “Week {week} needs ” and every part it lacks, joined by “; ”, in the order the check-in rule finds them (`evaluate` in `src/domain/checkin.ts`), then a full stop. A number that can’t be used is said on its own instead (“Week 45: …”, under `not-a-number`, `precision` or `impossible-number`), and an empty Value as “Week 45 needs a Value.” The group’s value is the same parts, so one answer covers every row that lacks the same.
+
+| Part (the rule’s code) | Said as |
+|---|---|
+| `value-not-number` | a number in Value |
+| `value` | a Value |
+| `value-precision` | a Value at the goal’s decimal places |
+| `value-impossible` | a possible Value |
+| `greener-why` | Why greener (the call is {greener}) |
+| `reason-ahead` | a Cause and a Why of 10 characters or more (it’s ahead of plan) |
+| `reason-behind` | a Cause and a Why of 10 characters or more (it’s behind plan) |
+| `path` | a Path to green and, if it’s a plan, Back on plan by week (after week {week}, by week {weeks in the year}) |
+| `story-unchanged` | whether what you said last time is still true |
+| `target` | a proposed target beyond the current one |
+
+So a week behind plan, called off track, with no cause, why or path is “Week 45 needs a Cause and a Why of 10 characters or more (it’s behind plan); a Path to green and, if it’s a plan, Back on plan by week (after week 45, by week 53).”
+
+## Field by field
+
+Every item carries the fields it changes as `Field: before → after`, in the order below, each value in the words a person reads; `—` is nothing. A new record lists only the fields it fills (a field that would be `—` is left out); a changed one lists only the fields that differ. These are the change log’s own differences (`goalFields`, `checkInFields` in `src/domain/changes.ts`; `personChange` in `src/domain/people.ts`): the tables are made by running them on the conformance workspace, so each example is what the code writes.
+
+**A goal’s fields**, in this order:
+
+| Field | On | Written as, for example |
+|---|---|---|
+| Name | every goal | Time from pull request opened to first review |
+| State | every goal | — |
+| Type | every goal | Move a number |
+| Team | every goal | Developer Experience |
+| Owner | every goal | Tariq Haddad |
+| Feeds into | every goal | Lead time for changes |
+| Why it helps | every goal | Most of a change’s lead time is waiting for review, so the first review is where the hours are. |
+| Also helps | every goal | — |
+| Guarded by | every goal | — |
+| Level | every goal | SVP |
+| Role | every goal | Input |
+| Guardrail | every goal | No |
+| Estimated effect | every goal | 8 |
+| Data source | every goal | GitHub pull request data |
+| Definition | every goal | Median business hours from a pull request being opened (not draft) to its first human or AI review comment |
+| Unit | number, range | hours |
+| Decimals | number, range | 1 |
+| Start | number | 20.0 hours |
+| Target | number | 6.0 hours |
+| Plan shape | number | Straight line |
+| Plan from week | number | — |
+| Target due | number | — |
+| Plan numbers | number | — |
+| Baseline | number | — |
+| Limit | range | At most 2.0% |
+| Warning margin | range | 0.4% |
+| Stages | stages | Vendor contract signed (wk 8), Pilot on the payments monorepo (wk 18), Web monorepo on the merge queue (wk 30), All… |
+
+Its words: State is `Proposed` or `—`; Type is `Move a number`, `Keep a number in range` or `Hit dated stages`; Feeds into is the goal’s name, or `Nothing`; Why it helps is `—` when it feeds nothing; Role is `Input` or `Output`; Guardrail `Yes` or `No`; a number is written as the goal writes it, with its unit (`10%`, `52 hours`, `1,500%`); Target is `Not set` on a proposed goal with none; Plan shape is `Straight line`, `Back-loaded` or `Three steps`; Plan from week and Target due are `Week 45`, or `—`; Plan numbers are `wk 46: 12%, wk 47: 14%`; a range’s Limit is its rule in words (`At most 12%`, `Between 99.5% and 99.95%`); Stages are `Name (wk N)`, by due week, joined by “, ”.
+
+**A check-in’s fields**, in this order:
+
+| Field | On | Written as, for example |
+|---|---|---|
+| Status call | every goal | At risk |
+| Value | number | 9.6 hours |
+| Cause | every goal | Something else |
+| Note | every goal | The changes to the review rota are working; the number lags them by a week or two. |
+| Why greener | every goal | — |
+| Path to green | every goal | Keep the current pace; the gap closes at about a point a week. (by week 46) |
+| Needs | every goal | Daniel Okafor: agree to run without batching on the web monorepo for a month |
+| Proposed target | every goal | — |
+| Next step | every goal | — |
+| Stages | stages | Vendor contract signed: done wk 8; Pilot on the payments monorepo: done wk 21; Web monorepo on the merge queue:… |
+
+Status call is the status’s word (`On track`, `At risk`, `Off track`); Path to green is what will be done and, in brackets, `by week N` or the recovery’s word in lower case; Stages are `Name: done wk N`, `Name: expected wk N` or `Name: on schedule`, joined by “; ”.
+
+**A person’s fields.** A new person: `Person`, `Email` (Email only when they have one). A person changed, only what differs, in this order: `Name`, `Email`, `Job title`, `Team`, `Admin`; Admin is `Yes` or `No`, and an empty email, job title or team is `—`.
+
+**Beside them**, an item can carry:
+
+| Field | When | For example |
+|---|---|---|
+| `Why` | A plan change with its reason (the row’s Reason, else the import’s reason), after the record’s own fields; and a goal stopped, with its Reason. | Why: — → Measured the other way round (`plan-question`) |
+| `Why corrected` | A check-in a row corrects, with the reason: first, before the check-in’s own fields. | Why corrected: — → The tracker had last week’s number in it (`corrects-keeps-author`) |
+| `Status` | A goal stopped (`Stopped`) or deleted. | Status: — → Stopped (`big-removal`) |
+| `Open asks` | A goal that changes owner, whose open asks of the old owner go with it. | — |
+| `Via` | Every item, last. | Via: — → Spreadsheet (`baseline-provisional`) |
+
+Via is the door, one of `Spreadsheet`, `Bulk edit`, `MCP`, `Data tables`, `Set-up`, `Check-in`: every change through a door but the check-in form carries it, last.
+
+## Columns it reads beyond the format
+
+The engine also reads 2 columns no sheet in [the export format](../export-format.md) lists, so no export writes them; a file or a tool may give them (read in any case, like every header):
+
+- **Next**: Check-ins: an older name for Next step, read when there is no Next step column.
+- **Owner ID**: Goals: the owner by their ID, as Owner email names them by email. With Owner or Owner email beside it, they must name the same person (`conflicting-refs`); an ID no one has is `bad-key` (“There’s no person with ID {cell}.”).
+
+## The change log’s words
+
+The entries a change set writes, and Undo’s, read from the code as the sentences are. A summary entry’s differences are `Via: — → {door}`, then, for a file, `File: — → {its name}` and `Rows: — → {n} changed, {n} unchanged[, {n} left out]`. Undo’s entry has `Import: {the import’s summary} → Undone` and, when rows stay, `Skipped: — → {why each stays}`. A goal’s “Changed …” names its fields in lower case: up to three joined by “, ”, or the first two and “and {n} more”.
+
+| Entry | Words |
+|---|---|
+| An import’s one summary entry (`action: imported`) | {Loaded a spreadsheet / Changes via MCP / Edited the data tables / Corrected a check-in / Bulk edit}: {{goal} · {summary} / what it counts} |
+| What it counts, after the colon (`describe`; nothing: “No changes”) | {n new people}, {n people} changed, {n teams} changed, {n new goals}, {n goals} changed, {n plans} changed, {n check-ins}[ ({backfilled} for past weeks)], {replaced} replaced, {n goals} {stopped}, {n goals} deleted, {n people} {marked as left}, joined by “, ” |
+| A goal added or changed (`goalChange`) | Changed {fields} / Created the goal “{goal}” |
+| A check-in posted or replaced (`checkInChange`) | Posted an update for week {week}: {number · status call} / Checked in for week {week}: {number · status call} |
+| A check-in a row backfills (an earlier week, not a correction) | {the check-in’s summary} (loaded later) |
+| A check-in corrected (`correctedSummary`; a week added to an ended year: “Added week {week} later: {number}”) | Corrected week {week}: {old number} is now {new number} / Corrected week {week}: still {new number}[, with a new {{what changed} and {what changed} / what changed}] |
+| A person added or changed (`personChange`) | Changed {person} / Added {person} |
+| A team an admin’s file adds, or a team objective changed | Added the team “{team}” / Changed the objective of the team “{team}” |
+| Undo’s entry (`action: undone`) | Undid {undone what}: {n rows} put back[, {length} skipped as changed since] |
+| What Undo’s entry calls the import (`undoneWhat`) | a correction / the import of {file} / the {import name} |
+| Why Undo leaves a row (each `{name}: {reason}`, joined by “; ” in its Skipped field) | {who} posted a check-in[ for week {week}] on {day, as 12 Nov} / The check-in was deleted on {day, as 12 Nov} / The check-in was corrected on {day, as 12 Nov} / Its {field} was changed on {day, as 12 Nov} / It was changed on {day, as 12 Nov} |
+| When Undo can put nothing back (`nothingToUndo`) | Nothing left to undo: {its one row has / all {n rows} have} changed since. / Nothing to undo: it changed no rows. |
+
 ## Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
@@ -35,12 +417,18 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Rhea loads three new goals into the demo workspace: Ref top; Ref mid, Feeds into ref top; Ref leaf, Feeds into ref mid. | `mid feeds top, leaf feeds mid` |
 | In the demo workspace, Tariq (its owner) changes the AI-assisted reviews north star (ns-ai) to a target of 90, with no reason. | `needs a reason; nothing to save` |
 | The same change by Mateo, who neither owns it nor is an admin. | `error: Only Tariq Haddad (its owner) or an admin can change “Pull requests with AI-assisted review”.` |
-| Mateo posts mttr-pir on plan for week 45 from the check-in screen; then again with `new`; then with `again`; then corrects week 44 with the reason "oops". | `Checked in for week 45 / Week 45 already has a check-in. Check in again, or correct it. / Checked in again for week 45 / Say why, in a sentence of at least 10 characters (at most 500), so anyone reading week 44 later knows.` |
+| In a copy of the demo with mttr-pir’s week 45 check-in taken out (workspace.json has one), Mateo posts mttr-pir on plan for week 45 (its plan’s number that week, rounded) from the check-in screen; then again with `new`; then with `again`; then corrects week 44 with the reason "oops". | `Checked in for week 45 / Week 45 already has a check-in. Check in again, or correct it. / Checked in again for week 45 / Say why, in a sentence of at least 10 characters (at most 500), so anyone reading week 44 later knows.` |
 | Mateo loads a week 4 number of 21 for his goal mttr-pir with no cause or why, into a copy with none of its check-ins. | `the first problem says: Week 4 needs a Cause and a Why` |
+| Amara loads one new stages goal for Rhea (Design@50; Pilot@51; Live@52), every ID from one counter, `<prefix>_c<n>`. | `goal_c4` |
+| Amara loads a Next step for week 40 of lead-flaky (row 2) and of ci-docker (row 3), each a check-in already there. | `ci-docker (row 3), then lead-flaky (row 2)` |
+| Amara loads lead-ci-time’s week 45 again with a Value of 6 and no Call; its saved check-in was Off track at 8 min. | `Status call: Off track → At risk \| Value: 8 min → 6 min \| Via: — → Spreadsheet` |
+| Stages Draft@2; Agreed@6; Live@50 counted from this week, week 45 of a 53-week year. | `Draft@46; Agreed@46; Live@53` |
+| Set-up from a file (create mode, from no records): one person and one goal of theirs. | `nothing to save; it would make 1 person and 1 goal` |
+| Rhea loads a week 45 number for her goal G-22 from a file called rhea.csv: the import’s summary entry. | `Loaded a spreadsheet: 1 check-in \| Via: — → Spreadsheet \| File: — → rhea.csv \| Rows: — → 1 changed, 0 unchanged` |
 
 ## Not self-explanatory
 
-- **Not self-explanatory:** The engine is large (`src/domain/changeset.ts`): this section says what it does; its every message and column rule is in the code and its tests (listed below). A rebuild of the core status rules does not need it; a rebuild of import and bulk edit does.
+- **Not self-explanatory:** The engine is large (`src/domain/changeset.ts`). The rule above says what it does and the tables below give every sentence it says and every field it writes, read from its code; a rebuild of the core status rules does not need it, a rebuild of import and bulk edit does.
 
 ## Where it lives
 

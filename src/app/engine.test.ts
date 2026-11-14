@@ -13,6 +13,8 @@ const ALLOWED = new Set([
   'src/mcp/tools.ts',
   'src/spec/conformance.ts',
   'src/spec/rules.ts',
+  // The change engine page's table of sentences reads the kinds the engine gives the goal form's words (node only).
+  'src/spec/engineWords.ts',
   'src/data/platformOrg/generate.ts',
   'src/ui/Preview.tsx',
   'src/screens/DataTables.tsx',
