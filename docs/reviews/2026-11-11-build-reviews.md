@@ -14,10 +14,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 
 Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon (session …iZx169kF) stopped after 14 code PRs, at about 395k tokens of context. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `15c8f356` (#513), the head of main at 21:27 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511 (docs only) has neither.
+- **Last merge fully reviewed:** `4956d78a` (#497), the head of main at 22:05 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511 (docs only) has neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none.
-- **Mediums open:** two, sent to planning 14 Nov, 21:40 UTC: #503's (a goal stopped while held stays held) and #513's (the kit's words on a moment are not what History does).
+- **Mediums open:** three, sent to planning 14 Nov (21:40 and 22:05 UTC): #503's (a goal stopped while held stays held), #513's (the kit's words on a moment are not what History does) and #497's (the workspace's line is never drawn in a browser by any eval).
 - **Expected next:** #505 (MQ's code, track 7d, on migration 0055: check the row mapper writes SQL null, never an empty string, for a `level` or `confidence` that isn't said, which 0055's checks refuse; and that the parent's rules, no loops, same workspace, not removed, are in the module's rule, since the database only refuses a metric that is its own parent). #497 (HM7 and HB3, track 1). U124's "Changed since" check (track 1).
 - **Read, not walked on screen by this session:** #469 (HM4), #491 (SM1h), #487 (TG1), #464 (GR) and #465 (FT1); their own journeys are the only browser runs. #465's thirteen screen files were skimmed. If the full suite on main goes red on one of them, start there.
 - **How merges reach you:** no timer works here (scheduling a wake needs an approval nobody answers). Each track messages the reviewer its PR's number when it merges; whenever a message arrives, run `git log --first-parent <last reviewed>..origin/main` and review everything in it. Messages lag and repeat: about half of this session's were for PRs already reviewed, and a track's message can give a stale migration number (#502 was announced as 0054 and is 0055).
@@ -261,6 +261,7 @@ Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon 
 | #505 MQ: a metric's structure (parent and level, confidence, how it could be gamed) on 0055 | 7d | 0 | 0 | 2 |
 | #503 MS and BL review: #428's mediums 2 to 4, #449's mediums 7 and 8 | 7c | 0 | 1 | 0 |
 | #513 Rebuild kit stage 1: the full drill's 16 gaps, in words | item 11 | 0 | 1 | 0 |
+| #497 HM7 and HB3: a leader's week on Home, the habit cell, and the admin's workspace line | 1 | 0 | 1 | 2 |
 
 **High findings, and where each stands**
 
@@ -2256,3 +2257,19 @@ Words only, in `src/spec/rules.ts` and `src/spec/build.ts`, with new worked exam
 **1. Medium (ran by the subagent; the code read by me). The words on a moment are true of the conformance rows and not of History.** The kit now says "*Earlier* means posted before this one (`postedAt` earlier), whatever week it is for" and that *Reached* is judged "by the plan as of this check-in's week" (`src/spec/rules.ts:1844-1846`). `moment` does neither (`src/domain/habit.ts:35`, "any order"); `src/spec/conformance.ts:196,200` makes both cuts before calling it, and History's row passes every other check-in and today's plan (`src/screens/GoalScreen.tsx:1008`). So Faro's own History disagrees with the kit: a week-46 check-in that reached the target loses "Reached" once a second week-46 check-in is posted the next day; a week-30 check-in that met a target of 20 h loses it when the plan is later re-planned to 10 h. The receipt and `post_check_in` agree with the kit, since at posting everything else is earlier and the plan is current. Either the cuts move into `moment` (then History matches the kit and checkin.csv), or the kit says History's row is worked out from all the goal's check-ins as they stand now. Which is a product call; a rebuild from the kit as it reads today gets History rows Faro doesn't show.
 
 Not checked: that the conformance workspace has no equal `postedAt` values, which one sentence says.
+
+### #497 HM7 and HB3: a leader's week on Home (track 1, merged 14 Nov)
+
+Read whole; walked by a subagent on a production build of the demo at 1440 and 390, on Wed 11 and Fri 13 Nov, as Amara, Grace, Hamid and Rhea, after loading Home for all 97 people to see who gets the cell. No high.
+
+- **The counts agree with Goals.** Amara (Watching, 13 teams): "30 of 55 goals · Due by Thu 12 Nov" opens Goals saying 25; on Friday "50 of 55 goals · 2 came in after Thursday" opens 5. Grace (an admin with no set drawn as teams, every goal): "70 of 118" opens 48; on Friday "105 of 118 · 4 came in after Thursday" opens 13. Home's cell and Goals' `checkedin=` now read one function (`standingIn`).
+- **Who sees it:** ten of the 97; Rhea, a member, sees neither cell nor the workspace's line. No person's name in either cell.
+- **The habit cell:** "So far: 30 of 55 goals" before the due day, "48 of 55 goals · 87%" after, "Week 45: 84%" under it; By week opens the weekly review, which loads. Rule 4 (fewer than three owners) is asked through `habitShown`.
+- **One list to sort out:** About and Home both call `toSortOut`, so they can't disagree.
+- Design: no edge, inset shadow, gradient, pill or emoji on either cell; no sideways scroll at 390; no console error. Help, What's new (two entries), the module map and the requirement are there.
+
+**1. Medium (ran). Nothing draws the workspace's line in a browser.** Rule 7's row ("{n} things to sort out", "See them") is checked only as a sentence (`sortOutRow`, `home.test.ts:306`). The demo has nothing to sort out on any day tried (2 Nov to 5 Jan, three admins), so `.home-sort-out` is never on screen in any journey, the design check never sees it, and U124, which carries HOME-LEADER, doesn't look for it. New behaviour with no eval: a journey on a workspace with a need (a person with no email would do) that reads n, follows "See them" and counts About's list.
+
+**Lows.** (1) Ran. On a phone the habit cell has no "By week": the link sits in the cell's under-line, which `attention-home.css:43` hides at that width, so what What's new promises ("By week opens the review that covers them") can't be reached there. (2) After the due day with nothing late the standing cell still says "Due by Thu 12 Nov" (tested as such in `home.test.ts`).
+
+Not walked: a set of the viewer's own teams (`scope=team`); nobody in the demo has one drawn as teams. It reads the same `scopeFacts` as Goals.

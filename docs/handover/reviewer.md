@@ -4,10 +4,10 @@ The log is `docs/reviews/2026-11-11-build-reviews.md` on the `build-reviews` bra
 
 Written 14 November 2026, 20:45 UTC, when the reviewer of 14 November afternoon (session …iZx169kF) stopped after 14 code PRs, at about 395k tokens of context. The same note is in `docs/handover/reviewer.md` on this branch.
 
-- **Last merge fully reviewed:** `15c8f356` (#513), the head of main at 21:27 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511 (docs only) has neither.
+- **Last merge fully reviewed:** `4956d78a` (#497), the head of main at 22:05 UTC, 14 Nov (updated by the reviewer of 14 November, night, session …TMGey4V, whose sections are at the end). Every code PR merged from #121 up to it has a row in State and a section below. #511 (docs only) has neither.
 - **Merged since, not reviewed:** none.
 - **Highs open:** none.
-- **Mediums open:** two, sent to planning 14 Nov, 21:40 UTC: #503's (a goal stopped while held stays held) and #513's (the kit's words on a moment are not what History does).
+- **Mediums open:** three, sent to planning 14 Nov (21:40 and 22:05 UTC): #503's (a goal stopped while held stays held), #513's (the kit's words on a moment are not what History does) and #497's (the workspace's line is never drawn in a browser by any eval).
 - **Expected next:** #505 (MQ's code, track 7d, on migration 0055: check the row mapper writes SQL null, never an empty string, for a `level` or `confidence` that isn't said, which 0055's checks refuse; and that the parent's rules, no loops, same workspace, not removed, are in the module's rule, since the database only refuses a metric that is its own parent). #497 (HM7 and HB3, track 1). U124's "Changed since" check (track 1).
 - **Read, not walked on screen by this session:** #469 (HM4), #491 (SM1h), #487 (TG1), #464 (GR) and #465 (FT1); their own journeys are the only browser runs. #465's thirteen screen files were skimmed. If the full suite on main goes red on one of them, start there.
 - **How merges reach you:** no timer works here (scheduling a wake needs an approval nobody answers). Each track messages the reviewer its PR's number when it merges; whenever a message arrives, run `git log --first-parent <last reviewed>..origin/main` and review everything in it. Messages lag and repeat: about half of this session's were for PRs already reviewed, and a track's message can give a stale migration number (#502 was announced as 0054 and is 0055).
