@@ -2602,6 +2602,40 @@ var init_format = __esmMin((() => {
 		return t;
 	};
 }));
+// src/domain/guards.ts
+/** The guards past their limit as of `week`, worst first (then in the order named). */
+function guardBreaches(goal, goals, cycle, checkIns, week) {
+	const out = [];
+	for (const { goal: id } of goal.guards ?? []) {
+		const g = goals.find((x) => x.id === id);
+		if (!g || !canGuard(g)) continue;
+		const a = assessPosted(g, cycle, checkIns, week);
+		if (!a.out || a.actual == null) continue;
+		const side = rangeSide(g.range, a.actual);
+		out.push({
+			guard: g,
+			value: a.actual,
+			week: a.week,
+			limit: side.limit,
+			bound: side.bound,
+			by: Math.abs(a.actual - side.limit),
+			status: a.calc === "off" ? "off" : "risk"
+		});
+	}
+	return out.sort((x, y) => RANK[y.status] - RANK[x.status]);
+}
+/** A calculated status with the guards applied: the worse of the goal's own and its worst breach's. */
+function guardedCalc(calc, breaches) {
+	const worst = breaches[0]?.status;
+	return worst && RANK[worst] > RANK[calc] ? worst : calc;
+}
+var canGuard, guardIds;
+var init_guards = __esmMin((() => {
+	init_status();
+	init_range();
+	canGuard = (g) => g.kind === "range" && !g.removedAt && !g.stoppedAt;
+	guardIds = (goal) => (goal.guards ?? []).map((x) => x.goal);
+}));
 // src/domain/checkin.ts
 /** The parts of a carried account that are still word for word the same and still asked for: the reason, the path. */
 function unchangedStory(draft, reason, path) {
@@ -2676,7 +2710,9 @@ function previousFor(own, week) {
 		number: before.filter((c) => c.value != null).at(-1) ?? null
 	};
 }
-function evaluate(goal, cycle, week, draft, all) {
+/** Judge a check-in draft. `breaches`: the goal's guards past their limit this week (domain/guards guardBreaches), which
+make the calculated status at least as bad as theirs (GR). */
+function evaluate(goal, cycle, week, draft, all, breaches = []) {
 	const before = checkInsFor(goal, all).filter((c) => c.week < week);
 	const value = parseNumber(draft.value);
 	let assessment;
@@ -2689,12 +2725,13 @@ function evaluate(goal, cycle, week, draft, all) {
 	} else if (goal.kind === "range") assessment = assessRange(goal, week, value, before.filter((c) => c.value != null).pop()?.value ?? null);
 	else assessment = assessMilestone(goal, week, draft.stages);
 	const a = assessment;
-	const calc = a.calc === "planned" || a.calc === "none" ? "on" : a.calc;
+	const calc = guardedCalc(a.calc === "planned" || a.calc === "none" ? "on" : a.calc, breaches);
 	const status = draft.status ?? calc;
 	const greener = RANK[status] < RANK[calc];
 	let reason = null;
 	if (a.kind === "metric") reason = a.ahead ? "ahead" : a.behind ? "behind" : null;
 	else if (a.calc === "risk" || a.calc === "off") reason = "behind";
+	if (breaches.length && reason !== "behind" && (calc === "risk" || calc === "off")) reason = "behind";
 	const asksTarget = a.kind === "metric" && a.ahead;
 	const needsPath = status === "risk" || status === "off";
 	const codes = [];
@@ -2722,12 +2759,13 @@ function evaluate(goal, cycle, week, draft, all) {
 		unchanged,
 		codes,
 		missing: codes.map((c) => MISSING_TEXT[c]),
-		canPost: codes.length === 0
+		canPost: codes.length === 0,
+		breaches
 	};
 }
 /** Turn a valid draft into a check-in record. Throws if the draft cannot be posted. */
-function toCheckIn(goal, cycle, week, draft, all, authorId, now, id) {
-	const e = evaluate(goal, cycle, week, draft, all);
+function toCheckIn(goal, cycle, week, draft, all, authorId, now, id, breaches = []) {
+	const e = evaluate(goal, cycle, week, draft, all, breaches);
 	if (!e.canPost) throw new Error("Still needed: " + e.missing.join(", "));
 	return {
 		id,
@@ -2801,6 +2839,7 @@ var init_checkin = __esmMin((() => {
 	init_status();
 	init_plan();
 	init_format();
+	init_guards();
 	init_numbers();
 	CAUSES_BEHIND = [
 		["aggressive", "Plan too aggressive"],
@@ -3643,6 +3682,7 @@ function draftOf(g) {
 		effect: g.effect == null ? "" : String(g.effect),
 		whyHelps: g.whyHelps ?? "",
 		alsoHelps: g.alsoHelps ?? [],
+		guards: (g.guards ?? []).map((x) => x.goal),
 		source: g.source,
 		definition: g.definition
 	});
@@ -3734,6 +3774,12 @@ function planChanged(a, b) {
 	if (a.kind === "milestone" && b.kind === "milestone") return JSON.stringify(a.stages.map((s) => [s.name, s.dueWeek])) !== JSON.stringify(b.stages.map((s) => [s.name, s.dueWeek]));
 	return false;
 }
+/** The guards a draft keeps (GR): its own list, each once, never the goal itself; as they were when it says nothing. */
+function guardsOf(d, id, existing) {
+	if (d.guards === void 0) return existing?.guards?.length ? { guards: existing.guards } : {};
+	const kept = [...new Set(d.guards)].filter((x) => x && x !== id).slice(0, 5);
+	return kept.length ? { guards: kept.map((goal) => ({ goal })) } : {};
+}
 /**
 * Build the goal from a valid draft. When an existing metric goal's plan changes after
 * check-ins have started, the first plan is kept as the original and the change is dated.
@@ -3755,7 +3801,8 @@ function buildGoal(d, cycle, base, existing, checkInsStarted, week) {
 		...(d.alsoHelps ?? []).filter((id) => id !== d.parentId && id !== base.id).length ? { alsoHelps: (d.alsoHelps ?? []).filter((id) => id !== d.parentId && id !== base.id) } : {},
 		source: d.source.trim(),
 		definition: d.definition.trim(),
-		createdAt: base.createdAt
+		createdAt: base.createdAt,
+		...guardsOf(d, base.id, existing)
 	};
 	const num = (s) => parseNumber(s);
 	if (d.kind === "metric") {
@@ -3893,6 +3940,7 @@ function stagesDoneAtSetUp(goal, doneIds, authorId, now, id) {
 }
 var pastStage, DONE_AT_SET_UP;
 var init_goal = __esmMin((() => {
+	init_guards();
 	init_checkin();
 	init_numbers();
 	init_plan();
@@ -4433,6 +4481,8 @@ function carryCopy(g, ctx) {
 		pending: null,
 		...g.proposedIn ? { proposedIn: null } : {}
 	};
+	if (ctx.guards?.length) base.guards = ctx.guards.map((goal) => ({ goal }));
+	else delete base.guards;
 	if (!base.parentId) base.effect = null;
 	if (g.kind === "metric" && (g.plan.endWeek ?? 0) > ctx.old.weeks) {
 		const shift = (w) => w - ctx.old.weeks;
@@ -4692,7 +4742,8 @@ function nextCycle(old, goals, checkIns, retros, ids, now) {
 			id: map.get(g.id),
 			parentId: g.parentId ? map.get(g.parentId) ?? null : null,
 			now,
-			alsoHelps: (g.alsoHelps ?? []).map((h) => map.get(h)).filter((h) => !!h)
+			alsoHelps: (g.alsoHelps ?? []).map((h) => map.get(h)).filter((h) => !!h),
+			guards: (g.guards ?? []).map((x) => map.get(x.goal)).filter((h) => !!h)
 		}))
 	};
 }
@@ -4876,6 +4927,7 @@ function goalFields(g, l) {
 		"Feeds into": g.parentId ? l.goal(g.parentId)?.title ?? "—" : "Nothing",
 		"Why it helps": g.parentId ? g.whyHelps || "—" : "—",
 		"Also helps": g.alsoHelps?.length ? g.alsoHelps.map((id) => l.goal(id)?.title ?? id).join(", ") : "—",
+		"Guarded by": g.guards?.length ? g.guards.map((x) => l.goal(x.goal)?.title ?? x.goal).join(", ") : "—",
 		Level: levelName(null, g.level),
 		Role: g.io === "input" ? "Input" : "Output",
 		Guardrail: g.guardrail ? "Yes" : "No",
@@ -12546,7 +12598,8 @@ function* planChangesInChunks(input) {
 			found: ""
 		}) === "leave") return;
 		const asOf = goalAsOf(g, w);
-		const e = evaluate(asOf, cycle, w, draft, ctx);
+		const breaches = guardIds(g).length ? guardBreaches(g, s.goals, cycle, [...s.checkIns, ...guardIds(g).flatMap((id) => imported.get(id) ?? [])], w) : [];
+		const e = evaluate(asOf, cycle, w, draft, ctx, breaches);
 		const recorded = create && w < week && !e.canPost && e.codes.every((c) => c === "reason-behind" || c === "reason-ahead" || c === "target" || c === "path" || c === "greener-why") ? asWritten(asOf, w, draft, e, actor.id, now, "probe") : null;
 		const asRecorded = !!recorded && keepsTheRules(recorded);
 		if (asRecorded) note("as-recorded", "Check-ins", row, g.title, `Week ${w} is taken as it was recorded.`);
@@ -12592,7 +12645,7 @@ function* planChangesInChunks(input) {
 		const due = new Date(Date.parse(weekDate(cycle, w) + "T09:00:00Z") + cycle.reviewDay * 864e5);
 		const at = keeps ? new Date(existing.postedAt) : backfilled && due.toISOString() < now ? due : new Date(now);
 		const author = existing ? existing.authorId : actor.id;
-		const made = asRecorded ? asWritten(asOf, w, draft, e, author, at.toISOString(), existing?.id ?? newId("ci")) : toCheckIn(asOf, cycle, w, draft, ctx, author, at, existing?.id ?? newId("ci"));
+		const made = asRecorded ? asWritten(asOf, w, draft, e, author, at.toISOString(), existing?.id ?? newId("ci")) : toCheckIn(asOf, cycle, w, draft, ctx, author, at, existing?.id ?? newId("ci"), breaches);
 		const read = post ? post.reading : input.readings?.find((x) => x.goalId === g.id && x.week === w)?.reading;
 		if (read && g.kind !== "milestone") {
 			const problem = readingProblem(read, made.value, g.decimals, now);
@@ -13285,6 +13338,7 @@ function keepsTheRules(c) {
 }
 var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, STOPS, showOf, BUILT_KEYS, COVERED_BY_PICK, CORRECTS_VIA, initialsOf, GoalSet;
 var init_changeset = __esmMin((() => {
+	init_guards();
 	init_correctReason();
 	init_actions();
 	init_changes();
@@ -13451,7 +13505,8 @@ var init_changeset = __esmMin((() => {
 		"baseline",
 		"targetUnset",
 		"range",
-		"stages"
+		"stages",
+		"guards"
 	];
 	COVERED_BY_PICK = [
 		"unknown-ref",
@@ -15006,6 +15061,7 @@ function recarry(goal, full, extra, x) {
 	if (carries(kind)) {
 		const id = live?.id ?? left?.id ?? x.newId("goal");
 		const helps = (goal.alsoHelps ?? []).map((h) => copyOf(keyOf(h))?.id).filter((h) => !!h);
+		const guards = (goal.guards ?? []).map((x) => copyOf(keyOf(x.goal))?.id).filter((h) => !!h);
 		const made = carryCopy(goal, {
 			old: cycle,
 			next: later,
@@ -15013,7 +15069,8 @@ function recarry(goal, full, extra, x) {
 			id,
 			parentId: live ? live.parentId : copyOf(keyOf(goal.parentId))?.id ?? null,
 			now: live?.createdAt ?? left?.createdAt ?? x.now,
-			alsoHelps: live ? live.alsoHelps ?? [] : helps
+			alsoHelps: live ? live.alsoHelps ?? [] : helps,
+			guards: live ? (live.guards ?? []).map((x) => x.goal) : guards
 		});
 		if (live) {
 			if (sameCopy(made, live)) return null;
@@ -21558,6 +21615,48 @@ var CORE_ARTICLES = [
 		]
 	},
 	{
+		id: "guardrails",
+		title: "Guardrails on a goal",
+		summary: "Name the goals that guard a goal, so meeting it by making something else worse shows on the goal itself.",
+		group: "goals",
+		sections: [
+			{
+				heading: "How to use it",
+				list: ["Open the goal, choose Change this goal, and open More details. Under Guarded by, find the goals that guard it by name or key: up to five, each a goal kept in a range (“Change failure rate at most 12%”) in the same year.", "A goal can’t guard itself, and a goal with a number to move or dated stages can’t guard: it is listed, with why it can’t be chosen."]
+			},
+			{
+				heading: "What it does",
+				list: [
+					"When a guard’s latest number is past its limit, the goal it guards is at risk; past it two weeks running, off track. A guard near its limit but still inside it changes nothing.",
+					"At the check-in, Status from the numbers is the worse of the goal’s own and its guards’, and the line under it says which guard, its number and how far past its limit it is: “Guardrail “Change failure rate” (G-41) is over its 12.0% limit: 14.0% in week 4, 2.0 pts over, 2 weeks running.” Off track or at risk this way asks why, as being behind does.",
+					"The goal’s page says the same line under its status, until the guard is back inside its limit.",
+					"A guard that is stopped or deleted guards nothing until it is brought back. When the year ends, a guard that carries on still guards the goals that carry with it."
+				]
+			},
+			{
+				heading: "Who can",
+				text: ["The goal’s owner, or an admin."]
+			}
+		],
+		routes: [],
+		screens: [],
+		reqs: ["GUARDRAILS"],
+		keywords: [
+			"guardrail",
+			"guard",
+			"counter-metric",
+			"counter metric",
+			"limit",
+			"trade-off",
+			"off track"
+		],
+		related: [
+			"edit-goal",
+			"check-in",
+			"goal-page"
+		]
+	},
+	{
 		id: "edit-goal",
 		title: "Changing a goal or its plan",
 		summary: "Change a goal on one page: what it is, its plan and target, who owns it and where it fits. Once check-ins have started, a plan change needs a reason.",
@@ -21567,7 +21666,7 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Open the goal and choose Change this goal, in the “…” menu or at the foot of About this goal.",
-					"It is one page in four sections: What it is (the name, what it measures and the metric that measures it), Plan and target, Who and where (the owner, the team, the level, what it feeds and what it also helps) and More details (how much it moves the goal it feeds, whether it’s a guardrail, and the data source).",
+					"It is one page in four sections: What it is (the name, what it measures and the metric that measures it), Plan and target, Who and where (the owner, the team, the level, what it feeds and what it also helps) and More details (how much it moves the goal it feeds, whether it’s a guardrail, the goals that guard it, and the data source).",
 					"A link can open the page at a section: add #definition, #plan or #owner to the address. Describe it on a goal with no definition opens What it is. Older links that opened one part of the form land on the matching section.",
 					"The owner, the team and the goals are found by typing a name or a key; a goal already under this one is listed but can’t be chosen to feed it.",
 					"Plan and target has the same two rows as a new goal: Baseline with From, Target with To, each week chosen from the list of weeks with their dates. Changing From or To after check-ins have started is a plan change, so it asks why.",
@@ -22688,6 +22787,13 @@ var WHATS_NEW = [
 			"goals-filters",
 			"import"
 		]
+	},
+	{
+		id: "goal-guardrails",
+		date: "2026-11-14",
+		title: "Guardrails on a goal",
+		points: ["A goal can name up to five goals that guard it: goals kept in a range, such as change failure rate at most 12%. Choose them under Change this goal, More details, Guarded by.", "When a guard is past its limit, the goal it guards is at risk; two weeks running, off track. The check-in and the goal’s page say which guard and by how much."],
+		articles: ["guardrails"]
 	},
 	{
 		id: "goal-fields",
@@ -52579,6 +52685,7 @@ function goalToRows(ws, g) {
 			created_at: g.createdAt || (/* @__PURE__ */ new Date()).toISOString(),
 			pending: g.pending ?? null,
 			also_helps: g.alsoHelps?.length ? g.alsoHelps : null,
+			guards: g.guards?.length ? g.guards : null,
 			...set({
 				removed_at: g.removedAt,
 				removed_by: g.removedBy,
@@ -52631,6 +52738,7 @@ function goalFromRows(r, stageRows) {
 		...r.pending ? { pending: r.pending } : {},
 		...r.version != null ? { version: Number(r.version) } : {},
 		...r.also_helps?.length ? { alsoHelps: r.also_helps } : {},
+		...r.guards?.length ? { guards: r.guards } : {},
 		...when("removedAt", r.removed_at),
 		...who("removedBy", r.removed_by),
 		...when("stoppedAt", r.stopped_at),
