@@ -1180,7 +1180,7 @@ const CORE_ARTICLES: Article[] = [
         'Add the server to your AI tool with the address and token shown. For Claude Code: claude mcp add --transport http goals https://<app>/api/mcp --header "Authorization: Bearer gk_…".',
         'See and revoke your MCP tokens in Settings. The full list of tools is in docs/mcp.md.',
       ] },
-      { heading: 'Who can', text: ['Only admins make MCP tokens. An admin or the token’s own person can revoke one. Any MCP token, a builder token made before included, also reads and triages the inbox’s markups and feedback, pictures included (Connect Claude, at the top of the inbox, has the set-up).'] },
+      { heading: 'Who can', text: ['Only admins make MCP tokens. An admin or the token’s own person can revoke one. Any MCP token, a builder token made before included, also reads and triages the inbox’s markups and feedback, pictures included (Connect Claude, at the top of the inbox, has the set-up; while AI access is switched off it says so instead).'] },
     ],
     routes: [],
     screens: [],
