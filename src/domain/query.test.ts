@@ -78,7 +78,7 @@ describe('searching, filtering and sorting goals', () => {
   it('says each filter in words, and can drop one', () => {
     const q: GoalQuery = { ...EMPTY_QUERY, status: ['off', 'risk'], due: 'quarter', attention: true, needs: ['decision'] };
     expect(describeQuery(q, { team: (x) => x, person: (x) => x, goal: (x) => x }).map((c) => c.text)).toEqual(['Off track or At risk', 'Needs attention because: decision or help needed', 'Due this quarter']);
-    expect(describeQuery({ ...EMPTY_QUERY, attention: true, quiet: 2, quarter: 'missed' }, { team: (x) => x, person: (x) => x, goal: (x) => x }).map((c) => c.text)).toEqual(['Needs attention', 'No update for 2+ weeks', 'Not met last quarter']);
+    expect(describeQuery({ ...EMPTY_QUERY, attention: true, quiet: 2, quarter: 'missed' }, { team: (x) => x, person: (x) => x, goal: (x) => x }).map((c) => c.text)).toEqual(['Needs attention', 'Last check-in 2 weeks ago or more', 'Not met last quarter']);
     expect(without(q, 'needs')).toMatchObject({ attention: false, needs: [] });
     expect(without(q, 'due').due).toBeNull();
   });

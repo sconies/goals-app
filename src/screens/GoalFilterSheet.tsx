@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
+import { statusOptions } from '../domain/rhythm';
 import { useGoalColumns } from '../core/app';
 import { levelIds, levelName } from '../domain/levels';
-import { EMPTY_QUERY, KIND_OPTIONS, NEED_OPTIONS, RESULT_OPTIONS, SORT_OPTIONS, STATUS_OPTIONS, type GoalQuery, type SortKey } from '../domain/query';
+import { EMPTY_QUERY, KIND_OPTIONS, NEED_OPTIONS, RESULT_OPTIONS, SORT_OPTIONS, type GoalQuery, type SortKey } from '../domain/query';
 import type { Level } from '../domain/types';
 import { ATTENTION, QUARTER, STOPPED } from '../domain/vocabulary';
 import { Sheet } from '../ui/bits';
@@ -47,7 +48,7 @@ export function FilterSheet({ open = true, onClose, sortOff }: { open?: boolean;
             <label key={k} className="check"><input type="radio" name="goal-state" checked={(params.get('state') ?? '') === k} onChange={() => setParams((p) => { if (k) p.set('state', k); else p.delete('state'); return p; })} /> {l}</label>
           ))}</span>
         </fieldset>
-        {checks('Status', STATUS_OPTIONS, 'status')}
+        {checks('Status', statusOptions(app.cycle), 'status')}
         {/* The one Needs attention rule (domain/attention.ts), as Home, Watching and the map have it; narrowed by why, if you like. */}
         <fieldset className="filter-group"><legend className="field-label">{ATTENTION.needs.label}</legend>
           <label className="check"><input type="checkbox" checked={q.attention} onChange={(e) => { const on = e.target.checked; setQ((cur) => ({ ...cur, attention: on, needs: on ? cur.needs : [] })); }} /> Only goals that need attention, with those {ATTENTION.handled.label.toLowerCase()} below them</label>
@@ -82,11 +83,12 @@ export function FilterSheet({ open = true, onClose, sortOff }: { open?: boolean;
           </select>
         </fieldset>
         {/* Counted as the No recent update rule counts: days since the latest check-in was posted, in weeks. */}
-        <fieldset className="filter-group"><legend className="field-label">No update for</legend>
-          <select className="input" aria-label="No update for" value={q.quiet == null ? '' : String(q.quiet)} onChange={(e) => setQ((cur) => ({ ...cur, quiet: e.target.value ? Number(e.target.value) : null }))}>
+        <fieldset className="filter-group"><legend className="field-label">Last check-in</legend>
+          <select className="input" aria-label="Last check-in" value={q.quiet == null ? '' : String(q.quiet)} onChange={(e) => setQ((cur) => ({ ...cur, quiet: e.target.value ? Number(e.target.value) : null }))}>
             <option value="">Any time</option>
-            <option value="2">2 weeks or more</option>
-            <option value="4">4 weeks or more</option>
+            <option value="2">2 weeks ago or more</option>
+            <option value="4">4 weeks ago or more</option>
+            <option value="8">8 weeks ago or more</option>
           </select>
         </fieldset>
         <fieldset className="filter-group"><legend className="field-label">Last quarter</legend>

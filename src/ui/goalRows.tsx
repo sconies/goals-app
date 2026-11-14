@@ -23,6 +23,7 @@ import { Chip, LevelTag, Sheet, StatusWord, TitleTell } from './bits';
 import { Icon } from './Icon';
 import { valueSeries } from '../domain/plan';
 import { LABEL as STATUS_WORD } from '../domain/vocabulary';
+import { rhythmOf } from '../domain/thresholds';
 
 type App = ReturnType<typeof useApp>;
 
@@ -61,7 +62,8 @@ export function GoalRow({ g, density = 'full', showOwner = true, why, whyTitle, 
   const gap = gapBeside(g, a);
   const now = nowText(g, a);
   const stale = st.status === 'stale';
-  const asOf = stale && st.latest ? `as of week ${st.latest.week}` : null;
+  // With no set rhythm (FT1) a status not from this week says which week it is from, in words beside the number.
+  const asOf = stale && st.latest ? `as of week ${st.latest.week}` : !rhythmOf(app.cycle) && st.asOfWeek != null && st.status !== 'done' ? `as of week ${st.asOfWeek}` : null;
   const to = '/goals/' + g.id;
 
   if (density === 'line') {
@@ -69,7 +71,7 @@ export function GoalRow({ g, density = 'full', showOwner = true, why, whyTitle, 
       <Link to={to} className={'gline' + (className ? ' ' + className : '')}>
         <StatusWord k={st.status} className="gline-status" />
         <span className="gline-title">{g.title}</span><TitleTell goal={g} />
-        <span className="gline-now">{now}{(stale || gap) && <span className={'tone-' + (stale ? 'stale' : gap!.tone)}> · {stale ? 'no recent update' : gap!.short}</span>}</span>
+        <span className="gline-now">{now}{(stale || gap) && <span className={'tone-' + (stale ? 'stale' : gap!.tone)}> · {stale ? 'no recent update' : gap!.short}</span>}{!stale && asOf && <span className="muted"> · {asOf}</span>}</span>
         <span className="gline-spark">
           {g.kind !== 'milestone' ? <Spark goal={g} weeks={app.cycle.weeks} series={valueSeries(app.checkInsOf(g))} /> : a.kind === 'milestone' ? <StageSpark a={a} /> : null}
         </span>
@@ -86,7 +88,7 @@ export function GoalRow({ g, density = 'full', showOwner = true, why, whyTitle, 
         <span className="agenda-name"><span className="agenda-title">{g.title}</span><TitleTell goal={g} /><LevelTag level={g.level} /></span>
         <span className="agenda-now">
           <span className="agenda-num">{now}{from && <span className="muted agenda-from"> · from {from}</span>}</span>
-          {stale ? (asOf ? <span className="agenda-gap muted">{asOf}</span> : null) : gap && <span className={'agenda-gap tone-' + gap.tone}>{gap.short}</span>}
+          {stale ? (asOf ? <span className="agenda-gap muted">{asOf}</span> : null) : <>{gap && <span className={'agenda-gap tone-' + gap.tone}>{gap.short}</span>}{asOf && <span className="agenda-gap muted">{asOf}</span>}</>}
         </span>
       </Link>
     );
@@ -117,7 +119,7 @@ export function GoalRow({ g, density = 'full', showOwner = true, why, whyTitle, 
           its number is from, rather than repeating "no recent update". */}
       <span className="trow-now">
         <span>{now}</span>
-        {stale ? (asOf ? <span className="trow-asof">{asOf}</span> : null) : gap && <span className={'tone-' + gap.tone}>{gap.short}</span>}
+        {stale ? (asOf ? <span className="trow-asof">{asOf}</span> : null) : <>{gap && <span className={'tone-' + gap.tone}>{gap.short}</span>}{asOf && <span className="trow-asof">{asOf}</span>}</>}
         {result && <span className={'result-tag result-' + result.kind}>{RESULT_TEXT[result.kind]}</span>}
       </span>
       {!isEveryday(app.cycle, g.level) && <span className="sr">{levelName(app.cycle, g.level)} level</span>}

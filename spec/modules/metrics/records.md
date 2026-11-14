@@ -54,6 +54,10 @@ A metric in the library (backlog 0b): one definition of a number, shared by ever
 | `caveats` | `string` | yes | What to watch out for when reading it (a known gap, a change of method). |
 | `measurement` | `MetricMeasurement` | no | Whether it is measured today (MS; rulesMeasured.ts): absent on one never said otherwise, which is measured. Goals measured by a metric with a gap are held to no number (domain/unmeasured) until it is measured. |
 | `measurementNote` | `string` | no | What's missing from the measurement, and who is sorting it out ('' or absent when measured). |
+| `level` | `import('./rulesStructure').MetricLevel` | no | Structure (MQ; rulesStructure.ts): how it relates to its parent metric (absent: not said). |
+| `parentId` | `Id` | no | The metric it is a component, driver, control or breakdown of (absent: none). |
+| `confidence` | `import('./rulesStructure').MetricConfidence` | no | How far its number can be trusted (absent: not said). |
+| `gaming` | `string` | no | How the number could be gamed, in words (absent: not said). |
 | `createdBy` | `Id` | yes |  |
 | `createdAt` | `string` | yes |  |
 | `updatedAt` | `string` | yes |  |

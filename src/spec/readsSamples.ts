@@ -75,6 +75,7 @@ export const SAMPLES: Record<string, Sample> = {
   renameWorkspace: { as: ADMIN, input: () => ({ name: 'Platform, renamed' }) },
   setRecording: { as: ADMIN, input: () => ({ on: false }) },
   setModule: { as: ADMIN, input: () => ({ moduleId: 'metrics', on: false }) },
+  setRhythm: { as: ADMIN, input: () => ({ weeks: 0 }) },
   restoreRemoved: { as: ADMIN, input: () => ({ kind: 'goal', id: 'goal_none' }) },
   createToken: { as: ADMIN, input: () => ({ personId: ADMIN, name: 'Assistant' }) },
   revokeToken: { as: ADMIN, input: (x) => ({ tokenId: (x.snapshot.tokens ?? [])[0]?.id ?? 'token_none' }) },

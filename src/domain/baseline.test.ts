@@ -10,6 +10,7 @@ import { currentCycle, scopeToCycle } from './cycle';
 import { nowText } from './format';
 import { blankGoal, buildGoal, draftOf, planChanged, type GoalDraft } from './goal';
 import { goalMustFix } from './goalEntry';
+import { carryCopy } from './carry';
 import { barFigures } from './goalPage';
 import { currentWeek } from './plan';
 import { assessPosted } from './status';
@@ -84,6 +85,31 @@ describe('rule 3: firming up a provisional baseline is not a plan change', () =>
     expect(saved.plan.start).toBe(ciCost().plan.start + 1);
     expect(saved.baseline).toMatchObject({ value: ciCost().plan.start + 1, provisional: true });
     expect(saved.originalPlan).toBeNull();
+  });
+});
+
+describe('the BL review’s mediums 7 and 8', () => {
+  // A number goal with check-ins, given a firm baseline.
+  const checked = () => {
+    const g = full0.goals.find((v) => v.kind === 'metric' && v.cycleId === cycle.id && full0.checkIns.some((c) => c.goalId === v.id && !c.removedAt && c.value != null)) as MetricGoal;
+    return { goal: { ...g, baseline: { value: g.plan.start, period: 'June to September 2026', provisional: false } } as MetricGoal, checkIns: full0.checkIns.filter((c) => c.goalId === g.id) };
+  };
+  it('a baseline is marked provisional only before the goal’s first check-in, so its start can’t then move unasked', () => {
+    const { goal, checkIns } = checked();
+    const fixes = goalMustFix({ ...draftOf(goal), baselineProvisional: true }, { week, cycleWeeks: cycle.weeks, existing: goal, checkIns } as never);
+    expect(fixes.map((f) => f.id)).toContain('baseline-provisional-late');
+    // Before any check-in it may be.
+    expect(goalMustFix({ ...draftOf(goal), baselineProvisional: true }, { week, cycleWeeks: cycle.weeks, existing: goal, checkIns: [] } as never).map((f) => f.id)).not.toContain('baseline-provisional-late');
+    // One already provisional stays so.
+    const prov = { ...goal, baseline: { ...goal.baseline!, provisional: true } };
+    expect(goalMustFix({ ...draftOf(prov), baselineProvisional: true }, { week, cycleWeeks: cycle.weeks, existing: prov, checkIns } as never).map((f) => f.id)).not.toContain('baseline-provisional-late');
+  });
+  it('a goal carried into next year from its final number leaves last year’s baseline behind', () => {
+    const { goal, checkIns } = checked();
+    const copy = carryCopy(goal, { old: cycle, next: { id: 'next', weeks: cycle.weeks }, checkIns, id: 'copy', parentId: null, now: today.toISOString() }) as MetricGoal;
+    expect(copy.plan.start).not.toBeUndefined();
+    expect(copy.baseline).toBeUndefined();
+    expect(goalToRows('ws', copy).goal.baseline_period).toBeNull();
   });
 });
 

@@ -38,9 +38,39 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['ai', 'features'],
   },
   {
+    id: 'home-habit-cell',
+    date: '2026-11-14',
+    title: 'A leader’s Home says how many goals were in without being asked',
+    points: [
+      'Beside how the week’s check-ins stand, one more cell: how many of those goals were checked in before the review without anyone asking, and last week’s share.',
+      'By week opens the review that covers them, with its row of weeks.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'home-leader',
+    date: '2026-11-14',
+    title: 'A leader’s Home: how the week’s check-ins stand',
+    points: [
+      'When your team’s goals or the goals you watch are shown as teams, This week says how many of them are checked in for the week, and opens the ones that aren’t yet.',
+      'Admins see it over every goal, and a line with how many things there are to sort out in the workspace.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'metric-structure',
+    date: '2026-11-14',
+    title: 'Metrics keep where they sit, and how far to trust them',
+    points: [
+      'A metric can say what it is part of, and how: a component, driver, control or breakdown of another. Its parent’s page lists the metrics under it.',
+      'Each metric can say how far its number can be trusted (high, medium or low) and how it could be gamed, beside what it means.',
+    ],
+    articles: ['metric-structure'],
+  },
+  {
     id: 'goal-guardrails',
     date: '2026-11-14',
-    title: 'Guardrails on a goal',
+    title: 'Guardrails: the numbers a goal mustn’t make worse',
     points: [
       'A goal can name up to five goals that guard it: goals kept in a range, such as change failure rate at most 12%. Choose them under Change this goal, More details, Guarded by.',
       'When a guard is past its limit, the goal it guards is at risk; two weeks running, off track. The check-in and the goal’s page say which guard and by how much.',
@@ -80,6 +110,17 @@ export const WHATS_NEW: NewsEntry[] = [
       'Goals can be filtered the same way: “Changed since Fri 6 Nov: got worse”.',
     ],
     articles: ['home', 'goals-filters'],
+  },
+  {
+    id: 'check-in-rhythm',
+    date: '2026-11-14',
+    title: 'Check-ins can have no set rhythm',
+    points: [
+      'Check-ins can have no set rhythm. An admin chooses on Workspace, Features: every week, or no set rhythm.',
+      'With none, nothing is due or late, and each goal says which week its status is from (“On track · as of week 44”).',
+      'Before it changes, the sheet says what will change for everyone, counted. Switching a rhythm back on counts from that day, so nothing is late, and Undo puts it back.',
+    ],
+    articles: ['features', 'check-in'],
   },
   {
     id: 'corrections-keep-the-author',

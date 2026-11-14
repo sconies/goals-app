@@ -376,6 +376,212 @@
       ]
     },
     {
+      "name": "keeps a cycle’s check-in rhythm whole: no set rhythm, every week from a day, and back",
+      "steps": [
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "cycles": [
+                  {
+                    "id": "cycle-c",
+                    "name": "2026",
+                    "startDate": "2025-12-29",
+                    "weeks": 53,
+                    "reviewDay": 3,
+                    "checkInWeeks": 0
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0003",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploy-lead-time-c",
+                    "entity": "note",
+                    "entityId": "note_c0004",
+                    "action": "noted",
+                    "summary": "Commented",
+                    "diffs": [
+                      {
+                        "field": "Comment",
+                        "from": "—",
+                        "to": "No set rhythm"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "cycles[id=cycle-c].checkInWeeks",
+                "equals": 0
+              },
+              {
+                "select": "cycles[].id",
+                "includes": [
+                  "cycle-c"
+                ]
+              },
+              {
+                "select": "cycles[id=cycle-c].rhythmFrom",
+                "absent": true
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "cycles": [
+                  {
+                    "id": "cycle-c",
+                    "name": "2026",
+                    "startDate": "2025-12-29",
+                    "weeks": 53,
+                    "reviewDay": 3,
+                    "checkInWeeks": 1,
+                    "rhythmFrom": "2026-02-02"
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0005",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploy-lead-time-c",
+                    "entity": "note",
+                    "entityId": "note_c0006",
+                    "action": "noted",
+                    "summary": "Commented",
+                    "diffs": [
+                      {
+                        "field": "Comment",
+                        "from": "—",
+                        "to": "Every week again"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "cycles[].id",
+                "includes": [
+                  "cycle-c"
+                ]
+              },
+              {
+                "anyOf": [
+                  {
+                    "select": "cycles[id=cycle-c].checkInWeeks",
+                    "absent": true
+                  },
+                  {
+                    "select": "cycles[id=cycle-c].checkInWeeks",
+                    "equals": 1
+                  }
+                ]
+              },
+              {
+                "select": "cycles[id=cycle-c].rhythmFrom",
+                "equals": "2026-02-02"
+              }
+            ]
+          }
+        },
+        {
+          "when": {
+            "op": "commit",
+            "args": [
+              "ws_contract",
+              {
+                "cycles": [
+                  {
+                    "id": "cycle-c",
+                    "name": "2026",
+                    "startDate": "2025-12-29",
+                    "weeks": 53,
+                    "reviewDay": 3,
+                    "checkInWeeks": 0
+                  }
+                ],
+                "changes": [
+                  {
+                    "id": "chg_c0007",
+                    "at": "2026-10-30T12:00:00.000Z",
+                    "actorId": "p-ana-silva-c",
+                    "goalId": "g-deploy-lead-time-c",
+                    "entity": "note",
+                    "entityId": "note_c0008",
+                    "action": "noted",
+                    "summary": "Commented",
+                    "diffs": [
+                      {
+                        "field": "Comment",
+                        "from": "—",
+                        "to": "No set rhythm again"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {}
+        },
+        {
+          "when": {
+            "op": "load",
+            "args": [
+              "ws_contract"
+            ]
+          },
+          "then": {
+            "all": [
+              {
+                "select": "cycles[id=cycle-c].checkInWeeks",
+                "equals": 0
+              },
+              {
+                "select": "cycles[id=cycle-c].rhythmFrom",
+                "absent": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "saves a goal one version on, and refuses a save based on the version before it as stale",
       "steps": [
         {
@@ -415,12 +621,12 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0003",
+                    "id": "chg_c0009",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-deploy-lead-time-c",
                     "entity": "note",
-                    "entityId": "note_c0004",
+                    "entityId": "note_c0010",
                     "action": "noted",
                     "summary": "Commented",
                     "diffs": [
@@ -504,12 +710,12 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0005",
+                    "id": "chg_c0011",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-deploy-lead-time-c",
                     "entity": "note",
-                    "entityId": "note_c0006",
+                    "entityId": "note_c0012",
                     "action": "noted",
                     "summary": "Commented",
                     "diffs": [
@@ -913,7 +1119,7 @@
                   "contract": {
                     "marks": [
                       {
-                        "id": "mark_c0007",
+                        "id": "mark_c0013",
                         "goalId": "g-canary-releases-live-c",
                         "text": "Kept as it was given, line\nbreaks and “quotes” too",
                         "at": "2026-10-30T12:00:00.000Z"
@@ -923,12 +1129,12 @@
                 },
                 "changes": [
                   {
-                    "id": "chg_c0008",
+                    "id": "chg_c0014",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-deploy-lead-time-c",
                     "entity": "note",
-                    "entityId": "note_c0009",
+                    "entityId": "note_c0015",
                     "action": "noted",
                     "summary": "Commented",
                     "diffs": [
@@ -958,7 +1164,7 @@
                 "select": "modules.contract.marks",
                 "equals": [
                   {
-                    "id": "mark_c0007",
+                    "id": "mark_c0013",
                     "goalId": "g-canary-releases-live-c",
                     "text": "Kept as it was given, line\nbreaks and “quotes” too",
                     "at": "2026-10-30T12:00:00.000Z"
@@ -982,12 +1188,12 @@
               {
                 "changes": [
                   {
-                    "id": "chg_c0010",
+                    "id": "chg_c0016",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-deploy-lead-time-c",
                     "entity": "note",
-                    "entityId": "note_c0011",
+                    "entityId": "note_c0017",
                     "action": "noted",
                     "summary": "Commented",
                     "diffs": [
@@ -1015,7 +1221,7 @@
             "select": "modules.contract.marks",
             "equals": [
               {
-                "id": "mark_c0007",
+                "id": "mark_c0013",
                 "goalId": "g-canary-releases-live-c",
                 "text": "Kept as it was given, line\nbreaks and “quotes” too",
                 "at": "2026-10-30T12:00:00.000Z"
@@ -1071,7 +1277,7 @@
                   "contract": {
                     "marks": [
                       {
-                        "id": "mark_c0007",
+                        "id": "mark_c0013",
                         "goalId": "g-canary-releases-live-c",
                         "text": "Kept as it was given, line\nbreaks and “quotes” too",
                         "at": "2026-10-30T12:00:00.000Z",
@@ -1104,7 +1310,7 @@
                 "select": "modules.contract.marks",
                 "equals": [
                   {
-                    "id": "mark_c0007",
+                    "id": "mark_c0013",
                     "goalId": "g-canary-releases-live-c",
                     "text": "Kept as it was given, line\nbreaks and “quotes” too",
                     "at": "2026-10-30T12:00:00.000Z",
@@ -1165,7 +1371,7 @@
                   "contract": {
                     "marks": [
                       {
-                        "id": "mark_c0007",
+                        "id": "mark_c0013",
                         "goalId": "g-canary-releases-live-c",
                         "text": "Kept as it was given, line\nbreaks and “quotes” too",
                         "at": "2026-10-30T12:00:00.000Z",
@@ -1204,7 +1410,7 @@
                 "select": "modules.contract.marks",
                 "has": [
                   {
-                    "id": "mark_c0007",
+                    "id": "mark_c0013",
                     "goalId": "g-canary-releases-live-c",
                     "text": "Kept as it was given, line\nbreaks and “quotes” too",
                     "at": "2026-10-30T12:00:00.000Z"
@@ -1263,7 +1469,7 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0012",
+                    "id": "chg_c0018",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-deploys-rolled-back-c",
@@ -1321,7 +1527,7 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0013",
+                    "id": "chg_c0019",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-deploys-rolled-back-c",
@@ -1494,7 +1700,7 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0014",
+                    "id": "chg_c0020",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": null,
@@ -1521,7 +1727,7 @@
                     "summary": "Marked Ben Ortiz as left"
                   },
                   {
-                    "id": "chg_c0015",
+                    "id": "chg_c0021",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-deploy-lead-time-c",
@@ -1538,7 +1744,7 @@
                     "summary": "Handed over to Ana Silva, as Ben Ortiz left"
                   },
                   {
-                    "id": "chg_c0016",
+                    "id": "chg_c0022",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-deploys-rolled-back-c",
@@ -1555,7 +1761,7 @@
                     "summary": "Handed over to Ana Silva, as Ben Ortiz left"
                   },
                   {
-                    "id": "chg_c0017",
+                    "id": "chg_c0023",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-canary-releases-live-c",
@@ -1713,7 +1919,7 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0018",
+                    "id": "chg_c0024",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": null,
@@ -1761,7 +1967,7 @@
                   "contract": {
                     "marks": [
                       {
-                        "id": "mark_c0019",
+                        "id": "mark_c0025",
                         "goalId": "g-deploys-rolled-back-c",
                         "text": "Undone",
                         "at": "2026-10-30T12:00:00.000Z"
@@ -1785,7 +1991,7 @@
                   "contract": {
                     "marks": [
                       {
-                        "id": "mark_c0019",
+                        "id": "mark_c0025",
                         "goalId": "g-deploys-rolled-back-c",
                         "text": "Undone",
                         "at": "2026-10-30T12:00:00.000Z",
@@ -1797,12 +2003,12 @@
                 },
                 "changes": [
                   {
-                    "id": "chg_c0020",
+                    "id": "chg_c0026",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-deploy-lead-time-c",
                     "entity": "note",
-                    "entityId": "note_c0021",
+                    "entityId": "note_c0027",
                     "action": "noted",
                     "summary": "Commented",
                     "diffs": [
@@ -1827,13 +2033,13 @@
               {
                 "changes": [
                   {
-                    "id": "chg_c0022",
+                    "id": "chg_c0028",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-deploy-lead-time-c",
                     "diffs": [],
                     "entity": "note",
-                    "entityId": "note_c0021",
+                    "entityId": "note_c0027",
                     "action": "restored",
                     "summary": "Undid: commented"
                   }
@@ -1842,7 +2048,7 @@
                   "contract": {
                     "marks": [
                       {
-                        "id": "mark_c0019",
+                        "id": "mark_c0025",
                         "goalId": "g-deploys-rolled-back-c",
                         "text": "Undone",
                         "at": "2026-10-30T12:00:00.000Z",
@@ -1869,11 +2075,11 @@
               {
                 "select": "modules.contract.marks[].id",
                 "includes": [
-                  "mark_c0019"
+                  "mark_c0025"
                 ]
               },
               {
-                "select": "modules.contract.marks[id=mark_c0019].removedAt",
+                "select": "modules.contract.marks[id=mark_c0025].removedAt",
                 "absent": true
               }
             ]
@@ -1970,16 +2176,16 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0024",
+                    "id": "chg_c0030",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": null,
                     "entity": "workspace",
-                    "entityId": "imp_c0023",
+                    "entityId": "imp_c0029",
                     "action": "imported",
                     "summary": "Imported a spreadsheet: 3 rows",
                     "diffs": [],
-                    "importId": "imp_c0023",
+                    "importId": "imp_c0029",
                     "undo": {
                       "goals": [
                         {
@@ -2157,7 +2363,7 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0028",
+                    "id": "chg_c0034",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": null,
@@ -2169,13 +2375,13 @@
                       }
                     ],
                     "entity": "workspace",
-                    "entityId": "imp_c0023",
+                    "entityId": "imp_c0029",
                     "action": "undone",
-                    "importId": "imp_c0023",
+                    "importId": "imp_c0029",
                     "summary": "Undid the spreadsheet: 3 rows put back"
                   },
                   {
-                    "id": "chg_c0025",
+                    "id": "chg_c0031",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-canary-releases-live-c",
@@ -2184,10 +2390,10 @@
                     "entityId": "g-canary-releases-live-c",
                     "action": "edited",
                     "summary": "Put back as it was before an import",
-                    "importId": "imp_c0023"
+                    "importId": "imp_c0029"
                   },
                   {
-                    "id": "chg_c0026",
+                    "id": "chg_c0032",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-deploys-rolled-back-c",
@@ -2196,10 +2402,10 @@
                     "entityId": "g-deploys-rolled-back-c",
                     "action": "edited",
                     "summary": "Put back as it was before an import",
-                    "importId": "imp_c0023"
+                    "importId": "imp_c0029"
                   },
                   {
-                    "id": "chg_c0027",
+                    "id": "chg_c0033",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": null,
@@ -2208,7 +2414,7 @@
                     "entityId": "p-dev-patel-c",
                     "action": "edited",
                     "summary": "Put Dev Patel back as they were before an import",
-                    "importId": "imp_c0023"
+                    "importId": "imp_c0029"
                   }
                 ]
               }
@@ -2274,7 +2480,7 @@
               {
                 "tokens": [
                   {
-                    "id": "tok_c0029",
+                    "id": "tok_c0035",
                     "personId": "p-ben-ortiz-c",
                     "name": "Claude on a laptop",
                     "createdBy": "p-ana-silva-c",
@@ -2285,7 +2491,7 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0030",
+                    "id": "chg_c0036",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": null,
@@ -2321,7 +2527,7 @@
               {
                 "select": "tokens[].id",
                 "equals": [
-                  "tok_c0029"
+                  "tok_c0035"
                 ]
               },
               {
@@ -2343,7 +2549,7 @@
               {
                 "tokens": [
                   {
-                    "id": "tok_c0029",
+                    "id": "tok_c0035",
                     "personId": "p-ben-ortiz-c",
                     "name": "Claude on a laptop",
                     "createdBy": "p-ana-silva-c",
@@ -2354,7 +2560,7 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0031",
+                    "id": "chg_c0037",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": null,
@@ -2384,7 +2590,7 @@
             ]
           },
           "then": {
-            "select": "tokens[id=tok_c0029].revokedAt",
+            "select": "tokens[id=tok_c0035].revokedAt",
             "matches": "^\\d{4}-\\d\\d-\\d\\dT"
           }
         }
@@ -2696,14 +2902,14 @@
               {
                 "cycles": [
                   {
-                    "id": "cycle_c0032",
+                    "id": "cycle_c0038",
                     "name": "Jan–Mar 2025",
                     "startDate": "2025-01-06",
                     "weeks": 13,
                     "reviewDay": 3
                   },
                   {
-                    "id": "cycle_c0033",
+                    "id": "cycle_c0039",
                     "name": "2027",
                     "startDate": "2027-01-04",
                     "weeks": 52,
@@ -2712,12 +2918,12 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0035",
+                    "id": "chg_c0041",
                     "at": "2025-01-06T08:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": null,
                     "entity": "cycle",
-                    "entityId": "cycle_c0032",
+                    "entityId": "cycle_c0038",
                     "action": "created",
                     "summary": "Started a cycle",
                     "diffs": []
@@ -2736,8 +2942,8 @@
               {
                 "goals": [
                   {
-                    "id": "goal_c0034",
-                    "cycleId": "cycle_c0032",
+                    "id": "goal_c0040",
+                    "cycleId": "cycle_c0038",
                     "teamId": "t-platform-c",
                     "ownerId": "p-ben-ortiz-c",
                     "title": "Deploy lead time",
@@ -2766,12 +2972,12 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0037",
+                    "id": "chg_c0043",
                     "at": "2025-02-01T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": null,
                     "entity": "workspace",
-                    "entityId": "imp_c0036",
+                    "entityId": "imp_c0042",
                     "action": "imported",
                     "summary": "Imported a spreadsheet: 0 rows",
                     "diffs": [],
@@ -2796,8 +3002,8 @@
               {
                 "checkIns": [
                   {
-                    "id": "ci_c0043",
-                    "goalId": "goal_c0034",
+                    "id": "ci_c0049",
+                    "goalId": "goal_c0040",
                     "authorId": "p-ana-silva-c",
                     "week": 2,
                     "postedAt": "2025-01-20T09:00:00.000Z",
@@ -2814,7 +3020,7 @@
                     "dataFlagged": false
                   },
                   {
-                    "id": "ci_c0044",
+                    "id": "ci_c0050",
                     "goalId": "g-deploy-lead-time-c",
                     "authorId": "p-ana-silva-c",
                     "week": 2,
@@ -2834,23 +3040,23 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0038",
+                    "id": "chg_c0044",
                     "at": "2025-03-01T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
-                    "goalId": "goal_c0034",
+                    "goalId": "goal_c0040",
                     "entity": "goal",
-                    "entityId": "goal_c0034",
+                    "entityId": "goal_c0040",
                     "action": "edited",
                     "summary": "Edited",
                     "diffs": []
                   },
                   {
-                    "id": "chg_c0040",
+                    "id": "chg_c0046",
                     "at": "2025-03-02T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
-                    "goalId": "goal_c0034",
+                    "goalId": "goal_c0040",
                     "entity": "note",
-                    "entityId": "note_c0039",
+                    "entityId": "note_c0045",
                     "action": "noted",
                     "summary": "Commented",
                     "diffs": [
@@ -2862,23 +3068,23 @@
                     ]
                   },
                   {
-                    "id": "chg_c0041",
+                    "id": "chg_c0047",
                     "at": "2025-03-03T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
-                    "goalId": "goal_c0034",
+                    "goalId": "goal_c0040",
                     "entity": "goal",
-                    "entityId": "goal_c0034",
+                    "entityId": "goal_c0040",
                     "action": "edited",
                     "summary": "Edited",
                     "diffs": []
                   },
                   {
-                    "id": "chg_c0042",
+                    "id": "chg_c0048",
                     "at": "2025-03-03T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
-                    "goalId": "goal_c0034",
+                    "goalId": "goal_c0040",
                     "entity": "goal",
-                    "entityId": "goal_c0034",
+                    "entityId": "goal_c0040",
                     "action": "edited",
                     "summary": "Edited",
                     "diffs": []
@@ -2897,12 +3103,12 @@
               {
                 "changes": [
                   {
-                    "id": "chg_c0045",
+                    "id": "chg_c0051",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-deploy-lead-time-c",
                     "entity": "note",
-                    "entityId": "note_c0046",
+                    "entityId": "note_c0052",
                     "action": "noted",
                     "summary": "Commented",
                     "diffs": [
@@ -2934,27 +3140,27 @@
               {
                 "select": "checkIns[].id",
                 "includes": [
-                  "ci_c0044"
+                  "ci_c0050"
                 ],
                 "excludes": [
-                  "ci_c0043"
+                  "ci_c0049"
                 ]
               },
               {
                 "select": "changes[].id",
                 "excludes": [
-                  "chg_c0038",
-                  "chg_c0041",
-                  "chg_c0042"
+                  "chg_c0044",
+                  "chg_c0047",
+                  "chg_c0048"
                 ],
                 "includes": [
-                  "chg_c0040",
-                  "chg_c0035",
-                  "chg_c0037"
+                  "chg_c0046",
+                  "chg_c0041",
+                  "chg_c0043"
                 ]
               },
               {
-                "select": "changes[id=chg_c0037].undo",
+                "select": "changes[id=chg_c0043].undo",
                 "equals": {
                   "goals": [],
                   "checkIns": [],
@@ -2966,7 +3172,7 @@
                 "select": "changes[].id",
                 "includes": [
                   "chg-weekly-review-c",
-                  "chg_c0045"
+                  "chg_c0051"
                 ]
               },
               {
@@ -2974,14 +3180,14 @@
                 "length": 3,
                 "includes": [
                   "cycle-c",
-                  "cycle_c0032",
-                  "cycle_c0033"
+                  "cycle_c0038",
+                  "cycle_c0039"
                 ]
               },
               {
                 "select": "goals[].id",
                 "includes": [
-                  "goal_c0034"
+                  "goal_c0040"
                 ]
               },
               {
@@ -2990,7 +3196,7 @@
                   "from": "2026-06-01T00:00:00.000Z",
                   "checkInCycles": [
                     "cycle-c",
-                    "cycle_c0032"
+                    "cycle_c0038"
                   ]
                 }
               }
@@ -3010,14 +3216,14 @@
               {
                 "cycles": [
                   {
-                    "id": "cycle_c0032",
+                    "id": "cycle_c0038",
                     "name": "Jan–Mar 2025",
                     "startDate": "2025-01-06",
                     "weeks": 13,
                     "reviewDay": 3
                   },
                   {
-                    "id": "cycle_c0033",
+                    "id": "cycle_c0039",
                     "name": "2027",
                     "startDate": "2027-01-04",
                     "weeks": 52,
@@ -3026,12 +3232,12 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0035",
+                    "id": "chg_c0041",
                     "at": "2025-01-06T08:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": null,
                     "entity": "cycle",
-                    "entityId": "cycle_c0032",
+                    "entityId": "cycle_c0038",
                     "action": "created",
                     "summary": "Started a cycle",
                     "diffs": []
@@ -3050,8 +3256,8 @@
               {
                 "goals": [
                   {
-                    "id": "goal_c0034",
-                    "cycleId": "cycle_c0032",
+                    "id": "goal_c0040",
+                    "cycleId": "cycle_c0038",
                     "teamId": "t-platform-c",
                     "ownerId": "p-ben-ortiz-c",
                     "title": "Deploy lead time",
@@ -3080,12 +3286,12 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0037",
+                    "id": "chg_c0043",
                     "at": "2025-02-01T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": null,
                     "entity": "workspace",
-                    "entityId": "imp_c0036",
+                    "entityId": "imp_c0042",
                     "action": "imported",
                     "summary": "Imported a spreadsheet: 0 rows",
                     "diffs": [],
@@ -3110,8 +3316,8 @@
               {
                 "checkIns": [
                   {
-                    "id": "ci_c0043",
-                    "goalId": "goal_c0034",
+                    "id": "ci_c0049",
+                    "goalId": "goal_c0040",
                     "authorId": "p-ana-silva-c",
                     "week": 2,
                     "postedAt": "2025-01-20T09:00:00.000Z",
@@ -3128,7 +3334,7 @@
                     "dataFlagged": false
                   },
                   {
-                    "id": "ci_c0044",
+                    "id": "ci_c0050",
                     "goalId": "g-deploy-lead-time-c",
                     "authorId": "p-ana-silva-c",
                     "week": 2,
@@ -3148,23 +3354,23 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0038",
+                    "id": "chg_c0044",
                     "at": "2025-03-01T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
-                    "goalId": "goal_c0034",
+                    "goalId": "goal_c0040",
                     "entity": "goal",
-                    "entityId": "goal_c0034",
+                    "entityId": "goal_c0040",
                     "action": "edited",
                     "summary": "Edited",
                     "diffs": []
                   },
                   {
-                    "id": "chg_c0040",
+                    "id": "chg_c0046",
                     "at": "2025-03-02T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
-                    "goalId": "goal_c0034",
+                    "goalId": "goal_c0040",
                     "entity": "note",
-                    "entityId": "note_c0039",
+                    "entityId": "note_c0045",
                     "action": "noted",
                     "summary": "Commented",
                     "diffs": [
@@ -3176,23 +3382,23 @@
                     ]
                   },
                   {
-                    "id": "chg_c0041",
+                    "id": "chg_c0047",
                     "at": "2025-03-03T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
-                    "goalId": "goal_c0034",
+                    "goalId": "goal_c0040",
                     "entity": "goal",
-                    "entityId": "goal_c0034",
+                    "entityId": "goal_c0040",
                     "action": "edited",
                     "summary": "Edited",
                     "diffs": []
                   },
                   {
-                    "id": "chg_c0042",
+                    "id": "chg_c0048",
                     "at": "2025-03-03T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
-                    "goalId": "goal_c0034",
+                    "goalId": "goal_c0040",
                     "entity": "goal",
-                    "entityId": "goal_c0034",
+                    "entityId": "goal_c0040",
                     "action": "edited",
                     "summary": "Edited",
                     "diffs": []
@@ -3211,12 +3417,12 @@
               {
                 "changes": [
                   {
-                    "id": "chg_c0045",
+                    "id": "chg_c0051",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-deploy-lead-time-c",
                     "entity": "note",
-                    "entityId": "note_c0046",
+                    "entityId": "note_c0052",
                     "action": "noted",
                     "summary": "Commented",
                     "diffs": [
@@ -3248,10 +3454,10 @@
               {
                 "select": "checkIns[].id",
                 "includes": [
-                  "ci_c0044"
+                  "ci_c0050"
                 ],
                 "excludes": [
-                  "ci_c0043"
+                  "ci_c0049"
                 ]
               }
             ]
@@ -3270,14 +3476,14 @@
               {
                 "cycles": [
                   {
-                    "id": "cycle_c0032",
+                    "id": "cycle_c0038",
                     "name": "Jan–Mar 2025",
                     "startDate": "2025-01-06",
                     "weeks": 13,
                     "reviewDay": 3
                   },
                   {
-                    "id": "cycle_c0033",
+                    "id": "cycle_c0039",
                     "name": "2027",
                     "startDate": "2027-01-04",
                     "weeks": 52,
@@ -3286,12 +3492,12 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0035",
+                    "id": "chg_c0041",
                     "at": "2025-01-06T08:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": null,
                     "entity": "cycle",
-                    "entityId": "cycle_c0032",
+                    "entityId": "cycle_c0038",
                     "action": "created",
                     "summary": "Started a cycle",
                     "diffs": []
@@ -3310,8 +3516,8 @@
               {
                 "goals": [
                   {
-                    "id": "goal_c0034",
-                    "cycleId": "cycle_c0032",
+                    "id": "goal_c0040",
+                    "cycleId": "cycle_c0038",
                     "teamId": "t-platform-c",
                     "ownerId": "p-ben-ortiz-c",
                     "title": "Deploy lead time",
@@ -3340,12 +3546,12 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0037",
+                    "id": "chg_c0043",
                     "at": "2025-02-01T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": null,
                     "entity": "workspace",
-                    "entityId": "imp_c0036",
+                    "entityId": "imp_c0042",
                     "action": "imported",
                     "summary": "Imported a spreadsheet: 0 rows",
                     "diffs": [],
@@ -3370,8 +3576,8 @@
               {
                 "checkIns": [
                   {
-                    "id": "ci_c0043",
-                    "goalId": "goal_c0034",
+                    "id": "ci_c0049",
+                    "goalId": "goal_c0040",
                     "authorId": "p-ana-silva-c",
                     "week": 2,
                     "postedAt": "2025-01-20T09:00:00.000Z",
@@ -3388,7 +3594,7 @@
                     "dataFlagged": false
                   },
                   {
-                    "id": "ci_c0044",
+                    "id": "ci_c0050",
                     "goalId": "g-deploy-lead-time-c",
                     "authorId": "p-ana-silva-c",
                     "week": 2,
@@ -3408,23 +3614,23 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0038",
+                    "id": "chg_c0044",
                     "at": "2025-03-01T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
-                    "goalId": "goal_c0034",
+                    "goalId": "goal_c0040",
                     "entity": "goal",
-                    "entityId": "goal_c0034",
+                    "entityId": "goal_c0040",
                     "action": "edited",
                     "summary": "Edited",
                     "diffs": []
                   },
                   {
-                    "id": "chg_c0040",
+                    "id": "chg_c0046",
                     "at": "2025-03-02T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
-                    "goalId": "goal_c0034",
+                    "goalId": "goal_c0040",
                     "entity": "note",
-                    "entityId": "note_c0039",
+                    "entityId": "note_c0045",
                     "action": "noted",
                     "summary": "Commented",
                     "diffs": [
@@ -3436,23 +3642,23 @@
                     ]
                   },
                   {
-                    "id": "chg_c0041",
+                    "id": "chg_c0047",
                     "at": "2025-03-03T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
-                    "goalId": "goal_c0034",
+                    "goalId": "goal_c0040",
                     "entity": "goal",
-                    "entityId": "goal_c0034",
+                    "entityId": "goal_c0040",
                     "action": "edited",
                     "summary": "Edited",
                     "diffs": []
                   },
                   {
-                    "id": "chg_c0042",
+                    "id": "chg_c0048",
                     "at": "2025-03-03T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
-                    "goalId": "goal_c0034",
+                    "goalId": "goal_c0040",
                     "entity": "goal",
-                    "entityId": "goal_c0034",
+                    "entityId": "goal_c0040",
                     "action": "edited",
                     "summary": "Edited",
                     "diffs": []
@@ -3471,12 +3677,12 @@
               {
                 "changes": [
                   {
-                    "id": "chg_c0045",
+                    "id": "chg_c0051",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-deploy-lead-time-c",
                     "entity": "note",
-                    "entityId": "note_c0046",
+                    "entityId": "note_c0052",
                     "action": "noted",
                     "summary": "Commented",
                     "diffs": [
@@ -3516,14 +3722,14 @@
           "then": {
             "select": "rows[].id",
             "equals": [
-              "chg_c0045",
+              "chg_c0051",
               "chg-weekly-review-c",
-              "chg_c0042",
-              "chg_c0041",
-              "chg_c0040",
-              "chg_c0038",
-              "chg_c0037",
-              "chg_c0035"
+              "chg_c0048",
+              "chg_c0047",
+              "chg_c0046",
+              "chg_c0044",
+              "chg_c0043",
+              "chg_c0041"
             ],
             "distinct": true
           }
@@ -3534,7 +3740,7 @@
             "args": [
               "ws_contract",
               {
-                "goalId": "goal_c0034",
+                "goalId": "goal_c0040",
                 "size": 500
               }
             ]
@@ -3544,10 +3750,10 @@
               {
                 "select": "changes[].id",
                 "equals": [
-                  "chg_c0042",
-                  "chg_c0041",
-                  "chg_c0040",
-                  "chg_c0038"
+                  "chg_c0048",
+                  "chg_c0047",
+                  "chg_c0046",
+                  "chg_c0044"
                 ]
               },
               {
@@ -3585,14 +3791,14 @@
               {
                 "cycles": [
                   {
-                    "id": "cycle_c0032",
+                    "id": "cycle_c0038",
                     "name": "Jan–Mar 2025",
                     "startDate": "2025-01-06",
                     "weeks": 13,
                     "reviewDay": 3
                   },
                   {
-                    "id": "cycle_c0033",
+                    "id": "cycle_c0039",
                     "name": "2027",
                     "startDate": "2027-01-04",
                     "weeks": 52,
@@ -3601,12 +3807,12 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0035",
+                    "id": "chg_c0041",
                     "at": "2025-01-06T08:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": null,
                     "entity": "cycle",
-                    "entityId": "cycle_c0032",
+                    "entityId": "cycle_c0038",
                     "action": "created",
                     "summary": "Started a cycle",
                     "diffs": []
@@ -3625,8 +3831,8 @@
               {
                 "goals": [
                   {
-                    "id": "goal_c0034",
-                    "cycleId": "cycle_c0032",
+                    "id": "goal_c0040",
+                    "cycleId": "cycle_c0038",
                     "teamId": "t-platform-c",
                     "ownerId": "p-ben-ortiz-c",
                     "title": "Deploy lead time",
@@ -3655,12 +3861,12 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0037",
+                    "id": "chg_c0043",
                     "at": "2025-02-01T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": null,
                     "entity": "workspace",
-                    "entityId": "imp_c0036",
+                    "entityId": "imp_c0042",
                     "action": "imported",
                     "summary": "Imported a spreadsheet: 0 rows",
                     "diffs": [],
@@ -3685,8 +3891,8 @@
               {
                 "checkIns": [
                   {
-                    "id": "ci_c0043",
-                    "goalId": "goal_c0034",
+                    "id": "ci_c0049",
+                    "goalId": "goal_c0040",
                     "authorId": "p-ana-silva-c",
                     "week": 2,
                     "postedAt": "2025-01-20T09:00:00.000Z",
@@ -3703,7 +3909,7 @@
                     "dataFlagged": false
                   },
                   {
-                    "id": "ci_c0044",
+                    "id": "ci_c0050",
                     "goalId": "g-deploy-lead-time-c",
                     "authorId": "p-ana-silva-c",
                     "week": 2,
@@ -3723,23 +3929,23 @@
                 ],
                 "changes": [
                   {
-                    "id": "chg_c0038",
+                    "id": "chg_c0044",
                     "at": "2025-03-01T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
-                    "goalId": "goal_c0034",
+                    "goalId": "goal_c0040",
                     "entity": "goal",
-                    "entityId": "goal_c0034",
+                    "entityId": "goal_c0040",
                     "action": "edited",
                     "summary": "Edited",
                     "diffs": []
                   },
                   {
-                    "id": "chg_c0040",
+                    "id": "chg_c0046",
                     "at": "2025-03-02T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
-                    "goalId": "goal_c0034",
+                    "goalId": "goal_c0040",
                     "entity": "note",
-                    "entityId": "note_c0039",
+                    "entityId": "note_c0045",
                     "action": "noted",
                     "summary": "Commented",
                     "diffs": [
@@ -3751,23 +3957,23 @@
                     ]
                   },
                   {
-                    "id": "chg_c0041",
+                    "id": "chg_c0047",
                     "at": "2025-03-03T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
-                    "goalId": "goal_c0034",
+                    "goalId": "goal_c0040",
                     "entity": "goal",
-                    "entityId": "goal_c0034",
+                    "entityId": "goal_c0040",
                     "action": "edited",
                     "summary": "Edited",
                     "diffs": []
                   },
                   {
-                    "id": "chg_c0042",
+                    "id": "chg_c0048",
                     "at": "2025-03-03T10:00:00.000Z",
                     "actorId": "p-ana-silva-c",
-                    "goalId": "goal_c0034",
+                    "goalId": "goal_c0040",
                     "entity": "goal",
-                    "entityId": "goal_c0034",
+                    "entityId": "goal_c0040",
                     "action": "edited",
                     "summary": "Edited",
                     "diffs": []
@@ -3786,12 +3992,12 @@
               {
                 "changes": [
                   {
-                    "id": "chg_c0045",
+                    "id": "chg_c0051",
                     "at": "2026-10-30T12:00:00.000Z",
                     "actorId": "p-ana-silva-c",
                     "goalId": "g-deploy-lead-time-c",
                     "entity": "note",
-                    "entityId": "note_c0046",
+                    "entityId": "note_c0052",
                     "action": "noted",
                     "summary": "Commented",
                     "diffs": [
@@ -3820,17 +4026,17 @@
               {
                 "select": "checkIns[].id",
                 "includes": [
-                  "ci_c0043",
-                  "ci_c0044"
+                  "ci_c0049",
+                  "ci_c0050"
                 ]
               },
               {
                 "select": "changes[].id",
                 "includes": [
-                  "chg_c0038",
-                  "chg_c0041",
-                  "chg_c0042",
-                  "chg_c0040"
+                  "chg_c0044",
+                  "chg_c0047",
+                  "chg_c0048",
+                  "chg_c0046"
                 ]
               },
               {

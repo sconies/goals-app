@@ -247,7 +247,9 @@ export function nextCycleShape(old: Pick<Cycle, 'startDate' | 'weeks'>): { start
  * goal that finishes or stops is dropped.
  */
 export function nextCycle(old: Cycle, goals: Goal[], checkIns: CheckIn[], retros: Retro[], ids: { cycle: string; goal: (old: Goal) => string }, now: string): { cycle: Cycle; goals: Goal[] } {
-  const cycle: Cycle = { ...old, id: ids.cycle, ...nextCycleShape(old) };
+  // The rhythm carries over (FT1); it runs from the new cycle's start, so `rhythmFrom` is left off.
+  const { rhythmFrom: _from, ...kept } = old;
+  const cycle: Cycle = { ...kept, id: ids.cycle, ...nextCycleShape(old) };
   // Which goals go on is one rule (domain/carry carryKind): carry on or keep their plan; a goal that met its target
   // finishes, and one its owner stopped at the wrap-up stops. The read-back before starting counts the same.
   const carried = goals.filter((g) => g.cycleId === old.id && carries(carryKind(g, { cycle: old, checkIns, retro: retros.find((r) => r.goalId === g.id && r.cycleId === old.id) ?? null }).kind));

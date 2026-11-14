@@ -117,6 +117,9 @@ export interface ModuleRecords {
       `goal.marks`): each a week of the cycle and its label, made in the goal's own cycle: since `since` (its start,
       yyyy-mm-dd) and before `until` (the day after its last week), so a change made next year never marks this year's goals. */
   goalMarks?(s: { modules?: ModuleRows }, goalId: string, since: string, until: string): GoalMark[];
+  /** What the core's own records need when the module is switched off or on, in the same save as the switch: the
+      metric library lets go of the goals it held to no number, and holds them again (MS). Null when nothing. */
+  switched?(x: ActionContext, on: boolean): Pick<Commit, 'goals' | 'changes'> | null;
 }
 
 /** A module's mark on a goal's chart: a dashed hairline at a week, its label beside it. The core knows nothing more. */

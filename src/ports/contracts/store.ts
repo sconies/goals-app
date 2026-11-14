@@ -25,8 +25,11 @@ export const storeStart = (make: () => Promise<Store>): Start => async (given) =
   return methods(store);
 };
 
-export function storeContract(name: string, make: () => Promise<Store>) {
-  contractSuite(STORE_CONTRACT, name, storeStart(make));
+/** `without`: cases this store can't keep by design, by name. Only the Supabase adapter through the old names in public
+    uses it: 0035's redirects are fixed `select *` views, so a column added since (the cycle's rhythm, 0048) is seen only
+    through faro (supabase/README.md, "No redirect"). */
+export function storeContract(name: string, make: () => Promise<Store>, opts: { without?: RegExp } = {}) {
+  contractSuite(opts.without ? { ...STORE_CONTRACT, cases: STORE_CONTRACT.cases.filter((c) => !opts.without!.test(c.name)) } : STORE_CONTRACT, name, storeStart(make));
 
   // Faro's own: the error a stale save refuses with is one the app knows (data/store isStale), and the demo's plumbing.
   describe(`the goals store, beyond the contract: ${name}`, () => {

@@ -190,6 +190,7 @@ function stage1(rows: Stage1Files): string {
     '',
     '- A header row first, then one row per goal and week (per cell, goal and week for the scorecard), as [the conformance data](../conformance/README.md#the-files) says. `goal` is the goal’s key (G-1). CSV as usual: a field with a comma, a quote or a new line is quoted, quotes doubled. UTF-8.',
     '- How the harness matches: rows by their key columns (`week` and `goal`; and `cell` for the scorecard; `checkin` alone for check-ins), so row order doesn’t matter; columns by name. Text must match exactly. Numbers match when they differ by no more than 0.0000015 (rounding in the sixth decimal place).',
+    '- **The check-in rhythm is a field of the cycle** (`checkInWeeks`: every week when absent, 0 for no set rhythm; `rhythmFrom`, when the present rhythm began). Read it from `workspace.json`’s cycle, never assume every week. Score both conformance sets: the main one, and `spec/conformance/no-rhythm/` (the same workspace with `checkInWeeks` 0; `status`, `flags`, `scorecard` and `projection`), with `node spec/rebuild/drill.mjs rebuild --expected spec/conformance/no-rhythm --files status,flags,scorecard,projection`.',
     '',
     '### A good order',
     '',

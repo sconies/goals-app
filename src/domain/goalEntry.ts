@@ -18,7 +18,7 @@ import { goalChange, checkInChange, type Lookup } from './changes';
 import { answeredDiffs, MIN_REASON, stepState as fixLine, unanswered } from './checkin';
 import { fieldNeedOf, type Required } from './columns';
 import { buildGoal, decimalsFor, draftOf, pastStage, planChanged, planQuestion, stagesDoneAtSetUp, withPoints, type GoalDraft } from './goal';
-import { periodProblem } from './baseline';
+import { periodProblem, PROVISIONAL_LATE } from './baseline';
 import { findGoal, nextKey } from './goalKey';
 import { baselineOnly, isProposed, measureEmpty, withProposed } from './proposed';
 import { MARKS_STAGES, mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
@@ -93,7 +93,7 @@ export type MustFixId =
   | 'name-empty' | 'name-short' | 'owner-empty' | 'team-empty' | 'level-empty' | 'feeds-loop' | 'start-empty' | 'target-empty' | 'limit-empty' | 'lower-empty' | 'lower-not-below'
   | 'not-number' | 'has-words' | 'too-precise' | 'decimals-range' | 'same-as-start' | 'plan-point' | 'margin-negative'
   | 'stage-none' | 'stage-name' | 'stage-week' | 'stage-twice' | 'stage-done-removed' | 'decimals-lose'
-  | 'to-before-from' | 'week-unknown' | 'week-beyond' | 'baseline-period-long';
+  | 'to-before-from' | 'week-unknown' | 'week-beyond' | 'baseline-period-long' | 'baseline-provisional-late';
 
 /**
  * One thing to fix: the field it is under, its id (section 4), the words, and for a stage the row (an index into the
@@ -185,6 +185,9 @@ export function goalMustFix(d: GoalDraft, ctx: MustFixContext): MustFix[] {
       // The baseline's period (BL, domain/baseline): at most 60 characters, as the database holds it.
       const long = periodProblem(d.baselinePeriod ?? '');
       if (long) add('start', 'baseline-period-long', long);
+      // Rule 3 lets a provisional baseline's start move with no reason, so a baseline becomes provisional only before the
+      // goal's first check-in: marked after it, the next save could move the start unasked (BL review, medium 8).
+      if (d.baselineProvisional && ctx.existing?.kind === 'metric' && !ctx.existing.baseline?.provisional && (ctx.checkIns ?? []).some((c) => !c.removedAt)) add('start', 'baseline-provisional-late', PROVISIONAL_LATE);
       const t = number('target', d.target, ['target-empty', 'Enter the target.']);
       if (s != null && t != null && s === t) add('target', 'same-as-start', `The target is the same as today (${withUnit(groupDigits(String(s)), d.unit)}). To hold a number where it is, make this a number to keep in range.`, { hold: s });
       // Plan numbers typed by hand. One already stored (an existing goal's plan) is not judged again unless it changed.
@@ -629,7 +632,9 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   // #376: a batch row without it would write NULL over the stored column).
   const kept = existing ? { ...(existing.proposedIn ? { proposedIn: existing.proposedIn } : {}), ...(existing.proposedBy ? { proposedBy: existing.proposedBy } : {}) } : {};
   const state = proposing ? { proposedAt: existing?.proposedAt ?? x.now, proposedBy: existing?.proposedBy ?? x.actor.id, ...((i.proposedIn ?? existing?.proposedIn) ? { proposedIn: i.proposedIn ?? existing!.proposedIn } : {}) } : kept;
-  const goal: Goal = existing ? { ...built, pending: null, ...state } : { ...built, key: nextKey(s.goals, s.keysIssued), ...state };
+  // The hold is the goal's own, set by what measures it, not by the form: a save keeps it (MS review, medium 3).
+  const held = existing?.unmeasuredSince ? { unmeasuredSince: existing.unmeasuredSince } : {};
+  const goal: Goal = existing ? { ...built, pending: null, ...state, ...held } : { ...built, key: nextKey(s.goals, s.keysIssued), ...state };
   const needsReason = !proposing && !!existing && checkIns.length > 0 && planChanged(existing, goal);
   if (needsReason && (i.reason ?? '').trim().length < MIN_REASON) throw new NotAllowed(REASON_EMPTY);
 

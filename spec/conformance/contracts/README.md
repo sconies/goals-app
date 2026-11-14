@@ -99,10 +99,11 @@ create or replace view public.okr_contract_marks with (security_invoker = on) as
 - `deleteWorkspace`: (workspaceId) Remove the workspace and everything in it. Answers null.
 - `history`: (workspaceId, { before?, goalId?, size? }) Change-log entries a page at a time, newest first (by `at`, then `id`, both descending): `{ changes, next }`, those strictly older than `before` (`{ at, id }`), only one goal’s when `goalId` is given, 50 unless `size` says otherwise and never more than 100; `next` is the last entry’s `{ at, id }` when there are more, else null.
 
-Its 13 cases:
+Its 14 cases:
 
 1. keeps a new workspace whole, and lists it
 1. saves a change-log entry and gives it back
+1. keeps a cycle’s check-in rhythm whole: no set rhythm, every week from a day, and back
 1. saves a goal one version on, and refuses a save based on the version before it as stale
 1. never lets a save to one workspace change another’s records
 1. keeps a module’s records whole, saves them with a commit, and removes and restores them with what they point to

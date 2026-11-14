@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildPlatformOrg } from './platformOrg';
 import { metricLinkToRow, metricToRow } from '../modules/metrics/records';
-import { goalToRows } from './rows';
+import { cycleToRow, goalToRows } from './rows';
 import type { MetricGoal } from '../domain/types';
 
 const dir = join(__dirname, '../../supabase/migrations');
@@ -102,7 +102,7 @@ describe('database schema', () => {
     await db.exec(readFileSync(join(dir, '0043_metric_parts_and_retirement.sql'), 'utf8'));
     expect((await db.query<{ n: number }>(`select count(*)::int as n from pg_constraint where conname in ('okr_goal_metrics_part_len', 'okr_metrics_retired_why_len', 'okr_metrics_marks_array')`)).rows[0]!.n).toBe(3);
   });
-  it('keeps a year’s check-in rhythm: every week by default, 0 or 1 (2 and 4 for later), and runs twice (0046)', async () => {
+  it('keeps a year’s check-in rhythm: every week by default, 0 or 1 (2 and 4 for later), and runs twice (0048)', async () => {
     const c = await db.query<{ check_in_weeks: number; rhythm_from: string | null }>(`select check_in_weeks, rhythm_from from faro.okr_cycles limit 1`);
     expect(c.rows[0]).toMatchObject({ check_in_weeks: 1, rhythm_from: null });
     await db.query(`update faro.okr_cycles set check_in_weeks = 0, rhythm_from = '2026-10-05' where id = (select id from faro.okr_cycles limit 1)`);
@@ -113,6 +113,14 @@ describe('database schema', () => {
     const rows = [{ id: 'cycle-rhythm', workspace_id: 'example', name: 'Rhythm', start_date: '2026-09-07', weeks: 13, check_in_weeks: 0, rhythm_from: '2026-10-05' }];
     await db.query(`select okr_upsert('okr_cycles', $1::jsonb, 'id')`, [JSON.stringify(rows)]);
     expect((await db.query<{ check_in_weeks: number; rhythm_from: unknown }>(`select check_in_weeks, rhythm_from::text from okr_cycles where id = 'cycle-rhythm'`)).rows[0]).toEqual({ check_in_weeks: 0, rhythm_from: '2026-10-05' });
+  });
+  it('saves two cycles in one batch, one with the rhythm and one without: every row carries both columns (0048, #308)', async () => {
+    const base = { name: 'Two', startDate: '2026-09-07', weeks: 13, reviewDay: 3 };
+    const rows = [cycleToRow('example', { ...base, id: 'cycle-with', startDate: '2030-01-07', checkInWeeks: 0, rhythmFrom: '2030-02-04' }), cycleToRow('example', { ...base, id: 'cycle-without', startDate: '2031-01-06' })];
+    expect(rows[1]).toMatchObject({ check_in_weeks: 1, rhythm_from: null });
+    await db.query(`select okr_upsert('okr_cycles', $1::jsonb, 'id')`, [JSON.stringify(rows)]);
+    const saved = await db.query<{ id: string; check_in_weeks: number; rhythm_from: string | null }>(`select id, check_in_weeks, rhythm_from::text from okr_cycles where id in ('cycle-with', 'cycle-without') order by id`);
+    expect(saved.rows).toEqual([{ id: 'cycle-with', check_in_weeks: 0, rhythm_from: '2030-02-04' }, { id: 'cycle-without', check_in_weeks: 1, rhythm_from: null }]);
   });
   it('keeps a goal’s baseline: a figure, its period and whether it is provisional, all optional, and runs twice (0049)', async () => {
     const id = (await db.query<{ id: string }>(`select id from faro.okr_goals where kind = 'metric' limit 1`)).rows[0]!.id;

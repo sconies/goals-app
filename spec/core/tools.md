@@ -53,6 +53,7 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`rename_workspace`](#rename_workspace) | Rename the workspace | changes | [renameWorkspace](actions.md#renameworkspace) |
 | [`set_recording`](#set_recording) | Turn recording on or off | changes | [setRecording](actions.md#setrecording) |
 | [`set_feature`](#set_feature) | Switch a feature on or off | changes | [setModule](actions.md#setmodule) |
+| [`set_rhythm`](#set_rhythm) | Choose the check-in rhythm | changes | [setRhythm](actions.md#setrhythm) |
 | [`save_team`](#save_team) | Add or change a team | changes | [saveTeam](actions.md#saveteam) |
 | [`remove_team`](#remove_team) | Remove a team | changes; removes something | [removeTeam](actions.md#removeteam) |
 | [`delete_workspace`](#delete_workspace) | Delete the workspace | changes; removes something | — |
@@ -1743,7 +1744,6 @@ No arguments.
         reviewed: number;
         of: number;
     }[] | undefined;
-    week: number;
     atAGlance: {
         nextReview?: {
             id: string;
@@ -1859,6 +1859,13 @@ No arguments.
         kind: 'stale' | 'for-you';
         says: string;
     }[];
+    rhythm?: 'none' | undefined;
+    noCheckInThisWeek?: {
+        id: string;
+        title: string;
+        lastWeek: number | null;
+    }[] | null | undefined;
+    week: number;
 }
 ```
 
@@ -3170,6 +3177,86 @@ No arguments.
 - “Say on: true to switch it on, or on: false to switch it off.”
 
 **Does the same as:** [setModule](actions.md#setmodule), so it refuses with their words too.
+
+## set_rhythm
+
+**Choose the check-in rhythm.** Admins: how often every goal is expected to have a check-in in this workspace. every: "week" (due by a weekday, due_by; a goal with none for two check-ins’ time reads No recent update) or "none" (no set rhythm: owners check in when there’s news, and nothing is due or late for want of a check-in). Without confirm: true it changes nothing and says what would change, counted. With it, the change is made and logged; switching a rhythm on counts from today, so nothing is late that day.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `every` | one of `week`, `none` | yes | “week” or “none”. |
+| `due_by` | one of `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`, `Saturday`, `Sunday` | no | With every week: the weekday check-ins are due by. Leave out to keep it. |
+| `confirm` | boolean | no | true to make the change; leave out to see what it would do first. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "every"
+  ],
+  "properties": {
+    "every": {
+      "type": "string",
+      "description": "“week” or “none”.",
+      "enum": [
+        "week",
+        "none"
+      ]
+    },
+    "due_by": {
+      "type": "string",
+      "description": "With every week: the weekday check-ins are due by. Leave out to keep it.",
+      "enum": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday"
+      ]
+    },
+    "confirm": {
+      "type": "boolean",
+      "description": "true to make the change; leave out to see what it would do first."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`, one of:
+
+```ts
+{
+    changed: boolean;
+    rhythm: string;
+    wouldChange: string[];
+}
+```
+
+```ts
+{
+    rhythm: string;
+    dueBy: string | null | undefined;
+}
+```
+
+**Refuses with:**
+
+- “Say every: "week" or every: "none".”
+- “Choose a day of the week.”
+- “Only admins can change the check-in rhythm.”
+
+**Does the same as:** [setRhythm](actions.md#setrhythm), so it refuses with their words too.
 
 ## save_team
 
@@ -4747,6 +4834,10 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `caveats` | string | no | What to watch out for when reading it. |
 | `measurement` | one of `measured`, `partly`, `gap` | no | Whether it is measured today: “measured” (in full), “partly” (some of it, or not every period; say what’s missing) or “gap” (nobody measures it yet). Goals measured by a metric with a gap are held to no number until it is measured, and need no made-up baseline. Measured when left out of a new metric. |
 | `measurement_note` | string | no | What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured. |
+| `parent` | string | no | The metric it sits under, by ID or name: what it is a component, driver, control or breakdown of. Empty for none. |
+| `level` | one of `component`, `driver`, `control`, `breakdown`, `` | no | How it relates to its parent: “component” (part of its number), “driver” (moves it), “control” (watched so improving the parent breaks nothing else) or “breakdown” (the parent split one way). Needs a parent. Empty for not said. |
+| `confidence` | one of `high`, `medium`, `low`, `` | no | How far its number can be trusted: “high”, “medium” or “low”. Empty for not said. |
+| `gaming` | string | no | How the number could be gamed, in words (up to 500 characters). Empty for not said. |
 | `confirm` | boolean | no | Kept for older callers; the questions below replace it. |
 | `comparable` | boolean | no | When the meaning or source of a metric goals use changes: true if it is still the same number (better words; nothing is marked), false if the number itself changes from this week (its goals’ charts and History say so; give reason). |
 | `reason` | string | no | Why, in a line (up to 300 characters): required when the number itself changes (comparable false) or the direction changes. Every goal measured by it shows this. |
@@ -4834,6 +4925,35 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
     "measurement_note": {
       "type": "string",
       "description": "What’s missing from the measurement, and who is sorting it out (up to 300 characters). Ignored when measured."
+    },
+    "parent": {
+      "type": "string",
+      "description": "The metric it sits under, by ID or name: what it is a component, driver, control or breakdown of. Empty for none."
+    },
+    "level": {
+      "type": "string",
+      "description": "How it relates to its parent: “component” (part of its number), “driver” (moves it), “control” (watched so improving the parent breaks nothing else) or “breakdown” (the parent split one way). Needs a parent. Empty for not said.",
+      "enum": [
+        "component",
+        "driver",
+        "control",
+        "breakdown",
+        ""
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "description": "How far its number can be trusted: “high”, “medium” or “low”. Empty for not said.",
+      "enum": [
+        "high",
+        "medium",
+        "low",
+        ""
+      ]
+    },
+    "gaming": {
+      "type": "string",
+      "description": "How the number could be gamed, in words (up to 500 characters). Empty for not said."
     },
     "confirm": {
       "type": "boolean",

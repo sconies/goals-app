@@ -2,7 +2,7 @@
    receipt's sentences (2.1) and the moment a check-in makes (rule 3). */
 import { describe, expect, it } from 'vitest';
 import { dueWords, forgivenIn, inByDueDay, onTimeStreak, receiptFacts, receiptText, reviewDate, weekProgress, type ReceiptFacts } from './progress';
-import { beforeReview, beforeReviewText, checkInStanding, habit, type HabitRows, habitShown, habitWeeks, moment, momentText, weekWords } from './habit';
+import { beforeReview, beforeReviewText, byWeekTo, checkInStanding, habit, habitCell, type HabitRows, habitShown, habitWeeks, moment, momentText, weekWords } from './habit';
 import { weekDate } from './plan';
 import type { CheckIn, Cycle, Goal, Snapshot, Status } from './types';
 
@@ -92,7 +92,7 @@ describe('the receipt (spec 2.1)', () => {
   });
   it('reads its facts from the week (receiptFacts)', () => {
     const s = weeks(41, 46, [46], 41);
-    const f = receiptFacts(weekProgress('tunde', s, cycle, 46, new Date('2026-11-13T12:00:00Z')), 'tunde', s, cycle, 46, dueWords(true, cycle, 46, true));
+    const f = receiptFacts(weekProgress('tunde', s, cycle, 46, new Date('2026-11-13T12:00:00Z')), 'tunde', s, cycle, 46, dueWords(true, cycle, 46, true))!;
     expect(f).toMatchObject({ total: 1, after: 1, week: 46, words: { by: 'before Thursday’s review', after: 'after Thursday’s review' }, run: 5, nextDue: '2026-11-19' });
   });
 });
@@ -225,11 +225,11 @@ describe('the run, after #410’s review', () => {
     s.checkIns = s.checkIns.filter((c) => c.week !== 45).concat(ci('g1', 45, false, { backfilled: true }));
     expect(onTimeStreak('tunde', s, cycle, 46)).toBe(6);
     expect(forgivenIn('tunde', s.goals, s.checkIns, cycle, 46)).toBe(45);
-    const f = receiptFacts(weekProgress('tunde', s, cycle, 46, new Date('2026-11-12T12:00:00Z')), 'tunde', s, cycle, 46, dueWords(false, cycle, 46));
+    const f = receiptFacts(weekProgress('tunde', s, cycle, 46, new Date('2026-11-12T12:00:00Z')), 'tunde', s, cycle, 46, dueWords(false, cycle, 46))!;
     expect(f.forgivenMissed).toBe(true);
     expect(receiptText(f).second).toContain('Week 45 was missed; one missed week doesn’t break a run.');
     const late = weeks(40, 46, [45], 40);
-    const fl = receiptFacts(weekProgress('tunde', late, cycle, 46, new Date('2026-11-12T12:00:00Z')), 'tunde', late, cycle, 46, dueWords(false, cycle, 46));
+    const fl = receiptFacts(weekProgress('tunde', late, cycle, 46, new Date('2026-11-12T12:00:00Z')), 'tunde', late, cycle, 46, dueWords(false, cycle, 46))!;
     expect(receiptText(fl).second).toContain('Week 45 came in late; one late week doesn’t break a run.');
   });
   it('counts a goal taken over only from when it was the new owner’s (medium 4)', () => {
@@ -254,5 +254,19 @@ describe('a moment, after #410’s review', () => {
     const now = ci('g1', 46, false, { status: 'on' });
     expect(moment(behind, now, g)).toEqual({ kind: 'back', behind: 4 });
     expect(moment([...behind, ci('g1', 46, false, { status: 'risk' })], now, g)).toBe(null);
+  });
+});
+
+describe('HB3: a leader’s Home, the habit cell (spec 2.4)', () => {
+  const h = (due: number, unasked: number) => ({ due, unasked, asked: 0, after: 0, none: due - unasked, inTime: unasked });
+  it('“91 of 118 goals · 77%”, last week under it; a percentage only from 20 goals; “So far” before the due day', () => {
+    expect(habitCell(h(118, 91), h(116, 80), true, 46, true)).toEqual({ label: 'Before the review, without being asked', value: '91 of 118 goals · 77%', sub: 'Week 45: 69%' });
+    expect(habitCell(h(17, 14), h(17, 15), true, 46, false)).toEqual({ label: 'On time, without being asked', value: '14 of 17 goals', sub: null });
+    expect(habitCell(h(118, 40), null, false, 46, true)?.value).toBe('So far: 40 of 118 goals');
+    expect(habitCell(h(0, 0), null, true, 46, true)).toBeNull();
+  });
+  it('By week opens the review covering most of the set’s due goals, or the set in Goals', () => {
+    expect(byWeekTo('team', ['a', 'b', 'c'], [{ id: 'r1', goals: ['a'] }, { id: 'r2', goals: ['a', 'b', 'x'] }])).toBe('/reviews/r2');
+    expect(byWeekTo('watching', ['a'], [{ id: 'r1', goals: ['x'] }])).toBe('/goals?scope=watching');
   });
 });
